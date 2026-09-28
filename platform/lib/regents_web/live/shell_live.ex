@@ -69,8 +69,9 @@ defmodule RegentsWeb.ShellLive do
   def handle_async({:agent_activity, _id} = name, result, socket),
     do: {:noreply, Account.settle_activity(socket, name, result)}
 
-  def handle_async({:staking, _generation} = name, result, socket),
-    do: {:noreply, Staking.settle(socket, name, result)}
+  def handle_async({reading, _generation} = name, result, socket)
+      when reading in [:staking, :staking_quiet],
+      do: {:noreply, Staking.settle(socket, name, result)}
 
   def handle_async({feature, _key} = name, result, socket)
       when feature in [:redemption, :open_sea],
@@ -102,6 +103,10 @@ defmodule RegentsWeb.ShellLive do
     do: {:noreply, Staking.active_wallet(socket, active)}
 
   def handle_info(:stake_step_landed, socket), do: {:noreply, Staking.step_landed(socket)}
+  def handle_info(:stake_step_sent, socket), do: {:noreply, Staking.step_sent(socket)}
+
+  def handle_info({:stake_follow, token}, socket),
+    do: {:noreply, Staking.follow(socket, token)}
 
   def handle_info({:redeem_active_wallet, active}, socket),
     do: {:noreply, Redemption.active_wallet(socket, active)}

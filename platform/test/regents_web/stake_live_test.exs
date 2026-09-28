@@ -695,15 +695,78 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, ~s(#staking-activity-#{@hash}[data-outcome="reverted"]))
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
 
-    # A landed approval leaves it to the wallet reading taken after it. This one
-    # still shows no allowance, as it does once a stake has spent the approval.
+    # A landed approval keeps the button on the stake, even while the wallet
+    # reading taken after it has not caught up and still shows no allowance.
     send_landed(view, "approve", hash("0a"), "0x1")
     assert has_element?(view, ~s(#staking-activity-#{hash("0a")}[data-outcome="confirmed"]))
-    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
+    assert actions_assigns(view).review.steps |> Enum.any?(&(&1.step == "approve"))
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|, "Stake REGENT")
+    assert has_element?(view, ".stake-approval-note", "Approved. You can stake now.")
 
     view |> element(~s(button[phx-value-mode="unstake"])) |> render_click()
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="unstake"]|, "Unstake REGENT")
     refute has_element?(view, ".stake-approval-note")
+  end
+
+  test "FOLLOWS_BASE_AFTER_SENDING: a sent step re-reads the wallet every five seconds for a minute, quietly",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "follow-after-sending")
+    set_amount(view, "1")
+    assert staking_assigns(view).staking_follow == nil
+
+    on_exit(fn ->
+      for key <- [:test_staking_wallet_block, :test_staking_read_watcher] do
+        Application.delete_env(:regents, key)
+      end
+    end)
+
+    send_landed(view, "approve", @hash, "0x1")
+    assert {token, 12} = staking_assigns(view).staking_follow
+
+    # Base has moved on: the next reading shows it, and nothing on the page
+    # says a reading is under way.
+    Application.put_env(:regents, :test_staking_wallet_block, 1_250)
+
+    Application.put_env(:regents, :test_staking_balances, %{
+      @wallet => %{token: "7000000000000000000"}
+    })
+
+    send(view.pid, {:stake_follow, token})
+    refute render(view) =~ "Updating from Base"
+    render_async(view)
+    assert staking_assigns(view).staking.wallet_block_number == 1_250
+    assert staking_assigns(view).staking.wallet_token_balance_raw == "7000000000000000000"
+
+    # A reading from an earlier block, or one that failed, leaves the newer
+    # figures where they are.
+    Application.put_env(:regents, :test_staking_wallet_block, 1_245)
+
+    Application.put_env(:regents, :test_staking_balances, %{
+      @wallet => %{token: "3000000000000000000"}
+    })
+
+    send(view.pid, {:stake_follow, token})
+    render_async(view)
+    Application.put_env(:regents, :test_staking_wallet_error, :rpc_unavailable)
+    send(view.pid, {:stake_follow, token})
+    render_async(view)
+
+    assigns = staking_assigns(view)
+    assert assigns.staking.wallet_block_number == 1_250
+    assert assigns.staking.wallet_token_balance_raw == "7000000000000000000"
+    refute render(view) =~ @refresh_failure
+
+    # Twelve reads in all, then no more; an earlier minute's token reads nothing.
+    Application.delete_env(:regents, :test_staking_wallet_error)
+    for _read <- 4..12, do: send(view.pid, {:stake_follow, token})
+    render_async(view)
+    assert {^token, 0} = staking_assigns(view).staking_follow
+
+    Application.put_env(:regents, :test_staking_read_watcher, self())
+    send(view.pid, {:stake_follow, token})
+    send(view.pid, {:stake_follow, make_ref()})
+    render_async(view)
+    refute_receive {:staking_read, :wallet, _pid}, 100
   end
 
   test "AMOUNT_LIMITS: Max follows capacity and an over-limit amount still reaches the wallet", %{

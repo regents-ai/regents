@@ -13,6 +13,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
 
+  alias RegentChain.Address
   alias Regents.Actors.Human
   alias Regents.Staking
   alias Regents.Staking.Facts, as: StakingFacts
@@ -20,6 +21,10 @@ defmodule RegentsWeb.ShellLive.Staking do
   alias RegentsWeb.ShellLive.Identity
 
   @routes [:stake, :app]
+  # After a step is sent, the wallet's figures are read again this often, this
+  # many times: a minute of following Base while the step lands.
+  @follow_every :timer.seconds(5)
+  @follow_reads 12
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
   # Names the budget it belongs to. The Redeem page has its own, unrelated
   # per-visitor limit on looking up owned NFTs, and the two refusals must never
@@ -35,7 +40,8 @@ defmodule RegentsWeb.ShellLive.Staking do
       staking_shared_reading: false,
       staking_status: :loading,
       staking_generation: 0,
-      staking_followed: false
+      staking_followed: false,
+      staking_follow: nil
     )
   end
 
@@ -117,7 +123,11 @@ defmodule RegentsWeb.ShellLive.Staking do
     socket
     |> release_staking_read(name)
     |> assign(
-      staking: StakingFacts.merge(staking, wallet_facts),
+      staking:
+        if(newer?(staking, wallet_facts),
+          do: StakingFacts.merge(staking, wallet_facts),
+          else: staking
+        ),
       staking_status: :ready,
       staking_notice: clear_staking_refresh_failure(socket.assigns.staking_notice)
     )
@@ -129,6 +139,23 @@ defmodule RegentsWeb.ShellLive.Staking do
         _failed
       ),
       do: socket |> release_staking_read(name) |> wallet_read_failed()
+
+  # A quiet reading only ever brings newer figures for the wallet on screen; one
+  # that failed, or answers for a wallet the page has moved on from, changes
+  # nothing.
+  def settle(
+        %{assigns: %{staking_generation: generation, staking: staking}} = socket,
+        {:staking_quiet, generation},
+        {:ok, {:ok, wallet_facts}}
+      )
+      when is_map(staking) do
+    if Address.equal?(wallet_facts.wallet_address, socket.assigns.staking_wallet) and
+         newer?(staking, wallet_facts),
+       do: assign(socket, staking: StakingFacts.merge(staking, wallet_facts)),
+       else: socket
+  end
+
+  def settle(socket, {:staking_quiet, _generation}, _result), do: socket
 
   def settle(socket, name, _result), do: release_staking_read(socket, name)
 
@@ -182,6 +209,35 @@ defmodule RegentsWeb.ShellLive.Staking do
     do: start_staking_read(socket)
 
   def step_landed(socket), do: socket
+
+  @doc """
+  A Stake step was sent: for the next minute this wallet's figures are read
+  again every five seconds, without the page showing a reading in progress, so
+  they catch up with Base however long the step takes to land. Another step
+  sent starts the minute again.
+  """
+  def step_sent(%{assigns: %{route_spec: %{route_id: :stake}}} = socket) do
+    token = make_ref()
+    Process.send_after(self(), {:stake_follow, token}, @follow_every)
+    assign(socket, staking_follow: {token, @follow_reads})
+  end
+
+  def step_sent(socket), do: socket
+
+  @doc "One of the reads `step_sent/1` asked for."
+  def follow(
+        %{assigns: %{staking_follow: {token, left}, route_spec: %{route_id: :stake}}} = socket,
+        token
+      )
+      when left > 0 do
+    if left > 1, do: Process.send_after(self(), {:stake_follow, token}, @follow_every)
+
+    socket
+    |> assign(staking_follow: {token, left - 1})
+    |> start_quiet_read()
+  end
+
+  def follow(socket, _token), do: socket
 
   def handles?(event), do: event in ~w(refresh_shared_snapshot refresh_data)
 
@@ -321,6 +377,30 @@ defmodule RegentsWeb.ShellLive.Staking do
     wallet = socket.assigns.staking_wallet
     start_wallet_read(socket, fn -> Staking.account_for_wallet(wallet) end)
   end
+
+  # The same read, answered under its own name so the page shows nothing in
+  # progress and a visible read already running is left to finish.
+  defp start_quiet_read(%{assigns: %{staking_wallet: nil}} = socket), do: socket
+  defp start_quiet_read(%{assigns: %{staking: nil}} = socket), do: socket
+
+  defp start_quiet_read(socket) do
+    wallet = socket.assigns.staking_wallet
+
+    start_async(socket, {:staking_quiet, socket.assigns.staking_generation}, fn ->
+      Staking.account_for_wallet(wallet)
+    end)
+  end
+
+  # Readings of one wallet can come back from Base out of order; one taken at
+  # an earlier block than the figures on screen is older news and is dropped.
+  defp newer?(
+         %{wallet_address: wallet, wallet_block_number: shown},
+         %{wallet_address: read_wallet, wallet_block_number: read}
+       )
+       when is_integer(shown) and is_integer(read),
+       do: not Address.equal?(wallet, read_wallet) or read >= shown
+
+  defp newer?(_staking, _wallet_facts), do: true
 
   # A wallet reading answers for one account and carries no contract figures, so
   # with no shared reading on screen there is nothing for it to be shown beside.

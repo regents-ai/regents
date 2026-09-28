@@ -149,8 +149,12 @@ defmodule RegentsWeb.StakeActions do
     end
   end
 
-  def handle_event("step_sent", params, socket),
-    do: {:noreply, OnchainSteps.sent(socket, params)}
+  # A signed step will move this wallet's figures, so the page starts following
+  # them on Base.
+  def handle_event("step_sent", params, socket) do
+    send(self(), :stake_step_sent)
+    {:noreply, OnchainSteps.sent(socket, params)}
+  end
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
       when is_binary(name) and failure_reason(reason) do
@@ -318,24 +322,40 @@ defmodule RegentsWeb.StakeActions do
   defp acknowledge(_unticked, _receiver), do: nil
 
   # The step the primary button sends: the approval while one is needed and none
-  # from this wallet is still on its way to Base, then the action itself.
+  # from this wallet is on its way to Base or has landed there, then the action
+  # itself. The approval is unlimited, so one that landed is enough even before
+  # the wallet's figures catch up with it.
   defp next_step(%{review: nil, action: action}), do: action
 
   defp next_step(%{review: review, action: action, presses: presses}) do
-    if Review.find(review, "approve") && not Presses.on_its_way?(presses, review, "approve"),
-      do: "approve",
-      else: action
+    if Review.find(review, "approve") && not Presses.on_its_way?(presses, review, "approve") &&
+         not approval_landed?(presses, review),
+       do: "approve",
+       else: action
+  end
+
+  defp approval_landed?(presses, review) do
+    step = Review.find(review, "approve")
+
+    Enum.any?(
+      Presses.shown(presses),
+      &(&1.outcome == :confirmed and &1.step == step and &1.review.signer == review.signer and
+          &1.review.chain.chain_id == review.chain.chain_id)
+    )
   end
 
   defp approval_note(%{review: nil}), do: nil
 
-  defp approval_note(%{review: review} = assigns) do
+  defp approval_note(%{review: review, presses: presses} = assigns) do
     cond do
       is_nil(Review.find(review, "approve")) ->
         nil
 
       next_step(assigns) == "approve" ->
         "Staking needs a one-time REGENT approval first. Approve it, then stake."
+
+      approval_landed?(presses, review) ->
+        "Approved. You can stake now."
 
       true ->
         "Approval sent. You can stake now; if the approval has not landed yet, the stake will not go through."
