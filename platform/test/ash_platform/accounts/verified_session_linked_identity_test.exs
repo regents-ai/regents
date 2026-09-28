@@ -5,6 +5,8 @@ defmodule AshPlatform.Accounts.VerifiedSessionLinkedIdentityTest do
   alias AshPlatform.Accounts.VerifiedSession
   alias AshPlatform.Actors.{Human, System}
 
+  setup {AshPlatform.EnsLookups, :await_at_exit}
+
   test "session refresh adds and removes verified social identities" do
     verified = verified_identity("reconcile", [social(:x, "x-42", "regent")])
 
