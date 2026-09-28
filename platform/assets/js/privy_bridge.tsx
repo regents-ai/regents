@@ -144,9 +144,7 @@ export function createSignInRequest({
   loginOpen,
   recoveryAvailable,
   isCurrent = () => true,
-}: SignInRequestOptions): {signIn: () => Promise<void>; recovering: () => boolean} {
-  let recovering = false
-
+}: SignInRequestOptions): {signIn: () => Promise<void>} {
   const openLoginOnce = () => {
     if (loginOpen.current) return
     loginOpen.current = true
@@ -154,7 +152,6 @@ export function createSignInRequest({
   }
 
   return {
-    recovering: () => recovering,
     async signIn() {
       const epoch = walletWorkEpoch()
       const current = () => isCurrent() && walletWorkEpoch() === epoch
@@ -176,15 +173,12 @@ export function createSignInRequest({
         }
 
         recoveryAvailable.current = false
-        recovering = true
         try {
           await providerLogout()
           requireCurrent(current)
         } catch (error) {
           if (error instanceof StalePrivyOperation) throw error
           throw new AccountAuthFailure("session", "session_exchange")
-        } finally {
-          recovering = false
         }
         openLoginOnce()
       }
@@ -570,13 +564,6 @@ export function createPrivySessionCompletion({
   }
 }
 
-export function createPrivyTokenCallbacks(completeLogin: () => Promise<void>) {
-  return {
-    onAccessTokenGranted: () => completeLogin().catch(() => undefined),
-    onAccessTokenRemoved: () => undefined,
-  } satisfies PrivyEvents["accessToken"]
-}
-
 type PrivyLoginCallbackOptions = {
   completeLogin: () => Promise<void>
   isCurrent?: () => boolean
@@ -597,14 +584,13 @@ export function privyLoginFailureDiagnostic(error: unknown): SignInFailureDiagno
   return privyLoginFailureDiagnostics[typeof error === "string" ? error : ""] ?? "provider_error"
 }
 
-// Privy runs this for its own provider bootstrap too, for a modal this page
-// never opened, and that entry shares the one in-flight completion with a
-// deliberate click. Only a modal this page opened may speak for it, so a
-// bootstrap refusal stays silent while the click recovers behind it, and a
+// Privy runs these for its own provider bootstrap too, for a modal this page
+// never opened. Only a modal this page opened signs anyone in or speaks for
+// its outcome: someone Privy still remembers signs in by pressing Sign in. A
 // completion this page asked for — including one Privy runs synchronously for
 // an already-authenticated customer, after the click that opened login has
-// settled — says so rather than rejecting into nothing. Both outcomes close
-// the modal, so both release the guard for the next click.
+// settled — says when it fails rather than rejecting into nothing. Both
+// outcomes close the modal, so both release the guard for the next click.
 export function createPrivyLoginCallbacks({
   completeLogin,
   loginOpen,
@@ -615,10 +601,8 @@ export function createPrivyLoginCallbacks({
 }: PrivyLoginCallbackOptions): PrivyEvents["login"] {
   return {
     onComplete: ({loginAccount, user}) => {
-      if (!isCurrent() || !acceptsSubject(user?.id)) return
-      const opened = loginOpen.current
+      if (!isCurrent() || !acceptsSubject(user?.id) || !loginOpen.current) return
       loginOpen.current = false
-      if (!opened && walletDisconnected()) return
       forgetEthereumWalletSelection()
       if (loginAccount?.type === "wallet" && loginAccount.chainType === "ethereum") {
         rememberEthereumWalletSelection(loginAccount)
@@ -629,7 +613,7 @@ export function createPrivyLoginCallbacks({
       // wallet sync.
       forgetWalletDisconnected()
       void completeLogin().catch(error => {
-        if (!opened || !isCurrent() || error instanceof StalePrivyOperation) return
+        if (!isCurrent() || error instanceof StalePrivyOperation) return
         if (!(error instanceof ServerReportedSessionError)) {
           reportFailure("session_exchange")
         }
@@ -806,20 +790,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
       }),
     [completeWalletLogin, lifetime],
   )
-  // Adoption only ever asks the server, and it stands aside entirely while an
-  // explicit recovery still holds the pair the server refused.
-  const completeAutomaticLogin = React.useCallback(
-    () =>
-      lifetime.aborted || !provider.current.ready || !provider.current.authenticated ||
-        (walletDisconnected() && !explicitWalletLogin.current) || signOutOnly || signInRequest.recovering()
-        ? Promise.resolve() : completeExplicitLogin(),
-    [completeExplicitLogin, signInRequest, signOutOnly, lifetime],
-  )
-  const tokenCallbacks = React.useMemo(
-    () => createPrivyTokenCallbacks(completeAutomaticLogin),
-    [completeAutomaticLogin],
-  )
-  const providerToken = useToken(tokenCallbacks)
+  const providerToken = useToken()
   const getAccessToken = providerState?.getAccessToken ?? providerToken.getAccessToken
   const acquireTokens = React.useMemo(
     () =>
@@ -887,12 +858,6 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
       }),
     [authenticated],
   )
-
-  React.useEffect(() => {
-    if (signOutOnly || !ready || !authenticated) return
-
-    void completeAutomaticLogin().catch(() => undefined)
-  }, [authenticated, completeAutomaticLogin, ready, signOutOnly])
 
   // The active selection is published alongside the connected set and depends on
   // it, so a selection change with an unchanged wallets array still runs this and

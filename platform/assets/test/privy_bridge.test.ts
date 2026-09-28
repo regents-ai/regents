@@ -7,7 +7,6 @@ const productionRootUnmount = vi.hoisted(() => vi.fn())
 const productionPrivyHooks = vi.hoisted(() => ({
   login: vi.fn(),
   loginCallbacks: undefined as PrivyEvents["login"] | undefined,
-  tokenCallbacks: undefined as PrivyEvents["accessToken"] | undefined,
   linkTwitter: vi.fn(),
   linkGithub: vi.fn(),
   linkFarcaster: vi.fn(),
@@ -36,10 +35,7 @@ vi.mock("@privy-io/react-auth", () => ({
     wallet: undefined,
     connect: productionPrivyHooks.connectActiveWallet,
   }),
-  useToken: (callbacks?: PrivyEvents["accessToken"]) => {
-    productionPrivyHooks.tokenCallbacks = callbacks
-    return {getAccessToken: vi.fn(async () => null)}
-  },
+  useToken: () => ({getAccessToken: vi.fn(async () => null)}),
   getIdentityToken: vi.fn(async () => null),
   useLogin: (callbacks?: PrivyEvents["login"]) => {
     productionPrivyHooks.loginCallbacks = callbacks
@@ -91,7 +87,6 @@ const {
   createPrivyTokenPairSource,
   createSignInRequest,
   createPrivySessionCompletion,
-  createPrivyTokenCallbacks,
   privyLoginFailureDiagnostic,
 } = bridge
 
@@ -350,10 +345,6 @@ function signInScenario({
       live = true
       loginOpen.current = false
     },
-    // Startup adoption and the granted-token callback: they share the one
-    // completion and stand aside during an explicit recovery.
-    automaticCompletion: () =>
-      request.recovering() ? Promise.resolve() : completeLogin(),
   }
 }
 
@@ -420,27 +411,6 @@ describe("Privy session bridge", () => {
     expect(productionRootUnmount).toHaveBeenCalledOnce()
   })
 
-  it("a passive access-token callback cannot establish a session while Privy is not ready", async () => {
-    productionRootRender.mockReset()
-    const renderAccountBridge = installAccountBridgeRenderer()
-    stubBrowserGlobals("sign-in")
-    const requests = stubSessionRequests()
-    const state = {
-      appId: "test-app", authenticated: true, ready: false, walletsReady: false, wallets: [],
-      getAccessToken: async () => "verified", getIdentityToken: async () => "verified-identity",
-      logout: async () => undefined,
-    }
-    const startup = bridge.startPrivyBridge({}, state)
-    const element = renderedAccountBridge()
-    renderAccountBridge(element)
-    await productionPrivyHooks.tokenCallbacks?.onAccessTokenGranted?.({} as never)
-    expect(requests).toEqual([])
-    state.ready = true
-    state.authenticated = false
-    renderAccountBridge(element)
-    const handle = await startup
-    handle.dispose?.()
-  })
   it("does not start a session POST when its provider lifetime changes during CSRF acquisition", async () => {
     stubBrowserGlobals("sign-in")
     let current = true
@@ -763,73 +733,6 @@ describe("Privy session bridge", () => {
     expect(order).toEqual(["csrf", "post", "csrf", "delete"])
   })
 
-  it("completes the local session from Privy's access-token grant", async () => {
-    const reload = vi.fn()
-    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
-      input === "/auth/csrf"
-        ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
-        : new Response("{}", {
-            status: 200,
-            headers: {"x-ash-session-changed": "true"},
-          }),
-    ) as typeof fetch
-
-    const completeLogin = createPrivySessionCompletion({
-      acquireTokens: acquireVerifiedPair,
-      fetcher,
-      localSessionNeeded: () => true,
-      reload,
-    })
-
-    await Promise.all([completeLogin(), completeLogin()])
-
-    expect(fetcher).toHaveBeenCalledWith(
-      "/auth/privy/session",
-      expect.objectContaining({method: "POST"}),
-    )
-    expect(reload).toHaveBeenCalledOnce()
-  })
-
-  it("finishes sign in when Privy grants the token after wallet authentication settles", async () => {
-    vi.useFakeTimers()
-
-    try {
-      const reload = vi.fn()
-      const fetcher = vi.fn(async (input: RequestInfo | URL) =>
-        input === "/auth/csrf"
-          ? new Response(JSON.stringify({csrf_token: "csrf"}), {status: 200})
-          : new Response("{}", {
-              status: 200,
-              headers: {"x-ash-session-changed": "true"},
-            }),
-      ) as typeof fetch
-
-      const completeLogin = createPrivySessionCompletion({
-        acquireTokens: acquireVerifiedPair,
-        fetcher,
-        localSessionNeeded: () => true,
-        reload,
-      })
-      const tokenCallbacks = createPrivyTokenCallbacks(completeLogin)
-
-      // The grant is only the signal to acquire; the pair Privy is asked for
-      // afterwards is the one that establishes the session.
-      const completion = new Promise<void>(resolve => {
-        setTimeout(() => void tokenCallbacks.onAccessTokenGranted().then(resolve), 10_000)
-      })
-      await vi.advanceTimersByTimeAsync(10_000)
-      await completion
-
-      expect(fetcher).toHaveBeenCalledWith(
-        "/auth/privy/session",
-        expect.objectContaining({method: "POST"}),
-      )
-      expect(reload).toHaveBeenCalledOnce()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
   it("finishes the local session from the first successful wallet login", async () => {
     const completeLogin = vi.fn(async () => undefined)
     const loginOpen = {current: true}
@@ -940,13 +843,11 @@ describe("Privy session bridge", () => {
     })
     const loader = signInLoader(marked.request.signIn)
 
-    // Two deliberate clicks and an automatic adoption while the logout is still
-    // running: the rejected pair is offered exactly once and never again.
+    // Two deliberate clicks while the logout is still running: the rejected
+    // pair is offered exactly once and never again.
     const first = loader.request("sign-in")
     const repeated = loader.request("sign-in")
     await until(() => marked.providerLogout.mock.calls.length === 1)
-    expect(marked.request.recovering()).toBe(true)
-    await marked.automaticCompletion()
     expect(marked.order).toEqual(["csrf", "post Bearer stale", "logout"])
 
     heldLogout.resolve()
@@ -954,7 +855,6 @@ describe("Privy session bridge", () => {
 
     expect(marked.order).toEqual(["csrf", "post Bearer stale", "logout", "login"])
     expect(marked.recoveryAvailable.current).toBe(false)
-    expect(marked.request.recovering()).toBe(false)
     expect(marked.reload).not.toHaveBeenCalled()
 
     marked.completeFreshLogin()
@@ -996,54 +896,25 @@ describe("Privy session bridge", () => {
     },
   )
 
-  it("ONE_RECOVERY_PER_PAGE: an automatic completion takes the marked refusal and leaves Privy alone", async () => {
-    const automatic = signInScenario({answer: () => "marked", pairs: ["stale", "fresh"]})
+  it("ONLY_A_PRESS_SIGNS_IN: a Privy completion this page never opened signs nobody in", async () => {
+    const remembered = signInScenario({answer: () => "ok"})
     const showFailure = vi.fn()
     const bootstrap = createPrivyLoginCallbacks({
-      completeLogin: automatic.completeLogin,
-      loginOpen: automatic.loginOpen,
+      completeLogin: remembered.completeLogin,
+      loginOpen: remembered.loginOpen,
       showFailure,
     })
 
-    // Privy restores the stale session on its own: it fires its login completion
-    // for a modal this page never opened, and the granted token joins the same
-    // attempt.
+    // Privy restores a session it remembers on its own and reports a login for
+    // a modal this page never opened. Nothing is exchanged until Sign in.
     bootstrap.onComplete?.({} as Parameters<NonNullable<typeof bootstrap.onComplete>>[0])
-    await expect(automatic.automaticCompletion()).rejects.toThrow(
-      "Sign in could not be completed.",
-    )
+    await settled()
+    expect(remembered.order).toEqual([])
 
-    expect(automatic.order).toEqual(["csrf", "post Bearer stale"])
-    expect(automatic.providerLogout).not.toHaveBeenCalled()
-    expect(automatic.openLogin).not.toHaveBeenCalled()
+    await remembered.request.signIn()
+    expect(remembered.order).toEqual(["csrf", "post Bearer stale", "csrf", "reload"])
+    expect(remembered.openLogin).not.toHaveBeenCalled()
     expect(showFailure).not.toHaveBeenCalled()
-    expect(automatic.recoveryAvailable.current).toBe(true)
-  })
-
-  it("ONE_RECOVERY_PER_PAGE: the click behind an automatic completion spends the one recovery", async () => {
-    const queued = signInScenario({
-      answer: bearer => (bearer === "Bearer stale" ? "marked" : "ok"),
-      pairs: ["stale", "fresh"],
-    })
-    const showFailure = vi.fn()
-    const bootstrap = createPrivyLoginCallbacks({
-      completeLogin: queued.completeLogin,
-      loginOpen: queued.loginOpen,
-      showFailure,
-    })
-
-    // Privy's bootstrap reaches the refusal first and the click joins the one
-    // attempt already in flight, so the refused pair is offered exactly once and
-    // only the click that owns the page recovers it.
-    bootstrap.onComplete?.({} as Parameters<NonNullable<typeof bootstrap.onComplete>>[0])
-    await queued.request.signIn()
-
-    expect(queued.order).toEqual(["csrf", "post Bearer stale", "logout", "login"])
-    expect(queued.providerLogout).toHaveBeenCalledOnce()
-    expect(queued.openLogin).toHaveBeenCalledOnce()
-    expect(showFailure).not.toHaveBeenCalled()
-    expect(queued.recoveryAvailable.current).toBe(false)
-    expect(queued.reload).not.toHaveBeenCalled()
   })
 
   it("ONE_RECOVERY_PER_PAGE: a second marked refusal stops instead of recovering again", async () => {
@@ -1075,7 +946,6 @@ describe("Privy session bridge", () => {
 
     expect(stuck.openLogin).not.toHaveBeenCalled()
     expect(stuck.recoveryAvailable.current).toBe(false)
-    expect(stuck.request.recovering()).toBe(false)
     expect(stuck.reload).not.toHaveBeenCalled()
   })
 
@@ -1493,9 +1363,9 @@ describe("Privy session bridge", () => {
   })
 
   // Once the provider reports a complete session, the selected wallet is Stake's
-  // wallet again. The page is still anonymous to the server until the verified
-  // pair establishes a session and reloads, and nothing else may write one.
-  it("ANONYMOUS_LOGIN_IS_NONDESTRUCTIVE: a completed provider session publishes its wallet and establishes by pair", async () => {
+  // wallet again. The page stays anonymous to the server until Sign in sends the
+  // verified pair, which establishes a session and reloads; nothing else writes one.
+  it("ANONYMOUS_LOGIN_IS_NONDESTRUCTIVE: a completed provider session publishes its wallet and establishes by pair on Sign in", async () => {
     productionRootRender.mockReset()
     replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
@@ -1515,8 +1385,12 @@ describe("Privy session bridge", () => {
       activeWallet: wallet,
     } as unknown as bridge.PrivyBridgeProviderState)
     renderAccountBridge(renderedAccountBridge())
-    await startup
+    const handle = await startup
     await until(() => activeEthereumWallet()?.provider === wallet.provider)
+    await settled()
+    expect(sessionRequests).toEqual([])
+
+    await handle.request("sign-in")
     await until(() => reload.mock.calls.length > 0)
 
     expect(sessionRequests).toEqual([
@@ -1527,10 +1401,9 @@ describe("Privy session bridge", () => {
     expect(reload).toHaveBeenCalledOnce()
   })
 
-  // The startup restore is the one place a signed-in page would establish
-  // without anyone clicking. A provider that will not issue signed evidence
-  // leaves the anonymous page anonymous instead of sending the proof alone.
-  it("COMPLETE_PAIR_ACQUISITION: a provider with no identity token establishes nothing at startup", async () => {
+  // A provider that will not issue signed evidence leaves the anonymous page
+  // anonymous on Sign in instead of sending the proof alone.
+  it("COMPLETE_PAIR_ACQUISITION: a provider with no identity token establishes nothing on Sign in", async () => {
     productionRootRender.mockReset()
     replaceActiveEthereumWallet(null)
     const renderAccountBridge = installAccountBridgeRenderer()
@@ -1550,9 +1423,9 @@ describe("Privy session bridge", () => {
       activeWallet: wallet,
     } as unknown as bridge.PrivyBridgeProviderState)
     renderAccountBridge(renderedAccountBridge())
-    await startup
+    const handle = await startup
     await until(() => dispatched.includes("ash:wallet-state"))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await expect(handle.request("sign-in")).rejects.toThrow()
 
     expect(sessionRequests).toEqual([])
     expect(reload).not.toHaveBeenCalled()
@@ -1824,13 +1697,13 @@ describe("Privy session bridge", () => {
     replaceActiveEthereumWallet(null)
     replaceConnectedEthereumWallets([])
     const renderAccountBridge = installAccountBridgeRenderer()
-    const {localStorage, reload} = stubBrowserGlobals("sign-out")
+    const {localStorage, reload} = stubBrowserGlobals("sign-in")
     localStorage.setItem("regent:wallet-disconnected:v1", "true")
     const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
     const setActiveWallet = vi.fn()
     const providerState = {
       appId: "test-app",
-      authenticated: true,
+      authenticated: false,
       getAccessToken: async () => "current-token",
       logout: async () => undefined,
       ready: true,
@@ -1843,9 +1716,10 @@ describe("Privy session bridge", () => {
     const accountElement = renderedAccountBridge()
     renderAccountBridge(accountElement)
     const handle = await startup
-    // A real user explicitly resumes the connection; an unsolicited bootstrap
-    // callback must no longer undo a remembered Disconnect.
+    // A real user explicitly resumes the connection by signing in through the
+    // window this page opened, which clears a remembered Disconnect.
     await handle.request("sign-in")
+    expect(productionPrivyHooks.login).toHaveBeenCalled()
 
     productionPrivyHooks.loginCallbacks?.onComplete?.({
       loginAccount: {type: "wallet", chainType: "ethereum", address: wallet.address, walletClientType: "metamask"},
@@ -1853,6 +1727,7 @@ describe("Privy session bridge", () => {
     await settled()
     expect(setActiveWallet).not.toHaveBeenCalled()
 
+    providerState.authenticated = true
     providerState.wallets = [wallet]
     providerState.walletsReady = true
     renderAccountBridge(accountElement)
