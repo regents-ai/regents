@@ -10,8 +10,8 @@ defmodule AshPlatform.Staking.StepsTest do
   @one "1000000000000000000"
 
   # Calldata the page's browser code built for these same presses before the
-  # server took over, byte for byte.
-  @approve_one "0x095ea7b3000000000000000000000000b027dc261636e30cbc0fe25b2f8e1ed273354ab50000000000000000000000000000000000000000000000000de0b6b3a7640000"
+  # server took over, byte for byte; the approval is for every REGENT there is.
+  @approve_unlimited "0x095ea7b3000000000000000000000000b027dc261636e30cbc0fe25b2f8e1ed273354ab5ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
   @stake_one "0x7acb77570000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000001111111111111111111111111111111111111111"
   @stake_one_for_other "0x7acb77570000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000de0b295669a9fd93d5f28d9ec85e40f4cb697bae"
   @unstake_one "0x8381e1820000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000001111111111111111111111111111111111111111"
@@ -30,9 +30,9 @@ defmodule AshPlatform.Staking.StepsTest do
 
   defp names(staking, form), do: Enum.map(steps(staking, form), & &1.step)
 
-  test "a stake asks for its exact approval first unless this wallet's allowance covers it" do
+  test "a stake asks for an unlimited approval first unless this wallet's allowance covers it" do
     assert [
-             %{step: "approve", to: @regent, data: @approve_one, value: "0x0"},
+             %{step: "approve", to: @regent, data: @approve_unlimited, value: "0x0"},
              %{step: "stake", to: @staking, data: @stake_one, value: "0x0"} | _claims
            ] = steps(reading("0"), form())
 

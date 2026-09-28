@@ -14,7 +14,7 @@ npx playwright test test/browser/stake.spec.ts
 ```
 
 The browser test uses an in-memory wallet provider and a test-only chain boundary. It presses an
-exact REGENT approval and stake, checks the wallet received exactly the steps the server built, and
+unlimited REGENT approval and stake, checks the wallet received exactly the steps the server built, and
 reads their outcome back through the same stand-in chain. It never contacts a wallet or sends a live
 transaction.
 
@@ -31,7 +31,7 @@ transaction.
    stake, and your available USDC and REGENT rewards.
 6. Choose one action and review the exact amount, recipient, contract, network, and risk text.
 7. Only if you intentionally want to make a Base mainnet transaction, press the action and review
-   every wallet prompt. A stake may need one exact REGENT approval first: the button reads
+   every wallet prompt. A stake may need a one-time, unlimited REGENT approval first: the button reads
    **Approve REGENT** until the approval is sent, then **Stake REGENT**.
 
 The server builds every wallet step (the `regent_chain` package from `elixir-utils/chain`) and

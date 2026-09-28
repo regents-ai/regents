@@ -92,7 +92,7 @@ Recommended first check:
    value shown by the app.
 3. Stop here if you only wanted to test preparation. No transaction has been sent.
 4. If you intentionally choose **Confirm in wallet**, a stake can require two separate prompts:
-   an exact REGENT approval, followed only after server verification by the stake transaction.
+   a one-time, unlimited REGENT approval, followed only after server verification by the stake transaction.
 
 The other supported actions are unstake, claim USDC, claim REGENT, and manual claim-and-restake.
 There is no automatic restaking or server signing.

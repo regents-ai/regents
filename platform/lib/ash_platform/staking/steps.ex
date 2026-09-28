@@ -5,9 +5,10 @@ defmodule AshPlatform.Staking.Steps do
 
   Every claim is always a step. Stake and unstake are steps once the amount is
   one the contract can take, and a stake for another address once that address
-  is valid and its warning acknowledged. An exact approval comes first whenever
+  is valid and its warning acknowledged. An approval comes first whenever
   the last reading does not show enough allowance for this wallet, including
-  when the allowance could not be read.
+  when the allowance could not be read. The approval is unlimited, so it is
+  asked for once per wallet.
   """
 
   alias AshPlatform.Staking.Actions
@@ -15,6 +16,7 @@ defmodule AshPlatform.Staking.Steps do
   alias RegentChain.{Address, Call, Review}
 
   @approve "approve(address,uint256)"
+  @unlimited 2 ** 256 - 1
   @calls %{
     "stake" => "stake(uint256,address)",
     "unstake" => "unstake(uint256,address)",
@@ -86,7 +88,7 @@ defmodule AshPlatform.Staking.Steps do
     case receiver(form) do
       {:ok, receiver} ->
         stake = step("stake", [amount, if(receiver == :signer, do: signer, else: receiver)])
-        if approval_needed?(staking, signer, amount), do: [approval(amount), stake], else: [stake]
+        if approval_needed?(staking, signer, amount), do: [approval(), stake], else: [stake]
 
       {:error, _unready} ->
         []
@@ -103,12 +105,12 @@ defmodule AshPlatform.Staking.Steps do
   defp step(name, arguments),
     do: Review.step(name, Abi.staking_address(), Call.encode(Map.fetch!(@calls, name), arguments))
 
-  defp approval(amount),
+  defp approval,
     do:
       Review.step(
         "approve",
         Abi.stake_token_address(),
-        Call.encode(@approve, [Abi.staking_address(), amount])
+        Call.encode(@approve, [Abi.staking_address(), @unlimited])
       )
 
   # The allowance on the page belongs to the wallet it was read for. Any other

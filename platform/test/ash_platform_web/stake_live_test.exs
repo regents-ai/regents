@@ -596,7 +596,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
     })
 
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|, "Approve REGENT")
-    assert has_element?(view, ".stake-approval-note", "needs an exact REGENT approval first")
+    assert has_element?(view, ".stake-approval-note", "needs a one-time REGENT approval first")
 
     # An approval on its way moves the button on to the stake itself, and one
     # Base turned down brings the approval back.
@@ -722,7 +722,7 @@ defmodule AshPlatformWeb.StakeLiveTest do
 
     set_amount(view, "3")
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]:not([disabled])|)
-    assert has_element?(view, ".stake-approval-note", "needs an exact REGENT approval first")
+    assert has_element?(view, ".stake-approval-note", "needs a one-time REGENT approval first")
   end
 
   test "WALLET_DURING_FIRST_READ: replacing the open wallet read never reports Base unavailable",
