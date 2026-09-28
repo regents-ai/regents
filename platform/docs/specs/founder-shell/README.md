@@ -52,13 +52,9 @@ Content work is supervised and generation-tagged. A newer destination cancels an
 
 Theme persistence exposes System, Light, and Dark through a small local-storage seam. Motion consumes metadata but owns no navigation or product state. Reduced motion is immediate.
 
-## Design ownership handoff
-
-After the immutable scaffold commit, Design owns only the declared presentation paths: homepage template/page CSS/page hook/hero destination/test; shell component and presentation children/shell CSS/render tests; shared motion hooks/tests; theme menu and material tokens; eight background slot assets/manifest/component; and `docs/design/founder-shell/**` evidence. Ash retains router precedence, LiveView/session topology, route metadata, access and identity resolution, content lifecycle, capability state, and behavior hooks.
+## Shell presentation
 
 The shell presentation uses high-opacity gradient-fill/gradient-stroke glass with 0–4px geometry. General controls are square, never pills. There is no shell footer.
-
-The approved homepage hero source is external input only until Design receives ownership: `/Users/sean/Downloads/hero-bg-dark.svg`, SHA-256 `5d04f865bb1b4611e6c9cf9d44e2377107202782b27064e864fd2c4509e0da8c`.
 
 ## Quality gates
 
@@ -68,7 +64,6 @@ The approved homepage hero source is external input only until Design receives o
 - zero database queries; forbidden Repo/database/old-platform dependency checks
 - JavaScript at most 175 KiB gzip, CSS at most 60 KiB gzip, fixture HTML at most 100 KiB uncompressed
 - `mix compile --warnings-as-errors`, focused/full tests, formatting, `mix ash.codegen --check`, TypeScript/Vitest/Playwright, dependency outdated/audit checks, `git diff --check`
-- exact ownership manifest convergence before commit
 
 ## Protected follow-on milestone
 
