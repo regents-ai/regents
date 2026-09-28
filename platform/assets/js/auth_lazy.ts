@@ -143,8 +143,9 @@ export async function sessionLifecycleError(
   response: Response,
 ): Promise<SessionLifecycleError | null> {
   if (response.status !== 409) return null
-  const {error} = (await response.json()) as {error?: SessionLifecycle}
-  return error && sessionLifecycles.includes(error) ? new SessionLifecycleError(error) : null
+  const {error} = (await response.json()) as {error?: {code?: SessionLifecycle}}
+  const code = error?.code
+  return code && sessionLifecycles.includes(code) ? new SessionLifecycleError(code) : null
 }
 
 // A superseded, reset or switched lineage recovers from the cookie the winning

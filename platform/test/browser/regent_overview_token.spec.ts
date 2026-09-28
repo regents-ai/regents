@@ -14,7 +14,10 @@ async function ready(page: Page) {
 }
 
 async function chooseTheme(page: Page, choice: "light" | "dark") {
-  if ((await page.locator("html").getAttribute("data-theme")) !== choice) {
+  // A press chooses the opposite of the theme showing, which before any choice
+  // is the device's, so reaching one theme can take a second press.
+  for (let press = 0; press < 2; press++) {
+    if ((await page.locator("html").getAttribute("data-theme")) === choice) break
     await page.locator("#theme-control [data-theme-toggle]").click()
   }
   await expect(page.locator("html")).toHaveAttribute("data-theme", choice)

@@ -41,12 +41,18 @@ defmodule RegentsWeb.Plugs.LaunchGate do
   defp response_format(%Plug.Conn{path_info: ["auth" | _]}), do: "json"
   defp response_format(conn), do: get_format(conn)
 
-  defp closed(conn, "json"),
-    do:
-      conn
-      |> put_secure_browser_headers(@browser_headers)
-      |> unavailable()
-      |> json(%{error: "This part of Regent isn't open yet."})
+  defp closed(conn, "json") do
+    conn
+    |> put_secure_browser_headers(@browser_headers)
+    |> unavailable()
+    |> json(%{
+      error: %{
+        code: "not_open_yet",
+        message: "This part of Regent isn't open yet.",
+        hint: "Ask again after the number of seconds in Retry-After."
+      }
+    })
+  end
 
   defp closed(conn, "html"),
     do:

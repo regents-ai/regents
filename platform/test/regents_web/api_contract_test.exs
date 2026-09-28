@@ -55,17 +55,23 @@ defmodule RegentsWeb.ApiContractTest do
                        },
                        "content" => %{
                          "application/json" => %{
-                           "schema" => %{
-                             "type" => "object",
-                             "additionalProperties" => false,
-                             "required" => ["error"],
-                             "properties" => %{
-                               "error" => %{"type" => "string", "const" => "rate_limited"}
+                           "schema" => %{"$ref" => "#/components/schemas/RecoveryError"},
+                           "examples" => %{
+                             "rateLimited" => %{
+                               "value" => %{
+                                 "error" => %{
+                                   "code" => "rate_limited",
+                                   "message" => "Too many new sign-ins came from this address.",
+                                   "hint" =>
+                                     "Wait the number of seconds in Retry-After, then try again."
+                                 }
+                               }
                              }
                            }
                          }
                        }
-                     }
+                     },
+                     "409" => %{"$ref" => "#/components/responses/SessionChanged"}
                    }
                  }
                },
@@ -130,7 +136,8 @@ defmodule RegentsWeb.ApiContractTest do
                    "responses" => %{
                      "200" => %{"$ref" => "#/components/responses/Session"},
                      "401" => %{"$ref" => "#/components/responses/PrivySessionUnauthorized"},
-                     "403" => %{"$ref" => "#/components/responses/CsrfForbidden"}
+                     "403" => %{"$ref" => "#/components/responses/CsrfForbidden"},
+                     "409" => %{"$ref" => "#/components/responses/SessionChanged"}
                    }
                  },
                  "delete" => %{
@@ -195,18 +202,29 @@ defmodule RegentsWeb.ApiContractTest do
              }
            }
 
-    assert contract["components"]["schemas"]["Error"] == %{
+    # Every refusal: a code for programs, a message and a hint for people.
+    assert contract["components"]["schemas"]["RecoveryError"] == %{
              "type" => "object",
              "additionalProperties" => false,
              "required" => ["error"],
              "properties" => %{
-               "error" => %{"type" => "string", "enum" => ["unauthorized"]}
+               "error" => %{
+                 "type" => "object",
+                 "additionalProperties" => false,
+                 "required" => ["code", "message", "hint"],
+                 "properties" => %{
+                   "code" => %{"type" => "string"},
+                   "message" => %{"type" => "string"},
+                   "hint" => %{"type" => "string"}
+                 }
+               }
              }
            }
 
     assert Map.take(contract["components"]["responses"], [
              "Session",
              "PrivySessionUnauthorized",
+             "SessionChanged",
              "Logout",
              "CsrfForbidden"
            ]) == %{
@@ -233,7 +251,47 @@ defmodule RegentsWeb.ApiContractTest do
                },
                "content" => %{
                  "application/json" => %{
-                   "schema" => %{"$ref" => "#/components/schemas/Error"}
+                   "schema" => %{"$ref" => "#/components/schemas/RecoveryError"},
+                   "examples" => %{
+                     "unauthorized" => %{
+                       "value" => %{
+                         "error" => %{
+                           "code" => "unauthorized",
+                           "message" => "This sign-in couldn't be confirmed.",
+                           "hint" => "Sign in again."
+                         }
+                       }
+                     }
+                   }
+                 }
+               }
+             },
+             "SessionChanged" => %{
+               "description" =>
+                 "This browser's session changed in another tab or ended; reload the page",
+               "content" => %{
+                 "application/json" => %{
+                   "schema" => %{"$ref" => "#/components/schemas/RecoveryError"},
+                   "examples" => %{
+                     "superseded" =>
+                       refusal(
+                         "session_superseded",
+                         "This browser was signed in again from another tab.",
+                         "Reload the page."
+                       ),
+                     "reset" =>
+                       refusal(
+                         "session_reset_required",
+                         "This browser's sign-in has ended.",
+                         "Reload the page, then sign in again."
+                       ),
+                     "switched" =>
+                       refusal(
+                         "account_switch_required",
+                         "This browser was signed in to another account.",
+                         "Reload the page, then sign in again."
+                       )
+                   }
                  }
                }
              },
@@ -335,6 +393,9 @@ defmodule RegentsWeb.ApiContractTest do
     assert response(conn, 200) == File.read!(@contract)
     assert get_resp_header(conn, "content-type") == ["application/yaml"]
   end
+
+  defp refusal(code, message, hint),
+    do: %{"value" => %{"error" => %{"code" => code, "message" => message, "hint" => hint}}}
 
   # Every component the given part of a document points at, followed through
   # the components themselves.

@@ -10,7 +10,8 @@
   color-scheme: light;
 }
 
-:root[data-brand="platform"][data-theme="dark"] {
+:root[data-brand="platform"][data-theme="dark"],
+:root[data-brand="platform"]:not([data-theme]) {
   color-scheme: dark;
 }
 
@@ -20,8 +21,17 @@
   color-scheme: light;
 }
 
-:root[data-theme="dark"] #app-shell {
+:root[data-theme="dark"] #app-shell,
+:root:not([data-theme]) #app-shell {
   color-scheme: dark;
+}
+
+/* Until the visitor chooses, a device that asks for light gets light. */
+@media (prefers-color-scheme: light) {
+  :root[data-brand="platform"]:not([data-theme]),
+  :root:not([data-theme]) #app-shell {
+    color-scheme: light;
+  }
 }
 
 :root {

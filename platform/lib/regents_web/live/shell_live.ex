@@ -31,13 +31,12 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Redemption, Staking}
 
   @impl true
-  def mount(params, session, socket) do
+  def mount(params, _session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
 
     {:ok,
      socket
      |> assign(
-       theme: session["theme"],
        route_spec: route_spec,
        route_params: params,
        regent: socket.assigns.current_regent,
@@ -122,7 +121,6 @@ defmodule RegentsWeb.ShellLive do
       route_spec={@route_spec}
       account_control={@account_control}
       shell_instance={@shell_instance}
-      theme={@theme}
     >
       <:content>
         <RegentProfileLive.page

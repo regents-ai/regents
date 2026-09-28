@@ -82,30 +82,15 @@ defmodule RegentsWeb.ShellLiveTest do
     assert byte_size(html) <= 100 * 1024
   end
 
-  test "the switch states the theme the server just served", %{conn: conn} do
-    {:ok, dark, _html} = live(conn, "/stake")
+  test "the switch names the theme showing by itself, whatever the server served", %{conn: conn} do
+    for cookie <- [nil, "light", "dark"] do
+      conn = if cookie, do: Plug.Test.put_req_cookie(conn, "regent_theme", cookie), else: conn
+      {:ok, view, _html} = live(conn, "/stake")
 
-    assert has_element?(
-             dark,
-             ~s(#theme-control button.rg-theme-toggle[aria-pressed=false][title="Switch to Light"]),
-             "Dark theme active"
-           )
-
-    {:ok, light, _html} =
-      conn
-      |> Plug.Test.put_req_cookie("regent_theme", "light")
-      |> live("/stake")
-
-    assert has_element?(
-             light,
-             ~s(#theme-control button.rg-theme-toggle[aria-pressed=true][title="Switch to Dark"]),
-             "Light theme active"
-           )
-
-    assert has_element?(
-             light,
-             ~s(button.rg-theme-toggle[aria-label="Color theme: Light. Activate Dark theme."])
-           )
+      assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
+      assert has_element?(view, "#theme-control", "Dark theme on. Switch to light theme.")
+      assert has_element?(view, "#theme-control", "Light theme on. Switch to dark theme.")
+    end
   end
 
   test "anonymous account control renders Sign In separately from the brand link", %{conn: conn} do
@@ -741,7 +726,6 @@ defmodule RegentsWeb.ShellLiveTest do
       route_spec: route_spec,
       account_control: account_control,
       shell_instance: 1,
-      theme: "dark",
       content: [%{inner_block: fn _, _ -> "Fixture content" end}]
     )
   end

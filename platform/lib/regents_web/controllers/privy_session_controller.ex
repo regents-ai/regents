@@ -114,8 +114,8 @@ defmodule RegentsWeb.PrivySessionController do
     case SessionAuthority.renew(claim) do
       {:bootstrap, claim} -> conn |> rotate_session(claim) |> issue_token()
       {:current, _claim} -> issue_token(conn)
-      {:error, :superseded} -> lifecycle_error(conn, "session_superseded")
-      {:error, :reset} -> conn |> drop_session() |> lifecycle_error("session_reset_required")
+      {:error, :superseded} -> refuse(conn, "session_superseded")
+      {:error, :reset} -> conn |> drop_session() |> refuse("session_reset_required")
     end
   end
 
@@ -127,8 +127,7 @@ defmodule RegentsWeb.PrivySessionController do
     conn
     |> put_resp_header("retry-after", to_string(window))
     |> put_resp_header("cache-control", "no-store")
-    |> put_status(:too_many_requests)
-    |> json(%{error: "rate_limited"})
+    |> refuse("rate_limited")
   end
 
   defp diagnostic_accepted(conn) do
@@ -191,15 +190,15 @@ defmodule RegentsWeb.PrivySessionController do
         |> json(session_payload(account))
 
       {:switch, topic} ->
-        conn = conn |> drop_session() |> lifecycle_error("account_switch_required")
+        conn = conn |> drop_session() |> refuse("account_switch_required")
         broadcast_disconnect(topic)
         conn
 
       {:error, :superseded} ->
-        lifecycle_error(conn, "session_superseded")
+        refuse(conn, "session_superseded")
 
       {:error, :reset} ->
-        conn |> drop_session() |> lifecycle_error("session_reset_required")
+        conn |> drop_session() |> refuse("session_reset_required")
     end
   end
 
@@ -241,7 +240,7 @@ defmodule RegentsWeb.PrivySessionController do
     topic = SessionAuthority.revoke(claim(conn))
 
     %Plug.Conn{state: :sent} =
-      conn = conn |> drop_session() |> put_status(:unauthorized) |> json(%{error: "unauthorized"})
+      conn = conn |> drop_session() |> refuse("unauthorized")
 
     broadcast_disconnect(topic)
     conn
@@ -272,7 +271,26 @@ defmodule RegentsWeb.PrivySessionController do
 
   defp issue_token(conn), do: json(conn, %{csrf_token: Plug.CSRFProtection.get_csrf_token()})
 
-  defp lifecycle_error(conn, error), do: conn |> put_status(:conflict) |> json(%{error: error})
+  # Every refusal answers {"error": {"code", "message", "hint"}}, the shape of the
+  # site's other JSON errors. The browser reads the code; people read the words.
+  @refusals %{
+    "unauthorized" => {401, "This sign-in couldn't be confirmed.", "Sign in again."},
+    "rate_limited" =>
+      {429, "Too many new sign-ins came from this address.",
+       "Wait the number of seconds in Retry-After, then try again."},
+    "session_superseded" =>
+      {409, "This browser was signed in again from another tab.", "Reload the page."},
+    "session_reset_required" =>
+      {409, "This browser's sign-in has ended.", "Reload the page, then sign in again."},
+    "account_switch_required" =>
+      {409, "This browser was signed in to another account.",
+       "Reload the page, then sign in again."}
+  }
+
+  defp refuse(conn, code) do
+    {status, message, hint} = Map.fetch!(@refusals, code)
+    conn |> put_status(status) |> json(%{error: %{code: code, message: message, hint: hint}})
+  end
 
   defp drop_session(conn), do: configure_session(conn, drop: true)
 

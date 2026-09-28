@@ -8,7 +8,13 @@ defmodule RegentsWeb.LaunchGateTest do
 
   # Settings returns soon (founder, 2026-09-03): switched off, not removed. (/settings left out of the gated paths)
   @gated_shell_paths ~w(/app /regents/example /stake /redeem)
-  @closed_message "This part of Regent isn't open yet."
+  @closed %{
+    "error" => %{
+      "code" => "not_open_yet",
+      "message" => "This part of Regent isn't open yet.",
+      "hint" => "Ask again after the number of seconds in Retry-After."
+    }
+  }
 
   setup do
     on_exit(&open_surfaces/0)
@@ -89,7 +95,7 @@ defmodule RegentsWeb.LaunchGateTest do
           post(build_conn(), "/api/agents/v1/pair", %{}),
           get(build_conn(), "/auth/session")
         ] do
-      assert json_response(conn, 503) == %{"error" => @closed_message}
+      assert json_response(conn, 503) == @closed
       assert get_resp_header(conn, "retry-after") == ["3600"]
       assert get_resp_header(conn, "cache-control") == ["no-store"]
     end
@@ -104,7 +110,7 @@ defmodule RegentsWeb.LaunchGateTest do
            }
 
     close_surfaces()
-    assert json_response(pair_request(), 503) == %{"error" => @closed_message}
+    assert json_response(pair_request(), 503) == @closed
   end
 
   test "[U3] the marketing page, health check and static files are untouched by the gate" do
@@ -133,10 +139,10 @@ defmodule RegentsWeb.LaunchGateTest do
     close_surfaces()
 
     assert json_response(delete(build_conn(), "/auth/privy/session"), 200) == %{"ok" => true}
-    assert json_response(get(build_conn(), "/auth/csrf"), 503) == %{"error" => @closed_message}
+    assert json_response(get(build_conn(), "/auth/csrf"), 503) == @closed
 
     assert json_response(post(build_conn(), "/auth/privy/session", %{}), 503) ==
-             %{"error" => @closed_message}
+             @closed
   end
 
   test "[U2] a mount arriving over the socket is sent to the marketing page instead" do

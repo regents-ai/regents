@@ -30,7 +30,7 @@
       structured_data={RegentsWeb.PublicDocuments.structured_data()}
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content={theme} />
+    <meta name="color-scheme" content={theme || "dark light"} />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta :if={assigns[:session_refused]} name="session-refused" content="true" />
     <meta name="privy-app-id" content={Application.get_env(:regents, :privy, [])[:app_id]} />
@@ -43,13 +43,19 @@
     <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32.png?v=2"} />
     <link rel="icon" type="image/svg+xml" sizes="any" href={~p"/favicon.svg?v=2"} />
     <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />
-    <meta name="theme-color" content={if theme == "dark", do: "#161616", else: "#e5e3d2"} />
+    <meta
+      :if={theme}
+      name="theme-color"
+      content={if theme == "dark", do: "#161616", else: "#e5e3d2"}
+    />
+    <meta :if={!theme} name="theme-color" media="(prefers-color-scheme: light)" content="#e5e3d2" />
+    <meta :if={!theme} name="theme-color" media="(prefers-color-scheme: dark)" content="#161616" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>
   </head>
   <body>
     {@inner_content}
-    <.product_links :if={!home? and !shell?} theme={theme} />
+    <.product_links :if={!home? and !shell?} />
   </body>
 </html>

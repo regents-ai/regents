@@ -87,19 +87,24 @@ defmodule RegentsWeb.HomeLive do
   end
 
   attr :blog?, :boolean, default: false
-  attr :theme, :string, default: "dark"
 
+  # Both crowns are drawn and the page's theme shows one: always the dark one on
+  # the homepage, the visitor's choice or the device's setting on the blog.
   def landing_header(assigns) do
     ~H"""
     <header class={["rl-header", @blog? && "rl-header--blog"]} data-home-header>
       <div class="rl-header-bar">
         <.link navigate={~p"/"} class="rl-brand" aria-label="Regents Labs home">
           <img
-            src={
-              if @theme == "light",
-                do: ~p"/images/brand/regents-crown-flat-light.svg",
-                else: ~p"/images/brand/regents-crown-flat-dark.svg"
-            }
+            class="rl-brand__dark"
+            src={~p"/images/brand/regents-crown-flat-dark.svg"}
+            width="252"
+            height="186"
+            alt=""
+          />
+          <img
+            class="rl-brand__light"
+            src={~p"/images/brand/regents-crown-flat-light.svg"}
             width="252"
             height="186"
             alt=""
@@ -121,7 +126,6 @@ defmodule RegentsWeb.HomeLive do
           <RegentsWeb.Components.Shell.theme_toggle
             :if={@blog?}
             id="blog-theme-control"
-            theme={@theme}
           />
           <RegentLinks.header_links id="home-token-menu" />
           <%!-- Founder decision (2026-09-28): App opens Stake, like the Protocol tab. Keep it. --%>

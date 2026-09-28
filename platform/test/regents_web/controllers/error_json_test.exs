@@ -3,15 +3,15 @@ defmodule RegentsWeb.ErrorJSONTest do
 
   test "renders 404" do
     assert RegentsWeb.ErrorJSON.render("404.json", %{}) == %{
-             errors: %{detail: "Not Found", code: "not_found", hint: hint()}
+             error: %{code: "not_found", message: "Not Found", hint: hint()}
            }
   end
 
   test "renders 500" do
     assert RegentsWeb.ErrorJSON.render("500.json", %{}) == %{
-             errors: %{
-               detail: "Internal Server Error",
+             error: %{
                code: "internal_server_error",
+               message: "Internal Server Error",
                hint: hint()
              }
            }

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Regent API
-  version: 1.0.0
+  version: 2.0.0
 paths:
   /api/agents/v1/pair:
     post:
@@ -96,12 +96,11 @@ paths:
             Cache-Control: {schema: {type: string, const: no-store}}
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [error]
-                properties:
-                  error: {type: string, const: rate_limited}
+              schema: {$ref: "#/components/schemas/RecoveryError"}
+              examples:
+                rateLimited:
+                  value: {error: {code: rate_limited, message: "Too many new sign-ins came from this address.", hint: "Wait the number of seconds in Retry-After, then try again."}}
+        "409": {$ref: "#/components/responses/SessionChanged"}
   /auth/privy/failure:
     post:
       operationId: reportPrivyBrowserFailure
@@ -134,6 +133,7 @@ paths:
         "200": {$ref: "#/components/responses/Session"}
         "403": {$ref: "#/components/responses/CsrfForbidden"}
         "401": {$ref: "#/components/responses/PrivySessionUnauthorized"}
+        "409": {$ref: "#/components/responses/SessionChanged"}
     delete:
       operationId: deletePrivyBrowserSession
       security: [{csrfToken: []}]
@@ -225,7 +225,22 @@ components:
           schema: {type: string, const: allowed}
       content:
         application/json:
-          schema: {$ref: "#/components/schemas/Error"}
+          schema: {$ref: "#/components/schemas/RecoveryError"}
+          examples:
+            unauthorized:
+              value: {error: {code: unauthorized, message: "This sign-in couldn't be confirmed.", hint: "Sign in again."}}
+    SessionChanged:
+      description: This browser's session changed in another tab or ended; reload the page
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/RecoveryError"}
+          examples:
+            superseded:
+              value: {error: {code: session_superseded, message: "This browser was signed in again from another tab.", hint: "Reload the page."}}
+            reset:
+              value: {error: {code: session_reset_required, message: "This browser's sign-in has ended.", hint: "Reload the page, then sign in again."}}
+            switched:
+              value: {error: {code: account_switch_required, message: "This browser was signed in to another account.", hint: "Reload the page, then sign in again."}}
     Logout:
       description: Local browser session removed
       content:
@@ -358,9 +373,16 @@ components:
             avatar_src:
               type: [string, "null"]
               pattern: "^(https://|data:image/svg\\+xml;base64,)"
-    Error:
+    RecoveryError:
       type: object
       additionalProperties: false
       required: [error]
       properties:
-        error: {type: string, enum: [unauthorized]}
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            hint: {type: string}

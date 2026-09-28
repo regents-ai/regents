@@ -582,21 +582,21 @@
       "HTTPError": {
         "type": "object",
         "required": [
-          "errors"
+          "error"
         ],
         "properties": {
-          "errors": {
+          "error": {
             "type": "object",
             "required": [
-              "detail",
               "code",
+              "message",
               "hint"
             ],
             "properties": {
-              "detail": {
+              "code": {
                 "type": "string"
               },
-              "code": {
+              "message": {
                 "type": "string"
               },
               "hint": {

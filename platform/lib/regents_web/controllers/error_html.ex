@@ -15,7 +15,7 @@ defmodule RegentsWeb.ErrorHTML do
         _ -> nil
       end
 
-    theme = Enum.find([assigns[:theme], cookie_theme], "dark", &(&1 in ["light", "dark"]))
+    theme = Enum.find([assigns[:theme], cookie_theme], &(&1 in ["light", "dark"]))
 
     assigns =
       assign(assigns,

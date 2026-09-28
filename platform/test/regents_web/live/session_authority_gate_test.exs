@@ -23,8 +23,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
 
     assert session == %{
              "render_topic" => SessionAuthority.topic(lineage),
-             "render_route" => "/autolaunch",
-             "theme" => "dark"
+             "render_route" => "/autolaunch"
            }
 
     refute markup =~ lineage
@@ -39,11 +38,11 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     assert session["render_topic"] == cookie_topic
   end
 
-  test "CANONICAL_AUTHORITY_ROW: an anonymous render signs only its route and colour theme" do
+  test "CANONICAL_AUTHORITY_ROW: an anonymous render signs only its route" do
     assert %{session: %{"render_route" => "/autolaunch"} = session} =
              build_conn() |> get("/autolaunch") |> html_response(200) |> static_session!()
 
-    assert Map.keys(session) == ["render_route", "theme"]
+    assert Map.keys(session) == ["render_route"]
   end
 
   # A LiveView outside the product shell, so what this characterizes is the

@@ -175,7 +175,13 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> put_privy_pair("unverifiable")
       |> post("/auth/privy/session", %{})
 
-    assert json_response(response, 401) == %{"error" => "unauthorized"}
+    assert json_response(response, 401) == %{
+             "error" => %{
+               "code" => "unauthorized",
+               "message" => "This sign-in couldn't be confirmed.",
+               "hint" => "Sign in again."
+             }
+           }
 
     assert_receive {:session_failure, @browser_failure_event, %{count: 1},
                     %{reason: "session_exchange"}}
@@ -311,7 +317,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
 
     refused = csrf_bootstrap(browser)
 
-    assert json_response(refused, 409) == %{"error" => "session_superseded"}
+    assert %{"error" => %{"code" => "session_superseded"}} = json_response(refused, 409)
     refute session_cookie(refused)
     assert SessionAuthority.exact(current) == {:ok, account_id}
   end
@@ -322,7 +328,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
 
     refused = csrf_bootstrap(browser)
 
-    assert json_response(refused, 409) == %{"error" => "session_reset_required"}
+    assert %{"error" => %{"code" => "session_reset_required"}} = json_response(refused, 409)
     assert refused.private[:plug_session_info] == :drop
 
     minted = csrf_bootstrap(build_conn())
@@ -347,7 +353,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
 
     denied = bootstrap_from(@peer)
 
-    assert json_response(denied, 429) == %{"error" => "rate_limited"}
+    assert %{"error" => %{"code" => "rate_limited"}} = json_response(denied, 429)
     assert get_resp_header(denied, "retry-after") == ["300"]
     assert get_resp_header(denied, "cache-control") == ["no-store"]
     refute session_cookie(denied)
@@ -531,7 +537,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{})
 
-    assert json_response(loser, 409) == %{"error" => "session_superseded"}
+    assert %{"error" => %{"code" => "session_superseded"}} = json_response(loser, 409)
     refute session_cookie(loser)
     assert SessionAuthority.exact(current) == {:ok, account_id}
   end
@@ -558,7 +564,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert_response_sent_then_disconnect(topic)
-    assert json_response(switched, 409) == %{"error" => "account_switch_required"}
+    assert %{"error" => %{"code" => "account_switch_required"}} = json_response(switched, 409)
     assert switched.private[:plug_session_info] == :drop
     assert SessionAuthority.exact(claim(signed_in)) == {:error, :reset}
 
@@ -711,7 +717,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
         |> put_headers(pair)
         |> post("/auth/privy/session", %{})
 
-      assert json_response(refused, 401) == %{"error" => "unauthorized"}
+      assert %{"error" => %{"code" => "unauthorized"}} = json_response(refused, 401)
       assert_no_token_disclosure(refused)
     end
 
@@ -801,7 +807,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert_response_sent_then_disconnect(topic)
-    assert json_response(marked, 401) == %{"error" => "unauthorized"}
+    assert %{"error" => %{"code" => "unauthorized"}} = json_response(marked, 401)
     assert get_resp_header(marked, "x-ash-provider-relogin") == ["allowed"]
     assert marked.private[:plug_session_info] == :drop
     assert_no_token_disclosure(marked)
@@ -836,8 +842,8 @@ defmodule RegentsWeb.PrivySessionControllerTest do
 
   defp refusal_log(browser) do
     capture_log(fn ->
-      assert browser |> post("/auth/privy/session", %{}) |> json_response(401) ==
-               %{"error" => "unauthorized"}
+      assert %{"error" => %{"code" => "unauthorized"}} =
+               browser |> post("/auth/privy/session", %{}) |> json_response(401)
     end)
   end
 
@@ -935,7 +941,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> put_req_header("x-regent-siwa-receipt", "signed-agent-receipt")
       |> post("/auth/privy/session", %{})
 
-    assert %{"error" => "unauthorized"} = json_response(response, 401)
+    assert %{"error" => %{"code" => "unauthorized"}} = json_response(response, 401)
   end
 
   test "session cookies are HTTP-only locally and secure under production options", %{conn: conn} do
@@ -973,7 +979,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> post("/auth/privy/session", %{})
 
     assert_response_sent_then_disconnect(topic)
-    assert %{"error" => "unauthorized"} = json_response(rejected, 401)
+    assert %{"error" => %{"code" => "unauthorized"}} = json_response(rejected, 401)
     assert rejected.private[:plug_session_info] == :drop
 
     # The lineage the bearer was offered for is terminally revoked, so the
@@ -1001,7 +1007,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
       |> put_req_header("x-csrf-token", csrf)
       |> post("/auth/privy/session", %{})
 
-    assert %{"error" => "unauthorized"} = json_response(rejected, 401)
+    assert %{"error" => %{"code" => "unauthorized"}} = json_response(rejected, 401)
     assert rejected.private[:plug_session_info] == :drop
 
     assert {:ok, invalidated} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})

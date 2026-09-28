@@ -41,8 +41,11 @@ function csrfResponse(token: string) {
   return new Response(JSON.stringify({csrf_token: token}), {status: 200})
 }
 
-function lifecycleResponse(error: string) {
-  return new Response(JSON.stringify({error}), {status: 409})
+function lifecycleResponse(code: string) {
+  return new Response(
+    JSON.stringify({error: {code, message: "This browser's sign-in has ended.", hint: "Reload the page."}}),
+    {status: 409},
+  )
 }
 
 function signedInResponse(sessionChanged: "true" | "false") {
@@ -796,7 +799,12 @@ describe("A_ROTATION_LATCHES_ONLY_ONCE_A_RENEWAL_LANDS", () => {
     const refused = vi.fn(async (input: RequestInfo | URL) =>
       input === "/auth/csrf"
         ? csrfResponse("current-token")
-        : new Response(JSON.stringify({error: "unauthorized"}), {status: 401}),
+        : new Response(
+            JSON.stringify({
+              error: {code: "unauthorized", message: "This sign-in couldn't be confirmed.", hint: "Sign in again."},
+            }),
+            {status: 401},
+          ),
     ) as unknown as typeof fetch
 
     // The refusal revoked the lineage and dropped its cookie, so the token this

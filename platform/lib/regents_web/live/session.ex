@@ -20,9 +20,7 @@ defmodule RegentsWeb.Live.Session do
   with it because a connected mount cannot otherwise learn it — `connect_info`
   `:uri` is the transport's own `/live/websocket` address and `socket.host_uri`
   carries no path, so only `handle_params` sees the page route, and that is too
-  late to refuse a mount. The colour theme travels with it so the shell header
-  can state the theme the request was served with; it is a display preference
-  the markup already shows in plain sight.
+  late to refuse a mount.
 
   Phoenix LiveView 1.2.7 hands `mount/3` `Map.merge(handshake_session,
   static_token_session)`, so these keys are the render's own and can never stand
@@ -32,7 +30,6 @@ defmodule RegentsWeb.Live.Session do
     conn.assigns.current_lineage
     |> rendered_topic()
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
-    |> Map.put("theme", conn.assigns.theme)
   end
 
   def on_mount(:load_human, _params, session, socket) do

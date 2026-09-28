@@ -17,14 +17,13 @@ defmodule RegentsWeb.PrivyShowcaseLive do
   alias RegentsWeb.Components.{Loading, Shell}
   alias RegentsWeb.{ShowcaseLive, TokenDisplay}
 
-  def mount(_params, session, socket) do
+  def mount(_params, _session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
 
     {:ok,
      socket
      |> assign(RegentsWeb.PublicDocuments.page("/showcase/privy"))
      |> assign(
-       theme: session["theme"] || "dark",
        mode: ShowcaseLive.privy_mode(),
        protocol: SnapshotCache.snapshot(),
        wallet: nil,
@@ -54,7 +53,7 @@ defmodule RegentsWeb.PrivyShowcaseLive do
           enabled={@mode == :configured}
           profile_links={false}
         />
-        <Shell.theme_toggle id="privy-reference-theme" theme={@theme} />
+        <Shell.theme_toggle id="privy-reference-theme" />
       </header>
 
       <div class="privy-reference-content">

@@ -11,7 +11,6 @@ defmodule RegentsWeb.ShowcaseLive do
      |> assign(RegentsWeb.PublicDocuments.page("/showcase"))
      |> assign(
        privy_mode: privy_mode(),
-       theme: "dark",
        catalog: Catalog.snapshot(),
        capabilities: capability_samples(),
        ratio_bps: 5620,
@@ -47,7 +46,6 @@ defmodule RegentsWeb.ShowcaseLive do
       route_spec={@route_spec}
       account_control={@account}
       shell_instance={0}
-      theme={@theme}
     >
       <:content>
         <div style="padding: 32px">

@@ -8,7 +8,7 @@ defmodule RegentsWeb.BlogHTML do
   defp page(assigns) do
     ~H"""
     <Regent.Structure.frame class="rl-root">
-      <RegentsWeb.HomeLive.landing_header blog?={true} theme={@conn.assigns.theme} /><main id="main-content">
+      <RegentsWeb.HomeLive.landing_header blog?={true} /><main id="main-content">
         <Regent.Blog.gallery :if={@view == :index} posts={@posts} site="Regents" />
         <Regent.Blog.article :if={@view == :show} post={@post} />
         <Regent.Blog.not_found :if={@view == :not_found} />

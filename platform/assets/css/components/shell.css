@@ -145,16 +145,28 @@
   object-fit: cover;
 }
 
-.shell-brand__mark-dark {
+/* Dark is the default; light shows once chosen, or before any choice on a
+   device that asks for light. */
+.shell-brand__mark-light {
   display: none;
 }
 
-:root[data-theme="dark"] .shell-brand__mark-light {
-  display: none;
-}
-
-:root[data-theme="dark"] .shell-brand__mark-dark {
+:root[data-theme="light"] .shell-brand__mark-light {
   display: block;
+}
+
+:root[data-theme="light"] .shell-brand__mark-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .shell-brand__mark-light {
+    display: block;
+  }
+
+  :root:not([data-theme]) .shell-brand__mark-dark {
+    display: none;
+  }
 }
 
 .shell-chevron {

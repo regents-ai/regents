@@ -3,7 +3,7 @@ defmodule RegentIdentity.MixProject do
 
   # regent_privy, pinned to the same published elixir-utils commit as the site.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "7a876e8673a230e8fb2f7b6f64fe1dec5579fab8"
+  @elixir_utils_ref "590f6d6757f3c1c5d1d76e716f79821ab413a65d"
 
   def project do
     [
