@@ -52,7 +52,8 @@ defmodule AshPlatformWeb.StakeActions do
        amount: "",
        form: @blank_form,
        wallet: nil,
-       refusals: %{}
+       refusals: %{},
+       receipt: nil
      )}
   end
 
@@ -152,6 +153,9 @@ defmodule AshPlatformWeb.StakeActions do
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
+  def handle_event("close_receipt", _params, socket),
+    do: {:noreply, assign(socket, receipt: nil)}
+
   # Anything else the page sent is not in a shape this panel takes.
   def handle_event(_event, _params, socket),
     do: {:noreply, assign(socket, press_note: EventInput.unreadable())}
@@ -164,10 +168,10 @@ defmodule AshPlatformWeb.StakeActions do
     socket = OnchainSteps.checked(socket, hash, result)
 
     case entry(socket, hash) do
-      %{outcome: :confirmed} ->
+      %{outcome: :confirmed} = entry ->
         SnapshotCache.refresh_soon()
         send(self(), :stake_step_landed)
-        {:noreply, socket}
+        {:noreply, open_receipt(socket, entry)}
 
       %{outcome: :reverted} = entry ->
         refusal = contract_limit(entry, socket.assigns.staking)
@@ -177,6 +181,40 @@ defmodule AshPlatformWeb.StakeActions do
         {:noreply, socket}
     end
   end
+
+  # Only the latest receipt's reading is shown; an earlier one's answer is dropped.
+  def handle_async(
+        {:receipt_position, hash},
+        result,
+        %{assigns: %{receipt: %{hash: hash}}} = socket
+      ),
+      do: {:noreply, update(socket, :receipt, &%{&1 | position: position(result)})}
+
+  def handle_async({:receipt_position, _hash}, _result, socket), do: {:noreply, socket}
+
+  # A stake or unstake that landed opens its receipt, with the wallet's position
+  # read again after it. The amount it was for is cleared from the form, unless
+  # a new one was typed while it was on its way.
+  defp open_receipt(socket, %{name: name, hash: hash, review: review})
+       when name in ~w(stake unstake) do
+    signer = review.signer
+
+    socket =
+      if String.trim(socket.assigns.amount) == amount(review),
+        do: socket |> assign(amount: "") |> sync(),
+        else: socket
+
+    socket
+    |> assign(receipt: %{hash: hash, name: name, review: review, position: :reading})
+    |> start_async({:receipt_position, hash}, fn -> Staking.account_for_wallet(signer) end)
+  end
+
+  defp open_receipt(socket, _entry), do: socket
+
+  defp position({:ok, {:ok, facts}}),
+    do: %{staked: facts.wallet_stake_balance, claimable_usdc: facts.wallet_claimable_usdc}
+
+  defp position(_failed), do: :unavailable
 
   defp prepare(%{assigns: %{review: nil}} = socket, _name), do: {:reply, %{}, socket}
 
@@ -736,6 +774,7 @@ defmodule AshPlatformWeb.StakeActions do
         </div>
 
         <.activity sent={@sent} press={@press_note} myself={@myself} />
+        <.receipt :if={@receipt} receipt={@receipt} />
 
         <section class="stake-rewards" aria-labelledby="staking-rewards-heading">
           <div>
@@ -835,6 +874,87 @@ defmodule AshPlatformWeb.StakeActions do
     </section>
     """
   end
+
+  attr :receipt, :map, required: true
+
+  # What a stake or unstake Base confirmed did, and where the wallet stands now.
+  defp receipt(assigns) do
+    ~H"""
+    <dialog
+      id="staking-receipt-dialog"
+      class="stake-supply-dialog"
+      aria-labelledby="staking-receipt-heading"
+      phx-hook="InfoDialog"
+      data-open
+      data-close-event="close_receipt"
+    >
+      <p class="stake-dialog-kicker">Base transaction receipt</p>
+      <h2 id="staking-receipt-heading">{receipt_title(@receipt)}</h2>
+      <p class="stake-dialog-summary">{receipt_summary(@receipt)}</p>
+      <dl class="stake-holdings">
+        <div>
+          <dt>Your stake now</dt>
+          <dd>
+            <strong><.receipt_figure position={@receipt.position} key={:staked} unit="REGENT" /></strong>
+          </dd>
+        </div>
+        <div>
+          <dt>USDC ready to claim</dt>
+          <dd>
+            <strong><.receipt_figure position={@receipt.position} key={:claimable_usdc} unit="USDC" /></strong>
+          </dd>
+        </div>
+        <div>
+          <dt>Transaction</dt>
+          <dd>
+            <a
+              href={"https://basescan.org/tx/#{@receipt.hash}"}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on BaseScan <span aria-hidden="true">↗</span>
+            </a>
+          </dd>
+        </div>
+      </dl>
+      <form method="dialog">
+        <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
+      </form>
+    </dialog>
+    """
+  end
+
+  attr :position, :any, required: true
+  attr :key, :atom, required: true
+  attr :unit, :string, required: true
+
+  defp receipt_figure(%{position: :reading} = assigns), do: ~H"Reading from Base…"
+  defp receipt_figure(%{position: :unavailable} = assigns), do: ~H"Could not be read just now"
+
+  defp receipt_figure(assigns),
+    do: ~H"<TokenDisplay.amount amount={Map.fetch!(@position, @key)} unit={@unit} />"
+
+  defp receipt_title(%{
+         name: "stake",
+         review: %{inputs: %{"for_other" => "true", "receiver" => receiver}} = review
+       }),
+       do:
+         "You staked #{amount(review)} REGENT for #{RegentFormat.short_address(String.trim(receiver))}"
+
+  defp receipt_title(%{name: "stake", review: review}), do: "You staked #{amount(review)} REGENT"
+
+  defp receipt_title(%{name: "unstake", review: review}),
+    do: "You unstaked #{amount(review)} REGENT"
+
+  defp receipt_summary(%{name: "stake", review: %{inputs: %{"for_other" => "true"}}}),
+    do:
+      "Base confirmed it. The REGENT left your wallet, and the receiving address now owns this stake and earns its rewards."
+
+  defp receipt_summary(%{name: "stake"}),
+    do: "Base confirmed it. The REGENT left your wallet and is now staked, earning USDC revenue."
+
+  defp receipt_summary(%{name: "unstake"}),
+    do: "Base confirmed it. The REGENT is back in your wallet."
 
   defp amount_notice(%{staking: nil}), do: nil
 
