@@ -236,7 +236,7 @@ defmodule RegentsWeb.RegentOpsLive do
                 label="Wallet balances"
                 labels={[
                   "Available REGENT",
-                  "Available USDC",
+                  "USDC Balance",
                   "Staked REGENT",
                   "USDC rewards",
                   "REGENT rewards"
@@ -248,7 +248,7 @@ defmodule RegentsWeb.RegentOpsLive do
                   amount={@staking.wallet_token_balance}
                   unit="REGENT"
                 />
-                <.metric label="Available USDC" amount={@staking.wallet_usdc_balance} unit="USDC" />
+                <.metric label="USDC Balance" amount={@staking.wallet_usdc_balance} unit="USDC" />
                 <.metric label="Staked REGENT" amount={@staking.wallet_stake_balance} unit="REGENT" />
                 <.metric label="USDC rewards" amount={@staking.wallet_claimable_usdc} unit="USDC" />
                 <.metric

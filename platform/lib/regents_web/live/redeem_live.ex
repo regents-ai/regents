@@ -485,7 +485,7 @@ defmodule RegentsWeb.RedeemLive do
               :if={@wallet && !@wallet_ready && @reading}
               id="redemption-wallet-skeleton"
               label="Your collection and vest"
-              labels={["Owned Animata", "USDC balance", "Claimable REGENT"]}
+              labels={["Owned Animata", "USDC Balance", "Claimable REGENT"]}
             />
 
             <div :if={@wallet && !@wallet_ready && !@reading} class="redeem-wallet-recovery">
@@ -596,7 +596,7 @@ defmodule RegentsWeb.RedeemLive do
               phx-hook="MotionCount"
               data-variant={RegentsWeb.Motion.standard("count")}
             >
-              <.metric label="USDC balance">
+              <.metric label="USDC Balance">
                 <TokenDisplay.amount amount={@redemption.usdc_balance} unit="USDC" />
               </.metric>
               <.metric label="Current allowance">

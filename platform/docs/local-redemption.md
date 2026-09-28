@@ -26,7 +26,7 @@ refresh. No live transaction is sent.
 3. Start the app with `mix phx.server`.
 4. Open `http://localhost:4000/redeem` and sign in with the Privy account whose embedded wallet
    holds the Animata token.
-5. Confirm the page shows Base, 80 USDC, 5,000,000 REGENT, seven-day vesting, your USDC balance and
+5. Confirm the page shows Base, 80 USDC, 5,000,000 REGENT, seven-day vesting, your USDC Balance and
    allowance, and your current claim and vest status.
 6. Choose Animata I or II and enter a token ID from 1 through 999. The page should show the owner,
    current collection approval, and mapped Regents Club token when one exists.
