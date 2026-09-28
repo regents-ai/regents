@@ -20,7 +20,7 @@ defmodule RegentPayments.WalletPayment do
   authorization, and USDC moves it at most once.
 
   The actor is the site's signed-in profile: it carries its `id` and the
-  `wallet_address` it signed in with.
+  `wallet_address` it signed in with, which is `nil` for a profile without one.
   """
 
   alias RegentChain.Review
@@ -52,9 +52,10 @@ defmodule RegentPayments.WalletPayment do
 
   @typedoc """
   Where a page's payment stands. Besides `Purchase`'s own answers: the review
-  its wallet is to sign; no wallet open on the page; the page's wallet is not
-  the one signed in with, with the note to show beside the button; or a
-  signature or payment that was refused, with the reason.
+  its wallet is to sign; no wallet that could sign, on the page or on the
+  profile; the page's wallet is not the one signed in with, with the note to
+  show beside the button; or a signature or payment that was refused, with
+  the reason.
   """
   @type answer ::
           {:review, PaymentIntent.t(), Review.t()}
@@ -89,18 +90,20 @@ defmodule RegentPayments.WalletPayment do
     end
   end
 
+  # A profile signed in without a wallet, or a page with no wallet open, has
+  # no wallet that could sign.
   defp wallet(actor, params) do
-    signed_in = signed_in(actor)
+    case {signed_in(actor), active_wallet(params)} do
+      {nil, _active} -> :wallet_unavailable
+      {_signed_in, nil} -> :wallet_unavailable
+      {signed_in, active} -> matching_wallet(signed_in, active)
+    end
+  end
 
-    case active_wallet(params) do
-      nil ->
-        :wallet_unavailable
-
-      active ->
-        case signer(signed_in, active) do
-          nil -> {:wallet_mismatch, mismatch_note(signed_in, active)}
-          signer -> {:ok, signer}
-        end
+  defp matching_wallet(signed_in, active) do
+    case signer(signed_in, active) do
+      nil -> {:wallet_mismatch, mismatch_note(signed_in, active)}
+      signer -> {:ok, signer}
     end
   end
 
@@ -128,9 +131,10 @@ defmodule RegentPayments.WalletPayment do
 
   def active_wallet(_params), do: nil
 
-  @doc "The wallet `profile` signed in with, lowercased."
-  @spec signed_in(struct()) :: String.t()
-  def signed_in(profile), do: String.downcase(profile.wallet_address)
+  @doc "The wallet `profile` signed in with, lowercased, or `nil` when it has none."
+  @spec signed_in(struct()) :: String.t() | nil
+  def signed_in(%{wallet_address: address}) when is_binary(address), do: String.downcase(address)
+  def signed_in(_profile), do: nil
 
   @doc """
   The wallet that may sign: the page's `active` wallet when it is the one

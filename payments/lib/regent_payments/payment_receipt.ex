@@ -3,10 +3,12 @@ defmodule RegentPayments.PaymentReceipt do
   What actually happened when a payment intent was settled: who paid, on which
   chain, and the transaction the facilitator reported.
 
-  One receipt per intent. The unique payment identifier, and the unique
-  transaction hash where one came back, are what stop the same payment being
-  recorded twice if a call is retried. A receipt is read only by the payer of
-  its intent, and only on the site that offered it.
+  One receipt per intent, held by a unique index on the intent. The unique
+  payment identifier, and the unique transaction hash where one came back,
+  also stop the same payment being recorded twice if a call is retried. A
+  receipt is written only for an intent of this site that is waiting on its
+  settlement and carries the same payment identifier. A receipt is read only
+  by the payer of its intent, and only on the site that offered it.
   """
 
   use Ash.Resource,
@@ -49,6 +51,7 @@ defmodule RegentPayments.PaymentReceipt do
   end
 
   identities do
+    identity :unique_payment_intent, [:payment_intent_id], eager_check?: false
     identity :unique_payment_identifier, [:payment_identifier], eager_check?: false
     identity :unique_transaction_hash, [:transaction_hash], eager_check?: false
   end
@@ -102,6 +105,8 @@ defmodule RegentPayments.PaymentReceipt do
         :payment_response,
         :settled_at
       ]
+
+      change RegentPayments.Changes.SettlingIntent
     end
   end
 

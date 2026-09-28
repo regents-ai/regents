@@ -21,7 +21,9 @@ defmodule RegentPayments.Purchase do
   A short row lock commits the settlement attempt before the facilitator is
   asked. A crash leaves the intent marked `settlement_pending` for a person to
   reconcile, never an automatic second payment. The receipt commits before the
-  offer carries anything out, so a later failure cannot erase it.
+  offer carries anything out, so a later failure cannot erase it. What the
+  money bought is carried out under the intent's row lock and marked applied
+  in the same transaction, so it runs once per payment across every machine.
   """
 
   require Logger
@@ -100,6 +102,9 @@ defmodule RegentPayments.Purchase do
       {:ok, {:settled, {:dispatch, found, payment, requirement, request}}} ->
         settle(actor, found, payment, requirement, request)
 
+      {:ok, {:settled, {:carry_out, found}}} ->
+        carried_out(actor, found.id, request)
+
       {:ok, {:settled, answer}} ->
         answer
 
@@ -128,19 +133,12 @@ defmodule RegentPayments.Purchase do
     do: {:applied, found, found.receipt}
 
   # A settled intent whose effect is incomplete is carried out again on the
-  # next call when its offer allows it: from the same frozen terms, so one
-  # payment never buys two.
-  defp advance(actor, %{status: :settled} = found, request) do
-    if Offer.for_kind!(found.kind).resumes?() do
-      with {:ok, :complete} <- carry_out(found, found.receipt, actor, request),
-           {:ok, applied} <- RegentPayments.mark_applied(found, actor: actor) do
-        {:applied, applied, found.receipt}
-      else
-        _incomplete -> {:settled, found, found.receipt}
-      end
-    else
-      {:settled, found, found.receipt}
-    end
+  # next call when its offer allows it: from the same frozen terms, once this
+  # read's transaction has ended, under the row lock `carried_out/3` takes.
+  defp advance(_actor, %{status: :settled} = found, _request) do
+    if Offer.for_kind!(found.kind).resumes?(),
+      do: {:carry_out, found},
+      else: {:settled, found, found.receipt}
   end
 
   defp advance(_actor, %{status: :settlement_pending} = found, _request) do
@@ -350,17 +348,51 @@ defmodule RegentPayments.Purchase do
       end)
 
     case persisted do
-      {:ok, {settled, receipt}} ->
-        with {:ok, :complete} <- carry_out(settled, receipt, actor, request),
-             {:ok, applied} <- RegentPayments.mark_applied(settled, actor: actor) do
-          {:applied, applied, receipt}
-        else
-          _incomplete -> {:settled, settled, receipt}
-        end
+      {:ok, _settled} -> carried_out(actor, found.id, request)
+      # The already-committed pending marker survives. Never redispatch.
+      {:error, _failed_write} -> {:settlement_pending, found}
+    end
+  end
 
-      {:error, _failed_write} ->
-        # The already-committed pending marker survives. Never redispatch.
-        {:settlement_pending, found}
+  # The effect is carried out in one transaction on the site's repository. It
+  # first takes the intent's row lock in the database (SELECT ... FOR UPDATE),
+  # so any other caller, on this machine or another, waits on that row and
+  # then finds the intent applied. What the offer writes and the applied mark
+  # commit together or not at all; after a rollback the intent is answered as
+  # it stands, settled with its receipt.
+  defp carried_out(actor, id, request) do
+    locked_carry_out = fn ->
+      with {:ok, locked} <- RegentPayments.lock_payment_intent(id, actor: actor) do
+        carry_out_once(actor, locked, request)
+      end
+    end
+
+    case Ash.transact([PaymentIntent, PaymentReceipt], locked_carry_out) do
+      {:ok, answer} -> answer
+      {:error, failure} -> as_it_stands(actor, id, failure)
+    end
+  end
+
+  defp as_it_stands(actor, id, failure) do
+    case read(actor, id) do
+      {:ok, %{status: :settled} = found} -> {:settled, found, found.receipt}
+      _unread -> {:error, failure}
+    end
+  end
+
+  # Called only while the intent's row lock is held: the status read under the
+  # lock decides, so an applied intent is never carried out again. An effect
+  # that fails, or cannot be marked applied, rolls the whole transaction back.
+  defp carry_out_once(_actor, %{status: :applied} = locked, _request),
+    do: {:applied, locked, locked.receipt}
+
+  defp carry_out_once(actor, %{status: :settled} = locked, request) do
+    with {:ok, :complete} <- carry_out(locked, locked.receipt, actor, request),
+         {:ok, applied} <- RegentPayments.mark_applied(locked, actor: actor) do
+      {:applied, applied, locked.receipt}
+    else
+      {:ok, :incomplete} -> {:settled, locked, locked.receipt}
+      {:error, reason} -> {:error, reason}
     end
   end
 

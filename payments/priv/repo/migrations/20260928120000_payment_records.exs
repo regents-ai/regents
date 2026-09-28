@@ -59,6 +59,11 @@ defmodule RegentPayments.Migrations.PaymentRecords do
       timestamps(type: :utc_datetime_usec)
     end
 
+    create unique_index(:payment_receipts, [:payment_intent_id],
+             prefix: "regent_payments",
+             name: :payment_receipts_unique_payment_intent_index
+           )
+
     create unique_index(:payment_receipts, [:payment_identifier],
              prefix: "regent_payments",
              name: :payment_receipts_unique_payment_identifier_index

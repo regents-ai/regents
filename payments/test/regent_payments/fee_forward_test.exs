@@ -28,7 +28,7 @@ defmodule RegentPayments.FeeForwardTest do
 
   test "the fee is approved to the staking contract and deposited, tagged and referenced" do
     {chain, signer} = chain(receipts: fn _hash -> "0x1" end)
-    intent = paid_intent()
+    intent = paid_intent(signer)
 
     assert {:ok, deposit_hash} = forward(intent, signer)
     assert deposit_hash == hash(2)
@@ -49,7 +49,7 @@ defmodule RegentPayments.FeeForwardTest do
 
   test "an approval the chain refuses deposits nothing" do
     {chain, signer} = chain(receipts: fn _hash -> "0x0" end)
-    intent = paid_intent()
+    intent = paid_intent(signer)
 
     assert {:error, {:reverted, _approval}} = forward(intent, signer)
     assert [_approve] = sent(chain)
@@ -57,15 +57,26 @@ defmodule RegentPayments.FeeForwardTest do
 
   test "a payment with no receipt is not forwarded" do
     {chain, signer} = chain(receipts: fn _hash -> "0x1" end)
-    {:ok, intent} = prepare()
+    {:ok, intent} = prepare(signer.address)
 
     assert {:error, :no_receipt} = forward(intent, signer)
     assert sent(chain) == []
   end
 
-  defp forward(intent, signer),
+  test "only a fee of the named kind, paid into the signing wallet, is forwarded" do
+    {chain, signer} = chain(receipts: fn _hash -> "0x1" end)
+    {_other_chain, stranger} = chain(receipts: fn _hash -> "0x1" end)
+    intent = paid_intent(signer)
+
+    assert {:error, :wrong_kind} = forward(intent, signer, :direct)
+    assert {:error, :not_paid_to_signer} = forward(intent, stranger)
+    assert sent(chain) == []
+  end
+
+  defp forward(intent, signer, kind \\ :publish),
     do:
       FeeForward.submit(intent.id,
+        kind: kind,
         staking: @staking,
         signer: signer,
         source_tag: "patchbay.assist"
@@ -164,31 +175,32 @@ defmodule RegentPayments.FeeForwardTest do
 
   defp payer, do: %Actor{id: Ecto.UUID.generate(), wallet_address: @payer}
 
-  defp prepare(actor \\ payer()) do
+  defp prepare(pay_to, actor \\ payer()) do
     RegentPayments.prepare_payment_intent(
       PublishOffer,
-      %{amount_atomic: 100_000, pay_to: @payer, target_id: Ecto.UUID.generate()},
+      %{amount_atomic: 100_000, pay_to: pay_to, target_id: Ecto.UUID.generate()},
       actor: actor
     )
   end
 
-  # A settled payment whose receipt names the payer wallet.
-  defp paid_intent do
+  # A fee paid into the operator wallet that signs, settled the way `Purchase`
+  # settles one, whose receipt names the payer wallet.
+  defp paid_intent(signer) do
     actor = payer()
 
-    {:ok, intent} = prepare(actor)
-    {:ok, settled} = RegentPayments.mark_settled(intent, actor: actor)
+    {:ok, intent} = prepare(signer.address, actor)
+    {:ok, pending} = RegentPayments.mark_settlement_pending(intent, actor: actor)
     tx = "0x" <> String.duplicate("e", 64)
 
     {:ok, _receipt} =
       RegentPayments.record_payment_receipt(
         %{
-          payment_intent_id: settled.id,
-          payment_identifier: settled.payment_identifier,
+          payment_intent_id: pending.id,
+          payment_identifier: pending.payment_identifier,
           payer_address: @payer,
-          network: settled.network,
-          asset: settled.asset,
-          amount_atomic: settled.amount_atomic,
+          network: pending.network,
+          asset: pending.asset,
+          amount_atomic: pending.amount_atomic,
           facilitator: "https://example.invalid/facilitator",
           transaction_hash: tx,
           payment_response: %{"success" => true, "transaction" => tx},
@@ -197,6 +209,7 @@ defmodule RegentPayments.FeeForwardTest do
         actor: actor
       )
 
+    {:ok, settled} = RegentPayments.mark_settled(pending, actor: actor)
     settled
   end
 end

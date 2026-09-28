@@ -10,6 +10,11 @@ defmodule RegentPayments.FeeForward do
   to the staking contract, and the deposit itself once the approval is on the
   chain. The site decides when to forward, writes down what came of it, and
   re-runs a fee that could not be forwarded.
+
+  Only a fee of the offer kind the site names, paid into the very wallet that
+  signs the forward, is handed on. Nothing here remembers what was already
+  forwarded: stopping a second forward of one fee is the site's job, under a
+  row lock on its own record of the forward, taken before `submit/2` runs.
   """
 
   alias Ethers.Contracts.ERC20
@@ -46,16 +51,19 @@ defmodule RegentPayments.FeeForward do
   @doc """
   Sends the approval and then the deposit for the fee settled by intent
   `intent_id`, and returns the deposit's transaction hash once the chain has
-  it. `opts` names the `staking` contract, the operator `signer` and the
-  `source_tag` the deposit carries.
+  it. `opts` names the offer `kind` the fee must have been paid for, the
+  `staking` contract, the operator `signer` and the `source_tag` the deposit
+  carries. A fee of any other kind answers `{:error, :wrong_kind}`, and one
+  that was not paid into the signer's wallet `{:error, :not_paid_to_signer}`.
   """
   @spec submit(Ash.UUID.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def submit(intent_id, opts) do
+    kind = Keyword.fetch!(opts, :kind)
     staking = Keyword.fetch!(opts, :staking)
     signer = Keyword.fetch!(opts, :signer)
     tag = opts |> Keyword.fetch!(:source_tag) |> source_tag()
 
-    with {:ok, %{amount: amount, payer: payer}} <- payment(intent_id),
+    with {:ok, %{amount: amount, payer: payer}} <- payment(intent_id, kind, signer.address),
          {:ok, approval} <- send(ERC20.approve(staking, amount), USDC.asset(), signer),
          :ok <- mined(approval, signer),
          {:ok, deposit} <-
@@ -71,19 +79,27 @@ defmodule RegentPayments.FeeForward do
 
   # The fee and the wallet it came from, as the settled payment recorded them.
   # The site's own worker reads the payment it was handed, answering to no
-  # request, so authorization is set aside deliberately.
-  defp payment(intent_id) do
+  # request, so authorization is set aside deliberately; the kind and the
+  # wallet the frozen terms paid are checked instead.
+  defp payment(intent_id, kind, signer_address) do
     case RegentPayments.get_payment_intent(intent_id, authorize?: false, load: [:receipt]) do
-      {:ok, %{amount_atomic: amount, receipt: %{payer_address: payer}}} when is_binary(payer) ->
-        {:ok, %{amount: amount, payer: payer}}
-
-      {:ok, _no_receipt} ->
-        {:error, :no_receipt}
-
-      {:error, error} ->
-        {:error, error}
+      {:ok, %{kind: ^kind} = intent} -> paid_to_signer(intent, signer_address)
+      {:ok, _other_kind} -> {:error, :wrong_kind}
+      {:error, error} -> {:error, error}
     end
   end
+
+  defp paid_to_signer(intent, signer_address) do
+    if String.downcase(intent.payload["pay_to_address"]) == String.downcase(signer_address),
+      do: settled_fee(intent),
+      else: {:error, :not_paid_to_signer}
+  end
+
+  defp settled_fee(%{amount_atomic: amount, receipt: %{payer_address: payer}})
+       when is_binary(payer),
+       do: {:ok, %{amount: amount, payer: payer}}
+
+  defp settled_fee(_no_receipt), do: {:error, :no_receipt}
 
   defp send(tx_data, to, signer) do
     Ethers.send_transaction(tx_data,

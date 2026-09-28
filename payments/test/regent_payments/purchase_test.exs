@@ -17,6 +17,7 @@ defmodule RegentPayments.PurchaseTest do
   alias RegentPayments.Purchase
   alias RegentPayments.Test.Actor
   alias RegentPayments.Test.DirectOffer
+  alias RegentPayments.Test.Effects
   alias RegentPayments.Test.PublishOffer
   alias RegentPayments.Test.WalletSigner
   alias RegentPayments.TestRepo
@@ -156,6 +157,49 @@ defmodule RegentPayments.PurchaseTest do
     assert {:applied, applied, again} = pay(c, %{})
     assert applied.status == :applied
     assert again.id == receipt.id
+    assert Effects.carried_out(c.intent.id) == 2
+    refute_receive {:settle, _, _}, 200
+  end
+
+  # The case's one sandboxed connection is shared by every process, so the second
+  # caller waits on that connection while the first holds it; in production it
+  # waits on the intent's row lock instead. Either way it finds the intent
+  # applied and carries nothing out.
+  test "two callers resuming one payment at once carry it out exactly once", c do
+    {worker, _} = execute(c, %{outcome: :incomplete})
+    assert_receive {:settle, service, _}, 3_000
+    send(service, {:reply, 200, settled("7")})
+    assert_receive {:done, ^worker, {:settled, _, _}}, 3_000
+    assert Effects.carried_out(c.intent.id) == 1
+
+    parent = self()
+    callers = for _ <- 1..2, do: Task.async(fn -> pay(c, %{}, %{watcher: parent}) end)
+    assert_receive {:carrying, carrier}, 3_000
+    refute_receive {:carrying, _}, 300
+    send(carrier, :go)
+
+    assert [{:applied, _, first}, {:applied, _, second}] = Task.await_many(callers, 5_000)
+    assert first.id == second.id
+    refute_received {:carrying, _}
+    assert Effects.carried_out(c.intent.id) == 2
+    assert status(c) == :applied
+  end
+
+  test "an effect that fails is rolled back with its applied mark and the receipt stays", c do
+    {worker, _} = execute(c, %{outcome: :fail})
+    assert_receive {:settle, service, _}, 3_000
+    send(service, {:reply, 200, settled("8")})
+    assert_receive {:done, ^worker, {:settled, settled, receipt}}, 3_000
+    assert settled.status == :settled
+    assert Effects.carried_out(c.intent.id) == 0
+
+    assert {:ok, found} = Purchase.read(c.payer, c.intent.id)
+    assert found.status == :settled
+    assert found.receipt.id == receipt.id
+
+    assert {:applied, _, again} = pay(c, %{})
+    assert again.id == receipt.id
+    assert Effects.carried_out(c.intent.id) == 1
     refute_receive {:settle, _, _}, 200
   end
 
@@ -213,9 +257,12 @@ defmodule RegentPayments.PurchaseTest do
   # library can check; anything else is refused before the facilitator is
   # asked.
   describe "a signed payment the library refuses never reaches the facilitator" do
-    test "no wallet open on the page", c do
+    test "no wallet open on the page, or none on the profile", c do
       assert {:wallet_unavailable, id} = pay(c, %{})
       assert id == c.intent.id
+
+      walletless = %{c | payer: %{c.payer | wallet_address: nil}}
+      assert {:wallet_unavailable, _} = pay(walletless, %{"active_wallet" => c.wallet.address})
       nothing_sent()
     end
 

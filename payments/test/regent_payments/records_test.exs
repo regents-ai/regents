@@ -104,7 +104,6 @@ defmodule RegentPayments.RecordsTest do
 
   test "a settled receipt is recovered without submitting another payment", c do
     stored = receipt(c.intent, c.payer)
-    assert {:ok, _} = RegentPayments.mark_settled(c.intent, actor: c.payer)
     assert {:ok, locked} = RegentPayments.lock_payment_intent(c.intent.id, actor: c.payer)
     assert locked.receipt.id == stored.id
 
@@ -113,6 +112,34 @@ defmodule RegentPayments.RecordsTest do
 
     assert applied.status == :applied
     assert recovered.transaction_hash == stored.transaction_hash
+  end
+
+  describe "a receipt is written only for the settlement it records" do
+    test "an intent that is not waiting on a settlement is refused", c do
+      assert {:error, %Ash.Error.Invalid{} = error} = record(c.intent, c.payer)
+      assert Exception.message(error) =~ "is not waiting on a settlement"
+    end
+
+    test "another payment's identifier is refused", c do
+      {:ok, pending} = RegentPayments.mark_settlement_pending(c.intent, actor: c.payer)
+      other = prepare!(DirectOffer, c.payer, c.other.id, 1_000_000)
+
+      assert {:error, %Ash.Error.Invalid{} = error} =
+               record(pending, c.payer, payment_identifier: other.payment_identifier)
+
+      assert Exception.message(error) =~ "is not this payment intent's"
+    end
+
+    test "another payer's or another site's intent is refused", c do
+      {:ok, pending} = RegentPayments.mark_settlement_pending(c.intent, actor: c.payer)
+      assert {:error, %Ash.Error.Invalid{}} = record(pending, c.other)
+
+      site = Application.fetch_env!(:regent_payments, :site)
+      Application.put_env(:regent_payments, :site, "another-site")
+      on_exit(fn -> Application.put_env(:regent_payments, :site, site) end)
+      assert {:error, %Ash.Error.Invalid{} = error} = record(pending, c.payer)
+      assert Exception.message(error) =~ "is not a payment intent on this site"
+    end
   end
 
   describe "counting a profile's settled payments" do
@@ -185,26 +212,31 @@ defmodule RegentPayments.RecordsTest do
 
   defp unsigned, do: %{payment: nil, payer: nil, context: %{}}
 
+  # A payment settled the way `Purchase` settles one: sent for settlement,
+  # its receipt written, and then marked settled.
   defp receipt(intent, payer) do
+    {:ok, pending} = RegentPayments.mark_settlement_pending(intent, actor: payer)
+    {:ok, receipt} = record(pending, payer)
+    {:ok, _settled} = RegentPayments.mark_settled(pending, actor: payer)
+    receipt
+  end
+
+  defp record(intent, payer, changes \\ []) do
     hash = "0x" <> Base.encode16(:crypto.strong_rand_bytes(32), case: :lower)
 
-    {:ok, receipt} =
-      RegentPayments.record_payment_receipt(
-        %{
-          payment_intent_id: intent.id,
-          payment_identifier: intent.payment_identifier,
-          payer_address: payer.wallet_address,
-          network: intent.network,
-          asset: intent.asset,
-          amount_atomic: intent.amount_atomic,
-          facilitator: "https://example.invalid/facilitator",
-          transaction_hash: hash,
-          payment_response: %{"success" => true, "transaction" => hash},
-          settled_at: DateTime.utc_now()
-        },
-        actor: payer
-      )
-
-    receipt
+    %{
+      payment_intent_id: intent.id,
+      payment_identifier: intent.payment_identifier,
+      payer_address: payer.wallet_address,
+      network: intent.network,
+      asset: intent.asset,
+      amount_atomic: intent.amount_atomic,
+      facilitator: "https://example.invalid/facilitator",
+      transaction_hash: hash,
+      payment_response: %{"success" => true, "transaction" => hash},
+      settled_at: DateTime.utc_now()
+    }
+    |> Map.merge(Map.new(changes))
+    |> RegentPayments.record_payment_receipt(actor: payer)
   end
 end

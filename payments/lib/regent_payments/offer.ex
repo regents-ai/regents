@@ -59,6 +59,24 @@ defmodule RegentPayments.Offer do
   applied; `:incomplete` or an error leaves it settled, with its receipt, for
   the site to finish. `context` is what the site's door passed to
   `RegentPayments.Purchase.execute/3`.
+
+  It is called inside the database transaction that holds the intent's row
+  lock (`SELECT ... FOR UPDATE` on the payment intent) and marks the intent
+  applied. It writes the site's own record of the effect, such as the run a
+  payment opened, through the same repository the library is configured
+  with, so that write joins the open transaction: the site's row and the
+  applied mark are saved together or not at all. `{:error, reason}` rolls
+  both back and leaves the intent settled. `:incomplete` commits what was
+  written and leaves the intent settled.
+
+  The site's row must be unique per intent id in the database, for example
+  with a unique index on the column holding the intent's id, so no path can
+  ever save two effects for one payment.
+
+  Anything outside the database, such as starting a job or a runner, waits
+  until the transaction has committed: an Ash `after_transaction` hook on
+  the site's write, or an Oban job inserted in the same transaction. Nothing
+  outside the database starts from inside `carry_out/4` itself.
   """
   @callback carry_out(
               intent :: RegentPayments.PaymentIntent.t(),
@@ -71,6 +89,12 @@ defmodule RegentPayments.Offer do
   Whether a settled intent whose effect is not complete is carried out again
   on the payer's next execute. An offer whose effect must not be repeated
   answers `false` and finishes it by its own means.
+
+  A resumed carry out runs under the same row lock and in the same kind of
+  transaction as the first, and an applied intent is never carried out
+  again. The site's effect row must still be unique per intent id in the
+  database, so an `:incomplete` effect that is resumed finishes the row it
+  started rather than writing a second one.
   """
   @callback resumes?() :: boolean()
 

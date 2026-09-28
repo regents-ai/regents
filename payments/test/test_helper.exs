@@ -6,7 +6,10 @@ unless Regex.match?(~r/^regent_payments_test_[a-z0-9_]+$/, name),
 
 {:ok, _} = RegentPayments.TestRepo.start_link()
 
-Ecto.Migrator.run(RegentPayments.TestRepo, [{0, RegentPayments.TestRepo.AshFunctions}], :up,
+Ecto.Migrator.run(
+  RegentPayments.TestRepo,
+  [{0, RegentPayments.TestRepo.AshFunctions}, {1, RegentPayments.TestRepo.PaymentEffects}],
+  :up,
   all: true,
   log: false
 )

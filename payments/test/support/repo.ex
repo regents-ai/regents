@@ -18,3 +18,18 @@ defmodule RegentPayments.TestRepo.AshFunctions do
     |> Code.eval_string([], __ENV__)
   end
 end
+
+defmodule RegentPayments.TestRepo.PaymentEffects do
+  @moduledoc """
+  The test site's own record of what each payment bought: one row per intent,
+  held unique by its key, counting the carry outs that were saved.
+  """
+  use Ecto.Migration
+
+  def change do
+    create table(:payment_effects, primary_key: false) do
+      add(:payment_intent_id, :uuid, primary_key: true)
+      add(:carried_out, :integer, null: false, default: 1)
+    end
+  end
+end
