@@ -702,7 +702,13 @@ defmodule AshPlatformWeb.StakeActions do
                 {@amount_notice}
               </p>
 
-              <div id="staking-recipient-controls" class="stake-recipient" hidden={@action != "stake"}>
+              <%!-- Unstake keeps this row's room, unseen, so the panel is the same height in both modes. --%>
+              <div
+                id="staking-recipient-controls"
+                class="stake-recipient"
+                data-room-only={@action != "stake"}
+                inert={@action != "stake"}
+              >
                 <label class="stake-check" for="staking-for-other">
                   <input
                     id="staking-for-other"

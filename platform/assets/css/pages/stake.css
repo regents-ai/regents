@@ -853,9 +853,12 @@
   margin-block: 0.25rem 0.5rem;
 }
 
+.stake-recipient[data-room-only] {
+  visibility: hidden;
+}
+
 .stake-recipient [hidden],
 .stake-recipient .stake-check[hidden],
-.stake-recipient[hidden],
 .stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
   display: none;
 }
