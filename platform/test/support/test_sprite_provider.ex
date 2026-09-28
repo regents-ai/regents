@@ -1,5 +1,5 @@
-defmodule AshPlatform.TestSpriteProvider do
-  @behaviour AshPlatform.Formation.SpriteProvider
+defmodule Regents.TestSpriteProvider do
+  @behaviour Regents.Formation.SpriteProvider
 
   @impl true
   def create(sprite_name) do

@@ -1,4 +1,4 @@
-defmodule AshPlatform.BaseRpcStub do
+defmodule Regents.BaseRpcStub do
   @moduledoc """
   One JSON-RPC transport double for the Base reads a Stake or Redeem test makes.
 
@@ -41,18 +41,18 @@ defmodule AshPlatform.BaseRpcStub do
     def post(url, options) do
       if options[:json].method == "eth_call",
         do: {:ok, %{status: 200, body: %{"error" => %{"message" => "unsupported"}}}},
-        else: AshPlatform.BaseRpcStub.post(url, options)
+        else: Regents.BaseRpcStub.post(url, options)
     end
   end
 
   @doc "Points one wallet HTTP client at this stub for the duration of the test."
   def install(client_key, calls) do
-    previous_http = Application.get_env(:ash_platform, client_key)
-    previous_url = Application.get_env(:ash_platform, :base_read_rpc_url)
-    Application.put_env(:ash_platform, client_key, __MODULE__)
+    previous_http = Application.get_env(:regents, client_key)
+    previous_url = Application.get_env(:regents, :base_read_rpc_url)
+    Application.put_env(:regents, client_key, __MODULE__)
 
     Application.put_env(
-      :ash_platform,
+      :regents,
       :base_read_rpc_url,
       "https://provider.invalid/super-secret"
     )
@@ -62,7 +62,7 @@ defmodule AshPlatform.BaseRpcStub do
     ExUnit.Callbacks.on_exit(fn ->
       restore(client_key, previous_http)
       restore(:base_read_rpc_url, previous_url)
-      Application.delete_env(:ash_platform, :rpc_stub)
+      Application.delete_env(:regents, :rpc_stub)
     end)
   end
 
@@ -74,20 +74,20 @@ defmodule AshPlatform.BaseRpcStub do
   the real pinned length.
   """
   def install_multicall3_identity do
-    previous = Application.get_env(:ash_platform, :test_runtime_hasher)
+    previous = Application.get_env(:regents, :test_runtime_hasher)
 
     Application.put_env(
-      :ash_platform,
+      :regents,
       :test_runtime_hasher,
-      fn _code -> AshPlatform.WalletActions.Abi.multicall3_runtime_keccak256() end
+      fn _code -> Regents.WalletActions.Abi.multicall3_runtime_keccak256() end
     )
 
     ExUnit.Callbacks.on_exit(fn -> restore(:test_runtime_hasher, previous) end)
   end
 
-  def state, do: Application.get_env(:ash_platform, :rpc_stub, %{})
+  def state, do: Application.get_env(:regents, :rpc_stub, %{})
 
-  def put(changes), do: Application.put_env(:ash_platform, :rpc_stub, Map.merge(state(), changes))
+  def put(changes), do: Application.put_env(:regents, :rpc_stub, Map.merge(state(), changes))
 
   @doc "A receipt with this status, mined into this block and carrying exactly these logs."
   def receipt(hash, block_number, logs, status \\ "0x1"),
@@ -172,7 +172,7 @@ defmodule AshPlatform.BaseRpcStub do
     if canonical?(block, state),
       do:
         Map.get_lazy(state, :code, fn ->
-          runtime_code(AshPlatform.WalletActions.Abi.multicall3_runtime_bytes())
+          runtime_code(Regents.WalletActions.Abi.multicall3_runtime_bytes())
         end),
       else: :unavailable
   end
@@ -219,6 +219,6 @@ defmodule AshPlatform.BaseRpcStub do
 
   defp canonical?(_block, _state), do: false
 
-  defp restore(key, nil), do: Application.delete_env(:ash_platform, key)
-  defp restore(key, value), do: Application.put_env(:ash_platform, key, value)
+  defp restore(key, nil), do: Application.delete_env(:regents, key)
+  defp restore(key, value), do: Application.put_env(:regents, key, value)
 end

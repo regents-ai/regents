@@ -6,10 +6,10 @@ you explicitly review and choose one action.
 
 ## Automated proof
 
-From `ash-platform/`:
+From `regents/`:
 
 ```sh
-mix test test/ash_platform/redemption test/ash_platform_web/redeem_live_test.exs
+mix test test/regents/redemption test/regents_web/redeem_live_test.exs
 npm test -- --run assets/test/redemption_wallet.test.ts assets/test/privy_bridge.test.ts
 npx playwright test test/browser/redeem.spec.ts
 ```

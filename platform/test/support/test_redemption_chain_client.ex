@@ -1,5 +1,5 @@
-defmodule AshPlatform.TestRedemptionChainClient do
-  @behaviour AshPlatform.Redemption.ChainClient
+defmodule Regents.TestRedemptionChainClient do
+  @behaviour Regents.Redemption.ChainClient
 
   @impl true
   def overview(wallet, collection, token_id) do
@@ -52,28 +52,28 @@ defmodule AshPlatform.TestRedemptionChainClient do
   # never someone else's address.
   defp nft_owner(wallet, token_id) do
     if wallet && token_id && not owner_unavailable?() do
-      Application.get_env(:ash_platform, :test_redemption_nft_owner, wallet)
+      Application.get_env(:regents, :test_redemption_nft_owner, wallet)
     end
   end
 
   defp owner_unavailable?,
-    do: Application.get_env(:ash_platform, :test_redemption_owner_unavailable, false)
+    do: Application.get_env(:regents, :test_redemption_owner_unavailable, false)
 
   defp nft_approved?,
-    do: Application.get_env(:ash_platform, :test_redemption_nft_approved, not browser_test?())
+    do: Application.get_env(:regents, :test_redemption_nft_approved, not browser_test?())
 
   defp usdc_balance,
-    do: Application.get_env(:ash_platform, :test_redemption_usdc_balance, 100_000_000)
+    do: Application.get_env(:regents, :test_redemption_usdc_balance, 100_000_000)
 
   defp usdc_allowance do
     Application.get_env(
-      :ash_platform,
+      :regents,
       :test_redemption_usdc_allowance,
       if(browser_test?(), do: 0, else: 80_000_000)
     )
   end
 
-  defp browser_test?, do: System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1"
+  defp browser_test?, do: System.get_env("REGENTS_BROWSER_TEST") == "1"
 
   defp format_units(value, decimals) do
     value

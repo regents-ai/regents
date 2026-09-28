@@ -1,4 +1,4 @@
-defmodule AshPlatform.Repo.Migrations.InitialRegentsApp do
+defmodule Regents.Repo.Migrations.InitialRegentsApp do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

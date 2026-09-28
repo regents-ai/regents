@@ -1,6 +1,6 @@
-# ash-platform founder shell and first protected capabilities
+# regents founder shell and first protected capabilities
 
-Status belongs to the current Hermes assignment. This document records founder-approved product and architecture truth for the independent `ash-platform` application.
+Status belongs to the current Hermes assignment. This document records founder-approved product and architecture truth for the independent `regents` application.
 
 ## Outcome
 
@@ -38,7 +38,7 @@ Techtree has exactly five root datasets: GeneBench-Pro Reference Lab, Question F
 
 ## Route metadata contract
 
-`AshPlatformWeb.RouteCatalog` is the sole owner. Each route exposes path pattern, LiveView action, parameter schema, reserved values, route id, app id, app display label, page label, canonical root, sidebar model, header controls, search kind, background slot, content transition kind, scroll policy, and local state.
+`RegentsWeb.RouteCatalog` is the sole owner. Each route exposes path pattern, LiveView action, parameter schema, reserved values, route id, app id, app display label, page label, canonical root, sidebar model, header controls, search kind, background slot, content transition kind, scroll policy, and local state.
 
 Sidebar targets are typed as route targets, Techtree tree/presentation targets, or the auth-neutral viewer profile. Header controls use the closed set: search, filters, view switcher, wallet status, network status, and profile actions. Search exists only in Autolaunch and Techtree.
 

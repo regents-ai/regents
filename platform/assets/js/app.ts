@@ -3,7 +3,7 @@ import "../vendor/regent_ui/blog.mjs"
 
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import {hooks as colocatedHooks} from "phoenix-colocated/ash_platform"
+import {hooks as colocatedHooks} from "phoenix-colocated/regents"
 
 import {composeHooks, type Hook} from "./hook_composition"
 import {

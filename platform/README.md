@@ -30,12 +30,12 @@ Run these commands from `platform/`.
 You need Erlang, Elixir, Node, and PostgreSQL at the versions pinned in `.tool-versions`.
 
 ```bash
-createdb ash_platform_dev
+createdb regents_dev
 cp .env.example .env
 touch .env.local
 printf '%s\n' 'source_env .env' 'source_env_if_exists .env.local' > .envrc
 mix setup
-mix ash_platform.setup_local_auth
+mix regents.setup_local_auth
 mix phx.server
 ```
 
@@ -45,7 +45,7 @@ them. The values are loaded from `.env` and `.env.local` through direnv; put rea
 only in the ignored `.env.local`, never in `.env.example`, and commit none of the three.
 
 > [!NOTE]
-> The local flow talks to one loopback PostgreSQL database, `ash_platform_dev`, on
+> The local flow talks to one loopback PostgreSQL database, `regents_dev`, on
 > `127.0.0.1`, and database startup stays off unless it is explicitly enabled. What does
 > leave the machine: Privy for sign-in verification, the configured Base RPC endpoint for
 > Stake and Redeem reads, and the Sprites API when Formation runtimes are used.
@@ -69,17 +69,17 @@ development and from the deployment's secret store in production.
 | `SIWA_AUDIENCE` | For signed agent requests | Audience value required for agent request verification. |
 | `SPRITES_TOKEN` | For Formation | Server-only token used to provision and inspect Formation runtimes. |
 | `BASE_READ_RPC_URL` | Yes in production | Base mainnet JSON-RPC endpoint the Stake and Redeem pages read. Development falls back to a public endpoint. |
-| `ASH_PLATFORM_APP_SURFACES` | Yes in production | `on` opens the product surfaces. Anything else keeps them closed, so a typo closes rather than opens. Boot fails in production if unset. |
+| `REGENTS_APP_SURFACES` | Yes in production | `on` opens the product surfaces. Anything else keeps them closed, so a typo closes rather than opens. Boot fails in production if unset. |
 | `PHX_HOST` | Yes in production | Public hostname the endpoint builds URLs from. |
 | `SECRET_KEY_BASE` | Yes in production | Session signing secret; must be at least 64 bytes. |
 | `PORT` | No | HTTP port. Defaults to `4000`. |
-| `ASH_PLATFORM_DEPLOYMENT_ROLE` | Yes in production | `production` or `staging`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. |
+| `REGENTS_DEPLOYMENT_ROLE` | Yes in production | `production` or `staging`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. |
 | `DATABASE_POOLED_URL` | Yes in production | Pooled Postgres connection string. Rejected unless it is a well-formed PostgreSQL URL for an approved target. |
 | `DATABASE_DIRECT_URL` | Only when migrating | Direct Postgres connection string, used by the migration release command. |
-| `ASH_PLATFORM_DATABASE_TARGET_MODE` | When migrating under the `production` role | Must be `production`. Any other value refuses the migration. |
-| `ASH_PLATFORM_DATABASE_CLUSTER_ID` | For a remote target | Must match the approved cluster, in development and when migrating under the `production` role. |
-| `ASH_PLATFORM_DATABASE_CLUSTER_NAME` | For a remote target | Must match the approved cluster name. Set neither this nor the id to stay on the loopback database. |
-| `ASH_PLATFORM_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
+| `REGENTS_DATABASE_TARGET_MODE` | When migrating under the `production` role | Must be `production`. Any other value refuses the migration. |
+| `REGENTS_DATABASE_CLUSTER_ID` | For a remote target | Must match the approved cluster, in development and when migrating under the `production` role. |
+| `REGENTS_DATABASE_CLUSTER_NAME` | For a remote target | Must match the approved cluster name. Set neither this nor the id to stay on the loopback database. |
+| `REGENTS_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
 | `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
 | `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. |
 | `SENTRY_DSN` | No | Sentry project to report errors to. Unset, nothing is reported. |
@@ -102,9 +102,9 @@ is a map, not the contract.
 ## Repository layout
 
 ```text
-lib/ash_platform/       Ash domains: accounts, formation, names, staking,
+lib/regents/       Ash domains: accounts, formation, names, staking,
                         redemption
-lib/ash_platform_web/   Endpoint, router, LiveViews, controllers, components
+lib/regents_web/   Endpoint, router, LiveViews, controllers, components
 lib/mix/tasks/          Local setup, contract sync, and route-handoff checks
 contracts/              The OpenAPI contract, chain-contract manifest, and ABIs
 config/                 Compile-time and runtime configuration
@@ -141,19 +141,19 @@ The test database name carries whatever `MIX_TEST_PARTITION` holds, just before 
 Setting it is required, not advisory, whenever more than one test run can happen on a machine: every
 writer and every working tree gives it its own value, an underscore followed by a short id, so that
 the runs use separate databases. `MIX_TEST_PARTITION=_regent_88a` gives the database
-`ash_platform_regent_88a_test`. Run `MIX_ENV=test mix ecto.create` once for a new value; the suite
+`regents_regent_88a_test`. Run `MIX_ENV=test mix ecto.create` once for a new value; the suite
 builds the schema itself on its first run.
 
 ## Deployment
 
 > [!WARNING]
 > Deploying runs `/app/bin/migrate` as its release command, so a deploy writes database
-> migrations. Every deployment must name its venue in `ASH_PLATFORM_DEPLOYMENT_ROLE`, and
+> migrations. Every deployment must name its venue in `REGENTS_DEPLOYMENT_ROLE`, and
 > each role admits only its own database hosts. Under the `production` role the migration
-> path refuses to run unless `ASH_PLATFORM_DATABASE_TARGET_MODE` is `production`, both
+> path refuses to run unless `REGENTS_DATABASE_TARGET_MODE` is `production`, both
 > cluster settings name the approved production cluster, and `FLY_APP_NAME` is not a
 > retired application. Production boot
-> also fails unless `ASH_PLATFORM_APP_SURFACES`, `BASE_READ_RPC_URL`, `PHX_HOST`, and a
+> also fails unless `REGENTS_APP_SURFACES`, `BASE_READ_RPC_URL`, `PHX_HOST`, and a
 > 64-byte `SECRET_KEY_BASE` are all set. `/app/bin/pending-migrations` reports what a
 > deployed database and the release image disagree about, without applying anything.
 > Confirm the target and its secrets before running a deploy.

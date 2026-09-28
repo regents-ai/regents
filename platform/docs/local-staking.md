@@ -8,7 +8,7 @@ or authorize a production deployment, database migration, or automated live tran
 From `repos/regents/platform/` in an isolated prepared worktree:
 
 ```sh
-mix test test/ash_platform/staking test/ash_platform_web/stake_live_test.exs
+mix test test/regents/staking test/regents_web/stake_live_test.exs
 npm test -- --run assets/test/stake_steps.test.ts assets/test/privy_bridge.test.ts
 npx playwright test test/browser/stake.spec.ts
 ```

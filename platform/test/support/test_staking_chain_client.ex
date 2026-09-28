@@ -1,5 +1,5 @@
-defmodule AshPlatform.TestStakingChainClient do
-  @behaviour AshPlatform.Staking.ChainClient
+defmodule Regents.TestStakingChainClient do
+  @behaviour Regents.Staking.ChainClient
 
   @balances %{
     token: "10000000000000000000",
@@ -52,7 +52,7 @@ defmodule AshPlatform.TestStakingChainClient do
   def protocol_snapshot do
     report_read(:protocol)
 
-    case Application.get_env(:ash_platform, :test_staking_protocol_error) do
+    case Application.get_env(:regents, :test_staking_protocol_error) do
       nil -> {:ok, protocol()}
       reason -> {:error, reason}
     end
@@ -62,7 +62,7 @@ defmodule AshPlatform.TestStakingChainClient do
   def wallet_snapshot(wallet) do
     report_read(:wallet)
 
-    case Application.get_env(:ash_platform, :test_staking_wallet_error) do
+    case Application.get_env(:regents, :test_staking_wallet_error) do
       nil -> {:ok, wallet_facts(wallet)}
       reason -> {:error, reason}
     end
@@ -71,7 +71,7 @@ defmodule AshPlatform.TestStakingChainClient do
   # A test may watch the process doing a read, so an ordering proof can wait for
   # that read to finish rather than for a duration.
   defp report_read(scope) do
-    case Application.get_env(:ash_platform, :test_staking_read_watcher) do
+    case Application.get_env(:regents, :test_staking_read_watcher) do
       nil -> :ok
       test -> send(test, {:staking_read, scope, self()})
     end
@@ -93,7 +93,7 @@ defmodule AshPlatform.TestStakingChainClient do
       contract_address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
       stake_token_address: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
       usdc_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-      paused: Application.get_env(:ash_platform, :test_staking_paused, false),
+      paused: Application.get_env(:regents, :test_staking_paused, false),
       total_staked_raw: @total_staked,
       total_staked: scaled(@total_staked, 18),
       remaining_capacity_raw: Integer.to_string(capacity),
@@ -125,7 +125,7 @@ defmodule AshPlatform.TestStakingChainClient do
   # The seven-day window is read beside the contract's answers rather than with
   # them, so a test can take it away without taking anything else with it.
   defp seven_day_window(block) do
-    case Application.get_env(:ash_platform, :test_staking_usdc_7d, @seven_day_usdc) do
+    case Application.get_env(:regents, :test_staking_usdc_7d, @seven_day_usdc) do
       :unavailable ->
         %{
           usdc_received_from_block: :unavailable,
@@ -167,12 +167,12 @@ defmodule AshPlatform.TestStakingChainClient do
   # position from another's.
   defp raw(wallet, key),
     do:
-      :ash_platform
+      :regents
       |> Application.get_env(:test_staking_balances, %{})
       |> Map.get(wallet, %{})
       |> Map.get(key, Map.fetch!(@balances, key))
 
-  defp setting(key, default), do: Application.get_env(:ash_platform, key, default)
+  defp setting(key, default), do: Application.get_env(:regents, key, default)
 
   defp regent(wallet, key), do: scaled(raw(wallet, key), 18)
   defp usdc(wallet, key), do: scaled(raw(wallet, key), 6)

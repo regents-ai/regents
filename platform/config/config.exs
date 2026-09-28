@@ -7,7 +7,7 @@
 # General application configuration
 import Config
 
-config :regent_identity, repo: AshPlatform.Repo, ash_domains: [RegentIdentity]
+config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes
@@ -17,92 +17,92 @@ config :ash, default_string_length_count: :codepoints
 
 config :mime, :types, %{"application/yaml" => ["yaml"]}
 
-config :ash_platform,
+config :regents,
   local_showcase: false,
   ash_domains: [
-    AshPlatform.Names,
-    AshPlatform.Accounts,
-    AshPlatform.Agents,
-    AshPlatform.Formation,
-    AshPlatform.OpenSea,
-    AshPlatform.Redemption,
-    AshPlatform.Staking
+    Regents.Names,
+    Regents.Accounts,
+    Regents.Agents,
+    Regents.Formation,
+    Regents.OpenSea,
+    Regents.Redemption,
+    Regents.Staking
   ],
   generators: [timestamp_type: :utc_datetime]
 
-config :ash_platform, ecto_repos: [AshPlatform.Repo]
+config :regents, ecto_repos: [Regents.Repo]
 
-config :ash_platform, :metrics_listener, ip: {127, 0, 0, 1}, port: 9091
+config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 9091
 
-config :ash_platform, AshPlatform.Repo,
-  database: "ash_platform_disabled",
+config :regents, Regents.Repo,
+  database: "regents_disabled",
   hostname: "127.0.0.1",
   port: 1,
   pool_size: 1,
   migration_default_prefix: "regents_app"
 
-config :ash_platform, :sprite_provider, AshPlatform.Formation.SpritesHttpProvider
-config :ash_platform, :sprites, base_url: "https://api.sprites.dev", token: nil
-config :ash_platform, :agent_verification_client, AshPlatform.AgentAuth.SiwaHttpVerificationClient
-config :ash_platform, :siwa, base_url: nil, audience: nil, activity_read_token: nil
-config :ash_platform, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
+config :regents, :sprite_provider, Regents.Formation.SpritesHttpProvider
+config :regents, :sprites, base_url: "https://api.sprites.dev", token: nil
+config :regents, :agent_verification_client, Regents.AgentAuth.SiwaHttpVerificationClient
+config :regents, :siwa, base_url: nil, audience: nil, activity_read_token: nil
+config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
-config :ash_platform, :behind_fly_proxy, false
+config :regents, :behind_fly_proxy, false
 
-config :ash_platform, :agent_pairing_clock, &DateTime.utc_now/0
-config :ash_platform, :base_read_rpc_url, "https://base-rpc.publicnode.com"
+config :regents, :agent_pairing_clock, &DateTime.utc_now/0
+config :regents, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 # ENS lives on Ethereum mainnet, which has no public endpoint this product is
 # willing to trust: without one named at boot, no name or picture is looked up.
-config :ash_platform, :ethereum_read_rpc_url, nil
-config :ash_platform, :ethereum_rpc_module, AgentEns.Internal.RPC
-config :ash_platform, :ens_lookup_deadline_ms, 4_000
-config :ash_platform, :ens_avatar_http_client, AshPlatform.Ens.AvatarHttpClient
-config :ash_platform, :ens_avatar_deadline_ms, 2_000
-config :ash_platform, :app_surfaces, true
-config :ash_platform, :opensea_api_key, nil
-config :ash_platform, :opensea_http_client, AshPlatform.OpenSea.HttpClient
-config :ash_platform, :opensea_live_lookups_per_minute, 60
-config :ash_platform, :opensea_lookups_per_minute, 6
-config :ash_platform, :opensea_holdings_clock, &AshPlatform.OpenSea.HoldingsCache.monotonic_ms/0
+config :regents, :ethereum_read_rpc_url, nil
+config :regents, :ethereum_rpc_module, AgentEns.Internal.RPC
+config :regents, :ens_lookup_deadline_ms, 4_000
+config :regents, :ens_avatar_http_client, Regents.Ens.AvatarHttpClient
+config :regents, :ens_avatar_deadline_ms, 2_000
+config :regents, :app_surfaces, true
+config :regents, :opensea_api_key, nil
+config :regents, :opensea_http_client, Regents.OpenSea.HttpClient
+config :regents, :opensea_live_lookups_per_minute, 60
+config :regents, :opensea_lookups_per_minute, 6
+config :regents, :opensea_holdings_clock, &Regents.OpenSea.HoldingsCache.monotonic_ms/0
 # Also bounds how often one address may be reset: once per window.
-config :ash_platform, :opensea_holdings_cache_ttl_ms, 15_000
+config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 
 # The shared staking reading warms at boot and refreshes once a minute without
 # a visitor. Background and signed-in requests share the same allowance and
 # the ten-second minimum between refreshes.
-config :ash_platform, :staking_snapshot_boot_read, true
-config :ash_platform, :staking_snapshot_refresh_interval_ms, 60_000
-config :ash_platform, :staking_shared_refreshes_per_minute, 6
-config :ash_platform, :staking_snapshot_clock, &AshPlatform.Staking.SnapshotCache.monotonic_ms/0
+config :regents, :staking_snapshot_boot_read, true
+config :regents, :staking_snapshot_refresh_interval_ms, 60_000
+config :regents, :staking_shared_refreshes_per_minute, 6
+config :regents, :staking_snapshot_clock, &Regents.Staking.SnapshotCache.monotonic_ms/0
 
-config :ash_platform, :session_options,
+config :regents, :session_options,
   store: :cookie,
-  key: "_ash_platform_key",
+  key: "_regents_key",
   signing_salt: "OLoeAaio",
   same_site: "Lax",
   secure: false,
   http_only: true
 
 # Configure the endpoint
-config :ash_platform, AshPlatformWeb.Endpoint,
+config :regents, RegentsWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [
-      html: AshPlatformWeb.ErrorHTML,
-      json: AshPlatformWeb.ErrorJSON,
-      md: AshPlatformWeb.ErrorMD
+      html: RegentsWeb.ErrorHTML,
+      json: RegentsWeb.ErrorJSON,
+      md: RegentsWeb.ErrorMD
     ],
     layout: false
   ],
-  pubsub_server: AshPlatform.PubSub,
+  pubsub_server: Regents.PubSub,
   live_view: [signing_salt: "RH19ZPg2"]
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  ash_platform: [
+  regents: [
     args:
       ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --loader:.woff2=file --loader:.woff=file --loader:.ttf=file),
     cd: Path.expand("../assets", __DIR__),
@@ -118,7 +118,7 @@ config :sentry,
   environment_name: config_env(),
   json_library: Jason,
   enable_metrics: false,
-  tags: %{app: "ash_platform"}
+  tags: %{app: "regents"}
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

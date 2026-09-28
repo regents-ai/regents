@@ -1,10 +1,10 @@
-defmodule AshPlatform.TestStakingPriceHttpClient do
+defmodule Regents.TestStakingPriceHttpClient do
   @moduledoc false
 
-  alias AshPlatform.WalletActions.Abi
+  alias Regents.WalletActions.Abi
 
   def get(url, options) do
-    case Application.get_env(:ash_platform, :test_staking_price_handler) do
+    case Application.get_env(:regents, :test_staking_price_handler) do
       handler when is_function(handler, 2) -> handler.(url, options)
       handler when is_function(handler, 1) -> handler.(url)
       _ -> {:ok, %{status: 200, body: default_body(url)}}

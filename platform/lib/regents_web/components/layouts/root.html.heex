@@ -1,0 +1,55 @@
+<!DOCTYPE html> <% home? = @conn.request_path == "/" %>
+<% theme = if home?, do: "dark", else: @theme %>
+<% metadata =
+  RegentsWeb.PublicDocuments.metadata(@conn.request_path, @page_title, @page_description) %>
+<%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
+<% shell? = assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
+<html
+  lang="en"
+  data-brand="platform"
+  data-theme={theme}
+  data-home-theme-locked={if home?, do: "true", else: "false"}
+>
+  <head>
+    <meta charset="utf-8" />
+    <Regent.AgentMetadata.head
+      title={metadata.title}
+      description={metadata.description}
+      canonical={metadata.canonical}
+      site_name="Regents Labs"
+      site_type="business"
+      image={metadata.image}
+      image_width={1024}
+      image_height={512}
+      image_alt="Regents' orange thirteen-square crown on a platinum background"
+      twitter_site="@regents_sh"
+      markdown={metadata.markdown?}
+      agent_guide={~p"/llms.txt"}
+      sitemap={~p"/sitemap.xml"}
+      service_description={~p"/openapi.json"}
+      structured_data={RegentsWeb.PublicDocuments.structured_data()}
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content={theme} />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <meta :if={assigns[:session_refused]} name="session-refused" content="true" />
+    <meta name="privy-app-id" content={Application.get_env(:regents, :privy, [])[:app_id]} />
+    <meta
+      name="privy-bridge-src"
+      content={RegentsWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}
+    />
+    <.live_title suffix={metadata.suffix}>{@page_title}</.live_title>
+    <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href={~p"/favicon.ico"} />
+    <link rel="icon" type="image/png" sizes="32x32" href={~p"/favicon-32.png?v=2"} />
+    <link rel="icon" type="image/svg+xml" sizes="any" href={~p"/favicon.svg?v=2"} />
+    <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />
+    <meta name="theme-color" content={if theme == "dark", do: "#161616", else: "#e5e3d2"} />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
+    <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+    <.product_links :if={!home? and !shell?} theme={theme} />
+  </body>
+</html>

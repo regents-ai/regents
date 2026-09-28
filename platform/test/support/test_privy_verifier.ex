@@ -1,4 +1,4 @@
-defmodule AshPlatform.TestPrivyVerifier do
+defmodule Regents.TestPrivyVerifier do
   @moduledoc false
 
   @identity_suffix "-identity"

@@ -1,4 +1,4 @@
-defmodule AshPlatformWeb.SessionAuthorityHelpers do
+defmodule RegentsWeb.SessionAuthorityHelpers do
   @moduledoc """
   Mints the durable session authority every test connection carries.
 
@@ -8,7 +8,7 @@ defmodule AshPlatformWeb.SessionAuthorityHelpers do
   otherwise have to accept on trust.
   """
 
-  alias AshPlatform.Accounts.SessionAuthority
+  alias Regents.Accounts.SessionAuthority
 
   @doc "A test connection that reaches a connected mount the way a browser does."
   def build_conn, do: connects_with_own_cookie(Phoenix.ConnTest.build_conn())

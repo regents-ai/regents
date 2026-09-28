@@ -1,6 +1,6 @@
 # Motion evidence
 
-Regents moves the way Patchbay does (Patchbay `45a7c92`), with Anime.js 4.5.0. `AshPlatformWeb.Motion` names the version of each part; a live part of a page carries it in `data-variant`.
+Regents moves the way Patchbay does (Patchbay `45a7c92`), with Anime.js 4.5.0. `RegentsWeb.Motion` names the version of each part; a live part of a page carries it in `data-variant`.
 
 ## Where each part is used
 
@@ -17,7 +17,7 @@ Regents moves the way Patchbay does (Patchbay `45a7c92`), with Anime.js 4.5.0. `
 | Headline | rise | The `<h1>` of a page the server draws once, such as the blog | `motion.ts`, `reveals.ts` |
 | Grid | cascade | The blog's card grid | `motion.ts`, `reveals.ts` |
 
-Note peel and stamp thunk stay in `AshPlatformWeb.Motion` until the site has a place for them. The "nope" press is not used: no press on the site is answered with a refusal.
+Note peel and stamp thunk stay in `RegentsWeb.Motion` until the site has a place for them. The "nope" press is not used: no press on the site is answered with a refusal.
 
 ## Rules every part follows
 

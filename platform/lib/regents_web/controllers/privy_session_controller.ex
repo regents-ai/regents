@@ -1,0 +1,346 @@
+defmodule RegentsWeb.PrivySessionController do
+  use RegentsWeb, :controller
+
+  alias Regents.{AccessContext, Formation}
+  alias Regents.Accounts.{SessionAuthority, VerifiedSession}
+  alias Regents.Actors.Human
+  alias Regents.RateLimiter
+  alias RegentsWeb.ClientAddress
+
+  require Logger
+
+  @account_evidence_reasons [:missing_linked_wallet, :invalid_verified_identity]
+  @browser_failure_reasons ~w(
+    bridge_startup
+    flow_closed
+    invalid_message
+    provider_error
+    request_timeout
+    session_exchange
+    unable_to_sign
+  )
+  @browser_failure_limit 20
+  @browser_failure_window_seconds 60
+
+  @doc """
+  The browser-session state matrix.
+
+  A browser with no claim is bootstrapped onto a fresh unbound lineage; an exact
+  claim is only observed; a superseded or unrecoverable one is told which of the
+  two it is instead of being silently reset.
+
+  Observation writes no session, so this response carries no `Set-Cookie` and a
+  delayed one cannot put an older generation back over a later winner's cookie.
+
+  Only a browser carrying no claim can create a lineage, so only that request
+  spends the anonymous bootstrap budget, and it spends it before `renew/1` can
+  insert a row: a denial therefore leaves behind no `SessionAuthority` lineage
+  and no CSRF session state.
+  """
+  def csrf(conn, _params), do: admit_bootstrap(conn, claim(conn))
+
+  @doc """
+  Records a bounded browser-side Privy failure without accepting provider text,
+  identity, wallet, token, signature, or exception data.
+
+  The response is deliberately identical for valid, invalid, and rate-limited
+  reports because diagnostics must never become part of the sign-in control flow.
+  """
+  def failure(conn, %{"reason" => reason}) when reason in @browser_failure_reasons do
+    report_bounded_sign_in_failure(conn, reason)
+    diagnostic_accepted(conn)
+  end
+
+  def failure(conn, _untrusted_params), do: diagnostic_accepted(conn)
+
+  def create(conn, _untrusted_params) do
+    with {:ok, pair} <- session_pair(conn),
+         {:ok, verified} <-
+           verifier().verify(pair, Application.get_env(:regents, :privy, [])),
+         {:ok, account, identity_conflicts} <- establish(verified) do
+      bind(conn, account, identity_conflicts)
+    else
+      {:error, {stage, reason}} -> refuse(conn, stage, reason)
+    end
+  end
+
+  def show(conn, _params), do: json(conn, session_payload(conn.assigns.current_human_account))
+
+  def delete(conn, _params) do
+    topic = SessionAuthority.revoke(claim(conn))
+
+    %Plug.Conn{state: :sent} = conn = conn |> drop_session() |> json(%{ok: true})
+
+    broadcast_disconnect(topic)
+    conn
+  end
+
+  @doc """
+  The one place a request turns a cookie into an account.
+
+  The cookie names no account, so identity comes from the locked row and only
+  after the claim is exactly current. Anything else — missing, malformed,
+  superseded, revoked or absent authority, or an account whose verified evidence
+  has lapsed — leaves the request anonymous.
+
+  A request whose cookie states a claim that is not current is also told so. No
+  ordinary response may replace that cookie, so the page names the refusal and
+  the browser retires the cookie through the session endpoints, which can.
+  """
+  def enforce_authority(conn) do
+    session = get_session(conn)
+    {lineage, account} = session |> SessionAuthority.claim() |> SessionAuthority.resolve()
+
+    conn
+    |> assign(:current_lineage, lineage)
+    |> assign(:current_human_account, account)
+    |> assign(:session_refused, is_nil(lineage) and SessionAuthority.claim_shaped?(session))
+  end
+
+  defp admit_bootstrap(conn, nil) do
+    budget = Application.fetch_env!(:regents, :session_bootstrap_rate_limit)
+    window = Keyword.fetch!(budget, :window_seconds)
+    {key, source} = ClientAddress.key(conn)
+
+    case RateLimiter.admit({:session_bootstrap, key}, Keyword.fetch!(budget, :limit), window) do
+      {:ok, _budget} -> renew(conn, nil)
+      {:error, :rate_limited, _budget} -> rate_limited(conn, source, window)
+    end
+  end
+
+  defp admit_bootstrap(conn, claim), do: renew(conn, claim)
+
+  defp renew(conn, claim) do
+    case SessionAuthority.renew(claim) do
+      {:bootstrap, claim} -> conn |> rotate_session(claim) |> issue_token()
+      {:current, _claim} -> issue_token(conn)
+      {:error, :superseded} -> lifecycle_error(conn, "session_superseded")
+      {:error, :reset} -> conn |> drop_session() |> lifecycle_error("session_reset_required")
+    end
+  end
+
+  defp rate_limited(conn, source, window) do
+    :telemetry.execute([:regents, :session_bootstrap, :rate_limited], %{count: 1}, %{
+      source: source
+    })
+
+    conn
+    |> put_resp_header("retry-after", to_string(window))
+    |> put_resp_header("cache-control", "no-store")
+    |> put_status(:too_many_requests)
+    |> json(%{error: "rate_limited"})
+  end
+
+  defp diagnostic_accepted(conn) do
+    conn
+    |> put_resp_header("cache-control", "no-store")
+    |> send_resp(:no_content, "")
+  end
+
+  defp report_sign_in_failure(reason) do
+    Logger.warning("Privy browser reported sign-in failure reason=#{reason}")
+
+    :telemetry.execute([:regents, :privy, :browser_failure], %{count: 1}, %{
+      reason: reason
+    })
+
+    if sentry_configured?() do
+      Sentry.capture_message("Privy browser sign-in failure",
+        level: :warning,
+        tags: %{reason: reason},
+        fingerprint: ["privy_browser_failure", reason]
+      )
+    end
+  end
+
+  defp sentry_configured? do
+    case Application.get_env(:sentry, :dsn) do
+      dsn when is_binary(dsn) -> String.trim(dsn) != ""
+      _absent -> false
+    end
+  end
+
+  defp browser_failure_bucket("flow_closed"), do: :retryable
+  defp browser_failure_bucket(_actionable_reason), do: :actionable
+
+  defp report_bounded_sign_in_failure(conn, reason) do
+    {key, _source} = ClientAddress.key(conn)
+
+    if match?(
+         {:ok, _budget},
+         RateLimiter.admit(
+           {:privy_browser_failure, browser_failure_bucket(reason), key},
+           @browser_failure_limit,
+           @browser_failure_window_seconds
+         )
+       ) do
+      report_sign_in_failure(reason)
+    end
+  end
+
+  # Privy is verified before the row lock, so only the transition itself is
+  # serialized. A different account is a two-step cutover: this response revokes
+  # and disconnects the old lineage and binds nothing.
+  defp bind(conn, account, identity_conflicts) do
+    case SessionAuthority.sign_in(claim(conn), account.id) do
+      {:ok, transition, claim} ->
+        conn
+        |> rotate_session(claim)
+        |> put_identity_conflict_header(identity_conflicts)
+        |> put_resp_header("x-ash-session-changed", to_string(transition == :bind))
+        |> json(session_payload(account))
+
+      {:switch, topic} ->
+        conn = conn |> drop_session() |> lifecycle_error("account_switch_required")
+        broadcast_disconnect(topic)
+        conn
+
+      {:error, :superseded} ->
+        lifecycle_error(conn, "session_superseded")
+
+      {:error, :reset} ->
+        conn |> drop_session() |> lifecycle_error("session_reset_required")
+    end
+  end
+
+  # The account boundary's own two outcomes are named; anything else it or Ash
+  # returns is reduced without being inspected, so no query, changeset or record
+  # detail can reach the classification.
+  defp establish(verified) do
+    case VerifiedSession.establish(verified) do
+      {:ok, _account, _conflicts} = established -> established
+      {:error, reason} when reason in @account_evidence_reasons -> account_evidence(reason)
+      _rejected -> account_evidence(:account_rejected)
+    end
+  end
+
+  defp account_evidence(reason), do: {:error, {:account_evidence, reason}}
+
+  # Both values are fixed atoms from the classification contract, and the
+  # development formatter drops metadata, so they belong in the message itself.
+  # The refused pair is never interpolated, inspected or answered differently.
+  defp refuse(conn, stage, reason) do
+    Logger.debug("Privy session rejected stage=#{stage} reason=#{reason}")
+    report_bounded_sign_in_failure(conn, "session_exchange")
+    conn |> mark_recoverable(stage, reason) |> unauthorized()
+  end
+
+  # The one refusal a browser may answer with a fresh provider login: the access
+  # token itself did not verify, so the provider session behind it is spent. The
+  # marker names nothing about the refusal, and every other refusal carries none,
+  # so no other 401 can end a provider session.
+  defp mark_recoverable(conn, :access_verification, :token_verification_failed),
+    do: put_resp_header(conn, "x-ash-provider-relogin", "allowed")
+
+  defp mark_recoverable(conn, _stage, _reason), do: conn
+
+  # The provider attempt is over before any authority work starts, so no external
+  # call sits inside the transaction: a bearer this browser cannot prove revokes
+  # the lineage it was offered for instead of leaving it bound and current.
+  defp unauthorized(conn) do
+    topic = SessionAuthority.revoke(claim(conn))
+
+    %Plug.Conn{state: :sent} =
+      conn = conn |> drop_session() |> put_status(:unauthorized) |> json(%{error: "unauthorized"})
+
+    broadcast_disconnect(topic)
+    conn
+  end
+
+  defp claim(conn), do: conn |> get_session() |> SessionAuthority.claim()
+
+  defp rotate_session(conn, claim) do
+    Plug.CSRFProtection.delete_csrf_token()
+
+    conn
+    |> configure_session(renew: true)
+    |> clear_session()
+    |> put_claim(claim)
+    |> put_csrf_state()
+  end
+
+  defp put_claim(conn, claim) do
+    claim
+    |> SessionAuthority.session()
+    |> Enum.reduce(conn, fn {key, value}, conn -> put_session(conn, key, value) end)
+  end
+
+  defp put_csrf_state(conn) do
+    Plug.CSRFProtection.get_csrf_token()
+    put_session(conn, "_csrf_token", Plug.CSRFProtection.dump_state())
+  end
+
+  defp issue_token(conn), do: json(conn, %{csrf_token: Plug.CSRFProtection.get_csrf_token()})
+
+  defp lifecycle_error(conn, error), do: conn |> put_status(:conflict) |> json(%{error: error})
+
+  defp drop_session(conn), do: configure_session(conn, drop: true)
+
+  defp verifier, do: Application.get_env(:regents, :privy_verifier, RegentPrivy.Session)
+
+  defp session_payload(nil),
+    do: %{
+      authenticated: false,
+      account_control: %{
+        kind: :sign_in,
+        label: "Sign In",
+        profile_path: nil,
+        avatar_src: nil
+      }
+    }
+
+  defp session_payload(account) do
+    access_context = AccessContext.human(account)
+    control = AccessContext.account_control(access_context, current_regent(account))
+
+    %{authenticated: true, account_control: Map.from_struct(control)}
+  end
+
+  defp current_regent(account) do
+    case Formation.get_my_regent(actor: %Human{human_account_id: account.id}) do
+      {:ok, regent} -> regent
+      _no_regent -> nil
+    end
+  end
+
+  defp broadcast_disconnect(nil), do: :ok
+
+  defp broadcast_disconnect(topic),
+    do: RegentsWeb.Endpoint.broadcast(topic, "disconnect", %{})
+
+  defp put_identity_conflict_header(conn, []), do: conn
+
+  defp put_identity_conflict_header(conn, _conflicts),
+    do: put_resp_header(conn, "x-ash-identity-error", "already-connected")
+
+  # The access token travels only as the bearer and the identity token only as
+  # Privy's own header, so neither reaches a URL, a body or a log. Exactly one
+  # of each is a pair; anything else is refused before the provider is asked.
+  defp session_pair(conn) do
+    with {:ok, access} <- bearer_token(conn),
+         {:ok, identity} <- identity_token(conn) do
+      {:ok, %{access: access, identity: identity}}
+    end
+  end
+
+  defp bearer_token(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Bearer " <> access] -> present(access, :missing_access_token)
+      _absent_or_duplicated -> {:error, {:request_pair, :missing_access_token}}
+    end
+  end
+
+  defp identity_token(conn) do
+    case get_req_header(conn, "privy-id-token") do
+      [identity] -> present(identity, :missing_identity_token)
+      _absent_or_duplicated -> {:error, {:request_pair, :missing_identity_token}}
+    end
+  end
+
+  defp present(token, reason) do
+    case String.trim(token) do
+      "" -> {:error, {:request_pair, reason}}
+      token -> {:ok, token}
+    end
+  end
+end

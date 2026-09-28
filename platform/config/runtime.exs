@@ -7,26 +7,26 @@ config :sentry,
   release: System.get_env("SENTRY_RELEASE"),
   environment_name: System.get_env("SENTRY_ENVIRONMENT", to_string(config_env()))
 
-config :ash_platform, :privy,
+config :regents, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
   verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
 
 # The browser acceptance server names a test-only Privy app. Production can
 # never take this branch.
-if config_env() == :test and System.get_env("ASH_PLATFORM_BROWSER_TEST") == "1" do
-  config :ash_platform, :privy, app_id: "browser-test-public-id", verification_key: nil
+if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
+  config :regents, :privy, app_id: "browser-test-public-id", verification_key: nil
 end
 
 if config_env() != :test do
-  config :ash_platform, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
+  config :regents, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
 end
 
-config :ash_platform, :sprites,
+config :regents, :sprites,
   base_url: "https://api.sprites.dev",
   token: System.get_env("SPRITES_TOKEN")
 
 if config_env() != :test do
-  config :ash_platform, :siwa,
+  config :regents, :siwa,
     base_url: System.get_env("SIWA_SERVER_URL"),
     audience: System.get_env("SIWA_AUDIENCE"),
     activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
@@ -35,9 +35,9 @@ end
 # Production must say out loud whether the product surfaces are open. Anything
 # but "on" keeps them closed, so a typo closes rather than opens.
 app_surfaces_setting =
-  case {config_env(), System.get_env("ASH_PLATFORM_APP_SURFACES")} do
+  case {config_env(), System.get_env("REGENTS_APP_SURFACES")} do
     {:prod, nil} ->
-      raise ~s(ASH_PLATFORM_APP_SURFACES must be set to "on" or "off")
+      raise ~s(REGENTS_APP_SURFACES must be set to "on" or "off")
 
     {_env, nil} ->
       "on"
@@ -48,7 +48,7 @@ app_surfaces_setting =
 
 app_surfaces? = app_surfaces_setting == "on"
 
-config :ash_platform, :app_surfaces, app_surfaces?
+config :regents, :app_surfaces, app_surfaces?
 
 Logger.info("App surfaces #{if app_surfaces?, do: "enabled", else: "disabled"}")
 
@@ -59,24 +59,24 @@ if config_env() != :test do
   ethereum_read_rpc_url = String.trim(System.get_env("ETHEREUM_READ_RPC_URL", ""))
 
   if ethereum_read_rpc_url != "" do
-    config :ash_platform, :ethereum_read_rpc_url, ethereum_read_rpc_url
+    config :regents, :ethereum_read_rpc_url, ethereum_read_rpc_url
 
     Logger.info("Ethereum read endpoint host #{URI.parse(ethereum_read_rpc_url).host}")
   end
 end
 
-migrating? = System.get_env("ASH_PLATFORM_RELEASE_COMMAND") == "migrate"
+migrating? = System.get_env("REGENTS_RELEASE_COMMAND") == "migrate"
 
 database_config =
   if config_env() == :prod and migrating? do
-    AshPlatform.DatabaseConfig.release_config!()
+    Regents.DatabaseConfig.release_config!()
   else
-    AshPlatform.DatabaseConfig.runtime_config!(config_env())
+    Regents.DatabaseConfig.runtime_config!(config_env())
   end
 
 if database_config do
-  config :ash_platform, :database_startup_enabled, true
-  config :ash_platform, AshPlatform.Repo, database_config
+  config :regents, :database_startup_enabled, true
+  config :regents, Regents.Repo, database_config
 end
 
 # Local Stake and Redeem read the same Base endpoint as production when
@@ -86,7 +86,7 @@ if config_env() == :dev do
   base_read_rpc_url = String.trim(System.get_env("BASE_READ_RPC_URL", ""))
 
   if base_read_rpc_url != "" do
-    config :ash_platform, :base_read_rpc_url, base_read_rpc_url
+    config :regents, :base_read_rpc_url, base_read_rpc_url
 
     Logger.info("Development Base read endpoint host #{URI.parse(base_read_rpc_url).host}")
   end
@@ -97,9 +97,9 @@ if config_env() == :prod do
   # Development has a default in `config.exs`; production must say which
   # endpoint it trusts, so a missing value stops the boot instead of quietly
   # reading a public one.
-  config :ash_platform, :base_read_rpc_url, System.fetch_env!("BASE_READ_RPC_URL")
+  config :regents, :base_read_rpc_url, System.fetch_env!("BASE_READ_RPC_URL")
 
-  config :ash_platform, :session_options, secure: true, http_only: true
+  config :regents, :session_options, secure: true, http_only: true
 
   unless migrating? do
     host = String.trim(System.fetch_env!("PHX_HOST"))
@@ -113,7 +113,7 @@ if config_env() == :prod do
       raise "SECRET_KEY_BASE must be at least 64 bytes"
     end
 
-    config :ash_platform, AshPlatformWeb.Endpoint,
+    config :regents, RegentsWeb.Endpoint,
       server: true,
       url: [host: host, port: 443, scheme: "https"],
       http: [

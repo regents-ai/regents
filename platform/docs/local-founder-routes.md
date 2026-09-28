@@ -1,6 +1,6 @@
 # Test Privy, Stake, and Redeem locally
 
-This is the single local handoff for the first protected `ash-platform` routes. It keeps the
+This is the single local handoff for the first protected `regents` routes. It keeps the
 automated proof separate from actions that would create real Base mainnet transactions.
 
 ## 1. Install and verify
@@ -8,7 +8,7 @@ automated proof separate from actions that would create real Base mainnet transa
 From a terminal:
 
 ```sh
-cd /Users/sean/Documents/regent/ash-platform
+cd /Users/sean/Documents/regent/repos/regents/platform
 mix deps.get
 npm install
 mix precommit
@@ -26,7 +26,7 @@ a transaction.
 Create the local database once. Skip this command if it already exists:
 
 ```sh
-createdb ash_platform_dev
+createdb regents_dev
 ```
 
 Create the ignored direnv files from the tracked example:
@@ -56,7 +56,7 @@ direnv allow
 Create only the local Human Account table and start Phoenix:
 
 ```sh
-mix ash_platform.setup_local_auth
+mix regents.setup_local_auth
 mix phx.server
 ```
 

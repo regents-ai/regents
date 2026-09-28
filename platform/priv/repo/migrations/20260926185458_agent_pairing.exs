@@ -1,4 +1,4 @@
-defmodule AshPlatform.Repo.Migrations.AgentPairing do
+defmodule Regents.Repo.Migrations.AgentPairing do
   @moduledoc """
   Agents now pair with a person's account instead of a Regent. The old links
   and any outstanding Regent pairing codes are removed; this does not go back.

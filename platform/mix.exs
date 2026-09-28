@@ -1,4 +1,4 @@
-defmodule AshPlatform.MixProject do
+defmodule Regents.MixProject do
   use Mix.Project
 
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
@@ -10,7 +10,7 @@ defmodule AshPlatform.MixProject do
 
   def project do
     [
-      app: :ash_platform,
+      app: :regents,
       version: "0.1.0",
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -27,7 +27,7 @@ defmodule AshPlatform.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {AshPlatform.Application, []},
+      mod: {Regents.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -110,13 +110,13 @@ defmodule AshPlatform.MixProject do
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
-        "esbuild ash_platform"
+        "esbuild regents"
       ],
       "assets.deploy": [
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
-        "esbuild ash_platform --minify",
+        "esbuild regents --minify",
         "phx.digest"
       ],
       "test.external": ["test --only external"],
@@ -131,7 +131,7 @@ defmodule AshPlatform.MixProject do
         "xref graph --label compile-connected --fail-above 36",
         "test --warnings-as-errors",
         "ash.codegen --check",
-        "ash_platform.route_handoff --check"
+        "regents.route_handoff --check"
       ]
     ]
   end

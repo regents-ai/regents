@@ -58,7 +58,7 @@
              files: %{
                excluded: [
                  # This LiveView owns protected stake/redemption flows; changing its branching is not lint-only.
-                 "lib/ash_platform_web/live/shell_live.ex"
+                 "lib/regents_web/live/shell_live.ex"
                ]
              }
            ]},
@@ -67,11 +67,11 @@
              files: %{
                excluded: [
                  # Redemption runtime code is protected and cannot receive semantic refactors in this ticket.
-                 "lib/ash_platform/redemption/**/*.ex",
+                 "lib/regents/redemption/**/*.ex",
                  # This LiveView owns protected wallet, stake, and redemption flows.
-                 "lib/ash_platform_web/live/shell_live.ex",
+                 "lib/regents_web/live/shell_live.ex",
                  # Redemption tests are protected from semantic refactors and assertion changes.
-                 "test/ash_platform/redemption/**/*_test.exs",
+                 "test/regents/redemption/**/*_test.exs",
                  # The redemption chain stub models protected chain behavior.
                  "test/support/test_redemption_chain_client.ex",
                  # The staking chain stub models protected chain behavior.
@@ -86,7 +86,7 @@
              files: %{
                excluded: [
                  # Changing the protected redemption RPC interface is not a lint-only edit.
-                 "lib/ash_platform/redemption/**/*.ex"
+                 "lib/regents/redemption/**/*.ex"
                ]
              }
            ]},
@@ -100,7 +100,7 @@
              files: %{
                excluded: [
                  # This LiveView owns protected wallet, stake, and redemption flows.
-                 "lib/ash_platform_web/live/shell_live.ex"
+                 "lib/regents_web/live/shell_live.ex"
                ]
              }
            ]},
@@ -146,7 +146,7 @@
                excluded: [
                  # This task intentionally syncs into the checked-out repository;
                  # Application.app_dir/2 would point at the build output instead.
-                 "lib/mix/tasks/ash_platform.sync_api_contract.ex"
+                 "lib/mix/tasks/regents.sync_api_contract.ex"
                ]
              }
            ]},
@@ -172,7 +172,7 @@
                  # Exact-size assertions are clearer test failures than counting helpers.
                  "test/**/*.exs",
                  # These validations require an exact ABI/domain shape, not an emptiness test.
-                 "lib/ash_platform/autolaunch/indexer/chain.ex"
+                 "lib/regents/autolaunch/indexer/chain.ex"
                ]
              }
            ]},

@@ -23,7 +23,7 @@ cd "$root"
 commit="$(git rev-parse HEAD)"
 image="regents:${commit:0:12}"
 run="regents-smoke-$$"
-database_url="postgres://smoke:smoke@regents-staging-db.internal/ash_platform_smoke"
+database_url="postgres://smoke:smoke@regents-staging-db.internal/regents_smoke"
 
 cleanup() {
   status=$?
@@ -63,7 +63,7 @@ echo "==> Starting a throwaway database"
 docker network create --ipv6 "$run" >/dev/null
 docker run --detach --name "$run-db" --network "$run" \
   --network-alias regents-staging-db.internal \
-  --env POSTGRES_USER=smoke --env POSTGRES_DB=ash_platform_smoke \
+  --env POSTGRES_USER=smoke --env POSTGRES_DB=regents_smoke \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
   docker.io/library/postgres:17 >/dev/null
 wait_for "the database" docker exec "$run-db" pg_isready --quiet --host 127.0.0.1 --username smoke
@@ -71,8 +71,8 @@ wait_for "the database" docker exec "$run-db" pg_isready --quiet --host 127.0.0.
 # Production requires a Base read endpoint; the public one is enough to boot.
 release_env=(
   --network "$run"
-  --env ASH_PLATFORM_DEPLOYMENT_ROLE=staging
-  --env ASH_PLATFORM_APP_SURFACES=on
+  --env REGENTS_DEPLOYMENT_ROLE=staging
+  --env REGENTS_APP_SURFACES=on
   --env BASE_READ_RPC_URL=https://mainnet.base.org
 )
 
@@ -101,9 +101,9 @@ stylesheet="$(grep -oE '/assets/[^"]+-[0-9a-f]{32}\.css' <<<"$home" | head -n 1)
 stylesheet_answer="$(curl --silent --fail --output /dev/null --write-out '%{http_code} %{content_type} %{size_download} bytes' "$base$stylesheet")"
 [[ $stylesheet_answer == "200 text/css"* ]] || fail "$stylesheet answered $stylesheet_answer"
 
-connected_database="$(docker exec "$run-app" /app/bin/ash_platform rpc \
-  '[[name]] = AshPlatform.Repo.query!("SELECT current_database()").rows; IO.puts(name)')"
-[[ $connected_database == ash_platform_smoke ]] || fail "the server's database answered \"$connected_database\""
+connected_database="$(docker exec "$run-app" /app/bin/regents rpc \
+  '[[name]] = Regents.Repo.query!("SELECT current_database()").rows; IO.puts(name)')"
+[[ $connected_database == regents_smoke ]] || fail "the server's database answered \"$connected_database\""
 
 echo
 echo "Release built and smoke-checked"

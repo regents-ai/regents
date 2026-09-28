@@ -11,7 +11,7 @@ declare module "phoenix_live_view" {
   }
 }
 
-declare module "phoenix-colocated/ash_platform" {
+declare module "phoenix-colocated/regents" {
   export const hooks: Record<string, Record<string, (...args: unknown[]) => unknown>>
 }
 
