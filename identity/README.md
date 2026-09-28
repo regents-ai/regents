@@ -44,7 +44,8 @@ Privy canary are required before rollout.
 A product may forward `/api/v1/profile` to `RegentIdentity.HTTP`, passing
 `otp_app: :product_app`. `GET /` reads without creating a row; `POST /sync`
 reconciles a verified, explicit sign-in/link event; `PATCH /` accepts only
-`display_name` and `wallet_address`. All return `{profile: ...}` on success.
+`display_name` and `wallet_address`. All return `{profile: ...}` on success,
+and every refusal returns `{error: {code, message, hint}}`.
 Each request requires `Authorization: Bearer <access token>` and
 `privy-id-token: <identity token>` headers; these proofs belong in a credential
 adapter, never ordinary WebMCP tool parameters or CLI command-line arguments.

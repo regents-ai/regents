@@ -7,6 +7,37 @@ defmodule RegentIdentity.HTTP do
   @behaviour Plug
   import Plug.Conn
 
+  # Every refusal answers {error: {code, message, hint}}: what went wrong, and
+  # what the caller can do next.
+  @errors %{
+    "authentication_required" =>
+      {"Sign in to read or change your profile.",
+       "Send the access token as a Bearer token and the identity token in privy-id-token, both from the same sign-in."},
+    "identity_evidence_conflict" =>
+      {"Your sign-in could not be matched to your profile.", "Sign in again, then retry."},
+    "invalid_profile_json" => {"The request body is not valid JSON.", "Send one JSON object."},
+    "invalid_profile_update" =>
+      {"The profile change could not be made.",
+       "Send only display_name and wallet_address, where wallet_address is a wallet linked to your sign-in. If your profile changed, read it again first."},
+    "json_required" =>
+      {"Profile changes must be sent as JSON.", "Set Content-Type to application/json."},
+    "method_not_allowed" =>
+      {"This route does not accept that method.", "Use a method listed in the Allow header."},
+    "not_found" =>
+      {"There is no profile route here.", "Use /api/v1/profile or /api/v1/profile/sync."},
+    "profile_forbidden" =>
+      {"This profile belongs to another account.", "Sign in as the profile's owner."},
+    "profile_not_created" =>
+      {"You have no profile yet.", "Create it with POST /api/v1/profile/sync."},
+    "profile_request_too_large" =>
+      {"The request body is too large.",
+       "Send only display_name and wallet_address, in under 8 KB."},
+    "profile_unavailable" =>
+      {"Your profile could not be reached right now.", "Try again in a moment."},
+    "profile_unconfigured" =>
+      {"Profiles are not available on this site right now.", "Try again later."}
+  }
+
   @impl true
   def init(opts), do: Keyword.fetch!(opts, :otp_app)
 
@@ -24,20 +55,20 @@ defmodule RegentIdentity.HTTP do
       dispatch(conn, actor)
     else
       {:error, {:configuration, _}} ->
-        answer(conn, 503, %{error: %{code: "profile_unconfigured"}})
+        error(conn, 503, "profile_unconfigured")
 
       {:error, _} ->
-        answer(conn, 401, %{error: %{code: "authentication_required"}})
+        error(conn, 401, "authentication_required")
     end
   rescue
     Plug.Parsers.ParseError ->
-      answer(conn, 400, %{error: %{code: "invalid_profile_json"}})
+      error(conn, 400, "invalid_profile_json")
 
     Plug.Parsers.RequestTooLargeError ->
-      answer(conn, 413, %{error: %{code: "profile_request_too_large"}})
+      error(conn, 413, "profile_request_too_large")
 
     Plug.Parsers.UnsupportedMediaTypeError ->
-      answer(conn, 415, %{error: %{code: "json_required"}})
+      error(conn, 415, "json_required")
   end
 
   # This optional browser binding can only restrict valid proof. It never
@@ -63,7 +94,7 @@ defmodule RegentIdentity.HTTP do
 
   defp dispatch(%{method: "GET", path_info: []} = conn, actor) do
     case RegentIdentity.get_my_profile(actor: actor) do
-      {:ok, nil} -> answer(conn, 404, %{error: %{code: "profile_not_created"}})
+      {:ok, nil} -> error(conn, 404, "profile_not_created")
       {:ok, profile} -> answer(conn, 200, %{profile: RegentIdentity.present(profile)})
       {:error, error} -> failure(conn, error, 403, "profile_forbidden")
     end
@@ -80,7 +111,7 @@ defmodule RegentIdentity.HTTP do
     if json_request?(conn) do
       edit(conn, actor)
     else
-      answer(conn, 415, %{error: %{code: "json_required"}})
+      error(conn, 415, "json_required")
     end
   end
 
@@ -89,10 +120,10 @@ defmodule RegentIdentity.HTTP do
 
     conn
     |> put_resp_header("allow", methods)
-    |> answer(405, %{error: %{code: "method_not_allowed"}})
+    |> error(405, "method_not_allowed")
   end
 
-  defp dispatch(conn, _actor), do: answer(conn, 404, %{error: %{code: "not_found"}})
+  defp dispatch(conn, _actor), do: error(conn, 404, "not_found")
 
   defp edit(conn, actor) do
     conn =
@@ -110,7 +141,7 @@ defmodule RegentIdentity.HTTP do
       answer(conn, 200, %{profile: RegentIdentity.present(updated)})
     else
       {:error, error} -> failure(conn, error, 422, "invalid_profile_update")
-      _ -> answer(conn, 422, %{error: %{code: "invalid_profile_update"}})
+      _ -> error(conn, 422, "invalid_profile_update")
     end
   end
 
@@ -134,13 +165,18 @@ defmodule RegentIdentity.HTTP do
   end
 
   defp failure(conn, %{class: :forbidden}, _status, _code),
-    do: answer(conn, 403, %{error: %{code: "profile_forbidden"}})
+    do: error(conn, 403, "profile_forbidden")
 
   defp failure(conn, %{class: :invalid}, status, code),
-    do: answer(conn, status, %{error: %{code: code}})
+    do: error(conn, status, code)
 
   defp failure(conn, _error, _status, _code),
-    do: answer(conn, 503, %{error: %{code: "profile_unavailable"}})
+    do: error(conn, 503, "profile_unavailable")
+
+  defp error(conn, status, code) do
+    {message, hint} = Map.fetch!(@errors, code)
+    answer(conn, status, %{error: %{code: code, message: message, hint: hint}})
+  end
 
   defp answer(conn, status, body),
     do:

@@ -73,14 +73,28 @@ defmodule RegentIdentity.HTTPTest do
     edited = request(:patch, "/", tokens, %{display_name: "My name"})
     assert edited.status == 200
     assert Jason.decode!(edited.resp_body)["profile"]["display_name"] == "My name"
-    assert request(:patch, "/", tokens, %{x_subject: "fake"}).status == 422
+    rejected = request(:patch, "/", tokens, %{x_subject: "fake"})
+    assert rejected.status == 422
+
+    assert %{"code" => "invalid_profile_update", "message" => _, "hint" => _} =
+             Jason.decode!(rejected.resp_body)["error"]
+
     assert request(:patch, "/", tokens, %{profile_id: "other"}).status == 422
   end
 
   test "missing or swapped proof never creates a profile", tokens do
-    assert conn(:get, "/")
-           |> RegentIdentity.HTTP.call(:identity_http_fixture)
-           |> Map.fetch!(:status) == 401
+    refused = conn(:get, "/") |> RegentIdentity.HTTP.call(:identity_http_fixture)
+    assert refused.status == 401
+
+    # Every refusal says what went wrong and what to do next.
+    assert Jason.decode!(refused.resp_body) == %{
+             "error" => %{
+               "code" => "authentication_required",
+               "message" => "Sign in to read or change your profile.",
+               "hint" =>
+                 "Send the access token as a Bearer token and the identity token in privy-id-token, both from the same sign-in."
+             }
+           }
 
     assert request(:post, "/sync", %{access: tokens.identity, identity: tokens.access}).status ==
              401

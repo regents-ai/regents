@@ -31,7 +31,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -41,7 +41,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -51,7 +51,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -61,7 +61,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -71,7 +71,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -81,7 +81,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -113,7 +113,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -123,7 +123,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -133,7 +133,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -143,7 +143,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -153,7 +153,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -163,7 +163,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -225,7 +225,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -235,7 +235,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -245,7 +245,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -255,7 +255,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -265,7 +265,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -275,7 +275,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -294,6 +294,39 @@
         "type": "apiKey",
         "in": "header",
         "name": "privy-id-token"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "hint"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string",
+                "description": "What went wrong."
+              },
+              "hint": {
+                "type": "string",
+                "description": "What to do next."
+              }
+            }
+          }
+        }
       }
     }
   }
