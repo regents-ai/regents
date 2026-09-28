@@ -939,8 +939,8 @@ contract RevenueShareSplitterV2 is Owned, IRevenueShareSplitter {
     }
 }
 
-    interface ILaunchFeeVaultBinding {
-        function registryContract() external view returns (address);
-        function canonicalLaunchToken() external view returns (address);
-        function canonicalQuoteToken() external view returns (address);
-    }
+interface ILaunchFeeVaultBinding {
+    function registryContract() external view returns (address);
+    function canonicalLaunchToken() external view returns (address);
+    function canonicalQuoteToken() external view returns (address);
+}

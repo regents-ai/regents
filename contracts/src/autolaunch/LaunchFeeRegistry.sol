@@ -93,12 +93,12 @@ contract LaunchFeeRegistry {
             _sortCurrencies(registration.launchToken, registration.quoteToken);
         poolId = PoolId.unwrap(
             PoolKey({
-                    currency0: currency0,
-                    currency1: currency1,
-                    fee: registration.poolFee,
-                    tickSpacing: registration.tickSpacing,
-                    hooks: IHooks(registration.hook)
-                }).toId()
+                currency0: currency0,
+                currency1: currency1,
+                fee: registration.poolFee,
+                tickSpacing: registration.tickSpacing,
+                hooks: IHooks(registration.hook)
+            }).toId()
         );
         require(poolConfigs[poolId].launchToken == address(0), "POOL_ALREADY_REGISTERED");
 
@@ -187,12 +187,12 @@ contract LaunchFeeRegistry {
         (Currency currency0, Currency currency1) = _sortCurrencies(launchToken, quoteToken_);
         return PoolId.unwrap(
             PoolKey({
-                    currency0: currency0,
-                    currency1: currency1,
-                    fee: poolFee,
-                    tickSpacing: tickSpacing,
-                    hooks: IHooks(hook)
-                }).toId()
+                currency0: currency0,
+                currency1: currency1,
+                fee: poolFee,
+                tickSpacing: tickSpacing,
+                hooks: IHooks(hook)
+            }).toId()
         );
     }
 
