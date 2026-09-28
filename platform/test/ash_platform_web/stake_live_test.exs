@@ -430,6 +430,83 @@ defmodule AshPlatformWeb.StakeLiveTest do
     assert Process.read_timer(timer) <= 10_000
   end
 
+  test "STAKE_RECEIPT: a stake Base confirmed opens a receipt with the position read after it",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "stake-receipt")
+    on_exit(fn -> SnapshotCache.clear() end)
+    set_amount(view, "1")
+
+    send_landed(view, "stake", hash("0b"), "0x0")
+    refute has_element?(view, "#staking-receipt-dialog")
+
+    Application.put_env(:ash_platform, :test_staking_balances, %{
+      @wallet => %{stake: "6000000000000000000", usdc_claimable: "2500000"}
+    })
+
+    send_landed(view, "stake", @hash, "0x1")
+    render_async(view)
+
+    assert has_element?(view, "#staking-receipt-dialog h2", "You staked 1 REGENT")
+    assert has_element?(view, "#staking-receipt-dialog", "Base confirmed it.")
+    assert has_element?(view, "#staking-receipt-dialog", "6 REGENT")
+    assert has_element?(view, "#staking-receipt-dialog", "2.5 USDC")
+
+    assert has_element?(
+             view,
+             ~s(#staking-receipt-dialog a[href="https://basescan.org/tx/#{@hash}"]),
+             "View on BaseScan"
+           )
+
+    assert actions_assigns(view).amount == ""
+    assert has_element?(view, ~s(#staking-amount[value=""]))
+
+    view |> actions() |> render_hook("close_receipt", %{})
+    refute has_element?(view, "#staking-receipt-dialog")
+  end
+
+  test "UNSTAKE_RECEIPT: an unstake Base confirmed says the REGENT is back in the wallet",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "unstake-receipt")
+    on_exit(fn -> SnapshotCache.clear() end)
+    view |> element("#staking-tab-unstake") |> render_click()
+    set_amount(view, "2")
+
+    send_landed(view, "unstake", @hash, "0x1")
+
+    assert has_element?(view, "#staking-receipt-dialog h2", "You unstaked 2 REGENT")
+    assert has_element?(view, "#staking-receipt-dialog", "The REGENT is back in your wallet.")
+    assert actions_assigns(view).amount == ""
+  end
+
+  test "RECEIPT_KEEPS_NEW_AMOUNT: an amount typed while the stake was on its way stays",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "receipt-new-amount")
+    on_exit(fn -> SnapshotCache.clear() end)
+    set_amount(view, "1")
+    send_step(view, "stake", @hash)
+    assert has_element?(view, ~s(#staking-sent-#{@hash}[data-outcome="pending"]))
+
+    land(view, "stake", @hash, "0x1")
+    set_amount(view, "3")
+    render_async(view, 3_000)
+
+    assert has_element?(view, "#staking-receipt-dialog h2", "You staked 1 REGENT")
+    assert actions_assigns(view).amount == "3"
+  end
+
+  test "RECEIPT_POSITION_UNAVAILABLE: a position that cannot be read is said in words",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "receipt-unavailable")
+    on_exit(fn -> SnapshotCache.clear() end)
+    set_amount(view, "1")
+    Application.put_env(:ash_platform, :test_staking_wallet_error, :rpc_down)
+
+    send_landed(view, "stake", @hash, "0x1")
+    render_async(view)
+
+    assert has_element?(view, "#staking-receipt-dialog", "Could not be read just now")
+  end
+
   test "ANONYMOUS_ACTIVE_WALLET: any connected wallet is read without a Regent login", %{
     conn: conn
   } do
