@@ -35,4 +35,8 @@ jobs:
         run: forge build --sizes --skip test --skip script
 
       - name: Run Forge tests
-        run: forge test -vvv
+        # solc's IR pipeline recurses deeply on the test contracts and overflows
+        # the runner's default 8 MB stack.
+        run: |
+          ulimit -s unlimited
+          forge test -vvv
