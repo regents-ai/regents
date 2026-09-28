@@ -46,7 +46,7 @@ const methods = (provider: EthereumProvider) =>
 const sent = (step: string) => ["step_sent", {review_id: review.id, step, transaction_hash: hash}]
 
 let pushed: Array<[string, unknown]>
-const push = (event: string, payload: unknown) => void pushed.push([event, payload])
+const push = async (event: string, payload: unknown) => void pushed.push([event, payload])
 const dispatched: string[] = []
 
 // A form field as the hook reads it: text by value, a box by whether it is ticked.
@@ -268,8 +268,11 @@ describe("the wallet-button hook", () => {
     await vi.waitFor(() => expect(sends).toHaveLength(1))
     expect(view.primary.dataset.awaitingWallet).toBe("true")
     sends[0](hash)
+    await vi.waitFor(() => expect(pushed).toEqual([sent("stake")]))
+    // The words stay on the wallet until the page shows the server's answer.
+    expect(view.primary.dataset.awaitingWallet).toBe("true")
+    view.replies[0].resolve({})
     await vi.waitFor(() => expect(view.primary.dataset.awaitingWallet).toBeUndefined())
-    expect(pushed).toEqual([sent("stake")])
   })
 
   it("asks for the matching review when the form changed, and sends what comes back", async () => {
@@ -291,6 +294,8 @@ describe("the wallet-button hook", () => {
     view.replies.forEach(({resolve}) => resolve({review: rebuilt, send: "stake"}))
     await vi.waitFor(() => expect(sends).toHaveLength(2))
     sends.forEach(send => send(hash))
+    await vi.waitFor(() => expect(view.replies).toHaveLength(4))
+    view.replies.slice(2).forEach(({resolve}) => resolve({}))
     await vi.waitFor(() => expect(view.primary.dataset.awaitingWallet).toBeUndefined())
     const sentRebuilt = ["step_sent", {review_id: "review-2", step: "stake", transaction_hash: hash}]
     expect(pushed.slice(2)).toEqual([sentRebuilt, sentRebuilt])
@@ -306,6 +311,8 @@ describe("the wallet-button hook", () => {
     view.click(view.primary)
     view.replies[0].reject(new Error("disconnected"))
     view.replies[1].resolve({})
+    await vi.waitFor(() => expect(view.replies).toHaveLength(3))
+    view.replies[2].resolve({})
     await vi.waitFor(() => expect(view.primary.dataset.awaitingWallet).toBeUndefined())
     expect(sends).toHaveLength(0)
     expect(pushed.slice(2)).toEqual([["step_failed", {step: "stake", reason: "step_unknown"}]])

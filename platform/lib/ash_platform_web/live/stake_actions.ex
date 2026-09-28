@@ -18,7 +18,14 @@ defmodule AshPlatformWeb.StakeActions do
 
   alias AshPlatform.{ChainClient, Staking}
   alias AshPlatform.Staking.{SnapshotCache, Steps}
-  alias AshPlatformWeb.Components.{Loading, SubmittedTransactions, TransactionReceipt}
+
+  alias AshPlatformWeb.Components.{
+    Loading,
+    OnchainButton,
+    SubmittedTransactions,
+    TransactionReceipt
+  }
+
   alias AshPlatformWeb.{EventInput, OnchainSteps, StakeLive, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -565,21 +572,23 @@ defmodule AshPlatformWeb.StakeActions do
           Your position could not be read just now. Everything else here is current, and every
           action below still goes to your wallet.
         </p>
-        <dl
-          id="staking-wallet-summary"
-          class="stake-wallet-summary"
-          phx-hook="MotionCount"
-          data-variant={AshPlatformWeb.Motion.standard("count")}
-        >
-          <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
-          <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
-          <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
-          <.metric
-            label="Claimable REGENT"
-            amount={@staking.wallet_claimable_regent}
-            unit="REGENT"
-          />
-        </dl>
+        <div id="staking-wallet-flash" class="figure-flash" phx-hook="FigureFlash">
+          <dl
+            id="staking-wallet-summary"
+            class="stake-wallet-summary"
+            phx-hook="MotionCount"
+            data-variant={AshPlatformWeb.Motion.standard("count")}
+          >
+            <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
+            <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
+            <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
+            <.metric
+              label="Claimable REGENT"
+              amount={@staking.wallet_claimable_regent}
+              unit="REGENT"
+            />
+          </dl>
+        </div>
 
         <div
           id="staking-modes"
@@ -647,8 +656,9 @@ defmodule AshPlatformWeb.StakeActions do
                     type="button"
                     data-onchain-step={@signed_in && @next_step}
                     data-account-target={!@signed_in && "sign-in"}
+                    data-confirming={OnchainSteps.confirming?(@presses, ~w(approve stake unstake))}
                     phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-                  ><.press_label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
+                  ><OnchainButton.label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
                   <p id="staking-available">
                     Available
                     <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
@@ -795,8 +805,9 @@ defmodule AshPlatformWeb.StakeActions do
               data-claim={claim.action}
               data-onchain-step={@signed_in && claim.action}
               data-account-target={!@signed_in && "sign-in"}
+              data-confirming={OnchainSteps.confirming?(@presses, [claim.action])}
               phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-            ><.press_label label={claim.label} /><span class="visually-hidden">{claim_state(
+            ><OnchainButton.label label={claim.label} /><span class="visually-hidden">{claim_state(
               claim.claimable
             )}</span></Regent.Primitives.button>
           </div>
@@ -824,19 +835,9 @@ defmodule AshPlatformWeb.StakeActions do
 
   defp metric(assigns) do
     ~H"""
-    <div class="stake-metric">
+    <div class="stake-metric" data-flash>
       <dt>{@label}</dt><dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
     </div>
-    """
-  end
-
-  attr :label, :string, required: true
-
-  # The words swap for "Confirm in wallet" while the wallet has this button's
-  # press. The button itself keeps taking presses.
-  defp press_label(assigns) do
-    ~H"""
-    <span data-press-label>{@label}</span><span data-wallet-wait>Confirm in wallet</span>
     """
   end
 

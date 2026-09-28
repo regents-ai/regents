@@ -5,6 +5,8 @@
 @import "./components/loading.css";
 @import "./components/transaction_receipt.css";
 @import "./components/submitted_transactions.css";
+@import "./components/onchain_button.css";
+@import "./components/figure_flash.css";
 @import "./pages/home.css";
 @import "./pages/legal.css";
 @import "./pages/stake.css";

@@ -1,0 +1,46 @@
+/* A wallet button's words: its label, "Sign tx in wallet" while the wallet has
+   a press, or "Confirming" while a sent transaction is read on Base. The button
+   itself keeps taking presses; each one opens the wallet again. */
+[data-wallet-wait],
+[data-confirming-label] { display: none; }
+
+[data-confirming] [data-press-label] { display: none; }
+[data-confirming] [data-confirming-label] { display: inline-flex; }
+
+[data-awaiting-wallet] [data-press-label],
+[data-awaiting-wallet] [data-confirming-label] { display: none; }
+[data-awaiting-wallet] [data-wallet-wait] { display: inline-flex; }
+
+:is([data-wallet-wait], [data-confirming-label]) {
+  align-items: center;
+  gap: 0.6em;
+}
+
+.onchain-spinner {
+  inline-size: 0.95em;
+  block-size: 0.95em;
+  flex: none;
+  border: 2px solid currentColor;
+  border-block-start-color: transparent;
+  border-radius: 50%;
+  animation: onchain-spin 0.8s linear infinite;
+}
+
+@keyframes onchain-spin { to { transform: rotate(1turn); } }
+
+/* The whole cut edge lights and breathes while the button waits, on both themes
+   (the doubled class outranks the dark theme's edge colours). */
+@media (forced-colors: none) {
+  :root .rg-button.rg-button:is([data-awaiting-wallet], [data-confirming]):where(:not(.rg-button--secondary):not(.rg-button--quiet))::after {
+    --rg-button-edge-ink: var(--rg-button-active-border);
+    --rg-button-cut-ink: var(--rg-button-active-border);
+    --rg-button-cut-gap: 0px;
+    background-size:
+      var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+      calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+      calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+    animation: onchain-edge 1s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes onchain-edge { to { opacity: 0.3; } }

@@ -18,6 +18,7 @@ vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/home_token_menu", () => ({HomeTokenMenu: {}}))
 vi.mock("../js/hooks/motion/reveals", () => ({MotionTabs: {}, ShellViews: {}}))
 vi.mock("../js/hooks/motion/moments", () => ({MotionCount: {}, MotionList: {}}))
+vi.mock("../js/hooks/figure_flash", () => ({FigureFlash: {}}))
 vi.mock("../js/motion", () => ({mountMotion: vi.fn()}))
 vi.mock("../js/copy_buttons", () => ({installCopyButtons: vi.fn()}))
 vi.mock("phoenix_live_view", () => ({

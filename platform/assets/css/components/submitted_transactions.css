@@ -23,6 +23,8 @@
 }
 
 .submitted-transactions li {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: 0.25rem;
   padding: 0.7rem 0.85rem;
@@ -30,6 +32,43 @@
   background: var(--ash-panel-strong);
   overflow-wrap: anywhere;
 }
+
+/* Each state flashes its own colour once as the box reaches it: sent, landed,
+   turned down, or no longer being read. Each state has its own animation, so
+   a change of state plays again. */
+.submitted-transactions li::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.submitted-transactions li[data-outcome="pending"]::before {
+  background: var(--ash-accent-warm);
+  animation: submitted-sent 1.1s ease-out;
+}
+
+.submitted-transactions li[data-outcome="confirmed"]::before {
+  background: var(--palette-powder-blue);
+  animation: submitted-confirmed 1.4s ease-out;
+}
+
+.submitted-transactions li:is([data-outcome="reverted"], [data-outcome="not_this_step"])::before {
+  background: var(--ash-accent);
+  animation: submitted-refused 1.4s ease-out;
+}
+
+.submitted-transactions li[data-outcome="stalled"]::before {
+  background: var(--color-fg-muted);
+  animation: submitted-stalled 1.1s ease-out;
+}
+
+@keyframes submitted-sent { 25% { opacity: 0.35; } }
+@keyframes submitted-confirmed { 20% { opacity: 0.9; } }
+@keyframes submitted-refused { 20% { opacity: 0.45; } }
+@keyframes submitted-stalled { 25% { opacity: 0.3; } }
 
 .submitted-transactions strong {
   font-family: var(--font-family-title);
