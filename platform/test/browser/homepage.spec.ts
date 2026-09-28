@@ -119,15 +119,15 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
     for (const start of ["/", "/blog"]) {
       await page.goto(start)
       const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
-      await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Stake"])
-      await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/app")
+      await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Protocol"])
+      await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/stake")
       await assertNoOverflow(page)
 
       await page.locator("#home-nav-patchbay").focus()
       await page.keyboard.press("Enter")
       await expect(page).toHaveURL(/\/#patchbay$/)
 
-      await page.locator("#home-nav-stake").focus()
+      await page.locator("#home-nav-protocol").focus()
       await page.keyboard.press("Enter")
       await expect(page).toHaveURL(/\/stake$/)
       await expect(page.locator("#regent-staking")).toBeVisible()
@@ -135,8 +135,8 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
 
     await page.goto("/")
     await page.locator(".rl-header-links a.rl-action").click()
-    await expect(page).toHaveURL(/\/app$/)
-    await expect(page.locator("#regent-ops-overview h1")).toBeVisible()
+    await expect(page).toHaveURL(/\/stake$/)
+    await expect(page.locator("#regent-staking")).toBeVisible()
   })
 }
 

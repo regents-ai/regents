@@ -124,7 +124,8 @@ defmodule AshPlatformWeb.HomeLive do
             theme={@theme}
           />
           <RegentLinks.header_links id="home-token-menu" />
-          <a href={~p"/app"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
+          <%!-- Founder decision (2026-09-28): App opens Stake, like the Protocol tab. Keep it. --%>
+          <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
         </div>
       </div>
     </header>
@@ -519,13 +520,14 @@ defmodule AshPlatformWeb.HomeLive do
     """
   end
 
-  # Each product tab jumps to its section of the homepage; Stake opens the staking page.
+  # Each product tab jumps to its section of the homepage; Protocol opens the
+  # staking page. Founder decision (2026-09-28): the tab is named Protocol.
   defp nav_links(blog?) do
     sections =
       for anchor <- ~w(autolaunch techtree patchbay),
           do: {String.capitalize(anchor), anchor, section_href(anchor, blog?)}
 
-    sections ++ [{"Stake", "stake", ~p"/stake"}]
+    sections ++ [{"Protocol", "protocol", ~p"/stake"}]
   end
 
   defp section_href(anchor, true), do: "/##{anchor}"
