@@ -1,0 +1,54 @@
+/* The transactions a wallet button sent, newest first, one small box each. */
+.submitted-transactions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.submitted-transactions__title {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.submitted-transactions ol {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submitted-transactions li {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  background: var(--ash-panel-strong);
+  overflow-wrap: anywhere;
+}
+
+.submitted-transactions strong {
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.submitted-transactions li[data-outcome="reverted"] span,
+.submitted-transactions li[data-outcome="not_this_step"] span {
+  color: var(--ash-accent);
+}
+
+.submitted-transactions a {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 2.2rem;
+  color: var(--ash-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.submitted-transactions button { justify-self: start; }

@@ -17,7 +17,7 @@ defmodule AshPlatformWeb.RedeemLive do
 
   alias AshPlatform.{ChainClient, Redemption}
   alias AshPlatform.Redemption.Steps
-  alias AshPlatformWeb.Components.{Loading, TransactionReceipt}
+  alias AshPlatformWeb.Components.{Loading, SubmittedTransactions, TransactionReceipt}
   alias AshPlatformWeb.{EventInput, OnchainSteps, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -991,27 +991,10 @@ defmodule AshPlatformWeb.RedeemLive do
     <section
       id={@id}
       class="redeem-activity"
-      aria-label="Your transactions"
       hidden={@sent == [] and is_nil(@press)}
     >
       <p :if={@press} id={"#{@id}-press"} class="redeem-notice" role="alert">{@press}</p>
-      <ol :if={@sent != []} class="redeem-sent" aria-live="polite">
-        <li :for={entry <- @sent} id={"#{@id}-#{entry.hash}"} data-outcome={entry.state}>
-          <strong>{entry.title}</strong>
-          <span>{entry.words}</span>
-          <a href={entry.href} target="_blank" rel="noopener noreferrer">
-            View on BaseScan <span aria-hidden="true">↗</span>
-          </a>
-          <Regent.Primitives.button
-            :if={entry.state == :stalled}
-            variant="secondary"
-            type="button"
-            phx-click="check_again"
-            phx-target={@myself}
-            phx-value-hash={entry.hash}
-          >Check again</Regent.Primitives.button>
-        </li>
-      </ol>
+      <SubmittedTransactions.list id={@id} sent={@sent} myself={@myself} />
     </section>
     """
   end

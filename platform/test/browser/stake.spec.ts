@@ -92,9 +92,9 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
     to: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
     call: {functionName: "approve", args: [stakingContract, 2n ** 256n - 1n]},
   })
-  await expect(activity.locator(`#staking-sent-${expectedHash(1)}`)).toContainText("REGENT approval")
-  await expect(activity.locator(`#staking-sent-${expectedHash(1)}`)).toContainText("Sent. Waiting for Base.")
-  await expect(activity.locator(`#staking-sent-${expectedHash(1)} a`)).toHaveAttribute(
+  await expect(activity.locator(`#staking-activity-${expectedHash(1)}`)).toContainText("REGENT approval")
+  await expect(activity.locator(`#staking-activity-${expectedHash(1)}`)).toContainText("Sent. Waiting for Base.")
+  await expect(activity.locator(`#staking-activity-${expectedHash(1)} a`)).toHaveAttribute(
     "href",
     `https://basescan.org/tx/${expectedHash(1)}`,
   )
@@ -106,12 +106,12 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
     to: stakingContract,
     call: {functionName: "stake", args: [10n ** 18n, wallet]},
   })
-  await expect(activity.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("Stake 1 REGENT")
+  await expect(activity.locator(`#staking-activity-${expectedHash(2)}`)).toContainText("Stake 1 REGENT")
 
   // The same press again is a new request, not a deduplicated or locked one.
   await primary.click()
   await expect.poll(() => sendCount(page)).toBe(3)
-  await expect(activity.locator(`#staking-sent-${expectedHash(3)}`)).toContainText("Stake 1 REGENT")
+  await expect(activity.locator(`#staking-activity-${expectedHash(3)}`)).toContainText("Stake 1 REGENT")
 
   // Every claim is offered whatever the last reading from Base said about it,
   // so no control is ever disabled and each names its own step.
@@ -126,7 +126,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
     to: stakingContract,
     call: {functionName: "claimUSDC", args: [wallet]},
   })
-  const resultLink = activity.locator(`#staking-sent-${expectedHash(4)} a`)
+  const resultLink = activity.locator(`#staking-activity-${expectedHash(4)} a`)
   await expect(resultLink).toHaveAttribute("target", "_blank")
   await expect(resultLink).toHaveAttribute("rel", "noopener noreferrer")
 
@@ -495,7 +495,7 @@ test("Stake says the wallet declined when the approval is rejected", async ({pag
   // The next press — the wallet takes this one — clears the notice.
   await primary.click()
   await expect.poll(() => sendCount(page)).toBe(2)
-  await expect(page.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("REGENT approval")
+  await expect(page.locator(`#staking-activity-${expectedHash(2)}`)).toContainText("REGENT approval")
   await expect(page.locator("#staking-press-notice")).toHaveCount(0)
 })
 
@@ -585,7 +585,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(submit).toHaveText(/Stake REGENT/)
   await submit.click()
   await expect.poll(() => sendCount(page)).toBe(2)
-  await expect(page.locator(`#staking-sent-${expectedHash(2)}`)).toContainText("Stake 2 REGENT for 0x2222..2222")
+  await expect(page.locator(`#staking-activity-${expectedHash(2)}`)).toContainText("Stake 2 REGENT for 0x2222..2222")
   expect(await sent(page, 2)).toEqual({
     to: stakingContract,
     call: {functionName: "stake", args: [2n * 10n ** 18n, otherWallet]},
