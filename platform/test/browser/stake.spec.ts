@@ -82,15 +82,15 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   const primary = page.locator("#staking-primary")
   const activity = page.locator("#staking-activity")
 
-  // The test wallet reports zero allowance, so the button asks for the exact
+  // The test wallet reports zero allowance, so the button asks for the unlimited
   // approval first, and the stake once the approval is sent.
   await expect(primary).toHaveText(/Approve REGENT/)
-  await expect(page.locator(".stake-approval-note")).toContainText("exact REGENT approval first")
+  await expect(page.locator(".stake-approval-note")).toContainText("one-time REGENT approval first")
   await primary.click()
   await expect.poll(() => sendCount(page)).toBe(1)
   expect(await sent(page, 1)).toEqual({
     to: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
-    call: {functionName: "approve", args: [stakingContract, 10n ** 18n]},
+    call: {functionName: "approve", args: [stakingContract, 2n ** 256n - 1n]},
   })
   await expect(activity.locator(`#staking-sent-${expectedHash(1)}`)).toContainText("REGENT approval")
   await expect(activity.locator(`#staking-sent-${expectedHash(1)}`)).toContainText("Sent. Waiting for Base.")

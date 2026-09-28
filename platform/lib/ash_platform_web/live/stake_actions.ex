@@ -290,7 +290,7 @@ defmodule AshPlatformWeb.StakeActions do
         nil
 
       next_step(assigns) == "approve" ->
-        "Staking this amount needs an exact REGENT approval first. Approve it, then stake."
+        "Staking needs a one-time REGENT approval first. Approve it, then stake."
 
       true ->
         "Approval sent. You can stake now; if the approval has not landed yet, the stake will not go through."
@@ -307,7 +307,7 @@ defmodule AshPlatformWeb.StakeActions do
         nil
 
       {_step, "approve"} ->
-        "Approve REGENT allows exactly #{amount(review)} REGENT for staking. Stake REGENT sends it next."
+        "Approve REGENT lets the staking contract take any amount of your REGENT when you stake, so you only approve once. Stake REGENT sends it next."
 
       {_step, "stake"} ->
         stake_line(review)
