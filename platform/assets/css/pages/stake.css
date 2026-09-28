@@ -94,8 +94,7 @@
   gap: 0.6rem;
 }
 
-.stake-contract-link,
-.stake-sent a {
+.stake-contract-link {
   display: inline-flex;
   align-items: center;
   min-height: 2.8rem;
@@ -484,36 +483,6 @@
   display: grid;
   gap: 0.6rem;
 }
-
-.stake-sent {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--color-border);
-}
-
-.stake-sent li {
-  display: grid;
-  gap: 0.3rem;
-  padding-block: 0.75rem;
-  border-bottom: 1px solid var(--color-border);
-  overflow-wrap: anywhere;
-}
-
-.stake-sent strong {
-  font-family: var(--font-family-title);
-  font-weight: 400;
-}
-
-.stake-sent li[data-outcome="reverted"] span,
-.stake-sent li[data-outcome="not_this_step"] span {
-  color: var(--ash-accent);
-}
-
-.stake-sent a { min-height: 2.2rem; justify-self: start; }
-.stake-sent button { justify-self: start; }
 
 /* Every control is a square cell in the Sans UI voice; only the primary action
    fills, as the marketing page's strong action does. */

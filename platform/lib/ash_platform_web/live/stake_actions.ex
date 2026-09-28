@@ -18,7 +18,7 @@ defmodule AshPlatformWeb.StakeActions do
 
   alias AshPlatform.{ChainClient, Staking}
   alias AshPlatform.Staking.{SnapshotCache, Steps}
-  alias AshPlatformWeb.Components.{Loading, TransactionReceipt}
+  alias AshPlatformWeb.Components.{Loading, SubmittedTransactions, TransactionReceipt}
   alias AshPlatformWeb.{EventInput, OnchainSteps, StakeLive, TokenDisplay}
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
@@ -348,19 +348,12 @@ defmodule AshPlatformWeb.StakeActions do
         "Approve REGENT lets the staking contract take any amount of your REGENT when you stake, so you only approve once. Stake REGENT sends it next."
 
       {_step, "stake"} ->
-        stake_line(review)
+        nil
 
       {_step, "unstake"} ->
         "You unstake #{amount(review)} REGENT. You get #{amount(review)} REGENT back in your wallet."
     end
   end
-
-  defp stake_line(%{inputs: %{"for_other" => "true", "receiver" => receiver}} = review),
-    do:
-      "You pay #{amount(review)} REGENT. #{RegentFormat.short_address(String.trim(receiver))} gets the stake."
-
-  defp stake_line(review),
-    do: "You pay #{amount(review)} REGENT. You get #{amount(review)} REGENT staked."
 
   defp amount(%{inputs: %{"amount" => amount}}), do: String.trim(amount)
 
@@ -864,25 +857,9 @@ defmodule AshPlatformWeb.StakeActions do
   # What happened to each press, newest first, read on Base by the server.
   defp activity(assigns) do
     ~H"""
-    <section id="staking-activity" class="stake-activity" aria-label="Your transactions">
+    <section id="staking-activity" class="stake-activity">
       <p :if={@press} id="staking-press-notice" class="stake-notice" role="alert">{@press}</p>
-      <ol :if={@sent != []} class="stake-sent" aria-live="polite">
-        <li :for={entry <- @sent} id={"staking-sent-#{entry.hash}"} data-outcome={entry.state}>
-          <strong>{entry.title}</strong>
-          <span>{entry.words}</span>
-          <a href={entry.href} target="_blank" rel="noopener noreferrer">
-            View on BaseScan <span aria-hidden="true">↗</span>
-          </a>
-          <Regent.Primitives.button
-            :if={entry.state == :stalled}
-            variant="secondary"
-            type="button"
-            phx-click="check_again"
-            phx-target={@myself}
-            phx-value-hash={entry.hash}
-          >Check again</Regent.Primitives.button>
-        </li>
-      </ol>
+      <SubmittedTransactions.list id="staking-activity" sent={@sent} myself={@myself} />
     </section>
     """
   end
