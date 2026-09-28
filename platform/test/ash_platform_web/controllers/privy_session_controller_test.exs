@@ -9,6 +9,8 @@ defmodule AshPlatformWeb.PrivySessionControllerTest do
   alias AshPlatform.Formation
   alias AshPlatform.RateLimiter
 
+  setup {AshPlatform.EnsLookups, :await_at_exit}
+
   @canonical_session_keys [
     "_csrf_token",
     "live_socket_id",
