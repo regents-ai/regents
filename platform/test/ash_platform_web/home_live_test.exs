@@ -34,11 +34,13 @@ defmodule AshPlatformWeb.HomeLiveTest do
     end
   end
 
-  test "NAV_MEANINGS: Stake opens staking and App opens the overview", %{conn: conn} do
+  test "NAV_MEANINGS: Protocol and App both open staking", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert attribute(html, "#home-nav-stake", "href") == ["/stake"]
-    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/app"]
+    # Founder decision (2026-09-28): the tab is named Protocol, and it and App open Stake.
+    assert html =~ ~r/id="home-nav-protocol"[^>]*>\s*Protocol\s*</
+    assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
+    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
     assert attribute(html, ".rl-product-tabs a", "href") ==
              ~w(#autolaunch #techtree #patchbay /stake)
@@ -49,8 +51,8 @@ defmodule AshPlatformWeb.HomeLiveTest do
   } do
     html = conn |> get("/blog") |> html_response(200)
 
-    assert attribute(html, "#home-nav-stake", "href") == ["/stake"]
-    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/app"]
+    assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
+    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
     assert attribute(html, ".rl-product-tabs a", "href") ==
              ~w(/#autolaunch /#techtree /#patchbay /stake)
