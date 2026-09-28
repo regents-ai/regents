@@ -71,7 +71,7 @@ The check-in answer looks like this:
 {"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
-Errors share one shape, `{"error": {"code": "…", "message": "…"}}`. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `401 verification_failed` means the signature could not be verified. `404 not_paired` from a check-in means the person unpaired the agent.
+Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `401 verification_failed` means the signature could not be verified. `404 not_paired` from a check-in means the person unpaired the agent.
 
 ## Request limits
 
@@ -90,7 +90,7 @@ The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health r
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
-2026-09-28: every error without a shape of its own, including sign-in refusals and pages that aren't open yet, answers `{"error": {"code": "…", "message": "…", "hint": "…"}}`. The codes are unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 2.0.0.
+2026-09-28: every error, including sign-in refusals, pages that aren't open yet and the product, claims, stake and agent reads, answers `{"error": {"code": "…", "message": "…", "hint": "…"}}`. The codes are unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 2.0.0.
 
 The [existing YAML contract]({{origin}}/api-contract.openapiv3.yaml) also describes retained product interfaces; some listed operations may not be available yet. For new token-auction work use [Autolaunch](https://autolaunch.sh); for Skill evaluations use [Techtree](https://techtree.sh); for agent-tool reports and repairs use [Patchbay](https://patchbay.help). Each product owns its permissions and integration contract.
 

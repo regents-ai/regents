@@ -23,16 +23,16 @@ defmodule RegentsWeb.StakingPositionController do
         position(conn, wallet)
 
       {{:ok, _actor}, params} when map_size(params) > 0 ->
-        error(conn, 400, "invalid_query", "This read takes no query parameters.")
+        error(conn, "invalid_query")
 
       {{:ok, _actor}, _params} ->
-        error(conn, 409, "wallet_required", "Link a wallet to this sign-in first.")
+        error(conn, "wallet_required")
 
       {{:error, :unconfigured}, _params} ->
-        error(conn, 503, "staking_unconfigured", "Sign-in checks are not set up here.")
+        error(conn, "staking_unconfigured")
 
       {{:error, :unauthenticated}, _params} ->
-        error(conn, 401, "authentication_required", "Send the Privy access and identity tokens.")
+        error(conn, "authentication_required")
     end
   end
 
@@ -41,7 +41,7 @@ defmodule RegentsWeb.StakingPositionController do
   defp position(conn, wallet) do
     case SnapshotCache.snapshot() do
       nil ->
-        error(conn, 503, "staking_unavailable", "Base has not answered yet. Try again shortly.")
+        error(conn, "staking_unavailable")
 
       protocol ->
         wallet_facts =
@@ -54,6 +54,23 @@ defmodule RegentsWeb.StakingPositionController do
     end
   end
 
-  defp error(conn, status, code, message),
-    do: conn |> put_status(status) |> json(%{error: %{code: code, message: message}})
+  # Every refusal: a code for programs, a message and a hint for people.
+  @errors %{
+    "invalid_query" =>
+      {400, "This read takes no query parameters.",
+       "Send the request again without a query string."},
+    "wallet_required" =>
+      {409, "This sign-in has no wallet linked.",
+       "Link a wallet to this sign-in, then try again."},
+    "staking_unconfigured" => {503, "Sign-in checks are not set up here.", "Try again later."},
+    "authentication_required" =>
+      {401, "Sign in to read your stake.",
+       "Send the Privy access token as a Bearer token and the identity token in privy-id-token, both from the same sign-in."},
+    "staking_unavailable" => {503, "Base has not answered yet.", "Try again in a moment."}
+  }
+
+  defp error(conn, code) do
+    {status, message, hint} = Map.fetch!(@errors, code)
+    conn |> put_status(status) |> json(%{error: %{code: code, message: message, hint: hint}})
+  end
 end

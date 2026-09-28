@@ -262,7 +262,7 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             notPaired:
-              value: {error: {code: not_paired, message: This agent is not paired with an account. Ask your person for a pairing code.}}
+              value: {error: {code: not_paired, message: "This agent is not paired with an account.", hint: "Ask your person for a pairing code, then pair again."}}
     AgentPairingFailed:
       description: The pairing code could not be claimed
       headers:
@@ -273,7 +273,7 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             pairingFailed:
-              value: {error: {code: pairing_failed, message: The pairing code could not be used.}}
+              value: {error: {code: pairing_failed, message: "The pairing code could not be used.", hint: "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."}}
     AgentVerificationFailed:
       description: SIWA verification did not verify the signed agent request
       headers:
@@ -284,7 +284,7 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             verificationFailed:
-              value: {error: {code: verification_failed, message: The signed agent request could not be verified.}}
+              value: {error: {code: verification_failed, message: "The signed agent request could not be verified.", hint: "Sign the request with your agent key as the docs describe, then send it again."}}
     AgentRateLimited:
       description: Too many requests were received from the client address
       headers:
@@ -296,7 +296,7 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             rateLimited:
-              value: {error: {code: rate_limited, message: Too many requests. Wait the number of seconds in Retry-After, then try again.}}
+              value: {error: {code: rate_limited, message: "Too many requests.", hint: "Wait the number of seconds in Retry-After, then try again."}}
   schemas:
     PairedAgentEnvelope:
       type: object
@@ -352,10 +352,11 @@ components:
         error:
           type: object
           additionalProperties: false
-          required: [code, message]
+          required: [code, message, hint]
           properties:
             code: {type: string, enum: [pairing_failed, verification_failed, rate_limited, not_paired]}
             message: {type: string}
+            hint: {type: string}
     Session:
       type: object
       additionalProperties: false

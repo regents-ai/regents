@@ -126,38 +126,28 @@ defmodule RegentsWeb.AgentController do
     %{display_name: account.display_name, ens_name: account.ens_name}
   end
 
-  defp pairing_failed(conn) do
-    error(conn, :bad_request, "pairing_failed", "The pairing code could not be used.")
-  end
+  defp pairing_failed(conn), do: error(conn, "pairing_failed")
+  defp not_paired(conn), do: error(conn, "not_paired")
+  defp verification_failed(conn), do: error(conn, "verification_failed")
+  defp rate_limited(conn), do: error(conn, "rate_limited")
 
-  defp not_paired(conn) do
-    error(
-      conn,
-      :not_found,
-      "not_paired",
-      "This agent is not paired with an account. Ask your person for a pairing code."
-    )
-  end
+  # Every refusal: a code for programs, a message and a hint for people.
+  @errors %{
+    "pairing_failed" =>
+      {400, "The pairing code could not be used.",
+       "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."},
+    "not_paired" =>
+      {404, "This agent is not paired with an account.",
+       "Ask your person for a pairing code, then pair again."},
+    "verification_failed" =>
+      {401, "The signed agent request could not be verified.",
+       "Sign the request with your agent key as the docs describe, then send it again."},
+    "rate_limited" =>
+      {429, "Too many requests.", "Wait the number of seconds in Retry-After, then try again."}
+  }
 
-  defp verification_failed(conn) do
-    error(
-      conn,
-      :unauthorized,
-      "verification_failed",
-      "The signed agent request could not be verified."
-    )
-  end
-
-  defp rate_limited(conn) do
-    error(
-      conn,
-      :too_many_requests,
-      "rate_limited",
-      "Too many requests. Wait the number of seconds in Retry-After, then try again."
-    )
-  end
-
-  defp error(conn, status, code, message) do
-    conn |> put_status(status) |> json(%{error: %{code: code, message: message}})
+  defp error(conn, code) do
+    {status, message, hint} = Map.fetch!(@errors, code)
+    conn |> put_status(status) |> json(%{error: %{code: code, message: message, hint: hint}})
   end
 end

@@ -561,7 +561,9 @@
           "error": {
             "type": "object",
             "required": [
-              "code"
+              "code",
+              "message",
+              "hint"
             ],
             "properties": {
               "code": {
@@ -574,6 +576,12 @@
                   "claims_unconfigured",
                   "claims_unavailable"
                 ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
               }
             }
           }
@@ -748,7 +756,8 @@
             "additionalProperties": false,
             "required": [
               "code",
-              "message"
+              "message",
+              "hint"
             ],
             "properties": {
               "code": {
@@ -761,6 +770,9 @@
                 ]
               },
               "message": {
+                "type": "string"
+              },
+              "hint": {
                 "type": "string"
               }
             }
@@ -1063,7 +1075,8 @@
             "additionalProperties": false,
             "required": [
               "code",
-              "message"
+              "message",
+              "hint"
             ],
             "properties": {
               "code": {
@@ -1074,6 +1087,9 @@
                 ]
               },
               "message": {
+                "type": "string"
+              },
+              "hint": {
                 "type": "string"
               }
             }
@@ -1161,7 +1177,8 @@
             "additionalProperties": false,
             "required": [
               "code",
-              "message"
+              "message",
+              "hint"
             ],
             "properties": {
               "code": {
@@ -1175,6 +1192,9 @@
                 ]
               },
               "message": {
+                "type": "string"
+              },
+              "hint": {
                 "type": "string"
               }
             }
@@ -1298,7 +1318,8 @@
                 "value": {
                   "error": {
                     "code": "not_paired",
-                    "message": "This agent is not paired with an account. Ask your person for a pairing code."
+                    "message": "This agent is not paired with an account.",
+                    "hint": "Ask your person for a pairing code, then pair again."
                   }
                 }
               }
@@ -1326,7 +1347,8 @@
                 "value": {
                   "error": {
                     "code": "pairing_failed",
-                    "message": "The pairing code could not be used."
+                    "message": "The pairing code could not be used.",
+                    "hint": "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."
                   }
                 }
               }
@@ -1354,7 +1376,8 @@
                 "value": {
                   "error": {
                     "code": "verification_failed",
-                    "message": "The signed agent request could not be verified."
+                    "message": "The signed agent request could not be verified.",
+                    "hint": "Sign the request with your agent key as the docs describe, then send it again."
                   }
                 }
               }
@@ -1385,8 +1408,8 @@
                 "value": {
                   "error": {
                     "code": "rate_limited",
-                    "message": "Too many requests. Wait the number of seconds in Retry-After",
-                    "then try again.": null
+                    "message": "Too many requests.",
+                    "hint": "Wait the number of seconds in Retry-After, then try again."
                   }
                 }
               }

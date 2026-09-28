@@ -20,7 +20,8 @@ defmodule RegentsWeb.ProductsController do
         |> json(%{
           error: %{
             code: "product_not_found",
-            message: "Use one of: #{Enum.join(ProductDirectory.slugs(), ", ")}."
+            message: "There is no product with that name.",
+            hint: "Use one of: #{Enum.join(ProductDirectory.slugs(), ", ")}."
           }
         })
     end
@@ -28,9 +29,15 @@ defmodule RegentsWeb.ProductsController do
 
   def show(conn, _params), do: invalid_query(conn)
 
-  defp invalid_query(conn),
-    do:
-      conn
-      |> put_status(400)
-      |> json(%{error: %{code: "invalid_query", message: "This read takes no query parameters."}})
+  defp invalid_query(conn) do
+    conn
+    |> put_status(400)
+    |> json(%{
+      error: %{
+        code: "invalid_query",
+        message: "This read takes no query parameters.",
+        hint: "Send the request again without a query string."
+      }
+    })
+  end
 end

@@ -64,7 +64,9 @@ defmodule RegentsWeb.AgentControllerTest do
     assert conn |> pair(issued.code, "hermes") |> json_response(401) == %{
              "error" => %{
                "code" => "verification_failed",
-               "message" => "The signed agent request could not be verified."
+               "message" => "The signed agent request could not be verified.",
+               "hint" =>
+                 "Sign the request with your agent key as the docs describe, then send it again."
              }
            }
 
@@ -78,7 +80,12 @@ defmodule RegentsWeb.AgentControllerTest do
     Process.put(:agent_verification_result, {:ok, %{wallet: @agent_wallet}})
 
     failed = %{
-      "error" => %{"code" => "pairing_failed", "message" => "The pairing code could not be used."}
+      "error" => %{
+        "code" => "pairing_failed",
+        "message" => "The pairing code could not be used.",
+        "hint" =>
+          "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."
+      }
     }
 
     for body <- [
@@ -110,8 +117,8 @@ defmodule RegentsWeb.AgentControllerTest do
     assert json_response(limited, 429) == %{
              "error" => %{
                "code" => "rate_limited",
-               "message" =>
-                 "Too many requests. Wait the number of seconds in Retry-After, then try again."
+               "message" => "Too many requests.",
+               "hint" => "Wait the number of seconds in Retry-After, then try again."
              }
            }
 
@@ -157,8 +164,8 @@ defmodule RegentsWeb.AgentControllerTest do
     assert conn |> recycle() |> get("/api/agents/v1/me") |> json_response(404) == %{
              "error" => %{
                "code" => "not_paired",
-               "message" =>
-                 "This agent is not paired with an account. Ask your person for a pairing code."
+               "message" => "This agent is not paired with an account.",
+               "hint" => "Ask your person for a pairing code, then pair again."
              }
            }
 

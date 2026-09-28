@@ -11,14 +11,14 @@ defmodule RegentsWeb.OwnedClaimsController do
       {:ok, actor} ->
         case pagination(params) do
           {:ok, page} -> render_claims(conn, actor, page)
-          :error -> conn |> put_status(400) |> json(%{error: %{code: "invalid_claims_query"}})
+          :error -> error(conn, "invalid_claims_query")
         end
 
       {:error, :unconfigured} ->
-        conn |> put_status(503) |> json(%{error: %{code: "claims_unconfigured"}})
+        error(conn, "claims_unconfigured")
 
       {:error, :unauthenticated} ->
-        conn |> put_status(401) |> json(%{error: %{code: "authentication_required"}})
+        error(conn, "authentication_required")
     end
   end
 
@@ -39,13 +39,36 @@ defmodule RegentsWeb.OwnedClaimsController do
         })
 
       {:error, %{class: :forbidden}} ->
-        conn |> put_status(403) |> json(%{error: %{code: "claims_forbidden"}})
+        error(conn, "claims_forbidden")
 
       {:error, %{class: :invalid}} ->
-        conn |> put_status(400) |> json(%{error: %{code: "invalid_cursor"}})
+        error(conn, "invalid_cursor")
 
       {:error, _} ->
-        conn |> put_status(503) |> json(%{error: %{code: "claims_unavailable"}})
+        error(conn, "claims_unavailable")
     end
+  end
+
+  # Every refusal: a code for programs, a message and a hint for people.
+  @errors %{
+    "invalid_claims_query" =>
+      {400, "This read takes no query parameters other than after.",
+       "Send no query for the first page, then after= with the next value from the page before."},
+    "claims_unconfigured" => {503, "Sign-in checks are not set up here.", "Try again later."},
+    "authentication_required" =>
+      {401, "Sign in to read your claims.",
+       "Send the Privy access token as a Bearer token and the identity token in privy-id-token, both from the same sign-in."},
+    "claims_forbidden" =>
+      {403, "This sign-in can't read these claims.", "Sign in again, then retry."},
+    "invalid_cursor" =>
+      {400, "The after value isn't one this read gave out.",
+       "Start again without after, then follow each page's next value."},
+    "claims_unavailable" =>
+      {503, "Your claims couldn't be read right now.", "Try again in a moment."}
+  }
+
+  defp error(conn, code) do
+    {status, message, hint} = Map.fetch!(@errors, code)
+    conn |> put_status(status) |> json(%{error: %{code: code, message: message, hint: hint}})
   end
 end

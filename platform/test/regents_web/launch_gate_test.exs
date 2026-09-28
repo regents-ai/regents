@@ -105,7 +105,9 @@ defmodule RegentsWeb.LaunchGateTest do
     assert json_response(pair_request(), 400) == %{
              "error" => %{
                "code" => "pairing_failed",
-               "message" => "The pairing code could not be used."
+               "message" => "The pairing code could not be used.",
+               "hint" =>
+                 "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."
              }
            }
 

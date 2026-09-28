@@ -69,9 +69,24 @@ defmodule RegentsWeb.OwnedClaimsControllerTest do
     assert build_conn()
            |> init_test_session(%{wallet_address: @alice})
            |> get("/api/v1/claims")
-           |> response(401)
+           |> json_response(401) == %{
+             "error" => %{
+               "code" => "authentication_required",
+               "message" => "Sign in to read your claims.",
+               "hint" =>
+                 "Send the Privy access token as a Bearer token and the identity token in privy-id-token, both from the same sign-in."
+             }
+           }
 
-    assert request(key, "bob", [@bob], %{"owner_address" => @alice}).status == 400
+    assert request(key, "bob", [@bob], %{"owner_address" => @alice}) |> json_response(400) == %{
+             "error" => %{
+               "code" => "invalid_claims_query",
+               "message" => "This read takes no query parameters other than after.",
+               "hint" =>
+                 "Send no query for the first page, then after= with the next value from the page before."
+             }
+           }
+
     assert request(key, "alice", [@alice], %{}, identity_subject: "bob").status == 401
 
     assert request(key, "alice", [@alice], %{}, expires: System.system_time(:second) - 60).status ==
