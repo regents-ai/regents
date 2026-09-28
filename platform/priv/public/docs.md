@@ -90,7 +90,7 @@ The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health r
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
-2026-09-28: every error without a shape of its own, including sign-in refusals and pages that aren't open yet, answers `{"error": {"code": "…", "message": "…", "hint": "…"}}`. The codes are unchanged. The [YAML contract]({{origin}}/api-contract.openapiv3.yaml) is now version 2.0.0.
+2026-09-28: every error without a shape of its own, including sign-in refusals and pages that aren't open yet, answers `{"error": {"code": "…", "message": "…", "hint": "…"}}`. The codes are unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 2.0.0.
 
 The [existing YAML contract]({{origin}}/api-contract.openapiv3.yaml) also describes retained product interfaces; some listed operations may not be available yet. For new token-auction work use [Autolaunch](https://autolaunch.sh); for Skill evaluations use [Techtree](https://techtree.sh); for agent-tool reports and repairs use [Patchbay](https://patchbay.help). Each product owns its permissions and integration contract.
 

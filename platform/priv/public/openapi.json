@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs.",
     "contact": {
       "name": "Regents Labs"
