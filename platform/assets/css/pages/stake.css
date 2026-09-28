@@ -328,10 +328,12 @@
   overflow-wrap: anywhere;
 }
 
-/* The tabs and their panel share one motion island but lay out as two of
-   the actions panel's rows. */
+/* The tabs and their panel share one motion island, spaced as the actions
+   panel's own rows are. It keeps a box of its own, so the fill under the
+   chosen tab follows the tabs whenever their size changes. */
 .stake-modes {
-  display: contents;
+  display: grid;
+  gap: 1rem;
 }
 
 .stake-mode {
