@@ -741,7 +741,13 @@
           "openclaw",
           "nemoclaw",
           "ironclaw",
-          "pi"
+          "pi",
+          "claude_code",
+          "codex",
+          "cursor",
+          "gemini_cli",
+          "dots",
+          "other"
         ]
       },
       "AgentPairingError": {
@@ -764,6 +770,7 @@
                 "type": "string",
                 "enum": [
                   "pairing_failed",
+                  "harness_unknown",
                   "verification_failed",
                   "rate_limited",
                   "not_paired"
@@ -1328,7 +1335,7 @@
         }
       },
       "AgentPairingFailed": {
-        "description": "The pairing code could not be claimed",
+        "description": "The pairing code could not be claimed, or the runtime is not on the list",
         "headers": {
           "RateLimit": {
             "$ref": "#/components/headers/RateLimit"
@@ -1349,6 +1356,15 @@
                     "code": "pairing_failed",
                     "message": "The pairing code could not be used.",
                     "hint": "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."
+                  }
+                }
+              },
+              "harnessUnknown": {
+                "value": {
+                  "error": {
+                    "code": "harness_unknown",
+                    "message": "This runtime is not on the list.",
+                    "hint": "Send harness as one of hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Use other if yours is not listed; your person can correct it later."
                   }
                 }
               }

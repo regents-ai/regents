@@ -47,7 +47,7 @@ Missing or invalid credentials return 401. An invalid query or cursor returns 40
 
 A person makes a one-time pairing code on their [Account]({{origin}}/account) page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
 
-Every agent request is signed for the audience `regents` through `https://siwa.regents.sh`. With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`), sign in once, then pair and check in:
+Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`), sign in once, then pair and check in:
 
 ```sh
 regents auth login --site regents
@@ -55,15 +55,14 @@ regents protocol agents pair --code <code> --name Sol --harness hermes
 regents protocol agents me
 ```
 
-To sign each request yourself instead, the [agent guide]({{origin}}/llms.txt) has the step-by-step setup, including where each agent keeps its own key. With the key made and signed in:
+With the SIWA client, once its key is set up:
 
 ```sh
-uv run siwa_agent.py request POST '{{origin}}/api/agents/v1/pair' \
-  --body '{"code":"<code>","name":"Sol","harness":"hermes"}'
-uv run siwa_agent.py request GET '{{origin}}/api/agents/v1/me'
+python3 siwa_agent.py pair '{{origin}}' <code> --name Sol --harness hermes
+python3 siwa_agent.py me '{{origin}}'
 ```
 
-`POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw` or `pi`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the paired agent and the names of the account it is paired with, as the person sees them on their Account page; either name is `null` until the person has one. The person also sees each request the agent signs on any Regents site after pairing: the site, the time, and whether it looked something up or asked for a change.
+`POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the paired agent and the names of the account it is paired with, as the person sees them on their Account page; either name is `null` until the person has one. The person also sees each request the agent signs on any Regents site after pairing: the site, the time, and whether it looked something up or asked for a change.
 
 The check-in answer looks like this:
 
@@ -71,7 +70,7 @@ The check-in answer looks like this:
 {"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
-Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `401 verification_failed` means the signature could not be verified. `404 not_paired` from a check-in means the person unpaired the agent.
+Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `401 verification_failed` means the signature could not be verified. `404 not_paired` from a check-in means the person unpaired the agent.
 
 ## Request limits
 

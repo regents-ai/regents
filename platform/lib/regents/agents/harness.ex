@@ -4,11 +4,17 @@ defmodule Regents.Agents.Harness do
   use Ash.Type.Enum,
     values: [
       hermes: [label: "Hermes"],
-      grok_bot: [label: "Grok bot"],
+      grok_bot: [label: "Grok Bot"],
       muse: [label: "Muse"],
       openclaw: [label: "OpenClaw"],
       nemoclaw: [label: "NemoClaw"],
       ironclaw: [label: "IronClaw"],
-      pi: [label: "Pi"]
+      pi: [label: "Pi"],
+      claude_code: [label: "Claude Code"],
+      codex: [label: "Codex"],
+      cursor: [label: "Cursor"],
+      gemini_cli: [label: "Gemini CLI"],
+      dots: [label: "Dots"],
+      other: [label: "Other"]
     ]
 end

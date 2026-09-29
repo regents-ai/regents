@@ -16,7 +16,13 @@ defmodule RegentsWeb.Components.PairedAgents do
     openclaw: "/images/agents/openclaw.png",
     nemoclaw: "/images/agents/nemoclaw.png",
     ironclaw: "/images/agents/ironclaw.png",
-    pi: "/images/agents/pi.svg"
+    pi: "/images/agents/pi.svg",
+    claude_code: "/images/agents/claude-code.png",
+    codex: "/images/agents/codex.png",
+    cursor: "/images/agents/cursor.png",
+    gemini_cli: "/images/agents/gemini-cli.png",
+    dots: "/images/agents/dots.png",
+    other: "/images/agents/other.svg"
   }
 
   attr :agents, :any, required: true
@@ -68,7 +74,7 @@ defmodule RegentsWeb.Components.PairedAgents do
   end
 
   defp agent_list(%{agents: []} = assigns) do
-    assigns = assign(assigns, :runtimes, Harness.values())
+    assigns = assign(assigns, :runtimes, Harness.values() -- [:other])
 
     ~H"""
     <div class="account-agents__empty">

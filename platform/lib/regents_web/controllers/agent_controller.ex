@@ -11,6 +11,7 @@ defmodule RegentsWeb.AgentController do
   alias Regents.{Accounts, Agents, RateLimiter}
   alias Regents.Actors.System
   alias Regents.AgentAuth.VerificationClient
+  alias Regents.Agents.Harness
   alias RegentsWeb.ClientAddress
 
   # Requests per client address per minute. Check-ins get their own, larger
@@ -45,6 +46,13 @@ defmodule RegentsWeb.AgentController do
   defp pair_admitted(conn, _params), do: pairing_failed(conn)
 
   defp pair_wallet(conn, code, wallet, name, harness) do
+    case Harness.match(harness) do
+      {:ok, harness} -> claim_code(conn, code, wallet, name, harness)
+      :error -> harness_unknown(conn)
+    end
+  end
+
+  defp claim_code(conn, code, wallet, name, harness) do
     case Agents.pair_agent(code, wallet, name, harness, actor: %System{}) do
       {:ok, agent} -> conn |> put_status(:created) |> json(%{data: public_agent(agent)})
       {:error, _error} -> pairing_failed(conn)
@@ -127,6 +135,7 @@ defmodule RegentsWeb.AgentController do
   end
 
   defp pairing_failed(conn), do: error(conn, "pairing_failed")
+  defp harness_unknown(conn), do: error(conn, "harness_unknown")
   defp not_paired(conn), do: error(conn, "not_paired")
   defp verification_failed(conn), do: error(conn, "verification_failed")
   defp rate_limited(conn), do: error(conn, "rate_limited")
@@ -136,6 +145,9 @@ defmodule RegentsWeb.AgentController do
     "pairing_failed" =>
       {400, "The pairing code could not be used.",
        "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."},
+    "harness_unknown" =>
+      {400, "This runtime is not on the list.",
+       "Send harness as one of #{Enum.join(Harness.values(), ", ")}. Use other if yours is not listed; your person can correct it later."},
     "not_paired" =>
       {404, "This agent is not paired with an account.",
        "Ask your person for a pairing code, then pair again."},

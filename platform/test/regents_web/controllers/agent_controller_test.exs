@@ -74,7 +74,7 @@ defmodule RegentsWeb.AgentControllerTest do
     assert conn |> recycle() |> pair(issued.code, "hermes") |> response(201)
   end
 
-  test "a bad code, an unknown harness or extra fields cannot pair", %{conn: conn} do
+  test "a bad code, missing fields or extra fields cannot pair", %{conn: conn} do
     actor = person!()
     issued = Agents.issue_pairing_code!(actor: actor)
     Process.put(:agent_verification_result, {:ok, %{wallet: @agent_wallet}})
@@ -90,7 +90,6 @@ defmodule RegentsWeb.AgentControllerTest do
 
     for body <- [
           %{code: "not-a-real-code", name: "Sol", harness: "hermes"},
-          %{code: issued.code, name: "Sol", harness: "claude"},
           %{code: issued.code, name: "Sol", harness: "hermes", wallet: "0x1"},
           %{code: issued.code, name: "Sol"}
         ] do
@@ -99,6 +98,22 @@ defmodule RegentsWeb.AgentControllerTest do
     end
 
     assert {:ok, []} = Agents.list_my_agents(actor: actor)
+  end
+
+  test "a runtime off the list is named as the problem, and the code stays usable",
+       %{conn: conn} do
+    actor = person!()
+    issued = Agents.issue_pairing_code!(actor: actor)
+    Process.put(:agent_verification_result, {:ok, %{wallet: @agent_wallet}})
+
+    assert %{"error" => %{"code" => "harness_unknown", "hint" => hint}} =
+             conn |> pair(issued.code, "claude") |> json_response(400)
+
+    assert hint =~ "claude_code"
+    assert hint =~ "other"
+
+    assert %{"data" => %{"harness" => "claude_code"}} =
+             conn |> recycle() |> pair(issued.code, "claude_code") |> json_response(201)
   end
 
   test "pairing attempts from one address are limited, and each answer says what is left",
