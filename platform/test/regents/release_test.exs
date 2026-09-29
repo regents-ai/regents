@@ -187,6 +187,12 @@ defmodule Regents.ReleaseTest do
              "schema_migrations",
              "session_authorities"
            ]
+
+    assert table_names(config, "regent_payments") == [
+             "payment_intents",
+             "payment_receipts",
+             "schema_migrations"
+           ]
   end
 
   test "the listing prints none on a database the release agrees with" do

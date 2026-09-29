@@ -8,6 +8,7 @@
 import Config
 
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
+config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes

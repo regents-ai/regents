@@ -16,7 +16,10 @@ defmodule Regents.Release do
     load_app()
     Application.put_env(@app, Regents.Repo, migration_config!())
 
-    Ecto.Migrator.with_repo(Regents.Repo, fn repo -> repo.migrate!(migrations_path()) end)
+    Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
+      repo.migrate!(migrations_path())
+      RegentPayments.Migrator.up(repo)
+    end)
   end
 
   @doc """
@@ -25,7 +28,8 @@ defmodule Regents.Release do
   Staging owns a disposable database, so it has no copy of the tables this
   repository reads but does not own, `regent_names.platform_human_users`. This
   command creates a staging-only approximation of it with the shape the local
-  fixture already proves sufficient, then runs every migration into `regents_app`.
+  fixture already proves sufficient, then runs every migration into `regents_app`
+  and creates the shared payment records in `regent_payments`.
 
   It refuses any database that already carries migration state or the
   regent_names schema, and it repairs nothing: recovery from a half-finished
@@ -59,6 +63,7 @@ defmodule Regents.Release do
       Regents.LocalDatabaseFixture.create_shared_tables!()
 
       repo.migrate!(path)
+      RegentPayments.Migrator.up(repo)
     end)
   end
 

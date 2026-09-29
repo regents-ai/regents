@@ -13,6 +13,9 @@
 !identity/**
 identity/_build/
 identity/deps/
+!payments/**
+payments/_build/
+payments/deps/
 
 # The copied source trees must never carry runtime environment files.
 **/.env

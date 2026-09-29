@@ -4,7 +4,8 @@
 #
 # The build context is `git archive` of HEAD, so nothing uncommitted, ignored
 # or outside this repository enters the image; platform/Dockerfile.dockerignore
-# admits only the platform, identity and blog sources the image is built from.
+# admits only the platform, identity, payments and blog sources the image is
+# built from.
 # The build reuses no cached layers, and the Dockerfile fetches every
 # dependency at the version the lockfiles pin; the shared libraries'
 # repositories are public, so the build takes no credentials.
