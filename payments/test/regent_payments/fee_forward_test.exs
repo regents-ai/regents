@@ -58,6 +58,27 @@ defmodule RegentPayments.FeeForwardTest do
     assert [_approve] = sent(chain)
   end
 
+  test "a deposit the chain has not confirmed may still land, and says so with both hashes" do
+    {chain, signer} = chain(receipts: fn hash -> if hash == hash(1), do: "0x1" end)
+    intent = paid_intent(signer)
+
+    assert {:error, {:deposit_unknown, %{approval: approval, deposit: deposit}}} =
+             forward(intent, signer)
+
+    assert {approval, deposit} == {hash(1), hash(2)}
+    assert [_approve, _deposit] = sent(chain)
+  end
+
+  test "a deposit the chain refuses answers reverted with both hashes" do
+    {_chain, signer} = chain(receipts: fn hash -> if hash == hash(1), do: "0x1", else: "0x0" end)
+    intent = paid_intent(signer)
+
+    assert {:error, {:deposit_reverted, %{approval: approval, deposit: deposit}}} =
+             forward(intent, signer)
+
+    assert {approval, deposit} == {hash(1), hash(2)}
+  end
+
   test "a payment with no receipt is not forwarded" do
     {chain, signer} = chain(receipts: fn _hash -> "0x1" end)
     {:ok, intent} = prepare(signer.address)

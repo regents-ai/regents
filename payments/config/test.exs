@@ -19,3 +19,6 @@ config :logger, level: :warning
 
 # The facilitator's address is the loopback stand-in each payment test starts.
 config :regent_payments, RegentPayments.Facilitator, receive_timeout_ms: 2_000
+
+# A fee forward reads receipts two seconds apart in production; tests read them back to back.
+config :regent_payments, RegentPayments.FeeForward, receipt_every_ms: 1

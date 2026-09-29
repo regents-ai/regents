@@ -26,7 +26,13 @@ defmodule RegentPayments.FeeForward do
   alias Ethers.Contracts.ERC20
   alias RegentPayments.USDC
 
-  @receipt_every_ms 2_000
+  # Base seals a block every two seconds. Tests read receipts faster through
+  # `config :regent_payments, RegentPayments.FeeForward, receipt_every_ms: ...`.
+  @receipt_every_ms Application.compile_env(
+                      :regent_payments,
+                      [__MODULE__, :receipt_every_ms],
+                      2_000
+                    )
   @receipt_tries 30
 
   defmodule Staking do
