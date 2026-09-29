@@ -74,9 +74,11 @@ defmodule RegentPayments.Offer do
   ever save two effects for one payment.
 
   Anything outside the database, such as starting a job or a runner, waits
-  until the transaction has committed: an Ash `after_transaction` hook on
-  the site's write, or an Oban job inserted in the same transaction. Nothing
-  outside the database starts from inside `carry_out/4` itself.
+  until the transaction has committed: insert an Oban job in the same
+  transaction, or start it after `RegentPayments.Purchase.execute/3`
+  returns. An Ash `after_transaction` hook on the site's write does not
+  wait, because inside this open transaction it runs before the commit.
+  Nothing outside the database starts from inside `carry_out/4` itself.
   """
   @callback carry_out(
               intent :: RegentPayments.PaymentIntent.t(),
