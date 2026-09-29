@@ -33,6 +33,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/docs"},
              {:get, "/about"},
              {:get, "/contact"},
+             {:get, "/literature"},
              {:get, "/"},
              {:get, "/privacy"},
              {:get, "/terms"},

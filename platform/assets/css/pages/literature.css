@@ -1,0 +1,453 @@
+@layer regents-product {
+.lit-page {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.lit-intro {
+  max-width: 44rem;
+  margin-bottom: 1.5rem;
+}
+
+.lit-intro h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.lit-intro p {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.lit-chart {
+  margin: 0;
+}
+
+.lit-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.lit-switch {
+  display: inline-flex;
+  border: 1px solid var(--ash-line-strong);
+}
+
+/* The plot with its tick numbers down the left and along the bottom, and an
+   axis name outside each. */
+.lit-body {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-areas:
+    "yaxis yticks frame"
+    ". . xticks"
+    ". . xaxis";
+  column-gap: 0.4rem;
+}
+
+.lit-frame {
+  grid-area: frame;
+  container-type: inline-size;
+  height: clamp(40rem, 82vh, 58rem);
+  padding: 2.25rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.lit-plot {
+  position: relative;
+  height: 100%;
+}
+
+.lit-ticks {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lit-ticks--y {
+  grid-area: yticks;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-block: calc(2.25rem - 0.5lh);
+}
+
+.lit-ticks--x {
+  grid-area: xticks;
+  padding-inline: calc(2.25rem - 1ch);
+  padding-top: 0.25rem;
+}
+
+.lit-axis {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lit-axis strong {
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.lit-axis span:first-child::before {
+  content: "← ";
+}
+
+.lit-axis span:last-child::after {
+  content: " →";
+}
+
+.lit-axis--x {
+  grid-area: xaxis;
+  padding: 0.35rem 2.25rem 0;
+}
+
+.lit-axis--y {
+  grid-area: yaxis;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding-block: 2.25rem;
+}
+
+.lit-grid {
+  position: absolute;
+  background: var(--ash-line-strong);
+}
+
+.lit-grid--x {
+  top: 50%;
+  left: -2.25rem;
+  right: -2.25rem;
+  height: 1px;
+}
+
+.lit-grid--y {
+  left: 50%;
+  top: -2.25rem;
+  bottom: -2.25rem;
+  width: 1px;
+}
+
+.lit-quadrant {
+  position: absolute;
+  margin: 0;
+  max-width: 11rem;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-title);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.lit-quadrant--top-left { top: 0; left: 0; }
+.lit-quadrant--top-right { top: 0; right: 0; text-align: right; }
+.lit-quadrant--bottom-left { bottom: 0; left: 0; }
+.lit-quadrant--bottom-right { bottom: 0; right: 0; text-align: right; }
+
+.lit-leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.lit-leaders line {
+  stroke: var(--ash-line-strong);
+  stroke-width: 1;
+}
+
+.lit-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: var(--color-fg);
+  transform: translate(-50%, -50%);
+}
+
+/* Centred on its score until the script has placed it; after that its corner is
+   set directly, since a moved ancestor would pin the phone sheet to the book. */
+.lit-book {
+  position: absolute;
+  z-index: 1;
+  width: max-content;
+  translate: -50% -50%;
+}
+
+.lit-chart.is-placed .lit-book {
+  translate: none;
+}
+
+.lit-chart.is-animated .lit-book {
+  transition: left 420ms cubic-bezier(0.2, 0.8, 0.2, 1), top 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.lit-cover {
+  display: block;
+  width: clamp(2.1rem, 4.6cqw, 3.9rem);
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--palette-charcoal) 45%, transparent);
+  transition: transform 160ms ease;
+}
+
+.lit-label {
+  display: none;
+  max-width: 9.5em;
+  padding: 0.3em 0.45em;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-bg);
+  font-size: clamp(0.62rem, 1.15cqw, 0.8rem);
+  line-height: 1.15;
+  text-align: left;
+}
+
+.lit-label__title {
+  display: block;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.lit-label__meta {
+  display: block;
+  margin-top: 0.15em;
+  color: var(--color-fg-muted);
+  font-size: 0.82em;
+}
+
+.lit-chart[data-mode="titles"] .lit-cover {
+  display: none;
+}
+
+.lit-chart[data-mode="titles"] .lit-label {
+  display: block;
+}
+
+.lit-book:hover,
+.lit-book[data-open] {
+  z-index: 3;
+}
+
+.lit-book:hover .lit-cover,
+.lit-book[data-open] .lit-cover {
+  transform: scale(1.12);
+}
+
+.lit-book:hover .lit-label,
+.lit-book[data-open] .lit-label {
+  border-color: var(--ash-accent);
+}
+
+/* The details sit beside the book, on the side with more room, and the gap
+   between them belongs to the details so the pointer can cross it. */
+.lit-pop {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 19rem;
+  padding-left: 0.5rem;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 120ms ease, visibility 0s linear 140ms;
+}
+
+.lit-book[data-side-x="left"] .lit-pop {
+  left: auto;
+  right: 100%;
+  padding-left: 0;
+  padding-right: 0.5rem;
+}
+
+.lit-book[data-side-y="up"] .lit-pop {
+  top: auto;
+  bottom: 0;
+}
+
+@media (hover: hover) {
+  .lit-book:hover .lit-pop {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 60ms, 0s;
+  }
+}
+
+.lit-book[data-open] .lit-pop {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
+}
+
+.lit-pop__card {
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-bg);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--palette-charcoal) 30%, transparent);
+}
+
+.lit-pop__title {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.lit-pop__byline {
+  margin: 0.25rem 0 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.lit-pop__scores {
+  display: flex;
+  gap: 1.25rem;
+  margin: 0.7rem 0 0;
+  padding: 0.5rem 0;
+  border-block: 1px solid var(--color-border);
+}
+
+.lit-pop__scores div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.lit-pop__scores dt {
+  color: var(--color-fg-muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lit-pop__scores dd {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.lit-pop__themes {
+  margin: 0.7rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.lit-pop__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 44px;
+  margin-top: 0.25rem;
+  color: var(--ash-accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-underline-offset: 0.3em;
+}
+
+.lit-note {
+  max-width: 48rem;
+  margin-top: 1.25rem;
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
+}
+
+/* On a phone the details open as a sheet along the bottom of the screen. */
+@media (max-width: 40rem) {
+  .lit-body {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "yticks frame"
+      ". xticks"
+      ". xaxis";
+  }
+
+  .lit-axis--y {
+    display: none;
+  }
+
+  /* A size container would hold the sheet inside the chart. */
+  .lit-frame {
+    container-type: normal;
+    height: 46rem;
+    padding: 1.25rem;
+  }
+
+  .lit-ticks--y { padding-block: calc(1.25rem - 0.5lh); }
+  .lit-ticks--x { padding-inline: calc(1.25rem - 1ch); }
+  .lit-axis--x { gap: 0.5rem; padding-inline: 0; font-size: 0.6rem; letter-spacing: 0.05em; }
+  .lit-axis--x > * { white-space: nowrap; }
+  .lit-grid--x { left: -1.25rem; right: -1.25rem; }
+  .lit-grid--y { top: -1.25rem; bottom: -1.25rem; }
+  .lit-quadrant { max-width: 7rem; font-size: 0.66rem; }
+
+  /* Titles need more room than covers at this width, so the chart grows and
+     each name drops its author, which the details still give. */
+  .lit-chart[data-mode="titles"] .lit-frame { height: 64rem; }
+  .lit-label { max-width: 8em; font-size: 0.64rem; }
+  .lit-label__meta { display: none; }
+
+  .lit-book .lit-pop,
+  .lit-book[data-side-x="left"] .lit-pop,
+  .lit-book[data-side-y="up"] .lit-pop {
+    position: fixed;
+    inset: auto 1rem 1rem;
+    width: auto;
+    padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lit-chart.is-animated .lit-book,
+  .lit-leaders,
+  .lit-cover,
+  .lit-pop {
+    transition: none;
+  }
+}
+}
+
+/* The site's native-button look sits outside every layer, so it would frame each
+   book and the switch; these two buttons are drawn by this page alone. */
+.lit-chart button.lit-mark {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+.lit-chart .lit-switch button {
+  min-width: 5.5rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lit-chart .lit-switch button + button {
+  border-left: 1px solid var(--ash-line-strong);
+}
+
+.lit-chart .lit-switch button[aria-pressed="true"] {
+  background: var(--color-fg);
+  color: var(--color-bg);
+}

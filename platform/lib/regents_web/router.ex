@@ -91,6 +91,7 @@ defmodule RegentsWeb.Router do
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
     get "/contact", PublicPagesController, :show
+    get "/literature", LiteratureController, :show
   end
 
   scope "/api/v1" do

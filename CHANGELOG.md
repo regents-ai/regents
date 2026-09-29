@@ -671,3 +671,17 @@ Deployed 2026-09-21 19:21Z with the founder's word; recorded 2026-09-21 19:22Z.
   fingerprints changed; live logs carry no application errors.
 - Before/after audit: claims, allowances, credits and tables identical;
   accounts grew from 113 to 114 through a sign-in since the previous audit.
+
+## 2026-09-29 — Regents release contents: the literature chart
+
+- `/literature` shows 34 science-fiction books about artificial minds on a
+  four-quadrant chart: across is how hopeful each book is for humanity, up is how
+  hopeful it is for the artificial minds, each from −10 to +10. Books spread so
+  none covers another or a quadrant name, with a line back to their exact scores.
+- A Covers/Titles switch shows the books as their covers or as their titles.
+  Hovering, tapping or focusing a book opens its scores, a summary of its themes
+  and a Goodreads link; on a phone the details open along the bottom of the screen.
+- Covers come from Open Library and are served by the site.
+- The page has its own share picture: its title, a line of explanation and a
+  close-up of the chart's hopeful corner. Every other page still shares the crown.
+- No page, menu or sitemap links to it. No database migrations.

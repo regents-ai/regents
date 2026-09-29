@@ -31,6 +31,7 @@ import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
 import {mountMotion} from "./motion"
 import {installCopyButtons} from "./copy_buttons"
+import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
@@ -323,5 +324,6 @@ installAccountAuthLazyLoader()
 installPublicTools()
 installCrossTabCsrf()
 installCopyButtons()
+installLiteratureChart()
 mountMotion(document)
 window.liveSocket = liveSocket

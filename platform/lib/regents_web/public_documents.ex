@@ -65,6 +65,9 @@ defmodule RegentsWeb.PublicDocuments do
        "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
     "/blog" =>
       {"Blog", "Writing from Regents Labs about its products and the ideas behind them."},
+    "/literature" =>
+      {"Literature",
+       "Science-fiction books about artificial minds, placed by how hopeful each is for humanity and for the minds themselves."},
     "/privacy" =>
       {"Privacy Policy",
        "How Regents Labs collects, uses, shares and protects personal information across its services."},
@@ -139,10 +142,23 @@ defmodule RegentsWeb.PublicDocuments do
       suffix: suffix,
       description: description,
       canonical: url(path),
-      image: url("/mark.png"),
+      image: url(share_image(path)),
+      image_alt: share_image_alt(path),
       markdown?: path in @documents
     }
   end
+
+  # The picture shown when a page is shared; every page but the literature chart
+  # shares the crown.
+  defp share_image("/literature"), do: "/images/literature/share.png"
+  defp share_image(_path), do: "/mark.png"
+
+  defp share_image_alt("/literature"),
+    do:
+      "Hope for people, hope for machines: science-fiction book covers placed on a chart of how hopeful each is for humanity and for AI"
+
+  defp share_image_alt(_path),
+    do: "Regents' orange thirteen-square crown on a platinum background"
 
   def openapi do
     @openapi
