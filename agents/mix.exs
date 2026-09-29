@@ -14,6 +14,7 @@ defmodule RegentAgents.MixProject do
       deps: [
         {:ash, "~> 3.33.0"},
         {:ash_postgres, "~> 2.13"},
+        {:postgrex, "~> 0.22"},
         {:simple_sat, "~> 0.1"},
         {:plug, "~> 1.19"},
         {:req, "~> 0.5"},

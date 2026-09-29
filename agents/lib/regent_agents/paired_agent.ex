@@ -22,7 +22,7 @@ defmodule RegentAgents.PairedAgent.Actions.Pair do
 
     case result do
       {:ok, agent} ->
-        RegentAgents.broadcast(agent.privy_user_id)
+        RegentAgents.announce(agent.privy_user_id)
         {:ok, agent}
 
       {:error, _error} ->
@@ -92,7 +92,7 @@ defmodule RegentAgents.PairedAgent.Actions.CheckIn do
       end)
 
     with {:ok, agent} <- result do
-      RegentAgents.broadcast(agent.privy_user_id)
+      RegentAgents.announce(agent.privy_user_id)
       {:ok, agent}
     end
   end
@@ -240,7 +240,7 @@ defmodule RegentAgents.PairedAgent do
   end
 
   defp announce(_changeset, agent, _context) do
-    RegentAgents.broadcast(agent.privy_user_id)
+    RegentAgents.announce(agent.privy_user_id)
     {:ok, agent}
   end
 end

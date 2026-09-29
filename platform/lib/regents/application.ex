@@ -14,6 +14,9 @@ defmodule Regents.Application do
         {Regents.OpenSea.HoldingsCache, []},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
+        # After the repository and PubSub: agent changes made on any Regent
+        # site reach the Account pages showing them.
+        agents_listener_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
         Regents.Ens,
@@ -37,6 +40,11 @@ defmodule Regents.Application do
   defp database_child do
     if Application.get_env(:regents, :database_startup_enabled, false),
       do: Regents.Repo
+  end
+
+  defp agents_listener_child do
+    if Application.get_env(:regents, :database_startup_enabled, false),
+      do: RegentAgents.Listener
   end
 
   # Metrics are served beside the site, never by a process that only runs a task.

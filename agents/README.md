@@ -40,19 +40,36 @@ config :regent_agents,
   siwa: [url: "https://siwa.regents.sh", audience: "mysite"]
 ```
 
-Mount the two requests behind the site's own rate limit. The endpoint's body
-reader must keep the raw body in `conn.assigns.raw_body`, because the agent
-signs the exact bytes:
+Mount the two requests behind the site's own rate limit (Regents allows 10
+pair requests and 60 check-ins a minute from one address). Mount them outside
+any agent sign-in pipeline: the package checks the signature itself, and a
+second check would spend the signed request, so the agent would be told
+`request_replayed`. The endpoint's body reader must keep the raw body in
+`conn.assigns.raw_body`, because the agent signs the exact bytes:
 
 ```elixir
 forward "/api/agents/v1", RegentAgents.HTTP
 ```
 
+Start the listener in the application's children, after the repository and
+PubSub:
+
+```elixir
+RegentAgents.Listener
+```
+
+It opens one connection of its own with the repository's settings and listens
+for the changes every site announces through the shared database. That needs
+a direct connection: a pooler that hands out connections per transaction
+drops the listening.
+
 A page acting for a signed-in person passes
 `%RegentAgents.Person{privy_user_id: ...}`, built only from the site's own
 verified session, to `issue_pairing_code`, `list_my_agents`, `get_my_agent`,
 `change_agent_harness` and `unpair_agent`, and subscribes to
-`RegentAgents.topic(privy_user_id)` to hear `:agents_changed`.
+`RegentAgents.topic(privy_user_id)` to hear `:agents_changed` whenever that
+person's agents are paired, check in, are corrected or are unpaired on any
+Regent site.
 
 ## Migrations
 

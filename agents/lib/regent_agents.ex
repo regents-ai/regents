@@ -20,9 +20,12 @@ defmodule RegentAgents do
         account: {MySite.Agents, :account},
         siwa: [url: "https://siwa.regents.sh", audience: "mysite"]
 
-  and mounts the two agent requests, behind its own rate limit:
+  mounts the two agent requests, behind its own rate limit:
 
       forward "/api/agents/v1", RegentAgents.HTTP
+
+  and starts `RegentAgents.Listener` after its repository and PubSub, so its
+  pages hear agent changes made on every site.
 
   The schema is migrated once, from Regents, with `RegentAgents.Migrator`.
   """
@@ -49,18 +52,24 @@ defmodule RegentAgents do
 
   @doc """
   The PubSub topic that hears when a person's agents change: paired, checked
-  in, corrected or unpaired on this site.
+  in, corrected or unpaired on any Regent site.
   """
   @spec topic(String.t()) :: String.t()
   def topic(privy_user_id), do: "regent_agents:" <> privy_user_id
 
   @doc false
-  def broadcast(privy_user_id) do
-    Phoenix.PubSub.broadcast(
-      Application.fetch_env!(:regent_agents, :pubsub),
-      topic(privy_user_id),
-      :agents_changed
-    )
+  def channel, do: "regent_agents"
+
+  @doc false
+  # Tells every site through the shared database. Inside a transaction the
+  # notice goes out when it commits, and not at all if it rolls back.
+  def announce(privy_user_id) do
+    Ecto.Adapters.SQL.query!(repo(nil, :mutate), "SELECT pg_notify($1, $2)", [
+      channel(),
+      privy_user_id
+    ])
+
+    :ok
   end
 
   @doc false

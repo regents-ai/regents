@@ -34,6 +34,8 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert {:ok, agent} =
              RegentAgents.pair_agent(code, "Sol", :hermes, actor: @agent)
 
+    heard(account)
+
     # The spent code gives way to the agent that used it.
     assert has_element?(view, "#account-agents-pairing", "Sol paired with your account.")
     refute has_element?(view, "#account-agents-pairing pre")
@@ -77,6 +79,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     # A check-in reloads the open agent without blanking what is shown.
     assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
+    heard(account)
     assert has_element?(view, log, "Patchbay")
 
     view
@@ -171,6 +174,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
     :ok = RegentAgents.unpair_agent(agent, actor: person(account))
+    heard(account)
 
     refute has_element?(view, "#account-agent-dialog")
     refute has_element?(view, "#agent-#{agent.id}")
@@ -237,6 +241,17 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     assert Registry.lookup(Regents.PubSub, topic) |> Enum.count(&(elem(&1, 0) == view.pid)) ==
              1
+  end
+
+  # A change is announced through the shared database once it commits, which a
+  # test's own transaction never does, so the test hands the page the notice
+  # the listener would pass on.
+  defp heard(account) do
+    Phoenix.PubSub.broadcast(
+      Regents.PubSub,
+      RegentAgents.topic(account.privy_user_id),
+      :agents_changed
+    )
   end
 
   defp following?(view, topic),

@@ -40,7 +40,6 @@ defmodule RegentAgents.PairingTest do
   test "a valid code pairs the signing agent with the person who made it, once" do
     owner = person("happy")
     code = code!(owner)
-    Phoenix.PubSub.subscribe(RegentAgents.TestPubSub, RegentAgents.topic(owner.privy_user_id))
 
     assert {:ok, agent} =
              RegentAgents.pair_agent(code, "  Sol  ", :claude_code,
@@ -54,8 +53,6 @@ defmodule RegentAgents.PairingTest do
              harness: :claude_code
            } =
              agent
-
-    assert_receive :agents_changed
 
     assert {:error, _used} =
              RegentAgents.pair_agent(code, "Again", :muse, actor: %Agent{wallet: @other_wallet})
@@ -120,12 +117,9 @@ defmodule RegentAgents.PairingTest do
 
     assert {:error, %Ash.Error.Forbidden{}} = RegentAgents.unpair_agent(agent, actor: other)
 
-    Phoenix.PubSub.subscribe(RegentAgents.TestPubSub, RegentAgents.topic(owner.privy_user_id))
-
     assert {:ok, %{harness: :other}} =
              RegentAgents.change_agent_harness(agent, :other, actor: owner)
 
-    assert_receive :agents_changed
     assert :ok = RegentAgents.unpair_agent(agent, actor: owner)
     assert {:ok, []} = RegentAgents.list_my_agents(actor: owner)
   end
