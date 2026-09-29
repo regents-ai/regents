@@ -7,6 +7,7 @@ defmodule RegentPayments.RecordsTest do
 
   use ExUnit.Case, async: false
 
+  alias RegentPayments.Steps
   alias RegentPayments.Test.Actor
   alias RegentPayments.Test.DirectOffer
   alias RegentPayments.Test.PublishOffer
@@ -121,7 +122,7 @@ defmodule RegentPayments.RecordsTest do
     end
 
     test "another payment's identifier is refused", c do
-      {:ok, pending} = RegentPayments.mark_settlement_pending(c.intent, actor: c.payer)
+      {:ok, pending} = Steps.step(c.intent, :mark_settlement_pending, c.payer)
       other = prepare!(DirectOffer, c.payer, c.other.id, 1_000_000)
 
       assert {:error, %Ash.Error.Invalid{} = error} =
@@ -131,7 +132,7 @@ defmodule RegentPayments.RecordsTest do
     end
 
     test "another payer's or another site's intent is refused", c do
-      {:ok, pending} = RegentPayments.mark_settlement_pending(c.intent, actor: c.payer)
+      {:ok, pending} = Steps.step(c.intent, :mark_settlement_pending, c.payer)
       assert {:error, %Ash.Error.Invalid{}} = record(pending, c.other)
 
       site = Application.fetch_env!(:regent_payments, :site)
@@ -215,9 +216,9 @@ defmodule RegentPayments.RecordsTest do
   # A payment settled the way `Purchase` settles one: sent for settlement,
   # its receipt written, and then marked settled.
   defp receipt(intent, payer) do
-    {:ok, pending} = RegentPayments.mark_settlement_pending(intent, actor: payer)
+    {:ok, pending} = Steps.step(intent, :mark_settlement_pending, payer)
     {:ok, receipt} = record(pending, payer)
-    {:ok, _settled} = RegentPayments.mark_settled(pending, actor: payer)
+    {:ok, _settled} = Steps.step(pending, :mark_settled, payer)
     receipt
   end
 
@@ -237,6 +238,6 @@ defmodule RegentPayments.RecordsTest do
       settled_at: DateTime.utc_now()
     }
     |> Map.merge(Map.new(changes))
-    |> RegentPayments.record_payment_receipt(actor: payer)
+    |> Steps.record_receipt(payer)
   end
 end

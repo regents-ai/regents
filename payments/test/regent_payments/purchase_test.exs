@@ -216,7 +216,7 @@ defmodule RegentPayments.PurchaseTest do
     assert_receive {:settle, service, _}, 3_000
     send(service, {:reply, 200, %{"success" => false, "errorReason" => "insufficient_funds"}})
     assert_receive {:done, ^worker, {:payment_refused, _, reason}}, 3_000
-    assert reason =~ "insufficient_funds"
+    assert reason == "The wallet does not hold enough USDC on Base for this payment."
     assert status(c) == :failed
   end
 

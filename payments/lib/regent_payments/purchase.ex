@@ -31,6 +31,7 @@ defmodule RegentPayments.Purchase do
   alias RegentPayments.Offer
   alias RegentPayments.PaymentIntent
   alias RegentPayments.PaymentReceipt
+  alias RegentPayments.Steps
   alias RegentPayments.USDC
   alias X402.Extensions.PaymentIdentifier
   alias X402.Facilitator
@@ -154,14 +155,14 @@ defmodule RegentPayments.Purchase do
   end
 
   defp expire(actor, found) do
-    case RegentPayments.expire_payment_intent(found, actor: actor) do
+    case Steps.step(found, :expire, actor) do
       {:ok, expired} -> {:expired, expired}
       {:error, failure} -> {:error, failure}
     end
   end
 
   defp offer_or_settle(actor, found, %{payment: nil}) do
-    case RegentPayments.mark_payment_required(found, actor: actor) do
+    case Steps.step(found, :mark_payment_required, actor) do
       {:ok, waiting} -> {:payment_required, waiting}
       {:error, failure} -> {:error, failure}
     end
@@ -172,7 +173,7 @@ defmodule RegentPayments.Purchase do
 
     case checked_payment(request, found, requirement) do
       {:ok, payment} ->
-        with {:ok, pending} <- RegentPayments.mark_settlement_pending(found, actor: actor) do
+        with {:ok, pending} <- Steps.step(found, :mark_settlement_pending, actor) do
           {:dispatch, pending, payment, requirement, request}
         end
 
@@ -224,7 +225,7 @@ defmodule RegentPayments.Purchase do
 
     if is_binary(from) and String.downcase(from) == payer,
       do: :ok,
-      else: {:refused, "That payment was signed by a different wallet than wallet_address names."}
+      else: {:refused, "That payment was signed by a different wallet than the one paying."}
   end
 
   defp names_this_intent(payment, found) do
@@ -255,9 +256,27 @@ defmodule RegentPayments.Purchase do
     end
   end
 
-  # The local check of the signed authorization: the wallet it pays, the exact
+  # The local check of the signed authorization: it names the wallet paying,
+  # the wallet paid and the amount, and then the wallet it pays, the exact
   # amount, and the window it is valid for.
   defp prechecked(payment, requirement) do
+    with :ok <- complete_authorization(payment) do
+      exact_evm_precheck(payment, requirement)
+    end
+  end
+
+  defp complete_authorization(payment) do
+    case get_in(payment, ["payload", "authorization"]) do
+      %{"from" => from, "to" => to, "value" => value}
+      when is_binary(from) and is_binary(to) and is_binary(value) ->
+        :ok
+
+      _incomplete ->
+        {:refused, "That payment authorization could not be read."}
+    end
+  end
+
+  defp exact_evm_precheck(payment, requirement) do
     case ExactEVM.precheck(payment, requirement, []) do
       :ok -> :ok
       {:error, {:precheck_failed, reason}} -> {:refused, precheck_message(reason)}
@@ -291,11 +310,8 @@ defmodule RegentPayments.Purchase do
     end
   end
 
-  defp invalid_message(%{"invalidReason" => reason}) when is_binary(reason) do
-    "The payment service would not accept that payment: #{reason}."
-  end
-
-  defp invalid_message(_body), do: "The payment service would not accept that payment."
+  defp invalid_message(body),
+    do: refusal_words(body["invalidReason"], "The payment service would not accept that payment.")
 
   # Settling
 
@@ -319,20 +335,41 @@ defmodule RegentPayments.Purchase do
   end
 
   defp refused_settlement(actor, found, body) do
-    case RegentPayments.mark_payment_failed(found, actor: actor) do
+    case Steps.step(found, :mark_failed, actor) do
       {:ok, failed} -> {:payment_rejected, failed, settlement_message(body)}
       {:error, failure} -> {:error, failure}
     end
   end
 
-  defp settlement_message(%{"errorReason" => reason}) when is_binary(reason) do
-    "The payment service could not settle that payment: #{reason}."
-  end
+  defp settlement_message(body),
+    do: refusal_words(body["errorReason"], "The payment service could not settle that payment.")
 
-  defp settlement_message(_body), do: "The payment service could not settle that payment."
+  # The payment service answers with a code; the payer is told in words what
+  # went wrong and what to do, and a code with no words of its own gets the
+  # general sentence.
+  defp refusal_words(reason, _general)
+       when reason in ["insufficient_funds", "invalid_exact_evm_insufficient_balance"],
+       do: "The wallet does not hold enough USDC on Base for this payment."
+
+  defp refusal_words("invalid_exact_evm_payload_authorization_valid_before", _general),
+    do: "That payment authorization has expired. Sign it again."
+
+  defp refusal_words("invalid_exact_evm_payload_authorization_valid_after", _general),
+    do: "That payment authorization is not valid yet. Try again in a moment."
+
+  defp refusal_words("invalid_exact_evm_nonce_already_used", _general),
+    do: "That payment authorization has already been used. Sign a new one."
+
+  defp refusal_words("invalid_exact_evm_signature", _general),
+    do: "That payment signature could not be checked. Sign it again."
+
+  defp refusal_words("invalid_exact_evm_payload_undeployed_smart_wallet", _general),
+    do: "This wallet is not set up on Base yet, so it cannot sign this payment."
+
+  defp refusal_words(_reason, general), do: general
 
   defp hold(actor, found) do
-    case RegentPayments.mark_settlement_pending(found, actor: actor) do
+    case Steps.step(found, :mark_settlement_pending, actor) do
       {:ok, pending} -> {:settlement_pending, pending}
       {:error, failure} -> {:error, failure}
     end
@@ -342,7 +379,7 @@ defmodule RegentPayments.Purchase do
     persisted =
       Ash.transact([PaymentIntent, PaymentReceipt], fn ->
         with {:ok, receipt} <- record_receipt(actor, found, payment, body),
-             {:ok, settled} <- RegentPayments.mark_settled(found, actor: actor) do
+             {:ok, settled} <- Steps.step(found, :mark_settled, actor) do
           {settled, receipt}
         end
       end)
@@ -388,7 +425,7 @@ defmodule RegentPayments.Purchase do
 
   defp carry_out_once(actor, %{status: :settled} = locked, request) do
     with {:ok, :complete} <- carry_out(locked, locked.receipt, actor, request),
-         {:ok, applied} <- RegentPayments.mark_applied(locked, actor: actor) do
+         {:ok, applied} <- Steps.step(locked, :mark_applied, actor) do
       {:applied, applied, locked.receipt}
     else
       {:ok, :incomplete} -> {:settled, locked, locked.receipt}
@@ -415,7 +452,7 @@ defmodule RegentPayments.Purchase do
   end
 
   defp record_receipt(actor, found, payment, body) do
-    RegentPayments.record_payment_receipt(
+    Steps.record_receipt(
       %{
         payment_intent_id: found.id,
         payment_identifier: found.payment_identifier,
@@ -423,21 +460,17 @@ defmodule RegentPayments.Purchase do
         network: found.network,
         asset: found.asset,
         amount_atomic: found.amount_atomic,
-        facilitator: facilitator_url(),
+        facilitator: RegentPayments.facilitator_url(),
         transaction_hash: transaction_hash(body),
         payment_response: body,
         settled_at: DateTime.utc_now()
       },
-      actor: actor
+      actor
     )
   end
 
   defp transaction_hash(%{"transaction" => hash}) when is_binary(hash) and hash != "", do: hash
   defp transaction_hash(_body), do: nil
-
-  defp facilitator_url do
-    :regent_payments |> Application.get_env(@facilitator, []) |> Keyword.fetch!(:url)
-  end
 
   # Reading an intent
 

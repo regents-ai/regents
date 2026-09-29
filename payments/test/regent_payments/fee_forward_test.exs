@@ -13,6 +13,7 @@ defmodule RegentPayments.FeeForwardTest do
   alias Ethers.Transaction
   alias RegentPayments.FeeForward
   alias RegentPayments.FeeForward.Staking
+  alias RegentPayments.Steps
   alias RegentPayments.Test.Actor
   alias RegentPayments.Test.PublishOffer
   alias RegentPayments.USDC
@@ -30,7 +31,8 @@ defmodule RegentPayments.FeeForwardTest do
     {chain, signer} = chain(receipts: fn _hash -> "0x1" end)
     intent = paid_intent(signer)
 
-    assert {:ok, deposit_hash} = forward(intent, signer)
+    assert {:ok, %{approval: approval_hash, deposit: deposit_hash}} = forward(intent, signer)
+    assert approval_hash == hash(1)
     assert deposit_hash == hash(2)
     assert [approve, deposit] = sent(chain)
 
@@ -51,7 +53,8 @@ defmodule RegentPayments.FeeForwardTest do
     {chain, signer} = chain(receipts: fn _hash -> "0x0" end)
     intent = paid_intent(signer)
 
-    assert {:error, {:reverted, _approval}} = forward(intent, signer)
+    assert {:error, {:approval_failed, approval_hash}} = forward(intent, signer)
+    assert approval_hash == hash(1)
     assert [_approve] = sent(chain)
   end
 
@@ -189,11 +192,11 @@ defmodule RegentPayments.FeeForwardTest do
     actor = payer()
 
     {:ok, intent} = prepare(signer.address, actor)
-    {:ok, pending} = RegentPayments.mark_settlement_pending(intent, actor: actor)
+    {:ok, pending} = Steps.step(intent, :mark_settlement_pending, actor)
     tx = "0x" <> String.duplicate("e", 64)
 
     {:ok, _receipt} =
-      RegentPayments.record_payment_receipt(
+      Steps.record_receipt(
         %{
           payment_intent_id: pending.id,
           payment_identifier: pending.payment_identifier,
@@ -206,10 +209,10 @@ defmodule RegentPayments.FeeForwardTest do
           payment_response: %{"success" => true, "transaction" => tx},
           settled_at: DateTime.utc_now()
         },
-        actor: actor
+        actor
       )
 
-    {:ok, settled} = RegentPayments.mark_settled(pending, actor: actor)
+    {:ok, settled} = Steps.step(pending, :mark_settled, actor)
     settled
   end
 end

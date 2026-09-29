@@ -42,17 +42,9 @@ defmodule RegentPayments do
       define :get_payment_intent, action: :read, get_by: [:id]
       define :lock_payment_intent, action: :for_update, get_by: [:id]
       define :offered_payment_intents, action: :offered, args: [:kind]
-      define :mark_payment_required, action: :mark_payment_required
-      define :mark_settlement_pending, action: :mark_settlement_pending
-      define :mark_settled, action: :mark_settled
-      define :mark_applied, action: :mark_applied
-      define :mark_payment_failed, action: :mark_failed
-      define :expire_payment_intent, action: :expire
     end
 
-    resource RegentPayments.PaymentReceipt do
-      define :record_payment_receipt, action: :record
-    end
+    resource RegentPayments.PaymentReceipt
   end
 
   @doc false
@@ -61,6 +53,16 @@ defmodule RegentPayments do
   @doc "The name this site's payments are written under."
   @spec site() :: String.t()
   def site, do: Application.fetch_env!(:regent_payments, :site)
+
+  @doc """
+  The facilitator's address, from `config :regent_payments, RegentPayments.Facilitator`.
+  It has no default: the facilitator client is started with this value and
+  each receipt names it.
+  """
+  @spec facilitator_url() :: String.t()
+  def facilitator_url do
+    :regent_payments |> Application.fetch_env!(RegentPayments.Facilitator) |> Keyword.fetch!(:url)
+  end
 
   @doc """
   A profile's whole record of settled payments of one `kind`, both ways: how

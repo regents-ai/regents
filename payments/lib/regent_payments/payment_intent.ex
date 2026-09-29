@@ -175,7 +175,10 @@ defmodule RegentPayments.PaymentIntent do
       authorize_if expr(actor_profile_id == ^actor(:id))
     end
 
+    # Every status change is the library's own step (`RegentPayments.Steps`),
+    # made for the intent's payer; a site cannot move an intent on itself.
     policy action_type(:update) do
+      forbid_unless context_equals(:regent_payments, :purchase)
       authorize_if expr(actor_profile_id == ^actor(:id))
     end
   end

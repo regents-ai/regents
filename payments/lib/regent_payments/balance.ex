@@ -21,15 +21,30 @@ defmodule RegentPayments.Balance do
   @spec configured?() :: boolean()
   def configured?, do: is_binary(rpc_url())
 
-  @doc "The wallet's USDC Balance in atomic units (six decimals), read on chain."
+  @doc """
+  The wallet's USDC Balance in atomic units (six decimals), read on chain.
+  An address that is not `0x` and forty hex digits answers `:invalid_address`
+  without calling the chain.
+  """
   @spec usdc_balance_atomic(String.t()) ::
-          {:ok, non_neg_integer()} | {:error, :not_configured | :rpc_failed}
+          {:ok, non_neg_integer()} | {:error, :invalid_address | :not_configured | :rpc_failed}
   def usdc_balance_atomic(wallet_address) do
-    case rpc_url() do
-      nil -> {:error, :not_configured}
-      url -> read_balance_of(url, wallet_address)
+    with {:ok, address} <- address_hex(wallet_address) do
+      case rpc_url() do
+        nil -> {:error, :not_configured}
+        url -> read_balance_of(url, address)
+      end
     end
   end
+
+  defp address_hex("0x" <> hex = address) when byte_size(hex) == 40 do
+    case Base.decode16(hex, case: :mixed) do
+      {:ok, _bytes} -> {:ok, address}
+      :error -> {:error, :invalid_address}
+    end
+  end
+
+  defp address_hex(_address), do: {:error, :invalid_address}
 
   # Only a web address can be called. Anything else is treated as unset rather
   # than handed to the client, whose refusal would repeat the value in a log,

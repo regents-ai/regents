@@ -2,7 +2,9 @@ defmodule RegentPayments.Supervisor do
   @moduledoc """
   The two processes a site starts for payments, beside its repository: the
   HTTP pool the facilitator client uses and the facilitator client itself,
-  configured under `config :regent_payments, RegentPayments.Facilitator`.
+  configured under `config :regent_payments, RegentPayments.Facilitator`. Its
+  `:url` must be set there: the client is started with that address and no
+  other, and each receipt names it.
 
   The client never retries on its own. A timed-out settlement may already
   have moved value, so a retry is always a decision, never a reflex.
@@ -21,6 +23,7 @@ defmodule RegentPayments.Supervisor do
       {X402.Facilitator,
        otp_app: :regent_payments,
        name: RegentPayments.Facilitator,
+       url: RegentPayments.facilitator_url(),
        finch: RegentPayments.Finch,
        max_retries: 0}
     ]

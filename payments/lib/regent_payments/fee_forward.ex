@@ -8,8 +8,14 @@ defmodule RegentPayments.FeeForward do
   which is all an x402 payment can be. From there it takes two transactions
   signed with the operator key, in this order: an approval of exactly the fee
   to the staking contract, and the deposit itself once the approval is on the
-  chain. The site decides when to forward, writes down what came of it, and
-  re-runs a fee that could not be forwarded.
+  chain. The site decides when to forward and writes down what came of it.
+
+  What comes back says whether running the forward again is safe. Until the
+  deposit is handed to the chain nothing has left the operator wallet, so a
+  refusal or a failed approval can simply be run again. From the moment the
+  deposit is handed over, a failure is answered as `:deposit_unknown` with
+  the hashes sent so far: the deposit may still land, so the site looks on
+  the chain before it runs the forward again, and never re-runs it blind.
 
   Only a fee of the offer kind the site names, paid into the very wallet that
   signs the forward, is handed on. Nothing here remembers what was already
@@ -48,34 +54,81 @@ defmodule RegentPayments.FeeForward do
     <<0::size(96), Base.decode16!(hex, case: :mixed)::binary-size(20)>>
   end
 
+  @typedoc "The transactions a forward handed to the chain."
+  @type sent :: %{approval: String.t(), deposit: String.t() | nil}
+
   @doc """
   Sends the approval and then the deposit for the fee settled by intent
-  `intent_id`, and returns the deposit's transaction hash once the chain has
-  it. `opts` names the offer `kind` the fee must have been paid for, the
+  `intent_id`, and returns both transaction hashes once the chain has the
+  deposit. `opts` names the offer `kind` the fee must have been paid for, the
   `staking` contract, the operator `signer` and the `source_tag` the deposit
-  carries. A fee of any other kind answers `{:error, :wrong_kind}`, and one
-  that was not paid into the signer's wallet `{:error, :not_paid_to_signer}`.
+  carries.
+
+  Nothing was deposited, and the forward can be run again, after
+  `:wrong_kind` (a fee of another offer kind), `:not_paid_to_signer` (a fee
+  not paid into the signer's wallet), `:no_receipt`, `{:approval_failed, hash}`
+  (the hash is nil when the approval never reached the chain) or
+  `{:deposit_reverted, sent}`. After `{:deposit_unknown, sent}` the deposit
+  may still land: look on the chain before running it again.
   """
-  @spec submit(Ash.UUID.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
+  @spec submit(Ash.UUID.t(), keyword()) ::
+          {:ok, %{approval: String.t(), deposit: String.t()}}
+          | {:error,
+             :wrong_kind
+             | :not_paid_to_signer
+             | :no_receipt
+             | {:approval_failed, String.t() | nil}
+             | {:deposit_reverted, sent()}
+             | {:deposit_unknown, sent()}
+             | term()}
   def submit(intent_id, opts) do
     kind = Keyword.fetch!(opts, :kind)
     staking = Keyword.fetch!(opts, :staking)
     signer = Keyword.fetch!(opts, :signer)
     tag = opts |> Keyword.fetch!(:source_tag) |> source_tag()
 
-    with {:ok, %{amount: amount, payer: payer}} <- payment(intent_id, kind, signer.address),
-         {:ok, approval} <- send(ERC20.approve(staking, amount), USDC.asset(), signer),
-         :ok <- mined(approval, signer),
-         {:ok, deposit} <-
-           send(Staking.deposit_usdc(amount, tag, source_ref(payer)), staking, signer),
-         :ok <- mined(deposit, signer) do
-      {:ok, deposit}
+    with {:ok, fee} <- payment(intent_id, kind, signer.address),
+         {:ok, approval} <- approved(fee.amount, staking, signer) do
+      deposit = Staking.deposit_usdc(fee.amount, tag, source_ref(fee.payer))
+      deposited(send_deposit(deposit, staking, signer), signer, approval)
+    end
+  end
+
+  # Nothing has left the operator wallet while the approval is under way. An
+  # exception raised here comes from a call handed the operator key, so it is
+  # named and never carried.
+  defp approved(amount, staking, signer) do
+    case send(ERC20.approve(staking, amount), USDC.asset(), signer) do
+      {:ok, approval} -> approval_mined(mined(approval, signer), approval)
+      {:error, _reason} -> {:error, {:approval_failed, nil}}
     end
   rescue
-    # Whatever went wrong, the exception is raised from a call that was handed
-    # the operator key, so it is named and not carried.
-    _exception -> {:error, :submit_failed}
+    _exception -> {:error, {:approval_failed, nil}}
   end
+
+  defp approval_mined(:ok, approval), do: {:ok, approval}
+  defp approval_mined({:error, _reason}, approval), do: {:error, {:approval_failed, approval}}
+
+  # A refusal of the send may still have reached the chain, so it is treated
+  # as a deposit that may land, like one that was sent and not yet mined.
+  defp send_deposit(deposit, staking, signer) do
+    send(deposit, staking, signer)
+  rescue
+    _exception -> {:error, :send_failed}
+  end
+
+  defp deposited({:ok, deposit}, signer, approval) do
+    sent = %{approval: approval, deposit: deposit}
+
+    case mined(deposit, signer) do
+      :ok -> {:ok, sent}
+      {:error, :reverted} -> {:error, {:deposit_reverted, sent}}
+      {:error, :not_mined} -> {:error, {:deposit_unknown, sent}}
+    end
+  end
+
+  defp deposited({:error, _reason}, _signer, approval),
+    do: {:error, {:deposit_unknown, %{approval: approval, deposit: nil}}}
 
   # The fee and the wallet it came from, as the settled payment recorded them.
   # The site's own worker reads the payment it was handed, answering to no
@@ -112,22 +165,32 @@ defmodule RegentPayments.FeeForward do
   end
 
   # Waits for the chain to take the transaction: Base seals a block every two
-  # seconds, so the receipt is read on that beat, for a minute at most.
+  # seconds, so the receipt is read on that beat, for a minute at most. A read
+  # that fails, or raises, counts as not yet.
   defp mined(tx_hash, signer), do: mined(tx_hash, signer, @receipt_tries)
 
   defp mined(_tx_hash, _signer, 0), do: {:error, :not_mined}
 
   defp mined(tx_hash, signer, tries_left) do
-    case Ethers.get_transaction_receipt(tx_hash, rpc_opts: [url: signer.rpc_url]) do
-      {:ok, %{"status" => "0x1"}} ->
+    case receipt_status(tx_hash, signer) do
+      "0x1" ->
         :ok
 
-      {:ok, %{"status" => _reverted}} ->
-        {:error, {:reverted, tx_hash}}
+      status when is_binary(status) ->
+        {:error, :reverted}
 
-      _not_yet ->
+      nil ->
         Process.sleep(@receipt_every_ms)
         mined(tx_hash, signer, tries_left - 1)
     end
+  end
+
+  defp receipt_status(tx_hash, signer) do
+    case Ethers.get_transaction_receipt(tx_hash, rpc_opts: [url: signer.rpc_url]) do
+      {:ok, %{"status" => status}} when is_binary(status) -> status
+      _not_yet -> nil
+    end
+  rescue
+    _exception -> nil
   end
 end

@@ -129,5 +129,5 @@ defmodule RegentPayments.Offer do
      )}
   end
 
-  defp offers, do: Application.get_env(:regent_payments, :offers, [])
+  defp offers, do: Application.fetch_env!(:regent_payments, :offers)
 end

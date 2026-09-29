@@ -111,7 +111,10 @@ defmodule RegentPayments.PaymentReceipt do
   end
 
   policies do
+    # Only the library writes a receipt, from what the facilitator answered
+    # (`RegentPayments.Steps`); a site cannot write one of its own.
     policy action(:record) do
+      forbid_unless context_equals(:regent_payments, :purchase)
       authorize_if actor_present()
     end
 
