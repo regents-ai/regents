@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the extensions install, the regents_app baseline, agent pairing and its copy to the shared pairing" do
+  test "the application migrations are the extensions install, the regents_app baseline, agent pairing, its copy to the shared pairing and the removal of the old pairing" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -27,28 +27,31 @@ defmodule RegentsWeb.BoundaryTest do
     assert [copy_migration] =
              Path.wildcard("priv/repo/migrations/*_copy_paired_agents_to_regent_agents.exs")
 
+    assert [old_pairing_drop_migration] =
+             Path.wildcard("priv/repo/migrations/*_drop_old_pairing_tables.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
                baseline_migration,
                agent_pairing_migration,
                activity_drop_migration,
-               copy_migration
+               copy_migration,
+               old_pairing_drop_migration
              ])
 
-    # The copy only adds rows to the shared pairing; the old table stays.
+    # The copy only adds rows to the shared pairing.
     copy = File.read!(copy_migration)
     assert copy =~ "INSERT INTO regent_agents.paired_agents"
     refute copy =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE)\b/i
 
-    # Agent activity is read from the sign-in service; the pairing release's
-    # copy of it is the only table this release removes.
-    drops =
-      for line <- String.split(File.read!(activity_drop_migration), "\n"),
-          line =~ ~r/^\s+drop/,
-          do: String.trim(line)
+    # Each removal names exactly the tables Sean agreed to remove.
+    assert drops(activity_drop_migration) == ["drop table(:agent_activities)"]
 
-    assert drops == ["drop table(:agent_activities)"]
+    assert drops(old_pairing_drop_migration) == [
+             "drop table(:paired_agents)",
+             "drop table(:agent_pairing_codes)"
+           ]
 
     assert_extension_migration(extensions_migration)
 
@@ -80,6 +83,12 @@ defmodule RegentsWeb.BoundaryTest do
     for retired <- ~w(platform autolaunch discussions techtree public autolaunch_app) do
       refute baseline =~ ~s(prefix: "#{retired}")
     end
+  end
+
+  defp drops(path) do
+    for line <- String.split(File.read!(path), "\n"),
+        line =~ ~r/^\s+drop/,
+        do: String.trim(line)
   end
 
   defp assert_additive_migration(path, required_fragments, allowed_statements) do
