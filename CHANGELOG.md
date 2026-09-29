@@ -685,3 +685,22 @@ Deployed 2026-09-21 19:21Z with the founder's word; recorded 2026-09-21 19:22Z.
 - The page has its own share picture: its title, a line of explanation and a
   close-up of the chart's hopeful corner. Every other page still shares the crown.
 - No page, menu or sitemap links to it. No database migrations.
+
+## 2026-09-29 — Regents production release: the literature chart
+
+Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
+
+- Application: `regents-sh-web` v108, machine `83d1d90f6d0018`, image label
+  `main-1589e34b5888`, digest `sha256:d5a2b676…`.
+- Revision: Regents `1589e34b58889ad79dbfccf39dc8b2057e5c61b7`, which carries
+  the literature chart entry above and elixir-utils
+  `55080723b20d57297855a23ee6e3e50ded77da9a` (released on its own as v106).
+- v107 (`main-c16f871f9a2f`) carried the literature chart on the previous
+  shared libraries and replaced v106 for about two and a half minutes; v108
+  restored v106's libraries alongside the chart.
+- Verified: `mix precommit` 566 tests, no failures; front-end tests 288/288;
+  live `/healthz`, `/`, `/privacy` and `/stake` answer 200; `/literature` shows
+  34 books, none overlapping, every cover loads; its share tags name
+  `/images/literature/share.png` while `/` still shares the crown; the sitemap
+  does not list the page. One health-check failure while the machine started,
+  passing five seconds later. No database migrations.
