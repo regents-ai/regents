@@ -425,7 +425,6 @@ defmodule RegentPayments.Purchase do
     Steps.record_receipt(
       %{
         payment_intent_id: found.id,
-        payment_identifier: found.payment_identifier,
         payer_address: get_in(payment, ["payload", "authorization", "from"]),
         network: found.network,
         asset: found.asset,

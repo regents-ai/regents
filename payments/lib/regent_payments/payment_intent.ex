@@ -38,11 +38,6 @@ defmodule RegentPayments.PaymentIntent do
     # The site that offered these terms, from its own configuration.
     attribute :site, :string, allow_nil?: false, public?: true
 
-    # What the payer's wallet and the facilitator both call this payment. It is
-    # the intent's own id in string form, so a signature can be tied back to
-    # one row and to no other.
-    attribute :payment_identifier, :string, allow_nil?: false, public?: true
-
     # The offer's kind, which names the site's offer module behind the intent.
     attribute :kind, :atom, allow_nil?: false, public?: true
 
@@ -81,7 +76,6 @@ defmodule RegentPayments.PaymentIntent do
   end
 
   identities do
-    identity :unique_payment_identifier, [:payment_identifier]
   end
 
   relationships do

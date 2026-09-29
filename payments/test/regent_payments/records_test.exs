@@ -121,16 +121,6 @@ defmodule RegentPayments.RecordsTest do
       assert Exception.message(error) =~ "is not waiting on a settlement"
     end
 
-    test "another payment's identifier is refused", c do
-      {:ok, pending} = Steps.step(c.intent, :mark_settlement_pending, c.payer)
-      other = prepare!(DirectOffer, c.payer, c.other.id, 1_000_000)
-
-      assert {:error, %Ash.Error.Invalid{} = error} =
-               record(pending, c.payer, payment_identifier: other.payment_identifier)
-
-      assert Exception.message(error) =~ "is not this payment intent's"
-    end
-
     test "another payer's or another site's intent is refused", c do
       {:ok, pending} = Steps.step(c.intent, :mark_settlement_pending, c.payer)
       assert {:error, %Ash.Error.Invalid{}} = record(pending, c.other)
@@ -222,12 +212,11 @@ defmodule RegentPayments.RecordsTest do
     receipt
   end
 
-  defp record(intent, payer, changes \\ []) do
+  defp record(intent, payer) do
     hash = "0x" <> Base.encode16(:crypto.strong_rand_bytes(32), case: :lower)
 
     %{
       payment_intent_id: intent.id,
-      payment_identifier: intent.payment_identifier,
       payer_address: payer.wallet_address,
       network: intent.network,
       asset: intent.asset,
@@ -237,7 +226,6 @@ defmodule RegentPayments.RecordsTest do
       payment_response: %{"success" => true, "transaction" => hash},
       settled_at: DateTime.utc_now()
     }
-    |> Map.merge(Map.new(changes))
     |> Steps.record_receipt(payer)
   end
 end
