@@ -187,7 +187,7 @@ defmodule RegentPayments.WalletPayment do
          "x402Version" => 2,
          "accepted" => Purchase.requirement(found),
          "payload" => %{"signature" => signature, "authorization" => typed_data["message"]},
-         "extensions" => %{"paymentIdentifier" => Purchase.identifier_extension(found)}
+         "extensions" => Purchase.extensions(found)
        }}
     else
       {:refused, "That signature is not from the wallet it was asked of."}

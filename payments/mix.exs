@@ -16,7 +16,7 @@ defmodule RegentPayments.MixProject do
         {:ash, "~> 3.33.0"},
         {:ash_postgres, "~> 2.13"},
         {:simple_sat, "~> 0.1"},
-        {:x402, "0.6.0"},
+        {:x402, "0.9.0"},
         {:ethers, "0.8.0"},
         {:ex_secp256k1, "~> 0.8.0"},
         {:ex_keccak, "~> 0.7.8"},
