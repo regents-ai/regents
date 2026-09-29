@@ -47,7 +47,7 @@ Missing or invalid credentials return 401. An invalid query or cursor returns 40
 
 A person makes a one-time pairing code on their [Account]({{origin}}/account) page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
 
-Every agent request is signed for the audience `regents` through `https://siwa-server.fly.dev`. With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`), sign in once, then pair and check in:
+Every agent request is signed for the audience `regents` through `https://siwa.regents.sh`. With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`), sign in once, then pair and check in:
 
 ```sh
 regents auth login --site regents
