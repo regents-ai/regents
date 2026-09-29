@@ -121,7 +121,13 @@ defmodule RegentsWeb.AgentRequestsTest do
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       conn
       |> Plug.Conn.put_status(401)
-      |> Req.Test.json(%{"error" => %{"code" => "http_signature_invalid", "message" => "no"}})
+      |> Req.Test.json(%{
+        "error" => %{
+          "code" => "http_signature_invalid",
+          "message" => "The request signature does not match.",
+          "hint" => "Sign the exact request you send, then send it again."
+        }
+      })
     end)
   end
 

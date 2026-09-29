@@ -8,7 +8,7 @@ defmodule RegentAgents.HTTP do
   own rate limit and a body reader that keeps the raw body in
   `conn.assigns.raw_body`, since the agent signs the exact bytes. The SIWA
   service verifies every request for this site's audience; when it refuses
-  one, the agent gets the same status and code back.
+  one, the agent gets its status, code, message and hint back unchanged.
 
   A check-in names the person's account as the site's own pages name it, from
   the site's `config :regent_agents, account: {Module, :function}`, called with
@@ -111,18 +111,19 @@ defmodule RegentAgents.HTTP do
     end
   end
 
-  # The SIWA service's own refusal reaches the agent as it was given, so the
-  # agent can look the code up in the sign-in guide.
-  defp refuse(conn, %{siwa_status: status, siwa_code: code}) when status in 400..599 do
+  # The SIWA service's own refusal reaches the agent as it was given: the SIWA
+  # service writes the message and next steps for this site and the agent's
+  # signing tool.
+  defp refuse(conn, %{
+         siwa_status: status,
+         siwa_code: code,
+         siwa_message: message,
+         siwa_hint: hint
+       })
+       when status in 400..599 do
     conn
     |> put_status(status)
-    |> answer(%{
-      error: %{
-        code: code,
-        message: "The sign-in service refused this request.",
-        hint: "See #{@guide} for what #{code} means."
-      }
-    })
+    |> answer(%{error: %{code: code, message: message, hint: hint}})
   end
 
   defp refuse(conn, %{siwa_status: status}) when status >= 500,

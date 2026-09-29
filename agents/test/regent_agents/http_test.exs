@@ -52,7 +52,13 @@ defmodule RegentAgents.HTTPTest do
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       conn
       |> Plug.Conn.put_status(status)
-      |> Req.Test.json(%{"error" => %{"code" => code, "message" => "no"}})
+      |> Req.Test.json(%{
+        "error" => %{
+          "code" => code,
+          "message" => "This signed request was already used.",
+          "hint" => "Sign a fresh request with a new nonce, then send it again."
+        }
+      })
     end)
   end
 
@@ -115,13 +121,17 @@ defmodule RegentAgents.HTTPTest do
              send_request(:get, "/api/agents/v1/me?x=1")
   end
 
-  test "the SIWA service's refusal reaches the agent with its status and code" do
+  test "the SIWA service's refusal reaches the agent as the SIWA service wrote it" do
     siwa_refuses(409, "request_replayed")
 
-    assert {409, %{"error" => %{"code" => "request_replayed", "hint" => hint}}} =
-             send_request(:get, "/api/agents/v1/me")
-
-    assert hint =~ "https://siwa.regents.sh/skill.md"
+    assert {409,
+            %{
+              "error" => %{
+                "code" => "request_replayed",
+                "message" => "This signed request was already used.",
+                "hint" => "Sign a fresh request with a new nonce, then send it again."
+              }
+            }} = send_request(:get, "/api/agents/v1/me")
   end
 
   test "a key verified for another site, or no answer from the SIWA service, pairs nothing" do

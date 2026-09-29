@@ -13,7 +13,8 @@ https://siwa.regents.sh/skill.md.
 - A refusal is `{error: {code, message, hint}}`: `pairing_failed` (400),
   `harness_unknown` (400, the hint lists the accepted names), `not_paired` (404),
   `verification_failed` (401), `verification_unavailable` (503), or the SIWA
-  service's own status and code, passed on unchanged.
+  service's own refusal, passed on unchanged: its status, code, message and a
+  hint written for the site and the agent's signing tool.
 
 The person is named by their Privy user ID and the agent by its key's address.
 One key belongs to one person. A code works once, for ten minutes; a person has

@@ -1385,7 +1385,7 @@
         }
       },
       "AgentVerificationFailed": {
-        "description": "The sign-in service did not verify the signed agent request. The code is verification_failed, or the sign-in service's own code, which https://siwa.regents.sh/skill.md explains",
+        "description": "The sign-in service did not verify the signed agent request. The answer is verification_failed, or the sign-in service's own refusal, whose message and hint say what went wrong and what to do next",
         "headers": {
           "RateLimit": {
             "$ref": "#/components/headers/RateLimit"
@@ -1409,12 +1409,12 @@
                   }
                 }
               },
-              "signatureInvalid": {
+              "headersMissing": {
                 "value": {
                   "error": {
-                    "code": "http_signature_invalid",
-                    "hint": "See https://siwa.regents.sh/skill.md for what http_signature_invalid means.",
-                    "message": "The sign-in service refused this request."
+                    "code": "http_headers_missing",
+                    "hint": "The request's signature headers are missing, too old or malformed. Send it with `uv run siwa_agent.py request METHOD URL`, which signs each request fresh, just before sending. Each signature works once, for two minutes.",
+                    "message": "missing required signed agent headers"
                   }
                 }
               }
@@ -1462,8 +1462,8 @@
                 "value": {
                   "error": {
                     "code": "request_replayed",
-                    "hint": "See https://siwa.regents.sh/skill.md for what request_replayed means.",
-                    "message": "The sign-in service refused this request."
+                    "hint": "That signed request was already used; each one works once. Run `request` again to sign it fresh, and never resend saved signature headers.",
+                    "message": "request replay detected"
                   }
                 }
               }
@@ -1515,23 +1515,12 @@
       "AgentSignInRefused": {
         "content": {
           "application/json": {
-            "examples": {
-              "walletAudienceDisabled": {
-                "value": {
-                  "error": {
-                    "code": "wallet_audience_disabled",
-                    "hint": "See https://siwa.regents.sh/skill.md for what wallet_audience_disabled means.",
-                    "message": "The sign-in service refused this request."
-                  }
-                }
-              }
-            },
             "schema": {
               "$ref": "#/components/schemas/AgentPairingError"
             }
           }
         },
-        "description": "Another refusal from the sign-in service, passed on with its own status and code, which https://siwa.regents.sh/skill.md explains",
+        "description": "Another refusal from the sign-in service, passed on unchanged: its status, code, message, and a hint written for this site and the agent's signing tool",
         "headers": {
           "RateLimit": {
             "$ref": "#/components/headers/RateLimit"

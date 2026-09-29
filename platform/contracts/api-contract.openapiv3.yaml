@@ -284,9 +284,9 @@ components:
               value: {error: {code: harness_unknown, message: "That harness is not one we know.", hint: "Send one of: hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Send other if yours is not listed."}}
     AgentVerificationFailed:
       description: >-
-        The sign-in service did not verify the signed agent request. The code
-        is verification_failed, or the sign-in service's own code, which
-        https://siwa.regents.sh/skill.md explains
+        The sign-in service did not verify the signed agent request. The answer
+        is verification_failed, or the sign-in service's own refusal, whose
+        message and hint say what went wrong and what to do next
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
@@ -296,8 +296,8 @@ components:
           examples:
             verificationFailed:
               value: {error: {code: verification_failed, message: "The signed agent request could not be verified.", hint: "Sign the request with your agent key as https://siwa.regents.sh/skill.md describes, then send it again."}}
-            signatureInvalid:
-              value: {error: {code: http_signature_invalid, message: "The sign-in service refused this request.", hint: "See https://siwa.regents.sh/skill.md for what http_signature_invalid means."}}
+            headersMissing:
+              value: {error: {code: http_headers_missing, message: "missing required signed agent headers", hint: "The request's signature headers are missing, too old or malformed. Send it with `uv run siwa_agent.py request METHOD URL`, which signs each request fresh, just before sending. Each signature works once, for two minutes."}}
     AgentRequestReplayed:
       description: The sign-in service has already verified this exact signed request once
       headers:
@@ -308,7 +308,7 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             requestReplayed:
-              value: {error: {code: request_replayed, message: "The sign-in service refused this request.", hint: "See https://siwa.regents.sh/skill.md for what request_replayed means."}}
+              value: {error: {code: request_replayed, message: "request replay detected", hint: "That signed request was already used; each one works once. Run `request` again to sign it fresh, and never resend saved signature headers."}}
     AgentVerificationUnavailable:
       description: The sign-in service could not be reached to verify the request
       headers:
@@ -322,17 +322,15 @@ components:
               value: {error: {code: verification_unavailable, message: "The sign-in service could not be reached.", hint: "Try again in a minute."}}
     AgentSignInRefused:
       description: >-
-        Another refusal from the sign-in service, passed on with its own status
-        and code, which https://siwa.regents.sh/skill.md explains
+        Another refusal from the sign-in service, passed on unchanged: its
+        status, code, message, and a hint written for this site and the
+        agent's signing tool
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
-          examples:
-            walletAudienceDisabled:
-              value: {error: {code: wallet_audience_disabled, message: "The sign-in service refused this request.", hint: "See https://siwa.regents.sh/skill.md for what wallet_audience_disabled means."}}
     AgentRateLimited:
       description: Too many requests were received from the client address
       headers:
