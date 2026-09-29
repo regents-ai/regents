@@ -242,26 +242,7 @@ defmodule RegentPayments.PurchaseTest do
     nothing_sent()
   end
 
-  test "an x402 payment must name this payment, or none", c do
-    review = review(c)
-    {:ok, found} = Purchase.read(c.payer, c.intent.id)
-    {:ok, payment} = WalletPayment.payment(found, c.wallet.address, signed(c.wallet, review))
-
-    for {id, words} <- [
-          {Ecto.UUID.generate(), "different payment"},
-          {"short", "could not be read"}
-        ] do
-      naming = put_in(payment["extensions"]["payment-identifier"]["info"]["id"], id)
-      request = %{payment: naming, payer: c.wallet.address, context: %{}}
-
-      assert {:payment_rejected, _, reason} = Purchase.execute(c.payer, c.intent.id, request)
-      assert reason =~ words
-    end
-
-    nothing_sent()
-  end
-
-  test "the terms name the frozen amount, wallet and payment identifier", c do
+  test "the terms name the frozen amount and wallet", c do
     terms = Purchase.terms(c.intent, "Payment is required.", "https://site.example/pay")
     assert [requirement] = terms["accepts"]
     assert requirement["amount"] == "1000000"
@@ -269,9 +250,6 @@ defmodule RegentPayments.PurchaseTest do
     assert requirement["network"] == "eip155:8453"
     assert terms["resource"]["url"] == "https://site.example/pay"
     assert terms["resource"]["description"] == c.intent.effect_summary
-
-    assert terms["extensions"]["payment-identifier"]["info"] ==
-             %{"required" => false, "id" => c.intent.payment_identifier}
   end
 
   # Only the wallet a review was written for can pay it, with a signature the

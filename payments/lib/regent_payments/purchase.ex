@@ -33,7 +33,6 @@ defmodule RegentPayments.Purchase do
   alias RegentPayments.PaymentReceipt
   alias RegentPayments.Steps
   alias RegentPayments.USDC
-  alias X402.Extensions.PaymentIdentifier
   alias X402.Facilitator
   alias X402.PaymentSignature
   alias X402.Scheme.ExactEVM
@@ -171,7 +170,7 @@ defmodule RegentPayments.Purchase do
   defp offer_or_settle(actor, found, request) do
     requirement = requirement(found)
 
-    case checked_payment(request, found, requirement) do
+    case checked_payment(request, requirement) do
       {:ok, payment} ->
         with {:ok, pending} <- Steps.step(found, :mark_settlement_pending, actor) do
           {:dispatch, pending, payment, requirement, request}
@@ -187,10 +186,9 @@ defmodule RegentPayments.Purchase do
 
   # Checking a payment against the frozen terms
 
-  defp checked_payment(request, found, requirement) do
+  defp checked_payment(request, requirement) do
     with {:ok, payment} <- decoded(request.payment, requirement),
          :ok <- signed_by(payment, request.payer),
-         :ok <- names_this_intent(payment, found),
          :ok <- prechecked(payment, requirement),
          :ok <- verified(payment, requirement) do
       {:ok, payment}
@@ -226,27 +224,6 @@ defmodule RegentPayments.Purchase do
     if is_binary(from) and String.downcase(from) == payer,
       do: :ok,
       else: {:refused, "That payment was signed by a different wallet than the one paying."}
-  end
-
-  defp names_this_intent(payment, found) do
-    case echoed_identifier(payment) do
-      :absent -> :ok
-      {:ok, identifier} -> matching_identifier(identifier, found.payment_identifier)
-      :error -> {:refused, "The payment identifier in that signature could not be read."}
-    end
-  end
-
-  defp matching_identifier(identifier, identifier), do: :ok
-
-  defp matching_identifier(_identifier, _expected),
-    do: {:refused, "That payment signature names a different payment."}
-
-  defp echoed_identifier(payment) do
-    case PaymentIdentifier.extract_id(payment["extensions"]) do
-      {:ok, nil} -> :absent
-      {:ok, {:spec, identifier}} -> {:ok, identifier}
-      _unreadable -> :error
-    end
   end
 
   # The local check of the signed authorization: it names the wallet paying,
@@ -522,8 +499,7 @@ defmodule RegentPayments.Purchase do
         "description" => found.effect_summary,
         "mimeType" => "application/json"
       },
-      "accepts" => [requirement(found)],
-      "extensions" => extensions(found)
+      "accepts" => [requirement(found)]
     }
   end
 
@@ -543,13 +519,6 @@ defmodule RegentPayments.Purchase do
       "maxTimeoutSeconds" => @max_timeout_seconds,
       "extra" => USDC.signing_domain()
     }
-  end
-
-  @doc "The x402 extensions naming the intent's payment identifier."
-  @spec extensions(PaymentIntent.t()) :: map()
-  def extensions(found) do
-    declaration = put_in(PaymentIdentifier.extension()["info"]["id"], found.payment_identifier)
-    %{PaymentIdentifier.extension_key() => declaration}
   end
 
   @doc "What was paid and when, as the receipt records it."
