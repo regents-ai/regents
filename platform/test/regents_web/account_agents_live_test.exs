@@ -1,10 +1,12 @@
 defmodule RegentsWeb.AccountAgentsLiveTest do
   use RegentsWeb.ConnCase, async: false
 
-  alias Regents.{Accounts, Agents}
-  alias Regents.Actors.{Human, System}
+  alias RegentAgents.{Agent, Person}
+  alias Regents.Accounts
+  alias Regents.Actors.System
 
   @agent_wallet "0x2222222222222222222222222222222222222222"
+  @agent %Agent{wallet: @agent_wallet}
 
   # The sign-in service knows of nothing the agent did unless a test says so.
   setup do
@@ -30,7 +32,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert pairing_code(view) == code
 
     assert {:ok, agent} =
-             Agents.pair_agent(code, @agent_wallet, "Sol", :hermes, actor: %System{})
+             RegentAgents.pair_agent(code, "Sol", :hermes, actor: @agent)
 
     # The spent code gives way to the agent that used it.
     assert has_element?(view, "#account-agents-pairing", "Sol paired with your account.")
@@ -74,7 +76,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert has_element?(view, log, "Paired with your account")
 
     # A check-in reloads the open agent without blanking what is shown.
-    assert {:ok, _agent} = Agents.check_in_agent(@agent_wallet, actor: %System{})
+    assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
     assert has_element?(view, log, "Patchbay")
 
     view
@@ -101,7 +103,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              "Muse helper is unpaired. It will need a new code to pair again."
            )
 
-    assert {:ok, []} = Agents.list_my_agents(actor: %Human{human_account_id: account.id})
+    assert {:ok, []} = RegentAgents.list_my_agents(actor: person(account))
   end
 
   test "activity that can't be read says so", %{conn: conn} do
@@ -159,7 +161,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     end
 
     assert {:ok, [%{harness: :hermes}]} =
-             Agents.list_my_agents(actor: %Human{human_account_id: owner.id})
+             RegentAgents.list_my_agents(actor: person(owner))
   end
 
   test "an agent unpaired elsewhere leaves the page, and a late press says so", %{conn: conn} do
@@ -168,7 +170,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     view = open_account(conn, account)
 
     view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
-    :ok = Agents.unpair_agent(agent, actor: %Human{human_account_id: account.id})
+    :ok = RegentAgents.unpair_agent(agent, actor: person(account))
 
     refute has_element?(view, "#account-agent-dialog")
     refute has_element?(view, "#agent-#{agent.id}")
@@ -212,14 +214,14 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
            )
 
     assert {:ok, [%{harness: :hermes}]} =
-             Agents.list_my_agents(actor: %Human{human_account_id: account.id})
+             RegentAgents.list_my_agents(actor: person(account))
   end
 
   test "AGENTS_FOLLOWED_ONLY_HERE: agent changes are heard while the Account page is open",
        %{conn: conn} do
     account = register_account("agents-follow")
     view = open_account(conn, account)
-    topic = Regents.Agents.PairedAgent.topic(account.id)
+    topic = RegentAgents.topic(account.privy_user_id)
 
     assert following?(view, topic)
 
@@ -241,9 +243,11 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     do: Enum.any?(Registry.lookup(Regents.PubSub, topic), &(elem(&1, 0) == view.pid))
 
   defp pair!(account, name, harness) do
-    issued = Agents.issue_pairing_code!(actor: %Human{human_account_id: account.id})
-    Agents.pair_agent!(issued.code, @agent_wallet, name, harness, actor: %System{})
+    issued = RegentAgents.issue_pairing_code!(actor: person(account))
+    RegentAgents.pair_agent!(issued.code, name, harness, actor: @agent)
   end
+
+  defp person(account), do: %Person{privy_user_id: account.privy_user_id}
 
   defp pairing_code(view) do
     [_, code] = Regex.run(~r/Pairing code: ([A-Za-z0-9_-]+)/, render(view))

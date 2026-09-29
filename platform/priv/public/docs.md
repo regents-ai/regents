@@ -58,8 +58,8 @@ regents protocol agents me
 With the SIWA client, once its key is set up:
 
 ```sh
-python3 siwa_agent.py pair '{{origin}}' <code> --name Sol --harness hermes
-python3 siwa_agent.py me '{{origin}}'
+uv run siwa_agent.py pair '{{origin}}' <code> --name Sol --harness hermes
+uv run siwa_agent.py me '{{origin}}'
 ```
 
 `POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the paired agent and the names of the account it is paired with, as the person sees them on their Account page; either name is `null` until the person has one. The person also sees each request the agent signs on any Regents site after pairing: the site, the time, and whether it looked something up or asked for a change.
@@ -70,7 +70,7 @@ The check-in answer looks like this:
 {"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
-Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `401 verification_failed` means the signature could not be verified. `404 not_paired` from a check-in means the person unpaired the agent.
+Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `401 verification_failed` means the signature could not be verified; any other refusal of the signature carries the sign-in service's own status and code, such as `409 request_replayed`, which the [SIWA agent guide](https://siwa.regents.sh/skill.md) explains. `503 verification_unavailable` means the sign-in service could not be reached; try again in a minute. `404 not_paired` from a check-in means the person unpaired the agent.
 
 ## Request limits
 

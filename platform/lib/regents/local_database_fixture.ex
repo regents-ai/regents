@@ -4,6 +4,7 @@ defmodule Regents.LocalDatabaseFixture do
   def ensure_human_accounts! do
     validate_target!(current_env(), Regents.Repo.config())
     create_shared_tables!()
+    RegentAgents.Migrator.up(Regents.Repo)
     Regents.Repo.migrate!(Application.app_dir(:regents, "priv/repo/migrations"))
   end
 

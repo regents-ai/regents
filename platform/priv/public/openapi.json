@@ -376,6 +376,15 @@
           },
           "429": {
             "$ref": "#/components/responses/AgentRateLimited"
+          },
+          "409": {
+            "$ref": "#/components/responses/AgentRequestReplayed"
+          },
+          "503": {
+            "$ref": "#/components/responses/AgentVerificationUnavailable"
+          },
+          "default": {
+            "$ref": "#/components/responses/AgentSignInRefused"
           }
         }
       }
@@ -436,6 +445,15 @@
           },
           "429": {
             "$ref": "#/components/responses/AgentRateLimited"
+          },
+          "409": {
+            "$ref": "#/components/responses/AgentRequestReplayed"
+          },
+          "503": {
+            "$ref": "#/components/responses/AgentVerificationUnavailable"
+          },
+          "default": {
+            "$ref": "#/components/responses/AgentSignInRefused"
           }
         }
       }
@@ -768,13 +786,7 @@
             "properties": {
               "code": {
                 "type": "string",
-                "enum": [
-                  "pairing_failed",
-                  "harness_unknown",
-                  "verification_failed",
-                  "rate_limited",
-                  "not_paired"
-                ]
+                "description": "pairing_failed, harness_unknown, not_paired, verification_failed, verification_unavailable or rate_limited, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
               },
               "message": {
                 "type": "string"
@@ -1363,8 +1375,8 @@
                 "value": {
                   "error": {
                     "code": "harness_unknown",
-                    "message": "This runtime is not on the list.",
-                    "hint": "Send harness as one of hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Use other if yours is not listed; your person can correct it later."
+                    "message": "That harness is not one we know.",
+                    "hint": "Send one of: hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Send other if yours is not listed."
                   }
                 }
               }
@@ -1373,7 +1385,7 @@
         }
       },
       "AgentVerificationFailed": {
-        "description": "SIWA verification did not verify the signed agent request",
+        "description": "The sign-in service did not verify the signed agent request. The code is verification_failed, or the sign-in service's own code, which https://siwa.regents.sh/skill.md explains",
         "headers": {
           "RateLimit": {
             "$ref": "#/components/headers/RateLimit"
@@ -1393,7 +1405,16 @@
                   "error": {
                     "code": "verification_failed",
                     "message": "The signed agent request could not be verified.",
-                    "hint": "Sign the request with your agent key as the docs describe, then send it again."
+                    "hint": "Sign the request with your agent key as https://siwa.regents.sh/skill.md describes, then send it again."
+                  }
+                }
+              },
+              "signatureInvalid": {
+                "value": {
+                  "error": {
+                    "code": "http_signature_invalid",
+                    "hint": "See https://siwa.regents.sh/skill.md for what http_signature_invalid means.",
+                    "message": "The sign-in service refused this request."
                   }
                 }
               }
@@ -1430,6 +1451,93 @@
                 }
               }
             }
+          }
+        }
+      },
+      "AgentRequestReplayed": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "requestReplayed": {
+                "value": {
+                  "error": {
+                    "code": "request_replayed",
+                    "hint": "See https://siwa.regents.sh/skill.md for what request_replayed means.",
+                    "message": "The sign-in service refused this request."
+                  }
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            }
+          }
+        },
+        "description": "The sign-in service has already verified this exact signed request once",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        }
+      },
+      "AgentVerificationUnavailable": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "verificationUnavailable": {
+                "value": {
+                  "error": {
+                    "code": "verification_unavailable",
+                    "hint": "Try again in a minute.",
+                    "message": "The sign-in service could not be reached."
+                  }
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            }
+          }
+        },
+        "description": "The sign-in service could not be reached to verify the request",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        }
+      },
+      "AgentSignInRefused": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "walletAudienceDisabled": {
+                "value": {
+                  "error": {
+                    "code": "wallet_audience_disabled",
+                    "hint": "See https://siwa.regents.sh/skill.md for what wallet_audience_disabled means.",
+                    "message": "The sign-in service refused this request."
+                  }
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            }
+          }
+        },
+        "description": "Another refusal from the sign-in service, passed on with its own status and code, which https://siwa.regents.sh/skill.md explains",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
           }
         }
       }

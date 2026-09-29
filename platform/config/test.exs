@@ -35,14 +35,14 @@ config :regents, :opensea_http_client, Regents.TestOpenSeaHttpClient
 config :regents, :opensea_api_key, "test-only-key"
 config :regents, :sprite_provider, Regents.TestSpriteProvider
 
-config :regents,
-       :agent_verification_client,
-       Regents.AgentAuth.DeterministicVerificationClient
-
 config :regents, :siwa,
   base_url: "https://siwa.test",
-  audience: "regents-test",
   activity_read_token: "test-activity-read-token"
+
+# Agent requests are verified by stubs each test sets.
+config :regent_agents,
+  siwa: [url: "https://siwa.test", audience: "regents-test"],
+  req_options: [plug: {Req.Test, RegentAgents.Broker}]
 
 # Reads from the sign-in service answer from stubs each test sets.
 config :regents, :siwa_req_options, plug: {Req.Test, Regents.Siwa}

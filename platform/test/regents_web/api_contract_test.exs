@@ -336,13 +336,30 @@ defmodule RegentsWeb.ApiContractTest do
     assert pair["requestBody"]["content"]["application/json"]["schema"]["required"] ==
              ["code", "name", "harness"]
 
-    assert Map.keys(pair["responses"]) |> Enum.sort() == ["201", "400", "401", "429"]
+    assert Map.keys(pair["responses"]) |> Enum.sort() == [
+             "201",
+             "400",
+             "401",
+             "409",
+             "429",
+             "503",
+             "default"
+           ]
 
     me = paths["/api/agents/v1/me"]["get"]
     assert me["operationId"] == "checkInAgent"
     assert me["security"] == []
     assert Enum.map(me["parameters"], & &1["$ref"]) == signed_headers
-    assert Map.keys(me["responses"]) |> Enum.sort() == ["200", "401", "404", "429"]
+
+    assert Map.keys(me["responses"]) |> Enum.sort() == [
+             "200",
+             "401",
+             "404",
+             "409",
+             "429",
+             "503",
+             "default"
+           ]
 
     budget_headers = %{
       "RateLimit" => %{"$ref" => "#/components/headers/RateLimit"},
@@ -356,7 +373,7 @@ defmodule RegentsWeb.ApiContractTest do
              Map.put(budget_headers, "Retry-After", %{"$ref" => "#/components/headers/RetryAfter"})
 
     assert contract["components"]["schemas"]["AgentHarness"]["enum"] ==
-             Enum.map(Regents.Agents.Harness.values(), &Atom.to_string/1)
+             Enum.map(RegentAgents.Harness.values(), &Atom.to_string/1)
 
     assert contract["components"]["schemas"]["PairedAgent"]["required"] ==
              ["name", "harness", "wallet", "paired_at", "last_contact_at"]

@@ -1,11 +1,11 @@
-defmodule Regents.Agents.AgentActivity do
+defmodule Regents.AgentActivity do
   @moduledoc """
   What a paired agent has done across the Regents sites since it was paired,
   in plain words. The sign-in service keeps the record: every request an
   agent signs is verified there, whichever site it went to.
   """
 
-  alias Regents.Agents.PairedAgent
+  alias RegentAgents.PairedAgent
 
   @sites %{
     "regents" => "Regents Labs",
@@ -54,8 +54,8 @@ defmodule Regents.Agents.AgentActivity do
     end
   end
 
-  defp action("regents", "GET", "/api/agents/v1/me"), do: {:ok, "Checked in"}
-  defp action("regents", "POST", "/api/agents/v1/pair"), do: :skip
+  defp action(_audience, "GET", "/api/agents/v1/me"), do: {:ok, "Checked in"}
+  defp action(_audience, "POST", "/api/agents/v1/pair"), do: :skip
 
   defp action(_audience, method, _path) when method in ["GET", "HEAD"],
     do: {:ok, "Looked something up"}

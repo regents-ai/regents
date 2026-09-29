@@ -64,6 +64,7 @@ defmodule Regents.MixProject do
       {:regent_privy, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy"},
       {:regent_identity, path: "../identity"},
       {:regent_payments, path: "../payments"},
+      {:regent_agents, path: "../agents"},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},

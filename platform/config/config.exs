@@ -10,6 +10,12 @@ import Config
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
 
+config :regent_agents,
+  repo: Regents.Repo,
+  pubsub: Regents.PubSub,
+  account: {Regents.AgentAccount, :account},
+  ash_domains: [RegentAgents]
+
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes
 # (`:mixed`) do not, because one grapheme can carry unbounded combining marks
@@ -23,7 +29,6 @@ config :regents,
   ash_domains: [
     Regents.Names,
     Regents.Accounts,
-    Regents.Agents,
     Regents.Formation,
     Regents.OpenSea,
     Regents.Redemption,
@@ -44,14 +49,12 @@ config :regents, Regents.Repo,
 
 config :regents, :sprite_provider, Regents.Formation.SpritesHttpProvider
 config :regents, :sprites, base_url: "https://api.sprites.dev", token: nil
-config :regents, :agent_verification_client, Regents.AgentAuth.SiwaHttpVerificationClient
-config :regents, :siwa, base_url: nil, audience: nil, activity_read_token: nil
+config :regents, :siwa, base_url: nil, activity_read_token: nil
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
 
-config :regents, :agent_pairing_clock, &DateTime.utc_now/0
 config :regents, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 # ENS lives on Ethereum mainnet, which has no public endpoint this product is
 # willing to trust: without one named at boot, no name or picture is looked up.

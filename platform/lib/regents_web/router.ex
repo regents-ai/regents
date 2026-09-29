@@ -26,6 +26,11 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.LaunchGate
   end
 
+  # Agents sign every request; each answer names the budget it was counted against.
+  pipeline :agents do
+    plug RegentsWeb.Plugs.AgentRateLimit
+  end
+
   pipeline :public_documents do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -103,11 +108,9 @@ defmodule RegentsWeb.Router do
     forward "/profile", RegentIdentity.HTTP, otp_app: :regents
   end
 
-  scope "/api/agents/v1", RegentsWeb do
-    pipe_through :api
-
-    post "/pair", AgentController, :pair
-    get "/me", AgentController, :me
+  scope "/api/agents/v1" do
+    pipe_through [:api, :agents]
+    forward "/", RegentAgents.HTTP
   end
 
   scope "/", RegentsWeb do

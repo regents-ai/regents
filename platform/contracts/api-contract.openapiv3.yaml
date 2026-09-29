@@ -44,7 +44,10 @@ paths:
               schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
         "400": {$ref: "#/components/responses/AgentPairingFailed"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
+        "409": {$ref: "#/components/responses/AgentRequestReplayed"}
         "429": {$ref: "#/components/responses/AgentRateLimited"}
+        "503": {$ref: "#/components/responses/AgentVerificationUnavailable"}
+        default: {$ref: "#/components/responses/AgentSignInRefused"}
   /api/agents/v1/me:
     get:
       operationId: checkInAgent
@@ -74,7 +77,10 @@ paths:
               schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
         "404": {$ref: "#/components/responses/AgentNotPaired"}
+        "409": {$ref: "#/components/responses/AgentRequestReplayed"}
         "429": {$ref: "#/components/responses/AgentRateLimited"}
+        "503": {$ref: "#/components/responses/AgentVerificationUnavailable"}
+        default: {$ref: "#/components/responses/AgentSignInRefused"}
   /auth/csrf:
     get:
       operationId: getBrowserCsrf
@@ -275,9 +281,12 @@ components:
             pairingFailed:
               value: {error: {code: pairing_failed, message: "The pairing code could not be used.", hint: "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."}}
             harnessUnknown:
-              value: {error: {code: harness_unknown, message: "This runtime is not on the list.", hint: "Send harness as one of hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Use other if yours is not listed; your person can correct it later."}}
+              value: {error: {code: harness_unknown, message: "That harness is not one we know.", hint: "Send one of: hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other. Send other if yours is not listed."}}
     AgentVerificationFailed:
-      description: SIWA verification did not verify the signed agent request
+      description: >-
+        The sign-in service did not verify the signed agent request. The code
+        is verification_failed, or the sign-in service's own code, which
+        https://siwa.regents.sh/skill.md explains
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
@@ -286,7 +295,44 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             verificationFailed:
-              value: {error: {code: verification_failed, message: "The signed agent request could not be verified.", hint: "Sign the request with your agent key as the docs describe, then send it again."}}
+              value: {error: {code: verification_failed, message: "The signed agent request could not be verified.", hint: "Sign the request with your agent key as https://siwa.regents.sh/skill.md describes, then send it again."}}
+            signatureInvalid:
+              value: {error: {code: http_signature_invalid, message: "The sign-in service refused this request.", hint: "See https://siwa.regents.sh/skill.md for what http_signature_invalid means."}}
+    AgentRequestReplayed:
+      description: The sign-in service has already verified this exact signed request once
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            requestReplayed:
+              value: {error: {code: request_replayed, message: "The sign-in service refused this request.", hint: "See https://siwa.regents.sh/skill.md for what request_replayed means."}}
+    AgentVerificationUnavailable:
+      description: The sign-in service could not be reached to verify the request
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            verificationUnavailable:
+              value: {error: {code: verification_unavailable, message: "The sign-in service could not be reached.", hint: "Try again in a minute."}}
+    AgentSignInRefused:
+      description: >-
+        Another refusal from the sign-in service, passed on with its own status
+        and code, which https://siwa.regents.sh/skill.md explains
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          examples:
+            walletAudienceDisabled:
+              value: {error: {code: wallet_audience_disabled, message: "The sign-in service refused this request.", hint: "See https://siwa.regents.sh/skill.md for what wallet_audience_disabled means."}}
     AgentRateLimited:
       description: Too many requests were received from the client address
       headers:
@@ -356,7 +402,12 @@ components:
           additionalProperties: false
           required: [code, message, hint]
           properties:
-            code: {type: string, enum: [pairing_failed, harness_unknown, verification_failed, rate_limited, not_paired]}
+            code:
+              type: string
+              description: >-
+                pairing_failed, harness_unknown, not_paired, verification_failed,
+                verification_unavailable or rate_limited, or a code the sign-in
+                service gave, which https://siwa.regents.sh/skill.md explains
             message: {type: string}
             hint: {type: string}
     Session:

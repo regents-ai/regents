@@ -28,8 +28,11 @@ config :regents, :sprites,
 if config_env() != :test do
   config :regents, :siwa,
     base_url: System.get_env("SIWA_SERVER_URL"),
-    audience: System.get_env("SIWA_AUDIENCE"),
     activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
+
+  config :regent_agents, :siwa,
+    url: System.get_env("SIWA_SERVER_URL"),
+    audience: System.get_env("SIWA_AUDIENCE")
 end
 
 # Production must say out loud whether the product surfaces are open. Anything

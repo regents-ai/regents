@@ -12,10 +12,10 @@ defmodule RegentsWeb.ShellLive.Account do
   import Phoenix.LiveView,
     only: [connected?: 1, put_flash: 3, push_event: 3, start_async: 3, stream: 3, stream: 4]
 
-  alias Regents.{Accounts, Agents, Ens, Names}
+  alias RegentAgents.{Harness, PairedAgent, PairingCode, Person}
+  alias Regents.{Accounts, AgentActivity, Ens, Names}
   alias Regents.Accounts.LinkedIdentity.Providers
   alias Regents.Actors.Human
-  alias Regents.Agents.{AgentActivity, Harness, PairedAgent, PairingCode}
   alias RegentsWeb.EventInput
   alias RegentsWeb.ShellLive.Identity
 
@@ -68,8 +68,8 @@ defmodule RegentsWeb.ShellLive.Account do
   # Agents pair, check in and change from other tabs; only this page shows them.
   defp follow_agents(%{assigns: %{agents_topic: nil}} = socket) do
     with true <- connected?(socket),
-         %Human{human_account_id: id} <- Identity.human_actor(socket) do
-      topic = PairedAgent.topic(id)
+         %Person{privy_user_id: id} <- agent_person(socket) do
+      topic = RegentAgents.topic(id)
       Phoenix.PubSub.subscribe(Regents.PubSub, topic)
       assign(socket, agents_topic: topic)
     else
@@ -147,26 +147,26 @@ defmodule RegentsWeb.ShellLive.Account do
     do: assign(socket, agent_pairing: issue_pairing_code(socket), agent_notice: nil)
 
   def handle_event("open_agent", %{"id" => id}, socket) when is_binary(id),
-    do: socket |> assign(agent_notice: nil) |> show_agent(id, Identity.human_actor(socket))
+    do: socket |> assign(agent_notice: nil) |> show_agent(id, agent_person(socket))
 
   def handle_event("change_agent_harness", %{"agent" => id, "harness" => harness}, socket)
       when is_binary(id) and is_binary(harness) do
-    actor = Identity.human_actor(socket)
+    actor = agent_person(socket)
 
     result =
       with {:ok, agent} <- my_agent(id, actor),
-           {:ok, changed} <- Agents.change_agent_harness(agent, harness, actor: actor),
+           {:ok, changed} <- RegentAgents.change_agent_harness(agent, harness, actor: actor),
            do: {:ok, {:change_harness, changed}}
 
     agent_edited(socket, actor, result)
   end
 
   def handle_event("unpair_agent", %{"id" => id}, socket) when is_binary(id) do
-    actor = Identity.human_actor(socket)
+    actor = agent_person(socket)
 
     result =
       with {:ok, agent} <- my_agent(id, actor),
-           :ok <- Agents.unpair_agent(agent, actor: actor),
+           :ok <- RegentAgents.unpair_agent(agent, actor: actor),
            do: {:ok, {:unpair, agent}}
 
     agent_edited(socket, actor, result)
@@ -208,7 +208,7 @@ defmodule RegentsWeb.ShellLive.Account do
 
   @doc "An agent paired, checked in, or was changed from another tab."
   def agents_changed(%{assigns: %{route_spec: %{route_id: :account}}} = socket),
-    do: reload_paired_agents(socket, Identity.human_actor(socket))
+    do: reload_paired_agents(socket, agent_person(socket))
 
   def agents_changed(socket), do: socket
 
@@ -452,8 +452,8 @@ defmodule RegentsWeb.ShellLive.Account do
   end
 
   defp load_paired_agents(socket) do
-    case Identity.human_actor(socket) do
-      %Human{} = actor ->
+    case agent_person(socket) do
+      %Person{} = actor ->
         reload_paired_agents(socket, actor)
 
       nil ->
@@ -470,7 +470,7 @@ defmodule RegentsWeb.ShellLive.Account do
   # once the agent is unpaired.
   defp reload_paired_agents(socket, actor) do
     agents =
-      case Agents.list_my_agents(actor: actor) do
+      case RegentAgents.list_my_agents(actor: actor) do
         {:ok, agents} -> agents
         {:error, _error} -> :unavailable
       end
@@ -503,7 +503,7 @@ defmodule RegentsWeb.ShellLive.Account do
   # What the agent has done is read from the sign-in service in the background.
   # Activity already on screen for this agent stays until the new reading lands.
   defp show_agent(socket, id, actor) do
-    case Agents.get_my_agent(id, actor: actor) do
+    case RegentAgents.get_my_agent(id, actor: actor) do
       {:ok, %PairedAgent{} = agent} ->
         activity =
           case socket.assigns.agent_detail do
@@ -520,9 +520,17 @@ defmodule RegentsWeb.ShellLive.Account do
     end
   end
 
+  # Pairings name the person by their Privy user ID, the same on every site.
+  defp agent_person(socket) do
+    case Identity.current_account(socket.assigns.access_context) do
+      %{privy_user_id: id} -> %Person{privy_user_id: id}
+      nil -> nil
+    end
+  end
+
   defp my_agent(id, actor) do
     with {:ok, id} <- Ecto.UUID.cast(id),
-         {:ok, %PairedAgent{} = agent} <- Agents.get_my_agent(id, actor: actor) do
+         {:ok, %PairedAgent{} = agent} <- RegentAgents.get_my_agent(id, actor: actor) do
       {:ok, agent}
     else
       {:error, error} -> {:error, error}
@@ -555,7 +563,7 @@ defmodule RegentsWeb.ShellLive.Account do
 
   # A code already on screen stays there while a new one can't be made yet.
   defp issue_pairing_code(socket) do
-    case Agents.issue_pairing_code(actor: Identity.human_actor(socket)) do
+    case RegentAgents.issue_pairing_code(actor: agent_person(socket)) do
       {:ok, issued} ->
         issued
 

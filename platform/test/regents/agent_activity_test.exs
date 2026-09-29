@@ -1,7 +1,8 @@
-defmodule Regents.Agents.AgentActivityTest do
+defmodule Regents.AgentActivityTest do
   use ExUnit.Case, async: true
 
-  alias Regents.Agents.{AgentActivity, PairedAgent}
+  alias RegentAgents.PairedAgent
+  alias Regents.AgentActivity
 
   @wallet "0x2222222222222222222222222222222222222222"
   @paired_at ~U[2026-09-26 15:00:00.000000Z]
@@ -25,6 +26,7 @@ defmodule Regents.Agents.AgentActivityTest do
       Req.Test.json(conn, %{
         "data" => %{
           "activity" => [
+            request("techtree", "GET", "/api/agents/v1/me", "2026-09-26T15:10:00Z"),
             request("patchbay", "POST", "/api/agent/reports", "2026-09-26T15:09:00Z"),
             request("autolaunch", "GET", "/v1/agent/launches", "2026-09-26T15:08:00Z"),
             request("elsewhere", "POST", "/anything", "2026-09-26T15:07:00Z"),
@@ -38,13 +40,14 @@ defmodule Regents.Agents.AgentActivityTest do
     assert {:ok, activity} = AgentActivity.recent(agent())
 
     assert Enum.map(activity, &{&1.site, &1.action}) == [
+             {"Techtree", "Checked in"},
              {"Patchbay", "Asked to make a change"},
              {"Autolaunch", "Looked something up"},
              {"Regents Labs", "Checked in"},
              {"Regents Labs", "Paired with your account"}
            ]
 
-    assert hd(activity).occurred_at == ~U[2026-09-26 15:09:00Z]
+    assert hd(activity).occurred_at == ~U[2026-09-26 15:10:00Z]
     assert List.last(activity).occurred_at == @paired_at
   end
 

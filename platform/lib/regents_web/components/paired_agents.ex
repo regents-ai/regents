@@ -7,7 +7,7 @@ defmodule RegentsWeb.Components.PairedAgents do
 
   use RegentsWeb, :html
 
-  alias Regents.Agents.{Harness, PairingCode}
+  alias RegentAgents.{Harness, PairingCode}
 
   @logos %{
     hermes: "/images/agents/hermes.png",
