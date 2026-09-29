@@ -220,7 +220,6 @@ defmodule RegentPayments.FeeForwardTest do
       Steps.record_receipt(
         %{
           payment_intent_id: pending.id,
-          payment_identifier: pending.payment_identifier,
           payer_address: @payer,
           network: pending.network,
           asset: pending.asset,

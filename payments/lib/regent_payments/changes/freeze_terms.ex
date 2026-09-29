@@ -55,10 +55,6 @@ defmodule RegentPayments.Changes.FreezeTerms do
     do: {:error, InvalidChanges.exception(message: "the terms name no wallet or amount")}
 
   defp freeze(changeset, offer, terms) do
-    # The identifier is minted here rather than read back off the row, because
-    # the primary key's own default is not applied until the insert itself.
-    identifier = Ash.UUID.generate()
-
     payload =
       Map.merge(terms.payload, %{
         "pay_to_address" => terms.pay_to_address,
@@ -66,8 +62,6 @@ defmodule RegentPayments.Changes.FreezeTerms do
       })
 
     Ash.Changeset.force_change_attributes(changeset, %{
-      id: identifier,
-      payment_identifier: identifier,
       kind: offer.kind(),
       target_type: offer.target_type(),
       target_id: terms.target_id,

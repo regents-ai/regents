@@ -16,7 +16,7 @@ defmodule RegentPayments.WalletPayment do
 
   The authorization is the same every time for one intent and one wallet: it
   runs until the intent's terms expire, and its nonce comes from the intent's
-  payment identifier and the wallet. A second press signs the same
+  id and the wallet. A second press signs the same
   authorization, and USDC moves it at most once.
 
   The actor is the site's signed-in profile: it carries its `id` and the
@@ -234,7 +234,7 @@ defmodule RegentPayments.WalletPayment do
   defp nonce(found, "0x" <> hex) do
     "0x" <>
       Base.encode16(
-        ExKeccak.hash_256(found.payment_identifier <> Base.decode16!(hex, case: :lower)),
+        ExKeccak.hash_256(found.id <> Base.decode16!(hex, case: :lower)),
         case: :lower
       )
   end
