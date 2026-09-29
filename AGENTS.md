@@ -7,12 +7,15 @@ the separate regents-cli repository.
 - `contracts/`: Solidity, staking/distribution and retained historical evidence.
 - `identity/`: shared Ash identity domain and `regent_identity` schema consumed by every
   product. Read its README before changing sync, actor or ownership rules.
+- `payments/`: shared Ash payment records (`regent_payments` schema) and the x402 and
+  wallet payment steps every site uses. Payment records only: no held balance, top-up,
+  spend, withdrawal or refund. Read `RegentPayments`' module doc before changing it.
 - `plugins/`: home for standalone runtime plugin packages; none exist yet. Hermes,
   OpenClaw, MCP and bundled-skill integrations are CLI code in regents-cli.
-- Shared UI and Elixir libraries other than `identity/` come from GitHub, each pinned to
+- Shared UI and Elixir libraries other than `identity/` and `payments/` come from GitHub, each pinned to
   one commit in `platform/mix.exs`.
 - `make check` runs every component gate; `make check-platform`, `check-required-fixes`,
-  `check-identity` and `check-contracts` run one. `MIX_TEST_PARTITION` (an underscore and
+  `check-identity`, `check-payments` and `check-contracts` run one. `MIX_TEST_PARTITION` (an underscore and
   a short id, unique to your working tree) is required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.
