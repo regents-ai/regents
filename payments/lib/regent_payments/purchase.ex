@@ -242,17 +242,10 @@ defmodule RegentPayments.Purchase do
     do: {:refused, "That payment signature names a different payment."}
 
   defp echoed_identifier(payment) do
-    case get_in(payment, ["extensions", "paymentIdentifier"]) do
-      nil -> :absent
-      encoded when is_binary(encoded) -> decoded_identifier(encoded)
-      _other -> :error
-    end
-  end
-
-  defp decoded_identifier(encoded) do
-    case PaymentIdentifier.decode(encoded) do
-      {:ok, identifier} -> {:ok, identifier}
-      {:error, _reason} -> :error
+    case PaymentIdentifier.extract_id(payment["extensions"]) do
+      {:ok, nil} -> :absent
+      {:ok, {:spec, identifier}} -> {:ok, identifier}
+      _unreadable -> :error
     end
   end
 
@@ -530,7 +523,7 @@ defmodule RegentPayments.Purchase do
         "mimeType" => "application/json"
       },
       "accepts" => [requirement(found)],
-      "extensions" => %{"paymentIdentifier" => identifier_extension(found)}
+      "extensions" => extensions(found)
     }
   end
 
@@ -552,11 +545,11 @@ defmodule RegentPayments.Purchase do
     }
   end
 
-  @doc "The intent's payment identifier as the x402 extension carries it."
-  @spec identifier_extension(PaymentIntent.t()) :: String.t()
-  def identifier_extension(found) do
-    {:ok, encoded} = PaymentIdentifier.encode(found.payment_identifier)
-    encoded
+  @doc "The x402 extensions naming the intent's payment identifier."
+  @spec extensions(PaymentIntent.t()) :: map()
+  def extensions(found) do
+    declaration = put_in(PaymentIdentifier.extension()["info"]["id"], found.payment_identifier)
+    %{PaymentIdentifier.extension_key() => declaration}
   end
 
   @doc "What was paid and when, as the receipt records it."

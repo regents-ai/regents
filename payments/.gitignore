@@ -3,3 +3,4 @@ local-only-*
 /_build/
 /deps/
 /cover/
+erl_crash.dump
