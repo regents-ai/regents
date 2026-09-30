@@ -729,3 +729,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 
 - Design-system `970b5bcf0d283ca7063a43c35e649ee04a5e8022` rounds the prism box's
   corners for every site, so Regents' own copy of that rule is removed.
+
+## 2026-09-30 — elixir-utils cfe5fb3
+
+- Every Regents package pins elixir-utils `cfe5fb3638f8e63827c6ed79a7bd5d25078f073e`,
+  the commit that adds the shared OpenAI package, so Patchbay can pull Regents'
+  payments and agents packages on one elixir-utils commit. No package Regents uses
+  changed; the lock files change only their elixir-utils lines.
