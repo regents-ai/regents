@@ -724,3 +724,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - `/llms.txt` repeats the About page's Key facts section, read from the page itself.
 - Public pages render Markdown tables; a table's last column wraps long values so it
   fits a phone screen.
+
+## 2026-09-30 — Theme button corners from the shared styles
+
+- Design-system `970b5bcf0d283ca7063a43c35e649ee04a5e8022` rounds the prism box's
+  corners for every site, so Regents' own copy of that rule is removed.

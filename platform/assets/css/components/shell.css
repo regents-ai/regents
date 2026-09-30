@@ -110,10 +110,6 @@
   align-items: center;
 }
 
-.theme-control .theme-toggle__stage {
-  border-radius: 0.25rem;
-}
-
 #shell-header .theme-control {
   margin-inline-end: var(--space-1);
 }
