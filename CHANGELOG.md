@@ -714,3 +714,13 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   and spaces the prism 16px from the X icon, as the icons are spaced.
 - Header X, $REGENT crown and GitHub icons grow to 1.5rem; footer icons stay 1.25rem.
 - The prism box has slightly rounded corners (0.25rem), in the header and the footer.
+
+## 2026-09-30 — About page
+
+- The About page follows the shared About layout: what Regents Labs does, how it
+  differs, who uses it, the team, how it works, Key facts, common questions and who
+  operates the services. It covers every product, including Redeem, Keyfleet (opening
+  soon), Regents Mobile (not out yet), Sign-in with Agent, regents-cli and Ash Template.
+- `/llms.txt` repeats the About page's Key facts section, read from the page itself.
+- Public pages render Markdown tables; a table's last column wraps long values so it
+  fits a phone screen.

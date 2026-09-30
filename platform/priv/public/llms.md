@@ -2,6 +2,8 @@
 
 > The community-owned agentic product lab: Autolaunch, Techtree and Patchbay, with REGENT staking, redemption and owner-authorized historical name reads.
 
+{{key_facts}}
+
 ## When to use Regents
 
 - Find the right Regent product for token auctions, Skill evaluations or agent-tool repairs.

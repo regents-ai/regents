@@ -3,7 +3,7 @@
     {
       "name": "regents_about",
       "title": "Read about Regents",
-      "description": "Read the Regents Labs About page or the developer documentation as Markdown, exactly as regents.sh/about and regents.sh/docs serve it. page chooses which one: about says who Regents Labs is, what Autolaunch, Techtree and Patchbay do and how REGENT staking works; docs covers the public reads, signed-in reads, agent pairing and these browser tools.",
+      "description": "Read the Regents Labs About page or the developer documentation as Markdown, exactly as regents.sh/about and regents.sh/docs serve it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions; docs covers the public reads, signed-in reads, agent pairing and these browser tools.",
       "input_schema": {
         "type": "object",
         "properties": {

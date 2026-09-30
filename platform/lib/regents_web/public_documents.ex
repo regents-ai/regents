@@ -5,6 +5,9 @@ defmodule RegentsWeb.PublicDocuments do
   @files Enum.map(~w(docs about contact llms), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
+  # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
+  [_about, facts] = String.split(@sources["about"], "\n## Key facts\n")
+  @key_facts "## Key facts\n" <> String.trim_trailing(hd(String.split(facts, "\n## ", parts: 2)))
   @openapi_path Path.join(@directory, "openapi.json")
   @external_resource @openapi_path
   @openapi @openapi_path |> File.read!() |> Jason.decode!()
@@ -59,7 +62,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Start reading Regents Labs without an account: the agent guide, public reads, historical name claims and contract details."},
     "/about" =>
       {"About",
-       "Who Regents Labs is, what Autolaunch, Techtree and Patchbay do, and how REGENT and participation work."},
+       "What Regents Labs does and how it differs, who uses it, the team, key facts and common questions about REGENT and its products."},
     "/contact" =>
       {"Contact",
        "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
@@ -82,7 +85,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/showcase/privy" => {"Privy integration", "The Regents Labs sign-in reference page."}
   }
   @sanitize [
-    tags: ~w(h1 h2 h3 p ul ol li strong em a code pre br blockquote),
+    tags: ~w(h1 h2 h3 p ul ol li strong em a code pre br blockquote table thead tbody tr th td),
     tag_attributes: %{"a" => ["href"]},
     generic_attributes: [],
     url_schemes: ~w(http https mailto),
@@ -131,7 +134,7 @@ defmodule RegentsWeb.PublicDocuments do
   # The HTML is MDEx-sanitized from the committed public markdown.
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
-    markdown |> MDEx.to_html!(sanitize: @sanitize) |> Phoenix.HTML.raw()
+    markdown |> MDEx.to_html!(extension: [table: true], sanitize: @sanitize) |> Phoenix.HTML.raw()
   end
 
   def metadata(path, title, description) do
@@ -219,8 +222,11 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
+  # `{{key_facts}}` is the About page's Key facts section and `{{tools}}` the
+  # browser tools table; `{{origin}}` goes last, since they name it.
   defp source(name) do
     @sources[name]
+    |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{tools}}", @tool_table)
     |> String.replace("{{origin}}", url(""))
   end

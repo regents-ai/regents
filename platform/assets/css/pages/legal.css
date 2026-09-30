@@ -26,6 +26,29 @@
   border: 1px solid var(--rl-line);
 }
 
+.public-document table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-block: 1rem;
+  border-collapse: collapse;
+}
+
+.public-document th,
+.public-document td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rl-line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: normal;
+}
+
+/* A table's last column holds the values (a web address, a contract address), so a long
+   one wraps there rather than pushing the table past a phone screen. */
+.public-document td:last-child {
+  overflow-wrap: anywhere;
+}
+
 .legal-header {
   display: flex;
   align-items: baseline;
