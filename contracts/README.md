@@ -17,9 +17,11 @@ by Regents Labs and covers the shared, staking, and Autolaunch contract families
 
 ## Quickstart
 
-You need [Foundry](https://getfoundry.sh). Clone with submodules, then build and test:
+You need [mise](https://mise.jdx.dev), which runs the Foundry version pinned in `mise.toml`
+(the formatter's layout changes between versions). Clone with submodules, then build and test:
 
 ```bash
+mise install
 git submodule update --init --recursive
 forge build
 forge test
@@ -49,7 +51,7 @@ This directory is one component of the Regents monorepo:
 | Layer | What | Pin |
 | --- | --- | --- |
 | Language | Solidity | `^0.8.26` across `src/`, with two files pinned to `0.8.28` |
-| Toolchain | Foundry (`forge`) | `auto_detect_solc`, optimizer on at 200 runs, `via_ir` |
+| Toolchain | Foundry (`forge`) 1.8.3, pinned in `mise.toml` | `auto_detect_solc`, optimizer on at 200 runs, `via_ir` |
 | Static analysis | Slither | configured by `slither.config.json` |
 | Dependencies | git submodules under `lib/` | exact revisions recorded in `foundry.lock` |
 | Target chains | Base mainnet (`8453`) and Base Sepolia | RPC endpoints supplied by environment variables |

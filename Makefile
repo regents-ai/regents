@@ -32,7 +32,7 @@ check-agents:
 	psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(REGENT_AGENTS_TEST_DATABASE)'" | grep -q 1 || createdb $(REGENT_AGENTS_TEST_DATABASE)
 	cd agents && MIX_ENV=test mix check
 check-contracts:
-	cd contracts && bin/gate.sh
+	cd contracts && mise exec -- bin/gate.sh
 # The release checks and builds exactly the committed tree, so every change must
 # be committed first. A failing gate stops it before anything is built.
 release:
