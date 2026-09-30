@@ -77,8 +77,7 @@
 /* Every header control is a bordered cell, as the marketing header's tabs are. */
 .shell-brand,
 .account-control summary,
-.mobile-menu-button,
-.rg-theme-toggle {
+.mobile-menu-button {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -99,9 +98,24 @@
   margin-inline-start: -1px;
 }
 
-.account-control,
+.account-control {
+  display: flex;
+}
+
+/* The shared prism control draws its own box and hover; the header only centres it.
+   Its prism sits .5rem inside the press target, so this margin leaves the same space
+   before the X icon as between the icons themselves. */
 .theme-control {
   display: flex;
+  align-items: center;
+}
+
+.theme-control .theme-toggle__stage {
+  border-radius: 0.25rem;
+}
+
+#shell-header .theme-control {
+  margin-inline-end: var(--space-1);
 }
 
 .account-control summary::-webkit-details-marker {
@@ -244,19 +258,6 @@ details[open] > summary .shell-chevron {
 .account-menu__row--danger {
   border-block-end: 0;
   color: var(--ash-accent-warm);
-}
-
-/* The shared prism control sits in the same bordered header cell as every other
-   control; the cube, laser and motion come from regent_ui. */
-#shell-header .rg-theme-toggle.rg-button {
-  height: 100%;
-  transition: border-color 140ms ease;
-}
-
-@media (hover: hover) {
-  .rg-theme-toggle:hover {
-    border-color: var(--ash-accent);
-  }
 }
 
 .mobile-menu-button {
@@ -501,8 +502,7 @@ details[open] > summary .shell-chevron {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shell-chevron,
-  .rg-theme-toggle {
+  .shell-chevron {
     transition: none;
   }
 }

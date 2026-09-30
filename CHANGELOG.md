@@ -704,3 +704,13 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   `/images/literature/share.png` while `/` still shares the crown; the sitemap
   does not list the page. One health-check failure while the machine started,
   passing five seconds later. No database migrations.
+
+## 2026-09-30 — Header theme button
+
+- Design-system `322448c5e46a775d68aa5c05cec17fe2e4be8202` owns the theme button:
+  a borderless 2.75rem press target around a 1.75rem prism box; hovering shows the
+  other theme's box, edges and laser.
+- The app header drops the button's full-height bordered cell and its hover border,
+  and spaces the prism 16px from the X icon, as the icons are spaced.
+- Header X, $REGENT crown and GitHub icons grow to 1.5rem; footer icons stay 1.25rem.
+- The prism box has slightly rounded corners (0.25rem), in the header and the footer.
