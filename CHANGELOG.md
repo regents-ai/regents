@@ -747,3 +747,11 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   call of a day may finish slightly over.
 - The release creates `regent_allowance.openai_calls`. Its rows are money history:
   they are added to the production lock, which refuses deleting or emptying them.
+
+## 2026-10-01 — Shared daily OpenAI allowance removed
+
+- Sean (1 Oct, through HQ): "revert the $2 a day free allowance completely." The free
+  OpenAI credit only applies inside ChatGPT, not to API calls. The `allowance/` package,
+  its release step and its wiring are removed. The production table
+  `regent_allowance.openai_calls` stays, untouched and locked, until Sean decides
+  whether it goes.

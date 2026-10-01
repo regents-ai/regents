@@ -19,9 +19,6 @@ payments/deps/
 !agents/**
 agents/_build/
 agents/deps/
-!allowance/**
-allowance/_build/
-allowance/deps/
 
 # The copied source trees must never carry runtime environment files.
 **/.env
