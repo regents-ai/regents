@@ -199,6 +199,22 @@ defmodule Regents.ReleaseTest do
            ]
   end
 
+  test "the migrations remove the allowance schema the v120 release left behind" do
+    config = disposable_database()
+
+    query!(config, "CREATE SCHEMA regent_allowance")
+    query!(config, "CREATE TABLE regent_allowance.openai_calls (id uuid PRIMARY KEY)")
+    query!(config, "CREATE TABLE regent_allowance.schema_migrations (version bigint PRIMARY KEY)")
+
+    assert {:ok, _result, _started} =
+             Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
+
+    assert query!(
+             config,
+             "SELECT count(*) FROM pg_namespace WHERE nspname = 'regent_allowance'"
+           ).rows == [[0]]
+  end
+
   test "the listing prints none on a database the release agrees with" do
     config = bootstrapped_database()
 

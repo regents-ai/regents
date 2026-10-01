@@ -755,3 +755,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   its release step and its wiring are removed. The production table
   `regent_allowance.openai_calls` stays, untouched and locked, until Sean decides
   whether it goes.
+
+## 2026-10-01 — Allowance table dropped
+
+- Sean chose "1 a" (1 Oct, through HQ): the empty `regent_allowance` table and schema
+  left by v120 go. He took that one table off the production lock first; the release
+  migration removes the table, its migration record and the schema. A database the
+  allowance never reached has nothing to remove.

@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the extensions install, the regents_app baseline, agent pairing, its copy to the shared pairing and the removal of the old pairing" do
+  test "the application migrations are the extensions install, the regents_app baseline, agent pairing, its copy to the shared pairing, the removal of the old pairing and the removal of the allowance" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -30,6 +30,9 @@ defmodule RegentsWeb.BoundaryTest do
     assert [old_pairing_drop_migration] =
              Path.wildcard("priv/repo/migrations/*_drop_old_pairing_tables.exs")
 
+    assert [allowance_drop_migration] =
+             Path.wildcard("priv/repo/migrations/*_drop_regent_allowance.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
@@ -37,7 +40,8 @@ defmodule RegentsWeb.BoundaryTest do
                agent_pairing_migration,
                activity_drop_migration,
                copy_migration,
-               old_pairing_drop_migration
+               old_pairing_drop_migration,
+               allowance_drop_migration
              ])
 
     # The copy only adds rows to the shared pairing.
@@ -51,6 +55,14 @@ defmodule RegentsWeb.BoundaryTest do
     assert drops(old_pairing_drop_migration) == [
              "drop table(:paired_agents)",
              "drop table(:agent_pairing_codes)"
+           ]
+
+    assert ~r/execute\("([^"]+)"\)/
+           |> Regex.scan(File.read!(allowance_drop_migration), capture: :all_but_first)
+           |> List.flatten() == [
+             "DROP TABLE IF EXISTS regent_allowance.openai_calls",
+             "DROP TABLE IF EXISTS regent_allowance.schema_migrations",
+             "DROP SCHEMA IF EXISTS regent_allowance"
            ]
 
     assert_extension_migration(extensions_migration)
