@@ -736,3 +736,14 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   the commit that adds the shared OpenAI package, so Patchbay can pull Regents'
   payments and agents packages on one elixir-utils commit. No package Regents uses
   changed; the lock files change only their elixir-utils lines.
+
+## 2026-09-30 — Shared daily OpenAI allowance
+
+- New shared package `allowance/` (`regent_allowance`): one record per OpenAI call
+  made for a person (Privy user ID, site, model, tokens, cost in US dollars). Each
+  person may spend $2.00 a UTC day across every site together (Sean's 1a 2b 3a, and
+  1a 2a 3a for the build, protection and midnight-UTC day). Sites ask `allowed?/1`
+  before a call and `record/3` the result after; nothing is reserved, so the last
+  call of a day may finish slightly over.
+- The release creates `regent_allowance.openai_calls`. Its rows are money history:
+  they are added to the production lock, which refuses deleting or emptying them.

@@ -197,6 +197,8 @@ defmodule Regents.ReleaseTest do
              "pairing_codes",
              "schema_migrations"
            ]
+
+    assert table_names(config, "regent_allowance") == ["openai_calls", "schema_migrations"]
   end
 
   test "the listing prints none on a database the release agrees with" do

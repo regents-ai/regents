@@ -1,17 +1,18 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform check-required-fixes check-identity check-payments check-agents check-contracts release
+.PHONY: help check check-platform check-required-fixes check-identity check-payments check-agents check-allowance check-contracts release
 
 # Every test run on a machine uses its own databases, named from MIX_TEST_PARTITION.
 REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
 REGENT_PAYMENTS_TEST_DATABASE := regent_payments_test$(MIX_TEST_PARTITION)
 REGENT_AGENTS_TEST_DATABASE := regent_agents_test$(MIX_TEST_PARTITION)
+REGENT_ALLOWANCE_TEST_DATABASE := regent_allowance_test$(MIX_TEST_PARTITION)
 
 help:
 	@echo "make check runs every component gate. Run check-platform, check-required-fixes,"
-	@echo "check-identity, check-payments, check-agents or check-contracts for one component. Set MIX_TEST_PARTITION"
+	@echo "check-identity, check-payments, check-agents, check-allowance or check-contracts for one component. Set MIX_TEST_PARTITION"
 	@echo "(an underscore and a short id) first. make release checks, then builds and"
 	@echo "smoke-checks the committed tree."
-check: check-platform check-required-fixes check-identity check-payments check-agents check-contracts
+check: check-platform check-required-fixes check-identity check-payments check-agents check-allowance check-contracts
 check-platform:
 	cd platform && mix precommit && mix assets.build && npm run typecheck && npm test
 # Every site runs the same check against ash-template's current main branch, so a
@@ -31,6 +32,9 @@ check-payments:
 check-agents:
 	psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(REGENT_AGENTS_TEST_DATABASE)'" | grep -q 1 || createdb $(REGENT_AGENTS_TEST_DATABASE)
 	cd agents && MIX_ENV=test mix check
+check-allowance:
+	psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(REGENT_ALLOWANCE_TEST_DATABASE)'" | grep -q 1 || createdb $(REGENT_ALLOWANCE_TEST_DATABASE)
+	cd allowance && MIX_ENV=test mix check
 check-contracts:
 	cd contracts && mise exec -- bin/gate.sh
 # The release checks and builds exactly the committed tree, so every change must

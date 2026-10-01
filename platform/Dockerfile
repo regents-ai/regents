@@ -28,6 +28,7 @@ COPY platform/mix.exs platform/mix.lock ./
 COPY identity /workspace/identity
 COPY payments /workspace/payments
 COPY agents /workspace/agents
+COPY allowance /workspace/allowance
 RUN mix deps.get --only prod
 COPY platform/config config
 RUN mix deps.compile

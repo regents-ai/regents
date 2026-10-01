@@ -9,6 +9,7 @@ import Config
 
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
+config :regent_allowance, repo: Regents.Repo, ash_domains: [RegentAllowance]
 
 config :regent_agents,
   repo: Regents.Repo,
