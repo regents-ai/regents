@@ -762,3 +762,12 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   left by v120 go. He took that one table off the production lock first; the release
   migration removes the table, its migration record and the schema. A database the
   allowance never reached has nothing to remove.
+
+## 2026-10-03 — elixir-utils de5c6c7
+
+- Every Regents package pins elixir-utils `de5c6c76b38e5766ef9e67016e8bd1443407022a`,
+  the commit every site moves to for the sign-in server's Ethereum sign-in, so KeyFleet
+  can pull Regents' agents and identity packages on the same commit. The sign-in library
+  now names how a wallet was proven and checks a smart wallet on its own chain; Regents
+  hands agent requests to the sign-in server, so nothing Regents does changes. The lock
+  files change only their elixir-utils lines.
