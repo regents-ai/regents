@@ -4,6 +4,7 @@ defmodule Regents.Formation.CloudRuntime.Changes.Provision do
   alias Regents.Actors.Human
   alias Regents.Formation
   alias Regents.Formation.SpriteProvider
+  alias RegentSprites.{Error, Sprite}
 
   @impl true
   def change(changeset, _opts, %{actor: %Human{human_account_id: human_account_id} = actor}) do
@@ -33,19 +34,30 @@ defmodule Regents.Formation.CloudRuntime.Changes.Provision do
   def change(changeset, _opts, _context), do: changeset
 
   defp provision_sprite(changeset, sprite_name) do
-    case SpriteProvider.adapter().create(sprite_name) do
-      {:ok, %{sprite_name: ^sprite_name} = sprite} -> put_sprite(changeset, sprite)
-      {:ok, _wrong_sprite} -> provider_error(changeset)
-      {:error, _reason} -> provider_error(changeset)
+    case create_or_get(sprite_name) do
+      {:ok, %Sprite{name: ^sprite_name} = sprite} -> put_sprite(changeset, sprite)
+      {:ok, %Sprite{}} -> provider_error(changeset)
+      {:error, %Error{}} -> provider_error(changeset)
+    end
+  end
+
+  # The name is fixed per Regent, so a name already in use is this Regent's Sprite.
+  defp create_or_get(sprite_name) do
+    case SpriteProvider.adapter().create(sprite_name, wait_for_capacity: false) do
+      {:error, %Error{reason: {:sprites, 409, _message}}} ->
+        SpriteProvider.adapter().get(sprite_name)
+
+      result ->
+        result
     end
   end
 
   defp put_sprite(changeset, sprite) do
     Ash.Changeset.force_change_attributes(changeset, %{
-      provider_sprite_id: sprite.provider_sprite_id,
-      sprite_name: sprite.sprite_name,
+      provider_sprite_id: sprite.id,
+      sprite_name: sprite.name,
       url: sprite.url,
-      provider_status: sprite.provider_status,
+      provider_status: sprite.status,
       observed_at: DateTime.utc_now()
     })
   end

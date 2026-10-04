@@ -18,7 +18,7 @@ defmodule Regents.Formation.CloudRuntimeTest do
     expected_name = "regent-" <> String.replace(regent.id, "-", "")
 
     assert {:ok, runtime} = Formation.provision_cloud_runtime(actor: actor)
-    assert_received {:sprite_create, ^expected_name}
+    assert_received {:sprite_create, ^expected_name, [wait_for_capacity: false]}
     assert runtime.regent_id == regent.id
     assert runtime.human_account_id == account.id
     assert runtime.sprite_name == expected_name
@@ -35,17 +35,17 @@ defmodule Regents.Formation.CloudRuntimeTest do
     account = account!("cloud-no-regent")
 
     assert {:error, _error} = Formation.provision_cloud_runtime(actor: nil)
-    refute_received {:sprite_create, _name}
+    refute_received {:sprite_create, _name, _opts}
 
     for actor <- [%{role: :human, human_account_id: account.id}, %System{}] do
       assert {:error, %Ash.Error.Forbidden{}} = Formation.provision_cloud_runtime(actor: actor)
-      refute_received {:sprite_create, _name}
+      refute_received {:sprite_create, _name, _opts}
     end
 
     assert {:error, %Ash.Error.Invalid{}} =
              Formation.provision_cloud_runtime(actor: %Human{human_account_id: account.id})
 
-    refute_received {:sprite_create, _name}
+    refute_received {:sprite_create, _name, _opts}
   end
 
   test "the owner refreshes provider status through the named action" do
@@ -56,11 +56,11 @@ defmodule Regents.Formation.CloudRuntimeTest do
 
     Process.put(:test_sprite_get_result, {
       :ok,
-      %{
-        provider_sprite_id: runtime.provider_sprite_id,
-        sprite_name: runtime.sprite_name,
+      %RegentSprites.Sprite{
+        id: runtime.provider_sprite_id,
+        name: runtime.sprite_name,
         url: runtime.url,
-        provider_status: "running"
+        status: "running"
       }
     })
 
@@ -71,13 +71,34 @@ defmodule Regents.Formation.CloudRuntimeTest do
     assert DateTime.compare(refreshed.observed_at, runtime.observed_at) in [:gt, :eq]
   end
 
-  test "malformed provider facts fail closed and persist nothing" do
+  test "a name already in use is looked up instead of created" do
+    account = account!("cloud-existing")
+    actor = %Human{human_account_id: account.id}
+    regent = Formation.form_regent!("existing-regent", "Existing Regent", actor: actor)
+    expected_name = "regent-" <> String.replace(regent.id, "-", "")
+
+    Process.put(
+      :test_sprite_create_result,
+      {:error, %RegentSprites.Error{reason: {:sprites, 409, "already exists"}}}
+    )
+
+    assert {:ok, runtime} = Formation.provision_cloud_runtime(actor: actor)
+    assert_received {:sprite_get, ^expected_name}
+    assert runtime.sprite_name == expected_name
+  end
+
+  test "a Sprites answer it cannot read fails closed and persists nothing" do
     account = account!("cloud-malformed")
     actor = %Human{human_account_id: account.id}
     Formation.form_regent!("malformed-regent", "Malformed Regent", actor: actor)
-    Process.put(:test_sprite_create_result, {:ok, %{"name" => "missing-provider-facts"}})
+
+    Process.put(
+      :test_sprite_create_result,
+      {:error, %RegentSprites.Error{reason: :unexpected_response}}
+    )
 
     assert {:error, %Ash.Error.Invalid{}} = Formation.provision_cloud_runtime(actor: actor)
+    refute_received {:sprite_get, _name}
     assert {:ok, []} = Formation.get_my_cloud_runtime(actor: actor)
   end
 
