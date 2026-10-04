@@ -2,6 +2,7 @@ defmodule Regents.Formation.CloudRuntime.Changes.RefreshStatus do
   use Ash.Resource.Change
 
   alias Regents.Formation.SpriteProvider
+  alias RegentSprites.Sprite
 
   @impl true
   def change(changeset, _opts, _context) do
@@ -9,11 +10,11 @@ defmodule Regents.Formation.CloudRuntime.Changes.RefreshStatus do
       sprite_name = changeset.data.sprite_name
 
       case SpriteProvider.adapter().get(sprite_name) do
-        {:ok, %{sprite_name: ^sprite_name} = sprite} ->
+        {:ok, %Sprite{name: ^sprite_name} = sprite} ->
           Ash.Changeset.force_change_attributes(changeset, %{
-            provider_sprite_id: sprite.provider_sprite_id,
+            provider_sprite_id: sprite.id,
             url: sprite.url,
-            provider_status: sprite.provider_status,
+            provider_status: sprite.status,
             observed_at: DateTime.utc_now()
           })
 

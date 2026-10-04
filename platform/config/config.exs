@@ -47,8 +47,7 @@ config :regents, Regents.Repo,
   pool_size: 1,
   migration_default_prefix: "regents_app"
 
-config :regents, :sprite_provider, Regents.Formation.SpritesHttpProvider
-config :regents, :sprites, base_url: "https://api.sprites.dev", token: nil
+config :regents, :sprite_provider, RegentSprites
 config :regents, :siwa, base_url: nil, activity_read_token: nil
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 

@@ -2,8 +2,8 @@ defmodule Regents.TestSpriteProvider do
   @behaviour Regents.Formation.SpriteProvider
 
   @impl true
-  def create(sprite_name) do
-    capture({:sprite_create, sprite_name})
+  def create(sprite_name, opts) do
+    capture({:sprite_create, sprite_name, opts})
     Process.get(:test_sprite_create_result, {:ok, sprite(sprite_name, "cold")})
   end
 
@@ -20,11 +20,11 @@ defmodule Regents.TestSpriteProvider do
   defp sprite(sprite_name, status) do
     provider_id = :crypto.hash(:sha256, sprite_name) |> Base.encode16(case: :lower)
 
-    %{
-      provider_sprite_id: "sprite-" <> binary_part(provider_id, 0, 24),
-      sprite_name: sprite_name,
+    %RegentSprites.Sprite{
+      id: "sprite-" <> binary_part(provider_id, 0, 24),
+      name: sprite_name,
       url: "https://#{sprite_name}.sprites.app",
-      provider_status: status
+      status: status
     }
   end
 end

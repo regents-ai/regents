@@ -805,3 +805,14 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 
 - Sean's decision 55: a stray merge-conflict marker line left above the
   2026-09-21 crown-icon entry is removed. No entry's wording changed.
+
+## 2026-10-05 — Formation uses the shared Sprites package
+
+- Formation creates and reads its Sprites through `regent_sprites` from elixir-utils
+  `467cba6`, the one Sprites client shared with Techtree; Regents' own copy is removed.
+  Every Regents package moves to that elixir-utils commit, which adds the package and
+  the Jev decisions package that Regents does not use.
+- A Sprite name already in use is now looked up instead of failing: Sprites answers
+  409 for it, while the removed client expected 400.
+- The token setting is now `config :regent_sprites, token:`, still read from
+  `SPRITES_TOKEN`.

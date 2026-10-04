@@ -21,9 +21,7 @@ if config_env() != :test do
   config :regents, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
 end
 
-config :regents, :sprites,
-  base_url: "https://api.sprites.dev",
-  token: System.get_env("SPRITES_TOKEN")
+config :regent_sprites, token: System.get_env("SPRITES_TOKEN")
 
 if config_env() != :test do
   config :regents, :siwa,
