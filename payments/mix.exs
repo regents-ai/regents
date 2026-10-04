@@ -4,7 +4,7 @@ defmodule RegentPayments.MixProject do
   # regent_chain and regent_format, pinned to the same published elixir-utils
   # commit as the site and the identity library.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "de5c6c76b38e5766ef9e67016e8bd1443407022a"
+  @elixir_utils_ref "f30b2f283ba03f0d0aa0adbcba5cee6c5a7de1cc"
 
   def project do
     [

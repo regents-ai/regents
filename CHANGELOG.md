@@ -771,3 +771,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   now names how a wallet was proven and checks a smart wallet on its own chain; Regents
   hands agent requests to the sign-in server, so nothing Regents does changes. The lock
   files change only their elixir-utils lines.
+
+## 2026-10-04 — elixir-utils f30b2f2
+
+- Every Regents package pins elixir-utils `f30b2f283ba03f0d0aa0adbcba5cee6c5a7de1cc`,
+  where the sign-in library drops the old registry-token sign-in and keeps wallet
+  receipts as the one sign-in. Regents never used the removed sign-in, so nothing
+  Regents does changes. The lock files change only their elixir-utils lines.
