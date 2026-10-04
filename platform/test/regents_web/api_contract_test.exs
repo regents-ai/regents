@@ -376,7 +376,15 @@ defmodule RegentsWeb.ApiContractTest do
              Enum.map(RegentAgents.Harness.values(), &Atom.to_string/1)
 
     assert contract["components"]["schemas"]["PairedAgent"]["required"] ==
-             ["name", "harness", "wallet", "paired_at", "last_contact_at", "registry_listing"]
+             [
+               "name",
+               "harness",
+               "wallet",
+               "paired_at",
+               "last_contact_at",
+               "registry_listing",
+               "human_backed"
+             ]
 
     # A check-in also names the account the agent is paired with.
     assert me["responses"]["200"]["content"]["application/json"]["schema"] ==
@@ -390,6 +398,7 @@ defmodule RegentsWeb.ApiContractTest do
                "paired_at",
                "last_contact_at",
                "registry_listing",
+               "human_backed",
                "account"
              ]
 

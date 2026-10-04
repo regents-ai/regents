@@ -238,6 +238,10 @@ defmodule RegentsWeb.Components.PairedAgents do
             </a>
           </dd>
         </div>
+        <div :if={@detail.human_backed} id="account-agent-human-backed">
+          <dt>Human-backed</dt>
+          <dd>Verified with World ID</dd>
+        </div>
         <div>
           <dt><label for="account-agent-harness">Runs on</label></dt>
           <dd>

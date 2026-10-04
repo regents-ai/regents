@@ -112,7 +112,8 @@ defmodule RegentsWeb.AgentRequestsTest do
             "chain_id" => 8453,
             "audience" => "regents-test"
           },
-          "agentRegistration" => nil
+          "agentRegistration" => nil,
+          "agentBook" => nil
         }
       })
     end)

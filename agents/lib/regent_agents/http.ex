@@ -3,7 +3,8 @@ defmodule RegentAgents.HTTP do
   The two requests an agent signs with its SIWA key, the same on every site:
   `POST /pair` joins a person's account with the code they gave it, and
   `GET /me` checks in and answers with the pairing. Both answers carry the
-  page of the agent's listing in the agent registry, or null.
+  page of the agent's listing in the agent registry, or null, and whether a
+  person verified with World ID stands behind the agent.
 
   Mount it with `forward "/api/agents/v1", RegentAgents.HTTP` behind the site's
   own rate limit and a body reader that keeps the raw body in
@@ -141,7 +142,8 @@ defmodule RegentAgents.HTTP do
       wallet: paired.wallet,
       paired_at: DateTime.to_iso8601(paired.paired_at),
       last_contact_at: DateTime.to_iso8601(paired.last_contact_at),
-      registry_listing: agent.registry_listing
+      registry_listing: agent.registry_listing,
+      human_backed: agent.human_backed
     }
   end
 
@@ -173,7 +175,8 @@ defmodule RegentAgents.HTTP do
 
     # An agent signs in with a key it made itself; the key's address is who it
     # is, on Base, for this site only. The SIWA service also names the page of
-    # its listing in the agent registry, or null when it has none.
+    # its listing in the agent registry, or null when it has none, and the World
+    # ID person behind it, or null. Only whether there is one is kept.
     @impl true
     def accept(conn, data, _context) do
       audience = RegentAgents.Broker.audience()
@@ -186,12 +189,19 @@ defmodule RegentAgents.HTTP do
                "chain_id" => @base_chain_id,
                "audience" => ^audience
              },
-             "agentRegistration" => registration
+             "agentRegistration" => registration,
+             "agentBook" => book
            } <- data,
            wallet = String.downcase(wallet),
            true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, wallet),
-           {:ok, listing} <- registry_listing(registration) do
-        agent = %RegentAgents.Agent{wallet: wallet, registry_listing: listing}
+           {:ok, listing} <- registry_listing(registration),
+           {:ok, human_backed} <- human_backed(book) do
+        agent = %RegentAgents.Agent{
+          wallet: wallet,
+          registry_listing: listing,
+          human_backed: human_backed
+        }
+
         {:ok, Plug.Conn.assign(conn, :regent_agent, agent)}
       else
         _other -> {:error, %{reason: :invalid_principal, source: :regent_agents}}
@@ -201,6 +211,10 @@ defmodule RegentAgents.HTTP do
     defp registry_listing(nil), do: {:ok, nil}
     defp registry_listing(%{"registryUrl" => "https://" <> _rest = url}), do: {:ok, url}
     defp registry_listing(_other), do: :error
+
+    defp human_backed(nil), do: {:ok, false}
+    defp human_backed(%{"humanId" => "0x" <> _number}), do: {:ok, true}
+    defp human_backed(_other), do: :error
 
     @impl true
     def deny(conn, refusal), do: Plug.Conn.assign(conn, :regent_agent_refusal, refusal)

@@ -653,7 +653,8 @@
           "wallet",
           "paired_at",
           "last_contact_at",
-          "registry_listing"
+          "registry_listing",
+          "human_backed"
         ],
         "properties": {
           "name": {
@@ -683,6 +684,10 @@
               "null"
             ],
             "format": "uri"
+          },
+          "human_backed": {
+            "description": "Whether a person verified with World ID stands behind the agent.",
+            "type": "boolean"
           }
         }
       },
@@ -708,6 +713,7 @@
           "paired_at",
           "last_contact_at",
           "registry_listing",
+          "human_backed",
           "account"
         ],
         "properties": {
@@ -738,6 +744,10 @@
               "null"
             ],
             "format": "uri"
+          },
+          "human_backed": {
+            "description": "Whether a person verified with World ID stands behind the agent.",
+            "type": "boolean"
           },
           "account": {
             "$ref": "#/components/schemas/PairedAccount"

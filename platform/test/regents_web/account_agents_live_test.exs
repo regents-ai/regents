@@ -15,7 +15,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   setup do
     Req.Test.stub(
       Regents.Siwa,
-      &Req.Test.json(&1, %{"data" => %{"activity" => [], "agentRegistration" => nil}})
+      &Req.Test.json(&1, %{
+        "data" => %{"activity" => [], "agentRegistration" => nil, "agentBook" => nil}
+      })
     )
 
     :ok
@@ -73,7 +75,8 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
             "tokenId" => "97609",
             "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
             "registryUrl" => @listing
-          }
+          },
+          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32)}
         }
       })
     end)
@@ -97,6 +100,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              ~s(#account-agent-registry-listing[href="#{@listing}"][target="_blank"]),
              "Agent #97609"
            )
+
+    assert has_element?(view, "#account-agent-human-backed dd", "Verified with World ID")
+    refute render(view) =~ String.duplicate("ab", 32)
 
     # A check-in reloads the open agent without blanking what is shown.
     assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
@@ -160,6 +166,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     # An agent with no registry listing shows no listing.
     render_async(view)
     refute has_element?(view, "#account-agent-dialog dt", "Registry listing")
+    refute has_element?(view, "#account-agent-human-backed")
 
     render_hook(view, "close_agent", %{})
     refute has_element?(view, "#account-agent-dialog")

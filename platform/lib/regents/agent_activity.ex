@@ -1,9 +1,11 @@
 defmodule Regents.AgentActivity do
   @moduledoc """
   What a paired agent has done across the Regents sites since it was paired,
-  in plain words, and its listing in the agent registry, if it has one. The
-  sign-in service keeps both: every request an agent signs is verified there,
-  whichever site it went to, and an agent lists itself through it.
+  in plain words, its listing in the agent registry, if it has one, and
+  whether a person verified with World ID stands behind it. The sign-in service
+  keeps all three: every request an agent signs is verified there, whichever
+  site it went to, an agent lists itself through it, and it reads World's
+  record of the person. Only whether there is such a person is kept here.
   """
 
   alias RegentAgents.PairedAgent
@@ -20,20 +22,33 @@ defmodule Regents.AgentActivity do
   @type listing :: %{url: String.t(), number: String.t()}
 
   @spec recent(PairedAgent.t()) ::
-          {:ok, %{entries: [entry()], listing: listing() | nil}} | {:error, term()}
+          {:ok, %{entries: [entry()], listing: listing() | nil, human_backed: boolean()}}
+          | {:error, term()}
   def recent(%PairedAgent{} = agent) do
     with {:ok, config} <- config(),
          {:ok,
           %Req.Response{
             status: 200,
-            body: %{"data" => %{"activity" => activity, "agentRegistration" => registration}}
+            body: %{
+              "data" => %{
+                "activity" => activity,
+                "agentRegistration" => registration,
+                "agentBook" => book
+              }
+            }
           }} <-
            Req.post(
              config.base_url <> "/api/shared/siwa/activity",
              request_options(config, agent)
            ),
-         {:ok, listing} <- listing(registration) do
-      {:ok, %{entries: Enum.flat_map(activity, &describe/1) ++ [paired(agent)], listing: listing}}
+         {:ok, listing} <- listing(registration),
+         {:ok, human_backed} <- human_backed(book) do
+      {:ok,
+       %{
+         entries: Enum.flat_map(activity, &describe/1) ++ [paired(agent)],
+         listing: listing,
+         human_backed: human_backed
+       }}
     else
       {:ok, %Req.Response{status: status}} -> {:error, {:unexpected_status, status}}
       {:error, reason} -> {:error, reason}
@@ -48,6 +63,10 @@ defmodule Regents.AgentActivity do
        do: {:ok, %{url: url, number: number}}
 
   defp listing(_other), do: {:error, :registration_unreadable}
+
+  defp human_backed(nil), do: {:ok, false}
+  defp human_backed(%{"humanId" => "0x" <> _number}), do: {:ok, true}
+  defp human_backed(_other), do: {:error, :agent_book_unreadable}
 
   # The pairing itself is the agent's own record here; the request that made
   # it was verified a moment before the agent existed.

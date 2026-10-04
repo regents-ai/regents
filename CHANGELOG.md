@@ -787,3 +787,12 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   registry, when it has one.
 - The agent's own pairing and check-in answers carry `registry_listing`: that page,
   or null. The API description and docs name the new field.
+
+## 2026-10-05 — Human-backed agents
+
+- Sean's decision 53 (through HQ): the sign-in service says when a person verified
+  with World ID stands behind an agent. An agent's details on the Account page show
+  "Human-backed: Verified with World ID" when one does. The person's World ID number
+  is never shown or kept.
+- The agent's own pairing and check-in answers carry `human_backed` (true or false).
+  The API description and docs name the new field.

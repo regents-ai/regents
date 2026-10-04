@@ -33,12 +33,14 @@ defmodule Regents.AgentActivityTest do
             request("regents", "GET", "/api/agents/v1/me", "2026-09-26T15:06:00Z"),
             request("regents", "POST", "/api/agents/v1/pair", "2026-09-26T15:05:00Z")
           ],
-          "agentRegistration" => nil
+          "agentRegistration" => nil,
+          "agentBook" => nil
         }
       })
     end)
 
-    assert {:ok, %{entries: activity, listing: nil}} = AgentActivity.recent(agent())
+    assert {:ok, %{entries: activity, listing: nil, human_backed: false}} =
+             AgentActivity.recent(agent())
 
     assert Enum.map(activity, &{&1.site, &1.action}) == [
              {"Techtree", "Checked in"},
@@ -52,7 +54,7 @@ defmodule Regents.AgentActivityTest do
     assert List.last(activity).occurred_at == @paired_at
   end
 
-  test "an agent listed in the agent registry is read with its listing's page and number" do
+  test "a listed, human-backed agent is read with its listing and its backing, not the person's number" do
     Req.Test.expect(Regents.Siwa, fn conn ->
       Req.Test.json(conn, %{
         "data" => %{
@@ -62,13 +64,15 @@ defmodule Regents.AgentActivityTest do
             "tokenId" => "97609",
             "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
             "registryUrl" => "https://www.8004scan.io/agents/base/97609"
-          }
+          },
+          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32)}
         }
       })
     end)
 
-    assert {:ok, %{listing: listing}} = AgentActivity.recent(agent())
+    assert {:ok, %{listing: listing, human_backed: true} = read} = AgentActivity.recent(agent())
     assert listing == %{url: "https://www.8004scan.io/agents/base/97609", number: "97609"}
+    refute inspect(read) =~ String.duplicate("ab", 32)
   end
 
   test "a refused or unreachable read is an error, not an empty history" do
