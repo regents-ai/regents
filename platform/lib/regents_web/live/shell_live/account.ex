@@ -175,19 +175,22 @@ defmodule RegentsWeb.ShellLive.Account do
   def handle_event(_event, _params, socket),
     do: put_flash(socket, :error, EventInput.unreadable())
 
-  @doc "What the open agent has done, landing only while that agent is still open."
+  @doc """
+  What the open agent has done and its registry listing, landing only while
+  that agent is still open.
+  """
   def settle_activity(
         %{assigns: %{agent_detail: %{agent: %{id: id}} = detail}} = socket,
         {:agent_activity, id},
         result
       ) do
-    activity =
+    {activity, listing} =
       case result do
-        {:ok, {:ok, entries}} -> entries
-        _failed -> :unavailable
+        {:ok, {:ok, %{entries: entries, listing: listing}}} -> {entries, listing}
+        _failed -> {:unavailable, detail.listing}
       end
 
-    assign(socket, agent_detail: %{detail | activity: activity})
+    assign(socket, agent_detail: %{detail | activity: activity, listing: listing})
   end
 
   def settle_activity(socket, _name, _result), do: socket
@@ -500,19 +503,20 @@ defmodule RegentsWeb.ShellLive.Account do
 
   defp pairing_after(shown, _agents), do: shown
 
-  # What the agent has done is read from the sign-in service in the background.
-  # Activity already on screen for this agent stays until the new reading lands.
+  # What the agent has done, and its registry listing, are read from the
+  # sign-in service in the background. What is already on screen for this agent
+  # stays until the new reading lands.
   defp show_agent(socket, id, actor) do
     case RegentAgents.get_my_agent(id, actor: actor) do
       {:ok, %PairedAgent{} = agent} ->
-        activity =
+        {activity, listing} =
           case socket.assigns.agent_detail do
-            %{agent: %{id: ^id}, activity: shown} -> shown
-            _other -> :loading
+            %{agent: %{id: ^id}, activity: shown, listing: listing} -> {shown, listing}
+            _other -> {:loading, nil}
           end
 
         socket
-        |> assign(agent_detail: %{agent: agent, activity: activity})
+        |> assign(agent_detail: %{agent: agent, activity: activity, listing: listing})
         |> start_async({:agent_activity, id}, fn -> AgentActivity.recent(agent) end)
 
       _missing ->

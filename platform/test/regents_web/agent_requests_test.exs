@@ -111,7 +111,8 @@ defmodule RegentsWeb.AgentRequestsTest do
             "wallet_address" => wallet,
             "chain_id" => 8453,
             "audience" => "regents-test"
-          }
+          },
+          "agentRegistration" => nil
         }
       })
     end)

@@ -778,3 +778,12 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   where the sign-in library drops the old registry-token sign-in and keeps wallet
   receipts as the one sign-in. Regents never used the removed sign-in, so nothing
   Regents does changes. The lock files change only their elixir-utils lines.
+
+## 2026-10-05 — Registry listing beside each agent
+
+- Sean chose "50 a" (4 Oct, through HQ): the sign-in service names an agent's
+  listing in the agent registry, and the sites read it live. An agent's details on
+  the Account page show "Registry listing", linking to the agent's page in the
+  registry, when it has one.
+- The agent's own pairing and check-in answers carry `registry_listing`: that page,
+  or null. The API description and docs name the new field.

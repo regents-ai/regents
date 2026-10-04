@@ -2,7 +2,8 @@ defmodule RegentAgents.HTTP do
   @moduledoc """
   The two requests an agent signs with its SIWA key, the same on every site:
   `POST /pair` joins a person's account with the code they gave it, and
-  `GET /me` checks in and answers with the pairing.
+  `GET /me` checks in and answers with the pairing. Both answers carry the
+  page of the agent's listing in the agent registry, or null.
 
   Mount it with `forward "/api/agents/v1", RegentAgents.HTTP` behind the site's
   own rate limit and a body reader that keeps the raw body in
@@ -60,7 +61,7 @@ defmodule RegentAgents.HTTP do
     with {:ok, harness} <- harness(harness),
          {:ok, agent, conn} <- verify(conn),
          {:ok, paired} <- RegentAgents.pair_agent(code, name, harness, actor: agent) do
-      conn |> put_status(:created) |> answer(%{data: present(paired)})
+      conn |> put_status(:created) |> answer(%{data: present(paired, agent)})
     else
       {:error, :harness_unknown} -> error(conn, "harness_unknown")
       {:refused, conn} -> conn
@@ -74,7 +75,7 @@ defmodule RegentAgents.HTTP do
        when map_size(body) == 0 and map_size(query) == 0 do
     with {:ok, agent, conn} <- verify(conn),
          {:ok, paired} <- RegentAgents.check_in_agent(actor: agent) do
-      answer(conn, %{data: Map.put(present(paired), :account, account(paired))})
+      answer(conn, %{data: Map.put(present(paired, agent), :account, account(paired))})
     else
       {:refused, conn} -> conn
       {:error, _not_paired} -> error(conn, "not_paired")
@@ -133,13 +134,14 @@ defmodule RegentAgents.HTTP do
 
   defp refuse(conn, _refusal), do: error(conn, "verification_failed")
 
-  defp present(agent) do
+  defp present(paired, agent) do
     %{
-      name: agent.name,
-      harness: agent.harness,
-      wallet: agent.wallet,
-      paired_at: DateTime.to_iso8601(agent.paired_at),
-      last_contact_at: DateTime.to_iso8601(agent.last_contact_at)
+      name: paired.name,
+      harness: paired.harness,
+      wallet: paired.wallet,
+      paired_at: DateTime.to_iso8601(paired.paired_at),
+      last_contact_at: DateTime.to_iso8601(paired.last_contact_at),
+      registry_listing: agent.registry_listing
     }
   end
 
@@ -170,31 +172,35 @@ defmodule RegentAgents.HTTP do
     def before_verify(_conn, _headers), do: {:ok, nil}
 
     # An agent signs in with a key it made itself; the key's address is who it
-    # is, on Base, for this site only.
+    # is, on Base, for this site only. The SIWA service also names the page of
+    # its listing in the agent registry, or null when it has none.
     @impl true
     def accept(conn, data, _context) do
       audience = RegentAgents.Broker.audience()
 
-      case data do
-        %{
-          "verified" => true,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => "0x" <> _hex = wallet,
-            "chain_id" => @base_chain_id,
-            "audience" => ^audience
-          }
-        } ->
-          wallet = String.downcase(wallet)
-
-          if Regex.match?(~r/\A0x[0-9a-f]{40}\z/, wallet),
-            do: {:ok, Plug.Conn.assign(conn, :regent_agent, %RegentAgents.Agent{wallet: wallet})},
-            else: {:error, %{reason: :invalid_principal, source: :regent_agents}}
-
-        _other ->
-          {:error, %{reason: :invalid_principal, source: :regent_agents}}
+      with %{
+             "verified" => true,
+             "principal" => %{
+               "kind" => "wallet",
+               "wallet_address" => "0x" <> _hex = wallet,
+               "chain_id" => @base_chain_id,
+               "audience" => ^audience
+             },
+             "agentRegistration" => registration
+           } <- data,
+           wallet = String.downcase(wallet),
+           true <- Regex.match?(~r/\A0x[0-9a-f]{40}\z/, wallet),
+           {:ok, listing} <- registry_listing(registration) do
+        agent = %RegentAgents.Agent{wallet: wallet, registry_listing: listing}
+        {:ok, Plug.Conn.assign(conn, :regent_agent, agent)}
+      else
+        _other -> {:error, %{reason: :invalid_principal, source: :regent_agents}}
       end
     end
+
+    defp registry_listing(nil), do: {:ok, nil}
+    defp registry_listing(%{"registryUrl" => "https://" <> _rest = url}), do: {:ok, url}
+    defp registry_listing(_other), do: :error
 
     @impl true
     def deny(conn, refusal), do: Plug.Conn.assign(conn, :regent_agent_refusal, refusal)

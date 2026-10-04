@@ -225,6 +225,19 @@ defmodule RegentsWeb.Components.PairedAgents do
           <dt>Agent address</dt>
           <dd><code>{@detail.agent.wallet}</code></dd>
         </div>
+        <div :if={@detail.listing}>
+          <dt>Registry listing</dt>
+          <dd>
+            <a
+              id="account-agent-registry-listing"
+              href={@detail.listing.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Agent #{@detail.listing.number}
+            </a>
+          </dd>
+        </div>
         <div>
           <dt><label for="account-agent-harness">Runs on</label></dt>
           <dd>

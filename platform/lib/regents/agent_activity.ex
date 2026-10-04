@@ -1,8 +1,9 @@
 defmodule Regents.AgentActivity do
   @moduledoc """
   What a paired agent has done across the Regents sites since it was paired,
-  in plain words. The sign-in service keeps the record: every request an
-  agent signs is verified there, whichever site it went to.
+  in plain words, and its listing in the agent registry, if it has one. The
+  sign-in service keeps both: every request an agent signs is verified there,
+  whichever site it went to, and an agent lists itself through it.
   """
 
   alias RegentAgents.PairedAgent
@@ -16,21 +17,37 @@ defmodule Regents.AgentActivity do
   }
 
   @type entry :: %{site: String.t(), action: String.t(), occurred_at: DateTime.t()}
+  @type listing :: %{url: String.t(), number: String.t()}
 
-  @spec recent(PairedAgent.t()) :: {:ok, [entry()]} | {:error, term()}
+  @spec recent(PairedAgent.t()) ::
+          {:ok, %{entries: [entry()], listing: listing() | nil}} | {:error, term()}
   def recent(%PairedAgent{} = agent) do
     with {:ok, config} <- config(),
-         {:ok, %Req.Response{status: 200, body: %{"data" => %{"activity" => activity}}}} <-
+         {:ok,
+          %Req.Response{
+            status: 200,
+            body: %{"data" => %{"activity" => activity, "agentRegistration" => registration}}
+          }} <-
            Req.post(
              config.base_url <> "/api/shared/siwa/activity",
              request_options(config, agent)
-           ) do
-      {:ok, Enum.flat_map(activity, &describe/1) ++ [paired(agent)]}
+           ),
+         {:ok, listing} <- listing(registration) do
+      {:ok, %{entries: Enum.flat_map(activity, &describe/1) ++ [paired(agent)], listing: listing}}
     else
       {:ok, %Req.Response{status: status}} -> {:error, {:unexpected_status, status}}
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # The registry page and the number the registry gave the agent.
+  defp listing(nil), do: {:ok, nil}
+
+  defp listing(%{"registryUrl" => "https://" <> _rest = url, "tokenId" => number})
+       when is_binary(number),
+       do: {:ok, %{url: url, number: number}}
+
+  defp listing(_other), do: {:error, :registration_unreadable}
 
   # The pairing itself is the agent's own record here; the request that made
   # it was verified a moment before the agent existed.

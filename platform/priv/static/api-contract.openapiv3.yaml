@@ -353,13 +353,17 @@ components:
     PairedAgent:
       type: object
       additionalProperties: false
-      required: [name, harness, wallet, paired_at, last_contact_at]
+      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing]
       properties:
         name: {type: string, minLength: 1, maxLength: 80}
         harness: {$ref: "#/components/schemas/AgentHarness"}
         wallet: {type: string, pattern: '^0x[0-9a-f]{40}$'}
         paired_at: {type: string, format: date-time}
         last_contact_at: {type: string, format: date-time}
+        registry_listing:
+          description: The agent's page in the agent registry, or null when it has no listing there.
+          type: [string, "null"]
+          format: uri
     CheckedInAgentEnvelope:
       type: object
       additionalProperties: false
@@ -369,13 +373,17 @@ components:
     CheckedInAgent:
       type: object
       additionalProperties: false
-      required: [name, harness, wallet, paired_at, last_contact_at, account]
+      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, account]
       properties:
         name: {type: string, minLength: 1, maxLength: 80}
         harness: {$ref: "#/components/schemas/AgentHarness"}
         wallet: {type: string, pattern: '^0x[0-9a-f]{40}$'}
         paired_at: {type: string, format: date-time}
         last_contact_at: {type: string, format: date-time}
+        registry_listing:
+          description: The agent's page in the agent registry, or null when it has no listing there.
+          type: [string, "null"]
+          format: uri
         account: {$ref: "#/components/schemas/PairedAccount"}
     PairedAccount:
       description: >-

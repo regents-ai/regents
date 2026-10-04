@@ -652,7 +652,8 @@
           "harness",
           "wallet",
           "paired_at",
-          "last_contact_at"
+          "last_contact_at",
+          "registry_listing"
         ],
         "properties": {
           "name": {
@@ -674,6 +675,14 @@
           "last_contact_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "registry_listing": {
+            "description": "The agent's page in the agent registry, or null when it has no listing there.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
           }
         }
       },
@@ -698,6 +707,7 @@
           "wallet",
           "paired_at",
           "last_contact_at",
+          "registry_listing",
           "account"
         ],
         "properties": {
@@ -720,6 +730,14 @@
           "last_contact_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "registry_listing": {
+            "description": "The agent's page in the agent registry, or null when it has no listing there.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
           },
           "account": {
             "$ref": "#/components/schemas/PairedAccount"

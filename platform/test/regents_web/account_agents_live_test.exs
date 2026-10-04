@@ -8,9 +8,16 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   @agent_wallet "0x2222222222222222222222222222222222222222"
   @agent %Agent{wallet: @agent_wallet}
 
-  # The sign-in service knows of nothing the agent did unless a test says so.
+  @listing "https://www.8004scan.io/agents/base/97609"
+
+  # The sign-in service knows of nothing the agent did, and of no registry
+  # listing, unless a test says so.
   setup do
-    Req.Test.stub(Regents.Siwa, &Req.Test.json(&1, %{"data" => %{"activity" => []}}))
+    Req.Test.stub(
+      Regents.Siwa,
+      &Req.Test.json(&1, %{"data" => %{"activity" => [], "agentRegistration" => nil}})
+    )
+
     :ok
   end
 
@@ -60,7 +67,13 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
               "path" => "/api/agent/reports",
               "occurred_at" => DateTime.to_iso8601(DateTime.utc_now())
             }
-          ]
+          ],
+          "agentRegistration" => %{
+            "agentId" => "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97609",
+            "tokenId" => "97609",
+            "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
+            "registryUrl" => @listing
+          }
         }
       })
     end)
@@ -76,6 +89,14 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert has_element?(view, log, "Asked to make a change")
     assert has_element?(view, log, "Patchbay")
     assert has_element?(view, log, "Paired with your account")
+
+    assert has_element?(view, "#account-agent-dialog dt", "Registry listing")
+
+    assert has_element?(
+             view,
+             ~s(#account-agent-registry-listing[href="#{@listing}"][target="_blank"]),
+             "Agent #97609"
+           )
 
     # A check-in reloads the open agent without blanking what is shown.
     assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
@@ -135,6 +156,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
     assert has_element?(view, "#account-agent-dialog")
+
+    # An agent with no registry listing shows no listing.
+    render_async(view)
+    refute has_element?(view, "#account-agent-dialog dt", "Registry listing")
 
     render_hook(view, "close_agent", %{})
     refute has_element?(view, "#account-agent-dialog")

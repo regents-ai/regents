@@ -22,8 +22,11 @@ defmodule RegentAgents.HTTPTest do
 
   defp put_req_header(conn, key, value), do: Plug.Conn.put_req_header(conn, key, value)
 
-  # The SIWA service verifies the request and names the key that signed it.
-  defp siwa_verifies(wallet \\ String.upcase(@wallet), audience \\ "test") do
+  @listing "https://www.8004scan.io/agents/base/97609"
+
+  # The SIWA service verifies the request, names the key that signed it and
+  # its listing in the agent registry, if it has one.
+  defp siwa_verifies(wallet \\ String.upcase(@wallet), audience \\ "test", registration \\ nil) do
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
 
@@ -42,7 +45,8 @@ defmodule RegentAgents.HTTPTest do
             "wallet_address" => "0x" <> String.slice(wallet, 2..-1//1),
             "chain_id" => 8453,
             "audience" => audience
-          }
+          },
+          "agentRegistration" => registration
         }
       })
     end)
@@ -70,6 +74,7 @@ defmodule RegentAgents.HTTPTest do
     body = %{"code" => code, "name" => "Sol", "harness" => "codex"}
     assert {201, %{"data" => paired}} = send_request(:post, "/api/agents/v1/pair", body)
     assert %{"name" => "Sol", "harness" => "codex", "wallet" => @wallet} = paired
+    assert paired["registry_listing"] == nil
 
     assert_received {:verified, "/api/shared/siwa/http-verify", ["test"], envelope}
     assert %{"method" => "POST", "path" => "/api/agents/v1/pair", "body" => signed} = envelope
@@ -83,6 +88,25 @@ defmodule RegentAgents.HTTPTest do
                      %{"method" => "GET", "path" => "/api/agents/v1/me"} = check_in}
 
     refute Map.has_key?(check_in, "body")
+  end
+
+  test "an agent listed in the agent registry is answered with its listing's page" do
+    code = code!(person("listed"))
+
+    siwa_verifies(@wallet, "test", %{
+      "agentId" => "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97609",
+      "tokenId" => "97609",
+      "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
+      "registryUrl" => @listing
+    })
+
+    body = %{"code" => code, "name" => "Listed", "harness" => "hermes"}
+
+    assert {201, %{"data" => %{"registry_listing" => @listing}}} =
+             send_request(:post, "/api/agents/v1/pair", body)
+
+    assert {200, %{"data" => %{"registry_listing" => @listing}}} =
+             send_request(:get, "/api/agents/v1/me")
   end
 
   test "an unknown harness is named before anything is signed for" do
