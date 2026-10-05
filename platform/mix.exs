@@ -50,7 +50,7 @@ defmodule Regents.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.33.0"},
+      {:ash, "~> 3.34 and >= 3.34.3"},
       {:ash_postgres, "~> 2.13.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},

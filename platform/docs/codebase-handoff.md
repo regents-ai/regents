@@ -22,7 +22,7 @@ Four public surfaces are open today:
 Autolaunch and Techtree have left this app (see §9); their product copy on `/`
 and `/stake` stays, linking out to autolaunch.sh and techtree.sh.
 
-Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.33 · AshPostgres · Privy for sign-in ·
+Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.34 · AshPostgres · Privy for sign-in ·
 Base (chain 8453) for every on-chain figure.
 
 ---

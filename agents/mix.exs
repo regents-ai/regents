@@ -12,7 +12,7 @@ defmodule RegentAgents.MixProject do
       elixir: "~> 1.19",
       elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
       deps: [
-        {:ash, "~> 3.33.0"},
+        {:ash, "~> 3.34 and >= 3.34.3"},
         {:ash_postgres, "~> 2.13"},
         {:postgrex, "~> 0.22"},
         {:simple_sat, "~> 0.1"},

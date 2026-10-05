@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](../LICENSE)
 [![Elixir 1.19](https://img.shields.io/badge/elixir-1.19-lightgrey)](https://elixir-lang.org)
 [![Phoenix 1.8](https://img.shields.io/badge/phoenix-1.8-lightgrey)](https://www.phoenixframework.org)
-[![Ash 3.33](https://img.shields.io/badge/ash-3.33-lightgrey)](https://ash-hq.org)
+[![Ash 3.34](https://img.shields.io/badge/ash-3.34-lightgrey)](https://ash-hq.org)
 [![PostgreSQL 17](https://img.shields.io/badge/postgres-17-lightgrey)](https://www.postgresql.org)
 
 The Regents platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,

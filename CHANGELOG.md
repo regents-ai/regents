@@ -816,3 +816,11 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   409 for it, while the removed client expected 400.
 - The token setting is now `config :regent_sprites, token:`, still read from
   `SPRITES_TOKEN`.
+
+## 2026-10-05 — Ash 3.34.4
+
+- Every Regents package (platform, identity, payments, agents) requires Ash 3.34.3
+  or later and locks 3.34.4, with Spark 2.7.6 as Ash requires. Ash before 3.34.3
+  can turn some filter values into new atoms (EEF-CVE-2026-94201); Regents does not
+  use the affected setting, so this clears the dependency audit and lets the other
+  sites move to the same Ash.
