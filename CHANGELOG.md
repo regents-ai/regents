@@ -555,7 +555,6 @@ revision remains the one recorded above.
   The local acceptance fixture no longer counts it. The obsolete local
   public-API document, whose commands no longer exist, is removed.
 
-<<<<<<< HEAD
 ## 2026-09-21 — Regents production release: 32×32 crown icon
 
 Deployed 2026-09-21 14:40Z with the founder's word.
@@ -801,3 +800,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 
 - Sean's request (through HQ): the left sidebar on every Regents page lists
   "Account" directly under Redeem, opening the Account page.
+
+## 2026-10-05 — Changelog correction
+
+- Sean's decision 55: a stray merge-conflict marker line left above the
+  2026-09-21 crown-icon entry is removed. No entry's wording changed.
