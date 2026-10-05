@@ -796,3 +796,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   is never shown or kept.
 - The agent's own pairing and check-in answers carry `human_backed` (true or false).
   The API description and docs name the new field.
+
+## 2026-10-05 — Account in the sidebar
+
+- Sean's request (through HQ): the left sidebar on every Regents page lists
+  "Account" directly under Redeem, opening the Account page.
