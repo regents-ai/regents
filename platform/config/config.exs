@@ -20,13 +20,15 @@ config :regent_agents,
 # site. Credits are the private currency XRC, kept to the millionth. Admins come
 # from REGENT_CREDITS_ADMINS at runtime. Purchases are checked through the
 # site's own Base and Ethereum read endpoints; `rpc_url` is the public address a
-# wallet adds each chain with.
+# wallet adds each chain with. Balance changes from every site reach this
+# site's PubSub.
 config :ex_money,
   custom_currencies: [{:XRC, name: "Credits", digits: 6}],
   auto_start_exchange_rate_service: false
 
 config :regent_credits,
   repo: Regents.Repo,
+  pubsub: Regents.PubSub,
   ash_domains: [RegentCredits],
   admins: [],
   chain_client: Regents.ChainClient,
@@ -57,10 +59,10 @@ config :regents,
 
 config :regents, ecto_repos: [Regents.Repo]
 
-# Background jobs live in the site's own schema, beside its tables. The serving
-# connection goes through a pooler that drops LISTEN/NOTIFY, so queues hear about
-# new jobs through Erlang process groups instead. `regent_credits` checks Credits
-# purchases on chain; AshOban adds each trigger's sweep to `cron`.
+# Background jobs live in the site's own schema, beside its tables. Queues hear
+# about new jobs through Erlang process groups, across the site's machines.
+# `regent_credits` checks Credits purchases on chain; AshOban adds each
+# trigger's sweep to `cron`.
 config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",

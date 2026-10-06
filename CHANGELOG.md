@@ -881,3 +881,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   connect step when no wallet is open.
 - On a phone the header shows the balance as a number only, and the brand's name
   gives way so the account button stays on screen.
+- Credits balances update on open pages at once: a purchase, a gift, a hold or a
+  spend on any Regent site reaches the header, the Buy Credits panel and the
+  Account page without a reload. A gift to a wallet a signed-in account holds
+  lands on the account straight away. Regent Credits pinned to elixir-utils
+  bf4aed7, which adds the regent_credits.wallets table (not yet run in
+  production; that needs Sean's go). Oban hears about new jobs through Erlang
+  process groups; the serving database connection is direct.

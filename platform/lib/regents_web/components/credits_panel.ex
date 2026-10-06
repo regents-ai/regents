@@ -7,7 +7,8 @@ defmodule RegentsWeb.CreditsPanel do
   each sent Buy is reported as a purchase, then checked every two seconds until
   it counts. The site's Oban keeps checking once a minute after the page stops.
 
-  The parent passes `account` (the signed-in account) and `id`.
+  The parent passes `account` (the signed-in account), its `balance`
+  (`RegentCredits.balance/1`, kept current by the parent) and `id`.
   """
   use RegentsWeb, :live_component
 
@@ -42,8 +43,12 @@ defmodule RegentsWeb.CreditsPanel do
   def update(%{account: account} = assigns, socket) do
     {:ok,
      socket
-     |> assign(id: assigns.id, account: account, linked: wallets(account))
-     |> read_balance()
+     |> assign(
+       id: assigns.id,
+       account: account,
+       balance: assigns.balance,
+       linked: wallets(account)
+     )
      |> sync()}
   end
 
@@ -111,8 +116,7 @@ defmodule RegentsWeb.CreditsPanel do
 
     cond do
       purchase.status == :credited ->
-        send(self(), :credits_changed)
-        {:noreply, socket |> put_purchase(hash, shown) |> read_balance()}
+        {:noreply, put_purchase(socket, hash, shown)}
 
       purchase.status == :checking and shown.reads < @purchase_reads ->
         {:noreply, check_purchase(socket, hash, shown)}
@@ -217,9 +221,6 @@ defmodule RegentsWeb.CreditsPanel do
 
   defp put_purchase(socket, hash, shown),
     do: assign(socket, purchases: Map.put(socket.assigns.purchases, hash, shown))
-
-  defp read_balance(socket),
-    do: assign(socket, balance: RegentCredits.balance(socket.assigns.account.privy_user_id))
 
   defp read_usdc(%{assigns: %{signer: nil}} = socket), do: socket
 

@@ -210,7 +210,8 @@ defmodule Regents.ReleaseTest do
              "purchases",
              "refunds",
              "schema_migrations",
-             "transfers"
+             "transfers",
+             "wallets"
            ]
   end
 

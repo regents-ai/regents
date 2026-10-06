@@ -45,6 +45,7 @@ defmodule RegentsWeb.ShellLive do
        browser_wallet: nil,
        shell_instance: System.unique_integer([:positive, :monotonic])
      )
+     |> follow_credits()
      |> OpenSeaBudget.init()
      |> Account.init()
      |> Staking.init()
@@ -124,8 +125,9 @@ defmodule RegentsWeb.ShellLive do
 
   def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
 
-  # The Credits panel added Credits; the header's balance and the Account page
-  # follow. Every page change reads the balance again too.
+  # The balance changed on this or any Regent site: a purchase, a gift, a spend.
+  # The header, the Buy Credits panel and the Account page follow. Every page
+  # change reads the balance again too.
   def handle_info(:credits_changed, socket), do: {:noreply, read_credits(socket)}
 
   @impl true
@@ -142,6 +144,7 @@ defmodule RegentsWeb.ShellLive do
           module={RegentsWeb.CreditsPanel}
           id="credits-panel"
           account={current_account(@access_context)}
+          balance={@credits}
         />
       </:credits_panel>
       <:content>
@@ -240,6 +243,17 @@ defmodule RegentsWeb.ShellLive do
 
   defp signed_in_credits(access_context, credits),
     do: if(authenticated?(access_context), do: credits.available)
+
+  # Signing in or out reloads the page, so the account followed here is the
+  # page's own for as long as it is open.
+  defp follow_credits(socket) do
+    with true <- connected?(socket),
+         %{privy_user_id: id} <- current_account(socket.assigns.access_context) do
+      Phoenix.PubSub.subscribe(Regents.PubSub, RegentCredits.topic(id))
+    end
+
+    socket
+  end
 
   defp read_credits(socket) do
     case current_account(socket.assigns.access_context) do
