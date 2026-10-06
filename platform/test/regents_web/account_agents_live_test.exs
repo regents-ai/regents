@@ -16,7 +16,12 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     Req.Test.stub(
       Regents.Siwa,
       &Req.Test.json(&1, %{
-        "data" => %{"activity" => [], "agentRegistration" => nil, "agentBook" => nil}
+        "data" => %{
+          "activity" => [],
+          "next" => nil,
+          "agentRegistration" => nil,
+          "agentBook" => nil
+        }
       })
     )
 
@@ -70,6 +75,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
               "occurred_at" => DateTime.to_iso8601(DateTime.utc_now())
             }
           ],
+          "next" => nil,
           "agentRegistration" => %{
             "agentId" => "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97609",
             "tokenId" => "97609",

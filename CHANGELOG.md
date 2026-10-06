@@ -831,3 +831,13 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   2.14.2 write upserts to the public schema instead of the site's own schema on the
   shared database (found by Techtree's schema check). The site already ran 2.13.0;
   the payments and agents packages' own locks move back from 2.13.1.
+
+## 2026-10-06 — Load more on an agent's activity
+
+- Sean's request (through HQ): an agent's Recent activity on the Account page shows
+  its newest 20 requests, with a "Load more" button that adds the next 20 below
+  while older ones remain. "Paired with your account" closes the list once the
+  oldest is shown. After Load more, the list no longer refreshes on each check-in,
+  so it stays as the person is reading it.
+- Reads the sign-in service's paged activity answer (`next`, sent back as `after`);
+  needs that version of the sign-in service live first.

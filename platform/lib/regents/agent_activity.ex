@@ -1,7 +1,8 @@
 defmodule Regents.AgentActivity do
   @moduledoc """
   What a paired agent has done across the Regents sites since it was paired,
-  in plain words, its listing in the agent registry, if it has one, and
+  in plain words and 20 requests at a time, newest first, its listing in the
+  agent registry, if it has one, and
   whether a person verified with World ID stands behind it. The sign-in service
   keeps all three: every request an agent signs is verified there, whichever
   site it went to, an agent lists itself through it, and it reads World's
@@ -21,10 +22,20 @@ defmodule Regents.AgentActivity do
   @type entry :: %{site: String.t(), action: String.t(), occurred_at: DateTime.t()}
   @type listing :: %{url: String.t(), number: String.t()}
 
-  @spec recent(PairedAgent.t()) ::
-          {:ok, %{entries: [entry()], listing: listing() | nil, human_backed: boolean()}}
-          | {:error, term()}
-  def recent(%PairedAgent{} = agent) do
+  @type page :: %{
+          entries: [entry()],
+          next: String.t() | nil,
+          listing: listing() | nil,
+          human_backed: boolean()
+        }
+
+  @doc """
+  The newest page of the agent's activity, or with `after_cursor` set to an earlier
+  page's `next`, the page after it. `next` is nil on the last page, which ends
+  with the pairing itself.
+  """
+  @spec recent(PairedAgent.t(), String.t() | nil) :: {:ok, page()} | {:error, term()}
+  def recent(%PairedAgent{} = agent, after_cursor \\ nil) do
     with {:ok, config} <- config(),
          {:ok,
           %Req.Response{
@@ -32,20 +43,23 @@ defmodule Regents.AgentActivity do
             body: %{
               "data" => %{
                 "activity" => activity,
+                "next" => next,
                 "agentRegistration" => registration,
                 "agentBook" => book
               }
             }
-          }} <-
+          }}
+         when is_nil(next) or (is_binary(next) and next != "") <-
            Req.post(
              config.base_url <> "/api/shared/siwa/activity",
-             request_options(config, agent)
+             request_options(config, agent, after_cursor)
            ),
          {:ok, listing} <- listing(registration),
          {:ok, human_backed} <- human_backed(book) do
       {:ok,
        %{
-         entries: Enum.flat_map(activity, &describe/1) ++ [paired(agent)],
+         entries: Enum.flat_map(activity, &describe/1) ++ pairing(agent, next),
+         next: next,
          listing: listing,
          human_backed: human_backed
        }}
@@ -70,8 +84,13 @@ defmodule Regents.AgentActivity do
 
   # The pairing itself is the agent's own record here; the request that made
   # it was verified a moment before the agent existed.
-  defp paired(agent),
-    do: %{site: "Regents Labs", action: "Paired with your account", occurred_at: agent.paired_at}
+  # It is the oldest entry, so it closes the last page.
+  defp pairing(agent, nil),
+    do: [
+      %{site: "Regents Labs", action: "Paired with your account", occurred_at: agent.paired_at}
+    ]
+
+  defp pairing(_agent, _next), do: []
 
   # Requests to sites outside the Regents family, and the pairing request
   # already shown by the pairing itself, are left out.
@@ -110,12 +129,17 @@ defmodule Regents.AgentActivity do
     end
   end
 
-  defp request_options(config, agent) do
+  defp request_options(config, agent, after_cursor) do
     [retry: false, receive_timeout: 5_000, connect_options: [timeout: 2_000]]
     |> Keyword.merge(Application.get_env(:regents, :siwa_req_options, []))
     |> Keyword.merge(
       auth: {:bearer, config.token},
-      json: %{wallet_address: agent.wallet, since: DateTime.to_iso8601(agent.paired_at)}
+      json: body(agent, after_cursor)
     )
   end
+
+  defp body(agent, nil),
+    do: %{wallet_address: agent.wallet, since: DateTime.to_iso8601(agent.paired_at)}
+
+  defp body(agent, after_cursor), do: Map.put(body(agent, nil), :after, after_cursor)
 end

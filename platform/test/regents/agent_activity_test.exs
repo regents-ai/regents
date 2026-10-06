@@ -33,6 +33,7 @@ defmodule Regents.AgentActivityTest do
             request("regents", "GET", "/api/agents/v1/me", "2026-09-26T15:06:00Z"),
             request("regents", "POST", "/api/agents/v1/pair", "2026-09-26T15:05:00Z")
           ],
+          "next" => nil,
           "agentRegistration" => nil,
           "agentBook" => nil
         }
@@ -59,6 +60,7 @@ defmodule Regents.AgentActivityTest do
       Req.Test.json(conn, %{
         "data" => %{
           "activity" => [],
+          "next" => nil,
           "agentRegistration" => %{
             "agentId" => "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97609",
             "tokenId" => "97609",
@@ -73,6 +75,37 @@ defmodule Regents.AgentActivityTest do
     assert {:ok, %{listing: listing, human_backed: true} = read} = AgentActivity.recent(agent())
     assert listing == %{url: "https://www.8004scan.io/agents/base/97609", number: "97609"}
     refute inspect(read) =~ String.duplicate("ab", 32)
+  end
+
+  test "a page with more after it leaves out the pairing; the next page is read with its cursor" do
+    Req.Test.expect(Regents.Siwa, 2, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+      {activity, next} =
+        case Jason.decode!(body) do
+          %{"after" => "cursor-1"} ->
+            {[request("regents", "GET", "/api/agents/v1/me", "2026-09-26T15:06:00Z")], nil}
+
+          %{"wallet_address" => @wallet} = first when not is_map_key(first, "after") ->
+            {[request("techtree", "GET", "/api/agents/v1/me", "2026-09-26T15:10:00Z")],
+             "cursor-1"}
+        end
+
+      Req.Test.json(conn, %{
+        "data" => %{
+          "activity" => activity,
+          "next" => next,
+          "agentRegistration" => nil,
+          "agentBook" => nil
+        }
+      })
+    end)
+
+    assert {:ok, %{entries: [%{site: "Techtree"}], next: "cursor-1"}} =
+             AgentActivity.recent(agent())
+
+    assert {:ok, %{entries: entries, next: nil}} = AgentActivity.recent(agent(), "cursor-1")
+    assert Enum.map(entries, & &1.action) == ["Checked in", "Paired with your account"]
   end
 
   test "a refused or unreachable read is an error, not an empty history" do

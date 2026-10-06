@@ -69,6 +69,9 @@ defmodule RegentsWeb.ShellLive do
   def handle_async({:agent_activity, _id} = name, result, socket),
     do: {:noreply, Account.settle_activity(socket, name, result)}
 
+  def handle_async({:more_agent_activity, _id} = name, result, socket),
+    do: {:noreply, Account.settle_more_activity(socket, name, result)}
+
   def handle_async({reading, _generation} = name, result, socket)
       when reading in [:staking, :staking_quiet],
       do: {:noreply, Staking.settle(socket, name, result)}

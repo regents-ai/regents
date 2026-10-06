@@ -267,6 +267,7 @@ defmodule RegentsWeb.Components.PairedAgents do
           Every request this agent signed on a Regents site since it paired, newest first. Kept for 30 days.
         </p>
         <.activity activity={@detail.activity} />
+        <.more_activity :if={is_list(@detail.activity) and is_binary(@detail.next)} detail={@detail} />
       </section>
 
       <.agent_notice id="account-agent-dialog-notice" notice={@notice} />
@@ -312,6 +313,28 @@ defmodule RegentsWeb.Components.PairedAgents do
         <time datetime={DateTime.to_iso8601(entry.occurred_at)}>{moment(entry.occurred_at)}</time>
       </li>
     </ol>
+    """
+  end
+
+  attr :detail, :map, required: true
+
+  defp more_activity(assigns) do
+    ~H"""
+    <div class="account-agent-dialog__more">
+      <Regent.Primitives.button
+        id="account-agent-load-more"
+        type="button"
+        variant="secondary"
+        phx-click="load_more_activity"
+        phx-value-id={@detail.agent.id}
+        disabled={@detail.more == :loading}
+      >
+        {if @detail.more == :loading, do: "Loading…", else: "Load more"}
+      </Regent.Primitives.button>
+      <p :if={@detail.more == :unavailable} id="account-agent-load-more-notice" role="status">
+        Older activity couldn’t be read right now. Try again.
+      </p>
+    </div>
     """
   end
 
