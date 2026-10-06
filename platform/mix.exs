@@ -17,6 +17,7 @@ defmodule Regents.MixProject do
       start_permanent: false,
       aliases: aliases(),
       deps: deps(),
+      usage_rules: usage_rules(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
@@ -55,6 +56,7 @@ defmodule Regents.MixProject do
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
@@ -100,6 +102,21 @@ defmodule Regents.MixProject do
     ]
   end
 
+  # `mix usage_rules.sync` writes the marked block at the end of AGENTS.md: how to
+  # read the installed version's docs, and links to each package's own rules in deps/.
+  defp usage_rules do
+    [
+      file: "AGENTS.md",
+      usage_rules: [
+        {:usage_rules, sub_rules: []},
+        {:usage_rules, sub_rules: :all, main: false, link: :markdown},
+        {:ash, link: :markdown},
+        {~r/^ash_/, link: :markdown},
+        {:phoenix, sub_rules: ["phoenix", "liveview", "html"], link: :markdown}
+      ]
+    ]
+  end
+
   # Aliases are shortcuts or tasks specific to the current project.
   # For example, to install project dependencies and perform other setup tasks, run:
   #
@@ -136,6 +153,7 @@ defmodule Regents.MixProject do
         "xref graph --label compile-connected --fail-above 36",
         "test --warnings-as-errors",
         "ash.codegen --check",
+        "usage_rules.sync --check",
         "regents.route_handoff --check"
       ]
     ]

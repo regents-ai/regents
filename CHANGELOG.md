@@ -848,3 +848,11 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   and llms.txt now say each USDC deposit is shared with stakers by their share of all
   REGENT, with the rest going to the Regents Labs treasury. "Allocated by stake
   share" read as a share of what is staked, which is not how the contract pays.
+
+## 2026-10-06 — Package rules for coding agents
+
+- The site's app adds usage_rules 1.2.8 (a developer tool; nothing in the running
+  site changes). Its AGENTS.md now ends with a block linking each installed
+  package's own rules (Ash, the Ash extensions, Phoenix and LiveView), so agents
+  read the rules for the exact versions Regents runs. The checks fail if that
+  block falls out of step with the installed packages. Same setup as the template.
