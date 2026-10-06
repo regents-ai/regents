@@ -13,7 +13,9 @@ defmodule RegentAgents.MixProject do
       elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
       deps: [
         {:ash, "~> 3.34 and >= 3.34.3"},
-        {:ash_postgres, "~> 2.13"},
+        # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+        # repo's prefix that picks each site's schema on the shared database.
+        {:ash_postgres, "== 2.13.0"},
         {:postgrex, "~> 0.22"},
         {:simple_sat, "~> 0.1"},
         {:plug, "~> 1.19"},

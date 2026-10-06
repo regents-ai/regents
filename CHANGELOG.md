@@ -824,3 +824,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   can turn some filter values into new atoms (EEF-CVE-2026-94201); Regents does not
   use the affected setting, so this clears the dependency audit and lets the other
   sites move to the same Ash.
+
+## 2026-10-06 — AshPostgres held at 2.13.0
+
+- Every Regents package requires exactly AshPostgres 2.13.0. Versions 2.13.1 through
+  2.14.2 write upserts to the public schema instead of the site's own schema on the
+  shared database (found by Techtree's schema check). The site already ran 2.13.0;
+  the payments and agents packages' own locks move back from 2.13.1.

@@ -51,7 +51,9 @@ defmodule Regents.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.34 and >= 3.34.3"},
-      {:ash_postgres, "~> 2.13.0"},
+      # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+      # repo's prefix that picks each site's schema on the shared database.
+      {:ash_postgres, "== 2.13.0"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
