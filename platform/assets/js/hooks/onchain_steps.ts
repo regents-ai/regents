@@ -2,7 +2,16 @@ import type {Address, Hex} from "viem"
 
 import type {Hook} from "../hook_composition"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
-import {failure, NothingSent, sendStep, signStep, type Step, type StepChain} from "../wallet_actions/send_step"
+import {
+  chainId,
+  failure,
+  NothingSent,
+  sendStep,
+  signStep,
+  switchChain,
+  type Step,
+  type StepChain,
+} from "../wallet_actions/send_step"
 
 /**
  * Who sends, on which chain, the steps the buttons name, and the on-screen
@@ -29,6 +38,7 @@ type OnchainStepsHook = Hook & {
   review?: Review
   clicked?: (event: Event) => void
   walletChanged?: () => void
+  looked?: () => void
 }
 
 // How many of a button's presses the wallet still has. The mark comes off when
@@ -39,6 +49,9 @@ const presses = new WeakMap<HTMLElement, number>()
  * The wallet buttons of one server component. The component's root carries the
  * hook and a DOM id; each button names its step with `data-onchain-step`, and
  * each form field the review depends on is marked `data-onchain-input="name"`.
+ * A root marked `data-wallet-chain` also hears which chain the wallet is on
+ * (`wallet_chain`), and its `data-switch-chain` button asks the wallet onto
+ * the review's chain.
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
@@ -57,10 +70,28 @@ export const OnchainSteps: Hook = {
     // review yet, or whose review no longer matches the form on screen, asks the
     // server for the matching review and sends what comes back.
     this.clicked = event => {
+      const switching = (event.target as Element | null)?.closest<HTMLElement>("[data-switch-chain]")
+      if (switching && this.el.contains(switching)) {
+        const release = mark(switching)
+        lost(this.el, false)
+        void switched(this.review, push)
+          .catch(() => lost(this.el, true))
+          .finally(() => {
+            release()
+            this.looked?.()
+          })
+        return
+      }
+
       const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step]")
       const name = button?.dataset.onchainStep
       if (!button || !name || !this.el.contains(button)) return
-      const release = mark(button)
+      const marked = mark(button)
+      // The wallet may have moved chain for the press.
+      const release = () => {
+        marked()
+        this.looked?.()
+      }
       const form = formInputs(this.el)
       const asks = Object.keys(form).length > 0 && (!this.review || !sameInputs(this.review.inputs, form))
       lost(this.el, false)
@@ -87,14 +118,45 @@ export const OnchainSteps: Hook = {
     // wallet Privy has active and pushes a new review, or none.
     this.walletChanged = () => push("onchain_active_wallet", {address: activeEthereumWallet()?.address ?? null})
     window.addEventListener("ash:wallet-state", this.walletChanged)
+
+    if (this.el.hasAttribute("data-wallet-chain")) {
+      this.looked = () => void walletChain().then(chain_id => push("wallet_chain", {chain_id}))
+      window.addEventListener("ash:wallet-state", this.looked)
+      window.addEventListener("focus", this.looked)
+    }
+
     this.walletChanged()
+    this.looked?.()
     window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
   },
 
   destroyed(this: OnchainStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     if (this.walletChanged) window.removeEventListener("ash:wallet-state", this.walletChanged)
+    if (this.looked) {
+      window.removeEventListener("ash:wallet-state", this.looked)
+      window.removeEventListener("focus", this.looked)
+    }
   },
+}
+
+/** The chain Privy's active wallet is on; null with no wallet active. */
+export async function walletChain(): Promise<number | null> {
+  const wallet = activeEthereumWallet()
+  return wallet ? chainId(wallet.provider).catch(() => null) : null
+}
+
+/**
+ * Asks Privy's active wallet onto the review's chain, and reports a refusal.
+ * With no wallet active, the server's note says why nothing happened.
+ */
+export async function switched(review: Review | undefined, push: Push): Promise<void> {
+  const wallet = activeEthereumWallet()
+  if (!wallet) return push("step_failed", {step: "switch", reason: "wallet_unavailable"})
+  if (!review) return push("step_failed", {step: "switch", reason: "step_unknown"})
+  await switchChain(wallet.provider, review.chain).catch(() =>
+    push("step_failed", {step: "switch", reason: "switch_declined"}),
+  )
 }
 
 /**

@@ -1,8 +1,8 @@
 defmodule RegentsWeb.CreditsLive do
   @moduledoc """
-  The two Regent Credits pages regents.sh hosts for every Regent site: the
-  refund rules every Buy Credits panel links to, and the admin page where a
-  Credits admin gives Credits and handles refunds. The library refuses every
+  The Regent Credits pages regents.sh hosts for every Regent site: the refund
+  rules and the Purchase History every Buy Credits panel links to, and the
+  admin page where a Credits admin gives Credits and handles refunds. The library refuses every
   admin action to anyone its `:admins` setting does not name; this page only
   decides what to show.
   """
@@ -15,6 +15,36 @@ defmodule RegentsWeb.CreditsLive do
     <article id="credits-refunds-page" class="account-page credits-page">
       <section class="account-panel">
         <RegentsWeb.CreditsRefundRules.rules />
+      </section>
+    </article>
+    """
+  end
+
+  attr :account, :map, default: nil
+  attr :balance, :map, default: nil
+
+  def history(assigns) do
+    ~H"""
+    <article id="credits-history-page" class="account-page credits-page">
+      <header class="account-heading">
+        <p class="account-kicker">Regents Labs</p>
+        <h1 tabindex="-1">Purchase History</h1>
+      </header>
+
+      <section :if={is_nil(@account)} class="account-panel">
+        <h2>Sign in to see your purchases</h2>
+        <Regent.Primitives.button type="button" data-account-target="sign-in">
+          Sign in
+        </Regent.Primitives.button>
+      </section>
+
+      <section :if={@account} class="account-panel">
+        <.live_component
+          module={RegentsWeb.CreditsHistory}
+          id="credits-history"
+          actor={Credits.person(@account)}
+          balance={@balance}
+        />
       </section>
     </article>
     """

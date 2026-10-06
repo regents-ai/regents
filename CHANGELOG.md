@@ -888,3 +888,13 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   bf4aed7, which adds the regent_credits.wallets table (not yet run in
   production; that needs Sean's go). Oban hears about new jobs through Erlang
   process groups; the serving database connection is direct.
+- The Buy Credits panel is redesigned to match the template and Patchbay: a large
+  USDC amount, a Base/Ethereum switch that follows the wallet, USDC on both
+  chains, ticked Approve and Buy rows, and explanations behind small "i" tips.
+  Buy is disabled, with the reason beside it, only when it is certain to fail:
+  "Not enough USDC" or "Approve first", read from the chain at the latest block.
+  The header balance flashes when it changes and the dialog closes with an X.
+- New Purchase History page at /account/credits, linked from the panel and the
+  Account page: every Credits purchase from the account, newest first, with
+  what came of it and a link to the transaction. Pinned to elixir-utils f344888
+  and design-system 6a18fb1.

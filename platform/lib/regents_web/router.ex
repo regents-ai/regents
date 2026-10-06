@@ -133,6 +133,7 @@ defmodule RegentsWeb.Router do
       on_mount: [RegentsWeb.Live.LaunchGateHook, {RegentsWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
       live "/account", ShellLive, :account
+      live "/account/credits", ShellLive, :account_credits
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

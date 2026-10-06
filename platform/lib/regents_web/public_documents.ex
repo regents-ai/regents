@@ -39,6 +39,8 @@ defmodule RegentsWeb.PublicDocuments do
     "/account" =>
       {"Account",
        "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
+    "/account/credits" =>
+      {"Purchase History", "Every Credits purchase from this account, with its transaction."},
     "/stake" =>
       {"Stake REGENT",
        "Stake REGENT on Base to share in USDC revenue rewards paid out by the staking contract and to earn REGENT emissions."},

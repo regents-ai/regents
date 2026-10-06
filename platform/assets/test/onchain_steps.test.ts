@@ -217,13 +217,18 @@ function page(form: Record<string, string>) {
   }
   let clicked: (event: Event) => void = () => {}
   const button = (dataset: Record<string, string>) => {
-    const element = {dataset: {...dataset}} as unknown as HTMLElement & {closest: () => HTMLElement}
-    element.closest = () => element
+    const element = {dataset: {...dataset}} as unknown as HTMLElement & {closest: (selector: string) => HTMLElement | null}
+    // Answers "[data-onchain-step]" and the like by the button's own data attributes.
+    element.closest = (selector: string) => {
+      const name = selector.slice(6, -1).replace(/-(\w)/g, (_match: string, letter: string) => letter.toUpperCase())
+      return name in element.dataset ? element : null
+    }
     return element
   }
   const el = {
     id: "staking-actions",
     contains: () => true,
+    hasAttribute: () => false,
     querySelectorAll: () => Object.values(fields),
     querySelector: () => null,
     addEventListener: (_type: string, listener: (event: Event) => void) => { clicked = listener },

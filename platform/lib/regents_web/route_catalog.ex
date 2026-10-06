@@ -37,6 +37,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :account
     },
     %Entry{
+      path_pattern: "/account/credits",
+      live_action: :account_credits,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :account_credits
+    },
+    %Entry{
       path_pattern: "/regents/:slug",
       live_action: :regent_profile,
       parameter_schema: %{slug: :slug},
@@ -109,6 +116,9 @@ defmodule RegentsWeb.RouteCatalog do
     account:
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
        :regents_labs, %{}},
+    account_credits:
+      {:account_credits, :regent_ops, "Regents Labs", "Purchase History", "/app",
+       [:profile_actions], :regents_labs, %{}},
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
        [:wallet_status, :network_status, :profile_actions], :regent_record, %{}},

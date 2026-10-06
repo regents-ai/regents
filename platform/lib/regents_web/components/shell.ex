@@ -80,6 +80,8 @@ defmodule RegentsWeb.Components.Shell do
           aria-controls="shell-credits"
           aria-label={RegentCredits.Amount.format(@credits)}
           phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+          phx-hook="MotionCount"
+          data-variant="flash"
         >
           <.credits_amount amount={@credits} />
         </button>
@@ -94,9 +96,15 @@ defmodule RegentsWeb.Components.Shell do
         aria-label="Buy Credits"
         phx-hook="InfoDialog"
       >
-        <form method="dialog" class="shell-credits-dialog__close">
-          <Regent.Primitives.button variant="quiet" type="submit" value="close">
-            Close
+        <form method="dialog">
+          <Regent.Primitives.button
+            variant="quiet"
+            type="submit"
+            value="close"
+            class="shell-credits-dialog__close"
+            aria-label="Close"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </Regent.Primitives.button>
         </form>
         {render_slot(@credits_panel)}
@@ -158,7 +166,7 @@ defmodule RegentsWeb.Components.Shell do
     assigns = assign(assigns, number: number, unit: unit)
 
     ~H"""
-    {@number} <span class="shell-credits__unit">{@unit}</span>
+    <span data-count>{@number}</span> <span class="shell-credits__unit">{@unit}</span>
     """
   end
 

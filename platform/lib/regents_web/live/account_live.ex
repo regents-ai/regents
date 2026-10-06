@@ -152,12 +152,15 @@ defmodule RegentsWeb.AccountLive do
               <dd>{RegentCredits.Amount.format(@credits.held)}</dd>
             </div>
           </dl>
-          <Regent.Primitives.button
-            type="button"
-            phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
-          >
-            Buy Credits
-          </Regent.Primitives.button>
+          <div class="account-credits__actions">
+            <Regent.Primitives.button
+              type="button"
+              phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+            >
+              Buy Credits
+            </Regent.Primitives.button>
+            <.link navigate="/account/credits">Purchase History</.link>
+          </div>
 
           <h3>What your agents may spend</h3>
           <p>

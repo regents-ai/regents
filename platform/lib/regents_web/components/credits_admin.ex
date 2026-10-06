@@ -17,8 +17,6 @@ defmodule RegentsWeb.CreditsAdmin do
   alias RegentCredits.Errors.{NotEnoughCredits, Refused}
 
   @hash ~r/0x[0-9a-fA-F]{64}/
-  @explorers %{base: "https://basescan.org/tx/", ethereum: "https://etherscan.io/tx/"}
-
   @impl true
   def mount(socket) do
     {:ok,
@@ -172,7 +170,7 @@ defmodule RegentsWeb.CreditsAdmin do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, treasury: Chains.treasury(), explorers: @explorers)
+    assigns = assign(assigns, treasury: Chains.treasury())
 
     ~H"""
     <div id={@id} class="credits-admin">
@@ -216,7 +214,9 @@ defmodule RegentsWeb.CreditsAdmin do
             </p>
             <p>Account <code>{purchase.privy_user_id}</code></p>
             <p>From <code>{purchase.wallet}</code></p>
-            <p><a href={@explorers[purchase.chain] <> purchase.tx_hash}>Transaction</a></p>
+            <p>
+              <a href={Regents.Credits.transaction_url(purchase.chain, purchase.tx_hash)}>Transaction</a>
+            </p>
             <P.button
               :if={purchase.status == :credited and is_nil(@refunded[purchase.id])}
               type="button"

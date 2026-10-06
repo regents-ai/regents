@@ -7,6 +7,15 @@ defmodule RegentsWeb.CreditsPanel do
   each sent Buy is reported as a purchase, then checked every two seconds until
   it counts. The site's Oban keeps checking once a minute after the page stops.
 
+  The chain starts on the one the wallet is on, until the person picks one,
+  and a Switch Chain button asks the wallet onto the picked one. The USDC of
+  the wallet that pays is shown on both chains.
+
+  Buy is disabled only when it is certain to fail, from the chain at the latest
+  block: the Base approval does not cover the amount yet, or the wallet holds
+  too little USDC. Explanations wait in tips; the panel shows figures, choices,
+  presses and outcomes.
+
   The parent passes `account` (the signed-in account), its `balance`
   (`RegentCredits.balance/1`, kept current by the parent) and `id`.
   """
@@ -30,11 +39,14 @@ defmodule RegentsWeb.CreditsPanel do
      |> assign(
        active: nil,
        signer: nil,
-       amount: "10",
+       amount: "5",
        chain: "base",
+       chain_chosen?: false,
+       wallet_chain: nil,
        number: Ecto.UUID.generate(),
        numbers: %{},
-       usdc: nil,
+       usdc: %{},
+       allowance: nil,
        purchases: %{}
      )}
   end
@@ -61,6 +73,23 @@ defmodule RegentsWeb.CreditsPanel do
 
   def handle_event("change", %{"amount" => amount, "chain" => chain}, socket),
     do: {:noreply, socket |> choose(amount, chain) |> sync()}
+
+  # The chain the wallet is on, or nil when the page could not read one. Until
+  # the person picks a chain, the panel follows the wallet's. The page says this
+  # when the panel opens and each time it comes back into view, so the funds
+  # behind a disabled Buy are read again then too.
+  def handle_event("wallet_chain", %{"chain_id" => id}, socket)
+      when is_integer(id) or is_nil(id) do
+    socket = assign(socket, wallet_chain: id)
+
+    case chain_of(id) do
+      chain when is_binary(chain) and not socket.assigns.chain_chosen? ->
+        {:noreply, socket |> assign(chain: chain) |> sync()}
+
+      _keep ->
+        {:noreply, read_funds(socket)}
+    end
+  end
 
   # A press made before the review caught up with the form: the form is taken
   # as the page's own, and the reply carries the review for it.
@@ -89,12 +118,12 @@ defmodule RegentsWeb.CreditsPanel do
   end
 
   def handle_event("step_failed", %{"reason" => reason}, socket) when is_binary(reason) do
-    %{linked: linked, active: active, chain: chain} = socket.assigns
+    %{linked: linked, active: active, chain: chain, amount: amount} = socket.assigns
 
-    {:noreply,
-     assign(socket,
-       press_note: OnchainSteps.failure_note(reason, linked, active, chain_name(chain))
-     )}
+    note =
+      amount_problem(amount) || failure_note(reason, linked, active, chain_name(chain))
+
+    {:noreply, assign(socket, press_note: note)}
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket),
@@ -109,7 +138,7 @@ defmodule RegentsWeb.CreditsPanel do
 
   @impl true
   def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, socket |> OnchainSteps.checked(hash, result) |> read_usdc()}
+    do: {:noreply, socket |> OnchainSteps.checked(hash, result) |> approved(hash) |> read_funds()}
 
   def handle_async({:purchase, hash}, {:ok, {:ok, purchase}}, socket) do
     shown = %{purchase: purchase, reads: socket.assigns.purchases[hash].reads + 1}
@@ -136,16 +165,43 @@ defmodule RegentsWeb.CreditsPanel do
       else: {:noreply, put_purchase(socket, hash, shown)}
   end
 
-  def handle_async(:usdc, {:ok, {:ok, micro}}, socket),
-    do: {:noreply, assign(socket, usdc: micro)}
+  def handle_async({:usdc, chain}, {:ok, {:ok, micro}}, socket),
+    do: {:noreply, assign(socket, usdc: Map.put(socket.assigns.usdc, chain, micro))}
 
-  def handle_async(:usdc, _unread, socket), do: {:noreply, assign(socket, usdc: :unread)}
+  def handle_async({:usdc, chain}, _unread, socket),
+    do: {:noreply, assign(socket, usdc: Map.put(socket.assigns.usdc, chain, :unread))}
+
+  def handle_async(:allowance, {:ok, {:ok, micro}}, socket),
+    do: {:noreply, assign(socket, allowance: micro)}
+
+  def handle_async(:allowance, _unread, socket),
+    do: {:noreply, assign(socket, allowance: :unread)}
+
+  # A confirmed approval sets what staking may take to exactly its amount, so
+  # the panel knows it from the receipt it just read, before the next read.
+  defp approved(socket, hash) do
+    case Enum.find(socket.assigns.presses.sent, &(&1.hash == hash)) do
+      %{name: "approve", outcome: :confirmed, review: %{inputs: %{"amount" => amount}}} ->
+        assign(socket, allowance: Chains.micro(dollars(amount)))
+
+      _other ->
+        socket
+    end
+  end
+
+  # The Switch Chain press the wallet refused: words of the panel's own. Every
+  # other reason is the reference component's.
+  defp failure_note("switch_declined", _linked, _active, chain_name),
+    do: "Your wallet stayed where it was. Press Switch Chain to try #{chain_name} again."
+
+  defp failure_note(reason, linked, active, chain_name),
+    do: OnchainSteps.failure_note(reason, linked, active, chain_name)
 
   defp choose(socket, amount, chain) do
     socket = assign(socket, amount: amount)
 
     if Map.has_key?(@chains, chain) and chain != socket.assigns.chain,
-      do: assign(socket, chain: chain, usdc: nil),
+      do: assign(socket, chain: chain, chain_chosen?: true),
       else: socket
   end
 
@@ -174,13 +230,13 @@ defmodule RegentsWeb.CreditsPanel do
     socket =
       if signer == socket.assigns.signer,
         do: socket,
-        else: socket |> assign(signer: signer, usdc: nil)
+        else: assign(socket, signer: signer, usdc: %{}, allowance: nil)
 
     socket
     |> assign(mismatch: OnchainSteps.mismatch_note(linked, active))
     |> remember_number(review)
     |> OnchainSteps.put_review(review)
-    |> read_usdc()
+    |> read_funds()
   end
 
   defp remember_number(socket, nil), do: socket
@@ -222,20 +278,32 @@ defmodule RegentsWeb.CreditsPanel do
   defp put_purchase(socket, hash, shown),
     do: assign(socket, purchases: Map.put(socket.assigns.purchases, hash, shown))
 
-  defp read_usdc(%{assigns: %{signer: nil}} = socket), do: socket
+  # The paying wallet's USDC on both chains, and what REGENT staking may take
+  # of its Base USDC, all at the latest block.
+  defp read_funds(%{assigns: %{signer: nil}} = socket), do: socket
 
-  defp read_usdc(socket) do
-    %{chain: chain, signer: signer} = socket.assigns
-    chain = @chains[chain]
+  defp read_funds(socket) do
+    signer = socket.assigns.signer
 
-    start_async(socket, :usdc, fn ->
-      call = %{to: Chains.usdc(chain), data: Call.encode("balanceOf(address)", [signer])}
+    socket =
+      Enum.reduce(Map.values(@chains), socket, fn chain, socket ->
+        start_async(socket, {:usdc, chain}, fn ->
+          usdc_call(chain, "balanceOf(address)", [signer])
+        end)
+      end)
 
-      with {:ok, "0x" <> hex} <-
-             ChainClient.request(Chains.chain(chain), "eth_call", [call, "latest"]) do
-        {:ok, String.to_integer(hex, 16)}
-      end
+    start_async(socket, :allowance, fn ->
+      usdc_call(:base, "allowance(address,address)", [signer, Chains.staking()])
     end)
+  end
+
+  defp usdc_call(chain, signature, args) do
+    call = %{to: Chains.usdc(chain), data: Call.encode(signature, args)}
+
+    with {:ok, "0x" <> hex} <-
+           ChainClient.request(Chains.chain(chain), "eth_call", [call, "latest"]) do
+      {:ok, String.to_integer(hex, 16)}
+    end
   end
 
   defp wallets(account), do: Enum.map(account.wallet_addresses, &String.downcase/1)
@@ -247,20 +315,54 @@ defmodule RegentsWeb.CreditsPanel do
     end
   end
 
+  # Why an amount can't be bought, in words for the person; nil when it can.
+  defp amount_problem(amount) do
+    case Integer.parse(String.trim(amount)) do
+      {n, ""} when n in 5..500 -> nil
+      {n, ""} when n < 5 -> "The minimum is 5 USDC."
+      {n, ""} when n > 500 -> "The maximum is 500 USDC per purchase."
+      _not_whole -> "Enter a whole number from 5 to 500."
+    end
+  end
+
+  defp chain_of(8453), do: "base"
+  defp chain_of(1), do: "ethereum"
+  defp chain_of(_other), do: nil
+
   @impl true
   def render(assigns) do
+    dollars = dollars(assigns.amount)
+
+    assigns =
+      assign(assigns,
+        dollars: dollars,
+        problem: amount_problem(assigns.amount),
+        approve: approve_step(assigns, dollars),
+        buy: step(assigns, "buy"),
+        blocked: blocked(assigns, dollars)
+      )
+
     ~H"""
-    <section id={@id} class="credits-panel" phx-hook="OnchainSteps">
+    <section id={@id} class="credits-panel" phx-hook="OnchainSteps" data-wallet-chain>
       <header class="credits-panel__head">
-        <h2>Buy Credits</h2>
-        <p class="credits-panel__balance">
-          <span>Balance</span>
-          <strong>{Amount.format(@balance.available)}</strong>
-          <span :if={Decimal.gt?(@balance.held, 0)} class="credits-panel__muted">
-            and {Amount.format(@balance.held)} held for bids and posts
-          </span>
-        </p>
-        <p class="credits-panel__muted">One Credit is one US dollar.</p>
+        <dl
+          id={"#{@id}-figures"}
+          class="credits-panel__figures"
+          phx-hook="MotionCount"
+          data-variant="flash"
+        >
+          <div class="credits-panel__figure">
+            <dt>Regents Credits</dt>
+            <dd data-count>{figure(@balance.available)}</dd>
+          </div>
+          <div class="credits-panel__figure credits-panel__figure--small">
+            <dt>In Bids</dt>
+            <dd data-count>{figure(@balance.held)}</dd>
+          </div>
+        </dl>
+        <.link class="credits-panel__history" navigate="/account/credits">
+          Purchase History
+        </.link>
       </header>
 
       <form
@@ -270,124 +372,268 @@ defmodule RegentsWeb.CreditsPanel do
         phx-submit="change"
         phx-target={@myself}
       >
-        <label for={"#{@id}-amount"}>Amount in US dollars, from 5 to 500</label>
-        <input
-          id={"#{@id}-amount"}
-          name="amount"
-          value={@amount}
-          inputmode="numeric"
-          autocomplete="off"
-          data-onchain-input="amount"
-        />
+        <label class="credits-panel__label" for={"#{@id}-amount"}>USDC Amount</label>
+        <div class="credits-panel__amount" data-invalid={@problem && "true"}>
+          <input
+            id={"#{@id}-amount"}
+            name="amount"
+            value={@amount}
+            inputmode="numeric"
+            autocomplete="off"
+            aria-describedby={"#{@id}-rate #{@id}-problem"}
+            aria-invalid={@problem && "true"}
+            data-onchain-input="amount"
+          />
+          <span aria-hidden="true">USDC</span>
+        </div>
+        <p id={"#{@id}-rate"} class="credits-panel__rate">1 USDC buys 1 Regents Credit</p>
+        <p
+          id={"#{@id}-problem"}
+          class="credits-panel__problem"
+          role="alert"
+          phx-hook="MotionRefusal"
+          data-refused
+          hidden={!@problem}
+        >
+          {@problem}
+        </p>
 
-        <fieldset class="credits-panel__chains">
-          <legend>Pay with USDC on</legend>
-          <label :for={{value, label} <- [{"base", "Base"}, {"ethereum", "Ethereum"}]}>
-            <input
-              type="radio"
-              name="chain"
-              value={value}
-              checked={@chain == value}
-              data-onchain-input="chain"
-            />
-            {label}
-          </label>
-        </fieldset>
+        <div class="credits-panel__chain-row">
+          <fieldset class="credits-panel__chains" data-chain={@chain}>
+            <legend class="credits-panel__hidden">Pay with USDC on</legend>
+            <label :for={{value, name} <- [{"base", "Base"}, {"ethereum", "Ethereum"}]}>
+              <input
+                type="radio"
+                name="chain"
+                value={value}
+                checked={@chain == value}
+                data-onchain-input="chain"
+              />
+              <.chain_logo chain={value} />
+              <span>{name}</span>
+            </label>
+          </fieldset>
+          <P.button
+            :if={switch?(@signer, @wallet_chain, @chain)}
+            variant="secondary"
+            class="credits-panel__switch"
+            data-switch-chain
+          >
+            Switch Chain
+          </P.button>
+        </div>
       </form>
 
       <%!-- Lines above the buttons stay in the page and are only hidden, so one
            appearing never replaces the button a person has just pressed. --%>
-      <p class="credits-panel__line" aria-live="polite">{how(@chain, dollars(@amount))}</p>
-      <p class="credits-panel__line" hidden={!@signer}>
-        <%= if @signer do %>
-          Paying from <code>{RegentFormat.short_address(@signer)}</code>
-          on {chain_name(@chain)} · {usdc(@usdc)}
-        <% end %>
-      </p>
+      <div class="credits-panel__wallet" hidden={!@signer}>
+        <span class="credits-panel__muted">Paying from</span>
+        <code>{@signer && RegentFormat.short_address(@signer)}</code>
+        <span class="credits-panel__usdc">
+          <span>Base {usdc(@usdc[:base])}</span>
+          <span>Ethereum {usdc(@usdc[:ethereum])}</span>
+        </span>
+      </div>
       <p class="credits-panel__note" hidden={!@mismatch}>{@mismatch}</p>
 
-      <div class="credits-panel__actions">
-        <P.button :if={@chain == "base"} variant="secondary" data-onchain-step="approve">
-          Approve
-        </P.button>
-        <P.button data-onchain-step="buy">Buy</P.button>
-      </div>
-
-      <p :if={@press_note} class="credits-panel__note" role="status">{@press_note}</p>
-      <p class="credits-panel__note" role="status" data-onchain-lost hidden>
-        This page lost its connection, so nothing was sent. Press again once it's back.
-      </p>
-
-      <ol :if={@presses.sent != []} class="credits-panel__sent" aria-live="polite">
-        <li
-          :for={entry <- @presses.sent}
-          data-state={state(entry, @purchases[entry.hash])}
-        >
-          <strong>{title(entry)}</strong>
-          <span>{words(entry, @purchases[entry.hash])}</span>
-          <code>{RegentFormat.short_hash(entry.hash)}</code>
+      <ol class="credits-panel__steps">
+        <li :if={@chain == "base"} class="credits-panel__step" data-state={@approve.state}>
+          <.check />
+          <div class="credits-panel__step-words">
+            <strong>
+              Approve {@dollars && "#{@dollars} "}USDC
+              <P.tip id={"#{@id}-approve-tip"} label="About approving">
+                Lets REGENT staking take this USDC for your purchase. Each purchase needs its own approval.
+              </P.tip>
+            </strong>
+            <span :if={@approve.words}>{@approve.words}</span>
+          </div>
+          <P.button variant="secondary" data-onchain-step="approve">Approve</P.button>
+          <.check_again step={@approve} myself={@myself} />
+        </li>
+        <li class="credits-panel__step" data-state={@buy.state}>
+          <.check />
+          <div class="credits-panel__step-words">
+            <strong>
+              Buy {@dollars && "#{@dollars} "}Credits
+              <P.tip id={"#{@id}-buy-tip"} label="About buying">{arrival(@chain)}</P.tip>
+            </strong>
+            <span :if={@buy.words}>{@buy.words}</span>
+            <span :if={@blocked} id={"#{@id}-buy-why"}>{@blocked}</span>
+          </div>
           <P.button
-            :if={entry.name != "buy" and Presses.stalled?(entry)}
-            variant="quiet"
-            phx-click="check_again"
-            phx-value-hash={entry.hash}
-            phx-target={@myself}
+            data-onchain-step="buy"
+            disabled={@blocked != nil}
+            aria-describedby={@blocked && "#{@id}-buy-why"}
           >
-            Check again
+            Buy
           </P.button>
-          <P.button
-            :if={purchase_stalled?(@purchases[entry.hash])}
-            variant="quiet"
-            phx-click="check_purchase_again"
-            phx-value-hash={entry.hash}
-            phx-target={@myself}
-          >
-            Check again
-          </P.button>
+          <.check_again step={@buy} myself={@myself} />
         </li>
       </ol>
 
-      <footer class="credits-panel__rules">
-        <p>
-          Purchased Credits can be refunded only while you have never used Credits; placing
-          any bid counts as use, even one that came back. Given Credits are never refunded.
-          <.link navigate="/credits/refunds">Refund rules</.link>
-          ·
-          <a href="https://patchbay.help/credits-help" target="_blank" rel="noopener">Credits help</a>
-        </p>
-        <p>
-          Agents spend from this balance only within the limits you set on your
-          <.link patch="/account">Account</.link>
-          page.
-        </p>
+      <p :if={@press_note} class="credits-panel__note" role="status">{@press_note}</p>
+      <p class="credits-panel__note" role="status" data-onchain-lost hidden>
+        Connection lost, so nothing was sent. Press again once it's back.
+      </p>
+
+      <footer class="credits-panel__legal">
+        <a href="/terms">Terms of Service</a>
+        <.link navigate="/credits/refunds">Refund Policy</.link>
       </footer>
     </section>
     """
   end
 
-  defp how(_chain, nil), do: "Enter a whole number of dollars from 5 to 500."
+  attr :chain, :string, required: true
 
-  defp how("base", dollars),
+  defp chain_logo(%{chain: "base"} = assigns) do
+    ~H"""
+    <svg class="credits-panel__logo" viewBox="0 0 111 111" aria-hidden="true">
+      <path
+        fill="#0052FF"
+        d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z"
+      />
+    </svg>
+    """
+  end
+
+  defp chain_logo(%{chain: "ethereum"} = assigns) do
+    ~H"""
+    <svg class="credits-panel__logo" viewBox="0 0 256 417" aria-hidden="true">
+      <path fill="#343434" d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" />
+      <path fill="#8C8C8C" d="M127.962 0L0 212.32l127.962 75.639V154.158z" />
+      <path fill="#3C3C3B" d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.6L256 236.587z" />
+      <path fill="#8C8C8C" d="M127.962 416.905v-104.72L0 236.585z" />
+      <path fill="#141414" d="M127.961 287.958l127.96-75.637-127.96-58.162z" />
+      <path fill="#393939" d="M0 212.32l127.96 75.638v-133.8z" />
+    </svg>
+    """
+  end
+
+  defp check(assigns) do
+    ~H"""
+    <span class="credits-panel__check" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+    </span>
+    """
+  end
+
+  attr :step, :map, required: true
+  attr :myself, :any, required: true
+
+  defp check_again(%{step: %{entry: entry, stalled?: true}} = assigns) do
+    assigns = assign(assigns, event: check_event(entry), hash: entry.hash)
+
+    ~H"""
+    <P.button
+      variant="quiet"
+      class="credits-panel__again"
+      phx-click={@event}
+      phx-value-hash={@hash}
+      phx-target={@myself}
+    >
+      Check again
+    </P.button>
+    """
+  end
+
+  defp check_again(assigns), do: ~H""
+
+  defp check_event(%{name: "buy", review: %{}}), do: "check_purchase_again"
+  defp check_event(_entry), do: "check_again"
+
+  # The latest press of the named step for the form as it stands now: its state
+  # (`:ready` before any), what it did in words, and whether it waits on a
+  # Check again.
+  defp step(assigns, name) do
+    %{presses: %{sent: sent}, purchases: purchases, inputs: inputs} = assigns
+
+    case Enum.find(sent, &(&1.name == name and match?(%{inputs: ^inputs}, &1.review))) do
+      nil ->
+        %{state: :ready, words: nil, entry: nil, stalled?: false}
+
+      entry ->
+        shown = purchases[entry.hash]
+
+        %{
+          state: step_state(state(entry, shown)),
+          words: words(entry, shown),
+          entry: entry,
+          stalled?: stalled?(entry, shown)
+        }
+    end
+  end
+
+  # Approve shows what the chain says staking may take: done while that covers
+  # the amount, whichever press made it so, and ready again once a Buy spends it.
+  defp approve_step(assigns, dollars) do
+    step = step(assigns, "approve")
+
+    cond do
+      step.state == :pending -> step
+      covered?(assigns.allowance, dollars) -> %{step | state: :done, words: nil}
+      step.state == :done -> %{step | state: :ready, words: nil}
+      true -> step
+    end
+  end
+
+  defp covered?(allowance, dollars) when is_integer(allowance) and is_integer(dollars),
+    do: allowance >= Chains.micro(dollars)
+
+  defp covered?(_allowance, _dollars), do: false
+
+  # Why Buy is certain to fail right now, from the chain at the latest block; nil
+  # when it may go through. An unread figure is never a reason.
+  defp blocked(_assigns, nil), do: nil
+
+  defp blocked(%{chain: chain, usdc: usdc, allowance: allowance}, dollars) do
+    micro = Chains.micro(dollars)
+
+    case usdc[@chains[chain]] do
+      held when is_integer(held) and held < micro ->
+        "Not enough USDC on #{chain_name(chain)}"
+
+      _enough_or_unread ->
+        if chain == "base" and is_integer(allowance) and allowance < micro,
+          do: "Approve first"
+    end
+  end
+
+  defp step_state(state) when state in [:confirmed, :credited], do: :done
+  defp step_state(state) when state in [:pending, :checking, :stalled], do: :pending
+  defp step_state(_failed), do: :failed
+
+  defp stalled?(%{name: "buy"}, %{} = shown), do: purchase_stalled?(shown)
+  defp stalled?(entry, nil), do: Presses.stalled?(entry)
+  defp stalled?(_entry, _shown), do: false
+
+  defp arrival("base"),
+    do: "Sends the USDC to REGENT staking. Your Credits arrive in about 2 seconds."
+
+  defp arrival("ethereum"),
     do:
-      "Two presses: Approve lets REGENT staking take #{dollars} USDC, then Buy sends it. Your #{dollars} Credits arrive in about 2 seconds."
+      "Sends the USDC to the Regents treasury. Your Credits arrive after 12 blocks, about 2½ minutes."
 
-  defp how("ethereum", dollars),
-    do:
-      "One press: Buy sends #{dollars} USDC to the Regent treasury. Your #{dollars} Credits arrive after 12 Ethereum blocks, about 2½ minutes."
+  defp switch?(nil, _wallet_chain, _chain), do: false
+  defp switch?(_signer, nil, _chain), do: false
+  defp switch?(_signer, wallet_chain, chain), do: chain_of(wallet_chain) != chain
 
-  defp title(%{name: "approve", review: %{inputs: %{"amount" => amount}}}),
-    do: "Approve #{amount} USDC"
-
-  defp title(%{name: "buy", review: %{inputs: %{"amount" => amount}}}),
-    do: "Buy #{amount} Credits"
-
-  defp title(_unknown), do: "Transaction"
+  defp figure(amount),
+    do: amount |> Amount.format() |> String.replace_suffix(" Credits", "")
 
   defp state(entry, nil), do: OnchainSteps.describe(entry, chain_name_of(entry)).state
   defp state(_entry, %{purchase: nil}), do: :unrecorded
   defp state(_entry, %{purchase: purchase}), do: purchase.status
 
-  defp words(entry, nil), do: OnchainSteps.describe(entry, chain_name_of(entry)).words
+  # A step on its way or done shows as a mark; only trouble needs words.
+  defp words(entry, nil) do
+    case OnchainSteps.describe(entry, chain_name_of(entry)) do
+      %{state: :pending} -> "Waiting for #{chain_name_of(entry)}"
+      %{state: :confirmed} -> nil
+      %{words: words} -> words
+    end
+  end
 
   defp words(_entry, %{purchase: nil}),
     do:
@@ -396,19 +642,19 @@ defmodule RegentsWeb.CreditsPanel do
   defp words(_entry, %{purchase: purchase} = shown) do
     case purchase do
       %{status: :credited, amount: amount} ->
-        "#{Amount.format(amount)} added."
+        "#{Amount.format(amount)} added"
 
       %{status: :failed, reason: "reverted"} ->
-        "This did not go through and nothing moved."
+        "Didn't go through. Nothing moved."
 
       %{status: :failed, reason: "already credited"} ->
-        "This payment was already counted."
+        "Already counted."
 
       %{status: :failed, reason: "not found"} ->
-        "#{chain_name(purchase.chain)} never showed this payment, so no Credits were added."
+        "#{chain_name(purchase.chain)} never showed this payment. No Credits added."
 
       %{status: :failed} ->
-        "This transaction is not the purchase this page prepared, so no Credits were added. If USDC left your wallet, post the link in Credits help."
+        "Not the purchase this page prepared. No Credits added. If USDC left your wallet, post the link in Credits help."
 
       %{status: :checking} ->
         checking_words(shown)
@@ -418,13 +664,13 @@ defmodule RegentsWeb.CreditsPanel do
   defp checking_words(%{purchase: purchase} = shown) do
     cond do
       purchase_stalled?(shown) ->
-        "Still being checked. Your balance updates as soon as it counts, even if you close this page."
+        "Still checking. It counts even if you close this page."
 
       purchase.chain == :ethereum and purchase.block_number ->
-        "On Ethereum. Your Credits arrive after 12 blocks, about 2½ minutes."
+        "Waiting for 12 Ethereum blocks, about 2½ minutes"
 
       true ->
-        "Sent. Waiting for #{chain_name(purchase.chain)}."
+        "Waiting for #{chain_name(purchase.chain)}"
     end
   end
 
@@ -439,8 +685,8 @@ defmodule RegentsWeb.CreditsPanel do
   defp chain_name(chain) when chain in ["base", :base], do: "Base"
   defp chain_name(chain) when chain in ["ethereum", :ethereum], do: "Ethereum"
 
-  defp usdc(nil), do: "reading USDC balance"
-  defp usdc(:unread), do: "USDC balance unavailable right now"
+  defp usdc(nil), do: "…"
+  defp usdc(:unread), do: "unavailable"
 
   defp usdc(micro) do
     dollars = micro |> Decimal.new() |> Decimal.div(1_000_000) |> Decimal.round(2, :down)

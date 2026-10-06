@@ -228,6 +228,12 @@ defmodule RegentsWeb.ShellLive do
 
         <CreditsLive.refunds :if={@route_spec.route_id == :credits_refunds} />
 
+        <CreditsLive.history
+          :if={@route_spec.route_id == :account_credits}
+          account={current_account(@access_context)}
+          balance={@credits}
+        />
+
         <CreditsLive.admin
           :if={@route_spec.route_id == :credits_admin}
           account={current_account(@access_context)}

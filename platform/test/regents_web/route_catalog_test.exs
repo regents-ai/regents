@@ -13,6 +13,7 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/",
     "/app",
     "/account",
+    "/account/credits",
     "/regents/:slug",
     "/stake",
     "/redeem",
@@ -122,7 +123,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 12
+    assert length(decoded["routes"]) == 13
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 
