@@ -99,7 +99,7 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub regents-ai](https://github.com/regents-ai) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base |
 | Token contract | `0x6f89bcA4eA5931EdFCB09786267b251DeE752b07` |
-| Staking | USDC from Regents Labs products and REGENT emissions. [Stake REGENT]({{origin}}/stake); staking contract `0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5` |
+| Staking | USDC from Regents Labs products and REGENT emissions. Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury. [Stake REGENT]({{origin}}/stake); staking contract `0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5` |
 
 Staking involves contract and network conditions, wallet approval and financial risk. No return is guaranteed.
 

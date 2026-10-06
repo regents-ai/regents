@@ -37,9 +37,10 @@ defmodule RegentsWeb.HomeLive do
 
     #{@staking_summary}
 
-    Eligible USDC deposits are allocated by stake share. REGENT emissions depend on the
-    contract's rate and available inventory; the rate can change. Stake, unstake, claim
-    and compound require your wallet signature. No return is guaranteed.
+    Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes
+    to the Regents Labs treasury. REGENT emissions depend on the contract's rate and
+    available inventory; the rate can change. Stake, unstake, claim and compound require
+    your wallet signature. No return is guaranteed.
 
     [Staking](#{PublicDocuments.url("/stake")}) · [Redemption](#{PublicDocuments.url("/redeem")})
 
@@ -474,8 +475,10 @@ defmodule RegentsWeb.HomeLive do
       </p>
       <dl class="rl-regent-economics">
         <div>
-          <dt>USDC by stake share</dt>
-          <dd>Eligible USDC deposits into the contract are allocated according to stake share.</dd>
+          <dt>USDC by share of all REGENT</dt>
+          <dd>
+            Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury.
+          </dd>
         </div>
         <div>
           <dt>Contract-defined emissions</dt>

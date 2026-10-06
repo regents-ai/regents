@@ -841,3 +841,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   so it stays as the person is reading it.
 - Reads the sign-in service's paged activity answer (`next`, sent back as `after`);
   needs that version of the sign-in service live first.
+
+## 2026-10-06 — Staking wording says how deposits are split
+
+- Sean's decision 56 a: the home page, its agent text and the Staking row on About
+  and llms.txt now say each USDC deposit is shared with stakers by their share of all
+  REGENT, with the rest going to the Regents Labs treasury. "Allocated by stake
+  share" read as a share of what is staked, which is not how the contract pays.

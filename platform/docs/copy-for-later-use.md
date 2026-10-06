@@ -322,8 +322,8 @@ actions. The number in the second entry was the contract's live emissions APR.
 
 - Kicker: Why stake
 - Heading: One position, two reward sources
-- 01 USDC revenue rewards: Eligible USDC deposited into the contract is accounted across stakers
-  according to stake share.
+- 01 USDC revenue rewards: Each USDC deposit is shared with stakers by their share of all
+  REGENT; the rest goes to the Regents Labs treasury.
 - 02 REGENT emissions: The contract currently reports a {live APR} emissions APR, subject to
   onchain changes and available inventory.
 - 03 You stay in control: Stake, unstake, claim, or compound through the connected wallet. Every
