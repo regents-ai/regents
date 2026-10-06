@@ -225,6 +225,7 @@ function page(form: Record<string, string>) {
     id: "staking-actions",
     contains: () => true,
     querySelectorAll: () => Object.values(fields),
+    querySelector: () => null,
     addEventListener: (_type: string, listener: (event: Event) => void) => { clicked = listener },
     removeEventListener: () => {},
   } as unknown as HTMLElement
@@ -318,6 +319,16 @@ describe("the wallet-button hook", () => {
     expect(pushed.slice(2)).toEqual([["step_failed", {step: "stake", reason: "step_unknown"}]])
   })
 
+  it("asks for a review when pressed before the first one arrives", async () => {
+    const {sends} = wallet()
+    const view = mount(inputs)
+
+    view.click(view.primary)
+    expect(pushed).toEqual([["prepare_and_send", {form: inputs, step: "stake"}]])
+    view.replies[0].resolve({review, send: "stake"})
+    await vi.waitFor(() => expect(sends).toHaveLength(1))
+  })
+
   it("opens the connect step at once when no wallet is active, whatever the form says", async () => {
     const view = mount(inputs)
     view.review(review)
@@ -344,7 +355,7 @@ describe("the wallet-button hook", () => {
     view.review({...review, component_id: "another-panel"})
 
     view.click(view.claim)
-    await vi.waitFor(() => expect(pushed).toEqual([["step_failed", {step: "claim_usdc", reason: "step_unknown"}]]))
+    expect(pushed).toEqual([["prepare_and_send", {form: inputs, step: "claim_usdc"}]])
     expect(sends).toHaveLength(0)
   })
 
@@ -353,5 +364,15 @@ describe("the wallet-button hook", () => {
     expect(formInputs(el)).toEqual(inputs)
     fields.for_other.checked = true
     expect(formInputs(el)).toEqual({...inputs, for_other: "true"})
+  })
+
+  it("reads a group of choices as the one chosen", () => {
+    const base = Object.assign(new FakeInput("chain", "radio"), {value: "base", checked: true})
+    const ethereum = Object.assign(new FakeInput("chain", "radio"), {value: "ethereum"})
+    const el = {querySelectorAll: () => [base, ethereum]} as unknown as HTMLElement
+    expect(formInputs(el)).toEqual({chain: "base"})
+    base.checked = false
+    ethereum.checked = true
+    expect(formInputs(el)).toEqual({chain: "ethereum"})
   })
 })

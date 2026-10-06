@@ -20,6 +20,7 @@ defmodule RegentsWeb.ShellLive do
   alias Regents.Formation
   alias RegentsWeb.AccountLive
   alias RegentsWeb.AutolaunchLive
+  alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
@@ -62,7 +63,8 @@ defmodule RegentsWeb.ShellLive do
      |> assign_page(route_spec, uri)
      |> Account.route(route_spec)
      |> Staking.route(route_spec)
-     |> Redemption.route(route_spec)}
+     |> Redemption.route(route_spec)
+     |> read_credits()}
   end
 
   @impl true
@@ -122,6 +124,10 @@ defmodule RegentsWeb.ShellLive do
 
   def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
 
+  # The Credits panel added Credits; the header's balance and the Account page
+  # follow. Every page change reads the balance again too.
+  def handle_info(:credits_changed, socket), do: {:noreply, read_credits(socket)}
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -129,7 +135,15 @@ defmodule RegentsWeb.ShellLive do
       route_spec={@route_spec}
       account_control={@account_control}
       shell_instance={@shell_instance}
+      credits={signed_in_credits(@access_context, @credits)}
     >
+      <:credits_panel :if={signed_in_credits(@access_context, @credits)}>
+        <.live_component
+          module={RegentsWeb.CreditsPanel}
+          id="credits-panel"
+          account={current_account(@access_context)}
+        />
+      </:credits_panel>
       <:content>
         <RegentProfileLive.page
           :if={@route_spec.route_id == :regent_profile}
@@ -163,6 +177,7 @@ defmodule RegentsWeb.ShellLive do
           agent_detail={@agent_detail}
           agent_notice={@agent_notice}
           agents_now={@agents_now}
+          credits={@credits}
         />
 
         <.page
@@ -207,9 +222,30 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id in [:techtree, :patchbay]}
           product={@route_spec.route_id}
         />
+
+        <CreditsLive.refunds :if={@route_spec.route_id == :credits_refunds} />
+
+        <CreditsLive.admin
+          :if={@route_spec.route_id == :credits_admin}
+          account={current_account(@access_context)}
+        />
       </:content>
     </.shell>
     """
+  end
+
+  # A session that ends while the page is open takes the balance and the panel
+  # with it at once; the balance read at mount is never shown to nobody.
+  defp signed_in_credits(_access_context, nil), do: nil
+
+  defp signed_in_credits(access_context, credits),
+    do: if(authenticated?(access_context), do: credits.available)
+
+  defp read_credits(socket) do
+    case current_account(socket.assigns.access_context) do
+      nil -> assign(socket, :credits, nil)
+      account -> assign(socket, :credits, RegentCredits.balance(account.privy_user_id))
+    end
   end
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do

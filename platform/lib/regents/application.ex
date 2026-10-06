@@ -17,6 +17,8 @@ defmodule Regents.Application do
         # After the repository and PubSub: agent changes made on any Regent
         # site reach the Account pages showing them.
         agents_listener_child(),
+        # After the repository: background jobs, including Credits purchase checks.
+        oban_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
         Regents.Ens,
@@ -45,6 +47,18 @@ defmodule Regents.Application do
   defp agents_listener_child do
     if Application.get_env(:regents, :database_startup_enabled, false),
       do: RegentAgents.Listener
+  end
+
+  # AshOban adds a queue and a sweep for every trigger in the site's domains and
+  # in Regent Credits, whose purchase checks run on this site's Oban.
+  defp oban_child do
+    if Application.get_env(:regents, :database_startup_enabled, false) do
+      {Oban,
+       AshOban.config(
+         Application.fetch_env!(:regents, :ash_domains) ++ [RegentCredits],
+         Application.fetch_env!(:regents, Oban)
+       )}
+    end
   end
 
   # Metrics are served beside the site, never by a process that only runs a task.

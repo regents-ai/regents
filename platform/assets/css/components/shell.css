@@ -521,7 +521,9 @@ details[open] > summary .shell-chevron {
   #shell-header { flex-wrap: nowrap; }
   #shell-header .rl-header-links { display: none; }
   #shell-header > a:not(.shell-brand) { display: none; }
-  #shell-header .account-control { min-width: 0; }
+  /* Only the brand's name gives way; the account button and the Credits
+     balance keep their width. */
+  #shell-header .account-control { min-width: 0; flex: 0 0 auto; }
   /* The account button keeps its 6rem cap; the name shrinks to an ellipsis so
      the avatar and chevron stay inside the cap instead of spilling past the
      screen edge. */

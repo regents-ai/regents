@@ -1,0 +1,253 @@
+@layer regents-product {
+/* Regent Credits: the header's balance and the Buy Credits dialog it opens. */
+
+#app-shell .shell-credits {
+  align-self: center;
+  min-height: 2.5rem;
+  margin-inline-end: var(--space-1);
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  #app-shell .shell-credits:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+}
+
+.shell-credits-dialog {
+  box-sizing: border-box;
+  width: min(34rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 4rem);
+  padding: 1.25rem;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  box-shadow: 0 1.5rem 3rem -1rem color-mix(in oklch, var(--palette-charcoal) 35%, transparent);
+  overflow-y: auto;
+}
+
+.shell-credits-dialog::backdrop {
+  background: var(--ash-scrim);
+}
+
+/* Pinned to the corner rather than floated, so the panel keeps the full width. */
+.shell-credits-dialog__close {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+}
+
+.shell-credits-dialog .credits-panel__head {
+  padding-inline-end: 5rem;
+}
+
+.account-credits h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.15rem;
+  font-weight: 400;
+}
+
+.account-credits > button {
+  justify-self: start;
+}
+
+.credits-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.credits-panel h2,
+.credits-panel p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.credits-panel__head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.credits-panel__balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.credits-panel__balance strong {
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.credits-panel__muted,
+.credits-panel__note,
+.credits-panel__rules {
+  color: var(--color-fg-muted);
+}
+
+.credits-panel__form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.credits-panel__form input[name="amount"] {
+  max-width: 10rem;
+}
+
+.credits-panel__chains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.credits-panel__chains legend {
+  margin-block-end: 0.35rem;
+  padding: 0;
+}
+
+.credits-panel__chains label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.credits-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.credits-panel__sent {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.credits-panel__sent li {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+
+.credits-panel__sent li:is([data-state="reverted"], [data-state="not_this_step"], [data-state="unknown"], [data-state="failed"], [data-state="unrecorded"]) {
+  border-color: var(--color-accent);
+}
+
+.credits-panel__rules {
+  display: grid;
+  gap: 0.5rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 47.99rem) {
+  /* The balance keeps its full width; the brand's name gives way first. */
+  #app-shell .shell-credits {
+    flex: 0 0 auto;
+    margin-inline-end: 0;
+    padding-inline: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  #app-shell .shell-credits__unit {
+    display: none;
+  }
+
+  .shell-credits-dialog {
+    width: calc(100% - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem;
+  }
+}
+
+/* Agent spending, the admin parts and the refund rules (regents.sh). */
+
+.credits-agents,
+.credits-agent,
+.credits-admin,
+.credits-admin__part,
+.credits-admin form,
+.credits-refunds {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.credits-agents {
+  gap: 2rem;
+}
+
+.credits-admin {
+  gap: 2.5rem;
+}
+
+.credits-agent h4,
+.credits-agent p,
+.credits-admin h2,
+.credits-admin p,
+.credits-refunds h1,
+.credits-refunds h2,
+.credits-refunds p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.credits-agent input:not([type="checkbox"]),
+.credits-admin input,
+.credits-admin textarea {
+  width: 100%;
+  font: inherit;
+}
+
+.credits-agent fieldset {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.credits-agent > button,
+.credits-admin form > button {
+  justify-self: start;
+}
+
+.credits-admin__list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.credits-admin__list li {
+  display: grid;
+  gap: 0.5rem;
+  padding-block-end: 1rem;
+  border-block-end: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+
+.credits-admin__list li > button {
+  justify-self: start;
+}
+}

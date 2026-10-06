@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the extensions install, the regents_app baseline, agent pairing, its copy to the shared pairing, the removal of the old pairing and the removal of the allowance" do
+  test "the application migrations are the extensions install, the regents_app baseline, agent pairing, its copy to the shared pairing, the removal of the old pairing, the removal of the allowance and Oban" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -33,6 +33,8 @@ defmodule RegentsWeb.BoundaryTest do
     assert [allowance_drop_migration] =
              Path.wildcard("priv/repo/migrations/*_drop_regent_allowance.exs")
 
+    assert [oban_migration] = Path.wildcard("priv/repo/migrations/*_add_oban.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
@@ -41,7 +43,8 @@ defmodule RegentsWeb.BoundaryTest do
                activity_drop_migration,
                copy_migration,
                old_pairing_drop_migration,
-               allowance_drop_migration
+               allowance_drop_migration,
+               oban_migration
              ])
 
     # The copy only adds rows to the shared pairing.

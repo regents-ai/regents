@@ -27,6 +27,7 @@ defmodule RegentsWeb.AccountLive do
   attr :agent_detail, :map, default: nil
   attr :agent_notice, :any, default: nil
   attr :agents_now, DateTime, default: nil
+  attr :credits, :map, default: nil, doc: "The account's Credits balance; nil when signed out."
 
   def page(assigns) do
     ~H"""
@@ -129,6 +130,48 @@ defmodule RegentsWeb.AccountLive do
           now={@agents_now}
         />
 
+        <section
+          :if={@credits}
+          id="account-credits"
+          class="account-panel account-details account-credits"
+          aria-labelledby="account-credits-title"
+        >
+          <div class="account-names__heading">
+            <h2 id="account-credits-title">Credits</h2>
+            <p>
+              One balance for every Regent site. One Credit is one US dollar.
+            </p>
+          </div>
+          <dl>
+            <div>
+              <dt>Available</dt>
+              <dd>{RegentCredits.Amount.format(@credits.available)}</dd>
+            </div>
+            <div :if={Decimal.gt?(@credits.held, 0)}>
+              <dt>Held for bids and posts</dt>
+              <dd>{RegentCredits.Amount.format(@credits.held)}</dd>
+            </div>
+          </dl>
+          <Regent.Primitives.button
+            type="button"
+            phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+          >
+            Buy Credits
+          </Regent.Primitives.button>
+
+          <h3>What your agents may spend</h3>
+          <p>
+            Spending starts off for every agent. Turn it on for an agent and set its limits; they apply on every site you tick.
+          </p>
+          <.live_component
+            module={RegentsWeb.CreditsAgentSpending}
+            id="account-agent-spending"
+            actor={Regents.Credits.person(@account)}
+            agents={agent_wallets(@agents)}
+            sites={Regents.Credits.agent_sites()}
+          />
+        </section>
+
         <section class="account-panel account-names" aria-labelledby="account-names-title">
           <div class="account-names__heading">
             <h2 id="account-names-title">Claimed Regent Names</h2>
@@ -206,6 +249,10 @@ defmodule RegentsWeb.AccountLive do
     </article>
     """
   end
+
+  # The wallets of the agents paired to this account, which may be given Credits to spend.
+  defp agent_wallets(agents) when is_list(agents), do: Enum.map(agents, &{&1.wallet, &1.name})
+  defp agent_wallets(_unread), do: []
 
   # The name Ethereum publishes for the wallet, read for them; a wallet that has
   # not been answered for yet is never shown as having no name.

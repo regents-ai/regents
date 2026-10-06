@@ -66,6 +66,12 @@ if config_env() != :test do
   end
 end
 
+# The Privy accounts that may give Credits and handle refunds, comma separated.
+if admins = System.get_env("REGENT_CREDITS_ADMINS") do
+  config :regent_credits,
+    admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+end
+
 migrating? = System.get_env("REGENTS_RELEASE_COMMAND") == "migrate"
 
 database_config =

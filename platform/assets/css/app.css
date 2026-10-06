@@ -18,6 +18,7 @@
 @import "./pages/regent_profile.css";
 @import "./pages/account.css";
 @import "./components/account_auth_status.css";
+@import "./components/credits.css";
 
 :root {
   color-scheme: light dark;

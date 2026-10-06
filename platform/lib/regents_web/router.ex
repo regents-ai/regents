@@ -140,6 +140,8 @@ defmodule RegentsWeb.Router do
       live "/autolaunch", ShellLive, :autolaunch
       live "/techtree", ShellLive, :techtree
       live "/patchbay", ShellLive, :patchbay
+      live "/credits/refunds", ShellLive, :credits_refunds
+      live "/admin/credits", ShellLive, :credits_admin
     end
   end
 end

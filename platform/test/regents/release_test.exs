@@ -181,6 +181,8 @@ defmodule Regents.ReleaseTest do
              "account_ens_identities",
              "cloud_runtimes",
              "linked_identities",
+             "oban_jobs",
+             "oban_peers",
              "regents",
              "schema_migrations",
              "session_authorities"
@@ -196,6 +198,19 @@ defmodule Regents.ReleaseTest do
              "paired_agents",
              "pairing_codes",
              "schema_migrations"
+           ]
+
+    assert table_names(config, "regent_credits") == [
+             "accounts",
+             "agent_permissions",
+             "balances",
+             "first_uses",
+             "gifts",
+             "holds",
+             "purchases",
+             "refunds",
+             "schema_migrations",
+             "transfers"
            ]
   end
 

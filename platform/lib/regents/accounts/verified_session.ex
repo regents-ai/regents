@@ -1,5 +1,8 @@
 defmodule Regents.Accounts.VerifiedSession do
-  @moduledoc "Exchanges verified Privy evidence for the canonical human account."
+  @moduledoc """
+  Exchanges verified Privy evidence for the canonical human account, and moves
+  Credits waiting under its verified wallets to it.
+  """
 
   alias Regents.Accounts
   alias Regents.Actors.System
@@ -18,7 +21,9 @@ defmodule Regents.Accounts.VerifiedSession do
              {:ok, account} <-
                Accounts.refresh_verified(account, primary, addresses, actor: actor),
              {:ok, conflicts} <-
-               reconcile_linked_identities(account, verified.linked_socials, actor) do
+               reconcile_linked_identities(account, verified.linked_socials, actor),
+             {:ok, _moved} <-
+               RegentCredits.attach_wallets(did, addresses, actor: Regents.Credits.site_actor()) do
           # Started, never awaited: the chain is slow and sign-in is not.
           Ens.refresh(account)
           {:ok, account, conflicts}

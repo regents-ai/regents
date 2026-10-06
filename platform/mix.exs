@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "467cba652f975f8ddbc169dac499d696bcb24248"
+  @elixir_utils_ref "f3cfb29feea8a7896c770f2e1a6747896ed65294"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "970b5bcf0d283ca7063a43c35e649ee04a5e8022"
 
@@ -55,6 +55,9 @@ defmodule Regents.MixProject do
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
+      {:oban, "~> 2.24"},
+      {:ash_oban, "~> 0.9.0"},
+      {:ash_phoenix, "~> 2.3.25"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.13.3"},
@@ -73,7 +76,10 @@ defmodule Regents.MixProject do
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
       {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
-      {:regent_chain, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain"},
+      # regent_credits names regent_chain by a sibling path; this pin replaces it.
+      {:regent_chain,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
+      {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
       {:regent_sprites, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "sprites"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
@@ -141,6 +147,9 @@ defmodule Regents.MixProject do
         "esbuild regents --minify",
         "phx.digest"
       ],
+      # The test database is prepared before the site starts, since its Oban
+      # refuses to start without its tables.
+      test: ["ecto.create --quiet", "regents.setup_local_auth", "test"],
       "test.external": ["test --only external"],
       precommit: [
         "compile --warnings-as-errors",

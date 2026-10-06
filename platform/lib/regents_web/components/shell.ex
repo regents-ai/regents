@@ -14,7 +14,14 @@ defmodule RegentsWeb.Components.Shell do
   attr(:route_spec, :map, required: true)
   attr(:account_control, Regents.AccessContext.AccountControl, required: true)
   attr(:shell_instance, :integer, required: true)
+
+  attr(:credits, Decimal,
+    default: nil,
+    doc: "The Credits available to spend; nil when signed out."
+  )
+
   slot(:content, required: true)
+  slot(:credits_panel, doc: "The Buy Credits panel, opened from the header's balance.")
 
   def shell(assigns) do
     ~H"""
@@ -64,8 +71,36 @@ defmodule RegentsWeb.Components.Shell do
           <RegentLinks.header_links id="shell-token-menu" />
         </div>
 
+        <button
+          :if={@credits}
+          id="shell-credits-button"
+          class="shell-credits"
+          type="button"
+          aria-haspopup="dialog"
+          aria-controls="shell-credits"
+          aria-label={RegentCredits.Amount.format(@credits)}
+          phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+        >
+          <.credits_amount amount={@credits} />
+        </button>
+
         <.account_control account_control={@account_control} />
       </header>
+
+      <dialog
+        :if={@credits_panel != []}
+        id="shell-credits"
+        class="shell-credits-dialog"
+        aria-label="Buy Credits"
+        phx-hook="InfoDialog"
+      >
+        <form method="dialog" class="shell-credits-dialog__close">
+          <Regent.Primitives.button variant="quiet" type="submit" value="close">
+            Close
+          </Regent.Primitives.button>
+        </form>
+        {render_slot(@credits_panel)}
+      </dialog>
 
       <nav
         id="shell-sidebar"
@@ -112,6 +147,18 @@ defmodule RegentsWeb.Components.Shell do
         <RegentsWeb.Layouts.product_links />
       </div>
     </div>
+    """
+  end
+
+  attr(:amount, Decimal, required: true)
+
+  # "12.40 Credits", whose unit a phone's header leaves out for room.
+  defp credits_amount(assigns) do
+    [number, unit] = String.split(RegentCredits.Amount.format(assigns.amount), " ", parts: 2)
+    assigns = assign(assigns, number: number, unit: unit)
+
+    ~H"""
+    {@number} <span class="shell-credits__unit">{@unit}</span>
     """
   end
 

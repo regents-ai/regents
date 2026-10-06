@@ -53,24 +53,29 @@ export const OnchainSteps: Hook = {
     })
 
     // Every press runs on its own and reaches the wallet, even while an earlier
-    // one is still there. A press whose review no longer matches the form on
-    // screen asks the server for the matching review and sends what comes back.
+    // one is still there. On a component with review inputs, a press with no
+    // review yet, or whose review no longer matches the form on screen, asks the
+    // server for the matching review and sends what comes back.
     this.clicked = event => {
       const button = (event.target as Element | null)?.closest<HTMLElement>("[data-onchain-step]")
       const name = button?.dataset.onchainStep
       if (!button || !name || !this.el.contains(button)) return
       const release = mark(button)
       const form = formInputs(this.el)
+      const asks = Object.keys(form).length > 0 && (!this.review || !sameInputs(this.review.inputs, form))
+      lost(this.el, false)
 
-      if (activeEthereumWallet() && this.review && !sameInputs(this.review.inputs, form)) {
+      if (activeEthereumWallet() && asks) {
         void this.pushEventTo(this.el, "prepare_and_send", {form, step: name})
           .then(([result]) => {
-            const reply = result?.status === "fulfilled" ? result.value.reply as {review?: Review; send?: string} : {}
+            // The server never heard the press, so it cannot say why; the page does.
+            if (result?.status !== "fulfilled") return lost(this.el, true)
+            const reply = result.value.reply as {review?: Review; send?: string}
             if (reply.review && reply.send) return press(reply.review, reply.send, push)
             return push("step_failed", {step: name, reason: "step_unknown"})
           })
           // A lost connection drops the question; the button comes back to press again.
-          .catch(() => {})
+          .catch(() => lost(this.el, true))
           .finally(release)
       } else {
         void press(this.review, name, push).finally(release)
@@ -130,15 +135,20 @@ export async function press(review: Review | undefined, name: string, push: Push
   }
 }
 
-/** The review's inputs as they are on screen now: text as typed, boxes as "true" or "false". */
+/**
+ * The review's inputs as they are on screen now: text as typed, a box as
+ * "true" or "false", and a group of choices as the one chosen.
+ */
 export function formInputs(root: HTMLElement): Record<string, string> {
   const inputs: Record<string, string> = {}
   root.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-onchain-input]").forEach(input => {
     const name = input.dataset.onchainInput
     if (!name) return
-    inputs[name] = input instanceof HTMLInputElement && (input.type === "checkbox" || input.type === "radio")
-      ? String(input.checked)
-      : input.value
+    if (input instanceof HTMLInputElement && input.type === "radio") {
+      if (input.checked) inputs[name] = input.value
+    } else {
+      inputs[name] = input instanceof HTMLInputElement && input.type === "checkbox" ? String(input.checked) : input.value
+    }
   })
   return inputs
 }
@@ -158,4 +168,11 @@ function mark(button: HTMLElement): () => void {
     presses.set(button, left)
     if (left <= 0) delete button.dataset.awaitingWallet
   }
+}
+
+// The component's `data-onchain-lost` line, shown when a press could not reach
+// the server. The next render from the server hides it again.
+function lost(root: HTMLElement, shown: boolean): void {
+  const line = root.querySelector<HTMLElement>("[data-onchain-lost]")
+  if (line) line.hidden = !shown
 }

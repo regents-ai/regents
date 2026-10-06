@@ -856,3 +856,28 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   package's own rules (Ash, the Ash extensions, Phoenix and LiveView), so agents
   read the rules for the exact versions Regents runs. The checks fail if that
   block falls out of step with the installed packages. Same setup as the template.
+
+## 2026-10-06 — Regent Credits on regents.sh
+
+- Plan phase 2 (Sean's 57, 59 a–62 a): regents.sh adopts the shared Credits
+  library (elixir-utils f3cfb29) the template proved. Signed in, the header shows
+  the Credits balance; pressing it opens Buy Credits, the same panel as the
+  template (Base: Approve then Buy into REGENT staking; Ethereum: one transfer to
+  the treasury, counted after 12 blocks).
+- Account gains a Credits section: the balance, Buy Credits, and what each paired
+  agent may spend (on or off, most per spend, a daily limit, which sites).
+- New pages: /credits/refunds (the refund rules Sean approved, 60 a) and
+  /admin/credits (give Credits, find purchases, send refunds), open only to the
+  Privy accounts named in REGENT_CREDITS_ADMINS.
+- Signing in moves any Credits given to the person's wallets onto their account.
+- The site gains Oban (its own regents_app schema, PG notifier for pgbouncer) to
+  check purchases. Release migrations now also run the Credits schema, after
+  the payments schema. Neither has run in production; that needs Sean's go.
+- The test database is prepared before the site starts (`mix test` runs
+  `regents.setup_local_auth` first), since Oban will not start without its table.
+- Wallet buttons: a choice between options reports the one chosen, a press made
+  before the page has its first review asks the server for it, and a press that
+  cannot reach the server shows a plain line. Regents keeps opening Privy's
+  connect step when no wallet is open.
+- On a phone the header shows the balance as a number only, and the brand's name
+  gives way so the account button stays on screen.

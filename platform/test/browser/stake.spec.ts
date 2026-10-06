@@ -115,7 +115,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
 
   // Every claim is offered whatever the last reading from Base said about it,
   // so no control is ever disabled and each names its own step.
-  await expect(page.locator("button[data-onchain-step][disabled]")).toHaveCount(0)
+  await expect(page.locator("#route-content button[data-onchain-step][disabled]")).toHaveCount(0)
   for (const action of ["claim_usdc", "claim_regent", "claim_and_restake_regent"]) {
     await expect(page.locator(`#staking-${action}[data-onchain-step="${action}"]`)).toBeEnabled()
   }
@@ -152,7 +152,7 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
 
   // The position is read and shown; every control asks for the sign-in instead.
   await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
-  await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
+  await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
   await expect(page.locator("button.stake-submit")).toHaveAttribute(
     "data-account-target",
     "sign-in",
@@ -186,7 +186,7 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   await signOut(page)
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page).toHaveURL(/\/stake$/)
-  await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
+  await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-submit").click()
@@ -274,7 +274,7 @@ async function expectDisconnected(page: Page): Promise<void> {
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page.getByRole("button", {name: "Connect wallet", exact: true})).toBeVisible()
   await expect(page.locator(".stake-wallet-summary")).toHaveCount(0)
-  await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
+  await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 }
 
 // A signed-in document asks for the Privy bridge on load. These acceptance
@@ -363,7 +363,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(connect).toHaveAttribute("data-account-target", "sign-in")
     await expect(page.getByText("Available REGENT", {exact: true})).toHaveCount(0)
     await expect(page.getByText("Currently staked", {exact: true})).toHaveCount(0)
-    await expect(page.locator("button[data-onchain-step]")).toHaveCount(0)
+    await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 
     const fit = await page.evaluate(viewport => {
       const addresses = [...document.querySelectorAll<HTMLElement>(".stake-contract-facts code")]

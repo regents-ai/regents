@@ -87,7 +87,7 @@ test("Redeem sends each press straight to the signed-in wallet and follows it on
   await expect(next).toHaveText(/Approve NFT collection/)
   await expect(next).toHaveAttribute("data-onchain-step", "approve_nft_collection")
   await expect(page.getByRole("button", {name: "Approve 80 USDC"})).toHaveCount(0)
-  await expect(page.locator("button[data-onchain-step][disabled]")).toHaveCount(0)
+  await expect(page.locator("#route-content button[data-onchain-step][disabled]")).toHaveCount(0)
   const claim = page.locator("#redemption-claim")
   await expect(claim).toHaveAttribute("data-onchain-step", "claim")
   await expect(claim).toBeEnabled()

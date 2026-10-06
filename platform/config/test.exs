@@ -48,6 +48,9 @@ config :regent_agents,
 config :regents, :siwa_req_options, plug: {Req.Test, Regents.Siwa}
 config :regents, :database_startup_enabled, true
 
+# Jobs are queued, never run, unless a test runs one itself.
+config :regents, Oban, testing: :manual
+
 # ENS lookups answer from a stubbed mainnet whose replies are chosen by the
 # wallet asking, so no test reaches a real endpoint.
 config :regents, :ethereum_read_rpc_url, "https://ethereum.test.invalid"

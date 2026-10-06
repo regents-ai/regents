@@ -84,6 +84,20 @@ defmodule RegentsWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :patchbay
+    },
+    %Entry{
+      path_pattern: "/credits/refunds",
+      live_action: :credits_refunds,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :credits_refunds
+    },
+    %Entry{
+      path_pattern: "/admin/credits",
+      live_action: :credits_admin,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :credits_admin
     }
   ]
 
@@ -115,6 +129,12 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     patchbay:
       {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
+       :regents_labs, %{}},
+    credits_refunds:
+      {:credits_refunds, :regent_ops, "Regents Labs", "Credits refunds", "/app",
+       [:profile_actions], :regents_labs, %{}},
+    credits_admin:
+      {:credits_admin, :regent_ops, "Regents Labs", "Credits admin", "/app", [:profile_actions],
        :regents_labs, %{}}
   }
 

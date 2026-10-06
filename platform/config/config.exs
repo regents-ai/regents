@@ -16,6 +16,25 @@ config :regent_agents,
   account: {Regents.AgentAccount, :account},
   ash_domains: [RegentAgents]
 
+# Regent Credits: one prepaid balance per Privy account, shared by every Regent
+# site. Credits are the private currency XRC, kept to the millionth. Admins come
+# from REGENT_CREDITS_ADMINS at runtime. Purchases are checked through the
+# site's own Base and Ethereum read endpoints; `rpc_url` is the public address a
+# wallet adds each chain with.
+config :ex_money,
+  custom_currencies: [{:XRC, name: "Credits", digits: 6}],
+  auto_start_exchange_rate_service: false
+
+config :regent_credits,
+  repo: Regents.Repo,
+  ash_domains: [RegentCredits],
+  admins: [],
+  chain_client: Regents.ChainClient,
+  chains: %{
+    base: %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"},
+    ethereum: %{chain_id: 1, name: "Ethereum", rpc_url: "https://ethereum-rpc.publicnode.com"}
+  }
+
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes
 # (`:mixed`) do not, because one grapheme can carry unbounded combining marks
@@ -37,6 +56,19 @@ config :regents,
   generators: [timestamp_type: :utc_datetime]
 
 config :regents, ecto_repos: [Regents.Repo]
+
+# Background jobs live in the site's own schema, beside its tables. The serving
+# connection goes through a pooler that drops LISTEN/NOTIFY, so queues hear about
+# new jobs through Erlang process groups instead. `regent_credits` checks Credits
+# purchases on chain; AshOban adds each trigger's sweep to `cron`.
+config :regents, Oban,
+  repo: Regents.Repo,
+  prefix: "regents_app",
+  notifier: Oban.Notifiers.PG,
+  queues: [regent_credits: 3],
+  cron: [crontab: []],
+  pruner: [max_age: {7, :days}],
+  lifeline: [rescue_after: {10, :minutes}]
 
 config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 9091
 

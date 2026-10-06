@@ -119,7 +119,7 @@ defmodule RegentsWeb.StakeLiveTest do
     end
 
     refute has_element?(view, "#staking-amount")
-    refute has_element?(view, "button[data-onchain-step]")
+    refute has_element?(view, "#route-content button[data-onchain-step]")
   end
 
   test "HERO_SUPPLY: the hero carries circulating and total REGENT", %{conn: conn} do
@@ -248,7 +248,7 @@ defmodule RegentsWeb.StakeLiveTest do
     refute has_element?(view, "#staking-benefits-skeleton")
     refute has_element?(view, ".loading-skeleton")
     refute has_element?(view, "#staking-supply-bar")
-    refute has_element?(view, "button[data-onchain-step]")
+    refute has_element?(view, "#route-content button[data-onchain-step]")
 
     # The same figures, in the same places, each saying it could not be read,
     # and never a zero in its place.
@@ -1332,7 +1332,7 @@ defmodule RegentsWeb.StakeLiveTest do
   end
 
   defp assert_offers_sign_in(view) do
-    refute has_element?(view, "button[data-onchain-step]")
+    refute has_element?(view, "#route-content button[data-onchain-step]")
 
     for label <- ["Stake REGENT" | @claim_controls] do
       assert has_element?(view, sign_in_control(), label)
