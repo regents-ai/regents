@@ -75,6 +75,23 @@ reference/        Read-only reference copies of prior implementations
 bin/gate.sh       The repository gate script
 ```
 
+## The live REGENT staking contract
+
+`RegentRevenueStaking` runs on Base at `0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5`, owned by
+the Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e`, which is also its treasury recipient.
+`src/staking/RegentRevenueStaking.sol` is its verified source.
+
+- Each `depositUSDC` pays stakers by their share of all REGENT (the supply figure the
+  contract was deployed with), not by their share of what is staked. The rest goes to the
+  treasury pot, which the Safe can withdraw.
+- Unstaking has no lock-up, so a holder can stake, trigger a deposit, unstake and claim in
+  one transaction. What they gain comes out of the treasury pot, not from other stakers.
+- Contracts that pay this staking contract at an address fixed when they were deployed:
+  the Patchbay escrow `0x170FA3C1bD90220AF4c4609078a1016d01be7681`, and the Patchbay Offers
+  escrow once it is deployed. **Before this staking contract is ever paused or retired,
+  push the revenue owed in each of them first**: a paused contract refuses their deposits,
+  and they can never point at a new one. Any new staking contract needs new escrows with it.
+
 ## Boundaries
 
 This repository owns Solidity source, Foundry tests, deployment scripts, verified deployment
