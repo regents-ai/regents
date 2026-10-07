@@ -977,3 +977,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   Other sites only use codes, so their pins need no change.
 - The choice never changes the panel's height: every state's message keeps the
   same place.
+
+## 2026-10-07 — Keyfleet's name
+
+- Sean, 2026-10-07 (relayed by the Keyfleet chief): "the brand is never KeyFleet ,
+  always Keyfleet". An agent's activity on /account names the site Keyfleet.

@@ -15,7 +15,7 @@ defmodule Regents.AgentActivity do
     "autolaunch" => "Autolaunch",
     "techtree" => "Techtree",
     "patchbay" => "Patchbay",
-    "keyfleet" => "KeyFleet"
+    "keyfleet" => "Keyfleet"
   }
 
   @type entry :: %{site: String.t(), action: String.t(), occurred_at: DateTime.t()}
