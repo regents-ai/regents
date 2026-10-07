@@ -923,3 +923,16 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - New columns `human_id` and `same_person_agent_count` on the shared
   `regent_agents.paired_agents` table (migration `20261007080000_agent_human_backing`),
   migrated from Regents' release before any other site takes the new package.
+
+## 2026-10-07 — Security fixes, a public place for questions, the chart's share picture
+
+- Security review round 4 (Sean "1. a … 7. a", plan 136): browsers are told to use
+  only https for regents.sh (HSTS), and /.well-known/security.txt names
+  build@regents.sh. An ENS avatar check no longer follows redirects. A sign-in
+  lapses 30 days after it was made (migration 20261007060127_session_signed_in_at
+  on regents_app.session_authorities).
+- The Contact page points questions to the Regents page on Patchbay
+  (https://patchbay.help/regents.sh, security chief sec/contact-forum ad76f24c);
+  security reports stay on build@regents.sh.
+- The /literature share picture is the light chart, at its own size and a fresh
+  address (General tasks lane, share-cards-1007 1e87145d).
