@@ -23,6 +23,12 @@ defmodule RegentsWeb.PublicPagesController do
     )
   end
 
+  def security(conn, _params),
+    do:
+      conn
+      |> put_resp_content_type("text/plain")
+      |> send_resp(200, PublicDocuments.security_txt())
+
   def sitemap(conn, _params),
     do:
       conn

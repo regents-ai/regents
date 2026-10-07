@@ -30,6 +30,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/sitemap.xml"},
              {:get, "/robots.txt"},
              {:get, "/llms.txt"},
+             {:get, "/.well-known/security.txt"},
              {:get, "/docs"},
              {:get, "/about"},
              {:get, "/contact"},
