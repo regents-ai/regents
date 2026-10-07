@@ -146,6 +146,7 @@ defmodule RegentsWeb.ShellLive do
           id="credits-panel"
           account={current_account(@access_context)}
           balance={@credits}
+          client_tag={@client_tag}
         />
       </:credits_panel>
       <:content>

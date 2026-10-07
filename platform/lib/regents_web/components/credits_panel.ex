@@ -16,8 +16,14 @@ defmodule RegentsWeb.CreditsPanel do
   too little USDC. Explanations wait in tips; the panel shows figures, choices,
   presses and outcomes.
 
+  The wallet figures are read when the paying wallet changes, when the panel
+  opens or comes back into view, and once a step lands; never on an amount or
+  chain edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
+  past it, the figures already shown stay.
+
   The parent passes `account` (the signed-in account), its `balance`
-  (`RegentCredits.balance/1`, kept current by the parent) and `id`.
+  (`RegentCredits.balance/1`, kept current by the parent), the visitor's
+  `client_tag` and `id`.
   """
   use RegentsWeb, :live_component
 
@@ -25,7 +31,7 @@ defmodule RegentsWeb.CreditsPanel do
   alias RegentChain.{Call, Presses, Review}
   alias RegentCredits.{Amount, Chains}
   alias Regents.{ChainClient, Credits}
-  alias RegentsWeb.OnchainSteps
+  alias RegentsWeb.{ChainReadBudget, OnchainSteps}
 
   @recheck_ms 2_000
   @block_ms 2_000
@@ -60,6 +66,7 @@ defmodule RegentsWeb.CreditsPanel do
        id: assigns.id,
        account: account,
        balance: assigns.balance,
+       client_tag: assigns.client_tag,
        linked: wallets(account)
      )
      |> sync()}
@@ -83,13 +90,16 @@ defmodule RegentsWeb.CreditsPanel do
       when is_integer(id) or is_nil(id) do
     socket = assign(socket, wallet_chain: id)
 
-    case chain_of(id) do
-      chain when is_binary(chain) and not socket.assigns.chain_chosen? ->
-        {:noreply, socket |> assign(chain: chain) |> sync()}
+    socket =
+      case chain_of(id) do
+        chain when is_binary(chain) and not socket.assigns.chain_chosen? ->
+          socket |> assign(chain: chain) |> sync()
 
-      _keep ->
-        {:noreply, read_funds(socket)}
-    end
+        _keep ->
+          socket
+      end
+
+    {:noreply, read_funds(socket)}
   end
 
   # A press made before the review caught up with the form: the form is taken
@@ -236,16 +246,16 @@ defmodule RegentsWeb.CreditsPanel do
         Review.new(socket.assigns.id, signer, Chains.chain(@chains[chain]), steps, inputs)
       end
 
+    # A new amount or chain changes no balance, so only a new signer reads them.
     socket =
       if signer == socket.assigns.signer,
         do: socket,
-        else: assign(socket, signer: signer, usdc: %{}, allowance: nil)
+        else: socket |> assign(signer: signer, usdc: %{}, allowance: nil) |> read_funds()
 
     socket
     |> assign(mismatch: OnchainSteps.mismatch_note(linked, active))
     |> remember_number(review)
     |> OnchainSteps.put_review(review)
-    |> read_funds()
   end
 
   defp remember_number(socket, nil), do: socket
@@ -295,6 +305,13 @@ defmodule RegentsWeb.CreditsPanel do
   defp read_funds(%{assigns: %{signer: nil}} = socket, _wait_ms), do: socket
 
   defp read_funds(socket, wait_ms) do
+    case ChainReadBudget.admit(socket.assigns.client_tag) do
+      :ok -> start_reads(socket, wait_ms)
+      {:limited, _seconds} -> socket
+    end
+  end
+
+  defp start_reads(socket, wait_ms) do
     signer = socket.assigns.signer
 
     socket =

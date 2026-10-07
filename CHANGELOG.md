@@ -987,3 +987,12 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 
 - Sean, 2026-10-07: "10 live codes per person". A person holds at most ten live
   pairing codes, not twenty as above; making another retires the oldest.
+
+## 2026-10-07 — Buy Credits reads wallet figures only when they can change
+
+- The Buy Credits panel reads the wallet's USDC and approval when the paying
+  wallet changes, when the panel opens or comes back into view, and once a step
+  lands; typing an amount or picking a chain no longer reads the chain. Each
+  read counts against the visitor's chain-read limit (30 a minute, shared with
+  Stake and Redeem); past it, the figures already shown stay. Carries
+  ash-template f2d6c35's credits panel change (fly-sentinel finding, MEDIUM).
