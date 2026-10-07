@@ -96,10 +96,13 @@ wait_for "the health endpoint" curl --silent --fail "$base/healthz"
 health="$(curl --silent --fail "$base/healthz")"
 [[ $health == ok ]] || fail "the health endpoint answered \"$health\""
 
-home="$(curl --silent --fail "$base/")"
+# Fly's proxy ends TLS and marks each request https; every page but the health
+# check redirects a request without that mark, so these requests carry it.
+proxied=(--header "x-forwarded-proto: https")
+home="$(curl --silent --fail "${proxied[@]}" "$base/")"
 stylesheet="$(grep -oE '/assets/[^"]+-[0-9a-f]{32}\.css' <<<"$home" | head -n 1)" ||
   fail "the home page links no fingerprinted stylesheet"
-stylesheet_answer="$(curl --silent --fail --output /dev/null --write-out '%{http_code} %{content_type} %{size_download} bytes' "$base$stylesheet")"
+stylesheet_answer="$(curl --silent --fail "${proxied[@]}" --output /dev/null --write-out '%{http_code} %{content_type} %{size_download} bytes' "$base$stylesheet")"
 [[ $stylesheet_answer == "200 text/css"* ]] || fail "$stylesheet answered $stylesheet_answer"
 
 connected_database="$(docker exec "$run-app" /app/bin/regents rpc \
