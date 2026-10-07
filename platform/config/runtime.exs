@@ -11,6 +11,18 @@ config :regents, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
   verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
 
+# Without its Privy settings a local server answers every page while nobody can
+# sign in, so it refuses to start. A worktree holds no settings files of its own.
+# Other mix tasks, such as migrations and code generation, run without them.
+if config_env() == :dev and Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint) do
+  for name <- ~w(PRIVY_APP_ID PRIVY_VERIFICATION_KEY), System.get_env(name, "") == "" do
+    raise """
+    #{name} is not set, so nobody could sign in. Start the site with its settings loaded:
+    direnv exec <main checkout>/platform mix phx.server
+    """
+  end
+end
+
 # The browser acceptance server names a test-only Privy app. Production can
 # never take this branch.
 if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do

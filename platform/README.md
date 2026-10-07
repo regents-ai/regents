@@ -35,6 +35,8 @@ cp .env.example .env
 touch .env.local
 printf '%s\n' 'source_env .env' 'source_env_if_exists .env.local' > .envrc
 mix setup
+# Put the Privy values in .env.local first (docs/local-privy-auth.md).
+direnv allow
 mix regents.setup_local_auth
 mix phx.server
 ```
@@ -43,6 +45,9 @@ The site is then at `http://localhost:4000`. Sign-in needs real Privy credential
 [docs/local-privy-auth.md](docs/local-privy-auth.md) for where they come from and how to load
 them. The values are loaded from `.env` and `.env.local` through direnv; put real values
 only in the ignored `.env.local`, never in `.env.example`, and commit none of the three.
+Without `PRIVY_APP_ID` and `PRIVY_VERIFICATION_KEY` the site refuses to start. A worktree
+has no settings files of its own, so start it from the worktree's `platform` folder with
+`direnv exec <main checkout>/platform mix phx.server`.
 
 > [!NOTE]
 > The local flow talks to one loopback PostgreSQL database, `regents_dev`, on
