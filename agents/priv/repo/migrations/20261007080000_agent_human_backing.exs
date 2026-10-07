@@ -18,7 +18,8 @@ defmodule RegentAgents.Migrations.AgentHumanBacking do
              prefix: "regent_agents",
              check:
                "(human_id IS NULL AND same_person_agent_count IS NULL) OR " <>
-                 "(human_id IS NOT NULL AND same_person_agent_count >= 1)"
+                 "(human_id IS NOT NULL AND same_person_agent_count IS NOT NULL AND " <>
+                 "same_person_agent_count >= 1)"
            )
 
     create index(:paired_agents, [:human_id],
