@@ -13,7 +13,7 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
   alias RegentAgents.{PairingCode, Person}
 
   @ttl_seconds 600
-  @live_limit 20
+  @live_limit 10
 
   @impl true
   def run(_input, _opts, %{actor: %Person{} = actor}) do
@@ -76,7 +76,7 @@ defmodule RegentAgents.PairingCode do
   A short-lived code a signed-in person hands their agent. Only its hash is
   kept. Each works once, for ten minutes, on any Regent site. A new code leaves
   the person's earlier ones working until they expire; a person holds at most
-  twenty live codes, and making another retires the oldest.
+  ten live codes, and making another retires the oldest.
   """
 
   use Ash.Resource,

@@ -982,3 +982,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 
 - Sean, 2026-10-07 (relayed by the Keyfleet chief): "the brand is never KeyFleet ,
   always Keyfleet". An agent's activity on /account names the site Keyfleet.
+
+## 2026-10-07 — Ten live pairing codes per person
+
+- Sean, 2026-10-07: "10 live codes per person". A person holds at most ten live
+  pairing codes, not twenty as above; making another retires the oldest.
