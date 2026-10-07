@@ -6,9 +6,10 @@ defmodule RegentAgents.HumanBacking do
 
   The SIWA service sends `null` when no verified person stands behind the
   agent, or the person's World ID number and their agent count once the agent
-  has signed to accept that person and World still names them. Each verified
-  request saves what it was sent onto the paired agent, and `null` clears it,
-  so pages show the saved values and never ask the SIWA service.
+  has signed to accept that person and World still names them. The first person
+  named stays on the paired agent for good: a later `null`, or another person,
+  changes nothing, and each request naming the same person saves their agent
+  count. Pages show the saved values and never ask the SIWA service.
 
   The person's number only groups one person's agents. It is never shown,
   logged or answered to anyone. Every Regent site describes an agent to agents

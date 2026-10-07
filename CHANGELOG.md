@@ -944,3 +944,16 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   agent read of a staking position. Past that, the page keeps the last figures and
   says when to try again; the agent read answers 429 with Retry-After.
 - Wallet buttons never wait on a reading and are never counted.
+
+## 2026-10-07 — An agent's verified human stays for good
+
+- Sean, 2026-10-07 (relayed by HQ, amending "139. a"): "an agent can gain the
+  tag, and it applies to all posts . it cant lose the tag as we want the world
+  connection to an agent wallet is permanent". The first World ID person the
+  sign-in service names behind a paired agent stays on it for good. A later
+  answer naming nobody, or someone else, changes nothing; one naming the same
+  person saves their new agent count. This replaces "a request that names no
+  person clears both" above. The check-in writes both in one statement, so two
+  requests at once cannot replace the first person.
+- The docs, the agents README and the public API description say the tag stays.
+  No database change; the `regent_agents` package other sites pin carries it.

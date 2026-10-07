@@ -687,7 +687,7 @@
             "format": "uri"
           },
           "human_backed": {
-            "description": "Whether a person verified with World ID stands behind the agent.",
+            "description": "Whether a person verified with World ID stands behind the agent. Once true, it stays true, because the first person saved stays linked to the agent for good.",
             "type": "boolean"
           },
           "same_person_agent_count": {
@@ -756,7 +756,7 @@
             "format": "uri"
           },
           "human_backed": {
-            "description": "Whether a person verified with World ID stands behind the agent.",
+            "description": "Whether a person verified with World ID stands behind the agent. Once true, it stays true, because the first person saved stays linked to the agent for good.",
             "type": "boolean"
           },
           "same_person_agent_count": {
