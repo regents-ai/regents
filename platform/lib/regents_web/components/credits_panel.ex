@@ -469,6 +469,13 @@ defmodule RegentsWeb.CreditsPanel do
               <P.tip id={"#{@id}-buy-tip"} label="About buying">{arrival(@chain)}</P.tip>
             </strong>
             <span :if={@buy.words}>{@buy.words}</span>
+            <span :if={@buy.help?}>
+              If USDC left your wallet, post the link in <a
+                href="https://patchbay.help/credits-help"
+                target="_blank"
+                rel="noopener"
+              >Credits help</a>.
+            </span>
             <span :if={@blocked} id={"#{@id}-buy-why"}>{@blocked}</span>
           </div>
           <P.button
@@ -561,7 +568,7 @@ defmodule RegentsWeb.CreditsPanel do
 
     case Enum.find(sent, &(&1.name == name and match?(%{inputs: ^inputs}, &1.review))) do
       nil ->
-        %{state: :ready, words: nil, entry: nil, stalled?: false}
+        %{state: :ready, words: nil, help?: false, entry: nil, stalled?: false}
 
       entry ->
         shown = purchases[entry.hash]
@@ -569,6 +576,7 @@ defmodule RegentsWeb.CreditsPanel do
         %{
           state: step_state(state(entry, shown)),
           words: words(entry, shown),
+          help?: help?(shown),
           entry: entry,
           stalled?: stalled?(entry, shown)
         }
@@ -646,8 +654,7 @@ defmodule RegentsWeb.CreditsPanel do
   end
 
   defp words(_entry, %{purchase: nil}),
-    do:
-      "Your wallet sent this, but this page couldn't record it. If USDC left your wallet, post the link in Credits help."
+    do: "Your wallet sent this, but this page couldn't record it."
 
   defp words(_entry, %{purchase: purchase} = shown) do
     case purchase do
@@ -664,12 +671,20 @@ defmodule RegentsWeb.CreditsPanel do
         "#{chain_name(purchase.chain)} never showed this payment. No Credits added."
 
       %{status: :failed} ->
-        "Not the purchase this page prepared. No Credits added. If USDC left your wallet, post the link in Credits help."
+        "Not the purchase this page prepared. No Credits added."
 
       %{status: :checking} ->
         checking_words(shown)
     end
   end
+
+  # A sent payment the page couldn't match to a purchase points to Credits help.
+  defp help?(%{purchase: nil}), do: true
+
+  defp help?(%{purchase: %{status: :failed, reason: reason}}),
+    do: reason not in ["reverted", "already credited", "not found"]
+
+  defp help?(_shown), do: false
 
   defp checking_words(%{purchase: purchase} = shown) do
     cond do

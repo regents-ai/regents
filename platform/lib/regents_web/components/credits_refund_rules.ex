@@ -31,7 +31,9 @@ defmodule RegentsWeb.CreditsRefundRules do
       <h2>Agents</h2>
       <p>
         Your agents can spend your Credits only within the limits you set at <a href="https://regents.sh/account">regents.sh/account</a>. If an agent spent Credits
-        you did not mean it to, tell us in Credits help and we will look at what happened.
+        you did not mean it to, tell us in
+        <a href="https://patchbay.help/credits-help">Credits help</a>
+        and we will look at what happened.
       </p>
     </article>
     """
