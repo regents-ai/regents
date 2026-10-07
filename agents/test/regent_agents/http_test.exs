@@ -132,14 +132,28 @@ defmodule RegentAgents.HTTPTest do
     assert [%{same_person_agent_count: 3} = saved] = RegentAgents.list_my_agents!(actor: owner)
     assert saved.human_id == "0x" <> String.duplicate("ab", 32)
 
-    # The next request names no person, and that clears what was saved.
-    siwa_verifies(@wallet, "test", nil, nil)
+    # The first person stays for good: a request naming nobody, or someone else,
+    # leaves them and their count in place.
+    for book <- [nil, %{"humanId" => "0x" <> String.duplicate("cd", 32), "agentCount" => 1}] do
+      siwa_verifies(@wallet, "test", nil, book)
 
-    assert {200, %{"data" => %{"human_backed" => false, "same_person_agent_count" => nil}}} =
+      assert {200, %{"data" => %{"human_backed" => true, "same_person_agent_count" => 3}}} =
+               send_request(:get, "/api/agents/v1/me")
+
+      assert [%{human_id: "0x" <> first, same_person_agent_count: 3}] =
+               RegentAgents.list_my_agents!(actor: owner)
+
+      assert first == String.duplicate("ab", 32)
+    end
+
+    # A request naming the same person saves their new count.
+    siwa_verifies(@wallet, "test", nil, %{
+      "humanId" => "0x" <> String.duplicate("ab", 32),
+      "agentCount" => 4
+    })
+
+    assert {200, %{"data" => %{"human_backed" => true, "same_person_agent_count" => 4}}} =
              send_request(:get, "/api/agents/v1/me")
-
-    assert [%{human_id: nil, same_person_agent_count: nil}] =
-             RegentAgents.list_my_agents!(actor: owner)
   end
 
   test "an unknown harness is named before anything is signed for" do

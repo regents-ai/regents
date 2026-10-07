@@ -132,13 +132,18 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert has_element?(view, "#account-agent-same-person-#{sibling.id}", "Pi helper")
     refute render(view) =~ String.duplicate("ab", 32)
 
-    # A check-in reloads the open agent without blanking what is shown, and its
-    # request named no person, which clears the saved one.
+    # A check-in reloads the open agent without blanking what is shown. Its
+    # request named no person, and the saved person stays for good.
     assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
     heard(account)
     assert has_element?(view, log, "Patchbay")
-    assert has_element?(view, "#account-agent-human dd", "No verified human")
-    refute has_element?(view, "#account-agent-same-person")
+    assert has_element?(view, "#account-agent-human dd", "Verified human")
+
+    assert has_element?(
+             view,
+             "#account-agent-same-person",
+             "1 of 3 agents run by the same person"
+           )
 
     view
     |> form("#account-agent-harness-form", %{"harness" => "pi"})

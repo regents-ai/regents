@@ -119,9 +119,10 @@ defmodule RegentAgents.PairedAgent do
   key through SIWA; the name and runtime are what it said about itself, and
   the person may correct the runtime. One key belongs to one person.
 
-  Each verified request from the agent saves the World ID person the SIWA
-  service names behind it and that person's agent count, or clears both
-  (`RegentAgents.HumanBacking`). The person's number only groups their agents.
+  The first World ID person the SIWA service names behind the agent stays on
+  it for good, and each verified request naming that person saves their agent
+  count (`RegentAgents.HumanBacking`). The person's number only groups their
+  agents.
   """
 
   use Ash.Resource,
@@ -207,11 +208,28 @@ defmodule RegentAgents.PairedAgent do
       filter expr(privy_user_id == ^actor(:privy_user_id))
     end
 
+    # The first World ID person a verified request names stays on the agent for
+    # good: a later answer naming nobody, or someone else, changes nothing, and
+    # one naming the same person updates their agent count. Both expressions read
+    # the row as it was, in the one statement, so two requests at once cannot
+    # replace the first person.
     update :touch do
       public? false
       accept [:last_contact_at]
-      change set_attribute(:human_id, actor(:human_id))
-      change set_attribute(:same_person_agent_count, actor(:same_person_agent_count))
+
+      change atomic_update(
+               :same_person_agent_count,
+               expr(
+                 if is_nil(human_id) or human_id == ^actor(:human_id),
+                   do: ^actor(:same_person_agent_count),
+                   else: same_person_agent_count
+               )
+             )
+
+      change atomic_update(
+               :human_id,
+               expr(if is_nil(human_id), do: ^actor(:human_id), else: human_id)
+             )
     end
 
     update :change_harness do
