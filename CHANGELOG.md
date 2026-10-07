@@ -1007,3 +1007,14 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   that answers `409 agent_limit`, and the code stays unused until it expires.
   Every site that pairs through regent_agents (Regents, Patchbay, Keyfleet)
   gets the cap once it pins this commit.
+
+## 2026-10-07 — A Buy is recorded only once the chain holds it
+
+- Shared libraries move to elixir-utils e985879 (regent_credits reads the
+  transaction before saving a reported purchase; regent_privy names an
+  unreadable sign-in key).
+- The Buy Credits panel reports a sent Buy again every two seconds, for up to
+  five minutes, while the chain does not hold it yet or cannot be read, and
+  shows "Waiting for Base" meanwhile. A transaction that is not this Buy is
+  final. Each person may report 120 times a minute, counted on the server; past
+  that, the page waits its turn. The wallet press is unchanged.

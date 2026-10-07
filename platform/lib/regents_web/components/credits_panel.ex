@@ -4,8 +4,8 @@ defmodule RegentsWeb.CreditsPanel do
   and what each press did, all in one place. Built like Stake and Redeem on
   `RegentsWeb.OnchainSteps`: the server builds the steps
   (`RegentCredits.Chains.steps/3`), every press goes straight to the wallet, and
-  each sent Buy is reported as a purchase, then checked every two seconds until
-  it counts. The site's Oban keeps checking once a minute after the page stops.
+  each sent Buy is reported as a purchase once the chain holds it, then checked
+  every two seconds until it counts. The site's Oban keeps checking once a minute after the page stops.
 
   The chain starts on the one the wallet is on, until the person picks one,
   and a Switch Chain button asks the wallet onto the picked one. The USDC of
@@ -30,12 +30,14 @@ defmodule RegentsWeb.CreditsPanel do
   alias Regent.Primitives, as: P
   alias RegentChain.{Call, Presses, Review}
   alias RegentCredits.{Amount, Chains}
-  alias Regents.{ChainClient, Credits}
+  alias RegentCredits.Errors.Refused
+  alias Regents.{ChainClient, Credits, RateLimiter}
   alias RegentsWeb.{ChainReadBudget, OnchainSteps}
 
   @recheck_ms 2_000
   @block_ms 2_000
   @purchase_reads 150
+  @report_tries 150
   @chains %{"base" => :base, "ethereum" => :ethereum}
 
   @impl true
@@ -123,8 +125,14 @@ defmodule RegentsWeb.CreditsPanel do
     socket = OnchainSteps.sent(socket, params)
 
     case Enum.find(socket.assigns.presses.sent, &(&1.hash == String.downcase(hash))) do
-      %{name: "buy", review: %{} = review} = entry -> {:noreply, report(socket, entry, review)}
-      _other -> {:noreply, socket}
+      %{name: "buy", review: %{} = review} = entry ->
+        {:noreply,
+         socket
+         |> put_purchase(entry.hash, %{purchase: :reporting, reads: 0})
+         |> report(entry.hash, review, 0)}
+
+      _other ->
+        {:noreply, socket}
     end
   end
 
@@ -142,8 +150,11 @@ defmodule RegentsWeb.CreditsPanel do
 
   def handle_event("check_purchase_again", %{"hash" => hash}, socket) do
     case socket.assigns.purchases do
-      %{^hash => shown} -> {:noreply, check_purchase(socket, hash, %{shown | reads: 0})}
-      _unknown -> {:noreply, socket}
+      %{^hash => %{purchase: %{id: _id}} = shown} ->
+        {:noreply, check_purchase(socket, hash, %{shown | reads: 0})}
+
+      _unknown ->
+        {:noreply, socket}
     end
   end
 
@@ -159,6 +170,18 @@ defmodule RegentsWeb.CreditsPanel do
       entry -> {:noreply, socket |> approved(entry) |> read_funds(@block_ms)}
     end
   end
+
+  def handle_async({:report, hash}, {:ok, {_review, _tries, {:ok, purchase}}}, socket),
+    do: {:noreply, check_purchase(socket, hash, %{purchase: purchase, reads: 0})}
+
+  def handle_async({:report, hash}, {:ok, {review, tries, answer}}, socket) do
+    if again?(answer) and tries + 1 < @report_tries,
+      do: {:noreply, report(socket, hash, review, tries + 1, @recheck_ms)},
+      else: {:noreply, put_purchase(socket, hash, %{purchase: nil, reads: 0})}
+  end
+
+  def handle_async({:report, hash}, _unanswered, socket),
+    do: {:noreply, put_purchase(socket, hash, %{purchase: nil, reads: 0})}
 
   def handle_async({:purchase, hash}, {:ok, {:ok, purchase}}, socket) do
     shown = %{purchase: purchase, reads: socket.assigns.purchases[hash].reads + 1}
@@ -263,24 +286,56 @@ defmodule RegentsWeb.CreditsPanel do
   defp remember_number(socket, review),
     do: assign(socket, numbers: Map.put(socket.assigns.numbers, review.id, socket.assigns.number))
 
-  defp report(socket, entry, review) do
-    %{account: account, numbers: numbers} = socket.assigns
-    chain = @chains[review.inputs["chain"]]
-    dollars = dollars(review.inputs["amount"])
+  # A sent Buy is reported once the chain holds it: until then the report is
+  # refused as not seen yet, and the page reports again every two seconds, for
+  # up to five minutes. Each report counts against the person's report
+  # allowance; past it, the page waits its turn the same way.
+  defp report(socket, hash, review, tries, wait_ms \\ 0) do
+    account = socket.assigns.account
+    number = Map.fetch!(socket.assigns.numbers, review.id)
 
-    case RegentCredits.report_purchase(
-           account.privy_user_id,
-           review.signer,
-           chain,
-           dollars,
-           Map.fetch!(numbers, review.id),
-           entry.hash,
-           actor: Credits.person(account)
-         ) do
-      {:ok, purchase} -> check_purchase(socket, entry.hash, %{purchase: purchase, reads: 0})
-      {:error, _error} -> put_purchase(socket, entry.hash, %{purchase: nil, reads: 0})
+    start_async(socket, {:report, hash}, fn ->
+      Process.sleep(wait_ms)
+      {review, tries, send_report(account, review, number, hash)}
+    end)
+  end
+
+  defp send_report(account, review, number, hash) do
+    with :ok <- admit_report(account.privy_user_id) do
+      RegentCredits.report_purchase(
+        account.privy_user_id,
+        review.signer,
+        @chains[review.inputs["chain"]],
+        dollars(review.inputs["amount"]),
+        number,
+        hash,
+        actor: Credits.person(account)
+      )
     end
   end
+
+  defp admit_report(privy_user_id) do
+    budget = Application.fetch_env!(:regents, :credits_report_rate_limit)
+
+    case RateLimiter.admit(
+           {:credits_report, privy_user_id},
+           Keyword.fetch!(budget, :limit),
+           Keyword.fetch!(budget, :window_seconds)
+         ) do
+      {:ok, _budget} -> :ok
+      {:error, :rate_limited, _budget} -> :limited
+    end
+  end
+
+  # Reported again: past the allowance, before the chain holds the Buy, or when
+  # the chain could not be read. Any other refusal is final.
+  defp again?(:limited), do: true
+
+  defp again?({:error, %Ash.Error.Invalid{errors: errors}}),
+    do: Enum.any?(errors, &match?(%Refused{reason: :not_seen_yet}, &1))
+
+  defp again?({:error, %Ash.Error.Unknown{}}), do: true
+  defp again?(_refused), do: false
 
   defp check_purchase(socket, hash, shown) do
     actor = Credits.person(socket.assigns.account)
@@ -672,6 +727,7 @@ defmodule RegentsWeb.CreditsPanel do
     do: amount |> Amount.format() |> String.replace_suffix(" Credits", "")
 
   defp state(entry, nil), do: OnchainSteps.describe(entry, chain_name_of(entry)).state
+  defp state(_entry, %{purchase: :reporting}), do: :checking
   defp state(_entry, %{purchase: nil}), do: :unrecorded
   defp state(_entry, %{purchase: purchase}), do: purchase.status
 
@@ -683,6 +739,8 @@ defmodule RegentsWeb.CreditsPanel do
       %{words: words} -> words
     end
   end
+
+  defp words(entry, %{purchase: :reporting}), do: "Waiting for #{chain_name_of(entry)}"
 
   defp words(_entry, %{purchase: nil}),
     do: "Your wallet sent this, but this page couldn't record it."

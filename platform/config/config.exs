@@ -85,6 +85,7 @@ config :regents, :sprite_provider, RegentSprites
 config :regents, :siwa, base_url: nil, activity_read_token: nil
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
+config :regents, :credits_report_rate_limit, limit: 120, window_seconds: 60
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
