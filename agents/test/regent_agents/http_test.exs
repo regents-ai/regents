@@ -82,6 +82,7 @@ defmodule RegentAgents.HTTPTest do
     assert %{"name" => "Sol", "harness" => "codex", "wallet" => @wallet} = paired
     assert paired["registry_listing"] == nil
     assert paired["human_backed"] == false
+    assert paired["same_person_agent_count"] == nil
 
     assert_received {:verified, "/api/shared/siwa/http-verify", ["test"], envelope}
     assert %{"method" => "POST", "path" => "/api/agents/v1/pair", "body" => signed} = envelope
@@ -97,8 +98,9 @@ defmodule RegentAgents.HTTPTest do
     refute Map.has_key?(check_in, "body")
   end
 
-  test "a listed, human-backed agent is answered with its listing's page and its backing, not the person's number" do
-    code = code!(person("listed"))
+  test "a listed, human-backed agent is answered with its listing's page and its saved backing, never the person's number" do
+    owner = person("listed")
+    code = code!(owner)
 
     siwa_verifies(
       @wallet,
@@ -109,18 +111,35 @@ defmodule RegentAgents.HTTPTest do
         "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
         "registryUrl" => @listing
       },
-      %{"humanId" => "0x" <> String.duplicate("ab", 32)}
+      %{"humanId" => "0x" <> String.duplicate("ab", 32), "agentCount" => 3}
     )
 
     body = %{"code" => code, "name" => "Listed", "harness" => "hermes"}
 
-    assert {201, %{"data" => %{"registry_listing" => @listing, "human_backed" => true}}} =
-             send_request(:post, "/api/agents/v1/pair", body)
+    backed = %{
+      "registry_listing" => @listing,
+      "human_backed" => true,
+      "same_person_agent_count" => 3
+    }
 
-    assert {200, %{"data" => %{"registry_listing" => @listing, "human_backed" => true} = me}} =
-             send_request(:get, "/api/agents/v1/me")
+    assert {201, %{"data" => paired}} = send_request(:post, "/api/agents/v1/pair", body)
+    assert Map.take(paired, Map.keys(backed)) == backed
+
+    assert {200, %{"data" => me}} = send_request(:get, "/api/agents/v1/me")
+    assert Map.take(me, Map.keys(backed)) == backed
 
     refute Jason.encode!(me) =~ String.duplicate("ab", 32)
+    assert [%{same_person_agent_count: 3} = saved] = RegentAgents.list_my_agents!(actor: owner)
+    assert saved.human_id == "0x" <> String.duplicate("ab", 32)
+
+    # The next request names no person, and that clears what was saved.
+    siwa_verifies(@wallet, "test", nil, nil)
+
+    assert {200, %{"data" => %{"human_backed" => false, "same_person_agent_count" => nil}}} =
+             send_request(:get, "/api/agents/v1/me")
+
+    assert [%{human_id: nil, same_person_agent_count: nil}] =
+             RegentAgents.list_my_agents!(actor: owner)
   end
 
   test "an unknown harness is named before anything is signed for" do

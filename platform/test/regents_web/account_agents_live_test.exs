@@ -1,6 +1,8 @@
 defmodule RegentsWeb.AccountAgentsLiveTest do
   use RegentsWeb.ConnCase, async: false
 
+  import Ecto.Query, only: [from: 2]
+
   alias RegentAgents.{Agent, Person}
   alias Regents.Accounts
   alias Regents.Actors.System
@@ -61,7 +63,19 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
   test "an agent opens into its details, can be corrected and unpaired", %{conn: conn} do
     account = register_account("agents-detail")
-    agent = pair!(account, "Muse helper", :muse)
+    # The sign-in service named the same World ID person behind both agents.
+    human_id = "0x" <> String.duplicate("ab", 32)
+    backed = %Agent{wallet: @agent_wallet, human_id: human_id, same_person_agent_count: 3}
+    agent = pair!(account, "Muse helper", :muse, backed)
+
+    code_issued_long_ago!(account)
+
+    sibling =
+      pair!(account, "Pi helper", :pi, %{
+        backed
+        | wallet: "0x3333333333333333333333333333333333333333"
+      })
+
     view = open_account(conn, account)
 
     Req.Test.stub(Regents.Siwa, fn conn ->
@@ -82,7 +96,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
             "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
             "registryUrl" => @listing
           },
-          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32)}
+          "agentBook" => nil
         }
       })
     end)
@@ -107,13 +121,24 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              "Agent #97609"
            )
 
-    assert has_element?(view, "#account-agent-human-backed dd", "Verified with World ID")
+    assert has_element?(view, "#account-agent-human dd", "Verified human")
+
+    assert has_element?(
+             view,
+             "#account-agent-same-person",
+             "1 of 3 agents run by the same person"
+           )
+
+    assert has_element?(view, "#account-agent-same-person-#{sibling.id}", "Pi helper")
     refute render(view) =~ String.duplicate("ab", 32)
 
-    # A check-in reloads the open agent without blanking what is shown.
+    # A check-in reloads the open agent without blanking what is shown, and its
+    # request named no person, which clears the saved one.
     assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
     heard(account)
     assert has_element?(view, log, "Patchbay")
+    assert has_element?(view, "#account-agent-human dd", "No verified human")
+    refute has_element?(view, "#account-agent-same-person")
 
     view
     |> form("#account-agent-harness-form", %{"harness" => "pi"})
@@ -139,7 +164,8 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              "Muse helper is unpaired. It will need a new code to pair again."
            )
 
-    assert {:ok, []} = RegentAgents.list_my_agents(actor: person(account))
+    assert {:ok, [%{id: sibling_id}]} = RegentAgents.list_my_agents(actor: person(account))
+    assert sibling_id == sibling.id
   end
 
   test "activity that can't be read says so", %{conn: conn} do
@@ -295,12 +321,24 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   defp following?(view, topic),
     do: Enum.any?(Registry.lookup(Regents.PubSub, topic), &(elem(&1, 0) == view.pid))
 
-  defp pair!(account, name, harness) do
+  defp pair!(account, name, harness, agent \\ @agent) do
     issued = RegentAgents.issue_pairing_code!(actor: person(account))
-    RegentAgents.pair_agent!(issued.code, name, harness, actor: @agent)
+    RegentAgents.pair_agent!(issued.code, name, harness, actor: agent)
   end
 
   defp person(account), do: %Person{privy_user_id: account.privy_user_id}
+
+  # A person may make one pairing code a minute. Ash is bypassed on purpose: a
+  # code is always issued now, so one issued earlier can only be set directly.
+  defp code_issued_long_ago!(account) do
+    query =
+      from(code in "pairing_codes",
+        prefix: "regent_agents",
+        where: code.privy_user_id == ^account.privy_user_id
+      )
+
+    Regents.Repo.update_all(query, set: [issued_at: DateTime.add(DateTime.utc_now(), -3600)])
+  end
 
   defp pairing_code(view) do
     [_, code] = Regex.run(~r/Pairing code: ([A-Za-z0-9_-]+)/, render(view))

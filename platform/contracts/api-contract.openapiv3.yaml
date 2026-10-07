@@ -353,7 +353,7 @@ components:
     PairedAgent:
       type: object
       additionalProperties: false
-      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed]
+      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count]
       properties:
         name: {type: string, minLength: 1, maxLength: 80}
         harness: {$ref: "#/components/schemas/AgentHarness"}
@@ -367,6 +367,12 @@ components:
         human_backed:
           description: Whether a person verified with World ID stands behind the agent.
           type: boolean
+        same_person_agent_count:
+          description: >-
+            How many agents, this one included, the same verified person stands
+            behind, or null when no verified person stands behind the agent.
+          type: [integer, "null"]
+          minimum: 1
     CheckedInAgentEnvelope:
       type: object
       additionalProperties: false
@@ -376,7 +382,7 @@ components:
     CheckedInAgent:
       type: object
       additionalProperties: false
-      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, account]
+      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count, account]
       properties:
         name: {type: string, minLength: 1, maxLength: 80}
         harness: {$ref: "#/components/schemas/AgentHarness"}
@@ -390,6 +396,12 @@ components:
         human_backed:
           description: Whether a person verified with World ID stands behind the agent.
           type: boolean
+        same_person_agent_count:
+          description: >-
+            How many agents, this one included, the same verified person stands
+            behind, or null when no verified person stands behind the agent.
+          type: [integer, "null"]
+          minimum: 1
         account: {$ref: "#/components/schemas/PairedAccount"}
     PairedAccount:
       description: >-

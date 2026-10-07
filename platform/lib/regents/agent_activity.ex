@@ -1,12 +1,11 @@
 defmodule Regents.AgentActivity do
   @moduledoc """
   What a paired agent has done across the Regents sites since it was paired,
-  in plain words and 20 requests at a time, newest first, its listing in the
-  agent registry, if it has one, and
-  whether a person verified with World ID stands behind it. The sign-in service
-  keeps all three: every request an agent signs is verified there, whichever
-  site it went to, an agent lists itself through it, and it reads World's
-  record of the person. Only whether there is such a person is kept here.
+  in plain words and 20 requests at a time, newest first, and its listing in the
+  agent registry, if it has one. The sign-in service keeps both: every request
+  an agent signs is verified there, whichever site it went to, and an agent
+  lists itself through it. Whether a person stands behind the agent is saved on
+  the agent at its own requests and is not read here.
   """
 
   alias RegentAgents.PairedAgent
@@ -25,8 +24,7 @@ defmodule Regents.AgentActivity do
   @type page :: %{
           entries: [entry()],
           next: String.t() | nil,
-          listing: listing() | nil,
-          human_backed: boolean()
+          listing: listing() | nil
         }
 
   @doc """
@@ -44,8 +42,7 @@ defmodule Regents.AgentActivity do
               "data" => %{
                 "activity" => activity,
                 "next" => next,
-                "agentRegistration" => registration,
-                "agentBook" => book
+                "agentRegistration" => registration
               }
             }
           }}
@@ -54,14 +51,12 @@ defmodule Regents.AgentActivity do
              config.base_url <> "/api/shared/siwa/activity",
              request_options(config, agent, after_cursor)
            ),
-         {:ok, listing} <- listing(registration),
-         {:ok, human_backed} <- human_backed(book) do
+         {:ok, listing} <- listing(registration) do
       {:ok,
        %{
          entries: Enum.flat_map(activity, &describe/1) ++ pairing(agent, next),
          next: next,
-         listing: listing,
-         human_backed: human_backed
+         listing: listing
        }}
     else
       {:ok, %Req.Response{status: status}} -> {:error, {:unexpected_status, status}}
@@ -77,10 +72,6 @@ defmodule Regents.AgentActivity do
        do: {:ok, %{url: url, number: number}}
 
   defp listing(_other), do: {:error, :registration_unreadable}
-
-  defp human_backed(nil), do: {:ok, false}
-  defp human_backed(%{"humanId" => "0x" <> _number}), do: {:ok, true}
-  defp human_backed(_other), do: {:error, :agent_book_unreadable}
 
   # The pairing itself is the agent's own record here; the request that made
   # it was verified a moment before the agent existed.

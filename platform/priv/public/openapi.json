@@ -654,7 +654,8 @@
           "paired_at",
           "last_contact_at",
           "registry_listing",
-          "human_backed"
+          "human_backed",
+          "same_person_agent_count"
         ],
         "properties": {
           "name": {
@@ -688,6 +689,14 @@
           "human_backed": {
             "description": "Whether a person verified with World ID stands behind the agent.",
             "type": "boolean"
+          },
+          "same_person_agent_count": {
+            "description": "How many agents, this one included, the same verified person stands behind, or null when no verified person stands behind the agent.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
           }
         }
       },
@@ -714,6 +723,7 @@
           "last_contact_at",
           "registry_listing",
           "human_backed",
+          "same_person_agent_count",
           "account"
         ],
         "properties": {
@@ -748,6 +758,14 @@
           "human_backed": {
             "description": "Whether a person verified with World ID stands behind the agent.",
             "type": "boolean"
+          },
+          "same_person_agent_count": {
+            "description": "How many agents, this one included, the same verified person stands behind, or null when no verified person stands behind the agent.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
           },
           "account": {
             "$ref": "#/components/schemas/PairedAccount"

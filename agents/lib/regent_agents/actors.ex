@@ -13,16 +13,19 @@ defmodule RegentAgents.Agent do
   @moduledoc """
   An agent whose signed request the SIWA service has just verified, named by
   its key's lowercase address, with the page of its listing in the agent
-  registry when it has one, and whether a person verified with World ID stands
-  behind it. Only `RegentAgents.HTTP` builds it.
+  registry when it has one, and the World ID person behind it with how many
+  agents that person stands behind (`RegentAgents.HumanBacking`), which its
+  pairing saves. Only `RegentAgents.HTTP` builds it.
   """
   @enforce_keys [:wallet]
-  defstruct [:wallet, :registry_listing, human_backed: false]
+  @derive {Inspect, except: [:human_id]}
+  defstruct [:wallet, :registry_listing, :human_id, :same_person_agent_count]
 
   @type t :: %__MODULE__{
           wallet: String.t(),
           registry_listing: String.t() | nil,
-          human_backed: boolean()
+          human_id: String.t() | nil,
+          same_person_agent_count: pos_integer() | nil
         }
 end
 
