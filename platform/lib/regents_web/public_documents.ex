@@ -165,7 +165,8 @@ defmodule RegentsWeb.PublicDocuments do
       suffix: suffix,
       description: description,
       canonical: url(path),
-      image: url(share_image(path)),
+      image: url(RegentsWeb.Endpoint.static_path(share_image(path))),
+      image_size: share_image_size(path),
       image_alt: share_image_alt(path),
       markdown?: path in @documents
     }
@@ -175,6 +176,9 @@ defmodule RegentsWeb.PublicDocuments do
   # shares the crown.
   defp share_image("/literature"), do: "/images/literature/share.png"
   defp share_image(_path), do: "/mark.png"
+
+  defp share_image_size("/literature"), do: {2048, 1024}
+  defp share_image_size(_path), do: {1024, 512}
 
   defp share_image_alt("/literature"),
     do:
