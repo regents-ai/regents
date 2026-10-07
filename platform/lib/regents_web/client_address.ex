@@ -23,6 +23,20 @@ defmodule RegentsWeb.ClientAddress do
     if @behind_fly_proxy, do: fly_client(conn), else: {normalized(conn.remote_ip), :peer}
   end
 
+  @doc """
+  The same key as an opaque tag, so a page can carry it in its signed token
+  without the address itself ever reaching the markup.
+  """
+  @spec tag(Plug.Conn.t()) :: String.t()
+  def tag(conn) do
+    {address, _source} = key(conn)
+    secret = RegentsWeb.Endpoint.config(:secret_key_base)
+
+    :hmac
+    |> :crypto.mac(:sha256, secret, :erlang.term_to_binary(address))
+    |> Base.url_encode64(padding: false)
+  end
+
   defp fly_client(conn) do
     with [value] <- Plug.Conn.get_req_header(conn, "fly-client-ip"),
          {:ok, address} <- value |> :binary.bin_to_list() |> :inet.parse_strict_address() do

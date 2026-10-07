@@ -25,11 +25,15 @@ defmodule RegentsWeb.Live.Session do
   Phoenix LiveView 1.2.7 hands `mount/3` `Map.merge(handshake_session,
   static_token_session)`, so these keys are the render's own and can never stand
   in for the authority the socket connected with.
+
+  The client tag travels the same way: a socket's own peer is Fly's proxy, so
+  only the render knows which client address its readings of Base count against.
   """
   def render_context(conn) do
     conn.assigns.current_lineage
     |> rendered_topic()
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
+    |> Map.put("client_tag", RegentsWeb.ClientAddress.tag(conn))
   end
 
   def on_mount(:load_human, _params, session, socket) do

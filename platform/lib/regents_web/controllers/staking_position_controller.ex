@@ -9,7 +9,7 @@ defmodule RegentsWeb.StakingPositionController do
   alias Regents.Staking
   alias Regents.Staking.Facts
   alias Regents.Staking.SnapshotCache
-  alias RegentsWeb.PrivyPair
+  alias RegentsWeb.{ChainReadBudget, ClientAddress, PrivyPair}
 
   def show(conn, params) do
     conn =
@@ -20,7 +20,7 @@ defmodule RegentsWeb.StakingPositionController do
     case {PrivyPair.verify(conn), params} do
       {{:ok, %{wallet_address: wallet}}, params}
       when is_binary(wallet) and map_size(params) == 0 ->
-        position(conn, wallet)
+        admit(conn, wallet)
 
       {{:ok, _actor}, params} when map_size(params) > 0 ->
         error(conn, "invalid_query")
@@ -33,6 +33,18 @@ defmodule RegentsWeb.StakingPositionController do
 
       {{:error, :unauthenticated}, _params} ->
         error(conn, "authentication_required")
+    end
+  end
+
+  # Each reading of Base draws on the caller's address budget, shared with the
+  # pages.
+  defp admit(conn, wallet) do
+    case ChainReadBudget.admit(ClientAddress.tag(conn)) do
+      :ok ->
+        position(conn, wallet)
+
+      {:limited, seconds} ->
+        conn |> put_resp_header("retry-after", "#{seconds}") |> error("rate_limited")
     end
   end
 
@@ -66,7 +78,9 @@ defmodule RegentsWeb.StakingPositionController do
     "authentication_required" =>
       {401, "Sign in to read your stake.",
        "Send the Privy access token as a Bearer token and the identity token in privy-id-token, both from the same sign-in."},
-    "staking_unavailable" => {503, "Base has not answered yet.", "Try again in a moment."}
+    "staking_unavailable" => {503, "Base has not answered yet.", "Try again in a moment."},
+    "rate_limited" =>
+      {429, "Too many requests.", "Wait the number of seconds in Retry-After, then try again."}
   }
 
   defp error(conn, code) do

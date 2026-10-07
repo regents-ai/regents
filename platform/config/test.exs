@@ -59,11 +59,12 @@ config :regents, :ens_lookup_deadline_ms, 200
 config :regents, :ens_avatar_http_client, Regents.TestEnsAvatarHttpClient
 config :regents, :ens_avatar_deadline_ms, 200
 
-# Every test case here reaches one node holding one anonymous bootstrap budget
-# for the loopback address they all share, so the release-sized allowance is
-# raised rather than let unrelated cases spend one another's. The focused
-# controller tests restore the release 30/300 themselves.
+# Every test case here reaches one node holding one anonymous bootstrap budget,
+# and one budget of Base readings, for the loopback address they all share, so
+# the release-sized allowances are raised rather than let unrelated cases spend
+# one another's. The focused tests restore the release limits themselves.
 config :regents, :session_bootstrap_rate_limit, limit: 100_000, window_seconds: 300
+config :regents, :chain_read_rate_limit, limit: 100_000, window_seconds: 60
 
 # Tests key rate limits as production does, behind Fly's proxy.
 config :regents, :behind_fly_proxy, true

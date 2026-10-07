@@ -18,6 +18,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   alias Regents.Staking
   alias Regents.Staking.Facts, as: StakingFacts
   alias Regents.Staking.SnapshotCache
+  alias RegentsWeb.ChainReadBudget
   alias RegentsWeb.ShellLive.Identity
 
   @routes [:stake, :app]
@@ -306,6 +307,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   end
 
   defp clear_staking_refresh_failure(%{message: @refresh_failure_notice}), do: nil
+  defp clear_staking_refresh_failure(%{budget: :chain_reads}), do: nil
   defp clear_staking_refresh_failure(notice), do: notice
 
   # Re-reading the contract replaces what every visitor sees, so only a
@@ -383,12 +385,20 @@ defmodule RegentsWeb.ShellLive.Staking do
   defp start_quiet_read(%{assigns: %{staking_wallet: nil}} = socket), do: socket
   defp start_quiet_read(%{assigns: %{staking: nil}} = socket), do: socket
 
+  # Past the visitor's budget a quiet read is simply skipped; the figures on
+  # screen stay and the next one tries again.
   defp start_quiet_read(socket) do
     wallet = socket.assigns.staking_wallet
 
-    start_async(socket, {:staking_quiet, socket.assigns.staking_generation}, fn ->
-      Staking.account_for_wallet(wallet)
-    end)
+    case ChainReadBudget.admit(socket.assigns.client_tag) do
+      :ok ->
+        start_async(socket, {:staking_quiet, socket.assigns.staking_generation}, fn ->
+          Staking.account_for_wallet(wallet)
+        end)
+
+      {:limited, _seconds} ->
+        socket
+    end
   end
 
   # Readings of one wallet can come back from Base out of order; one taken at
@@ -411,12 +421,35 @@ defmodule RegentsWeb.ShellLive.Staking do
   defp start_wallet_read(%{assigns: %{staking: nil}} = socket, _read), do: socket
 
   defp start_wallet_read(socket, read) do
-    name = {:staking, socket.assigns.staking_generation}
+    case ChainReadBudget.admit(socket.assigns.client_tag) do
+      :ok ->
+        name = {:staking, socket.assigns.staking_generation}
 
-    socket
-    |> assign(staking_read: %{name: name})
-    |> start_async(name, read)
+        socket
+        |> assign(staking_read: %{name: name})
+        |> start_async(name, read)
+
+      {:limited, seconds} ->
+        keep_last_reading(socket, seconds)
+    end
   end
+
+  # Past the visitor's budget the wallet's figures on screen stay as they are;
+  # a wallet with none yet shows them unavailable, as after a failed reading.
+  # Every control stays where it is.
+  defp keep_last_reading(socket, seconds) do
+    socket = if shown_wallet?(socket.assigns), do: socket, else: wallet_read_failed(socket)
+    assign(socket, staking_status: :ready, staking_notice: ChainReadBudget.notice(seconds))
+  end
+
+  defp shown_wallet?(%{
+         staking: %{wallet_address: shown, wallet_block_number: block},
+         staking_wallet: wallet
+       })
+       when is_integer(block) and is_binary(wallet),
+       do: Address.equal?(shown, wallet)
+
+  defp shown_wallet?(_assigns), do: false
 
   defp release_staking_read(%{assigns: %{staking_read: %{name: name}}} = socket, name),
     do: assign(socket, staking_read: nil)

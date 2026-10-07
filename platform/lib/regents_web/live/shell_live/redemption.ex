@@ -12,7 +12,7 @@ defmodule RegentsWeb.ShellLive.Redemption do
   alias Regents.{OpenSea, Redemption}
   alias Regents.OpenSea.HoldingsCache
   alias Regents.Redemption.Steps
-  alias RegentsWeb.EventInput
+  alias RegentsWeb.{ChainReadBudget, EventInput}
   alias RegentsWeb.ShellLive.{Identity, OpenSeaBudget}
 
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
@@ -239,7 +239,22 @@ defmodule RegentsWeb.ShellLive.Redemption do
     )
   end
 
+  # Past the visitor's budget the reading on screen stays, as after a failed
+  # read, and says why. The buttons never wait on a reading: without one that
+  # matches the selection, every step is offered.
   defp start_redemption_read(socket, options) do
+    case ChainReadBudget.admit(socket.assigns.client_tag) do
+      :ok ->
+        read_redemption(socket, options)
+
+      {:limited, seconds} ->
+        socket
+        |> redemption_read_failed()
+        |> assign(redemption_notice: ChainReadBudget.notice(seconds))
+    end
+  end
+
+  defp read_redemption(socket, options) do
     generation = socket.assigns.redemption_generation + 1
     name = {:redemption, generation}
     wallet = socket.assigns.redemption_wallet

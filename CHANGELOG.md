@@ -936,3 +936,11 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   security reports stay on build@regents.sh.
 - The /literature share picture is the light chart, at its own size and a fresh
   address (General tasks lane, share-cards-1007 1e87145d).
+
+## 2026-10-07 — A fair share of Base readings per visitor
+
+- Each visitor's address may ask Base for fresh figures up to 30 times a minute:
+  wallet figures on Stake and the Overview, the Redeem page's figures, and the
+  agent read of a staking position. Past that, the page keeps the last figures and
+  says when to try again; the agent read answers 429 with Retry-After.
+- Wallet buttons never wait on a reading and are never counted.

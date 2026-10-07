@@ -32,12 +32,13 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Redemption, Staking}
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
 
     {:ok,
      socket
      |> assign(
+       client_tag: Map.fetch!(session, "client_tag"),
        route_spec: route_spec,
        route_params: params,
        regent: socket.assigns.current_regent,
