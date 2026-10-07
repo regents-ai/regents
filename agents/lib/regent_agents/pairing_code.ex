@@ -13,7 +13,6 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
   alias RegentAgents.{PairingCode, Person}
 
   @ttl_seconds 600
-  @live_limit 10
 
   @impl true
   def run(_input, _opts, %{actor: %Person{} = actor}) do
@@ -25,7 +24,7 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
       RegentAgents.lock(actor.privy_user_id)
 
       with {:ok, codes} <- Ash.read(PairingCode, action: :for_person, actor: actor),
-           :ok <- discard(retired(codes, now), actor),
+           :ok <- discard(spent(codes, now), actor),
            {:ok, _record} <- store(code, now, expires_at, actor) do
         %PairingCode.Issued{code: code, issued_at: now, expires_at: expires_at}
       else
@@ -36,14 +35,9 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
 
   def run(_input, _opts, _context), do: {:error, "a signed-in person is required"}
 
-  # Codes that can no longer pair, and the oldest live ones beyond the newest
-  # `@live_limit - 1`, so with the new code a person holds at most `@live_limit`.
-  defp retired(codes, now) do
-    {live, spent} =
-      Enum.split_with(codes, &(is_nil(&1.used_at) and DateTime.after?(&1.expires_at, now)))
-
-    spent ++ Enum.drop(live, @live_limit - 1)
-  end
+  # Codes that can no longer pair: used, or expired.
+  defp spent(codes, now),
+    do: Enum.reject(codes, &(is_nil(&1.used_at) and DateTime.after?(&1.expires_at, now)))
 
   defp discard([], _actor), do: :ok
 
@@ -75,8 +69,8 @@ defmodule RegentAgents.PairingCode do
   @moduledoc """
   A short-lived code a signed-in person hands their agent. Only its hash is
   kept. Each works once, for ten minutes, on any Regent site. A new code leaves
-  the person's earlier ones working until they expire; a person holds at most
-  ten live codes, and making another retires the oldest.
+  the person's earlier ones working until they expire. A person may make as
+  many as they like; one account holds at most 100 paired agents.
   """
 
   use Ash.Resource,

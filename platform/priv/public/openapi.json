@@ -374,11 +374,11 @@
           "401": {
             "$ref": "#/components/responses/AgentVerificationFailed"
           },
+          "409": {
+            "$ref": "#/components/responses/AgentPairConflict"
+          },
           "429": {
             "$ref": "#/components/responses/AgentRateLimited"
-          },
-          "409": {
-            "$ref": "#/components/responses/AgentRequestReplayed"
           },
           "503": {
             "$ref": "#/components/responses/AgentVerificationUnavailable"
@@ -832,7 +832,7 @@
             "properties": {
               "code": {
                 "type": "string",
-                "description": "pairing_failed, harness_unknown, not_paired, verification_failed, verification_unavailable or rate_limited, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
+                "description": "pairing_failed, harness_unknown, agent_limit, not_paired, verification_failed, verification_unavailable or rate_limited, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
               },
               "message": {
                 "type": "string"
@@ -1573,6 +1573,44 @@
           },
           "RateLimit-Policy": {
             "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        }
+      },
+      "AgentPairConflict": {
+        "description": "The sign-in service has already verified this exact signed request once, or the person's account already has 100 paired agents",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AgentPairingError"
+            },
+            "examples": {
+              "requestReplayed": {
+                "value": {
+                  "error": {
+                    "code": "request_replayed",
+                    "message": "request replay detected",
+                    "hint": "That signed request was already used; each one works once. Run `request` again to sign it fresh, and never resend saved signature headers."
+                  }
+                }
+              },
+              "agentLimit": {
+                "value": {
+                  "error": {
+                    "code": "agent_limit",
+                    "message": "This account already has 100 paired agents.",
+                    "hint": "Ask your person to unpair an agent on their Regents account page, then pair again. The same code works until it expires."
+                  }
+                }
+              }
+            }
           }
         }
       }

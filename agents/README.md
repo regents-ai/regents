@@ -29,8 +29,9 @@ https://siwa.regents.sh/skill.md.
 
 The person is named by their Privy user ID and the agent by its key's address.
 One key belongs to one person. A code works once, for ten minutes. A new code
-leaves the person's earlier ones working until they expire; a person holds at
-most ten live codes, and making another retires the oldest. Pairing only
+leaves the person's earlier ones working until they expire, and a person may
+make as many as they like. One account holds at most 100 paired agents; past
+that, pairing answers `agent_limit` and the code stays unused. Pairing only
 says whose agent this is: what a paired agent may do on a site stays that
 site's decision.
 

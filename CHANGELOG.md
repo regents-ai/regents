@@ -996,3 +996,14 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   read counts against the visitor's chain-read limit (30 a minute, shared with
   Stake and Redeem); past it, the figures already shown stay. Carries
   ash-template f2d6c35's credits panel change (fly-sentinel finding, MEDIUM).
+
+## 2026-10-07 — 100 paired agents per account; pairing codes unlimited
+
+- Sean, 2026-10-07 (relayed by Patchbay): "I meant active pairing codes, a privy
+  user can have , lets cap it at 100 agents paired to them." He chose "100
+  agents, codes unlimited". This replaces the ten-live-codes limit above: a
+  person may make as many pairing codes as they like, each working once for
+  ten minutes, and one account holds at most 100 paired agents. Pairing past
+  that answers `409 agent_limit`, and the code stays unused until it expires.
+  Every site that pairs through regent_agents (Regents, Patchbay, Keyfleet)
+  gets the cap once it pins this commit.

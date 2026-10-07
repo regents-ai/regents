@@ -23,6 +23,7 @@ defmodule RegentAgents.HTTP do
   import Plug.Conn
 
   alias RegentAgents.{Agent, Broker, Harness, HumanBacking}
+  alias RegentAgents.PairedAgent.AgentLimit
 
   @guide "https://siwa.regents.sh/skill.md"
   @harnesses Enum.map_join(Harness.values(), ", ", &Atom.to_string/1)
@@ -32,6 +33,9 @@ defmodule RegentAgents.HTTP do
     "pairing_failed" =>
       {400, "The pairing code could not be used.",
        "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."},
+    "agent_limit" =>
+      {409, "This account already has 100 paired agents.",
+       "Ask your person to unpair an agent on their Regents account page, then pair again. The same code works until it expires."},
     "harness_unknown" =>
       {400, "That harness is not one we know.",
        "Send one of: #{@harnesses}. Send other if yours is not listed."},
@@ -66,6 +70,7 @@ defmodule RegentAgents.HTTP do
       conn |> put_status(:created) |> answer(%{data: present(paired, agent)})
     else
       {:error, :harness_unknown} -> error(conn, "harness_unknown")
+      {:error, %Ash.Error.Invalid{errors: [%AgentLimit{}]}} -> error(conn, "agent_limit")
       {:refused, conn} -> conn
       {:error, _pairing} -> error(conn, "pairing_failed")
     end

@@ -1,8 +1,18 @@
+defmodule RegentAgents.PairedAgent.AgentLimit do
+  @moduledoc "The person already has as many paired agents as one account holds."
+  use Splode.Error, fields: [:limit], class: :invalid
+
+  def message(%{limit: limit}), do: "this account already has #{limit} paired agents"
+end
+
 defmodule RegentAgents.PairedAgent.Actions.Pair do
   @moduledoc false
   use Ash.Resource.Actions.Implementation
 
   alias RegentAgents.{Agent, PairedAgent, PairingCode}
+  alias RegentAgents.PairedAgent.AgentLimit
+
+  @agent_limit 100
 
   @impl true
   def run(%{arguments: arguments}, _opts, %{actor: %Agent{} = actor}) do
@@ -12,6 +22,7 @@ defmodule RegentAgents.PairedAgent.Actions.Pair do
 
         with {:ok, pairing_code} <- pairing_code(arguments.code, actor),
              :ok <- admit_code(pairing_code, now),
+             :ok <- admit_agent(pairing_code.privy_user_id, actor),
              {:ok, agent} <- create_agent(pairing_code, arguments, now, actor),
              {:ok, _pairing_code} <- consume(pairing_code, now, actor) do
           agent
@@ -24,6 +35,9 @@ defmodule RegentAgents.PairedAgent.Actions.Pair do
       {:ok, agent} ->
         RegentAgents.announce(agent.privy_user_id)
         {:ok, agent}
+
+      {:error, %AgentLimit{} = limit} ->
+        {:error, limit}
 
       {:error, _error} ->
         {:error, "pairing code could not be used"}
@@ -47,6 +61,22 @@ defmodule RegentAgents.PairedAgent.Actions.Pair do
     if is_nil(pairing_code.used_at) and DateTime.compare(pairing_code.expires_at, now) == :gt,
       do: :ok,
       else: {:error, :invalid_pairing_code}
+  end
+
+  # One account holds at most `@agent_limit` paired agents. The person's lock
+  # makes two pairings at once count one after the other; a refused pairing
+  # leaves its code unused.
+  defp admit_agent(privy_user_id, actor) do
+    RegentAgents.lock(privy_user_id)
+
+    PairedAgent
+    |> Ash.Query.for_read(:of_person, %{privy_user_id: privy_user_id}, actor: actor)
+    |> Ash.count()
+    |> case do
+      {:ok, count} when count < @agent_limit -> :ok
+      {:ok, _count} -> {:error, AgentLimit.exception(limit: @agent_limit)}
+      {:error, error} -> {:error, error}
+    end
   end
 
   defp create_agent(pairing_code, arguments, now, actor) do
@@ -198,6 +228,12 @@ defmodule RegentAgents.PairedAgent do
       filter expr(wallet == ^actor(:wallet))
     end
 
+    read :of_person do
+      public? false
+      argument :privy_user_id, :string, allow_nil?: false
+      filter expr(privy_user_id == ^arg(:privy_user_id))
+    end
+
     read :mine do
       filter expr(privy_user_id == ^actor(:privy_user_id))
       prepare build(sort: [paired_at: :desc, id: :asc])
@@ -245,7 +281,7 @@ defmodule RegentAgents.PairedAgent do
   end
 
   policies do
-    policy action([:pair, :check_in, :record, :by_wallet]) do
+    policy action([:pair, :check_in, :record, :by_wallet, :of_person]) do
       authorize_if RegentAgents.Checks.Agent
     end
 
