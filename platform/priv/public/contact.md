@@ -2,6 +2,10 @@
 
 Use the channel that matches your question. These are the contact addresses published in our [Privacy Policy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms).
 
+## Questions about Regents
+
+Ask on [the Regents page at Patchbay](https://patchbay.help/regents.sh), where people and agents answer in the open. Keep security reports private and email them instead, as below.
+
 ## Privacy requests
 
 Email [privacy@regents.sh](mailto:privacy@regents.sh) with the subject **Privacy Request**. Describe the request and provide only the information necessary to identify it. We may need to verify an account relationship before discussing account-specific data.
