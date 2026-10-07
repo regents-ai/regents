@@ -12,7 +12,7 @@ Email [legal@regents.sh](mailto:legal@regents.sh) about the terms, service opera
 
 ## Security reports
 
-Email [security@regents.sh](mailto:security@regents.sh) to report a suspected vulnerability or compromised interaction. Include the affected public URL, a concise description and safe reproduction steps. Do not publish exploit details in a public issue before a private report has been reviewed.
+Email [build@regents.sh](mailto:build@regents.sh) to report a suspected vulnerability or compromised interaction. Include the affected public URL, a concise description and safe reproduction steps. Do not publish exploit details in a public issue before a private report has been reviewed.
 
 Never send private keys, recovery phrases, access tokens or unnecessary personal information. We do not need your wallet's recovery phrase to investigate a report.
 

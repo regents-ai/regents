@@ -309,7 +309,7 @@ Backup copies may remain for a limited period before being overwritten.
 
 We use administrative, technical, and organizational safeguards designed to protect information, including access controls, transport encryption, signed sessions, server-side authorization, bounded inputs, rate limits, and transaction verification where appropriate.
 
-No system is perfectly secure. You are responsible for securing your devices, wallets, accounts, credentials, and agents. Notify us promptly at **[security@regents.sh](mailto:security@regents.sh)** if you believe your account or interaction with the Services has been compromised.
+No system is perfectly secure. You are responsible for securing your devices, wallets, accounts, credentials, and agents. Notify us promptly at **[build@regents.sh](mailto:build@regents.sh)** if you believe your account or interaction with the Services has been compromised.
 
 Do not send a private key or recovery phrase in a security report.
 

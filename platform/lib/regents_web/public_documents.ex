@@ -131,6 +131,20 @@ defmodule RegentsWeb.PublicDocuments do
 
   def llms, do: source("llms")
 
+  # The public documents change only with a release; security.txt expires a year after it.
+  @released_at DateTime.utc_now() |> DateTime.truncate(:second)
+
+  @doc "The RFC 9116 security contact file; it expires a year after the release."
+  def security_txt do
+    """
+    Contact: mailto:build@regents.sh
+    Expires: #{@released_at |> DateTime.shift(year: 1) |> DateTime.to_iso8601()}
+    Preferred-Languages: en
+    Canonical: #{url("/.well-known/security.txt")}
+    Policy: #{url("/contact")}
+    """
+  end
+
   # The HTML is MDEx-sanitized from the committed public markdown.
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do

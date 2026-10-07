@@ -89,6 +89,7 @@ defmodule RegentsWeb.Router do
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/robots.txt", PublicPagesController, :robots
     get "/llms.txt", PublicPagesController, :llms
+    get "/.well-known/security.txt", PublicPagesController, :security
   end
 
   scope "/", RegentsWeb do
