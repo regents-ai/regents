@@ -196,7 +196,7 @@ defmodule RegentsWeb.ShellLive.Account do
             | activity: page.entries,
               next: page.next,
               listing: page.listing,
-              human_backed: page.human_backed
+              human_backing: page.human_backing
           }
         )
 
@@ -567,7 +567,7 @@ defmodule RegentsWeb.ShellLive.Account do
                 more: :idle,
                 paged: false,
                 listing: nil,
-                human_backed: false
+                human_backing: nil
               }
             )
             |> read_activity(agent)

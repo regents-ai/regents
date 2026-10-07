@@ -421,6 +421,22 @@
   font-size: 0.9rem;
 }
 
+.account-agent-dialog__facts dd > .account-agent-human {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.account-agent-dialog__facts dd > .account-agent-human--verified {
+  color: var(--color-fg);
+  font-size: inherit;
+}
+
+.account-agent-human__mark {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
 .account-agent-dialog__facts select {
   max-width: 100%;
 }

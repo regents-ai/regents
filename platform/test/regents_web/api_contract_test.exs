@@ -383,7 +383,8 @@ defmodule RegentsWeb.ApiContractTest do
                "paired_at",
                "last_contact_at",
                "registry_listing",
-               "human_backed"
+               "human_backed",
+               "same_person_agent_count"
              ]
 
     # A check-in also names the account the agent is paired with.
@@ -399,6 +400,7 @@ defmodule RegentsWeb.ApiContractTest do
                "last_contact_at",
                "registry_listing",
                "human_backed",
+               "same_person_agent_count",
                "account"
              ]
 

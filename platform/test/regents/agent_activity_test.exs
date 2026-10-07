@@ -40,8 +40,12 @@ defmodule Regents.AgentActivityTest do
       })
     end)
 
-    assert {:ok, %{entries: activity, listing: nil, human_backed: false}} =
-             AgentActivity.recent(agent())
+    assert {:ok,
+            %{
+              entries: activity,
+              listing: nil,
+              human_backing: %{human_backed: false, same_person_agent_count: nil}
+            }} = AgentActivity.recent(agent())
 
     assert Enum.map(activity, &{&1.site, &1.action}) == [
              {"Techtree", "Checked in"},
@@ -67,12 +71,15 @@ defmodule Regents.AgentActivityTest do
             "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
             "registryUrl" => "https://www.8004scan.io/agents/base/97609"
           },
-          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32)}
+          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32), "agentCount" => 3}
         }
       })
     end)
 
-    assert {:ok, %{listing: listing, human_backed: true} = read} = AgentActivity.recent(agent())
+    assert {:ok, %{listing: listing, human_backing: backing} = read} =
+             AgentActivity.recent(agent())
+
+    assert backing == %{human_backed: true, same_person_agent_count: 3}
     assert listing == %{url: "https://www.8004scan.io/agents/base/97609", number: "97609"}
     refute inspect(read) =~ String.duplicate("ab", 32)
   end

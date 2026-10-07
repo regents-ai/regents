@@ -3,13 +3,15 @@ defmodule Regents.AgentActivity do
   What a paired agent has done across the Regents sites since it was paired,
   in plain words and 20 requests at a time, newest first, its listing in the
   agent registry, if it has one, and
-  whether a person verified with World ID stands behind it. The sign-in service
-  keeps all three: every request an agent signs is verified there, whichever
-  site it went to, an agent lists itself through it, and it reads World's
-  record of the person. Only whether there is such a person is kept here.
+  whether a person verified with World ID stands behind it, with how many agents
+  that person stands behind. The sign-in service keeps all three: every request
+  an agent signs is verified there, whichever site it went to, an agent lists
+  itself through it, and it reads World's record of the person. Only whether
+  there is such a person, and their agent count, is kept here
+  (`RegentAgents.HumanBacking`).
   """
 
-  alias RegentAgents.PairedAgent
+  alias RegentAgents.{HumanBacking, PairedAgent}
 
   @sites %{
     "regents" => "Regents Labs",
@@ -26,7 +28,7 @@ defmodule Regents.AgentActivity do
           entries: [entry()],
           next: String.t() | nil,
           listing: listing() | nil,
-          human_backed: boolean()
+          human_backing: HumanBacking.t()
         }
 
   @doc """
@@ -55,13 +57,13 @@ defmodule Regents.AgentActivity do
              request_options(config, agent, after_cursor)
            ),
          {:ok, listing} <- listing(registration),
-         {:ok, human_backed} <- human_backed(book) do
+         {:ok, human_backing} <- human_backing(book) do
       {:ok,
        %{
          entries: Enum.flat_map(activity, &describe/1) ++ pairing(agent, next),
          next: next,
          listing: listing,
-         human_backed: human_backed
+         human_backing: human_backing
        }}
     else
       {:ok, %Req.Response{status: status}} -> {:error, {:unexpected_status, status}}
@@ -78,9 +80,12 @@ defmodule Regents.AgentActivity do
 
   defp listing(_other), do: {:error, :registration_unreadable}
 
-  defp human_backed(nil), do: {:ok, false}
-  defp human_backed(%{"humanId" => "0x" <> _number}), do: {:ok, true}
-  defp human_backed(_other), do: {:error, :agent_book_unreadable}
+  defp human_backing(book) do
+    case HumanBacking.read(book) do
+      {:ok, backing} -> {:ok, backing}
+      :error -> {:error, :agent_book_unreadable}
+    end
+  end
 
   # The pairing itself is the agent's own record here; the request that made
   # it was verified a moment before the agent existed.

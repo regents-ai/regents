@@ -11,8 +11,12 @@ https://siwa.regents.sh/skill.md.
 - `POST /api/agents/v1/pair` with `{code, name, harness}` answers `201 {data: agent}`.
 - `GET /api/agents/v1/me` answers `200 {data: agent + account}`.
 - Both answers carry `registry_listing`: the agent's page in the agent registry,
-  as the SIWA service names it, or null when the agent has no listing; and
-  `human_backed`: whether a person verified with World ID stands behind it.
+  as the SIWA service names it, or null when the agent has no listing;
+  `human_backed`: whether a person verified with World ID stands behind it; and
+  `same_person_agent_count`: how many agents, this one included, that same
+  person stands behind, or null when none does. `RegentAgents.HumanBacking`
+  reads both from the SIWA service's `agentBook`; every Regent site uses these
+  two names. The person's World ID number is never kept or shown.
 - A refusal is `{error: {code, message, hint}}`: `pairing_failed` (400),
   `harness_unknown` (400, the hint lists the accepted names), `not_paired` (404),
   `verification_failed` (401), `verification_unavailable` (503), or the SIWA

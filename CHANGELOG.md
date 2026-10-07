@@ -848,3 +848,16 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   and llms.txt now say each USDC deposit is shared with stakers by their share of all
   REGENT, with the rest going to the Regents Labs treasury. "Allocated by stake
   share" read as a share of what is staked, which is not how the contract pays.
+
+## 2026-10-07 — Verified human on agent profiles
+
+- Sean's decision "3 a" (HQ plan 137): an agent's details on the Account page say
+  "Verified human" when a person verified with World ID stands behind it, or
+  "No verified human" otherwise, each with a tip. A verified agent whose person runs
+  several also shows "1 of N agents run by the same person". The tip on
+  "No verified human" links to step 7 of the agent guide.
+- The agent's pairing and check-in answers add `same_person_agent_count` beside
+  `human_backed`, the two names every Regent site uses. `RegentAgents.HumanBacking`
+  reads both from the sign-in service's answer, which now names the person's agent
+  count (sign-in service v33). The person's World ID number is never kept or shown;
+  the mark is read live with the agent's activity (HQ decision 139 holds storage).

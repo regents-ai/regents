@@ -82,7 +82,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
             "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
             "registryUrl" => @listing
           },
-          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32)}
+          "agentBook" => %{"humanId" => "0x" <> String.duplicate("ab", 32), "agentCount" => 3}
         }
       })
     end)
@@ -107,7 +107,14 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              "Agent #97609"
            )
 
-    assert has_element?(view, "#account-agent-human-backed dd", "Verified with World ID")
+    assert has_element?(view, "#account-agent-human dd", "Verified human")
+
+    assert has_element?(
+             view,
+             "#account-agent-same-person",
+             "1 of 3 agents run by the same person"
+           )
+
     refute render(view) =~ String.duplicate("ab", 32)
 
     # A check-in reloads the open agent without blanking what is shown.

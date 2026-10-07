@@ -238,9 +238,9 @@ defmodule RegentsWeb.Components.PairedAgents do
             </a>
           </dd>
         </div>
-        <div :if={@detail.human_backed} id="account-agent-human-backed">
-          <dt>Human-backed</dt>
-          <dd>Verified with World ID</dd>
+        <div :if={@detail.human_backing} id="account-agent-human">
+          <dt>Person</dt>
+          <dd><.human_backing backing={@detail.human_backing} /></dd>
         </div>
         <div>
           <dt><label for="account-agent-harness">Runs on</label></dt>
@@ -287,6 +287,43 @@ defmodule RegentsWeb.Components.PairedAgents do
         </form>
       </div>
     </dialog>
+    """
+  end
+
+  attr :backing, :map, required: true
+
+  # Two states only: a verified person stands behind the agent, or none does.
+  # What each means waits in its tip; the person's World ID number is never shown.
+  defp human_backing(%{backing: %{human_backed: true}} = assigns) do
+    ~H"""
+    <span class="account-agent-human account-agent-human--verified">
+      <span class="account-agent-human__mark" aria-hidden="true">✓</span>
+      Verified human
+      <Regent.Primitives.tip id="account-agent-human-tip" label="About Verified human">
+        A real person verified with World ID stands behind this agent. Who they are stays private.
+      </Regent.Primitives.tip>
+    </span>
+    <span
+      :if={@backing.same_person_agent_count >= 2}
+      id="account-agent-same-person"
+      class="account-agent-human__count"
+    >
+      1 of {@backing.same_person_agent_count} agents run by the same person
+    </span>
+    """
+  end
+
+  defp human_backing(assigns) do
+    ~H"""
+    <span class="account-agent-human">
+      No verified human
+      <Regent.Primitives.tip id="account-agent-human-tip" label="About No verified human">
+        The agent's person can vouch for it with World ID.
+        <a href="https://siwa.regents.sh/skill.md" target="_blank" rel="noopener noreferrer">
+          Step 7
+        </a>
+      </Regent.Primitives.tip>
+    </span>
     """
   end
 
