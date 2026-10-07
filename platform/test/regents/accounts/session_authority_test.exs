@@ -271,6 +271,22 @@ defmodule Regents.Accounts.SessionAuthorityTest do
     refute SessionAuthority.leased_account(bound.lineage, account.id)
   end
 
+  test "SIGN_IN_LAPSES: a sign-in lapses 30 days after it was made, refreshes included" do
+    account = account!("lapse")
+    {:ok, :bind, bound} = SessionAuthority.sign_in(SessionAuthority.bootstrap(), account.id)
+    {:ok, :refresh, refreshed} = SessionAuthority.sign_in(bound, account.id)
+
+    signed_in_days_ago!(refreshed.lineage, 29)
+    assert SessionAuthority.exact(refreshed) == {:ok, account.id}
+    assert SessionAuthority.leased_account(refreshed.lineage, account.id).id == account.id
+
+    signed_in_days_ago!(refreshed.lineage, 30)
+    assert SessionAuthority.exact(refreshed) == {:error, :reset}
+    assert SessionAuthority.renew(refreshed) == {:error, :reset}
+    assert SessionAuthority.sign_in(refreshed, account.id) == {:error, :reset}
+    refute SessionAuthority.leased_account(refreshed.lineage, account.id)
+  end
+
   test "SERIALIZED_ABSENT_AND_PRESENT_ROWS: an absent row serializes a bind that a revocation then ends" do
     account = shared_account!("absent-bind-first")
     claim = absent_claim(0)
@@ -465,6 +481,13 @@ defmodule Regents.Accounts.SessionAuthorityTest do
       actor: %System{}
     )
     |> Ash.read_one!()
+  end
+
+  defp signed_in_days_ago!(lineage, days) do
+    signed_in_at = DateTime.add(DateTime.utc_now(), -days, :day)
+    # Ash is bypassed on purpose: a sign-in is always stamped with the present, so
+    # one made in the past can only be set by writing the row directly.
+    {1, _} = Repo.update_all(digest_query(lineage), set: [signed_in_at: signed_in_at])
   end
 
   defp row!(lineage) do

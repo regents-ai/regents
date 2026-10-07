@@ -119,7 +119,9 @@ config :regents, :session_options,
   signing_salt: "OLoeAaio",
   same_site: "Lax",
   secure: false,
-  http_only: true
+  http_only: true,
+  # A sign-in lasts 30 days; Regents.Accounts.SessionAuthority refuses it after that too.
+  max_age: 30 * 24 * 60 * 60
 
 # Configure the endpoint
 config :regents, RegentsWeb.Endpoint,

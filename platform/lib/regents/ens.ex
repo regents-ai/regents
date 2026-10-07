@@ -72,11 +72,17 @@ defmodule Regents.Ens do
   # on its own budget. So a record the ENS service cannot resolve, an image that
   # has since gone, and a host that will not answer all leave the wallet's
   # generated picture standing rather than a box the browser cannot fill — and
-  # none of them costs the name, which was read before this is asked.
+  # none of them costs the name, which was read before this is asked. A redirect
+  # is not followed: the record's owner chooses where it points, and following it
+  # would let them aim this request at an address inside Fly's network.
   defp served(nil), do: nil
 
   defp served(url) do
-    case avatar_client().head(url, receive_timeout: avatar_deadline_ms(), retry: false) do
+    case avatar_client().head(url,
+           receive_timeout: avatar_deadline_ms(),
+           retry: false,
+           redirect: false
+         ) do
       {:ok, %{status: 200}} -> url
       _unserved -> nil
     end
