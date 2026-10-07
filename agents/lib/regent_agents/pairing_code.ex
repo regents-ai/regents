@@ -8,10 +8,12 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
   @moduledoc false
   use Ash.Resource.Actions.Implementation
 
+  require Ash.Query
+
   alias RegentAgents.{PairingCode, Person}
 
   @ttl_seconds 600
-  @rate_limit_seconds 60
+  @live_limit 20
 
   @impl true
   def run(_input, _opts, %{actor: %Person{} = actor}) do
@@ -22,9 +24,9 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
     Ash.DataLayer.transaction(PairingCode, fn ->
       RegentAgents.lock(actor.privy_user_id)
 
-      with {:ok, existing} <- pairing_code(actor),
-           :ok <- admit_issue(existing, now),
-           {:ok, _record} <- store(existing, code, now, expires_at, actor) do
+      with {:ok, codes} <- Ash.read(PairingCode, action: :for_person, actor: actor),
+           :ok <- discard(retired(codes, now), actor),
+           {:ok, _record} <- store(code, now, expires_at, actor) do
         %PairingCode.Issued{code: code, issued_at: now, expires_at: expires_at}
       else
         {:error, error} -> Ash.DataLayer.rollback(PairingCode, error)
@@ -34,24 +36,31 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
 
   def run(_input, _opts, _context), do: {:error, "a signed-in person is required"}
 
-  defp pairing_code(actor) do
+  # Codes that can no longer pair, and the oldest live ones beyond the newest
+  # `@live_limit - 1`, so with the new code a person holds at most `@live_limit`.
+  defp retired(codes, now) do
+    {live, spent} =
+      Enum.split_with(codes, &(is_nil(&1.used_at) and DateTime.after?(&1.expires_at, now)))
+
+    spent ++ Enum.drop(live, @live_limit - 1)
+  end
+
+  defp discard([], _actor), do: :ok
+
+  defp discard(codes, actor) do
+    ids = Enum.map(codes, & &1.id)
+
     PairingCode
     |> Ash.Query.for_read(:for_person, %{}, actor: actor)
-    |> Ash.Query.lock(:for_update)
-    |> Ash.read_one()
+    |> Ash.Query.filter(id in ^ids)
+    |> Ash.bulk_destroy(:discard, %{}, actor: actor, strategy: :atomic, return_errors?: true)
+    |> case do
+      %Ash.BulkResult{status: :success} -> :ok
+      %Ash.BulkResult{errors: errors} -> {:error, errors}
+    end
   end
 
-  defp admit_issue(nil, _now), do: :ok
-
-  defp admit_issue(%{issued_at: issued_at}, now) do
-    if DateTime.diff(now, issued_at, :second) >= @rate_limit_seconds,
-      do: :ok,
-      else:
-        {:error,
-         Ash.Error.Invalid.Unavailable.exception(resource: PairingCode, reason: :issued_recently)}
-  end
-
-  defp store(nil, code, now, expires_at, actor) do
+  defp store(code, now, expires_at, actor) do
     PairingCode
     |> Ash.Changeset.for_create(
       :store,
@@ -60,22 +69,14 @@ defmodule RegentAgents.PairingCode.Actions.Issue do
     )
     |> Ash.create()
   end
-
-  defp store(existing, code, now, expires_at, actor) do
-    existing
-    |> Ash.Changeset.for_update(
-      :replace,
-      %{code_hash: PairingCode.hash(code), issued_at: now, expires_at: expires_at, used_at: nil},
-      actor: actor
-    )
-    |> Ash.update()
-  end
 end
 
 defmodule RegentAgents.PairingCode do
   @moduledoc """
-  The one short-lived code a signed-in person hands their agent. Only its hash
-  is kept. It works once, for ten minutes, on any Regent site.
+  A short-lived code a signed-in person hands their agent. Only its hash is
+  kept. Each works once, for ten minutes, on any Regent site. A new code leaves
+  the person's earlier ones working until they expire; a person holds at most
+  twenty live codes, and making another retires the oldest.
   """
 
   use Ash.Resource,
@@ -121,8 +122,8 @@ defmodule RegentAgents.PairingCode do
 
     read :for_person do
       public? false
-      get? true
       filter expr(privy_user_id == ^actor(:privy_user_id))
+      prepare build(sort: [issued_at: :desc])
     end
 
     read :by_code_hash do
@@ -132,25 +133,23 @@ defmodule RegentAgents.PairingCode do
       filter expr(code_hash == ^arg(:code_hash))
     end
 
-    update :replace do
-      public? false
-      require_atomic? false
-      accept [:code_hash, :issued_at, :expires_at, :used_at]
-    end
-
     update :consume do
       public? false
       require_atomic? false
       accept [:used_at]
     end
+
+    destroy :discard do
+      public? false
+    end
   end
 
   policies do
-    policy action([:issue, :store, :for_person, :replace]) do
+    policy action([:issue, :store, :for_person, :discard]) do
       authorize_if RegentAgents.Checks.Person
     end
 
-    policy action([:replace]) do
+    policy action(:discard) do
       authorize_if expr(privy_user_id == ^actor(:privy_user_id))
     end
 
@@ -160,7 +159,6 @@ defmodule RegentAgents.PairingCode do
   end
 
   identities do
-    identity :unique_person, [:privy_user_id]
     identity :unique_code_hash, [:code_hash]
   end
 

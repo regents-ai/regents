@@ -143,8 +143,15 @@ defmodule RegentsWeb.ShellLive.Account do
       when is_binary(name) and byte_size(name) <= @claim_name_limit,
       do: claim_name(socket, name)
 
-  def handle_event("issue_pairing_code", _params, socket),
-    do: assign(socket, agent_pairing: issue_pairing_code(socket), agent_notice: nil)
+  # Choosing an agent, or asking again for the chosen one, makes a code with that
+  # agent's message; codes made before keep working until they expire.
+  def handle_event("issue_pairing_code", %{"harness" => harness}, socket)
+      when is_binary(harness) do
+    case Harness.match(harness) do
+      {:ok, harness} -> issue_pairing_code(socket, harness)
+      :error -> socket
+    end
+  end
 
   def handle_event("open_agent", %{"id" => id}, socket) when is_binary(id),
     do: socket |> assign(agent_notice: nil) |> show_agent(id, agent_person(socket))
@@ -530,11 +537,11 @@ defmodule RegentsWeb.ShellLive.Account do
 
   # A code on screen gives way to the agent that used it, so a spent code is
   # never left there to send again.
-  defp pairing_after(%PairingCode.Issued{issued_at: issued_at} = shown, agents)
+  defp pairing_after(%{code: %PairingCode.Issued{issued_at: issued_at}} = shown, agents)
        when is_list(agents) do
     case Enum.find(agents, &(DateTime.compare(&1.paired_at, issued_at) != :lt)) do
       nil -> shown
-      agent -> {:paired, agent}
+      agent -> %{shown | code: {:paired, agent}}
     end
   end
 
@@ -633,21 +640,13 @@ defmodule RegentsWeb.ShellLive.Account do
   defp agent_notice({:error, _unavailable}),
     do: {:alert, "Your agents couldn’t be updated just now. Nothing changed. Try again."}
 
-  # A code already on screen stays there while a new one can't be made yet.
-  defp issue_pairing_code(socket) do
-    case RegentAgents.issue_pairing_code(actor: agent_person(socket)) do
-      {:ok, issued} ->
-        issued
+  defp issue_pairing_code(socket, harness) do
+    code =
+      case RegentAgents.issue_pairing_code(actor: agent_person(socket)) do
+        {:ok, issued} -> issued
+        {:error, _error} -> :unavailable
+      end
 
-      {:error,
-       %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :issued_recently}]}} ->
-        case socket.assigns.agent_pairing do
-          %PairingCode.Issued{} = shown -> shown
-          _none -> :wait
-        end
-
-      {:error, _error} ->
-        :unavailable
-    end
+    assign(socket, agent_pairing: %{harness: harness, code: code}, agent_notice: nil)
   end
 end

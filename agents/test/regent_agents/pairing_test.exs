@@ -6,7 +6,7 @@ defmodule RegentAgents.PairingTest do
   @wallet "0x2222222222222222222222222222222222222222"
   @other_wallet "0x3333333333333333333333333333333333333333"
 
-  test "a code is short-lived, stored only as a hash, and replaced at most once a minute" do
+  test "a code is short-lived and stored only as a hash, and a new one leaves the earlier one working" do
     owner = person("code")
 
     assert {:ok, issued} = RegentAgents.issue_pairing_code(actor: owner)
@@ -23,17 +23,17 @@ defmodule RegentAgents.PairingTest do
     assert stored.privy_user_id == owner.privy_user_id
     refute stored.code_hash == issued.code
 
-    assert {:error,
-            %Ash.Error.Invalid{errors: [%Ash.Error.Invalid.Unavailable{reason: :issued_recently}]}} =
-             RegentAgents.issue_pairing_code(actor: owner)
+    assert {:ok, newer} = RegentAgents.issue_pairing_code(actor: owner)
+    refute newer.code == issued.code
 
-    age_code!(owner, 60)
-    assert {:ok, replacement} = RegentAgents.issue_pairing_code(actor: owner)
-    refute replacement.code == issued.code
-
-    assert {:error, _replaced} =
-             RegentAgents.pair_agent(issued.code, "Retired", :hermes,
+    assert {:ok, _agent} =
+             RegentAgents.pair_agent(issued.code, "Earlier", :hermes,
                actor: %Agent{wallet: @wallet}
+             )
+
+    assert {:ok, _agent} =
+             RegentAgents.pair_agent(newer.code, "Newer", :muse,
+               actor: %Agent{wallet: @other_wallet}
              )
   end
 

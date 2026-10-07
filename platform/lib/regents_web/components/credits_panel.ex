@@ -28,6 +28,7 @@ defmodule RegentsWeb.CreditsPanel do
   alias RegentsWeb.OnchainSteps
 
   @recheck_ms 2_000
+  @block_ms 2_000
   @purchase_reads 150
   @chains %{"base" => :base, "ethereum" => :ethereum}
 
@@ -136,9 +137,18 @@ defmodule RegentsWeb.CreditsPanel do
     end
   end
 
+  # Once a step lands or reverts, the wallet's funds are read again a Base block
+  # later: a read sent straight away can reach a node still a block behind and
+  # answer with the figures from before the step.
   @impl true
-  def handle_async({:onchain_step, hash}, result, socket),
-    do: {:noreply, socket |> OnchainSteps.checked(hash, result) |> approved(hash) |> read_funds()}
+  def handle_async({:onchain_step, hash}, result, socket) do
+    socket = OnchainSteps.checked(socket, hash, result)
+
+    case Enum.find(socket.assigns.presses.sent, &(&1.hash == hash)) do
+      %{outcome: :pending} -> {:noreply, socket}
+      entry -> {:noreply, socket |> approved(entry) |> read_funds(@block_ms)}
+    end
+  end
 
   def handle_async({:purchase, hash}, {:ok, {:ok, purchase}}, socket) do
     shown = %{purchase: purchase, reads: socket.assigns.purchases[hash].reads + 1}
@@ -179,15 +189,14 @@ defmodule RegentsWeb.CreditsPanel do
 
   # A confirmed approval sets what staking may take to exactly its amount, so
   # the panel knows it from the receipt it just read, before the next read.
-  defp approved(socket, hash) do
-    case Enum.find(socket.assigns.presses.sent, &(&1.hash == hash)) do
-      %{name: "approve", outcome: :confirmed, review: %{inputs: %{"amount" => amount}}} ->
-        assign(socket, allowance: Chains.micro(dollars(amount)))
+  defp approved(socket, %{
+         name: "approve",
+         outcome: :confirmed,
+         review: %{inputs: %{"amount" => amount}}
+       }),
+       do: assign(socket, allowance: Chains.micro(dollars(amount)))
 
-      _other ->
-        socket
-    end
-  end
+  defp approved(socket, _entry), do: socket
 
   # The Switch Chain press the wallet refused: words of the panel's own. Every
   # other reason is the reference component's.
@@ -279,20 +288,25 @@ defmodule RegentsWeb.CreditsPanel do
     do: assign(socket, purchases: Map.put(socket.assigns.purchases, hash, shown))
 
   # The paying wallet's USDC on both chains, and what REGENT staking may take
-  # of its Base USDC, all at the latest block.
-  defp read_funds(%{assigns: %{signer: nil}} = socket), do: socket
+  # of its Base USDC, all at the latest block, `wait_ms` from now. A new read
+  # replaces any still on its way, whose answer is then dropped.
+  defp read_funds(socket, wait_ms \\ 0)
 
-  defp read_funds(socket) do
+  defp read_funds(%{assigns: %{signer: nil}} = socket, _wait_ms), do: socket
+
+  defp read_funds(socket, wait_ms) do
     signer = socket.assigns.signer
 
     socket =
       Enum.reduce(Map.values(@chains), socket, fn chain, socket ->
         start_async(socket, {:usdc, chain}, fn ->
+          Process.sleep(wait_ms)
           usdc_call(chain, "balanceOf(address)", [signer])
         end)
       end)
 
     start_async(socket, :allowance, fn ->
+      Process.sleep(wait_ms)
       usdc_call(:base, "allowance(address,address)", [signer, Chains.staking()])
     end)
   end

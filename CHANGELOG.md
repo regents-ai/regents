@@ -957,3 +957,23 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   requests at once cannot replace the first person.
 - The docs, the agents README and the public API description say the tag stays.
   No database change; the `regent_agents` package other sites pin carries it.
+
+## 2026-10-07 — A raised approval shows at once; pick your agent to pair
+
+- Buy Credits: after an approval lands, the panel keeps the amount from its
+  receipt and reads the wallet again one Base block later. A read sent straight
+  away could reach a node a block behind, bring back the old, smaller approval,
+  and leave Approve asking to be pressed again.
+- Sean, 2026-10-07: "Select your personal agent you will pair to your Regents
+  Account". /account asks which agent first; choosing one makes a code and shows
+  that agent's message. Muse's message adds `SIWA_BROKER=https://siwa-server.fly.dev`
+  for hosts where siwa.regents.sh does not answer. Every other agent gets the
+  usual message for now.
+- Each choice, and each press of Make a new code, makes a new code. Codes made
+  before keep working until their ten minutes are up; the one-a-minute rule is
+  gone. A person holds at most twenty live codes; making another retires the
+  oldest. The `regent_agents` migration `20261007120000` drops the one-code-per-
+  person index; the deploy's migrate step runs it before the new site starts.
+  Other sites only use codes, so their pins need no change.
+- The choice never changes the panel's height: every state's message keeps the
+  same place.

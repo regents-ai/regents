@@ -1,8 +1,6 @@
 defmodule RegentsWeb.AccountAgentsLiveTest do
   use RegentsWeb.ConnCase, async: false
 
-  import Ecto.Query, only: [from: 2]
-
   alias RegentAgents.{Agent, Person}
   alias Regents.Accounts
   alias Regents.Actors.System
@@ -11,6 +9,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   @agent %Agent{wallet: @agent_wallet}
 
   @listing "https://www.8004scan.io/agents/base/97609"
+
+  # The pairing message on show; every other agent's waits unseen in its place.
+  @message "#account-agents-pairing pre:not([data-unused])"
 
   # The sign-in service knows of nothing the agent did, and of no registry
   # listing, unless a test says so.
@@ -30,32 +31,37 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     :ok
   end
 
-  test "a person makes a pairing code to send their agent, and a second press keeps it", %{
-    conn: conn
-  } do
+  test "a person chooses their agent and gets its message; each choice or press makes a new code and earlier codes still pair",
+       %{conn: conn} do
     account = register_account("agents-code")
     view = open_account(conn, account)
 
     assert has_element?(view, "#account-agents p", "No agents are paired yet.")
+    refute has_element?(view, @message)
 
-    view |> element("#account-agents-pair") |> render_click()
-    assert has_element?(view, "#account-agents-pairing pre", "Pair with my Regents account.")
-    assert has_element?(view, "#account-agents-pairing pre", "https://regents.sh/llms.txt")
-    code = pairing_code(view)
+    choose(view, "hermes")
+    assert has_element?(view, @message, "Pair with my Regents account.")
+    assert has_element?(view, @message, "https://regents.sh/llms.txt")
+    refute has_element?(view, @message, "SIWA_BROKER")
+    first = pairing_code(view)
 
-    assert has_element?(view, "#account-agents-pair", "Make a new code")
-    view |> element("#account-agents-pair") |> render_click()
-    assert pairing_code(view) == code
+    choose(view, "muse")
+    assert has_element?(view, @message, "SIWA_BROKER=https://siwa-server.fly.dev")
+    second = pairing_code(view)
+    refute second == first
 
-    assert {:ok, agent} =
-             RegentAgents.pair_agent(code, "Sol", :hermes, actor: @agent)
+    view |> element("#account-agents-pair", "Make a new code") |> render_click()
+    assert has_element?(view, @message, "SIWA_BROKER=https://siwa-server.fly.dev")
+    refute pairing_code(view) in [first, second]
+
+    assert {:ok, agent} = RegentAgents.pair_agent(first, "Sol", :hermes, actor: @agent)
 
     heard(account)
 
-    # The spent code gives way to the agent that used it.
+    # The agent that paired takes the code's place.
     assert has_element?(view, "#account-agents-pairing", "Sol paired with your account.")
-    refute has_element?(view, "#account-agents-pairing pre")
-    assert has_element?(view, "#account-agents-pair", "Pair an agent")
+    refute has_element?(view, @message)
+    assert has_element?(view, "#account-agents-pair:not([data-unused])", "Make a new code")
     assert has_element?(view, "#agent-#{agent.id} .account-agent__who span", "Hermes")
     assert has_element?(view, ~s(#agent-#{agent.id} img[src="/images/agents/hermes.png"]))
     assert has_element?(view, "#agent-#{agent.id} .account-agent__contact", "just now")
@@ -67,8 +73,6 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     human_id = "0x" <> String.duplicate("ab", 32)
     backed = %Agent{wallet: @agent_wallet, human_id: human_id, same_person_agent_count: 3}
     agent = pair!(account, "Muse helper", :muse, backed)
-
-    code_issued_long_ago!(account)
 
     sibling =
       pair!(account, "Pi helper", :pi, %{
@@ -333,20 +337,13 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
   defp person(account), do: %Person{privy_user_id: account.privy_user_id}
 
-  # A person may make one pairing code a minute. Ash is bypassed on purpose: a
-  # code is always issued now, so one issued earlier can only be set directly.
-  defp code_issued_long_ago!(account) do
-    query =
-      from(code in "pairing_codes",
-        prefix: "regent_agents",
-        where: code.privy_user_id == ^account.privy_user_id
-      )
-
-    Regents.Repo.update_all(query, set: [issued_at: DateTime.add(DateTime.utc_now(), -3600)])
-  end
+  defp choose(view, harness),
+    do: view |> form("#account-agents-choose", %{harness: harness}) |> render_change()
 
   defp pairing_code(view) do
-    [_, code] = Regex.run(~r/Pairing code: ([A-Za-z0-9_-]+)/, render(view))
+    [_, code] =
+      Regex.run(~r/Pairing code: ([A-Za-z0-9_-]+)/, view |> element(@message) |> render())
+
     code
   end
 

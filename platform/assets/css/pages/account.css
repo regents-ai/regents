@@ -275,6 +275,79 @@
   justify-items: start;
 }
 
+.account-agents__pair h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.account-agents__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.account-agents__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.3rem;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color 160ms ease;
+}
+
+.account-agents__choice:hover {
+  border-color: var(--ash-line-strong);
+}
+
+.account-agents__choice:has(input:checked) {
+  border-color: var(--ash-accent);
+  box-shadow: inset 0 0 0 1px var(--ash-accent);
+}
+
+.account-agents__choice:has(input:focus-visible) {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 2px;
+}
+
+.account-agents__choice .account-agent__mark {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+/* Every state's message and words share one place, and what a state lacks keeps
+   its space, unseen, so choosing an agent never changes the panel's height. */
+.account-agents__message {
+  display: grid;
+  width: 100%;
+}
+
+.account-agents__message > * {
+  grid-area: 1 / 1;
+  margin: 0;
+}
+
+.account-agents__words {
+  align-self: center;
+}
+
+.account-agents__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.account-agents__code [data-unused] {
+  visibility: hidden;
+}
+
+.account-agents__actions > [data-unused] {
+  order: 1;
+}
+
 .account-agents__code {
   display: grid;
   gap: 0.75rem;
@@ -305,29 +378,7 @@
 }
 
 .account-agents__empty {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.account-agents__runtimes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-  color: var(--color-fg-muted);
-  font-size: 0.9rem;
-}
-
-.account-agents__runtime {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--color-fg);
-}
-
-.account-agents__runtime .account-agent__mark {
-  width: 1.75rem;
-  height: 1.75rem;
+  margin: 0;
 }
 
 .account-agents__code pre {
