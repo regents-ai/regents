@@ -19,8 +19,8 @@
       site_name="Regents Labs"
       site_type="business"
       image={metadata.image}
-      image_width={1024}
-      image_height={512}
+      image_width={elem(metadata.image_size, 0)}
+      image_height={elem(metadata.image_size, 1)}
       image_alt={metadata.image_alt}
       twitter_site="@regents_sh"
       markdown={metadata.markdown?}
