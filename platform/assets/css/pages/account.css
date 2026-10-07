@@ -437,6 +437,12 @@
   font-weight: 700;
 }
 
+.account-agent-human__others {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
 .account-agent-dialog__facts select {
   max-width: 100%;
 }
@@ -660,5 +666,19 @@
   color: inherit;
   font: inherit;
   text-align: start;
+  cursor: pointer;
+}
+
+/* The same person's other agents read as links; like the card opener, they are
+   skinned outside the page layer to beat the native button. */
+.account-agent-human__others .account-agent-human__other {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-fg);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
   cursor: pointer;
 }

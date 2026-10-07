@@ -179,9 +179,9 @@ defmodule RegentsWeb.ShellLive.Account do
     do: put_flash(socket, :error, EventInput.unreadable())
 
   @doc """
-  The newest page of what the open agent has done, its registry listing and
-  whether a person stands behind it, landing only while that agent is still
-  open and its older activity has not been asked for.
+  The newest page of what the open agent has done and its registry listing,
+  landing only while that agent is still open and its older activity has not
+  been asked for.
   """
   def settle_activity(
         %{assigns: %{agent_detail: %{agent: %{id: id}, paged: false} = detail}} = socket,
@@ -195,8 +195,7 @@ defmodule RegentsWeb.ShellLive.Account do
             detail
             | activity: page.entries,
               next: page.next,
-              listing: page.listing,
-              human_backing: page.human_backing
+              listing: page.listing
           }
         )
 
@@ -541,9 +540,8 @@ defmodule RegentsWeb.ShellLive.Account do
 
   defp pairing_after(shown, _agents), do: shown
 
-  # What the agent has done, its registry listing and whether a person stands
-  # behind it are read from the sign-in service in the background. What is
-  # already on screen for this agent stays until the new reading lands. Once the
+  # What the agent has done and its registry listing are read from the sign-in
+  # service in the background. What is already on screen for this agent stays until the new reading lands. Once the
   # person has asked for older activity, the list stays as they are reading it.
   defp show_agent(socket, id, actor) do
     case RegentAgents.get_my_agent(id, actor: actor) do
@@ -566,8 +564,7 @@ defmodule RegentsWeb.ShellLive.Account do
                 next: nil,
                 more: :idle,
                 paged: false,
-                listing: nil,
-                human_backing: nil
+                listing: nil
               }
             )
             |> read_activity(agent)

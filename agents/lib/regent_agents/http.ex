@@ -5,7 +5,7 @@ defmodule RegentAgents.HTTP do
   `GET /me` checks in and answers with the pairing. Both answers carry the
   page of the agent's listing in the agent registry, or null, whether a person
   verified with World ID stands behind the agent, and how many agents that same
-  person stands behind, or null when none does.
+  person stands behind, or null when none does, as this request saved them.
 
   Mount it with `forward "/api/agents/v1", RegentAgents.HTTP` behind the site's
   own rate limit and a body reader that keeps the raw body in
@@ -22,7 +22,7 @@ defmodule RegentAgents.HTTP do
 
   import Plug.Conn
 
-  alias RegentAgents.{Agent, Broker, Harness}
+  alias RegentAgents.{Agent, Broker, Harness, HumanBacking}
 
   @guide "https://siwa.regents.sh/skill.md"
   @harnesses Enum.map_join(Harness.values(), ", ", &Atom.to_string/1)
@@ -143,10 +143,9 @@ defmodule RegentAgents.HTTP do
       wallet: paired.wallet,
       paired_at: DateTime.to_iso8601(paired.paired_at),
       last_contact_at: DateTime.to_iso8601(paired.last_contact_at),
-      registry_listing: agent.registry_listing,
-      human_backed: agent.human_backed,
-      same_person_agent_count: agent.same_person_agent_count
+      registry_listing: agent.registry_listing
     }
+    |> Map.merge(HumanBacking.describe(paired))
   end
 
   defp account(agent) do
@@ -180,8 +179,8 @@ defmodule RegentAgents.HTTP do
     # An agent signs in with a key it made itself; the key's address is who it
     # is, on Base, for this site only. The SIWA service also names the page of
     # its listing in the agent registry, or null when it has none, and the World
-    # ID person behind it, or null. Only whether there is one, and how many
-    # agents they stand behind, is kept.
+    # ID person behind it with their agent count, or null; the agent's pairing
+    # saves both.
     @impl true
     def accept(conn, data, _context) do
       audience = RegentAgents.Broker.audience()

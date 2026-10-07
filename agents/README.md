@@ -14,9 +14,11 @@ https://siwa.regents.sh/skill.md.
   as the SIWA service names it, or null when the agent has no listing;
   `human_backed`: whether a person verified with World ID stands behind it; and
   `same_person_agent_count`: how many agents, this one included, that same
-  person stands behind, or null when none does. `RegentAgents.HumanBacking`
-  reads both from the SIWA service's `agentBook`; every Regent site uses these
-  two names. The person's World ID number is never kept or shown.
+  person stands behind, or null when none does. Every verified request saves the
+  SIWA service's `agentBook` onto the paired agent (`RegentAgents.HumanBacking`;
+  `null` clears it), and both fields come from what was saved. Every Regent site
+  uses these two names. The person's World ID number is saved only to group
+  their agents; it is never shown, logged or answered.
 - A refusal is `{error: {code, message, hint}}`: `pairing_failed` (400),
   `harness_unknown` (400, the hint lists the accepted names), `not_paired` (404),
   `verification_failed` (401), `verification_unavailable` (503), or the SIWA

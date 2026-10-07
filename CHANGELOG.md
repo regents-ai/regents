@@ -861,3 +861,15 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   reads both from the sign-in service's answer, which now names the person's agent
   count (sign-in service v33). The person's World ID number is never kept or shown;
   the mark is read live with the agent's activity (HQ decision 139 holds storage).
+
+## 2026-10-07 — Verified human is saved on the agent
+
+- Sean's "139. a" (relayed by HQ): each agent's pairing and every check-in save
+  the World ID person the sign-in service names behind it and that person's agent
+  count; a request that names no person clears both. The Account page shows the
+  saved values and no longer reads them with the agent's activity. A verified
+  agent's details also list the person's other agents paired with the same
+  account, each opening its own details. The person's number is never shown.
+- New columns `human_id` and `same_person_agent_count` on the shared
+  `regent_agents.paired_agents` table (migration `20261007080000_agent_human_backing`),
+  migrated from Regents' release before any other site takes the new package.

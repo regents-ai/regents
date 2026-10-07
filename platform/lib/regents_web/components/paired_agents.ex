@@ -7,7 +7,7 @@ defmodule RegentsWeb.Components.PairedAgents do
 
   use RegentsWeb, :html
 
-  alias RegentAgents.{Harness, PairingCode}
+  alias RegentAgents.{Harness, HumanBacking, PairingCode}
 
   @logos %{
     hermes: "/images/agents/hermes.png",
@@ -59,7 +59,13 @@ defmodule RegentsWeb.Components.PairedAgents do
         <.pairing pairing={@pairing} />
       </div>
 
-      <.agent_dialog :if={@detail} detail={@detail} notice={@notice} now={@now} />
+      <.agent_dialog
+        :if={@detail}
+        detail={@detail}
+        same_person={same_person(@agents, @detail.agent)}
+        notice={@notice}
+        now={@now}
+      />
     </section>
     """
   end
@@ -187,7 +193,16 @@ defmodule RegentsWeb.Components.PairedAgents do
 
   defp agent_notice(assigns), do: ~H""
 
+  # The person's other agents paired with this account, grouped by the World ID
+  # person saved behind each.
+  defp same_person(agents, %{id: id, human_id: human_id})
+       when is_list(agents) and is_binary(human_id),
+       do: Enum.filter(agents, &(&1.human_id == human_id and &1.id != id))
+
+  defp same_person(_agents, _agent), do: []
+
   attr :detail, :map, required: true
+  attr :same_person, :list, required: true
   attr :notice, :any, required: true
   attr :now, DateTime, required: true
 
@@ -238,9 +253,14 @@ defmodule RegentsWeb.Components.PairedAgents do
             </a>
           </dd>
         </div>
-        <div :if={@detail.human_backing} id="account-agent-human">
+        <div id="account-agent-human">
           <dt>Person</dt>
-          <dd><.human_backing backing={@detail.human_backing} /></dd>
+          <dd>
+            <.human_backing
+              backing={HumanBacking.describe(@detail.agent)}
+              same_person={@same_person}
+            />
+          </dd>
         </div>
         <div>
           <dt><label for="account-agent-harness">Runs on</label></dt>
@@ -291,6 +311,7 @@ defmodule RegentsWeb.Components.PairedAgents do
   end
 
   attr :backing, :map, required: true
+  attr :same_person, :list, required: true
 
   # Two states only: a verified person stands behind the agent, or none does.
   # What each means waits in its tip; the person's World ID number is never shown.
@@ -309,6 +330,18 @@ defmodule RegentsWeb.Components.PairedAgents do
       class="account-agent-human__count"
     >
       1 of {@backing.same_person_agent_count} agents run by the same person
+    </span>
+    <span :if={@same_person != []} class="account-agent-human__others">
+      <button
+        :for={other <- @same_person}
+        id={"account-agent-same-person-#{other.id}"}
+        class="account-agent-human__other"
+        type="button"
+        phx-click="open_agent"
+        phx-value-id={other.id}
+      >
+        {other.name}
+      </button>
     </span>
     """
   end

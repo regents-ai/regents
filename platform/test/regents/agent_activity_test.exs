@@ -40,12 +40,7 @@ defmodule Regents.AgentActivityTest do
       })
     end)
 
-    assert {:ok,
-            %{
-              entries: activity,
-              listing: nil,
-              human_backing: %{human_backed: false, same_person_agent_count: nil}
-            }} = AgentActivity.recent(agent())
+    assert {:ok, %{entries: activity, listing: nil}} = AgentActivity.recent(agent())
 
     assert Enum.map(activity, &{&1.site, &1.action}) == [
              {"Techtree", "Checked in"},
@@ -59,7 +54,7 @@ defmodule Regents.AgentActivityTest do
     assert List.last(activity).occurred_at == @paired_at
   end
 
-  test "a listed, human-backed agent is read with its listing and its backing, not the person's number" do
+  test "a listed agent is read with its listing" do
     Req.Test.expect(Regents.Siwa, fn conn ->
       Req.Test.json(conn, %{
         "data" => %{
@@ -76,12 +71,8 @@ defmodule Regents.AgentActivityTest do
       })
     end)
 
-    assert {:ok, %{listing: listing, human_backing: backing} = read} =
-             AgentActivity.recent(agent())
-
-    assert backing == %{human_backed: true, same_person_agent_count: 3}
+    assert {:ok, %{listing: listing}} = AgentActivity.recent(agent())
     assert listing == %{url: "https://www.8004scan.io/agents/base/97609", number: "97609"}
-    refute inspect(read) =~ String.duplicate("ab", 32)
   end
 
   test "a page with more after it leaves out the pairing; the next page is read with its cursor" do

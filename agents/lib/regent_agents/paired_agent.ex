@@ -118,6 +118,10 @@ defmodule RegentAgents.PairedAgent do
   An agent a person paired with their account. The agent proved it holds its
   key through SIWA; the name and runtime are what it said about itself, and
   the person may correct the runtime. One key belongs to one person.
+
+  Each verified request from the agent saves the World ID person the SIWA
+  service names behind it and that person's agent count, or clears both
+  (`RegentAgents.HumanBacking`). The person's number only groups their agents.
   """
 
   use Ash.Resource,
@@ -152,6 +156,12 @@ defmodule RegentAgents.PairedAgent do
     attribute :harness, RegentAgents.Harness, allow_nil?: false, public?: true
     attribute :paired_at, :utc_datetime_usec, allow_nil?: false, public?: true
     attribute :last_contact_at, :utc_datetime_usec, allow_nil?: false, public?: true
+    attribute :human_id, :string, sensitive?: true
+
+    attribute :same_person_agent_count, :integer do
+      public? true
+      constraints min: 1
+    end
   end
 
   actions do
@@ -177,6 +187,8 @@ defmodule RegentAgents.PairedAgent do
       public? false
       accept [:privy_user_id, :name, :harness, :paired_at, :last_contact_at]
       change set_attribute(:wallet, actor(:wallet))
+      change set_attribute(:human_id, actor(:human_id))
+      change set_attribute(:same_person_agent_count, actor(:same_person_agent_count))
     end
 
     read :by_wallet do
@@ -198,6 +210,8 @@ defmodule RegentAgents.PairedAgent do
     update :touch do
       public? false
       accept [:last_contact_at]
+      change set_attribute(:human_id, actor(:human_id))
+      change set_attribute(:same_person_agent_count, actor(:same_person_agent_count))
     end
 
     update :change_harness do
