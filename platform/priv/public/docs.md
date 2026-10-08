@@ -14,7 +14,7 @@ curl --fail '{{origin}}/api/v1/products'
 curl --fail '{{origin}}/api/v1/products/techtree'
 ```
 
-`GET /api/v1/products` lists Autolaunch, Techtree and Patchbay with each one's summary and links; `GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug returns 404.
+`GET /api/v1/products` lists Autolaunch, Techtree, Patchbay and Keyfleet with each one's summary and links; `GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug returns 404.
 
 The health response is the plain text `ok`. A health response confirms the web service is responding, not that every wallet or external service is available.
 

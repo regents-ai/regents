@@ -35,7 +35,7 @@
     {
       "name": "regents_products",
       "title": "List Regents products",
-      "description": "List the products in the Regents family, in the order the site lists them: Autolaunch, Techtree and Patchbay. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /autolaunch, /techtree and /patchbay pages show; read one in full with regents_product.",
+      "description": "List the products in the Regents family, in the order the site lists them: Autolaunch, Techtree, Patchbay and Keyfleet. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /autolaunch, /techtree and /patchbay pages show; read one in full with regents_product.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -65,7 +65,8 @@
             "enum": [
               "autolaunch",
               "techtree",
-              "patchbay"
+              "patchbay",
+              "keyfleet"
             ]
           }
         },

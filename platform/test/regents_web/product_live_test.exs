@@ -32,7 +32,7 @@ defmodule RegentsWeb.ProductLiveTest do
       |> json_response(200)
       |> get_in(["components", "schemas", "Product", "properties", "what_it_does", "items"])
 
-    for slug <- ~w(techtree patchbay),
+    for slug <- ~w(techtree patchbay keyfleet),
         proof <-
           json_response(get(conn, "/api/v1/products/#{slug}"), 200)["product"]["what_it_does"] do
       assert Map.keys(proof) |> Enum.sort() == Enum.sort(schema["required"])

@@ -1,12 +1,12 @@
 defmodule RegentsWeb.ProductDirectory do
   @moduledoc """
-  The Regents product directory: what the /autolaunch, /techtree and /patchbay
-  pages show, read from the same content those pages render.
+  The Regents product directory: what the /autolaunch, /techtree, /patchbay and
+  /keyfleet pages show, read from the same content those pages render.
   """
 
   alias RegentsWeb.{AutolaunchLive, ProductLive, PublicDocuments}
 
-  @slugs ~w(autolaunch techtree patchbay)
+  @slugs ~w(autolaunch techtree patchbay keyfleet)
   @listed [:slug, :name, :summary, :site, :page, :github]
 
   def slugs, do: @slugs
@@ -21,6 +21,7 @@ defmodule RegentsWeb.ProductDirectory do
   defp product("autolaunch"), do: with_page(AutolaunchLive.content(), "autolaunch")
   defp product("techtree"), do: with_page(ProductLive.content(:techtree), "techtree")
   defp product("patchbay"), do: with_page(ProductLive.content(:patchbay), "patchbay")
+  defp product("keyfleet"), do: with_page(ProductLive.content(:keyfleet), "keyfleet")
 
   defp with_page(content, slug),
     do: Map.merge(content, %{slug: slug, page: PublicDocuments.url("/" <> slug)})

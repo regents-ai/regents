@@ -228,7 +228,7 @@ defmodule RegentsWeb.ShellLive do
         <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
 
         <ProductLive.page
-          :if={@route_spec.route_id in [:techtree, :patchbay]}
+          :if={@route_spec.route_id in [:techtree, :patchbay, :keyfleet]}
           product={@route_spec.route_id}
         />
 

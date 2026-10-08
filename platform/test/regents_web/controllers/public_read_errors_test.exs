@@ -8,7 +8,7 @@ defmodule RegentsWeb.PublicReadErrorsTest do
              "error" => %{
                "code" => "product_not_found",
                "message" => "There is no product with that name.",
-               "hint" => "Use one of: autolaunch, techtree, patchbay."
+               "hint" => "Use one of: autolaunch, techtree, patchbay, keyfleet."
              }
            }
   end

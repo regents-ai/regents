@@ -19,7 +19,7 @@
 ## Available interfaces
 
 - `GET /healthz`: public plain-text health response, `ok`. No API key or wallet required.
-- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree and Patchbay pages on Regents show. No API key or wallet required.
+- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree, Patchbay and Keyfleet pages on Regents show. No API key or wallet required.
 - `GET /api/v1/claims`: verified-account historical name reads. Requires both a Privy access bearer token and a Privy identity token. Follow the returned `next` cursor with the sole `after` parameter; stop at null. Missing or invalid credentials return 401. Never fabricate an owner association.
 - `GET /api/v1/staking/position`: what Stake shows for the wallet on a verified sign-in, with the same two Privy tokens as the claims read.
 - `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.

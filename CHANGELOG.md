@@ -1085,3 +1085,15 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   session ends in another tab, a change on the Credits panel is refused, the panel
   keeps its old figure and Sign In shows. Only the panel's own check can refuse it,
   since the page never hears a panel's events; with that check removed the test fails.
+
+## 2026-10-08 — Keyfleet page, and Daily Research under Reading
+
+- Founder request (2026-10-08): the app's left sidebar lists Keyfleet under Products,
+  opening a new /keyfleet page like the Techtree and Patchbay ones: what keyfleet.ai
+  says today, its three promises marked as not open yet, screenshots of keyfleet.ai
+  and an "Open Keyfleet" link. Keyfleet is not on the home page, so its page keeps its
+  own heading, summary and links. Keyfleet's code is not public, so its page has no
+  "Source on GitHub" link and the directory gives its `github` as null. The product directory (`/api/v1/products`), the
+  OpenAPI document, the agent tool list and the docs list Keyfleet too.
+- The sidebar's Paper Pro Daily link is renamed "Daily Research" and moves below
+  Products, under a new "Reading" heading (founder answer, 2026-10-08).

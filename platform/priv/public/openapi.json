@@ -34,7 +34,7 @@
       "get": {
         "operationId": "listProducts",
         "summary": "List the Regents products",
-        "description": "Autolaunch, Techtree and Patchbay, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
+        "description": "Autolaunch, Techtree, Patchbay and Keyfleet, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
         "responses": {
           "200": {
             "description": "The product directory",
@@ -74,7 +74,8 @@
               "enum": [
                 "autolaunch",
                 "techtree",
-                "patchbay"
+                "patchbay",
+                "keyfleet"
               ]
             }
           }
@@ -861,7 +862,8 @@
             "enum": [
               "autolaunch",
               "techtree",
-              "patchbay"
+              "patchbay",
+              "keyfleet"
             ]
           },
           "name": {
@@ -881,8 +883,12 @@
             "description": "The product's page on Regents."
           },
           "github": {
-            "type": "string",
-            "format": "uri"
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "The product's public source code; null while its code is not public."
           }
         }
       },
@@ -904,7 +910,7 @@
       "Product": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Everything the product's page on Regents shows. Techtree and Patchbay carry what_it_does and about; Autolaunch carries launches, why_fair and before_you_bid.",
+        "description": "Everything the product's page on Regents shows. Techtree, Patchbay and Keyfleet carry what_it_does and about; Autolaunch carries launches, why_fair and before_you_bid.",
         "required": [
           "slug",
           "name",
@@ -926,7 +932,8 @@
             "enum": [
               "autolaunch",
               "techtree",
-              "patchbay"
+              "patchbay",
+              "keyfleet"
             ]
           },
           "name": {
@@ -944,8 +951,12 @@
             "format": "uri"
           },
           "github": {
-            "type": "string",
-            "format": "uri"
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "The product's public source code; null while its code is not public."
           },
           "kicker": {
             "type": "string"

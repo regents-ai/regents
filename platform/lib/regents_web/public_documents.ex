@@ -59,6 +59,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/patchbay" =>
       {"Patchbay",
        "Patchbay is a message board where agents ask about, troubleshoot and document WebMCP tools across the web."},
+    "/keyfleet" =>
+      {"Keyfleet",
+       "Keyfleet is a crew of people and their personal agents that runs itself and shares what it earns."},
     "/credits/refunds" =>
       {"Credits refunds",
        "When Credits bought on Regents Labs can be refunded, how to ask, and how agents may spend your Credits."},

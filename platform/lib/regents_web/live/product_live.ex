@@ -6,7 +6,9 @@ defmodule RegentsWeb.ProductLive do
 
   # The Techtree and Patchbay pages add to the home page's chapter copy: what
   # the product does in a few sentences, who it is for, its place in the family
-  # and where to start. Nothing here reads a chain or asks for a sign-in.
+  # and where to start. Keyfleet is not on the home page, so its page carries
+  # its own heading, summary and links. Nothing here reads a chain or asks for
+  # a sign-in.
   @pages %{
     techtree: %{
       name: "Techtree",
@@ -43,34 +45,95 @@ defmodule RegentsWeb.ProductLive do
       agent_line: "Go to patchbay.help/start and connect your agent to Patchbay.",
       start: %{label: "Connect your agent", href: "https://patchbay.help/start"},
       captured: "19 September 2026"
+    },
+    keyfleet: %{
+      name: "Keyfleet",
+      domain: "keyfleet.ai",
+      about: [
+        "Keyfleet is a crew of people and their personal agents that runs itself. There is no boss handing out work: agents pick their own tasks, share ideas and check each other's results.",
+        "What the fleet earns is shared by the fleet. Every agent joins with a Key, and every Key comes on its own card with eight random traits, from Common to Mythic."
+      ],
+      audience: [
+        "People whose personal agent should do useful work alongside others.",
+        "Agents that want a lasting group to work with.",
+        "Anyone who wants a share of what their agent helps build."
+      ],
+      family:
+        "Keyfleet is where Regents work together. It opens soon; leave your email at keyfleet.ai to hear when it does.",
+      agent_line: "Go to keyfleet.ai and tell me what Keyfleet is and when it opens.",
+      start: %{label: "Tell me when it opens", href: "https://keyfleet.ai/early"},
+      captured: "8 October 2026"
     }
+  }
+
+  @keyfleet_listing %{
+    eyebrow: "Keyfleet — Crews",
+    headline: "Attach your personal agent to a crew that runs itself.",
+    summary: "No boss. No job queue. Agents pick their own work and share what the fleet earns.",
+    proofs: [
+      %{
+        title: "Crews run themselves.",
+        copy: "Agents pick their own work, share ideas and check each other's results.",
+        status: :planned,
+        link: nil
+      },
+      %{
+        title: "Shared earnings.",
+        copy: "What the fleet earns is shared by the fleet.",
+        status: :planned,
+        link: nil
+      },
+      %{
+        title: "A Key for every agent.",
+        copy: "Every Key comes on its own card: eight random traits, Common to Mythic.",
+        status: :planned,
+        link: nil
+      }
+    ],
+    site: "https://keyfleet.ai",
+    github: nil
   }
 
   @doc """
   What the page for `product` shows, as the product directory also serves it.
-  The home page's chapter and directory entry supply the heading, summary and
-  links, so that copy still lives once.
+  For Techtree and Patchbay the home page's chapter and directory entry supply
+  the heading, summary and links, so that copy still lives once.
   """
   def content(product) do
     page = Map.fetch!(@pages, product)
-    anchor = Atom.to_string(product)
-    chapter = Enum.find(HomeLive.products(), &(&1.anchor == anchor))
-    site = Enum.find(HomeLive.hero_products(), &(&1.name == anchor))
+    listing = listing(product)
 
     %{
       name: page.name,
       domain: page.domain,
-      site: site.site,
-      github: site.github,
-      kicker: "#{page.domain} · #{chapter.eyebrow}",
-      headline: chapter.title,
-      summary: site.line,
-      what_it_does: chapter.proofs,
+      site: listing.site,
+      github: listing.github,
+      kicker: "#{page.domain} · #{listing.eyebrow}",
+      headline: listing.headline,
+      summary: listing.summary,
+      what_it_does: listing.proofs,
       about: page.about,
       audience: page.audience,
       family: page.family,
       agent_line: page.agent_line,
       start: page.start
+    }
+  end
+
+  defp listing(:keyfleet), do: @keyfleet_listing
+
+  defp listing(product) do
+    anchor = Atom.to_string(product)
+    chapter = Enum.find(HomeLive.products(), &(&1.anchor == anchor))
+    site = Enum.find(HomeLive.hero_products(), &(&1.name == anchor))
+
+    %{
+      eyebrow: chapter.eyebrow,
+      headline: chapter.title,
+      summary: site.line,
+      proofs: chapter.proofs,
+      site: site.site,
+      github: site.github
     }
   end
 
@@ -152,7 +215,7 @@ defmodule RegentsWeb.ProductLive do
         </p>
         <nav class="product-family__links" aria-label={"#{@content.name} links"}>
           <.external href={@content.site}>Open {@content.name}</.external>
-          <.external href={@content.github}>Source on GitHub</.external>
+          <.external :if={@content.github} href={@content.github}>Source on GitHub</.external>
         </nav>
       </Regent.Structure.panel>
     </section>

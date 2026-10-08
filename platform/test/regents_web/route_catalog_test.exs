@@ -23,6 +23,7 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/autolaunch",
     "/techtree",
     "/patchbay",
+    "/keyfleet",
     "/credits/refunds",
     "/admin/credits"
   ]
@@ -79,15 +80,17 @@ defmodule RegentsWeb.RouteCatalogTest do
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %RouteTarget{route_id: :account, label: "Account", path: "/account"},
              %ViewerProfileTarget{label: "Profile"},
-             %PageTarget{
-               route_id: :paper_pro_daily,
-               label: "Paper Pro Daily",
-               path: "/paper-pro-daily"
-             },
              %SidebarHeading{label: "Products"},
              %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
              %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
-             %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"}
+             %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
+             %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
+             %SidebarHeading{label: "Reading"},
+             %PageTarget{
+               route_id: :paper_pro_daily,
+               label: "Daily Research",
+               path: "/paper-pro-daily"
+             }
            ]
   end
 
@@ -130,7 +133,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 14
+    assert length(decoded["routes"]) == 15
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

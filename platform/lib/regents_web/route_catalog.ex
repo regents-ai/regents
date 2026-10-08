@@ -101,6 +101,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :patchbay
     },
     %Entry{
+      path_pattern: "/keyfleet",
+      live_action: :keyfleet,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :keyfleet
+    },
+    %Entry{
       path_pattern: "/credits/refunds",
       live_action: :credits_refunds,
       parameter_schema: %{},
@@ -149,6 +156,9 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     patchbay:
       {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
+       :regents_labs, %{}},
+    keyfleet:
+      {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/app", [:profile_actions],
        :regents_labs, %{}},
     credits_refunds:
       {:credits_refunds, :regent_ops, "Regents Labs", "Credits refunds", "/app",
@@ -217,15 +227,13 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
         %ViewerProfileTarget{label: "Profile"},
-        %PageTarget{
-          route_id: :paper_pro_daily,
-          label: "Paper Pro Daily",
-          path: "/paper-pro-daily"
-        },
         %SidebarHeading{label: "Products"},
         %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
         %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
-        %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"}
+        %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
+        %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
+        %SidebarHeading{label: "Reading"},
+        %PageTarget{route_id: :paper_pro_daily, label: "Daily Research", path: "/paper-pro-daily"}
       ]
     }
   end
