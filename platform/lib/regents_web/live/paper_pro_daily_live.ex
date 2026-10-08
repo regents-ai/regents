@@ -34,7 +34,7 @@ defmodule RegentsWeb.PaperProDailyLive do
         <section class="rg-blog rg-sheet paper-daily" aria-labelledby="paper-daily-title">
           <header class="rg-blog__intro">
             <h1 id="paper-daily-title">Paper Pro Daily</h1>
-            <p>A research paper each day, read with ChatGPT.</p>
+            <p>A research paper each day, read with ChatGPT Astra 6 Pro.</p>
           </header>
 
           <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">

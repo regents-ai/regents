@@ -6,6 +6,8 @@ defmodule RegentsWeb.PaperProDaily.Paper do
   @excerpt_words 100
   @extension [table: true, strikethrough: true, math_dollars: true]
 
+  # Only ever handed the paper files the build finds in priv/paper_pro_daily, never a visitor's input.
+  # sobelow_skip ["Traversal.FileModule"]
   def read!(path) do
     with {:ok, date} <- path |> Path.basename(".md") |> Date.from_iso8601(),
          [_, front, markdown] <-

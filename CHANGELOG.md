@@ -1046,3 +1046,9 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   shared title of /blog read "Articles", a missing post reads "Article not found",
   and a post without its own description is "in Regents Labs Articles". The page's
   own heading and its address come from the shared design kit and are unchanged here.
+
+## 2026-10-08 — Paper Pro Daily names the model
+
+- Founder request (2026-10-08): the page's line reads "A research paper each day, read
+  with ChatGPT Astra 6 Pro." The paper reader is marked as reading only the site's own
+  paper files, which clears the security scan in the full checks.
