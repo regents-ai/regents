@@ -3,7 +3,7 @@ defmodule RegentAgents.MixProject do
 
   # siwa, pinned to the same published elixir-utils commit as the site.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "de6c3e00e95b704ba24280e8103942d3b164b41d"
+  @elixir_utils_ref "fe3aa1d512a98c9de57b7a1be46fb1852b1a9224"
 
   def project do
     [

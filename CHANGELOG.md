@@ -1088,8 +1088,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 
 ## 2026-10-08 — Agent requests carry their signature in x-siwa-signature headers
 
-- Shared libraries move to elixir-utils de6c3e0, which carries the one signing
-  contract every site and signer follows (contract id 517e597b…4d4f). siwa signs
+- Shared libraries move to elixir-utils fe3aa1d, which carries the one signing
+  contract every site and signer follows (contract id 53180b09…6060). siwa signs
   and checks a request's signature in `x-siwa-signature` and
   `x-siwa-signature-input`, because OpenAI's agent cloud overwrites the standard
   `Signature` headers, and its shared plug is the one place that names the
@@ -1103,7 +1103,8 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   is not forwarded and grants nothing; a body over 4096 bytes is refused.
 - A check-in (`GET /api/agents/v1/me`) no longer answers "not paired" to a
   request with a query string or body before its proof is checked: the shared
-  plug's own rule refuses the query (Sentinel finding, 2026-10-08).
+  plug's own rule refuses the query (Sentinel finding, 2026-10-08). Sentinel's
+  38 signed-request acceptance checks against a local SIWA server succeeded.
 - The API contract and `/openapi.json` name the new headers.
 - The same elixir-utils brings Credits' notice that a purchase was credited;
   `Regents.Credits.Credited` answers it with nothing to add.
