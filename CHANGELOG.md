@@ -1078,3 +1078,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   "← Back to Articles" and the missing-article page follow them. /blog and
   /blog/<slug> are removed with nothing in their place; the launch gate, sitemap and
   the folder's contract name /articles.
+
+## 2026-10-08 — A kept check that a panel refuses a press after a sign-out elsewhere
+
+- Keep one test (founder decision TEST-REFUSAL, 2026-10-08): on /stake, after the
+  session ends in another tab, a change on the Credits panel is refused, the panel
+  keeps its old figure and Sign In shows. Only the panel's own check can refuse it,
+  since the page never hears a panel's events; with that check removed the test fails.

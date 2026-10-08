@@ -238,6 +238,27 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/autolaunch")
   end
 
+  # A component's events never reach the page's own hook, so a press inside one
+  # must be refused by the component check itself once the session ends in
+  # another tab (founder decision TEST-REFUSAL, 2026-10-08).
+  test "COMPONENT_LEASE: a component event after a sign-out elsewhere is refused and Sign In shows",
+       %{conn: conn} do
+    account = account!()
+    signed_in = init_test_session(conn, %{human_account_id: account.id})
+
+    {:ok, view, _html} = live(signed_in, "/stake")
+    assert has_element?(view, @profile)
+    assert has_element?(view, "#credits-panel-amount[value='5']")
+
+    assert SessionAuthority.revoke(claim(signed_in))
+    view |> form("#credits-panel-form", amount: "7", chain: "base") |> render_change()
+
+    # Only the component's own check can have refused this: the page's event
+    # hook never hears a component's events.
+    assert has_element?(view, @sign_in, "Sign In")
+    refute has_element?(view, "#credits-panel-amount[value='7']")
+  end
+
   test "MOUNTED_LEASE_POLICY_C: an invalid claim exposes no private dead render", %{conn: conn} do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
