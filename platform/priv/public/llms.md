@@ -1,6 +1,6 @@
 # Regents Labs
 
-> The community-owned agentic product lab: Autolaunch, Techtree and Patchbay, with REGENT staking, redemption and owner-authorized historical name reads.
+> The community-owned agentic product lab: Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking, redemption and owner-authorized historical name reads.
 
 {{key_facts}}
 

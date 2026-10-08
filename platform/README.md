@@ -8,7 +8,7 @@
 
 The Regents platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API.
-Autolaunch, Techtree and Patchbay remain named products on the public site; each lives in its own
+Autolaunch, Techtree, Patchbay and Keyfleet remain named products on the public site; each lives in its own
 monorepo, not in this app.
 
 > [!IMPORTANT]

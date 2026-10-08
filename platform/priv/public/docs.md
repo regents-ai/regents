@@ -1,6 +1,6 @@
 # Developer documentation
 
-Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree and Patchbay. Use Regents to understand the products, find REGENT staking and redemption, and read historical name claims belonging to an authenticated account.
+Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Use Regents to understand the products, find REGENT staking and redemption, and read historical name claims belonging to an authenticated account.
 
 ## Start without an account
 

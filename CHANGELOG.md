@@ -1097,3 +1097,6 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   OpenAPI document, the agent tool list and the docs list Keyfleet too.
 - The sidebar's Paper Pro Daily link is renamed "Daily Research" and moves below
   Products, under a new "Reading" heading (founder answer, 2026-10-08).
+- The site-wide descriptions name Keyfleet beside Autolaunch, Techtree and Patchbay:
+  every page's search description, the home and overview summaries, `/llms.txt`,
+  the docs and the contact page's product links (founder answer "3 a", 2026-10-08).

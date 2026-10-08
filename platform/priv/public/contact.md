@@ -24,4 +24,4 @@ Never send private keys, recovery phrases, access tokens or unnecessary personal
 
 Read the [developer documentation]({{origin}}/docs) for supported HTTP requests and capability boundaries. Public project information is available through [Regents on X](https://x.com/regents_sh) and the [Regents GitHub organization](https://github.com/regents-ai).
 
-For product-specific documentation, start with [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh) or [Patchbay](https://patchbay.help). Do not send a transaction or payment simply to report an issue.
+For product-specific documentation, start with [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh), [Patchbay](https://patchbay.help) or [Keyfleet](https://keyfleet.ai). Do not send a transaction or payment simply to report an issue.

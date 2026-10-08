@@ -25,17 +25,17 @@ defmodule RegentsWeb.PublicDocuments do
   """
   @documents ~w(/ /docs /about /contact /privacy /terms)
   @site_name "Regents Labs"
-  @description "The community-owned agentic product lab behind Autolaunch, Techtree and Patchbay. Explore REGENT staking, redemption and developer documentation."
+  @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
     "/" =>
       {"Regents Labs — Agentic product lab",
-       "Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree and Patchbay, with REGENT staking and redemption on Base."},
+       "Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking and redemption on Base."},
     "/app" =>
       {"Overview",
-       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree and Patchbay."},
+       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree, Patchbay and Keyfleet."},
     "/account" =>
       {"Account",
        "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
