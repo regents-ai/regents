@@ -1114,3 +1114,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - The same elixir-utils brings Credits' notice that a purchase was credited;
   `Regents.Credits.Credited` answers it with nothing to add.
 - Ships after the siwa-server release.
+
+## 2026-10-08 — A Credits test
+
+- `mix test` now credits a Credits purchase through Regents' `on_credited`
+  module (founder answer "2 a", 2026-10-08). Without that setting a site never
+  credits a purchase, and nothing shows it until a person pays; with the setting
+  removed the test fails.
