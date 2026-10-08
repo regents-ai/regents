@@ -3,7 +3,8 @@ defmodule RegentsWeb.ShellLive do
   One LiveView behind every product-shell page. It keeps what the pages share,
   the route, the signed-in account (through the session hook) and the wallet
   Privy has active, and hands each page's reads, events and messages to the
-  feature that owns them: `Account`, `Staking`, `Redemption` and `Gallery`.
+  feature that owns them: `Account`, `Points`, `Staking`, `Redemption` and
+  `Gallery`.
   Each feature starts what its page needs when the page opens and lets go of
   it when the page is left.
   """
@@ -22,6 +23,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
+  alias RegentsWeb.PointsLive
   alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
   alias RegentsWeb.RedeemGalleryLive
@@ -29,7 +31,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
-  alias RegentsWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Redemption, Staking}
+  alias RegentsWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Points, Redemption, Staking}
 
   @impl true
   def mount(params, session, socket) do
@@ -49,6 +51,7 @@ defmodule RegentsWeb.ShellLive do
      |> follow_credits()
      |> OpenSeaBudget.init()
      |> Account.init()
+     |> Points.init()
      |> Staking.init()
      |> Redemption.init()
      |> Gallery.init()}
@@ -64,6 +67,7 @@ defmodule RegentsWeb.ShellLive do
      |> load_regent_route(route_spec, params)
      |> assign_page(route_spec, uri)
      |> Account.route(route_spec)
+     |> Points.route(route_spec)
      |> Staking.route(route_spec)
      |> Redemption.route(route_spec)
      |> read_credits()}
@@ -86,6 +90,9 @@ defmodule RegentsWeb.ShellLive do
 
   def handle_async({:gallery_owned, _account_id} = name, result, socket),
     do: {:noreply, Gallery.settle(socket, name, result)}
+
+  def handle_async({:points, _account_id} = name, result, socket),
+    do: {:noreply, Points.settle(socket, name, result)}
 
   @impl true
   def handle_event(event, params, socket) do
@@ -125,6 +132,9 @@ defmodule RegentsWeb.ShellLive do
     do: {:noreply, Account.ens_finished(socket)}
 
   def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
+
+  # A points award or correction landed for this account; the Points page follows.
+  def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, Points.changed(socket)}
 
   # The balance changed on this or any Regent site: a purchase, a gift, a spend.
   # The header, the Buy Credits panel and the Account page follow. Every page
@@ -185,6 +195,13 @@ defmodule RegentsWeb.ShellLive do
           agent_notice={@agent_notice}
           agents_now={@agents_now}
           credits={@credits}
+        />
+
+        <PointsLive.page
+          :if={@route_spec.route_id == :account_points}
+          account={current_account(@access_context)}
+          points={@points}
+          earning={@points_earning}
         />
 
         <.page

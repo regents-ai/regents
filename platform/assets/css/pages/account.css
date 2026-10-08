@@ -697,6 +697,113 @@
   }
 }
 
+/* Points */
+
+/* Keeps its space while unseen, so a failed refresh never moves the panels. */
+.points-stale[data-unseen] {
+  visibility: hidden;
+}
+
+.points-activity ol {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.points-activity li {
+  display: grid;
+  gap: 0.35rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.points-activity li p + p {
+  color: var(--color-fg-muted);
+}
+
+/* What earns points: the catalog as plain tables, then limits and bonus tiers. */
+.points-earn h3 {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+.points-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.points-table th,
+.points-table td {
+  padding: 0.6rem 0;
+  border-block-start: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: baseline;
+}
+
+.points-table thead th {
+  border-block-start: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The action takes the width; points and limits sit right-aligned. */
+.points-table tbody th {
+  width: 100%;
+  font-weight: 400;
+}
+
+.points-table td,
+.points-table thead th + th {
+  padding-inline-start: 1rem;
+  text-align: end;
+}
+
+/* In a wide panel, points and limits stay on one line and the action's words
+   wrap instead; a phone-width panel wraps them all to fit. */
+.points-earn {
+  container-type: inline-size;
+}
+
+@container (min-width: 30rem) {
+  .points-table td {
+    white-space: nowrap;
+  }
+}
+
+/* A narrow screen wraps the tables' words rather than widening the panel. */
+.points-earn > * {
+  min-width: 0;
+}
+
+.points-earn__soon {
+  margin-inline-start: 0.5rem;
+  color: var(--color-fg-muted);
+  font-size: 0.85em;
+}
+
+.points-earn__notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1.5rem;
+}
+
+.points-earn__notes > div {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
 }
 
 /* The native button keeps its own edge, size and surface, so the card opener

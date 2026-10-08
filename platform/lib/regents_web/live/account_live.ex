@@ -161,6 +161,7 @@ defmodule RegentsWeb.AccountLive do
               Buy Credits
             </Regent.Primitives.button>
             <.link navigate="/account/credits">Purchase History</.link>
+            <.link navigate="/account/points">Points</.link>
           </div>
 
           <h3>What your agents may spend</h3>

@@ -137,6 +137,7 @@ defmodule RegentsWeb.Router do
       live "/app", ShellLive, :app
       live "/account", ShellLive, :account
       live "/account/credits", ShellLive, :account_credits
+      live "/account/points", ShellLive, :account_points
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

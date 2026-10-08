@@ -16,6 +16,7 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/app",
     "/account",
     "/account/credits",
+    "/account/points",
     "/regents/:slug",
     "/stake",
     "/redeem",
