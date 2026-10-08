@@ -20,6 +20,7 @@ defmodule RegentsWeb.CreditsLive do
     """
   end
 
+  attr :lease, :map, required: true
   attr :account, :map, default: nil
   attr :balance, :map, default: nil
 
@@ -42,6 +43,7 @@ defmodule RegentsWeb.CreditsLive do
         <.live_component
           module={RegentsWeb.CreditsHistory}
           id="credits-history"
+          lease={@lease}
           actor={Credits.person(@account)}
           balance={@balance}
         />
@@ -50,6 +52,7 @@ defmodule RegentsWeb.CreditsLive do
     """
   end
 
+  attr :lease, :map, required: true
   attr :account, :map, default: nil
 
   def admin(assigns) do
@@ -83,6 +86,7 @@ defmodule RegentsWeb.CreditsLive do
         <.live_component
           module={RegentsWeb.CreditsAdmin}
           id="credits-admin"
+          lease={@lease}
           actor={Credits.admin(@account)}
         />
       </section>

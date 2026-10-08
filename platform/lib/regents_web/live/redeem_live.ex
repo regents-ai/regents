@@ -46,6 +46,7 @@ defmodule RegentsWeb.RedeemLive do
     do:
       {:ok,
        socket
+       |> RegentsWeb.Live.Session.check_component_events()
        |> OnchainSteps.init()
        |> assign(
          active: nil,

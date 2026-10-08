@@ -20,7 +20,9 @@ defmodule RegentsWeb.CreditsAdmin do
   @impl true
   def mount(socket) do
     {:ok,
-     assign(socket,
+     socket
+     |> RegentsWeb.Live.Session.check_component_events()
+     |> assign(
        gift_key: Ecto.UUID.generate(),
        gift_note: nil,
        search: "",

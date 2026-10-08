@@ -13,6 +13,7 @@ defmodule RegentsWeb.AccountLive do
   import RegentsWeb.Components.PairedAgents
   import RegentsWeb.Components.VerifiedConnections
 
+  attr :lease, :map, required: true
   attr :account, :map, default: nil
   attr :account_control, :map, required: true
   attr :ens, :atom, default: nil
@@ -169,6 +170,7 @@ defmodule RegentsWeb.AccountLive do
           <.live_component
             module={RegentsWeb.CreditsAgentSpending}
             id="account-agent-spending"
+            lease={@lease}
             actor={Regents.Credits.person(@account)}
             agents={agent_wallets(@agents)}
             sites={Regents.Credits.agent_sites()}

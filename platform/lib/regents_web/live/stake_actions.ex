@@ -52,6 +52,7 @@ defmodule RegentsWeb.StakeActions do
   def mount(socket) do
     {:ok,
      socket
+     |> RegentsWeb.Live.Session.check_component_events()
      |> OnchainSteps.init()
      |> assign(
        active: nil,
@@ -78,6 +79,7 @@ defmodule RegentsWeb.StakeActions do
      |> assign(
        Map.take(assigns, [
          :id,
+         :lease,
          :staking,
          :status,
          :wallet,

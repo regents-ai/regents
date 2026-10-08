@@ -4,6 +4,7 @@ defmodule RegentsWeb.StakeLive do
   alias RegentsWeb.Components.Loading
   alias RegentsWeb.{TokenDisplay, TokenLinks}
 
+  attr :lease, :map, required: true
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
   attr :wallet, :string, default: nil
@@ -221,6 +222,7 @@ defmodule RegentsWeb.StakeLive do
           <.live_component
             module={RegentsWeb.StakeActions}
             id="staking-actions"
+            lease={@lease}
             staking={@staking}
             status={@status}
             wallet={@wallet}

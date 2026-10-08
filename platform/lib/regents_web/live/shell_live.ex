@@ -144,6 +144,7 @@ defmodule RegentsWeb.ShellLive do
         <.live_component
           module={RegentsWeb.CreditsPanel}
           id="credits-panel"
+          lease={@session_lease}
           account={current_account(@access_context)}
           balance={@credits}
           client_tag={@client_tag}
@@ -168,6 +169,7 @@ defmodule RegentsWeb.ShellLive do
 
         <AccountLive.page
           :if={@route_spec.route_id == :account}
+          lease={@session_lease}
           account={current_account(@access_context)}
           account_control={@account_control}
           ens={@account_ens}
@@ -187,6 +189,7 @@ defmodule RegentsWeb.ShellLive do
 
         <.page
           :if={@route_spec.route_id == :stake}
+          lease={@session_lease}
           staking={@staking}
           status={@staking_status}
           wallet={@staking_wallet}
@@ -200,6 +203,7 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :redeem}
           module={RedeemLive}
           id="animata-redemption"
+          lease={@session_lease}
           redemption={@redemption}
           status={@redemption_status}
           wallet={@redemption_wallet}
@@ -232,12 +236,14 @@ defmodule RegentsWeb.ShellLive do
 
         <CreditsLive.history
           :if={@route_spec.route_id == :account_credits}
+          lease={@session_lease}
           account={current_account(@access_context)}
           balance={@credits}
         />
 
         <CreditsLive.admin
           :if={@route_spec.route_id == :credits_admin}
+          lease={@session_lease}
           account={current_account(@access_context)}
         />
       </:content>

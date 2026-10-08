@@ -44,6 +44,7 @@ defmodule RegentsWeb.CreditsPanel do
   def mount(socket) do
     {:ok,
      socket
+     |> RegentsWeb.Live.Session.check_component_events()
      |> OnchainSteps.init()
      |> assign(
        active: nil,
@@ -67,6 +68,7 @@ defmodule RegentsWeb.CreditsPanel do
      |> assign(
        id: assigns.id,
        account: account,
+       lease: assigns.lease,
        balance: assigns.balance,
        client_tag: assigns.client_tag,
        linked: wallets(account)

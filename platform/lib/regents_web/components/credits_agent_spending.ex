@@ -16,7 +16,8 @@ defmodule RegentsWeb.CreditsAgentSpending do
   alias RegentsWeb.FormErrors
 
   @impl true
-  def mount(socket), do: {:ok, assign(socket, saved: nil)}
+  def mount(socket),
+    do: {:ok, socket |> RegentsWeb.Live.Session.check_component_events() |> assign(saved: nil)}
 
   @impl true
   def update(assigns, socket) do

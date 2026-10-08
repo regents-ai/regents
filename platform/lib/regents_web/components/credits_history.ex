@@ -17,7 +17,8 @@ defmodule RegentsWeb.CreditsHistory do
   @page 25
 
   @impl true
-  def mount(socket), do: {:ok, assign(socket, shown: @page)}
+  def mount(socket),
+    do: {:ok, socket |> RegentsWeb.Live.Session.check_component_events() |> assign(shown: @page)}
 
   @impl true
   def update(assigns, socket), do: {:ok, socket |> assign(assigns) |> read()}
