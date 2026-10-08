@@ -9,9 +9,15 @@ defmodule RegentsWeb.BlogHTML do
     ~H"""
     <Regent.Structure.frame class="rl-root">
       <RegentsWeb.HomeLive.landing_header blog?={true} /><main id="main-content">
-        <Regent.Blog.gallery :if={@view == :index} posts={@posts} site="Regents" />
-        <Regent.Blog.article :if={@view == :show} post={@post} />
-        <Regent.Blog.not_found :if={@view == :not_found} />
+        <Regent.Blog.gallery
+          :if={@view == :index}
+          posts={@posts}
+          site="Regents"
+          name="Articles"
+          path="/articles"
+        />
+        <Regent.Blog.article :if={@view == :show} post={@post} name="Articles" path="/articles" />
+        <Regent.Blog.not_found :if={@view == :not_found} name="Articles" path="/articles" />
       </main>
     </Regent.Structure.frame>
     """

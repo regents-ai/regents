@@ -1,7 +1,7 @@
-# Writing a blog post
+# Writing an article
 
-This folder owns this site's blog content. `platform/` renders `/blog` and
-`/blog/<slug>` using the shared `regent_blog` catalog and `Regent.Blog` components.
+This folder owns this site's articles. `platform/` renders `/articles` and
+`/articles/<slug>` using the shared `regent_blog` catalog and `Regent.Blog` components.
 No database, CMS, React runtime or browser Markdown fetch is involved.
 
 ## Publish

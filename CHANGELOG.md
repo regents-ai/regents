@@ -1069,3 +1069,12 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - The app's left sidebar links to Paper Pro Daily (founder answer 2, 2026-10-08).
 - The share description reads "A research paper each day, read with ChatGPT Astra 6
   Pro." (founder decision 5 a, 2026-10-08).
+
+## 2026-10-08 — Articles live at /articles
+
+- Founder decision 3 a (2026-10-08): the shared design kit names each site's page, and
+  Regents' is "Articles" at /articles. design-system moves to 24f3c8f, whose
+  `Regent.Blog` components take the page's `name` and `path`; the page's label,
+  "← Back to Articles" and the missing-article page follow them. /blog and
+  /blog/<slug> are removed with nothing in their place; the launch gate, sitemap and
+  the folder's contract name /articles.

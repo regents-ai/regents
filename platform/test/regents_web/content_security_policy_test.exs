@@ -4,7 +4,7 @@ defmodule RegentsWeb.ContentSecurityPolicyTest do
   alias RegentsWeb.ContentSecurityPolicy
 
   test "PAGE_POLICY: pages that can sign someone in carry the sign-in policy", %{conn: conn} do
-    for path <- ~w(/ /stake /blog /privacy) do
+    for path <- ~w(/ /stake /articles /privacy) do
       response = get(conn, path)
 
       assert get_resp_header(response, "content-security-policy") == [

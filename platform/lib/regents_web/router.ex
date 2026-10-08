@@ -122,8 +122,8 @@ defmodule RegentsWeb.Router do
     live "/paper-pro-daily", PaperProDailyLive, :paper_pro_daily
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
-    get "/blog", BlogController, :index
-    get "/blog/:slug", BlogController, :show
+    get "/articles", BlogController, :index
+    get "/articles/:slug", BlogController, :show
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/failure", PrivySessionController, :failure

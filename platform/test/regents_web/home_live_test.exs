@@ -49,7 +49,7 @@ defmodule RegentsWeb.HomeLiveTest do
   test "NAV_MEANINGS: the blog header sends each tab and App where the homepage does", %{
     conn: conn
   } do
-    html = conn |> get("/blog") |> html_response(200)
+    html = conn |> get("/articles") |> html_response(200)
 
     assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]

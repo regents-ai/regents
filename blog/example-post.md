@@ -14,7 +14,7 @@ cover image and text, then set `draft: false` to publish after the next build.
 
 ## A clear opening
 
-Start with the idea, then explain why it matters. Use [descriptive links](/blog),
+Start with the idea, then explain why it matters. Use [descriptive links](/articles),
 *emphasis*, and a comfortable reading rhythm.
 
 ### Supporting details

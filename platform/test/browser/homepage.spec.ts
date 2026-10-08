@@ -116,7 +116,7 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
   test(`[R12] header tabs and App keep one meaning on home and blog at ${name}`, async ({page}) => {
     await page.setViewportSize({width, height})
 
-    for (const start of ["/", "/blog"]) {
+    for (const start of ["/", "/articles"]) {
       await page.goto(start)
       const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
       await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Protocol"])

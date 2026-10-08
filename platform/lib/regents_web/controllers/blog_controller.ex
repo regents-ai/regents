@@ -3,7 +3,7 @@ defmodule RegentsWeb.BlogController do
   alias RegentsWeb.{Blog, PublicDocuments}
 
   def index(conn, _params),
-    do: render(conn, :index, [posts: Blog.all()] ++ PublicDocuments.page("/blog"))
+    do: render(conn, :index, [posts: Blog.all()] ++ PublicDocuments.page("/articles"))
 
   def show(conn, %{"slug" => slug}) do
     case Blog.get(slug) do

@@ -40,8 +40,8 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/paper-pro-daily"},
              {:get, "/privacy"},
              {:get, "/terms"},
-             {:get, "/blog"},
-             {:get, "/blog/:slug"},
+             {:get, "/articles"},
+             {:get, "/articles/:slug"},
              {:delete, "/auth/privy/session"}
            ]
   end

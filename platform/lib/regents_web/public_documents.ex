@@ -72,7 +72,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/contact" =>
       {"Contact",
        "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
-    "/blog" =>
+    "/articles" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
     "/paper-pro-daily" =>
       {"Paper Pro Daily", "A research paper each day, read with ChatGPT Astra 6 Pro."},
@@ -115,7 +115,7 @@ defmodule RegentsWeb.PublicDocuments do
   @doc """
   The title and description a page is rendered with, as the `page_title` and
   `page_description` assigns the root layout reads. Static pages are named by
-  their path; a Regent profile and a blog post by the record they show.
+  their path; a Regent profile and an article by the record they show.
   """
   def page({:regent, regent}),
     do: [
@@ -203,7 +203,7 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /docs /about /contact /privacy /terms /blog /paper-pro-daily),
+        ~w(/ /docs /about /contact /privacy /terms /articles /paper-pro-daily),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
