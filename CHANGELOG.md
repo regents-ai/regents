@@ -1153,3 +1153,13 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   points, the daily limits and the NFT bonus tiers, from the shared catalog.
   Actions not built yet are left out (founder answer "6 b"); the page has no
   test of its own (founder answer "5 b").
+
+## 2026-10-08 — Shared library f8a9385
+
+- Pin elixir-utils `f8a93857d4ae914e752d7d838a76d4c19c995872` (was `43770ea`),
+  so Keyfleet, the template and Patchbay can take `regent_agents` and
+  `regent_identity` from Regents on the same pin as their other shared code.
+  The signing contract is unchanged (`53180b09…6060`).
+- An answer from the sign-in service with no verdict now tells the agent the
+  check is unavailable, as a lost connection already did, instead of saying its
+  signature failed. Both reach the agent pages as `siwa_request_failed`.

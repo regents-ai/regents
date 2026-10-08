@@ -144,7 +144,7 @@ defmodule RegentAgents.HTTP do
   defp refuse(conn, %{siwa_status: status}) when status >= 500,
     do: error(conn, "verification_unavailable")
 
-  defp refuse(conn, %{transport_error: _reason}), do: error(conn, "verification_unavailable")
+  defp refuse(conn, %{reason: :siwa_request_failed}), do: error(conn, "verification_unavailable")
 
   # The shared plug's own refusals keep its reason as the code, as on every site.
   defp refuse(conn, %{source: :siwa_plug, reason: reason}),
