@@ -214,6 +214,16 @@ defmodule Regents.ReleaseTest do
              "transfers",
              "wallets"
            ]
+
+    assert table_names(config, "regent_points") == [
+             "accounts",
+             "nft_transfer_cursors",
+             "point_cap_usage",
+             "point_entries",
+             "point_events",
+             "schema_migrations",
+             "source_rejections"
+           ]
   end
 
   test "the migrations remove the allowance schema the v120 release left behind" do

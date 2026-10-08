@@ -7,6 +7,7 @@ defmodule Regents.LocalDatabaseFixture do
     RegentAgents.Migrator.up(Regents.Repo)
     Regents.Repo.migrate!(Application.app_dir(:regents, "priv/repo/migrations"))
     RegentCredits.Migrator.up(Regents.Repo)
+    RegentPoints.Migrator.up(Regents.Repo)
   end
 
   def validate_target!(env, repo) when is_list(repo) do

@@ -21,6 +21,7 @@ defmodule Regents.Release do
       repo.migrate!(migrations_path())
       RegentPayments.Migrator.up(repo)
       RegentCredits.Migrator.up(repo)
+      RegentPoints.Migrator.up(repo)
     end)
   end
 
@@ -51,8 +52,8 @@ defmodule Regents.Release do
   command creates a staging-only approximation of it with the shape the local
   fixture already proves sufficient, then creates the shared agent pairings in
   `regent_agents`, runs every migration into `regents_app`, creates the
-  shared payment records in `regent_payments` and the Credits ledger in
-  `regent_credits`.
+  shared payment records in `regent_payments`, the Credits ledger in
+  `regent_credits` and the Points ledger in `regent_points`.
 
   It refuses any database that already carries migration state or the
   regent_names schema, and it repairs nothing: recovery from a half-finished
@@ -89,6 +90,7 @@ defmodule Regents.Release do
       repo.migrate!(path)
       RegentPayments.Migrator.up(repo)
       RegentCredits.Migrator.up(repo)
+      RegentPoints.Migrator.up(repo)
     end)
   end
 
