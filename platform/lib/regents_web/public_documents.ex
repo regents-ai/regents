@@ -75,7 +75,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/blog" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
     "/paper-pro-daily" =>
-      {"Paper Pro Daily", "A research paper each day, with ChatGPT's reading of it."},
+      {"Paper Pro Daily", "A research paper each day, read with ChatGPT Astra 6 Pro."},
     "/literature" =>
       {"Literature",
        "Science-fiction books about artificial minds, placed by how hopeful each is for humanity and for the minds themselves."},

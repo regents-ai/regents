@@ -6,6 +6,7 @@ defmodule RegentsWeb.Components.Shell do
   alias RegentsWeb.Components.RegentLinks
 
   alias RegentsWeb.RouteCatalog.{
+    PageTarget,
     RouteTarget,
     SidebarHeading,
     ViewerProfileTarget
@@ -279,6 +280,14 @@ defmodule RegentsWeb.Components.Shell do
     >
       {@target.label}
     </.link>
+    """
+  end
+
+  defp sidebar_target(%{target: %PageTarget{} = target} = assigns) do
+    assigns = assign(assigns, :target, target)
+
+    ~H"""
+    <.link navigate={@target.path}>{@target.label}</.link>
     """
   end
 

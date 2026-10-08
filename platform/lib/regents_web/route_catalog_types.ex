@@ -16,6 +16,13 @@ defmodule RegentsWeb.RouteCatalog.RouteTarget do
   defstruct @enforce_keys
 end
 
+# A page of the site outside the app: its link loads the page in full.
+defmodule RegentsWeb.RouteCatalog.PageTarget do
+  @moduledoc false
+  @enforce_keys [:route_id, :label, :path]
+  defstruct @enforce_keys
+end
+
 defmodule RegentsWeb.RouteCatalog.ViewerProfileTarget do
   @moduledoc false
   @enforce_keys [:label]

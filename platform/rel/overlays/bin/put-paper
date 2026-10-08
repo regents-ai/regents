@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+paper="${1:?usage: put-paper <YYYY-MM-DD>.md <picture>}"
+picture="${2:?usage: put-paper <YYYY-MM-DD>.md <picture>}"
+
+REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$paper" REGENTS_PAPER_PICTURE="$picture" exec "$(dirname "$0")/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"), System.fetch_env!("REGENTS_PAPER_PICTURE"))'

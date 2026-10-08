@@ -4,6 +4,7 @@ defmodule RegentsWeb.RouteCatalogTest do
   alias RegentsWeb.{NotFoundError, RouteCatalog, Router}
 
   alias RegentsWeb.RouteCatalog.{
+    PageTarget,
     RouteTarget,
     SidebarHeading,
     ViewerProfileTarget
@@ -78,6 +79,11 @@ defmodule RegentsWeb.RouteCatalogTest do
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %RouteTarget{route_id: :account, label: "Account", path: "/account"},
              %ViewerProfileTarget{label: "Profile"},
+             %PageTarget{
+               route_id: :paper_pro_daily,
+               label: "Paper Pro Daily",
+               path: "/paper-pro-daily"
+             },
              %SidebarHeading{label: "Products"},
              %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
              %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
@@ -136,6 +142,10 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert Enum.all?(targets, fn
              %{"type" => "route", "destination" => path, "route_id" => route_id}
+             when is_binary(path) and is_binary(route_id) ->
+               true
+
+             %{"type" => "page", "destination" => path, "route_id" => route_id}
              when is_binary(path) and is_binary(route_id) ->
                true
 

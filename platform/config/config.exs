@@ -53,7 +53,8 @@ config :regents,
     Regents.Formation,
     Regents.OpenSea,
     Regents.Redemption,
-    Regents.Staking
+    Regents.Staking,
+    Regents.PaperProDaily
   ],
   generators: [timestamp_type: :utc_datetime]
 

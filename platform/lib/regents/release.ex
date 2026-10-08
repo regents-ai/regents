@@ -25,6 +25,25 @@ defmodule Regents.Release do
   end
 
   @doc """
+  Saves one day's paper on /paper-pro-daily from its two files on this machine,
+  replacing that day's paper if it has one (`Regents.PaperProDaily.PaperFile`).
+  Run as `/app/bin/put-paper <YYYY-MM-DD>.md <picture>`.
+  """
+  def put_paper(paper_path, picture_path) do
+    load_app()
+    Application.put_env(@app, Regents.Repo, migration_config!())
+
+    {:ok, paper, _started} =
+      Ecto.Migrator.with_repo(Regents.Repo, fn _repo ->
+        paper_path
+        |> Regents.PaperProDaily.PaperFile.read!(picture_path)
+        |> Regents.PaperProDaily.put_paper!(actor: %Regents.Actors.System{})
+      end)
+
+    IO.puts("Paper Pro Daily #{paper.date}: \"#{paper.title}\" saved.")
+  end
+
+  @doc """
   Prepares an empty staging database for the first deployment.
 
   Staging owns a disposable database, so it has no copy of the tables this

@@ -183,6 +183,7 @@ defmodule Regents.ReleaseTest do
              "linked_identities",
              "oban_jobs",
              "oban_peers",
+             "paper_pro_daily_papers",
              "regents",
              "schema_migrations",
              "session_authorities"

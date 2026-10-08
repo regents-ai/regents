@@ -5,6 +5,7 @@ defmodule RegentsWeb.RouteCatalog do
 
   alias __MODULE__.{
     Entry,
+    PageTarget,
     RouteTarget,
     SidebarHeading,
     SidebarModel,
@@ -216,6 +217,11 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
         %ViewerProfileTarget{label: "Profile"},
+        %PageTarget{
+          route_id: :paper_pro_daily,
+          label: "Paper Pro Daily",
+          path: "/paper-pro-daily"
+        },
         %SidebarHeading{label: "Products"},
         %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
         %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
@@ -253,6 +259,15 @@ defmodule RegentsWeb.RouteCatalog do
   defp sidebar_target_handoff(%RouteTarget{} = target) do
     %{
       "type" => "route",
+      "route_id" => target.route_id,
+      "label" => target.label,
+      "destination" => target.path
+    }
+  end
+
+  defp sidebar_target_handoff(%PageTarget{} = target) do
+    %{
+      "type" => "page",
       "route_id" => target.route_id,
       "label" => target.label,
       "destination" => target.path

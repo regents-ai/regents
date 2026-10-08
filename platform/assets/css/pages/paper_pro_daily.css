@@ -41,6 +41,11 @@
   font-size: clamp(1.5rem, 2.2vw, 2rem);
 }
 
+.paper-daily__author {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
 .paper-daily__links {
   display: flex;
   flex-wrap: wrap;

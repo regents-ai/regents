@@ -90,6 +90,7 @@ defmodule RegentsWeb.Router do
     get "/robots.txt", PublicPagesController, :robots
     get "/llms.txt", PublicPagesController, :llms
     get "/.well-known/security.txt", PublicPagesController, :security
+    get "/paper-pro-daily/pictures/:date", PaperPictureController, :show
   end
 
   scope "/", RegentsWeb do

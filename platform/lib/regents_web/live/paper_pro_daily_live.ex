@@ -3,14 +3,16 @@ defmodule RegentsWeb.PaperProDailyLive do
   use RegentsWeb, :live_view
 
   alias Phoenix.LiveView.JS
-  alias RegentsWeb.{PaperProDaily, PublicDocuments, RouteCatalog}
+  alias Regents.PaperProDaily
+  alias RegentsWeb.PaperProDaily.Reading
+  alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
   @page_size 6
 
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), shown: 0)
+     |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), shown: 0, more?: false)
      |> assign(PublicDocuments.page("/paper-pro-daily"))
      |> stream(:papers, [])
      |> show_more()}
@@ -19,11 +21,24 @@ defmodule RegentsWeb.PaperProDailyLive do
   def handle_event("load_more", _params, socket), do: {:noreply, show_more(socket)}
 
   defp show_more(socket) do
-    papers = PaperProDaily.page(socket.assigns.shown, @page_size)
+    page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: @page_size])
 
     socket
-    |> stream(:papers, papers)
-    |> assign(shown: socket.assigns.shown + length(papers))
+    |> stream(:papers, Enum.map(page.results, &shown/1))
+    |> assign(shown: socket.assigns.shown + length(page.results), more?: page.more?)
+  end
+
+  # The picture's address changes whenever the paper is saved again, so a browser
+  # may keep each one for good.
+  defp shown(paper) do
+    paper
+    |> Map.take([:date, :title, :arxiv_url, :chatgpt_url, :author, :picture_alt])
+    |> Map.merge(Reading.render(paper.answer))
+    |> Map.merge(%{
+      id: Date.to_iso8601(paper.date),
+      picture:
+        "/paper-pro-daily/pictures/#{paper.date}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}"
+    })
   end
 
   def render(assigns) do
@@ -44,7 +59,7 @@ defmodule RegentsWeb.PaperProDailyLive do
           </ol>
 
           <p
-            :if={@shown < PaperProDaily.count()}
+            :if={@more?}
             id="paper-daily-more"
             class="paper-daily__more"
             role="status"
@@ -54,7 +69,7 @@ defmodule RegentsWeb.PaperProDailyLive do
           >
             Loading more papers…
           </p>
-          <p :if={PaperProDaily.count() == 0} class="paper-daily__more">No papers yet.</p>
+          <p :if={@shown == 0} class="paper-daily__more">No papers yet.</p>
         </section>
       </main>
     </Regent.Structure.frame>
@@ -98,14 +113,15 @@ defmodule RegentsWeb.PaperProDailyLive do
     <article class="paper-daily__item" aria-labelledby={"#{@id}-title"}>
       <img
         class="paper-daily__image"
-        src={@paper.image}
-        alt={@paper.image_alt}
+        src={@paper.picture}
+        alt={@paper.picture_alt}
         loading="lazy"
         decoding="async"
       />
       <div class="paper-daily__copy">
         <time datetime={Date.to_iso8601(@paper.date)}>{Calendar.strftime(@paper.date, "%B %-d, %Y")}</time>
         <h2 id={"#{@id}-title"}>{@paper.title}</h2>
+        <p class="paper-daily__author">Authored by {@paper.author}</p>
         <p class="paper-daily__links">
           <a href={@paper.arxiv_url} rel="noopener noreferrer">arXiv paper</a>
           <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT answer</a>
@@ -152,7 +168,7 @@ defmodule RegentsWeb.PaperProDailyLive do
     |> JS.focus(to: "##{id}-full")
   end
 
-  # The HTML is MDEx-rendered with raw HTML switched off, from the committed paper files.
+  # The HTML is MDEx-rendered with raw HTML switched off, from papers only a release command writes.
   # sobelow_skip ["XSS.Raw"]
   defp markdown_html(html), do: Phoenix.HTML.raw(html)
 end

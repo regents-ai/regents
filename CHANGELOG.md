@@ -1052,3 +1052,20 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - Founder request (2026-10-08): the page's line reads "A research paper each day, read
   with ChatGPT Astra 6 Pro." The paper reader is marked as reading only the site's own
   paper files, which clears the security scan in the full checks.
+
+## 2026-10-08 — Paper Pro Daily papers live in the database
+
+- Founder decision 1 a (2026-10-08): papers are saved in the database, so a new paper
+  shows without a release. New table `regents_app.paper_pro_daily_papers`, one row a
+  day; saving a day that has a paper replaces it. Only the release command
+  `/app/bin/put-paper <YYYY-MM-DD>.md <picture>` writes papers, as the system actor;
+  anyone reads them. The paper files and pictures in `priv/` and the build-time list
+  are removed.
+- Each paper names who wrote the answer, shown under its title as "Authored by …"
+  (founder request, 2026-10-08), so a new model name changes only new papers.
+- A paper is saved only with its picture (founder decision 4 a, 2026-10-08): WebP,
+  PNG or JPEG, at most 1 MB, served from `/paper-pro-daily/pictures/<date>` and kept
+  by browsers for a year, since a replaced picture gets a new address.
+- The app's left sidebar links to Paper Pro Daily (founder answer 2, 2026-10-08).
+- The share description reads "A research paper each day, read with ChatGPT Astra 6
+  Pro." (founder decision 5 a, 2026-10-08).
