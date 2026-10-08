@@ -1101,6 +1101,9 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   Checked by hand on a local server: a repeated signature header and a query
   string are refused before the SIWA service is asked; an extra unsigned header
   is not forwarded and grants nothing; a body over 4096 bytes is refused.
+- A check-in (`GET /api/agents/v1/me`) no longer answers "not paired" to a
+  request with a query string or body before its proof is checked: the shared
+  plug's own rule refuses the query (Sentinel finding, 2026-10-08).
 - The API contract and `/openapi.json` name the new headers.
 - The same elixir-utils brings Credits' notice that a purchase was credited;
   `Regents.Credits.Credited` answers it with nothing to add.

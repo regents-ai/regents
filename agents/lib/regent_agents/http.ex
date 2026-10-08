@@ -78,8 +78,8 @@ defmodule RegentAgents.HTTP do
 
   defp pair(conn), do: error(conn, "pairing_failed")
 
-  defp me(%{body_params: body, query_params: query} = conn)
-       when map_size(body) == 0 and map_size(query) == 0 do
+  # The proof is checked first; the shared plug refuses a query string.
+  defp me(conn) do
     with {:ok, agent, conn} <- verify(conn),
          {:ok, paired} <- RegentAgents.check_in_agent(actor: agent) do
       answer(conn, %{data: Map.put(present(paired, agent), :account, account(paired))})
@@ -88,8 +88,6 @@ defmodule RegentAgents.HTTP do
       {:error, _not_paired} -> error(conn, "not_paired")
     end
   end
-
-  defp me(conn), do: error(conn, "not_paired")
 
   defp harness(value) do
     case Harness.match(value) do

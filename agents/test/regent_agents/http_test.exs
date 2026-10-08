@@ -187,9 +187,6 @@ defmodule RegentAgents.HTTPTest do
 
     assert {404, %{"error" => %{"code" => "not_paired"}}} =
              send_request(:get, "/api/agents/v1/me")
-
-    assert {404, %{"error" => %{"code" => "not_paired"}}} =
-             send_request(:get, "/api/agents/v1/me?x=1")
   end
 
   test "the SIWA service's refusal reaches the agent as the SIWA service wrote it" do
