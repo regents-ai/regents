@@ -16,7 +16,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
     :ok
   end
 
-  test "[U2] only the public operational routes, marketing page and sign-out stay open" do
+  test "[U2] only the public operational routes, marketing and reading pages and sign-out stay open" do
     still_open =
       for route <- routes(),
           conn = request(route),
@@ -36,6 +36,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/contact"},
              {:get, "/literature"},
              {:get, "/"},
+             {:get, "/paper-pro-daily"},
              {:get, "/privacy"},
              {:get, "/terms"},
              {:get, "/blog"},
@@ -48,7 +49,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
     ungated =
       for route <- routes(),
           live_view = route.metadata[:phoenix_live_view],
-          route.path != "/",
+          route.path not in ["/", "/paper-pro-daily"],
           not mounts_through_gate?(live_view),
           do: route.path
 

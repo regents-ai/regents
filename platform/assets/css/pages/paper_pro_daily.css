@@ -1,0 +1,87 @@
+@layer regents-product {
+/* One row per paper: its picture beside the title, links and ChatGPT's answer. */
+.paper-daily__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.paper-daily__list > li + li {
+  border-block-start: 1px solid var(--rg-page-rule);
+}
+
+.paper-daily__item {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 46rem);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
+  padding: clamp(24px, 4vw, 48px) clamp(20px, 4vw, 48px);
+}
+
+.paper-daily__image {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  border: 1px solid var(--rg-page-rule);
+  background: var(--color-surface);
+}
+
+.paper-daily__copy {
+  min-inline-size: 0;
+}
+
+.paper-daily__copy time {
+  font-size: 0.875rem;
+}
+
+.paper-daily__copy h2 {
+  margin: 8px 0 4px;
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
+}
+
+.paper-daily__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  margin: 0 0 16px;
+}
+
+.paper-daily__links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+/* A wide table scrolls inside the answer instead of widening the page. */
+.paper-daily__text table {
+  display: block;
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+.paper-daily__text > :last-child {
+  margin-block-end: 0;
+}
+
+.paper-daily__read-more {
+  margin-block-start: 24px;
+}
+
+.paper-daily__more {
+  margin: 0;
+  padding: 24px clamp(20px, 4vw, 48px);
+  border-block-start: 1px solid var(--rg-page-rule);
+}
+
+@media (max-width: 40rem) {
+  .paper-daily__item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .paper-daily__image {
+    max-inline-size: 12rem;
+  }
+}
+}

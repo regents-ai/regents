@@ -118,6 +118,7 @@ defmodule RegentsWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive, :home
+    live "/paper-pro-daily", PaperProDailyLive, :paper_pro_daily
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
     get "/blog", BlogController, :index

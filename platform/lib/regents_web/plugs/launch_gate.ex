@@ -4,7 +4,8 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   The setting is read on each request, so a deploy opens or closes surfaces
   without rebuilding the release. The marketing page and signing out stay open
-  in either state. The Privacy Policy and Terms of Use stay open with them.
+  in either state. The Privacy Policy, Terms of Use, blog and Paper Pro Daily
+  stay open with them.
   """
 
   import Phoenix.Controller, only: [get_format: 1, json: 2, put_secure_browser_headers: 2]
@@ -28,6 +29,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   def call(%Plug.Conn{method: "GET", path_info: ["blog"]} = conn, _opts), do: conn
   def call(%Plug.Conn{method: "GET", path_info: ["blog", _slug]} = conn, _opts), do: conn
+  def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily"]} = conn, _opts), do: conn
 
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),
     do: conn

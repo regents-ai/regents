@@ -74,6 +74,8 @@ defmodule RegentsWeb.PublicDocuments do
        "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
     "/blog" =>
       {"Blog", "Writing from Regents Labs about its products and the ideas behind them."},
+    "/paper-pro-daily" =>
+      {"Paper Pro Daily", "A research paper each day, with ChatGPT's reading of it."},
     "/literature" =>
       {"Literature",
        "Science-fiction books about artificial minds, placed by how hopeful each is for humanity and for the minds themselves."},
@@ -200,10 +202,14 @@ defmodule RegentsWeb.PublicDocuments do
 
   def sitemap do
     locations =
-      Enum.map_join(~w(/ /docs /about /contact /privacy /terms /blog), "\n", fn path ->
-        location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
-        "  <url><loc>#{location}</loc></url>"
-      end)
+      Enum.map_join(
+        ~w(/ /docs /about /contact /privacy /terms /blog /paper-pro-daily),
+        "\n",
+        fn path ->
+          location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+          "  <url><loc>#{location}</loc></url>"
+        end
+      )
 
     """
     <?xml version="1.0" encoding="UTF-8"?>

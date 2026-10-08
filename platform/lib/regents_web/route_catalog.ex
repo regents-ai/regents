@@ -23,6 +23,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :home
     },
     %Entry{
+      path_pattern: "/paper-pro-daily",
+      live_action: :paper_pro_daily,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :paper_pro_daily
+    },
+    %Entry{
       path_pattern: "/app",
       live_action: :app,
       parameter_schema: %{},
@@ -110,6 +117,8 @@ defmodule RegentsWeb.RouteCatalog do
 
   @specs %{
     home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
+    paper_pro_daily:
+      {:paper_pro_daily, nil, nil, "Paper Pro Daily", "/paper-pro-daily", [], :home, %{}},
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},

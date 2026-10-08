@@ -1029,3 +1029,13 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   Credits actor. Pages pass `account` where they passed `linked` or `actor`, so
   a wallet linked or unlinked in another tab counts from the next event,
   without a reload.
+
+## 2026-10-08 — Paper Pro Daily
+
+- New public page, /paper-pro-daily: one research paper a day, newest first. Each row
+  shows the paper's picture, title, arXiv link, ChatGPT link and the first hundred words
+  of ChatGPT's answer, with Read more for the rest; more papers load as the reader
+  scrolls, to the end. Each paper is a file in `platform/priv/paper_pro_daily/` with its
+  picture in `platform/priv/static/images/paper-pro-daily/`, read when the site is built;
+  a file that breaks the rules stops the build. The page stays open while the launch
+  gate is closed, like the blog, and is listed in the sitemap.
