@@ -1039,3 +1039,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   picture in `platform/priv/static/images/paper-pro-daily/`, read when the site is built;
   a file that breaks the rules stops the build. The page stays open while the launch
   gate is closed, like the blog, and is listed in the sitemap.
+
+## 2026-10-08 — The blog's page name is Articles
+
+- Founder decision 4 a (2026-10-08): "Rename Blog to Articles". The tab title and
+  shared title of /blog read "Articles", a missing post reads "Article not found",
+  and a post without its own description is "in Regents Labs Articles". The page's
+  own heading and its address come from the shared design kit and are unchanged here.

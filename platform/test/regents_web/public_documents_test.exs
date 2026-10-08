@@ -16,6 +16,6 @@ defmodule RegentsWeb.PublicDocumentsTest do
     post = %{title: "Launch notes", author: "Regent", description: ""}
 
     assert PublicDocuments.page({:blog_post, post})[:page_description] ==
-             "Launch notes, by Regent, on the Regents Labs blog."
+             "Launch notes, by Regent, in Regents Labs Articles."
   end
 end

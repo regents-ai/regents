@@ -73,7 +73,7 @@ defmodule RegentsWeb.PublicDocuments do
       {"Contact",
        "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
     "/blog" =>
-      {"Blog", "Writing from Regents Labs about its products and the ideas behind them."},
+      {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
     "/paper-pro-daily" =>
       {"Paper Pro Daily", "A research paper each day, with ChatGPT's reading of it."},
     "/literature" =>
@@ -86,7 +86,7 @@ defmodule RegentsWeb.PublicDocuments do
       {"Terms of Use",
        "The terms that apply when you use the Regents Labs websites, tools and services."},
     :holding => {"Not open yet", "This part of Regents Labs isn't open to visitors yet."},
-    :blog_post_not_found => {"Post not found", "This Regents Labs blog post does not exist."},
+    :blog_post_not_found => {"Article not found", "This Regents Labs article does not exist."},
     :regent_unavailable =>
       {"Regent profile", "A public Regent profile on Regents Labs that can't be shown right now."},
     "/showcase" => {"Showcase", "The Regents Labs component showcase."},
@@ -126,7 +126,7 @@ defmodule RegentsWeb.PublicDocuments do
   def page({:blog_post, %{description: ""} = post}),
     do: [
       page_title: post.title,
-      page_description: "#{post.title}, by #{post.author}, on the #{@site_name} blog."
+      page_description: "#{post.title}, by #{post.author}, in #{@site_name} Articles."
     ]
 
   def page({:blog_post, post}),
