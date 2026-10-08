@@ -1136,3 +1136,20 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   module (founder answer "2 a", 2026-10-08). Without that setting a site never
   credits a purchase, and nothing shows it until a person pays; with the setting
   removed the test fails.
+
+## 2026-10-08 — Regent Points on regents.sh, earning off
+
+- Regents hosts Regent Points (elixir-utils 43770ea): the `regent_points` schema
+  and its seven tables are created at release (founder answers "2 a" for the
+  schema and "7 a" for the release, 2026-10-08). Points' background work runs in
+  the site's Oban, in the `points` and `points_chain` queues. No rule earns and
+  NFT tracking is off until Sean approves rules, a start time and each rule's
+  source check.
+- A credited Credits purchase asks Points to consider it, inside the credit's
+  own transaction (`Regents.Credits.Credited`); with the rule off nothing is
+  queued.
+- New page `/account/points`, linked from Account beside Purchase History: the
+  signed-in account's points, NFT bonus and recent awards, then what earns
+  points, the daily limits and the NFT bonus tiers, from the shared catalog.
+  Actions not built yet are left out (founder answer "6 b"); the page has no
+  test of its own (founder answer "5 b").
