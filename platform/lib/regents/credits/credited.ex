@@ -1,12 +1,24 @@
 defmodule Regents.Credits.Credited do
   @moduledoc """
-  Regent Credits tells the site here, inside the credit's own transaction, that a
-  purchase was credited. Regents keeps nothing of its own about a credited
-  purchase yet, so it has nothing to add.
+  When a Credits purchase is credited, asks Regent Points to consider it, inside
+  the credit's transaction. Points decides whether the purchase earns; while its
+  rule is off nothing is queued.
   """
 
   @behaviour RegentCredits.Credited
 
+  alias Regents.Actors.System
+
   @impl true
-  def credited(_purchase), do: :ok
+  def credited(purchase) do
+    reference = %{
+      rule_id: "credits.purchase_settled",
+      source_app: "regents",
+      source_kind: "credits_purchase",
+      source_event_key: purchase.id
+    }
+
+    {:ok, _} = RegentPoints.record_event(reference, actor: %System{})
+    :ok
+  end
 end

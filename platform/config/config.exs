@@ -51,7 +51,7 @@ config :regent_points,
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
-  adapters: %{},
+  adapters: %{"credits.purchase_settled" => Regents.Points.CreditsPurchase},
   nft_tracking_enabled: false
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
