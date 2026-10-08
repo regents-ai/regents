@@ -1100,3 +1100,39 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - The site-wide descriptions name Keyfleet beside Autolaunch, Techtree and Patchbay:
   every page's search description, the home and overview summaries, `/llms.txt`,
   the docs and the contact page's product links (founder answer "3 a", 2026-10-08).
+
+## 2026-10-08 — Agent requests carry their signature in x-siwa-signature headers
+
+- Shared libraries move to elixir-utils fe3aa1d, which carries the one signing
+  contract every site and signer follows (contract id 53180b09…6060). siwa signs
+  and checks a request's signature in `x-siwa-signature` and
+  `x-siwa-signature-input`, because OpenAI's agent cloud overwrites the standard
+  `Signature` headers, and its shared plug is the one place that names the
+  signed headers: it forwards only those to the SIWA service and refuses a
+  request that repeats one, carries a query string, or has a body it did not
+  capture whole. Regents names no signed header itself, as in ash-template.
+- The `/api/agents` body reader is now the shared plug's own `read_body` (4096
+  bytes at most), so the signature covers exactly the bytes Regents reads.
+  Checked by hand on a local server: a repeated signature header and a query
+  string are refused before the SIWA service is asked; an extra unsigned header
+  is not forwarded and grants nothing; a body over 4096 bytes is refused.
+- A check-in (`GET /api/agents/v1/me`) no longer answers "not paired" to a
+  request with a query string or body before its proof is checked: the shared
+  plug's own rule refuses the query (Sentinel finding, 2026-10-08). Sentinel's
+  38 signed-request acceptance checks against a local SIWA server succeeded.
+- The shared plug's own refusals keep its reason as the code, as in
+  ash-template: `401 duplicate_proof` (a signature header sent twice),
+  `401 unsupported_query` (a query string) and `401 missing_signed_body` (a body
+  it did not capture whole), each with a message saying so. Other refusals made
+  here still answer `verification_failed`. The API documents list the codes.
+- The API contract and `/openapi.json` name the new headers.
+- The same elixir-utils brings Credits' notice that a purchase was credited;
+  `Regents.Credits.Credited` answers it with nothing to add.
+- Ships after the siwa-server release.
+
+## 2026-10-08 — A Credits test
+
+- `mix test` now credits a Credits purchase through Regents' `on_credited`
+  module (founder answer "2 a", 2026-10-08). Without that setting a site never
+  credits a purchase, and nothing shows it until a person pays; with the setting
+  removed the test fails.

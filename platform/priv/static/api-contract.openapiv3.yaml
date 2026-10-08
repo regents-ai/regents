@@ -194,12 +194,12 @@ components:
       required: true
       schema: {type: string, const: "8453"}
     HttpSignatureInput:
-      name: signature-input
+      name: x-siwa-signature-input
       in: header
       required: true
       schema: {type: string, minLength: 1}
     HttpSignature:
-      name: signature
+      name: x-siwa-signature
       in: header
       required: true
       schema: {type: string, minLength: 1}
@@ -285,8 +285,10 @@ components:
     AgentVerificationFailed:
       description: >-
         The sign-in service did not verify the signed agent request. The answer
-        is verification_failed, or the sign-in service's own refusal, whose
-        message and hint say what went wrong and what to do next
+        is verification_failed; duplicate_proof, unsupported_query or
+        missing_signed_body when a signature header repeats, a query string is
+        sent or the body was not captured whole; or the sign-in service's own
+        refusal, whose message and hint say what went wrong and what to do next
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
@@ -445,7 +447,8 @@ components:
               type: string
               description: >-
                 pairing_failed, harness_unknown, agent_limit, not_paired,
-                verification_failed, verification_unavailable or rate_limited, or
+                verification_failed, duplicate_proof, unsupported_query,
+                missing_signed_body, verification_unavailable or rate_limited, or
                 a code the sign-in service gave, which
                 https://siwa.regents.sh/skill.md explains
             message: {type: string}
