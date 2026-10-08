@@ -122,22 +122,28 @@ defmodule RegentsWeb.Live.Session do
   A LiveComponent's events never reach the page's own event hook, so every
   component that acts calls this from `mount/1`, and its page passes it the
   page's `session_lease` as `lease`. Each event first re-reads that lease, as
-  the page does for its own events. A lapsed lease refuses the event with an
-  empty reply, so a wallet step it was asked for is not built, and tells the
-  page, which withdraws the principal and renders signed out. A page with no
-  signed-in session passes a nil lease and its components act as before.
+  the page does for its own events. A current lease hands `take_account`, the
+  component's own function (the one its `update/2` uses too), the account as
+  it reads now, and the component rebuilds from it the wallets and actor it
+  acts with, so no event acts on a wallet list or actor captured earlier. A
+  lapsed lease refuses the event with an empty reply, so a wallet step it was
+  asked for is not built, and tells the page, which withdraws the principal and
+  renders signed out. A page with no signed-in session passes a nil lease and
+  its components act on what the page gave them.
   """
-  def check_component_events(socket) do
+  def check_component_events(socket, take_account) do
     attach_hook(socket, :session_authority_event, :handle_event, fn
       _event, _params, %{assigns: %{lease: nil}} = socket ->
         {:cont, socket}
 
       _event, _params, %{assigns: %{lease: lease}} = socket ->
-        if leased(lease) do
-          {:cont, socket}
-        else
-          send(self(), {__MODULE__, :component_lease_lapsed})
-          {:halt, %{}, socket}
+        case leased(lease) do
+          nil ->
+            send(self(), {__MODULE__, :component_lease_lapsed})
+            {:halt, %{}, socket}
+
+          account ->
+            {:cont, take_account.(socket, account)}
         end
     end)
   end

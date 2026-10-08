@@ -8,7 +8,7 @@ defmodule RegentsWeb.StakeLive do
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
   attr :wallet, :string, default: nil
-  attr :linked, :list, default: nil, doc: "the signed-in account's wallets, `nil` signed out"
+  attr :account, :any, default: nil, doc: "the signed-in account, `nil` signed out"
   attr :notice, :map, default: nil
   attr :reading, :boolean, default: false
   attr :shared_reading, :boolean, default: false
@@ -17,7 +17,7 @@ defmodule RegentsWeb.StakeLive do
     assigns =
       assigns
       |> assign(:dashboard, staking_dashboard(assigns.staking))
-      |> assign(:signed_in, is_list(assigns.linked))
+      |> assign(:signed_in, not is_nil(assigns.account))
 
     ~H"""
     <section
@@ -226,7 +226,7 @@ defmodule RegentsWeb.StakeLive do
             staking={@staking}
             status={@status}
             wallet={@wallet}
-            linked={@linked}
+            account={@account}
             notice={@notice}
             reading={@reading}
             shared_reading={@shared_reading}

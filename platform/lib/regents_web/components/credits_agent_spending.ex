@@ -5,38 +5,44 @@ defmodule RegentsWeb.CreditsAgentSpending do
   Spending starts off for every agent. Only regents.sh/account shows this; the
   Credits library saves it only for a person signed in there.
 
-  The host passes `actor` (the signed-in person, `RegentCredits.Actor` with
-  site "regents"), `agents` (`{wallet, name}` for each agent paired with the
+  The host passes `account` (the signed-in account, read as
+  `Regents.Credits.person/1`), its `session_lease` as `lease`, `agents` (`{wallet, name}` for each agent paired with the
   account) and `sites` (`{site, label}` pairs an agent may spend on).
   """
   use RegentsWeb, :live_component
 
   alias Regent.Primitives, as: P
   alias RegentCredits.AgentPermission
+  alias Regents.Credits
   alias RegentsWeb.FormErrors
 
   @impl true
   def mount(socket),
-    do: {:ok, socket |> RegentsWeb.Live.Session.check_component_events() |> assign(saved: nil)}
+    do:
+      {:ok,
+       socket
+       |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+       |> assign(saved: nil)}
 
   @impl true
   def update(assigns, socket) do
-    saved =
-      Map.new(RegentCredits.agent_permissions!(actor: assigns.actor), &{&1.agent_address, &1})
+    socket =
+      socket |> assign(Map.take(assigns, [:id, :lease, :sites])) |> take_account(assigns.account)
 
+    actor = socket.assigns.actor
+    saved = Map.new(RegentCredits.agent_permissions!(actor: actor), &{&1.agent_address, &1})
     agents = Enum.map(assigns.agents, fn {wallet, name} -> {String.downcase(wallet), name} end)
 
     {:ok,
-     socket
-     |> assign(assigns)
-     |> assign(
+     assign(socket,
        agents: agents,
-       forms:
-         Map.new(agents, fn {agent, _name} ->
-           {agent, form(assigns.actor, agent, saved[agent])}
-         end)
+       forms: Map.new(agents, fn {agent, _name} -> {agent, form(actor, agent, saved[agent])} end)
      )}
   end
+
+  # The account as the page gave it, or as it reads now before each event
+  # (`RegentsWeb.Live.Session.check_component_events/2`).
+  defp take_account(socket, account), do: assign(socket, actor: Credits.person(account))
 
   @impl true
   def handle_event("validate", %{"agent" => agent, "permission" => params}, socket) do

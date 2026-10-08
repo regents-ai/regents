@@ -1018,3 +1018,14 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   shows "Waiting for Base" meanwhile. A transaction that is not this Buy is
   final. Each person may report 120 times a minute, counted on the server; past
   that, the page waits its turn. The wallet press is unchanged.
+
+## 2026-10-08 — Panels act on the account's wallets as they are now
+
+- Watchdog WD001, the template's shape (ash-template e7ee597). The session check
+  each panel runs on its own events takes the panel's own `take_account`, the
+  function its `update/2` uses too, and hands it the account it just read. Buy
+  Credits, Stake and Redeem rebuild the wallets that may act and their review
+  from it; Purchase History, Credits admin and agent spending rebuild their
+  Credits actor. Pages pass `account` where they passed `linked` or `actor`, so
+  a wallet linked or unlinked in another tab counts from the next event,
+  without a reload.

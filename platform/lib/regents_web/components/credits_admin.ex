@@ -4,9 +4,9 @@ defmodule RegentsWeb.CreditsAdmin do
   Credits, find a person's purchases and start a refund, then close each
   refund with the Treasury Safe's USDC transfer.
 
-  The host passes `actor`, a `RegentCredits.Actor.admin/1` for the signed-in
-  admin; the library refuses everything here to anyone not named in its
-  `:admins` setting.
+  The host passes `account`, the signed-in account, and its `session_lease` as
+  `lease`; the panel acts as `Regents.Credits.admin/1` of it, and the library
+  refuses everything here to anyone not named in its `:admins` setting.
   """
   use RegentsWeb, :live_component
 
@@ -15,13 +15,14 @@ defmodule RegentsWeb.CreditsAdmin do
   alias Regent.Primitives, as: P
   alias RegentCredits.{Amount, Chains, Purchase, Refund}
   alias RegentCredits.Errors.{NotEnoughCredits, Refused}
+  alias Regents.Credits
 
   @hash ~r/0x[0-9a-fA-F]{64}/
   @impl true
   def mount(socket) do
     {:ok,
      socket
-     |> RegentsWeb.Live.Session.check_component_events()
+     |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
      |> assign(
        gift_key: Ecto.UUID.generate(),
        gift_note: nil,
@@ -33,7 +34,17 @@ defmodule RegentsWeb.CreditsAdmin do
   end
 
   @impl true
-  def update(assigns, socket), do: {:ok, socket |> assign(assigns) |> read_refunds()}
+  def update(assigns, socket) do
+    {:ok,
+     socket
+     |> assign(Map.take(assigns, [:id, :lease]))
+     |> take_account(assigns.account)
+     |> read_refunds()}
+  end
+
+  # The account as the page gave it, or as it reads now before each event
+  # (`RegentsWeb.Live.Session.check_component_events/2`).
+  defp take_account(socket, account), do: assign(socket, actor: Credits.admin(account))
 
   @impl true
   def handle_event("give", %{"to" => to, "amount" => amount, "note" => note}, socket) do

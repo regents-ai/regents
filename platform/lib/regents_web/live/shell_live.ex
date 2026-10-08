@@ -13,7 +13,7 @@ defmodule RegentsWeb.ShellLive do
   import RegentsWeb.Components.Shell
 
   import RegentsWeb.ShellLive.Identity,
-    only: [authenticated?: 1, current_account: 1, linked_wallets: 1]
+    only: [authenticated?: 1, current_account: 1]
 
   import RegentsWeb.StakeLive
 
@@ -193,7 +193,7 @@ defmodule RegentsWeb.ShellLive do
           staking={@staking}
           status={@staking_status}
           wallet={@staking_wallet}
-          linked={linked_wallets(@access_context)}
+          account={current_account(@access_context)}
           notice={@staking_notice}
           reading={Staking.reading?(assigns)}
           shared_reading={@staking_shared_reading}
@@ -207,7 +207,7 @@ defmodule RegentsWeb.ShellLive do
           redemption={@redemption}
           status={@redemption_status}
           wallet={@redemption_wallet}
-          linked={linked_wallets(@access_context)}
+          account={current_account(@access_context)}
           collection={@redemption_collection}
           token_id={@redemption_token_id}
           notice={@redemption_notice}

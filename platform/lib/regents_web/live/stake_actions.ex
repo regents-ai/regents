@@ -8,8 +8,8 @@ defmodule RegentsWeb.StakeActions do
   wallet said. `skills/onchain-buttons` has the rules and
   `RegentsWeb.OnchainSteps` the shared half.
 
-  The page passes the readings (`staking`, for `wallet`) and `linked`, the
-  signed-in account's wallets (`nil` signed out). Only Privy's active wallet
+  The page passes the readings (`staking`, for `wallet`) and `account`, the
+  signed-in account (`nil` signed out), whose wallets may act. Only Privy's active wallet
   acts, and only when the account links it. The component tells the page which
   wallet Privy has active, so the figures follow it, and when a step lands, so
   they are read again.
@@ -29,6 +29,7 @@ defmodule RegentsWeb.StakeActions do
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
   alias RegentsWeb.{EventInput, OnchainSteps, StakeLive, TokenDisplay}
+  alias RegentsWeb.ShellLive.Identity
 
   import RegentsWeb.EventInput, only: [failure_reason: 1]
 
@@ -52,7 +53,7 @@ defmodule RegentsWeb.StakeActions do
   def mount(socket) do
     {:ok,
      socket
-     |> RegentsWeb.Live.Session.check_component_events()
+     |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
        active: nil,
@@ -83,14 +84,19 @@ defmodule RegentsWeb.StakeActions do
          :staking,
          :status,
          :wallet,
-         :linked,
          :notice,
          :reading,
          :shared_reading
        ])
      )
-     |> sync()}
+     |> take_account(assigns.account)}
   end
+
+  # The account as the page gave it, or as it reads now before each event
+  # (`RegentsWeb.Live.Session.check_component_events/2`): the wallets that may
+  # act and the review follow it.
+  defp take_account(socket, account),
+    do: socket |> assign(linked: Identity.linked_wallets(account)) |> sync()
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket) do

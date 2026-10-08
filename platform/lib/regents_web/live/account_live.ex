@@ -171,7 +171,7 @@ defmodule RegentsWeb.AccountLive do
             module={RegentsWeb.CreditsAgentSpending}
             id="account-agent-spending"
             lease={@lease}
-            actor={Regents.Credits.person(@account)}
+            account={@account}
             agents={agent_wallets(@agents)}
             sites={Regents.Credits.agent_sites()}
           />

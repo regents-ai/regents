@@ -27,12 +27,8 @@ defmodule RegentsWeb.ShellLive.Identity do
   end
 
   @doc "The signed-in account's wallets, the only ones that may act; `nil` signed out."
-  def linked_wallets(access_context) do
-    case current_account(access_context) do
-      nil -> nil
-      account -> account_wallets(account)
-    end
-  end
+  def linked_wallets(nil), do: nil
+  def linked_wallets(account), do: account_wallets(account)
 
   @doc """
   Privy's active wallet is the only wallet that acts. Signed in, Stake and

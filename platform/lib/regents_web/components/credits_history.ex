@@ -4,13 +4,15 @@ defmodule RegentsWeb.CreditsHistory do
   which chain, what came of it and a link to the transaction. The library lets
   a person read only their own purchases and refunds.
 
-  The parent passes `actor` (`Regents.Credits.person/1`) and the account's
-  `balance`, so a purchase that counts while the page is open shows at once.
+  The parent passes the signed-in `account`, read as `Regents.Credits.person/1`,
+  and its `balance`, so a purchase that counts while the page is open shows at
+  once.
   """
   use RegentsWeb, :live_component
 
   alias Regent.Primitives, as: P
   alias RegentCredits.{Amount, Purchase, Refund}
+  alias Regents.Credits
 
   require Ash.Query
 
@@ -18,10 +20,24 @@ defmodule RegentsWeb.CreditsHistory do
 
   @impl true
   def mount(socket),
-    do: {:ok, socket |> RegentsWeb.Live.Session.check_component_events() |> assign(shown: @page)}
+    do:
+      {:ok,
+       socket
+       |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+       |> assign(shown: @page)}
 
   @impl true
-  def update(assigns, socket), do: {:ok, socket |> assign(assigns) |> read()}
+  def update(assigns, socket) do
+    {:ok,
+     socket
+     |> assign(Map.take(assigns, [:id, :lease, :balance]))
+     |> take_account(assigns.account)
+     |> read()}
+  end
+
+  # The account as the page gave it, or as it reads now before each event
+  # (`RegentsWeb.Live.Session.check_component_events/2`).
+  defp take_account(socket, account), do: assign(socket, actor: Credits.person(account))
 
   @impl true
   def handle_event("more", _params, socket),

@@ -44,7 +44,7 @@ defmodule RegentsWeb.CreditsLive do
           module={RegentsWeb.CreditsHistory}
           id="credits-history"
           lease={@lease}
-          actor={Credits.person(@account)}
+          account={@account}
           balance={@balance}
         />
       </section>
@@ -87,7 +87,7 @@ defmodule RegentsWeb.CreditsLive do
           module={RegentsWeb.CreditsAdmin}
           id="credits-admin"
           lease={@lease}
-          actor={Credits.admin(@account)}
+          account={@account}
         />
       </section>
     </article>

@@ -9,7 +9,7 @@ defmodule RegentsWeb.RedeemLive do
 
   The shell owns the readings, the selection and every other control here; this
   component owns the presses. Only Privy's active wallet acts, and only when the
-  signed-in account links it (`linked`, `nil` signed out). The component tells
+  signed-in account links it (`account`, `nil` signed out). The component tells
   the shell which wallet Privy has active, so the figures follow it, and when a
   step lands, so they are read again.
   """
@@ -28,6 +28,7 @@ defmodule RegentsWeb.RedeemLive do
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
   alias RegentsWeb.{EventInput, OnchainSteps, TokenDisplay}
+  alias RegentsWeb.ShellLive.Identity
 
   @control_labels %{
     "approve_nft_collection" => "Approve NFT collection",
@@ -46,7 +47,7 @@ defmodule RegentsWeb.RedeemLive do
     do:
       {:ok,
        socket
-       |> RegentsWeb.Live.Session.check_component_events()
+       |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
        |> OnchainSteps.init()
        |> assign(
          active: nil,
@@ -59,10 +60,16 @@ defmodule RegentsWeb.RedeemLive do
   def update(assigns, socket) do
     {:ok,
      socket
-     |> assign(assigns)
+     |> assign(Map.delete(assigns, :account))
      |> assign(selection: %{collection: assigns.collection, token_id: assigns.token_id})
-     |> sync()}
+     |> take_account(assigns.account)}
   end
+
+  # The account as the page gave it, or as it reads now before each event
+  # (`RegentsWeb.Live.Session.check_component_events/2`): the wallets that may
+  # act and the review follow it.
+  defp take_account(socket, account),
+    do: socket |> assign(linked: Identity.linked_wallets(account)) |> sync()
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket) do
