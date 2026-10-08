@@ -45,6 +45,15 @@ defmodule RegentAgents.HTTP do
     "verification_failed" =>
       {401, "The signed agent request could not be verified.",
        "Sign the request with your agent key as #{@guide} describes, then send it again."},
+    "duplicate_proof" =>
+      {401, "A signature header was sent more than once.",
+       "Sign the request with your agent key as #{@guide} describes, then send it again."},
+    "unsupported_query" =>
+      {401, "A signed request here takes no query string.",
+       "Sign the request with your agent key as #{@guide} describes, then send it again."},
+    "missing_signed_body" =>
+      {401, "Send the body as JSON, signed with the rest of the request.",
+       "Sign the request with your agent key as #{@guide} describes, then send it again."},
     "verification_unavailable" =>
       {503, "The sign-in service could not be reached.", "Try again in a minute."},
     "not_found" =>
@@ -136,6 +145,10 @@ defmodule RegentAgents.HTTP do
     do: error(conn, "verification_unavailable")
 
   defp refuse(conn, %{transport_error: _reason}), do: error(conn, "verification_unavailable")
+
+  # The shared plug's own refusals keep its reason as the code, as on every site.
+  defp refuse(conn, %{source: :siwa_plug, reason: reason}),
+    do: error(conn, Atom.to_string(reason))
 
   defp refuse(conn, _refusal), do: error(conn, "verification_failed")
 

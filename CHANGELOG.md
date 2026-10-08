@@ -1105,6 +1105,11 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   request with a query string or body before its proof is checked: the shared
   plug's own rule refuses the query (Sentinel finding, 2026-10-08). Sentinel's
   38 signed-request acceptance checks against a local SIWA server succeeded.
+- The shared plug's own refusals keep its reason as the code, as in
+  ash-template: `401 duplicate_proof` (a signature header sent twice),
+  `401 unsupported_query` (a query string) and `401 missing_signed_body` (a body
+  it did not capture whole), each with a message saying so. Other refusals made
+  here still answer `verification_failed`. The API documents list the codes.
 - The API contract and `/openapi.json` name the new headers.
 - The same elixir-utils brings Credits' notice that a purchase was credited;
   `Regents.Credits.Credited` answers it with nothing to add.

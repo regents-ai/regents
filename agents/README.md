@@ -23,7 +23,10 @@ https://siwa.regents.sh/skill.md.
   their agents; it is never shown, logged or answered.
 - A refusal is `{error: {code, message, hint}}`: `pairing_failed` (400),
   `harness_unknown` (400, the hint lists the accepted names), `not_paired` (404),
-  `verification_failed` (401), `verification_unavailable` (503), or the SIWA
+  `verification_failed` (401), `duplicate_proof`, `unsupported_query` or
+  `missing_signed_body` (401, the shared plug's own refusals: a repeated
+  signature header, a query string, a body it did not capture whole),
+  `verification_unavailable` (503), or the SIWA
   service's own refusal, passed on unchanged: its status, code, message and a
   hint written for the site and the agent's signing tool.
 
