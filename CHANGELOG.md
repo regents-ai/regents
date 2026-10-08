@@ -1085,3 +1085,23 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   session ends in another tab, a change on the Credits panel is refused, the panel
   keeps its old figure and Sign In shows. Only the panel's own check can refuse it,
   since the page never hears a panel's events; with that check removed the test fails.
+
+## 2026-10-08 — Agent requests carry their signature in x-siwa-signature headers
+
+- Shared libraries move to elixir-utils de6c3e0, which carries the one signing
+  contract every site and signer follows (contract id 517e597b…4d4f). siwa signs
+  and checks a request's signature in `x-siwa-signature` and
+  `x-siwa-signature-input`, because OpenAI's agent cloud overwrites the standard
+  `Signature` headers, and its shared plug is the one place that names the
+  signed headers: it forwards only those to the SIWA service and refuses a
+  request that repeats one, carries a query string, or has a body it did not
+  capture whole. Regents names no signed header itself, as in ash-template.
+- The `/api/agents` body reader is now the shared plug's own `read_body` (4096
+  bytes at most), so the signature covers exactly the bytes Regents reads.
+  Checked by hand on a local server: a repeated signature header and a query
+  string are refused before the SIWA service is asked; an extra unsigned header
+  is not forwarded and grants nothing; a body over 4096 bytes is refused.
+- The API contract and `/openapi.json` name the new headers.
+- The same elixir-utils brings Credits' notice that a purchase was credited;
+  `Regents.Credits.Credited` answers it with nothing to add.
+- Ships after the siwa-server release.

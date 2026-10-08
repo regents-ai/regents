@@ -14,8 +14,5 @@ defmodule RegentAgents.Test.Router do
 
   forward("/api/agents/v1", to: RegentAgents.HTTP)
 
-  def read_body(conn, opts) do
-    {:ok, body, conn} = Plug.Conn.read_body(conn, opts)
-    {:ok, body, Plug.Conn.assign(conn, :raw_body, body)}
-  end
+  def read_body(conn, opts), do: Siwa.AgentAuthPlug.read_body(conn, opts, 4096)
 end

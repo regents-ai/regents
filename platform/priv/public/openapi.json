@@ -1314,7 +1314,7 @@
         }
       },
       "HttpSignatureInput": {
-        "name": "signature-input",
+        "name": "x-siwa-signature-input",
         "in": "header",
         "required": true,
         "schema": {
@@ -1323,7 +1323,7 @@
         }
       },
       "HttpSignature": {
-        "name": "signature",
+        "name": "x-siwa-signature",
         "in": "header",
         "required": true,
         "schema": {

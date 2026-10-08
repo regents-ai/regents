@@ -6,16 +6,8 @@ defmodule RegentsWeb.Plugs.AgentBodyReader do
 
   @maximum_bytes 4096
 
-  def read_body(%{path_info: ["api", "agents" | _]} = conn, options) do
-    options =
-      options
-      |> Keyword.put(:length, @maximum_bytes)
-      |> Keyword.put(:read_length, @maximum_bytes + 1)
-
-    with {:ok, body, conn} <- Plug.Conn.read_body(conn, options) do
-      {:ok, body, Plug.Conn.assign(conn, :raw_body, body)}
-    end
-  end
+  def read_body(%{path_info: ["api", "agents" | _]} = conn, options),
+    do: Siwa.AgentAuthPlug.read_body(conn, options, @maximum_bytes)
 
   def read_body(conn, options), do: RegentIdentity.BodyReader.read_body(conn, options)
 end

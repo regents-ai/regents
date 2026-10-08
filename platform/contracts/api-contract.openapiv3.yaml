@@ -194,12 +194,12 @@ components:
       required: true
       schema: {type: string, const: "8453"}
     HttpSignatureInput:
-      name: signature-input
+      name: x-siwa-signature-input
       in: header
       required: true
       schema: {type: string, minLength: 1}
     HttpSignature:
-      name: signature
+      name: x-siwa-signature
       in: header
       required: true
       schema: {type: string, minLength: 1}
