@@ -1,5 +1,5 @@
 defmodule RegentsWeb.PointsLive do
-  @moduledoc "Private Account Points presentation; the NFT bonus is added at each month-end tally."
+  @moduledoc "Private Account Points presentation; the NFT bonus is added at the end of each 30-day period."
   use RegentsWeb, :html
   alias RegentPoints.{Amount, Rules}
   attr :account, :map, default: nil
@@ -59,8 +59,8 @@ defmodule RegentsWeb.PointsLive do
             Your bonus
             <Regent.Primitives.tip id="points-bonus-about" label="About your points bonus">
               Animata I, Animata II and Regents Club count across your verified linked wallets.
-              At the end of each month, the tier your wallets hold that day adds its bonus to
-              the points you earned that month, one-time awards included.
+              At the end of each 30-day period, the tier your wallets hold that day adds its
+              bonus to the points you earned in that period, one-time awards included.
             </Regent.Primitives.tip>
           </h2>
           <p :if={@bonus.state in [:idle, :loading]} role="status">Checking your NFTs…</p>
@@ -68,13 +68,13 @@ defmodule RegentsWeb.PointsLive do
             Your NFTs could not be checked. Try refreshing this page.
           </p>
           <p :if={@bonus.state == :ready}>
-            {@bonus.value.nft_count} NFTs now · +{@bonus.value.percent}% at the month-end tally
+            {@bonus.value.nft_count} NFTs now · +{@bonus.value.percent}% at the end of this period
           </p>
-          <dl :if={@points.value.month_bonuses != []}>
-            <div :for={month <- @points.value.month_bonuses}>
-              <dt>Month {month.month}</dt>
+          <dl :if={@points.value.period_bonuses != []}>
+            <div :for={period <- @points.value.period_bonuses}>
+              <dt>Period {period.period}</dt>
               <dd>
-                +{Amount.format(month.bonus_micro)} ({month.nft_count} NFTs, +{month.bonus_percent}%)
+                +{Amount.format(period.bonus_micro)} ({period.nft_count} NFTs, +{period.bonus_percent}%)
               </dd>
             </div>
           </dl>
@@ -176,7 +176,7 @@ defmodule RegentsWeb.PointsLive do
           <div>
             <h3>NFT bonus</h3>
             <p>
-              Animata I, Animata II and Regents Club in your linked wallets, counted at the end of each month. That month’s points get the bonus.
+              Animata I, Animata II and Regents Club in your linked wallets, counted at the end of each 30-day period. That period’s points get the bonus.
             </p>
             <table class="points-table">
               <thead>

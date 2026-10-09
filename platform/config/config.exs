@@ -40,7 +40,7 @@ config :regent_credits,
 
 # Regent Points: one private Points ledger per account, shared by every Regent
 # site. Regents owns the `regent_points` schema's migrations and is the one site
-# that tallies each month's NFT bonus. Earning starts only when Sean approves
+# that tallies the NFT bonus at the end of each 30-day period. Earning starts only when Sean approves
 # rules, a start time and each rule's source check.
 config :regent_points,
   repo: Regents.Repo,
@@ -80,13 +80,13 @@ config :regents, ecto_repos: [Regents.Repo]
 # about new jobs through Erlang process groups, across the site's machines.
 # `regent_credits` checks Credits purchases on chain; AshOban adds each
 # trigger's sweep to `cron`. `points` checks and awards Points; `points_chain`
-# reads NFT holdings for the month-end bonus, tallied daily only on this site.
+# reads NFT holdings for the period-end bonus, tallied daily only on this site.
 config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
   queues: [regent_credits: 3, points: 5, points_chain: 2],
-  cron: [crontab: [{"15 0 * * *", RegentPoints.TallyMonths}]],
+  cron: [crontab: [{"15 0 * * *", RegentPoints.TallyPeriods}]],
   pruner: [max_age: {7, :days}],
   lifeline: [rescue_after: {10, :minutes}]
 

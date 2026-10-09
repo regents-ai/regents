@@ -217,7 +217,7 @@ defmodule Regents.ReleaseTest do
 
     assert table_names(config, "regent_points") == [
              "accounts",
-             "month_bonuses",
+             "period_bonuses",
              "point_cap_usage",
              "point_entries",
              "point_events",

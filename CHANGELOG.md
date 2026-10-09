@@ -1198,18 +1198,22 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   which adds `Rules.tracked/0` and `Rules.daily_apps/1`; only `regent_points`
   changes.
 
-## 2026-10-09 — Points NFT bonus at the month-end tally
+## 2026-10-09 — Points NFT bonus at the end of each 30-day period
 
 - Sean, HQ thread, 2026-10-09 04:56Z, item 6: the NFT bonus is no longer saved
   with each award. `/account/points` shows the tier the account's linked wallets
-  hold now, read from Base when the page opens ("3 NFTs now · +45% at the
-  month-end tally"), and lists each month's bonus once tallied. Awards show
-  points only. Tiers are 1–2, 3–6 and 7+.
+  hold now, read from Base when the page opens ("3 NFTs now · +45% at the end of
+  this period"), and lists each period's bonus once tallied. Awards show
+  points only. Tiers are 1–2, 3–6 and 7+, adding 20%, 45% and 75%.
+- Sean, this thread, 2026-10-09 ~05:30Z: "1 a 2 at the end of a period, which
+  lasts for 30 days. 3 a". The bonus is tallied at the end of each 30-day period
+  counted from the program start, not each calendar month; the percentages stay;
+  Regents runs the Points schema change with this release.
 - Regents is the one tally site: a daily Oban cron runs
-  `RegentPoints.TallyMonths` at 00:15 UTC. The minute NFT transfer watch, the
+  `RegentPoints.TallyPeriods` at 00:15 UTC. The minute NFT transfer watch, the
   sign-in holdings refresh (`Regents.Points.TrackWallets`) and the
   `points_wallet_holders` account read are removed. The Credits purchase check
   no longer sends wallets.
-- The Points schema gains `month_bonuses` and loses the transfer cursor table and
-  the saved holdings columns (migration `20261009050920_month_bonus_tally`). The
-  production run needs Sean's grant. Earning stays off.
+- The Points schema gains `period_bonuses` and loses the transfer cursor table and
+  the saved holdings columns (migration `20261009053234_period_bonus_tally`),
+  run in production with this release under Sean's 3 a. Earning stays off.
