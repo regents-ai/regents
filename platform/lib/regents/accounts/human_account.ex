@@ -31,15 +31,6 @@ defmodule Regents.Accounts.HumanAccount do
       filter expr(id == ^arg(:id))
     end
 
-    read :points_wallet_holders do
-      argument :wallets, {:array, :string}, allow_nil?: false
-
-      filter expr(
-               wallet_address in ^arg(:wallets) or
-                 fragment("? && ?::text[]", wallet_addresses, ^arg(:wallets))
-             )
-    end
-
     read :public_profile_source do
       public? false
       get? true
@@ -66,7 +57,6 @@ defmodule Regents.Accounts.HumanAccount do
       argument :wallet_address, :string
       argument :wallet_addresses, {:array, :string}
       change Regents.Accounts.Changes.RefreshWalletEvidence
-      change Regents.Points.TrackWallets
     end
   end
 
@@ -76,8 +66,7 @@ defmodule Regents.Accounts.HumanAccount do
              :register_verified,
              :refresh_verified,
              :public_profile_source,
-             :points_account,
-             :points_wallet_holders
+             :points_account
            ]) do
       authorize_if Regents.Checks.SystemActor
     end

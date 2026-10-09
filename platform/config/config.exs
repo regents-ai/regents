@@ -40,7 +40,7 @@ config :regent_credits,
 
 # Regent Points: one private Points ledger per account, shared by every Regent
 # site. Regents owns the `regent_points` schema's migrations and is the one site
-# that watches NFT transfers on Base. Earning starts only when Sean approves
+# that tallies each month's NFT bonus. Earning starts only when Sean approves
 # rules, a start time and each rule's source check.
 config :regent_points,
   repo: Regents.Repo,
@@ -51,8 +51,7 @@ config :regent_points,
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
-  adapters: %{"credits.purchase_settled" => Regents.Points.CreditsPurchase},
-  nft_tracking_enabled: false
+  adapters: %{"credits.purchase_settled" => Regents.Points.CreditsPurchase}
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes
@@ -81,13 +80,13 @@ config :regents, ecto_repos: [Regents.Repo]
 # about new jobs through Erlang process groups, across the site's machines.
 # `regent_credits` checks Credits purchases on chain; AshOban adds each
 # trigger's sweep to `cron`. `points` checks and awards Points; `points_chain`
-# reads NFT holdings, and the minute transfer watch runs only on this site.
+# reads NFT holdings for the month-end bonus, tallied daily only on this site.
 config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
   queues: [regent_credits: 3, points: 5, points_chain: 2],
-  cron: [crontab: [{"* * * * *", RegentPoints.WatchTransfers}]],
+  cron: [crontab: [{"15 0 * * *", RegentPoints.TallyMonths}]],
   pruner: [max_age: {7, :days}],
   lifeline: [rescue_after: {10, :minutes}]
 

@@ -1,8 +1,7 @@
 defmodule Regents.Points.Accounts do
   @moduledoc """
   What Regent Points asks this site about its accounts: the wallets an
-  account's sign-in verified, the accounts holding wallets an NFT moved
-  between, and the names of an account's own paired agents.
+  account's sign-in verified and the names of an account's own paired agents.
   """
 
   @behaviour RegentPoints.Accounts
@@ -14,9 +13,6 @@ defmodule Regents.Points.Accounts do
 
   @impl true
   def human(id), do: Accounts.points_account!(id, actor: %System{})
-
-  @impl true
-  def wallet_holders(wallets), do: Accounts.points_wallet_holders!(wallets, actor: %System{})
 
   @impl true
   def agent_names(_id, []), do: {:ok, %{}}

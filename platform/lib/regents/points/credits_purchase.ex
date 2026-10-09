@@ -2,7 +2,7 @@ defmodule Regents.Points.CreditsPurchase do
   @moduledoc """
   Regent Points' check of a Credits purchase: it reads the saved purchase and
   answers with what Points records. Only a credited purchase counts, for the
-  account whose sign-in owns it, with that account's verified wallets.
+  account whose sign-in owns it.
   """
 
   require Ash.Query
@@ -53,8 +53,7 @@ defmodule Regents.Points.CreditsPurchase do
         "purchased_usdc_atomic" => purchase.amount * @usdc_atomic,
         "chain" => to_string(purchase.chain),
         "tx_hash" => purchase.tx_hash
-      },
-      wallets: Enum.uniq([purchase.wallet | account.wallet_addresses])
+      }
     }
   end
 end

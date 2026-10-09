@@ -91,8 +91,9 @@ defmodule RegentsWeb.ShellLive do
   def handle_async({:gallery_owned, _account_id} = name, result, socket),
     do: {:noreply, Gallery.settle(socket, name, result)}
 
-  def handle_async({:points, _account_id} = name, result, socket),
-    do: {:noreply, Points.settle(socket, name, result)}
+  def handle_async({points, _account_id} = name, result, socket)
+      when points in [:points, :points_bonus],
+      do: {:noreply, Points.settle(socket, name, result)}
 
   @impl true
   def handle_event(event, params, socket) do
@@ -201,6 +202,7 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :account_points}
           account={current_account(@access_context)}
           points={@points}
+          bonus={@points_bonus}
           earning={@points_earning}
         />
 

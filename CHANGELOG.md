@@ -1197,3 +1197,19 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - Pin elixir-utils `8cbd69ca62286ee1d20ba9f0d8c032c6d56fb855` (was `f8a9385`),
   which adds `Rules.tracked/0` and `Rules.daily_apps/1`; only `regent_points`
   changes.
+
+## 2026-10-09 — Points NFT bonus at the month-end tally
+
+- Sean, HQ thread, 2026-10-09 04:56Z, item 6: the NFT bonus is no longer saved
+  with each award. `/account/points` shows the tier the account's linked wallets
+  hold now, read from Base when the page opens ("3 NFTs now · +45% at the
+  month-end tally"), and lists each month's bonus once tallied. Awards show
+  points only. Tiers are 1–2, 3–6 and 7+.
+- Regents is the one tally site: a daily Oban cron runs
+  `RegentPoints.TallyMonths` at 00:15 UTC. The minute NFT transfer watch, the
+  sign-in holdings refresh (`Regents.Points.TrackWallets`) and the
+  `points_wallet_holders` account read are removed. The Credits purchase check
+  no longer sends wallets.
+- The Points schema gains `month_bonuses` and loses the transfer cursor table and
+  the saved holdings columns (migration `20261009050920_month_bonus_tally`). The
+  production run needs Sean's grant. Earning stays off.
