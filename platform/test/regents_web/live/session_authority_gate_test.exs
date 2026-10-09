@@ -212,12 +212,12 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     # A live navigation over the same transport revalidates under the drift.
     assert render_patch(view, "/app") =~ @signed_in_markup
 
+    # The revoked lease halts the next press at the authority hook itself and
+    # sends the page home.
     assert SessionAuthority.revoke(claim(signed_in))
-    render_click(view, "refresh_verified_connections", %{})
-    assert has_element?(view, @sign_in, "Sign In")
 
-    # The revoked lease halts navigation at the authority hook itself.
-    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/autolaunch")
+    assert {:error, {:redirect, %{to: "/"}}} =
+             render_click(view, "refresh_verified_connections", %{})
   end
 
   test "MOUNTED_LEASE_POLICY_C: a mounted socket dies when the account's provider evidence lapses",
@@ -230,18 +230,16 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
 
     assert {:ok, _lapsed} = Accounts.refresh_verified(account, nil, [], actor: %System{})
 
-    render_click(view, "refresh_verified_connections", %{})
-    assert has_element?(view, @sign_in, "Sign In")
-
     # /autolaunch renders for anonymous visitors, so only the authority hook can
-    # be refusing this navigation.
-    assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/autolaunch")
+    # be sending this page home.
+    assert {:error, {:redirect, %{to: "/"}}} =
+             render_click(view, "refresh_verified_connections", %{})
   end
 
   # A component's events never reach the page's own hook, so a press inside one
   # must be refused by the component check itself once the session ends in
   # another tab (founder decision TEST-REFUSAL, 2026-10-08).
-  test "COMPONENT_LEASE: a component event after a sign-out elsewhere is refused and Sign In shows",
+  test "COMPONENT_LEASE: a component event after a sign-out elsewhere is refused and the page goes home",
        %{conn: conn} do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
@@ -254,9 +252,8 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     view |> form("#credits-panel-form", amount: "7") |> render_change()
 
     # Only the component's own check can have refused this: the page's event
-    # hook never hears a component's events.
-    assert has_element?(view, @sign_in, "Sign In")
-    refute has_element?(view, "#credits-panel-amount[value='7']")
+    # hook never hears a component's events. It tells the page, which goes home.
+    assert_redirect(view, "/")
   end
 
   test "MOUNTED_LEASE_POLICY_C: an invalid claim exposes no private dead render", %{conn: conn} do

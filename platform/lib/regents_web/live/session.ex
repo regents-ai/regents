@@ -81,20 +81,20 @@ defmodule RegentsWeb.Live.Session do
   # beneath a live socket. Lineage, account binding, revocation, sign-in age and
   # the account's own provider evidence are re-read every time, and the
   # principal is rebuilt from that read rather than from the struct the mount
-  # captured. A lapsed lease withdraws the principal, so nothing downstream can
-  # still present it as authority.
+  # captured.
   #
-  # Every message and every background result is re-read the same way before
-  # the page sees it, because a notification or a read can arrive after the
-  # sign-in has outlived its lifetime with no navigation or event between. A
-  # lapsed lease then drops it and sends the page to the public root, which ends
-  # the page's process and with it every private figure, subscription and read
-  # still running. The wallet's ENS name and picture arrive from Ethereum after
-  # sign-in has finished, so a finished lookup is one of those messages: it reads
-  # the account again, so the header shows the name and picture it found, and the
-  # page hears it afterwards. Components receive the lease as `session_lease` and
-  # check it on their own events and results (`check_component_lease/2`); one
-  # that finds it lapsed asks the page to withdraw the principal here.
+  # Every navigation, event, message and background result is re-read the same
+  # way before the page sees it, because a notification or a read can arrive
+  # after the sign-in has outlived its lifetime with no navigation or event
+  # between. A lapsed lease withdraws the principal, drops what arrived and
+  # sends the page to the public root, which ends the page's process and with
+  # it every private figure, subscription and read still running. The wallet's
+  # ENS name and picture arrive from Ethereum after sign-in has finished, so a
+  # finished lookup is one of those messages: it reads the account again, so
+  # the header shows the name and picture it found, and the page hears it
+  # afterwards. Components receive the lease as `session_lease` and check it on
+  # their own events and results (`check_component_lease/2`); one that finds it
+  # lapsed asks the page to do the same here.
   defp hold(socket, lineage, account) do
     lease = %{lineage: lineage, account_id: account.id}
     Phoenix.PubSub.subscribe(Regents.PubSub, Ens.topic(account.id))
@@ -103,21 +103,21 @@ defmodule RegentsWeb.Live.Session do
     |> assign_principal(account)
     |> Phoenix.Component.assign(session_lease: lease)
     |> attach_hook(:session_authority_params, :handle_params, fn _params, _uri, socket ->
-      recheck(socket, lease, &redirect(&1, to: @public_root))
+      recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_event, :handle_event, fn _event, _params, socket ->
-      recheck(socket, lease, & &1)
+      recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_info, :handle_info, fn
       {__MODULE__, :component_lease_lapsed}, socket ->
-        {_cont_or_halt, socket} = recheck(socket, lease, & &1)
+        {_cont_or_halt, socket} = recheck(socket, lease)
         {:halt, socket}
 
       _message, socket ->
-        recheck(socket, lease, &redirect(&1, to: @public_root))
+        recheck(socket, lease)
     end)
     |> attach_hook(:session_authority_async, :handle_async, fn _name, _result, socket ->
-      recheck(socket, lease, &redirect(&1, to: @public_root))
+      recheck(socket, lease)
     end)
   end
 
@@ -131,9 +131,9 @@ defmodule RegentsWeb.Live.Session do
   the wallets and actor it acts with, so nothing acts on a wallet list or actor
   captured earlier. A lapsed lease refuses the event with an empty reply, so a
   wallet step it was asked for is not built, or drops the result unseen, and
-  tells the page, which withdraws the principal and renders signed out. A page
-  with no signed-in session passes a nil lease and its components act on what
-  the page gave them.
+  tells the page, which withdraws the principal and goes to the public root. A
+  page with no signed-in session passes a nil lease and its components act on
+  what the page gave them.
   """
   def check_component_lease(socket, take_account) do
     socket
@@ -167,9 +167,9 @@ defmodule RegentsWeb.Live.Session do
   defp take(socket, _take_account, :signed_out), do: socket
   defp take(socket, take_account, account), do: take_account.(socket, account)
 
-  defp recheck(socket, lease, lapsed) do
+  defp recheck(socket, lease) do
     case SessionAuthority.leased_account(lease.lineage, lease.account_id) do
-      nil -> {:halt, socket |> assign_principal(nil) |> lapsed.()}
+      nil -> {:halt, socket |> assign_principal(nil) |> redirect(to: @public_root)}
       account -> {:cont, assign_principal(socket, account)}
     end
   end
