@@ -10,6 +10,16 @@ cookies and human Privy tokens grant no agent authority. Your owner signs in at
 paid registry listing are optional. `agents pair` consumes that code; `agents me`
 records a check-in. These existing commands are writes, not acceptance-test reads.
 
+Run `regents protocol agents pair` with one JSON object supplied through private
+stdin. It requires string fields `code`, `name` and `harness`, and sends those same
+fields to `POST /api/agents/v1/pair`. Keep the code out of command arguments,
+shell command text and saved reports. Pair only with the owner's approval;
+this consumes their code once and enables no spending. The name is up to 80
+characters. Supported harness values are `hermes`, `grok_bot`, `muse`, `openclaw`,
+`nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots`
+and `other`; the existing server validates them. `--code`, `--name` and
+`--harness` are no longer pairing flags.
+
 | Command after `regents protocol` | HTTP request | Effect |
 | --- | --- | --- |
 | `agents whoami` | `GET /api/agents/v1/whoami` | Read only |

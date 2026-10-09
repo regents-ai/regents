@@ -12,51 +12,30 @@
   "commands": [
     {
       "command": "agents pair",
-      "description": "Pair this agent with a person's account using the code they gave you.",
+      "description": "Pair with the owner's account using their single-use code. Pipe code, name and harness on private stdin; enables no spending.",
       "operation_id": "pairAgent",
       "method": "POST",
       "path": "/api/agents/v1/pair",
       "authority": "wallet-proof",
       "effect": "write",
-      "flags": [
+      "stdin_fields": [
         {
-          "name": "code",
-          "type": "string",
-          "in": "body",
           "field": "code",
+          "type": "string",
           "required": true,
-          "description": "The pairing code from the person's Account page."
+          "description": "The owner's single-use pairing code; never put it in command arguments or reports."
         },
         {
-          "name": "name",
-          "type": "string",
-          "in": "body",
           "field": "name",
+          "type": "string",
           "required": true,
           "description": "The name the person will see for this agent, up to 80 characters."
         },
         {
-          "name": "harness",
-          "type": "string",
-          "in": "body",
           "field": "harness",
-          "enum": [
-            "hermes",
-            "grok_bot",
-            "muse",
-            "openclaw",
-            "nemoclaw",
-            "ironclaw",
-            "pi",
-            "claude_code",
-            "codex",
-            "cursor",
-            "gemini_cli",
-            "dots",
-            "other"
-          ],
+          "type": "string",
           "required": true,
-          "description": "The program this agent runs in."
+          "description": "The program this agent runs in. Supported values: hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other."
         }
       ]
     },
