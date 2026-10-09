@@ -39,7 +39,14 @@ export async function sendStep(
   sending()
   const hash = await provider.request({
     method: "eth_sendTransaction",
-    params: [{from: getAddress(signer), to: getAddress(step.to), data: step.data, value: step.value}],
+    params: [{
+      from: getAddress(signer),
+      to: getAddress(step.to),
+      data: step.data,
+      value: step.value,
+      // A wallet that checks it refuses the send if it moved off the chain after the read above.
+      chainId: `0x${chain.chain_id.toString(16)}`,
+    }],
   })
   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
     throw new Error("The wallet did not return a transaction hash.")
@@ -101,7 +108,7 @@ async function ready(
 }
 
 /** Asks the wallet onto `chain`, adding it first when the wallet does not know it. */
-export async function switchChain(provider: EthereumProvider, chain: StepChain): Promise<void> {
+async function switchChain(provider: EthereumProvider, chain: StepChain): Promise<void> {
   const chainId = `0x${chain.chain_id.toString(16)}`
   try {
     try {
@@ -125,7 +132,7 @@ export async function switchChain(provider: EthereumProvider, chain: StepChain):
 }
 
 /** The chain the wallet is on now; -1 when it does not say. */
-export async function chainId(provider: EthereumProvider): Promise<number> {
+async function chainId(provider: EthereumProvider): Promise<number> {
   const value = await provider.request({method: "eth_chainId"})
   return typeof value === "string" && /^0x[0-9a-f]+$/i.test(value) ? Number(BigInt(value)) : -1
 }

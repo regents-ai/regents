@@ -1245,9 +1245,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   span the node refused. Other reads through `Regents.WalletActions.Rpc.request/3`
   are unchanged.
 - The Buy Credits panel buys on Base only (founder answer "2 b"): the
-  Base/Ethereum choice, the Ethereum USDC figure and the Ethereum wording are
-  gone. Switch Chain still asks a wallet on another chain onto Base. Existing
-  Ethereum purchases still show and are still checked.
-- The Credits admin and Purchase History print exact amounts. A purchase whose
-  wallet no account holds yet shows "Waiting for the wallet's owner to sign in"
-  and offers no Refund.
+  Base/Ethereum choice, the Ethereum USDC figure, the Ethereum wording and the
+  Switch Chain button are gone; the rate reads "1 USDC on Base buys 1 Regents
+  Credit". Each press asks the wallet onto Base, and the send names Base's chain
+  id. The `OnchainSteps` hook's `data-refresh-funds` root asks the panel to read
+  its funds again (`refresh_funds`) when the wallet changes, when the page comes
+  back into view and after each press, as in ash-template. Existing Ethereum
+  purchases still show and are still checked.
+- The Credits admin and Purchase History print USDC to the millionth with at
+  least two places ("5.00 USDC"). A purchase whose wallet no account holds yet
+  reads "credited, waiting for an account" with "No account yet. These Credits
+  wait until someone signs in with this wallet.", offers no Refund, and a refund
+  refused for it says no account holds those Credits yet.

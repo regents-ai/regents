@@ -7,8 +7,8 @@ defmodule RegentsWeb.CreditsPanel do
   each sent Buy is reported as a purchase once the chain holds it, then checked
   every two seconds until it counts. The site's Oban keeps checking once a minute after the page stops.
 
-  While the wallet is on another chain, a Switch Chain button asks it onto
-  Base. The USDC the paying wallet holds on Base is shown.
+  Each press asks the wallet onto Base before it sends. The USDC the paying
+  wallet holds on Base is shown.
 
   Buy is disabled only when it is certain to fail, from the chain at the latest
   block: the Base approval does not cover the amount yet, or the wallet holds
@@ -16,8 +16,8 @@ defmodule RegentsWeb.CreditsPanel do
   presses and outcomes.
 
   The wallet figures are read when the paying wallet changes, when the panel
-  opens or comes back into view, and once a step lands; never on an amount
-  edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
+  opens or comes back into view, after each press and once a step lands; never
+  on an amount edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
   past it, the figures already shown stay.
 
   The parent passes `account` (the signed-in account), its `balance`
@@ -37,7 +37,6 @@ defmodule RegentsWeb.CreditsPanel do
   @block_ms 2_000
   @purchase_reads 150
   @report_tries 150
-  @base_chain_id 8453
 
   @impl true
   def mount(socket) do
@@ -49,7 +48,6 @@ defmodule RegentsWeb.CreditsPanel do
        active: nil,
        signer: nil,
        amount: "5",
-       wallet_chain: nil,
        number: Ecto.UUID.generate(),
        numbers: %{},
        usdc: nil,
@@ -81,12 +79,9 @@ defmodule RegentsWeb.CreditsPanel do
   def handle_event("change", %{"amount" => amount}, socket),
     do: {:noreply, socket |> assign(amount: amount) |> sync()}
 
-  # The chain the wallet is on, or nil when the page could not read one. The
-  # page says this when the panel opens and each time it comes back into view,
-  # so the funds behind a disabled Buy are read again then too.
-  def handle_event("wallet_chain", %{"chain_id" => id}, socket)
-      when is_integer(id) or is_nil(id),
-      do: {:noreply, socket |> assign(wallet_chain: id) |> read_funds()}
+  # The page asks when the panel opens, when it comes back into view and after
+  # each press, so the funds behind a disabled Buy are read again then.
+  def handle_event("refresh_funds", _params, socket), do: {:noreply, read_funds(socket)}
 
   # A press made before the review caught up with the form: the form is taken
   # as the page's own, and the reply carries the review for it.
@@ -122,7 +117,7 @@ defmodule RegentsWeb.CreditsPanel do
 
   def handle_event("step_failed", %{"reason" => reason}, socket) when is_binary(reason) do
     %{linked: linked, active: active, amount: amount} = socket.assigns
-    note = amount_problem(amount) || failure_note(reason, linked, active)
+    note = amount_problem(amount) || OnchainSteps.failure_note(reason, linked, active, "Base")
 
     {:noreply, assign(socket, press_note: note)}
   end
@@ -211,14 +206,6 @@ defmodule RegentsWeb.CreditsPanel do
        do: assign(socket, allowance: Chains.micro(dollars(amount)))
 
   defp approved(socket, _entry), do: socket
-
-  # The Switch Chain press the wallet refused: words of the panel's own. Every
-  # other reason is the reference component's.
-  defp failure_note("switch_declined", _linked, _active),
-    do: "Your wallet stayed where it was. Press Switch Chain to try Base again."
-
-  defp failure_note(reason, linked, active),
-    do: OnchainSteps.failure_note(reason, linked, active, "Base")
 
   # The review follows the signer and the amount. A new amount is a new
   # purchase number; a repeat press of the same review buys again under the
@@ -399,7 +386,7 @@ defmodule RegentsWeb.CreditsPanel do
       )
 
     ~H"""
-    <section id={@id} class="credits-panel" phx-hook="OnchainSteps" data-wallet-chain>
+    <section id={@id} class="credits-panel" phx-hook="OnchainSteps" data-refresh-funds>
       <header class="credits-panel__head">
         <dl
           id={"#{@id}-figures"}
@@ -442,7 +429,7 @@ defmodule RegentsWeb.CreditsPanel do
           />
           <span aria-hidden="true">USDC</span>
         </div>
-        <p id={"#{@id}-rate"} class="credits-panel__rate">1 USDC buys 1 Regents Credit</p>
+        <p id={"#{@id}-rate"} class="credits-panel__rate">1 USDC on Base buys 1 Regents Credit</p>
         <p
           id={"#{@id}-problem"}
           class="credits-panel__problem"
@@ -453,24 +440,6 @@ defmodule RegentsWeb.CreditsPanel do
         >
           {@problem}
         </p>
-
-        <div class="credits-panel__chain-row">
-          <p class="credits-panel__chain">
-            <.base_logo />
-            <span>Pay with USDC on Base</span>
-          </p>
-          <%!-- Kept in place while the wallet is already on Base, unseen, so it
-               never moves the rows below. --%>
-          <P.button
-            variant="secondary"
-            class="credits-panel__switch"
-            data-switch-chain
-            data-unused={!switch?(@signer, @wallet_chain)}
-            inert={!switch?(@signer, @wallet_chain)}
-          >
-            Switch Chain
-          </P.button>
-        </div>
       </form>
 
       <%!-- Lines above the buttons stay in the page and are only hidden, so one
@@ -537,17 +506,6 @@ defmodule RegentsWeb.CreditsPanel do
         <.link navigate="/credits/refunds">Refund Policy</.link>
       </footer>
     </section>
-    """
-  end
-
-  defp base_logo(assigns) do
-    ~H"""
-    <svg class="credits-panel__logo" viewBox="0 0 111 111" aria-hidden="true">
-      <path
-        fill="#0052FF"
-        d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z"
-      />
-    </svg>
     """
   end
 
@@ -645,10 +603,6 @@ defmodule RegentsWeb.CreditsPanel do
   defp stalled?(%{name: "buy"}, %{} = shown), do: purchase_stalled?(shown)
   defp stalled?(entry, nil), do: Presses.stalled?(entry)
   defp stalled?(_entry, _shown), do: false
-
-  defp switch?(nil, _wallet_chain), do: false
-  defp switch?(_signer, nil), do: false
-  defp switch?(_signer, wallet_chain), do: wallet_chain != @base_chain_id
 
   defp figure(amount),
     do: amount |> Amount.format() |> String.replace_suffix(" Credits", "")

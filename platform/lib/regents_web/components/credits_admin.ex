@@ -157,6 +157,9 @@ defmodule RegentsWeb.CreditsAdmin do
   defp refund_words(%Refused{reason: :used}),
     do: "This account has used Credits, so its purchases can't be refunded."
 
+  defp refund_words(%Refused{reason: :no_account}),
+    do: "No account holds these Credits yet, so there is nothing to refund."
+
   defp refund_words(%Refused{reason: :not_credited}),
     do: "This purchase never added Credits, so there is nothing to refund."
 
@@ -173,6 +176,10 @@ defmodule RegentsWeb.CreditsAdmin do
   defp state(_purchase, %{status: :locked}), do: "refund started"
   defp state(_purchase, %{status: :sent}), do: "refunded"
   defp state(%{status: :checking}, nil), do: "being checked"
+
+  defp state(%{status: :credited, privy_user_id: nil}, nil),
+    do: "credited, waiting for an account"
+
   defp state(%{status: :credited}, nil), do: "credited"
   defp state(%{status: :failed, reason: reason}, nil), do: "not credited (#{reason})"
 
@@ -181,9 +188,13 @@ defmodule RegentsWeb.CreditsAdmin do
   defp refundable?(%{status: :credited, privy_user_id: owner}, nil), do: owner != nil
   defp refundable?(_purchase, _refund), do: false
 
+  # USDC to the millionth, as exact as it was paid: "5.00 USDC", "4.123456 USDC".
   defp usdc(amount), do: "#{plain(amount)} USDC"
 
-  defp plain(amount), do: amount |> Decimal.normalize() |> Decimal.to_string(:normal)
+  defp plain(amount) do
+    places = max(-Decimal.normalize(amount).exp, 2)
+    amount |> Decimal.round(places) |> Decimal.to_string(:normal)
+  end
 
   defp sent_on(purchase), do: Calendar.strftime(purchase.inserted_at, "%d %b %Y %H:%M UTC")
 
@@ -235,7 +246,9 @@ defmodule RegentsWeb.CreditsAdmin do
               · {state(purchase, @refunded[purchase.id])} · {sent_on(purchase)}
             </p>
             <p :if={purchase.privy_user_id}>Account <code>{purchase.privy_user_id}</code></p>
-            <p :if={is_nil(purchase.privy_user_id)}>Waiting for the wallet's owner to sign in</p>
+            <p :if={is_nil(purchase.privy_user_id)}>
+              No account yet. These Credits wait until someone signs in with this wallet.
+            </p>
             <p>From <code>{purchase.wallet}</code></p>
             <p>
               <a href={Regents.Credits.transaction_url(purchase.chain, purchase.tx_hash)}>Transaction</a>

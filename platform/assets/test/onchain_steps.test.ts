@@ -108,6 +108,7 @@ describe("a press on a wallet button", () => {
       to: "0x3333333333333333333333333333333333333333",
       data: "0x7acb7757",
       value: "0x0",
+      chainId: "0x2105",
     }])
   })
 

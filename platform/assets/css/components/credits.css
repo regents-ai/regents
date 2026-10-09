@@ -287,29 +287,6 @@
   font-size: 0.85rem;
 }
 
-/* The chain Credits are bought on, with the Switch Chain button beside it. */
-
-.credits-panel__chain-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-block-start: 0.75rem;
-}
-
-.credits-panel__chain {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  margin: 0;
-}
-
-.credits-panel__logo {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
 /* The wallet the purchase comes from, with its USDC on Base. */
 
 .credits-panel__wallet {
@@ -348,12 +325,6 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.5rem 0.75rem;
-}
-
-/* Switch Chain keeps its space while the wallet is already on Base, unseen, so
-   it never moves the rows below. */
-.credits-panel [data-unused] {
-  visibility: hidden;
 }
 
 .credits-panel__step-words {
