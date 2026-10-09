@@ -6,11 +6,14 @@ defmodule RegentsWeb.ShellLive.Points do
   summary again. A refresh that fails keeps the last summary on screen as
   stale; a first read that fails is an error, never zero. The NFT tier the
   account's wallets hold now is read from Base once per page open and never saved.
+  That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it, the
+  page says the NFTs could not be checked.
   """
 
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
 
+  alias RegentsWeb.ChainReadBudget
   alias RegentsWeb.ShellLive.Identity
 
   def init(socket),
@@ -87,11 +90,18 @@ defmodule RegentsWeb.ShellLive.Points do
         assign(socket, points_bonus: idle())
 
       %{human_account_id: id} ->
-        socket
-        |> assign(points_bonus: %{state: :loading, value: nil})
-        |> start_async({:points_bonus, id}, fn -> RegentPoints.Bonus.current(id) end)
+        read_bonus(socket, id, ChainReadBudget.admit(socket.assigns.client_tag))
     end
   end
+
+  defp read_bonus(socket, id, :ok) do
+    socket
+    |> assign(points_bonus: %{state: :loading, value: nil})
+    |> start_async({:points_bonus, id}, fn -> RegentPoints.Bonus.current(id) end)
+  end
+
+  defp read_bonus(socket, _id, {:limited, _seconds}),
+    do: assign(socket, points_bonus: %{state: :error, value: nil})
 
   defp follow(%{assigns: %{points_topic: nil}} = socket) do
     with true <- connected?(socket),

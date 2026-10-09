@@ -1257,3 +1257,5 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   reads "credited, waiting for an account" with "No account yet. These Credits
   wait until someone signs in with this wallet.", offers no Refund, and a refund
   refused for it says no account holds those Credits yet.
+- The Points page's NFT tier read draws on the visitor's chain read budget, like
+  Stake and Redeem; past it, the page says the NFTs could not be checked.
