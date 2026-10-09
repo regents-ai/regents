@@ -185,23 +185,22 @@ defmodule RegentsWeb.CreditsPanel do
       else: {:noreply, put_purchase(socket, hash, shown)}
   end
 
-  def handle_async(:usdc, {:ok, {:ok, micro}}, socket),
-    do: {:noreply, assign(socket, usdc: micro)}
-
-  def handle_async(:usdc, _unread, socket), do: {:noreply, assign(socket, usdc: :unread)}
-
-  def handle_async(:allowance, {:ok, {:ok, micro}}, socket),
-    do: {:noreply, assign(socket, allowance: micro)}
-
-  def handle_async(:allowance, _unread, socket),
-    do: {:noreply, assign(socket, allowance: :unread)}
+  # Each read answers with the wallet it was for, and lands only while that
+  # wallet still pays: the check before it can move the panel to another.
+  def handle_async(figure, result, socket) when figure in [:usdc, :allowance] do
+    case read(result, socket.assigns.signer) do
+      :other_wallet -> {:noreply, socket}
+      micro -> {:noreply, assign(socket, figure, micro)}
+    end
+  end
 
   # A confirmed approval sets what staking may take to exactly its amount, so
-  # the panel knows it from the receipt it just read, before the next read.
-  defp approved(socket, %{
+  # the panel knows it from the receipt it just read, before the next read. It
+  # is the paying wallet's figure only when that wallet sent it.
+  defp approved(%{assigns: %{signer: signer}} = socket, %{
          name: "approve",
          outcome: :confirmed,
-         review: %{inputs: %{"amount" => amount}}
+         review: %{signer: signer, inputs: %{"amount" => amount}}
        }),
        do: assign(socket, allowance: Chains.micro(dollars(amount)))
 
@@ -330,13 +329,18 @@ defmodule RegentsWeb.CreditsPanel do
     socket
     |> start_async(:usdc, fn ->
       Process.sleep(wait_ms)
-      usdc_call("balanceOf(address)", [signer])
+      {signer, usdc_call("balanceOf(address)", [signer])}
     end)
     |> start_async(:allowance, fn ->
       Process.sleep(wait_ms)
-      usdc_call("allowance(address,address)", [signer, Chains.staking()])
+      {signer, usdc_call("allowance(address,address)", [signer, Chains.staking()])}
     end)
   end
+
+  defp read({:ok, {signer, {:ok, micro}}}, signer), do: micro
+  defp read({:ok, {signer, _unread}}, signer), do: :unread
+  defp read({:ok, {_other, _answer}}, _signer), do: :other_wallet
+  defp read({:exit, _reason}, _signer), do: :unread
 
   defp usdc_call(signature, args) do
     call = %{to: Chains.usdc(:base), data: Call.encode(signature, args)}
