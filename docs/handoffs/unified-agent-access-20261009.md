@@ -4,7 +4,7 @@ Done for this source handoff means: adopt the published shared verifier and pair
 
 ## Source changes
 
-- Shared libraries are pinned to published `elixir-utils` commit `a24d9bf5ce8dbca5852b081613e9e1674623512e`; the Agents dependency now comes from that shared release. Ash is locked to 3.34.6.
+- Shared libraries are pinned to final published `elixir-utils` commit `1564d79eb3b653f06ab11b6c422bd4d6283ea199`, matching template reference `4255fd4327882022424e4f600656532e2baecffe`. Agents and Payments come from that shared release. Ash is locked to 3.34.6.
 - Private account, claims, staking position, Credits balance/history/budget reads use a distinct signed agent actor. The shared verifier checks the request bytes and proof; the server resolves the active pairing and owner. Browser sessions cannot substitute for proof. Staking uses the owner's primary wallet, rather than the agent signer.
 - Revocation and re-pairing invalidate actors from the old pairing episode. Ash authorization checks the current episode again. Existing human reads remain available.
 - The browser adapter uses the shared signed-request transport. Public guides, `/capabilities`, OpenAPI, `cli/commands.json` and `cli/COMMANDS.md` describe the same routes. Claims/history are signed POST requests with optional `after` in the body. `agents whoami` is a GET read without a body and does not award Points.
@@ -35,7 +35,7 @@ Preserve the CLI platform `protocol`, base URL `https://regents.sh` and signing 
 
 - The coordinator holds production database changes and deployment for credential handling and native signing acceptance. This handoff publishes source only.
 - Native browser signing, real SIWA verification/replay and live cross-site acceptance have not passed in this lane. Synthetic proof headers are not evidence of those checks.
-- The owning CLI still needs its coordinated import/release using this published source and contract digest.
+- The owning CLI's installed 1.9.0 candidate passed Regents command, private-input, dispatch, help and error-redaction checks. Official package publication and matching deployment remain coordinated release gates.
 - Regents has no agreed private nonfinancial agent write. Do not invent a write to satisfy a generic checklist; the coordinator has accepted this product gap pending Sean's decision.
 - Keep spending grants closed and Points settings unchanged until the coordinator's release gate explicitly permits otherwise.
 
@@ -48,3 +48,11 @@ The coordinator's coverage review identified a missing shared Points read. `GET 
 Strict compilation, scoped format, asset build, typecheck, contract validation and all ten CLI descriptors passed. Representative router checks proved an absent Points account stays absent, different owners' nonzero fixture balances/entries stay isolated, the human and agent summaries agree, and all Points table counts stay unchanged by reads. Query/body/duplicate-proof refusal, revocation, stale-episode refusal, re-pairing and no cookie fallback passed. The synthetic browser adapter exercised the new GET with no body or body digest and twelve registered tools. Independent security review found no actionable findings.
 
 Local Points schemas were prepared explicitly in the reused development database. Synthetic Points accounts, events and entries were rolled back; all six Points table counts returned to zero. No activation, real award, production migration, deployment or signature occurred. Follow-up evidence: `/tmp/regents-agent-points-{verify,adapter,contract,compile,assets,typecheck}.log`. The temporary adapter check initially assumed GET had an empty-string body and supplied a POST body digest; correcting those fixture assumptions confirmed the shared transport's GET refusal and successful body-free request.
+
+## Final shared reference follow-up
+
+Sol supplied the reviewed final shared and template references above. Payments now uses the shared Git sparse dependency; the historical local `payments/` source is unchanged. Regents has no Purchase, WalletPayment, MCP or Offer consumer, so this change introduces no payable action. Other shared implementations are unchanged relative to the earlier pin; payment migrations are byte-identical.
+
+Strict integrated compilation, scoped formatting, assets, TypeScript and the final template required-fixes registry passed. Representative signed-router/Points checks passed again: owner isolation, exact request handling, pagination, revocation/re-pairing, no cookie fallback, no writes and the default-closed grant gate. Contracts still match the published digest. Independent compatibility/security review found no actionable issue. No payment, real signature, activation, schema change or product deployment occurred. Evidence is `/tmp/regents-agent-final-shared-*.log`.
+
+Separately, Sean explicitly authorized shifting all 29 live paper posting dates three days earlier, allowing publication-date exceptions. They now run from 11 September through 9 October. Production readback preserved IDs and all content hashes; all cover URLs matched, and the browser shows October 9 first. Authoring folders and the truthful audit were synchronized; all 29 folders pass the existing checker. This data correction required no source deployment and must survive the signed-access release.
