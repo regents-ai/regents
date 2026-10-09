@@ -1197,3 +1197,26 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - Pin elixir-utils `8cbd69ca62286ee1d20ba9f0d8c032c6d56fb855` (was `f8a9385`),
   which adds `Rules.tracked/0` and `Rules.daily_apps/1`; only `regent_points`
   changes.
+
+## 2026-10-09 — Credits read every Base deposit; Buy is Base only
+
+- Pin elixir-utils `f3157529acc1c43ebbdc40684126f4d1f3048197` (was `8cbd69c`).
+  Regent Credits now reads every Credits deposit on Base from the chain once a
+  minute and credits it, whether or not a page reported it. A deposit from a
+  wallet no account holds waits under that wallet until it signs in. Purchase
+  and refund amounts are USDC to the millionth. The library's migrations add
+  `regent_credits.deposit_cursors` (Base starts at block 52,227,727), make
+  `purchases.privy_user_id` optional, key purchases per wallet, store exact
+  amounts and check that wallets and hashes are lowercase.
+- `Regents.ChainClient` reads logs (`logs/2`), and a node that answers with a
+  JSON-RPC error gives `{:error, {:rpc, error}}`, so the reader halves only a
+  span the node refused. Other reads through `Regents.WalletActions.Rpc.request/3`
+  are unchanged.
+- The Buy Credits panel buys on Base only (founder answer "2 b"): the
+  Base/Ethereum choice, the Ethereum USDC figure and the Ethereum wording are
+  gone. Switch Chain still asks a wallet on another chain onto Base. Existing
+  Ethereum purchases still show and are still checked.
+- The Credits admin and Purchase History print exact amounts. A purchase whose
+  wallet no account holds yet shows "Waiting for the wallet's owner to sign in"
+  and offers no Refund.
+- Points' Credits check reads the purchase amount as an exact decimal.

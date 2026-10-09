@@ -77,7 +77,7 @@ defmodule RegentsWeb.CreditsHistory do
           data-outcome={outcome(purchase, @refunds[purchase.id])}
         >
           <div class="credits-history__what">
-            <strong>{purchase.amount} USDC</strong>
+            <strong>{usdc(purchase.amount)}</strong>
             <span>{day(purchase)} · {chain_name(purchase.chain)}</span>
           </div>
           <div class="credits-history__outcome">
@@ -108,10 +108,12 @@ defmodule RegentsWeb.CreditsHistory do
   defp words(_purchase, %Refund{status: :sent}), do: "Refunded"
 
   defp words(%{status: :credited, amount: amount}, nil),
-    do: "+" <> Amount.format(Decimal.new(amount))
+    do: "+" <> Amount.format(amount)
 
   defp words(%{status: :checking}, nil), do: "Checking"
   defp words(%{status: :failed}, nil), do: "No Credits added"
+
+  defp usdc(amount), do: "#{amount |> Decimal.normalize() |> Decimal.to_string(:normal)} USDC"
 
   defp day(purchase), do: Calendar.strftime(purchase.inserted_at, "%-d %b %Y")
 

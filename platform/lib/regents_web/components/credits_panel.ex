@@ -1,15 +1,14 @@
 defmodule RegentsWeb.CreditsPanel do
   @moduledoc """
-  The Buy Credits panel: the balance, the amount, the chain, the wallet presses
-  and what each press did, all in one place. Built like Stake and Redeem on
+  The Buy Credits panel: the balance, the amount, the wallet presses and what
+  each press did, all in one place. Credits are bought with USDC on Base. Built like Stake and Redeem on
   `RegentsWeb.OnchainSteps`: the server builds the steps
   (`RegentCredits.Chains.steps/3`), every press goes straight to the wallet, and
   each sent Buy is reported as a purchase once the chain holds it, then checked
   every two seconds until it counts. The site's Oban keeps checking once a minute after the page stops.
 
-  The chain starts on the one the wallet is on, until the person picks one,
-  and a Switch Chain button asks the wallet onto the picked one. The USDC of
-  the wallet that pays is shown on both chains.
+  While the wallet is on another chain, a Switch Chain button asks it onto
+  Base. The USDC the paying wallet holds on Base is shown.
 
   Buy is disabled only when it is certain to fail, from the chain at the latest
   block: the Base approval does not cover the amount yet, or the wallet holds
@@ -17,8 +16,8 @@ defmodule RegentsWeb.CreditsPanel do
   presses and outcomes.
 
   The wallet figures are read when the paying wallet changes, when the panel
-  opens or comes back into view, and once a step lands; never on an amount or
-  chain edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
+  opens or comes back into view, and once a step lands; never on an amount
+  edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
   past it, the figures already shown stay.
 
   The parent passes `account` (the signed-in account), its `balance`
@@ -38,7 +37,7 @@ defmodule RegentsWeb.CreditsPanel do
   @block_ms 2_000
   @purchase_reads 150
   @report_tries 150
-  @chains %{"base" => :base, "ethereum" => :ethereum}
+  @base_chain_id 8453
 
   @impl true
   def mount(socket) do
@@ -50,12 +49,10 @@ defmodule RegentsWeb.CreditsPanel do
        active: nil,
        signer: nil,
        amount: "5",
-       chain: "base",
-       chain_chosen?: false,
        wallet_chain: nil,
        number: Ecto.UUID.generate(),
        numbers: %{},
-       usdc: %{},
+       usdc: nil,
        allowance: nil,
        purchases: %{}
      )}
@@ -81,38 +78,25 @@ defmodule RegentsWeb.CreditsPanel do
     {:noreply, socket |> assign(active: active) |> sync()}
   end
 
-  def handle_event("change", %{"amount" => amount, "chain" => chain}, socket),
-    do: {:noreply, socket |> choose(amount, chain) |> sync()}
+  def handle_event("change", %{"amount" => amount}, socket),
+    do: {:noreply, socket |> assign(amount: amount) |> sync()}
 
-  # The chain the wallet is on, or nil when the page could not read one. Until
-  # the person picks a chain, the panel follows the wallet's. The page says this
-  # when the panel opens and each time it comes back into view, so the funds
-  # behind a disabled Buy are read again then too.
+  # The chain the wallet is on, or nil when the page could not read one. The
+  # page says this when the panel opens and each time it comes back into view,
+  # so the funds behind a disabled Buy are read again then too.
   def handle_event("wallet_chain", %{"chain_id" => id}, socket)
-      when is_integer(id) or is_nil(id) do
-    socket = assign(socket, wallet_chain: id)
-
-    socket =
-      case chain_of(id) do
-        chain when is_binary(chain) and not socket.assigns.chain_chosen? ->
-          socket |> assign(chain: chain) |> sync()
-
-        _keep ->
-          socket
-      end
-
-    {:noreply, read_funds(socket)}
-  end
+      when is_integer(id) or is_nil(id),
+      do: {:noreply, socket |> assign(wallet_chain: id) |> read_funds()}
 
   # A press made before the review caught up with the form: the form is taken
   # as the page's own, and the reply carries the review for it.
   def handle_event(
         "prepare_and_send",
-        %{"form" => %{"amount" => amount, "chain" => chain}, "step" => name},
+        %{"form" => %{"amount" => amount}, "step" => name},
         socket
       )
-      when is_binary(amount) and is_binary(chain) do
-    socket = socket |> choose(amount, chain) |> sync()
+      when is_binary(amount) do
+    socket = socket |> assign(amount: amount) |> sync()
 
     case socket.assigns.review do
       %{} = review when is_binary(name) -> {:reply, %{review: review, send: name}, socket}
@@ -137,10 +121,8 @@ defmodule RegentsWeb.CreditsPanel do
   end
 
   def handle_event("step_failed", %{"reason" => reason}, socket) when is_binary(reason) do
-    %{linked: linked, active: active, chain: chain, amount: amount} = socket.assigns
-
-    note =
-      amount_problem(amount) || failure_note(reason, linked, active, chain_name(chain))
+    %{linked: linked, active: active, amount: amount} = socket.assigns
+    note = amount_problem(amount) || failure_note(reason, linked, active)
 
     {:noreply, assign(socket, press_note: note)}
   end
@@ -208,11 +190,10 @@ defmodule RegentsWeb.CreditsPanel do
       else: {:noreply, put_purchase(socket, hash, shown)}
   end
 
-  def handle_async({:usdc, chain}, {:ok, {:ok, micro}}, socket),
-    do: {:noreply, assign(socket, usdc: Map.put(socket.assigns.usdc, chain, micro))}
+  def handle_async(:usdc, {:ok, {:ok, micro}}, socket),
+    do: {:noreply, assign(socket, usdc: micro)}
 
-  def handle_async({:usdc, chain}, _unread, socket),
-    do: {:noreply, assign(socket, usdc: Map.put(socket.assigns.usdc, chain, :unread))}
+  def handle_async(:usdc, _unread, socket), do: {:noreply, assign(socket, usdc: :unread)}
 
   def handle_async(:allowance, {:ok, {:ok, micro}}, socket),
     do: {:noreply, assign(socket, allowance: micro)}
@@ -233,28 +214,20 @@ defmodule RegentsWeb.CreditsPanel do
 
   # The Switch Chain press the wallet refused: words of the panel's own. Every
   # other reason is the reference component's.
-  defp failure_note("switch_declined", _linked, _active, chain_name),
-    do: "Your wallet stayed where it was. Press Switch Chain to try #{chain_name} again."
+  defp failure_note("switch_declined", _linked, _active),
+    do: "Your wallet stayed where it was. Press Switch Chain to try Base again."
 
-  defp failure_note(reason, linked, active, chain_name),
-    do: OnchainSteps.failure_note(reason, linked, active, chain_name)
+  defp failure_note(reason, linked, active),
+    do: OnchainSteps.failure_note(reason, linked, active, "Base")
 
-  defp choose(socket, amount, chain) do
-    socket = assign(socket, amount: amount)
-
-    if Map.has_key?(@chains, chain) and chain != socket.assigns.chain,
-      do: assign(socket, chain: chain, chain_chosen?: true),
-      else: socket
-  end
-
-  # The review follows the signer, the amount and the chain. A new amount or
-  # chain is a new purchase number; a repeat press of the same review buys again
-  # under the same number, which is a second purchase.
+  # The review follows the signer and the amount. A new amount is a new
+  # purchase number; a repeat press of the same review buys again under the
+  # same number, which is a second purchase.
   defp sync(socket) do
-    %{linked: linked, active: active, chain: chain, amount: amount} = socket.assigns
+    %{linked: linked, active: active, amount: amount} = socket.assigns
     signer = OnchainSteps.signer(linked, active)
     dollars = dollars(amount)
-    inputs = %{"amount" => amount, "chain" => chain}
+    inputs = %{"amount" => amount}
 
     socket =
       if {inputs, signer} == {socket.assigns[:inputs], socket.assigns.signer},
@@ -263,17 +236,15 @@ defmodule RegentsWeb.CreditsPanel do
 
     review =
       if signer do
-        steps =
-          if dollars, do: Chains.steps(@chains[chain], dollars, socket.assigns.number), else: []
-
-        Review.new(socket.assigns.id, signer, Chains.chain(@chains[chain]), steps, inputs)
+        steps = if dollars, do: Chains.steps(:base, dollars, socket.assigns.number), else: []
+        Review.new(socket.assigns.id, signer, Chains.chain(:base), steps, inputs)
       end
 
-    # A new amount or chain changes no balance, so only a new signer reads them.
+    # A new amount changes no balance, so only a new signer reads them.
     socket =
       if signer == socket.assigns.signer,
         do: socket,
-        else: socket |> assign(signer: signer, usdc: %{}, allowance: nil) |> read_funds()
+        else: socket |> assign(signer: signer, usdc: nil, allowance: nil) |> read_funds()
 
     socket
     |> assign(mismatch: OnchainSteps.mismatch_note(linked, active))
@@ -305,7 +276,7 @@ defmodule RegentsWeb.CreditsPanel do
       RegentCredits.report_purchase(
         account.privy_user_id,
         review.signer,
-        @chains[review.inputs["chain"]],
+        :base,
         dollars(review.inputs["amount"]),
         number,
         hash,
@@ -352,8 +323,8 @@ defmodule RegentsWeb.CreditsPanel do
   defp put_purchase(socket, hash, shown),
     do: assign(socket, purchases: Map.put(socket.assigns.purchases, hash, shown))
 
-  # The paying wallet's USDC on both chains, and what REGENT staking may take
-  # of its Base USDC, all at the latest block, `wait_ms` from now. A new read
+  # The paying wallet's USDC on Base, and what REGENT staking may take of it,
+  # both at the latest block, `wait_ms` from now. A new read
   # replaces any still on its way, whose answer is then dropped.
   defp read_funds(socket, wait_ms \\ 0)
 
@@ -369,25 +340,22 @@ defmodule RegentsWeb.CreditsPanel do
   defp start_reads(socket, wait_ms) do
     signer = socket.assigns.signer
 
-    socket =
-      Enum.reduce(Map.values(@chains), socket, fn chain, socket ->
-        start_async(socket, {:usdc, chain}, fn ->
-          Process.sleep(wait_ms)
-          usdc_call(chain, "balanceOf(address)", [signer])
-        end)
-      end)
-
-    start_async(socket, :allowance, fn ->
+    socket
+    |> start_async(:usdc, fn ->
       Process.sleep(wait_ms)
-      usdc_call(:base, "allowance(address,address)", [signer, Chains.staking()])
+      usdc_call("balanceOf(address)", [signer])
+    end)
+    |> start_async(:allowance, fn ->
+      Process.sleep(wait_ms)
+      usdc_call("allowance(address,address)", [signer, Chains.staking()])
     end)
   end
 
-  defp usdc_call(chain, signature, args) do
-    call = %{to: Chains.usdc(chain), data: Call.encode(signature, args)}
+  defp usdc_call(signature, args) do
+    call = %{to: Chains.usdc(:base), data: Call.encode(signature, args)}
 
     with {:ok, "0x" <> hex} <-
-           ChainClient.request(Chains.chain(chain), "eth_call", [call, "latest"]) do
+           ChainClient.request(Chains.chain(:base), "eth_call", [call, "latest"]) do
       {:ok, String.to_integer(hex, 16)}
     end
   end
@@ -416,10 +384,6 @@ defmodule RegentsWeb.CreditsPanel do
       _not_whole -> "Enter a whole number from 5 to 500."
     end
   end
-
-  defp chain_of(8453), do: "base"
-  defp chain_of(1), do: "ethereum"
-  defp chain_of(_other), do: nil
 
   @impl true
   def render(assigns) do
@@ -491,28 +455,18 @@ defmodule RegentsWeb.CreditsPanel do
         </p>
 
         <div class="credits-panel__chain-row">
-          <fieldset class="credits-panel__chains" data-chain={@chain}>
-            <legend class="credits-panel__hidden">Pay with USDC on</legend>
-            <label :for={{value, name} <- [{"base", "Base"}, {"ethereum", "Ethereum"}]}>
-              <input
-                type="radio"
-                name="chain"
-                value={value}
-                checked={@chain == value}
-                data-onchain-input="chain"
-              />
-              <.chain_logo chain={value} />
-              <span>{name}</span>
-            </label>
-          </fieldset>
-          <%!-- Kept in place while the wallet is already on the chain, unseen, so
-               it never moves the rows below. --%>
+          <p class="credits-panel__chain">
+            <.base_logo />
+            <span>Pay with USDC on Base</span>
+          </p>
+          <%!-- Kept in place while the wallet is already on Base, unseen, so it
+               never moves the rows below. --%>
           <P.button
             variant="secondary"
             class="credits-panel__switch"
             data-switch-chain
-            data-unused={!switch?(@signer, @wallet_chain, @chain)}
-            inert={!switch?(@signer, @wallet_chain, @chain)}
+            data-unused={!switch?(@signer, @wallet_chain)}
+            inert={!switch?(@signer, @wallet_chain)}
           >
             Switch Chain
           </P.button>
@@ -524,22 +478,12 @@ defmodule RegentsWeb.CreditsPanel do
       <div class="credits-panel__wallet" hidden={!@signer}>
         <span class="credits-panel__muted">Paying from</span>
         <code>{@signer && RegentFormat.short_address(@signer)}</code>
-        <span class="credits-panel__usdc">
-          <span>Base {usdc(@usdc[:base])}</span>
-          <span>Ethereum {usdc(@usdc[:ethereum])}</span>
-        </span>
+        <span class="credits-panel__usdc">{usdc(@usdc)}</span>
       </div>
       <p class="credits-panel__note" hidden={!@mismatch}>{@mismatch}</p>
 
       <ol class="credits-panel__steps">
-        <%!-- Ethereum has no Approve step. Its row keeps its space, unseen and after
-             Buy, so changing chain never changes the panel's height. --%>
-        <li
-          class="credits-panel__step"
-          data-state={@approve.state}
-          data-unused={@chain != "base"}
-          inert={@chain != "base"}
-        >
+        <li class="credits-panel__step" data-state={@approve.state}>
           <.check />
           <div class="credits-panel__step-words">
             <strong>
@@ -558,7 +502,9 @@ defmodule RegentsWeb.CreditsPanel do
           <div class="credits-panel__step-words">
             <strong>
               Buy {@dollars && "#{@dollars} "}Credits
-              <P.tip id={"#{@id}-buy-tip"} label="About buying">{arrival(@chain)}</P.tip>
+              <P.tip id={"#{@id}-buy-tip"} label="About buying">
+                Sends the USDC to REGENT staking. Your Credits arrive in about 2 seconds.
+              </P.tip>
             </strong>
             <span :if={@buy.words}>{@buy.words}</span>
             <span :if={@buy.help?}>
@@ -594,28 +540,13 @@ defmodule RegentsWeb.CreditsPanel do
     """
   end
 
-  attr :chain, :string, required: true
-
-  defp chain_logo(%{chain: "base"} = assigns) do
+  defp base_logo(assigns) do
     ~H"""
     <svg class="credits-panel__logo" viewBox="0 0 111 111" aria-hidden="true">
       <path
         fill="#0052FF"
         d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z"
       />
-    </svg>
-    """
-  end
-
-  defp chain_logo(%{chain: "ethereum"} = assigns) do
-    ~H"""
-    <svg class="credits-panel__logo" viewBox="0 0 256 417" aria-hidden="true">
-      <path fill="#343434" d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" />
-      <path fill="#8C8C8C" d="M127.962 0L0 212.32l127.962 75.639V154.158z" />
-      <path fill="#3C3C3B" d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.6L256 236.587z" />
-      <path fill="#8C8C8C" d="M127.962 416.905v-104.72L0 236.585z" />
-      <path fill="#141414" d="M127.961 287.958l127.96-75.637-127.96-58.162z" />
-      <path fill="#393939" d="M0 212.32l127.96 75.638v-133.8z" />
     </svg>
     """
   end
@@ -697,16 +628,13 @@ defmodule RegentsWeb.CreditsPanel do
   # when it may go through. An unread figure is never a reason.
   defp blocked(_assigns, nil), do: nil
 
-  defp blocked(%{chain: chain, usdc: usdc, allowance: allowance}, dollars) do
+  defp blocked(%{usdc: usdc, allowance: allowance}, dollars) do
     micro = Chains.micro(dollars)
 
-    case usdc[@chains[chain]] do
-      held when is_integer(held) and held < micro ->
-        "Not enough USDC on #{chain_name(chain)}"
-
-      _enough_or_unread ->
-        if chain == "base" and is_integer(allowance) and allowance < micro,
-          do: "Approve first"
+    cond do
+      is_integer(usdc) and usdc < micro -> "Not enough USDC on Base"
+      is_integer(allowance) and allowance < micro -> "Approve first"
+      true -> nil
     end
   end
 
@@ -718,16 +646,9 @@ defmodule RegentsWeb.CreditsPanel do
   defp stalled?(entry, nil), do: Presses.stalled?(entry)
   defp stalled?(_entry, _shown), do: false
 
-  defp arrival("base"),
-    do: "Sends the USDC to REGENT staking. Your Credits arrive in about 2 seconds."
-
-  defp arrival("ethereum"),
-    do:
-      "Sends the USDC to the Regents treasury. Your Credits arrive after 12 blocks, about 2½ minutes."
-
-  defp switch?(nil, _wallet_chain, _chain), do: false
-  defp switch?(_signer, nil, _chain), do: false
-  defp switch?(_signer, wallet_chain, chain), do: chain_of(wallet_chain) != chain
+  defp switch?(nil, _wallet_chain), do: false
+  defp switch?(_signer, nil), do: false
+  defp switch?(_signer, wallet_chain), do: wallet_chain != @base_chain_id
 
   defp figure(amount),
     do: amount |> Amount.format() |> String.replace_suffix(" Credits", "")
@@ -763,7 +684,7 @@ defmodule RegentsWeb.CreditsPanel do
         "Already counted."
 
       %{status: :failed, reason: "not found"} ->
-        "#{chain_name(purchase.chain)} never showed this payment. No Credits added."
+        "Base never showed this payment. No Credits added."
 
       %{status: :failed} ->
         "Not the purchase this page prepared. No Credits added."
@@ -781,17 +702,10 @@ defmodule RegentsWeb.CreditsPanel do
 
   defp help?(_shown), do: false
 
-  defp checking_words(%{purchase: purchase} = shown) do
-    cond do
-      purchase_stalled?(shown) ->
-        "Still checking. It counts even if you close this page."
-
-      purchase.chain == :ethereum and purchase.block_number ->
-        "Waiting for 12 Ethereum blocks, about 2½ minutes"
-
-      true ->
-        "Waiting for #{chain_name(purchase.chain)}"
-    end
+  defp checking_words(shown) do
+    if purchase_stalled?(shown),
+      do: "Still checking. It counts even if you close this page.",
+      else: "Waiting for Base"
   end
 
   defp purchase_stalled?(%{purchase: %{status: :checking}, reads: reads}),
@@ -801,9 +715,6 @@ defmodule RegentsWeb.CreditsPanel do
 
   defp chain_name_of(%{review: %{chain: %{name: name}}}), do: name
   defp chain_name_of(_unknown), do: "the network"
-
-  defp chain_name(chain) when chain in ["base", :base], do: "Base"
-  defp chain_name(chain) when chain in ["ethereum", :ethereum], do: "Ethereum"
 
   defp usdc(nil), do: "…"
   defp usdc(:unread), do: "unavailable"

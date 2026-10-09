@@ -176,6 +176,15 @@ defmodule RegentsWeb.CreditsAdmin do
   defp state(%{status: :credited}, nil), do: "credited"
   defp state(%{status: :failed, reason: reason}, nil), do: "not credited (#{reason})"
 
+  # Credits waiting under a wallet no account holds have no account to take
+  # them back from.
+  defp refundable?(%{status: :credited, privy_user_id: owner}, nil), do: owner != nil
+  defp refundable?(_purchase, _refund), do: false
+
+  defp usdc(amount), do: "#{plain(amount)} USDC"
+
+  defp plain(amount), do: amount |> Decimal.normalize() |> Decimal.to_string(:normal)
+
   defp sent_on(purchase), do: Calendar.strftime(purchase.inserted_at, "%d %b %Y %H:%M UTC")
 
   defp chain_name(:base), do: "Base"
@@ -222,22 +231,23 @@ defmodule RegentsWeb.CreditsAdmin do
         <ul :if={@purchases not in [nil, []]} class="credits-admin__list">
           <li :for={purchase <- @purchases}>
             <p>
-              <strong>{purchase.amount} USDC on {chain_name(purchase.chain)}</strong>
+              <strong>{usdc(purchase.amount)} on {chain_name(purchase.chain)}</strong>
               · {state(purchase, @refunded[purchase.id])} · {sent_on(purchase)}
             </p>
-            <p>Account <code>{purchase.privy_user_id}</code></p>
+            <p :if={purchase.privy_user_id}>Account <code>{purchase.privy_user_id}</code></p>
+            <p :if={is_nil(purchase.privy_user_id)}>Waiting for the wallet's owner to sign in</p>
             <p>From <code>{purchase.wallet}</code></p>
             <p>
               <a href={Regents.Credits.transaction_url(purchase.chain, purchase.tx_hash)}>Transaction</a>
             </p>
             <P.button
-              :if={purchase.status == :credited and is_nil(@refunded[purchase.id])}
+              :if={refundable?(purchase, @refunded[purchase.id])}
               type="button"
               variant="secondary"
               phx-click="start_refund"
               phx-value-id={purchase.id}
               phx-target={@myself}
-              data-confirm={"Lock #{purchase.amount} purchased Credits for a refund?"}
+              data-confirm={"Lock #{plain(purchase.amount)} purchased Credits for a refund?"}
             >
               Refund
             </P.button>
@@ -257,7 +267,7 @@ defmodule RegentsWeb.CreditsAdmin do
         <ul :if={@refunds != []} class="credits-admin__list">
           <li :for={refund <- @refunds}>
             <p>
-              Send exactly <strong>{refund.amount} USDC</strong>
+              Send exactly <strong>{usdc(refund.amount)}</strong>
               on <strong>{chain_name(refund.chain)}</strong>
               from the Treasury Safe <code>{@treasury}</code>
               to <code>{refund.wallet}</code>.

@@ -173,15 +173,6 @@
   overflow-wrap: anywhere;
 }
 
-.credits-panel__hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .credits-panel__muted,
 .credits-panel__note {
   color: var(--color-fg-muted);
@@ -296,7 +287,7 @@
   font-size: 0.85rem;
 }
 
-/* The chain: a two-way slider with each chain's mark. */
+/* The chain Credits are bought on, with the Switch Chain button beside it. */
 
 .credits-panel__chain-row {
   display: flex;
@@ -306,58 +297,12 @@
   margin-block-start: 0.75rem;
 }
 
-.credits-panel__chains {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin: 0;
-  padding: 0.25rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--color-bg);
-}
-
-/* The thumb slides under whichever chain is picked. */
-.credits-panel__chains::before {
-  content: "";
-  position: absolute;
-  inset: 0.25rem auto 0.25rem 0.25rem;
-  width: calc(50% - 0.25rem);
-  border-radius: 999px;
-  background: var(--color-surface);
-  box-shadow: 0 1px 3px color-mix(in oklch, var(--color-fg) 20%, transparent);
-  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-.credits-panel__chains[data-chain="ethereum"]::before {
-  transform: translateX(100%);
-}
-
-.credits-panel__chains label {
-  position: relative;
+.credits-panel__chain {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
   min-height: 2.75rem;
-  padding-inline: 1rem;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.credits-panel__chains input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.credits-panel__chains label:has(input:focus-visible) {
-  outline: 2px solid var(--color-fg);
-  outline-offset: 2px;
-}
-
-.credits-panel__chains label:not(:has(input:checked)) {
-  color: var(--color-fg-muted);
+  margin: 0;
 }
 
 .credits-panel__logo {
@@ -365,7 +310,7 @@
   height: 1.25rem;
 }
 
-/* The wallet the purchase comes from, with its USDC on both chains. */
+/* The wallet the purchase comes from, with its USDC on Base. */
 
 .credits-panel__wallet {
   display: grid;
@@ -405,14 +350,10 @@
   gap: 0.5rem 0.75rem;
 }
 
-/* A button or step this chain does not use keeps its space, unseen, so changing
-   chain never changes the panel's height; an unused step sits after the rest. */
+/* Switch Chain keeps its space while the wallet is already on Base, unseen, so
+   it never moves the rows below. */
 .credits-panel [data-unused] {
   visibility: hidden;
-}
-
-.credits-panel__step[data-unused] {
-  order: 1;
 }
 
 .credits-panel__step-words {

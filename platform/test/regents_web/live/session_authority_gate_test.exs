@@ -251,7 +251,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     assert has_element?(view, "#credits-panel-amount[value='5']")
 
     assert SessionAuthority.revoke(claim(signed_in))
-    view |> form("#credits-panel-form", amount: "7", chain: "base") |> render_change()
+    view |> form("#credits-panel-form", amount: "7") |> render_change()
 
     # Only the component's own check can have refused this: the page's event
     # hook never hears a component's events.

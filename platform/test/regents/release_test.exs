@@ -205,6 +205,7 @@ defmodule Regents.ReleaseTest do
              "accounts",
              "agent_permissions",
              "balances",
+             "deposit_cursors",
              "first_uses",
              "gifts",
              "holds",

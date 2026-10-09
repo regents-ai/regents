@@ -170,7 +170,16 @@ defmodule Regents.WalletActions.Rpc do
   defp decode_kind(:address, value), do: decode_address(value)
   defp decode_kind({:words, count}, value), do: decode_words(value, count)
 
-  def request(method, params, opts \\ []),
+  def request(method, params, opts \\ []) do
+    case answer(method, params, opts) do
+      {:error, {:rpc, _error}} -> {:error, :chain_unavailable}
+      answer -> answer
+    end
+  end
+
+  # As `request/3`, but a node that answers with a JSON-RPC error gives
+  # `{:error, {:rpc, error}}`, the answer's `error` object, apart from no answer.
+  def answer(method, params, opts \\ []),
     do: method |> post(params, opts) |> result(method, opts)
 
   defp post(method, params, opts) do
@@ -197,6 +206,9 @@ defmodule Regents.WalletActions.Rpc do
 
   defp result({:ok, %{status: 200, body: %{"result" => result}}}, _method, _opts),
     do: {:ok, result}
+
+  defp result({:ok, %{status: 200, body: %{"error" => %{} = error}}}, _method, _opts),
+    do: {:error, {:rpc, error}}
 
   defp result({:ok, _refused}, _method, _opts), do: {:error, :chain_unavailable}
 

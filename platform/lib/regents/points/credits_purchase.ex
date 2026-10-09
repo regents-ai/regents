@@ -50,7 +50,8 @@ defmodule Regents.Points.CreditsPurchase do
       qualified_at: purchase.credited_at,
       evidence_ref: "credits_purchase:" <> purchase.id,
       evidence: %{
-        "purchased_usdc_atomic" => purchase.amount * @usdc_atomic,
+        "purchased_usdc_atomic" =>
+          purchase.amount |> Decimal.mult(@usdc_atomic) |> Decimal.to_integer(),
         "chain" => to_string(purchase.chain),
         "tx_hash" => purchase.tx_hash
       },
