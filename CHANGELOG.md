@@ -1186,3 +1186,14 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   Patchbay, Autolaunch, Keyfleet, Techtree, Protocol and Account, each with its
   crown tile. It opens above its button. The other sites open in a new tab;
   Protocol and Account open here.
+
+## 2026-10-09 — Points lists only what Regents records
+
+- `/account/points` lists the rules this site has a source for
+  (`RegentPoints.Rules.tracked/0`), not the whole catalog (founder answer "7 b").
+  Today that is Credits bought, plus the NFT bonus tiers; the one-time actions
+  and the daily limits appear once Regents records a rule of that kind. Earning
+  stays off.
+- Pin elixir-utils `8cbd69ca62286ee1d20ba9f0d8c032c6d56fb855` (was `f8a9385`),
+  which adds `Rules.tracked/0` and `Rules.daily_apps/1`; only `regent_points`
+  changes.

@@ -7,6 +7,9 @@ defmodule RegentsWeb.PointsLive do
   attr :earning, :list, required: true, doc: "the catalog rules earning now"
 
   def page(assigns) do
+    tracked = Rules.tracked()
+    assigns = assign(assigns, daily: daily(tracked), once: once(tracked), apps: apps(tracked))
+
     ~H"""
     <article id="points-page" class="account-page">
       <header class="account-heading">
@@ -121,15 +124,15 @@ defmodule RegentsWeb.PointsLive do
       <section id="points-earn" class="account-panel points-earn">
         <h2>What earns points</h2>
         <p :if={@earning == []} role="status">Earning hasn’t opened yet.</p>
-        <h3>Every day</h3>
-        <table class="points-table">
+        <h3 :if={@daily != []}>Every day</h3>
+        <table :if={@daily != []} class="points-table">
           <thead>
             <tr>
               <th scope="col">Action</th><th scope="col">Points</th><th scope="col">Limit</th>
             </tr>
           </thead>
           <tbody>
-            <tr :for={rule <- daily(Rules.catalog())}>
+            <tr :for={rule <- @daily}>
               <th scope="row">
                 {Rules.label(rule["id"])}<.not_yet rule={rule} earning={@earning} />
               </th>
@@ -138,15 +141,15 @@ defmodule RegentsWeb.PointsLive do
             </tr>
           </tbody>
         </table>
-        <h3>Once</h3>
-        <table class="points-table">
+        <h3 :if={@once != []}>Once</h3>
+        <table :if={@once != []} class="points-table">
           <thead>
             <tr>
               <th scope="col">Action</th><th scope="col">Points</th>
             </tr>
           </thead>
           <tbody>
-            <tr :for={rule <- once(Rules.catalog())}>
+            <tr :for={rule <- @once}>
               <th scope="row">
                 {Rules.label(rule["id"])}<.not_yet rule={rule} earning={@earning} />
               </th>
@@ -155,16 +158,16 @@ defmodule RegentsWeb.PointsLive do
           </tbody>
         </table>
         <div class="account-details points-earn__notes">
-          <div>
+          <div :if={@apps != []}>
             <h3>Daily limits</h3>
             <dl>
               <div>
                 <dt>You</dt>
-                <dd>Up to {whole(Rules.daily_cap("activity:human"))} a day on {apps()}</dd>
+                <dd>Up to {whole(Rules.daily_cap("activity:human"))} a day on {names(@apps)}</dd>
               </div>
               <div>
                 <dt>Your agents, together</dt>
-                <dd>Up to {whole(Rules.daily_cap("activity:agent"))} a day on {apps()}</dd>
+                <dd>Up to {whole(Rules.daily_cap("activity:agent"))} a day on {names(@apps)}</dd>
               </div>
             </dl>
           </div>
@@ -201,8 +204,8 @@ defmodule RegentsWeb.PointsLive do
     """
   end
 
-  defp daily(catalog), do: Enum.filter(catalog, &(&1["category"] in ["credits", "activity"]))
-  defp once(catalog), do: Enum.filter(catalog, &(&1["category"] == "milestone"))
+  defp daily(rules), do: Enum.filter(rules, &(&1["category"] in ["credits", "activity"]))
+  defp once(rules), do: Enum.filter(rules, &(&1["category"] == "milestone"))
 
   defp points(%{"category" => "credits", "micro_points_per_atomic_usdc" => rate}),
     do: "#{whole(rate * 1_000_000)} per USDC"
@@ -218,7 +221,7 @@ defmodule RegentsWeb.PointsLive do
 
   defp whole(micro), do: div(micro, Rules.unit())
 
-  defp apps, do: Rules.activity_apps() |> Enum.map(&String.capitalize/1) |> names()
+  defp apps(rules), do: rules |> Rules.daily_apps() |> Enum.map(&String.capitalize/1)
 
   defp names([name]), do: name
 
