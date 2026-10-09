@@ -11,9 +11,6 @@ config :regents, RegentsWeb.Endpoint,
   secret_key_base: "ylCJZnscmD6l7Ykq52GK0o6GrbPmb8374FAcei9yvkWU1ww5Nv+S2v/Z7ihcqZd2",
   server: System.get_env("REGENTS_BROWSER_TEST") == "1"
 
-# Browser test servers run side by side, so each one's metrics take any free port.
-config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
-
 config :regents, :privy_verifier, Regents.TestPrivyVerifier
 config :regents, :staking_chain_client, Regents.TestStakingChainClient
 config :regents, :chain_client, Regents.TestChainClient

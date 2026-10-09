@@ -1,4 +1,10 @@
 defmodule RegentsWeb.Telemetry do
+  @moduledoc """
+  The site's measurements and their Prometheus export on the private metrics
+  listener (`RegentsWeb.Metrics`). The engine's memory, run queues and process
+  counts come from telemetry_poller's default poller, every 10 seconds
+  (`config/config.exs`).
+  """
   use Supervisor
   import Telemetry.Metrics
 
@@ -10,10 +16,7 @@ defmodule RegentsWeb.Telemetry do
   def init(_arg) do
     children = [
       {TelemetryMetricsPrometheus.Core,
-       metrics: prometheus_metrics(), name: prometheus_reporter(), start_async: false},
-      # Telemetry poller will execute the given period measurements
-      # every 10_000ms. Learn more here: https://hexdocs.pm/telemetry_metrics
-      {:telemetry_poller, measurements: periodic_measurements(), period: 10_000}
+       metrics: prometheus_metrics(), name: prometheus_reporter(), start_async: false}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -23,56 +26,21 @@ defmodule RegentsWeb.Telemetry do
 
   def prometheus_metrics do
     [
-      counter("regents.privy.browser_failure.total", tags: [:reason])
-    ]
-  end
-
-  def metrics do
-    [
-      # Phoenix Metrics
-      summary("phoenix.endpoint.start.system_time",
-        unit: {:native, :millisecond}
+      counter("regents.privy.browser_failure.total", tags: [:reason]),
+      last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
+      last_value("vm.memory.processes.bytes",
+        event_name: [:vm, :memory],
+        measurement: :processes
       ),
-      summary("phoenix.endpoint.stop.duration",
-        unit: {:native, :millisecond}
-      ),
-      summary("phoenix.router_dispatch.start.system_time",
-        tags: [:route],
-        unit: {:native, :millisecond}
-      ),
-      summary("phoenix.router_dispatch.exception.duration",
-        tags: [:route],
-        unit: {:native, :millisecond}
-      ),
-      summary("phoenix.router_dispatch.stop.duration",
-        tags: [:route],
-        unit: {:native, :millisecond}
-      ),
-      summary("phoenix.socket_connected.duration",
-        unit: {:native, :millisecond}
-      ),
-      sum("phoenix.socket_drain.count"),
-      summary("phoenix.channel_joined.duration",
-        unit: {:native, :millisecond}
-      ),
-      summary("phoenix.channel_handled_in.duration",
-        tags: [:event],
-        unit: {:native, :millisecond}
-      ),
-
-      # VM Metrics
-      summary("vm.memory.total", unit: {:byte, :kilobyte}),
-      summary("vm.total_run_queue_lengths.total"),
-      summary("vm.total_run_queue_lengths.cpu"),
-      summary("vm.total_run_queue_lengths.io")
-    ]
-  end
-
-  defp periodic_measurements do
-    [
-      # A module, function and arguments to be invoked periodically.
-      # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {RegentsWeb, :count_users, []}
+      last_value("vm.memory.binary.bytes", event_name: [:vm, :memory], measurement: :binary),
+      last_value("vm.memory.ets.bytes", event_name: [:vm, :memory], measurement: :ets),
+      last_value("vm.memory.code.bytes", event_name: [:vm, :memory], measurement: :code),
+      last_value("vm.memory.atom.bytes", event_name: [:vm, :memory], measurement: :atom),
+      last_value("vm.total_run_queue_lengths.total"),
+      last_value("vm.total_run_queue_lengths.cpu"),
+      last_value("vm.system_counts.process_count"),
+      last_value("vm.system_counts.atom_count"),
+      last_value("vm.system_counts.port_count")
     ]
   end
 end
