@@ -311,23 +311,6 @@ defmodule RegentsWeb.Components.PairedAgents do
             />
           </dd>
         </div>
-        <div>
-          <dt><label for="account-agent-harness">Runs on</label></dt>
-          <dd>
-            <form id="account-agent-harness-form" phx-change="change_agent_harness">
-              <input type="hidden" name="agent" value={@detail.agent.id} />
-              <select id="account-agent-harness" name="harness">
-                <option
-                  :for={harness <- Harness.values()}
-                  value={harness}
-                  selected={harness == @detail.agent.harness}
-                >
-                  {Harness.label(harness)}
-                </option>
-              </select>
-            </form>
-          </dd>
-        </div>
       </dl>
 
       <section class="account-agent-dialog__activity" aria-labelledby="account-agent-activity-title">

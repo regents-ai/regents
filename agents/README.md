@@ -83,10 +83,10 @@ drops the listening.
 
 A page acting for a signed-in person passes
 `%RegentAgents.Person{privy_user_id: ...}`, built only from the site's own
-verified session, to `issue_pairing_code`, `list_my_agents`, `get_my_agent`,
-`change_agent_harness` and `unpair_agent`, and subscribes to
+verified session, to `issue_pairing_code`, `list_my_agents`, `get_my_agent`
+and `unpair_agent`, and subscribes to
 `RegentAgents.topic(privy_user_id)` to hear `:agents_changed` whenever that
-person's agents are paired, check in, are corrected or are unpaired on any
+person's agents are paired, check in or are unpaired on any
 Regent site.
 
 ## Migrations

@@ -1170,3 +1170,19 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
   `503 siwa_request_failed` (was `verification_unavailable`), the name the
   template and the shared plug use (founder answer "2a", 2026-10-09). Updated in
   the agent pages, the agent guide, `/openapi.json` and the API contract.
+
+## 2026-10-09 — Account agents and footer menus
+
+Sean asked on 9 Oct for four changes to the account page and the footer.
+
+- Each agent's "Can spend my Credits" form no longer says bids still held count
+  until they come back.
+- An agent's details no longer offer "Runs on". The shared agents app drops the
+  `change_harness` action and the `change_agent_harness` function with it; an
+  agent's harness is still the one it paired with.
+- The footer's $REGENT menu opens upward, so it shows in full at the end of the
+  page.
+- The footer's "Regents Labs" list is now the nine-dot Regents apps menu:
+  Patchbay, Autolaunch, Keyfleet, Techtree, Protocol and Account, each with its
+  crown tile. It opens above its button. The other sites open in a new tab;
+  Protocol and Account open here.

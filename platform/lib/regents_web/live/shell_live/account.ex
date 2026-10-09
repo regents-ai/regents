@@ -22,7 +22,7 @@ defmodule RegentsWeb.ShellLive.Account do
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @names_page_size 50
   @blank_claim_name %{value: "", problems: [], availability: nil}
-  @page_events ~w(load_more_names check_claim_name claim_name issue_pairing_code open_agent load_more_activity change_agent_harness unpair_agent)
+  @page_events ~w(load_more_names check_claim_name claim_name issue_pairing_code open_agent load_more_activity unpair_agent)
   # Far longer than any name a person claims; the name's own rules say what is too long.
   @claim_name_limit 255
 
@@ -158,18 +158,6 @@ defmodule RegentsWeb.ShellLive.Account do
 
   def handle_event("load_more_activity", %{"id" => id}, socket) when is_binary(id),
     do: load_more_activity(socket, id)
-
-  def handle_event("change_agent_harness", %{"agent" => id, "harness" => harness}, socket)
-      when is_binary(id) and is_binary(harness) do
-    actor = agent_person(socket)
-
-    result =
-      with {:ok, agent} <- my_agent(id, actor),
-           {:ok, changed} <- RegentAgents.change_agent_harness(agent, harness, actor: actor),
-           do: {:ok, {:change_harness, changed}}
-
-    agent_edited(socket, actor, result)
-  end
 
   def handle_event("unpair_agent", %{"id" => id}, socket) when is_binary(id) do
     actor = agent_person(socket)
@@ -625,17 +613,11 @@ defmodule RegentsWeb.ShellLive.Account do
     |> assign(agent_notice: agent_notice(result))
   end
 
-  defp agent_notice({:ok, {:change_harness, agent}}),
-    do: {:status, "Saved. #{agent.name} runs on #{Harness.label(agent.harness)}."}
-
   defp agent_notice({:ok, {:unpair, agent}}),
     do: {:status, "#{agent.name} is unpaired. It will need a new code to pair again."}
 
   defp agent_notice({:error, :not_found}),
     do: {:alert, "This agent is no longer paired with your account. Nothing changed."}
-
-  defp agent_notice({:error, %Ash.Error.Invalid{}}),
-    do: {:alert, "Choose what it runs on from the list. Nothing changed."}
 
   defp agent_notice({:error, _unavailable}),
     do: {:alert, "Your agents couldn’t be updated just now. Nothing changed. Try again."}

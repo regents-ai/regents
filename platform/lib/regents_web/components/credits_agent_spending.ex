@@ -167,7 +167,6 @@ defmodule RegentsWeb.CreditsAgentSpending do
             aria-invalid={field.aria_invalid}
             aria-describedby={field.described_by}
           />
-          <:hint>Bids still held count until they come back.</:hint>
         </P.field>
         <fieldset>
           <legend>Sites it may spend on</legend>

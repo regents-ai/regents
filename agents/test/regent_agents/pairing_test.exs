@@ -102,7 +102,7 @@ defmodule RegentAgents.PairingTest do
              RegentAgents.check_in_agent(actor: %Agent{wallet: @other_wallet})
   end
 
-  test "only the owner sees, corrects or unpairs an agent" do
+  test "only the owner sees or unpairs an agent" do
     owner = person("owner")
     other = person("other")
 
@@ -112,13 +112,7 @@ defmodule RegentAgents.PairingTest do
     assert {:ok, []} = RegentAgents.list_my_agents(actor: other)
     assert {:ok, nil} = RegentAgents.get_my_agent(agent.id, actor: other)
 
-    assert {:error, %Ash.Error.Forbidden{}} =
-             RegentAgents.change_agent_harness(agent, :pi, actor: other)
-
     assert {:error, %Ash.Error.Forbidden{}} = RegentAgents.unpair_agent(agent, actor: other)
-
-    assert {:ok, %{harness: :other}} =
-             RegentAgents.change_agent_harness(agent, :other, actor: owner)
 
     assert :ok = RegentAgents.unpair_agent(agent, actor: owner)
     assert {:ok, []} = RegentAgents.list_my_agents(actor: owner)

@@ -152,11 +152,111 @@ input:focus-visible,
   border-bottom: 1px solid var(--hairline);
   font-size: 0.875rem;
 }
-.product-links__related {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
+
+/* The footer ends the page and starts at the content's left edge, so its
+   $REGENT menu opens upward and to the right. */
+.product-links .rl-token-menu-panel {
+  inset-block: auto 100%;
+  inset-inline: 0 auto;
+  padding-block: 0 0.75rem;
+}
+
+.product-links__apps-button {
+  display: inline-grid;
+  place-items: center;
+  align-self: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  anchor-name: --footer-apps;
+}
+
+.product-links__apps-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.product-links__apps-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+/* The apps panel sits above its button; the browser places it over everything
+   else and closes it on Escape or a press outside. */
+.product-links__apps {
+  position: fixed;
+  position-anchor: --footer-apps;
+  position-area: block-start span-inline-end;
+  position-try-fallbacks: flip-inline;
+  width: min(21rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 5rem);
+  margin: 0 0 0.75rem;
+  padding: 1rem;
+  overflow: auto;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+}
+
+.product-links__apps h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-family-title);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.product-links__apps ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-links__apps a {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 0.75rem 0.25rem;
+  color: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .product-links__apps a:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+}
+
+.product-links__apps-tile {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 1px solid var(--ash-line-strong);
+}
+
+.product-links__apps-tile svg {
+  width: 70%;
+}
+
+/* Each app's crown in its own pair of the four brand colours. */
+.product-links__apps-tile[data-tone="patchbay"] { background: var(--palette-platinum); color: var(--palette-charcoal); }
+.product-links__apps-tile[data-tone="autolaunch"] { background: var(--palette-tangerine-tango); color: var(--palette-charcoal); }
+.product-links__apps-tile[data-tone="keyfleet"] { background: var(--palette-charcoal); color: var(--palette-powder-blue); }
+.product-links__apps-tile[data-tone="techtree"] { background: var(--palette-powder-blue); color: var(--palette-charcoal); }
+.product-links__apps-tile[data-tone="protocol"] { background: var(--palette-charcoal); color: var(--palette-tangerine-tango); }
+.product-links__apps-tile[data-tone="account"] { background: var(--palette-charcoal); color: var(--palette-platinum); }
+
+@media (max-width: 47.99rem) {
+  .product-links__apps-button { width: 2.75rem; height: 2.75rem; }
 }
 
 @media (max-width: 74.99rem) { .product-links { --rg-page-gutter: var(--space-3); } }

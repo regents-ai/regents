@@ -42,7 +42,6 @@ defmodule RegentAgents do
       define :check_in_agent, action: :check_in
       define :list_my_agents, action: :mine
       define :get_my_agent, action: :mine_by_id, args: [:id], not_found_error?: false
-      define :change_agent_harness, action: :change_harness, args: [:harness]
       define :unpair_agent, action: :unpair
     end
   end

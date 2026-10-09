@@ -268,12 +268,6 @@ defmodule RegentAgents.PairedAgent do
              )
     end
 
-    update :change_harness do
-      accept [:harness]
-      require_atomic? false
-      change after_action(&announce/3)
-    end
-
     destroy :unpair do
       require_atomic? false
       change after_action(&announce/3)
@@ -294,11 +288,11 @@ defmodule RegentAgents.PairedAgent do
       authorize_if expr(privy_user_id == ^actor(:privy_user_id))
     end
 
-    policy action([:mine, :mine_by_id, :change_harness, :unpair]) do
+    policy action([:mine, :mine_by_id, :unpair]) do
       authorize_if RegentAgents.Checks.Person
     end
 
-    policy action([:mine, :mine_by_id, :change_harness, :unpair]) do
+    policy action([:mine, :mine_by_id, :unpair]) do
       authorize_if expr(privy_user_id == ^actor(:privy_user_id))
     end
   end

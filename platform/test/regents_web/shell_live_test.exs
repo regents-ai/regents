@@ -59,8 +59,7 @@ defmodule RegentsWeb.ShellLiveTest do
     for {event, params} <- [
           {"check_claim_name", %{"name" => String.duplicate("a", 256)}},
           {"claim_name", %{"name" => %{"label" => "a"}}},
-          {"open_agent", %{"id" => ["7"]}},
-          {"change_agent_harness", %{"agent" => "7"}}
+          {"open_agent", %{"id" => ["7"]}}
         ] do
       {:ok, view, _html} =
         conn
