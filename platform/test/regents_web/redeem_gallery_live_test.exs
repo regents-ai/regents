@@ -50,11 +50,10 @@ defmodule RegentsWeb.RedeemGalleryLiveTest do
     SessionAuthority.revoke(SessionAuthority.claim(session))
     view |> element("#gallery-mine") |> render_click()
 
+    # The result lands after the session ended, so it is dropped unseen and the
+    # page goes home, taking every private figure with it.
     release_lookups([held])
-    render_async(view)
-
-    refute has_element?(view, "#my-pass-1123")
-    refute render(view) =~ "You hold"
+    assert_redirect(view, "/", 2_000)
   end
 
   test "LEAVING_THE_GALLERY: passes found after leaving belong to the same account", %{

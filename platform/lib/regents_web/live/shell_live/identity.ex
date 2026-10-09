@@ -1,8 +1,8 @@
 defmodule RegentsWeb.ShellLive.Identity do
   @moduledoc """
   Who the shell's pages act for. The session hook keeps `access_context` current
-  on every navigation and event; each feature reads the account and its wallets
-  from here rather than keeping its own copy.
+  on every navigation, event, message and background result; each feature reads
+  the account and its wallets from here rather than keeping its own copy.
   """
 
   alias Regents.Actors.Human

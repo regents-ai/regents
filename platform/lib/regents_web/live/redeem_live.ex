@@ -47,7 +47,7 @@ defmodule RegentsWeb.RedeemLive do
     do:
       {:ok,
        socket
-       |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+       |> RegentsWeb.Live.Session.check_component_lease(&take_account/2)
        |> OnchainSteps.init()
        |> assign(
          active: nil,
@@ -65,9 +65,9 @@ defmodule RegentsWeb.RedeemLive do
      |> take_account(assigns.account)}
   end
 
-  # The account as the page gave it, or as it reads now before each event
-  # (`RegentsWeb.Live.Session.check_component_events/2`): the wallets that may
-  # act and the review follow it.
+  # The account as the page gave it, or as it reads now before each event and
+  # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
+  # the wallets that may act and the review follow it.
   defp take_account(socket, account),
     do: socket |> assign(linked: Identity.linked_wallets(account)) |> sync()
 

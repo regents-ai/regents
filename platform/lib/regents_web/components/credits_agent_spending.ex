@@ -21,7 +21,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
     do:
       {:ok,
        socket
-       |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+       |> RegentsWeb.Live.Session.check_component_lease(&take_account/2)
        |> assign(saved: nil)}
 
   @impl true
@@ -40,8 +40,8 @@ defmodule RegentsWeb.CreditsAgentSpending do
      )}
   end
 
-  # The account as the page gave it, or as it reads now before each event
-  # (`RegentsWeb.Live.Session.check_component_events/2`).
+  # The account as the page gave it, or as it reads now before each event and
+  # each background result (`RegentsWeb.Live.Session.check_component_lease/2`).
   defp take_account(socket, account), do: assign(socket, actor: Credits.person(account))
 
   @impl true

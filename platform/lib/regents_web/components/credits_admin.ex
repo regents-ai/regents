@@ -22,7 +22,7 @@ defmodule RegentsWeb.CreditsAdmin do
   def mount(socket) do
     {:ok,
      socket
-     |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+     |> RegentsWeb.Live.Session.check_component_lease(&take_account/2)
      |> assign(
        gift_key: Ecto.UUID.generate(),
        gift_note: nil,
@@ -42,8 +42,8 @@ defmodule RegentsWeb.CreditsAdmin do
      |> read_refunds()}
   end
 
-  # The account as the page gave it, or as it reads now before each event
-  # (`RegentsWeb.Live.Session.check_component_events/2`).
+  # The account as the page gave it, or as it reads now before each event and
+  # each background result (`RegentsWeb.Live.Session.check_component_lease/2`).
   defp take_account(socket, account), do: assign(socket, actor: Credits.admin(account))
 
   @impl true
