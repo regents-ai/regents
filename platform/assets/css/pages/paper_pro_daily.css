@@ -1,5 +1,38 @@
 @layer regents-product {
 /* One row per paper: its picture beside the title, links and ChatGPT's answer. */
+.paper-daily__research {
+  padding: 24px clamp(20px, 4vw, 48px);
+  border-block: 1px solid var(--rg-page-rule);
+}
+
+.paper-daily__research h2 {
+  margin: 0 0 16px;
+}
+
+.paper-daily__research-list {
+  margin: 0 0 16px;
+  padding-inline-start: 1.75rem;
+}
+
+.paper-daily__research-list--expanded {
+  max-block-size: 20rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.paper-daily__research-list a {
+  display: flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+
+.paper-daily__copy h2 {
+  scroll-margin-block-start: 24px;
+}
+
 .paper-daily__list {
   list-style: none;
   margin: 0;

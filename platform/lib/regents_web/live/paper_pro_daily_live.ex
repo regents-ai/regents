@@ -23,11 +23,15 @@ defmodule RegentsWeb.PaperProDailyLive do
   """
 
   def mount(_params, _session, socket) do
+    papers = PaperProDaily.export_papers!()
+
     {:ok,
      socket
      |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), shown: 0, more?: false)
      |> assign(
-       page_markdown: Reading.page_markdown(PaperProDaily.export_papers!()),
+       page_markdown: Reading.page_markdown(papers),
+       research_list: Enum.map(papers, &%{title: &1.title, target: "papers-#{&1.date}-title"}),
+       research_list_expanded?: false,
        analysis_prompt: @analysis_prompt
      )
      |> assign(PublicDocuments.page("/paper-pro-daily"))
@@ -37,8 +41,36 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   def handle_event("load_more", _params, socket), do: {:noreply, show_more(socket)}
 
-  defp show_more(socket) do
-    page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: @page_size])
+  def handle_event("toggle_research_list", _params, socket) do
+    {:noreply, assign(socket, research_list_expanded?: !socket.assigns.research_list_expanded?)}
+  end
+
+  def handle_event("go_to_paper", %{"target" => target}, socket) do
+    case Enum.find_index(socket.assigns.research_list, &(&1.target == target)) do
+      nil ->
+        {:noreply, socket}
+
+      index ->
+        missing = index + 1 - socket.assigns.shown
+        socket = if missing > 0, do: show_through(socket, index + 1), else: socket
+        {:noreply, push_event(socket, "paper-daily:go-to-paper", %{target: target})}
+    end
+  end
+
+  # Ash caps each page; continue through pages when the index grows beyond that cap.
+  defp show_through(socket, count) do
+    next = show_more(socket, count - socket.assigns.shown)
+
+    if next.assigns.more? && next.assigns.shown > socket.assigns.shown &&
+         next.assigns.shown < count do
+      show_through(next, count)
+    else
+      next
+    end
+  end
+
+  defp show_more(socket, limit \\ @page_size) do
+    page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: limit])
 
     socket
     |> stream(:papers, Enum.map(page.results, &shown/1))
@@ -83,6 +115,42 @@ defmodule RegentsWeb.PaperProDailyLive do
               </Regent.Primitives.button>
             </div>
           </header>
+
+          <nav
+            :if={@research_list != []}
+            id="paper-daily-research"
+            class="paper-daily__research"
+            aria-labelledby="paper-daily-research-title"
+            phx-hook=".ResearchList"
+          >
+            <h2 id="paper-daily-research-title">Research List</h2>
+            <ol
+              id="paper-daily-research-list"
+              class={[
+                "paper-daily__research-list",
+                @research_list_expanded? && "paper-daily__research-list--expanded"
+              ]}
+            >
+              <li
+                :for={{paper, index} <- Enum.with_index(@research_list)}
+                hidden={!@research_list_expanded? && index >= 5}
+              >
+                <a href={"##{paper.target}"} phx-click="go_to_paper" phx-value-target={paper.target}>
+                  {paper.title}
+                </a>
+              </li>
+            </ol>
+            <Regent.Primitives.button
+              :if={length(@research_list) > 5}
+              id="paper-daily-research-toggle"
+              variant="secondary"
+              aria-controls="paper-daily-research-list"
+              aria-expanded={to_string(@research_list_expanded?)}
+              phx-click="toggle_research_list"
+            >
+              {if @research_list_expanded?, do: "Show less", else: "Show more"}
+            </Regent.Primitives.button>
+          </nav>
 
           <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">
             <li :for={{dom_id, paper} <- @streams.papers} id={dom_id}>
@@ -134,6 +202,24 @@ defmodule RegentsWeb.PaperProDailyLive do
         </div>
       </dialog>
     </Regent.Structure.frame>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".ResearchList">
+      export default {
+        mounted() {
+          this.handleEvent("paper-daily:go-to-paper", ({target}) => {
+            const heading = document.getElementById(target)
+            if (!heading) return
+            heading.focus({preventScroll: true})
+            heading.scrollIntoView({block: "start", behavior: "instant"})
+            if (window.location.hash !== `#${target}`) {
+              window.history.pushState(null, "", `#${target}`)
+            }
+          })
+          // A copied paper link also works when its paper is beyond the first batch.
+          const target = window.location.hash.slice(1)
+          if (target.startsWith("papers-")) this.pushEvent("go_to_paper", {target})
+        }
+      }
+    </script>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".PaperMath">
       // The same local KaTeX the blog uses; a paper added by scrolling gets its maths too.
       const mathModuleURL = "/assets/regent-blog/katex.mjs"
@@ -181,7 +267,7 @@ defmodule RegentsWeb.PaperProDailyLive do
       />
       <div class="paper-daily__copy">
         <time datetime={Date.to_iso8601(@paper.date)}>{Calendar.strftime(@paper.date, "%B %-d, %Y")}</time>
-        <h2 id={"#{@id}-title"}>{@paper.title}</h2>
+        <h2 id={"#{@id}-title"} tabindex="-1">{@paper.title}</h2>
         <p class="paper-daily__links">
           <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper Link</a>
           <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT Thread</a>
