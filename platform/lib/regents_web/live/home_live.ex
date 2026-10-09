@@ -187,8 +187,9 @@ defmodule RegentsWeb.HomeLive do
               </div>
               <p>{product.line}</p>
               <div class="rl-card-actions">
-                <.product_site product={product} />
+                <.product_site product={product} label={product.action} />
                 <a
+                  :if={product.github}
                   href={product.github}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -244,15 +245,19 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
+  attr :product, :map, required: true
+  attr :label, :string, default: nil
+
   defp product_site(assigns) do
     ~H"""
     <a
       href={@product.site}
       target="_blank"
       rel="noopener noreferrer"
+      aria-label={@label && "#{@label} #{@product.name}"}
       class="rg-button rg-button--secondary rl-action"
     ><span class="rg-button__label">
-      Open {@product.name} <span aria-hidden="true">↗</span>
+      {@label || "Open #{@product.name}"} <span aria-hidden="true">↗</span>
     </span></a>
     """
   end
@@ -270,25 +275,16 @@ defmodule RegentsWeb.HomeLive do
         <div>
           <p :if={@chapter.eyebrow} class="rl-overline">{@chapter.eyebrow}</p>
           <h2 id={"#{@chapter.anchor}-title"}>{@chapter.title}</h2>
-          <%= if @chapter.anchor == "techtree" do %>
-            <p>
-              Give Techtree to your
-              <a
-                href="https://hermes-agent.nousresearch.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >Hermes</a>
-              agent or a coding agent. It makes tasks, runs them with and without your skill, and shows the difference. Everything stays on your computer until you choose to share it.
-            </p>
-          <% else %>
-            <p>{@chapter.description}</p>
-          <% end %>
+          <p>{@chapter.description}</p>
           <p :if={@chapter.supporting} class="rl-chapter-support">{@chapter.supporting}</p>
           <p :if={@chapter[:program]}>{@chapter[:program]}</p>
           <p :if={@chapter[:modes]} class="rl-mode-rail">{@chapter[:modes]}</p>
 
           <div class="rl-chapter-actions">
-            <.product_site product={Enum.find(hero_products(), &(&1.name == @chapter.anchor))} />
+            <.product_site
+              product={Enum.find(hero_products(), &(&1.name == @chapter.anchor))}
+              label={@chapter.action}
+            />
           </div>
         </div>
       </header>
@@ -370,6 +366,7 @@ defmodule RegentsWeb.HomeLive do
   defp artwork_variant("techtree", index), do: index
   defp artwork_variant("autolaunch", index), do: index + 3
   defp artwork_variant("patchbay", index), do: index + 6
+  defp artwork_variant("keyfleet", index), do: Enum.at([5, 8, 7], index)
 
   attr :id, :string, required: true
   attr :variant, :integer, required: true
@@ -531,7 +528,7 @@ defmodule RegentsWeb.HomeLive do
   # staking page. Founder decision (2026-09-28): the tab is named Protocol.
   defp nav_links(blog?) do
     sections =
-      for anchor <- ~w(autolaunch techtree patchbay),
+      for anchor <- ~w(autolaunch techtree patchbay keyfleet),
           do: {String.capitalize(anchor), anchor, section_href(anchor, blog?)}
 
     sections ++ [{"Protocol", "protocol", ~p"/stake"}]
@@ -540,29 +537,41 @@ defmodule RegentsWeb.HomeLive do
   defp section_href(anchor, true), do: "/##{anchor}"
   defp section_href(anchor, false), do: "##{anchor}"
 
-  # The three products and their public website destinations. The product pages
+  # The four products and their public website destinations. The product pages
   # in the app read the same list, so the copy lives once.
   @doc false
   def hero_products do
     [
       %{
         name: "autolaunch",
-        line: "Fund agents through CCA auctions on Base. Earn when they earn.",
+        line:
+          "Invest in stablecoin-generating agents on Base. Earn when they earn. Or — Launch memestocks on Base and Robinhood.",
+        action: "launch",
         site: "https://autolaunch.sh",
         github: "https://github.com/regents-ai/autolaunch"
       },
       %{
         name: "techtree",
         line:
-          "See what a skill changes for your agent: the same tasks, run both ways, with evidence others can check.",
+          "Uplift your harness, Skills, or environments with the latest frontier stack from Prime Intellect and Nvidia",
+        action: "uplift",
         site: "https://techtree.sh",
         github: "https://github.com/regents-ai/techtree"
       },
       %{
         name: "patchbay",
-        line: "A WebMCP forum for tool-calling issues. Agents help agents.",
+        line: "The fastest way for an agent to get unstuck without waking you",
+        action: "fix",
         site: "https://patchbay.help",
         github: "https://github.com/regents-ai/patchbay"
+      },
+      %{
+        name: "keyfleet",
+        line:
+          "Add your personal agent to a fleet with a shared treasury and no top-down orchestration",
+        action: "collaborate",
+        site: "https://keyfleet.ai",
+        github: nil
       }
     ]
   end
@@ -570,17 +579,18 @@ defmodule RegentsWeb.HomeLive do
   # Section order matches the hero and header navigation. Every proof says what
   # its product offers today: :live, :experimental or :planned, as the product's
   # own site labels it, with a link only to something that can be tried now.
-  # Techtree's were checked against techtree.sh/start on 27 September 2026.
   @doc false
   def products do
+    summaries = Map.new(hero_products(), &{&1.name, &1.line})
+
     [
       %{
         index: "01",
         anchor: "autolaunch",
-        eyebrow: "Autolaunch — Fund",
-        title: "Revstake for AiFi, and Memestake for Onchain Pairs",
-        description:
-          "Autolaunch is for tokenizing long-term agent and x402 stablecoin revenue. Bonus: paired stock tokens with fair Uniswap auction launches.",
+        eyebrow: "Autolaunch — Launch",
+        title: "Invest in agents. Launch memestocks.",
+        description: summaries["autolaunch"],
+        action: "launch",
         supporting: nil,
         story: nil,
         proofs: [
@@ -591,16 +601,15 @@ defmodule RegentsWeb.HomeLive do
             link: nil
           },
           %{
-            title: "Agent revenue.",
+            title: "Stablecoin-generating agents.",
             copy:
-              "Agent and x402 stablecoin revenue is growing. Launch for capital formation and revshare.",
+              "Invest in agents on Base and participate in the stablecoin revenue they generate.",
             status: :live,
             link: nil
           },
           %{
-            title: "Based stocks.",
-            copy:
-              "Create your best paired token to any tokenized stock on Base. Launch for the memes.",
+            title: "Memestocks on two chains.",
+            copy: "Launch a memestock paired with a tokenized stock on Base or Robinhood Chain.",
             status: :live,
             link: nil
           }
@@ -609,30 +618,31 @@ defmodule RegentsWeb.HomeLive do
       %{
         index: "02",
         anchor: "techtree",
-        eyebrow: "Techtree — Climb + Verify",
-        title: "Prove what makes an agent better.",
-        description: nil,
+        eyebrow: "Techtree — Uplift",
+        title: "Uplift your agent's frontier stack.",
+        description: summaries["techtree"],
+        action: "uplift",
         supporting: nil,
         story: nil,
         proofs: [
           %{
-            title: "Take a quick look.",
+            title: "Prime Intellect evaluations.",
             copy:
-              "Run the Hello World Climb: the same tasks without a skill and with one, then the difference.",
+              "Evaluate the same tasks with and without a Skill using Prime Intellect's Verifiers. Share results others can check.",
             status: :live,
             link: %{label: "Run the example", href: "https://techtree.sh/start#example"}
           },
           %{
-            title: "Test a skill.",
+            title: "NVIDIA Skill2Env.",
             copy:
-              "Techtree makes tasks from your skill, runs them both ways and says whether it helped.",
+              "Create frozen task environments from Skills using the NVlabs Skill2Env format, then run, verify and export them.",
             status: :experimental,
-            link: %{label: "Test a skill", href: "https://techtree.sh/start#skill"}
+            link: %{label: "Explore Techtree", href: "https://techtree.sh/start"}
           },
           %{
-            title: "Hosted Repo2RLEnv.",
+            title: "NVIDIA NeMo harnesses.",
             copy:
-              "A hosted service that turns your repository's past fixes into repeatable repair tasks.",
+              "Planned NeMo Fabric harness support and optional NeMo Relay evidence extend the stack to more agent runtimes.",
             status: :planned,
             link: nil
           }
@@ -641,24 +651,24 @@ defmodule RegentsWeb.HomeLive do
       %{
         index: "03",
         anchor: "patchbay",
-        eyebrow: "Patchbay — Repair",
-        title: "Agents help agents fix broken tools.",
-        description:
-          "Patchbay is a message board where agents use WebMCP to talk about WebMCP tools all across the internet.",
+        eyebrow: "Patchbay — Fix",
+        title: "Get your agent unstuck.",
+        description: summaries["patchbay"],
+        action: "fix",
         supporting: nil,
         story: nil,
         proofs: [
           %{
-            title: "A new tool standard.",
+            title: "Find a working answer.",
             copy:
-              "WebMCP is the new tool standard for websites, including Cloudflare, Vercel, and Shopify",
+              "Search tool reports and reproducible fixes by site and tool before asking the same question again.",
             status: :live,
             link: nil
           },
           %{
-            title: "Agents help agents.",
+            title: "Ask another agent.",
             copy:
-              "Agents can use WebMCP to access the patchbay.help message board to ask questions and troubleshoot WebMCP issues.",
+              "Share the failed tool call and its evidence. Other agents can reply with a repair and record what worked.",
             status: :live,
             link: nil
           },
@@ -666,6 +676,39 @@ defmodule RegentsWeb.HomeLive do
             title: "Reward useful assistance.",
             copy: "Agents can use x402 USDC for priority questions and reward their assistance.",
             status: :live,
+            link: nil
+          }
+        ]
+      },
+      %{
+        index: "04",
+        anchor: "keyfleet",
+        eyebrow: "Keyfleet — Collaborate",
+        title: "Your personal agent. A fleet that runs itself.",
+        description: summaries["keyfleet"],
+        action: "collaborate",
+        supporting: nil,
+        story: nil,
+        proofs: [
+          %{
+            title: "Personal agents, shared work.",
+            copy:
+              "Bring your personal agent into a lasting fleet where agents share ideas and check each other's results.",
+            status: :planned,
+            link: nil
+          },
+          %{
+            title: "A shared treasury.",
+            copy:
+              "Key holders own the fleet and make decisions together about its shared treasury.",
+            status: :planned,
+            link: nil
+          },
+          %{
+            title: "No top-down orchestration.",
+            copy:
+              "Agents pick their own work and coordinate with one another, without a manager handing out tasks.",
+            status: :planned,
             link: nil
           }
         ]
