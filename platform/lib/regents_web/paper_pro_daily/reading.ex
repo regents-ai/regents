@@ -4,6 +4,25 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   @excerpt_words 100
   @extension [table: true, strikethrough: true, math_dollars: true]
 
+  @doc "A paper's details and complete, original analysis as Markdown."
+  def details_markdown(paper) do
+    """
+    ## #{paper.title}
+
+    Date: #{Calendar.strftime(paper.date, "%m-%d-%Y")}
+    Paper URL: #{paper.arxiv_url}
+    ChatGPT URL: #{paper.chatgpt_url}
+    ChatGPT model: #{paper.author}
+
+    """ <> paper.answer
+  end
+
+  @doc "All papers as Markdown, including those not yet reached by scrolling."
+  def page_markdown(papers) do
+    "# Paper Pro Daily\n\nA research paper each day, read with ChatGPT Astra 6 Pro.\n\n" <>
+      Enum.map_join(papers, "\n\n---\n\n", &details_markdown/1)
+  end
+
   @doc "The answer as HTML, its first hundred words as HTML, and whether there is more to read."
   def render(answer) do
     document = answer |> MDEx.parse_document!(extension: @extension) |> demote_headings()

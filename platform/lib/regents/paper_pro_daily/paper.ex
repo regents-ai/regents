@@ -39,6 +39,13 @@ defmodule Regents.PaperProDaily.Paper do
       pagination offset?: true, default_limit: 6, countable: false, required?: true
     end
 
+    read :export do
+      prepare build(
+                sort: [date: :desc],
+                select: [:date, :title, :arxiv_url, :chatgpt_url, :author, :answer]
+              )
+    end
+
     read :picture do
       argument :date, :date, allow_nil?: false
       get? true

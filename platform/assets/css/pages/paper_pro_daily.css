@@ -74,6 +74,66 @@
   margin-block-start: 24px;
 }
 
+.paper-daily__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-start: 24px;
+}
+
+.paper-daily__actions .rg-button {
+  max-inline-size: 100%;
+  white-space: normal;
+  text-align: start;
+}
+
+.paper-daily__details {
+  margin-block-end: 20px;
+}
+
+.paper-daily__copy-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paper-daily__copy-icon,
+.paper-daily__copy-icon svg {
+  display: inline-block;
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.paper-daily__end {
+  padding: 24px clamp(20px, 4vw, 48px);
+  border-block-start: 1px solid var(--rg-page-rule);
+}
+
+.paper-daily__prompt-dialog {
+  inline-size: min(48rem, calc(100vw - 2rem));
+  max-block-size: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: clamp(20px, 4vw, 32px);
+  border: 1px solid var(--rg-page-rule);
+  background: var(--color-surface);
+  color: var(--color-fg);
+}
+
+.paper-daily__prompt-dialog::backdrop {
+  background: var(--ash-scrim);
+}
+
+.paper-daily__prompt-dialog h2 {
+  margin: 0 0 24px;
+}
+
+.paper-daily__prompt-dialog pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  margin: 0;
+}
+
 .paper-daily__more {
   margin: 0;
   padding: 24px clamp(20px, 4vw, 48px);

@@ -6,6 +6,7 @@ defmodule Regents.PaperProDaily do
     resource Regents.PaperProDaily.Paper do
       define :put_paper, action: :put
       define :list_papers, action: :list
+      define :export_papers, action: :export
       define :get_picture, action: :picture, args: [:date], get?: true, not_found_error?: false
     end
   end
