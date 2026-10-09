@@ -86,6 +86,7 @@ defmodule Regents.Names.Claim do
 
   policies do
     policy action(:mine) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
       authorize_if Regents.Names.VerifiedOwner
       authorize_if Regents.Accounts.Checks.HumanActor
     end

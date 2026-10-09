@@ -30,7 +30,15 @@
       "state_changing": false,
       "payment": "none",
       "route": "GET /about, GET /docs",
-      "scope": "site"
+      "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "regents_about",
+        "http": "GET /about, GET /docs"
+      }
     },
     {
       "name": "regents_products",
@@ -51,7 +59,15 @@
       "state_changing": false,
       "payment": "none",
       "route": "GET /api/v1/products",
-      "scope": "site"
+      "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "regents_products",
+        "http": "GET /api/v1/products"
+      }
     },
     {
       "name": "regents_product",
@@ -84,54 +100,489 @@
       "state_changing": false,
       "payment": "none",
       "route": "GET /api/v1/products/{slug}",
-      "scope": "site"
+      "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "regents_product",
+        "http": "GET /api/v1/products/{slug}"
+      }
     },
     {
       "name": "regents_stake_position",
-      "title": "Read your stake",
-      "description": "Read what regents.sh/stake shows for the signed-in person's wallet: their REGENT staked, REGENT and USDC in the wallet, USDC and REGENT ready to claim, and the contract's totals (REGENT staked, USDC received in the last seven days and in all, supply and emission rate). Figures are Base readings with the block each was read at; amounts are exact decimal strings, and a figure that could not be read says unavailable. Needs the person to be signed in on regents.sh; it never opens a wallet.",
+      "title": "Read the paired owner stake",
+      "description": "Read the paired owner primary wallet position and current shared staking totals. Never opens or signs a wallet. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
       "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/staking/position",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_stake_position",
+        "http": "GET /api/agent/v1/staking/position"
+      },
+      "operation_input_schema": {
         "type": "object",
         "properties": {},
         "required": [],
         "additionalProperties": false
       },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": false,
-        "consequentialHint": false
-      },
-      "requires": "session",
-      "state_changing": false,
-      "payment": "none",
-      "route": "GET /api/v1/staking/position",
-      "scope": "site"
+      "effect": "read"
     },
     {
       "name": "regents_claims",
-      "title": "Read your name claims",
-      "description": "Read the signed-in person's historical Regent name claims, oldest record first: each claim's recorded name, owner wallet, status, transaction evidence and times. Pass next back as after for the following page; stop when next is null. It never mints a name, assigns an ENS name or changes ownership. Needs the person to be signed in on regents.sh.",
+      "title": "Read the paired owner name claims",
+      "description": "Read only the paired owner verified-wallet claims. Send {} initially, then pass next as after. Does not claim or change a name. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
       "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "after": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/claims",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_claims",
+        "http": "POST /api/agent/v1/claims"
+      },
+      "operation_input_schema": {
         "type": "object",
         "properties": {
           "after": {
             "type": "string",
-            "description": "The next value from the previous page, unchanged."
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [],
         "additionalProperties": false
       },
+      "effect": "read"
+    },
+    {
+      "name": "regents_agent_whoami",
+      "title": "Check my agent identity and pairing",
+      "description": "Check your SIWA identity and current pairing. Does not check in or award Points. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
       "annotations": {
         "readOnlyHint": true,
-        "untrustedContentHint": true,
-        "consequentialHint": false
+        "untrustedContentHint": true
       },
-      "requires": "session",
+      "requires": "siwa",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/v1/claims",
-      "scope": "site"
+      "route": "GET /api/agents/v1/whoami",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": false,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_agent_whoami",
+        "http": "GET /api/agents/v1/whoami"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "regents_account",
+      "title": "Read the paired account",
+      "description": "Read the paired owner account display name and ENS name, together with your current pairing ID. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/account",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_account",
+        "http": "GET /api/agent/v1/account"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "regents_credits_balance",
+      "title": "Read shared Credits balance",
+      "description": "Read the paired account global Credits balance: available, given, purchased and held. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/credits/balance",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_credits_balance",
+        "http": "GET /api/agent/v1/credits/balance"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "regents_credits_history",
+      "title": "Read shared Credits history",
+      "description": "Read the paired account global Credits ledger. Send {} initially, then pass next as after. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "after": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/credits/history",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_credits_history",
+        "http": "POST /api/agent/v1/credits/history"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "regents_credits_budget",
+      "title": "Read my effective spending budget",
+      "description": "Read only this current pairing spending grant, site eligibility and aggregate owner agent usage over the last 24 hours. Does not change a grant or spend. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/credits/budget",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_credits_budget",
+        "http": "GET /api/agent/v1/credits/budget"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "prepare_agent_request",
+      "title": "Prepare a signed agent request",
+      "description": "Prepare exact bytes for a manifest-listed operation. No private read or product mutation. Sign with your existing SIWA signer, then call the named tool with input, request and proof. Never substitute browser credentials.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "input"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "regents_stake_position",
+              "regents_claims",
+              "regents_agent_whoami",
+              "regents_account",
+              "regents_credits_balance",
+              "regents_credits_history",
+              "regents_credits_budget"
+            ]
+          },
+          "input": {
+            "type": "object"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "requires": "none",
+      "authentication": "public",
+      "pairing_required": false,
+      "availability": "available",
+      "state_changing": false,
+      "payment": "none",
+      "route": "local preparation",
+      "scope": "site",
+      "interfaces": {
+        "webmcp": "prepare_agent_request"
+      },
+      "effect": "prepare"
     }
-  ]
+  ],
+  "audience": "regents",
+  "proof_headers": [
+    "x-siwa-signature",
+    "x-siwa-signature-input",
+    "x-siwa-receipt",
+    "x-key-id",
+    "x-timestamp",
+    "x-agent-wallet-address",
+    "x-agent-chain-id",
+    "content-digest"
+  ],
+  "release_status": "prepared_source",
+  "private_write_available": false
 }

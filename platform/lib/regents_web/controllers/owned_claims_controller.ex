@@ -22,6 +22,13 @@ defmodule RegentsWeb.OwnedClaimsController do
     end
   end
 
+  def agent_index(conn, _params) do
+    case pagination(conn.body_params) do
+      {:ok, page} -> render_claims(conn, conn.assigns.actor, page)
+      :error -> error(conn, "invalid_agent_claims_input")
+    end
+  end
+
   defp pagination(params) when map_size(params) == 0, do: {:ok, []}
 
   defp pagination(%{"after" => cursor} = params)
@@ -54,6 +61,9 @@ defmodule RegentsWeb.OwnedClaimsController do
     "invalid_claims_query" =>
       {400, "This read takes no query parameters other than after.",
        "Send no query for the first page, then after= with the next value from the page before."},
+    "invalid_agent_claims_input" =>
+      {400, "This read accepts only an optional after cursor in JSON.",
+       "Sign {} for the first page, then a JSON object with the previous page's next value as after."},
     "claims_unconfigured" => {503, "Sign-in checks are not set up here.", "Try again later."},
     "authentication_required" =>
       {401, "Sign in to read your claims.",

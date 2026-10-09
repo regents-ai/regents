@@ -61,6 +61,11 @@ defmodule Regents.Accounts.HumanAccount do
   end
 
   policies do
+    policy actor_attribute_equals(:role, :agent) do
+      forbid_unless {RegentAgents.Checks.Paired, repo: Regents.Repo}
+      authorize_if expr(privy_user_id == ^actor(:privy_user_id))
+    end
+
     policy action([
              :by_privy_did,
              :register_verified,

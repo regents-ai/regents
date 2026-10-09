@@ -2,7 +2,7 @@ defmodule RegentsWeb.PublicDocuments do
   @moduledoc "Public documents only; never projects a signed-in page or account."
 
   @directory Application.app_dir(:regents, "priv/public")
-  @files Enum.map(~w(docs about contact llms), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(~w(docs about contact llms agents skill), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -16,8 +16,14 @@ defmodule RegentsWeb.PublicDocuments do
   # imports the same file.
   @tool_manifest_path Application.app_dir(:regents, "priv/tool_manifest.json")
   @external_resource @tool_manifest_path
-  @tools @tool_manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
-  @needs %{"none" => "Nothing", "session" => "The person's sign-in"}
+  @manifest @tool_manifest_path |> File.read!() |> Jason.decode!()
+  @tools Map.fetch!(@manifest, "tools")
+  @needs %{
+    "none" => "Nothing",
+    "session" => "The person's sign-in",
+    "siwa" => "Fresh SIWA request proof",
+    "siwa_and_pairing" => "Fresh SIWA proof and current pairing"
+  }
   @tool_table """
   | Tool | Needs | What it does |
   | --- | --- | --- |
@@ -142,7 +148,10 @@ defmodule RegentsWeb.PublicDocuments do
     [page_title: title, page_description: description]
   end
 
+  def capabilities, do: @manifest
   def llms, do: source("llms")
+  def agents, do: source("agents")
+  def skill, do: source("skill")
 
   # The public documents change only with a release; security.txt expires a year after it.
   @released_at DateTime.utc_now() |> DateTime.truncate(:second)

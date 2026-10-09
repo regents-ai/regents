@@ -35,6 +35,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
 
     {:ok,
      assign(socket,
+       grant_updates_enabled: RegentCredits.agent_grants_enabled?(),
        agents: agents,
        forms: Map.new(agents, fn {agent, _name} -> {agent, form(actor, agent, saved[agent])} end)
      )}
@@ -111,6 +112,9 @@ defmodule RegentsWeb.CreditsAgentSpending do
   def render(assigns) do
     ~H"""
     <div id={@id} class="credits-agents">
+      <p :if={!@grant_updates_enabled} role="status">
+        Agent spending grants are paused during the shared rollout. You can still disable a grant.
+      </p>
       <p :if={@agents == []}>
         No agents are paired with your account yet. Pair one under Your agents to let it spend.
       </p>
@@ -132,6 +136,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
             name={@forms[agent][:enabled].name}
             value="true"
             checked={enabled?(@forms[agent])}
+            disabled={!@grant_updates_enabled and !enabled?(@forms[agent])}
           /> Can spend my Credits
         </label>
         <P.field
@@ -180,7 +185,11 @@ defmodule RegentsWeb.CreditsAgentSpending do
             {label}
           </label>
         </fieldset>
-        <P.button type="submit" phx-disable-with="Saving…">Save</P.button>
+        <P.button
+          type="submit"
+          phx-disable-with="Saving…"
+          disabled={!@grant_updates_enabled and enabled?(@forms[agent])}
+        >Save</P.button>
         <p :if={@saved == agent} role="status">Saved.</p>
       </.form>
     </div>

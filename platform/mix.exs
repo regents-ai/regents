@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "58acbc4742ea8acded42e8fb40816ac6e0400aaa"
+  @elixir_utils_ref "a24d9bf5ce8dbca5852b081613e9e1674623512e"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "24f3c8f91c46a331fb99ba8c462838061e525c99"
 
@@ -51,7 +51,7 @@ defmodule Regents.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.34 and >= 3.34.3"},
+      {:ash, "~> 3.34 and >= 3.34.6"},
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
@@ -68,14 +68,17 @@ defmodule Regents.MixProject do
        ref: @elixir_utils_ref,
        sparse: "siwa/siwa-elixir/apps/siwa",
        override: true},
-      {:regent_privy, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy"},
+      {:regent_privy,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy", override: true},
       {:regent_identity, path: "../identity"},
       {:regent_payments, path: "../payments"},
-      {:regent_agents, path: "../agents"},
+      {:regent_agents,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
-      {:regent_format, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format"},
+      {:regent_format,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
       # regent_credits names regent_chain by a sibling path; this pin replaces it.
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
@@ -139,12 +142,14 @@ defmodule Regents.MixProject do
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
+        "regent_agent_access.assets",
         "esbuild regents"
       ],
       "assets.deploy": [
         "regent_ui.assets",
         "regent_blog.assets",
         "regent_identity.assets",
+        "regent_agent_access.assets",
         "esbuild regents --minify",
         "phx.digest"
       ],

@@ -31,6 +31,10 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.AgentRateLimit
   end
 
+  pipeline :paired_agent do
+    plug RegentsWeb.Plugs.PairedAgent
+  end
+
   pipeline :public_documents do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -88,6 +92,9 @@ defmodule RegentsWeb.Router do
     get "/openapi.json", PublicPagesController, :openapi
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/robots.txt", PublicPagesController, :robots
+    get "/capabilities", PublicPagesController, :capabilities
+    get "/agents.md", PublicPagesController, :agents
+    get "/skill.md", PublicPagesController, :skill
     get "/llms.txt", PublicPagesController, :llms
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/paper-pro-daily/pictures/:date", PaperPictureController, :show
@@ -108,6 +115,16 @@ defmodule RegentsWeb.Router do
     get "/products/:slug", RegentsWeb.ProductsController, :show
     get "/staking/position", RegentsWeb.StakingPositionController, :show
     forward "/profile", RegentIdentity.HTTP, otp_app: :regents
+  end
+
+  scope "/api/agent/v1", RegentsWeb do
+    pipe_through [:api, :agents, :paired_agent]
+    get "/account", AgentReadsController, :account
+    post "/claims", OwnedClaimsController, :agent_index
+    get "/staking/position", StakingPositionController, :agent_show
+    get "/credits/balance", AgentReadsController, :balance
+    post "/credits/history", AgentReadsController, :history
+    get "/credits/budget", AgentReadsController, :budget
   end
 
   scope "/api/agents/v1" do

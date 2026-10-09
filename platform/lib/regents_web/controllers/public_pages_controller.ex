@@ -14,6 +14,14 @@ defmodule RegentsWeb.PublicPagesController do
   def llms(conn, _params),
     do: conn |> put_resp_content_type("text/plain") |> send_resp(200, PublicDocuments.llms())
 
+  def capabilities(conn, _params), do: json(conn, PublicDocuments.capabilities())
+
+  def agents(conn, _params),
+    do: conn |> put_resp_content_type("text/markdown") |> send_resp(200, PublicDocuments.agents())
+
+  def skill(conn, _params),
+    do: conn |> put_resp_content_type("text/markdown") |> send_resp(200, PublicDocuments.skill())
+
   def robots(conn, _params) do
     conn
     |> put_resp_content_type("text/plain")

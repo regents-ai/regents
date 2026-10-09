@@ -2,11 +2,11 @@
 // Every tool is described once, in priv/tool_manifest.json; this file adds only
 // the request each one makes. None of them opens a wallet or signs.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
-import {accountTokens, proveAnonymousSession} from "./auth_lazy"
+import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools"
 
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
 type Input = Record<string, string>
-type Property = {type: "string"; enum?: string[]; description?: string}
+type Property = {type: string; enum?: string[]; description?: string}
 type Schema = {
   type: "object"
   properties: Record<string, Property>
@@ -20,17 +20,17 @@ type Entry = {
   description: string
   input_schema: Schema
   annotations: Annotations
-  requires: "none" | "session"
+  requires: "none" | "siwa" | "siwa_and_pairing"
+  authentication: string
   scope: "site" | "page"
 }
 type Failure = {
   ok: false
   error: {
-    code: "invalid_input" | "sign_in_required" | "aborted" | "network_error" | "invalid_response"
+    code: "invalid_input" | "aborted" | "network_error" | "invalid_response"
     message: string
   }
 }
-type Result = {ok: boolean; status: number; body: Json} | Failure
 
 type Tool = {
   name: string
@@ -38,7 +38,7 @@ type Tool = {
   description: string
   inputSchema: Schema
   annotations: Annotations
-  execute(input: unknown, client?: unknown): Promise<Result>
+  execute(input: unknown, client?: unknown): Promise<unknown>
 }
 type ModelContext = {registerTool(tool: Tool, options: {signal: AbortSignal}): Promise<void> | void}
 type Request = {path: string; accept: "application/json" | "text/markdown"}
@@ -48,11 +48,6 @@ const requests: Record<string, (input: Input) => Request> = {
   regents_about: input => ({path: `/${input.page}`, accept: "text/markdown"}),
   regents_products: () => ({path: "/api/v1/products", accept: json}),
   regents_product: input => ({path: `/api/v1/products/${encodeURIComponent(input.slug)}`, accept: json}),
-  regents_stake_position: () => ({path: "/api/v1/staking/position", accept: json}),
-  regents_claims: input => ({
-    path: input.after === undefined ? "/api/v1/claims" : `/api/v1/claims?${new URLSearchParams({after: input.after})}`,
-    accept: json,
-  }),
 }
 
 function failure(code: Failure["error"]["code"], message: string): Failure {
@@ -61,8 +56,6 @@ function failure(code: Failure["error"]["code"], message: string): Failure {
 
 const invalidInput = () => failure("invalid_input", "Use the documented fields and values.")
 const cancelled = () => failure("aborted", "The read was cancelled.")
-const signInRequired = () =>
-  failure("sign_in_required", "The person is not signed in on regents.sh. Ask them to sign in, then try again.")
 
 function validInput(input: unknown, {properties, required}: Schema): input is Input {
   if (!input || typeof input !== "object" || Array.isArray(input)) return false
@@ -80,29 +73,23 @@ function runSignal(lifetime: AbortSignal, client: unknown): AbortSignal {
   return host instanceof AbortSignal ? AbortSignal.any([lifetime, host]) : lifetime
 }
 
-// A signed-in read carries the same two Privy tokens the API asks for. The site
-// is asked first whether anyone is signed in, so a visitor never starts sign-in.
-async function signedInHeaders(): Promise<Record<string, string> | null> {
-  if (await proveAnonymousSession()) return null
-  const {accessToken, identityToken} = await accountTokens()
-  return {Authorization: `Bearer ${accessToken}`, "Privy-Id-Token": identityToken}
+function transport() {
+  return signedTools({
+    origin: window.location.origin,
+    trustedOrigins: [document.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')?.content ?? ""],
+    audience: manifest.audience,
+    proofHeaders: manifest.proof_headers,
+    operations: manifest.tools.map(entry => ({...entry,
+      input_schema: "operation_input_schema" in entry ? entry.operation_input_schema : entry.input_schema,
+    })) as unknown as SignedOperation[],
+  })
 }
 
-async function read(entry: Entry, input: unknown, signal: AbortSignal): Promise<Result> {
+async function read(entry: Entry, input: unknown, signal: AbortSignal): Promise<unknown> {
   if (signal.aborted) return cancelled()
   if (!validInput(input, entry.input_schema)) return invalidInput()
   const target = requests[entry.name](input)
   const headers: Record<string, string> = {Accept: target.accept}
-
-  if (entry.requires === "session") {
-    try {
-      const signedIn = await signedInHeaders()
-      if (!signedIn) return signInRequired()
-      Object.assign(headers, signedIn)
-    } catch {
-      return signal.aborted ? cancelled() : signInRequired()
-    }
-  }
 
   let response: Response
   try {
@@ -133,7 +120,30 @@ function tool(entry: Entry, lifetime: AbortSignal): Tool {
     description: entry.description,
     inputSchema: entry.input_schema,
     annotations: entry.annotations,
-    execute: (input, client) => read(entry, input, runSignal(lifetime, client)),
+    execute: async (input, client) => {
+      const signal = runSignal(lifetime, client)
+      if (signal.aborted) return cancelled()
+      if (entry.name === "prepare_agent_request") {
+        try {
+          const args = input as {operation: string; input: Record<string, string>}
+          return {ok: true, request: transport().prepare(args.operation, args.input)}
+        } catch {
+          return invalidInput()
+        }
+      }
+      if (entry.authentication === "siwa_per_request") {
+        try {
+          const response = await transport().execute(entry.name, input as SignedInput, signal)
+          return {ok: response.ok, status: response.status, body: await response.json()}
+        } catch {
+          return signal.aborted ? cancelled() : {ok: false, error: {
+            code: "signed_request_failed",
+            message: "Prepare the request and sign its exact bytes with your existing SIWA signer for regents. Use fresh proof; if no signer is available, report that blocker.",
+          }}
+        }
+      }
+      return read(entry, input, signal)
+    },
   }
 }
 

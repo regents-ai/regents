@@ -36,6 +36,13 @@ defmodule RegentsWeb.StakingPositionController do
     end
   end
 
+  def agent_show(conn, _params) do
+    case conn.assigns.actor.beneficiary_wallet_address do
+      wallet when is_binary(wallet) -> admit(conn, wallet)
+      _ -> error(conn, "wallet_required")
+    end
+  end
+
   # Each reading of Base draws on the caller's address budget, shared with the
   # pages.
   defp admit(conn, wallet) do

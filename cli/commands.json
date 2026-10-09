@@ -5,7 +5,9 @@
   "base_url": "https://regents.sh",
   "notes": [
     "Sign in once with regents auth login --site regents; every agents request is then signed with your agent key.",
-    "Your person makes a pairing code on their Account page at https://regents.sh/account."
+    "Your person makes a pairing code on their Account page at https://regents.sh/account.",
+    "Private reads require current pairing; browser sessions never grant agent authority. World ID and ERC-8004 registration are optional.",
+    "These source descriptions require the coordinated CLI release. No private nonfinancial write is available; wallet actions remain user-signed."
   ],
   "commands": [
     {
@@ -38,7 +40,21 @@
           "type": "string",
           "in": "body",
           "field": "harness",
-          "enum": ["hermes", "grok_bot", "muse", "openclaw", "nemoclaw", "ironclaw", "pi"],
+          "enum": [
+            "hermes",
+            "grok_bot",
+            "muse",
+            "openclaw",
+            "nemoclaw",
+            "ironclaw",
+            "pi",
+            "claude_code",
+            "codex",
+            "cursor",
+            "gemini_cli",
+            "dots",
+            "other"
+          ],
           "required": true,
           "description": "The program this agent runs in."
         }
@@ -52,6 +68,96 @@
       "path": "/api/agents/v1/me",
       "authority": "wallet-proof",
       "effect": "write"
+    },
+    {
+      "command": "agents whoami",
+      "description": "Check SIWA identity and current pairing without recording a check-in or awarding Points.",
+      "operation_id": "agentWhoami",
+      "method": "GET",
+      "path": "/api/agents/v1/whoami",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_agent_whoami"
+    },
+    {
+      "command": "account show",
+      "description": "Read the paired account display and ENS name.",
+      "operation_id": "agentAccount",
+      "method": "GET",
+      "path": "/api/agent/v1/account",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_account"
+    },
+    {
+      "command": "account claims",
+      "description": "Read the paired owner verified-wallet historical name claims.",
+      "operation_id": "agentClaims",
+      "method": "POST",
+      "path": "/api/agent/v1/claims",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_claims",
+      "flags": [
+        {
+          "name": "after",
+          "type": "string",
+          "in": "body",
+          "field": "after",
+          "required": false,
+          "description": "The previous response next value, unchanged. Omit for the first page."
+        }
+      ]
+    },
+    {
+      "command": "staking position",
+      "description": "Read the paired owner primary-wallet staking position and shared staking totals.",
+      "operation_id": "agentStakingPosition",
+      "method": "GET",
+      "path": "/api/agent/v1/staking/position",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_stake_position"
+    },
+    {
+      "command": "account balances",
+      "description": "Read the shared global Credits balance.",
+      "operation_id": "agentCreditsBalance",
+      "method": "GET",
+      "path": "/api/agent/v1/credits/balance",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_credits_balance"
+    },
+    {
+      "command": "account credits-history",
+      "description": "Read the paired account global Credits ledger history.",
+      "operation_id": "agentCreditsHistory",
+      "method": "POST",
+      "path": "/api/agent/v1/credits/history",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_credits_history",
+      "flags": [
+        {
+          "name": "after",
+          "type": "string",
+          "in": "body",
+          "field": "after",
+          "required": false,
+          "description": "The previous response next value, unchanged. Omit for the first page."
+        }
+      ]
+    },
+    {
+      "command": "account budget",
+      "description": "Read this current pairing spending grant, site eligibility and shared owner agent usage. Does not change a grant or spend.",
+      "operation_id": "agentCreditsBudget",
+      "method": "GET",
+      "path": "/api/agent/v1/credits/budget",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_credits_budget"
     }
   ]
 }

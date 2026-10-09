@@ -17,11 +17,10 @@ defmodule Regents.Release do
     Application.put_env(@app, Regents.Repo, migration_config!())
 
     Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
-      RegentAgents.Migrator.up(repo)
+      # Shared schemas are released once by their coordinator, never by a site.
+      RegentAgents.Migrator.require_pairing_history!(repo)
+      RegentCredits.Migrator.require_pairing_grants!(repo)
       repo.migrate!(migrations_path())
-      RegentPayments.Migrator.up(repo)
-      RegentCredits.Migrator.up(repo)
-      RegentPoints.Migrator.up(repo)
     end)
   end
 

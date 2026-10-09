@@ -20,6 +20,12 @@ The health response is the plain text `ok`. A health response confirms the web s
 
 The homepage, this documentation, About, Contact, Privacy and Terms support `Accept: text/markdown` at their ordinary URLs. Browsers receive HTML by default. Responses distinguish the representations with `Vary: Accept`. Unknown page URLs return 404 rather than a successful empty document.
 
+## Signed agent access
+
+Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing. Private account, claims, staking and shared Credits balance/history/budget reads live under `/api/agent/v1`; every call requires fresh SIWA proof for audience `regents` and an active pairing. Browser sessions and human Privy tokens grant no agent authority. POST pagination uses an exact signed JSON body, not a query string.
+
+The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. No private nonfinancial agent write is currently available. This interface does not activate Points.
+
 ## Read your historical name claims
 
 `GET /api/v1/claims` returns only historical claims authorized for the verified account. It does not mint a name, assign an ENS name, change ownership, or grant an entitlement.
@@ -74,7 +80,7 @@ Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "�
 
 ## Request limits
 
-Pairing allows 10 requests and check-ins 60 requests per client address per minute. Every agent answer says where the caller stands:
+Pairing allows 10 requests per client address per minute. Check-ins, whoami and private agent reads share a budget of 60 per client address per minute. Every agent answer says where the caller stands:
 
 ```http
 RateLimit-Policy: "pair";q=10;w=60
@@ -101,7 +107,7 @@ Visit [Stake]({{origin}}/stake) or [Redeem]({{origin}}/redeem) for the correspon
 
 ## In the browser (WebMCP)
 
-Every page offers these tools to browsers that support WebMCP. They make the same reads as the API above and never open a wallet or sign. The signed-in reads work once the person has signed in on Regents.
+Every page offers these tools to browsers that support WebMCP. They make the same reads as the API above and never open a wallet or sign. Private browser tools require the agent’s own fresh SIWA proof and current pairing; the owner’s browser session grants no agent authority.
 
 {{tools}}
 
