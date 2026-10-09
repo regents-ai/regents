@@ -4,7 +4,8 @@ defmodule RegentsWeb.ShellLive.Points do
   account as actor, and the catalog rules earning now. Awards and corrections
   from any site are heard only while this page is open, and each one reads the
   summary again. A refresh that fails keeps the last summary on screen as
-  stale; a first read that fails is an error, never zero.
+  stale; a first read that fails is an error, never zero. The NFT tier the
+  account's wallets hold now is read from Base once per page open and never saved.
   """
 
   import Phoenix.Component, only: [assign: 2]
@@ -12,16 +13,20 @@ defmodule RegentsWeb.ShellLive.Points do
 
   alias RegentsWeb.ShellLive.Identity
 
-  def init(socket), do: assign(socket, points_topic: nil, points: idle(), points_earning: [])
+  def init(socket),
+    do:
+      assign(socket, points_topic: nil, points: idle(), points_bonus: idle(), points_earning: [])
 
   def route(socket, %{route_id: :account_points}) do
     socket
     |> follow()
     |> assign(points_earning: RegentPoints.Rules.active())
     |> read()
+    |> read_bonus()
   end
 
-  def route(socket, _route_spec), do: socket |> unfollow() |> assign(points: idle())
+  def route(socket, _route_spec),
+    do: socket |> unfollow() |> assign(points: idle(), points_bonus: idle())
 
   @doc "An award or correction landed for this account."
   def changed(socket), do: read(socket)
@@ -49,6 +54,19 @@ defmodule RegentsWeb.ShellLive.Points do
     end
   end
 
+  defp landed(socket, {:points_bonus, account_id}, result) do
+    case {Identity.current_account(socket.assigns.access_context), result} do
+      {%{id: ^account_id}, {:ok, {:ok, tier}}} ->
+        assign(socket, points_bonus: %{state: :ready, value: tier})
+
+      {%{id: ^account_id}, _failed} ->
+        assign(socket, points_bonus: %{state: :error, value: nil})
+
+      _session_ended ->
+        assign(socket, points_bonus: idle())
+    end
+  end
+
   defp read(socket) do
     case Identity.human_actor(socket) do
       nil ->
@@ -60,6 +78,18 @@ defmodule RegentsWeb.ShellLive.Points do
         |> start_async({:points, actor.human_account_id}, fn ->
           RegentPoints.summary(actor: actor)
         end)
+    end
+  end
+
+  defp read_bonus(socket) do
+    case Identity.human_actor(socket) do
+      nil ->
+        assign(socket, points_bonus: idle())
+
+      %{human_account_id: id} ->
+        socket
+        |> assign(points_bonus: %{state: :loading, value: nil})
+        |> start_async({:points_bonus, id}, fn -> RegentPoints.Bonus.current(id) end)
     end
   end
 

@@ -1198,10 +1198,42 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   which adds `Rules.tracked/0` and `Rules.daily_apps/1`; only `regent_points`
   changes.
 
+## 2026-10-09 — Points NFT bonus at the end of each 30-day period
+
+- Sean, HQ thread, 2026-10-09 04:56Z, item 6: the NFT bonus is no longer saved
+  with each award. `/account/points` shows the tier the account's linked wallets
+  hold now, read from Base when the page opens ("3 NFTs now · +45% at the end of
+  this period"), and lists each period's bonus once tallied. Awards show
+  points only. Tiers are 1–2, 3–6 and 7+, adding 20%, 45% and 75%.
+- Sean, this thread, 2026-10-09 ~05:30Z: "1 a 2 at the end of a period, which
+  lasts for 30 days. 3 a". The bonus is tallied at the end of each 30-day period
+  counted from the program start, not each calendar month; the percentages stay;
+  Regents runs the Points schema change with this release.
+- Regents is the one tally site: a daily Oban cron runs
+  `RegentPoints.TallyPeriods` at 00:15 UTC. The minute NFT transfer watch, the
+  sign-in holdings refresh (`Regents.Points.TrackWallets`) and the
+  `points_wallet_holders` account read are removed. The Credits purchase check
+  no longer sends wallets.
+- The Points schema gains `period_bonuses` and loses the transfer cursor table and
+  the saved holdings columns (migration `20261009053234_period_bonus_tally`),
+  run in production with this release under Sean's 3 a. Earning stays off.
+
+## 2026-10-09 — Points on the pushed elixir-utils 58acbc4
+
+- Sean in the HQ thread, 2026-10-09 05:59Z (relayed): "6. a". Every elixir-utils
+  pin moves to `58acbc4742ea8acded42e8fb40816ac6e0400aaa` (Sentinel CLEAR 06:13:35Z).
+  A tallied period's bonus now follows awards checked after the tally and
+  corrections, at the tier saved at the tally; the tally no longer waits for
+  actions still being checked. An award whose last attempt fails or raises is
+  rejected as `award_failed`.
+- The Credits purchase check reads the purchase's decimal amount through
+  `RegentCredits.Chains.micro/1`. Earning stays off; switching it on waits on
+  Sean's PTS-SNAP (one snapshot block per period).
+
 ## 2026-10-09 — Credits read every Base deposit; Buy is Base only
 
-- Pin elixir-utils `f3157529acc1c43ebbdc40684126f4d1f3048197` (was `8cbd69c`).
-  Regent Credits now reads every Credits deposit on Base from the chain once a
+- On elixir-utils `58acbc4742ea8acded42e8fb40816ac6e0400aaa`, which carries the
+  Credits reader (`f3157529`). Regent Credits now reads every Credits deposit on Base from the chain once a
   minute and credits it, whether or not a page reported it. A deposit from a
   wallet no account holds waits under that wallet until it signs in. Purchase
   and refund amounts are USDC to the millionth. The library's migrations add
@@ -1219,4 +1251,3 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The Credits admin and Purchase History print exact amounts. A purchase whose
   wallet no account holds yet shows "Waiting for the wallet's owner to sign in"
   and offers no Refund.
-- Points' Credits check reads the purchase amount as an exact decimal.

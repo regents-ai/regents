@@ -10,7 +10,6 @@ defmodule Regents.Accounts do
 
       define :get_human_account, action: :read_self, args: [:id]
       define :points_account, action: :points_account, args: [:id]
-      define :points_wallet_holders, action: :points_wallet_holders, args: [:wallets]
 
       define :get_public_profile_source,
         action: :public_profile_source,

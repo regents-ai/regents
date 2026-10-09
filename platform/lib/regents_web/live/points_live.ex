@@ -1,9 +1,10 @@
 defmodule RegentsWeb.PointsLive do
-  @moduledoc "Private Account Points presentation; every award shows base and NFT bonus separately."
+  @moduledoc "Private Account Points presentation; the NFT bonus is added at the end of each 30-day period."
   use RegentsWeb, :html
   alias RegentPoints.{Amount, Rules}
   attr :account, :map, default: nil
   attr :points, :map, required: true, doc: "the account's summary read: its state and value"
+  attr :bonus, :map, required: true, doc: "the NFT tier the account's wallets hold now"
   attr :earning, :list, required: true, doc: "the catalog rules earning now"
 
   def page(assigns) do
@@ -58,24 +59,29 @@ defmodule RegentsWeb.PointsLive do
             Your bonus
             <Regent.Primitives.tip id="points-bonus-about" label="About your points bonus">
               Animata I, Animata II and Regents Club count across your verified linked wallets.
-              The highest tier applies once to base points awarded after limits, including
-              one-time awards. Each award keeps the tier from the time of the action.
-              Transfers change future bonuses, not earlier awards.
+              At the end of each 30-day period, the tier your wallets hold that day adds its
+              bonus to the points you earned in that period, one-time awards included.
             </Regent.Primitives.tip>
           </h2>
-          <p :if={is_nil(@points.value.nft_count)}>
-            Ownership has not been checked for your current linked wallets.
+          <p :if={@bonus.state in [:idle, :loading]} role="status">Checking your NFTs…</p>
+          <p :if={@bonus.state == :error}>
+            Your NFTs could not be checked. Try refreshing this page.
           </p>
-          <p :if={!is_nil(@points.value.nft_count)}>
-            {@points.value.nft_count} NFTs · +{@points.value.bonus_percent}% on base points
+          <p :if={@bonus.state == :ready}>
+            {@bonus.value.nft_count} NFTs now · +{@bonus.value.percent}% at the end of this period
           </p>
-          <p :if={@points.value.nft_checked_at}>
-            Last checked: {Calendar.strftime(@points.value.nft_checked_at, "%d %b %Y %H:%M UTC")}.
-          </p>
+          <dl :if={@points.value.period_bonuses != []}>
+            <div :for={period <- @points.value.period_bonuses}>
+              <dt>Period {period.period}</dt>
+              <dd>
+                +{Amount.format(period.bonus_micro)} ({period.nft_count} NFTs, +{period.bonus_percent}%)
+              </dd>
+            </div>
+          </dl>
         </section>
         <section :if={@earning != []} class="account-panel account-details">
           <h2>
-            Daily base allowances
+            Daily allowances
             <Regent.Primitives.tip id="points-allowances-about" label="About daily allowances">
               All your agents share one allowance. Your per-action limits are separate from theirs.
               Each action uses one pool. Allowances reset at midnight UTC.
@@ -99,18 +105,14 @@ defmodule RegentsWeb.PointsLive do
                   @points.value.agent_names
                 )}
               </p>
-              <p>
-                {Amount.format(entry.base_points_micro)} awarded base + {Amount.format(
-                  entry.bonus_points_micro
-                )} NFT bonus ({entry.bonus_percent}%) = {Amount.format(entry.points_micro_delta)} points
-              </p>
+              <p>{Amount.format(entry.points_micro_delta)} points</p>
               <Regent.Primitives.tip
                 :if={entry.cap_reduction_micro > 0}
                 id={"points-cap-#{entry.id}"}
                 label="About this award’s allowance"
               >
-                {Amount.format(entry.base_points_micro + entry.cap_reduction_micro)} base before limits; {Amount.format(
-                  entry.base_points_micro
+                {Amount.format(entry.points_micro_delta + entry.cap_reduction_micro)} before limits; {Amount.format(
+                  entry.points_micro_delta
                 )} awarded. {Amount.format(entry.cap_reduction_micro)} exceeded the daily or per-action allowance.
               </Regent.Primitives.tip>
               <p>
@@ -174,7 +176,7 @@ defmodule RegentsWeb.PointsLive do
           <div>
             <h3>NFT bonus</h3>
             <p>
-              Animata I, Animata II and Regents Club in your linked wallets. Only your highest tier counts, after limits.
+              Animata I, Animata II and Regents Club in your linked wallets, counted at the end of each 30-day period. That period’s points get the bonus.
             </p>
             <table class="points-table">
               <thead>
