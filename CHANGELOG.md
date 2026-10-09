@@ -1217,3 +1217,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The Points schema gains `period_bonuses` and loses the transfer cursor table and
   the saved holdings columns (migration `20261009053234_period_bonus_tally`),
   run in production with this release under Sean's 3 a. Earning stays off.
+
+## 2026-10-09 — Points on the pushed elixir-utils 58acbc4
+
+- Sean in the HQ thread, 2026-10-09 05:59Z (relayed): "6. a". Every elixir-utils
+  pin moves to `58acbc4742ea8acded42e8fb40816ac6e0400aaa` (Sentinel CLEAR 06:13:35Z).
+  A tallied period's bonus now follows awards checked after the tally and
+  corrections, at the tier saved at the tally; the tally no longer waits for
+  actions still being checked. An award whose last attempt fails or raises is
+  rejected as `award_failed`.
+- The Credits purchase check reads the purchase's decimal amount through
+  `RegentCredits.Chains.micro/1`. Earning stays off; switching it on waits on
+  Sean's PTS-SNAP (one snapshot block per period).

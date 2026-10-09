@@ -10,8 +10,6 @@ defmodule Regents.Points.CreditsPurchase do
   alias Regents.Accounts
   alias Regents.Actors.System
 
-  @usdc_atomic 1_000_000
-
   def verify(%{"source_event_key" => id}) do
     case purchase(id) do
       %{status: :credited} = purchase -> with_account(purchase)
@@ -50,7 +48,7 @@ defmodule Regents.Points.CreditsPurchase do
       qualified_at: purchase.credited_at,
       evidence_ref: "credits_purchase:" <> purchase.id,
       evidence: %{
-        "purchased_usdc_atomic" => purchase.amount * @usdc_atomic,
+        "purchased_usdc_atomic" => RegentCredits.Chains.micro(purchase.amount),
         "chain" => to_string(purchase.chain),
         "tx_hash" => purchase.tx_hash
       }
