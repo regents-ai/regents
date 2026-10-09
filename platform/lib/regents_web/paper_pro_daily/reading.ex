@@ -23,17 +23,54 @@ defmodule RegentsWeb.PaperProDaily.Reading do
       Enum.map_join(papers, "\n\n---\n\n", &details_markdown/1)
   end
 
-  @doc "The answer as HTML, its first hundred words as HTML, and whether there is more to read."
+  @doc "The opening paper information, analysis HTML, excerpt, and whether there is more to read."
   def render(answer) do
     document = answer |> MDEx.parse_document!(extension: @extension) |> demote_headings()
+    {opening, analysis} = split_opening(document.nodes)
+    document = %{document | nodes: analysis}
     {excerpt, _words_left} = excerpt(document.nodes, @excerpt_words)
 
     %{
+      opening_html: html(%{document | nodes: opening}),
       html: html(document),
       excerpt_html: html(%{document | nodes: excerpt}),
       more?: excerpt != document.nodes
     }
   end
+
+  # Reviews open with a heading and optional citation paragraph. An assessment
+  # belongs below the model credit, even when it shares the citation's paragraph.
+  defp split_opening(nodes) do
+    {headings, rest} = Enum.split_while(nodes, &match?(%MDEx.Heading{}, &1))
+
+    case rest do
+      [%MDEx.Paragraph{nodes: inline} = paragraph | tail] ->
+        {citation, assessment} = Enum.split_while(inline, &(not assessment?(&1)))
+
+        if assessment != [] or assessment_follows?(tail) or match?([%MDEx.Emph{} | _], inline) do
+          opening =
+            if citation == [], do: headings, else: headings ++ [%{paragraph | nodes: citation}]
+
+          analysis =
+            if assessment == [], do: tail, else: [%{paragraph | nodes: assessment} | tail]
+
+          {opening, analysis}
+        else
+          {headings, rest}
+        end
+
+      _ ->
+        {headings, rest}
+    end
+  end
+
+  defp assessment?(%MDEx.Strong{nodes: [%MDEx.Text{literal: text} | _]}),
+    do: String.starts_with?(text, ["My assessment", "Overall assessment", "My verdict"])
+
+  defp assessment?(_), do: false
+
+  defp assessment_follows?([%MDEx.Paragraph{nodes: [first | _]} | _]), do: assessment?(first)
+  defp assessment_follows?(_), do: false
 
   # Each paper's title is a level-two heading, so the answer's headings start at level three.
   defp demote_headings(%MDEx.Heading{} = heading),

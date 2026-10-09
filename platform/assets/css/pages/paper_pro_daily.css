@@ -42,8 +42,15 @@
 }
 
 .paper-daily__author {
-  margin: 0;
+  margin: 0 0 16px;
   font-size: 0.875rem;
+}
+
+.paper-daily__analysis-rule {
+  inline-size: 100%;
+  margin: 24px 0 16px;
+  border: 0;
+  border-block-start: 1px solid var(--palette-powder-blue);
 }
 
 .paper-daily__links {

@@ -198,6 +198,15 @@ defmodule RegentsWeb.PaperProDailyLive do
             Copy Details
           </span>
         </Regent.Primitives.copy_button>
+        <div
+          id={"#{@id}-opening"}
+          class="rg-blog__prose paper-daily__text"
+          phx-hook=".PaperMath"
+          phx-update="ignore"
+        >
+          {markdown_html(@paper.opening_html)}
+        </div>
+        <hr class="paper-daily__analysis-rule" />
         <p class="paper-daily__author">Analysis by {@paper.author}</p>
         <div
           id={"#{@id}-excerpt"}
