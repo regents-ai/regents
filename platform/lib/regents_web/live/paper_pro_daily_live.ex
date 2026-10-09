@@ -123,7 +123,7 @@ defmodule RegentsWeb.PaperProDailyLive do
         <h2 id={"#{@id}-title"}>{@paper.title}</h2>
         <p class="paper-daily__author">Authored by {@paper.author}</p>
         <p class="paper-daily__links">
-          <a href={@paper.arxiv_url} rel="noopener noreferrer">arXiv paper</a>
+          <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper</a>
           <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT answer</a>
         </p>
         <div

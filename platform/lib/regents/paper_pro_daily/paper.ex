@@ -1,6 +1,6 @@
 defmodule Regents.PaperProDaily.Paper do
   @moduledoc """
-  One day's paper on /paper-pro-daily: its title, the arXiv paper, the shared
+  One day's paper on /paper-pro-daily: its title, the source paper, the shared
   ChatGPT answer, who wrote the answer, the answer's Markdown and its picture.
 
   One paper a day; putting a paper on a day that has one replaces it. Only a
@@ -59,7 +59,7 @@ defmodule Regents.PaperProDaily.Paper do
   end
 
   validations do
-    validate match(:arxiv_url, ~r{\Ahttps://arxiv\.org/(?:abs|pdf)/[A-Za-z0-9.\-/]+\z})
+    validate match(:arxiv_url, ~r{\Ahttps://[^\s/?#]+(?:[/?#][^\s]*)?\z})
     validate match(:chatgpt_url, ~r{\Ahttps://chatgpt\.com/share/[A-Za-z0-9\-]+\z})
     validate one_of(:picture_type, ~w(image/webp image/png image/jpeg))
     validate byte_size(:picture, max: 1_000_000)
@@ -76,7 +76,12 @@ defmodule Regents.PaperProDaily.Paper do
     attribute :arxiv_url, :string, allow_nil?: false, public?: true
     attribute :chatgpt_url, :string, allow_nil?: false, public?: true
     attribute :author, :string, allow_nil?: false, public?: true
-    attribute :answer, :string, allow_nil?: false, public?: true
+
+    attribute :answer, :string,
+      allow_nil?: false,
+      public?: true,
+      constraints: [trim?: false]
+
     attribute :picture, :binary, allow_nil?: false
     attribute :picture_type, :string, allow_nil?: false
     attribute :picture_alt, :string, allow_nil?: false, public?: true

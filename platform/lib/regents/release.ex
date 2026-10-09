@@ -26,18 +26,26 @@ defmodule Regents.Release do
   end
 
   @doc """
+  Saves paper.md and its cover from one folder. Run as `/app/bin/put-paper <folder>`.
+  """
+  def put_paper(folder), do: save_paper(Regents.PaperProDaily.PaperFile.read!(folder))
+
+  @doc """
   Saves one day's paper on /paper-pro-daily from its two files on this machine,
   replacing that day's paper if it has one (`Regents.PaperProDaily.PaperFile`).
   Run as `/app/bin/put-paper <YYYY-MM-DD>.md <picture>`.
   """
   def put_paper(paper_path, picture_path) do
+    save_paper(Regents.PaperProDaily.PaperFile.read!(paper_path, picture_path))
+  end
+
+  defp save_paper(attributes) do
     load_app()
     Application.put_env(@app, Regents.Repo, migration_config!())
 
     {:ok, paper, _started} =
       Ecto.Migrator.with_repo(Regents.Repo, fn _repo ->
-        paper_path
-        |> Regents.PaperProDaily.PaperFile.read!(picture_path)
+        attributes
         |> Regents.PaperProDaily.put_paper!(actor: %Regents.Actors.System{})
       end)
 
