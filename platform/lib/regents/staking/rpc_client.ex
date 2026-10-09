@@ -4,12 +4,12 @@ defmodule Regents.Staking.RpcClient do
 
   require Logger
 
-  alias Regents.Staking.Supply
+  alias Regents.Staking.{RevenueHistory, Supply}
   alias Regents.WalletActions.{Abi, Rpc}
 
   @read_timeout 20_000
   @chain_id 8453
-  @rpc_opts [client_key: :staking_http_client, log_scope: "staking"]
+  @rpc_opts [client_key: :staking_http_client, log_scope: "staking", purpose: :staking_protocol]
 
   # Base confirms a block about every two seconds, so seven days is 302,400 of
   # them. The window is counted back from the block this reading was taken at
@@ -23,6 +23,8 @@ defmodule Regents.Staking.RpcClient do
   @chunk_blocks 10_000
   @chunk_concurrency 8
 
+  # The stateless diagnostic reader keeps its existing interface. Automatic and
+  # visitor reads use protocol_snapshot/1 through the durable shared job instead.
   # The contract's current answers are the reading; the seven-day window is one
   # figure read beside them, from logs rather than from the contract, and an
   # endpoint that refuses a log range has said nothing against the answers it
@@ -32,6 +34,19 @@ defmodule Regents.Staking.RpcClient do
   def protocol_snapshot do
     with {:ok, protocol} <- bounded(fn -> read_protocol() end) do
       {:ok, Map.merge(protocol, usdc_received_window(protocol.block_number))}
+    end
+  end
+
+  @doc "Incremental protocol reading; returns retained history only after the pinned reads succeed."
+  @impl true
+  def protocol_snapshot(history) do
+    with {:ok, block} <- bounded(fn -> Rpc.latest_block(@rpc_opts) end),
+         {:ok, history, window} <-
+           bounded(fn -> RevenueHistory.read(history, block, &history_logs/2) end),
+         # These requireCanonical reads follow the logs, proving their head still
+         # belongs to the chain without another RPC request just for verification.
+         {:ok, protocol} <- bounded(fn -> read_protocol_at(block) end) do
+      {:ok, Map.merge(protocol, window), history}
     end
   end
 
@@ -46,8 +61,11 @@ defmodule Regents.Staking.RpcClient do
   # pair one block's total with another's history. A partial aggregate is
   # unavailable rather than shown.
   defp read_protocol do
-    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
-         :ok <- identified_aggregator(block),
+    with {:ok, block} <- Rpc.latest_block(@rpc_opts), do: read_protocol_at(block)
+  end
+
+  defp read_protocol_at(block) do
+    with :ok <- identified_aggregator(block),
          {:ok,
           [
             paused,
@@ -198,19 +216,7 @@ defmodule Regents.Staking.RpcClient do
   end
 
   defp chunk_received({from_block, to_block}) do
-    with {:ok, logs} <-
-           Rpc.request(
-             "eth_getLogs",
-             [
-               %{
-                 address: Abi.staking_address(),
-                 topics: [Abi.event_topic(:usdc_revenue_deposited)],
-                 fromBlock: hex_quantity(from_block),
-                 toBlock: hex_quantity(to_block)
-               }
-             ],
-             @rpc_opts
-           ),
+    with {:ok, logs} <- chunk_logs({from_block, to_block}),
          {:ok, received} <- Abi.usdc_revenue_received(logs) do
       {:ok, received}
     else
@@ -219,14 +225,49 @@ defmodule Regents.Staking.RpcClient do
     end
   end
 
+  defp history_logs(from, to) do
+    chunks(from, to)
+    |> Task.async_stream(&chunk_logs/1,
+      max_concurrency: @chunk_concurrency,
+      timeout: @read_timeout,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, {:ok, logs}}, {:ok, collected} -> {:cont, {:ok, [logs | collected]}}
+      {:ok, {:error, reason}}, _ -> {:halt, {:error, reason}}
+      {:exit, _}, _ -> {:halt, {:error, :chain_timeout}}
+    end)
+    |> case do
+      {:ok, pieces} -> {:ok, pieces |> Enum.reverse() |> List.flatten()}
+      error -> error
+    end
+  end
+
+  defp chunk_logs({from_block, to_block}) do
+    Rpc.request(
+      "eth_getLogs",
+      [
+        %{
+          address: Abi.staking_address(),
+          topics: [Abi.event_topic(:usdc_revenue_deposited)],
+          fromBlock: hex_quantity(from_block),
+          toBlock: hex_quantity(to_block)
+        }
+      ],
+      @rpc_opts
+    )
+  end
+
   defp hex_quantity(value), do: "0x" <> (value |> Integer.to_string(16) |> String.downcase())
 
   # A wallet reading always takes its own fresh block. A person watching their
   # own transaction confirm needs the block their receipt was mined into or a
   # later one, which a remembered block cannot promise.
   defp read_wallet(wallet) do
-    with {:ok, block} <- Rpc.latest_block(@rpc_opts),
-         :ok <- identified_aggregator(block),
+    opts = Keyword.put(@rpc_opts, :purpose, :staking_wallet)
+
+    with {:ok, block} <- Rpc.latest_block(opts),
+         :ok <- identified_aggregator(block, opts),
          {:ok,
           [
             token_balance,
@@ -237,7 +278,7 @@ defmodule Regents.Staking.RpcClient do
             claimable_regent,
             funded_regent
           ]} <-
-           Rpc.aggregate3(aggregator(), wallet_calls(wallet), block, @rpc_opts) do
+           Rpc.aggregate3(aggregator(), wallet_calls(wallet), block, opts) do
       {:ok,
        %{
          wallet_block_number: block.number,
@@ -314,14 +355,14 @@ defmodule Regents.Staking.RpcClient do
 
   defp aggregator, do: Abi.multicall3_address()
 
-  defp identified_aggregator(block),
+  defp identified_aggregator(block, opts \\ @rpc_opts),
     do:
       Rpc.verified_runtime_code(
         aggregator(),
         Abi.multicall3_runtime_keccak256(),
         Abi.multicall3_runtime_bytes(),
         block,
-        @rpc_opts
+        opts
       )
 
   defp bounded(read) do

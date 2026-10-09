@@ -3,6 +3,13 @@ defmodule Regents.Staking do
   use Ash.Domain
 
   resources do
+    resource Regents.Staking.ProtocolReading do
+      define :get_protocol_reading, action: :read, get_by: [:id], not_found_error?: false
+      define :current_protocol_reading, action: :current, get_by: [:id], not_found_error?: false
+      define :record_protocol_reading, action: :record
+      define :replace_protocol_reading, action: :replace
+    end
+
     resource Regents.Staking.Snapshot do
       define :overview, action: :overview
       define :account, action: :account

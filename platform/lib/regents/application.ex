@@ -20,14 +20,12 @@ defmodule Regents.Application do
         # After the repository and PubSub: a Credits balance changed on any
         # Regent site reaches the pages showing it.
         credits_listener_child(),
+        staking_listener_child(),
         # After the repository: background jobs, including Credits purchase checks.
         oban_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
         Regents.Ens,
-        # After PubSub: its first reading is announced to every page on the
-        # topic the staking pages subscribe to.
-        {Regents.Staking.SnapshotCache, []},
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -57,6 +55,11 @@ defmodule Regents.Application do
       do: RegentCredits.Listener
   end
 
+  defp staking_listener_child do
+    if Application.get_env(:regents, :database_startup_enabled, false),
+      do: Regents.Staking.SnapshotListener
+  end
+
   # AshOban adds a queue and a sweep for every trigger in the site's domains and
   # in Regent Credits, whose purchase checks run on this site's Oban.
   defp oban_child do
@@ -64,8 +67,18 @@ defmodule Regents.Application do
       {Oban,
        AshOban.config(
          Application.fetch_env!(:regents, :ash_domains) ++ [RegentCredits],
-         Application.fetch_env!(:regents, Oban)
+         staking_jobs(Application.fetch_env!(:regents, Oban))
        )}
+    end
+  end
+
+  defp staking_jobs(config) do
+    if Application.get_env(:regents, :staking_snapshot_refresh_enabled, false) do
+      config
+    else
+      update_in(config, [:cron, :crontab], fn entries ->
+        Enum.reject(entries, fn {_, worker} -> worker == Regents.Staking.SnapshotRefresh end)
+      end)
     end
   end
 

@@ -283,6 +283,9 @@ defmodule RegentsWeb.PrivyShowcaseLive do
 
           {:error, :refresh_too_soon} ->
             "Protocol data was refreshed recently. Your wallet is still refreshed."
+
+          {:error, _unavailable} ->
+            "Protocol data is unavailable. Your wallet is still refreshed."
         end
       end
 

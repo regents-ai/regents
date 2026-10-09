@@ -7,6 +7,7 @@ defmodule Regents.WalletActions.Rpc do
 
   @timeout 8_000
   @chain_id 8453
+  @environment to_string(Mix.env())
 
   @type block :: %{number: non_neg_integer(), hash: String.t()}
 
@@ -193,6 +194,15 @@ defmodule Regents.WalletActions.Rpc do
     # Base unless the caller names another chain's endpoint.
     url =
       Keyword.get_lazy(opts, :url, fn -> Application.fetch_env!(:regents, :base_read_rpc_url) end)
+
+    if purpose = Keyword.get(opts, :purpose) do
+      :telemetry.execute([:regents, :staking, :rpc], %{requests: 1}, %{
+        purpose: purpose,
+        method: method,
+        chain_id: @chain_id,
+        environment: @environment
+      })
+    end
 
     client.post(url,
       json: %{jsonrpc: "2.0", id: 1, method: method, params: params},

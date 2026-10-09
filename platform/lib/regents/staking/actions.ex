@@ -7,7 +7,12 @@ defmodule Regents.Staking.Actions do
 
   @claims ~w(claim_usdc claim_regent claim_and_restake_regent)
 
-  def overview(_input, _context), do: ChainClient.module().protocol_snapshot()
+  def overview(_input, _context) do
+    case Regents.Staking.SnapshotCache.snapshot() do
+      nil -> {:error, :unavailable}
+      snapshot -> {:ok, snapshot}
+    end
+  end
 
   def account(_input, %{actor: %Human{} = actor}) do
     with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),

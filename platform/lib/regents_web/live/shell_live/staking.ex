@@ -180,10 +180,12 @@ defmodule RegentsWeb.ShellLive.Staking do
   def snapshot(socket, _protocol), do: socket
 
   @doc """
-  Only the page that asked for the reading hears that it failed, and what it
-  was already showing stays on screen.
+  The shared job reports failure to subscribed pages; what each page was
+  already showing stays on screen.
   """
-  def snapshot_unavailable(%{assigns: %{route_spec: %{route_id: route_id}}} = socket)
+  def snapshot_unavailable(
+        %{assigns: %{route_spec: %{route_id: route_id}, staking_shared_reading: true}} = socket
+      )
       when route_id in @routes,
       do: socket |> assign(staking_shared_reading: false) |> shared_read_failed()
 
@@ -328,6 +330,9 @@ defmodule RegentsWeb.ShellLive.Staking do
 
       {:error, :refresh_too_soon} ->
         assign(socket, staking_notice: %{tone: :info, message: @shared_refresh_budget_notice})
+
+      {:error, _unavailable} ->
+        shared_read_failed(socket)
     end
   end
 

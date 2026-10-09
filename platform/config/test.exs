@@ -19,16 +19,9 @@ config :regents, :staking_chain_client, Regents.TestStakingChainClient
 config :regents, :chain_client, Regents.TestChainClient
 config :regents, :staking_price_http_client, Regents.TestStakingPriceHttpClient
 
-# No ExUnit run reads Base at startup. A case that wants a shared reading asks
-# for one, which is the same path a signed-in visitor takes. The browser server
-# does take its one reading at startup, because a person opening the page in a
-# browser should meet the warm server a release gives them.
-config :regents,
-       :staking_snapshot_boot_read,
-       System.get_env("REGENTS_BROWSER_TEST") == "1"
-
-# Cache tests drive their own timer messages against the fixture provider.
-config :regents, :staking_snapshot_refresh_interval_ms, 0
+# Tests queue refreshes explicitly. Only a configured browser test server enables
+# the automatic staking jobs; Oban still uses the test worker/transport settings.
+config :regents, :staking_snapshot_refresh_enabled, System.get_env("REGENTS_BROWSER_TEST") == "1"
 
 config :regents, :redemption_chain_client, Regents.TestRedemptionChainClient
 config :regents, :opensea_http_client, Regents.TestOpenSeaHttpClient

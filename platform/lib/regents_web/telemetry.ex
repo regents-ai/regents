@@ -23,7 +23,8 @@ defmodule RegentsWeb.Telemetry do
 
   def prometheus_metrics do
     [
-      counter("regents.privy.browser_failure.total", tags: [:reason])
+      counter("regents.privy.browser_failure.total", tags: [:reason]),
+      sum("regents.staking.rpc.requests", tags: [:purpose, :method, :chain_id, :environment])
     ]
   end
 

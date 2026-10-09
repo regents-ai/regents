@@ -59,6 +59,17 @@ defmodule Regents.TestStakingChainClient do
   end
 
   @impl true
+  def protocol_snapshot(history) do
+    with {:ok, snapshot} <- protocol_snapshot() do
+      {:ok, snapshot,
+       Map.merge(history || %{"events" => []}, %{
+         "block_number" => snapshot.block_number,
+         "block_hash" => snapshot.block_hash
+       })}
+    end
+  end
+
+  @impl true
   def wallet_snapshot(wallet) do
     report_read(:wallet)
 

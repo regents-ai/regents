@@ -85,8 +85,14 @@ config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
-  queues: [regent_credits: 3, points: 5, points_chain: 2],
-  cron: [crontab: [{"15 0 * * *", RegentPoints.TallyPeriods}]],
+  queues: [regent_credits: 3, points: 5, points_chain: 2, staking_reads: 1],
+  cron: [
+    crontab: [
+      {"15 0 * * *", RegentPoints.TallyPeriods},
+      {"@reboot", Regents.Staking.SnapshotRefresh},
+      {"* * * * *", Regents.Staking.SnapshotRefresh}
+    ]
+  ],
   pruner: [max_age: {7, :days}],
   lifeline: [rescue_after: {10, :minutes}]
 
@@ -125,13 +131,9 @@ config :regents, :opensea_holdings_clock, &Regents.OpenSea.HoldingsCache.monoton
 # Also bounds how often one address may be reset: once per window.
 config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 
-# The shared staking reading warms at boot and refreshes once a minute without
-# a visitor. Background and signed-in requests share the same allowance and
-# the ten-second minimum between refreshes.
-config :regents, :staking_snapshot_boot_read, true
-config :regents, :staking_snapshot_refresh_interval_ms, 60_000
-config :regents, :staking_shared_refreshes_per_minute, 6
-config :regents, :staking_snapshot_clock, &Regents.Staking.SnapshotCache.monotonic_ms/0
+# One shared Oban job warms and refreshes the durable staking projection each
+# minute. Development disables this automatic work unless explicitly enabled.
+config :regents, :staking_snapshot_refresh_enabled, true
 
 config :regents, :session_options,
   store: :cookie,

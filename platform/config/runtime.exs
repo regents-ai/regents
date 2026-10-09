@@ -102,6 +102,10 @@ end
 # `BASE_READ_RPC_URL` names one; without it the public default in `config.exs`
 # stands. Only the host is logged, because provider URLs carry the API key.
 if config_env() == :dev do
+  config :regents,
+         :staking_snapshot_refresh_enabled,
+         System.get_env("STAKING_SNAPSHOT_REFRESH_ENABLED") == "true"
+
   base_read_rpc_url = String.trim(System.get_env("BASE_READ_RPC_URL", ""))
 
   if base_read_rpc_url != "" do
