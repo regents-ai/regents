@@ -615,7 +615,7 @@ defmodule RegentsWeb.StakeLiveTest do
     # press was still in the wallet when the person switched; Base's answer is
     # read against the wallet that sent it, so its check is still running.
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => @second})
-    set_amount(view, "1")
+    view |> shown("#staking-amount-form") |> set_amount("1")
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
 
     put_chain(:test_chain_transactions, @hash, approval)
@@ -1383,6 +1383,22 @@ defmodule RegentsWeb.StakeLiveTest do
       {_cid, {RegentsWeb.StakeActions, _id, assigns, _private, _prints}} -> assigns
       _other -> nil
     end)
+  end
+
+  # Waits up to a second for `selector`, for a read that lands while another
+  # check on the page is meant to keep running, which render_async would wait on.
+  defp shown(view, selector, tries \\ 50) do
+    cond do
+      has_element?(view, selector) ->
+        view
+
+      tries == 0 ->
+        flunk("#{selector} never appeared")
+
+      true ->
+        Process.sleep(20)
+        shown(view, selector, tries - 1)
+    end
   end
 
   defp activate(view, wallet) do
