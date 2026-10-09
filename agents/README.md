@@ -26,7 +26,7 @@ https://siwa.regents.sh/skill.md.
   `verification_failed` (401), `duplicate_proof`, `unsupported_query` or
   `missing_signed_body` (401, the shared plug's own refusals: a repeated
   signature header, a query string, a body it did not capture whole),
-  `verification_unavailable` (503), or the SIWA
+  `siwa_request_failed` (503), or the SIWA
   service's own refusal, passed on unchanged: its status, code, message and a
   hint written for the site and the agent's signing tool.
 

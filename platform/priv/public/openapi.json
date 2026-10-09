@@ -833,7 +833,7 @@
             "properties": {
               "code": {
                 "type": "string",
-                "description": "pairing_failed, harness_unknown, agent_limit, not_paired, verification_failed, duplicate_proof, unsupported_query, missing_signed_body, verification_unavailable or rate_limited, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
+                "description": "pairing_failed, harness_unknown, agent_limit, not_paired, verification_failed, duplicate_proof, unsupported_query, missing_signed_body, siwa_request_failed or rate_limited, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
               },
               "message": {
                 "type": "string"
@@ -1547,7 +1547,7 @@
               "verificationUnavailable": {
                 "value": {
                   "error": {
-                    "code": "verification_unavailable",
+                    "code": "siwa_request_failed",
                     "hint": "Try again in a minute.",
                     "message": "The sign-in service could not be reached."
                   }

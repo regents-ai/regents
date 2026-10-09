@@ -1163,3 +1163,10 @@ Deployed 2026-09-29 06:36Z at the founder's request; recorded 2026-09-29 06:38Z.
 - An answer from the sign-in service with no verdict now tells the agent the
   check is unavailable, as a lost connection already did, instead of saying its
   signature failed. Both reach the agent pages as `siwa_request_failed`.
+
+## 2026-10-09 — One name for an unreachable sign-in service
+
+- When the sign-in service can't be reached or gives no verdict, agents now get
+  `503 siwa_request_failed` (was `verification_unavailable`), the name the
+  template and the shared plug use (founder answer "2a", 2026-10-09). Updated in
+  the agent pages, the agent guide, `/openapi.json` and the API contract.

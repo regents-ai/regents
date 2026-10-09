@@ -210,7 +210,7 @@ defmodule RegentAgents.HTTPTest do
 
     Req.Test.stub(RegentAgents.Broker, &Req.Test.transport_error(&1, :econnrefused))
 
-    assert {503, %{"error" => %{"code" => "verification_unavailable"}}} =
+    assert {503, %{"error" => %{"code" => "siwa_request_failed"}}} =
              send_request(:get, "/api/agents/v1/me")
   end
 

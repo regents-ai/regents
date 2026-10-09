@@ -54,7 +54,7 @@ defmodule RegentAgents.HTTP do
     "missing_signed_body" =>
       {401, "Send the body as JSON, signed with the rest of the request.",
        "Sign the request with your agent key as #{@guide} describes, then send it again."},
-    "verification_unavailable" =>
+    "siwa_request_failed" =>
       {503, "The sign-in service could not be reached.", "Try again in a minute."},
     "not_found" =>
       {404, "There is no such agent request.",
@@ -142,9 +142,9 @@ defmodule RegentAgents.HTTP do
   end
 
   defp refuse(conn, %{siwa_status: status}) when status >= 500,
-    do: error(conn, "verification_unavailable")
+    do: error(conn, "siwa_request_failed")
 
-  defp refuse(conn, %{reason: :siwa_request_failed}), do: error(conn, "verification_unavailable")
+  defp refuse(conn, %{reason: :siwa_request_failed}), do: error(conn, "siwa_request_failed")
 
   # The shared plug's own refusals keep its reason as the code, as on every site.
   defp refuse(conn, %{source: :siwa_plug, reason: reason}),
