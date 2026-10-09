@@ -18,6 +18,7 @@ records a check-in. These existing commands are writes, not acceptance-test read
 | `staking position` | `GET /api/agent/v1/staking/position` | Read only |
 | `account balances` | `GET /api/agent/v1/credits/balance` | Read only |
 | `account credits-history` | `POST /api/agent/v1/credits/history` | Read only |
+| `account points` | `GET /api/agent/v1/points` | Read only |
 | `account budget` | `GET /api/agent/v1/credits/budget` | Read only |
 
 `agents whoami` needs fresh proof but no pairing. It returns your SIWA identity,
@@ -36,7 +37,9 @@ includes `Retry-After`.
 The account read returns its ID, display name and ENS name with the agent wallet
 and pairing ID. Claims remain filtered to the owner's verified wallets. Staking
 uses the owner's primary verified wallet, separately from the agent signing key.
-Balances and history are global Credits figures. Budget returns only the grant
+Balances and history are global Credits figures. `account points` returns the
+owner’s shared Points balance, recent entries, pending count and daily allowances;
+it creates no account or event and awards no Points. Budget returns only the grant
 bound to this episode and aggregate owner-agent usage over the last 24 hours;
 reading it does not authorize spending. Grant enablement stays paused during the
 shared rollout, while owners may still disable a grant.

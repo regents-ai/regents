@@ -158,6 +158,16 @@
       "authority": "wallet-proof",
       "effect": "read",
       "webmcp": "regents_credits_budget"
+    },
+    {
+      "command": "account points",
+      "description": "Read the paired owner shared Points summary without creating records or awarding Points.",
+      "operation_id": "agentPointsSummary",
+      "method": "GET",
+      "path": "/api/agent/v1/points",
+      "authority": "wallet-proof",
+      "effect": "read",
+      "webmcp": "regents_points_summary"
     }
   ]
 }

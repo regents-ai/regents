@@ -527,6 +527,66 @@
       "effect": "read"
     },
     {
+      "name": "regents_points_summary",
+      "title": "Read shared Points summary",
+      "description": "Read the paired owner's shared Points balance, recent ledger entries, pending count and remaining daily allowances. Uses the canonical owner account and current pairing. Creates no account or event and awards no Points. Requires fresh proof from your existing SIWA signer; browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/agent/v1/points",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_points_summary",
+        "http": "GET /api/agent/v1/points",
+        "cli": {
+          "command": "account points",
+          "release_status": "prepared_source"
+        }
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
       "name": "prepare_agent_request",
       "title": "Prepare a signed agent request",
       "description": "Prepare exact bytes for a manifest-listed operation. No private read or product mutation. Sign with your existing SIWA signer, then call the named tool with input, request and proof. Never substitute browser credentials.",
@@ -547,7 +607,8 @@
               "regents_account",
               "regents_credits_balance",
               "regents_credits_history",
-              "regents_credits_budget"
+              "regents_credits_budget",
+              "regents_points_summary"
             ]
           },
           "input": {

@@ -592,6 +592,65 @@ paths:
       operationId: getBrowserSession
       responses:
         "200": {$ref: "#/components/responses/Session"}
+  /api/agent/v1/points:
+    get:
+      description: Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents. Reads only; creates no Points account or event and does not activate or award Points.
+      operationId: agentPointsSummary
+      parameters:
+        - $ref: '#/components/parameters/SiwaReceipt'
+        - $ref: '#/components/parameters/SiwaKeyId'
+        - $ref: '#/components/parameters/SiwaTimestamp'
+        - $ref: '#/components/parameters/SiwaAgentWallet'
+        - $ref: '#/components/parameters/SiwaAgentChainId'
+        - $ref: '#/components/parameters/HttpSignatureInput'
+        - $ref: '#/components/parameters/HttpSignature'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPointsSummary'
+          description: Read shared Points summary
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Invalid input
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Invalid or missing proof
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Missing current pairing or owner account
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Wallet required or proof replayed
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Request budget exceeded
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Service unavailable
+      security: []
+      summary: Read shared Points summary
+      x-authentication: siwa_per_request
+      x-pairing-required: true
 components:
   headers:
     RateLimit:
@@ -802,6 +861,7 @@ components:
             rateLimited:
               value: {error: {code: rate_limited, message: "Too many requests.", hint: "Wait the number of seconds in Retry-After, then try again."}}
   schemas:
+    AgentPointsSummary: {"type":"object","properties":{"balance_micro":{"type":"integer","format":"int64","description":"Shared balance in micro-Points."},"earned_today_micro":{"type":"integer","format":"int64"},"pending":{"type":"integer","minimum":0},"allowances":{"type":"array","items":{"type":"object","properties":{"scope":{"type":"string"},"remaining":{"type":"integer","format":"int64","minimum":0}},"required":["scope","remaining"],"additionalProperties":false}},"more?":{"type":"boolean"},"entries":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"id":{"type":"string","format":"uuid"},"rule_id":{"type":"string"},"rule_version":{"type":"integer","format":"int64"},"source_app":{"type":"string"},"actor_kind":{"type":"string"},"actor_id":{"type":"string"},"points_micro_delta":{"type":"integer","format":"int64"},"earned_at":{"type":"string","format":"date-time"},"reason_code":{"type":"string"}},"required":["id","rule_id","rule_version","source_app","actor_kind","actor_id","points_micro_delta","earned_at","reason_code"],"additionalProperties":false}}},"required":["balance_micro","earned_today_micro","pending","allowances","more?","entries"],"additionalProperties":false}
     ClaimsPage: {"type":"object","required":["claims","next"],"properties":{"claims":{"type":"array","items":{"$ref":"#/components/schemas/Claim"}},"next":{"type":["string","null"],"description":"Opaque continuation cursor; null means there are no more records."}}}
     Claim: {"type":"object","required":["id","name","ens_name","owner_address","status","transaction","ens_transaction","claimed_at","ens_assigned_at"],"properties":{"id":{"type":"string","description":"Recorded numeric identifier represented as a string."},"name":{"type":["string","null"],"description":"Recorded fully qualified name."},"ens_name":{"type":["string","null"],"description":"Recorded ENS name, when present."},"owner_address":{"type":["string","null"],"description":"Historical wallet ownership evidence, not an entitlement grant."},"status":{"type":["string","null"]},"transaction":{"type":["string","null"]},"ens_transaction":{"type":["string","null"]},"claimed_at":{"type":["string","null"],"format":"date-time"},"ens_assigned_at":{"type":["string","null"],"format":"date-time"}}}
     StakingPosition: {"type":"object","additionalProperties":false,"required":["position"],"properties":{"position":{"type":"object","additionalProperties":false,"description":"The contract reading and the wallet reading the Stake page shows, merged. Amounts are exact decimal strings, and each has a _raw companion in base units. block_number belongs to the contract figures and wallet_block_number to the wallet's. A figure that could not be read is the string unavailable.","properties":{"chain_id":{},"chain_label":{},"block_number":{},"block_hash":{},"read_at":{},"contract_address":{},"stake_token_address":{},"usdc_address":{},"paused":{},"total_staked_raw":{},"total_staked":{},"remaining_capacity_raw":{},"usdc_received_from_block":{},"usdc_received_7d_raw":{},"usdc_received_7d":{},"usdc_received_lifetime_raw":{},"usdc_received_lifetime":{},"regent_total_supply_raw":{},"regent_total_supply":{},"regent_circulating_supply_raw":{},"regent_circulating_supply":{},"clanker_vault_address":{},"clanker_vault_held_raw":{},"clanker_vault_held":{},"clanker_vault_locked_until":{},"clanker_vault_vested_by":{},"treasury_address":{},"treasury_held_raw":{},"treasury_held":{},"animata_redeemer_address":{},"animata_redeemer_held_raw":{},"animata_redeemer_held":{},"reward_inventory_raw":{},"reward_inventory":{},"regent_price_usd":{},"emission_apr_bps":{},"emission_apr_percent":{},"wallet_block_number":{},"wallet_block_hash":{},"wallet_address":{},"wallet_token_balance_raw":{},"wallet_token_balance":{},"wallet_usdc_balance_raw":{},"wallet_usdc_balance":{},"wallet_stake_allowance_raw":{},"wallet_stake_balance_raw":{},"wallet_stake_balance":{},"wallet_claimable_usdc_raw":{},"wallet_claimable_usdc":{},"wallet_claimable_regent_raw":{},"wallet_claimable_regent":{},"wallet_funded_claimable_regent_raw":{},"wallet_funded_claimable_regent":{}}}}}

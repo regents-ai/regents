@@ -14,11 +14,14 @@ For private reads, use your own SIWA identity for audience `regents`. Browser co
 | Account display and ENS name | `GET /api/agent/v1/account` |
 | Verified owner-wallet name claims | `POST /api/agent/v1/claims` |
 | Owner primary-wallet staking position | `GET /api/agent/v1/staking/position` |
+| Shared Points summary and daily allowances | `GET /api/agent/v1/points` |
 | Global Credits balance | `GET /api/agent/v1/credits/balance` |
 | Global Credits history | `POST /api/agent/v1/credits/history` |
 | Current pairing spending grant and usage | `GET /api/agent/v1/credits/budget` |
 
 For claims and Credits history, sign the exact JSON body `{}` for the first page. For later pages sign `{"after":"<previous next value>"}`. Stop when `next` is null. No caller-supplied owner or wallet is accepted. The primary staking wallet comes from the owner's verified account evidence; the signing agent remains a distinct actor.
+
+The Points summary uses the canonical paired owner account and creates no account or event. It does not activate or award Points.
 
 A budget read does not spend or change a grant. Enabling grants is paused during the shared rollout; owners may still disable them. Spending eligibility requires an enabled grant bound to the current pairing, an allowed site and sufficient limits. Account security, linking and grant management remain owner-only. Wallet transactions need the user's wallet approval.
 

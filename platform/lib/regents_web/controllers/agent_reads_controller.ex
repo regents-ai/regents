@@ -25,6 +25,35 @@ defmodule RegentsWeb.AgentReadsController do
         pairing_id: conn.assigns.actor.pairing_id
       })
 
+  def points(conn, _params) do
+    case RegentPoints.summary(actor: conn.assigns.actor) do
+      {:ok, summary} ->
+        entries =
+          Enum.map(
+            summary.entries,
+            &Map.take(&1, [
+              :id,
+              :rule_id,
+              :rule_version,
+              :source_app,
+              :actor_kind,
+              :actor_id,
+              :points_micro_delta,
+              :earned_at,
+              :reason_code
+            ])
+          )
+
+        result =
+          Map.take(summary, [:balance_micro, :earned_today_micro, :pending, :allowances, :more?])
+
+        json(conn, Map.put(result, :entries, entries))
+
+      {:error, _} ->
+        unavailable(conn)
+    end
+  end
+
   def budget(conn, _params) do
     actor = credit_actor(conn)
 

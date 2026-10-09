@@ -125,6 +125,7 @@ defmodule RegentsWeb.Router do
     get "/credits/balance", AgentReadsController, :balance
     post "/credits/history", AgentReadsController, :history
     get "/credits/budget", AgentReadsController, :budget
+    get "/points", AgentReadsController, :points
   end
 
   scope "/api/agents/v1" do

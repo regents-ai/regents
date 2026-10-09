@@ -1276,6 +1276,111 @@
           }
         }
       }
+    },
+    "/api/agent/v1/points": {
+      "get": {
+        "operationId": "agentPointsSummary",
+        "summary": "Read shared Points summary",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents. Reads only; creates no Points account or event and does not activate or award Points.",
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SiwaReceipt"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaKeyId"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaTimestamp"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentWallet"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentChainId"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignatureInput"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignature"
+          }
+        ],
+        "x-authentication": "siwa_per_request",
+        "x-pairing-required": true,
+        "responses": {
+          "200": {
+            "description": "Owner Points summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPointsSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing proof",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing current pairing or owner account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Wallet required or proof replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2377,6 +2482,109 @@
         },
         "required": [
           "data"
+        ],
+        "additionalProperties": false
+      },
+      "AgentPointsSummary": {
+        "type": "object",
+        "properties": {
+          "balance_micro": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Shared balance in micro-Points."
+          },
+          "earned_today_micro": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "allowances": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "type": "string"
+                },
+                "remaining": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "scope",
+                "remaining"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "more?": {
+            "type": "boolean"
+          },
+          "entries": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "rule_id": {
+                  "type": "string"
+                },
+                "rule_version": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "source_app": {
+                  "type": "string"
+                },
+                "actor_kind": {
+                  "type": "string"
+                },
+                "actor_id": {
+                  "type": "string"
+                },
+                "points_micro_delta": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "earned_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "reason_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "rule_id",
+                "rule_version",
+                "source_app",
+                "actor_kind",
+                "actor_id",
+                "points_micro_delta",
+                "earned_at",
+                "reason_code"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "balance_micro",
+          "earned_today_micro",
+          "pending",
+          "allowances",
+          "more?",
+          "entries"
         ],
         "additionalProperties": false
       }
