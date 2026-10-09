@@ -1,5 +1,5 @@
 defmodule RegentsWeb.LiteratureController do
-  @moduledoc "Serves the literature chart. No page links to it."
+  @moduledoc "Serves the literature chart."
 
   use RegentsWeb, :controller
   alias RegentsWeb.{Literature, PublicDocuments}

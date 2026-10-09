@@ -182,10 +182,9 @@ defmodule RegentsWeb.PaperProDailyLive do
       <div class="paper-daily__copy">
         <time datetime={Date.to_iso8601(@paper.date)}>{Calendar.strftime(@paper.date, "%B %-d, %Y")}</time>
         <h2 id={"#{@id}-title"}>{@paper.title}</h2>
-        <p class="paper-daily__author">Authored by {@paper.author}</p>
         <p class="paper-daily__links">
-          <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper</a>
-          <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT answer</a>
+          <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper Link</a>
+          <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT Thread</a>
         </p>
         <Regent.Primitives.copy_button
           id={"#{@id}-copy-details"}
@@ -199,6 +198,7 @@ defmodule RegentsWeb.PaperProDailyLive do
             Copy Details
           </span>
         </Regent.Primitives.copy_button>
+        <p class="paper-daily__author">Analysis by {@paper.author}</p>
         <div
           id={"#{@id}-excerpt"}
           class="rg-blog__prose paper-daily__text"

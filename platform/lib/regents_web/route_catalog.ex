@@ -243,7 +243,12 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
         %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
         %SidebarHeading{label: "Reading"},
-        %PageTarget{route_id: :paper_pro_daily, label: "Daily Research", path: "/paper-pro-daily"}
+        %PageTarget{
+          route_id: :paper_pro_daily,
+          label: "Daily Research",
+          path: "/paper-pro-daily"
+        },
+        %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"}
       ]
     }
   end
