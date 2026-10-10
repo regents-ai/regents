@@ -101,7 +101,6 @@ defmodule RegentsWeb.Router do
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
     get "/contact", PublicPagesController, :show
-    get "/literature", LiteratureController, :show
   end
 
   scope "/api/v1" do
@@ -122,7 +121,19 @@ defmodule RegentsWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive, :home
-    live "/paper-pro-daily", PaperProDailyLive, :paper_pro_daily
+
+    live_session :paper_reading,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
+      live "/paper-pro-daily", PaperProDailyLive, :paper_pro_daily
+    end
+
+    live_session :literature_reading,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
+      live "/literature", LiteratureLive, :literature
+    end
+
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
     get "/blog", BlogController, :index

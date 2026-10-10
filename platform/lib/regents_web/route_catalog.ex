@@ -45,6 +45,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :home
     },
     %Entry{
+      path_pattern: "/literature",
+      live_action: :literature,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :literature
+    },
+    %Entry{
       path_pattern: "/paper-pro-daily",
       live_action: :paper_pro_daily,
       parameter_schema: %{},
@@ -163,7 +170,11 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
     paper_pro_daily:
-      {:paper_pro_daily, nil, nil, "Paper Pro Daily", "/paper-pro-daily", [], :home, %{}},
+      {:paper_pro_daily, :regent_ops, "Regents Labs", "Paper Pro Daily", "/paper-pro-daily", [],
+       :regents_labs, %{}},
+    literature:
+      {:literature, :regent_ops, "Regents Labs", "AI & SCIFI", "/literature", [], :regents_labs,
+       %{}},
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},

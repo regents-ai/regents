@@ -291,7 +291,10 @@ defmodule RegentsWeb.Components.Shell do
     assigns = assign(assigns, :target, target)
 
     ~H"""
-    <.link navigate={@target.path}>{@target.label}</.link>
+    <.link
+      navigate={@target.path}
+      aria-current={if @route_spec.destination == @target.path, do: "page"}
+    >{@target.label}</.link>
     """
   end
 

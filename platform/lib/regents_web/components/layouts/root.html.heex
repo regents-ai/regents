@@ -3,7 +3,13 @@
 <% metadata =
   RegentsWeb.PublicDocuments.metadata(@conn.request_path, @page_title, @page_description) %>
 <%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
-<% shell? = assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
+<% shell? =
+  assigns[:live_module] in [
+    RegentsWeb.ShellLive,
+    RegentsWeb.ShowcaseLive,
+    RegentsWeb.PaperProDailyLive,
+    RegentsWeb.LiteratureLive
+  ] %>
 <html
   lang="en"
   data-brand="platform"

@@ -31,6 +31,8 @@ defmodule RegentsWeb.Plugs.LaunchGate do
   def call(%Plug.Conn{method: "GET", path_info: ["articles", _slug]} = conn, _opts), do: conn
   def call(%Plug.Conn{method: "GET", path_info: ["blog"]} = conn, _opts), do: conn
   def call(%Plug.Conn{method: "GET", path_info: ["blog", _slug]} = conn, _opts), do: conn
+  def call(%Plug.Conn{method: "GET", path_info: ["literature"]} = conn, _opts), do: conn
+
   def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily"]} = conn, _opts), do: conn
 
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),

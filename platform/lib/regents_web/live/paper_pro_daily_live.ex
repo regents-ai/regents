@@ -2,6 +2,8 @@ defmodule RegentsWeb.PaperProDailyLive do
   @moduledoc "One research paper a day with ChatGPT's reading of it, newest first, loading more as the reader scrolls."
   use RegentsWeb, :live_view
 
+  import RegentsWeb.Components.Shell
+
   alias Phoenix.LiveView.JS
   alias Regents.PaperProDaily
   alias RegentsWeb.PaperProDaily.Reading
@@ -27,7 +29,12 @@ defmodule RegentsWeb.PaperProDailyLive do
 
     {:ok,
      socket
-     |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), shown: 0, more?: false)
+     |> assign(
+       route_spec: RouteCatalog.fetch!(:paper_pro_daily),
+       shown: 0,
+       more?: false,
+       shell_instance: System.unique_integer([:positive, :monotonic])
+     )
      |> assign(
        page_markdown: Reading.page_markdown(papers),
        research_list: Enum.map(papers, &%{title: &1.title, target: "papers-#{&1.date}-title"}),
@@ -38,6 +45,10 @@ defmodule RegentsWeb.PaperProDailyLive do
      |> stream(:papers, [])
      |> show_more()}
   end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
 
   def handle_event("load_more", _params, socket), do: {:noreply, show_more(socket)}
 
@@ -93,115 +104,120 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   def render(assigns) do
     ~H"""
-    <Regent.Structure.frame class="rl-root" id="paper-daily-top" tabindex="-1">
-      <RegentsWeb.HomeLive.landing_header blog?={true} />
-      <main id="main-content">
-        <section class="rg-blog rg-sheet paper-daily" aria-labelledby="paper-daily-title">
-          <header class="rg-blog__intro">
-            <h1 id="paper-daily-title">Paper Pro Daily</h1>
-            <p>A research paper each day, read with ChatGPT Astra 6 Pro.</p>
-            <div class="paper-daily__actions">
-              <Regent.Primitives.copy_button id="paper-daily-copy-page" text={@page_markdown}>
-                Copy Entire Page as Markdown
-              </Regent.Primitives.copy_button>
-              <Regent.Primitives.button
-                id="paper-daily-view-prompt"
-                variant="secondary"
-                aria-haspopup="dialog"
-                aria-controls="paper-daily-prompt-dialog"
-                phx-click={JS.dispatch("regents:open", to: "#paper-daily-prompt-dialog")}
-              >
-                View Prompt to ChatGPT Pro for Paper Analysis
-              </Regent.Primitives.button>
-            </div>
-          </header>
+    <.shell
+      route_spec={@route_spec}
+      account_control={@account_control}
+      shell_instance={@shell_instance}
+    >
+      <:content>
+        <div id="paper-daily-top" tabindex="-1">
+          <section class="rg-blog rg-sheet paper-daily" aria-labelledby="paper-daily-title">
+            <header class="rg-blog__intro">
+              <h1 id="paper-daily-title">Paper Pro Daily</h1>
+              <p>A research paper each day, read with ChatGPT Astra 6 Pro.</p>
+              <div class="paper-daily__actions">
+                <Regent.Primitives.copy_button id="paper-daily-copy-page" text={@page_markdown}>
+                  Copy Entire Page as Markdown
+                </Regent.Primitives.copy_button>
+                <Regent.Primitives.button
+                  id="paper-daily-view-prompt"
+                  variant="secondary"
+                  aria-haspopup="dialog"
+                  aria-controls="paper-daily-prompt-dialog"
+                  phx-click={JS.dispatch("regents:open", to: "#paper-daily-prompt-dialog")}
+                >
+                  View Prompt to ChatGPT Pro for Paper Analysis
+                </Regent.Primitives.button>
+              </div>
+            </header>
 
-          <nav
-            :if={@research_list != []}
-            id="paper-daily-research"
-            class="paper-daily__research"
-            aria-labelledby="paper-daily-research-title"
-            phx-hook=".ResearchList"
-          >
-            <h2 id="paper-daily-research-title">Research List</h2>
-            <ol
-              id="paper-daily-research-list"
-              class={[
-                "paper-daily__research-list",
-                @research_list_expanded? && "paper-daily__research-list--expanded"
-              ]}
+            <nav
+              :if={@research_list != []}
+              id="paper-daily-research"
+              class="paper-daily__research"
+              aria-labelledby="paper-daily-research-title"
+              phx-hook=".ResearchList"
             >
-              <li
-                :for={{paper, index} <- Enum.with_index(@research_list)}
-                hidden={!@research_list_expanded? && index >= 5}
+              <h2 id="paper-daily-research-title">Research List</h2>
+              <ol
+                id="paper-daily-research-list"
+                class={[
+                  "paper-daily__research-list",
+                  @research_list_expanded? && "paper-daily__research-list--expanded"
+                ]}
               >
-                <a href={"##{paper.target}"} phx-click="go_to_paper" phx-value-target={paper.target}>
-                  {paper.title}
-                </a>
+                <li
+                  :for={{paper, index} <- Enum.with_index(@research_list)}
+                  hidden={!@research_list_expanded? && index >= 5}
+                >
+                  <a href={"##{paper.target}"} phx-click="go_to_paper" phx-value-target={paper.target}>
+                    {paper.title}
+                  </a>
+                </li>
+              </ol>
+              <Regent.Primitives.button
+                :if={length(@research_list) > 5}
+                id="paper-daily-research-toggle"
+                variant="secondary"
+                aria-controls="paper-daily-research-list"
+                aria-expanded={to_string(@research_list_expanded?)}
+                phx-click="toggle_research_list"
+              >
+                {if @research_list_expanded?, do: "Show less", else: "Show more"}
+              </Regent.Primitives.button>
+            </nav>
+
+            <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">
+              <li :for={{dom_id, paper} <- @streams.papers} id={dom_id}>
+                <.paper id={dom_id} paper={paper} />
               </li>
             </ol>
-            <Regent.Primitives.button
-              :if={length(@research_list) > 5}
-              id="paper-daily-research-toggle"
-              variant="secondary"
-              aria-controls="paper-daily-research-list"
-              aria-expanded={to_string(@research_list_expanded?)}
-              phx-click="toggle_research_list"
-            >
-              {if @research_list_expanded?, do: "Show less", else: "Show more"}
-            </Regent.Primitives.button>
-          </nav>
 
-          <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">
-            <li :for={{dom_id, paper} <- @streams.papers} id={dom_id}>
-              <.paper id={dom_id} paper={paper} />
-            </li>
-          </ol>
-
-          <p
-            :if={@more?}
-            id="paper-daily-more"
-            class="paper-daily__more"
-            role="status"
-            phx-hook="InfiniteScroll"
-            data-event="load_more"
-            data-cursor={@shown}
-          >
-            Loading more papers…
-          </p>
-          <p :if={@shown == 0} class="paper-daily__more">No papers yet.</p>
-          <div :if={!@more? && @shown > 0} class="paper-daily__end">
-            <a
-              href="#paper-daily-top"
-              class="rg-button rg-button--secondary"
-              id="paper-daily-return-top"
+            <p
+              :if={@more?}
+              id="paper-daily-more"
+              class="paper-daily__more"
+              role="status"
+              phx-hook="InfiniteScroll"
+              data-event="load_more"
+              data-cursor={@shown}
             >
-              Return to top
-            </a>
-          </div>
-        </section>
-      </main>
-      <dialog
-        id="paper-daily-prompt-dialog"
-        class="paper-daily__prompt-dialog"
-        aria-labelledby="paper-daily-prompt-title"
-        phx-hook="InfoDialog"
-      >
-        <h2 id="paper-daily-prompt-title">Prompt to ChatGPT Pro for Paper Analysis</h2>
-        <pre id="paper-daily-analysis-prompt">{@analysis_prompt}</pre>
-        <div class="paper-daily__actions">
-          <Regent.Primitives.copy_button
-            id="paper-daily-copy-prompt"
-            target="paper-daily-analysis-prompt"
-          >
-            Copy prompt
-          </Regent.Primitives.copy_button>
-          <form method="dialog">
-            <Regent.Primitives.button variant="secondary" type="submit">Close</Regent.Primitives.button>
-          </form>
+              Loading more papers…
+            </p>
+            <p :if={@shown == 0} class="paper-daily__more">No papers yet.</p>
+            <div :if={!@more? && @shown > 0} class="paper-daily__end">
+              <a
+                href="#paper-daily-top"
+                class="rg-button rg-button--secondary"
+                id="paper-daily-return-top"
+              >
+                Return to top
+              </a>
+            </div>
+          </section>
         </div>
-      </dialog>
-    </Regent.Structure.frame>
+        <dialog
+          id="paper-daily-prompt-dialog"
+          class="paper-daily__prompt-dialog"
+          aria-labelledby="paper-daily-prompt-title"
+          phx-hook="InfoDialog"
+        >
+          <h2 id="paper-daily-prompt-title">Prompt to ChatGPT Pro for Paper Analysis</h2>
+          <pre id="paper-daily-analysis-prompt">{@analysis_prompt}</pre>
+          <div class="paper-daily__actions">
+            <Regent.Primitives.copy_button
+              id="paper-daily-copy-prompt"
+              target="paper-daily-analysis-prompt"
+            >
+              Copy prompt
+            </Regent.Primitives.copy_button>
+            <form method="dialog">
+              <Regent.Primitives.button variant="secondary" type="submit">Close</Regent.Primitives.button>
+            </form>
+          </div>
+        </dialog>
+      </:content>
+    </.shell>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".ResearchList">
       export default {
         mounted() {
