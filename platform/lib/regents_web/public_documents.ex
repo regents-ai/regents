@@ -68,6 +68,7 @@ defmodule RegentsWeb.PublicDocuments do
       {"Credits refunds",
        "When Credits bought on Regents Labs can be refunded, how to ask, and how agents may spend your Credits."},
     "/admin/credits" => {"Credits admin", "Give Credits and handle refunds."},
+    "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Developer documentation",
        "Start reading Regents Labs without an account: the agent guide, public reads, historical name claims and contract details."},

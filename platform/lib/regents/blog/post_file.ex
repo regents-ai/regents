@@ -81,8 +81,9 @@ defmodule Regents.Blog.PostFile do
     File.read!(path)
   end
 
-  defp cover_type!(<<0x89, "PNG\r\n", 0x1A, "\n", _::binary>>), do: "image/png"
-  defp cover_type!(<<0xFF, 0xD8, 0xFF, _::binary>>), do: "image/jpeg"
-  defp cover_type!(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>), do: "image/webp"
-  defp cover_type!(_), do: raise(ArgumentError, "cover must be a PNG, JPEG or WebP image")
+  @doc "Detects the supported image format from its bytes, rather than its filename."
+  def cover_type!(<<0x89, "PNG\r\n", 0x1A, "\n", _::binary>>), do: "image/png"
+  def cover_type!(<<0xFF, 0xD8, 0xFF, _::binary>>), do: "image/jpeg"
+  def cover_type!(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>), do: "image/webp"
+  def cover_type!(_), do: raise(ArgumentError, "cover must be a PNG, JPEG or WebP image")
 end

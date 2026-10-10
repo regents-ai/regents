@@ -17,6 +17,13 @@ defmodule RegentsWeb.RouteCatalog do
 
   @entries [
     %Entry{
+      path_pattern: "/admin/articles",
+      live_action: :articles_admin,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :articles_admin
+    },
+    %Entry{
       path_pattern: "/articles",
       live_action: :blog,
       parameter_schema: %{},
@@ -145,6 +152,9 @@ defmodule RegentsWeb.RouteCatalog do
   ]
 
   @specs %{
+    articles_admin:
+      {:articles_admin, :regent_ops, "Regents Labs", "New Article", "/articles",
+       [:profile_actions], :regents_labs, %{}},
     blog:
       {:blog, :regent_ops, "Regents Labs", "Articles", "/articles", [:profile_actions],
        :regents_labs, %{}},

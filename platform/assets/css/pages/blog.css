@@ -12,3 +12,56 @@
   max-inline-size: 26ch;
   font-size: clamp(1.75rem, 3vw, 2.75rem);
 }
+
+.article-editor__form,
+.article-editor__authors,
+.article-editor__cover {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.article-editor__form > *,
+.article-editor__author > * {
+  min-inline-size: 0;
+}
+
+.article-editor__cover input[type="file"] {
+  inline-size: 100%;
+}
+
+.article-editor__authors {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.article-editor__authors legend {
+  margin-block-end: var(--space-2);
+}
+
+.article-editor__author {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.article-editor__form textarea {
+  min-block-size: 24rem;
+  resize: vertical;
+  font-family: var(--font-mono);
+}
+
+.article-editor__cover img {
+  max-inline-size: min(100%, 32rem);
+  max-block-size: 18rem;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .article-editor__author {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

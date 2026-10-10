@@ -1,5 +1,5 @@
 defmodule Regents.Blog.Post do
-  @moduledoc "Public posts; only the operator's release command can save them."
+  @moduledoc "Public articles created by verified admins or the folder release command."
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Blog,
@@ -8,7 +8,7 @@ defmodule Regents.Blog.Post do
 
   require Ash.Query
 
-  @fields ~w(slug title description date author author_x markdown draft cover cover_type cover_alt)a
+  @fields ~w(slug title description date author author_x authors markdown draft cover cover_type cover_alt)a
 
   actions do
     create :put do
@@ -16,6 +16,11 @@ defmodule Regents.Blog.Post do
       upsert? true
       upsert_identity :unique_slug
       upsert_fields List.delete(@fields, :slug) ++ [:updated_at]
+    end
+
+    create :publish do
+      accept [:title, :date, :authors, :markdown, :cover, :cover_alt]
+      change Regents.Blog.Changes.Publish
     end
 
     read :list do
@@ -37,6 +42,10 @@ defmodule Regents.Blog.Post do
     end
   end
 
+  changes do
+    change Regents.Blog.Changes.ValidateContent
+  end
+
   preparations do
     prepare fn query, _context ->
       Ash.Query.filter(query, draft == false and date <= ^Date.utc_today())
@@ -46,6 +55,10 @@ defmodule Regents.Blog.Post do
   policies do
     policy action(:put) do
       authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action(:publish) do
+      authorize_if Regents.Blog.Checks.Admin
     end
 
     policy action_type(:read) do
@@ -68,12 +81,47 @@ defmodule Regents.Blog.Post do
   attributes do
     uuid_primary_key :id
     attribute :slug, :string, allow_nil?: false, public?: true, constraints: [max_length: 63]
-    attribute :title, :string, allow_nil?: false, public?: true, constraints: [max_length: 240]
-    attribute :description, :string, allow_nil?: false, public?: true, default: ""
+
+    attribute :title, :string,
+      allow_nil?: false,
+      public?: true,
+      constraints: [min_length: 1, max_length: 240]
+
+    attribute :description, :string,
+      allow_nil?: false,
+      public?: true,
+      default: "",
+      constraints: [allow_empty?: true]
+
     attribute :date, :date, allow_nil?: false, public?: true
     attribute :author, :string, allow_nil?: false, public?: true
     attribute :author_x, :string, allow_nil?: false, public?: true
-    attribute :markdown, :string, allow_nil?: false, public?: true, constraints: [trim?: false]
+
+    attribute :authors, {:array, :map},
+      allow_nil?: false,
+      public?: true,
+      default: [],
+      constraints: [
+        max_length: 20,
+        items: [
+          fields: [
+            name: [
+              type: :string,
+              allow_nil?: false,
+              constraints: [min_length: 1, max_length: 120]
+            ],
+            x: [type: :string, allow_nil?: false, constraints: [min_length: 1, max_length: 128]]
+          ]
+        ]
+      ]
+
+    attribute :published_by, :integer
+
+    attribute :markdown, :string,
+      allow_nil?: false,
+      public?: true,
+      constraints: [trim?: false, min_length: 1]
+
     attribute :draft, :boolean, allow_nil?: false, default: false
     attribute :cover, :binary, allow_nil?: false
     attribute :cover_type, :string, allow_nil?: false

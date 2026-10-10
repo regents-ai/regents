@@ -165,6 +165,11 @@ defmodule RegentsWeb.ShellLive do
         />
       </:credits_panel>
       <:content>
+        <.link
+          :if={@route_spec.route_id == :blog && Regents.Blog.admin?(current_account(@access_context))}
+          class="rg-button"
+          patch="/admin/articles"
+        >New Article →</.link>
         <Regent.Blog.gallery
           :if={@route_spec.route_id == :blog}
           posts={@blog_posts}
@@ -285,6 +290,26 @@ defmodule RegentsWeb.ShellLive do
           lease={@session_lease}
           account={current_account(@access_context)}
         />
+
+        <.live_component
+          :if={
+            @route_spec.route_id == :articles_admin &&
+              Regents.Blog.admin?(current_account(@access_context))
+          }
+          module={RegentsWeb.ArticleEditor}
+          id="article-editor"
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+        <Regent.Primitives.notice
+          :if={
+            @route_spec.route_id == :articles_admin &&
+              !Regents.Blog.admin?(current_account(@access_context))
+          }
+          tone="error"
+        >
+          Your editor access has ended. Reload and sign in again.
+        </Regent.Primitives.notice>
       </:content>
     </.shell>
     """

@@ -8,6 +8,7 @@ defmodule RegentsWeb.Router do
     plug :fetch_session
     plug :enforce_session_authority
     plug :fetch_live_flash
+    plug RegentsWeb.Plugs.RequireArticleAdmin
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
     plug RegentsWeb.Plugs.LaunchGate
@@ -135,7 +136,11 @@ defmodule RegentsWeb.Router do
 
     live_session :product_shell,
       session: {RegentsWeb.Live.Session, :render_context, []},
-      on_mount: [RegentsWeb.Live.LaunchGateHook, {RegentsWeb.Live.Session, :load_human}] do
+      on_mount: [
+        RegentsWeb.Live.LaunchGateHook,
+        {RegentsWeb.Live.Session, :load_human},
+        RegentsWeb.Live.ArticleAdminHook
+      ] do
       live "/app", ShellLive, :app
       live "/articles", ShellLive, :blog
       live "/articles/:slug", ShellLive, :blog_post
@@ -152,6 +157,7 @@ defmodule RegentsWeb.Router do
       live "/keyfleet", ShellLive, :keyfleet
       live "/credits/refunds", ShellLive, :credits_refunds
       live "/admin/credits", ShellLive, :credits_admin
+      live "/admin/articles", ShellLive, :articles_admin
     end
   end
 end

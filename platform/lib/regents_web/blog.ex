@@ -18,6 +18,10 @@ defmodule RegentsWeb.Blog do
     post
     |> Map.from_struct()
     |> Map.put(
+      :author,
+      if(post.authors == [], do: post.author, else: Enum.map_join(post.authors, ", ", & &1.name))
+    )
+    |> Map.put(
       :image,
       "/articles/covers/#{post.slug}?v=#{DateTime.to_unix(post.updated_at, :microsecond)}"
     )
