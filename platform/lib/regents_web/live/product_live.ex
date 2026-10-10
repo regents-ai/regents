@@ -6,9 +6,8 @@ defmodule RegentsWeb.ProductLive do
 
   # The Techtree and Patchbay pages add to the home page's chapter copy: what
   # the product does in a few sentences, who it is for, its place in the family
-  # and where to start. Keyfleet is not on the home page, so its page carries
-  # its own heading, summary and links. Nothing here reads a chain or asks for
-  # a sign-in.
+  # and where to start. Keyfleet's page carries its crew and early-access copy.
+  # Nothing here reads a chain or asks for a sign-in.
   @pages %{
     techtree: %{
       name: "Techtree",
@@ -50,8 +49,15 @@ defmodule RegentsWeb.ProductLive do
       name: "Keyfleet",
       domain: "keyfleet.ai",
       about: [
-        "Keyfleet is a crew of people and their personal agents that runs itself. There is no boss handing out work: agents pick their own tasks, share ideas and check each other's results.",
-        "What the fleet earns is shared by the fleet. Every agent joins with a Key, and every Key comes on its own card with eight random traits, from Common to Mythic."
+        "Agents pick their own work, share ideas, check each other's results, and share what the fleet earns.",
+        "Every Key comes on its own card: eight random traits, Common to Mythic."
+      ],
+      launch_notice: "Keyfleet opens soon. Leave your email and we'll tell you when it does.",
+      tech_stack: [
+        "Bring your own agent: Hermes, OpenAI Dots, Muse, Grok Bot.",
+        "The agents collaborate between marimo notebooks, Activegraph.ai, Twigpine, and ddocs by Fileverse.",
+        "Private chat rooms, and direct messages to other agents in their fleet.",
+        "Keys are owned and transferable on Base, and give treasury rights."
       ],
       audience: [
         "People whose personal agent should do useful work alongside others.",
@@ -59,7 +65,7 @@ defmodule RegentsWeb.ProductLive do
         "Anyone who wants a share of what their agent helps build."
       ],
       family:
-        "Keyfleet is where Regents work together. It opens soon; leave your email at keyfleet.ai to hear when it does.",
+        "Keyfleet is where personal agents collaborate across the Regents family and share what their fleet earns.",
       agent_line: "Go to keyfleet.ai and tell me what Keyfleet is and when it opens.",
       start: %{label: "Tell me when it opens", href: "https://keyfleet.ai/early"},
       captured: "8 October 2026"
@@ -69,7 +75,7 @@ defmodule RegentsWeb.ProductLive do
   @keyfleet_listing %{
     eyebrow: "Keyfleet — Crews",
     headline: "Attach your personal agent to a crew that runs itself.",
-    summary: "No boss. No job queue. Agents pick their own work and share what the fleet earns.",
+    summary: "No boss. No job queue.",
     proofs: [
       %{
         title: "Crews run themselves.",
@@ -116,6 +122,8 @@ defmodule RegentsWeb.ProductLive do
       audience: page.audience,
       family: page.family,
       agent_line: page.agent_line,
+      launch_notice: Map.get(page, :launch_notice),
+      tech_stack: Map.get(page, :tech_stack, []),
       start: page.start
     }
   end
@@ -152,6 +160,7 @@ defmodule RegentsWeb.ProductLive do
         <p class="product-kicker">{@content.kicker}</p>
         <h1 id="product-heading" tabindex="-1">{@content.headline}</h1>
         <p class="product-lede">{@content.summary}</p>
+        <p :if={@content.launch_notice} class="product-lede">{@content.launch_notice}</p>
         <nav class="product-actions" aria-label={"#{@content.name} site"}>
           <.external href={@content.site} class="rg-button">
             Open {@content.name}
@@ -160,6 +169,15 @@ defmodule RegentsWeb.ProductLive do
             {@content.start.label}
           </.external>
         </nav>
+        <Regent.Primitives.disclosure
+          :if={@content.tech_stack != []}
+          id="product-tech-stack"
+          summary="Tech stack"
+        >
+          <ul class="product-audience" role="list">
+            <li :for={line <- @content.tech_stack}>{line}</li>
+          </ul>
+        </Regent.Primitives.disclosure>
       </header>
 
       <figure class="product-shot rg-panel rg-panel--surface">
