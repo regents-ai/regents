@@ -15,7 +15,10 @@ defmodule Mix.Tasks.Regents.Blog.Check do
       do: Mix.raise(Exception.message(Ash.Error.to_error_class(changeset.errors)))
 
     RegentBlog.markdown(attributes.markdown)
-    Mix.shell().info("Blog #{attributes.slug}: \"#{attributes.title}\" checked; nothing saved.")
+
+    Mix.shell().info(
+      "Article #{attributes.slug}: \"#{attributes.title}\" checked; nothing saved."
+    )
   rescue
     error in [ArgumentError, File.Error] -> Mix.raise(Exception.message(error))
   end

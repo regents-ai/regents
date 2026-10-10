@@ -169,8 +169,8 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :blog}
           posts={@blog_posts}
           site="Regents Labs"
-          name="Blog"
-          path="/blog"
+          name="Articles"
+          path="/articles"
         />
 
         <%!-- The post is static; retain the shared renderer's client-side math enhancement. --%>
@@ -179,7 +179,7 @@ defmodule RegentsWeb.ShellLive do
           id={"blog-post-#{@blog_post.slug}"}
           phx-update="ignore"
         >
-          <Regent.Blog.article post={@blog_post} name="Blog" path="/blog" />
+          <Regent.Blog.article post={@blog_post} name="Articles" path="/articles" />
         </div>
 
         <RegentProfileLive.page

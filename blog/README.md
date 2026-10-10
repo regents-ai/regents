@@ -1,8 +1,8 @@
-# Blog posts
+# Articles
 
-Blog is the first tab under Reading at `/blog`. Each post starts as a folder,
+Articles is the first tab under Reading at `/articles`. Each post starts as a folder,
 then is saved in the database. New posts need no site release after this feature
-is deployed. The previous `/articles` addresses redirect to `/blog`.
+is deployed. The previous `/blog` addresses redirect to `/articles`.
 
 ## Folder format
 
@@ -65,9 +65,9 @@ replacements require Sean's applicable approval. Invalid metadata, empty text,
 missing or ambiguous covers and files over 1 MB are refused before saving.
 
 The gallery shows the cover, title, author, date and description. Selecting a
-card opens the complete post, with a contents list and a Back to Blog link.
+card opens the complete post, with a contents list and a Back to Articles link.
 Updating the same slug preserves its identity and refreshes the cover address.
 
 `example-post/` is an unpublished folder template. The old root-level example
-and `images/` remain as historical authoring files; the live blog no longer
+and `images/` remain as historical authoring files; the live Articles page no longer
 reads root-level Markdown at compile time.

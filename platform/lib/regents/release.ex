@@ -65,7 +65,7 @@ defmodule Regents.Release do
         Regents.Blog.put_post!(attributes, actor: %Regents.Actors.System{})
       end)
 
-    IO.puts("Blog #{post.slug}: \"#{post.title}\" saved.")
+    IO.puts("Article #{post.slug}: \"#{post.title}\" saved.")
   end
 
   @doc """

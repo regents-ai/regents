@@ -91,7 +91,8 @@ defmodule RegentsWeb.Router do
     get "/llms.txt", PublicPagesController, :llms
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/paper-pro-daily/pictures/:date", PaperPictureController, :show
-    get "/blog/covers/:slug", BlogCoverController, :show
+    get "/articles/covers/:slug", BlogCoverController, :show
+    get "/blog/covers/:slug", BlogController, :cover
   end
 
   scope "/", RegentsWeb do
@@ -123,8 +124,8 @@ defmodule RegentsWeb.Router do
     live "/paper-pro-daily", PaperProDailyLive, :paper_pro_daily
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
-    get "/articles", BlogController, :index
-    get "/articles/:slug", BlogController, :show
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/failure", PrivySessionController, :failure
@@ -136,8 +137,8 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       on_mount: [RegentsWeb.Live.LaunchGateHook, {RegentsWeb.Live.Session, :load_human}] do
       live "/app", ShellLive, :app
-      live "/blog", ShellLive, :blog
-      live "/blog/:slug", ShellLive, :blog_post
+      live "/articles", ShellLive, :blog
+      live "/articles/:slug", ShellLive, :blog_post
       live "/account", ShellLive, :account
       live "/account/credits", ShellLive, :account_credits
       live "/account/points", ShellLive, :account_points

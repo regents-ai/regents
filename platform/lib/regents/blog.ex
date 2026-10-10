@@ -1,5 +1,5 @@
 defmodule Regents.Blog do
-  @moduledoc "Folder-authored posts saved in the database and published at /blog."
+  @moduledoc "Folder-authored posts saved in the database and published at /articles."
   use Ash.Domain
 
   resources do

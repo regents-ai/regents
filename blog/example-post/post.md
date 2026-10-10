@@ -13,7 +13,7 @@ cover and text, then set `draft: false` when the post is ready.
 
 ## A clear opening
 
-Start with the idea, then explain why it matters. Use [descriptive links](/blog),
+Start with the idea, then explain why it matters. Use [descriptive links](/articles),
 headings, lists and tables.
 
 ## Equations

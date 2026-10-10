@@ -4,7 +4,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   The setting is read on each request, so a deploy opens or closes surfaces
   without rebuilding the release. The marketing page and signing out stay open
-  in either state. The Privacy Policy, Terms of Use, Blog and Paper Pro Daily
+  in either state. The Privacy Policy, Terms of Use, Articles and Paper Pro Daily
   stay open with them.
   """
 

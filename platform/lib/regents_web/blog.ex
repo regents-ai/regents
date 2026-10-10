@@ -19,7 +19,7 @@ defmodule RegentsWeb.Blog do
     |> Map.from_struct()
     |> Map.put(
       :image,
-      "/blog/covers/#{post.slug}?v=#{DateTime.to_unix(post.updated_at, :microsecond)}"
+      "/articles/covers/#{post.slug}?v=#{DateTime.to_unix(post.updated_at, :microsecond)}"
     )
     |> Map.put(:image_alt, post.cover_alt)
   end
