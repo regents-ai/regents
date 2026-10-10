@@ -2,9 +2,13 @@ version: 1
 owner: regents
 shared_contract: ../../elixir-utils/blog/contract.yaml
 public_routes:
-  - "GET /articles"
-  - "GET /articles/:slug"
-content_root: blog/
-image_root: blog/images/
+  - "GET /blog"
+  - "GET /blog/:slug"
+  - "GET /blog/covers/:slug"
+legacy_redirects:
+  - "GET /articles -> /blog"
+  - "GET /articles/:slug -> /blog/:slug"
+content_root: "blog/<slug>/post.md and cover.png|jpg|jpeg|webp"
+persistence: "regents_app.blog_posts; operator-only put-post release command"
 components: Regent.Blog
-publication: "Only non-draft posts dated today or earlier (UTC); no category filters"
+publication: "Only non-draft posts dated today or earlier (UTC); newest first"

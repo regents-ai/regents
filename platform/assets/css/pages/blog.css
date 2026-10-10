@@ -1,0 +1,14 @@
+/* The reading shell already supplies the page gutters. Keep the gallery's
+   introduction compact so the covers lead the page, especially on a phone. */
+#app-shell[data-route-id^="blog"] .rg-blog {
+  inline-size: 100%;
+}
+
+#app-shell[data-route-id="blog"] .rg-blog__intro {
+  padding: clamp(20px, 3vw, 32px);
+}
+
+#app-shell[data-route-id="blog"] .rg-blog__intro h1 {
+  max-inline-size: 26ch;
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
+}

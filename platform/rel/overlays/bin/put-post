@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo 'usage: put-post <folder>' >&2
+  exit 1
+fi
+
+REGENTS_RELEASE_COMMAND=migrate REGENTS_POST="$1" exec "$(dirname "$0")/regents" eval 'Regents.Release.put_post(System.fetch_env!("REGENTS_POST"))'

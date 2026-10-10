@@ -17,6 +17,20 @@ defmodule RegentsWeb.RouteCatalog do
 
   @entries [
     %Entry{
+      path_pattern: "/blog",
+      live_action: :blog,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :blog
+    },
+    %Entry{
+      path_pattern: "/blog/:slug",
+      live_action: :blog_post,
+      parameter_schema: %{slug: :slug},
+      reserved_values: %{},
+      route_spec_id: :blog_post
+    },
+    %Entry{
       path_pattern: "/",
       live_action: :home,
       parameter_schema: %{},
@@ -131,6 +145,12 @@ defmodule RegentsWeb.RouteCatalog do
   ]
 
   @specs %{
+    blog:
+      {:blog, :regent_ops, "Regents Labs", "Blog", "/blog", [:profile_actions], :regents_labs,
+       %{}},
+    blog_post:
+      {:blog_post, :regent_ops, "Regents Labs", "Blog", "/blog", [:profile_actions],
+       :regents_labs, %{}},
     home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
     paper_pro_daily:
       {:paper_pro_daily, nil, nil, "Paper Pro Daily", "/paper-pro-daily", [], :home, %{}},
@@ -243,6 +263,7 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
         %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
         %SidebarHeading{label: "Reading"},
+        %RouteTarget{route_id: :blog, label: "Blog", path: "/blog"},
         %PageTarget{
           route_id: :paper_pro_daily,
           label: "Daily Research",
@@ -310,9 +331,11 @@ defmodule RegentsWeb.RouteCatalog do
   end
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
+  defp handoff_params(:blog_post), do: %{"slug" => "example-post"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
+  defp destination(:blog_post, %{"slug" => slug}), do: "/blog/#{slug}"
 
   defp destination(action, _params) do
     @entries

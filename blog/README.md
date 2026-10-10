@@ -1,70 +1,73 @@
-# Writing an article
+# Blog posts
 
-This folder owns this site's articles. `platform/` renders `/articles` and
-`/articles/<slug>` using the shared `regent_blog` catalog and `Regent.Blog` components.
-No database, CMS, React runtime or browser Markdown fetch is involved.
+Blog is the first tab under Reading at `/blog`. Each post starts as a folder,
+then is saved in the database. New posts need no site release after this feature
+is deployed. The previous `/articles` addresses redirect to `/blog`.
 
-## Publish
+## Folder format
 
-1. Copy `example-post.md` to a lowercase hyphenated name such as `a-clear-title.md`.
-2. Replace the title, description, date, author and author's X profile URL.
-3. Put a cover image in `blog/images/`; reference `/images/blog/your-cover.webp` and
-   write useful `image_alt` text. Use same-origin image paths in the body too.
-4. Write the article below the closing `---`. Keep `draft: true` until ready.
-5. Set `draft: false`, then run `mix assets.build` from `platform/` and refresh.
-   Production changes appear after the usual reviewed release, not from editing a live server.
-
-```yaml
----
-title: "A clear article title"
-description: "A short gallery description."
-date: "2026-09-08"
-author: "Your name"
-author_x: "https://x.com/your_handle"
-image: "/images/blog/your-cover.webp"
-image_alt: "Describe the useful content of the cover"
-draft: true
----
+```text
+blog/my-post/
+  post.md
+  cover.png
 ```
 
-- Required: `title`, ISO `date`, `author`, full HTTPS `author_x`, `image`, `image_alt`.
-- Optional: `description`, `draft` (defaults to false), `slug` (defaults to the filename).
-- Slugs use lowercase ASCII letters/digits and single hyphens. They must be unique.
-- Public posts are ordered by publication date descending, then slug for same-day ties.
-- Drafts and posts dated after today's **UTC** date return 404 and never enter the gallery.
-- `README.md` is documentation and is not a post. Only root-level `*.md` files are posts.
-- Invalid metadata and duplicate slugs fail the build rather than silently dropping content.
-- Markdown changes are compile-time inputs; a development refresh recompiles changed,
-  added or deleted posts. Restart an already-running dev server after adding this dependency.
-- Images are public build assets, even when only referenced by a draft. Never store private
-  files in `images/`. Raw Markdown is not copied to `priv/static`.
+Use exactly one `cover.png`, `cover.jpg`, `cover.jpeg` or `cover.webp`, at most
+1 MB. The cover is saved with the post; no external image URL is required.
 
-## Markdown and LaTeX
+`post.md` starts with YAML metadata, followed by the complete Markdown text:
 
-Use `##` sections and `###` subsections for the automatically generated table of
-contents. Duplicate headings receive unique anchors. Lists, emphasis, blockquotes,
-links, code fences, tables and footnotes are supported. A body `#` is normalized
-to a section heading so the article title remains the one page H1.
+```markdown
+---
+title: "A clear post title"
+description: "A short description for the gallery."
+date: "10-09-2026"
+author: "Your name"
+author_x: "https://x.com/your_handle"
+cover_alt: "Describe what the cover shows."
+draft: true
+---
 
-Inline math: `$E = mc^2$`. Display math: `$$` on separate lines around the equation.
-Escape currency dollar signs as `\$25`. KaTeX-supported math is rendered from a
-local module into accessible MathML; arbitrary LaTeX packages are not supported.
-Code blocks do not become math. Without JavaScript, the TeX remains readable and
-all contents links still work. Raw HTML and HEEx are not executed.
+The post text goes here.
 
-Desktop gets a sticky, scrollable contents rail and active-section indicator.
-Narrow layouts get an expandable contents list above the article. Site colors,
-header, fonts and the light/dark control remain owned by the product.
+## A section
 
-## Build inputs
+Markdown headings, lists, tables, code and LaTeX are supported.
+```
 
-The catalog is compiled into the application, so a release does not read this
-source folder at runtime. `mix regent_blog.assets` stages `images/` and the local
-math module as part of both `mix assets.build` and `mix assets.deploy`.
+Required: title, date, author, author_x and cover_alt. Description is optional.
+The date accepts MM-DD-YYYY or YYYY-MM-DD. `author_x` is a full HTTPS X profile
+URL, following the existing blog byline format. `draft` defaults to false.
+The folder name is the URL slug; an optional `slug` overrides it. Slugs use
+lowercase letters, digits and single hyphens, up to 63 characters.
 
-The shared package is elixir-utils' `blog/`, pinned in `platform/mix.exs` with the
-other elixir-utils libraries. Shared UI requires the matching blog components in
-`regent_ui`. Commit shared work first, then move the pins to those actual commits;
-do not invent a future revision.
+Drafts and future-dated posts stay out of the gallery and return 404 for both
+the post and cover. Publication dates use UTC, as the previous catalog did.
+Posts sort newest first; same-day posts sort by slug. Multiple posts per day
+are allowed. Markdown is preserved; raw HTML never executes.
 
-The release build copies this folder and fetches the pinned blog package.
+## Check and upload
+
+From `platform/`, check a folder without saving it:
+
+```sh
+mix regents.blog.check ../blog/my-post
+```
+
+The operator uploads the folder to the chosen machine, then runs:
+
+```sh
+/app/bin/put-post /tmp/my-post
+```
+
+This saves or replaces the post with that slug. Production uploads and
+replacements require Sean's applicable approval. Invalid metadata, empty text,
+missing or ambiguous covers and files over 1 MB are refused before saving.
+
+The gallery shows the cover, title, author, date and description. Selecting a
+card opens the complete post, with a contents list and a Back to Blog link.
+Updating the same slug preserves its identity and refreshes the cover address.
+
+`example-post/` is an unpublished folder template. The old root-level example
+and `images/` remain as historical authoring files; the live blog no longer
+reads root-level Markdown at compile time.

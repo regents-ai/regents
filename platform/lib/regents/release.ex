@@ -52,6 +52,22 @@ defmodule Regents.Release do
     IO.puts("Paper Pro Daily #{paper.date}: \"#{paper.title}\" saved.")
   end
 
+  @doc "Saves post.md and its cover using /app/bin/put-post <folder>. The slug identifies the post."
+  def put_post(folder) do
+    attributes = Regents.Blog.PostFile.read!(folder)
+    # Render before saving so a malformed body never replaces a readable post.
+    RegentBlog.markdown(attributes.markdown)
+    load_app()
+    Application.put_env(@app, Regents.Repo, migration_config!())
+
+    {:ok, post, _started} =
+      Ecto.Migrator.with_repo(Regents.Repo, fn _repo ->
+        Regents.Blog.put_post!(attributes, actor: %Regents.Actors.System{})
+      end)
+
+    IO.puts("Blog #{post.slug}: \"#{post.title}\" saved.")
+  end
+
   @doc """
   Prepares an empty staging database for the first deployment.
 

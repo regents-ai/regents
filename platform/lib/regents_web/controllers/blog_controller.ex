@@ -1,19 +1,11 @@
 defmodule RegentsWeb.BlogController do
   use RegentsWeb, :controller
-  alias RegentsWeb.{Blog, PublicDocuments}
+  # Keep published article addresses working after the move into Reading.
+  def index(conn, _params), do: conn |> put_status(:moved_permanently) |> redirect(to: "/blog")
 
-  def index(conn, _params),
-    do: render(conn, :index, [posts: Blog.all()] ++ PublicDocuments.page("/articles"))
-
-  def show(conn, %{"slug" => slug}) do
-    case Blog.get(slug) do
-      nil ->
-        conn
-        |> put_status(:not_found)
-        |> render(:not_found, PublicDocuments.page(:blog_post_not_found))
-
-      post ->
-        render(conn, :show, [post: post] ++ PublicDocuments.page({:blog_post, post}))
-    end
-  end
+  def show(conn, %{"slug" => slug}),
+    do:
+      conn
+      |> put_status(:moved_permanently)
+      |> redirect(to: "/blog/#{URI.encode(slug, &URI.char_unreserved?/1)}")
 end

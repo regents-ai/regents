@@ -42,6 +42,7 @@ defmodule RegentsWeb.CreditsPanel do
   def mount(socket) do
     {:ok,
      socket
+     |> attach_hook(:launch_gate, :handle_event, &gate_event/3)
      |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
@@ -54,6 +55,12 @@ defmodule RegentsWeb.CreditsPanel do
        allowance: nil,
        purchases: %{}
      )}
+  end
+
+  defp gate_event(_event, _params, socket) do
+    if RegentsWeb.Plugs.LaunchGate.app_surfaces_enabled?(),
+      do: {:cont, socket},
+      else: {:halt, %{}, socket}
   end
 
   @impl true
