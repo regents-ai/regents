@@ -995,7 +995,8 @@
 }
 
 /* A repeated mode selection points to the action; it never activates it.
- * An entered amount holds the same lit edges for as long as it stands.
+ * An entered amount holds the same lit edges for as long as it stands; the
+ * sweep itself is the shared button's, only while hovered or keyboard-focused.
  * Match the unlayered button skin. LiveView removes this transient class,
  * restoring the normal 150ms edges without changing focus or wallet state. */
 @media (forced-colors: none) {
@@ -1017,18 +1018,18 @@
     background-repeat: no-repeat;
     animation: rg-shimmer 650ms var(--ease-out) 1;
   }
-
-  .stake-actions button.stake-submit.is-armed:not(.is-mode-hinted)::before {
-    background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, color-mix(in srgb, var(--rg-shimmer-color, var(--palette-tangerine-tango, #ff5b19)) 75%, var(--palette-platinum, #e5e3d2)) 24%, transparent) 50%, transparent 70%);
-    background-size: 300% 100%;
-    background-repeat: no-repeat;
-    animation: rg-shimmer var(--rg-shimmer-duration, 1.15s) var(--ease-out) infinite;
-  }
 }
 
+/* In forced colours the lit edges show as a second system-colour line inside
+ * the shared button's own border, never as an outline that could pass for
+ * focus. The shared button rules sit outside this layer and own the border
+ * itself, so the extra line is drawn on the edge layer they leave unused here. */
 @media (forced-colors: active) {
-  .stake-actions button.stake-submit:is(.is-mode-hinted, .is-armed) {
-    outline: 2px solid Highlight;
-    outline-offset: 3px;
+  .stake-actions button.stake-submit:is(.is-mode-hinted, .is-armed)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid ButtonText;
+    pointer-events: none;
   }
 }
