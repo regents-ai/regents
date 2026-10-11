@@ -83,10 +83,11 @@ test("Redeem sends each press straight to the signed-in wallet and follows it on
   await expect(page.getByLabel("Token ID")).toBeVisible()
 
   await page.getByLabel("Token ID").fill("42")
-  const next = page.locator(".redeem-next-step button")
+  // Every step is offered; the latest reading from Base picks the one that leads.
+  const next = page.locator(".redeem-next-step button.redeem-primary")
   await expect(next).toHaveText(/Approve NFT collection/)
   await expect(next).toHaveAttribute("data-onchain-step", "approve_nft_collection")
-  await expect(page.getByRole("button", {name: "Approve 80 USDC"})).toHaveCount(0)
+  await expect(page.getByRole("button", {name: "Approve 80 USDC"})).toBeEnabled()
   await expect(page.locator("#route-content button[data-onchain-step][disabled]")).toHaveCount(0)
   const claim = page.locator("#redemption-claim")
   await expect(claim).toHaveAttribute("data-onchain-step", "claim")
@@ -131,7 +132,7 @@ test("Redeem sends each press straight to the signed-in wallet and follows it on
 
 // A control is offered whenever its calldata can be built, which needs only a
 // connected wallet and a selected token. Nothing else withholds one.
-test("Redeem offers its step controls only once a token is selected", async ({page}) => {
+test("Redeem offers every step control once a token is selected", async ({page}) => {
   await installWallet(page)
   await signIn(page)
   await page.goto("/redeem")
@@ -141,9 +142,12 @@ test("Redeem offers its step controls only once a token is selected", async ({pa
   await expect(page.locator(".redeem-next-step h3")).toHaveText("Select an Animata")
 
   await page.getByLabel("Token ID").fill("42")
-  await expect(controls).toHaveCount(1)
-  await expect(controls).toHaveAttribute("data-onchain-step", "approve_nft_collection")
-  await expect(controls).toBeEnabled()
+  await expect(controls).toHaveCount(3)
+  for (const control of await controls.all()) await expect(control).toBeEnabled()
+  await expect(page.locator(".redeem-next-step button.redeem-primary")).toHaveAttribute(
+    "data-onchain-step",
+    "approve_nft_collection",
+  )
 
   await page.getByLabel("Token ID").fill("")
   await expect(controls).toHaveCount(0)
@@ -185,13 +189,13 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   await tokenId.scrollIntoViewIfNeeded()
   const beforeSelection = await scrollSnapshot(scroller, summary)
   await tokenId.fill("42")
-  await expect(page.locator(".redeem-next-step button")).toHaveCount(1)
+  await expect(page.locator(".redeem-next-step button")).toHaveCount(3)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   await expect(page.locator(".redeem-status[aria-busy=true]")).toHaveCount(0)
   const afterSelection = await scrollSnapshot(scroller, summary)
   expect(Math.abs(afterSelection.top - beforeSelection.top)).toBeLessThanOrEqual(16)
 
-  const action = page.locator(".redeem-next-step button")
+  const action = page.locator(".redeem-next-step button.redeem-primary")
   await expect(action).toBeEnabled()
   await action.scrollIntoViewIfNeeded()
   await action.click()
@@ -221,7 +225,7 @@ test("Redeem sends nothing from a wallet that is not the account's", async ({pag
   await expect(note).toContainText("0x2222..2222")
   await expect(note).toContainText("0x1111..1111")
 
-  await page.locator(".redeem-next-step button").click()
+  await page.locator("#redemption-approve_nft_collection").click()
   await expect(page.locator("#redemption-activity-press")).toContainText(
     "Switch to a wallet on your account in your wallet app",
   )
@@ -229,7 +233,7 @@ test("Redeem sends nothing from a wallet that is not the account's", async ({pag
 
   await selectWallet(page, wallet)
   await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
-  await page.locator(".redeem-next-step button").click()
+  await page.locator("#redemption-approve_nft_collection").click()
   await expect.poll(() => sendCount(page)).toBe(1)
   expect((await sent(page, 1)).to).toBe(animataI)
   await expect(page.locator("#redemption-activity-press")).toHaveCount(0)
@@ -241,7 +245,7 @@ test("Redeem keeps sent results when the active wallet changes", async ({page}) 
 
   await page.goto("/redeem")
   await page.getByLabel("Token ID").fill("42")
-  await page.locator(".redeem-next-step button").click()
+  await page.locator(".redeem-next-step button.redeem-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
 
   const first = page.locator(`#redemption-activity-${expectedHash(1)}`)
@@ -252,7 +256,7 @@ test("Redeem keeps sent results when the active wallet changes", async ({page}) 
 
   await selectWallet(page, wallet)
   await page.getByLabel("Token ID").fill("43")
-  await page.locator(".redeem-next-step button").click()
+  await page.locator(".redeem-next-step button.redeem-primary").click()
   await expect.poll(() => sendCount(page)).toBe(2)
   await signOutWallet(page)
   await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
@@ -273,7 +277,7 @@ test("Redeem says what the wallet did when a press is not sent", async ({page}) 
   const press = page.locator("#redemption-activity-press")
 
   await setWalletAnswer(page, "malformed")
-  await page.locator(".redeem-next-step button").click()
+  await page.locator(".redeem-next-step button.redeem-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(press).toHaveText("Your wallet may have sent this. Check your wallet activity.")
   await expect(page.locator("#redemption-activity li")).toHaveCount(0)
@@ -286,7 +290,7 @@ test("Redeem says what the wallet did when a press is not sent", async ({page}) 
   )
 
   await setWalletAnswer(page, "hash")
-  await page.locator(".redeem-next-step button").click()
+  await page.locator(".redeem-next-step button.redeem-primary").click()
   await expect.poll(() => sendCount(page)).toBe(3)
   await expect(page.locator(`#redemption-activity-${expectedHash(3)}`)).toContainText(
     "Animata I approval",
