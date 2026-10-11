@@ -15,6 +15,7 @@ config :regents, RegentsWeb.Endpoint,
 config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
 
 config :regents, :privy_verifier, Regents.TestPrivyVerifier
+config :regents, :paper_publication_clock, Regents.TestPublicationClock
 config :regents, :staking_chain_client, Regents.TestStakingChainClient
 config :regents, :chain_client, Regents.TestChainClient
 config :regents, :staking_price_http_client, Regents.TestStakingPriceHttpClient

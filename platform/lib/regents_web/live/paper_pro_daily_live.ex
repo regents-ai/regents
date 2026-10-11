@@ -6,6 +6,7 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   alias Phoenix.LiveView.JS
   alias Regents.PaperProDaily
+  alias Regents.PaperProDaily.Publication
   alias RegentsWeb.PaperProDaily.Reading
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
@@ -25,38 +26,53 @@ defmodule RegentsWeb.PaperProDailyLive do
   """
 
   def mount(_params, _session, socket) do
-    papers = PaperProDaily.export_papers!()
+    if connected?(socket), do: schedule_midnight()
 
     {:ok,
      socket
      |> assign(
        route_spec: RouteCatalog.fetch!(:paper_pro_daily),
-       shown: 0,
-       more?: false,
+       analysis_prompt: @analysis_prompt,
+       research_list_expanded?: false,
        shell_instance: System.unique_integer([:positive, :monotonic])
      )
-     |> assign(
-       page_markdown: Reading.page_markdown(papers),
-       research_list: Enum.map(papers, &%{title: &1.title, target: "papers-#{&1.date}-title"}),
-       research_list_expanded?: false,
-       analysis_prompt: @analysis_prompt
-     )
      |> assign(PublicDocuments.page("/paper-pro-daily"))
-     |> stream(:papers, [])
-     |> show_more()}
+     |> refresh_papers()}
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
 
-  def handle_event("load_more", _params, socket), do: {:noreply, show_more(socket)}
+  def handle_info(:publication_midnight, socket) do
+    socket = refresh_papers(socket)
+    schedule_midnight()
+    {:noreply, socket}
+  end
+
+  def handle_event("load_more", _params, socket) do
+    # A scroll event can reach us before the midnight timer. Reset the old offset
+    # rather than duplicating or skipping a paper when a new day is inserted above it.
+    socket =
+      if socket.assigns.publication_date == Publication.today() do
+        show_more(socket)
+      else
+        refresh_papers(socket)
+      end
+
+    {:noreply, socket}
+  end
 
   def handle_event("toggle_research_list", _params, socket) do
     {:noreply, assign(socket, research_list_expanded?: !socket.assigns.research_list_expanded?)}
   end
 
   def handle_event("go_to_paper", %{"target" => target}, socket) do
+    socket =
+      if socket.assigns.publication_date == Publication.today(),
+        do: socket,
+        else: refresh_papers(socket)
+
     case Enum.find_index(socket.assigns.research_list, &(&1.target == target)) do
       nil ->
         {:noreply, socket}
@@ -66,6 +82,28 @@ defmodule RegentsWeb.PaperProDailyLive do
         socket = if missing > 0, do: show_through(socket, index + 1), else: socket
         {:noreply, push_event(socket, "paper-daily:go-to-paper", %{target: target})}
     end
+  end
+
+  defp refresh_papers(socket) do
+    publication_date = Publication.today()
+    papers = PaperProDaily.export_papers!()
+
+    socket
+    |> assign(
+      publication_date: publication_date,
+      shown: 0,
+      more?: false,
+      page_markdown: Reading.page_markdown(papers),
+      research_list: Enum.map(papers, &%{title: &1.title, target: "papers-#{&1.date}-title"})
+    )
+    |> stream(:papers, [], reset: true)
+    |> show_more()
+  end
+
+  # This timer belongs only to this connected page. Publication itself is enforced
+  # by reads, so it needs no durable job or database polling.
+  defp schedule_midnight do
+    Process.send_after(self(), :publication_midnight, Publication.milliseconds_until_midnight())
   end
 
   # Ash caps each page; continue through pages when the index grows beyond that cap.
