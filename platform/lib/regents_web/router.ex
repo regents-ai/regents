@@ -100,7 +100,6 @@ defmodule RegentsWeb.Router do
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/paper-pro-daily/pictures/:date", PaperPictureController, :show
     get "/articles/covers/:slug", BlogCoverController, :show
-    get "/blog/covers/:slug", BlogController, :cover
   end
 
   scope "/", RegentsWeb do
@@ -154,8 +153,6 @@ defmodule RegentsWeb.Router do
 
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
-    get "/blog", BlogController, :index
-    get "/blog/:slug", BlogController, :show
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/failure", PrivySessionController, :failure

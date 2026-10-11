@@ -834,9 +834,11 @@ defmodule RegentsWeb.StakeLiveTest do
     assert_every_claim_live(view)
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]:not([disabled])|)
 
+    # An allowance nobody could read never takes Stake off the button.
     set_amount(view, "3")
-    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]:not([disabled])|)
-    assert has_element?(view, ".stake-approval-note", "needs a one-time REGENT approval first")
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]:not([disabled])|)
+    assert has_element?(view, ~s|#staking-approve[data-onchain-step="approve"]:not([disabled])|)
+    assert has_element?(view, ".stake-approval-note", "approval couldn't be read")
   end
 
   test "WALLET_DURING_FIRST_READ: replacing the open wallet read never reports Base unavailable",

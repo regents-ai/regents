@@ -5,10 +5,10 @@ defmodule Regents.Staking.Steps do
 
   Every claim is always a step. Stake and unstake are steps once the amount is
   one the contract can take, and a stake for another address once that address
-  is valid and its warning acknowledged. An approval comes first whenever
-  the last reading does not show enough allowance for this wallet, including
-  when the allowance could not be read. The approval is unlimited, so it is
-  asked for once per wallet.
+  is valid and its warning acknowledged. An approval is a step whenever the
+  last reading does not show enough allowance for this wallet, including when
+  the allowance could not be read. The approval is unlimited, so it is asked
+  for once per wallet.
   """
 
   alias RegentChain.{Address, Call, Review}
@@ -88,7 +88,7 @@ defmodule Regents.Staking.Steps do
     case receiver(form) do
       {:ok, receiver} ->
         stake = step("stake", [amount, if(receiver == :signer, do: signer, else: receiver)])
-        if approval_needed?(staking, signer, amount), do: [approval(), stake], else: [stake]
+        if allowance(staking, signer, amount) == :enough, do: [stake], else: [approval(), stake]
 
       {:error, _unready} ->
         []
@@ -113,19 +113,20 @@ defmodule Regents.Staking.Steps do
         Call.encode(@approve, [Abi.staking_address(), @unlimited])
       )
 
-  # The allowance on the page belongs to the wallet it was read for. Any other
-  # wallet, and an allowance nobody could read, asks for the approval first.
-  defp approval_needed?(
-         %{wallet_address: wallet, wallet_stake_allowance_raw: raw},
-         signer,
-         amount
-       )
-       when is_binary(raw) do
+  @doc """
+  What the last reading says about `signer`'s allowance for staking `amount`:
+  `:short` when it proves a stake would not go through, `:enough`, or
+  `:unknown`. The allowance on the page belongs to the wallet it was read for,
+  so for any other wallet it is unknown, as is one nobody could read.
+  """
+  def allowance(%{wallet_address: wallet, wallet_stake_allowance_raw: raw}, signer, amount)
+      when is_binary(raw) do
     case {Address.equal?(wallet, signer), Integer.parse(raw)} do
-      {true, {allowance, ""}} -> allowance < amount
-      _unknown -> true
+      {true, {allowance, ""}} when allowance < amount -> :short
+      {true, {_allowance, ""}} -> :enough
+      _unknown -> :unknown
     end
   end
 
-  defp approval_needed?(_staking, _signer, _amount), do: true
+  def allowance(_staking, _signer, _amount), do: :unknown
 end

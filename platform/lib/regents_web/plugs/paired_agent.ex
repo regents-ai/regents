@@ -1,9 +1,12 @@
 defmodule RegentsWeb.Plugs.PairedAgent do
-  @moduledoc "Verify SIWA once, then resolve the current pairing and local beneficiary."
+  @moduledoc "Verify SIWA once, resolve the current pairing and local beneficiary, and check the pairing again before the answer is sent."
   @behaviour Plug
   import Plug.Conn
   alias RegentAgents.{Authority, Broker}
   alias Regents.Actors.{Agent, System}
+
+  @not_paired_message "This agent has no current pairing."
+  @not_paired_hint "Ask your owner to sign in at /account and use Agents > Pair an agent, then redeem the code and sign fresh proof."
 
   def init(opts), do: opts
 
@@ -54,16 +57,14 @@ defmodule RegentsWeb.Plugs.PairedAgent do
     with {:ok, pairing} <- Authority.resolve(Regents.Repo, wallet),
          {:ok, account} when not is_nil(account) <-
            Regents.Accounts.get_by_privy_did(pairing.privy_user_id, actor: %System{}) do
-      assign(conn, :actor, Agent.paired(wallet, pairing, account))
+      actor = Agent.paired(wallet, pairing, account)
+
+      conn
+      |> assign(:actor, actor)
+      |> register_before_send(&recheck(&1, actor))
     else
       {:error, :not_paired} ->
-        refuse(
-          conn,
-          403,
-          "agent_not_paired",
-          "This agent has no current pairing.",
-          "Ask your owner to sign in at /account and use Agents > Pair an agent, then redeem the code and sign fresh proof."
-        )
+        refuse(conn, 403, "agent_not_paired", @not_paired_message, @not_paired_hint)
 
       {:ok, nil} ->
         refuse(
@@ -83,6 +84,38 @@ defmodule RegentsWeb.Plugs.PairedAgent do
           "Try again in a moment with fresh proof."
         )
     end
+  end
+
+  # The read ran after the pairing was resolved. Before anything is sent, the
+  # wallet's current pairing must still be this request's episode and owner;
+  # otherwise the answer is replaced, so a revoke or re-pairing during the read
+  # never sends the former owner's data.
+  defp recheck(conn, %Agent{} = actor) do
+    case Authority.resolve(Regents.Repo, actor.wallet_address) do
+      {:ok, %{id: id, privy_user_id: owner}}
+      when id == actor.pairing_id and owner == actor.privy_user_id ->
+        conn
+
+      {:error, reason} when reason != :not_paired and conn.status not in 200..299 ->
+        conn
+
+      {:error, reason} when reason != :not_paired ->
+        replace(
+          conn,
+          503,
+          "unavailable",
+          "The paired account could not be read.",
+          "Try again in a moment with fresh proof."
+        )
+
+      _changed ->
+        replace(conn, 403, "agent_not_paired", @not_paired_message, @not_paired_hint)
+    end
+  end
+
+  defp replace(conn, status, code, message, hint) do
+    %{conn | status: status, resp_body: error_body(code, message, hint)}
+    |> put_resp_content_type("application/json")
   end
 
   defp refuse_proof(conn, %{
@@ -127,10 +160,10 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   defp refuse(conn, status, code, message, hint) do
     conn
     |> put_resp_content_type("application/json")
-    |> send_resp(
-      status,
-      Jason.encode_to_iodata!(%{error: %{code: code, message: message, hint: hint}})
-    )
+    |> send_resp(status, error_body(code, message, hint))
     |> halt()
   end
+
+  defp error_body(code, message, hint),
+    do: Jason.encode_to_iodata!(%{error: %{code: code, message: message, hint: hint}})
 end

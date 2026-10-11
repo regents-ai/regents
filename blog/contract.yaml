@@ -5,10 +5,6 @@ public_routes:
   - "GET /articles"
   - "GET /articles/:slug"
   - "GET /articles/covers/:slug"
-legacy_redirects:
-  - "GET /blog -> /articles"
-  - "GET /blog/:slug -> /articles/:slug"
-  - "GET /blog/covers/:slug -> /articles/covers/:slug"
 content_root: "blog/<slug>/post.md and cover.png|jpg|jpeg|webp"
 persistence: "regents_app.blog_posts; operator-only put-post release command"
 components: Regent.Blog

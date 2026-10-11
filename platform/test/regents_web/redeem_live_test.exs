@@ -201,22 +201,33 @@ defmodule RegentsWeb.RedeemLiveTest do
     refute render(view) =~ "Claimable now"
   end
 
-  test "CURRENT_NEXT_STEP: only Base's current action is exposed", %{conn: conn} do
+  test "CURRENT_NEXT_STEP: Base's current action leads and every step stays offered", %{
+    conn: conn
+  } do
     view = conn |> mount_redeem() |> activate(@wallet)
     select(view, "animata_i", "42")
-    assert has_element?(view, ".redeem-next-step button", "Redeem Animata")
-    refute has_element?(view, ".redeem-next-step button", "Approve NFT")
+    assert has_element?(view, ".redeem-next-step button.redeem-primary", "Redeem Animata")
+    assert has_element?(view, ".redeem-next-step button:not(.redeem-primary)", "Approve NFT")
+    assert has_element?(view, ".redeem-next-step button:not(.redeem-primary)", "Approve 80 USDC")
 
     Application.put_env(:regents, :test_redemption_nft_approved, false)
     view |> element(~s(button[phx-click="refresh_redemption"])) |> render_click()
     render_async(view)
-    assert has_element?(view, ".redeem-next-step button", "Approve NFT collection")
+
+    assert has_element?(
+             view,
+             ".redeem-next-step button.redeem-primary",
+             "Approve NFT collection"
+           )
+
+    assert has_element?(view, ".redeem-next-step button:not(.redeem-primary)", "Approve 80 USDC")
 
     Application.put_env(:regents, :test_redemption_nft_approved, true)
     Application.put_env(:regents, :test_redemption_usdc_allowance, 0)
     view |> element(~s(button[phx-click="refresh_redemption"])) |> render_click()
     render_async(view)
-    assert has_element?(view, ".redeem-next-step button", "Approve 80 USDC")
+    assert has_element?(view, ".redeem-next-step button.redeem-primary", "Approve 80 USDC")
+    assert has_element?(view, ".redeem-next-step button:not(.redeem-primary)", "Redeem Animata")
   end
 
   test "SELECTION_FAILURE: prior facts remain visible and every step stays sendable", %{

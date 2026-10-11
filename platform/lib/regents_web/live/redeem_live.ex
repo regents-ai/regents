@@ -565,7 +565,7 @@ defmodule RegentsWeb.RedeemLive do
                     :for={control <- @controls}
                     id={"redemption-#{control.action}"}
                     type="button"
-                    class="redeem-primary"
+                    class={control.lead? && "redeem-primary"}
                     data-onchain-step={@signed_in && control.action}
                     data-account-target={!@signed_in && "sign-in"}
                     data-confirming={@flow_confirming}
@@ -805,14 +805,17 @@ defmodule RegentsWeb.RedeemLive do
     )
   end
 
-  # A control is offered whenever its calldata can be built, which needs only a
-  # connected wallet and a selected token. When the last reading from Base names
-  # the step, that one control is offered; when it does not, all three are, and
-  # the hint says why. Nothing here withholds a send.
+  # Every control whose calldata can be built is offered once a token is
+  # selected. The last reading from Base only picks which one leads; when it
+  # names no step, all three lead and the hint says why. Nothing here withholds
+  # a send.
   defp controls(_step, false), do: []
 
   defp controls(step, true) do
-    for action <- step_controls(step), do: %{action: action, label: @control_labels[action]}
+    lead = step_controls(step)
+
+    for action <- @every_control,
+        do: %{action: action, label: @control_labels[action], lead?: action in lead}
   end
 
   defp step_controls(:nft_approval_required), do: ["approve_nft_collection"]

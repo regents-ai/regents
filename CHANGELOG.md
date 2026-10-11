@@ -1300,3 +1300,20 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   budget read; Points period-end snapshots). The Points snapshot migration
   `20261009152652` is a shared-library migration and is not run by this site's
   release.
+
+## 2026-10-11 — Review fixes on the Phase C candidate (local, unreleased)
+
+- Paired agent reads check the pairing again just before the answer is sent.
+  If the agent was unpaired or paired again while the read ran, the answer is
+  replaced with `403 agent_not_paired`, so a former owner's data or pairing is
+  never sent.
+- The budget contract requires all six spending-grant fields in every copy
+  (`contracts/api-contract.openapiv3.yaml`, `priv/static`, `priv/public/openapi.json`).
+- `/blog`, `/blog/:slug` and `/blog/covers/:slug` are removed with nothing in
+  their place (founder decision 3 a, 2026-10-08); the redirects re-added on
+  10 Oct and their controller are gone.
+- Redeem offers every wallet step once a token is chosen; the latest reading
+  from Base only picks which one leads.
+- Stake: when the REGENT allowance can't be read, Stake stays the main button
+  and Approve REGENT is offered beside it. Approve leads only when Base shows
+  the allowance is too small.

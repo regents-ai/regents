@@ -17,7 +17,7 @@ defmodule RegentsWeb.StakeActions do
   use RegentsWeb, :live_component
 
   alias Regents.{ChainClient, Staking}
-  alias Regents.Staking.{SnapshotCache, Steps}
+  alias Regents.Staking.{Actions, SnapshotCache, Steps}
 
   alias RegentsWeb.Components.{
     Loading,
@@ -238,7 +238,7 @@ defmodule RegentsWeb.StakeActions do
   defp prepare(%{assigns: %{review: nil}} = socket, _name), do: {:reply, %{}, socket}
 
   defp prepare(%{assigns: %{review: review}} = socket, name) do
-    send = if name in @claim_steps, do: name, else: next_step(socket.assigns)
+    send = if name in ["approve" | @claim_steps], do: name, else: next_step(socket.assigns)
     {:reply, %{review: review, send: send}, socket}
   end
 
@@ -329,17 +329,28 @@ defmodule RegentsWeb.StakeActions do
 
   defp acknowledge(_unticked, _receiver), do: nil
 
-  # The step the primary button sends: the approval while one is needed and none
-  # from this wallet is on its way to Base or has landed there, then the action
-  # itself. The approval is unlimited, so one that landed is enough even before
-  # the wallet's figures catch up with it.
+  # The step the primary button sends: the approval while the last reading
+  # proves the allowance short and none from this wallet is on its way to Base
+  # or has landed there, then the action itself. An allowance nobody could read
+  # leaves the action on the primary button, with the approval offered beside
+  # it. The approval is unlimited, so one that landed is enough even before the
+  # wallet's figures catch up with it.
   defp next_step(%{review: nil, action: action}), do: action
 
-  defp next_step(%{review: review, action: action, presses: presses}) do
-    if Review.find(review, "approve") && not Presses.on_its_way?(presses, review, "approve") &&
+  defp next_step(%{review: review, action: action, presses: presses} = assigns) do
+    if allowance(assigns) == :short && not Presses.on_its_way?(presses, review, "approve") &&
          not approval_landed?(presses, review),
        do: "approve",
        else: action
+  end
+
+  defp allowance(%{review: review, staking: staking}) do
+    with step when not is_nil(step) <- Review.find(review, "approve"),
+         {:ok, amount} <- Actions.parse_amount(review.inputs["amount"]) do
+      Steps.allowance(staking, review.signer, amount)
+    else
+      _no_approval -> :enough
+    end
   end
 
   defp approval_landed?(presses, review) do
@@ -365,10 +376,20 @@ defmodule RegentsWeb.StakeActions do
       approval_landed?(presses, review) ->
         "Approved. You can stake now."
 
+      not Presses.on_its_way?(presses, review, "approve") ->
+        "Your REGENT approval couldn't be read. If the stake doesn't go through, approve first."
+
       true ->
         "Approval sent. You can stake now; if the approval has not landed yet, the stake will not go through."
     end
   end
+
+  # The approval is its own button whenever it is a step the primary button is
+  # not sending, so it can always be pressed.
+  defp approval_offered?(%{review: nil}), do: false
+
+  defp approval_offered?(%{review: review} = assigns),
+    do: Review.find(review, "approve") != nil and next_step(assigns) != "approve"
 
   # What the primary button sends, read from the review itself, so a press sends
   # what the page shows.
@@ -529,6 +550,7 @@ defmodule RegentsWeb.StakeActions do
         amount_notice: amount_notice(assigns),
         next_step: next_step(assigns),
         approval_note: approval_note(assigns),
+        approval_offered: approval_offered?(assigns),
         review_line: review_line(assigns),
         mismatch_note: OnchainSteps.mismatch_note(assigns.linked, assigns.active),
         sent: shown(assigns.presses, assigns.refusals)
@@ -804,6 +826,15 @@ defmodule RegentsWeb.StakeActions do
               <p :if={@signed_in && @approval_note} class="stake-approval-note">
                 {@approval_note}
               </p>
+              <Regent.Primitives.button
+                :if={@signed_in && @approval_offered}
+                id="staking-approve"
+                variant="secondary"
+                type="button"
+                data-onchain-step="approve"
+                data-confirming={OnchainSteps.confirming?(@presses, ~w(approve))}
+                phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+              ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
             </form>
           </div>
         </div>

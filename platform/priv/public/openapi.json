@@ -2323,7 +2323,11 @@
             },
             "required": [
               "enabled",
-              "site_allowed"
+              "site_allowed",
+              "max_per_spend",
+              "daily_limit",
+              "sites",
+              "used_24h"
             ],
             "additionalProperties": false
           }
