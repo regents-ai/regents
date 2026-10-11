@@ -4,7 +4,8 @@ defmodule Regents.PaperProDaily.Paper do
   ChatGPT answer, who wrote the answer, the answer's Markdown and its picture.
 
   One paper a day; putting a paper on a day that has one replaces it. Only a
-  release command writes papers (`Regents.Release.put_paper/2`); anyone reads them.
+  release command writes papers (`Regents.Release.put_paper/2`). Future days may
+  be saved early; public reads include a paper once its date begins in UTC.
   """
 
   use Ash.Resource,
@@ -54,12 +55,18 @@ defmodule Regents.PaperProDaily.Paper do
     end
   end
 
+  preparations do
+    # Apply at read time to every surface, including export and direct picture URLs.
+    # This is not a build-time date or a browser-side visibility rule.
+    prepare Regents.PaperProDaily.Publication
+  end
+
   policies do
     policy action(:put) do
       authorize_if Regents.Checks.SystemActor
     end
 
-    # Every paper is public the moment it is written.
+    # Anyone may read the papers admitted by the publication-date preparation.
     policy action_type(:read) do
       authorize_if always()
     end

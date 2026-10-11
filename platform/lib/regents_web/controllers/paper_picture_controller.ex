@@ -1,5 +1,5 @@
 defmodule RegentsWeb.PaperPictureController do
-  @moduledoc "Serves a Paper Pro Daily picture from the database, by the paper's day."
+  @moduledoc "Serves a published Paper Pro Daily picture from the database, by the paper's UTC day."
   use RegentsWeb, :controller
 
   alias Regents.PaperProDaily
@@ -18,7 +18,11 @@ defmodule RegentsWeb.PaperPictureController do
       |> send_resp(200, paper.picture)
     else
       _missing ->
-        conn |> put_resp_content_type("text/plain") |> send_resp(:not_found, "Not found")
+        # A scheduled picture may become available at midnight. Do not cache its 404.
+        conn
+        |> put_resp_header("cache-control", "no-store")
+        |> put_resp_content_type("text/plain")
+        |> send_resp(:not_found, "Not found")
     end
   end
 end
