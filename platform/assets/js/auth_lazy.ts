@@ -1022,7 +1022,7 @@ export function installAccountAuthLazyLoader(
         showLoadFailure("sign-out", undefined)
         return
       }
-      // Disconnect is one command. The Regent session is gone; every wallet
+      // Sign out is one command. The Regent session is gone; every wallet
       // Privy holds is released here, before this document is replaced, so the
       // wallet apps are asked while the page that asked them still exists. They
       // get the same window the provider sign out gets, and the page goes

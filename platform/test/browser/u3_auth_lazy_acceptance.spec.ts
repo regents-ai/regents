@@ -208,7 +208,7 @@ for (const invalidHandoff of [
     })
 
     await page.goto("/app")
-    await expect(page.getByRole("button", {name: "Sign In"})).toBeVisible()
+    await expect(page.getByRole("button", {name: "Sign in"})).toBeVisible()
     await page.waitForLoadState("networkidle")
     expect(bridgeRequests).toBe(0)
     expect(
@@ -245,7 +245,7 @@ test("a production-like digested bridge source remains same-origin and callable"
   )
 
   await page.goto("/app")
-  await page.getByRole("button", {name: "Sign In"}).click()
+  await page.getByRole("button", {name: "Sign in"}).click()
   await expect
     .poll(() =>
       page.evaluate(
@@ -286,14 +286,14 @@ for (const viewport of retryViewports) {
     expect(headerHeight).toBeDefined()
     const status = page.locator("#account-auth-status")
 
-    await page.getByRole("button", {name: "Sign In"}).click()
+    await page.getByRole("button", {name: "Sign in"}).click()
     await expect.poll(() => bridgeRequests.length).toBe(1)
     await expect(status).toBeVisible()
     await expect(status).toContainText(
       "Sign-in is unavailable on this page. Reload it or contact support.",
     )
     await expectStatusAnchored(page, headerHeight ?? 0)
-    await expect(page.getByRole("button", {name: "Sign In"})).toBeDisabled()
+    await expect(page.getByRole("button", {name: "Sign in"})).toBeDisabled()
     await expect.poll(() => failureDiagnostics).toEqual([
       JSON.stringify({reason: "bridge_startup"}),
     ])
@@ -341,7 +341,7 @@ test("the bounded failure report survives the recommended immediate reload exact
 
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  await page.getByRole("button", {name: "Sign In"}).click()
+  await page.getByRole("button", {name: "Sign in"}).click()
   await expect(page.locator("#account-auth-status")).toContainText(
     "Sign-in is unavailable on this page. Reload it or contact support.",
   )
@@ -438,7 +438,7 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   ).toBe(false)
   await expect(page.locator("[data-phx-session]").first()).toBeVisible()
   await page.locator("#account-menu summary").click()
-  await expect(page.getByRole("button", {name: "Disconnect"})).toBeVisible()
+  await expect(page.getByRole("button", {name: "Sign out"})).toBeVisible()
   await page.locator("#account-menu summary").click()
   // Settings is intentionally disabled. Exercise the same live session on the
   // supported wallet page instead of depending on that retired menu entry.
@@ -653,7 +653,7 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await page.goto("/app")
   await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
   await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Disconnect"}).click()
+  await page.getByRole("button", {name: "Sign out"}).click()
   await expect.poll(() => sessionDeletes).toBe(1)
 
   await expect.poll(() => documentRequests.length).toBe(2)
@@ -793,7 +793,7 @@ test("the second document proves anonymous server truth before importing Privy",
   await page.goto("/app")
   await expect.poll(() => bridgeLoads).toBe(1)
   await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Disconnect"}).click()
+  await page.getByRole("button", {name: "Sign out"}).click()
 
   await expect.poll(() => sessionDeletes).toBe(1)
   await expect.poll(() => documentRequests.length).toBe(2)

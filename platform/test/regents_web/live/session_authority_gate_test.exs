@@ -180,7 +180,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a handshake and render with no claim mount anonymous" do
     {:ok, view, _html} = live(build_conn(), "/autolaunch")
 
-    assert has_element?(view, @sign_in, "Sign In")
+    assert has_element?(view, @sign_in, "Sign in")
   end
 
   test "HANDSHAKE_IS_CONNECTED_AUTHORITY: a different current lineage reloads the same route once",
@@ -214,7 +214,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
 
     assert SessionAuthority.revoke(claim(signed_in))
     render_click(view, "refresh_verified_connections", %{})
-    assert has_element?(view, @sign_in, "Sign In")
+    assert has_element?(view, @sign_in, "Sign in")
 
     # The revoked lease halts navigation at the authority hook itself.
     assert {:error, {:redirect, %{to: "/"}}} = render_patch(view, "/autolaunch")
@@ -231,7 +231,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     assert {:ok, _lapsed} = Accounts.refresh_verified(account, nil, [], actor: %System{})
 
     render_click(view, "refresh_verified_connections", %{})
-    assert has_element?(view, @sign_in, "Sign In")
+    assert has_element?(view, @sign_in, "Sign in")
 
     # /autolaunch renders for anonymous visitors, so only the authority hook can
     # be refusing this navigation.
@@ -241,7 +241,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
   # A component's events never reach the page's own hook, so a press inside one
   # must be refused by the component check itself once the session ends in
   # another tab (founder decision TEST-REFUSAL, 2026-10-08).
-  test "COMPONENT_LEASE: a component event after a sign-out elsewhere is refused and Sign In shows",
+  test "COMPONENT_LEASE: a component event after a sign-out elsewhere is refused and Sign in shows",
        %{conn: conn} do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
@@ -255,7 +255,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
 
     # Only the component's own check can have refused this: the page's event
     # hook never hears a component's events.
-    assert has_element?(view, @sign_in, "Sign In")
+    assert has_element?(view, @sign_in, "Sign in")
     refute has_element?(view, "#credits-panel-amount[value='7']")
   end
 

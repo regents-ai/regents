@@ -67,14 +67,14 @@ not end in `_dev` or `_test`.
 
 Open [http://localhost:4000/app](http://localhost:4000/app).
 
-1. Choose **Sign In** and connect the Privy wallet you intend to inspect.
-2. Confirm the upper-right account control changes from **Sign In** to the signed-in identity.
+1. Choose **Sign in** and connect the Privy wallet you intend to inspect.
+2. Confirm the upper-right account control changes from **Sign in** to the signed-in identity.
 3. Open [http://localhost:4000/stake](http://localhost:4000/stake). Confirm the page shows Base,
    the verified staking contract, and that wallet's REGENT position and rewards.
 4. Open [http://localhost:4000/redeem](http://localhost:4000/redeem). Confirm the page shows the
    verified 80 USDC price, 5,000,000 REGENT payout, seven-day vest, and that wallet's balance,
    allowance, and vest status.
-5. Use **Sign Out**, then confirm the account control returns to **Sign In** and protected action
+5. Use **Sign out**, then confirm the account control returns to **Sign in** and protected action
    controls are unavailable.
 
 Everything in this section is read-only. Reviewing an action is also safe until you choose

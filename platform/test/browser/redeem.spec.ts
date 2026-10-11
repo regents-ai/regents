@@ -294,9 +294,9 @@ test("Redeem says what the wallet did when a press is not sent", async ({page}) 
   await expect(press).toHaveCount(0)
 })
 
-// Disconnect ends the wallet connection, and it stays ended across reloads
+// Sign out ends the wallet connection, and it stays ended across reloads
 // while the browser wallet still reports the same account.
-test("Disconnect leaves Redeem unconnected, and a reload keeps it that way", async ({page}) => {
+test("Sign out leaves Redeem unconnected, and a reload keeps it that way", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
@@ -304,7 +304,7 @@ test("Disconnect leaves Redeem unconnected, and a reload keeps it that way", asy
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
 
   await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Disconnect"}).click()
+  await page.getByRole("button", {name: "Sign out"}).click()
 
   await expectDisconnected(page)
   expect(await page.evaluate(key => localStorage.getItem(key), disconnectedKey)).toBe("true")

@@ -227,10 +227,10 @@ defmodule RegentsWeb.Components.Shell do
             type="button"
             disabled={!@enabled}
             class="account-menu__row account-menu__row--danger"
-            data-account-menu-item="disconnect"
+            data-account-menu-item="sign-out"
             data-account-target="sign-out"
           >
-            <.account_menu_icon name={:logout} /><span>Disconnect</span>
+            <.account_menu_icon name={:logout} /><span>Sign out</span>
           </Regent.Primitives.button>
         </div>
       </details>

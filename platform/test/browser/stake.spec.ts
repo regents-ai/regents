@@ -230,9 +230,9 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
   await expect(page.locator("#staking-press-notice")).toHaveCount(0)
 })
 
-// Disconnect ends the wallet connection, and it stays ended across reloads
+// Sign out ends the wallet connection, and it stays ended across reloads
 // while the browser wallet still reports the same account.
-test("Disconnect leaves Stake unconnected, and a reload keeps it that way", async ({page}) => {
+test("Sign out leaves Stake unconnected, and a reload keeps it that way", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
@@ -247,7 +247,7 @@ test("Disconnect leaves Stake unconnected, and a reload keeps it that way", asyn
   await expect(sibling.locator(".redeem-signer")).toHaveAttribute("title", wallet)
 
   await page.locator("#account-menu summary").click()
-  await page.getByRole("button", {name: "Disconnect"}).click()
+  await page.getByRole("button", {name: "Sign out"}).click()
 
   await expectDisconnected(page)
   await expect(sibling.locator("#account-control [data-account-target='sign-in']")).toBeVisible()

@@ -9,7 +9,7 @@ headers do not grant access. Gallery styles and metadata use the same guard.
 
 `/showcase/privy` uses the **real Regents account control and auth bridge**, not
 the separate wallet fixture in the main gallery. It includes configuration
-instructions, header Sign In/Disconnect, in-page connection controls, the selected
+instructions, header Sign in/Sign out, in-page connection controls, the selected
 wallet, asynchronous Base balance hydration, and the shared protocol reading.
 Controls are disabled with an explanation when configuration is missing or the
 server uses a test verifier. No configuration values, tokens or provider objects

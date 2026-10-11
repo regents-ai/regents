@@ -221,7 +221,7 @@ test("the three homepage product cards remain full-width and ordered on mobile",
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
 
-test("anonymous Sign In stays separate from the brand link", async ({page}) => {
+test("anonymous Sign in stays separate from the brand link", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
@@ -231,7 +231,7 @@ test("anonymous Sign In stays separate from the brand link", async ({page}) => {
   await expect(brand).toContainText("Regents Labs")
   await expect(brand).toHaveAttribute("href", "/")
   await expect(brand.getByRole("button")).toHaveCount(0)
-  await expect(accountControl.getByRole("button", {name: "Sign In"})).toBeVisible()
+  await expect(accountControl.getByRole("button", {name: "Sign in"})).toBeVisible()
   await expect(accountControl.getByRole("link", {name: "Nous Portal"})).toHaveCount(0)
   await expect(accountControl.getByRole("link", {name: "Settings"})).toHaveCount(0)
 })
@@ -288,12 +288,12 @@ test("a signed-in account without a Regent shows its available account menu", as
     .poll(() => account.locator("img.account-avatar").evaluate(image => image.naturalWidth))
     .toBeGreaterThan(0)
   await account.locator("summary").first().click()
-  await expect(account.locator(".account-menu__row")).toHaveText(["Account", "Disconnect"])
+  await expect(account.locator(".account-menu__row")).toHaveText(["Account", "Sign out"])
   await expect(account.getByRole("link", {name: "Account", exact: true})).toHaveAttribute(
     "href",
     "/account",
   )
-  await expect(account.getByRole("button", {name: "Disconnect"})).toBeVisible()
+  await expect(account.getByRole("button", {name: "Sign out"})).toBeVisible()
 
   await page.emulateMedia({colorScheme: "dark"})
   await expect(page.locator("html")).not.toHaveAttribute("data-theme")

@@ -6,7 +6,7 @@ defmodule Regents.AccessContextTest do
   @wallet "0x1111111111111111111111111111111111111111"
 
   test "anonymous account control exposes only sign in" do
-    assert %{kind: :sign_in, label: "Sign In", profile_path: nil} =
+    assert %{kind: :sign_in, label: "Sign in", profile_path: nil} =
              AccessContext.account_control(AccessContext.anonymous())
   end
 
