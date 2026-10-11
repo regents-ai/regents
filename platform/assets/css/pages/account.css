@@ -630,11 +630,6 @@
 
 /* Points */
 
-/* Keeps its space while unseen, so a failed refresh never moves the panels. */
-.points-stale[data-unseen] {
-  visibility: hidden;
-}
-
 .points-activity ol {
   display: grid;
   gap: 1rem;
