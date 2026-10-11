@@ -26,7 +26,6 @@ import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
-import {FigureFlash} from "./hooks/figure_flash"
 import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
 import {mountMotion} from "./motion"
@@ -289,7 +288,6 @@ const showcaseHooks = window.location.pathname.startsWith("/showcase")
 const hooks = {
   ...showcaseHooks,
   ...colocatedHooks,
-  FigureFlash,
   HolographicCard,
   HomePrism,
   HomeTokenMenu,

@@ -600,23 +600,21 @@ defmodule RegentsWeb.StakeActions do
           Your position could not be read just now. Everything else here is current, and every
           action below still goes to your wallet.
         </p>
-        <div id="staking-wallet-flash" class="figure-flash" phx-hook="FigureFlash">
-          <dl
-            id="staking-wallet-summary"
-            class="stake-wallet-summary"
-            phx-hook="MotionCount"
-            data-variant={RegentsWeb.Motion.standard("count")}
-          >
-            <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
-            <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
-            <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
-            <.metric
-              label="Claimable REGENT"
-              amount={@staking.wallet_claimable_regent}
-              unit="REGENT"
-            />
-          </dl>
-        </div>
+        <dl
+          id="staking-wallet-summary"
+          class="stake-wallet-summary"
+          phx-hook="MotionCount"
+          data-variant={RegentsWeb.Motion.standard("count")}
+        >
+          <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
+          <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
+          <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
+          <.metric
+            label="Claimable REGENT"
+            amount={@staking.wallet_claimable_regent}
+            unit="REGENT"
+          />
+        </dl>
 
         <div
           id="staking-modes"
@@ -869,7 +867,7 @@ defmodule RegentsWeb.StakeActions do
 
   defp metric(assigns) do
     ~H"""
-    <div class="stake-metric" data-flash>
+    <div class="stake-metric">
       <dt>{@label}</dt><dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
     </div>
     """
