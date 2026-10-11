@@ -6,7 +6,7 @@ defmodule Regents.MixProject do
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
   @elixir_utils_ref "1564d79eb3b653f06ab11b6c422bd4d6283ea199"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "24f3c8f91c46a331fb99ba8c462838061e525c99"
+  @design_system_ref "9faee245bad741a40e0dcd232dddb29e244b8c2e"
 
   def project do
     [
