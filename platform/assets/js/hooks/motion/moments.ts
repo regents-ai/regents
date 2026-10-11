@@ -80,7 +80,8 @@ export const ROLLS: Record<string, Roll> = {
   flash: {clip: false, move: () => ({opacity: [0, 1, 0.35, 1], scale: [1.35, 1], duration: SLOW * 3, ease: "outQuad"})},
 }
 
-const worth = (text: string) => Number(text.replace(/\D/g, ""))
+// What a figure is worth, decimals included, so 1.75 to 2 rolls up.
+const worth = (text: string) => Number(text.replace(/[^\d.]/g, ""))
 
 // The figures inside a part of the page, each marked `data-count`.
 const figures = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>("[data-count]")]
