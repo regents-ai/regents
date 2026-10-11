@@ -4,6 +4,7 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   alias Phoenix.LiveView.JS
   alias Regents.PaperProDaily
+  alias Regents.PaperProDaily.Publication
   alias RegentsWeb.PaperProDaily.Reading
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
@@ -23,19 +24,49 @@ defmodule RegentsWeb.PaperProDailyLive do
   """
 
   def mount(_params, _session, socket) do
+    if connected?(socket), do: schedule_midnight()
+
     {:ok,
      socket
-     |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), shown: 0, more?: false)
-     |> assign(
-       page_markdown: Reading.page_markdown(PaperProDaily.export_papers!()),
-       analysis_prompt: @analysis_prompt
-     )
+     |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), analysis_prompt: @analysis_prompt)
      |> assign(PublicDocuments.page("/paper-pro-daily"))
-     |> stream(:papers, [])
-     |> show_more()}
+     |> refresh_papers()}
   end
 
-  def handle_event("load_more", _params, socket), do: {:noreply, show_more(socket)}
+  def handle_event("load_more", _params, socket) do
+    # A scroll event can reach us before the midnight timer. Reset the old offset
+    # rather than duplicating or skipping a paper when a new day is inserted above it.
+    socket =
+      if socket.assigns.publication_date == Date.utc_today() do
+        show_more(socket)
+      else
+        refresh_papers(socket)
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_info(:publication_midnight, socket) do
+    socket = refresh_papers(socket)
+    schedule_midnight()
+    {:noreply, socket}
+  end
+
+  defp refresh_papers(socket) do
+    socket
+    |> assign(
+      publication_date: Date.utc_today(),
+      shown: 0,
+      more?: false,
+      page_markdown: Reading.page_markdown(PaperProDaily.export_papers!())
+    )
+    |> stream(:papers, [], reset: true)
+    |> show_more()
+  end
+
+  defp schedule_midnight do
+    Process.send_after(self(), :publication_midnight, Publication.milliseconds_until_midnight())
+  end
 
   defp show_more(socket) do
     page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: @page_size])
