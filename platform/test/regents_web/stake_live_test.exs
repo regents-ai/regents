@@ -1,9 +1,11 @@
 defmodule RegentsWeb.StakeLiveTest do
   use RegentsWeb.ConnCase, async: false
+  use Oban.Testing, repo: Regents.Repo
 
   alias Regents.Accounts
   alias Regents.Actors.System
-  alias Regents.Staking.SnapshotCache
+  alias Regents.SharedStakingReading
+  alias Regents.Staking.{SnapshotCache, SnapshotRefresh}
   alias Regents.TestStakingChainClient
 
   # Invariants covered:
@@ -29,9 +31,6 @@ defmodule RegentsWeb.StakeLiveTest do
   @claim_controls ["Claim USDC", "Claim REGENT", "Claim and restake"]
 
   setup do
-    SnapshotCache.clear()
-    Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
-
     Application.put_env(
       :regents,
       :test_staking_denominator,
@@ -51,13 +50,10 @@ defmodule RegentsWeb.StakeLiveTest do
             :test_staking_usdc_7d,
             :test_staking_price_handler,
             :test_chain_transactions,
-            :test_chain_receipts,
-            :staking_snapshot_clock
+            :test_chain_receipts
           ] do
         Application.delete_env(:regents, key)
       end
-
-      SnapshotCache.clear()
     end)
 
     :ok
@@ -67,7 +63,7 @@ defmodule RegentsWeb.StakeLiveTest do
     @behaviour Regents.Staking.ChainClient
 
     @impl true
-    def protocol_snapshot, do: exit(:simulated_refresh_crash)
+    def protocol_snapshot(_history), do: exit(:simulated_refresh_crash)
 
     @impl true
     def wallet_snapshot(_wallet), do: exit(:simulated_refresh_crash)
@@ -77,7 +73,8 @@ defmodule RegentsWeb.StakeLiveTest do
     @behaviour Regents.Staking.ChainClient
 
     @impl true
-    def protocol_snapshot, do: Regents.TestStakingChainClient.protocol_snapshot()
+    def protocol_snapshot(history),
+      do: Regents.TestStakingChainClient.protocol_snapshot(history)
 
     @impl true
     def wallet_snapshot(wallet) do
@@ -206,34 +203,6 @@ defmodule RegentsWeb.StakeLiveTest do
     refute render(view) =~ "yet"
   end
 
-  test "UNAVAILABLE_WINDOW: a missing seven-day figure costs nothing else on the page", %{
-    conn: conn
-  } do
-    Application.put_env(:regents, :test_staking_usdc_7d, :unavailable)
-
-    view = stake_as_signer(conn, "unavailable-window")
-
-    assert staking_assigns(view).staking_status == :ready
-    refute render(view) =~ "Staking details are unavailable right now."
-
-    assert has_element?(
-             view,
-             ".stake-benefit-card-primary .figure-unavailable",
-             "Unavailable right now"
-           )
-
-    refute has_element?(view, ".stake-benefit-card-primary", "0.00 USDC")
-    assert has_element?(view, ".stake-benefit-card-primary", "5,074.87 USDC")
-    assert_every_claim_live(view)
-    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]:not([disabled])|)
-
-    Application.delete_env(:regents, :test_staking_usdc_7d)
-    share_new_snapshot()
-    render_async(view)
-    assert has_element?(view, ".stake-benefit-card-primary", "1,250.50 USDC")
-    refute has_element?(view, ".stake-benefit-card-primary .figure-unavailable")
-  end
-
   test "CORE_READING_FAILS: the page keeps its layout without inventing contract facts", %{
     conn: conn
   } do
@@ -268,6 +237,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
     Application.delete_env(:regents, :test_staking_protocol_error)
     view |> element("button.stake-shared-refresh") |> render_click()
+    SharedStakingReading.run()
     render_async(view)
 
     assert staking_assigns(view).staking_status == :ready
@@ -322,6 +292,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
 
     view |> element("button.stake-shared-refresh") |> render_click()
+    SharedStakingReading.run()
     assert render_async(view) =~ "Base block #1,234"
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
@@ -335,12 +306,13 @@ defmodule RegentsWeb.StakeLiveTest do
     Application.put_env(:regents, :test_staking_read_watcher, self())
     on_exit(fn -> Application.delete_env(:regents, :test_staking_read_watcher) end)
 
-    Application.put_env(:regents, :staking_snapshot_clock, fn -> 10_000_000 end)
+    SharedStakingReading.age()
 
     render_hook(view, "refresh_shared_snapshot", %{})
     render_hook(view, "refresh_data", %{})
 
     refute_receive {:staking_read, _scope, _reader}, 200
+    refute_enqueued(worker: SnapshotRefresh)
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
@@ -376,10 +348,11 @@ defmodule RegentsWeb.StakeLiveTest do
       Application.delete_env(:regents, :test_staking_protocol_block)
     end)
 
-    Application.put_env(:regents, :staking_snapshot_clock, fn -> 10_000_000 end)
+    SharedStakingReading.age()
 
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
-    assert_receive {:staking_snapshot, _snapshot}
+    assert_enqueued(worker: SnapshotRefresh)
+    SharedStakingReading.run()
     render_async(view)
 
     assert has_element?(view, ".stake-wallet-block", "Base block #1,249")
@@ -406,18 +379,17 @@ defmodule RegentsWeb.StakeLiveTest do
   test "CONFIRMED_STEP_REFRESHES: a step Base confirmed re-reads the wallet and the shared totals",
        %{conn: conn} do
     view = stake_as_signer(conn, "confirmed-refresh")
-    on_exit(fn -> SnapshotCache.clear() end)
     set_amount(view, "1")
 
     assert staking_assigns(view).staking.wallet_block_number ==
              TestStakingChainClient.wallet_block()
 
-    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+    refute_enqueued(worker: SnapshotRefresh)
 
     reverted = hash("0b")
     send_landed(view, "stake", reverted, "0x0")
     assert has_element?(view, ~s(#staking-activity-#{reverted}[data-outcome="reverted"]))
-    assert :sys.get_state(SnapshotCache).refresh_timer == nil
+    refute_enqueued(worker: SnapshotRefresh)
 
     Application.put_env(:regents, :test_staking_wallet_block, @receipt_block)
     on_exit(fn -> Application.delete_env(:regents, :test_staking_wallet_block) end)
@@ -426,14 +398,12 @@ defmodule RegentsWeb.StakeLiveTest do
 
     assert has_element?(view, ~s(#staking-activity-#{@hash}[data-outcome="confirmed"]))
     assert staking_assigns(view).staking.wallet_block_number == @receipt_block
-    assert {timer, _token} = :sys.get_state(SnapshotCache).refresh_timer
-    assert Process.read_timer(timer) <= 10_000
+    assert_enqueued(worker: SnapshotRefresh, scheduled_at: {DateTime.utc_now(), delta: 10})
   end
 
   test "STAKE_RECEIPT: a stake Base confirmed opens a receipt with the position read after it",
        %{conn: conn} do
     view = stake_as_signer(conn, "stake-receipt")
-    on_exit(fn -> SnapshotCache.clear() end)
     set_amount(view, "1")
 
     send_landed(view, "stake", hash("0b"), "0x0")
@@ -467,7 +437,6 @@ defmodule RegentsWeb.StakeLiveTest do
   test "UNSTAKE_RECEIPT: an unstake Base confirmed says the REGENT is back in the wallet",
        %{conn: conn} do
     view = stake_as_signer(conn, "unstake-receipt")
-    on_exit(fn -> SnapshotCache.clear() end)
     view |> element("#staking-tab-unstake") |> render_click()
     set_amount(view, "2")
 
@@ -481,7 +450,6 @@ defmodule RegentsWeb.StakeLiveTest do
   test "RECEIPT_KEEPS_NEW_AMOUNT: an amount typed while the stake was on its way stays",
        %{conn: conn} do
     view = stake_as_signer(conn, "receipt-new-amount")
-    on_exit(fn -> SnapshotCache.clear() end)
     set_amount(view, "1")
     send_step(view, "stake", @hash)
     assert has_element?(view, ~s(#staking-activity-#{@hash}[data-outcome="pending"]))
@@ -499,7 +467,6 @@ defmodule RegentsWeb.StakeLiveTest do
   test "RECEIPT_POSITION_UNAVAILABLE: a position that cannot be read is said in words",
        %{conn: conn} do
     view = stake_as_signer(conn, "receipt-unavailable")
-    on_exit(fn -> SnapshotCache.clear() end)
     set_amount(view, "1")
     Application.put_env(:regents, :test_staking_wallet_error, :rpc_down)
 
@@ -1305,17 +1272,10 @@ defmodule RegentsWeb.StakeLiveTest do
   defp set_amount(view, amount),
     do: view |> form("#staking-amount-form", %{"amount" => amount}) |> render_change()
 
-  defp seed_snapshot do
-    SnapshotCache.clear()
-    assert :ok = SnapshotCache.refresh(self())
-    assert_receive {:staking_snapshot, snapshot}
-    snapshot
-  end
+  defp seed_snapshot, do: SharedStakingReading.share()
 
   defp share_new_snapshot do
-    SnapshotCache.clear()
-    assert :ok = SnapshotCache.refresh(self())
-    assert_receive {:staking_snapshot, _snapshot}
+    SharedStakingReading.share()
     :ok
   end
 

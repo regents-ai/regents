@@ -2,8 +2,8 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   @moduledoc "Verify SIWA once, then resolve the current pairing and local beneficiary."
   @behaviour Plug
   import Plug.Conn
-  alias Regents.Actors.{Agent, System}
   alias RegentAgents.{Authority, Broker}
+  alias Regents.Actors.{Agent, System}
 
   def init(opts), do: opts
 

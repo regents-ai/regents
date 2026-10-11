@@ -22,6 +22,7 @@ defmodule RegentsWeb.CreditsLive do
 
   attr :lease, :map, required: true
   attr :account, :map, default: nil
+  attr :signed_out_reason, :atom, required: true
   attr :balance, :map, default: nil
 
   def history(assigns) do
@@ -32,12 +33,17 @@ defmodule RegentsWeb.CreditsLive do
         <h1 tabindex="-1">Purchase History</h1>
       </header>
 
-      <section :if={is_nil(@account)} class="account-panel">
-        <h2>Sign in to see your purchases</h2>
-        <Regent.Primitives.button type="button" data-account-target="sign-in">
-          Sign in
-        </Regent.Primitives.button>
-      </section>
+      <Regent.Account.signed_out
+        :if={is_nil(@account)}
+        id="credits-history-signed-out"
+        reason={@signed_out_reason}
+      >
+        <:sign_in>
+          <Regent.Primitives.button type="button" data-account-target="sign-in">
+            Sign in
+          </Regent.Primitives.button>
+        </:sign_in>
+      </Regent.Account.signed_out>
 
       <section :if={@account} class="account-panel">
         <.live_component
@@ -54,6 +60,7 @@ defmodule RegentsWeb.CreditsLive do
 
   attr :lease, :map, required: true
   attr :account, :map, default: nil
+  attr :signed_out_reason, :atom, required: true
 
   def admin(assigns) do
     assigns = assign(assigns, :admin?, Credits.admin?(assigns.account))
@@ -66,12 +73,17 @@ defmodule RegentsWeb.CreditsLive do
         <p class="account-lede">Give Credits, find purchases and send refunds.</p>
       </header>
 
-      <section :if={is_nil(@account)} class="account-panel">
-        <h2>Sign in to see this page</h2>
-        <Regent.Primitives.button type="button" data-account-target="sign-in">
-          Sign in
-        </Regent.Primitives.button>
-      </section>
+      <Regent.Account.signed_out
+        :if={is_nil(@account)}
+        id="credits-admin-signed-out"
+        reason={@signed_out_reason}
+      >
+        <:sign_in>
+          <Regent.Primitives.button type="button" data-account-target="sign-in">
+            Sign in
+          </Regent.Primitives.button>
+        </:sign_in>
+      </Regent.Account.signed_out>
 
       <section :if={@account && !@admin?} class="account-panel">
         <h2>This page is for Credits admins</h2>

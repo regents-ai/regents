@@ -28,7 +28,10 @@ defmodule RegentsWeb.PaperProDailyLive do
 
     {:ok,
      socket
-     |> assign(route_spec: RouteCatalog.fetch!(:paper_pro_daily), analysis_prompt: @analysis_prompt)
+     |> assign(
+       route_spec: RouteCatalog.fetch!(:paper_pro_daily),
+       analysis_prompt: @analysis_prompt
+     )
      |> assign(PublicDocuments.page("/paper-pro-daily"))
      |> refresh_papers()}
   end

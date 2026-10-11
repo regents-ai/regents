@@ -18,9 +18,8 @@ defmodule Regents.Staking.RevenueHistory do
     with :ok <- forward_head(previous, block),
          from = start(previous, first),
          {:ok, logs} <- fetch.(from, block.number),
-         {:ok, events} <- events(logs, from, block),
-         retained = retained(previous, first, from),
-         all = retained ++ events do
+         {:ok, events} <- events(logs, from, block) do
+      all = retained(previous, first, from) ++ events
       total = Enum.reduce(all, 0, &(&2 + String.to_integer(&1["received_raw"])))
 
       {:ok,
@@ -69,8 +68,8 @@ defmodule Regents.Staking.RevenueHistory do
           events
           |> Enum.group_by(& &1["block_number"])
           |> Enum.all?(fn {_number, block_events} ->
-            length(Enum.uniq_by(block_events, & &1["block_hash"])) == 1 &&
-              length(Enum.uniq_by(block_events, & &1["log_index"])) == length(block_events)
+            match?([_], Enum.uniq_by(block_events, & &1["block_hash"])) &&
+              Enum.uniq_by(block_events, & &1["log_index"]) == block_events
           end)
 
         if consistent?, do: {:ok, events}, else: {:error, :invalid_chain_response}

@@ -578,7 +578,7 @@ defmodule RegentsWeb.HomeLive do
         index: "01",
         anchor: "autolaunch",
         eyebrow: "Autolaunch — Fund",
-        title: "Revstake for AiFi, and Memestake for Onchain Pairs",
+        title: "Revstake for AiFi, and Memestock for Onchain Pairs",
         description:
           "Autolaunch is for tokenizing long-term agent and x402 stablecoin revenue. Bonus: paired stock tokens with fair Uniswap auction launches.",
         supporting: nil,

@@ -3,7 +3,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
 
   alias Regents.Accounts
   alias Regents.Actors.System
-  alias Regents.Staking.SnapshotCache
+  alias Regents.SharedStakingReading
 
   @wallet "0x1111111111111111111111111111111111111111"
   @refresh_failure "Couldn’t update just now. The figures shown are from the last successful reading."
@@ -60,9 +60,6 @@ defmodule RegentsWeb.RegentOpsLiveTest do
   # The product map is public copy, so a pending or failed Base read never
   # withdraws it or the account actions, and the unavailable notice keeps its word.
   test "products and account actions outlive the network summary read", %{conn: conn} do
-    SnapshotCache.clear()
-    on_exit(&SnapshotCache.clear/0)
-
     {:ok, view, html} = live(conn, "/app")
 
     assert has_element?(view, ~s(ul[aria-label="Products"] h3), "Techtree")
@@ -141,9 +138,6 @@ defmodule RegentsWeb.RegentOpsLiveTest do
   # wallet was never read while there was nothing to show it beside, so it is
   # read the moment the contract figures return, rather than left waiting.
   test "a contract reading that recovers brings the account's wallet with it", %{conn: conn} do
-    SnapshotCache.clear()
-    on_exit(&SnapshotCache.clear/0)
-
     {:ok, account} =
       Accounts.register_verified("did:privy:regent-ops-recover", @wallet, [@wallet],
         actor: %System{}
@@ -157,9 +151,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
     assert html =~ "Network details are unavailable right now."
     refute has_element?(view, "#overview-network-skeleton")
 
-    Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
-    assert :ok = SnapshotCache.refresh(self())
-    assert_receive {:staking_snapshot, _reading}
+    SharedStakingReading.share()
     html = render_async(view)
 
     refute html =~ "Network details are unavailable right now."
@@ -170,11 +162,5 @@ defmodule RegentsWeb.RegentOpsLiveTest do
 
   # The shared contract reading already exists before anyone opens the page,
   # exactly as it does on a running server after its own first read.
-  defp seed_shared_reading do
-    SnapshotCache.clear()
-    Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
-    on_exit(&SnapshotCache.clear/0)
-    assert :ok = SnapshotCache.refresh(self())
-    assert_receive {:staking_snapshot, _reading}
-  end
+  defp seed_shared_reading, do: SharedStakingReading.share()
 end

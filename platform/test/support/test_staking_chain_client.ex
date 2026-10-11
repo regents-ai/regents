@@ -133,24 +133,15 @@ defmodule Regents.TestStakingChainClient do
     |> Map.merge(seven_day_window(block))
   end
 
-  # The seven-day window is read beside the contract's answers rather than with
-  # them, so a test can take it away without taking anything else with it.
+  # The seven days of deposits ending at the reading's block.
   defp seven_day_window(block) do
-    case Application.get_env(:regents, :test_staking_usdc_7d, @seven_day_usdc) do
-      :unavailable ->
-        %{
-          usdc_received_from_block: :unavailable,
-          usdc_received_7d_raw: :unavailable,
-          usdc_received_7d: :unavailable
-        }
+    received = Application.get_env(:regents, :test_staking_usdc_7d, @seven_day_usdc)
 
-      received ->
-        %{
-          usdc_received_from_block: max(block - @window_blocks + 1, 0),
-          usdc_received_7d_raw: received,
-          usdc_received_7d: scaled(received, 6)
-        }
-    end
+    %{
+      usdc_received_from_block: max(block - @window_blocks + 1, 0),
+      usdc_received_7d_raw: received,
+      usdc_received_7d: scaled(received, 6)
+    }
   end
 
   defp wallet_facts(wallet) do

@@ -24,10 +24,10 @@ defmodule RegentsWeb.AutolaunchLive do
       ]
     },
     %{
-      kicker: "Memestake · on Base, Robinhood Chain soon",
+      kicker: "Memestock · on Base, Robinhood Chain soon",
       title: "Pair a memecoin with a real stock.",
       copy: [
-        "A Memestake token is a memecoin paired with a tokenized stock. Bids are paid in the stock, and stakers earn the stock from trading fees.",
+        "A Memestock token is a memecoin paired with a tokenized stock. Bids are paid in the stock, and stakers earn the stock from trading fees.",
         "There is no creator allocation. Unsold tokens are burned."
       ],
       facts: [
@@ -79,7 +79,7 @@ defmodule RegentsWeb.AutolaunchLive do
       kicker: "autolaunch.sh · Auctions opened 24 September 2026",
       headline: "Raise early funds for an agent. Share what it earns.",
       summary:
-        "Autolaunch runs fair token auctions on Base. Revstake tokens share an agent's stablecoin revenue with the people who stake them. Memestake tokens pair a memecoin with a real onchain stock.",
+        "Autolaunch runs fair token auctions on Base. Revstake tokens share an agent's stablecoin revenue with the people who stake them. Memestock tokens pair a memecoin with a real onchain stock.",
       launches: @launches,
       why_fair: @proofs,
       audience: @audience,
@@ -118,7 +118,7 @@ defmodule RegentsWeb.AutolaunchLive do
           src="/images/products/autolaunch.webp"
           width="1200"
           height="630"
-          alt="Agents: autolaunch your token. Revstake: stake for a slice of stablecoin earnings. Memestake: stake for onchain stocks from fees."
+          alt="Agents: autolaunch your token. Revstake: stake for a slice of stablecoin earnings. Memestock: stake for onchain stocks from fees."
         />
       </figure>
 

@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time and the papers" do
+  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time, the papers and the staking readings" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -41,6 +41,9 @@ defmodule RegentsWeb.BoundaryTest do
     assert [papers_migration] =
              Path.wildcard("priv/repo/migrations/*_paper_pro_daily_papers.exs")
 
+    assert [staking_readings_migration] =
+             Path.wildcard("priv/repo/migrations/*_staking_protocol_readings.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
@@ -52,7 +55,8 @@ defmodule RegentsWeb.BoundaryTest do
                allowance_drop_migration,
                oban_migration,
                signed_in_migration,
-               papers_migration
+               papers_migration,
+               staking_readings_migration
              ])
 
     # The sign-in time only adds a column and fills it for bound sessions.
@@ -61,6 +65,10 @@ defmodule RegentsWeb.BoundaryTest do
     # The papers only add their own table.
     [papers_up, _down] = papers_migration |> File.read!() |> String.split("def down")
     refute papers_up =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE|ALTER)\b/i
+
+    # The staking readings only add their own table.
+    [readings_up, _down] = staking_readings_migration |> File.read!() |> String.split("def down")
+    refute readings_up =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE|ALTER)\b/i
 
     # The copy only adds rows to the shared pairing.
     copy = File.read!(copy_migration)

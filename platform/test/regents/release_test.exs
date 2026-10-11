@@ -186,7 +186,8 @@ defmodule Regents.ReleaseTest do
              "paper_pro_daily_papers",
              "regents",
              "schema_migrations",
-             "session_authorities"
+             "session_authorities",
+             "staking_protocol_readings"
            ]
 
     assert table_names(config, "regent_payments") == [
@@ -198,6 +199,7 @@ defmodule Regents.ReleaseTest do
     assert table_names(config, "regent_agents") == [
              "paired_agents",
              "pairing_codes",
+             "pairing_history",
              "schema_migrations"
            ]
 

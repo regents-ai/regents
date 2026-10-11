@@ -1259,3 +1259,27 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   refused for it says no account holds those Credits yet.
 - The Points page's NFT tier read draws on the visitor's chain read budget, like
   Stake and Redeem; past it, the page says the NFTs could not be checked.
+
+## 2026-10-11 — The five site-wide functions from ash-template (local, unreleased)
+
+- On design-system `9faee245bad741a40e0dcd232dddb29e244b8c2e`. The header says
+  "Sign in" and "Sign out". Account uses the shared signed-out, agents and
+  Credits sections; Credits are read in the background and show loading, stale
+  and error states. The motion kit matches the template (one figure-changed
+  flash, count rolls keep decimals, Back and Forward reset the last input, the
+  refusal shake stops with its message, the MotionRefusal hook is registered).
+- A session that lapses while a page is open withdraws the account and the page
+  says "Your session ended. Sign in again to see your account." on Account,
+  Points, Purchase History and Credits admin, each through the shared
+  signed-out section. Signed out, they say "Sign in to see your account."
+- Autolaunch, the home page and /about say Memestock.
+- decimal 3.1.2 in platform, agents, identity and payments (advisory
+  EEF-CVE-2026-97853 on 3.1.1).
+- Tests follow the 9 Oct shared staking reading: pages are seeded by running
+  `Regents.Staking.SnapshotRefresh` and announcing its outcome as the listener
+  does (`Regents.SharedStakingReading` in test support). The tests of the
+  retired in-memory snapshot cache are removed, as is the Stake case for a
+  reading with a missing seven-day window, which the refresh no longer saves.
+  The contract, open-route, migration and release table lists include the
+  9 Oct agent reads, `/capabilities`, `/agents.md`, `/skill.md`,
+  `staking_protocol_readings` and `regent_agents.pairing_history`.

@@ -73,14 +73,13 @@ defmodule Regents.Application do
   end
 
   defp staking_jobs(config) do
-    if Application.get_env(:regents, :staking_snapshot_refresh_enabled, false) do
-      config
-    else
-      update_in(config, [:cron, :crontab], fn entries ->
-        Enum.reject(entries, fn {_, worker} -> worker == Regents.Staking.SnapshotRefresh end)
-      end)
-    end
+    if Application.get_env(:regents, :staking_snapshot_refresh_enabled, false),
+      do: config,
+      else: update_in(config, [:cron, :crontab], &without_snapshot_refresh/1)
   end
+
+  defp without_snapshot_refresh(entries),
+    do: Enum.reject(entries, &match?({_, Regents.Staking.SnapshotRefresh}, &1))
 
   # Metrics are served beside the site, never by a process that only runs a task.
   defp metrics_child do

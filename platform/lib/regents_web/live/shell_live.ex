@@ -188,6 +188,7 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :account}
           lease={@session_lease}
           account={current_account(@access_context)}
+          signed_out_reason={@signed_out_reason}
           account_control={@account_control}
           ens={@account_ens}
           names={@account_names}
@@ -207,6 +208,7 @@ defmodule RegentsWeb.ShellLive do
         <PointsLive.page
           :if={@route_spec.route_id == :account_points}
           account={current_account(@access_context)}
+          signed_out_reason={@signed_out_reason}
           points={@points}
           bonus={@points_bonus}
           earning={@points_earning}
@@ -263,6 +265,7 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :account_credits}
           lease={@session_lease}
           account={current_account(@access_context)}
+          signed_out_reason={@signed_out_reason}
           balance={@credits.value}
         />
 
@@ -270,6 +273,7 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :credits_admin}
           lease={@session_lease}
           account={current_account(@access_context)}
+          signed_out_reason={@signed_out_reason}
         />
       </:content>
     </.shell>

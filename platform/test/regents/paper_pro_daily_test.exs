@@ -3,14 +3,8 @@ defmodule Regents.PaperProDailyTest do
 
   alias Regents.PaperProDaily
   alias Regents.PaperProDaily.{Paper, Publication}
-  alias Regents.Repo
 
   import Regents.PaperProDailyFixtures
-
-  setup do
-    Repo.delete_all("paper_pro_daily_papers")
-    :ok
-  end
 
   test "future papers can be written and replaced without becoming public" do
     tomorrow = Date.add(Date.utc_today(), 1)

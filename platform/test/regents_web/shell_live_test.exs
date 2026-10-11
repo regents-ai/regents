@@ -4,7 +4,7 @@ defmodule RegentsWeb.ShellLiveTest do
   alias Regents.AccessContext.AccountControl
   alias Regents.Accounts
   alias Regents.Actors.System
-  alias Regents.Staking.SnapshotCache
+  alias Regents.SharedStakingReading
   alias RegentsWeb.Components.Shell
   alias RegentsWeb.RouteCatalog
 
@@ -231,7 +231,8 @@ defmodule RegentsWeb.ShellLiveTest do
   test "Account owns its own page rather than relabeling the whole shell" do
     html =
       render_component(&RegentsWeb.AccountLive.page/1, %{
-        account_control: %AccountControl{kind: :sign_in, label: "Sign in", profile_path: nil}
+        account_control: %AccountControl{kind: :sign_in, label: "Sign in", profile_path: nil},
+        signed_out_reason: :signed_out
       })
 
     assert html =~ ~s(id="account-page")
@@ -687,14 +688,7 @@ defmodule RegentsWeb.ShellLiveTest do
     end
   end
 
-  defp seed_shared_snapshot do
-    SnapshotCache.clear()
-    Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
-    on_exit(&SnapshotCache.clear/0)
-    assert :ok = SnapshotCache.refresh(self())
-    assert_receive {:staking_snapshot, snapshot}
-    snapshot
-  end
+  defp seed_shared_snapshot, do: SharedStakingReading.share()
 
   # Opening Account asks Ethereum about a wallet it has not read; the page is
   # only settled once that answer has landed.

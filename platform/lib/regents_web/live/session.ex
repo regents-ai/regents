@@ -37,7 +37,7 @@ defmodule RegentsWeb.Live.Session do
   end
 
   def on_mount(:load_human, _params, session, socket) do
-    socket = Phoenix.Component.assign(socket, session_lease: nil)
+    socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
 
     if connected?(socket) do
       connected(socket, session, get_connect_info(socket, :session))
@@ -160,8 +160,10 @@ defmodule RegentsWeb.Live.Session do
   defp reidentify(socket, account), do: assign_principal(socket, account)
 
   # A lapsed lease withdraws the principal, so nothing downstream can still
-  # present it as authority.
-  defp lapsed(socket), do: assign_principal(socket, nil)
+  # present it as authority, and a page that stays open says the sign-in ended
+  # rather than that no one signed in.
+  defp lapsed(socket),
+    do: socket |> assign_principal(nil) |> Phoenix.Component.assign(signed_out_reason: :expired)
 
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)

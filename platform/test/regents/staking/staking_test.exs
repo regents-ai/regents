@@ -1,6 +1,7 @@
 defmodule Regents.StakingTest do
   use RegentsWeb.ConnCase, async: false
 
+  alias Regents.SharedStakingReading
   alias Regents.Staking
   alias Regents.Staking.{Facts, Steps}
 
@@ -11,11 +12,11 @@ defmodule Regents.StakingTest do
     @behaviour Regents.Staking.ChainClient
 
     @impl true
-    def protocol_snapshot do
+    def protocol_snapshot(history) do
       send(Process.get(:staking_test_pid, self()), :protocol)
 
       case Process.get(:read_error) do
-        nil -> {:ok, protocol()}
+        nil -> {:ok, protocol(), history || %{"events" => [], "block_number" => 42}}
         reason -> {:error, reason}
       end
     end
@@ -85,17 +86,21 @@ defmodule Regents.StakingTest do
     Process.put(:staking_test_pid, self())
     on_exit(fn -> restore_env(:staking_chain_client, previous_client) end)
 
+    # Pages read the one shared contract reading the refresh job saved.
+    SharedStakingReading.share()
+    assert_received :protocol
+
     :ok
   end
 
   # The contract reading and a wallet reading are separate reads that answer
-  # different questions, and neither one carries the other's facts.
-  test "CHAIN_FACTS_ONLY: public and connected-wallet reads come directly from Base" do
+  # different questions, and neither one carries the other's facts. The
+  # contract reading is the shared saved one; a wallet reading comes from Base.
+  test "CHAIN_FACTS_ONLY: the shared contract reading and each wallet's own Base reading" do
     assert {:ok, protocol} = Staking.overview()
     assert protocol.chain_id == 8453
     assert protocol.block_number == 42
     refute Map.has_key?(protocol, :wallet_address)
-    assert_receive :protocol
 
     assert {:ok, %{wallet_address: @wallet, wallet_block_number: 48}} =
              Staking.account_for_wallet(@wallet)

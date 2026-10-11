@@ -4,16 +4,25 @@ defmodule RegentsWeb.ApiContractTest do
   @contract Path.expand("../../contracts/api-contract.openapiv3.yaml", __DIR__)
   @served_contract Application.app_dir(:regents, "priv/static/api-contract.openapiv3.yaml")
 
-  test "the canonical contract declares the complete admitted browser auth surface" do
+  test "the canonical contract declares the complete admitted browser auth and agent surface" do
     contract = YamlElixir.read_from_file!(@contract)
 
     assert Map.keys(contract["paths"]) |> Enum.sort() == [
+             "/api/agent/v1/account",
+             "/api/agent/v1/claims",
+             "/api/agent/v1/credits/balance",
+             "/api/agent/v1/credits/budget",
+             "/api/agent/v1/credits/history",
+             "/api/agent/v1/points",
+             "/api/agent/v1/staking/position",
              "/api/agents/v1/me",
              "/api/agents/v1/pair",
+             "/api/agents/v1/whoami",
              "/auth/csrf",
              "/auth/privy/failure",
              "/auth/privy/session",
-             "/auth/session"
+             "/auth/session",
+             "/capabilities"
            ]
 
     assert Map.take(contract["paths"], [

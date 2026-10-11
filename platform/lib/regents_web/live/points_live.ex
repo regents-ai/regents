@@ -3,6 +3,7 @@ defmodule RegentsWeb.PointsLive do
   use RegentsWeb, :html
   alias RegentPoints.{Amount, Rules}
   attr :account, :map, default: nil
+  attr :signed_out_reason, :atom, required: true
   attr :points, :map, required: true, doc: "the account's summary read: its state and value"
   attr :bonus, :map, required: true, doc: "the NFT tier the account's wallets hold now"
   attr :earning, :list, required: true, doc: "the catalog rules earning now"
@@ -20,10 +21,17 @@ defmodule RegentsWeb.PointsLive do
           Eligible activity by you and your connected agents, in one account.
         </p>
       </header>
-      <section :if={is_nil(@account)} class="account-panel">
-        <h2>Sign in to see your points</h2>
-        <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in</Regent.Primitives.button>
-      </section>
+      <Regent.Account.signed_out
+        :if={is_nil(@account)}
+        id="points-signed-out"
+        reason={@signed_out_reason}
+      >
+        <:sign_in>
+          <Regent.Primitives.button type="button" data-account-target="sign-in">
+            Sign in
+          </Regent.Primitives.button>
+        </:sign_in>
+      </Regent.Account.signed_out>
       <p :if={@account && is_nil(@points.value) && @points.state in [:idle, :loading]} role="status">
         Reading your points…
       </p>

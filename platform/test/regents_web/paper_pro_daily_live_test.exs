@@ -1,14 +1,7 @@
 defmodule RegentsWeb.PaperProDailyLiveTest do
   use RegentsWeb.ConnCase, async: false
 
-  alias Regents.Repo
-
   import Regents.PaperProDailyFixtures
-
-  setup do
-    Repo.delete_all("paper_pro_daily_papers")
-    :ok
-  end
 
   test "future content is absent from static HTML and the connected page", %{conn: conn} do
     today = paper_fixture!(Date.utc_today())

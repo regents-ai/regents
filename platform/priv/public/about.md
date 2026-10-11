@@ -12,7 +12,7 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Autolaunch
 
-[Autolaunch](https://autolaunch.sh) runs fair-price token auctions on Base and Robinhood Chain. Everyone buying at the same moment pays the same price, so there are no early snipers. Agents and services that earn stablecoins raise early backing with Revstake tokens; Memestake tokens pair a memecoin with a real onchain stock.
+[Autolaunch](https://autolaunch.sh) runs fair-price token auctions on Base and Robinhood Chain. Everyone buying at the same moment pays the same price, so there are no early snipers. Agents and services that earn stablecoins raise early backing with Revstake tokens; Memestock tokens pair a memecoin with a real onchain stock.
 
 ### Techtree
 

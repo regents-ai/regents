@@ -15,6 +15,7 @@ defmodule RegentsWeb.AccountLive do
 
   attr :lease, :map, required: true
   attr :account, :map, default: nil
+  attr :signed_out_reason, :atom, required: true
   attr :account_control, :map, required: true
   attr :ens, :atom, default: nil
   attr :names, :any, default: nil
@@ -44,7 +45,11 @@ defmodule RegentsWeb.AccountLive do
         </p>
       </header>
 
-      <Regent.Account.signed_out :if={is_nil(@account)} id="account-signed-out">
+      <Regent.Account.signed_out
+        :if={is_nil(@account)}
+        id="account-signed-out"
+        reason={@signed_out_reason}
+      >
         <:sign_in>
           <Regent.Primitives.button type="button" data-account-target="sign-in">
             Sign in
