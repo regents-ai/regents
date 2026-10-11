@@ -1329,3 +1329,12 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   `/api/agent/v1` routes: `403` with code `agent_not_paired` or
   `person_not_here`, in every site copy.
 - `blog/README.md` no longer says `/blog` redirects; `/articles` is the only address.
+
+## 2026-10-11 — Test-only follow-ups to the third review (local, unreleased)
+
+- The browser test server uses its own database (the test partition plus
+  `_browser`), so the staking reading it saves no longer reaches `mix test`.
+  It takes its one staking reading at start (`Regents.BrowserStakingReading`),
+  so the Stake browser checks no longer depend on a reading left by an earlier run.
+- The Redeem LiveView test for the no-token case checks only the steps the
+  server builds; the browser check covers which buttons show.

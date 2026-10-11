@@ -342,24 +342,21 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert [%{data: @redeem_42_data}] = step(view, "redeem")
   end
 
-  test "NO_TOKEN_NO_REDEEM: both approvals are offered at once, Redeem once a token is chosen",
+  # The browser spec covers which buttons show; this covers the steps the server builds.
+  test "NO_TOKEN_NO_REDEEM: the server builds both approvals at once, Redeem once a token is chosen",
        %{conn: conn} do
     view = redeem_as_signer(conn, "no-token-no-redeem")
 
-    assert has_element?(view, control("approve_nft_collection"), "Approve NFT collection")
-    assert has_element?(view, control("approve_exact_usdc"), "Approve 80 USDC")
-    refute has_element?(view, control("redeem"))
-    assert has_element?(view, ~s|#redemption-claim[data-onchain-step="claim"]|)
+    assert [_nft_approval] = step(view, "approve_nft_collection")
+    assert [_usdc_approval] = step(view, "approve_exact_usdc")
     assert step(view, "redeem") == []
 
     select(view, "animata_i", "42")
-    assert has_element?(view, control("redeem"), "Redeem Animata")
     assert [%{data: @redeem_42_data}] = step(view, "redeem")
 
     select(view, "animata_i", "")
-    assert has_element?(view, control("approve_nft_collection"))
-    assert has_element?(view, control("approve_exact_usdc"))
-    refute has_element?(view, control("redeem"))
+    assert [_nft_approval] = step(view, "approve_nft_collection")
+    assert [_usdc_approval] = step(view, "approve_exact_usdc")
     assert step(view, "redeem") == []
   end
 
