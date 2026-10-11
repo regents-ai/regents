@@ -51,7 +51,7 @@ defmodule Regents.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.34 and >= 3.34.3"},
+      {:ash, "~> 3.34 and >= 3.34.6"},
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
@@ -94,7 +94,7 @@ defmodule Regents.MixProject do
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
-      {:decimal, "== 3.1.1"},
+      {:decimal, "== 3.1.2"},
       {:req, "~> 0.7"},
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

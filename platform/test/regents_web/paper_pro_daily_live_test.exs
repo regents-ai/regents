@@ -6,6 +6,7 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
   import Regents.PaperProDailyFixtures
 
   setup do
+    # Sandbox-only fixture cleanup: this upload-only resource has no destroy action.
     Repo.delete_all("paper_pro_daily_papers")
     on_exit(&Regents.TestPublicationClock.reset/0)
     :ok
