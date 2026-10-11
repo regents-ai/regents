@@ -248,6 +248,8 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
 
     {:ok, view, _html} = live(signed_in, "/stake")
     assert has_element?(view, @profile)
+    # The balance, which the Buy Credits panel shows, is read in the background.
+    render_async(view)
     assert has_element?(view, "#credits-panel-amount[value='5']")
 
     assert SessionAuthority.revoke(claim(signed_in))

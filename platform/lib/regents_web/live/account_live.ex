@@ -28,7 +28,10 @@ defmodule RegentsWeb.AccountLive do
   attr :agent_detail, :map, default: nil
   attr :agent_notice, :any, default: nil
   attr :agents_now, DateTime, default: nil
-  attr :credits, :map, default: nil, doc: "The account's Credits balance; nil when signed out."
+
+  attr :credits, :map,
+    required: true,
+    doc: "The account's Credits balance read: its state and value (`RegentCredits.balance/1`)."
 
   def page(assigns) do
     ~H"""
@@ -41,13 +44,13 @@ defmodule RegentsWeb.AccountLive do
         </p>
       </header>
 
-      <section :if={is_nil(@account)} class="account-panel account-signed-out">
-        <h2>Sign in to see your account</h2>
-        <p>Your wallet, names and connections appear here once you are signed in.</p>
-        <Regent.Primitives.button type="button" data-account-target="sign-in">
-          Sign in
-        </Regent.Primitives.button>
-      </section>
+      <Regent.Account.signed_out :if={is_nil(@account)} id="account-signed-out">
+        <:sign_in>
+          <Regent.Primitives.button type="button" data-account-target="sign-in">
+            Sign in
+          </Regent.Primitives.button>
+        </:sign_in>
+      </Regent.Account.signed_out>
 
       <div :if={@account} class="account-grid">
         <Regent.HolographicCard.card
@@ -131,30 +134,18 @@ defmodule RegentsWeb.AccountLive do
           now={@agents_now}
         />
 
-        <section
-          :if={@credits}
-          id="account-credits"
-          class="account-panel account-details account-credits"
-          aria-labelledby="account-credits-title"
-        >
-          <div class="account-names__heading">
-            <h2 id="account-credits-title">Credits</h2>
-            <p>
-              One balance for every Regent site. One Credit is one US dollar.
-            </p>
-          </div>
-          <dl>
-            <div>
-              <dt>Available</dt>
-              <dd>{RegentCredits.Amount.format(@credits.available)}</dd>
-            </div>
-            <div :if={Decimal.gt?(@credits.held, 0)}>
-              <dt>Held for bids and posts</dt>
-              <dd>{RegentCredits.Amount.format(@credits.held)}</dd>
-            </div>
-          </dl>
+        <div id="account-credits" class="account-panel account-credits">
+          <Regent.Account.credits_summary
+            id="account-credits-summary"
+            available={@credits.value && RegentCredits.Amount.format(@credits.value.available)}
+            held={@credits.value && RegentCredits.Amount.format(@credits.value.held)}
+            state={credits_state(@credits.state)}
+          />
+          <p>One balance for every Regent site. One Credit is one US dollar.</p>
           <div class="account-credits__actions">
+            <%!-- Buying opens the header's Buy Credits panel, which needs the balance. --%>
             <Regent.Primitives.button
+              :if={@credits.value}
               type="button"
               phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
             >
@@ -176,7 +167,7 @@ defmodule RegentsWeb.AccountLive do
             agents={agent_wallets(@agents)}
             sites={Regents.Credits.agent_sites()}
           />
-        </section>
+        </div>
 
         <section class="account-panel account-names" aria-labelledby="account-names-title">
           <div class="account-names__heading">
@@ -255,6 +246,10 @@ defmodule RegentsWeb.AccountLive do
     </article>
     """
   end
+
+  # A balance not asked for yet is on its way.
+  defp credits_state(:idle), do: :loading
+  defp credits_state(state), do: state
 
   # The wallets of the agents paired to this account, which may be given Credits to spend.
   defp agent_wallets(agents) when is_list(agents), do: Enum.map(agents, &{&1.wallet, &1.name})

@@ -36,7 +36,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     account = register_account("agents-code")
     view = open_account(conn, account)
 
-    assert has_element?(view, "#account-agents p", "No agents are paired yet.")
+    assert has_element?(view, "#account-agents p", "No agents paired yet.")
     refute has_element?(view, @message)
 
     choose(view, "hermes")
@@ -62,9 +62,8 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert has_element?(view, "#account-agents-pairing", "Sol paired with your account.")
     refute has_element?(view, @message)
     assert has_element?(view, "#account-agents-pair:not([data-unused])", "Make a new code")
-    assert has_element?(view, "#agent-#{agent.id} .account-agent__who span", "Hermes")
-    assert has_element?(view, ~s(#agent-#{agent.id} img[src="/images/agents/hermes.png"]))
-    assert has_element?(view, "#agent-#{agent.id} .account-agent__contact", "just now")
+    assert has_element?(view, "#account-agents-agent-#{agent.id} span", "Hermes")
+    assert has_element?(view, "#account-agents-agent-#{agent.id} time", "just now")
   end
 
   test "an agent opens into its details, can be corrected and unpaired", %{conn: conn} do
@@ -105,7 +104,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
       })
     end)
 
-    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    view
+    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> render_click()
 
     assert has_element?(view, "#account-agent-dialog[data-open] h2", "Muse helper")
     assert has_element?(view, "#account-agent-dialog dd", @agent_wallet)
@@ -152,11 +153,11 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     view |> element("#account-agent-dialog button", "Unpair") |> render_click()
 
     refute has_element?(view, "#account-agent-dialog")
-    refute has_element?(view, "#agent-#{agent.id}")
+    refute has_element?(view, "#account-agents-agent-#{agent.id}")
 
     assert has_element?(
              view,
-             "#account-agents-notice[role=status]",
+             "#account-agents .rg-account__status[role=status]",
              "Muse helper is unpaired. It will need a new code to pair again."
            )
 
@@ -173,7 +174,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
       conn |> Plug.Conn.put_status(503) |> Req.Test.json(%{})
     end)
 
-    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    view
+    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> render_click()
+
     render_async(view)
 
     assert has_element?(
@@ -183,12 +187,15 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
            )
   end
 
-  test "closing the details leaves only the cards", %{conn: conn} do
+  test "closing the details leaves only the list", %{conn: conn} do
     account = register_account("agents-close")
     agent = pair!(account, "Grok", :grok_bot)
     view = open_account(conn, account)
 
-    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    view
+    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> render_click()
+
     assert has_element?(view, "#account-agent-dialog")
 
     # An agent with no registry listing shows no listing.
@@ -198,7 +205,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     render_hook(view, "close_agent", %{})
     refute has_element?(view, "#account-agent-dialog")
-    assert has_element?(view, "#agent-#{agent.id}")
+    assert has_element?(view, "#account-agents-agent-#{agent.id}")
   end
 
   test "another person's agent can't be opened or unpaired", %{conn: conn} do
@@ -214,7 +221,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     assert has_element?(
              view,
-             "#account-agents-notice[role=alert]",
+             "#account-agents .rg-account__status[role=status]",
              "This agent is no longer paired with your account. Nothing changed."
            )
 
@@ -227,19 +234,22 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     agent = pair!(account, "Echo", :hermes)
     view = open_account(conn, account)
 
-    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    view
+    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> render_click()
+
     :ok = RegentAgents.unpair_agent(agent, actor: person(account))
     heard(account)
 
     refute has_element?(view, "#account-agent-dialog")
-    refute has_element?(view, "#agent-#{agent.id}")
+    refute has_element?(view, "#account-agents-agent-#{agent.id}")
 
     # A press sent before the page caught up.
     render_hook(view, "unpair_agent", %{"id" => agent.id})
 
     assert has_element?(
              view,
-             "#account-agents-notice[role=alert]",
+             "#account-agents .rg-account__status[role=status]",
              "This agent is no longer paired with your account. Nothing changed."
            )
   end
@@ -249,7 +259,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     agent = pair!(account, "Nova", :hermes)
     view = open_account(conn, account)
 
-    view |> element("#agent-#{agent.id} .account-agent__open") |> render_click()
+    view
+    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> render_click()
+
     render_hook(view, "unpair_agent", %{"id" => "not-an-agent"})
 
     assert has_element?(
@@ -276,7 +289,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     render_patch(view, "/account")
     assert following?(view, topic)
-    assert has_element?(view, "#agent-#{agent.id}")
+    assert has_element?(view, "#account-agents-agent-#{agent.id}")
 
     render_patch(view, "/account?again=1")
 

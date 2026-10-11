@@ -1,8 +1,8 @@
 defmodule RegentsWeb.Components.PairedAgents do
   @moduledoc """
-  The agents a person has paired with their account: a card for each, a way to
-  pair another, and a larger view of one agent with what it has been doing
-  across the Regents sites.
+  The agents a person has paired with their account, in the shared agents
+  list (`Regent.Account.agents`), a way to pair another, and a larger view of
+  one agent with what it has been doing across the Regents sites.
   """
 
   use RegentsWeb, :html
@@ -36,96 +36,77 @@ defmodule RegentsWeb.Components.PairedAgents do
 
   def paired_agents(assigns) do
     ~H"""
-    <section
-      id="account-agents"
-      class="account-panel account-agents"
-      aria-labelledby="account-agents-title"
-    >
-      <div class="account-names__heading">
-        <h2 id="account-agents-title">Your agents</h2>
-        <p>Agents you have paired with this account, most recent first.</p>
-      </div>
+    <div class="account-agents">
+      <Regent.Account.agents
+        id="account-agents"
+        agents={rows(@agents, @now)}
+        notice={if is_nil(@detail), do: notice_text(@notice)}
+      >
+        <:actions :let={agent}>
+          <Regent.Primitives.button
+            type="button"
+            variant="quiet"
+            phx-click="open_agent"
+            phx-value-id={agent.id}
+            aria-label={"See what #{agent.name} has done"}
+          >
+            See what it has done
+          </Regent.Primitives.button>
+        </:actions>
+        <:footer>
+          <div class="account-agents__pair">
+            <h3 id="account-agents-pair-title">
+              Select your personal agent you will pair to your Regents Account
+            </h3>
+            <form id="account-agents-choose" phx-change="issue_pairing_code">
+              <fieldset class="account-agents__choices" aria-labelledby="account-agents-pair-title">
+                <label :for={harness <- Harness.values()} class="account-agents__choice">
+                  <input
+                    type="radio"
+                    name="harness"
+                    value={harness}
+                    checked={match?(%{harness: ^harness}, @pairing)}
+                    class="visually-hidden"
+                  />
+                  <.harness_mark harness={harness} />{Harness.label(harness)}
+                </label>
+              </fieldset>
+            </form>
+            <.pairing pairing={@pairing} />
+          </div>
 
-      <.agent_notice :if={is_nil(@detail)} id="account-agents-notice" notice={@notice} />
-      <.agent_list agents={@agents} now={@now} />
-
-      <div class="account-agents__pair">
-        <h3 id="account-agents-pair-title">
-          Select your personal agent you will pair to your Regents Account
-        </h3>
-        <form id="account-agents-choose" phx-change="issue_pairing_code">
-          <fieldset class="account-agents__choices" aria-labelledby="account-agents-pair-title">
-            <label :for={harness <- Harness.values()} class="account-agents__choice">
-              <input
-                type="radio"
-                name="harness"
-                value={harness}
-                checked={match?(%{harness: ^harness}, @pairing)}
-                class="visually-hidden"
-              />
-              <.harness_mark harness={harness} />{Harness.label(harness)}
-            </label>
-          </fieldset>
-        </form>
-        <.pairing pairing={@pairing} />
-      </div>
-
-      <.agent_dialog
-        :if={@detail}
-        detail={@detail}
-        same_person={same_person(@agents, @detail.agent)}
-        notice={@notice}
-        now={@now}
-      />
-    </section>
+          <.agent_dialog
+            :if={@detail}
+            detail={@detail}
+            same_person={same_person(@agents, @detail.agent)}
+            notice={@notice}
+            now={@now}
+          />
+        </:footer>
+      </Regent.Account.agents>
+    </div>
     """
   end
 
-  attr :agents, :any, required: true
-  attr :now, DateTime, required: true
+  # Each agent as the shared list shows it, newest first as the account reads them.
+  defp rows(nil, _now), do: :loading
+  defp rows(:unavailable, _now), do: :unavailable
 
-  defp agent_list(%{agents: :unavailable} = assigns) do
-    ~H"""
-    <p role="status">Your agents couldn’t be read right now. Refresh to try again.</p>
-    """
+  defp rows(agents, now) do
+    Enum.map(agents, fn agent ->
+      %{
+        id: agent.id,
+        name: agent.name,
+        harness: Harness.label(agent.harness),
+        backed: HumanBacking.describe(agent).human_backed,
+        last_contact_iso: DateTime.to_iso8601(agent.last_contact_at),
+        last_contact: RegentFormat.relative_time(agent.last_contact_at, now)
+      }
+    end)
   end
 
-  defp agent_list(%{agents: []} = assigns) do
-    ~H"""
-    <p class="account-agents__empty">
-      No agents are paired yet. Choose yours below and give it the message.
-    </p>
-    """
-  end
-
-  defp agent_list(assigns) do
-    ~H"""
-    <ul id="account-agent-cards" class="account-agents__cards">
-      <li :for={agent <- @agents} id={"agent-#{agent.id}"} class="account-agent">
-        <button
-          type="button"
-          class="account-agent__open"
-          phx-click="open_agent"
-          phx-value-id={agent.id}
-          aria-label={"#{agent.name}, #{Harness.label(agent.harness)}. See what it has done"}
-        >
-          <.harness_mark harness={agent.harness} />
-          <span class="account-agent__who">
-            <strong>{agent.name}</strong>
-            <span>{Harness.label(agent.harness)}</span>
-          </span>
-          <span class="account-agent__contact">
-            Last contact
-            <time datetime={DateTime.to_iso8601(agent.last_contact_at)}>
-              {RegentFormat.relative_time(agent.last_contact_at, @now)}
-            </time>
-          </span>
-          <span class="account-agent__more" aria-hidden="true">See what it has done →</span>
-        </button>
-      </li>
-    </ul>
-    """
-  end
+  defp notice_text({_role, text}), do: text
+  defp notice_text(nil), do: nil
 
   attr :pairing, :map, default: nil
 
@@ -204,7 +185,7 @@ defmodule RegentsWeb.Components.PairedAgents do
 
     ~H"""
     <p class="account-agents__words account-agents__paired">
-      {@agent.name} paired with your account. Its card is above; open it to see what it does.
+      {@agent.name} paired with your account. It is listed above.
     </p>
     """
   end

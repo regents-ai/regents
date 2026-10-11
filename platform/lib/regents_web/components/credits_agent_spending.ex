@@ -116,7 +116,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
         Agent spending grants are paused during the shared rollout. You can still disable a grant.
       </p>
       <p :if={@agents == []}>
-        No agents are paired with your account yet. Pair one under Your agents to let it spend.
+        No agents are paired with your account yet. Pair one under Agents to let it spend.
       </p>
       <.form
         :for={{{agent, name}, index} <- Enum.with_index(@agents)}

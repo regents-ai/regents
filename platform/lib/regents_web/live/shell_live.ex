@@ -33,6 +33,8 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.RouteCatalog
   alias RegentsWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Points, Redemption, Staking}
 
+  @no_credits %{state: :idle, value: nil}
+
   @impl true
   def mount(params, session, socket) do
     route_spec = RouteCatalog.fetch!(socket.assigns.live_action, params)
@@ -46,7 +48,8 @@ defmodule RegentsWeb.ShellLive do
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
        browser_wallet: nil,
-       shell_instance: System.unique_integer([:positive, :monotonic])
+       shell_instance: System.unique_integer([:positive, :monotonic]),
+       credits: @no_credits
      )
      |> follow_credits()
      |> OpenSeaBudget.init()
@@ -74,6 +77,9 @@ defmodule RegentsWeb.ShellLive do
   end
 
   @impl true
+  def handle_async({:credits, privy_user_id}, result, socket),
+    do: {:noreply, credits_landed(socket, privy_user_id, result)}
+
   def handle_async({:agent_activity, _id} = name, result, socket),
     do: {:noreply, Account.settle_activity(socket, name, result)}
 
@@ -157,7 +163,7 @@ defmodule RegentsWeb.ShellLive do
           id="credits-panel"
           lease={@session_lease}
           account={current_account(@access_context)}
-          balance={@credits}
+          balance={@credits.value}
           client_tag={@client_tag}
         />
       </:credits_panel>
@@ -257,7 +263,7 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :account_credits}
           lease={@session_lease}
           account={current_account(@access_context)}
-          balance={@credits}
+          balance={@credits.value}
         />
 
         <CreditsLive.admin
@@ -272,10 +278,10 @@ defmodule RegentsWeb.ShellLive do
 
   # A session that ends while the page is open takes the balance and the panel
   # with it at once; the balance read at mount is never shown to nobody.
-  defp signed_in_credits(_access_context, nil), do: nil
+  defp signed_in_credits(_access_context, %{value: nil}), do: nil
 
-  defp signed_in_credits(access_context, credits),
-    do: if(authenticated?(access_context), do: credits.available)
+  defp signed_in_credits(access_context, %{value: balance}),
+    do: if(authenticated?(access_context), do: balance.available)
 
   # Signing in or out reloads the page, so the account followed here is the
   # page's own for as long as it is open.
@@ -288,12 +294,39 @@ defmodule RegentsWeb.ShellLive do
     socket
   end
 
+  # The balance is read in the background, so a read that fails leaves the
+  # page standing and says so where the balance is shown. A failed refresh
+  # keeps the last balance as stale; a first read that fails is an error,
+  # never zero. Only the connected page reads, so the first render shows it
+  # loading.
   defp read_credits(socket) do
     case current_account(socket.assigns.access_context) do
-      nil -> assign(socket, :credits, nil)
-      account -> assign(socket, :credits, RegentCredits.balance(account.privy_user_id))
+      nil ->
+        assign(socket, :credits, @no_credits)
+
+      %{privy_user_id: id} ->
+        socket
+        |> assign(:credits, %{socket.assigns.credits | state: :loading})
+        |> start_async({:credits, id}, fn -> RegentCredits.balance(id) end)
     end
   end
+
+  # A balance answers only for the account it was read for.
+  defp credits_landed(socket, id, result) do
+    case {current_account(socket.assigns.access_context), result} do
+      {%{privy_user_id: ^id}, {:ok, balance}} ->
+        assign(socket, :credits, %{state: :ready, value: balance})
+
+      {%{privy_user_id: ^id}, _failed} ->
+        assign(socket, :credits, credits_failed(socket.assigns.credits))
+
+      _session_ended ->
+        assign(socket, :credits, @no_credits)
+    end
+  end
+
+  defp credits_failed(%{value: nil}), do: %{state: :error, value: nil}
+  defp credits_failed(credits), do: %{credits | state: :stale}
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do

@@ -93,10 +93,6 @@
   line-height: 1.1;
 }
 
-.account-signed-out {
-  justify-items: start;
-}
-
 /* Identity card */
 
 .account-identity .rg-holo__content {
@@ -175,51 +171,10 @@
   list-style: none;
 }
 
-/* Your agents: one card per agent, the whole card opens its details and the
-   unpair button sits beneath it. */
+/* Agents: the shared list, then pairing; the whole row of the grid. */
 
 .account-agents {
   grid-column: 1 / -1;
-}
-
-.account-agents__cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.account-agent {
-  display: grid;
-  border: 1px solid var(--color-border);
-  transition: border-color 160ms ease;
-}
-
-.account-agent:hover {
-  border-color: var(--ash-line-strong);
-}
-
-.account-agent__open:hover strong {
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.account-agent__more {
-  grid-column: 1 / -1;
-  margin-block-start: 0.35rem;
-  color: var(--color-fg-muted);
-  font-size: 0.85rem;
-}
-
-.account-agent__open:hover .account-agent__more {
-  color: var(--color-fg);
-}
-
-.account-agent__open:focus-visible {
-  outline: 2px solid var(--ash-accent);
-  outline-offset: 4px;
 }
 
 .account-agent__mark {
@@ -238,27 +193,7 @@
   object-fit: contain;
 }
 
-.account-agent__who {
-  display: grid;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.account-agent__who strong {
-  overflow-wrap: anywhere;
-}
-
-.account-agent__who span,
-.account-agent__contact {
-  color: var(--color-fg-muted);
-}
-
-.account-agent__contact {
-  grid-column: 1 / -1;
-  font-size: 0.9rem;
-}
-
-/* How the last agent edit ended, beside the list or in the open agent. */
+/* How the last agent edit ended, in the open agent. */
 .account-agents__notice {
   margin: 0;
   padding-inline-start: 0.75rem;
@@ -375,10 +310,6 @@
   padding: 0.75rem 1rem;
   border-inline-start: 2px solid var(--ash-accent);
   background: var(--color-bg);
-}
-
-.account-agents__empty {
-  margin: 0;
 }
 
 .account-agents__code pre {
@@ -806,29 +737,8 @@
 }
 }
 
-/* The native button keeps its own edge, size and surface, so the card opener
-   that fills each agent card is skinned outside the page layer to beat it. */
-.account-agent .account-agent__open {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.35rem 0.85rem;
-  align-content: start;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  padding: 0.75rem;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-/* The same person's other agents read as links; like the card opener, they are
-   skinned outside the page layer to beat the native button. */
+/* The same person's other agents read as links; they are skinned outside the
+   page layer to beat the native button. */
 .account-agent-human__others .account-agent-human__other {
   min-height: 0;
   padding: 0;
