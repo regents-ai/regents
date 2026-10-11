@@ -2,6 +2,9 @@ defmodule RegentsWeb.AgentReadsController do
   @moduledoc "Private reads for a distinct, currently paired SIWA agent."
   use RegentsWeb, :controller
 
+  # The spending grant fields the published contract names.
+  @published_budget [:enabled, :site_allowed, :max_per_spend, :daily_limit, :sites, :used_24h]
+
   def account(conn, _params) do
     actor = conn.assigns.actor
 
@@ -57,25 +60,16 @@ defmodule RegentsWeb.AgentReadsController do
   def budget(conn, _params) do
     actor = credit_actor(conn)
 
-    permission =
-      RegentCredits.agent_permissions!(actor: actor)
-      |> Enum.find(
-        &(&1.agent_address == actor.agent_address and &1.pairing_id == actor.pairing_id)
-      )
+    case RegentCredits.agent_budget(actor: actor) do
+      {:ok, budget} ->
+        json(conn, %{
+          pairing_id: actor.pairing_id,
+          spending_grant: Map.take(budget, @published_budget)
+        })
 
-    budget =
-      if permission do
-        Map.take(permission, [:enabled, :max_per_spend, :daily_limit, :sites])
-        |> Map.put(:used_24h, RegentCredits.AgentSpending.spent_today(actor))
-        |> Map.put(
-          :site_allowed,
-          permission.enabled and Regents.Credits.site() in permission.sites
-        )
-      else
-        %{enabled: false, site_allowed: false}
-      end
-
-    json(conn, %{pairing_id: actor.pairing_id, spending_grant: budget})
+      {:error, _} ->
+        unavailable(conn)
+    end
   end
 
   def history(conn, _params) do

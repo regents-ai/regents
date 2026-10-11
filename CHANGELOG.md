@@ -1283,3 +1283,20 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   The contract, open-route, migration and release table lists include the
   9 Oct agent reads, `/capabilities`, `/agents.md`, `/skill.md`,
   `staking_protocol_readings` and `regent_agents.pairing_history`.
+
+## 2026-10-11 — Live release merged, Points summary, agent budget read (local, unreleased)
+
+- Merges the live release `ab6f1ffb` (Articles and its editor, Reading pages,
+  the Research List on Daily Research) so the next release keeps them. The
+  route catalog follows the router's order and the founder-shell handoff is
+  regenerated.
+- The Points page uses the shared Points summary (confirmed, earned today,
+  activity being verified, daily allowances); the bonus and activity sections
+  show once the figures are read.
+- `GET /api/agent/v1/credits/budget` reads the paired agent's spending grant
+  through `RegentCredits.agent_budget` and answers only the published fields
+  (enabled, site_allowed, max_per_spend, daily_limit, sites, used_24h).
+- elixir-utils pinned to `fd0719c3a1bcbb8906aea69302ede09d51b7e6ee` (shared
+  budget read; Points period-end snapshots). The Points snapshot migration
+  `20261009152652` is a shared-library migration and is not run by this site's
+  release.

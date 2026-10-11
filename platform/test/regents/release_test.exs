@@ -222,11 +222,14 @@ defmodule Regents.ReleaseTest do
     assert table_names(config, "regent_points") == [
              "accounts",
              "period_bonuses",
+             "period_snapshots",
              "point_cap_usage",
              "point_entries",
              "point_events",
              "schema_migrations",
-             "source_rejections"
+             "source_rejections",
+             "wallet_coverage",
+             "wallet_snapshots"
            ]
   end
 
