@@ -704,7 +704,7 @@ defmodule RegentsWeb.StakeActions do
                     type="button"
                     data-onchain-step={@signed_in && @next_step}
                     data-account-target={!@signed_in && "sign-in"}
-                    data-confirming={OnchainSteps.confirming?(@presses, ~w(approve stake unstake))}
+                    data-confirming={OnchainSteps.confirming?(@presses, [@next_step])}
                     phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
                   ><OnchainButton.label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
                   <p id="staking-available">

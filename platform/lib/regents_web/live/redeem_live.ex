@@ -281,7 +281,6 @@ defmodule RegentsWeb.RedeemLive do
       |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.linked, assigns.active))
       |> assign(:flow_sent, shown(assigns.presses, @every_control))
       |> assign(:claim_sent, shown(assigns.presses, ["claim"]))
-      |> assign(:flow_confirming, OnchainSteps.confirming?(assigns.presses, @every_control))
       |> assign(:claim_confirming, OnchainSteps.confirming?(assigns.presses, ["claim"]))
       |> assign(
         :flow_press,
@@ -293,7 +292,16 @@ defmodule RegentsWeb.RedeemLive do
       |> assign(:token_selected, Steps.token_id(assigns.token_id) != :error)
       |> assign_owned_collectibles()
 
-    assigns = assign(assigns, :controls, controls(assigns.step, assigns.token_selected))
+    assigns =
+      assign(
+        assigns,
+        :controls,
+        controls(
+          assigns.step,
+          %{collection: assigns.collection, token_id: assigns.token_id},
+          assigns.presses
+        )
+      )
 
     ~H"""
     <section
@@ -374,11 +382,7 @@ defmodule RegentsWeb.RedeemLive do
           </div>
         </section>
         <div class="redeem-layout">
-          <Loading.panel
-            id="redemption-actions-skeleton"
-            label="Redemption flow"
-            class="redeem-actions rg-panel rg-panel--surface rg-panel__body"
-          />
+          <.actions_panel {assigns} />
           <Loading.panel
             id="redemption-contract-skeleton"
             label="Contract details"
@@ -395,6 +399,9 @@ defmodule RegentsWeb.RedeemLive do
           phx-click="refresh_redemption"
           disabled={@reading}
         >Refresh Data</Regent.Primitives.button>
+      </div>
+      <div :if={@status == :error && @wallet} class="redeem-layout">
+        <.actions_panel {assigns} />
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-content">
@@ -454,135 +461,7 @@ defmodule RegentsWeb.RedeemLive do
         </p>
 
         <div class="redeem-layout">
-          <section
-            class="redeem-actions rg-panel rg-panel--surface rg-panel__body"
-            aria-labelledby="redemption-actions-heading"
-          >
-            <div class="redeem-section-heading">
-              <div>
-                <p class="redeem-kicker">Redemption flow</p><h2 id="redemption-actions-heading">
-                  {if @wallet, do: "Complete your redemption", else: "Redeem in four signed steps"}
-                </h2>
-              </div>
-              <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{RegentFormat.short_address(
-                @wallet
-              )}</span>
-            </div>
-
-            <div :if={!@wallet} class="redeem-connect-panel">
-              <p>
-                Sign in and connect the wallet that owns your Animata.
-              </p>
-              <Regent.Primitives.button
-                type="button"
-                class="redeem-primary"
-                data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
-              >
-                Connect wallet
-              </Regent.Primitives.button>
-              <ul>
-                <li>The page checks ownership and allowances on Base.</li>
-                <li>Approvals are requested only when the contract needs them.</li>
-                <li>Your wallet confirms every transaction separately.</li>
-              </ul>
-            </div>
-
-            <.notice :if={@wallet && @notice} notice={@notice} />
-
-            <Loading.panel
-              :if={@wallet && !@wallet_ready && @reading}
-              id="redemption-wallet-skeleton"
-              label="Your collection and vest"
-              labels={["Owned Animata", "USDC Balance", "Claimable REGENT"]}
-            />
-
-            <div :if={@wallet && !@wallet_ready && !@reading} class="redeem-wallet-recovery">
-              <p>
-                Your wallet is connected, but its latest Base redemption data could not be loaded.
-              </p>
-              <div>
-                <Regent.Primitives.button
-                  variant="secondary"
-                  type="button"
-                  phx-click="refresh_redemption"
-                >Try again</Regent.Primitives.button>
-              </div>
-            </div>
-
-            <div :if={@wallet_ready} class="redeem-wallet-flow">
-              <ol class="redeem-stepper" aria-label="Redemption progress">
-                <.flow_step number="1" label="Select Animata" state={flow_state(1, @step)} />
-                <.flow_step number="2" label="Approve NFT" state={flow_state(2, @step)} />
-                <.flow_step number="3" label="Approve 80 USDC" state={flow_state(3, @step)} />
-                <.flow_step number="4" label="Redeem" state={flow_state(4, @step)} />
-              </ol>
-
-              <form id="redemption-selection" phx-change="redemption_selection_changed">
-                <div>
-                  <Regent.Primitives.field id="redemption-collection" label="Collection">
-                    <select
-                      id="redemption-collection"
-                      name="collection"
-                      data-onchain-input="collection"
-                    >
-                      <option value="animata_i" selected={@collection == "animata_i"}>
-                        Animata I
-                      </option>
-                      <option value="animata_ii" selected={@collection == "animata_ii"}>
-                        Animata II
-                      </option>
-                    </select>
-                  </Regent.Primitives.field>
-                </div>
-                <div>
-                  <Regent.Primitives.field id="redemption-token-id" label="Token ID">
-                    <input
-                      id="redemption-token-id"
-                      name="token_id"
-                      value={@token_id}
-                      maxlength="16"
-                      data-onchain-input="token_id"
-                      phx-debounce="300"
-                      inputmode="numeric"
-                      autocomplete="off"
-                      placeholder="1–999"
-                    />
-                  </Regent.Primitives.field>
-                </div>
-              </form>
-
-              <section class="redeem-next-step" aria-label="Next step" data-step={@step}>
-                <div>
-                  <p class="redeem-kicker">Next required action</p><h3>
-                    {step_heading(
-                      @step,
-                      @token_selected
-                    )}
-                  </h3><p id="redemption-step-hint">{step_label(@step, @token_selected)}</p>
-                </div>
-                <div :if={@controls != []}>
-                  <Regent.Primitives.button
-                    :for={control <- @controls}
-                    id={"redemption-#{control.action}"}
-                    type="button"
-                    class={control.lead? && "redeem-primary"}
-                    data-onchain-step={@signed_in && control.action}
-                    data-account-target={!@signed_in && "sign-in"}
-                    data-confirming={@flow_confirming}
-                    phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-                    aria-describedby="redemption-step-hint"
-                  ><OnchainButton.label label={control.label} /></Regent.Primitives.button>
-                </div>
-              </section>
-              <.mismatch :if={@signed_in} note={@mismatch_note} />
-              <.activity
-                id="redemption-activity"
-                sent={@flow_sent}
-                press={@flow_press}
-                myself={@myself}
-              />
-            </div>
-          </section>
+          <.actions_panel {assigns} />
 
           <section
             :if={@wallet_ready}
@@ -637,18 +516,10 @@ defmodule RegentsWeb.RedeemLive do
               </dl>
             </div>
 
-            <Regent.Primitives.button
-              id="redemption-claim"
-              type="button"
-              class="redeem-claim"
-              data-onchain-step={@signed_in && "claim"}
-              data-account-target={!@signed_in && "sign-in"}
-              data-confirming={@claim_confirming}
-              phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-            ><OnchainButton.label label="Claim unlocked REGENT" /></Regent.Primitives.button>
-            <.mismatch :if={@signed_in} note={@mismatch_note} />
-            <.activity
-              id="redemption-claim-activity"
+            <.claim_control
+              signed_in={@signed_in}
+              confirming={@claim_confirming}
+              note={@signed_in && @mismatch_note}
               sent={@claim_sent}
               press={@claim_press}
               myself={@myself}
@@ -787,6 +658,178 @@ defmodule RegentsWeb.RedeemLive do
     """
   end
 
+  # The redemption flow: the selection and every step whose calldata can be
+  # built. It stays whenever a wallet is connected, whatever the last reading
+  # from Base was, since only Base decides whether a step goes through. While the
+  # wallet's figures are not shown, the claim sits here too.
+  defp actions_panel(assigns) do
+    ~H"""
+    <section
+      class="redeem-actions rg-panel rg-panel--surface rg-panel__body"
+      aria-labelledby="redemption-actions-heading"
+    >
+      <div class="redeem-section-heading">
+        <div>
+          <p class="redeem-kicker">Redemption flow</p><h2 id="redemption-actions-heading">
+            {if @wallet, do: "Complete your redemption", else: "Redeem in four signed steps"}
+          </h2>
+        </div>
+        <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{RegentFormat.short_address(
+          @wallet
+        )}</span>
+      </div>
+
+      <div :if={!@wallet} class="redeem-connect-panel">
+        <p>
+          Sign in and connect the wallet that owns your Animata.
+        </p>
+        <Regent.Primitives.button
+          type="button"
+          class="redeem-primary"
+          data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
+        >
+          Connect wallet
+        </Regent.Primitives.button>
+        <ul>
+          <li>The page checks ownership and allowances on Base.</li>
+          <li>Approvals are requested only when the contract needs them.</li>
+          <li>Your wallet confirms every transaction separately.</li>
+        </ul>
+      </div>
+
+      <.notice :if={@wallet && @notice} notice={@notice} />
+
+      <Loading.panel
+        :if={@wallet && !@wallet_ready && @reading}
+        id="redemption-wallet-skeleton"
+        label="Your collection and vest"
+        labels={["Owned Animata", "USDC Balance", "Claimable REGENT"]}
+      />
+
+      <div
+        :if={@wallet && !@wallet_ready && !@reading && @status == :ready}
+        class="redeem-wallet-recovery"
+      >
+        <p>
+          Your wallet is connected, but its latest Base redemption data could not be loaded.
+        </p>
+        <div>
+          <Regent.Primitives.button
+            variant="secondary"
+            type="button"
+            phx-click="refresh_redemption"
+          >Try again</Regent.Primitives.button>
+        </div>
+      </div>
+
+      <div :if={@wallet} class="redeem-wallet-flow">
+        <ol class="redeem-stepper" aria-label="Redemption progress">
+          <.flow_step number="1" label="Select Animata" state={flow_state(1, @step)} />
+          <.flow_step number="2" label="Approve NFT" state={flow_state(2, @step)} />
+          <.flow_step number="3" label="Approve 80 USDC" state={flow_state(3, @step)} />
+          <.flow_step number="4" label="Redeem" state={flow_state(4, @step)} />
+        </ol>
+
+        <form id="redemption-selection" phx-change="redemption_selection_changed">
+          <div>
+            <Regent.Primitives.field id="redemption-collection" label="Collection">
+              <select
+                id="redemption-collection"
+                name="collection"
+                data-onchain-input="collection"
+              >
+                <option value="animata_i" selected={@collection == "animata_i"}>
+                  Animata I
+                </option>
+                <option value="animata_ii" selected={@collection == "animata_ii"}>
+                  Animata II
+                </option>
+              </select>
+            </Regent.Primitives.field>
+          </div>
+          <div>
+            <Regent.Primitives.field id="redemption-token-id" label="Token ID">
+              <input
+                id="redemption-token-id"
+                name="token_id"
+                value={@token_id}
+                maxlength="16"
+                data-onchain-input="token_id"
+                phx-debounce="300"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="1–999"
+              />
+            </Regent.Primitives.field>
+          </div>
+        </form>
+
+        <section class="redeem-next-step" aria-label="Next step" data-step={@step}>
+          <div>
+            <p class="redeem-kicker">Next required action</p><h3>
+              {step_heading(
+                @step,
+                @token_selected
+              )}
+            </h3><p id="redemption-step-hint">{step_label(@step, @token_selected)}</p>
+          </div>
+          <div :if={@controls != []}>
+            <Regent.Primitives.button
+              :for={control <- @controls}
+              id={"redemption-#{control.action}"}
+              type="button"
+              class={control.lead? && "redeem-primary"}
+              data-onchain-step={@signed_in && control.action}
+              data-account-target={!@signed_in && "sign-in"}
+              data-confirming={control.confirming?}
+              phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+              aria-describedby="redemption-step-hint"
+            ><OnchainButton.label label={control.label} /></Regent.Primitives.button>
+          </div>
+        </section>
+        <.mismatch :if={@signed_in} note={@mismatch_note} />
+        <.activity
+          id="redemption-activity"
+          sent={@flow_sent}
+          press={@flow_press}
+          myself={@myself}
+        />
+      </div>
+      <.claim_control
+        :if={@wallet && !@wallet_ready}
+        signed_in={@signed_in}
+        confirming={@claim_confirming}
+        sent={@claim_sent}
+        press={@claim_press}
+        myself={@myself}
+      />
+    </section>
+    """
+  end
+
+  attr :signed_in, :boolean, required: true
+  attr :confirming, :boolean, required: true
+  attr :note, :any, default: nil
+  attr :sent, :list, required: true
+  attr :press, :string, default: nil
+  attr :myself, :any, required: true
+
+  defp claim_control(assigns) do
+    ~H"""
+    <Regent.Primitives.button
+      id="redemption-claim"
+      type="button"
+      class="redeem-claim"
+      data-onchain-step={@signed_in && "claim"}
+      data-account-target={!@signed_in && "sign-in"}
+      data-confirming={@confirming}
+      phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+    ><OnchainButton.label label="Claim unlocked REGENT" /></Regent.Primitives.button>
+    <.mismatch note={@note || nil} />
+    <.activity id="redemption-claim-activity" sent={@sent} press={@press} myself={@myself} />
+    """
+  end
+
   defp assign_owned_collectibles(assigns) do
     visible_animata =
       Enum.take(assigns.owned_collectibles.animata, assigns.owned_collectibles_limit)
@@ -805,17 +848,21 @@ defmodule RegentsWeb.RedeemLive do
     )
   end
 
-  # Every control whose calldata can be built is offered once a token is
-  # selected. The last reading from Base only picks which one leads; when it
-  # names no step, all three lead and the hint says why. Nothing here withholds
-  # a send.
-  defp controls(_step, false), do: []
-
-  defp controls(step, true) do
+  # Every control whose calldata can be built from the selection is offered:
+  # both approvals always, Redeem once a token ID is chosen. The last reading
+  # from Base only picks which one leads; when it names no step, all lead and the
+  # hint says why. Nothing here withholds a send.
+  defp controls(step, selection, presses) do
     lead = step_controls(step)
 
-    for action <- @every_control,
-        do: %{action: action, label: @control_labels[action], lead?: action in lead}
+    for %{step: action} <- Steps.steps(selection),
+        action in @every_control,
+        do: %{
+          action: action,
+          label: @control_labels[action],
+          lead?: action in lead,
+          confirming?: OnchainSteps.confirming?(presses, [action])
+        }
   end
 
   defp step_controls(:nft_approval_required), do: ["approve_nft_collection"]
@@ -836,7 +883,8 @@ defmodule RegentsWeb.RedeemLive do
     end
   end
 
-  defp step_label(_step, false), do: "Choose an eligible Animata collection and token ID."
+  defp step_label(_step, false),
+    do: "Enter a token ID from 1 to 999 to redeem. Both approvals can be sent now."
 
   defp step_label(:nft_approval_required, true),
     do: "Allow the redeemer to transfer from this NFT collection."

@@ -2,7 +2,7 @@
 
 Articles is the first tab under Reading at `/articles`. Each post starts as a folder,
 then is saved in the database. New posts need no site release after this feature
-is deployed. The previous `/blog` addresses redirect to `/articles`.
+is deployed. `/articles` is the only address; `/blog` no longer exists.
 
 ## Folder format
 

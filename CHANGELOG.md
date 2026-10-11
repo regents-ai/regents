@@ -1317,3 +1317,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - Stake: when the REGENT allowance can't be read, Stake stays the main button
   and Approve REGENT is offered beside it. Approve leads only when Base shows
   the allowance is too small.
+
+## 2026-10-11 — Second review fixes on the Phase C candidate (local, unreleased)
+
+- Redeem offers both approvals as soon as a wallet is connected, before a token
+  is chosen and while Base is still being read or could not be read; Redeem
+  Animata joins them once a token ID is entered. The claim stays offered too.
+- Each Redeem button, and the main Stake button, says "Confirming" only while
+  its own step is waiting on Base.
+- The API contract describes the paired agent refusal on all seven
+  `/api/agent/v1` routes: `403` with code `agent_not_paired` or
+  `person_not_here`, in every site copy.
+- `blog/README.md` no longer says `/blog` redirects; `/articles` is the only address.

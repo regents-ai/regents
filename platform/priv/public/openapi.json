@@ -627,14 +627,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -732,14 +725,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -840,14 +826,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -963,14 +942,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -1071,14 +1043,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -1194,14 +1159,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -1340,14 +1298,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/PairedAgentRefused"
           },
           "409": {
             "description": "Wallet required or proof replayed",
@@ -2591,6 +2542,39 @@
           "entries"
         ],
         "additionalProperties": false
+      },
+      "PairedAgentError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "hint"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "agent_not_paired",
+                  "person_not_here"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "parameters": {
@@ -2933,6 +2917,36 @@
                     "code": "agent_limit",
                     "message": "This account already has 100 paired agents.",
                     "hint": "Ask your person to unpair an agent on their Regents account page, then pair again. The same code works until it expires."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PairedAgentRefused": {
+        "description": "No current pairing for this agent (agent_not_paired), including a pairing revoked or replaced while the read ran, or the paired owner has no Regents account here (person_not_here)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PairedAgentError"
+            },
+            "examples": {
+              "agentNotPaired": {
+                "value": {
+                  "error": {
+                    "code": "agent_not_paired",
+                    "message": "This agent has no current pairing.",
+                    "hint": "Ask your owner to sign in at /account and use Agents > Pair an agent, then redeem the code and sign fresh proof."
+                  }
+                }
+              },
+              "personNotHere": {
+                "value": {
+                  "error": {
+                    "code": "person_not_here",
+                    "message": "The paired owner has no Regents account yet.",
+                    "hint": "Ask your owner to sign in at /account here, then sign fresh proof."
                   }
                 }
               }

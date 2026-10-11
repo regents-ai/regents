@@ -342,10 +342,13 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert [%{data: @redeem_42_data}] = step(view, "redeem")
   end
 
-  test "NO_TOKEN_NO_CALLDATA: controls appear only once a token is selected", %{conn: conn} do
-    view = redeem_as_signer(conn, "no-token-no-calldata")
+  test "NO_TOKEN_NO_REDEEM: both approvals are offered at once, Redeem once a token is chosen",
+       %{conn: conn} do
+    view = redeem_as_signer(conn, "no-token-no-redeem")
 
-    refute has_element?(view, ".redeem-next-step button")
+    assert has_element?(view, control("approve_nft_collection"), "Approve NFT collection")
+    assert has_element?(view, control("approve_exact_usdc"), "Approve 80 USDC")
+    refute has_element?(view, control("redeem"))
     assert has_element?(view, ~s|#redemption-claim[data-onchain-step="claim"]|)
     assert step(view, "redeem") == []
 
@@ -354,7 +357,9 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert [%{data: @redeem_42_data}] = step(view, "redeem")
 
     select(view, "animata_i", "")
-    refute has_element?(view, ".redeem-next-step button")
+    assert has_element?(view, control("approve_nft_collection"))
+    assert has_element?(view, control("approve_exact_usdc"))
+    refute has_element?(view, control("redeem"))
     assert step(view, "redeem") == []
   end
 
@@ -449,6 +454,12 @@ defmodule RegentsWeb.RedeemLiveTest do
 
     assert has_element?(view, "#redemption-collections")
     assert has_element?(view, ".redeem-wallet-recovery", "Try again")
+
+    # A wallet nobody could read still offers every step that can be built;
+    # signed out, each one asks for the sign-in.
+    assert has_element?(view, ".redeem-next-step button", "Approve NFT collection")
+    assert has_element?(view, ".redeem-next-step button", "Approve 80 USDC")
+    assert has_element?(view, ~s|#redemption-claim[data-account-target="sign-in"]|)
   end
 
   test "LOOPING_REFRESH: repeated post-redemption refreshes buy one extra provider read", %{
@@ -756,7 +767,8 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert has_element?(view, "#redemption-collections")
   end
 
-  test "FIRST_READ_FAILURE: a failed first read reports Base unavailable", %{conn: conn} do
+  test "FIRST_READ_FAILURE: a failed first read reports Base unavailable and keeps the steps",
+       %{conn: conn} do
     previous_client = Application.get_env(:regents, :redemption_chain_client)
     Application.put_env(:regents, :redemption_chain_client, GatedChainClient)
     Application.put_env(:regents, :test_redemption_read_result, :error)
@@ -765,8 +777,7 @@ defmodule RegentsWeb.RedeemLiveTest do
       Application.put_env(:regents, :redemption_chain_client, previous_client)
     end)
 
-    view = mount_redeem(conn)
-    render_async(view)
+    view = redeem_as_signer(conn, "first-read-failure")
 
     assert redemption_assigns(view).redemption_status == :error
 
@@ -775,6 +786,14 @@ defmodule RegentsWeb.RedeemLiveTest do
              ~s(p[role="alert"]),
              "Redemption details are unavailable right now."
            )
+
+    assert has_element?(view, control("approve_nft_collection"))
+    assert has_element?(view, control("approve_exact_usdc"))
+    assert has_element?(view, ~s|#redemption-claim[data-onchain-step="claim"]|)
+
+    select(view, "animata_i", "42")
+    assert has_element?(view, control("redeem"), "Redeem Animata")
+    assert [%{data: @redeem_42_data}] = step(view, "redeem")
   end
 
   test "UNREADABLE_INPUT: a malformed or oversized event is refused with a note and nothing changes",
