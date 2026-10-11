@@ -24,7 +24,7 @@ import {HolographicCard} from "./hooks/holographic_card"
 import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
-import {MotionCount, MotionList} from "./hooks/motion/moments"
+import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {FigureFlash} from "./hooks/figure_flash"
 import {InfoDialog} from "./hooks/info_dialog"
@@ -297,6 +297,7 @@ const hooks = {
   InfoDialog,
   MotionCount,
   MotionList,
+  MotionRefusal,
   MotionTabs,
   OnchainSteps,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),

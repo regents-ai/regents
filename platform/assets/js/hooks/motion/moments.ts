@@ -16,6 +16,7 @@ import {
   type TextSplitter,
 } from "animejs"
 import {BASE, SLOW, still} from "./shared"
+import {deny} from "./press"
 import type {Hook} from "../../hook_composition"
 
 // How a list moves when the server adds, reorders or drops its items: `bounce`
@@ -145,3 +146,28 @@ export const countHook = (rolls: Record<string, Roll>): Hook => ({
 })
 
 export const MotionCount = countHook(ROLLS)
+
+type RefusalHook = {el: HTMLElement; said?: string}
+
+// Shake while `data-refused` is on the message.
+function shake(hook: RefusalHook) {
+  if (hook.el.dataset.refused !== undefined) deny(hook.el)
+}
+
+/**
+ * A message a live page shows when it refuses something. It shakes once when
+ * it appears and again whenever it says something new, while `data-refused`
+ * is on it. Pages the server draws once shake their alerts from `motion.ts`.
+ */
+export const MotionRefusal: Hook = {
+  mounted(this: RefusalHook) {
+    this.said = this.el.textContent ?? ""
+    shake(this)
+  },
+
+  updated(this: RefusalHook) {
+    const said = this.el.textContent ?? ""
+    if (said !== this.said) shake(this)
+    this.said = said
+  },
+}
