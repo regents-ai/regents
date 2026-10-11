@@ -16,8 +16,7 @@ defmodule RegentsWeb.ProductLiveTest do
     end
 
     assert has_element?(view, ".product-shot figcaption", "techtree.sh, 27 September 2026")
-    assert has_element?(view, ".product-proof", "Hosted Repo2RLEnv.")
-    refute has_element?(view, ".product-proof a[href*='repo2rlenv']")
+    assert has_element?(view, ".product-proof", "NVIDIA NeMo harnesses.")
 
     for promise <- ["Buy and sell", "sell it", "leaderboards", "priced through x402"] do
       refute html =~ promise

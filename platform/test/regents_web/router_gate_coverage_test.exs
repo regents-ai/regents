@@ -35,25 +35,34 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/llms.txt"},
              {:get, "/.well-known/security.txt"},
              {:get, "/paper-pro-daily/pictures/:date"},
+             {:get, "/articles/covers/:slug"},
+             {:get, "/blog/covers/:slug"},
              {:get, "/docs"},
              {:get, "/about"},
              {:get, "/contact"},
-             {:get, "/literature"},
              {:get, "/"},
              {:get, "/paper-pro-daily"},
+             {:get, "/literature"},
              {:get, "/privacy"},
              {:get, "/terms"},
+             {:get, "/blog"},
+             {:get, "/blog/:slug"},
+             {:delete, "/auth/privy/session"},
              {:get, "/articles"},
              {:get, "/articles/:slug"},
-             {:delete, "/auth/privy/session"}
+             {:get, "/admin/articles"}
            ]
+
+    # Sean publishes articles while the gate is closed; anyone else is told
+    # the editor does not exist.
+    assert request(%{verb: :get, path: "/admin/articles"}).status == 404
   end
 
   test "[U2] every product LiveView mounts through the gate" do
     ungated =
       for route <- routes(),
           live_view = route.metadata[:phoenix_live_view],
-          route.path not in ["/", "/paper-pro-daily"],
+          route.path not in ["/", "/paper-pro-daily", "/literature"],
           not mounts_through_gate?(live_view),
           do: route.path
 
@@ -82,9 +91,13 @@ defmodule RegentsWeb.RouterGateCoverageTest do
 
   defp request(route) do
     Phoenix.ConnTest.dispatch(build_conn(), @endpoint, route.verb, concrete_path(route.path), %{})
+  rescue
+    # An open reading page asked for an article that does not exist answers
+    # "not found", which still counts as open.
+    RegentsWeb.NotFoundError -> %{status: 404}
   end
 
-  # Placeholders stand in for path parameters; the gate answers before any
+  # Placeholders stand in for path parameters; a closed gate answers before any
   # controller or LiveView reads them.
   defp concrete_path(path) do
     String.replace(path, ~r{/[:*][^/]+}, "/gate-coverage")

@@ -31,11 +31,32 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :paper_pro_daily
     },
     %Entry{
+      path_pattern: "/literature",
+      live_action: :literature,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :literature
+    },
+    %Entry{
       path_pattern: "/app",
       live_action: :app,
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :app
+    },
+    %Entry{
+      path_pattern: "/articles",
+      live_action: :blog,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :blog
+    },
+    %Entry{
+      path_pattern: "/articles/:slug",
+      live_action: :blog_post,
+      parameter_schema: %{slug: :slug},
+      reserved_values: %{},
+      route_spec_id: :blog_post
     },
     %Entry{
       path_pattern: "/account",
@@ -127,13 +148,33 @@ defmodule RegentsWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :credits_admin
+    },
+    %Entry{
+      path_pattern: "/admin/articles",
+      live_action: :articles_admin,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :articles_admin
     }
   ]
 
   @specs %{
+    articles_admin:
+      {:articles_admin, :regent_ops, "Regents Labs", "New Article", "/articles",
+       [:profile_actions], :regents_labs, %{}},
+    blog:
+      {:blog, :regent_ops, "Regents Labs", "Articles", "/articles", [:profile_actions],
+       :regents_labs, %{}},
+    blog_post:
+      {:blog_post, :regent_ops, "Regents Labs", "Articles", "/articles", [:profile_actions],
+       :regents_labs, %{}},
     home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
     paper_pro_daily:
-      {:paper_pro_daily, nil, nil, "Paper Pro Daily", "/paper-pro-daily", [], :home, %{}},
+      {:paper_pro_daily, :regent_ops, "Regents Labs", "Paper Pro Daily", "/paper-pro-daily", [],
+       :regents_labs, %{}},
+    literature:
+      {:literature, :regent_ops, "Regents Labs", "AI & SCIFI", "/literature", [], :regents_labs,
+       %{}},
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
@@ -243,7 +284,13 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
         %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
         %SidebarHeading{label: "Reading"},
-        %PageTarget{route_id: :paper_pro_daily, label: "Daily Research", path: "/paper-pro-daily"}
+        %RouteTarget{route_id: :blog, label: "Articles", path: "/articles"},
+        %PageTarget{
+          route_id: :paper_pro_daily,
+          label: "Daily Research",
+          path: "/paper-pro-daily"
+        },
+        %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"}
       ]
     }
   end
@@ -305,9 +352,11 @@ defmodule RegentsWeb.RouteCatalog do
   end
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
+  defp handoff_params(:blog_post), do: %{"slug" => "example-post"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
+  defp destination(:blog_post, %{"slug" => slug}), do: "/articles/#{slug}"
 
   defp destination(action, _params) do
     @entries

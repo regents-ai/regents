@@ -43,19 +43,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
     assert attribute(html, ".rl-product-tabs a", "href") ==
-             ~w(#autolaunch #techtree #patchbay /stake)
-  end
-
-  test "NAV_MEANINGS: the blog header sends each tab and App where the homepage does", %{
-    conn: conn
-  } do
-    html = conn |> get("/articles") |> html_response(200)
-
-    assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
-    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
-
-    assert attribute(html, ".rl-product-tabs a", "href") ==
-             ~w(/#autolaunch /#techtree /#patchbay /stake)
+             ~w(#autolaunch #techtree #patchbay #keyfleet /stake)
   end
 
   test "PROOF_STATUS: every homepage card says what its product offers today", %{conn: conn} do
@@ -81,7 +69,13 @@ defmodule RegentsWeb.HomeLiveTest do
           proof.status == :planned,
           do: proof
 
-    assert [%{title: "Hosted Repo2RLEnv."}] = planned
+    assert Enum.map(planned, & &1.title) == [
+             "NVIDIA NeMo harnesses.",
+             "Personal agents, shared work.",
+             "A shared treasury.",
+             "No top-down orchestration."
+           ]
+
     assert Enum.all?(planned, &is_nil(&1.link))
   end
 
@@ -95,7 +89,7 @@ defmodule RegentsWeb.HomeLiveTest do
     end
 
     assert guide =~ "(Planned)"
-    assert guide =~ "(Experimental: [Test a skill](https://techtree.sh/start#skill))"
+    assert guide =~ "(Experimental: [Explore Techtree](https://techtree.sh/start))"
   end
 
   defp attribute(html, selector, name),

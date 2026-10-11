@@ -13,7 +13,10 @@ defmodule RegentsWeb.RouteCatalogTest do
   @paths [
     "/",
     "/paper-pro-daily",
+    "/literature",
     "/app",
+    "/articles",
+    "/articles/:slug",
     "/account",
     "/account/credits",
     "/account/points",
@@ -26,7 +29,8 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/patchbay",
     "/keyfleet",
     "/credits/refunds",
-    "/admin/credits"
+    "/admin/credits",
+    "/admin/articles"
   ]
 
   test "contains exactly the founder-approved pages" do
@@ -87,11 +91,13 @@ defmodule RegentsWeb.RouteCatalogTest do
              %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
              %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
              %SidebarHeading{label: "Reading"},
+             %RouteTarget{route_id: :blog, label: "Articles", path: "/articles"},
              %PageTarget{
                route_id: :paper_pro_daily,
                label: "Daily Research",
                path: "/paper-pro-daily"
-             }
+             },
+             %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"}
            ]
   end
 
@@ -134,7 +140,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 16
+    assert length(decoded["routes"]) == 20
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 
@@ -165,5 +171,6 @@ defmodule RegentsWeb.RouteCatalogTest do
   end
 
   defp sample_params(:regent_profile), do: %{"slug" => "regent"}
+  defp sample_params(:blog_post), do: %{"slug" => "article"}
   defp sample_params(_), do: %{}
 end

@@ -17,14 +17,21 @@ defmodule RegentsWeb.Live.LaunchGateHook do
 
   def on_mount(:default, _params, _session, socket) do
     with {:cont, socket} <- app_gate(socket) do
-      {:cont, attach_hook(socket, :launch_gate, :handle_params, &gate_navigation/3)}
+      {:cont,
+       socket
+       |> attach_hook(:launch_gate, :handle_params, &gate_navigation/3)
+       |> attach_hook(:launch_gate_events, :handle_event, &gate_event/3)}
     end
   end
 
   defp gate_navigation(_params, _uri, socket), do: app_gate(socket)
 
+  defp gate_event(_event, _params, socket) do
+    if LaunchGate.app_surfaces_enabled?(), do: {:cont, socket}, else: {:halt, %{}, socket}
+  end
+
   defp app_gate(socket) do
-    if LaunchGate.app_surfaces_enabled?(),
+    if socket.assigns.live_action in [:blog, :blog_post] or LaunchGate.app_surfaces_enabled?(),
       do: {:cont, socket},
       else: {:halt, redirect(socket, to: ~p"/")}
   end

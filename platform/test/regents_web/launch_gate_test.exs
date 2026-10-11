@@ -151,7 +151,9 @@ defmodule RegentsWeb.LaunchGateTest do
     close_surfaces()
 
     assert {:halt, halted} =
-             LaunchGateHook.on_mount(:default, %{}, %{}, %Phoenix.LiveView.Socket{})
+             LaunchGateHook.on_mount(:default, %{}, %{}, %Phoenix.LiveView.Socket{
+               assigns: %{__changed__: %{}, live_action: :app}
+             })
 
     assert halted.redirected == {:redirect, %{to: "/", status: 302}}
   end

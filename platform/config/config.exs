@@ -70,7 +70,8 @@ config :regents,
     Regents.OpenSea,
     Regents.Redemption,
     Regents.Staking,
-    Regents.PaperProDaily
+    Regents.PaperProDaily,
+    Regents.Blog
   ],
   generators: [timestamp_type: :utc_datetime]
 

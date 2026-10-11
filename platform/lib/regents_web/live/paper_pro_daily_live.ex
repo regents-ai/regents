@@ -2,6 +2,8 @@ defmodule RegentsWeb.PaperProDailyLive do
   @moduledoc "One research paper a day with ChatGPT's reading of it, newest first, loading more as the reader scrolls."
   use RegentsWeb, :live_view
 
+  import RegentsWeb.Components.Shell
+
   alias Phoenix.LiveView.JS
   alias Regents.PaperProDaily
   alias Regents.PaperProDaily.Publication
@@ -30,11 +32,23 @@ defmodule RegentsWeb.PaperProDailyLive do
      socket
      |> assign(
        route_spec: RouteCatalog.fetch!(:paper_pro_daily),
+       shell_instance: System.unique_integer([:positive, :monotonic]),
+       research_list_expanded?: false,
        analysis_prompt: @analysis_prompt
      )
      |> assign(PublicDocuments.page("/paper-pro-daily"))
      |> refresh_papers()}
   end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  def handle_info(:publication_midnight, socket) do
+    socket = refresh_papers(socket)
+    schedule_midnight()
+    {:noreply, socket}
+  end
+
+  def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
 
   def handle_event("load_more", _params, socket) do
     # A scroll event can reach us before the midnight timer. Reset the old offset
@@ -49,19 +63,32 @@ defmodule RegentsWeb.PaperProDailyLive do
     {:noreply, socket}
   end
 
-  def handle_info(:publication_midnight, socket) do
-    socket = refresh_papers(socket)
-    schedule_midnight()
-    {:noreply, socket}
+  def handle_event("toggle_research_list", _params, socket) do
+    {:noreply, assign(socket, research_list_expanded?: !socket.assigns.research_list_expanded?)}
+  end
+
+  def handle_event("go_to_paper", %{"target" => target}, socket) do
+    case Enum.find_index(socket.assigns.research_list, &(&1.target == target)) do
+      nil ->
+        {:noreply, socket}
+
+      index ->
+        missing = index + 1 - socket.assigns.shown
+        socket = if missing > 0, do: show_through(socket, index + 1), else: socket
+        {:noreply, push_event(socket, "paper-daily:go-to-paper", %{target: target})}
+    end
   end
 
   defp refresh_papers(socket) do
+    papers = PaperProDaily.export_papers!()
+
     socket
     |> assign(
       publication_date: Date.utc_today(),
       shown: 0,
       more?: false,
-      page_markdown: Reading.page_markdown(PaperProDaily.export_papers!())
+      page_markdown: Reading.page_markdown(papers),
+      research_list: Enum.map(papers, &%{title: &1.title, target: "papers-#{&1.date}-title"})
     )
     |> stream(:papers, [], reset: true)
     |> show_more()
@@ -71,8 +98,20 @@ defmodule RegentsWeb.PaperProDailyLive do
     Process.send_after(self(), :publication_midnight, Publication.milliseconds_until_midnight())
   end
 
-  defp show_more(socket) do
-    page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: @page_size])
+  # Ash caps each page; continue through pages when the index grows beyond that cap.
+  defp show_through(socket, count) do
+    next = show_more(socket, count - socket.assigns.shown)
+
+    if next.assigns.more? && next.assigns.shown > socket.assigns.shown &&
+         next.assigns.shown < count do
+      show_through(next, count)
+    else
+      next
+    end
+  end
+
+  defp show_more(socket, limit \\ @page_size) do
+    page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: limit])
 
     socket
     |> stream(:papers, Enum.map(page.results, &shown/1))
@@ -95,79 +134,138 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   def render(assigns) do
     ~H"""
-    <Regent.Structure.frame class="rl-root" id="paper-daily-top" tabindex="-1">
-      <RegentsWeb.HomeLive.landing_header blog?={true} />
-      <main id="main-content">
-        <section class="rg-blog rg-sheet paper-daily" aria-labelledby="paper-daily-title">
-          <header class="rg-blog__intro">
-            <h1 id="paper-daily-title">Paper Pro Daily</h1>
-            <p>A research paper each day, read with ChatGPT Astra 6 Pro.</p>
-            <div class="paper-daily__actions">
-              <Regent.Primitives.copy_button id="paper-daily-copy-page" text={@page_markdown}>
-                Copy Entire Page as Markdown
-              </Regent.Primitives.copy_button>
-              <Regent.Primitives.button
-                id="paper-daily-view-prompt"
-                variant="secondary"
-                aria-haspopup="dialog"
-                aria-controls="paper-daily-prompt-dialog"
-                phx-click={JS.dispatch("regents:open", to: "#paper-daily-prompt-dialog")}
-              >
-                View Prompt to ChatGPT Pro for Paper Analysis
-              </Regent.Primitives.button>
-            </div>
-          </header>
+    <.shell
+      route_spec={@route_spec}
+      account_control={@account_control}
+      shell_instance={@shell_instance}
+    >
+      <:content>
+        <div id="paper-daily-top" tabindex="-1">
+          <section class="rg-blog rg-sheet paper-daily" aria-labelledby="paper-daily-title">
+            <header class="rg-blog__intro">
+              <h1 id="paper-daily-title">Paper Pro Daily</h1>
+              <p>A research paper each day, read with ChatGPT Astra 6 Pro.</p>
+              <div class="paper-daily__actions">
+                <Regent.Primitives.copy_button id="paper-daily-copy-page" text={@page_markdown}>
+                  Copy Entire Page as Markdown
+                </Regent.Primitives.copy_button>
+                <Regent.Primitives.button
+                  id="paper-daily-view-prompt"
+                  variant="secondary"
+                  aria-haspopup="dialog"
+                  aria-controls="paper-daily-prompt-dialog"
+                  phx-click={JS.dispatch("regents:open", to: "#paper-daily-prompt-dialog")}
+                >
+                  View Prompt to ChatGPT Pro for Paper Analysis
+                </Regent.Primitives.button>
+              </div>
+            </header>
 
-          <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">
-            <li :for={{dom_id, paper} <- @streams.papers} id={dom_id}>
-              <.paper id={dom_id} paper={paper} />
-            </li>
-          </ol>
-
-          <p
-            :if={@more?}
-            id="paper-daily-more"
-            class="paper-daily__more"
-            role="status"
-            phx-hook="InfiniteScroll"
-            data-event="load_more"
-            data-cursor={@shown}
-          >
-            Loading more papers…
-          </p>
-          <p :if={@shown == 0} class="paper-daily__more">No papers yet.</p>
-          <div :if={!@more? && @shown > 0} class="paper-daily__end">
-            <a
-              href="#paper-daily-top"
-              class="rg-button rg-button--secondary"
-              id="paper-daily-return-top"
+            <nav
+              :if={@research_list != []}
+              id="paper-daily-research"
+              class="paper-daily__research"
+              aria-labelledby="paper-daily-research-title"
+              phx-hook=".ResearchList"
             >
-              Return to top
-            </a>
-          </div>
-        </section>
-      </main>
-      <dialog
-        id="paper-daily-prompt-dialog"
-        class="paper-daily__prompt-dialog"
-        aria-labelledby="paper-daily-prompt-title"
-        phx-hook="InfoDialog"
-      >
-        <h2 id="paper-daily-prompt-title">Prompt to ChatGPT Pro for Paper Analysis</h2>
-        <pre id="paper-daily-analysis-prompt">{@analysis_prompt}</pre>
-        <div class="paper-daily__actions">
-          <Regent.Primitives.copy_button
-            id="paper-daily-copy-prompt"
-            target="paper-daily-analysis-prompt"
-          >
-            Copy prompt
-          </Regent.Primitives.copy_button>
-          <form method="dialog">
-            <Regent.Primitives.button variant="secondary" type="submit">Close</Regent.Primitives.button>
-          </form>
+              <h2 id="paper-daily-research-title">Research List</h2>
+              <ol
+                id="paper-daily-research-list"
+                class={[
+                  "paper-daily__research-list",
+                  @research_list_expanded? && "paper-daily__research-list--expanded"
+                ]}
+              >
+                <li
+                  :for={{paper, index} <- Enum.with_index(@research_list)}
+                  hidden={!@research_list_expanded? && index >= 5}
+                >
+                  <a href={"##{paper.target}"} phx-click="go_to_paper" phx-value-target={paper.target}>
+                    {paper.title}
+                  </a>
+                </li>
+              </ol>
+              <Regent.Primitives.button
+                :if={length(@research_list) > 5}
+                id="paper-daily-research-toggle"
+                variant="secondary"
+                aria-controls="paper-daily-research-list"
+                aria-expanded={to_string(@research_list_expanded?)}
+                phx-click="toggle_research_list"
+              >
+                {if @research_list_expanded?, do: "Show less", else: "Show more"}
+              </Regent.Primitives.button>
+            </nav>
+
+            <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">
+              <li :for={{dom_id, paper} <- @streams.papers} id={dom_id}>
+                <.paper id={dom_id} paper={paper} />
+              </li>
+            </ol>
+
+            <p
+              :if={@more?}
+              id="paper-daily-more"
+              class="paper-daily__more"
+              role="status"
+              phx-hook="InfiniteScroll"
+              data-event="load_more"
+              data-cursor={@shown}
+            >
+              Loading more papers…
+            </p>
+            <p :if={@shown == 0} class="paper-daily__more">No papers yet.</p>
+            <div :if={!@more? && @shown > 0} class="paper-daily__end">
+              <a
+                href="#paper-daily-top"
+                class="rg-button rg-button--secondary"
+                id="paper-daily-return-top"
+              >
+                Return to top
+              </a>
+            </div>
+          </section>
         </div>
-      </dialog>
-    </Regent.Structure.frame>
+        <dialog
+          id="paper-daily-prompt-dialog"
+          class="paper-daily__prompt-dialog"
+          aria-labelledby="paper-daily-prompt-title"
+          phx-hook="InfoDialog"
+        >
+          <h2 id="paper-daily-prompt-title">Prompt to ChatGPT Pro for Paper Analysis</h2>
+          <pre id="paper-daily-analysis-prompt">{@analysis_prompt}</pre>
+          <div class="paper-daily__actions">
+            <Regent.Primitives.copy_button
+              id="paper-daily-copy-prompt"
+              target="paper-daily-analysis-prompt"
+            >
+              Copy prompt
+            </Regent.Primitives.copy_button>
+            <form method="dialog">
+              <Regent.Primitives.button variant="secondary" type="submit">Close</Regent.Primitives.button>
+            </form>
+          </div>
+        </dialog>
+      </:content>
+    </.shell>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".ResearchList">
+      export default {
+        mounted() {
+          this.handleEvent("paper-daily:go-to-paper", ({target}) => {
+            const heading = document.getElementById(target)
+            if (!heading) return
+            heading.focus({preventScroll: true})
+            heading.scrollIntoView({block: "start", behavior: "instant"})
+            if (window.location.hash !== `#${target}`) {
+              window.history.pushState(null, "", `#${target}`)
+            }
+          })
+          // A copied paper link also works when its paper is beyond the first batch.
+          const target = window.location.hash.slice(1)
+          if (target.startsWith("papers-")) this.pushEvent("go_to_paper", {target})
+        }
+      }
+    </script>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".PaperMath">
       // The same local KaTeX the blog uses; a paper added by scrolling gets its maths too.
       const mathModuleURL = "/assets/regent-blog/katex.mjs"
@@ -215,11 +313,10 @@ defmodule RegentsWeb.PaperProDailyLive do
       />
       <div class="paper-daily__copy">
         <time datetime={Date.to_iso8601(@paper.date)}>{Calendar.strftime(@paper.date, "%B %-d, %Y")}</time>
-        <h2 id={"#{@id}-title"}>{@paper.title}</h2>
-        <p class="paper-daily__author">Authored by {@paper.author}</p>
+        <h2 id={"#{@id}-title"} tabindex="-1">{@paper.title}</h2>
         <p class="paper-daily__links">
-          <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper</a>
-          <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT answer</a>
+          <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper Link</a>
+          <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT Thread</a>
         </p>
         <Regent.Primitives.copy_button
           id={"#{@id}-copy-details"}
@@ -233,6 +330,16 @@ defmodule RegentsWeb.PaperProDailyLive do
             Copy Details
           </span>
         </Regent.Primitives.copy_button>
+        <div
+          id={"#{@id}-opening"}
+          class="rg-blog__prose paper-daily__text"
+          phx-hook=".PaperMath"
+          phx-update="ignore"
+        >
+          {markdown_html(@paper.opening_html)}
+        </div>
+        <hr class="paper-daily__analysis-rule" />
+        <p class="paper-daily__author">Analysis by {@paper.author}</p>
         <div
           id={"#{@id}-excerpt"}
           class="rg-blog__prose paper-daily__text"

@@ -48,6 +48,8 @@ defmodule RegentsWeb.ShellLive do
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
        browser_wallet: nil,
+       blog_posts: [],
+       blog_post: nil,
        shell_instance: System.unique_integer([:positive, :monotonic]),
        credits: @no_credits
      )
@@ -68,6 +70,7 @@ defmodule RegentsWeb.ShellLive do
      socket
      |> assign(route_spec: route_spec, route_params: params)
      |> load_regent_route(route_spec, params)
+     |> load_blog_route(route_spec, params)
      |> assign_page(route_spec, uri)
      |> Account.route(route_spec)
      |> Points.route(route_spec)
@@ -168,6 +171,28 @@ defmodule RegentsWeb.ShellLive do
         />
       </:credits_panel>
       <:content>
+        <.link
+          :if={@route_spec.route_id == :blog && Regents.Blog.admin?(current_account(@access_context))}
+          class="rg-button"
+          patch="/admin/articles"
+        >New Article →</.link>
+        <Regent.Blog.gallery
+          :if={@route_spec.route_id == :blog}
+          posts={@blog_posts}
+          site="Regents Labs"
+          name="Articles"
+          path="/articles"
+        />
+
+        <%!-- The post is static; retain the shared renderer's client-side math enhancement. --%>
+        <div
+          :if={@route_spec.route_id == :blog_post}
+          id={"blog-post-#{@blog_post.slug}"}
+          phx-update="ignore"
+        >
+          <Regent.Blog.article post={@blog_post} name="Articles" path="/articles" />
+        </div>
+
         <RegentProfileLive.page
           :if={@route_spec.route_id == :regent_profile}
           regent={@regent}
@@ -275,6 +300,37 @@ defmodule RegentsWeb.ShellLive do
           account={current_account(@access_context)}
           signed_out_reason={@signed_out_reason}
         />
+
+        <.live_component
+          :if={
+            @route_spec.route_id == :articles_admin &&
+              Regents.Blog.admin?(current_account(@access_context))
+          }
+          module={RegentsWeb.ArticleEditor}
+          id="article-editor"
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+        <Regent.Account.signed_out
+          :if={@route_spec.route_id == :articles_admin && is_nil(current_account(@access_context))}
+          id="article-editor-signed-out"
+          reason={@signed_out_reason}
+        >
+          <:sign_in>
+            <Regent.Primitives.button type="button" data-account-target="sign-in">
+              Sign in
+            </Regent.Primitives.button>
+          </:sign_in>
+        </Regent.Account.signed_out>
+        <Regent.Primitives.notice
+          :if={
+            @route_spec.route_id == :articles_admin && current_account(@access_context) &&
+              !Regents.Blog.admin?(current_account(@access_context))
+          }
+          tone="error"
+        >
+          Your editor access has ended. Reload and sign in again.
+        </Regent.Primitives.notice>
       </:content>
     </.shell>
     """
@@ -285,7 +341,10 @@ defmodule RegentsWeb.ShellLive do
   defp signed_in_credits(_access_context, %{value: nil}), do: nil
 
   defp signed_in_credits(access_context, %{value: balance}),
-    do: if(authenticated?(access_context), do: balance.available)
+    do:
+      if(authenticated?(access_context) and RegentsWeb.Plugs.LaunchGate.app_surfaces_enabled?(),
+        do: balance.available
+      )
 
   # Signing in or out reloads the page, so the account followed here is the
   # page's own for as long as it is open.
@@ -345,12 +404,27 @@ defmodule RegentsWeb.ShellLive do
     assign(socket, regent: regent, regent_status: if(regent, do: :ready, else: :empty))
   end
 
+  defp load_blog_route(socket, %{route_id: :blog}, _params),
+    do: assign(socket, blog_posts: RegentsWeb.Blog.all(), blog_post: nil)
+
+  defp load_blog_route(socket, %{route_id: :blog_post}, %{"slug" => slug}) do
+    case RegentsWeb.Blog.get(slug) do
+      nil -> raise RegentsWeb.NotFoundError
+      post -> assign(socket, blog_posts: [], blog_post: post)
+    end
+  end
+
+  defp load_blog_route(socket, _spec, _params), do: assign(socket, blog_posts: [], blog_post: nil)
+
   defp assign_page(socket, %{route_id: :regent_profile}, _uri) do
     case socket.assigns.regent_status do
       :ready -> assign(socket, PublicDocuments.page({:regent, socket.assigns.regent}))
       :error -> assign(socket, PublicDocuments.page(:regent_unavailable))
     end
   end
+
+  defp assign_page(socket, %{route_id: :blog_post}, _uri),
+    do: assign(socket, PublicDocuments.page({:blog_post, socket.assigns.blog_post}))
 
   defp assign_page(socket, _route_spec, uri),
     do: assign(socket, PublicDocuments.page(URI.parse(uri).path))

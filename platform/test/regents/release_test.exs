@@ -179,6 +179,7 @@ defmodule Regents.ReleaseTest do
 
     assert table_names(config, "regents_app") == [
              "account_ens_identities",
+             "blog_posts",
              "cloud_runtimes",
              "linked_identities",
              "oban_jobs",

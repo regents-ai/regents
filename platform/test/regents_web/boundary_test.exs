@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time, the papers and the staking readings" do
+  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time, the papers, the staking readings and the articles" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -44,6 +44,11 @@ defmodule RegentsWeb.BoundaryTest do
     assert [staking_readings_migration] =
              Path.wildcard("priv/repo/migrations/*_staking_protocol_readings.exs")
 
+    assert [articles_migration] = Path.wildcard("priv/repo/migrations/*_add_blog_posts.exs")
+
+    assert [article_authors_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_article_authors.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
@@ -56,7 +61,9 @@ defmodule RegentsWeb.BoundaryTest do
                oban_migration,
                signed_in_migration,
                papers_migration,
-               staking_readings_migration
+               staking_readings_migration,
+               articles_migration,
+               article_authors_migration
              ])
 
     # The sign-in time only adds a column and fills it for bound sessions.
@@ -69,6 +76,14 @@ defmodule RegentsWeb.BoundaryTest do
     # The staking readings only add their own table.
     [readings_up, _down] = staking_readings_migration |> File.read!() |> String.split("def down")
     refute readings_up =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE|ALTER)\b/i
+
+    # The articles only add their own table, then two columns to it.
+    [articles_up, _down] = articles_migration |> File.read!() |> String.split("def down")
+    refute articles_up =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE|ALTER)\b/i
+
+    [authors_up, _down] = article_authors_migration |> File.read!() |> String.split("def down")
+    assert authors_up =~ "alter table(:blog_posts)"
+    refute authors_up =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE|remove)\b/i
 
     # The copy only adds rows to the shared pairing.
     copy = File.read!(copy_migration)

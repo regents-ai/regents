@@ -1,4 +1,30 @@
 defmodule RegentsWeb.Blog do
-  @moduledoc "This product's repository-owned, release-safe blog catalog."
-  use RegentBlog.Catalog, root: Path.expand("../../../blog", __DIR__)
+  @moduledoc "Public database posts projected for the shared blog components."
+
+  def all, do: Enum.map(Regents.Blog.list_posts!(), &present/1)
+
+  def get(slug) do
+    case Regents.Blog.get_post!(slug) do
+      nil ->
+        nil
+
+      post ->
+        {html, toc} = RegentBlog.markdown(post.markdown)
+        post |> present() |> Map.merge(%{html: html, toc: toc})
+    end
+  end
+
+  defp present(post) do
+    post
+    |> Map.from_struct()
+    |> Map.put(
+      :author,
+      if(post.authors == [], do: post.author, else: Enum.map_join(post.authors, ", ", & &1.name))
+    )
+    |> Map.put(
+      :image,
+      "/articles/covers/#{post.slug}?v=#{DateTime.to_unix(post.updated_at, :microsecond)}"
+    )
+    |> Map.put(:image_alt, post.cover_alt)
+  end
 end
