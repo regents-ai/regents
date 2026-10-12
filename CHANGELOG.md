@@ -1338,3 +1338,18 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   so the Stake browser checks no longer depend on a reading left by an earlier run.
 - The Redeem LiveView test for the no-token case checks only the steps the
   server builds; the browser check covers which buttons show.
+
+## 2026-10-11 — Follow-ups to Sentinel's clearing of the Phase C candidate (local, unreleased)
+
+- The header's Credits button, the Buy Credits panel with its Approve and Buy
+  wallet buttons, and the Account page's Buy Credits button show whenever
+  someone is signed in. While the balance loads, or when it can't be read, the
+  header and the panel's figures show a dash (screen readers hear "Loading" or
+  "Unavailable"), and the panel keeps its height. Before, all of them were
+  hidden until the balance arrived, and for good after a failed read.
+- The release step refuses to start until every migration in the pinned
+  Credits and Points libraries is in that schema's own ledger (it names the
+  missing ones), next to the existing agent pairing checks.
+- The unused in-repo `agents/` and `payments/` copies are deleted with their
+  `make check-agents` and `make check-payments` gates; the site already takes
+  both libraries from elixir-utils.

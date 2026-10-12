@@ -166,7 +166,7 @@ defmodule RegentsWeb.ShellLive do
           id="credits-panel"
           lease={@session_lease}
           account={current_account(@access_context)}
-          balance={@credits.value}
+          credits={@credits}
           client_tag={@client_tag}
         />
       </:credits_panel>
@@ -337,13 +337,12 @@ defmodule RegentsWeb.ShellLive do
   end
 
   # A session that ends while the page is open takes the balance and the panel
-  # with it at once; the balance read at mount is never shown to nobody.
-  defp signed_in_credits(_access_context, %{value: nil}), do: nil
-
-  defp signed_in_credits(access_context, %{value: balance}),
+  # with it at once; the balance read at mount is never shown to nobody. While
+  # signed in, the panel and its wallet buttons are there whatever the reading.
+  defp signed_in_credits(access_context, credits),
     do:
       if(authenticated?(access_context) and RegentsWeb.Plugs.LaunchGate.app_surfaces_enabled?(),
-        do: balance.available
+        do: credits
       )
 
   # Signing in or out reloads the page, so the account followed here is the

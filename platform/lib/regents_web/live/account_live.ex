@@ -148,9 +148,7 @@ defmodule RegentsWeb.AccountLive do
           />
           <p>One balance for every Regent site. One Credit is one US dollar.</p>
           <div class="account-credits__actions">
-            <%!-- Buying opens the header's Buy Credits panel, which needs the balance. --%>
             <Regent.Primitives.button
-              :if={@credits.value}
               type="button"
               phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
             >

@@ -20,8 +20,9 @@ defmodule RegentsWeb.CreditsPanel do
   on an amount edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
   past it, the figures already shown stay.
 
-  The parent passes `account` (the signed-in account), its `balance`
-  (`RegentCredits.balance/1`, kept current by the parent), the visitor's
+  The parent passes `account` (the signed-in account), its `credits` reading
+  (`state` and the `RegentCredits.balance/1` value, kept current by the
+  parent; until it has a value the figures show a dash), the visitor's
   `client_tag` and `id`.
   """
   use RegentsWeb, :live_component
@@ -70,7 +71,7 @@ defmodule RegentsWeb.CreditsPanel do
      |> assign(
        id: assigns.id,
        lease: assigns.lease,
-       balance: assigns.balance,
+       credits: assigns.credits,
        client_tag: assigns.client_tag
      )
      |> take_account(account)}
@@ -403,11 +404,11 @@ defmodule RegentsWeb.CreditsPanel do
         >
           <div class="credits-panel__figure">
             <dt>Regents Credits</dt>
-            <dd data-count>{figure(@balance.available)}</dd>
+            <dd><span data-count>{figure(@credits, :available)}</span>{missing(@credits)}</dd>
           </div>
           <div class="credits-panel__figure credits-panel__figure--small">
             <dt>In Bids</dt>
-            <dd data-count>{figure(@balance.held)}</dd>
+            <dd><span data-count>{figure(@credits, :held)}</span>{missing(@credits)}</dd>
           </div>
         </dl>
         <.link class="credits-panel__history" navigate="/account/credits">
@@ -611,8 +612,18 @@ defmodule RegentsWeb.CreditsPanel do
   defp stalled?(entry, nil), do: Presses.stalled?(entry)
   defp stalled?(_entry, _shown), do: false
 
-  defp figure(amount),
-    do: amount |> Amount.format() |> String.replace_suffix(" Credits", "")
+  # Until the balance is read, or when it can't be, each figure is a dash, as
+  # in the header; a word beside it would wrap on a phone and move the buttons.
+  defp figure(%{value: nil}, _field), do: "—"
+
+  defp figure(%{value: balance}, field),
+    do: balance |> Map.fetch!(field) |> Amount.format() |> String.replace_suffix(" Credits", "")
+
+  defp missing(%{value: nil, state: :error} = assigns),
+    do: ~H|<span class="visually-hidden">Unavailable</span>|
+
+  defp missing(%{value: nil} = assigns), do: ~H|<span class="visually-hidden">Loading</span>|
+  defp missing(_credits), do: nil
 
   defp state(entry, nil), do: OnchainSteps.describe(entry, chain_name_of(entry)).state
   defp state(_entry, %{purchase: :reporting}), do: :checking
