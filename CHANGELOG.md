@@ -1385,3 +1385,27 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - Deploys start the new machine beside the old one, move traffic once
   `/healthz` answers, then stop the old one (Sean, 41 a, relayed by Sentinel).
   Error reporting needs no code change; it starts once `SENTRY_DSN` is set.
+
+## 2026-10-12 — Sign-in re-checked before every update; wallet notes ask to switch
+
+- An open page re-checks the sign-in before every update it receives and every
+  background result, not only after a press. Wallet panels and the Credits
+  panels do the same for their own results and act with the wallets the
+  account links now. When the sign-in has ended, the update is dropped and the
+  page shows that the sign-in ended.
+- When the wallet app is on a wallet this account doesn't link, the note beside
+  the buttons names it and asks to switch to the account's wallet; after a press
+  it adds that nothing was sent. With no wallet open, it asks to open the
+  account's wallet and press again.
+- Buy Credits keeps showing the account's own wallet and its USDC while the
+  wallet app is on another wallet. A figure read for one wallet never lands
+  after the panel has moved to another.
+- Browser agents' signed tools are built only from the tools that have their
+  own signed inputs.
+- `/developers` no longer redirects to `/docs`.
+- Lists of cards on pages drawn once settle in the first time they scroll into
+  view, not as the page opens.
+- Correction to the entry above: error reporting needed code after all. Crashed
+  processes and failed requests now reach Sentry through a logger handler, and
+  each event leaves without its stack frames' arguments or a crashed process's
+  state. Reporting still starts only once `SENTRY_DSN` is set.

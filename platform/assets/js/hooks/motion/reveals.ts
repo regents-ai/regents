@@ -166,3 +166,31 @@ export const GRIDS: Record<string, (cards: Element[]) => JSAnimation> = {
   cascade: cards =>
     play(cards, {y: {from: 16}, opacity: {from: 0}, delay: stagger(45), duration: SLOW, ease: EASE_OUT}),
 }
+
+/**
+ * Calls `arrive` once, the first time `el` scrolls into view. One already in
+ * view when the page opens, or reached from the keyboard, is simply there.
+ * Returns what stops the watch.
+ */
+export function onFirstSight(el: HTMLElement, arrive: () => void) {
+  let first = true
+  const done = () => {
+    watch.disconnect()
+    el.removeEventListener("focusin", done)
+  }
+  const watch = new IntersectionObserver(([entry]) => {
+    const seen = entry.isIntersecting
+    if (first) {
+      first = false
+      if (seen) done()
+      return
+    }
+    if (!seen) return
+    done()
+    arrive()
+  })
+
+  watch.observe(el)
+  el.addEventListener("focusin", done)
+  return done
+}

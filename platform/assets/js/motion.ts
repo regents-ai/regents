@@ -2,7 +2,8 @@
  * The standard motion on every page: a squish when something is pressed, a
  * shake when the answer is no, panels that slide or pop open, and on pages the
  * server draws once, the headline rising in word by word and the cards
- * settling into place. The version of each is named in `RegentsWeb.Motion`.
+ * settling into place the first time they scroll into view. The version of
+ * each is named in `RegentsWeb.Motion`.
  *
  * A live page draws its own parts again whenever it changes, so only what the
  * server drew once moves as the page opens; live parts move from their hooks.
@@ -12,7 +13,7 @@
  */
 import {splitText} from "animejs"
 import {deny, nope, squish} from "./hooks/motion/press"
-import {GRIDS, HEADLINES} from "./hooks/motion/reveals"
+import {GRIDS, HEADLINES, onFirstSight} from "./hooks/motion/reveals"
 import {byPointer, lastInputByPointer, still, watchInput} from "./hooks/motion/shared"
 import {backdrop, drawer, menu, sheet} from "./hooks/motion/slides"
 
@@ -38,7 +39,8 @@ export function mountMotion(doc: Document) {
   const headline = main.querySelector<HTMLElement>("h1")
   if (headline !== null) rise(headline)
 
-  for (const list of main.querySelectorAll("[data-cascade]")) GRIDS.cascade([...list.children].slice(0, CASCADE))
+  for (const list of main.querySelectorAll<HTMLElement>("[data-cascade]"))
+    onFirstSight(list, () => GRIDS.cascade([...list.children].slice(0, CASCADE)))
 
   // A form the server sent back refused says why, and the reason shakes once.
   for (const reason of main.querySelectorAll("[role='alert']")) deny(reason)

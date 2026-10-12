@@ -12,7 +12,7 @@ defmodule RegentsWeb.ArticleEditor do
   def mount(socket) do
     {:ok,
      socket
-     |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+     |> RegentsWeb.Live.Session.check_component_lease(&take_account/2)
      |> attach_hook(:article_admin, :handle_event, fn _, _, socket ->
        if socket.assigns.lease && Regents.Blog.admin?(socket.assigns.account) &&
             RegentsWeb.Plugs.LaunchGate.app_surfaces_enabled?() do

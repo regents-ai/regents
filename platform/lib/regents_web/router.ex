@@ -89,7 +89,6 @@ defmodule RegentsWeb.Router do
 
   scope "/", RegentsWeb do
     get "/healthz", HealthController, :show
-    get "/developers", PublicPagesController, :developers
     get "/openapi.json", PublicPagesController, :openapi
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/robots.txt", PublicPagesController, :robots

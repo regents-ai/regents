@@ -16,7 +16,7 @@ defmodule RegentsWeb.CreditsPanel do
   Explanations wait in tips; the panel shows figures, choices, presses and
   outcomes.
 
-  The wallet figures are read when the paying wallet changes, when the panel
+  The wallet figures are read when the shown wallet changes, when the panel
   opens or comes back into view, after each press and once a step lands; never
   on an amount edit. Each read draws on the visitor's `RegentsWeb.ChainReadBudget`;
   past it, the figures already shown stay.
@@ -34,6 +34,7 @@ defmodule RegentsWeb.CreditsPanel do
   alias RegentCredits.Errors.Refused
   alias Regents.{ChainClient, Credits, RateLimiter}
   alias RegentsWeb.{ChainReadBudget, OnchainSteps}
+  alias RegentsWeb.ShellLive.Identity
 
   @recheck_ms 2_000
   @block_ms 2_000
@@ -45,11 +46,12 @@ defmodule RegentsWeb.CreditsPanel do
     {:ok,
      socket
      |> attach_hook(:launch_gate, :handle_event, &gate_event/3)
-     |> RegentsWeb.Live.Session.check_component_events(&take_account/2)
+     |> RegentsWeb.Live.Session.check_component_lease(&take_account/2)
      |> OnchainSteps.init()
      |> assign(
        active: nil,
        signer: nil,
+       wallet: nil,
        amount: "5",
        number: Ecto.UUID.generate(),
        numbers: %{},
@@ -195,21 +197,30 @@ defmodule RegentsWeb.CreditsPanel do
       else: {:noreply, put_purchase(socket, hash, shown)}
   end
 
-  # Only a figure read since the last read began may hold Buy back.
-  def handle_async(figure, {:ok, {:ok, micro}}, socket) when figure in [:usdc, :allowance],
-    do:
-      {:noreply,
-       assign(socket, [{figure, micro}, latest: Map.put(socket.assigns.latest, figure, micro)])}
+  # Each read answers with the wallet it was for, and lands only while that
+  # wallet is still the one shown: the check before it can move the panel to
+  # another. Only a figure read since the last read began may hold Buy back.
+  def handle_async(figure, result, socket) when figure in [:usdc, :allowance] do
+    case read(result, socket.assigns.wallet) do
+      :other_wallet ->
+        {:noreply, socket}
 
-  def handle_async(figure, _unread, socket) when figure in [:usdc, :allowance],
-    do: {:noreply, assign(socket, figure, :unread)}
+      :unread ->
+        {:noreply, assign(socket, figure, :unread)}
+
+      micro ->
+        {:noreply,
+         assign(socket, [{figure, micro}, latest: Map.put(socket.assigns.latest, figure, micro)])}
+    end
+  end
 
   # A confirmed approval sets what staking may take to exactly its amount, so
-  # the panel knows it from the receipt it just read, before the next read.
-  defp approved(socket, %{
+  # the panel knows it from the receipt it just read, before the next read. It
+  # is the shown wallet's figure only when that wallet sent it.
+  defp approved(%{assigns: %{wallet: wallet}} = socket, %{
          name: "approve",
          outcome: :confirmed,
-         review: %{inputs: %{"amount" => amount}}
+         review: %{signer: wallet, inputs: %{"amount" => amount}}
        }),
        do: assign(socket, allowance: Chains.micro(dollars(amount)))
 
@@ -235,13 +246,15 @@ defmodule RegentsWeb.CreditsPanel do
         Review.new(socket.assigns.id, signer, Chains.chain(:base), steps, inputs)
       end
 
-    # A new amount changes no balance, so only a new signer reads them.
+    # A new amount changes no balance, so only a new wallet reads them.
+    wallet = OnchainSteps.shown_wallet(linked, socket.assigns.own, active)
+
     socket =
-      if signer == socket.assigns.signer,
-        do: socket,
+      if wallet == socket.assigns.wallet,
+        do: assign(socket, signer: signer),
         else:
           socket
-          |> assign(signer: signer, usdc: nil, allowance: nil, latest: %{})
+          |> assign(signer: signer, wallet: wallet, usdc: nil, allowance: nil, latest: %{})
           |> read_funds()
 
     socket
@@ -321,14 +334,14 @@ defmodule RegentsWeb.CreditsPanel do
   defp put_purchase(socket, hash, shown),
     do: assign(socket, purchases: Map.put(socket.assigns.purchases, hash, shown))
 
-  # The paying wallet's USDC on Base, and what REGENT staking may take of it,
+  # The shown wallet's USDC on Base, and what REGENT staking may take of it,
   # both at the latest block, `wait_ms` from now. A new read
   # replaces any still on its way, whose answer is then dropped. The figures
   # already shown stay on screen, but from here until each new read lands none
   # of them holds Buy back.
   defp read_funds(socket, wait_ms \\ 0)
 
-  defp read_funds(%{assigns: %{signer: nil}} = socket, _wait_ms), do: socket
+  defp read_funds(%{assigns: %{wallet: nil}} = socket, _wait_ms), do: socket
 
   defp read_funds(socket, wait_ms) do
     socket = assign(socket, latest: %{})
@@ -340,18 +353,23 @@ defmodule RegentsWeb.CreditsPanel do
   end
 
   defp start_reads(socket, wait_ms) do
-    signer = socket.assigns.signer
+    wallet = socket.assigns.wallet
 
     socket
     |> start_async(:usdc, fn ->
       Process.sleep(wait_ms)
-      usdc_call("balanceOf(address)", [signer])
+      {wallet, usdc_call("balanceOf(address)", [wallet])}
     end)
     |> start_async(:allowance, fn ->
       Process.sleep(wait_ms)
-      usdc_call("allowance(address,address)", [signer, Chains.staking()])
+      {wallet, usdc_call("allowance(address,address)", [wallet, Chains.staking()])}
     end)
   end
+
+  defp read({:ok, {wallet, {:ok, micro}}}, wallet), do: micro
+  defp read({:ok, {wallet, _unread}}, wallet), do: :unread
+  defp read({:ok, {_other, _answer}}, _wallet), do: :other_wallet
+  defp read({:exit, _reason}, _wallet), do: :unread
 
   defp usdc_call(signature, args) do
     call = %{to: Chains.usdc(:base), data: Call.encode(signature, args)}
@@ -362,13 +380,16 @@ defmodule RegentsWeb.CreditsPanel do
     end
   end
 
-  # The account as the page gave it, or as it reads now before each event
-  # (`RegentsWeb.Live.Session.check_component_events/2`): the wallets that may
-  # act and the review follow it.
-  defp take_account(socket, account),
-    do: socket |> assign(account: account, linked: wallets(account)) |> sync()
+  # The account as the page gave it, or as it reads now before each event and
+  # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
+  # the wallets that may act, the wallet shown and the review follow it.
+  defp take_account(socket, account) do
+    linked = Identity.account_wallets(account)
 
-  defp wallets(account), do: Enum.map(account.wallet_addresses, &String.downcase/1)
+    socket
+    |> assign(account: account, linked: linked, own: List.first(linked))
+    |> sync()
+  end
 
   defp dollars(amount) do
     case Integer.parse(String.trim(amount)) do
@@ -459,9 +480,9 @@ defmodule RegentsWeb.CreditsPanel do
 
       <%!-- Lines above the buttons stay in the page and are only hidden, so one
            appearing never replaces the button a person has just pressed. --%>
-      <div class="credits-panel__wallet" hidden={!@signer}>
-        <span class="credits-panel__muted">Paying from</span>
-        <code>{@signer && RegentFormat.short_address(@signer)}</code>
+      <div class="credits-panel__wallet" hidden={!@wallet}>
+        <span class="credits-panel__muted">{if @signer, do: "Paying from", else: "Wallet"}</span>
+        <code>{@wallet && RegentFormat.short_address(@wallet)}</code>
         <span class="credits-panel__usdc">{usdc(@usdc)}</span>
       </div>
       <p class="credits-panel__note" hidden={!@mismatch}>{@mismatch}</p>
@@ -597,7 +618,7 @@ defmodule RegentsWeb.CreditsPanel do
 
   defp covered?(_allowance, _dollars), do: false
 
-  # Why Buy is certain to fail right now, from the paying wallet's last read at
+  # Why Buy is certain to fail right now, from the shown wallet's last read at
   # the latest block; nil when it may go through. A figure still being read,
   # unread or past the read budget is never a reason.
   defp blocked(_assigns, nil), do: nil

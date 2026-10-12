@@ -164,7 +164,7 @@ defmodule RegentsWeb.RedeemLiveTest do
     # The button still reaches the wallet; the wallet sends nothing and the page says why.
     assert has_element?(view, control("redeem"))
     press_failed(view, "redeem", "wallet_unavailable")
-    assert has_element?(view, "#redemption-activity-press", "Switch to a wallet on your account")
+    assert has_element?(view, "#redemption-activity-press", "isn't linked to this account")
 
     activate(view, @wallet)
     refute has_element?(view, ".shell-sending-wallet")

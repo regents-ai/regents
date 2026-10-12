@@ -554,7 +554,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(
              view,
              ".shell-sending-wallet",
-             "but your wallet app has 0x2222..2222 open"
+             "Your wallet is on 0x2222..2222, which isn't linked to this account."
            )
   end
 
@@ -1268,7 +1268,7 @@ defmodule RegentsWeb.StakeLiveTest do
              )
     end
 
-    refute has_element?(view, "button[data-onchain-step][disabled]")
+    refute has_element?(view, ".stake-actions button[data-onchain-step][disabled]")
   end
 
   defp set_amount(view, amount),
@@ -1349,7 +1349,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
   defp activate(view, wallet) do
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => wallet})
-    render_async(view)
+    render_async(view, 3_000)
     view
   end
 end

@@ -79,9 +79,10 @@ function transport() {
     trustedOrigins: [document.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')?.content ?? ""],
     audience: manifest.audience,
     proofHeaders: manifest.proof_headers,
-    operations: manifest.tools.map(entry => ({...entry,
-      input_schema: "operation_input_schema" in entry ? entry.operation_input_schema : entry.input_schema,
-    })) as unknown as SignedOperation[],
+    // Only the signed tools are operations; each is sent with its operation's own inputs.
+    operations: manifest.tools.flatMap(entry =>
+      "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
+    ) as unknown as SignedOperation[],
   })
 }
 

@@ -251,7 +251,7 @@ test("Redeem sends nothing from a wallet that is not the account's", async ({pag
 
   await page.locator("#redemption-approve_nft_collection").click()
   await expect(page.locator("#redemption-activity-press")).toContainText(
-    "Switch to a wallet on your account in your wallet app",
+    "which isn't linked to this account",
   )
   expect(await sendCount(page)).toBe(0)
 

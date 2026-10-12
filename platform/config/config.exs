@@ -176,11 +176,19 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
+# Errors go to Sentry once SENTRY_DSN is set (config/runtime.exs): crashed
+# processes and failed requests, through the handler the application adds.
+# Each event leaves without its frames' arguments or a crashed process's state.
 config :sentry,
   environment_name: config_env(),
   json_library: Jason,
   enable_metrics: false,
-  tags: %{app: "regents"}
+  tags: %{app: "regents"},
+  before_send: {Regents.SentryScrub, :scrub}
+
+config :regents, :logger, [
+  {:handler, :sentry_handler, Sentry.LoggerHandler, %{config: %{metadata: [:file, :line]}}}
+]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

@@ -40,6 +40,14 @@ defmodule RegentsWeb.OnchainSteps do
     if active in Enum.map(linked, &String.downcase/1), do: active
   end
 
+  @doc """
+  The wallet a panel shows figures for. Signed in, the wallet that may act, or
+  with none the account's own wallet (`own`), so a wrong or missing active wallet
+  never empties the panel. Signed out (`linked` is `nil`), Privy's active wallet.
+  """
+  def shown_wallet(nil, _own, active), do: active
+  def shown_wallet(linked, own, active), do: signer(linked, active) || own
+
   @doc "Privy's active wallet as the page reported it, or `nil`."
   def active_wallet(%{"address" => address}) when is_binary(address) do
     if Regex.match?(@address, address), do: String.downcase(address)
@@ -126,15 +134,16 @@ defmodule RegentsWeb.OnchainSteps do
       when reason in ~w(step_unknown wallet_unavailable),
       do: "Sign in to send this. Nothing was sent."
 
-  def failure_note(reason, _linked, nil, _chain_name)
+  def failure_note(reason, linked, nil, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),
-      do: "Connect your wallet, then press again. Nothing was sent."
+      do:
+        "You're signed in with #{wallets(linked, " and ")}, but your wallet app has no wallet open. Open #{wallets(linked, " or ")} there, then press again. Nothing was sent."
 
   def failure_note(reason, linked, active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable) do
     cond do
       signer(linked, active) == nil ->
-        "Switch to a wallet on your account in your wallet app, then press again. Nothing was sent."
+        "#{mismatch_note(linked, active)} Nothing was sent."
 
       reason == "step_unknown" ->
         "This can't be sent as it stands. Check the details above, then press again. Nothing was sent."
@@ -160,11 +169,11 @@ defmodule RegentsWeb.OnchainSteps do
 
   @doc """
   The note beside the buttons while the wallet app has open a wallet the
-  signed-in account does not link, naming both.
+  signed-in account does not link, naming both and asking the person to switch.
   """
   def mismatch_note(linked, active) when is_list(linked) and is_binary(active) do
     if signer(linked, active) == nil do
-      "You're signed in with #{Enum.map_join(linked, " and ", &RegentFormat.short_address/1)}, but your wallet app has #{RegentFormat.short_address(active)} open."
+      "Your wallet is on #{short(active)}, which isn't linked to this account. Switch to #{wallets(linked, " or ")}."
     end
   end
 
@@ -211,4 +220,8 @@ defmodule RegentsWeb.OnchainSteps do
 
   defp review_id(nil), do: nil
   defp review_id(%{id: id}), do: id
+
+  defp wallets(linked, joiner), do: Enum.map_join(linked, joiner, &short/1)
+
+  defp short(address), do: RegentFormat.short_address(address)
 end
