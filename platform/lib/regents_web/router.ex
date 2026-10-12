@@ -11,6 +11,7 @@ defmodule RegentsWeb.Router do
     plug :fetch_live_flash
     plug RegentsWeb.Plugs.RequireArticleAdmin
     plug RegentsWeb.Plugs.Theme
+    plug RegentsWeb.Plugs.Panels
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
     plug RegentsWeb.Plugs.LaunchGate
     plug :protect_from_forgery

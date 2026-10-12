@@ -437,9 +437,9 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
     ),
   ).toBe(false)
   await expect(page.locator("[data-phx-session]").first()).toBeVisible()
-  await page.locator("#account-menu summary").click()
+  await page.locator("#account-chip").click()
   await expect(page.getByRole("button", {name: "Sign out"})).toBeVisible()
-  await page.locator("#account-menu summary").click()
+  await page.locator("#shell-aside [data-aside-close]").click()
   // Settings is intentionally disabled. Exercise the same live session on the
   // supported wallet page instead of depending on that retired menu entry.
   await page.locator("#shell-sidebar a[href='/stake']").click()
@@ -651,8 +651,8 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await establishLocalSession(page)
 
   await page.goto("/app")
-  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
-  await page.locator("#account-menu summary").click()
+  await expect(page.locator("#account-chip [data-account-target='profile']")).toBeVisible()
+  await page.locator("#account-chip").click()
   await page.getByRole("button", {name: "Sign out"}).click()
   await expect.poll(() => sessionDeletes).toBe(1)
 
@@ -803,7 +803,7 @@ export async function startPrivyBridge(options) {
   await establishLocalSession(page)
   await page.goto("/app")
   await expect.poll(() => bridgeLoads).toBe(1)
-  await page.locator("#account-menu summary").click()
+  await page.locator("#account-chip").click()
   await page.getByRole("button", {name: "Sign out"}).click()
 
   await expect.poll(() => sessionDeletes).toBe(1)
@@ -856,7 +856,7 @@ for (const failure of [
     await expect(page.locator("#account-auth-status")).toBeHidden()
     await expect(page.locator("#account-auth-status")).toHaveText("")
     await expect(
-      page.locator("#account-control [data-account-target='sign-out']"),
+      page.locator("#account-control [data-account-target='profile']"),
     ).toBeAttached()
     const finalSession = await page.request.get("/auth/session")
     expect((await finalSession.json()).authenticated).toBe(true)
@@ -971,7 +971,7 @@ test("COOKIE_TO_CSRF_HAS_A_REAL_LIVESOCKET_BARRIER: nothing connects before the 
   // Released, the held reconnect goes out once and lands, with no reload.
   await expect.poll(connected).toBe(true)
   expect(documents.map(url => new URL(url).pathname)).toEqual(["/app"])
-  await expect(page.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  await expect(page.locator("#account-chip [data-account-target='profile']")).toBeVisible()
 })
 
 test("a tab left stale by a failed adoption recovers on its next connect", async ({page}) => {
@@ -1085,7 +1085,7 @@ test("a refresh between another tab's dead render and its connect recovers in on
   // token. Phoenix refuses that handshake at the transport, before any mount
   // hook runs, and LiveView falls back to exactly one further request for the
   // same route, which then carries the current token.
-  await expect(waitingTab.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  await expect(waitingTab.locator("#account-chip [data-account-target='profile']")).toBeVisible()
   await waitingTab.waitForLoadState("networkidle")
 
   expect(documents.map(url => new URL(url).pathname)).toEqual(["/app", "/app"])
@@ -1142,7 +1142,7 @@ test("a refresh in one tab leaves another tab mounted and its next reconnect use
 
   // A deploy-style reconnect carries the adopted token, so nothing reloads.
   expect(documents).toHaveLength(1)
-  await expect(mountedTab.locator("#account-menu [data-account-target='profile']")).toBeVisible()
+  await expect(mountedTab.locator("#account-chip [data-account-target='profile']")).toBeVisible()
 })
 
 test("a tab holding a stale token still signs out, and the revoked lineage cannot reconnect", async ({

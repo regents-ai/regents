@@ -110,7 +110,7 @@ defmodule RegentsWeb.ShellLiveTest do
     refute has_element?(view, "#account-control a", "Nous Portal")
   end
 
-  test "signed-in account control renders its address avatar and requested menu", %{conn: conn} do
+  test "signed-in account control renders its address avatar and side panel", %{conn: conn} do
     account = register_account("signed-in-control", "0x1111111111111111111111111111111111111111")
 
     {:ok, view, _html} =
@@ -125,14 +125,16 @@ defmodule RegentsWeb.ShellLiveTest do
              "#account-control img.account-avatar[src^='data:image/svg+xml;base64,']"
            )
 
+    assert has_element?(view, "#account-control #account-chip[data-aside-toggle]")
+
     assert has_element?(
              view,
-             "#account-control button[type=button][data-account-target=sign-out]",
+             "#shell-account button[type=button][data-account-target=sign-out]",
              "Sign out"
            )
 
     refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
-    assert has_element?(view, "#account-control a[data-account-menu-item=account]", "Account")
+    assert has_element?(view, ~s(#shell-account a[href="/account"]), "Account")
     assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
   end
@@ -171,7 +173,7 @@ defmodule RegentsWeb.ShellLiveTest do
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222..2222")
-    assert has_element?(view, "#account-control [data-account-target=sign-out]", "Sign out")
+    assert has_element?(view, "#shell-account [data-account-target=sign-out]", "Sign out")
   end
 
   test "account control renders Profile only for a server-supplied canonical path" do
@@ -189,7 +191,7 @@ defmodule RegentsWeb.ShellLiveTest do
     assert html =~ ~s(class="account-avatar")
     assert html =~ ~s(src="data:image/svg+xml;base64,PHN2Zy8+")
     assert html =~ ~s(href="/account")
-    assert html =~ ~s(data-account-menu-item="account")
+    assert html =~ ~s(id="shell-account")
     assert html =~ "Sign out"
   end
 

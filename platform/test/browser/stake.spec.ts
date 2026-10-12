@@ -131,7 +131,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   await expect(resultLink).toHaveAttribute("rel", "noopener noreferrer")
 
   await page.reload()
-  await expect(page.locator("#account-menu")).toBeVisible()
+  await expect(page.locator("#account-chip")).toBeVisible()
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
   expect(await sendCount(page)).toBe(4)
 })
@@ -180,7 +180,7 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   )
 
   await page.goto("/stake")
-  await expect(page.locator("#account-menu")).toBeVisible()
+  await expect(page.locator("#account-chip")).toBeVisible()
   await expect(page.locator("#staking-claim_usdc[data-onchain-step]")).toBeEnabled()
 
   await signOut(page)
@@ -246,7 +246,7 @@ test("Sign out leaves Stake unconnected, and a reload keeps it that way", async 
   await sibling.goto("/redeem")
   await expect(sibling.locator(".redeem-signer")).toHaveAttribute("title", wallet)
 
-  await page.locator("#account-menu summary").click()
+  await page.locator("#account-chip").click()
   await page.getByRole("button", {name: "Sign out"}).click()
 
   await expectDisconnected(page)

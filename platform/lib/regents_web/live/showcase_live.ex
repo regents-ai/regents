@@ -520,6 +520,10 @@ defmodule RegentsWeb.ShowcaseLive do
                         :if={@privy_mode == :configured && @account_control.kind == :sign_in}
                         data-account-target="sign-in"
                       >Connect Privy</P.button>
+                      <span
+                        :if={@privy_mode == :configured && @account_control.kind == :signed_in}
+                        data-account-target="profile"
+                      >{@account_control.label}</span>
                       <P.button
                         :if={@privy_mode == :configured && @account_control.kind == :signed_in}
                         variant="secondary"
@@ -531,9 +535,6 @@ defmodule RegentsWeb.ShowcaseLive do
                         aria-describedby="privy-unavailable"
                       >Connect Privy</P.button>
                     </div>
-                    <p :if={@privy_mode == :configured && @account_control.kind == :signed_in}>
-                      Signed in as {@account_control.label}.
-                    </p>
                     <p :if={@privy_mode == :fixture} id="privy-unavailable">
                       Real sign-in is unavailable on this test-fixture server. Use a development
                       server with your real Privy app, verifier and an allowed local origin.

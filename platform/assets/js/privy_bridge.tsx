@@ -478,8 +478,8 @@ export function createProviderSessionReconciler({
   }
 }
 
-const showsSignOutControl = () =>
-  document.querySelector("#account-control [data-account-target='sign-out']") !== null
+const showsSignedInAccount = () =>
+  document.querySelector("#account-control [data-account-target='profile']") !== null
 
 type PrivySessionCompletionOptions = {
   acquireTokens: () => Promise<PrivyTokenPair>
@@ -802,7 +802,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
         disconnectWallets: () => finishWalletSignOut(document, window),
         providerAuthenticated: () => authenticated,
         reload: () => reloadDocumentOnce(document, () => window.location.reload()),
-        signedIn: showsSignOutControl,
+        signedIn: showsSignedInAccount,
       }),
     [authenticated],
   )
@@ -816,7 +816,7 @@ function AccountBridge({mode, providerState, publishRequestHandler, lifetime}: A
     const generation = ++walletSyncGeneration.current
     // Provider logout is authoritative independently of wallet hydration or a
     // remembered wallet-only disconnect. Never let that early return mask it.
-    if (ready && !authenticated && !signOutOnly && showsSignOutControl()) {
+    if (ready && !authenticated && !signOutOnly && showsSignedInAccount()) {
       await reconcileProviderSession()
       return
     }

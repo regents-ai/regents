@@ -88,8 +88,8 @@ function accountDocument({
         return bridgeSource === null ? null : {content: bridgeSource}
       }
       if (selector === "#account-auth-status") return status
-      if (selector === "#account-control [data-account-target='sign-out']") {
-        return signedIn ? new AccountElement("sign-out") : null
+      if (selector === "#account-control [data-account-target='profile']") {
+        return signedIn ? new AccountElement("profile") : null
       }
       return null
     },

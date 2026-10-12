@@ -1,8 +1,15 @@
 defmodule RegentsWeb.Components.Shell do
-  @moduledoc "Semantic presentation seam for Ash-owned shell behavior."
+  @moduledoc """
+  Semantic presentation seam for Ash-owned shell behavior.
+
+  The side panel's open and closed state is the browser's
+  (`assets/js/shell_panels.ts` and the `regents_aside` cookie, read into
+  `<html data-aside>`), so the server never stores it.
+  """
 
   use Phoenix.Component
 
+  alias Phoenix.LiveView.JS
   alias RegentsWeb.Components.RegentLinks
 
   alias RegentsWeb.RouteCatalog.{
@@ -11,6 +18,12 @@ defmodule RegentsWeb.Components.Shell do
     SidebarHeading,
     ViewerProfileTarget
   }
+
+  @help [
+    {"Documentation", "/docs"},
+    {"Agent guide", "/llms.txt"},
+    {"Contact", "/contact"}
+  ]
 
   attr(:route_spec, :map, required: true)
   attr(:account_control, Regents.AccessContext.AccountControl, required: true)
@@ -88,6 +101,19 @@ defmodule RegentsWeb.Components.Shell do
         </button>
 
         <.account_control account_control={@account_control} />
+
+        <button
+          id="shell-aside-button"
+          class="shell-tool"
+          type="button"
+          aria-controls="shell-aside"
+          aria-expanded="false"
+          aria-label="Side panel"
+          data-aside-toggle
+          phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+        >
+          <.icon name={:panel} />
+        </button>
       </header>
 
       <dialog
@@ -155,9 +181,58 @@ defmodule RegentsWeb.Components.Shell do
         </main>
         <RegentsWeb.Layouts.product_links />
       </div>
+
+      <aside id="shell-aside" aria-labelledby="shell-aside-title" tabindex="-1">
+        <div class="shell-aside__head">
+          <h2 id="shell-aside-title">For you</h2>
+          <button
+            class="shell-tool"
+            type="button"
+            aria-controls="shell-aside"
+            aria-label="Close the side panel"
+            data-aside-close
+          >
+            <.icon name={:close} />
+          </button>
+        </div>
+
+        <section
+          :if={@account_control.kind == :signed_in}
+          id="shell-account"
+          class="shell-account"
+          aria-label="Your account"
+        >
+          <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
+          <div class="shell-account__actions">
+            <.link patch="/account" class="rg-button rg-button--secondary">Account</.link>
+            <Regent.Primitives.button
+              variant="secondary"
+              type="button"
+              data-account-target="sign-out"
+            >
+              Sign out
+            </Regent.Primitives.button>
+          </div>
+        </section>
+
+        <section class="shell-promo" aria-labelledby="shell-promo-title">
+          <p class="shell-promo__kicker">New</p>
+          <h3 id="shell-promo-title">Pair your agent</h3>
+          <a href="/agents.md">How it works</a>
+        </section>
+
+        <section id="shell-aside-help" aria-labelledby="shell-help-title">
+          <h3 id="shell-help-title">Help</h3>
+          <ul>
+            <li :for={{label, path} <- help()}><a href={path}>{label}</a></li>
+          </ul>
+        </section>
+      </aside>
     </div>
     """
   end
+
+  defp help, do: @help
 
   defp credits_label(%{state: :ready, value: balance}),
     do: RegentCredits.Amount.format(balance.available)
@@ -187,7 +262,14 @@ defmodule RegentsWeb.Components.Shell do
 
   attr :account_control, Regents.AccessContext.AccountControl, required: true
   attr :enabled, :boolean, default: true
-  attr :profile_links, :boolean, default: true
+
+  attr :panel, :boolean,
+    default: true,
+    doc: """
+    Signed in, the name opens the side panel, which holds Account and Sign out.
+    A page without the side panel (the local Privy reference) shows Sign out
+    beside the name.
+    """
 
   @doc """
   The real Regents account control, also rendered by the local Privy reference.
@@ -205,49 +287,29 @@ defmodule RegentsWeb.Components.Shell do
       >
         {@account_control.label}
       </Regent.Primitives.button>
-      <details :if={@account_control.kind == :signed_in} id="account-menu">
-        <summary>
-          <%!-- ENS avatar hosts must not learn which page the visitor is on. --%>
-          <img
-            :if={@account_control.avatar_src}
-            class="account-avatar"
-            src={@account_control.avatar_src}
-            referrerpolicy="no-referrer"
-            width="36"
-            height="36"
-            alt=""
-          />
-          <span data-account-target="profile">{@account_control.label}</span>
-          <span class="shell-chevron" aria-hidden="true">⌄</span>
-        </summary>
-        <div class="account-menu__content shell-popover" data-panel="menu">
-          <.link
-            patch="/account"
-            class="account-menu__row account-menu__row--account"
-            data-account-menu-item="account"
-          >
-            <.account_menu_icon name={:settings} /><span>Account</span>
-          </.link>
-          <.link
-            :if={@profile_links && @account_control.profile_path}
-            patch={@account_control.profile_path}
-            class="account-menu__row"
-            data-account-menu-item="profile"
-          >
-            <.account_menu_icon name={:profile} /><span>Profile</span>
-          </.link>
-          <Regent.Primitives.button
-            variant="quiet"
-            type="button"
-            disabled={!@enabled}
-            class="account-menu__row account-menu__row--danger"
-            data-account-menu-item="sign-out"
-            data-account-target="sign-out"
-          >
-            <.account_menu_icon name={:logout} /><span>Sign out</span>
-          </Regent.Primitives.button>
-        </div>
-      </details>
+      <button
+        :if={@panel and @account_control.kind == :signed_in}
+        id="account-chip"
+        class="account-chip"
+        type="button"
+        aria-controls="shell-aside"
+        aria-expanded="false"
+        data-aside-toggle
+        phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+      >
+        <.account_name account_control={@account_control} />
+      </button>
+      <%= if !@panel and @account_control.kind == :signed_in do %>
+        <span class="account-chip"><.account_name account_control={@account_control} /></span>
+        <Regent.Primitives.button
+          variant="quiet"
+          type="button"
+          disabled={!@enabled}
+          data-account-target="sign-out"
+        >
+          Sign out
+        </Regent.Primitives.button>
+      <% end %>
       <p
         id="account-auth-status"
         class="account-auth-status"
@@ -335,31 +397,41 @@ defmodule RegentsWeb.Components.Shell do
 
   defp visible_sidebar_target?(_target, _account_control), do: true
 
+  attr :account_control, Regents.AccessContext.AccountControl, required: true
+
+  # The account's picture and name. The `profile` marker tells the browser the
+  # page was drawn for a signed-in account.
+  defp account_name(assigns) do
+    ~H"""
+    <%!-- ENS avatar hosts must not learn which page the visitor is on. --%>
+    <img
+      :if={@account_control.avatar_src}
+      class="account-avatar"
+      src={@account_control.avatar_src}
+      referrerpolicy="no-referrer"
+      width="36"
+      height="36"
+      alt=""
+    />
+    <span class="account-name" data-account-target="profile">{@account_control.label}</span>
+    """
+  end
+
   attr(:name, :atom, required: true)
 
-  defp account_menu_icon(assigns) do
+  defp icon(assigns) do
     ~H"""
     <svg
-      class="account-menu__icon"
+      class="shell-icon"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       stroke-width="1.8"
       stroke-linecap="square"
-      stroke-linejoin="miter"
       aria-hidden="true"
     >
-      <g :if={@name == :profile}>
-        <circle cx="12" cy="8" r="3.5" />
-        <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
-      </g>
-      <g :if={@name == :settings}>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
-      </g>
-      <g :if={@name == :logout}>
-        <path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10" />
-      </g>
+      <path :if={@name == :panel} d="M3 4h18v16H3zM15 4v16" />
+      <path :if={@name == :close} d="M6 6l12 12M18 6 6 18" />
     </svg>
     """
   end

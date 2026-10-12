@@ -32,6 +32,7 @@ import {mountMotion} from "./motion"
 import {installCopyButtons} from "./copy_buttons"
 import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
+import {installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
 
 type ShellHook = Hook & {
@@ -39,8 +40,6 @@ type ShellHook = Hook & {
   cleanup?: () => void
   shellState?: ShellState
   restoreState?: () => void
-  openPopoverIds?: string[]
-  destinationBeforeUpdate?: string
 }
 
 let cachedShellState: ShellState | undefined
@@ -173,9 +172,6 @@ const shellBehavior: Hook = {
       }
 
       if (target?.closest("#shell-sidebar a")) closeMenu()
-      if (target?.closest("#account-menu a")) {
-        target.closest("details")?.removeAttribute("open")
-      }
     }
 
     const onKeydown = (event: KeyboardEvent) => {
@@ -207,7 +203,11 @@ const shellBehavior: Hook = {
         return
       }
 
-      if (event.key === "Escape") {
+      // Escape inside the side panel closes the panel (shell_panels.ts), not a
+      // disclosure on the page behind it.
+      const inPanel = event.target instanceof Element && event.target.closest("#shell-aside")
+
+      if (event.key === "Escape" && !inPanel) {
         const openDetails = [...shell.querySelectorAll<HTMLDetailsElement>("details[open]")].at(-1)
 
         if (openDetails) {
@@ -239,15 +239,6 @@ const shellBehavior: Hook = {
     }
   },
 
-  beforeUpdate(this: ShellHook) {
-    this.destinationBeforeUpdate = this.el.dataset.destination ?? ""
-    this.openPopoverIds = [
-      ...this.el.querySelectorAll<HTMLDetailsElement>("#account-control details[open]"),
-    ]
-      .map(details => details.parentElement?.id)
-      .filter((id): id is string => Boolean(id))
-  },
-
   updated(this: ShellHook) {
     document.documentElement.dataset.brand = brandForShellApp(this.el.dataset.app)
     const incoming = {
@@ -265,11 +256,6 @@ const shellBehavior: Hook = {
     this.restoreState?.()
     if (menuWasOpen && this.shellState?.menuOpen === false) {
       this.el.querySelector<HTMLButtonElement>("#mobile-menu-button")?.focus()
-    }
-    if (this.destinationBeforeUpdate === incoming.destination) {
-      this.openPopoverIds?.forEach(id => {
-        this.el.querySelector<HTMLDetailsElement>(`#${id} > details`)?.setAttribute("open", "")
-      })
     }
     this.el.dataset.behaviorReady = "true"
     if (shouldScroll) {
@@ -327,5 +313,8 @@ installPublicTools()
 installCrossTabCsrf()
 installCopyButtons()
 installLiteratureChart()
+// A page drawn after navigation starts with its panel toggles closed; they follow the panel.
+const shellPanels = installShellPanels()
+window.addEventListener("phx:page-loading-stop", shellPanels.sync)
 mountMotion(document)
 window.liveSocket = liveSocket

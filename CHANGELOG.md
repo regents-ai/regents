@@ -1485,3 +1485,14 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The movements the real pages use match the shared kit: rising words are
   clipped by a class rather than a style, figures with units roll, and the
   lab's own presses answer for themselves.
+
+## 2026-10-12 — Side panel in the header (local, unreleased)
+
+- The account dropdown is gone. Signed in, the account name opens a side
+  panel, and a panel button sits beside it in the header.
+- The panel holds the account name, Account and Sign out, Pair your agent,
+  and Help (Documentation, Agent guide, Contact). It closes with its own
+  button or Escape, and stays open or closed as it was left, across pages
+  and reloads.
+- On the narrowest phones only the panel button shows in the header; the
+  name is inside the panel.

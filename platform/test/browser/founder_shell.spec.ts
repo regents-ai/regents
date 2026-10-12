@@ -279,7 +279,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await auth.expectAuthenticatedSession()
   await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
 
-  const account = page.locator("#account-menu")
+  const account = page.locator("#account-chip")
   await expect(account.locator("img.account-avatar")).toHaveAttribute(
     "src",
     /^data:image\/svg\+xml;base64,/,
@@ -287,13 +287,14 @@ test("a signed-in account without a Regent shows its available account menu", as
   await expect
     .poll(() => account.locator("img.account-avatar").evaluate(image => image.naturalWidth))
     .toBeGreaterThan(0)
-  await account.locator("summary").first().click()
-  await expect(account.locator(".account-menu__row")).toHaveText(["Account", "Sign out"])
-  await expect(account.getByRole("link", {name: "Account", exact: true})).toHaveAttribute(
+  await account.click()
+  const panel = page.locator("#shell-account")
+  await expect(panel.locator(".shell-account__actions > *")).toHaveText(["Account", "Sign out"])
+  await expect(panel.getByRole("link", {name: "Account", exact: true})).toHaveAttribute(
     "href",
     "/account",
   )
-  await expect(account.getByRole("button", {name: "Sign out"})).toBeVisible()
+  await expect(panel.getByRole("button", {name: "Sign out"})).toBeVisible()
 
   await page.emulateMedia({colorScheme: "dark"})
   await expect(page.locator("html")).not.toHaveAttribute("data-theme")

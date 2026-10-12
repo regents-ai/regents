@@ -148,7 +148,7 @@ function installAccountBridgeRenderer() {
 
 // The account control is the only evidence of whether a page is signed in, so
 // schedules that turn on it name their marker; the default page shows neither.
-function stubBrowserGlobals(accountMarker: "sign-in" | "sign-out" | null = null) {
+function stubBrowserGlobals(accountMarker: "sign-in" | "profile" | null = null) {
   const dispatched: string[] = []
   const listeners = new Map<string, () => void>()
   const reload = vi.fn()
@@ -320,7 +320,7 @@ describe("Privy session bridge", () => {
     replaceActiveEthereumWallet(null)
     replaceConnectedEthereumWallets([])
     const render = installAccountBridgeRenderer()
-    const {localStorage} = stubBrowserGlobals("sign-out")
+    const {localStorage} = stubBrowserGlobals("profile")
     const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
     let release: ((value: {wallet: typeof wallet}) => void) | undefined
     const startup = bridge.startPrivyBridge({}, {
@@ -1255,7 +1255,7 @@ describe("Privy session bridge", () => {
   it("BOTH_PROVIDER_LAYERS_MUST_BE_READY: a loading wallet hook drops wallets without ending the session", async () => {
     productionRootRender.mockReset()
     const renderAccountBridge = installAccountBridgeRenderer()
-    const {dispatched, reload} = stubBrowserGlobals("sign-out")
+    const {dispatched, reload} = stubBrowserGlobals("profile")
     const sessionRequests = stubSessionRequests()
     const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
     replaceActiveEthereumWallet({address: wallet.address, provider: wallet.provider})
@@ -1287,7 +1287,7 @@ describe("Privy session bridge", () => {
   it("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: an authenticated walletless provider reads no token", async () => {
     productionRootRender.mockReset()
     const renderAccountBridge = installAccountBridgeRenderer()
-    const {dispatched, reload} = stubBrowserGlobals("sign-out")
+    const {dispatched, reload} = stubBrowserGlobals("profile")
     const sessionRequests = stubSessionRequests()
     const getAccessToken = vi.fn(async () => null)
 
@@ -1312,7 +1312,7 @@ describe("Privy session bridge", () => {
   it("SIGNED_IN_STALE_PROVIDER_EXITS: unauthenticated truth revokes before wallet readiness", async () => {
     productionRootRender.mockReset()
     const renderAccountBridge = installAccountBridgeRenderer()
-    const {reload} = stubBrowserGlobals("sign-out")
+    const {reload} = stubBrowserGlobals("profile")
     const sessionRequests = stubSessionRequests()
 
     const startup = bridge.startPrivyBridge({}, {
@@ -1645,7 +1645,7 @@ describe("Privy session bridge", () => {
     replaceActiveEthereumWallet(null)
     replaceConnectedEthereumWallets([])
     const renderAccountBridge = installAccountBridgeRenderer()
-    const {dispatched, localStorage, reload} = stubBrowserGlobals("sign-out")
+    const {dispatched, localStorage, reload} = stubBrowserGlobals("profile")
     const sessionRequests = stubSessionRequests()
     localStorage.setItem("regent:wallet-disconnected:v1", "true")
     const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")

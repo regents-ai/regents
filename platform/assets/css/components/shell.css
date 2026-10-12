@@ -69,14 +69,14 @@
 }
 
 .account-control,
-.theme-control,
-.account-control details {
+.theme-control {
   position: relative;
 }
 
 /* Every header control is a bordered cell, as the marketing header's tabs are. */
 .shell-brand,
-.account-control summary,
+.account-chip,
+#shell-header .shell-tool,
 .mobile-menu-button {
   display: flex;
   align-items: center;
@@ -114,20 +114,49 @@
   margin-inline-end: var(--space-1);
 }
 
-.account-control summary::-webkit-details-marker {
-  display: none;
-}
-
 @media (hover: hover) {
   .shell-brand:hover,
-  .account-control summary:hover,
+  .account-chip:hover,
+  .shell-tool:hover,
   .mobile-menu-button:hover {
     background: color-mix(in oklch, var(--color-fg) 6%, transparent);
   }
 }
 
-.account-control details[open] summary {
-  background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+/* The account name and the side panel button both open the side panel. */
+[data-aside-toggle][aria-expanded="true"] {
+  background: color-mix(in oklch, var(--color-fg) 10%, transparent);
+}
+
+.account-chip {
+  max-width: 14rem;
+  min-width: 0;
+  font: inherit;
+}
+
+.account-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-tool {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.shell-icon {
+  width: 1.3rem;
+  height: 1.3rem;
 }
 
 .account-avatar {
@@ -177,83 +206,6 @@
   :root:not([data-theme]) .shell-brand__mark-dark {
     display: none;
   }
-}
-
-.shell-chevron {
-  margin-left: 0.25rem;
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-details[open] > summary .shell-chevron {
-  transform: rotate(180deg);
-}
-
-.shell-popover {
-  position: absolute;
-  top: 100%;
-  z-index: 6;
-  display: grid;
-  min-width: 13rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-}
-
-.account-menu__content > a {
-  min-height: 2.75rem;
-  padding: 0.7rem 0.85rem;
-}
-
-@media (hover: hover) {
-  .account-menu__content > a:hover {
-    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
-  }
-}
-
-.theme-control .shell-popover,
-.account-menu__content {
-  right: 0;
-}
-
-.account-menu__content {
-  min-width: 14rem;
-}
-
-.account-menu__row {
-  display: grid;
-  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  min-height: 3rem;
-  padding: 0.8rem 0.85rem;
-  border: 0;
-  border-block-end: 1px solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-
-@media (hover: hover) {
-  .account-menu__row:hover {
-    background: color-mix(in oklch, var(--color-fg) 8%, transparent);
-  }
-}
-
-.account-menu__icon {
-  width: 1.4rem;
-  height: 1.4rem;
-}
-
-#account-menu .account-menu__row--account {
-  color: var(--ash-accent-warm);
-}
-
-.account-menu__row--danger {
-  border-block-end: 0;
-  color: var(--ash-accent-warm);
 }
 
 .mobile-menu-button {
@@ -428,11 +380,18 @@ details[open] > summary .shell-chevron {
     text-transform: uppercase;
   }
 
-    .account-control summary {
+  .account-chip {
     max-width: 6rem;
     padding-inline: 0.5rem;
+  }
+
+  /* With a picture, the name is for screen readers only. */
+  .account-chip .account-avatar + .account-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    clip-path: inset(50%);
     white-space: nowrap;
   }
 
@@ -486,21 +445,107 @@ details[open] > summary .shell-chevron {
     padding: 1rem;
   }
 
-  .shell-popover {
-    position: fixed;
-    top: 3.5rem;
-    right: 0;
-    left: 0;
-    max-height: calc(100dvh - 3.5rem);
-    overflow: auto;
-    border-inline: 0;
+  #shell-aside {
+    width: 100%;
+    border-inline-start: 0;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .shell-chevron {
-    transition: none;
-  }
+/* ---- Side panel ---- */
+
+/* It covers the page's right edge, below the dialogs that open over it. */
+#shell-aside {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 30;
+  display: grid;
+  align-content: start;
+  width: min(22rem, 100%);
+  overflow: auto;
+  border-inline-start: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+:root:not([data-aside="open"]) #shell-aside {
+  display: none;
+}
+
+#shell-aside:focus {
+  outline: none;
+}
+
+.shell-aside__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3rem;
+  padding-inline-start: 1rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.shell-aside__head h2 {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#shell-aside section {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+#shell-aside h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+#shell-aside p {
+  margin: 0;
+}
+
+#shell-aside ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shell-account__name {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.shell-account__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.shell-account__actions .rg-button {
+  width: 100%;
+  justify-content: center;
+}
+
+#shell-aside .shell-promo {
+  margin: 1rem;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--ash-panel-strong);
+}
+
+.shell-promo__kicker {
+  color: var(--ash-accent-warm);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* The frame itself owns the ruled edges; there is no decorative page mat. */
@@ -524,10 +569,8 @@ details[open] > summary .shell-chevron {
   /* Only the brand's name gives way; the account button and the Credits
      balance keep their width. */
   #shell-header .account-control { min-width: 0; flex: 0 0 auto; }
-  /* The account button keeps its 6rem cap; the name shrinks to an ellipsis so
-     the avatar and chevron stay inside the cap instead of spilling past the
-     screen edge. */
-  #shell-header .account-control summary [data-account-target="profile"] { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  #shell-header .account-control summary .shell-chevron { flex: 0 0 auto; }
+  #shell-header .shell-tool { flex: 0 0 auto; }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }
+/* The narrowest phones: the side panel button beside it opens the same panel, so the name gives way to it. */
+@media (max-width: 23.75rem) { #shell-header .account-chip { display: none; } }

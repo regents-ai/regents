@@ -80,7 +80,7 @@ test("Redeem sends each press straight to the signed-in wallet and follows it on
 
   await page.goto("/redeem")
   await expect(page.getByRole("heading", {name: "Redeem your Animata."})).toBeVisible()
-  await expect(page.locator("#account-menu")).toBeVisible()
+  await expect(page.locator("#account-chip")).toBeVisible()
   await expect(page.getByLabel("Collection", {exact: true})).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()
 
@@ -145,7 +145,7 @@ test("Redeem sends each press straight to the signed-in wallet and follows it on
   })
 
   await page.reload()
-  await expect(page.locator("#account-menu")).toBeVisible()
+  await expect(page.locator("#account-chip")).toBeVisible()
   await expect(page.getByLabel("Token ID")).toBeVisible()
   expect(await sendCount(page)).toBe(5)
 })
@@ -331,7 +331,7 @@ test("Sign out leaves Redeem unconnected, and a reload keeps it that way", async
   await page.goto("/redeem")
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
 
-  await page.locator("#account-menu summary").click()
+  await page.locator("#account-chip").click()
   await page.getByRole("button", {name: "Sign out"}).click()
 
   await expectDisconnected(page)
