@@ -1451,3 +1451,9 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   stopped the whole refresh.
 - Two checks now cover the refresh: one for a crash and one for a failed
   seven-day read.
+
+## 2026-10-12 — Autolaunch picture says Memestock (local, unreleased)
+
+- The Autolaunch picture on regents.sh/autolaunch now says "Memestock" in place
+  of the old "Memestake", matching the page and the picture's own description.
+  Only that word was redrawn, in the same font, size and colour.
