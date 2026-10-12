@@ -15,7 +15,7 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, SLOW, still} from "./shared"
+import {BASE, CLIPPED_CHAR, SLOW, still} from "./shared"
 import {deny} from "./press"
 import type {Hook} from "../../hook_composition"
 
@@ -83,6 +83,10 @@ export const ROLLS: Record<string, Roll> = {
 // What a figure is worth, decimals included, so 1.75 to 2 rolls up.
 const worth = (text: string) => Number(text.replace(/[^\d.]/g, ""))
 
+// A figure's characters as the split makes them, which leaves out spaces, so
+// a figure with a unit such as "12.5 USDC" lines up digit for digit.
+const glyphs = (figure: HTMLElement) => (figure.textContent ?? "").replace(/\s/g, "")
+
 // The figures inside a part of the page, each marked `data-count`.
 const figures = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>("[data-count]")]
 
@@ -96,10 +100,11 @@ function join(hook: CountHook, split: TextSplitter) {
 }
 
 /**
- * Figures the server changes, built from a table of versions. Only the digits
- * that changed move, the ones nearest the end first, like a counter turning
- * over. The digits are split into pieces for the move and joined back as soon
- * as it ends, so the page always patches the plain figure it rendered.
+ * Figures the server changes, built from a table of versions. A figure may
+ * carry a unit, such as "12.5 USDC". Only the characters that changed move,
+ * the ones nearest the end first, like a counter turning over. The figure is
+ * split into pieces for the move and joined back as soon as it ends, so the
+ * page always patches the plain figure it rendered.
  */
 export const countHook = (rolls: Record<string, Roll>): Hook => ({
   mounted(this: CountHook) {
@@ -119,7 +124,7 @@ export const countHook = (rolls: Record<string, Roll>): Hook => ({
 
   beforeUpdate(this: CountHook) {
     for (const split of this.splits) join(this, split)
-    this.before = figures(this.el).map(figure => figure.textContent ?? "")
+    this.before = figures(this.el).map(glyphs)
   },
 
   updated(this: CountHook) {
@@ -130,10 +135,10 @@ export const countHook = (rolls: Record<string, Roll>): Hook => ({
     const {clip} = rolls[this.el.dataset.variant ?? ""]
     after.forEach((figure, index) => {
       const was = before[index]
-      const now = figure.textContent ?? ""
+      const now = glyphs(figure)
       if (was === now) return
 
-      const split = splitText(figure, {words: false, chars: clip ? {wrap: "clip"} : true})
+      const split = splitText(figure, {words: false, chars: clip ? CLIPPED_CHAR : true})
       const digits = split.chars.filter((_char, i) => was.at(i - now.length) !== now[i])
       this.splits.add(split)
       this.scope?.methods.roll(split, digits, worth(now) > worth(was))

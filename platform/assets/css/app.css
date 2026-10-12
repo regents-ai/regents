@@ -6,10 +6,12 @@
 @import "./components/transaction_receipt.css";
 @import "./components/submitted_transactions.css";
 @import "./components/onchain_button.css";
+@import "./components/motion.css";
 @import "./pages/home.css";
 @import "./pages/legal.css";
 @import "./pages/literature.css";
 @import "./pages/paper_pro_daily.css";
+@import "./pages/animations.css";
 @import "./pages/blog.css";
 @import "./pages/stake.css";
 @import "./pages/redeem.css";

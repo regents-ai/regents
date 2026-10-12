@@ -167,6 +167,10 @@ export const GRIDS: Record<string, (cards: Element[]) => JSAnimation> = {
     play(cards, {y: {from: 16}, opacity: {from: 0}, delay: stagger(45), duration: SLOW, ease: EASE_OUT}),
 }
 
+// The first cards of a list cascade in; later ones start below the fold and
+// are simply there.
+export const CASCADE = 12
+
 /**
  * Calls `arrive` once, the first time `el` scrolls into view. One already in
  * view when the page opens, or reached from the keyboard, is simply there.
@@ -193,4 +197,29 @@ export function onFirstSight(el: HTMLElement, arrive: () => void) {
   watch.observe(el)
   el.addEventListener("focusin", done)
   return done
+}
+
+type CascadeHook = {el: HTMLElement; scope?: Scope}
+
+/**
+ * A list of cards on a live page that settles in as `data-variant` names in
+ * `GRIDS`, once, the first time it scrolls into view (`onFirstSight`). Pages
+ * the server draws once cascade their `data-cascade` lists from `motion.ts`.
+ */
+export const MotionCascade: Hook = {
+  mounted(this: CascadeHook) {
+    const list = this.el
+    const scope = createScope({root: list})
+
+    this.scope = scope.add(self => {
+      self!.add("cascade", () => GRIDS[list.dataset.variant ?? ""]([...list.children].slice(0, CASCADE)))
+      return onFirstSight(list, () => {
+        if (!still(list)) scope.methods.cascade()
+      })
+    })
+  },
+
+  destroyed(this: CascadeHook) {
+    this.scope?.revert()
+  },
 }

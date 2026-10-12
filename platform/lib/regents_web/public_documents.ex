@@ -102,7 +102,8 @@ defmodule RegentsWeb.PublicDocuments do
     :regent_unavailable =>
       {"Regent profile", "A public Regent profile on Regents Labs that can't be shown right now."},
     "/showcase" => {"Showcase", "The Regents Labs component showcase."},
-    "/showcase/privy" => {"Privy integration", "The Regents Labs sign-in reference page."}
+    "/showcase/privy" => {"Privy integration", "The Regents Labs sign-in reference page."},
+    "/animations" => {"Motion lab", "Every motion Regents Labs uses, side by side."}
   }
   @sanitize [
     tags: ~w(h1 h2 h3 p ul ol li strong em a code pre br blockquote table thead tbody tr th td),

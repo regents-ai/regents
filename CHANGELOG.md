@@ -1475,3 +1475,13 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - Once a day, every saved error that has not happened again for a week is
   cleared, whether or not anyone marked it resolved, along with any single
   occurrence older than a week. A fault that keeps happening stays visible.
+
+## 2026-10-12 — Motion lab on the local site (local, unreleased)
+
+- The motion lab at /animations shows every version of each movement side
+  by side: presses, sliding panels, a rearranging list, rolling figures, a
+  stamp, tabs, rising headlines and settling cards. It opens on a computer
+  running the site locally, like the showcase, and not on regents.sh.
+- The movements the real pages use match the shared kit: rising words are
+  clipped by a class rather than a style, figures with units roll, and the
+  lab's own presses answer for themselves.

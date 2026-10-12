@@ -103,6 +103,17 @@ defmodule RegentsWeb.Router do
         live "/privy", PrivyShowcaseLive, :index
       end
     end
+
+    # The motion lab, local like the rest of the showcase.
+    scope "/", RegentsWeb do
+      pipe_through :local_showcase
+
+      live_session :motion_lab,
+        session: {RegentsWeb.Live.Session, :render_context, []},
+        on_mount: [RegentsWeb.Showcase.LocalOnly] do
+        live "/animations", AnimationsLive, :index
+      end
+    end
   end
 
   scope "/", RegentsWeb do

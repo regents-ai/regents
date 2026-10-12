@@ -3,7 +3,8 @@
  * shake when the answer is no, panels that slide or pop open, and on pages the
  * server draws once, the headline rising in word by word and the cards
  * settling into place the first time they scroll into view. The version of
- * each is named in `RegentsWeb.Motion`.
+ * each is named in `RegentsWeb.Motion`, and every version that was tried is
+ * kept in the motion lab at /animations.
  *
  * A live page draws its own parts again whenever it changes, so only what the
  * server drew once moves as the page opens; live parts move from their hooks.
@@ -13,18 +14,15 @@
  */
 import {splitText} from "animejs"
 import {deny, nope, squish} from "./hooks/motion/press"
-import {GRIDS, HEADLINES, onFirstSight} from "./hooks/motion/reveals"
-import {byPointer, lastInputByPointer, still, watchInput} from "./hooks/motion/shared"
+import {CASCADE, GRIDS, HEADLINES, onFirstSight} from "./hooks/motion/reveals"
+import {CLIPPED_WORD, byPointer, lastInputByPointer, still, watchInput} from "./hooks/motion/shared"
 import {backdrop, drawer, menu, sheet} from "./hooks/motion/slides"
 
 // A menu's summary is its button; other summaries open disclosures in the
-// page's own flow and stay still. The theme switch turns its own prism cube.
+// page's own flow and stay still. The theme switch turns its own cube, and the
+// lab's presses, named with `data-press`, answer for themselves.
 const PRESSABLE =
-  ":is(button, .rg-button, [role='button'], summary:has(~ [data-panel='menu'])):not(.rg-theme-toggle)"
-
-// The first cards of a list cascade in; later ones start below the fold and
-// are simply there.
-const CASCADE = 12
+  ":is(button, .rg-button, [role='button'], summary:has(~ [data-panel='menu'])):not(.rg-theme-toggle, [data-press])"
 
 const live = (el: Element) => el.closest("[data-phx-session]") !== null
 
@@ -51,7 +49,7 @@ export function mountMotion(doc: Document) {
 // cannot be used yet shakes its head instead of squishing. A wallet button
 // squishes only its `data-press-label`, so the button itself never shrinks
 // and a quick second press near its edge still lands on it.
-function press(event: MouseEvent) {
+export function press(event: MouseEvent) {
   if (!(event.target instanceof Element) || !byPointer(event)) return
   const control = event.target.closest(PRESSABLE)
   if (control === null || still(control)) return
@@ -89,6 +87,6 @@ function toggle(event: Event) {
 
 // The words are joined back into plain text once they have risen.
 function rise(headline: HTMLElement) {
-  const split = splitText(headline, {words: {wrap: "clip"}})
+  const split = splitText(headline, {words: CLIPPED_WORD})
   HEADLINES.rise(split).then(() => split.revert())
 }

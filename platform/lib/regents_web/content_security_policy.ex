@@ -33,7 +33,9 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     {"script-src", ["'self'"]},
     {"style-src", ["'self'"]},
     # Style attributes only, never style elements: the shared ratio card sizes
-    # its fill with one, and Anime.js text splitting clips each word with one.
+    # its fill with one, and an element moving under
+    # `JS.ignore_attributes(["style"])` keeps the one Anime.js wrote. Rising
+    # words clip by class (`.split-clip`).
     {"style-src-attr", ["'unsafe-inline'"]},
     {"img-src", ["'self'", "data:"]},
     {"font-src", ["'self'"]},
