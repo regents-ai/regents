@@ -23,6 +23,12 @@ defmodule Regents.Staking.RpcClient do
   @chunk_blocks 10_000
   @chunk_concurrency 8
 
+  @unavailable_window %{
+    usdc_received_from_block: :unavailable,
+    usdc_received_7d_raw: :unavailable,
+    usdc_received_7d: :unavailable
+  }
+
   # The stateless diagnostic reader keeps its existing interface. Automatic and
   # visitor reads use protocol_snapshot/1 through the durable shared job instead.
   # The contract's current answers are the reading; the seven-day window is one
@@ -41,12 +47,37 @@ defmodule Regents.Staking.RpcClient do
   @impl true
   def protocol_snapshot(history) do
     with {:ok, block} <- bounded(fn -> Rpc.latest_block(@rpc_opts) end),
-         {:ok, history, window} <-
-           bounded(fn -> RevenueHistory.read(history, block, &history_logs/2) end),
+         {:ok, history, window} <- revenue_window(history, block),
          # These requireCanonical reads follow the logs, proving their head still
          # belongs to the chain without another RPC request just for verification.
          {:ok, protocol} <- bounded(fn -> read_protocol_at(block) end) do
       {:ok, Map.merge(protocol, window), history}
+    end
+  end
+
+  # The seven-day window is one figure beside the contract's answers, as in
+  # protocol_snapshot/0. Logs nobody answered for leave the retained history as
+  # it was, for the next pass to catch up from, and cost that figure alone. A
+  # head behind the history's own would put an older reading in place of a newer
+  # one, and a first reading has no history to keep, so either is no reading.
+  defp revenue_window(history, block) do
+    case bounded(fn -> RevenueHistory.read(history, block, &history_logs/2) end) do
+      {:ok, _history, _window} = read ->
+        read
+
+      {:error, :head_regressed} = error ->
+        error
+
+      {:error, _reason} = error when is_nil(history) ->
+        error
+
+      {:error, reason} ->
+        Logger.warning(
+          "staking seven-day USDC history unavailable at block #{block.number}: " <>
+            inspect(reason)
+        )
+
+        {:ok, history, @unavailable_window}
     end
   end
 
@@ -168,11 +199,7 @@ defmodule Regents.Staking.RpcClient do
             "#{failed_from}..#{failed_to}: #{inspect(reason)}"
         )
 
-        %{
-          usdc_received_from_block: :unavailable,
-          usdc_received_7d_raw: :unavailable,
-          usdc_received_7d: :unavailable
-        }
+        @unavailable_window
     end
   end
 

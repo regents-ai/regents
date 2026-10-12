@@ -210,6 +210,31 @@ defmodule Regents.Staking.RpcClientTest do
     refute log =~ "http"
   end
 
+  # The shared job extends a retained history of deposits on each pass. A pass
+  # whose logs are refused keeps that history exactly as it was, for the next
+  # pass to catch up from, and costs the seven-day figure alone.
+  test "HISTORY_WINDOW_FAILURE: refused logs keep the history and cost only the seven-day figure" do
+    head(@head)
+    history = %{"block_number" => @head - 100, "block_hash" => Stub.latest_hash(), "events" => []}
+    # The pass re-reads the newest 30 blocks the history holds, so it starts there.
+    Stub.put(%{refused_log_range: @head - 129})
+
+    log =
+      capture_log(fn ->
+        assert {:ok, snapshot, ^history} = RpcClient.protocol_snapshot(history)
+
+        assert snapshot.usdc_received_7d == :unavailable
+        assert snapshot.usdc_received_7d_raw == :unavailable
+        assert snapshot.usdc_received_from_block == :unavailable
+        assert snapshot.block_number == @head
+        assert snapshot.total_staked_raw == "100"
+        assert snapshot.usdc_received_lifetime_raw == "125000000000"
+      end)
+
+    assert log =~ "seven-day USDC history unavailable at block #{@head}"
+    refute log =~ "http"
+  end
+
   # A log this contract did not emit, or one carrying another event's shape,
   # fails the sum rather than being skipped past. The sum is the seven-day
   # figure alone, so nothing else in the reading answers for it.

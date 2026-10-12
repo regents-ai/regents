@@ -15,22 +15,32 @@ defmodule Regents.Staking.SnapshotRefresh do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    result = refresh()
-
-    case result do
-      {:ok, _snapshot} ->
-        # Every machine receives this committed reading, even without an
-        # Erlang cluster. Listeners read the row and notify their local pages.
-        SnapshotCache.announce(:updated)
-
-      {:snooze, seconds} ->
-        {:snooze, seconds}
-
-      {:error, _reason} = error ->
-        SnapshotCache.announce(:unavailable)
-        error
-    end
+    # Every machine receives this committed reading, even without an Erlang
+    # cluster. Listeners read the row and notify their local pages.
+    with {:ok, _snapshot} <- refresh(), do: SnapshotCache.announce(:updated)
   end
+
+  @doc """
+  Oban reports every refresh that ends without a reading as one event: an
+  error, a crash, or running out of time. Each tells open pages, so none waits
+  on a reading that is not coming.
+  """
+  def attach_failure_notice do
+    :telemetry.attach(
+      "regents-staking-refresh-failed",
+      [:oban, :job, :exception],
+      &__MODULE__.handle_event/4,
+      nil
+    )
+  end
+
+  @worker inspect(__MODULE__)
+
+  @doc false
+  def handle_event([:oban, :job, :exception], _measurements, %{job: %{worker: @worker}}, nil),
+    do: SnapshotCache.announce(:unavailable)
+
+  def handle_event(_event, _measurements, _metadata, nil), do: :ok
 
   defp refresh do
     with {:ok, previous} <- Staking.get_protocol_reading(SnapshotCache.key(), actor: %System{}) do
@@ -51,7 +61,7 @@ defmodule Regents.Staking.SnapshotRefresh do
          {:ok, saved} <- save(previous, protocol, history) do
       :telemetry.execute(
         [:regents, :staking, :refresh],
-        %{history_blocks: protocol.block_number - history_start(previous, protocol) + 1},
+        %{history_blocks: history_blocks(previous, protocol)},
         %{chain_id: 8453, bootstrap: is_nil(previous)}
       )
 
@@ -94,6 +104,12 @@ defmodule Regents.Staking.SnapshotRefresh do
       old
     end
   end
+
+  # A pass whose logs went unanswered kept the history it had and read none.
+  defp history_blocks(_previous, %{usdc_received_from_block: :unavailable}), do: 0
+
+  defp history_blocks(previous, protocol),
+    do: protocol.block_number - history_start(previous, protocol) + 1
 
   defp history_start(nil, protocol), do: protocol.usdc_received_from_block
 

@@ -1439,3 +1439,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The page's "am I signed in?" check now tells browsers and proxies never to
   keep a copy, so a stale answer cannot be shown after signing in or out
   (template abfdac0).
+
+## 2026-10-12 — Stake figures refresh without getting stuck (local, unreleased)
+
+- A Stake refresh that crashes or runs out of time now tells open pages, the
+  same as one that fails. Before, those pages kept waiting for a reading that
+  was never coming.
+- When the seven-day USDC figure can't be read, only that figure shows as
+  unavailable. Every other contract figure still refreshes, and the deposit
+  history catches up on the next pass. Before, one failed seven-day read
+  stopped the whole refresh.
+- Two checks now cover the refresh: one for a crash and one for a failed
+  seven-day read.
