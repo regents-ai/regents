@@ -43,8 +43,12 @@ defmodule RegentsWeb.RouteCatalogTest do
       |> Phoenix.Router.routes()
       |> Enum.filter(&(&1.verb == :get and &1.plug == Phoenix.LiveView.Plug))
       # Compile-disabled in production; the workshop has its own loopback gate.
+      # The saved errors are ErrorTracker's own pages, outside the product shell.
       |> Enum.reject(fn route ->
-        :local_showcase in Phoenix.Router.route_info(Router, "GET", route.path, "localhost").pipe_through
+        pipe_through =
+          Phoenix.Router.route_info(Router, "GET", route.path, "localhost").pipe_through
+
+        :local_showcase in pipe_through or :errors_admin in pipe_through
       end)
       |> Enum.map(&{&1.path, &1.plug_opts})
 

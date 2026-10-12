@@ -47,12 +47,16 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:delete, "/auth/privy/session"},
              {:get, "/articles"},
              {:get, "/articles/:slug"},
-             {:get, "/admin/articles"}
+             {:get, "/admin/articles"},
+             {:get, "/admin/errors"},
+             {:get, "/admin/errors/:id"},
+             {:get, "/admin/errors/:id/:occurrence_id"}
            ]
 
-    # Sean publishes articles while the gate is closed; anyone else is told
-    # the editor does not exist.
+    # Sean publishes articles and Credits admins read the saved errors while the
+    # gate is closed; anyone else is told neither page exists.
     assert request(%{verb: :get, path: "/admin/articles"}).status == 404
+    assert request(%{verb: :get, path: "/admin/errors"}).status == 404
   end
 
   test "[U2] every product LiveView mounts through the gate" do
@@ -60,6 +64,8 @@ defmodule RegentsWeb.RouterGateCoverageTest do
       for route <- routes(),
           live_view = route.metadata[:phoenix_live_view],
           route.path not in ["/", "/paper-pro-daily", "/literature"],
+          # The saved errors are Credits admins' own pages (RegentsWeb.ErrorsAdmin).
+          not String.starts_with?(route.path, "/admin/errors"),
           not mounts_through_gate?(live_view),
           do: route.path
 

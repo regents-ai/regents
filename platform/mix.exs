@@ -94,7 +94,7 @@ defmodule Regents.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:telemetry_poller, "~> 1.0"},
-      {:sentry, "~> 13.0"},
+      {:error_tracker, "~> 0.9"},
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
@@ -166,7 +166,7 @@ defmodule Regents.MixProject do
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
         # The measured compile-connected baseline; lower it whenever references are removed.
-        "xref graph --label compile-connected --fail-above 36",
+        "xref graph --label compile-connected --fail-above 37",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

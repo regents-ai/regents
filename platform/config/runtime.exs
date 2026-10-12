@@ -2,11 +2,6 @@ import Config
 
 require Logger
 
-config :sentry,
-  dsn: System.get_env("SENTRY_DSN"),
-  release: System.get_env("SENTRY_RELEASE"),
-  environment_name: System.get_env("SENTRY_ENVIRONMENT", to_string(config_env()))
-
 config :regents, :privy,
   app_id: System.get_env("PRIVY_APP_ID"),
   verification_key: System.get_env("PRIVY_VERIFICATION_KEY")

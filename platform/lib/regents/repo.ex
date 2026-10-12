@@ -15,6 +15,14 @@ defmodule Regents.Repo do
   # schema, always wins over this default.
   def default_options(_operation), do: [prefix: @schema]
 
+  # PostgreSQL's own catalog (`pg_class`, `pg_namespace`, ...) is never in this
+  # schema, so a read of it drops the default above. ErrorTracker's migration
+  # reads it.
+  def prepare_query(_operation, %{from: %{source: {"pg_" <> _table, nil}}} = query, opts),
+    do: {query, Keyword.delete(opts, :prefix)}
+
+  def prepare_query(_operation, query, opts), do: {query, opts}
+
   @doc """
   Creates the product schema if needed and runs every migration in `path`
   against it, with the ledger at `regents_app.schema_migrations`.

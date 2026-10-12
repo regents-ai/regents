@@ -46,6 +46,10 @@ config :regents, :database_startup_enabled, true
 # Jobs are queued, never run, unless a test runs one itself.
 config :regents, Oban, testing: :manual
 
+# Errors are not saved: a test that crashes a job outside the sandbox on purpose
+# would otherwise leave a saved error behind in the test database.
+config :error_tracker, enabled: false
+
 # ENS lookups answer from a stubbed mainnet whose replies are chosen by the
 # wallet asking, so no test reaches a real endpoint.
 config :regents, :ethereum_read_rpc_url, "https://ethereum.test.invalid"

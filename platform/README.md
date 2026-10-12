@@ -87,9 +87,7 @@ development and from the deployment's secret store in production.
 | `REGENTS_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
 | `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
 | `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. |
-| `SENTRY_DSN` | No | Sentry project to report errors to. Unset, nothing is reported. |
-| `SENTRY_RELEASE` | No | Release name attached to Sentry reports. |
-| `SENTRY_ENVIRONMENT` | No | Environment name attached to Sentry reports. Defaults to the Mix environment. |
+| `REGENT_CREDITS_ADMINS` | No | Comma-separated Privy user ids of the Credits admins. Only they can open the saved errors at `/admin/errors`; anyone else gets the not-found page. |
 
 ## Public HTTP surface
 

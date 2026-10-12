@@ -7,7 +7,6 @@ defmodule Regents.Application do
 
   @impl true
   def start(_type, _args) do
-    :ok = Logger.add_handlers(:regents)
     :ok = Regents.Staking.SnapshotRefresh.attach_failure_notice()
 
     children =

@@ -1,5 +1,6 @@
 defmodule RegentsWeb.Router do
   use RegentsWeb, :router
+  use ErrorTracker.Web, :router
 
   alias RegentsWeb.ContentSecurityPolicy
 
@@ -49,6 +50,23 @@ defmodule RegentsWeb.Router do
       "permissions-policy" => "tools=(self)",
       "referrer-policy" => "no-referrer"
     }
+  end
+
+  # The saved errors: Credits admins only. Anyone else gets the not-found page under
+  # the reading policy; an admin's page replaces it with one carrying this
+  # request's nonce (RegentsWeb.ErrorsAdmin).
+  pipeline :errors_admin do
+    plug :accepts, ["html"]
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :protect_from_forgery
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.reading(),
+      "referrer-policy" => "no-referrer"
+    }
+
+    plug RegentsWeb.ErrorsAdmin
   end
 
   def enforce_session_authority(conn, _opts) do
@@ -185,5 +203,14 @@ defmodule RegentsWeb.Router do
       live "/admin/credits", ShellLive, :credits_admin
       live "/admin/articles", ShellLive, :articles_admin
     end
+  end
+
+  scope "/admin" do
+    pipe_through :errors_admin
+
+    error_tracker_dashboard("/errors",
+      on_mount: [RegentsWeb.ErrorsAdmin],
+      csp_nonce_assign_key: %{script: :csp_nonce, style: :csp_nonce}
+    )
   end
 end

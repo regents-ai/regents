@@ -1457,3 +1457,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The Autolaunch picture on regents.sh/autolaunch now says "Memestock" in place
   of the old "Memestake", matching the page and the picture's own description.
   Only that word was redrawn, in the same font, size and colour.
+
+## 2026-10-12 — Errors are kept on the site; Sentry removed (local, unreleased)
+
+- Server faults in pages, requests and background jobs are now saved in
+  Regents' own database and shown to Credits admins at regents.sh/admin/errors.
+  Anyone else gets the ordinary not-found page.
+- Only where each error happened is kept (the address, page or job); headers,
+  query strings, form values and job details are dropped before saving.
+  Mistakes a visitor can cause, such as a wrong address, are not saved. A
+  resolved error is cleared after a week.
+- Sentry is removed, so the SENTRY_DSN, SENTRY_RELEASE and SENTRY_ENVIRONMENT
+  settings are no longer read.
