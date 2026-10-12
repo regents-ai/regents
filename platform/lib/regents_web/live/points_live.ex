@@ -32,27 +32,23 @@ defmodule RegentsWeb.PointsLive do
           </Regent.Primitives.button>
         </:sign_in>
       </Regent.Account.signed_out>
-      <div :if={@account} class="account-grid">
-        <div>
-          <Regent.Account.points_summary
-            id="account-points-summary"
-            confirmed={points_amount(@points.value, :balance_micro)}
-            today={points_amount(@points.value, :earned_today_micro)}
-            pending={@points.value && to_string(@points.value.pending)}
-            state={summary_state(@points.state)}
-            allowances={allowances(@points.value, @earning)}
-          />
-          <Regent.Primitives.tip
-            :if={@earning != []}
-            id="points-allowances-about"
-            label="About daily allowances"
-          >
-            All your agents share one allowance. Your per-action limits are separate from theirs.
-            Each action uses one pool. Allowances reset at midnight UTC.
-            One-time awards do not use these allowances.
-          </Regent.Primitives.tip>
-        </div>
-        <section :if={@points.value} class="account-panel account-details">
+      <p :if={@account && is_nil(@points.value) && @points.state in [:idle, :loading]} role="status">
+        Reading your points…
+      </p>
+      <Regent.Primitives.notice :if={@points.state == :error} tone="error">
+        Points could not be read. Try refreshing this page.
+      </Regent.Primitives.notice>
+      <div :if={@account && @points.value} class="account-grid">
+        <Regent.Account.points_summary
+          id="account-points-summary"
+          title="Balance"
+          confirmed={Amount.format(@points.value.balance_micro)}
+          today={Amount.format(@points.value.earned_today_micro)}
+          pending={to_string(@points.value.pending)}
+          state={summary_state(@points.state)}
+          allowances={allowances(@points.value, @earning)}
+        />
+        <section class="account-panel account-details">
           <h2>
             Your bonus
             <Regent.Primitives.tip id="points-bonus-about" label="About your points bonus">
@@ -65,9 +61,16 @@ defmodule RegentsWeb.PointsLive do
           <p :if={@bonus.state == :error}>
             Your NFTs could not be checked. Try refreshing this page.
           </p>
-          <p :if={@bonus.state == :ready}>
-            {@bonus.value.nft_count} NFTs now · +{@bonus.value.percent}% at the end of this period
-          </p>
+          <dl :if={@bonus.state == :ready}>
+            <div>
+              <dt>NFTs held</dt>
+              <dd>{@bonus.value.nft_count}</dd>
+            </div>
+            <div>
+              <dt>Bonus this period</dt>
+              <dd>+{@bonus.value.percent}%</dd>
+            </div>
+          </dl>
           <dl :if={@points.value.period_bonuses != []}>
             <div :for={period <- @points.value.period_bonuses}>
               <dt>Period {period.period}</dt>
@@ -77,7 +80,7 @@ defmodule RegentsWeb.PointsLive do
             </div>
           </dl>
         </section>
-        <section :if={@points.value} class="account-panel points-activity">
+        <section class="account-panel points-activity">
           <h2>Recent points activity</h2>
           <p :if={@points.value.entries == []}>No confirmed points activity yet.</p>
           <ol>
@@ -110,7 +113,8 @@ defmodule RegentsWeb.PointsLive do
         <h2>What earns points</h2>
         <p :if={@earning == []} role="status">Earning hasn’t opened yet.</p>
         <h3 :if={@daily != []}>Every day</h3>
-        <table :if={@daily != []} class="points-table">
+        <.ways :if={@earning == []} rules={@daily} />
+        <table :if={@earning != [] and @daily != []} class="points-table">
           <thead>
             <tr>
               <th scope="col">Action</th><th scope="col">Points</th><th scope="col">Limit</th>
@@ -127,7 +131,8 @@ defmodule RegentsWeb.PointsLive do
           </tbody>
         </table>
         <h3 :if={@once != []}>Once</h3>
-        <table :if={@once != []} class="points-table">
+        <.ways :if={@earning == []} rules={@once} />
+        <table :if={@earning != [] and @once != []} class="points-table">
           <thead>
             <tr>
               <th scope="col">Action</th><th scope="col">Points</th>
@@ -143,7 +148,7 @@ defmodule RegentsWeb.PointsLive do
           </tbody>
         </table>
         <div class="account-details points-earn__notes">
-          <div :if={@apps != []}>
+          <div :if={@earning != [] and @apps != []}>
             <h3>Daily limits</h3>
             <dl>
               <div>
@@ -161,7 +166,7 @@ defmodule RegentsWeb.PointsLive do
             <p>
               Animata I, Animata II and Regents Club in your linked wallets, counted at the end of each 30-day period. That period’s points get the bonus.
             </p>
-            <table class="points-table">
+            <table :if={@earning != []} class="points-table">
               <thead>
                 <tr>
                   <th scope="col">NFTs</th><th scope="col">Bonus</th>
@@ -180,12 +185,23 @@ defmodule RegentsWeb.PointsLive do
     """
   end
 
+  attr :rules, :list, required: true
+
+  # Before earning opens, the ways to earn are named with no amounts.
+  defp ways(assigns) do
+    ~H"""
+    <ul :if={@rules != []} class="points-ways">
+      <li :for={rule <- @rules}>{Rules.label(rule["id"])}</li>
+    </ul>
+    """
+  end
+
   attr :rule, :map, required: true
   attr :earning, :list, required: true
 
   defp not_yet(assigns) do
     ~H"""
-    <span :if={@earning != [] and @rule not in @earning} class="points-earn__soon">Not yet</span>
+    <span :if={@rule not in @earning} class="points-earn__soon">Not yet</span>
     """
   end
 
@@ -237,13 +253,9 @@ defmodule RegentsWeb.PointsLive do
   defp scope_name("activity:human"), do: "Your actions"
   defp scope_name("activity:agent"), do: "Your agents’ actions"
 
-  defp points_amount(nil, _field), do: nil
-  defp points_amount(points, field), do: Amount.format(Map.fetch!(points, field))
-
   defp summary_state(:idle), do: :loading
   defp summary_state(state), do: state
 
-  defp allowances(nil, _earning), do: []
   defp allowances(_points, []), do: []
 
   defp allowances(points, _earning) do

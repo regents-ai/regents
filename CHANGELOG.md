@@ -1496,3 +1496,13 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   and reloads.
 - On the narrowest phones only the panel button shows in the header; the
   name is inside the panel.
+
+## 2026-10-12 — Points page matches the shared template (local, unreleased)
+
+- Until earning opens, "What earns points" names each way to earn with no
+  amounts; the points tables, daily limits and NFT bonus tiers appear once
+  earning opens. Earning itself is unchanged and still not open.
+- While your points load, the page says so, and a failed reading says to try
+  refreshing, instead of showing an empty card.
+- The summary card is titled "Balance", and your NFT bonus shows as two
+  lines: NFTs held and this period's bonus.
