@@ -162,7 +162,19 @@ defmodule RegentsWeb.ApiContractTest do
                  "get" => %{
                    "operationId" => "getBrowserSession",
                    "responses" => %{
-                     "200" => %{"$ref" => "#/components/responses/Session"}
+                     "200" => %{
+                       "description" => "Current browser session",
+                       "headers" => %{
+                         "Cache-Control" => %{
+                           "schema" => %{"type" => "string", "const" => "no-store"}
+                         }
+                       },
+                       "content" => %{
+                         "application/json" => %{
+                           "schema" => %{"$ref" => "#/components/schemas/Session"}
+                         }
+                       }
+                     }
                    }
                  }
                }

@@ -567,7 +567,13 @@ paths:
     get:
       operationId: getBrowserSession
       responses:
-        "200": {$ref: "#/components/responses/Session"}
+        "200":
+          description: Current browser session
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Session"}
   /api/agent/v1/points:
     get:
       description: Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents. Reads only; creates no Points account or event and does not activate or award Points.

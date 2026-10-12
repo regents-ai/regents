@@ -1433,3 +1433,9 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   15 seconds. A logout that still could not finish is handed to the next page
   with the current time, and that page waits for it instead of cutting it
   short (template 69e454e and 4d698c7).
+
+## 2026-10-12 — The sign-in check is never stored (local, unreleased)
+
+- The page's "am I signed in?" check now tells browsers and proxies never to
+  keep a copy, so a stale answer cannot be shown after signing in or out
+  (template abfdac0).
