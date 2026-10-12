@@ -57,9 +57,10 @@ defmodule Regents.Staking.RpcClient do
 
   # The seven-day window is one figure beside the contract's answers, as in
   # protocol_snapshot/0. Logs nobody answered for leave the retained history as
-  # it was, for the next pass to catch up from, and cost that figure alone. A
-  # head behind the history's own would put an older reading in place of a newer
-  # one, and a first reading has no history to keep, so either is no reading.
+  # it was, for the next pass to catch up from, and cost that figure alone. The
+  # saved reading may then be newer than the history, so SnapshotRefresh checks
+  # the head against the reading too. A head behind the history's own, or a
+  # first reading with no history to keep, is no reading.
   defp revenue_window(history, block) do
     case bounded(fn -> RevenueHistory.read(history, block, &history_logs/2) end) do
       {:ok, _history, _window} = read ->

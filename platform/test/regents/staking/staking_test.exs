@@ -35,7 +35,7 @@ defmodule Regents.StakingTest do
       %{
         chain_id: 8453,
         chain_label: "Base",
-        block_number: 42,
+        block_number: Process.get(:block_number, 42),
         block_hash: "0x" <> String.duplicate("1b", 32),
         contract_address: "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5",
         paused: Process.get(:paused, false),
@@ -112,6 +112,17 @@ defmodule Regents.StakingTest do
 
     # Only a wallet reading was bought for a wallet; the contract was not reread.
     refute_received :protocol
+  end
+
+  # An endpoint behind the saved reading answers from an older block. After a
+  # pass whose logs failed, the kept history is older than the saved reading,
+  # so only the reading's own block stops the figures stepping backwards.
+  test "NEVER_BACKWARDS: a reading behind the saved one does not replace it" do
+    SharedStakingReading.age()
+    Process.put(:block_number, 41)
+
+    assert {:error, :head_regressed} = SharedStakingReading.run()
+    assert {:ok, %{block_number: 42}} = Staking.overview()
   end
 
   test "EXACT_AMOUNTS: values are positive decimals with at most 18 places" do

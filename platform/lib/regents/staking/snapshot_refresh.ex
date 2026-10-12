@@ -6,6 +6,8 @@ defmodule Regents.Staking.SnapshotRefresh do
     max_attempts: 3,
     unique: [fields: [:worker], period: :infinity, states: :incomplete]
 
+  require Logger
+
   alias Regents.Actors.System
   alias Regents.Staking
   alias Regents.Staking.{ChainClient, PriceClient, SnapshotCache}
@@ -37,10 +39,22 @@ defmodule Regents.Staking.SnapshotRefresh do
   @worker inspect(__MODULE__)
 
   @doc false
-  def handle_event([:oban, :job, :exception], _measurements, %{job: %{worker: @worker}}, nil),
-    do: SnapshotCache.announce(:unavailable)
+  # A handler that raises is detached for good, so a notice that cannot reach
+  # Postgres, as while the Repo restarts, is logged and the next one still goes.
+  def handle_event([:oban, :job, :exception], _measurements, %{job: %{worker: @worker}}, nil) do
+    SnapshotCache.announce(:unavailable)
+  rescue
+    error -> unannounced(error)
+  catch
+    :exit, reason -> unannounced(reason)
+  end
 
   def handle_event(_event, _measurements, _metadata, nil), do: :ok
+
+  defp unannounced(reason) do
+    Logger.warning("staking refresh failure not announced: " <> inspect(reason))
+    :ok
+  end
 
   defp refresh do
     with {:ok, previous} <- Staking.get_protocol_reading(SnapshotCache.key(), actor: %System{}) do
@@ -57,6 +71,7 @@ defmodule Regents.Staking.SnapshotRefresh do
     history = if previous, do: previous.history
 
     with {:ok, protocol, history} <- ChainClient.module().protocol_snapshot(history),
+         :ok <- forward(snapshot, protocol),
          protocol = Map.merge(protocol, quote_values(snapshot)),
          {:ok, saved} <- save(previous, protocol, history) do
       :telemetry.execute(
@@ -68,6 +83,14 @@ defmodule Regents.Staking.SnapshotRefresh do
       {:ok, SnapshotCache.decode(saved.snapshot)}
     end
   end
+
+  # A pass whose logs went unanswered saved a reading newer than the history it
+  # kept, so the history's own head cannot stop a lagging endpoint here. The
+  # saved reading's block can: an older one never replaces it.
+  defp forward(%{block_number: saved}, %{block_number: block}) when block < saved,
+    do: {:error, :head_regressed}
+
+  defp forward(_snapshot, _protocol), do: :ok
 
   defp save(nil, snapshot, history),
     do:
