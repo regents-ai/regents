@@ -1353,3 +1353,6 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The unused in-repo `agents/` and `payments/` copies are deleted with their
   `make check-agents` and `make check-payments` gates; the site already takes
   both libraries from elixir-utils.
+- The release step checks the shared migrations first and names every missing
+  version from both libraries in one message, then runs the agent pairing
+  checks (fourth review).

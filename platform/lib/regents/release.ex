@@ -18,9 +18,9 @@ defmodule Regents.Release do
 
     Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
       # Shared schemas are released once by their coordinator, never by a site.
+      require_shared_migrations!(repo)
       RegentAgents.Migrator.require_pairing_history!(repo)
       RegentCredits.Migrator.require_pairing_grants!(repo)
-      require_shared_migrations!(repo)
       repo.migrate!(migrations_path())
     end)
   end
@@ -212,22 +212,21 @@ defmodule Regents.Release do
 
   # The Credits and Points code this release carries reads tables and indexes
   # from every migration its pinned library ships, so each must already be in
-  # that schema's own ledger.
+  # that schema's own ledger. Every missing version is named at once.
   defp require_shared_migrations!(repo) do
-    for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"] do
-      unapplied =
-        for {:down, version, _name} <-
-              Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
-                prefix: schema,
-                skip_table_creation: true,
-                migration_lock: false
-              ),
-            do: version
+    unapplied =
+      for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"],
+          {:down, version, _name} <-
+            Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
+              prefix: schema,
+              skip_table_creation: true,
+              migration_lock: false
+            ),
+          do: "#{schema} #{version}"
 
-      if unapplied != [] do
-        raise "#{schema} needs its separately approved shared migrations before deployment: " <>
-                Enum.join(unapplied, " ")
-      end
+    if unapplied != [] do
+      raise "These separately approved shared migrations must be applied before deployment: " <>
+              Enum.join(unapplied, ", ")
     end
 
     :ok
