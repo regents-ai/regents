@@ -774,7 +774,7 @@ describe("lazy browser authentication", () => {
     )
   })
 
-  it("confirms the handoff, awaits local deletion, and reloads for provider work", async () => {
+  it("confirms the handoff, awaits local deletion, and hands on a Privy logout that cannot finish", async () => {
     vi.stubGlobal("Element", AccountElement)
     const order: string[] = []
     const page = accountDocument()
@@ -800,17 +800,17 @@ describe("lazy browser authentication", () => {
     page.click("sign-out")
     page.click("sign-out")
 
-    await vi.waitFor(() => expect(clearSession).toHaveBeenCalledOnce())
-    expect(order).toEqual(["handoff", "local", "reload"])
-    expect(storage.setItem).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce())
+    // This page asks Privy to log out; its bridge cannot start here, so the
+    // handoff is written again, freshly dated, for the next page.
+    expect(order).toEqual(["handoff", "local", "handoff", "reload"])
     expect(clearSession).toHaveBeenCalledOnce()
-    expect(reload).toHaveBeenCalledOnce()
-    expect(importer).not.toHaveBeenCalled()
+    expect(importer).toHaveBeenCalledOnce()
   })
 
   // Disconnect is one command: the Regent session goes, every wallet Privy holds
   // is released and asked to drop the site, this page is disconnected for good,
-  // and the document that replaces it finishes the provider sign out.
+  // and a Privy logout that cannot finish here is handed to the next document.
   it("ends the session, releases every wallet, and hands the provider sign out on", async () => {
     vi.stubGlobal("Element", AccountElement)
     vi.stubGlobal("window", {
@@ -869,6 +869,7 @@ describe("lazy browser authentication", () => {
       "revoke:first",
       "disconnect:second",
       "revoke:second",
+      "handoff",
       "reload",
     ])
 
@@ -1112,7 +1113,6 @@ describe("lazy browser authentication", () => {
       installAccountAuthLazyLoader(page.documentRoot, cleanupImporter, {
         handoffStorage: storage,
         now: () => 1_001,
-        providerSignOutTimeoutMs: 10,
       })
 
       await vi.advanceTimersByTimeAsync(0)

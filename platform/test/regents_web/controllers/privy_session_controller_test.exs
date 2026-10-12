@@ -764,58 +764,6 @@ defmodule RegentsWeb.PrivySessionControllerTest do
              "Privy session rejected stage=access_verification reason=invalid_token"
   end
 
-  test "ONE_MARKED_REFUSAL: only an unverifiable access token invites a fresh provider login" do
-    marked =
-      browser() |> put_privy_pair("stale-access") |> post("/auth/privy/session", %{})
-
-    assert get_resp_header(marked, "x-ash-provider-relogin") == ["allowed"]
-
-    # Every other way this endpoint refuses, across all three of its stages.
-    unmarked = [
-      put_headers(browser(), [{"authorization", "Bearer valid"}]),
-      put_headers(browser(), [{"privy-id-token", @identity}]),
-      put_headers(browser(), [
-        {"authorization", "Bearer valid"},
-        {"privy-id-token", Regents.TestPrivyVerifier.identity_token("other-account")}
-      ]),
-      put_privy_pair(browser(), "unverifiable"),
-      put_privy_pair(browser(), "no-wallet")
-    ]
-
-    for refused <- unmarked do
-      refused = post(refused, "/auth/privy/session", %{})
-
-      assert get_resp_header(refused, "x-ash-provider-relogin") == []
-      assert json_response(refused, 401) == json_response(marked, 401)
-      assert refused.private[:plug_session_info] == marked.private[:plug_session_info]
-    end
-  end
-
-  test "ONE_MARKED_REFUSAL: the marked refusal still revokes, drops and disconnects" do
-    {browser, signed_in} = signed_in_browser()
-    {:ok, account_id} = SessionAuthority.exact(claim(signed_in))
-    topic = get_session(signed_in, :live_socket_id)
-    RegentsWeb.Endpoint.subscribe(topic)
-    {browser, csrf} = refreshed_csrf(browser)
-    flush_test_messages()
-
-    marked =
-      browser
-      |> enforce_csrf()
-      |> put_privy_pair("stale-access")
-      |> put_req_header("x-csrf-token", csrf)
-      |> post("/auth/privy/session", %{})
-
-    assert_response_sent_then_disconnect(topic)
-    assert %{"error" => %{"code" => "unauthorized"}} = json_response(marked, 401)
-    assert get_resp_header(marked, "x-ash-provider-relogin") == ["allowed"]
-    assert marked.private[:plug_session_info] == :drop
-    assert_no_token_disclosure(marked)
-
-    assert SessionAuthority.exact(claim(signed_in)) == {:error, :reset}
-    assert SessionAuthority.sign_in(claim(signed_in), account_id) == {:error, :reset}
-  end
-
   test "REDACTED_CLASSIFICATION: the classification repeats neither token" do
     debug_logging()
     log = refusal_log(put_privy_pair(browser(), "unverifiable"))

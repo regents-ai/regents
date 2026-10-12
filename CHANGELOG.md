@@ -1421,3 +1421,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 
 - The old regents.sh/developers link keeps sending visitors to /docs; the
   template pattern update had removed that forward.
+
+## 2026-10-12 — Sign in always asks the wallet; Sign out always finishes Privy's logout (local, unreleased)
+
+- Sign in on a signed-out page now logs out any Privy session the browser
+  still remembers and always opens Privy's window, so someone who signed out
+  and switched wallets comes back as the wallet they are on now, not the old
+  one. The one-time recovery after a refused sign-in, and the server header
+  that allowed it, are gone (template c8e9509).
+- Sign out now logs Privy out on the page where it was pressed, waiting up to
+  15 seconds. A logout that still could not finish is handed to the next page
+  with the current time, and that page waits for it instead of cutting it
+  short (template 69e454e and 4d698c7).

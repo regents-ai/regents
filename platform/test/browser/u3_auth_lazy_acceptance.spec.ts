@@ -762,9 +762,20 @@ test("a valid handoff uses the real session resource and refuses authenticated t
   expect((await (await page.request.get("/auth/session")).json()).authenticated).toBe(true)
 })
 
+// Privy's logout cannot finish on the page where Sign out was pressed, so the
+// next document owes it.
 test("the second document proves anonymous server truth before importing Privy", async ({
   page,
 }) => {
+  const unreachableSignOutBridgeStub = `
+export async function startPrivyBridge(options) {
+  return {
+    async request(request) {
+      if (request === "sign-out" && options?.mode !== "sign-out-only") throw new Error("Privy is unreachable.")
+    }
+  }
+}
+`
   const order: string[] = []
   let bridgeLoads = 0
   let sessionDeletes = 0
@@ -786,7 +797,7 @@ test("the second document proves anonymous server truth before importing Privy",
   await page.route(bridgePattern, route => {
     bridgeLoads += 1
     order.push(`bridge-${bridgeLoads}`)
-    return route.fulfill({body: bridgeStub, contentType: "application/javascript"})
+    return route.fulfill({body: unreachableSignOutBridgeStub, contentType: "application/javascript"})
   })
 
   await establishLocalSession(page)
