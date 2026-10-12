@@ -1356,3 +1356,10 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The release step checks the shared migrations first and names every missing
   version from both libraries in one message, then runs the agent pairing
   checks (fourth review).
+
+## 2026-10-12 — Phase C candidate released
+
+- regents.sh runs `b4b5e030` (the five 11 October entries before "Follow-ups to
+  Sentinel's clearing"), released 12 October at 02:58 UTC. The follow-ups
+  entry above it is still unreleased and goes out with the next shared-library
+  update.
