@@ -1349,7 +1349,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
   defp activate(view, wallet) do
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => wallet})
-    render_async(view, 3_000)
+    render_async(view)
     view
   end
 end

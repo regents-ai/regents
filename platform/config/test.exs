@@ -17,6 +17,8 @@ config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
 config :regents, :privy_verifier, Regents.TestPrivyVerifier
 config :regents, :staking_chain_client, Regents.TestStakingChainClient
 config :regents, :chain_client, Regents.TestChainClient
+# Base reads a test does not answer itself are refused, never sent to a public node.
+config :regents, :wallet_http_client, Regents.BaseRpcStub.Timeout
 config :regents, :staking_price_http_client, Regents.TestStakingPriceHttpClient
 
 # Tests queue refreshes explicitly. Only a configured browser test server enables

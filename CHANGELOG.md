@@ -1409,3 +1409,10 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   processes and failed requests now reach Sentry through a logger handler, and
   each event leaves without its stack frames' arguments or a crashed process's
   state. Reporting still starts only once `SENTRY_DSN` is set.
+
+## 2026-10-12 — Tests stay off the public Base node (local, unreleased)
+
+- Buy Credits now reads the account's wallet as soon as a signed-in page opens,
+  so tests that don't answer Base reads themselves sent them to the public
+  node and timed out. Those reads are now refused in tests, and the Stake
+  test helper waits the usual time again.
