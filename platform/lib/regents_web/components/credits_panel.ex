@@ -451,7 +451,7 @@ defmodule RegentsWeb.CreditsPanel do
         phx-submit="change"
         phx-target={@myself}
       >
-        <label class="credits-panel__label" for={"#{@id}-amount"}>USDC Amount</label>
+        <label class="credits-panel__label" for={"#{@id}-amount"}>USDC on Base</label>
         <div class="credits-panel__amount" data-invalid={@problem && "true"}>
           <input
             id={"#{@id}-amount"}
@@ -465,7 +465,9 @@ defmodule RegentsWeb.CreditsPanel do
           />
           <span aria-hidden="true">USDC</span>
         </div>
-        <p id={"#{@id}-rate"} class="credits-panel__rate">1 USDC on Base buys 1 Regents Credit</p>
+        <p id={"#{@id}-rate"} class="credits-panel__rate">
+          Regents Credits can be used across all Regents sites.
+        </p>
         <p
           id={"#{@id}-problem"}
           class="credits-panel__problem"

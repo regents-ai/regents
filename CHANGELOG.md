@@ -1506,3 +1506,10 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   refreshing, instead of showing an empty card.
 - The summary card is titled "Balance", and your NFT bonus shows as two
   lines: NFTs held and this period's bonus.
+
+## 2026-10-12 — Buy Credits wording and close button (local, unreleased)
+
+- The amount is labelled "USDC on Base", and the line under it says Regents
+  Credits can be used across all Regents sites.
+- The Buy Credits window's close button is full size again and stays in the
+  top right corner while the window scrolls, the same as the template.
