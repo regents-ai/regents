@@ -1469,3 +1469,9 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   resolved error is cleared after a week.
 - Sentry is removed, so the SENTRY_DSN, SENTRY_RELEASE and SENTRY_ENVIRONMENT
   settings are no longer read.
+
+## 2026-10-12 — Saved errors are cleared a week after they were last seen (local, unreleased)
+
+- Once a day, every saved error that has not happened again for a week is
+  cleared, whether or not anyone marked it resolved, along with any single
+  occurrence older than a week. A fault that keeps happening stays visible.

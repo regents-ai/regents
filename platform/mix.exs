@@ -166,6 +166,7 @@ defmodule Regents.MixProject do
         "credo --strict",
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
         # The measured compile-connected baseline; lower it whenever references are removed.
+        # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
         "xref graph --label compile-connected --fail-above 37",
         "test --warnings-as-errors",
         "ash.codegen --check",

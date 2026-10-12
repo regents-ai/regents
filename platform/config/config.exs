@@ -86,12 +86,13 @@ config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
-  queues: [regent_credits: 3, points: 5, points_chain: 2, staking_reads: 1],
+  queues: [default: 1, regent_credits: 3, points: 5, points_chain: 2, staking_reads: 1],
   cron: [
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
       {"@reboot", Regents.Staking.SnapshotRefresh},
-      {"* * * * *", Regents.Staking.SnapshotRefresh}
+      {"* * * * *", Regents.Staking.SnapshotRefresh},
+      {"17 4 * * *", Regents.ErrorPruner}
     ]
   ],
   pruner: [max_age: {7, :days}],
@@ -179,14 +180,14 @@ config :logger, :default_formatter,
 # Failed requests, pages and jobs are saved in the site's own schema and shown
 # to Credits admins at /admin/errors. Only server faults are saved
 # (Regents.ErrorIgnorer), only where each one happened is kept
-# (Regents.ErrorFilter), and a resolved error is cleared after a week.
+# (Regents.ErrorFilter), and Regents.ErrorPruner clears each one a week after it
+# was last seen.
 config :error_tracker,
   repo: Regents.Repo,
   otp_app: :regents,
   prefix: "regents_app",
   ignorer: Regents.ErrorIgnorer,
-  filter: Regents.ErrorFilter,
-  plugins: [{ErrorTracker.Plugins.Pruner, max_age: :timer.hours(24 * 7)}]
+  filter: Regents.ErrorFilter
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
