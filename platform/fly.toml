@@ -3,8 +3,11 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
+# Blue-green: the new machine starts beside the old one and takes traffic only
+# once /healthz answers, then the old one stops.
 [deploy]
   release_command = "/app/bin/migrate"
+  strategy = "bluegreen"
 
 [env]
   PORT = "4000"

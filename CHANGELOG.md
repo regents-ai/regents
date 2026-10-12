@@ -1379,3 +1379,9 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   again.
 - The agent activity reader never follows a redirect, so its reader key goes
   only to the sign-in service.
+
+## 2026-10-12 — Blue-green deploys (local, unreleased)
+
+- Deploys start the new machine beside the old one, move traffic once
+  `/healthz` answers, then stop the old one (Sean, 41 a, relayed by Sentinel).
+  Error reporting needs no code change; it starts once `SENTRY_DSN` is set.
