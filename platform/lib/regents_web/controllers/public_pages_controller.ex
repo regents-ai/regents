@@ -8,6 +8,7 @@ defmodule RegentsWeb.PublicPagesController do
     render(conn, :show, [document: document] ++ PublicDocuments.page(conn.request_path))
   end
 
+  def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
   def openapi(conn, _params), do: json(conn, PublicDocuments.openapi())
 
   def llms(conn, _params),

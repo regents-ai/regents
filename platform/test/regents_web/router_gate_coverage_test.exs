@@ -25,6 +25,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
 
     assert still_open == [
              {:get, "/healthz"},
+             {:get, "/developers"},
              {:get, "/openapi.json"},
              {:get, "/sitemap.xml"},
              {:get, "/robots.txt"},

@@ -1416,3 +1416,8 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   so tests that don't answer Base reads themselves sent them to the public
   node and timed out. Those reads are now refused in tests, and the Stake
   test helper waits the usual time again.
+
+## 2026-10-12 — /developers keeps forwarding to /docs (Sean 58 a)
+
+- The old regents.sh/developers link keeps sending visitors to /docs; the
+  template pattern update had removed that forward.
