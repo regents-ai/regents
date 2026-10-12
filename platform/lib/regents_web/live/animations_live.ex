@@ -7,8 +7,8 @@ defmodule RegentsWeb.AnimationsLive do
 
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Motion
   alias Regent.Primitives, as: P
+  alias RegentsWeb.Motion
 
   # The versions each section offers.
   @choices %{
