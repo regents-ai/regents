@@ -1525,3 +1525,8 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   day, and the feed loads six days at a time.
 - One migration in regents_app: the papers' one-a-day rule becomes one entry per
   paper link per day, and an empty-by-default authors list is added.
+
+## 2026-10-12 — The template site in the agent spending list (local, unreleased)
+
+- The account page's list of sites an agent may spend Credits on now includes
+  template.regents.sh beside patchbay.help. Agent spending itself stays off.

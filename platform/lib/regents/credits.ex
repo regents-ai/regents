@@ -24,7 +24,7 @@ defmodule Regents.Credits do
   def transaction_url(chain, tx_hash), do: @explorers[chain] <> tx_hash
 
   @doc "The sites a person may let an agent spend Credits on, with their names."
-  def agent_sites, do: [{"patchbay", "patchbay.help"}]
+  def agent_sites, do: [{"patchbay", "patchbay.help"}, {"template", "template.regents.sh"}]
 
   @doc "The signed-in account acting as a Credits admin; the library checks it is one."
   def admin(account), do: Actor.admin(account.privy_user_id)
