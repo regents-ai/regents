@@ -1,5 +1,5 @@
 defmodule RegentsWeb.PaperProDailyLive do
-  @moduledoc "One research paper a day with ChatGPT's reading of it, newest first, loading more as the reader scrolls."
+  @moduledoc "Research papers by day with ChatGPT's reading of each, newest day first, loading more days as the reader scrolls."
   use RegentsWeb, :live_view
 
   import RegentsWeb.Components.Shell
@@ -52,7 +52,7 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   def handle_event("load_more", _params, socket) do
     # A scroll event can reach us before the midnight timer. Reset the old offset
-    # rather than duplicating or skipping a paper when a new day is inserted above it.
+    # rather than duplicating or skipping a day when a new day is inserted above it.
     socket =
       if socket.assigns.publication_date == Date.utc_today() do
         show_more(socket)
@@ -68,13 +68,15 @@ defmodule RegentsWeb.PaperProDailyLive do
   end
 
   def handle_event("go_to_paper", %{"target" => target}, socket) do
-    case Enum.find_index(socket.assigns.research_list, &(&1.target == target)) do
+    case Enum.find(socket.assigns.research_list, &(&1.target == target)) do
       nil ->
         {:noreply, socket}
 
-      index ->
-        missing = index + 1 - socket.assigns.shown
-        socket = if missing > 0, do: show_through(socket, index + 1), else: socket
+      paper ->
+        missing =
+          Enum.find_index(socket.assigns.days, &(&1 == paper.date)) + 1 - socket.assigns.shown
+
+        socket = if missing > 0, do: show_more(socket, missing), else: socket
         {:noreply, push_event(socket, "paper-daily:go-to-paper", %{target: target})}
     end
   end
@@ -85,12 +87,14 @@ defmodule RegentsWeb.PaperProDailyLive do
     socket
     |> assign(
       publication_date: Date.utc_today(),
+      days: papers |> Enum.map(& &1.date) |> Enum.dedup(),
       shown: 0,
       more?: false,
       page_markdown: Reading.page_markdown(papers),
-      research_list: Enum.map(papers, &%{title: &1.title, target: "papers-#{&1.date}-title"})
+      research_list:
+        Enum.map(papers, &%{title: &1.title, date: &1.date, target: "paper-#{&1.id}-title"})
     )
-    |> stream(:papers, [], reset: true)
+    |> stream(:days, [], reset: true)
     |> show_more()
   end
 
@@ -98,36 +102,33 @@ defmodule RegentsWeb.PaperProDailyLive do
     Process.send_after(self(), :publication_midnight, Publication.milliseconds_until_midnight())
   end
 
-  # Ash caps each page; continue through pages when the index grows beyond that cap.
-  defp show_through(socket, count) do
-    next = show_more(socket, count - socket.assigns.shown)
+  # The next days in the feed, each with all of its papers.
+  defp show_more(socket, count \\ @page_size) do
+    %{days: days, shown: shown} = socket.assigns
+    dates = Enum.slice(days, shown, count)
 
-    if next.assigns.more? && next.assigns.shown > socket.assigns.shown &&
-         next.assigns.shown < count do
-      show_through(next, count)
-    else
-      next
-    end
-  end
-
-  defp show_more(socket, limit \\ @page_size) do
-    page = PaperProDaily.list_papers!(page: [offset: socket.assigns.shown, limit: limit])
+    shown_days =
+      dates
+      |> PaperProDaily.list_papers!()
+      |> Enum.chunk_by(& &1.date)
+      |> Enum.map(
+        &%{id: Date.to_iso8601(hd(&1).date), papers: Enum.map(&1, fn paper -> shown(paper) end)}
+      )
 
     socket
-    |> stream(:papers, Enum.map(page.results, &shown/1))
-    |> assign(shown: socket.assigns.shown + length(page.results), more?: page.more?)
+    |> stream(:days, shown_days)
+    |> assign(shown: shown + length(dates), more?: shown + length(dates) < length(days))
   end
 
   # The picture's address changes whenever the paper is saved again, so a browser
   # may keep each one for good.
   defp shown(paper) do
     paper
-    |> Map.take([:date, :title, :arxiv_url, :chatgpt_url, :author, :picture_alt])
+    |> Map.take([:id, :date, :title, :authors, :arxiv_url, :chatgpt_url, :author, :picture_alt])
     |> Map.merge(Reading.render(paper.answer))
     |> Map.merge(%{
-      id: Date.to_iso8601(paper.date),
       picture:
-        "/paper-pro-daily/pictures/#{paper.date}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}",
+        "/paper-pro-daily/pictures/#{paper.id}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}",
       markdown: Reading.details_markdown(paper)
     })
   end
@@ -198,8 +199,8 @@ defmodule RegentsWeb.PaperProDailyLive do
             </nav>
 
             <ol id="paper-daily-list" class="paper-daily__list" phx-update="stream" role="list">
-              <li :for={{dom_id, paper} <- @streams.papers} id={dom_id}>
-                <.paper id={dom_id} paper={paper} />
+              <li :for={{dom_id, day} <- @streams.days} id={dom_id}>
+                <.day id={dom_id} papers={day.papers} />
               </li>
             </ol>
 
@@ -254,6 +255,9 @@ defmodule RegentsWeb.PaperProDailyLive do
           this.handleEvent("paper-daily:go-to-paper", ({target}) => {
             const heading = document.getElementById(target)
             if (!heading) return
+            // A paper behind another of its day's papers is chosen first.
+            const pick = document.getElementById(target.replace(/-title$/, "-pick"))
+            if (pick?.getAttribute("aria-pressed") === "false") pick.click()
             heading.focus({preventScroll: true})
             heading.scrollIntoView({block: "start", behavior: "instant"})
             if (window.location.hash !== `#${target}`) {
@@ -262,7 +266,7 @@ defmodule RegentsWeb.PaperProDailyLive do
           })
           // A copied paper link also works when its paper is beyond the first batch.
           const target = window.location.hash.slice(1)
-          if (target.startsWith("papers-")) this.pushEvent("go_to_paper", {target})
+          if (/^paper-[0-9a-f-]{36}-title$/.test(target)) this.pushEvent("go_to_paper", {target})
         }
       }
     </script>
@@ -296,6 +300,65 @@ defmodule RegentsWeb.PaperProDailyLive do
       }
     </script>
     """
+  end
+
+  attr :id, :string, required: true
+  attr :papers, :list, required: true
+
+  # A day with several papers opens with a choice of them above the first one;
+  # choosing another shows it in the first one's place.
+  defp day(assigns) do
+    ~H"""
+    <div
+      :if={length(@papers) > 1}
+      class={["paper-daily__picks", "paper-daily__picks--#{min(length(@papers), 4)}"]}
+      role="group"
+      aria-label={"Papers for " <> Calendar.strftime(hd(@papers).date, "%B %-d, %Y")}
+    >
+      <button
+        :for={{paper, index} <- Enum.with_index(@papers)}
+        id={"paper-#{paper.id}-pick"}
+        type="button"
+        class="paper-daily__pick"
+        aria-pressed={to_string(index == 0)}
+        aria-controls={"paper-#{paper.id}"}
+        phx-click={pick(@id, paper.id)}
+      >
+        <img
+          class="paper-daily__pick-image"
+          src={paper.picture}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+        <span class="paper-daily__pick-title">{short_title(paper.title)}</span>
+        <span :if={paper.authors != []} class="paper-daily__pick-authors">
+          {Enum.join(paper.authors, ", ")}
+        </span>
+      </button>
+    </div>
+    <div
+      :for={{paper, index} <- Enum.with_index(@papers)}
+      id={"paper-#{paper.id}"}
+      class="paper-daily__panel"
+      hidden={index > 0}
+    >
+      <.paper id={"paper-#{paper.id}"} paper={paper} />
+    </div>
+    """
+  end
+
+  defp pick(day_id, paper_id) do
+    JS.set_attribute({"hidden", ""}, to: "##{day_id} .paper-daily__panel")
+    |> JS.remove_attribute("hidden", to: "#paper-#{paper_id}")
+    |> JS.set_attribute({"aria-pressed", "false"}, to: "##{day_id} .paper-daily__pick")
+    |> JS.set_attribute({"aria-pressed", "true"}, to: "#paper-#{paper_id}-pick")
+  end
+
+  defp short_title(title) do
+    if String.length(title) > 40,
+      do: String.trim_trailing(String.slice(title, 0, 40)) <> "…",
+      else: title
   end
 
   attr :id, :string, required: true

@@ -1513,3 +1513,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   Credits can be used across all Regents sites.
 - The Buy Credits window's close button is full size again and stays in the
   top right corner while the window scrolls, the same as the template.
+
+## 2026-10-12 — Daily Research: several papers a day (local, unreleased)
+
+- A day on /paper-pro-daily may now hold several papers. Saving the same paper
+  link on the same day again replaces it; a different link adds a paper.
+- A day with two to four papers opens with one tile per paper (cover, title cut
+  to 40 characters, authors when given); choosing a tile shows that paper below.
+  Five or more wrap four to a row. Days with one paper look as before.
+- Paper folders may list `authors`. Pictures are served by paper rather than by
+  day, and the feed loads six days at a time.
+- One migration in regents_app: the papers' one-a-day rule becomes one entry per
+  paper link per day, and an empty-by-default authors list is added.

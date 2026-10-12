@@ -31,8 +31,8 @@ defmodule Regents.Release do
   def put_paper(folder), do: save_paper(Regents.PaperProDaily.PaperFile.read!(folder))
 
   @doc """
-  Saves one day's paper on /paper-pro-daily from its two files on this machine,
-  replacing that day's paper if it has one (`Regents.PaperProDaily.PaperFile`).
+  Saves one paper on /paper-pro-daily from its two files on this machine,
+  replacing it if the same paper is already on that day (`Regents.PaperProDaily.PaperFile`).
   Run as `/app/bin/put-paper <YYYY-MM-DD>.md <picture>`.
   """
   def put_paper(paper_path, picture_path) do

@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time, the papers, the staking readings, the articles and the saved errors" do
+  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time, the papers and several a day, the staking readings, the articles and the saved errors" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -41,6 +41,9 @@ defmodule RegentsWeb.BoundaryTest do
     assert [papers_migration] =
              Path.wildcard("priv/repo/migrations/*_paper_pro_daily_papers.exs")
 
+    assert [papers_by_day_migration] =
+             Path.wildcard("priv/repo/migrations/*_paper_pro_daily_several_a_day.exs")
+
     assert [staking_readings_migration] =
              Path.wildcard("priv/repo/migrations/*_staking_protocol_readings.exs")
 
@@ -64,6 +67,7 @@ defmodule RegentsWeb.BoundaryTest do
                oban_migration,
                signed_in_migration,
                papers_migration,
+               papers_by_day_migration,
                staking_readings_migration,
                articles_migration,
                article_authors_migration,
@@ -76,6 +80,10 @@ defmodule RegentsWeb.BoundaryTest do
     # The papers only add their own table.
     [papers_up, _down] = papers_migration |> File.read!() |> String.split("def down")
     refute papers_up =~ ~r/\b(DELETE|DROP|TRUNCATE|UPDATE|ALTER)\b/i
+
+    # Several papers a day swaps the papers' unique index and adds their authors.
+    [by_day_up, _down] = papers_by_day_migration |> File.read!() |> String.split("def down")
+    refute by_day_up =~ ~r/\b(DELETE|TRUNCATE|UPDATE|remove)\b/i
 
     # The staking readings only add their own table.
     [readings_up, _down] = staking_readings_migration |> File.read!() |> String.split("def down")

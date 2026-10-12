@@ -1,5 +1,5 @@
 @layer regents-product {
-/* One row per paper: its picture beside the title, links and ChatGPT's answer. */
+/* One row per day: its paper's picture beside the title, links and ChatGPT's answer. */
 .paper-daily__research {
   padding: 24px clamp(20px, 4vw, 48px);
   border-block: 1px solid var(--rg-page-rule);
@@ -49,6 +49,76 @@
   gap: clamp(20px, 3vw, 40px);
   align-items: start;
   padding: clamp(24px, 4vw, 48px) clamp(20px, 4vw, 48px);
+}
+
+/* A day with several papers: one tile per paper across the top, splitting the
+   width, then the chosen paper below. Five or more wrap four to a row. */
+.paper-daily__picks {
+  display: grid;
+  grid-template-columns: repeat(var(--paper-daily-picks), minmax(0, 1fr));
+  gap: 12px;
+  padding: clamp(24px, 4vw, 48px) clamp(20px, 4vw, 48px) 0;
+}
+
+.paper-daily__picks--2 { --paper-daily-picks: 2; }
+.paper-daily__picks--3 { --paper-daily-picks: 3; }
+.paper-daily__picks--4 { --paper-daily-picks: 4; }
+
+.paper-daily__pick {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  align-content: start;
+  min-inline-size: 0;
+  padding: 10px;
+  border: 1px solid var(--rg-page-rule);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.paper-daily__picks--4 .paper-daily__pick {
+  grid-template-columns: 3rem minmax(0, 1fr);
+}
+
+.paper-daily__pick:hover {
+  border-color: var(--color-fg);
+}
+
+.paper-daily__pick[aria-pressed="true"] {
+  border-color: var(--color-fg);
+  box-shadow: inset 0 -3px 0 var(--color-fg);
+}
+
+.paper-daily__pick-image {
+  grid-row: 1 / span 2;
+  display: block;
+  inline-size: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  border: 1px solid var(--rg-page-rule);
+  background: var(--color-bg);
+}
+
+.paper-daily__pick-title {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.paper-daily__pick-authors {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  opacity: 0.8;
 }
 
 .paper-daily__image {
@@ -187,6 +257,43 @@
 
   .paper-daily__image {
     max-inline-size: 12rem;
+  }
+
+  /* Three papers are full-width rows; two, four or more stand two to a row,
+     picture on top, so each title keeps a readable width. */
+  .paper-daily__picks {
+    gap: 8px;
+    padding-block-start: 24px;
+  }
+
+  .paper-daily__picks--3 {
+    --paper-daily-picks: 1;
+  }
+
+  .paper-daily__picks--4 {
+    --paper-daily-picks: 2;
+  }
+
+  .paper-daily__picks--2 .paper-daily__pick,
+  .paper-daily__picks--4 .paper-daily__pick {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    padding: 8px;
+  }
+
+  .paper-daily__picks--2 .paper-daily__pick-image,
+  .paper-daily__picks--4 .paper-daily__pick-image {
+    grid-row: auto;
+    max-inline-size: 4rem;
+  }
+
+  .paper-daily__picks--3 .paper-daily__pick {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .paper-daily__pick-title {
+    font-size: 0.875rem;
   }
 }
 }

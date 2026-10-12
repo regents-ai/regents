@@ -13,8 +13,8 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     refute html =~ future.answer
 
     {:ok, view, html} = live(conn, "/paper-pro-daily")
-    assert has_element?(view, "#papers-#{today.date}")
-    refute has_element?(view, "#papers-#{future.date}")
+    assert has_element?(view, "#days-#{today.date}")
+    refute has_element?(view, "#days-#{future.date}")
     refute html =~ future.title
     refute html =~ future.answer
   end
@@ -26,21 +26,21 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     {:ok, view, _html} = live(conn, "/paper-pro-daily")
 
     render_hook(view, "load_more", %{})
-    assert has_element?(view, "#papers-#{List.last(older).date}")
+    assert has_element?(view, "#days-#{List.last(older).date}")
 
     # Exercise the timer handler without sleeping or changing the host clock.
     # The exact clock boundary is covered by PaperProDailyTest.
     current = paper_fixture!(today)
     send(view.pid, :publication_midnight)
 
-    assert has_element?(view, "#papers-#{current.date}")
-    refute has_element?(view, "#papers-#{future.date}")
+    assert has_element?(view, "#days-#{current.date}")
+    refute has_element?(view, "#days-#{future.date}")
     assert has_element?(view, "#paper-daily-more[data-cursor='6']")
 
     render_hook(view, "load_more", %{})
 
     for paper <- [current | older] do
-      assert has_element?(view, "#papers-#{paper.date}")
+      assert has_element?(view, "#days-#{paper.date}")
     end
 
     refute has_element?(view, "#paper-daily-more")
@@ -62,12 +62,12 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     future = paper_fixture!(Date.add(current.date, 1))
 
     for suffix <- ["", "?v=guessed"] do
-      response = get(conn, "/paper-pro-daily/pictures/#{future.date}#{suffix}")
+      response = get(conn, "/paper-pro-daily/pictures/#{future.id}#{suffix}")
       assert response(response, 404) == "Not found"
       assert get_resp_header(response, "cache-control") == ["no-store"]
     end
 
-    response = get(conn, "/paper-pro-daily/pictures/#{current.date}")
+    response = get(conn, "/paper-pro-daily/pictures/#{current.id}")
     assert response(response, 200) == current.picture
     assert get_resp_header(response, "content-type") == ["image/png"]
   end

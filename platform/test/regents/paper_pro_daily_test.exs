@@ -13,9 +13,9 @@ defmodule Regents.PaperProDailyTest do
 
     assert updated.id == paper.id
     assert updated.title == "Scheduled replacement"
-    assert PaperProDaily.list_papers!().results == []
+    assert PaperProDaily.list_papers!([tomorrow]) == []
     assert PaperProDaily.export_papers!() == []
-    assert PaperProDaily.get_picture!(tomorrow) == nil
+    assert PaperProDaily.get_picture!(paper.id) == nil
   end
 
   test "all reads include today and the past but exclude future dates" do
@@ -25,26 +25,14 @@ defmodule Regents.PaperProDailyTest do
     future = paper_fixture!(Date.add(today, 1))
     expected = [current.id, yesterday.id]
 
-    assert Enum.map(PaperProDaily.list_papers!().results, & &1.id) == expected
+    dates = [future.date, today, yesterday.date]
+    assert Enum.map(PaperProDaily.list_papers!(dates), & &1.id) == expected
     assert Enum.map(PaperProDaily.export_papers!(), & &1.id) == expected
-    assert PaperProDaily.get_picture!(today).picture == current.picture
-    assert PaperProDaily.get_picture!(future.date) == nil
+    assert PaperProDaily.get_picture!(current.id).picture == current.picture
+    assert PaperProDaily.get_picture!(future.id) == nil
 
     # Publication is part of the read query, not an optional authorization check.
     assert Enum.map(PaperProDaily.export_papers!(authorize?: false), & &1.id) == expected
-  end
-
-  test "pagination filters scheduled papers before applying the offset and limit" do
-    today = Date.utc_today()
-    papers = Enum.map(0..7, &paper_fixture!(Date.add(today, -&1)))
-    paper_fixture!(Date.add(today, 1))
-
-    first = PaperProDaily.list_papers!(page: [offset: 0, limit: 6])
-    second = PaperProDaily.list_papers!(page: [offset: 6, limit: 6])
-
-    assert first.more?
-    refute second.more?
-    assert Enum.map(first.results ++ second.results, & &1.id) == Enum.map(papers, & &1.id)
   end
 
   test "the same stored paper becomes eligible exactly at UTC midnight" do

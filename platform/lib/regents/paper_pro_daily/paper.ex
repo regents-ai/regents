@@ -1,11 +1,12 @@
 defmodule Regents.PaperProDaily.Paper do
   @moduledoc """
-  One day's paper on /paper-pro-daily: its title, the source paper, the shared
-  ChatGPT answer, who wrote the answer, the answer's Markdown and its picture.
+  A paper on /paper-pro-daily: its title, its authors, the source paper, the
+  shared ChatGPT answer, who wrote the answer, the answer's Markdown and its picture.
 
-  One paper a day; putting a paper on a day that has one replaces it. Only a
-  release command writes papers (`Regents.Release.put_paper/2`). Future days may
-  be saved early; public reads include a paper once its date begins in UTC.
+  A day may have several papers; putting the same source paper on the same day
+  again replaces it. Only a release command writes papers
+  (`Regents.Release.put_paper/2`). Future days may be saved early; public reads
+  include a paper once its date begins in UTC.
   """
 
   use Ash.Resource,
@@ -17,6 +18,7 @@ defmodule Regents.PaperProDaily.Paper do
   @fields [
     :date,
     :title,
+    :authors,
     :arxiv_url,
     :chatgpt_url,
     :author,
@@ -30,27 +32,29 @@ defmodule Regents.PaperProDaily.Paper do
     create :put do
       accept @fields
       upsert? true
-      upsert_identity :one_a_day
-      upsert_fields List.delete(@fields, :date) ++ [:updated_at]
+      upsert_identity :paper_on_day
+      upsert_fields (@fields -- [:date, :arxiv_url]) ++ [:updated_at]
     end
 
-    # Newest first, without the pictures, which `:picture` serves one at a time.
+    # The given days' papers, newest day first and each day's papers in the order
+    # they were saved, without the pictures, which `:picture` serves one at a time.
     read :list do
-      prepare build(sort: [date: :desc], deselect: [:picture])
-      pagination offset?: true, default_limit: 6, countable: false, required?: true
+      argument :dates, {:array, :date}, allow_nil?: false
+      filter expr(date in ^arg(:dates))
+      prepare build(sort: [date: :desc, inserted_at: :asc], deselect: [:picture])
     end
 
     read :export do
       prepare build(
-                sort: [date: :desc],
-                select: [:date, :title, :arxiv_url, :chatgpt_url, :author, :answer]
+                sort: [date: :desc, inserted_at: :asc],
+                select: [:id, :date, :title, :arxiv_url, :chatgpt_url, :author, :answer]
               )
     end
 
     read :picture do
-      argument :date, :date, allow_nil?: false
+      argument :id, :uuid, allow_nil?: false
       get? true
-      filter expr(date == ^arg(:date))
+      filter expr(id == ^arg(:id))
       prepare build(select: [:date, :picture, :picture_type])
     end
   end
@@ -80,13 +84,14 @@ defmodule Regents.PaperProDaily.Paper do
   end
 
   identities do
-    identity :one_a_day, [:date]
+    identity :paper_on_day, [:date, :arxiv_url]
   end
 
   attributes do
     uuid_primary_key :id
     attribute :date, :date, allow_nil?: false, public?: true
     attribute :title, :string, allow_nil?: false, public?: true
+    attribute :authors, {:array, :string}, allow_nil?: false, default: [], public?: true
     attribute :arxiv_url, :string, allow_nil?: false, public?: true
     attribute :chatgpt_url, :string, allow_nil?: false, public?: true
     attribute :author, :string, allow_nil?: false, public?: true

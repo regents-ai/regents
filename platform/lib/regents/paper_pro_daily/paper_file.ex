@@ -1,9 +1,10 @@
 defmodule Regents.PaperProDaily.PaperFile do
   @moduledoc """
-  Reads one day's paper from a folder, or the original two-file upload format.
+  Reads one paper from a folder, or the original two-file upload format.
 
   A folder contains `paper.md` with `title`, `date` (MM-DD-YYYY), `paper_url`,
-  `chatgpt_url`, `chatgpt_model` and optional `cover_alt` in its YAML header,
+  `chatgpt_url`, `chatgpt_model`, optional `authors` (a list of names) and
+  optional `cover_alt` in its YAML header,
   followed by the answer in Markdown, and one `cover.webp`, PNG or JPEG.
 
   The original paper is `<YYYY-MM-DD>.md`, named by its day: YAML front matter (`title`,
@@ -13,7 +14,7 @@ defmodule Regents.PaperProDaily.PaperFile do
   """
 
   @keys ~w(title arxiv_url chatgpt_url author picture_alt)
-  @folder_keys ~w(title date paper_url chatgpt_url chatgpt_model cover_alt)
+  @folder_keys ~w(title authors date paper_url chatgpt_url chatgpt_model cover_alt)
 
   @doc "Reads paper.md and exactly one cover.webp, cover.png, cover.jpg or cover.jpeg."
   # sobelow_skip ["Traversal.FileModule"]
@@ -37,6 +38,7 @@ defmodule Regents.PaperProDaily.PaperFile do
 
     %{
       title: title,
+      authors: authors!(meta, paper_path),
       date: date!(required!(meta, "date", paper_path), paper_path),
       arxiv_url: required!(meta, "paper_url", paper_path),
       chatgpt_url: required!(meta, "chatgpt_url", paper_path),
@@ -88,6 +90,18 @@ defmodule Regents.PaperProDaily.PaperFile do
 
       _ ->
         raise ArgumentError, "#{path}: #{key} must be text"
+    end
+  end
+
+  defp authors!(meta, path) do
+    case Map.get(meta, "authors", []) do
+      names when is_list(names) ->
+        if Enum.all?(names, &(is_binary(&1) and String.trim(&1) != "")),
+          do: names,
+          else: raise(ArgumentError, "#{path}: authors must be a list of names")
+
+      _ ->
+        raise ArgumentError, "#{path}: authors must be a list of names"
     end
   end
 
