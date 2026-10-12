@@ -123,7 +123,10 @@ defmodule Regents.AgentActivity do
   defp request_options(config, agent, after_cursor) do
     [retry: false, receive_timeout: 5_000, connect_options: [timeout: 2_000]]
     |> Keyword.merge(Application.get_env(:regents, :siwa_req_options, []))
+    # The reader key goes only to the sign-in service, never on to wherever a
+    # redirect points.
     |> Keyword.merge(
+      redirect: false,
       auth: {:bearer, config.token},
       json: body(agent, after_cursor)
     )

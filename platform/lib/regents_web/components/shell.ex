@@ -159,21 +159,19 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
-  defp credits_label(%{value: nil, state: :error}), do: "Credits unavailable"
-  defp credits_label(%{value: nil}), do: "Credits loading"
-  defp credits_label(%{value: balance}), do: RegentCredits.Amount.format(balance.available)
+  defp credits_label(%{state: :ready, value: balance}),
+    do: RegentCredits.Amount.format(balance.available)
+
+  defp credits_label(%{state: state}) when state in [:error, :stale], do: "Credits unavailable"
+  defp credits_label(_credits), do: "Credits loading"
 
   attr(:amount, :map, required: true)
 
-  # "12.40 Credits", whose unit a phone's header leaves out for room. Until the
-  # balance is read, or when it can't be, the figure is a dash; the button and
-  # the Buy Credits panel behind it are there either way.
-  defp credits_amount(%{amount: %{value: nil}} = assigns),
-    do: ~H"""
-    <span data-count>—</span> <span class="shell-credits__unit">Credits</span>
-    """
-
-  defp credits_amount(%{amount: %{value: balance}} = assigns) do
+  # "12.40 Credits", whose unit a phone's header leaves out for room. Only a
+  # balance just read shows; while it is read again, or when it can't be, the
+  # figure is a dash. The button and the Buy Credits panel behind it are there
+  # either way.
+  defp credits_amount(%{amount: %{state: :ready, value: balance}} = assigns) do
     [number, unit] = String.split(RegentCredits.Amount.format(balance.available), " ", parts: 2)
     assigns = assign(assigns, number: number, unit: unit)
 
@@ -181,6 +179,11 @@ defmodule RegentsWeb.Components.Shell do
     <span data-count>{@number}</span> <span class="shell-credits__unit">{@unit}</span>
     """
   end
+
+  defp credits_amount(assigns),
+    do: ~H"""
+    <span data-count>—</span> <span class="shell-credits__unit">Credits</span>
+    """
 
   attr :account_control, Regents.AccessContext.AccountControl, required: true
   attr :enabled, :boolean, default: true

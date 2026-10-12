@@ -145,18 +145,21 @@ defmodule RegentsWeb.AccountLive do
             available={@credits.value && RegentCredits.Amount.format(@credits.value.available)}
             held={@credits.value && RegentCredits.Amount.format(@credits.value.held)}
             state={credits_state(@credits.state)}
-          />
-          <p>One balance for every Regent site. One Credit is one US dollar.</p>
-          <div class="account-credits__actions">
-            <Regent.Primitives.button
-              type="button"
-              phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
-            >
-              Buy Credits
-            </Regent.Primitives.button>
-            <.link navigate="/account/credits">Purchase History</.link>
-            <.link navigate="/account/points">Points</.link>
-          </div>
+          >
+            <div class="account-credits__more">
+              <p>One balance for every Regent site. One Credit is one US dollar.</p>
+              <div class="account-credits__actions">
+                <Regent.Primitives.button
+                  type="button"
+                  phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+                >
+                  Buy Credits
+                </Regent.Primitives.button>
+                <.link navigate="/account/credits">Purchase History</.link>
+                <.link navigate="/account/points">Points</.link>
+              </div>
+            </div>
+          </Regent.Account.credits_summary>
 
           <h3>What your agents may spend</h3>
           <p>

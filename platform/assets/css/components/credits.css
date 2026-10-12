@@ -77,6 +77,17 @@
   font-weight: 400;
 }
 
+/* The lines and links under the figures in the shared Credits box. */
+.account-credits__more {
+  display: grid;
+  gap: 1rem;
+  margin-block-start: 1rem;
+}
+
+.account-credits__more p {
+  margin: 0;
+}
+
 .account-credits__actions {
   display: flex;
   flex-wrap: wrap;

@@ -49,7 +49,8 @@ const presses = new WeakMap<HTMLElement, number>()
  * each form field the review depends on is marked `data-onchain-input="name"`.
  * A root marked `data-refresh-funds` also asks the server to read its funds
  * again (`refresh_funds`) when the wallet changes, when the page comes back
- * into view and after each press.
+ * into view, when the dialog holding it opens (`regents:refresh-funds` on the
+ * root) and after each press.
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
@@ -108,6 +109,7 @@ export const OnchainSteps: Hook = {
       this.refresh = () => void push("refresh_funds", {})
       window.addEventListener("ash:wallet-state", this.refresh)
       window.addEventListener("focus", this.refresh)
+      this.el.addEventListener("regents:refresh-funds", this.refresh)
     }
 
     this.walletChanged()
@@ -121,6 +123,7 @@ export const OnchainSteps: Hook = {
     if (this.refresh) {
       window.removeEventListener("ash:wallet-state", this.refresh)
       window.removeEventListener("focus", this.refresh)
+      this.el.removeEventListener("regents:refresh-funds", this.refresh)
     }
   },
 }

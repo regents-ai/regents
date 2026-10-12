@@ -12,8 +12,9 @@ defmodule RegentsWeb.CreditsPanel do
 
   Buy is disabled only when it is certain to fail, from the chain at the latest
   block: the Base approval does not cover the amount yet, or the wallet holds
-  too little USDC. Explanations wait in tips; the panel shows figures, choices,
-  presses and outcomes.
+  too little USDC. Only a figure read since the last read began may disable it.
+  Explanations wait in tips; the panel shows figures, choices, presses and
+  outcomes.
 
   The wallet figures are read when the paying wallet changes, when the panel
   opens or comes back into view, after each press and once a step lands; never
@@ -22,8 +23,8 @@ defmodule RegentsWeb.CreditsPanel do
 
   The parent passes `account` (the signed-in account), its `credits` reading
   (`state` and the `RegentCredits.balance/1` value, kept current by the
-  parent; until it has a value the figures show a dash), the visitor's
-  `client_tag` and `id`.
+  parent; the figures show only while it is `:ready`, and a dash otherwise), the
+  visitor's `client_tag` and `id`.
   """
   use RegentsWeb, :live_component
 
@@ -54,6 +55,7 @@ defmodule RegentsWeb.CreditsPanel do
        numbers: %{},
        usdc: nil,
        allowance: nil,
+       latest: %{},
        purchases: %{}
      )}
   end
@@ -193,16 +195,14 @@ defmodule RegentsWeb.CreditsPanel do
       else: {:noreply, put_purchase(socket, hash, shown)}
   end
 
-  def handle_async(:usdc, {:ok, {:ok, micro}}, socket),
-    do: {:noreply, assign(socket, usdc: micro)}
+  # Only a figure read since the last read began may hold Buy back.
+  def handle_async(figure, {:ok, {:ok, micro}}, socket) when figure in [:usdc, :allowance],
+    do:
+      {:noreply,
+       assign(socket, [{figure, micro}, latest: Map.put(socket.assigns.latest, figure, micro)])}
 
-  def handle_async(:usdc, _unread, socket), do: {:noreply, assign(socket, usdc: :unread)}
-
-  def handle_async(:allowance, {:ok, {:ok, micro}}, socket),
-    do: {:noreply, assign(socket, allowance: micro)}
-
-  def handle_async(:allowance, _unread, socket),
-    do: {:noreply, assign(socket, allowance: :unread)}
+  def handle_async(figure, _unread, socket) when figure in [:usdc, :allowance],
+    do: {:noreply, assign(socket, figure, :unread)}
 
   # A confirmed approval sets what staking may take to exactly its amount, so
   # the panel knows it from the receipt it just read, before the next read.
@@ -239,7 +239,10 @@ defmodule RegentsWeb.CreditsPanel do
     socket =
       if signer == socket.assigns.signer,
         do: socket,
-        else: socket |> assign(signer: signer, usdc: nil, allowance: nil) |> read_funds()
+        else:
+          socket
+          |> assign(signer: signer, usdc: nil, allowance: nil, latest: %{})
+          |> read_funds()
 
     socket
     |> assign(mismatch: OnchainSteps.mismatch_note(linked, active))
@@ -320,12 +323,16 @@ defmodule RegentsWeb.CreditsPanel do
 
   # The paying wallet's USDC on Base, and what REGENT staking may take of it,
   # both at the latest block, `wait_ms` from now. A new read
-  # replaces any still on its way, whose answer is then dropped.
+  # replaces any still on its way, whose answer is then dropped. The figures
+  # already shown stay on screen, but from here until each new read lands none
+  # of them holds Buy back.
   defp read_funds(socket, wait_ms \\ 0)
 
   defp read_funds(%{assigns: %{signer: nil}} = socket, _wait_ms), do: socket
 
   defp read_funds(socket, wait_ms) do
+    socket = assign(socket, latest: %{})
+
     case ChainReadBudget.admit(socket.assigns.client_tag) do
       :ok -> start_reads(socket, wait_ms)
       {:limited, _seconds} -> socket
@@ -590,16 +597,17 @@ defmodule RegentsWeb.CreditsPanel do
 
   defp covered?(_allowance, _dollars), do: false
 
-  # Why Buy is certain to fail right now, from the chain at the latest block; nil
-  # when it may go through. An unread figure is never a reason.
+  # Why Buy is certain to fail right now, from the paying wallet's last read at
+  # the latest block; nil when it may go through. A figure still being read,
+  # unread or past the read budget is never a reason.
   defp blocked(_assigns, nil), do: nil
 
-  defp blocked(%{usdc: usdc, allowance: allowance}, dollars) do
+  defp blocked(%{latest: latest}, dollars) do
     micro = Chains.micro(dollars)
 
     cond do
-      is_integer(usdc) and usdc < micro -> "Not enough USDC on Base"
-      is_integer(allowance) and allowance < micro -> "Approve first"
+      is_integer(latest[:usdc]) and latest.usdc < micro -> "Not enough USDC on Base"
+      is_integer(latest[:allowance]) and latest.allowance < micro -> "Approve first"
       true -> nil
     end
   end
@@ -612,18 +620,20 @@ defmodule RegentsWeb.CreditsPanel do
   defp stalled?(entry, nil), do: Presses.stalled?(entry)
   defp stalled?(_entry, _shown), do: false
 
-  # Until the balance is read, or when it can't be, each figure is a dash, as
-  # in the header; a word beside it would wrap on a phone and move the buttons.
-  defp figure(%{value: nil}, _field), do: "—"
-
-  defp figure(%{value: balance}, field),
+  # Only a balance just read shows; while it is read again, or when it can't be,
+  # each figure is a dash, as in the header. A word beside it would wrap on a
+  # phone and move the buttons.
+  defp figure(%{state: :ready, value: balance}, field),
     do: balance |> Map.fetch!(field) |> Amount.format() |> String.replace_suffix(" Credits", "")
 
-  defp missing(%{value: nil, state: :error} = assigns),
+  defp figure(_credits, _field), do: "—"
+
+  defp missing(%{state: :ready}), do: nil
+
+  defp missing(%{state: state} = assigns) when state in [:error, :stale],
     do: ~H|<span class="visually-hidden">Unavailable</span>|
 
-  defp missing(%{value: nil} = assigns), do: ~H|<span class="visually-hidden">Loading</span>|
-  defp missing(_credits), do: nil
+  defp missing(assigns), do: ~H|<span class="visually-hidden">Loading</span>|
 
   defp state(entry, nil), do: OnchainSteps.describe(entry, chain_name_of(entry)).state
   defp state(_entry, %{purchase: :reporting}), do: :checking

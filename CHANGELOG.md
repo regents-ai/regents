@@ -1363,3 +1363,19 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   Sentinel's clearing"), released 12 October at 02:58 UTC. The follow-ups
   entry above it is still unreleased and goes out with the next shared-library
   update.
+
+## 2026-10-12 — Shared-library update (local, unreleased)
+
+- Pins elixir-utils `1f6ce01364ad3da8f0593f21a620e9fe1c199145` (an ENS
+  redirect fix) and design-system `57d2f982a07dde733c0f1e05a7bd3b1a97cd58e1`.
+  No new shared migrations.
+- The Account page's Credits line and its Buy Credits, Purchase History and
+  Points links sit inside the shared Credits box, which now takes them.
+- The header and Buy Credits panel show Credits figures only from a balance
+  just read; while it loads or can't be read, a dash.
+- Buy is disabled only by a USDC or approval figure read since the last read
+  began. A failed or still-running read never holds it back; the figure
+  already shown stays on screen. Opening Buy Credits reads the wallet's funds
+  again.
+- The agent activity reader never follows a redirect, so its reader key goes
+  only to the sign-in service.
