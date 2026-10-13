@@ -1704,22 +1704,31 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The command tool now offers "read the next page" on `account credits-history`.
 - Same shape and same command entry as ash-template `41432ef` and `298c32a`.
 
-## 2026-10-13 — The homepage crown is the shared one, on vgpu 0.6 (local, unreleased)
+## 2026-10-13 — The homepage hero is the world cube, on vgpu 0.6 (local, unreleased)
 
-- The homepage's glass crown is now the copy every Regent site shares, taken
-  from ash-template: `platform/assets/js/crown/`, the `Crown` hook and the
-  `RegentsWeb.Components.Crown` component. Regents keeps only its look
-  (`platform/assets/js/crown_looks.ts`): white beams over the near-black field
-  of squares. The picture is the same: at rest it matches the old crown pixel
-  for pixel at 1600×900 and 800×1000.
-- `vgpu` moves from 0.3.1 to 0.6.0 and `@vgpu/wgsl` 0.6.0 is added; 0.6
-  prepares each shader in the browser when the crown first draws.
-- Removed with the old copy: `platform/assets/js/home_prism/`,
-  `platform/assets/js/home_field/` and the `HomePrism` hook, including the
-  product-colour switching nothing on the site ever triggered, and the four
-  unit test files that tested those files (`home_crown`, `home_palette`,
-  `home_prism`, `home_scene`). The browser checks follow the new names
-  (`#home-crown`, `.crown__still`, `data-crown-ready`).
+- The top of the homepage is now a slowly turning cube with a room behind each
+  of its six sides, one per world: Autolaunch, Techtree, Patchbay, Keyfleet,
+  Regents staking and Regents on X. Drag to turn it, click a side to step into
+  its room, and follow the room's link in a new tab. "Regents Labs" and its
+  line stand over the top-left of the cube, and the $REGENT panel stays where
+  it was, under it.
+- Where the cube cannot be drawn, or for a visitor who asked for less motion,
+  the six worlds are a plain list of cards with the same links.
+- The cube is the one in ash-template, copied unchanged:
+  `platform/assets/js/world_cube/`, the `WorldCube` hook and the
+  `RegentsWeb.Components.WorldCube` component.
+- Gone from the homepage: the glass crown and the picture behind it, the four
+  product cards with their GitHub icons, and the "Stake REGENT" button that
+  stood under the heading (the one in the $REGENT panel stays). The crown in
+  the header and the Regents brand art are untouched.
+- `vgpu` moves from 0.3.1 to 0.6.0 and `@vgpu/wgsl` 0.6.0 is added.
+- Removed with the crown: `platform/assets/js/home_prism/`,
+  `platform/assets/js/home_field/` and the `HomePrism` hook, the four unit
+  test files that tested them (`home_crown`, `home_palette`, `home_prism`,
+  `home_scene`), and `platform/priv/static/images/home/hero-bg-dark.svg`. The
+  browser checks now read the six worlds in place of the four cards. Three
+  checks went with what they checked: the picture behind the hero being grey,
+  the GitHub links on the cards, and the crown being left out on a phone.
 - Before release: the foil card needs the design-system revision that runs on
   vgpu 0.6 (8bee776, not yet on GitHub), so `@design_system_ref` moves with
   this change once that revision is pushed.

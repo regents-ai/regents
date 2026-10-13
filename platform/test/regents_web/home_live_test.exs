@@ -26,7 +26,9 @@ defmodule RegentsWeb.HomeLiveTest do
 
     anchors = attribute(html, "[id]", "id")
 
+    # The staking world opens in a new tab, so its link carries the site's own address.
     for href <- attribute(html, "a", "href"),
+        href = String.replace_prefix(href, RegentsWeb.Endpoint.url(), ""),
         href != "/",
         not String.starts_with?(href, "https://") do
       assert href in @open_paths or String.starts_with?(href, "#")

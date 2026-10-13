@@ -128,18 +128,15 @@ test("the public homepage presents the product hero and marketing chapters", asy
   await page.goto("/")
 
   await expect(page.locator("#public-home")).toBeVisible()
-  await expect(page.locator("#home-crown .crown__still")).toHaveAttribute(
-    "src",
-    "/images/home/hero-bg-dark.svg",
-  )
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The cards name the four products; the chapters below them are a separate story.
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
+  // The hero names the six worlds; the chapters below it are a separate story.
+  const worlds = page.locator("#home-worlds .world-cube__world")
+  await expect(worlds).toHaveCount(6)
   expect(
-    await page
-      .locator("[data-home-hero-card]")
-      .evaluateAll(elements => elements.map(element => element.dataset.homeHeroCard)),
-  ).toEqual(["autolaunch", "techtree", "patchbay", "keyfleet"])
+    await worlds.evaluateAll(elements =>
+      elements.map(element => element.querySelector("h3")!.textContent!.trim()),
+    ),
+  ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Regents staking", "Regents on X"])
   await expect(page.locator(".rl-hero-stakers")).toBeVisible()
 
   const sectionTops = await page
@@ -152,32 +149,37 @@ test("the public homepage presents the product hero and marketing chapters", asy
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
 
-// The crown is decoration the server renders inside the hero: hidden from assistive
-// technology, taking no pointer events, and showing exactly one layer at a time —
-// the still art until the drawn crown is ready, then the drawn crown alone. Whether
-// headless Chromium brings a GPU decides which layer shows, never whether the copy
-// and actions stay reachable.
-test("the bounded technical crown never blocks the action", async ({page}) => {
-  const expectOneHeroLayer = async () => {
-    const layers = await page.locator("#home-crown").evaluate(element => ({
-      art: getComputedStyle(element.querySelector(".crown__still")!).visibility,
-      crownReady: element.getAttribute("data-crown-ready") === "true",
-    }))
-    expect(layers.art).toBe(layers.crownReady ? "hidden" : "visible")
-  }
+// The cube's stage is a picture the browser draws inside the hero: hidden from assistive
+// technology, under words that take no pointer events, and showing exactly one layer at a
+// time, the list of worlds until the cube is drawn, then the cube alone. Whether headless
+// Chromium brings a GPU decides which layer shows, never whether the heading and actions
+// stay reachable.
+test("the hero's cube never blocks the action", async ({page}) => {
+  const expectOneHeroLayer = () =>
+    expect
+      .poll(() =>
+        page.locator("#home-worlds").evaluate(element => {
+          const drawn = element.getAttribute("data-world-ready") === "true"
+          const listed = getComputedStyle(element.querySelector(".world-cube__world")!).visibility
+          return listed === (drawn ? "hidden" : "visible")
+        }),
+      )
+      .toBe(true)
 
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
-    const crown = page.locator("#home-crown")
-    await expect(crown).toHaveAttribute("aria-hidden", "true")
-    expect(await crown.evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none")
+    await expect(page.locator("#home-worlds-stage")).toHaveAttribute("aria-hidden", "true")
+    expect(
+      await page.locator(".rl-hero-copy").evaluate(element => getComputedStyle(element).pointerEvents),
+    ).toBe("none")
     await expectOneHeroLayer()
     await expect(page.locator("#home-title")).toBeVisible()
     await page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"}).click({trial: true})
-    await page.locator("#home-card-techtree").getByRole("link", {name: "uplift techtree"}).click({trial: true})
     await page.emulateMedia({reducedMotion: "reduce"})
+    await expect(page.locator("#home-worlds")).not.toHaveAttribute("data-world-ready", "true")
     await expectOneHeroLayer()
+    await page.locator('#home-worlds [data-world="1"]').getByRole("link").click({trial: true})
     await page.emulateMedia({reducedMotion: "no-preference"})
   }
 })

@@ -21,8 +21,8 @@ Regents consumes the current `design-system/STYLE.md` and top-level contract in
   their original IDs, names, values, validators and LiveView attributes. Primary
   HTML links have `rg-button__label`; secondary/quiet controls do not shimmer.
 - Product background components/mounts are retired. Existing SVG assets and dormant
-  background hook implementations remain available; the homepage uses existing crown
-  art only inside a bounded technical figure. No page canvas is mounted.
+  background hook implementations remain available; the homepage's one drawn picture
+  is the world cube, on its own stage in the hero. No page canvas is mounted.
 - The approved local showcase remains intact.
 
 ## Staking ratio data

@@ -22,7 +22,6 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
-import {Crown} from "./hooks/crown"
 import {HolographicCard} from "./hooks/holographic_card"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
@@ -36,6 +35,7 @@ import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
 import {installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
+import {WorldCube} from "./hooks/world_cube"
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -72,7 +72,7 @@ function showingTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
 }
 
-// The public crown is a dark-only composition, not a change to visitor preference.
+// The homepage is a dark-only composition, not a change to visitor preference.
 const homeThemeLocked = () => window.location.pathname === "/"
 
 // Live navigation keeps the document, so each page restates its theme: dark on
@@ -279,7 +279,6 @@ const hooks = {
   ...showcaseHooks,
   ...labHooks,
   ...colocatedHooks,
-  Crown,
   HolographicCard,
   HomeTokenMenu,
   InfiniteScroll,
@@ -291,6 +290,7 @@ const hooks = {
   OnchainSteps,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   VerifiedConnections,
+  WorldCube,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

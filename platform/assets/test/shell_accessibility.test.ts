@@ -17,6 +17,7 @@ vi.mock("../js/auth_lazy", () => ({
 }))
 vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
 vi.mock("../js/hooks/home_token_menu", () => ({HomeTokenMenu: {}}))
+vi.mock("../js/hooks/world_cube", () => ({WorldCube: {}}))
 vi.mock("../js/hooks/motion/reveals", () => ({MotionTabs: {}, ShellViews: {}}))
 vi.mock("../js/hooks/motion/moments", () => ({MotionCount: {}, MotionList: {}, MotionRefusal: {}}))
 vi.mock("../js/motion", () => ({mountMotion: vi.fn()}))

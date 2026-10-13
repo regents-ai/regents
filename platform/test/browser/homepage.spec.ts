@@ -23,12 +23,25 @@ const waitForHomepage = async (page: import("@playwright/test").Page) => {
   return home
 }
 
-// From this width up the four products stand side by side; from the grid width they sit two
-// by two; below it they read as one column.
-const CARD_ROW_MIN_WIDTH = 1024
-const CARD_GRID_MIN_WIDTH = 768
-const cardRowsAt = (width: number) =>
-  width >= CARD_ROW_MIN_WIDTH ? 1 : width >= CARD_GRID_MIN_WIDTH ? 2 : 4
+// The six worlds in the order the hero lists them, each with the cube face its room is behind.
+const worlds = [
+  {face: "0", name: "Autolaunch", site: "https://autolaunch.sh"},
+  {face: "1", name: "Techtree", site: "https://techtree.sh"},
+  {face: "2", name: "Patchbay", site: "https://patchbay.help"},
+  {face: "5", name: "Keyfleet", site: "https://keyfleet.ai"},
+  {face: "4", name: "Regents staking", site: /\/stake$/},
+  {face: "3", name: "Regents on X", site: "https://x.com/regents_sh"},
+]
+
+// From this width up the list of worlds stands three across, in two rows; below it the
+// worlds read as one column.
+const WORLD_GRID_MIN_WIDTH = 768
+const worldRowsAt = (width: number) => (width >= WORLD_GRID_MIN_WIDTH ? 2 : 6)
+
+// The list of worlds is the hero wherever the cube is not drawn. A visitor who asks for
+// less motion always gets it, so a test that reads the list asks for that first.
+const keepTheListOfWorlds = (page: import("@playwright/test").Page) =>
+  page.emulateMedia({reducedMotion: "reduce"})
 
 const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   expect(
@@ -36,7 +49,7 @@ const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   ).toBe(true)
 }
 
-test("[U2] homepage is server-readable and lists all four products", async ({browser}) => {
+test("[U2] homepage is server-readable and lists all six worlds", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
@@ -46,40 +59,24 @@ test("[U2] homepage is server-readable and lists all four products", async ({bro
     "The community-owned agentic product lab",
   )
 
-  const cards = page.locator("[data-home-hero-card]")
-  await expect(cards).toHaveCount(4)
-  expect(await cards.evaluateAll(elements => elements.map(element => element.id))).toEqual([
-    "home-card-autolaunch",
-    "home-card-techtree",
-    "home-card-patchbay",
-    "home-card-keyfleet",
-  ])
+  const listed = page.locator("#home-worlds .world-cube__world")
+  await expect(listed).toHaveCount(6)
+  expect(
+    await listed.evaluateAll(elements =>
+      elements.map(element => (element as HTMLElement).dataset.world),
+    ),
+  ).toEqual(worlds.map(world => world.face))
 
-  // Every product site is open, so every card carries a live new-tab link.
-  const open = page.locator("[data-home-hero-card] a.rl-action")
-  await expect(open).toHaveCount(4)
-  for (const [name, action, site] of [
-    ["autolaunch", "launch", "https://autolaunch.sh"],
-    ["techtree", "uplift", "https://techtree.sh"],
-    ["patchbay", "fix", "https://patchbay.help"],
-    ["keyfleet", "collaborate", "https://keyfleet.ai"],
-  ]) {
-    const link = page.locator(`#home-card-${name} a.rl-action`)
-    await expect(link).toHaveText(`${action} ↗`)
+  // Every world is open, so every one carries a live new-tab link.
+  for (const {face, name, site} of worlds) {
+    const world = page.locator(`#home-worlds [data-world="${face}"]`)
+    await expect(world.getByRole("heading", {level: 3})).toHaveText(name)
+    const link = world.locator("a")
+    await expect(link).toHaveText(`Visit ${name}, opens in a new tab`)
     await expect(link).toHaveAttribute("href", site)
     await expect(link).toHaveAttribute("target", "_blank")
     await expect(link).toHaveAttribute("rel", "noopener noreferrer")
   }
-
-  const sources = page.locator("[data-home-hero-card] a.rl-card-source")
-  await expect(sources).toHaveCount(3)
-  expect(
-    await sources.evaluateAll(elements => elements.map(element => element.getAttribute("href"))),
-  ).toEqual([
-    "https://github.com/regents-ai/autolaunch",
-    "https://github.com/regents-ai/techtree",
-    "https://github.com/regents-ai/patchbay",
-  ])
 
   const buy = page.locator(".rl-stakers-actions a", {hasText: "Buy REGENT"})
   await expect(buy).toHaveAttribute("href", /^https:\/\/app\.uniswap\.org\/explore\/tokens\/base\//)
@@ -159,8 +156,8 @@ test("[U2] homepage settles immediately for reduced motion", async ({browser}) =
   const page = await context.newPage()
   await page.goto("/")
   await waitForHomepage(page)
-  await expect(page.locator("[data-home-hero-copy]")).toBeVisible()
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
+  await expect(page.locator(".rl-hero-copy")).toBeVisible()
+  await expect(page.locator("#home-worlds .world-cube__world")).toHaveCount(6)
   await context.close()
 })
 
@@ -234,10 +231,9 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
   ).toContain("Geist Pixel Square")
 })
 
-// The founder's hero: the words in the left half with the crown drawn across the whole stage
-// behind them and the products underneath where there is room. On a phone the crown is left
-// out and the words, products and stakers band read in order.
-test("[U1][U2] the hero sets its words over the crown, and leaves it out on a phone", async ({page}) => {
+// The founder's hero: the words stand over the top-left of the cube's stage, the worlds come
+// under the words, and the stakers band closes the hero, at every width.
+test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) => {
   const boxOf = (selector: string) =>
     page.locator(selector).evaluate(element => {
       const box = element.getBoundingClientRect()
@@ -250,55 +246,40 @@ test("[U1][U2] the hero sets its words over the crown, and leaves it out on a ph
       }
     })
 
-  for (const width of [1440, 1024]) {
+  for (const {width, height} of [
+    {width: 1440, height: 900},
+    {width: 1024, height: 900},
+    {width: 390, height: 844},
+    {width: 375, height: 844},
+  ]) {
     await test.step(`${width} wide`, async () => {
-      await page.setViewportSize({width, height: 900})
+      await page.setViewportSize({width, height})
       await page.goto("/")
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
       const hero = await boxOf(".rl-hero")
-      const copy = await boxOf("#home-title")
-      const cards = await boxOf("#home-products")
-      const stakers = await boxOf(".rl-hero-stakers")
-      const crown = await boxOf("#home-crown")
-
-      expect(copy.left).toBeGreaterThanOrEqual(hero.left)
-      expect(copy.right, "the words stay in the left half").toBeLessThanOrEqual(
-        hero.left + hero.width / 2,
-      )
-      expect(cards.left, "the products start on the words' edge").toBeCloseTo(copy.left, 0)
-      expect(cards.right, "the products cross the midline").toBeGreaterThan(
-        hero.left + hero.width / 2,
-      )
-      expect(cards.top, "the products come under the words").toBeGreaterThanOrEqual(copy.bottom)
-      expect(stakers.top, "the stakers band closes the hero").toBeGreaterThanOrEqual(cards.bottom)
-      expect(crown.left, "the crown stands behind the words").toBeLessThanOrEqual(copy.left)
-      expect(crown.top).toBeLessThanOrEqual(copy.top)
-      expect(crown.right, "and behind the products").toBeGreaterThanOrEqual(cards.right)
-      expect(crown.bottom).toBeGreaterThanOrEqual(cards.bottom)
-      expect(crown.right).toBeLessThanOrEqual(hero.right)
-    })
-  }
-
-  for (const width of [390, 375]) {
-    await test.step(`${width} wide`, async () => {
-      await page.setViewportSize({width, height: 844})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      await expect(page.locator("#home-crown")).toBeHidden()
       const title = await boxOf("#home-title")
       const tagline = await boxOf(".rl-hero-copy .rl-hero-description")
-      const cards = await boxOf("#home-products")
+      const stage = await boxOf("#home-worlds")
+      const listed = await boxOf("#home-worlds .world-cube__worlds")
       const stakers = await boxOf(".rl-hero-stakers")
 
+      expect(title.left).toBeGreaterThanOrEqual(hero.left)
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
-      expect(tagline.bottom, "the tagline sits above the products").toBeLessThanOrEqual(cards.top)
-      expect(cards.bottom, "the products sit above the stakers band").toBeLessThanOrEqual(
-        stakers.top,
-      )
+      expect(stage.left, "the stage stands behind the words").toBeLessThanOrEqual(title.left)
+      expect(stage.top).toBeLessThanOrEqual(title.top)
+      expect(stage.right, "and crosses the midline").toBeGreaterThan(hero.left + hero.width / 2)
+      expect(stage.right).toBeLessThanOrEqual(hero.right)
+      expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(tagline.bottom)
+      expect(listed.bottom, "and stay on the stage").toBeLessThanOrEqual(stage.bottom)
+      expect(stakers.top, "the stakers band closes the hero").toBeGreaterThanOrEqual(stage.bottom)
+
+      if (width >= 1024) {
+        expect(title.right, "the words stay in the left half").toBeLessThanOrEqual(
+          hero.left + hero.width / 2,
+        )
+      }
     })
   }
 })
@@ -311,13 +292,14 @@ for (const viewport of [
 ]) {
   test(`[U1][U2][U3] homepage fits ${viewport.name} with usable focus targets`, async ({page}, testInfo) => {
     await page.setViewportSize({width: viewport.width, height: viewport.height})
+    await keepTheListOfWorlds(page)
     await page.goto("/")
     await waitForHomepage(page)
     await assertNoOverflow(page)
 
-    const cards = page.locator("[data-home-hero-card]")
-    await expect(cards).toHaveCount(4)
-    const boxes = await cards.evaluateAll(elements =>
+    const listed = page.locator("#home-worlds .world-cube__world")
+    await expect(listed).toHaveCount(6)
+    const boxes = await listed.evaluateAll(elements =>
       elements.map(element => {
         const box = element.getBoundingClientRect()
         return {height: box.height, left: box.left, right: box.right, top: box.top}
@@ -325,8 +307,8 @@ for (const viewport of [
     )
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
-    // Four across where the frame is wide enough, two by two below that, then one column.
-    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(cardRowsAt(viewport.width))
+    // Three across where the frame is wide enough, one column below that.
+    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(worldRowsAt(viewport.width))
 
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
@@ -340,7 +322,8 @@ for (const viewport of [
   })
 }
 
-test("[U1][U2] the products read autolaunch, techtree, patchbay, keyfleet at every viewport", async ({page}) => {
+test("[U1][U2] the worlds read in the founder's order at every viewport", async ({page}) => {
+  await keepTheListOfWorlds(page)
   for (const viewport of focusViewports) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
@@ -348,50 +331,46 @@ test("[U1][U2] the products read autolaunch, techtree, patchbay, keyfleet at eve
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
-      const cards = await page.locator("[data-home-hero-card]").evaluateAll(elements =>
+      const listed = await page.locator("#home-worlds .world-cube__world").evaluateAll(elements =>
         elements.map(element => {
           const box = element.getBoundingClientRect()
           return {
-            id: element.id,
             left: box.left,
-            product: element.dataset.homeHeroCard,
+            name: element.querySelector("h3")!.textContent!.trim(),
             top: box.top,
           }
         }),
       )
 
-      expect(cards.map(card => card.product)).toEqual(["autolaunch", "techtree", "patchbay", "keyfleet"])
-      expect(cards.map(card => card.id)).toEqual([
-        "home-card-autolaunch",
-        "home-card-techtree",
-        "home-card-patchbay",
-        "home-card-keyfleet",
-      ])
+      expect(listed.map(world => world.name)).toEqual(worlds.map(world => world.name))
 
-      // The cards read in the founder's order, row by row: each starts a new row on the first
-      // card's left edge or follows the one before it on the same row.
-      expect(new Set(cards.map(card => Math.round(card.top))).size).toBe(cardRowsAt(viewport.width))
-      for (const [index, card] of cards.entries()) {
+      // The worlds read in the founder's order, row by row: each starts a new row on the first
+      // world's left edge or follows the one before it on the same row.
+      expect(new Set(listed.map(world => Math.round(world.top))).size).toBe(
+        worldRowsAt(viewport.width),
+      )
+      for (const [index, world] of listed.entries()) {
         if (index === 0) continue
-        const before = cards[index - 1]
-        if (Math.round(card.top) === Math.round(before.top)) {
-          expect(card.left).toBeGreaterThan(before.left)
+        const before = listed[index - 1]
+        if (Math.round(world.top) === Math.round(before.top)) {
+          expect(world.left).toBeGreaterThan(before.left)
         } else {
-          expect(card.top).toBeGreaterThan(before.top)
-          expect(card.left).toBeCloseTo(cards[0].left, 0)
+          expect(world.top).toBeGreaterThan(before.top)
+          expect(world.left).toBeCloseTo(listed[0].left, 0)
         }
       }
     })
   }
 })
 
-// Pointing at a product never recolours its heading.
-test("[U2] card hover leaves the heading ink alone", async ({page}) => {
+// Pointing at a world never recolours its heading.
+test("[U2] world hover leaves the heading ink alone", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
+  await keepTheListOfWorlds(page)
   await page.goto("/")
   await waitForHomepage(page)
-  for (const product of ["autolaunch", "techtree", "patchbay"]) {
-    const heading = page.locator(`#home-card-${product} h2`)
+  for (const {face} of worlds.slice(0, 3)) {
+    const heading = page.locator(`#home-worlds [data-world="${face}"] h3`)
     const ink = await heading.evaluate(e => getComputedStyle(e).color)
     await heading.hover()
     expect(await heading.evaluate(e => getComputedStyle(e).color)).toBe(ink)
@@ -418,7 +397,7 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
           scrolled: window.scrollY,
           heading: bottom("#home-title"),
           tagline: bottom(".rl-hero-copy .rl-hero-description"),
-          products: bottom("#home-products"),
+          worlds: bottom("#home-worlds"),
           stakers: bottom(".rl-hero-stakers"),
           stakersActions: bottom(".rl-stakers-actions"),
         }
@@ -459,60 +438,6 @@ test("[U2] the stakers band is one container with its ways in underneath", async
   )
   expect(actions.x, "and start on the same edge").toBeCloseTo(sentence.x, 0)
   await expect(page.locator(".rl-stakers-actions a")).toHaveCount(3)
-})
-
-// The picture behind the hero is a grey line drawing with no ground of its own, so it takes
-// whatever the page is painted and reads the same in a light theme as in a dark one. The file
-// itself has to be that, with nothing on the page correcting it after the fact.
-test("[U2] the picture behind the hero carries no colour and no ground of its own", async ({page}) => {
-  await page.setViewportSize({width: 1440, height: 900})
-  await page.goto("/")
-  await waitForHomepage(page)
-
-  const picture = await page.locator(".crown__still").evaluate(element => {
-    const image = element as HTMLImageElement
-    const meanBrightnessOver = (ground: string | null) => {
-      const canvas = document.createElement("canvas")
-      canvas.width = image.naturalWidth
-      canvas.height = image.naturalHeight
-      const context = canvas.getContext("2d", {willReadFrequently: true})!
-      if (ground) {
-        context.fillStyle = ground
-        context.fillRect(0, 0, canvas.width, canvas.height)
-      }
-      context.drawImage(image, 0, 0)
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
-      let total = 0
-      let widestChannelSpread = 0
-      for (let index = 0; index < pixels.length; index += 4) {
-        const channels = [pixels[index], pixels[index + 1], pixels[index + 2]]
-        total += (channels[0] + channels[1] + channels[2]) / 3
-        if (pixels[index + 3] === 0) continue
-        widestChannelSpread = Math.max(
-          widestChannelSpread,
-          Math.max(...channels) - Math.min(...channels),
-        )
-      }
-      return {mean: total / (pixels.length / 4), widestChannelSpread}
-    }
-
-    const onWhite = meanBrightnessOver("#ffffff")
-    const onBlack = meanBrightnessOver("#000000")
-    return {
-      greyOnItsOwn: meanBrightnessOver(null).widestChannelSpread,
-      greyOnWhite: onWhite.widestChannelSpread,
-      groundShowsThrough: onWhite.mean - onBlack.mean,
-      correction: getComputedStyle(image).filter,
-    }
-  })
-
-  expect(picture.greyOnItsOwn, "every mark in the file is grey").toBe(0)
-  expect(picture.greyOnWhite, "and stays grey over a light page").toBe(0)
-  expect(
-    picture.groundShowsThrough,
-    "the page behind it is what fills the frame, not a slab of its own",
-  ).toBeGreaterThan(200)
-  expect(picture.correction, "with nothing on the page correcting it").toBe("none")
 })
 
 // The Techtree chapter reads as an ink heading over one muted description, with its three
@@ -766,13 +691,11 @@ test("[U1] the block primary action has a square high-contrast keyboard focus ri
   }
 })
 
-// The hero tints its own words for the product under the pointer or the keyboard, but
-// the focus ring belongs to the whole page. Both of the palette's accents are a product's
-// colour here, so the ring is set in Text — the one colour the page wears whichever card
-// is being read — and it has to stay that same mark on every control, including the card
-// whose colour the page is currently wearing.
+// The focus ring belongs to the whole page: it is set in Text and stays that same mark on
+// every control in the hero.
 test("[U1] every hero control retains visible paired keyboard focus", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
+  await keepTheListOfWorlds(page)
   await page.goto("/")
   await waitForHomepage(page)
   const count = await page.locator("a, button").count()
@@ -783,7 +706,8 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
       const e = document.activeElement as HTMLElement
       if (!e?.closest(".rl-hero") || !e.matches(":focus-visible")) return null
       const style = getComputedStyle(e)
-      return {name: e.getAttribute("aria-label") ?? e.textContent?.trim() ?? "", width: parseFloat(style.outlineWidth), outline: style.outlineStyle, opacity: style.opacity}
+      const name = e.getAttribute("aria-label") ?? e.textContent?.trim().replace(/\s+/g, " ") ?? ""
+      return {name, width: parseFloat(style.outlineWidth), outline: style.outlineStyle, opacity: style.opacity}
     })
     if (!result) continue
     reached.add(result.name)
@@ -791,7 +715,9 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
     expect(result.outline).toBe("solid")
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
-  expect([...reached]).toEqual(expect.arrayContaining(["uplift techtree", "Stake REGENT", "autolaunch on GitHub"]))
+  expect([...reached]).toEqual(
+    expect.arrayContaining(["Visit Techtree, opens in a new tab", "Stake REGENT"]),
+  )
 })
 // COPY_BUTTON: the $REGENT menu copies the contract address with the shared
 // copy button, which answers "Copied" in place of its label.

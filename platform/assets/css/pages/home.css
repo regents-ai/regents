@@ -20,7 +20,7 @@
   .rl-header-links, .rl-footer-links { display: flex; align-items: center; gap: var(--space-2); }
   .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
   .rl-footer-links a { display: inline-flex; width: 1.25rem; height: 1.25rem; }
-  .rl-footer-links svg, .rl-card-source svg { width: 1.25rem; height: 1.25rem; }
+  .rl-footer-links svg { width: 1.25rem; height: 1.25rem; }
   .rl-token-menu { position: relative; z-index: 10; }
   .rl-token-menu > summary { display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; list-style: none; cursor: pointer; }
   .rl-token-menu > summary::-webkit-details-marker { display: none; }
@@ -39,39 +39,25 @@
   .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
   .rl-hero { min-width: 0; }
-  .rl-hero-stage {
-    position: relative; isolation: isolate; min-width: 0;
-    display: grid; grid-template-rows: auto 1fr; gap: var(--space-4);
-    min-height: 34rem; height: clamp(34rem, calc(100svh - 7rem), 44rem);
-    padding: var(--rg-panel-padding);
-  }
-  /* Copy sits over the field; the cards below stay opaque where lasers pass behind. */
   .rl-hero-copy { position: relative; z-index: 1; width: fit-content; max-width: 100%; align-self: start; padding: var(--space-1) var(--space-2) var(--space-2) 0; }
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; margin-block-start: var(--space-3); }
-  .rl-hero-products { position: relative; z-index: 1; align-self: end; width: min(100%, 72rem); display: grid; gap: var(--space-2); }
-  .rl-hero-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-  .rl-hero-card {
-    --rl-card-fill: var(--palette-platinum);
-    --rl-card-ink: var(--palette-charcoal);
-    --rg-local-fill: var(--rl-card-fill); --rg-local-ink: var(--rl-card-ink);
-    --color-accent: var(--palette-charcoal); --color-fg-on-accent: var(--palette-platinum);
-    display: grid; grid-template-rows: auto 1fr auto; gap: var(--space-2); min-width: 0;
-    padding: var(--space-2); background: var(--rl-card-fill); color: var(--rl-card-ink);
+  /* The homepage hero: the heading stands over the top-left of the cube's
+     stage. The stage takes the heading's row and the one under it, so the list
+     of worlds starts below the heading wherever the cube is not drawn, and the
+     second row is tall enough for that list, so nothing below moves when the
+     cube takes its place. Each height is the list's own at the narrow end of
+     its band of widths, in the present wording. */
+  .rl-hero--home {
+    --rl-worlds-height: 75rem;
+    display: grid; grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(var(--rl-worlds-height), auto) auto;
   }
-  .rl-hero-card[data-home-hero-card="autolaunch"] { --rl-card-fill: var(--palette-tangerine-tango); }
-  .rl-hero-card[data-home-hero-card="techtree"] { --rl-card-fill: var(--palette-powder-blue); }
-  .rl-hero-card[data-home-hero-card="keyfleet"] {
-    --rl-card-fill: var(--palette-charcoal); --rl-card-ink: var(--palette-powder-blue);
-    --color-accent: var(--palette-powder-blue); --color-fg-on-accent: var(--palette-charcoal);
-    border: 1px solid var(--palette-powder-blue);
-  }
-  .rl-card-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-1); }
-  .rl-card-heading h2 { font-size: 1.375rem; line-height: 1.15; }
-
-  .rl-hero-card > p { font-size: .875rem; line-height: 1.45; }
-  .rl-card-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
+  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; }
+  .rl-hero--home .world-cube { grid-area: 1 / 1 / span 2; grid-template-rows: subgrid; min-height: 0; }
+  .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
+  .rl-hero--home .rl-hero-stakers { grid-row: 3; margin-block-start: var(--rg-panel-padding); }
   .rl-hero-stakers { margin: 0 var(--rg-panel-padding) var(--rg-panel-padding); padding: var(--rg-panel-padding); display: grid; gap: var(--space-3); }
   .rl-regent-copy { width: fit-content; max-width: min(100%, 52ch); }
   .rl-regent-copy h2 { margin-block: var(--space-1) var(--space-2); font-size: clamp(1.75rem, 3vw, 2.5rem); line-height: 1.1; font-weight: 400; }
@@ -117,24 +103,13 @@
   .rl-document-links a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-family-ui); }
   @media (max-width: 63.99rem) {
     .rl-header-links { margin-inline-start: auto; }
-    .rl-hero-stage { height: auto; }
-    .rl-hero-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 47.99rem) {
     .rl-header-links { position: relative; gap: .25rem; }
     /* Phone tap targets are 44px square; the icons keep their size. */
     .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
-    /* A phone gets the copy and the products; the artwork stays on wider screens. */
-    .rl-hero-stage { height: auto; min-height: 0; grid-template-rows: auto auto; gap: var(--space-4); }
-    .rl-hero-copy { grid-row: 1; padding: 0; }
-    .rl-hero-stage > .crown { display: none; }
-    .rl-hero-products { grid-row: 2; width: 100%; }
-    .rl-hero-cards { grid-template-columns: minmax(0, 1fr); }
-    .rl-hero-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: var(--space-1) var(--space-2); }
-    .rl-card-heading { grid-column: 1 / -1; }
-    .rl-hero-card > p { align-self: center; }
-    .rl-card-actions { flex-wrap: wrap; justify-content: end; max-width: 12rem; }
+    .rl-hero-copy { padding: 0; }
     .rl-closing { padding-inline-start: var(--rg-panel-padding); }
     .rl-regent-economics { grid-template-columns: minmax(0, 1fr); }
     .rl-chapter-intro { grid-template-columns: minmax(0, 1fr); }
@@ -142,9 +117,21 @@
     .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
     .rl-brand { font-size: .875rem; }
   }
-  @media (max-width: 25rem) {
-    .rl-hero-card { grid-template-columns: minmax(0, 1fr); }
-    .rl-card-actions { justify-content: space-between; max-width: none; }
+  @media (min-width: 22.5rem) {
+    .rl-hero--home { --rl-worlds-height: 54.5rem; }
+  }
+  @media (min-width: 30rem) {
+    .rl-hero--home { --rl-worlds-height: 44rem; }
+  }
+  @media (min-width: 48rem) {
+    .rl-hero--home { --rl-worlds-height: 55.5rem; }
+    .rl-hero--home .rl-hero-copy { padding: var(--space-5) var(--space-5) var(--space-3); }
+  }
+  @media (min-width: 60rem) {
+    .rl-hero--home { --rl-worlds-height: 44rem; }
+  }
+  @media (min-width: 68.75rem) {
+    .rl-hero--home { --rl-worlds-height: 38rem; }
   }
 }
 
@@ -190,10 +177,6 @@
   .rg-button.rl-product-tab::before { transition: none; }
 }
 
-/* Local compact sizing overrides only shared geometry, never its 150ms cut
-   outline or interaction sheen. Keep the actual target at least 44px tall. */
-.rl-card-actions .rg-button { min-height: 2.75rem; padding: var(--space-1); font-size: .75rem; }
-.rl-card-actions .rl-card-source { flex: 0 0 2.75rem; width: 2.75rem; }
 /* The callout is a foil face, which brings its own graphite ground and ink. Its
    buttons keep their corner marks and let the foil show through their plates. */
 .rl-hero-stakers .rg-button::before { background-color: transparent; }

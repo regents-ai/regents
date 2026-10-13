@@ -1,0 +1,244 @@
+@layer regents-product {
+/* The world cube: a night stage the cube turns on. The six worlds are a list
+   of cards on that stage, and stay exactly that wherever the cube cannot be
+   drawn. Once it is drawn (`data-world-ready`), the cards step aside and only
+   the card of the room the visitor is standing in shows. The stage is night
+   in either theme, so its colours are its own. */
+
+.world-cube {
+  --world-cube-ink: #e5e3d2;
+  --world-cube-night: #07080c;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-content: center;
+  /* Tall enough for the list by itself, so the page below never moves when the
+     cube takes the list's place. */
+  min-height: 46rem;
+  padding: var(--space-3);
+  overflow: hidden;
+  background: var(--world-cube-night);
+  color: var(--world-cube-ink);
+}
+
+.world-cube__stage {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 500ms ease-out;
+}
+
+.world-cube__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  /* A finger moving up or down still scrolls the page; sideways turns the cube. */
+  touch-action: pan-y;
+}
+
+.world-cube__canvas:active {
+  cursor: grabbing;
+}
+
+.world-cube__worlds {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* On a narrow screen each world is one short row, its link beside its name, so
+   all six fit the stage. */
+.world-cube__world {
+  --world-cube-title: 1.25rem;
+  --world-cube-line: 0.875rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem var(--space-2);
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--world-cube-ink) 26%, transparent);
+  background: color-mix(in srgb, var(--world-cube-ink) 9%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  transition: opacity 320ms ease-out, translate 320ms ease-out, visibility 0s 320ms;
+}
+
+.world-cube__world h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: var(--world-cube-title);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.world-cube__world p {
+  margin: 0;
+  color: color-mix(in srgb, var(--world-cube-ink) 78%, transparent);
+  font-size: var(--world-cube-line);
+  line-height: 1.4;
+}
+
+.world-cube__world a {
+  grid-area: 1 / 2 / span 2;
+}
+
+/* The row's link says only "Visit"; the name beside it still reaches a screen reader. */
+.world-cube__visit-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.world-cube__hint,
+.world-cube__leave {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 320ms ease-out, visibility 0s 320ms;
+}
+
+.world-cube__hint {
+  inset: auto var(--space-3) var(--space-3);
+  margin: 0;
+  color: color-mix(in srgb, var(--world-cube-ink) 62%, transparent);
+  font: 0.72rem/1.5 var(--font-family-mono);
+  letter-spacing: var(--tracking-microlabel);
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.world-cube__leave {
+  inset: var(--space-3) var(--space-3) auto auto;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--world-cube-ink) 30%, transparent);
+  background: color-mix(in srgb, var(--world-cube-night) 55%, transparent);
+  backdrop-filter: blur(18px);
+  color: var(--world-cube-ink);
+  cursor: pointer;
+}
+
+.world-cube__leave svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Drawn: the stage shows, and the list keeps its place but not its cards. */
+.world-cube[data-world-ready="true"] .world-cube__stage {
+  z-index: 0;
+  opacity: 1;
+}
+
+.world-cube[data-world-ready="true"] .world-cube__worlds {
+  pointer-events: none;
+}
+
+.world-cube[data-world-ready="true"] .world-cube__world {
+  position: absolute;
+  inset: auto auto var(--space-3) var(--space-3);
+  z-index: 1;
+  width: min(22rem, calc(100% - 2 * var(--space-3)));
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 0.75rem;
+}
+
+/* A card with room for it: name, line and link one under the other. */
+.world-cube[data-world-ready="true"] .world-cube__world {
+  --world-cube-title: 1.5rem;
+  --world-cube-line: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-4);
+}
+
+.world-cube[data-world-ready="true"] .world-cube__world a {
+  grid-area: auto;
+}
+
+.world-cube[data-world-ready="true"] .world-cube__visit-name {
+  position: static;
+  width: auto;
+  height: auto;
+  clip-path: none;
+}
+
+.world-cube[data-world-ready="true"][data-world-state="orbit"] .world-cube__hint,
+.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])
+  .world-cube__leave {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 320ms ease-out, visibility 0s;
+}
+
+/* Inside a room: its card, and only its card. */
+.world-cube[data-world-ready="true"][data-world-state="inside"] .world-cube__world:is(
+    [data-world-face="0"] [data-world="0"],
+    [data-world-face="1"] [data-world="1"],
+    [data-world-face="2"] [data-world="2"],
+    [data-world-face="3"] [data-world="3"],
+    [data-world-face="4"] [data-world="4"],
+    [data-world-face="5"] [data-world="5"]
+  ) {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+  pointer-events: auto;
+  transition: opacity 420ms ease-out, translate 420ms ease-out, visibility 0s;
+}
+
+/* The narrowest phones wrap the list onto more lines, so the stage is taller there. */
+@media (max-width: 22.5rem) {
+  .world-cube {
+    min-height: 53rem;
+  }
+}
+
+@media (min-width: 48rem) {
+  .world-cube {
+    min-height: clamp(30rem, 72vh, 46rem);
+    padding: var(--space-5);
+  }
+
+  .world-cube__worlds {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .world-cube__world {
+    --world-cube-title: 1.5rem;
+    --world-cube-line: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    align-content: start;
+    justify-items: start;
+    padding: var(--space-4);
+  }
+
+  .world-cube__world a {
+    grid-area: auto;
+  }
+
+  .world-cube__visit-name {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+  }
+
+  .world-cube[data-world-ready="true"] .world-cube__world {
+    inset: auto auto var(--space-5) var(--space-5);
+  }
+}
+}

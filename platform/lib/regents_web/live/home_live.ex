@@ -1,8 +1,8 @@
 defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Components.Crown
   alias RegentsWeb.Components.RegentLinks
+  alias RegentsWeb.Components.WorldCube
   alias RegentsWeb.{PublicDocuments, RouteCatalog, TokenLinks}
 
   @staking_summary "Stake $REGENT for a share of USDC revenue of the protocol and additional emissions."
@@ -126,49 +126,11 @@ defmodule RegentsWeb.HomeLive do
   defp hero(assigns) do
     ~H"""
     <section class="rl-hero rl-hero--home" aria-labelledby="home-title">
-      <div class="rl-hero-stage">
-        <Crown.crown id="home-crown" look="white" />
-
-        <div class="rl-hero-copy" data-home-hero-copy>
-          <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
-          <p class="rl-hero-description">The community-owned agentic product lab</p>
-          <div class="rl-hero-actions">
-            <a href={~p"/stake"} class="rg-button"><span class="rg-button__label">Stake REGENT</span></a>
-          </div>
-        </div>
-        <div class="rl-hero-products">
-          <ul
-            id="home-products"
-            class="rl-hero-cards"
-            role="list"
-            data-home-hero-cards
-            aria-label="Products"
-          >
-            <li
-              :for={product <- hero_products()}
-              id={"home-card-#{product.name}"}
-              class="rl-hero-card"
-              data-home-hero-card={product.name}
-            >
-              <div class="rl-card-heading">
-                <h2>{product.name}</h2>
-              </div>
-              <p>{product.line}</p>
-              <div class="rl-card-actions">
-                <.product_site product={product} label={product.action} />
-                <a
-                  :if={product.github}
-                  href={product.github}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="rl-card-source rg-button rg-button--quiet"
-                  aria-label={"#{product.name} on GitHub"}
-                ><RegentLinks.source_icon kind={:github} /></a>
-              </div>
-            </li>
-          </ul>
-        </div>
+      <div class="rl-hero-copy">
+        <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
+        <p class="rl-hero-description">The community-owned agentic product lab</p>
       </div>
+      <WorldCube.cube id="home-worlds" label="Regents Labs products" worlds={worlds()} />
 
       <div
         id="home-regent-callout"
@@ -211,6 +173,37 @@ defmodule RegentsWeb.HomeLive do
       </div>
     </section>
     """
+  end
+
+  # The cube's six worlds, each behind the face whose room was drawn for it.
+  @product_faces %{"autolaunch" => 0, "techtree" => 1, "patchbay" => 2, "keyfleet" => 5}
+
+  defp worlds do
+    products =
+      for product <- hero_products() do
+        %{
+          face: Map.fetch!(@product_faces, product.name),
+          name: String.capitalize(product.name),
+          line: product.line,
+          href: product.site
+        }
+      end
+
+    products ++
+      [
+        %{
+          face: 4,
+          name: "Regents staking",
+          line: @staking_summary,
+          href: PublicDocuments.url("/stake")
+        },
+        %{
+          face: 3,
+          name: "Regents on X",
+          line: "News from the lab, as it happens.",
+          href: "https://x.com/regents_sh"
+        }
+      ]
   end
 
   attr :product, :map, required: true
@@ -511,7 +504,6 @@ defmodule RegentsWeb.HomeLive do
         name: "autolaunch",
         line:
           "Invest in stablecoin-generating agents on Base. Earn when they earn. Or — Launch memestocks on Base and Robinhood.",
-        action: "launch",
         site: "https://autolaunch.sh",
         github: "https://github.com/regents-ai/autolaunch"
       },
@@ -519,14 +511,12 @@ defmodule RegentsWeb.HomeLive do
         name: "techtree",
         line:
           "Uplift your harness, Skills, or environments with the latest frontier stack from Prime Intellect and Nvidia",
-        action: "uplift",
         site: "https://techtree.sh",
         github: "https://github.com/regents-ai/techtree"
       },
       %{
         name: "patchbay",
         line: "The fastest way for an agent to get unstuck without waking you",
-        action: "fix",
         site: "https://patchbay.help",
         github: "https://github.com/regents-ai/patchbay"
       },
@@ -534,7 +524,6 @@ defmodule RegentsWeb.HomeLive do
         name: "keyfleet",
         line:
           "Add your personal agent to a fleet with a shared treasury and no top-down orchestration",
-        action: "collaborate",
         site: "https://keyfleet.ai",
         github: nil
       }
