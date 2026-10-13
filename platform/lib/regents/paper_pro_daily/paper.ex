@@ -78,7 +78,12 @@ defmodule Regents.PaperProDaily.Paper do
 
   validations do
     validate match(:arxiv_url, ~r{\Ahttps://[^\s/?#]+(?:[/?#][^\s]*)?\z})
-    validate match(:chatgpt_url, ~r{\Ahttps://chatgpt\.com/share/[A-Za-z0-9\-]+\z})
+
+    validate match(
+               :chatgpt_url,
+               ~r{\Ahttps://chatgpt\.com/(?:share/[A-Za-z0-9\-]+|s/t_[A-Za-z0-9]+)\z}
+             )
+
     validate one_of(:picture_type, ~w(image/webp image/png image/jpeg))
     validate byte_size(:picture, max: 1_000_000)
   end
