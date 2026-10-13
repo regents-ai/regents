@@ -68,7 +68,7 @@ defmodule RegentsWeb.Showcase.Utilities do
     database = config[:database] || ""
 
     if is_nil(config[:url]) and config[:hostname] in ["127.0.0.1", "localhost"] and
-         Regex.match?(~r/\Aregents_[0-9a-f]{12}_test\z/, database) do
+         Regex.match?(~r/\Aregents[a-z0-9_]*_browser_test\z/, database) do
       case Ecto.Adapters.SQL.query(Regents.Repo, "SELECT current_database(), 1", [],
              timeout: 2_000
            ) do

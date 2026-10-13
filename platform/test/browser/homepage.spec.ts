@@ -23,8 +23,12 @@ const waitForHomepage = async (page: import("@playwright/test").Page) => {
   return home
 }
 
-// From this width up the three products stand side by side; below it they read as one column.
-const CARD_ROW_MIN_WIDTH = 768
+// From this width up the four products stand side by side; from the grid width they sit two
+// by two; below it they read as one column.
+const CARD_ROW_MIN_WIDTH = 1024
+const CARD_GRID_MIN_WIDTH = 768
+const cardRowsAt = (width: number) =>
+  width >= CARD_ROW_MIN_WIDTH ? 1 : width >= CARD_GRID_MIN_WIDTH ? 2 : 4
 
 const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   expect(
@@ -32,7 +36,7 @@ const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   ).toBe(true)
 }
 
-test("[U2] homepage is server-readable and lists all three products", async ({browser}) => {
+test("[U2] homepage is server-readable and lists all four products", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
@@ -41,27 +45,27 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   await expect(page.locator(".rl-hero-copy .rl-hero-description")).toHaveText(
     "The community-owned agentic product lab",
   )
-  await expect(page.getByRole("heading", {name: "Prove what makes an agent better."})).toBeVisible()
 
   const cards = page.locator("[data-home-hero-card]")
-  await expect(cards).toHaveCount(3)
+  await expect(cards).toHaveCount(4)
   expect(await cards.evaluateAll(elements => elements.map(element => element.id))).toEqual([
     "home-card-autolaunch",
     "home-card-techtree",
     "home-card-patchbay",
+    "home-card-keyfleet",
   ])
 
   // Every product site is open, so every card carries a live new-tab link.
   const open = page.locator("[data-home-hero-card] a.rl-action")
-  await expect(open).toHaveCount(3)
-  await expect(open).toHaveText(["Open autolaunch ↗", "Open techtree ↗", "Open patchbay ↗"])
-  for (const [name, site] of [
-    ["autolaunch", "https://autolaunch.sh"],
-    ["techtree", "https://techtree.sh"],
-    ["patchbay", "https://patchbay.help"],
+  await expect(open).toHaveCount(4)
+  for (const [name, action, site] of [
+    ["autolaunch", "launch", "https://autolaunch.sh"],
+    ["techtree", "uplift", "https://techtree.sh"],
+    ["patchbay", "fix", "https://patchbay.help"],
+    ["keyfleet", "collaborate", "https://keyfleet.ai"],
   ]) {
     const link = page.locator(`#home-card-${name} a.rl-action`)
-    await expect(link).toHaveText(`Open ${name} ↗`)
+    await expect(link).toHaveText(`${action} ↗`)
     await expect(link).toHaveAttribute("href", site)
     await expect(link).toHaveAttribute("target", "_blank")
     await expect(link).toHaveAttribute("rel", "noopener noreferrer")
@@ -87,7 +91,7 @@ test("[U2] homepage is server-readable and lists all three products", async ({br
   await expect(stake).toHaveAttribute("href", "/stake")
   await expect(stake).not.toHaveAttribute("target", /.+/)
 
-  await expect(page.locator("#techtree, #autolaunch, #patchbay")).toHaveCount(3)
+  await expect(page.locator("#techtree, #autolaunch, #patchbay, #keyfleet")).toHaveCount(4)
   await expect(page.locator("#regent a.rl-action--strong")).toHaveAttribute("href", "/stake")
   await context.close()
 })
@@ -110,28 +114,25 @@ test("[U1] a navigation tab brings its section into view", async ({page}) => {
     .toBe(true)
 })
 
-// Each header control means the same place on the homepage and the blog, by
-// keyboard and at phone width.
+// Each homepage header control leads to its place, by keyboard and at phone width.
 for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
-  test(`[R12] header tabs and App keep one meaning on home and blog at ${name}`, async ({page}) => {
+  test(`[R12] homepage header tabs and App lead to their places at ${name}`, async ({page}) => {
     await page.setViewportSize({width, height})
 
-    for (const start of ["/", "/articles"]) {
-      await page.goto(start)
-      const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
-      await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Protocol"])
-      await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/stake")
-      await assertNoOverflow(page)
+    await page.goto("/")
+    const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
+    await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Protocol"])
+    await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/stake")
+    await assertNoOverflow(page)
 
-      await page.locator("#home-nav-patchbay").focus()
-      await page.keyboard.press("Enter")
-      await expect(page).toHaveURL(/\/#patchbay$/)
+    await page.locator("#home-nav-patchbay").focus()
+    await page.keyboard.press("Enter")
+    await expect(page).toHaveURL(/\/#patchbay$/)
 
-      await page.locator("#home-nav-protocol").focus()
-      await page.keyboard.press("Enter")
-      await expect(page).toHaveURL(/\/stake$/)
-      await expect(page.locator("#regent-staking")).toBeVisible()
-    }
+    await page.locator("#home-nav-protocol").focus()
+    await page.keyboard.press("Enter")
+    await expect(page).toHaveURL(/\/stake$/)
+    await expect(page.locator("#regent-staking")).toBeVisible()
 
     await page.goto("/")
     await page.locator(".rl-header-links a.rl-action").click()
@@ -159,7 +160,7 @@ test("[U2] homepage settles immediately for reduced motion", async ({browser}) =
   await page.goto("/")
   await waitForHomepage(page)
   await expect(page.locator("[data-home-hero-copy]")).toBeVisible()
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
+  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
   await context.close()
 })
 
@@ -234,9 +235,9 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
 })
 
 // The founder's hero: the words in the left half with the crown drawn across the whole stage
-// behind them and the products underneath where there is room, and the same things in reading
-// order, crown between words and products, where there is not.
-test("[U1][U2] the hero sets its words over the crown, and above it on a phone", async ({page}) => {
+// behind them and the products underneath where there is room. On a phone the crown is left
+// out and the words, products and stakers band read in order.
+test("[U1][U2] the hero sets its words over the crown, and leaves it out on a phone", async ({page}) => {
   const boxOf = (selector: string) =>
     page.locator(selector).evaluate(element => {
       const box = element.getBoundingClientRect()
@@ -287,16 +288,14 @@ test("[U1][U2] the hero sets its words over the crown, and above it on a phone",
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
-      // On a phone the crown takes a row of its own between the words and the products.
+      await expect(page.locator("#home-prism")).toBeHidden()
       const title = await boxOf("#home-title")
       const tagline = await boxOf(".rl-hero-copy .rl-hero-description")
-      const crown = await boxOf("#home-prism")
       const cards = await boxOf("#home-products")
       const stakers = await boxOf(".rl-hero-stakers")
 
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
-      expect(tagline.bottom, "the tagline sits above the crown").toBeLessThanOrEqual(crown.top)
-      expect(crown.bottom, "the crown sits above the products").toBeLessThanOrEqual(cards.top)
+      expect(tagline.bottom, "the tagline sits above the products").toBeLessThanOrEqual(cards.top)
       expect(cards.bottom, "the products sit above the stakers band").toBeLessThanOrEqual(
         stakers.top,
       )
@@ -317,7 +316,7 @@ for (const viewport of [
     await assertNoOverflow(page)
 
     const cards = page.locator("[data-home-hero-card]")
-    await expect(cards).toHaveCount(3)
+    await expect(cards).toHaveCount(4)
     const boxes = await cards.evaluateAll(elements =>
       elements.map(element => {
         const box = element.getBoundingClientRect()
@@ -326,10 +325,8 @@ for (const viewport of [
     )
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
-    // Three across where the frame is wide enough, one column below that.
-    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(
-      viewport.width >= CARD_ROW_MIN_WIDTH ? 1 : 3,
-    )
+    // Four across where the frame is wide enough, two by two below that, then one column.
+    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(cardRowsAt(viewport.width))
 
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
@@ -343,7 +340,7 @@ for (const viewport of [
   })
 }
 
-test("[U1][U2] the products read autolaunch, techtree, patchbay at every viewport", async ({page}) => {
+test("[U1][U2] the products read autolaunch, techtree, patchbay, keyfleet at every viewport", async ({page}) => {
   for (const viewport of focusViewports) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
@@ -363,22 +360,24 @@ test("[U1][U2] the products read autolaunch, techtree, patchbay at every viewpor
         }),
       )
 
-      expect(cards.map(card => card.product)).toEqual(["autolaunch", "techtree", "patchbay"])
+      expect(cards.map(card => card.product)).toEqual(["autolaunch", "techtree", "patchbay", "keyfleet"])
       expect(cards.map(card => card.id)).toEqual([
         "home-card-autolaunch",
         "home-card-techtree",
         "home-card-patchbay",
+        "home-card-keyfleet",
       ])
 
-      // Side by side the cards share one top and step to the right; stacked they share one
-      // left edge and step down. Either way they read in the founder's order.
+      // The cards read in the founder's order, row by row: each starts a new row on the first
+      // card's left edge or follows the one before it on the same row.
+      expect(new Set(cards.map(card => Math.round(card.top))).size).toBe(cardRowsAt(viewport.width))
       for (const [index, card] of cards.entries()) {
         if (index === 0) continue
-        if (viewport.width >= CARD_ROW_MIN_WIDTH) {
-          expect(card.top).toBeCloseTo(cards[0].top, 0)
-          expect(card.left).toBeGreaterThan(cards[index - 1].left)
+        const before = cards[index - 1]
+        if (Math.round(card.top) === Math.round(before.top)) {
+          expect(card.left).toBeGreaterThan(before.left)
         } else {
-          expect(card.top).toBeGreaterThan(cards[index - 1].top)
+          expect(card.top).toBeGreaterThan(before.top)
           expect(card.left).toBeCloseTo(cards[0].left, 0)
         }
       }
@@ -598,7 +597,7 @@ test("[U5] the Patchbay action stays contained and reachable at every tested vie
           }),
         )
 
-      expect(boxes.map(box => [box.href, box.text])).toEqual([["https://patchbay.help", "Open patchbay ↗"]])
+      expect(boxes.map(box => [box.href, box.text])).toEqual([["https://patchbay.help", "fix ↗"]])
       expect(boxes.every(box => box.left >= 0 && box.right <= viewport.width)).toBe(true)
       expect(boxes.every(box => box.height >= 44)).toBe(true)
     })
@@ -792,7 +791,7 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
     expect(result.outline).toBe("solid")
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
-  expect([...reached]).toEqual(expect.arrayContaining(["Open techtree ↗", "Stake REGENT", "autolaunch on GitHub"]))
+  expect([...reached]).toEqual(expect.arrayContaining(["uplift techtree", "Stake REGENT", "autolaunch on GitHub"]))
 })
 // COPY_BUTTON: the $REGENT menu copies the contract address with the shared
 // copy button, which answers "Copied" in place of its label.

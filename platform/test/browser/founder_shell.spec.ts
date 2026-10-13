@@ -133,19 +133,19 @@ test("the public homepage presents the product hero and marketing chapters", asy
     "/images/home/hero-bg-dark.svg",
   )
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The cards name the three products; the chapters below them are a separate story.
-  await expect(page.locator("[data-home-hero-card]")).toHaveCount(3)
+  // The cards name the four products; the chapters below them are a separate story.
+  await expect(page.locator("[data-home-hero-card]")).toHaveCount(4)
   expect(
     await page
       .locator("[data-home-hero-card]")
       .evaluateAll(elements => elements.map(element => element.dataset.homeHeroCard)),
-  ).toEqual(["autolaunch", "techtree", "patchbay"])
+  ).toEqual(["autolaunch", "techtree", "patchbay", "keyfleet"])
   await expect(page.locator(".rl-hero-stakers")).toBeVisible()
 
   const sectionTops = await page
-    .locator("#techtree, #autolaunch, #patchbay")
+    .locator("#techtree, #autolaunch, #patchbay, #keyfleet")
     .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
-  expect(sectionTops).toHaveLength(3)
+  expect(sectionTops).toHaveLength(4)
   expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))
   expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
@@ -175,7 +175,7 @@ test("the bounded technical crown never blocks the action", async ({page}) => {
     await expectOneHeroLayer()
     await expect(page.locator("#home-title")).toBeVisible()
     await page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"}).click({trial: true})
-    await page.locator("#home-card-techtree").getByRole("link", {name: "Open techtree"}).click({trial: true})
+    await page.locator("#home-card-techtree").getByRole("link", {name: "uplift techtree"}).click({trial: true})
     await page.emulateMedia({reducedMotion: "reduce"})
     await expectOneHeroLayer()
     await page.emulateMedia({reducedMotion: "no-preference"})
@@ -200,25 +200,6 @@ test("the primary homepage action keeps its contrast on hover", async ({page}) =
       }),
     )
     .toEqual(before)
-})
-
-test("the three homepage product cards remain full-width and ordered on mobile", async ({page}) => {
-  await page.setViewportSize({width: 390, height: 844})
-  await page.goto("/")
-
-  const boxes = await page.locator("[data-home-hero-card]").evaluateAll(elements =>
-    elements.map(element => {
-      const box = element.getBoundingClientRect()
-      return {left: box.left, right: box.right, top: box.top}
-    }),
-  )
-
-  expect(boxes).toHaveLength(3)
-  expect(boxes.map(box => box.top)).toEqual(
-    [...boxes].map(box => box.top).sort((left, right) => left - right),
-  )
-  expect(boxes.every(box => box.left >= 0 && box.right <= 390)).toBe(true)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
 })
 
 test("anonymous Sign in stays separate from the brand link", async ({page}) => {
