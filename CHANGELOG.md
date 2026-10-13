@@ -1635,3 +1635,7 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - A name's picture is read only through the ENS picture service, never from an
   address the name's own record points at. This is how the shared library and
   the template read it.
+- A picture service that answers "busy" or "broken" is treated the same as one
+  that does not answer: nothing changes and the next sign-in asks again. Only
+  its other answers, such as the one it gives for a name without a picture,
+  mean no picture.
