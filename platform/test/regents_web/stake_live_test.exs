@@ -582,12 +582,12 @@ defmodule RegentsWeb.StakeLiveTest do
     # press was still in the wallet when the person switched; Base's answer is
     # read against the wallet that sent it, so its check is still running.
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => @second})
-    set_amount(view, "1")
-    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
-
     put_chain(:test_chain_transactions, @hash, approval)
     put_chain(:test_chain_receipts, @hash, %{"status" => "0x1"})
     render_async(view, 3_000)
+
+    set_amount(view, "1")
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
     assert has_element?(view, "#staking-activity-#{@hash}", "Approved. You can stake now.")
   end
 
