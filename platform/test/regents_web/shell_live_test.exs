@@ -213,7 +213,7 @@ defmodule RegentsWeb.ShellLiveTest do
     assert Regents.Ens.refresh(account) == :started
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
 
-    assert render(view) =~ ~s(src="https://avatars.regents.test/atlas.png")
+    assert render(view) =~ ~s(src="https://metadata.ens.domains/mainnet/avatar/atlas.eth")
     assert has_element?(view, "#account-control [data-account-target=profile]", "atlas.eth")
   end
 
