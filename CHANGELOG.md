@@ -1580,3 +1580,11 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   "retained product interfaces; some may not be available yet".
 - /capabilities drops its "prepared_source" release labels: the tools are
   live and `account points` ships in regents-cli 1.9.4.
+
+## 2026-10-13 — The sign-in server gets the body's digest, not the body (local, unreleased)
+
+- elixir-utils moves to be6eeae. When regents.sh asks siwa.regents.sh to check
+  a signed agent request, it now sends the digest of the request body instead
+  of the body itself, so an agent's pairing code and page cursors never leave
+  regents.sh. This goes live right after the sign-in server makes the same
+  switch.

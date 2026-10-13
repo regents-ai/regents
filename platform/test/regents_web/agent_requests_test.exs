@@ -25,9 +25,9 @@ defmodule RegentsWeb.AgentRequestsTest do
              |> post("/api/agents/v1/pair", body)
              |> json_response(201)
 
-    # The signature covers the exact bytes the agent sent, for this site.
+    # The sign-in server gets the digest of the exact bytes the agent sent, for this site.
     assert_received {:verified, ["regents-test"], %{"path" => "/api/agents/v1/pair"} = envelope}
-    assert envelope["body"] == body
+    assert envelope["body_digest"] == Siwa.content_digest_for_body(body)
 
     assert {:ok, [%{name: "Sol", harness: :claude_code}]} =
              RegentAgents.list_my_agents(actor: person)
