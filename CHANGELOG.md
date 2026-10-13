@@ -1605,3 +1605,13 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - Not a release: on 13 Oct 14:57Z nine of the twelve 13 Oct Daily Research
   papers moved to earlier days, three each to 9, 10 and 11 Oct, keeping the
   page's order (Sean, 13 Oct). Those days already had one paper each.
+
+## 2026-10-13 — GitHub main's two unreleased changes join the release line (local, unreleased)
+
+- Daily Research accepts ChatGPT's public message links
+  (`https://chatgpt.com/s/t_…`) as well as share links
+  (`https://chatgpt.com/share/…`) for a paper's ChatGPT link. This was
+  committed to main on 13 Oct (e311cb05) but no release since has carried it.
+- The Stake test for one approval per wallet keeps this line's wait for the
+  second wallet's figures and gains main's check (8e9ab33b) that the second
+  wallet still needs its own approval after the first wallet's is confirmed.
