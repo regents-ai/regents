@@ -47,7 +47,7 @@ defmodule RegentsWeb.PublicDocuments do
        "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
     "/account/credits" =>
       {"Credits",
-       "Credits pay for things on every Regents site. Every purchase from this account, with its transaction."},
+       "Credits pay for things on every Regent site. Every purchase from this account, with its transaction."},
     "/account/points" =>
       {"Points", "Your points, your NFT bonus and what earns points across Regent sites."},
     "/stake" =>

@@ -31,7 +31,7 @@ defmodule RegentsWeb.CreditsLive do
       <header class="account-heading">
         <p class="account-kicker">Regents Labs</p>
         <h1 tabindex="-1">Credits</h1>
-        <p class="account-lede">Pay for things on every Regents site. Buy them with USDC on Base.</p>
+        <p class="account-lede">Pay for things on every Regent site. Buy them with USDC on Base.</p>
       </header>
 
       <Regent.Account.signed_out
