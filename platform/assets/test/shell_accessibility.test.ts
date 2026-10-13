@@ -6,6 +6,7 @@ type Hook = Record<string, ((...args: unknown[]) => unknown) | undefined>
 const captured = vi.hoisted(() => ({hooks: {} as Record<string, Hook>}))
 
 vi.mock("phoenix", () => ({Socket: class Socket {}}))
+vi.mock("phoenix_html", () => ({}))
 vi.mock("phoenix-colocated/regents", () => ({hooks: {}}))
 vi.mock("../js/auth_lazy", () => ({
   browserCsrfToken: () => "csrf-token",
