@@ -81,7 +81,7 @@
 /* Page composition sits alongside the shared grid's unlayered defaults. */
 .regent-ops-products.rg-feature-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1ch;
   margin: 0;
   padding: 0;
@@ -93,6 +93,10 @@
 .regent-ops-product .rg-feature__caption { display: flex; flex-direction: column; }
 .regent-ops-product .rg-feature__actions { margin-block-start: auto; padding-block-start: .5rem; }
 .regent-ops-product .rl-card-diagram { pointer-events: none; }
+
+@media (max-width: 89.999rem) {
+  .regent-ops-products.rg-feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 
 @media (max-width: 63.999rem) {
   .regent-ops-products.rg-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

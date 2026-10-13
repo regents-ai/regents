@@ -144,16 +144,16 @@
     /* Phone tap targets are 44px square; the icons keep their size. */
     .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
-    .rl-hero-stage { height: auto; min-height: 0; grid-template-rows: auto 15rem auto; gap: var(--space-2); }
+    /* A phone gets the copy and the products; the artwork stays on wider screens. */
+    .rl-hero-stage { height: auto; min-height: 0; grid-template-rows: auto auto; gap: var(--space-4); }
     .rl-hero-copy { grid-row: 1; padding: 0; }
-    .rl-hero-prism { position: relative; inset: auto; grid-row: 2; width: 100%; height: 15rem; }
-    .rl-hero-products { grid-row: 3; width: 100%; }
+    .rl-hero-prism { display: none; }
+    .rl-hero-products { grid-row: 2; width: 100%; }
     .rl-hero-cards { grid-template-columns: minmax(0, 1fr); }
     .rl-hero-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: var(--space-1) var(--space-2); }
     .rl-card-heading { grid-column: 1 / -1; }
     .rl-hero-card > p { align-self: center; }
     .rl-card-actions { flex-wrap: wrap; justify-content: end; max-width: 12rem; }
-    .rl-hero-art { object-fit: contain; }
     .rl-closing { padding-inline-start: var(--rg-panel-padding); }
     .rl-regent-economics { grid-template-columns: minmax(0, 1fr); }
     .rl-chapter-intro { grid-template-columns: minmax(0, 1fr); }

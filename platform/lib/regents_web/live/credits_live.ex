@@ -1,7 +1,7 @@
 defmodule RegentsWeb.CreditsLive do
   @moduledoc """
   The Regent Credits pages regents.sh hosts for every Regent site: the refund
-  rules and the Purchase History every Buy Credits panel links to, and the
+  rules and the Credits page with the purchase history every Buy Credits panel links to, and the
   admin page where a Credits admin gives Credits and handles refunds. The library refuses every
   admin action to anyone its `:admins` setting does not name; this page only
   decides what to show.
@@ -30,7 +30,8 @@ defmodule RegentsWeb.CreditsLive do
     <article id="credits-history-page" class="account-page credits-page">
       <header class="account-heading">
         <p class="account-kicker">Regents Labs</p>
-        <h1 tabindex="-1">Purchase History</h1>
+        <h1 tabindex="-1">Credits</h1>
+        <p class="account-lede">Pay for things on every Regents site. Buy them with USDC on Base.</p>
       </header>
 
       <Regent.Account.signed_out
@@ -45,7 +46,8 @@ defmodule RegentsWeb.CreditsLive do
         </:sign_in>
       </Regent.Account.signed_out>
 
-      <section :if={@account} class="account-panel">
+      <section :if={@account} class="account-panel" aria-labelledby="credits-history-title">
+        <h2 id="credits-history-title">Purchases</h2>
         <.live_component
           module={RegentsWeb.CreditsHistory}
           id="credits-history"

@@ -178,12 +178,30 @@ defmodule RegentsWeb.ShellLive do
           patch="/admin/articles"
         >New Article →</.link>
         <Regent.Blog.gallery
-          :if={@route_spec.route_id == :blog}
+          :if={@route_spec.route_id == :blog and @blog_posts != []}
           posts={@blog_posts}
           site="Regents Labs"
           name="Articles"
           path="/articles"
         />
+        <%!-- Before the first article, point readers at what is new every day. --%>
+        <section
+          :if={@route_spec.route_id == :blog and @blog_posts == []}
+          class="rg-blog rg-sheet rg-blog--gallery"
+          aria-labelledby="blog-title"
+        >
+          <header class="rg-blog__intro">
+            <p class="rg-blog__eyebrow">Articles</p>
+            <h1 id="blog-title">Latest updates from Regents Labs.</h1>
+          </header>
+          <div class="rg-blog__empty">
+            <h2>The first article is on its way.</h2>
+            <p>
+              Until then, <.link navigate="/paper-pro-daily">Daily Research</.link>
+              has new papers every day.
+            </p>
+          </div>
+        </section>
 
         <%!-- The post is static; retain the shared renderer's client-side math enhancement. --%>
         <div

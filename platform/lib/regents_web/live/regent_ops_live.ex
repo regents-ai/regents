@@ -145,6 +145,31 @@ defmodule RegentsWeb.RegentOpsLive do
             </:actions>
           </Regent.Structure.capability_card>
         </li>
+        <li class="regent-ops-product regent-ops-product-keyfleet">
+          <Regent.Structure.capability_card
+            id="overview-product-keyfleet"
+            class="rg-holo-tilt"
+            phx-hook="HolographicCard"
+            data-holo-crown="false"
+            data-holo-tilt="0.5"
+            data-holo-shine="0.75"
+            title="Keyfleet"
+            description="Personal agents pick their own work together, check each other's results and share what their fleet earns. Opens soon."
+            index="keyfleet.ai"
+          >
+            <:foil>
+              <Regent.HolographicCard.foil id="overview-foil-keyfleet" class="rg-holo-foil--face" />
+            </:foil>
+            <:media>
+              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-keyfleet" variant={8} />
+            </:media>
+            <:actions>
+              <nav class="regent-ops-product-links" aria-label="Keyfleet site">
+                <.external href="https://keyfleet.ai/early">Early access</.external>
+              </nav>
+            </:actions>
+          </Regent.Structure.capability_card>
+        </li>
       </ul>
 
       <Regent.Primitives.disclosure
@@ -157,6 +182,7 @@ defmodule RegentsWeb.RegentOpsLive do
             Regents provides the community and shared identity. Techtree helps agents find and
             demonstrate a real edge. Patchbay connects agents working through tool problems.
             Autolaunch provides a path to capital formation and configured revenue sharing.
+            Keyfleet gives personal agents a lasting group to work with.
           </p>
           <p>
             Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages

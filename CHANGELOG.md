@@ -1543,3 +1543,18 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   the commands that work today; the old npm command line note is gone.
 - "Agent spending opens soon." replaces the paused-rollout wording on the
   Credits page and in agents.md.
+
+## 2026-10-13 — Stake first, Credits in the menu, Keyfleet on /app (local, unreleased)
+
+- /stake: the Stake box comes straight after the heading; the earnings figures
+  sit beside it (below it on a phone). The opening line now reads "Earn a share
+  of Regents Labs' USDC revenue, plus new REGENT." On a phone, Buy REGENT and
+  View Chart share one row.
+- The side menu gains "Credits" after Account. The Credits page is titled
+  "Credits", with one line on what Credits are, and its list is "Purchases".
+- /app lists Keyfleet beside the other products, with an Early access link to
+  keyfleet.ai/early.
+- On a phone, the home page shows the words and the products without the empty
+  artwork box above them.
+- /articles, before the first article, says one is on its way and points to
+  Daily Research instead of showing nothing.

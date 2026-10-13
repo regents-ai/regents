@@ -89,6 +89,7 @@ defmodule RegentsWeb.RouteCatalogTest do
              %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+             %RouteTarget{route_id: :account_credits, label: "Credits", path: "/account/credits"},
              %ViewerProfileTarget{label: "Profile"},
              %SidebarHeading{label: "Products"},
              %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},

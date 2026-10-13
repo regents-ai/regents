@@ -18,10 +18,6 @@
 }
 
 .stake-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
-  gap: clamp(1.5rem, 5vw, 4.5rem);
-  align-items: end;
   padding: var(--rg-panel-padding);
 }
 
@@ -815,7 +811,6 @@
 }
 
 @media (max-width: 64rem) {
-  .stake-heading { grid-template-columns: minmax(0, 1fr); }
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -829,6 +824,8 @@
   .stake-heading,
   .stake-actions,
   .stake-overview { padding: 1rem; }
+  /* Buy and Chart side by side, so the Stake box stays near the top. */
+  .stake-token-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
   .stake-preview { grid-template-columns: minmax(0, 1fr); }
   .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
   /* Available, then the 50% and Max shortcuts beside it, then the submit
@@ -1031,5 +1028,14 @@
     inset: 0;
     border: 1px solid ButtonText;
     pointer-events: none;
+  }
+}
+
+/* On a phone the two token links share a row. The shared button's padding and
+ * type size sit outside this layer, so the narrower fit is set here. */
+@media (max-width: 30rem) {
+  .stake-token-links .stake-buy {
+    padding-inline: var(--space-1);
+    font-size: 0.8125rem;
   }
 }

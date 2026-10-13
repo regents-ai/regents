@@ -29,9 +29,7 @@ defmodule RegentsWeb.StakeLive do
         <div class="stake-heading-copy">
           <p class="stake-kicker">REGENT staking · Base</p>
           <h1 id="staking-page-heading" tabindex="-1">Put REGENT to work.</h1>
-          <p class="stake-lede">
-            Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions.
-          </p>
+          <p class="stake-lede">Earn a share of Regents Labs' USDC revenue, plus new REGENT.</p>
           <div class="stake-token-links">
             <a
               class="rg-button stake-buy"
@@ -51,82 +49,6 @@ defmodule RegentsWeb.StakeLive do
             </span></a>
           </div>
         </div>
-
-        <dl
-          :if={@dashboard}
-          id="staking-benefits"
-          class="stake-benefit-grid"
-          aria-label="Current staking benefits"
-          phx-hook="MotionCount"
-          data-variant={RegentsWeb.Motion.standard("count")}
-        >
-          <div class="stake-benefit-card stake-benefit-card-primary">
-            <dt>Regent Labs USDC Earned</dt>
-            <dd class="stake-earned-split">
-              <span class="stake-earned-part">
-                <span class="stake-earned-label">Last 7 days</span>
-                <span class="stake-earned-figure">
-                  <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
-                </span>
-              </span>
-              <span class="stake-earned-part">
-                <span class="stake-earned-label">Lifetime</span>
-                <span class="stake-earned-figure">
-                  <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
-                </span>
-              </span>
-            </dd>
-          </div>
-          <div class="stake-benefit-card">
-            <dt>REGENT Staked</dt>
-            <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
-          </div>
-          <div class="stake-benefit-card stake-benefit-supply">
-            <dt>Circulating REGENT</dt>
-            <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /> <.supply_info /></dd>
-          </div>
-          <div class="stake-benefit-card stake-benefit-supply">
-            <dt>Circulating MCAP</dt>
-            <dd :if={@dashboard.market_cap}>{@dashboard.market_cap} USD <.value_info /></dd>
-            <dd :if={!@dashboard.market_cap}><TokenDisplay.amount amount={:unavailable} /></dd>
-          </div>
-          <div class="stake-benefit-card stake-benefit-supply">
-            <dt>Total REGENT</dt>
-            <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
-          </div>
-        </dl>
-        <dl
-          :if={!@dashboard}
-          id={
-            if @status == :loading,
-              do: "staking-benefits-skeleton",
-              else: "staking-benefits-unavailable"
-          }
-          class="stake-benefit-grid"
-          aria-label="Current staking benefits"
-          aria-busy={to_string(@status == :loading)}
-        >
-          <div class="stake-benefit-card stake-benefit-card-primary">
-            <dt>Regent Labs USDC Earned</dt>
-            <dd class="stake-earned-split">
-              <span :for={label <- ["Last 7 days", "Lifetime"]} class="stake-earned-part">
-                <span class="stake-earned-label">{label}</span>
-                <span class="stake-earned-figure"><.unread loading={@status == :loading} /></span>
-              </span>
-            </dd>
-          </div>
-          <div class="stake-benefit-card">
-            <dt>REGENT Staked</dt>
-            <dd><.unread loading={@status == :loading} kind="metric" /></dd>
-          </div>
-          <div
-            :for={label <- ["Circulating REGENT", "Circulating MCAP", "Total REGENT"]}
-            class="stake-benefit-card stake-benefit-supply"
-          >
-            <dt>{label}</dt>
-            <dd><.unread loading={@status == :loading} /></dd>
-          </div>
-        </dl>
       </header>
 
       <dialog
@@ -233,6 +155,82 @@ defmodule RegentsWeb.StakeLive do
         </div>
 
         <div class="stake-column">
+          <dl
+            :if={@dashboard}
+            id="staking-benefits"
+            class="stake-benefit-grid"
+            aria-label="Current staking benefits"
+            phx-hook="MotionCount"
+            data-variant={RegentsWeb.Motion.standard("count")}
+          >
+            <div class="stake-benefit-card stake-benefit-card-primary">
+              <dt>Regent Labs USDC Earned</dt>
+              <dd class="stake-earned-split">
+                <span class="stake-earned-part">
+                  <span class="stake-earned-label">Last 7 days</span>
+                  <span class="stake-earned-figure">
+                    <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
+                  </span>
+                </span>
+                <span class="stake-earned-part">
+                  <span class="stake-earned-label">Lifetime</span>
+                  <span class="stake-earned-figure">
+                    <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
+                  </span>
+                </span>
+              </dd>
+            </div>
+            <div class="stake-benefit-card">
+              <dt>REGENT Staked</dt>
+              <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
+            </div>
+            <div class="stake-benefit-card stake-benefit-supply">
+              <dt>Circulating REGENT</dt>
+              <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /> <.supply_info /></dd>
+            </div>
+            <div class="stake-benefit-card stake-benefit-supply">
+              <dt>Circulating MCAP</dt>
+              <dd :if={@dashboard.market_cap}>{@dashboard.market_cap} USD <.value_info /></dd>
+              <dd :if={!@dashboard.market_cap}><TokenDisplay.amount amount={:unavailable} /></dd>
+            </div>
+            <div class="stake-benefit-card stake-benefit-supply">
+              <dt>Total REGENT</dt>
+              <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
+            </div>
+          </dl>
+          <dl
+            :if={!@dashboard}
+            id={
+              if @status == :loading,
+                do: "staking-benefits-skeleton",
+                else: "staking-benefits-unavailable"
+            }
+            class="stake-benefit-grid"
+            aria-label="Current staking benefits"
+            aria-busy={to_string(@status == :loading)}
+          >
+            <div class="stake-benefit-card stake-benefit-card-primary">
+              <dt>Regent Labs USDC Earned</dt>
+              <dd class="stake-earned-split">
+                <span :for={label <- ["Last 7 days", "Lifetime"]} class="stake-earned-part">
+                  <span class="stake-earned-label">{label}</span>
+                  <span class="stake-earned-figure"><.unread loading={@status == :loading} /></span>
+                </span>
+              </dd>
+            </div>
+            <div class="stake-benefit-card">
+              <dt>REGENT Staked</dt>
+              <dd><.unread loading={@status == :loading} kind="metric" /></dd>
+            </div>
+            <div
+              :for={label <- ["Circulating REGENT", "Circulating MCAP", "Total REGENT"]}
+              class="stake-benefit-card stake-benefit-supply"
+            >
+              <dt>{label}</dt>
+              <dd><.unread loading={@status == :loading} /></dd>
+            </div>
+          </dl>
+
           <Regent.Structure.section_bar class="rg-support-band">
             <h2 class="rg-section-bar__label">Supply &amp; revenue</h2>
           </Regent.Structure.section_bar>

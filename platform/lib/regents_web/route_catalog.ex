@@ -192,8 +192,8 @@ defmodule RegentsWeb.RouteCatalog do
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
        :regents_labs, %{}},
     account_credits:
-      {:account_credits, :regent_ops, "Regents Labs", "Purchase History", "/app",
-       [:profile_actions], :regents_labs, %{}},
+      {:account_credits, :regent_ops, "Regents Labs", "Credits", "/app", [:profile_actions],
+       :regents_labs, %{}},
     account_points:
       {:account_points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions],
        :regents_labs, %{}},
@@ -287,6 +287,7 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+        %RouteTarget{route_id: :account_credits, label: "Credits", path: "/account/credits"},
         %ViewerProfileTarget{label: "Profile"},
         %SidebarHeading{label: "Products"},
         %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
