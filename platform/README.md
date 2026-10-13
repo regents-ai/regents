@@ -49,6 +49,11 @@ Without `PRIVY_APP_ID` and `PRIVY_VERIFICATION_KEY` the site refuses to start. A
 has no settings files of its own, so start it from the worktree's `platform` folder with
 `direnv exec <main checkout>/platform mix phx.server`.
 
+`mix regents.setup_local_auth` creates the shared tables and runs every migration. After
+that, `mix ecto.migrate`, `mix ecto.rollback` and `mix ecto.migrations` work on Regents'
+own migration ledger, `regents_app.schema_migrations`, the same one the release uses:
+`mix.exs` gives each of them `--prefix regents_app`.
+
 > [!NOTE]
 > The local flow talks to one loopback PostgreSQL database, `regents_dev`, on
 > `127.0.0.1`, and database startup stays off unless it is explicitly enabled. What does

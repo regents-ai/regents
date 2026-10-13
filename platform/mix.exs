@@ -154,6 +154,12 @@ defmodule Regents.MixProject do
         "esbuild regents --minify",
         "phx.digest"
       ],
+      # Regents' migration ledger is regents_app.schema_migrations, the one
+      # Regents.Repo.migrate!/1 and the release use. The stock commands read and
+      # write that ledger, and run each migration in that schema, only with this prefix.
+      "ecto.migrate": ["ecto.migrate --prefix regents_app"],
+      "ecto.rollback": ["ecto.rollback --prefix regents_app"],
+      "ecto.migrations": ["ecto.migrations --prefix regents_app"],
       # The test database is prepared before the site starts, since its Oban
       # refuses to start without its tables.
       test: ["ecto.create --quiet", "regents.setup_local_auth", "test"],

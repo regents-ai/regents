@@ -104,8 +104,7 @@ config :regents, Regents.Repo,
   database: "regents_disabled",
   hostname: "127.0.0.1",
   port: 1,
-  pool_size: 1,
-  migration_default_prefix: "regents_app"
+  pool_size: 1
 
 config :regents, :sprite_provider, RegentSprites
 config :regents, :siwa, base_url: nil, activity_read_token: nil
