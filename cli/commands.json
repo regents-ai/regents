@@ -16,7 +16,7 @@
       "operation_id": "pairAgent",
       "method": "POST",
       "path": "/api/agents/v1/pair",
-      "authority": "wallet-proof",
+      "authority": "signed_agent",
       "effect": "write",
       "stdin_fields": [
         {
@@ -45,7 +45,7 @@
       "operation_id": "checkInAgent",
       "method": "GET",
       "path": "/api/agents/v1/me",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "write"
     },
     {
@@ -54,7 +54,7 @@
       "operation_id": "agentWhoami",
       "method": "GET",
       "path": "/api/agents/v1/whoami",
-      "authority": "wallet-proof",
+      "authority": "signed_agent",
       "effect": "read",
       "webmcp": "regents_agent_whoami"
     },
@@ -64,7 +64,7 @@
       "operation_id": "agentAccount",
       "method": "GET",
       "path": "/api/agent/v1/account",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_account"
     },
@@ -74,7 +74,7 @@
       "operation_id": "agentClaims",
       "method": "POST",
       "path": "/api/agent/v1/claims",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_claims",
       "flags": [
@@ -94,7 +94,7 @@
       "operation_id": "agentStakingPosition",
       "method": "GET",
       "path": "/api/agent/v1/staking/position",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_stake_position"
     },
@@ -104,7 +104,7 @@
       "operation_id": "agentCreditsBalance",
       "method": "GET",
       "path": "/api/agent/v1/credits/balance",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_credits_balance"
     },
@@ -114,7 +114,7 @@
       "operation_id": "agentCreditsHistory",
       "method": "POST",
       "path": "/api/agent/v1/credits/history",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_credits_history",
       "flags": [
@@ -134,7 +134,7 @@
       "operation_id": "agentCreditsBudget",
       "method": "GET",
       "path": "/api/agent/v1/credits/budget",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_credits_budget"
     },
@@ -144,7 +144,7 @@
       "operation_id": "agentPointsSummary",
       "method": "GET",
       "path": "/api/agent/v1/points",
-      "authority": "wallet-proof",
+      "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_points_summary"
     }

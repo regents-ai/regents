@@ -1588,3 +1588,12 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   of the body itself, so an agent's pairing code and page cursors never leave
   regents.sh. This goes live right after the sign-in server makes the same
   switch.
+
+## 2026-10-13 — Each agent command says who may run it (local, unreleased)
+
+- cli/commands.json names who may run each command instead of "wallet-proof":
+  `agents pair` and `agents whoami` work for any signed-in agent; every other
+  command needs an agent its person has paired with their account. None has
+  extra conditions, since Regents lets no agent spend.
+- `make check` now runs regents-cli's command check at 41da3144, the first
+  commit that knows these names.
