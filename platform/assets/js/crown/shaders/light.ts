@@ -1,16 +1,9 @@
 /**
- * The additive sheet the traced lasers are drawn as.
+ * The additive sheet the traced beams are drawn as: bright along the middle of a beam, gone at its edges, dimmer the further the light has travelled since it left the glass.
  *
- * The tracer has already decided every beam's colour, so this pass only shapes
- * one: bright along the middle of a beam, gone at its edges, and dimmer the
- * further the light has travelled since it left the glass.
- *
- * Adapted from the Techtree crown, itself derived from the Vercel vgpu prism
- * background. See THIRD_PARTY_NOTICES.md.
+ * Derived from the Vercel vgpu prism background. See THIRD_PARTY_NOTICES.md.
  */
-export default {
-  version: 1,
-  wgsl: `
+export const lightWgsl = `
 struct LightParams {
   viewProjection: mat4x4f,
   lightPlaneZ: f32,
@@ -64,5 +57,4 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
     0.0,
   );
 }
-`,
-} as const
+`

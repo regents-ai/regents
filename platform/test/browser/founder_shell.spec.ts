@@ -128,7 +128,7 @@ test("the public homepage presents the product hero and marketing chapters", asy
   await page.goto("/")
 
   await expect(page.locator("#public-home")).toBeVisible()
-  await expect(page.locator("#home-prism .rl-hero-art")).toHaveAttribute(
+  await expect(page.locator("#home-crown .crown__still")).toHaveAttribute(
     "src",
     "/images/home/hero-bg-dark.svg",
   )
@@ -159,9 +159,9 @@ test("the public homepage presents the product hero and marketing chapters", asy
 // and actions stay reachable.
 test("the bounded technical crown never blocks the action", async ({page}) => {
   const expectOneHeroLayer = async () => {
-    const layers = await page.locator("#home-prism").evaluate(element => ({
-      art: getComputedStyle(element.querySelector(".rl-hero-art")!).visibility,
-      crownReady: element.getAttribute("data-prism-ready") === "true",
+    const layers = await page.locator("#home-crown").evaluate(element => ({
+      art: getComputedStyle(element.querySelector(".crown__still")!).visibility,
+      crownReady: element.getAttribute("data-crown-ready") === "true",
     }))
     expect(layers.art).toBe(layers.crownReady ? "hidden" : "visible")
   }
@@ -169,9 +169,9 @@ test("the bounded technical crown never blocks the action", async ({page}) => {
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
-    const prism = page.locator("#home-prism")
-    await expect(prism).toHaveAttribute("aria-hidden", "true")
-    expect(await prism.evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none")
+    const crown = page.locator("#home-crown")
+    await expect(crown).toHaveAttribute("aria-hidden", "true")
+    expect(await crown.evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none")
     await expectOneHeroLayer()
     await expect(page.locator("#home-title")).toBeVisible()
     await page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"}).click({trial: true})

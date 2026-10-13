@@ -52,8 +52,8 @@ const browserLoadCard =
   }
 
 /**
- * The shared holographic foil, mounted the way the hero's crown is: the foil is
- * drawn on the island's canvas and the card itself turns with the pointer.
+ * The shared holographic foil: the foil is drawn on the island's canvas and the
+ * card itself turns with the pointer.
  *
  * The turn is the renderer's eased tilt written back to the card as CSS custom
  * properties, so the text on the face stays real DOM text and moves with the
@@ -71,6 +71,7 @@ export const createHolographicCardController = (
     readyFlag: "holoReady",
     browserLoad: browserLoadCard(root),
     motionSensitive: true,
+    continuous: false,
     interact({root: card, canvas, renderer, nudge, onReady}) {
       // Every frame the island draws is followed by the tilt the renderer settled
       // on, so the card keeps turning for exactly as long as the foil eases.

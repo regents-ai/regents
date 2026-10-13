@@ -1,6 +1,7 @@
 defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
+  alias RegentsWeb.Components.Crown
   alias RegentsWeb.Components.RegentLinks
   alias RegentsWeb.{PublicDocuments, RouteCatalog, TokenLinks}
 
@@ -126,25 +127,7 @@ defmodule RegentsWeb.HomeLive do
     ~H"""
     <section class="rl-hero rl-hero--home" aria-labelledby="home-title">
       <div class="rl-hero-stage">
-        <%!-- Keep the real thirteen-cube renderer. Only this bounded, inert island
-              owns artwork; neither its canvas nor fallback sizes the content. --%>
-        <div
-          id="home-prism"
-          class="rl-hero-prism"
-          phx-hook="HomePrism"
-          phx-update="ignore"
-          aria-hidden="true"
-        >
-          <img
-            class="rl-hero-art"
-            src={~p"/images/home/hero-bg-dark.svg"}
-            width="1700"
-            height="1200"
-            alt=""
-            fetchpriority="high"
-          />
-          <canvas data-home-prism-canvas></canvas>
-        </div>
+        <Crown.crown id="home-crown" look="white" />
 
         <div class="rl-hero-copy" data-home-hero-copy>
           <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>

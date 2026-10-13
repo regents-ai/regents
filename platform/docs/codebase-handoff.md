@@ -111,7 +111,8 @@ lib/regents_web/
   token_links.ex     the Uniswap and DexScreener links, built from the pinned
                      token address so a link can never name another token
 assets/css/pages/    one stylesheet per surface
-assets/js/hooks/     LiveView hooks; home_prism is the WebGPU island
+assets/js/hooks/     LiveView hooks; crown draws the homepage's glass crown
+assets/js/crown/     the glass crown every Regent site shares (from ash-template)
 contracts/           the pinned manifest, its digest, and the ABIs
 test/browser/        Playwright specs (real browser, port 4002)
 ```

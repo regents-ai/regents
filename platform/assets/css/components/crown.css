@@ -1,0 +1,40 @@
+@layer regents-product {
+/* The glass crown: a layer that fills the stage it is put in and sits behind
+   everything else there. The still picture is the crown until a live one has
+   really been drawn (`data-crown-ready`), and stays wherever one cannot be.
+   Neither the canvas nor the picture gives the stage its size. */
+
+.crown {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.crown canvas,
+.crown__still {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.crown__still {
+  object-fit: cover;
+}
+
+.crown canvas {
+  opacity: 0;
+}
+
+.crown[data-crown-ready="true"] canvas {
+  opacity: 1;
+}
+
+.crown[data-crown-ready="true"] .crown__still {
+  visibility: hidden;
+}
+}

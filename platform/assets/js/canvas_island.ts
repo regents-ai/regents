@@ -1,10 +1,9 @@
 /**
  * A decorative canvas the browser owns, and every reason not to draw on it.
  *
- * The homepage has two of these — the crown in the hero and the field of squares
- * behind the page — and neither knows what the other draws. What lives here is
- * everything they share: the canvas box, when a frame is worth drawing, and the
- * fallback the visitor sees until one really lands.
+ * Each holographic card is one of these. What lives here is everything the card
+ * does not draw itself: the canvas box, when a frame is worth drawing, and the
+ * still face the visitor sees until one really lands.
  */
 
 type RequestFrame = (callback: FrameRequestCallback) => number
@@ -68,6 +67,8 @@ type IslandKind<Renderer extends IslandRenderer> = {
   readonly browserLoad: LoadRenderer<Renderer>
   /** A picture that moves is never drawn for a visitor who asked for less of it. */
   readonly motionSensitive: boolean
+  /** A picture that keeps moving by itself never runs out of frames to settle in. */
+  readonly continuous: boolean
   /** Listeners the island keeps for as long as it is watching. */
   interact?(island: IslandInteraction<Renderer>): () => void
 }
@@ -296,7 +297,7 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
     easingFrames += 1
     // The last frame the easing is allowed snaps home, so there is never a frame after
     // it with nothing left to do.
-    const last = easingFrames >= EASING_FRAME_LIMIT
+    const last = !kind.continuous && easingFrames >= EASING_FRAME_LIMIT
     const moved = renderer.step(last)
     if (!moved && !pendingPresent) return
     pendingPresent = false

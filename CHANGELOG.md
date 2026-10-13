@@ -1703,3 +1703,23 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   `next_cursor` back unchanged as `after` for older entries.
 - The command tool now offers "read the next page" on `account credits-history`.
 - Same shape and same command entry as ash-template `41432ef` and `298c32a`.
+
+## 2026-10-13 — The homepage crown is the shared one, on vgpu 0.6 (local, unreleased)
+
+- The homepage's glass crown is now the copy every Regent site shares, taken
+  from ash-template: `platform/assets/js/crown/`, the `Crown` hook and the
+  `RegentsWeb.Components.Crown` component. Regents keeps only its look
+  (`platform/assets/js/crown_looks.ts`): white beams over the near-black field
+  of squares. The picture is the same: at rest it matches the old crown pixel
+  for pixel at 1600×900 and 800×1000.
+- `vgpu` moves from 0.3.1 to 0.6.0 and `@vgpu/wgsl` 0.6.0 is added; 0.6
+  prepares each shader in the browser when the crown first draws.
+- Removed with the old copy: `platform/assets/js/home_prism/`,
+  `platform/assets/js/home_field/` and the `HomePrism` hook, including the
+  product-colour switching nothing on the site ever triggered, and the four
+  unit test files that tested those files (`home_crown`, `home_palette`,
+  `home_prism`, `home_scene`). The browser checks follow the new names
+  (`#home-crown`, `.crown__still`, `data-crown-ready`).
+- Before release: the foil card needs the design-system revision that runs on
+  vgpu 0.6 (8bee776, not yet on GitHub), so `@design_system_ref` moves with
+  this change once that revision is pushed.

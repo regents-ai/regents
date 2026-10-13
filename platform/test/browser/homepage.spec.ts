@@ -261,7 +261,7 @@ test("[U1][U2] the hero sets its words over the crown, and leaves it out on a ph
       const copy = await boxOf("#home-title")
       const cards = await boxOf("#home-products")
       const stakers = await boxOf(".rl-hero-stakers")
-      const crown = await boxOf("#home-prism")
+      const crown = await boxOf("#home-crown")
 
       expect(copy.left).toBeGreaterThanOrEqual(hero.left)
       expect(copy.right, "the words stay in the left half").toBeLessThanOrEqual(
@@ -288,7 +288,7 @@ test("[U1][U2] the hero sets its words over the crown, and leaves it out on a ph
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
-      await expect(page.locator("#home-prism")).toBeHidden()
+      await expect(page.locator("#home-crown")).toBeHidden()
       const title = await boxOf("#home-title")
       const tagline = await boxOf(".rl-hero-copy .rl-hero-description")
       const cards = await boxOf("#home-products")
@@ -469,7 +469,7 @@ test("[U2] the picture behind the hero carries no colour and no ground of its ow
   await page.goto("/")
   await waitForHomepage(page)
 
-  const picture = await page.locator(".rl-hero-art").evaluate(element => {
+  const picture = await page.locator(".crown__still").evaluate(element => {
     const image = element as HTMLImageElement
     const meanBrightnessOver = (ground: string | null) => {
       const canvas = document.createElement("canvas")

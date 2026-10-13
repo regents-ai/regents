@@ -1,41 +1,34 @@
 /**
- * The three lasers, traced on the CPU into one additive sheet.
+ * The three beams, traced on the processor into one additive sheet.
  *
- * Each row of cubes gets one beam entering from the right of the crown. A beam
- * is refracted cube by cube; the input is drawn up to the first face, the path
- * inside the glass is drawn faintly, and every wavelength is traced separately
- * afterwards so the glass fans the light into colour.
+ * Each row of cubes gets one beam. A beam is refracted cube by cube: the input
+ * is drawn up to the first face, the path inside the glass is drawn faintly, and
+ * every wavelength is traced separately afterwards so the glass fans the light out.
  *
- * The beam colour is white while the page is at rest, and the hovered product's
- * while it is not: the entering and internal segments are drawn in it outright,
- * and the fan the glass separates out is tinted by it.
- *
- * Adapted from the Techtree crown, itself derived from the Vercel vgpu prism
- * background. See THIRD_PARTY_NOTICES.md.
+ * Derived from the Vercel vgpu prism background. See THIRD_PARTY_NOTICES.md.
  */
 
 import {geometry, type Geometry, type Gpu} from "vgpu"
 
-import {
-  CROWN_BEAM,
-  CROWN_CELL_CENTERS,
-  CROWN_GLASS,
-  CROWN_HALF_SIZE,
-  CROWN_PITCH,
-  type Vec2,
-  type Vec3,
-} from "./crown-types"
+import type {CrownBeamColors, CrownBeams, CrownShape, Vec2, Vec3} from "./look"
 
-export const CROWN_LIGHT_VERTEX_FLOATS = 8
-export const CROWN_LIGHT_VERTEX_STRIDE =
-  CROWN_LIGHT_VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT
+const VERTEX_FLOATS = 8
+const VERTEX_STRIDE = VERTEX_FLOATS * Float32Array.BYTES_PER_ELEMENT
 /** Fixed vertex buffer: the tracer refuses to build a sheet larger than this. */
-export const CROWN_LIGHT_VERTEX_CAPACITY = 12_288
+const VERTEX_CAPACITY = 12_288
 
 const EPSILON = 1e-4
-/** One beam per cube row, entering from the right. */
-const ROWS = [CROWN_PITCH, 0, -CROWN_PITCH] as const
-const SOURCE_X = 2 * CROWN_PITCH
+
+/** Everything one trace of the beams depends on. */
+export interface CrownLighting {
+  readonly shape: CrownShape
+  readonly beams: CrownBeams
+  readonly colors: CrownBeamColors
+  /** The glass's index of refraction at the middle of the spectrum. */
+  readonly ior: number
+  readonly aim: Vec2
+  readonly aspect: number
+}
 
 interface LightVertex {
   readonly position: Vec2
@@ -62,111 +55,89 @@ interface TraceSegment {
   readonly travel: number
 }
 
-interface CrownTrace {
-  readonly segments: readonly TraceSegment[]
-  readonly cells: readonly number[]
-}
-
-export interface CrownLightMeshData {
-  readonly vertices: Float32Array<ArrayBuffer>
-  readonly vertexCount: number
-  readonly activeVertexCount: number
-  readonly segmentCount: number
-  readonly hitCellCount: number
-}
-
-export function crownLightMeshData(aim: Vec2, aspect: number, beam: Vec3): CrownLightMeshData {
+function crownLightVertices({shape, beams, colors, ior, aim, aspect}: CrownLighting): Float32Array<ArrayBuffer> {
   const wall: Vec2 = [Math.max(2.65, aspect * 1.82), 1.55]
   const output: number[] = []
-  const hitCells = new Set<number>()
+  const iorAt = (wavelength: number): number => {
+    const micrometres = wavelength * 1e-3
+    return ior + beams.dispersionStrength / (micrometres * micrometres)
+  }
 
-  for (let rowIndex = 0; rowIndex < ROWS.length; rowIndex++) {
-    const row = ROWS[rowIndex]!
+  for (const [rowIndex, row] of [shape.pitch, 0, -shape.pitch].entries()) {
     // The middle beam carries the shot; the outer two support it.
     const rowWeight = rowIndex === 1 ? 1 : 0.64
-    const direction = beamDirection(row, aim)
-    const target: Vec2 = [SOURCE_X, row - aim[1] * CROWN_BEAM.verticalTravel]
+    const angle =
+      beams.angleBase + aim[0] * beams.angleRange - (row / shape.pitch) * beams.rowConvergence
+    const direction = normalize([-beams.side * Math.cos(angle), Math.sin(angle)])
+    const target: Vec2 = [
+      beams.side * 2 * shape.pitch,
+      row + beams.lift - aim[1] * beams.verticalTravel,
+    ]
     const source = rayToBoundary(target, scale(direction, -1), wall)
-    const middleTrace = traceCrown(source, direction, iorAt(550), wall)
-    middleTrace.cells.forEach(cell => hitCells.add(cell))
+    const middle = traceCrown(shape, source, direction, iorAt(550), beams.wedgeStrength, wall)
 
-    const firstEntry = middleTrace.segments.find(segment => !segment.afterGlass)?.end
+    const firstEntry = middle.find(segment => !segment.afterGlass)?.end
     if (firstEntry) {
       pushBeam(
         output,
         source,
         firstEntry,
-        CROWN_BEAM.beamHalfWidth,
-        beam,
-        CROWN_BEAM.inputIntensity * rowWeight,
+        beams.halfWidth,
+        colors.input,
+        beams.inputIntensity * rowWeight,
       )
     }
 
-    for (const segment of middleTrace.segments) {
+    for (const segment of middle) {
       if (!segment.inside) continue
       pushBeam(
         output,
         segment.start,
         segment.end,
-        CROWN_BEAM.beamHalfWidth * 0.72,
-        beam,
-        CROWN_BEAM.internalIntensity * rowWeight * segment.intensity,
+        beams.halfWidth * 0.72,
+        colors.internal,
+        beams.internalIntensity * rowWeight * segment.intensity,
         segment.travel,
       )
     }
 
-    for (let sample = 0; sample < CROWN_BEAM.spectralSamples; sample++) {
-      const position = sample / (CROWN_BEAM.spectralSamples - 1)
-      const wavelength = 400 + position * 300
-      const trace = traceCrown(source, direction, iorAt(wavelength), wall)
-      trace.cells.forEach(cell => hitCells.add(cell))
-      const color = tint(wavelengthToBeamRgb(wavelength), beam)
+    for (let sample = 0; sample < beams.spectralSamples; sample++) {
+      const wavelength = 400 + (sample / (beams.spectralSamples - 1)) * 300
+      const trace = traceCrown(shape, source, direction, iorAt(wavelength), beams.wedgeStrength, wall)
+      const color = colors.spectrum ? tint(wavelengthToBeamRgb(wavelength), colors.fan) : colors.fan
 
-      for (const segment of trace.segments) {
+      for (const segment of trace) {
         if (!segment.afterGlass) continue
         pushBeam(
           output,
           segment.start,
           segment.end,
-          CROWN_BEAM.spectralHalfWidth,
+          beams.spectralHalfWidth,
           color,
-          CROWN_BEAM.spectralIntensity * rowWeight * segment.intensity,
+          beams.spectralIntensity * rowWeight * segment.intensity,
           segment.travel,
         )
       }
     }
   }
 
-  const activeVertexCount = output.length / CROWN_LIGHT_VERTEX_FLOATS
-  if (!output.every(Number.isFinite) || activeVertexCount > CROWN_LIGHT_VERTEX_CAPACITY) {
+  const used = output.length / VERTEX_FLOATS
+  if (!output.every(Number.isFinite) || used > VERTEX_CAPACITY) {
     throw new Error("Crown light geometry exceeded its finite vertex budget.")
   }
-  const vertices = new Float32Array(CROWN_LIGHT_VERTEX_CAPACITY * CROWN_LIGHT_VERTEX_FLOATS)
+  const vertices = new Float32Array(VERTEX_CAPACITY * VERTEX_FLOATS)
   vertices.set(output)
-  return {
-    vertices,
-    vertexCount: CROWN_LIGHT_VERTEX_CAPACITY,
-    activeVertexCount,
-    segmentCount: activeVertexCount / 6,
-    hitCellCount: hitCells.size,
-  }
+  return vertices
 }
 
-export function crownLightGeometry(
-  gpu: Gpu,
-  aim: Vec2,
-  aspect: number,
-  beam: Vec3,
-  label = "regents-crown-light",
-): Geometry {
-  const {vertices, vertexCount} = crownLightMeshData(aim, aspect, beam)
+export function crownLightGeometry(gpu: Gpu, lighting: CrownLighting, label: string): Geometry {
   return geometry(gpu, {
     label,
-    vertexCount,
+    vertexCount: VERTEX_CAPACITY,
     buffers: [
       {
-        data: vertices,
-        stride: CROWN_LIGHT_VERTEX_STRIDE,
+        data: crownLightVertices(lighting),
+        stride: VERTEX_STRIDE,
         attributes: {
           position: {format: "float32x2", offset: 0, location: 0},
           color: {format: "float32x3", offset: 8, location: 1},
@@ -179,47 +150,35 @@ export function crownLightGeometry(
   })
 }
 
-export function updateCrownLightGeometry(
-  light: Geometry,
-  aim: Vec2,
-  aspect: number,
-  beam: Vec3,
-): CrownLightMeshData {
-  const mesh = crownLightMeshData(aim, aspect, beam)
-  light.write(mesh.vertices)
-  return mesh
+/** Retraces the beams into a sheet already on the graphics card. */
+export function updateCrownLightGeometry(light: Geometry, lighting: CrownLighting): void {
+  light.write(crownLightVertices(lighting))
 }
 
-/** The fan the glass separates out, carrying the beam's colour through it. */
+/** The light the glass separates out, carrying the beam's colour through it. */
 const tint = (color: Vec3, beam: Vec3): Vec3 => [
   color[0] * beam[0],
   color[1] * beam[1],
   color[2] * beam[2],
 ]
 
-function beamDirection(row: number, aim: Vec2): Vec2 {
-  const rowPosition = row / CROWN_PITCH
-  const angle =
-    CROWN_BEAM.angleBase + aim[0] * CROWN_BEAM.angleRange - rowPosition * CROWN_BEAM.rowConvergence
-  return normalize([-Math.cos(angle), Math.sin(angle)])
-}
-
 function traceCrown(
+  shape: CrownShape,
   source: Vec2,
   initialDirection: Vec2,
   ior: number,
+  wedgeStrength: number,
   wall: Vec2,
-): CrownTrace {
+): readonly TraceSegment[] {
   const segments: TraceSegment[] = []
-  const cells: number[] = []
   const visited = new Set<number>()
   let origin = source
   let direction = initialDirection
   let intensity = 1
   let travel = 0
 
-  for (let interaction = 0; interaction < CROWN_CELL_CENTERS.length; interaction++) {
-    const hit = nextCell(origin, direction, visited)
+  for (let interaction = 0; interaction < shape.cellCenters.length; interaction++) {
+    const hit = nextCell(shape, origin, direction, visited)
     if (!hit) break
     const entry = add(origin, scale(direction, hit.near))
     const airDistance = distance(origin, entry)
@@ -227,7 +186,7 @@ function traceCrown(
       start: origin,
       end: entry,
       inside: false,
-      afterGlass: cells.length > 0,
+      afterGlass: visited.size > 0,
       intensity,
       travel: Math.min(0.18, travel * 0.04),
     })
@@ -237,7 +196,7 @@ function traceCrown(
     const insideDirection = refract(direction, hit.nearNormal, 1 / ior)
     if (!insideDirection) break
     const insideOrigin = add(entry, scale(insideDirection, EPSILON))
-    const insideHit = intersectCell(insideOrigin, insideDirection, hit.cell)
+    const insideHit = intersectCell(shape, insideOrigin, insideDirection, hit.cell)
     if (!insideHit) break
     const exit = add(insideOrigin, scale(insideDirection, insideHit.far))
     const insideDistance = distance(entry, exit)
@@ -250,12 +209,11 @@ function traceCrown(
       travel: Math.min(0.18, travel * 0.04),
     })
     travel += insideDistance
-    cells.push(hit.cell)
     visited.add(hit.cell)
 
     const inwardNormal = rotate(
       scale(insideHit.farNormal, -1),
-      cellWedge(hit.cell, CROWN_BEAM.wedgeStrength),
+      cellWedge(hit.cell, wedgeStrength),
     )
     const escaped = refract(insideDirection, inwardNormal, ior)
     if (!escaped) break
@@ -264,7 +222,7 @@ function traceCrown(
     origin = add(exit, scale(direction, EPSILON))
   }
 
-  if (cells.length > 0) {
+  if (visited.size > 0) {
     segments.push({
       start: origin,
       end: rayToBoundary(origin, direction, wall),
@@ -275,22 +233,32 @@ function traceCrown(
     })
   }
 
-  return {segments, cells}
+  return segments
 }
 
-function nextCell(origin: Vec2, direction: Vec2, visited: ReadonlySet<number>): BoxHit | undefined {
+function nextCell(
+  shape: CrownShape,
+  origin: Vec2,
+  direction: Vec2,
+  visited: ReadonlySet<number>,
+): BoxHit | undefined {
   let nearest: BoxHit | undefined
-  for (let cell = 0; cell < CROWN_CELL_CENTERS.length; cell++) {
+  for (let cell = 0; cell < shape.cellCenters.length; cell++) {
     if (visited.has(cell)) continue
-    const hit = intersectCell(origin, direction, cell)
+    const hit = intersectCell(shape, origin, direction, cell)
     if (!hit || hit.near <= EPSILON || (nearest && nearest.near <= hit.near)) continue
     nearest = hit
   }
   return nearest
 }
 
-function intersectCell(origin: Vec2, direction: Vec2, cell: number): BoxHit | undefined {
-  const center = CROWN_CELL_CENTERS[cell]!
+function intersectCell(
+  shape: CrownShape,
+  origin: Vec2,
+  direction: Vec2,
+  cell: number,
+): BoxHit | undefined {
+  const center = shape.cellCenters[cell]!
   let near = Number.NEGATIVE_INFINITY
   let far = Number.POSITIVE_INFINITY
   let nearNormal: Vec2 = [0, 0]
@@ -298,8 +266,8 @@ function intersectCell(origin: Vec2, direction: Vec2, cell: number): BoxHit | un
 
   for (let axis = 0; axis < 2; axis++) {
     const component = direction[axis]!
-    const low = center[axis]! - CROWN_HALF_SIZE
-    const high = center[axis]! + CROWN_HALF_SIZE
+    const low = center[axis]! - shape.halfSize
+    const high = center[axis]! + shape.halfSize
     if (Math.abs(component) < EPSILON) {
       if (origin[axis]! < low || origin[axis]! > high) return undefined
       continue
@@ -333,18 +301,14 @@ function cellWedge(cell: number, strength: number): number {
   return alternating * strength * 0.45
 }
 
-function iorAt(wavelength: number): number {
-  const micrometres = wavelength * 1e-3
-  return CROWN_GLASS.ior + CROWN_BEAM.dispersionStrength / (micrometres * micrometres)
-}
-
 function refract(incident: Vec2, normal: Vec2, eta: number): Vec2 | undefined {
   const cosine = -dot(incident, normal)
   const transmittedSquared = eta * eta * (1 - cosine * cosine)
   if (transmittedSquared > 1) return undefined
-  return normalize(
-    add(scale(incident, eta), scale(normal, eta * cosine - Math.sqrt(1 - transmittedSquared))),
-  )
+  return normalize(add(
+    scale(incident, eta),
+    scale(normal, eta * cosine - Math.sqrt(1 - transmittedSquared)),
+  ))
 }
 
 function fresnelTransmittance(
@@ -443,11 +407,9 @@ function cieX(wavelength: number): number {
   const t1 = (wavelength - 442) * (wavelength < 442 ? 0.0624 : 0.0374)
   const t2 = (wavelength - 599.8) * (wavelength < 599.8 ? 0.0264 : 0.0323)
   const t3 = (wavelength - 501.1) * (wavelength < 501.1 ? 0.049 : 0.0382)
-  return (
-    0.362 * Math.exp(-0.5 * t1 * t1) +
-    1.056 * Math.exp(-0.5 * t2 * t2) -
-    0.065 * Math.exp(-0.5 * t3 * t3)
-  )
+  return 0.362 * Math.exp(-0.5 * t1 * t1)
+    + 1.056 * Math.exp(-0.5 * t2 * t2)
+    - 0.065 * Math.exp(-0.5 * t3 * t3)
 }
 
 function cieY(wavelength: number): number {
@@ -463,9 +425,10 @@ function cieZ(wavelength: number): number {
 }
 
 const D65_SPECTRAL_POWER = [
-  82.7549, 91.486, 93.4318, 86.6823, 104.865, 117.008, 117.812, 114.861, 115.923, 108.811,
-  109.354, 107.802, 104.79, 107.689, 104.405, 104.046, 100, 96.3342, 95.788, 88.6856, 90.0062,
-  89.5991, 87.6987, 83.2886, 83.6992, 80.0268, 80.2146, 82.2778, 78.2842, 69.7213, 71.6091,
+  82.7549, 91.486, 93.4318, 86.6823, 104.865, 117.008, 117.812, 114.861,
+  115.923, 108.811, 109.354, 107.802, 104.79, 107.689, 104.405, 104.046,
+  100, 96.3342, 95.788, 88.6856, 90.0062, 89.5991, 87.6987, 83.2886,
+  83.6992, 80.0268, 80.2146, 82.2778, 78.2842, 69.7213, 71.6091,
 ] as const
 const D65_PHOTOPIC_PEAK = 1.0347
 const SPECTRAL_EXPOSURE = 4.5
@@ -475,12 +438,11 @@ function d65SpectralPower(wavelength: number): number {
   const coordinate = Math.min(D65_SPECTRAL_POWER.length - 1, Math.max(0, (wavelength - 400) / 10))
   const lower = Math.min(D65_SPECTRAL_POWER.length - 2, Math.floor(coordinate))
   const fraction = coordinate - lower
-  return (
-    (D65_SPECTRAL_POWER[lower]! * (1 - fraction) + D65_SPECTRAL_POWER[lower + 1]! * fraction) / 100
-  )
+  return ((D65_SPECTRAL_POWER[lower]! * (1 - fraction))
+    + D65_SPECTRAL_POWER[lower + 1]! * fraction) / 100
 }
 
-export function wavelengthToBeamRgb(wavelengthInput: number): Vec3 {
+function wavelengthToBeamRgb(wavelengthInput: number): Vec3 {
   const wavelength = Math.min(700, Math.max(400, wavelengthInput))
   const x = cieX(wavelength)
   const y = cieY(wavelength)
@@ -494,8 +456,8 @@ export function wavelengthToBeamRgb(wavelengthInput: number): Vec3 {
   const positive: Vec3 = [linear[0] - offset, linear[1] - offset, linear[2] - offset]
   const peak = Math.max(...positive, Number.EPSILON)
   const photopic = (d65SpectralPower(wavelength) * y) / D65_PHOTOPIC_PEAK
-  const power =
-    (1 - Math.exp(-SPECTRAL_EXPOSURE * photopic)) / (1 - Math.exp(-SPECTRAL_EXPOSURE))
+  const power = (1 - Math.exp(-SPECTRAL_EXPOSURE * photopic))
+    / (1 - Math.exp(-SPECTRAL_EXPOSURE))
   return [
     (positive[0] / peak) * power * SPECTRAL_WHITE_BALANCE[0],
     (positive[1] / peak) * power * SPECTRAL_WHITE_BALANCE[1],

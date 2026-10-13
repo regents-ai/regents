@@ -22,8 +22,8 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
+import {Crown} from "./hooks/crown"
 import {HolographicCard} from "./hooks/holographic_card"
-import {HomePrism} from "./hooks/home_prism"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
@@ -279,8 +279,8 @@ const hooks = {
   ...showcaseHooks,
   ...labHooks,
   ...colocatedHooks,
+  Crown,
   HolographicCard,
-  HomePrism,
   HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,

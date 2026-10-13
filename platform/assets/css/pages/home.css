@@ -45,14 +45,6 @@
     min-height: 34rem; height: clamp(34rem, calc(100svh - 7rem), 44rem);
     padding: var(--rg-panel-padding);
   }
-  /* Absolute artwork cannot contribute its intrinsic dimensions to a grid row.
-     The renderer already composes wide shots rightward; no camera changes. */
-  .rl-hero-prism { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; contain: strict; }
-  .rl-hero-prism canvas, .rl-hero-art { position: absolute; inset: 0; display: block; width: 100%; height: 100%; pointer-events: none; }
-  .rl-hero-art { object-fit: cover; }
-  .rl-hero-prism canvas { opacity: 0; }
-  .rl-hero-prism[data-prism-ready="true"] canvas { opacity: 1; }
-  .rl-hero-prism[data-prism-ready="true"] .rl-hero-art { visibility: hidden; }
   /* Copy sits over the field; the cards below stay opaque where lasers pass behind. */
   .rl-hero-copy { position: relative; z-index: 1; width: fit-content; max-width: 100%; align-self: start; padding: var(--space-1) var(--space-2) var(--space-2) 0; }
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
@@ -136,7 +128,7 @@
     /* A phone gets the copy and the products; the artwork stays on wider screens. */
     .rl-hero-stage { height: auto; min-height: 0; grid-template-rows: auto auto; gap: var(--space-4); }
     .rl-hero-copy { grid-row: 1; padding: 0; }
-    .rl-hero-prism { display: none; }
+    .rl-hero-stage > .crown { display: none; }
     .rl-hero-products { grid-row: 2; width: 100%; }
     .rl-hero-cards { grid-template-columns: minmax(0, 1fr); }
     .rl-hero-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: var(--space-1) var(--space-2); }
