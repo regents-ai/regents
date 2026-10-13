@@ -1710,8 +1710,8 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   of its six sides, one per world: Autolaunch, Techtree, Patchbay, Keyfleet,
   Regents staking and Regents on X. Drag to turn it, click a side to step into
   its room, and follow the room's link in a new tab. "Regents Labs" and its
-  line stand over the top-left of the cube, and the $REGENT panel stays where
-  it was, under it.
+  line stand over the top-left of the cube and step back while a room is open,
+  and the $REGENT panel stays where it was, under it.
 - Where the cube cannot be drawn, or for a visitor who asked for less motion,
   the six worlds are a plain list of cards with the same links.
 - The cube is the one in ash-template, copied unchanged:
