@@ -581,7 +581,10 @@ defmodule RegentsWeb.StakeLiveTest do
     # It says nothing about another wallet, which needs its own approval. The
     # press was still in the wallet when the person switched; Base's answer is
     # read against the wallet that sent it, so its check is still running.
+    # The form shows once the second wallet's figures are read; the wait spans
+    # the approval check's pause between reads too.
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => @second})
+    render_async(view, 3_000)
     set_amount(view, "1")
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
 
