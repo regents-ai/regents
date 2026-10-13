@@ -28,13 +28,13 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 - `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree, Patchbay and Keyfleet pages on Regents show. No API key or wallet required.
 - `GET /api/v1/claims`: verified-account historical name reads. Requires both a Privy access bearer token and a Privy identity token. Follow the returned `next` cursor with the sole `after` parameter; stop at null. Missing or invalid credentials return 401. Never fabricate an owner association.
 - `GET /api/v1/staking/position`: what Stake shows for the wallet on a verified sign-in, with the same two Privy tokens as the claims read.
-- `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.
+- `GET /api/agents/v1/whoami`, `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: check who you are signed in as, pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.
 - [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
 - [Existing YAML contract]({{origin}}/api-contract.openapiv3.yaml): retained product interfaces; some listed operations may not be available yet. The JSON specification above is the integration entry point documented for this release.
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
-The `regents` command line, version 1.9.3 or newer (`uv tool install --upgrade regents-cli`), pairs and reads for you. [Connect your agent]({{origin}}/start) has the exact commands for each agent.
+Agents start at [/agents.md]({{origin}}/agents.md): install regents-cli, sign in, pair. [Connect your agent]({{origin}}/start) has the exact commands for each agent.
 
 ## In the browser (WebMCP)
 
@@ -44,13 +44,14 @@ Every regents.sh page offers these tools to browsers that support WebMCP (`docum
 
 ## Pair with a person's account
 
-When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need `python3` or `node`; no wallet funds, registration or API key. The [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how you sign, once for every Regent site.
+When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need no wallet funds, registration or API key.
 
-[Connect your agent]({{origin}}/start) has the exact steps for each agent. With the `regents` command line, version 1.9.3 or newer (`uv tool install --upgrade regents-cli`): sign in once with `regents auth login --site regents`, pair by sending `{"code":"<code>","name":"<your name>","harness":"<harness>"}` on stdin to `regents protocol agents pair`, and check in with `regents protocol agents me`. With the SIWA client instead:
+1. Install regents-cli and sign in: `uv tool install regents-cli==1.9.4`, then `regents auth login --site regents`. It makes a new key when none is there, so ask your person first. Use only a key that is yours.
+2. Check: `regents protocol agents whoami --json`. `data.pairing` is `null` until you pair.
+3. Your person opens [their account page]({{origin}}/account), chooses you and pastes you a message with a pairing code. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents protocol agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. [/agents.md]({{origin}}/agents.md) has the exact commands.
+4. Check in when you do work for your person: `regents protocol agents me`. The answer names the account you are paired with: `account.display_name` and `account.ens_name`, each `null` until your person has one. Your person sees the time of your latest contact on their Account page, and every request you sign on a Regents site after pairing: which site, when, and whether you looked something up or asked for a change.
 
-1. Get the client and set up your key as the [SIWA agent guide](https://siwa.regents.sh/skill.md) describes: `curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`, then `uv run siwa_agent.py keygen`, or `uv run siwa_agent.py use-wallet` with your own wallet tool. The key stays on your machine; never share it.
-2. Pair: `uv run siwa_agent.py pair {{origin}} <code> --name "<your name>" --harness <harness>`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli` or `dots`, and `other` for anything else. Your person can correct it later.
-3. Check in when you do work for your person: `uv run siwa_agent.py me {{origin}}`. The answer names the account you are paired with: `account.display_name` and `account.ens_name`, each `null` until your person has one. Your person sees the time of your latest contact on their Account page, and every request you sign on a Regents site after pairing: which site, when, and whether you looked something up or asked for a change.
+Without regents-cli, use the SIWA client, which needs `python3` or `node`: set up your key as the [SIWA agent guide](https://siwa.regents.sh/skill.md) describes (`curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`, then `uv run siwa_agent.py keygen`, or `uv run siwa_agent.py use-wallet` with your own wallet tool), write the same `~/pair.json`, run `uv run siwa_agent.py pair {{origin}} < ~/pair.json`, delete `~/pair.json`, and check in with `uv run siwa_agent.py me {{origin}}`. The key stays on your machine; never share it.
 
 A code works once and expires ten minutes after it was made. A `400 pairing_failed` means the code is used, expired or mistyped; ask for a new one. A `400 harness_unknown` means `harness` is not on the list; pair again with a listed one, or `other`. A `409 agent_limit` means your person's account already has 100 paired agents; ask them to unpair one, then pair again with the same code before it expires. A `404 not_paired` from the check-in means your person unpaired you. Any other refusal of your signature comes from the sign-in service, such as `409 request_replayed`; its hint says what to do next for this site and the way you sign. Pairing allows 10 requests and check-ins 60 per minute; every answer carries `RateLimit` and `RateLimit-Policy` headers, and a `429 rate_limited` carries `Retry-After` in seconds to wait.
 

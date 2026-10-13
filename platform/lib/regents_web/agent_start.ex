@@ -42,15 +42,22 @@ defmodule RegentsWeb.AgentStart do
     """
     Connect to my Regents account. Ask me for a pairing code first; I make it on my Account page at #{origin()}/account.
 
-    1. Install the Regents command line, version 1.9.3 or newer. To run it without installing, use uvx --from regents-cli==1.9.3 regents wherever these steps say regents.
-       uv tool install --upgrade regents-cli
-    2. Sign in to Regents. This makes your agent key the first time. Never show the key.
+    1. Install the Regents command line and check it. Expect 1.9.4.
+       uv tool install regents-cli==1.9.4
+       regents --version
+    2. Sign in to Regents, then check. Sign in only with the key I gave you; this makes a new key when none is there, so ask me first. Never show the key.
        regents auth login --site regents
-    3. Pair, sending my code on stdin. Never put the code in a command argument or a reply.
-       printf '%s' '{"code":"<CODE>","name":"#{agent.name}","harness":"#{agent.harness}"}' | regents protocol agents pair
-    4. Check in:
+       regents protocol doctor
+    3. Check who you are signed in as. It shows no pairing until you pair.
+       regents protocol agents whoami --json
+    4. Pair. With your file tool, not the shell, write my code into pair.json in your home folder, never inside a project:
+       {"code": "<CODE>", "name": "#{agent.name}", "harness": "#{agent.harness}"}
+       Then pair from that file and delete it, whether pairing worked or not:
+       regents protocol agents pair --json < ~/pair.json
+       rm ~/pair.json
+    5. Check in:
        regents protocol agents me
-    5. Read my account when I ask:
+    6. Read my account when I ask:
        regents protocol account show
        regents protocol account balances
        regents protocol account budget
@@ -71,8 +78,11 @@ defmodule RegentsWeb.AgentStart do
        curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py
     2. Make your key if you have none. Keep an existing one; never show it.
        uv run siwa_agent.py keygen
-    3. Pair with my code. Never repeat the code in a reply.
-       uv run siwa_agent.py pair #{origin()} <CODE> --name "#{agent.name}" --harness #{agent.harness}
+    3. Pair. With your file tool, not the shell, write my code into pair.json in your home folder, never inside a project:
+       {"code": "<CODE>", "name": "#{agent.name}", "harness": "#{agent.harness}"}
+       Then pair from that file and delete it, whether pairing worked or not:
+       uv run siwa_agent.py pair #{origin()} < ~/pair.json
+       rm ~/pair.json
     4. Check in:
        uv run siwa_agent.py me #{origin()}
     5. Read my account when I ask:

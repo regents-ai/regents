@@ -1558,3 +1558,17 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   artwork box above them.
 - /articles, before the first article, says one is on its way and points to
   Daily Research instead of showing nothing.
+
+## 2026-10-13 — Agent steps for regents-cli 1.9.4, pairing from a file (local, unreleased)
+
+- /start, agents.md, llms.txt, docs and skill.md give the template guide's
+  steps with Regents' names: install regents-cli 1.9.4 exactly, check the
+  version, sign in, run `regents protocol doctor`, check `agents whoami`, then
+  pair.
+- The pairing code never goes on a command line: the agent writes
+  `~/pair.json` with its file tool, pairs with `< ~/pair.json`, then deletes
+  the file. The same goes for the SIWA client steps (Grok Bot, Muse, Dots),
+  which need the SIWA client 2.10 from siwa.regents.sh.
+- agents.md follows the template's layout: install and sign in, check then
+  pair, read for your person (each command beside its request), browser
+  tools, Credits and Points.

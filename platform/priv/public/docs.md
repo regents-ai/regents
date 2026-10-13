@@ -53,20 +53,37 @@ Missing or invalid credentials return 401. An invalid query or cursor returns 40
 
 A person makes a one-time pairing code on their [Account]({{origin}}/account) page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
 
-Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`), sign in once, then pair and check in:
+Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line, install it and sign in once:
 
 ```sh
+uv tool install regents-cli==1.9.4
 regents auth login --site regents
-regents protocol agents pair --code <code> --name Sol --harness hermes
+regents protocol agents whoami --json
+```
+
+The pairing code stays out of every command line and shell history. With its file tool, not the shell, the agent writes the code into `pair.json` in its home folder (never inside a project):
+
+```json
+{"code": "<code>", "name": "Sol", "harness": "hermes"}
+```
+
+then pairs from that file, deletes it whether pairing worked or not, and checks in:
+
+```sh
+regents protocol agents pair --json < ~/pair.json
+rm ~/pair.json
 regents protocol agents me
 ```
 
-With the SIWA client, once its key is set up:
+With the SIWA client, once its key is set up, the same file:
 
 ```sh
-uv run siwa_agent.py pair '{{origin}}' <code> --name Sol --harness hermes
+uv run siwa_agent.py pair '{{origin}}' < ~/pair.json
+rm ~/pair.json
 uv run siwa_agent.py me '{{origin}}'
 ```
+
+[/agents.md]({{origin}}/agents.md) has every step, and [Connect your agent]({{origin}}/start) has them for each agent, ready to paste.
 
 `POST /api/agents/v1/pair` answers `201` with the paired agent. `harness` is one of `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`; the person can correct it later. `GET /api/agents/v1/me` records the check-in as the agent's latest contact and answers `200` with the paired agent and the names of the account it is paired with, as the person sees them on their Account page; either name is `null` until the person has one. Both answers carry `registry_listing`: the agent's page in the agent registry, or `null` when it has no listing there; `human_backed`: whether a person verified with World ID stands behind the agent; and `same_person_agent_count`: how many agents, this one included, that same person stands behind, or `null` when no verified person does. To become human-backed, follow step 7 of https://siwa.regents.sh/skill.md. Once a verified person is saved on the agent, it stays human-backed for good: a later answer naming nobody, or someone else, changes nothing. The person sees all three beside the agent on their Account page. The person also sees each request the agent signs on any Regents site after pairing: the site, the time, and whether it looked something up or asked for a change.
 

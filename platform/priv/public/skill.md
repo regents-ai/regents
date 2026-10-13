@@ -1,14 +1,24 @@
 ---
 name: regents
-description: Read Regents products and the private account data authorized by your current SIWA pairing.
+description: Use Regents for your person: read the public products, and once paired, their account, name claims, staking position, Credits and Points.
 ---
 
 # Use Regents
 
-Start with [Connect your agent]({{origin}}/start), [agent access]({{origin}}/agents.md) and [OpenAPI]({{origin}}/openapi.json). Use the existing [SIWA signer](https://siwa.regents.sh/skill.md) with audience `regents`; keys stay in your runtime.
+Start with [/agents.md]({{origin}}/agents.md): install regents-cli, sign in and pair with your
+person's account. [Connect your agent]({{origin}}/start) has the steps for each agent, and
+[/capabilities]({{origin}}/capabilities) and [/openapi.json]({{origin}}/openapi.json) list
+every operation.
 
-Pair only with a code your owner gives you. Check `GET /api/agents/v1/whoami` before private work. Request only the paired owner's account, claims, staking position, shared Credits balance/history, shared Points summary and effective spending budget. Every request needs fresh proof; sign the exact JSON body for POST reads and send no query string.
+Public pages and product reads need no sign-in. Your person's account, name claims, staking
+position, Credits and Points need a pairing and a request signed with your own key, for
+audience `regents`. regents-cli signs for you. Never use your person's browser sign-in as
+your own. Check `regents protocol agents whoami --json` before private work.
 
-In WebMCP, prepare a manifest-listed request, sign its exact bytes and execute with `{input, request, proof}`. No browser-session fallback is allowed. In HTTP, transmit those same exact bytes and the signer's proof headers. The command-line client uses this same contract; consult its installed command help rather than inventing commands.
+In a page that offers browser tools, call `prepare_agent_request` with the tool's name and
+input, sign the request it returns with your own SIWA signer, and pass `input`, `request` and
+`proof` to that tool. Preparing changes nothing. With no signer there, use regents-cli.
 
-No private nonfinancial agent write is available in this Regents release. Do not spend Credits, claim a name, sign a transaction, change a grant or activate Points during read verification. A revoked pairing has no private access; ask the owner for a new code. Report unsupported native signing truthfully.
+Regents offers no write through this interface. Do not spend Credits, claim a name, sign a
+transaction, change a grant or turn on Points while you read. An unpaired agent has no
+private access; ask your person for a new code.
