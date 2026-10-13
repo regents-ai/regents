@@ -1597,3 +1597,11 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   extra conditions, since Regents lets no agent spend.
 - `make check` now runs regents-cli's command check at 41da3144, the first
   commit that knows these names.
+
+## 2026-10-13 — Articles moves below AI & SCIFI in the side menu (local, unreleased)
+
+- Under Reading, the side menu now lists Daily Research, AI & SCIFI, then
+  Articles (Sean, 13 Oct).
+- Not a release: on 13 Oct 14:57Z nine of the twelve 13 Oct Daily Research
+  papers moved to earlier days, three each to 9, 10 and 11 Oct, keeping the
+  page's order (Sean, 13 Oct). Those days already had one paper each.
