@@ -15,20 +15,9 @@
   .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
   .rl-brand { display: flex; gap: var(--space-1); align-items: center; font-family: var(--font-family-title); text-decoration: none; }
   .rl-brand img { width: 2rem; height: 2rem; object-fit: contain; }
-  /* Dark is the default; light shows once chosen, or before any choice on a
-     device that asks for light. */
-  .rl-brand .rl-brand__light { display: none; }
-  :root[data-theme="light"] .rl-brand .rl-brand__light { display: block; }
-  :root[data-theme="light"] .rl-brand .rl-brand__dark { display: none; }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme]) .rl-brand .rl-brand__light { display: block; }
-    :root:not([data-theme]) .rl-brand .rl-brand__dark { display: none; }
-  }
   .rl-product-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; order: 3; width: 100%; max-width: 52rem; margin-inline: auto; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links, .rl-footer-links { display: flex; align-items: center; gap: var(--space-2); }
-  .rl-header--blog .rl-header-links { flex-wrap: wrap; min-width: 0; max-width: 100%; justify-content: flex-end; }
-  .rl-header--blog .rl-header-links > a:not(.rg-button) { min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
   .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
   .rl-footer-links a { display: inline-flex; width: 1.25rem; height: 1.25rem; }
   .rl-footer-links svg, .rl-card-source svg { width: 1.25rem; height: 1.25rem; }

@@ -87,25 +87,14 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  attr :blog?, :boolean, default: false
-
-  # Both crowns are drawn and the page's theme shows one: always the dark one on
-  # the homepage, the visitor's choice or the device's setting on the blog.
-  def landing_header(assigns) do
+  # The homepage is always dark, so its header always carries the dark crown.
+  defp landing_header(assigns) do
     ~H"""
-    <header class={["rl-header", @blog? && "rl-header--blog"]} data-home-header>
+    <header class="rl-header" data-home-header>
       <div class="rl-header-bar">
         <.link navigate={~p"/"} class="rl-brand" aria-label="Regents Labs home">
           <img
-            class="rl-brand__dark"
             src={~p"/images/brand/regents-crown-flat-dark.svg"}
-            width="252"
-            height="186"
-            alt=""
-          />
-          <img
-            class="rl-brand__light"
-            src={~p"/images/brand/regents-crown-flat-light.svg"}
             width="252"
             height="186"
             alt=""
@@ -114,7 +103,7 @@ defmodule RegentsWeb.HomeLive do
 
         <nav class="rl-product-tabs" aria-label="Products and staking">
           <a
-            :for={{label, id, href} <- nav_links(@blog?)}
+            :for={{label, id, href} <- nav_links()}
             id={"home-nav-#{id}"}
             href={href}
             class="rg-button rl-product-tab"
@@ -124,10 +113,6 @@ defmodule RegentsWeb.HomeLive do
         </nav>
 
         <div class="rl-header-links">
-          <RegentsWeb.Components.Shell.theme_toggle
-            :if={@blog?}
-            id="blog-theme-control"
-          />
           <RegentLinks.header_links id="home-token-menu" />
           <%!-- Founder decision (2026-09-28): App opens Stake, like the Protocol tab. Keep it. --%>
           <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
@@ -526,16 +511,13 @@ defmodule RegentsWeb.HomeLive do
 
   # Each product tab jumps to its section of the homepage; Protocol opens the
   # staking page. Founder decision (2026-09-28): the tab is named Protocol.
-  defp nav_links(blog?) do
+  defp nav_links do
     sections =
       for anchor <- ~w(autolaunch techtree patchbay keyfleet),
-          do: {String.capitalize(anchor), anchor, section_href(anchor, blog?)}
+          do: {String.capitalize(anchor), anchor, "##{anchor}"}
 
     sections ++ [{"Protocol", "protocol", ~p"/stake"}]
   end
-
-  defp section_href(anchor, true), do: "/##{anchor}"
-  defp section_href(anchor, false), do: "##{anchor}"
 
   # The four products and their public website destinations. The product pages
   # in the app read the same list, so the copy lives once.
