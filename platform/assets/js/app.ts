@@ -1,6 +1,8 @@
 import "../css/app.css"
 import "../vendor/regent_ui/blog.mjs"
 
+// Asks before any element carrying data-confirm acts, such as unpairing an agent.
+import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/regents"

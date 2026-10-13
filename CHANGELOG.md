@@ -1615,3 +1615,11 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The Stake test for one approval per wallet keeps this line's wait for the
   second wallet's figures and gains main's check (8e9ab33b) that the second
   wallet still needs its own approval after the first wallet's is confirmed.
+
+## 2026-10-13 — Confirm prompts show again (local, unreleased)
+
+- Unpairing an agent on the Account page and locking Credits for a refund on
+  the team's Credits page ask "are you sure?" before acting. Both prompts were
+  written into the pages but never appeared, so one press acted at once: the
+  page script did not load the part that shows them. It now loads it the same
+  way the template does.
