@@ -42,7 +42,7 @@ defmodule RegentsWeb.AgentStart do
     """
     Connect to my Regents account. Ask me for a pairing code first; I make it on my Account page at #{origin()}/account.
 
-    1. Install the Regents command line, version 1.9.3 or newer:
+    1. Install the Regents command line, version 1.9.3 or newer. To run it without installing, use uvx --from regents-cli==1.9.3 regents wherever these steps say regents.
        uv tool install --upgrade regents-cli
     2. Sign in to Regents. This makes your agent key the first time. Never show the key.
        regents auth login --site regents
