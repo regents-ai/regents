@@ -47,7 +47,7 @@ defmodule Regents.Staking.RpcClientTest do
   end
 
   test "ONE_PROTOCOL_CALL: the contract reads arrive on one block, the treasury's balance too" do
-    assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+    assert {:ok, snapshot, _history} = RpcClient.protocol_snapshot(nil)
 
     assert snapshot.block_number == 0x20
     assert snapshot.block_hash == Stub.latest_hash()
@@ -87,14 +87,20 @@ defmodule Regents.Staking.RpcClientTest do
   # leave more REGENT circulating than there is.
   test "CIRCULATING_SUPPLY: what circulates is the supply less all four holdings" do
     Stub.put(%{treasury_held: 0, redeemer_held: 0, reward_inventory: 0})
-    assert {:ok, %{regent_circulating_supply: "60000000000"}} = RpcClient.protocol_snapshot()
+
+    assert {:ok, %{regent_circulating_supply: "60000000000"}, _history} =
+             RpcClient.protocol_snapshot(nil)
 
     Stub.put(%{vault_held: 0})
-    assert {:ok, %{regent_circulating_supply: "100000000000"}} = RpcClient.protocol_snapshot()
+
+    assert {:ok, %{regent_circulating_supply: "100000000000"}, _history} =
+             RpcClient.protocol_snapshot(nil)
 
     # More held than there is supply is no supply at all, never a negative one.
     Stub.put(%{treasury_held: 100_000_000_000 * @regent})
-    assert {:ok, %{regent_circulating_supply_raw: "0"}} = RpcClient.protocol_snapshot()
+
+    assert {:ok, %{regent_circulating_supply_raw: "0"}, _history} =
+             RpcClient.protocol_snapshot(nil)
   end
 
   # A selector that named some other function would return some other number
@@ -125,7 +131,7 @@ defmodule Regents.Staking.RpcClientTest do
   test "SEVEN_DAY_WINDOW: the deposit range is asked for in contiguous endpoint-sized pieces" do
     head(@head)
 
-    assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+    assert {:ok, snapshot, _history} = RpcClient.protocol_snapshot(nil)
     assert snapshot.usdc_received_from_block == @window_start
 
     ranges = log_ranges()
@@ -165,27 +171,32 @@ defmodule Regents.Staking.RpcClientTest do
       ]
     })
 
-    assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+    assert {:ok, snapshot, _history} = RpcClient.protocol_snapshot(nil)
     assert snapshot.usdc_received_7d_raw == "4150000"
     assert snapshot.usdc_received_7d == "4.15"
   end
 
   test "SEVEN_DAY_SUM_IS_ZERO: a window with no deposits is zero rather than unavailable" do
-    assert {:ok, %{usdc_received_7d_raw: "0", usdc_received_7d: "0"}} =
-             RpcClient.protocol_snapshot()
+    assert {:ok, %{usdc_received_7d_raw: "0", usdc_received_7d: "0"}, _history} =
+             RpcClient.protocol_snapshot(nil)
   end
 
   # A total assembled from the pieces that happened to answer would understate
   # what the contract registered, so a refused piece takes the seven-day figure
   # with it. It takes nothing else: the contract already answered for every
-  # other figure, and that answer stands.
+  # other figure, and that answer stands. The history was last kept five pieces
+  # back, so catching up asks for several pieces and the third is refused.
   test "FAILING_PIECE: a refused piece of the window costs that figure and nothing else" do
     head(@head)
-    Stub.put(%{refused_log_range: @window_start + 3 * @chunk_blocks})
+    kept = @head - 5 * @chunk_blocks
+    history = %{"block_number" => kept, "block_hash" => Stub.latest_hash(), "events" => []}
+    # The pass re-reads the newest 30 blocks the history holds, so it starts there.
+    catch_up = kept - 29
+    Stub.put(%{refused_log_range: catch_up + 2 * @chunk_blocks})
 
     log =
       capture_log(fn ->
-        assert {:ok, snapshot} = RpcClient.protocol_snapshot()
+        assert {:ok, snapshot, ^history} = RpcClient.protocol_snapshot(history)
 
         assert snapshot.usdc_received_7d == :unavailable
         assert snapshot.usdc_received_7d_raw == :unavailable
@@ -202,11 +213,8 @@ defmodule Regents.Staking.RpcClientTest do
                  Enum.sort(Facts.protocol_keys() -- [:regent_price_usd, :regent_price_read_at])
       end)
 
-    # The log names the stretch of blocks that failed and why, and never the
-    # endpoint it asked.
-    failed_from = @window_start + 3 * @chunk_blocks
-    assert log =~ "seven-day USDC window unavailable"
-    assert log =~ "blocks #{failed_from}..#{failed_from + @chunk_blocks - 1}"
+    # The log names the reading's block and why, and never the endpoint it asked.
+    assert log =~ "seven-day USDC history unavailable at block #{@head}: :chain_unavailable"
     refute log =~ "http"
   end
 
@@ -239,11 +247,12 @@ defmodule Regents.Staking.RpcClientTest do
   # fails the sum rather than being skipped past. The sum is the seven-day
   # figure alone, so nothing else in the reading answers for it.
   test "MALFORMED_LOG: a log that does not decode fails the seven-day figure" do
+    history = %{"block_number" => 0x20, "block_hash" => Stub.latest_hash(), "events" => []}
     Stub.put(%{logs: [%{revenue_log(0x20, 1_000_000) | "data" => "0x"}]})
 
     capture_log(fn ->
-      assert {:ok, %{usdc_received_7d: :unavailable, usdc_received_lifetime: "125000"}} =
-               RpcClient.protocol_snapshot()
+      assert {:ok, %{usdc_received_7d: :unavailable, usdc_received_lifetime: "125000"}, ^history} =
+               RpcClient.protocol_snapshot(history)
     end)
   end
 
@@ -284,35 +293,35 @@ defmodule Regents.Staking.RpcClientTest do
   test "NON_CANONICAL_BLOCK: a block that moved fails the read instead of answering it" do
     Stub.put(%{canonical_block_hash: "0x" <> String.duplicate("9d", 32)})
 
-    assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot()
+    assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot(nil)
     assert {:error, :chain_unavailable} = RpcClient.wallet_snapshot(@wallet)
   end
 
   test "REVERTING_SUB_CALL: one refused sub-call makes the whole reading unavailable" do
     Application.put_env(:regents, :staking_http_client, Stub.UnsupportedCall)
 
-    assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot()
+    assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot(nil)
     assert {:error, :chain_unavailable} = RpcClient.wallet_snapshot(@wallet)
   end
 
   test "CONSTANTS_MISMATCH: a contract naming other tokens refuses the whole snapshot" do
     Stub.put(%{stake_token: 1})
-    assert {:error, :contract_constants_mismatch} = RpcClient.protocol_snapshot()
+    assert {:error, :contract_constants_mismatch} = RpcClient.protocol_snapshot(nil)
 
     Stub.put(%{stake_token: nil, usdc: 2})
-    assert {:error, :contract_constants_mismatch} = RpcClient.protocol_snapshot()
+    assert {:error, :contract_constants_mismatch} = RpcClient.protocol_snapshot(nil)
   end
 
   test "AGGREGATOR_IDENTITY: an unrecognised aggregator refuses the reading before it is made" do
     Stub.put(%{code: Stub.runtime_code(Abi.multicall3_runtime_bytes() - 1)})
-    assert {:error, :runtime_mismatch} = RpcClient.protocol_snapshot()
+    assert {:error, :runtime_mismatch} = RpcClient.protocol_snapshot(nil)
 
     Stub.put(%{code: "0x"})
     assert {:error, :runtime_mismatch} = RpcClient.wallet_snapshot(@wallet)
   end
 
   test "IDENTITY_IS_PINNED: the aggregator is identified at the same block the reads use" do
-    assert {:ok, _snapshot} = RpcClient.protocol_snapshot()
+    assert {:ok, _snapshot, _history} = RpcClient.protocol_snapshot(nil)
 
     assert_received {:rpc, "eth_getCode", [address, %{blockHash: hash, requireCanonical: true}]}
 
@@ -322,7 +331,7 @@ defmodule Regents.Staking.RpcClientTest do
 
   test "CURRENT_CAPACITY: remaining capacity is floored at zero" do
     Stub.put(%{denominator: 100, total_staked: 250})
-    assert {:ok, %{remaining_capacity_raw: "0"}} = RpcClient.protocol_snapshot()
+    assert {:ok, %{remaining_capacity_raw: "0"}, _history} = RpcClient.protocol_snapshot(nil)
   end
 
   test "UNAVAILABLE_CHAIN: malformed or wrong-chain facts never become zero balances" do
@@ -333,7 +342,7 @@ defmodule Regents.Staking.RpcClientTest do
           %{chain_id: "0x1"}
         ] do
       Stub.put(state)
-      assert {:error, _} = RpcClient.protocol_snapshot()
+      assert {:error, _} = RpcClient.protocol_snapshot(nil)
       assert {:error, _} = RpcClient.wallet_snapshot(@wallet)
     end
   end
@@ -342,7 +351,9 @@ defmodule Regents.Staking.RpcClientTest do
     Application.put_env(:regents, :staking_http_client, Stub.Timeout)
 
     log =
-      capture_log(fn -> assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot() end)
+      capture_log(fn ->
+        assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot(nil)
+      end)
 
     assert log =~ "class: :timeout"
     refute log =~ "super-secret"
@@ -380,7 +391,8 @@ defmodule Regents.Staking.RpcClientTest do
 
   # One `USDCRevenueDeposited` exactly as the contract writes it: three indexed
   # topics beside the event's own, and four data words whose first is the
-  # `amountReceived` this sum is made of.
+  # `amountReceived` this sum is made of. Base names the block, transaction and
+  # position each log sits at; one transaction per block keeps them apart.
   defp revenue_log(block_number, amount) do
     %{
       "address" => Abi.staking_address(),
@@ -389,7 +401,10 @@ defmodule Regents.Staking.RpcClientTest do
         | List.duplicate("0x" <> Stub.hex_word(0), 3)
       ],
       "data" => "0x" <> Stub.hex_word(amount) <> String.duplicate(Stub.hex_word(0), 3),
-      "blockNumber" => hex_quantity(block_number)
+      "blockNumber" => hex_quantity(block_number),
+      "blockHash" => Stub.latest_hash(),
+      "transactionHash" => "0x" <> Stub.hex_word(block_number),
+      "logIndex" => "0x0"
     }
   end
 

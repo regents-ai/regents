@@ -49,23 +49,21 @@ defmodule Regents.TestStakingChainClient do
   # An unavailable Base read is its own outcome: it is never a zero balance and
   # never evidence about which wallet is asking.
   @impl true
-  def protocol_snapshot do
+  def protocol_snapshot(history) do
     report_read(:protocol)
 
     case Application.get_env(:regents, :test_staking_protocol_error) do
-      nil -> {:ok, protocol()}
-      reason -> {:error, reason}
-    end
-  end
+      nil ->
+        snapshot = protocol()
 
-  @impl true
-  def protocol_snapshot(history) do
-    with {:ok, snapshot} <- protocol_snapshot() do
-      {:ok, snapshot,
-       Map.merge(history || %{"events" => []}, %{
-         "block_number" => snapshot.block_number,
-         "block_hash" => snapshot.block_hash
-       })}
+        {:ok, snapshot,
+         Map.merge(history || %{"events" => []}, %{
+           "block_number" => snapshot.block_number,
+           "block_hash" => snapshot.block_hash
+         })}
+
+      reason ->
+        {:error, reason}
     end
   end
 

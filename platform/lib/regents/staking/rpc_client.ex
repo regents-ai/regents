@@ -11,13 +11,6 @@ defmodule Regents.Staking.RpcClient do
   @chain_id 8453
   @rpc_opts [client_key: :staking_http_client, log_scope: "staking", purpose: :staking_protocol]
 
-  # Base confirms a block about every two seconds, so seven days is 302,400 of
-  # them. The window is counted back from the block this reading was taken at
-  # and never from the clock, so the figure and the block beside it always
-  # describe the same stretch of chain. Both ends of the range are counted, so
-  # the window's first block is 302,399 blocks before its last.
-  @window_blocks 302_400
-
   # A public Base endpoint answers `eth_getLogs` over at most ten thousand
   # blocks, so the window is asked for in that many at a time, a few at a time.
   @chunk_blocks 10_000
@@ -28,20 +21,6 @@ defmodule Regents.Staking.RpcClient do
     usdc_received_7d_raw: :unavailable,
     usdc_received_7d: :unavailable
   }
-
-  # The stateless diagnostic reader keeps its existing interface. Automatic and
-  # visitor reads use protocol_snapshot/1 through the durable shared job instead.
-  # The contract's current answers are the reading; the seven-day window is one
-  # figure read beside them, from logs rather than from the contract, and an
-  # endpoint that refuses a log range has said nothing against the answers it
-  # already gave. So the window is read on its own once the reading exists, and
-  # when it fails only that figure is marked unavailable.
-  @impl true
-  def protocol_snapshot do
-    with {:ok, protocol} <- bounded(fn -> read_protocol() end) do
-      {:ok, Map.merge(protocol, usdc_received_window(protocol.block_number))}
-    end
-  end
 
   @doc "Incremental protocol reading; returns retained history only after the pinned reads succeed."
   @impl true
@@ -55,12 +34,12 @@ defmodule Regents.Staking.RpcClient do
     end
   end
 
-  # The seven-day window is one figure beside the contract's answers, as in
-  # protocol_snapshot/0. Logs nobody answered for leave the retained history as
-  # it was, for the next pass to catch up from, and cost that figure alone. The
-  # saved reading may then be newer than the history, so SnapshotRefresh checks
-  # the head against the reading too. A head behind the history's own, or a
-  # first reading with no history to keep, is no reading.
+  # The seven-day window is one figure beside the contract's answers, read from
+  # logs rather than from the contract. Logs nobody answered for leave the
+  # retained history as it was, for the next pass to catch up from, and cost
+  # that figure alone. The saved reading may then be newer than the history, so
+  # SnapshotRefresh checks the head against the reading too. A head behind the
+  # history's own, or a first reading with no history to keep, is no reading.
   defp revenue_window(history, block) do
     case bounded(fn -> RevenueHistory.read(history, block, &history_logs/2) end) do
       {:ok, _history, _window} = read ->
@@ -89,13 +68,9 @@ defmodule Regents.Staking.RpcClient do
   # One `latest` block owns every figure below it. The contract's current
   # answers come back together, the one balance that could not be asked for
   # until the treasury named itself is asked for at that same block, and the
-  # deposit window read afterwards ends there too, so nothing on the page can
-  # pair one block's total with another's history. A partial aggregate is
-  # unavailable rather than shown.
-  defp read_protocol do
-    with {:ok, block} <- Rpc.latest_block(@rpc_opts), do: read_protocol_at(block)
-  end
-
+  # deposit window ends there too, so nothing on the page can pair one block's
+  # total with another's history. A partial aggregate is unavailable rather
+  # than shown.
   defp read_protocol_at(block) do
     with :ok <- identified_aggregator(block),
          {:ok,
@@ -178,79 +153,11 @@ defmodule Regents.Staking.RpcClient do
     end
   end
 
-  # The seven days of recorded USDC ending at `to_block`, as the three figures
-  # the page shows for it. A window nobody answered for is marked unavailable in
-  # each of them and named in the log by the stretch of blocks that failed; a
-  # total assembled from the pieces that happened to answer would understate what
-  # the contract registered, so no such total is ever made.
-  defp usdc_received_window(to_block) do
-    from_block = max(to_block - @window_blocks + 1, 0)
-
-    case read_window(from_block, to_block) do
-      {:ok, received} ->
-        %{
-          usdc_received_from_block: from_block,
-          usdc_received_7d_raw: Integer.to_string(received),
-          usdc_received_7d: Rpc.format_units(received, 6)
-        }
-
-      {:error, {failed_from, failed_to}, reason} ->
-        Logger.warning(
-          "staking seven-day USDC window unavailable for blocks " <>
-            "#{failed_from}..#{failed_to}: #{inspect(reason)}"
-        )
-
-        @unavailable_window
-    end
-  end
-
-  # The window has a deadline of its own. A stretch of history nobody answered
-  # for in time is one unavailable figure and never a reading held open, so the
-  # whole window is given up on as a single span once the deadline passes.
-  defp read_window(from_block, to_block) do
-    case bounded(fn -> usdc_received_between(from_block, to_block) end) do
-      {:error, :chain_timeout} -> {:error, {from_block, to_block}, :chain_timeout}
-      result -> result
-    end
-  end
-
-  # Every deposit the contract recorded over the window, added up from its own
-  # logs. The range is asked for in endpoint-sized pieces at once rather than one
-  # after another, and the first piece that fails ends the sum, naming its own
-  # span.
-  defp usdc_received_between(from_block, to_block) do
-    pieces = chunks(from_block, to_block)
-
-    pieces
-    |> Task.async_stream(&chunk_received/1,
-      max_concurrency: @chunk_concurrency,
-      timeout: @read_timeout,
-      on_timeout: :kill_task
-    )
-    |> Stream.zip(pieces)
-    |> Enum.reduce_while({:ok, 0}, fn
-      {{:ok, {:ok, received}}, _piece}, {:ok, total} -> {:cont, {:ok, total + received}}
-      {{:ok, {:error, reason}}, piece}, _total -> {:halt, {:error, piece, reason}}
-      {{:exit, :timeout}, piece}, _total -> {:halt, {:error, piece, :chain_timeout}}
-      {{:exit, _reason}, piece}, _total -> {:halt, {:error, piece, :chain_unavailable}}
-    end)
-  end
-
   defp chunks(from_block, to_block) do
     from_block
     |> Stream.iterate(&(&1 + @chunk_blocks))
     |> Stream.take_while(&(&1 <= to_block))
     |> Enum.map(&{&1, min(&1 + @chunk_blocks - 1, to_block)})
-  end
-
-  defp chunk_received({from_block, to_block}) do
-    with {:ok, logs} <- chunk_logs({from_block, to_block}),
-         {:ok, received} <- Abi.usdc_revenue_received(logs) do
-      {:ok, received}
-    else
-      :error -> {:error, :invalid_chain_response}
-      {:error, reason} -> {:error, reason}
-    end
   end
 
   defp history_logs(from, to) do
