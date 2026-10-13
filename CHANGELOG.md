@@ -1623,3 +1623,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   written into the pages but never appeared, so one press acted at once: the
   page script did not load the part that shows them. It now loads it the same
   way the template does.
+
+## 2026-10-13 — ENS pictures load (local, unreleased)
+
+- A person's ENS picture is no longer lost when the ENS picture service is slow.
+  The service takes one to five seconds to answer for a name it has not been
+  asked about in the last hour, and the check gave up at two and recorded "no
+  picture". It now waits ten seconds, and a service that does not answer in
+  time changes nothing: the name and picture already held stay, and the next
+  sign-in asks again.
+- A name's picture is read only through the ENS picture service, never from an
+  address the name's own record points at. This is how the shared library and
+  the template read it.

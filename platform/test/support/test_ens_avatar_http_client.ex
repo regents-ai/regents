@@ -10,17 +10,17 @@ defmodule Regents.TestEnsAvatarHttpClient do
   @service "https://metadata.ens.domains/mainnet/avatar/"
 
   @addresses %{
-    "https://avatars.regents.test/atlas.png" => {:ok, 200},
-    "https://avatars.regents.test/someone-else.png" => {:ok, 200},
-    # A picture the name still points at, which is no longer there.
-    "https://avatars.regents.test/gone.png" => {:ok, 404},
-    # An `ipfs://` record and an NFT reference, both resolved by the service.
+    # An image address, an `ipfs://` record and an NFT reference, all resolved
+    # by the service.
+    (@service <> "atlas.eth") => {:ok, 200},
     (@service <> "ipfs-avatar.eth") => {:ok, 200},
     (@service <> "nft-avatar.eth") => {:ok, 200},
+    # A picture the name still points at, which is no longer there.
+    (@service <> "gone.eth") => {:ok, 404},
     # A record the service itself cannot resolve to a picture.
     (@service <> "unresolvable-avatar.eth") => {:ok, 404},
-    # A host that will not answer at all.
-    "https://avatars.regents.test/refused.png" => {:error, :nxdomain}
+    # A name the service does not answer about at all.
+    (@service <> "refused.eth") => {:error, :nxdomain}
   }
 
   @doc "The addresses this stubbed web knows, by what each one does."

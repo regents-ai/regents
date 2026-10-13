@@ -57,7 +57,7 @@ defmodule Regents.TestEnsChainClient do
       avatar: "https://avatars.regents.test/gone.png",
       owner: :itself
     },
-    # Points at a picture whose host will not answer.
+    # Publishes a picture the ENS service does not answer about.
     named_with_refused_picture: %{
       wallet: "0xaaaa00000000000000000000000000000000000d",
       name: "refused.eth",

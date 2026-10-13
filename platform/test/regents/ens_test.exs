@@ -5,14 +5,14 @@ defmodule Regents.EnsTest do
   alias Regents.Accounts.VerifiedSession
   alias Regents.Actors.{Human, System}
 
+  @atlas_picture "https://metadata.ens.domains/mainnet/avatar/atlas.eth"
+
   test "a wallet with an ENS name and picture is called and drawn by them" do
     identity = :named_with_avatar |> account() |> resolve()
 
-    assert %{ens_name: "atlas.eth", ens_avatar_url: "https://avatars.regents.test/atlas.png"} =
-             identity
-
+    assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} = identity
     assert PublicIdentity.label(identity) == "atlas.eth"
-    assert PublicIdentity.avatar_src(identity) == "https://avatars.regents.test/atlas.png"
+    assert PublicIdentity.avatar_src(identity) == @atlas_picture
   end
 
   test "a wallet with an ENS name and no picture keeps its generated one" do
@@ -57,14 +57,14 @@ defmodule Regents.EnsTest do
     assert "data:image/svg+xml;base64," <> _drawn = PublicIdentity.avatar_src(identity)
   end
 
-  # The name was read before the picture was asked about, so the picture's host
-  # cannot cost the name.
-  test "a picture whose host will not answer keeps the name and the generated picture" do
-    identity = :named_with_refused_picture |> account() |> resolve()
+  # A service that does not answer says nothing about the picture, so it must
+  # not be recorded as "no picture".
+  test "a picture the ENS service will not answer about keeps the last known name and picture" do
+    account = account(:named_with_avatar)
+    assert %{ens_name: "atlas.eth"} = resolve(account)
 
-    assert %{ens_name: "refused.eth", ens_avatar_url: nil} = identity
-    assert PublicIdentity.label(identity) == "refused.eth"
-    assert "data:image/svg+xml;base64," <> _drawn = PublicIdentity.avatar_src(identity)
+    assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} =
+             account |> moved_to(:named_with_refused_picture) |> resolve()
   end
 
   test "a wallet with no ENS name keeps its shortened address and generated picture" do
@@ -88,7 +88,7 @@ defmodule Regents.EnsTest do
     account = account(:named_with_avatar)
     assert %{ens_name: "atlas.eth"} = resolve(account)
 
-    assert %{ens_name: "atlas.eth", ens_avatar_url: "https://avatars.regents.test/atlas.png"} =
+    assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} =
              account |> moved_to(:unreachable) |> resolve()
   end
 

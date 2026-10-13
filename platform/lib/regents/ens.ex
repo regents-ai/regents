@@ -5,6 +5,8 @@ defmodule Regents.Ens do
   Sign-in never waits for this. `refresh/1` hands the lookup to a supervised task
   and returns immediately, the lookup gives up at a fixed deadline, and a lookup
   that fails or expires writes nothing, so the last known name and picture stand.
+  A picture service that does not answer in time is such a failure too: it says
+  nothing about the picture, so nothing is written and the next sign-in asks again.
   A finished attempt announces itself on `topic/1` and the pages showing that
   account read it again.
 
@@ -12,9 +14,10 @@ defmodule Regents.Ens do
   again and kept only when it resolves back to the same wallet, so no one can
   wear a name they do not own.
 
-  A name's picture is kept only when its address really answers with one, so a
-  wallet is drawn with its own generated picture rather than with a box the
-  browser cannot fill.
+  A name's picture is read only through the ENS avatar service, never from an
+  address the name's record points at, and is kept only when the service really
+  answers with one, so a wallet is drawn with its own generated picture rather
+  than with a box the browser cannot fill.
   """
 
   alias AgentEns.Internal.Contract
@@ -29,7 +32,8 @@ defmodule Regents.Ens do
 
   # ENS publishes an address that resolves any name's avatar record — an image
   # address, an `ipfs://` URI, or a reference to the NFT holding the picture —
-  # and answers with the image itself.
+  # and answers with the image itself, so a picture is only ever read from this
+  # one host.
   @avatar_service "https://metadata.ens.domains/mainnet/avatar/"
 
   @doc false
@@ -63,19 +67,26 @@ defmodule Regents.Ens do
     :started
   end
 
-  defp store(account_id, {:ok, %{ens_name: name, ens_avatar_url: avatar}}),
-    do: Accounts.put_ens_identity(account_id, name, served(avatar), actor: %SystemActor{})
+  defp store(account_id, {:ok, %{ens_name: name, ens_avatar_url: avatar}}) do
+    case served(avatar) do
+      {:ok, picture} ->
+        Accounts.put_ens_identity(account_id, name, picture, actor: %SystemActor{})
+
+      {:error, _no_answer} ->
+        :ok
+    end
+  end
 
   defp store(_account_id, :unavailable), do: :ok
 
-  # A picture is kept only when its address really answers with one, asked once
-  # on its own budget. So a record the ENS service cannot resolve, an image that
-  # has since gone, and a host that will not answer all leave the wallet's
-  # generated picture standing rather than a box the browser cannot fill — and
-  # none of them costs the name, which was read before this is asked. A redirect
-  # is not followed: the record's owner chooses where it points, and following it
-  # would let them aim this request at an address inside Fly's network.
-  defp served(nil), do: nil
+  # A picture is kept only when the ENS service really answers with one, asked
+  # once on its own budget. So a record the service cannot resolve and an image
+  # that has since gone leave the wallet's generated picture standing rather than
+  # a box the browser cannot fill. A service that does not answer in time says
+  # nothing about the picture, so it is an error and not "no picture": it takes
+  # one to five seconds for a name it has not been asked about in the last hour.
+  # A redirect is not followed, so the request never leaves the service's host.
+  defp served(nil), do: {:ok, nil}
 
   defp served(url) do
     case avatar_client().head(url,
@@ -83,8 +94,9 @@ defmodule Regents.Ens do
            retry: false,
            redirect: false
          ) do
-      {:ok, %{status: 200}} -> url
-      _unserved -> nil
+      {:ok, %{status: 200}} -> {:ok, url}
+      {:ok, _no_picture} -> {:ok, nil}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -131,17 +143,14 @@ defmodule Regents.Ens do
 
   defp owned(_someone_elses_name, _wallet), do: @unnamed
 
-  # The avatar record is free text, and only an image address is something a
-  # browser can load. Every other kind the record may hold is read through the
-  # ENS service, which resolves the record itself, so a name is drawn with its
-  # own picture however that picture is published. A name that publishes nothing
+  # The avatar record is free text chosen by the name's owner. Whatever it holds
+  # is read through the ENS service, which resolves the record itself, so a name
+  # is drawn with its own picture however that picture is published and nothing
+  # is ever asked of an address the record names. A name that publishes nothing
   # is drawn with the wallet's generated picture.
   defp image_url(record, name) when is_binary(record) do
-    case String.trim(record) do
-      "" -> nil
-      "https://" <> _image = url -> url
-      _other_kind -> @avatar_service <> URI.encode(name, &URI.char_unreserved?/1)
-    end
+    if String.trim(record) != "",
+      do: @avatar_service <> URI.encode(name, &URI.char_unreserved?/1)
   end
 
   defp image_url(_absent, _name), do: nil

@@ -122,7 +122,7 @@ config :regents, :ethereum_read_rpc_url, nil
 config :regents, :ethereum_rpc_module, AgentEns.Internal.RPC
 config :regents, :ens_lookup_deadline_ms, 4_000
 config :regents, :ens_avatar_http_client, Regents.Ens.AvatarHttpClient
-config :regents, :ens_avatar_deadline_ms, 2_000
+config :regents, :ens_avatar_deadline_ms, 10_000
 config :regents, :app_surfaces, true
 config :regents, :opensea_api_key, nil
 config :regents, :opensea_http_client, Regents.OpenSea.HttpClient
