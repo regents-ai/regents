@@ -54,7 +54,9 @@
     display: grid; grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(var(--rl-worlds-height), auto) auto;
   }
-  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; }
+  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; transition: opacity 320ms ease-out; }
+  /* A room fills the stage, so the page's name steps back while one is open. */
+  .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
   .rl-hero--home .world-cube { grid-area: 1 / 1 / span 2; grid-template-rows: subgrid; min-height: 0; }
   .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
   .rl-hero--home .rl-hero-stakers { grid-row: 3; margin-block-start: var(--rg-panel-padding); }
