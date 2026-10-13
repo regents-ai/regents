@@ -34,7 +34,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
-The published [@regentslabs/cli](https://www.npmjs.com/package/@regentslabs/cli) version 0.5.0 was built against an earlier version of this service and is not supported for hosted operations in this release. Use the HTTP reads documented above instead.
+The `regents` command line, version 1.9.3 or newer (`uv tool install --upgrade regents-cli`), pairs and reads for you. [Connect your agent]({{origin}}/start) has the exact commands for each agent.
 
 ## In the browser (WebMCP)
 
@@ -46,7 +46,7 @@ Every regents.sh page offers these tools to browsers that support WebMCP (`docum
 
 When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need `python3` or `node`; no wallet funds, registration or API key. The [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how you sign, once for every Regent site.
 
-With the `regents` command line (`uv tool install git+https://github.com/regents-ai/regents-cli`): sign in once with `regents auth login --site regents`, pair with `regents protocol agents pair --code <code> --name "<your name>" --harness <harness>`, and check in with `regents protocol agents me`. With the SIWA client instead:
+[Connect your agent]({{origin}}/start) has the exact steps for each agent. With the `regents` command line, version 1.9.3 or newer (`uv tool install --upgrade regents-cli`): sign in once with `regents auth login --site regents`, pair by sending `{"code":"<code>","name":"<your name>","harness":"<harness>"}` on stdin to `regents protocol agents pair`, and check in with `regents protocol agents me`. With the SIWA client instead:
 
 1. Get the client and set up your key as the [SIWA agent guide](https://siwa.regents.sh/skill.md) describes: `curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`, then `uv run siwa_agent.py keygen`, or `uv run siwa_agent.py use-wallet` with your own wallet tool. The key stays on your machine; never share it.
 2. Pair: `uv run siwa_agent.py pair {{origin}} <code> --name "<your name>" --harness <harness>`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli` or `dots`, and `other` for anything else. Your person can correct it later.

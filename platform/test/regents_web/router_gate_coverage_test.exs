@@ -47,6 +47,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:delete, "/auth/privy/session"},
              {:get, "/articles"},
              {:get, "/articles/:slug"},
+             {:get, "/start"},
              {:get, "/admin/articles"},
              {:get, "/admin/errors"},
              {:get, "/admin/errors/:id"},

@@ -41,17 +41,16 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     choose(view, "hermes")
     assert has_element?(view, @message, "Pair with my Regents account.")
-    assert has_element?(view, @message, "https://regents.sh/llms.txt")
-    refute has_element?(view, @message, "SIWA_BROKER")
+    assert has_element?(view, @message, "/start?agent=hermes")
     first = pairing_code(view)
 
     choose(view, "muse")
-    assert has_element?(view, @message, "SIWA_BROKER=https://siwa-server.fly.dev")
+    assert has_element?(view, @message, "/start?agent=muse")
     second = pairing_code(view)
     refute second == first
 
     view |> element("#account-agents-pair", "Make a new code") |> render_click()
-    assert has_element?(view, @message, "SIWA_BROKER=https://siwa-server.fly.dev")
+    assert has_element?(view, @message, "/start?agent=muse")
     refute pairing_code(view) in [first, second]
 
     assert {:ok, agent} = RegentAgents.pair_agent(first, "Sol", :hermes, actor: @agent)

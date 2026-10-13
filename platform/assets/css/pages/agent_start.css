@@ -1,0 +1,90 @@
+/* Connect your agent: a row of agents, the steps to hand over, and what
+   happens next. It stands on the Account page's panels. */
+
+.agent-start__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agent-start__tabs a {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-border);
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: transform 160ms ease-out;
+}
+
+.agent-start__tabs a:hover {
+  color: var(--color-fg);
+}
+
+.agent-start__tabs a:active {
+  transform: scale(0.97);
+}
+
+.agent-start__tabs a[aria-current="page"] {
+  border-color: var(--color-fg);
+  color: var(--color-fg);
+}
+
+.agent-start__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.agent-start__head label {
+  font-weight: 500;
+}
+
+.agent-start textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-mono);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.agent-start__steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: agent-start;
+}
+
+.agent-start__steps li {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  counter-increment: agent-start;
+}
+
+.agent-start__steps li::before {
+  content: counter(agent-start);
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-mono);
+  font-size: 0.8rem;
+}
+
+.agent-start__steps h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.agent-start__steps p {
+  color: var(--color-fg-muted);
+  line-height: 1.45;
+}

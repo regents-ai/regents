@@ -200,6 +200,7 @@ defmodule RegentsWeb.Router do
       live "/app", ShellLive, :app
       live "/articles", ShellLive, :blog
       live "/articles/:slug", ShellLive, :blog_post
+      live "/start", ShellLive, :agent_start
       live "/account", ShellLive, :account
       live "/account/credits", ShellLive, :account_credits
       live "/account/points", ShellLive, :account_points

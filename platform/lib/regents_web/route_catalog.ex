@@ -59,6 +59,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :blog_post
     },
     %Entry{
+      path_pattern: "/start",
+      live_action: :agent_start,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :agent_start
+    },
+    %Entry{
       path_pattern: "/account",
       live_action: :account,
       parameter_schema: %{},
@@ -168,6 +175,9 @@ defmodule RegentsWeb.RouteCatalog do
     blog_post:
       {:blog_post, :regent_ops, "Regents Labs", "Articles", "/articles", [:profile_actions],
        :regents_labs, %{}},
+    agent_start:
+      {:agent_start, :regent_ops, "Regents Labs", "Connect your agent", "/app",
+       [:profile_actions], :regents_labs, %{}},
     home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
     paper_pro_daily:
       {:paper_pro_daily, :regent_ops, "Regents Labs", "Paper Pro Daily", "/paper-pro-daily", [],

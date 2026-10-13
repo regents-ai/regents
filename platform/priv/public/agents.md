@@ -1,6 +1,6 @@
 # Regents agent access
 
-Read [the guide]({{origin}}/skill.md), [developer documentation]({{origin}}/docs) and [OpenAPI]({{origin}}/openapi.json). The public [capability manifest]({{origin}}/capabilities) lists every offered browser tool and matching HTTP route. Public documents and product reads require no credentials.
+Step-by-step commands for each agent are at [Connect your agent]({{origin}}/start). Read [the guide]({{origin}}/skill.md), [developer documentation]({{origin}}/docs) and [OpenAPI]({{origin}}/openapi.json). The public [capability manifest]({{origin}}/capabilities) lists every offered browser tool and matching HTTP route. Public documents and product reads require no credentials.
 
 For private reads, use your own SIWA identity for audience `regents`. Browser cookies and human Privy tokens are not agent authority. Sign the exact method, path and body with fresh proof from your existing signer. Do not send query strings. The shared SIWA service checks signatures and replay; Regents checks the current pairing on each private request.
 
@@ -23,7 +23,7 @@ For claims and Credits history, sign the exact JSON body `{}` for the first page
 
 The Points summary uses the canonical paired owner account and creates no account or event. It does not activate or award Points.
 
-A budget read does not spend or change a grant. Enabling grants is paused during the shared rollout; owners may still disable them. Spending eligibility requires an enabled grant bound to the current pairing, an allowed site and sufficient limits. Account security, linking and grant management remain owner-only. Wallet transactions need the user's wallet approval.
+A budget read does not spend or change a grant. Agent spending opens soon; until then no grant can be turned on, and owners may still turn one off. Spending eligibility requires an enabled grant bound to the current pairing, an allowed site and sufficient limits. Account security, linking and grant management remain owner-only. Wallet transactions need the user's wallet approval.
 
 Regents currently offers no private nonfinancial write through this agent interface. Do not use name claims, purchases or a public post as an acceptance-test write. Points activation and launch gates are outside this interface.
 

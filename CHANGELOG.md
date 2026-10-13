@@ -1530,3 +1530,16 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 
 - The account page's list of sites an agent may spend Credits on now includes
   template.regents.sh beside patchbay.help. Agent spending itself stays off.
+
+## 2026-10-13 — Connect your agent at /start (local, unreleased)
+
+- New page, regents.sh/start: one tab per agent (Hermes, Codex, Grok Bot, Muse,
+  Dots, other agents), the steps to copy and give to it, and what happens next.
+  Agents that ask for Markdown get the same steps for every agent at the same
+  address. The page stays open while the launch gate is closed.
+- The message the Account page gives an agent with its pairing code now points
+  at that agent's tab on /start instead of llms.txt.
+- llms.txt, agents.md and skill.md link /start and name regents-cli 1.9.3 with
+  the commands that work today; the old npm command line note is gone.
+- "Agent spending opens soon." replaces the paused-rollout wording on the
+  Credits page and in agents.md.

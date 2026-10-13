@@ -112,9 +112,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
   def render(assigns) do
     ~H"""
     <div id={@id} class="credits-agents">
-      <p :if={!@grant_updates_enabled} role="status">
-        Agent spending grants are paused during the shared rollout. You can still disable a grant.
-      </p>
+      <p :if={!@grant_updates_enabled} role="status">Agent spending opens soon.</p>
       <p :if={@agents == []}>
         No agents are paired with your account yet. Pair one under Agents to let it spend.
       </p>

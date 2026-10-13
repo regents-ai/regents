@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /docs /about /contact /privacy /terms)
+  @documents ~w(/ /docs /about /contact /privacy /terms /start)
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -84,6 +84,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/contact" =>
       {"Contact",
        "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
+    "/start" =>
+      {"Connect your agent",
+       "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
     "/articles" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
     "/paper-pro-daily" =>
@@ -119,6 +122,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/"), do: %{markdown: RegentsWeb.HomeLive.agent_markdown()}
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
+  def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
 
   def document(path) when path in ["/docs", "/about", "/contact"],
     do: %{markdown: source(String.trim_leading(path, "/"))}
@@ -219,7 +223,7 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /docs /about /contact /privacy /terms /articles /paper-pro-daily),
+        ~w(/ /docs /about /contact /privacy /terms /start /articles /paper-pro-daily),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()

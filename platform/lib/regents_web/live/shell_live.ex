@@ -20,6 +20,7 @@ defmodule RegentsWeb.ShellLive do
 
   alias Regents.Formation
   alias RegentsWeb.AccountLive
+  alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
@@ -278,6 +279,11 @@ defmodule RegentsWeb.ShellLive do
         />
 
         <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
+
+        <AgentStartLive.page
+          :if={@route_spec.route_id == :agent_start}
+          agent={@route_params["agent"]}
+        />
 
         <ProductLive.page
           :if={@route_spec.route_id in [:techtree, :patchbay, :keyfleet]}

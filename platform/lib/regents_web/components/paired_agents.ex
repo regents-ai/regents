@@ -8,6 +8,7 @@ defmodule RegentsWeb.Components.PairedAgents do
   use RegentsWeb, :html
 
   alias RegentAgents.{Harness, HumanBacking, PairingCode}
+  alias RegentsWeb.AgentStart
 
   # Stands in for a code before one is made, so the message keeps its size.
   @no_code String.duplicate("X", 24)
@@ -433,19 +434,12 @@ defmodule RegentsWeb.Components.PairedAgents do
     """
   end
 
-  # What the person pastes to their agent. Muse runs where siwa.regents.sh may
-  # not answer, so its message names the SIWA service's other address.
-  defp agent_message(code, :muse) do
-    agent_message(code, nil) <>
-      "\nIf siwa.regents.sh doesn't answer from your host, set " <>
-      "SIWA_BROKER=https://siwa-server.fly.dev and try again."
-  end
-
-  defp agent_message(code, _harness) do
+  # What the person pastes to their agent: the code and its own steps on /start.
+  defp agent_message(code, harness) do
     """
     Pair with my Regents account.
     Pairing code: #{code}
-    Follow the "Pair with a person's account" steps at https://regents.sh/llms.txt\
+    Follow the steps for you at #{AgentStart.link(harness)}\
     """
   end
 

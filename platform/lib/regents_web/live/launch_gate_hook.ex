@@ -31,8 +31,9 @@ defmodule RegentsWeb.Live.LaunchGateHook do
   end
 
   defp app_gate(socket) do
-    if socket.assigns.live_action in [:blog, :blog_post] or LaunchGate.app_surfaces_enabled?(),
-      do: {:cont, socket},
-      else: {:halt, redirect(socket, to: ~p"/")}
+    if socket.assigns.live_action in [:blog, :blog_post, :agent_start] or
+         LaunchGate.app_surfaces_enabled?(),
+       do: {:cont, socket},
+       else: {:halt, redirect(socket, to: ~p"/")}
   end
 end

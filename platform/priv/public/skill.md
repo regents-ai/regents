@@ -5,7 +5,7 @@ description: Read Regents products and the private account data authorized by yo
 
 # Use Regents
 
-Start with [agent access]({{origin}}/agents.md) and [OpenAPI]({{origin}}/openapi.json). Use the existing [SIWA signer](https://siwa.regents.sh/skill.md) with audience `regents`; keys stay in your runtime.
+Start with [Connect your agent]({{origin}}/start), [agent access]({{origin}}/agents.md) and [OpenAPI]({{origin}}/openapi.json). Use the existing [SIWA signer](https://siwa.regents.sh/skill.md) with audience `regents`; keys stay in your runtime.
 
 Pair only with a code your owner gives you. Check `GET /api/agents/v1/whoami` before private work. Request only the paired owner's account, claims, staking position, shared Credits balance/history, shared Points summary and effective spending budget. Every request needs fresh proof; sign the exact JSON body for POST reads and send no query string.
 
