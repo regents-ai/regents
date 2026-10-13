@@ -574,8 +574,7 @@
         "webmcp": "regents_points_summary",
         "http": "GET /api/agent/v1/points",
         "cli": {
-          "command": "account points",
-          "release_status": "prepared_source"
+          "command": "account points"
         }
       },
       "operation_input_schema": {
@@ -644,6 +643,5 @@
     "x-agent-chain-id",
     "content-digest"
   ],
-  "release_status": "prepared_source",
   "private_write_available": false
 }

@@ -108,13 +108,13 @@ RateLimit: "pair";r=9;t=42
 
 ## Contracts and availability
 
-The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the product directory, the owner-authorized claims and stake reads and agent pairing above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
+The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the product directory, the owner-authorized claims and stake reads, agent pairing and every signed agent read above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
 2026-09-28: every error, including sign-in refusals, pages that aren't open yet and the product, claims, stake and agent reads, answers `{"error": {"code": "…", "message": "…", "hint": "…"}}`. The codes are unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 2.0.0.
 
-The [existing YAML contract]({{origin}}/api-contract.openapiv3.yaml) also describes retained product interfaces; some listed operations may not be available yet. For new token-auction work use [Autolaunch](https://autolaunch.sh); for Skill evaluations use [Techtree](https://techtree.sh); for agent-tool reports and repairs use [Patchbay](https://patchbay.help). Each product owns its permissions and integration contract.
+The [YAML contract]({{origin}}/api-contract.openapiv3.yaml) describes agent pairing, the signed agent reads and the browser sign-in session; every operation it lists is live. For new token-auction work use [Autolaunch](https://autolaunch.sh); for Skill evaluations use [Techtree](https://techtree.sh); for agent-tool reports and repairs use [Patchbay](https://patchbay.help). Each product owns its permissions and integration contract.
 
 The published [@regentslabs/cli package](https://www.npmjs.com/package/@regentslabs/cli) version 0.5.0 was built against an earlier version of this service and is not supported for hosted operations in this release. Use the HTTP reads documented above instead.
 

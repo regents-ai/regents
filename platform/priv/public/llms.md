@@ -13,7 +13,7 @@
 ## Start here
 
 1. Read [developer documentation]({{origin}}/docs). It works without an account and has executable read-only HTTP examples.
-2. Fetch the [OpenAPI JSON specification]({{origin}}/openapi.json) for health, the product directory, owner-authorized claims and stake reads, and agent pairing.
+2. Fetch the [OpenAPI JSON specification]({{origin}}/openapi.json) for health, the product directory, owner-authorized claims and stake reads, agent pairing and every signed agent read.
 3. Request `Accept: text/markdown` at the [homepage]({{origin}}/), [docs]({{origin}}/docs), [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) or [Terms]({{origin}}/terms). HTML remains the default. Use the [sitemap]({{origin}}/sitemap.xml) for the public document directory.
 
 ## Signed agent access
@@ -30,7 +30,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 - `GET /api/v1/staking/position`: what Stake shows for the wallet on a verified sign-in, with the same two Privy tokens as the claims read.
 - `GET /api/agents/v1/whoami`, `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: check who you are signed in as, pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.
 - [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
-- [Existing YAML contract]({{origin}}/api-contract.openapiv3.yaml): retained product interfaces; some listed operations may not be available yet. The JSON specification above is the integration entry point documented for this release.
+- [YAML contract]({{origin}}/api-contract.openapiv3.yaml): agent pairing, the signed agent reads and the browser sign-in session; every operation it lists is live. The JSON specification above is the integration entry point.
 
 We change the API in place and update these docs the same day; no old versions are kept.
 

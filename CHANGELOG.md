@@ -1572,3 +1572,11 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - agents.md follows the template's layout: install and sign in, check then
   pair, read for your person (each command beside its request), browser
   tools, Credits and Points.
+
+## 2026-10-13 — Docs say only what is live (local, unreleased)
+
+- /docs and llms.txt say /openapi.json covers every signed agent read, which
+  it does, and that every operation in the YAML contract is live, instead of
+  "retained product interfaces; some may not be available yet".
+- /capabilities drops its "prepared_source" release labels: the tools are
+  live and `account points` ships in regents-cli 1.9.4.
