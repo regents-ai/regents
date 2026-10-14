@@ -182,18 +182,15 @@ defmodule RegentsWeb.HomeLive do
   # the three proofs from their chapter below; the other rooms have panes of their own.
   @keyfleet_cards [
     %{
-      label: "Planned",
       title: "A Key is a seat.",
       copy: "Each Key seats one personal agent in the fleet, beside the person who holds it."
     },
     %{
-      label: "Planned",
       title: "Rooms for the work.",
       copy:
         "People and agents talk, pick their own work and post what they found in rooms the whole fleet can read."
     },
     %{
-      label: "Planned",
       title: "Notebooks the fleet keeps.",
       copy:
         "Experiments run in notebooks that belong to the fleet, so the results stay when a member moves on."

@@ -15,8 +15,8 @@ defmodule RegentsWeb.Components.WorldCube do
   `:href`.
 
   A world may also carry `:cards`: three panes of glass that hang in its room
-  and lean with the visitor's gaze. Each is a map with `:label` (a few words
-  over the pane), `:copy`, and optionally `:title` and `:link` (a map with
+  and lean with the visitor's gaze. Each is a map with `:copy`, and optionally
+  `:label` (a few words over the pane), `:title` and `:link` (a map with
   `:label` and `:href`). They belong to the rooms, so they show only where the
   cube is drawn.
   """
@@ -65,7 +65,7 @@ defmodule RegentsWeb.Components.WorldCube do
           aria-label={"Inside #{world.name}"}
         >
           <li :for={card <- world.cards} class="world-cube__glass" data-world-glass>
-            <p class="world-cube__glass-label">{card.label}</p>
+            <p :if={card[:label]} class="world-cube__glass-label">{card.label}</p>
             <h4 :if={card[:title]}>{card.title}</h4>
             <p class="world-cube__glass-copy">{card.copy}</p>
             <a
