@@ -152,12 +152,8 @@ defmodule RegentsWeb.PointsLive do
             <h3>Daily limits</h3>
             <dl>
               <div>
-                <dt>You</dt>
-                <dd>Up to {whole(Rules.daily_cap("activity:human"))} a day on {names(@apps)}</dd>
-              </div>
-              <div>
-                <dt>Your agents, together</dt>
-                <dd>Up to {whole(Rules.daily_cap("activity:agent"))} a day on {names(@apps)}</dd>
+                <dt>You and your agents</dt>
+                <dd>Up to {whole(Rules.daily_cap("activity:account"))} a day on {names(@apps)}</dd>
               </div>
             </dl>
           </div>
@@ -250,8 +246,7 @@ defmodule RegentsWeb.PointsLive do
   defp entry_status(_), do: "Confirmed"
 
   defp scope_name("credits"), do: "Credits purchases"
-  defp scope_name("activity:human"), do: "Your actions"
-  defp scope_name("activity:agent"), do: "Your agents’ actions"
+  defp scope_name("activity:account"), do: "You and your agents"
 
   defp summary_state(:idle), do: :loading
   defp summary_state(state), do: state

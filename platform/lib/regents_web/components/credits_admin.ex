@@ -154,9 +154,6 @@ defmodule RegentsWeb.CreditsAdmin do
 
   defp refund_words(%Ash.Error.Invalid{errors: [error | _]}), do: refund_words(error)
 
-  defp refund_words(%Refused{reason: :used}),
-    do: "This account has used Credits, so its purchases can't be refunded."
-
   defp refund_words(%Refused{reason: :no_account}),
     do: "No account holds these Credits yet, so there is nothing to refund."
 

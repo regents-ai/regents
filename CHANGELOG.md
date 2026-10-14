@@ -1662,3 +1662,25 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   was read as "no picture" and cleared a picture the account already had. Only
   the service's own answers about a name (none, a name it refuses, a redirect)
   mean no picture.
+
+## 2026-10-14 — Credits are non-refundable (local, unreleased)
+
+- The page at regents.sh/credits/refunds says Credits are non-refundable:
+  Credits you bought, Credits you were given and Credits you received for an
+  answer. The Regent team will consider an exception if you post in
+  patchbay.help/credits-help, or write to support@regents.sh (Sean, 13 Oct).
+- The team's Credits page no longer refuses a refund because the account has
+  used Credits. The team decides each case.
+
+## 2026-10-14 — Shared Credits and Points library moved (local, unreleased)
+
+- An agent reading its person's Credits history gets one entry for each thing
+  that happened: bought, gift, refund, set aside, returned, spent or received,
+  with the amount, the site, and what led to a spend where the site kept it.
+  Before, it got one line for each ledger transfer, with an operation code.
+  The published description of that answer changed with it.
+- The Points page names one daily limit shared by you and your agents, in
+  place of one for you and one for your agents (Sean's rules of 13 Oct).
+  Nothing new earns on Regents, and earning has not opened.
+- Needs the shared Credits database change 20261013202732 (two new columns on
+  holds) applied first; the release step refuses to go ahead without it.
