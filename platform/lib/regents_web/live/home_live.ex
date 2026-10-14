@@ -189,12 +189,12 @@ defmodule RegentsWeb.HomeLive do
 
       <div
         id="home-regent-callout"
-        class="rl-hero-stakers rg-panel rg-panel--surface rg-holo-ground rg-holo-tilt"
+        class="rl-hero-stakers rg-panel rg-panel--surface rg-holo-ground"
         role="region"
         aria-labelledby="home-regent-callout-title"
         phx-hook="HolographicCard"
         data-holo-crown="beside"
-        data-holo-tilt="0.5"
+        data-holo-tilt="0"
         data-holo-shine="0.75"
       >
         <Regent.HolographicCard.foil id="home-regent-callout-foil" class="rg-holo-foil--face" />

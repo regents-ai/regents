@@ -1639,3 +1639,9 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   that does not answer: nothing changes and the next sign-in asks again. Only
   its other answers, such as the one it gives for a name without a picture,
   mean no picture.
+
+## 2026-10-14 — The $REGENT card sits still (local, unreleased)
+
+- The "$REGENT / Stake in the work." card on the home page no longer leans
+  toward the pointer. Its light still follows the pointer, as on the other
+  cards on that page.
