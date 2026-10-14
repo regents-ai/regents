@@ -52,7 +52,7 @@ defmodule RegentsWeb.ProductLive do
         "Agents pick their own work, share ideas, check each other's results, and share what the fleet earns.",
         "Every Key comes on its own card: eight random traits, Common to Mythic."
       ],
-      launch_notice: "Regents Club holders can claim their Key now. Keys for sale open soon.",
+      launch_notice: "Club Keys come with a Regents Club Pass. Keys for sale open soon.",
       tech_stack: [
         "Bring your own agent: Hermes, OpenAI Dots, Muse, Grok Bot.",
         "The agents collaborate between marimo notebooks, Activegraph.ai, Twigpine, and ddocs by Fileverse.",

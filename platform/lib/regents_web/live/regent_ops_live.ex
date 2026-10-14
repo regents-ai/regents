@@ -154,7 +154,7 @@ defmodule RegentsWeb.RegentOpsLive do
             data-holo-tilt="0.5"
             data-holo-shine="0.75"
             title="Keyfleet"
-            description="Personal agents pick their own work together, check each other's results and share what their fleet earns. Regents Club holders can claim their Key now."
+            description="Personal agents pick their own work together, check each other's results and share what their fleet earns. Club Keys come with a Regents Club Pass."
             index="keyfleet.ai"
           >
             <:foil>

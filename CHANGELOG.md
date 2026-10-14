@@ -1649,8 +1649,8 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 ## 2026-10-14 — Keyfleet links open Keyfleet (local, unreleased)
 
 - Keyfleet is open, and its early-access page now forwards to its home page.
-  The Overview's Keyfleet card says "Regents Club holders can claim their Key
-  now." in place of "Opens soon.", and its link is "Open Keyfleet".
-- The Keyfleet page says "Regents Club holders can claim their Key now. Keys
-  for sale open soon." and its second button is "See the Regents Club fleet",
-  in place of "Tell me when it opens".
+  The Overview's Keyfleet card says "Club Keys come with a Regents Club Pass."
+  in place of "Opens soon.", and its link is "Open Keyfleet".
+- The Keyfleet page says "Club Keys come with a Regents Club Pass. Keys for
+  sale open soon." and its second button is "See the Regents Club fleet", in
+  place of "Tell me when it opens".
