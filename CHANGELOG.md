@@ -1843,3 +1843,10 @@ Before release:
 - ash-template's own Ash 3.36 release live and healthy first.
 - elixir-utils `c2c24cc` on GitHub (it carries agent pictures, so the picture
   table steps above apply to this release).
+
+## 2026-10-14 — The Points list Sean set (local, unreleased)
+
+- Moves elixir-utils to `5cfce5a`, the Points list Sean set on 14 October:
+  "First paired agent" is worth 25, and the profile, email,
+  first-agent-connected and Patchbay solution awards are gone, 360 in one-time
+  awards. Points has not started, so nothing earns yet. No database change.
