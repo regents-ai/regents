@@ -191,13 +191,6 @@
   min-block-size: 44px;
 }
 
-/* A wide table scrolls inside the answer instead of widening the page. */
-.paper-daily__text table {
-  display: block;
-  max-inline-size: 100%;
-  overflow-x: auto;
-}
-
 .paper-daily__text > :last-child {
   margin-block-end: 0;
 }
@@ -318,4 +311,10 @@
     font-size: 0.875rem;
   }
 }
+}
+
+/* Match the unlayered shared editorial frame, whose outer gutter is already
+   supplied by the reading shell on a phone. */
+@media (max-width: 40rem) {
+  .rg-blog.paper-daily { inline-size: 100%; }
 }

@@ -392,7 +392,7 @@
   .lit-axis--x > * { white-space: nowrap; }
   .lit-grid--x { left: -1.25rem; right: -1.25rem; }
   .lit-grid--y { top: -1.25rem; bottom: -1.25rem; }
-  .lit-quadrant { max-width: 7rem; font-size: 0.66rem; }
+  .lit-quadrant { max-width: calc(50% - 0.5rem); font-size: 0.66rem; }
 
   /* Titles need more room than covers at this width, so the chart grows and
      each name drops its author, which the details still give. */

@@ -991,6 +991,38 @@
   .stake-supply-facts { grid-template-columns: minmax(0, 1fr); }
 }
 
+@container rg-ratio (max-width: 20rem) {
+  .stake-supply-facts .rg-ratio-card__tile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .stake-supply-facts .rg-ratio-card__tile dd {
+    max-inline-size: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 40rem) {
+  .stake-page .stake-info {
+    width: 44px;
+    height: 44px;
+    border: 0;
+  }
+
+  .stake-page .stake-info > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+  }
+}
+
 /* A repeated mode selection points to the action; it never activates it.
  * An entered amount holds the same lit edges for as long as it stands; the
  * sweep itself is the shared button's, only while hovered or keyboard-focused.

@@ -52,7 +52,7 @@ defmodule RegentsWeb.Components.Shell do
       data-shell-instance={@shell_instance}
     >
       <header id="shell-header">
-        <.link id="shell-brand" class="shell-brand" href="/">
+        <.link id="shell-brand" class="shell-brand" href="/" aria-label="Regents Labs home">
           <span class="shell-brand__mark" aria-hidden="true">
             <img
               class="shell-brand__mark-light"

@@ -115,5 +115,23 @@ defmodule RegentsWeb.PaperProDaily.Reading do
     {Enum.reverse(kept), budget}
   end
 
-  defp html(document), do: MDEx.to_html!(document, extension: @extension, render: [unsafe: false])
+  defp html(document) do
+    document
+    |> MDEx.to_html!(extension: @extension, render: [unsafe: false])
+    |> Floki.parse_fragment!()
+    |> Floki.traverse_and_update(fn
+      {"table", attrs, children} ->
+        {"div",
+         [
+           {"class", "rg-blog-table"},
+           {"tabindex", "0"},
+           {"role", "region"},
+           {"aria-label", "Scrollable table"}
+         ], [{"table", attrs, children}]}
+
+      node ->
+        node
+    end)
+    |> Floki.raw_html()
+  end
 end
