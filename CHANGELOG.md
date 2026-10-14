@@ -1684,3 +1684,11 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   Nothing new earns on Regents, and earning has not opened.
 - Needs the shared Credits database change 20261013202732 (two new columns on
   holds) applied first; the release step refuses to go ahead without it.
+
+## 2026-10-14 — Shared database changes are applied on their own (local, unreleased)
+
+- A change to the Credits or Points database, which all five sites share, is
+  now applied by its own team command ahead of a release, and the command
+  prints what it applied or "none". A Regents release still only checks that
+  nothing is missing and refuses to go ahead if something is. Since 11 October
+  there had been no way to apply one in production at all.

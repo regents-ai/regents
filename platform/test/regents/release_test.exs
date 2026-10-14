@@ -93,7 +93,8 @@ defmodule Regents.ReleaseTest do
 
     for {path, command} <- [
           {"rel/overlays/bin/bootstrap-staging", :bootstrap_staging},
-          {"rel/overlays/bin/pending-migrations", :pending_migrations}
+          {"rel/overlays/bin/pending-migrations", :pending_migrations},
+          {"rel/overlays/bin/migrate-shared", :migrate_shared}
         ] do
       script = File.read!(path)
 

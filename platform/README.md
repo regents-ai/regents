@@ -165,6 +165,12 @@ builds the schema itself on its first run.
 > 64-byte `SECRET_KEY_BASE` are all set. `/app/bin/pending-migrations` reports what a
 > deployed database and the release image disagree about, without applying anything.
 > Confirm the target and its secrets before running a deploy.
+>
+> A deploy never applies a change to the shared Credits or Points database; it refuses
+> to start while one its pinned libraries carry is missing. `/app/bin/migrate-shared`
+> applies them and prints each one, or `none`. Run it once from the new image, on a
+> one-off machine, before that image's deploy, and only on the founder's own named go
+> for each change.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
 

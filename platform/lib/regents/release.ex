@@ -17,12 +17,50 @@ defmodule Regents.Release do
     Application.put_env(@app, Regents.Repo, migration_config!())
 
     Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
-      # Shared schemas are released once by their coordinator, never by a site.
+      # Shared changes are applied on their own by `migrate_shared/0`, never by a deployment.
       require_shared_migrations!(repo)
       RegentAgents.Migrator.require_pairing_history!(repo)
       RegentCredits.Migrator.require_pairing_grants!(repo)
       repo.migrate!(migrations_path())
     end)
+  end
+
+  @doc """
+  Applies the shared Credits and Points database changes this release's pinned
+  libraries carry that the database has not applied, and prints each one, or
+  `none`. Run as `/app/bin/migrate-shared`.
+
+  Only Regents applies shared changes in production, and never as part of a
+  deployment: `migrate/0` refuses while one is missing and applies none. Each
+  change needs the founder's own named go. Run this from the new image before
+  its deployment, because only that image carries the change's file.
+  """
+  def migrate_shared, do: migrate_shared_for_test([])
+
+  @doc false
+  # Arity zero above for the same reason as the bootstrap: the deployed command
+  # can only ever change the database its own release configuration resolves.
+  def migrate_shared_for_test(opts) when is_list(opts) do
+    getenv = Keyword.get(opts, :getenv, &System.get_env/1)
+    load_app()
+    Application.put_env(@app, Regents.Repo, configuration!(opts, getenv))
+
+    {:ok, applied, _started} =
+      Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
+        unapplied = unapplied_shared_migrations(repo)
+
+        if unapplied != [] do
+          RegentCredits.Migrator.up(repo)
+          RegentPoints.Migrator.up(repo)
+        end
+
+        unapplied
+      end)
+
+    case applied do
+      [] -> IO.puts("none")
+      applied -> IO.puts("applied: #{Enum.join(applied, ", ")}")
+    end
   end
 
   @doc """
@@ -214,22 +252,25 @@ defmodule Regents.Release do
   # from every migration its pinned library ships, so each must already be in
   # that schema's own ledger. Every missing version is named at once.
   defp require_shared_migrations!(repo) do
-    unapplied =
-      for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"],
-          {:down, version, _name} <-
-            Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
-              prefix: schema,
-              skip_table_creation: true,
-              migration_lock: false
-            ),
-          do: "#{schema} #{version}"
+    case unapplied_shared_migrations(repo) do
+      [] ->
+        :ok
 
-    if unapplied != [] do
-      raise "These separately approved shared migrations must be applied before deployment: " <>
-              Enum.join(unapplied, ", ")
+      unapplied ->
+        raise "These separately approved shared migrations must be applied before deployment: " <>
+                Enum.join(unapplied, ", ")
     end
+  end
 
-    :ok
+  defp unapplied_shared_migrations(repo) do
+    for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"],
+        {:down, version, _name} <-
+          Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
+            prefix: schema,
+            skip_table_creation: true,
+            migration_lock: false
+          ),
+        do: "#{schema} #{version}"
   end
 
   defp refuse_existing_state!(repo) do
