@@ -12,7 +12,9 @@ defmodule RegentsWeb.AgentPictureController do
   shown from, or nil when it has none.
   """
   def path(_wallet, nil), do: nil
-  def path(wallet, updated_at), do: "/agents/#{wallet}/picture?v=#{DateTime.to_unix(updated_at)}"
+
+  def path(wallet, updated_at),
+    do: "/agents/#{wallet}/picture?v=#{DateTime.to_unix(updated_at, :microsecond)}"
 
   # sobelow_skip ["XSS.SendResp"]
   def show(conn, %{"wallet" => wallet} = params) do
@@ -30,7 +32,7 @@ defmodule RegentsWeb.AgentPictureController do
   end
 
   defp cache(version, updated_at) do
-    if version == to_string(DateTime.to_unix(updated_at)),
+    if version == to_string(DateTime.to_unix(updated_at, :microsecond)),
       do: "public, max-age=31536000, immutable",
       else: "public, max-age=0, must-revalidate"
   end
