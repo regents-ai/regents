@@ -21,8 +21,11 @@ defmodule Regents.SiteTools do
   @table __MODULE__
   @keep_ms :timer.hours(24)
   @again_ms :timer.minutes(1)
-  # Longer than a read can take: 3 s to connect and 5 s to answer.
-  @wait_ms 15_000
+  # A read still under way after this is stopped and counts as a failed read,
+  # since Req's receive_timeout bounds each wait for more of the answer, not the
+  # whole read; callers wait a little longer, so every caller gets an answer.
+  @read_ms 10_000
+  @wait_ms 12_000
 
   @sites %{
     "regents" => %{name: "regents.sh", url: "https://regents.sh/capabilities", scopes: :home},
@@ -145,8 +148,9 @@ defmodule Regents.SiteTools do
 
       {:miss, _reads} ->
         config = Map.fetch!(@sites, site)
-        %{ref: ref} = Task.Supervisor.async_nolink(__MODULE__.Reads, fn -> ask(config) end)
-        {:noreply, Map.put(reads, site, {ref, [from]})}
+        task = Task.Supervisor.async_nolink(__MODULE__.Reads, fn -> ask(config) end)
+        Process.send_after(self(), {:too_long, task}, @read_ms)
+        {:noreply, Map.put(reads, site, {task.ref, [from]})}
 
       {answer, _reads} ->
         {:reply, answer, reads}
@@ -161,6 +165,12 @@ defmodule Regents.SiteTools do
 
   def handle_info({:DOWN, ref, :process, _pid, _reason}, reads) do
     {:noreply, finish(reads, ref, {:error, :unreachable})}
+  end
+
+  # The read's own answer or :DOWN follows the stop, or has already arrived.
+  def handle_info({:too_long, task}, reads) do
+    Task.Supervisor.terminate_child(__MODULE__.Reads, task.pid)
+    {:noreply, reads}
   end
 
   defp finish(reads, ref, answer) do

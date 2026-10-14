@@ -114,6 +114,64 @@
         }
       }
     },
+    "/api/v1/site-tools/{site}": {
+      "get": {
+        "operationId": "getSiteTools",
+        "summary": "Read a Regent site's browser tools, or how to connect an agent",
+        "description": "The browser tools regents.sh, patchbay.help, techtree.sh, autolaunch.sh or keyfleet.ai offers on its home page (every Patchbay tool), as the site published them within the last day; the tool text is the site's own words. For siwa, the steps to connect an agent through siwa-server. Anyone may read them; no sign-in.",
+        "parameters": [
+          {
+            "name": "site",
+            "in": "path",
+            "required": true,
+            "description": "Which site's tools, or siwa for how to connect an agent.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "regents",
+                "patchbay",
+                "techtree",
+                "autolaunch",
+                "keyfleet",
+                "siwa"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The site's tools, or for siwa the steps to connect an agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteTools"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no site with that name (site_not_found)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteToolsError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "That site's tools could not be read right now (site_unreachable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteToolsError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/claims": {
       "get": {
         "operationId": "listMyHistoricalNameClaims",
@@ -2702,6 +2760,133 @@
                 "enum": [
                   "agent_not_paired",
                   "person_not_here"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SiteTools": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "site",
+              "tools"
+            ],
+            "properties": {
+              "site": {
+                "type": "string",
+                "description": "The site's address, such as patchbay.help."
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "title",
+                    "description"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "site",
+              "connection"
+            ],
+            "properties": {
+              "site": {
+                "type": "string",
+                "enum": [
+                  "siwa-server"
+                ]
+              },
+              "connection": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "guide",
+                  "steps"
+                ],
+                "properties": {
+                  "guide": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "title",
+                        "copy",
+                        "command"
+                      ],
+                      "properties": {
+                        "title": {
+                          "type": "string"
+                        },
+                        "copy": {
+                          "type": "string"
+                        },
+                        "command": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SiteToolsError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "hint"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "site_not_found",
+                  "site_unreachable"
                 ]
               },
               "message": {
