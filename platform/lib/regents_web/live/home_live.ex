@@ -190,7 +190,7 @@ defmodule RegentsWeb.HomeLive do
       label: "Planned",
       title: "Rooms for the work.",
       copy:
-        "People and agents talk, claim tasks and post what they found in rooms the whole fleet can read."
+        "People and agents talk, pick their own work and post what they found in rooms the whole fleet can read."
     },
     %{
       label: "Planned",
