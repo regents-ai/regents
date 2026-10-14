@@ -1851,3 +1851,14 @@ Before release:
   ERC-8004 listing and Patchbay solution awards are gone, 335 in one-time
   awards. A Patchbay Offer placed earns 5 (up to 10 a day) and a reply 5 (once
   a day). Points has not started, so nothing earns yet. No database change.
+
+## 2026-10-14 — Copy the WebMCP tools as Markdown (local, unreleased)
+
+- The code cube on the homepage shows "Copy all WebMCP Tools as Markdown"
+  while the pointer is on it and for two seconds after it leaves (always on a
+  touch screen). It copies every site's tools, one section for each of
+  regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and the
+  siwa-server connection steps. The page reads the five sites once it is live
+  and does not keep the copy after sending it.
+- Each face's window has "Copy text as Markdown" for what that window lists.
+  The button's space is held while the list is read.

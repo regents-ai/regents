@@ -11,7 +11,8 @@ defmodule RegentsWeb.Components.CodeCube do
 
   A face's card lists the browser tools that site offers agents, or, for
   siwa-server, how an agent connects to it. The page owns the read behind it and
-  hands the card where the read stands.
+  hands the card where the read stands. Each card copies what it lists as
+  Markdown, and the cube copies every card at once, each site its own section.
   """
 
   use Phoenix.Component
@@ -39,9 +40,58 @@ defmodule RegentsWeb.Components.CodeCube do
   @doc "The face for a site key, or nil for a key no face has."
   def face(site), do: Enum.find(@faces, &(&1.site == site))
 
+  @doc """
+  Every face's card as Markdown, one section for each site in the order of
+  `faces/0`. `reads` holds, for each site key but siwa-server's, where the read
+  of its tools stands and the tools read.
+  """
+  def markdown(reads, help) do
+    sections =
+      Enum.map_join(@faces, "\n\n", fn
+        %{site: "siwa"} = face ->
+          section(face, nil, [], help, "##")
+
+        face ->
+          {state, tools} = Map.fetch!(reads, face.site)
+          section(face, state, tools, help, "##")
+      end)
+
+    "# WebMCP tools on every Regent site\n\n#{sections}\n"
+  end
+
+  defp siwa_line, do: "One sign-in for agents on every Regent site."
+
+  defp section(%{site: "siwa"} = face, _state, _tools, help, mark) do
+    steps =
+      Enum.map_join(help.steps, "\n\n", fn step ->
+        "#{mark}# #{step.title}\n\n#{step.copy}\n\n```sh\n#{step.command}\n```"
+      end)
+
+    "#{mark} #{face.name}\n\n#{siwa_line()}\n\n#{steps}\n\nThe whole guide: #{help.guide}"
+  end
+
+  defp section(face, :ready, tools, _help, mark) do
+    listed =
+      Enum.map_join(tools, "\n\n", fn tool ->
+        "#{mark}# #{tool.title}\n\n`#{tool.name}`\n\n#{tool.description}"
+      end)
+
+    "#{mark} #{face.name}\n\n#{length(tools)} WebMCP tools\n\n#{listed}"
+  end
+
+  defp section(face, :empty, _tools, _help, mark),
+    do: "#{mark} #{face.name}\n\n#{face.name} offers agents no tools here right now."
+
+  defp section(face, :error, _tools, _help, mark),
+    do: "#{mark} #{face.name}\n\n#{face.name}'s tools could not be read right now."
+
   attr :id, :string, required: true
   attr :label, :string, required: true
   attr :click, :string, required: true, doc: "The event a face's button sends."
+
+  attr :copy_all, :string,
+    default: nil,
+    doc: "Every card as Markdown, from `markdown/2`; nil until the page has read the sites."
 
   def cube(assigns) do
     assigns = assign(assigns, :faces, @faces)
@@ -74,6 +124,11 @@ defmodule RegentsWeb.Components.CodeCube do
           </button>
         </li>
       </ul>
+      <div :if={@copy_all} class="code-cube__copy">
+        <Regent.Primitives.copy_button id={"#{@id}-copy"} text={@copy_all}>
+          Copy all WebMCP Tools as Markdown
+        </Regent.Primitives.copy_button>
+      </div>
     </section>
     """
   end
@@ -112,6 +167,15 @@ defmodule RegentsWeb.Components.CodeCube do
         <div>
           <p class="code-card__kicker">{kicker(@face, @state, @tools)}</p>
           <h2 id={"#{@id}-title"}>{@face.name}</h2>
+          <div class="code-card__copy">
+            <Regent.Primitives.copy_button
+              :if={@face.site == "siwa" or @state == :ready}
+              id={"#{@id}-copy"}
+              text={section(@face, @state, @tools, @help, "#") <> "\n"}
+            >
+              Copy text as Markdown
+            </Regent.Primitives.copy_button>
+          </div>
         </div>
         <form method="dialog">
           <button type="submit" class="code-card__close" aria-label="Close">
@@ -172,7 +236,7 @@ defmodule RegentsWeb.Components.CodeCube do
 
   defp connection(assigns) do
     ~H"""
-    <p class="code-card__note">One sign-in for agents on every Regent site.</p>
+    <p class="code-card__note">{siwa_line()}</p>
     <ol class="code-card__list">
       <li :for={step <- @help.steps} class="code-card__tool">
         <h3>{step.title}</h3>

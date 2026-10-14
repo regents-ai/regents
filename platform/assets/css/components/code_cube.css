@@ -164,6 +164,56 @@
   pointer-events: auto;
 }
 
+/* The copy of every card, under the buttons, and in the drawn cube's top
+   corner. It shows while the pointer is on the cube and for two seconds after
+   it leaves, while the keyboard is on the cube, and always where nothing
+   hovers. */
+.code-cube__copy {
+  justify-self: end;
+  margin-top: var(--space-2);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 260ms ease-in 2s,
+    visibility 0s linear 2260ms;
+}
+
+.code-cube:is(:hover, :focus-within) .code-cube__copy {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 260ms ease-out,
+    visibility 0s;
+}
+
+.code-cube__copy .rg-button {
+  --color-fg: var(--code-cube-ink);
+}
+
+.code-card__copy .rg-button {
+  --color-fg: var(--code-card-ink);
+}
+
+.code-cube__copy .rg-button,
+.code-card__copy .rg-button {
+  --color-surface-elevated: rgb(7 8 12 / 0.72);
+  font-size: 0.8125rem;
+}
+
+.code-cube[data-code-ready="true"] .code-cube__copy {
+  position: absolute;
+  inset: var(--space-3) var(--space-3) auto auto;
+  margin: 0;
+}
+
+@media (hover: none) {
+  .code-cube__copy {
+    opacity: 1;
+    visibility: visible;
+    transition: none;
+  }
+}
+
 @media (min-width: 48rem) {
   .code-cube__faces {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -234,6 +284,13 @@
   font-size: 1.75rem;
   font-weight: 400;
   line-height: 1.1;
+}
+
+/* Holds its height while the list is read, so the list never moves when the
+   button comes. */
+.code-card__copy {
+  min-height: 2.75rem;
+  margin-top: var(--space-2);
 }
 
 .code-card__kicker {
