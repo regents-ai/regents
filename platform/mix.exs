@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "a80c84cfbb9922b7d3d247aa8ea0a37ffc2b23bd"
+  @elixir_utils_ref "c2c24ccefdf041f73d337f01d09ea87823cf7126"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "92f9c691541f45d0e6831d92105633b1769d0848"
 
@@ -18,7 +18,7 @@ defmodule Regents.MixProject do
       aliases: aliases(),
       deps: deps(),
       usage_rules: usage_rules(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:ash_signals, :phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -51,12 +51,12 @@ defmodule Regents.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.34 and >= 3.34.6"},
+      {:ash, "~> 3.36"},
       # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
       {:oban, "~> 2.24"},
-      {:ash_oban, "~> 0.9.0"},
+      {:ash_oban, "~> 0.10.0"},
       {:ash_phoenix, "~> 2.3.25"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
@@ -174,7 +174,7 @@ defmodule Regents.MixProject do
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
         # The measured compile-connected baseline; lower it whenever references are removed.
         # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
-        "xref graph --label compile-connected --fail-above 37",
+        "xref graph --label compile-connected --fail-above 38",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

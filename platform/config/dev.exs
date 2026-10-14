@@ -14,6 +14,8 @@ config :regents, RegentsWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}],
   check_origin: ["http://localhost:4000", "http://127.0.0.1:4000"],
   code_reloader: true,
+  # Signal listeners added while the server runs are picked up on reload.
+  reloadable_compilers: [:ash_signals, :phoenix_live_view, :elixir, :app],
   debug_errors: true,
   secret_key_base: "6ihHqnWB0px5FXmoddiKg3V2NLeiM0k0UsFs5DwmIADSX35FFdeSs5VNICCc3iU5",
   watchers: [

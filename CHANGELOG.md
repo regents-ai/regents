@@ -1811,9 +1811,9 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The team may remove a picture, and only remove one, under "Agent pictures"
   on /admin/credits. The team is the `REGENT_CREDITS_ADMINS` list, now read by
   both the Credits and Agents libraries.
-- Moves elixir-utils to `a80c84c`, which adds `regent_agents.agent_pictures`
-  (migration `20261014150000_agent_pictures`) and tells every site when a
-  picture changes.
+- The library side, `regent_agents.agent_pictures` (migration
+  `20261014150000_agent_pictures`) and a message to every site when a picture
+  changes, comes with the elixir-utils move in the Ash 3.36 entry below.
 - `/app/bin/migrate-shared` and `/app/bin/pending-migrations` now cover the
   shared Agents changes as well as Credits and Points, and a deployment refuses
   while one is missing. Production's Agents ledger held all four earlier
@@ -1822,6 +1822,24 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 
 Before release:
 
-- elixir-utils `a80c84c` must be on GitHub, and its picture table applied to
+- elixir-utils `c2c24cc` must be on GitHub, and its picture table applied to
   the shared database with `/app/bin/migrate-shared` from the new image, on the
   founder's own named go, before this deploys.
+
+## 2026-10-14 — Ash 3.36, and Points hears about Credits itself (local, unreleased)
+
+- Ash 3.36.0 and AshOban 0.10.0, as ash-template runs them (Oban 2.24.2,
+  Sourceror 1.12.4 with them; nothing else moves).
+- Moves elixir-utils to `c2c24cc`: the Ash 3.36 line and agent pictures.
+- Credits now announces a credited or newly held purchase as a signal, and
+  the new `Regents.Points.Award` listens for it and offers Points
+  `credits.purchase_settled` in the same transaction. This replaces
+  `Regents.Credits.Credited` and the `on_credited` setting, which are removed.
+- `mix check` allows one more compile-time link (38), for the new Points
+  domain's link to its resource, like every other domain.
+
+Before release:
+
+- ash-template's own Ash 3.36 release live and healthy first.
+- elixir-utils `c2c24cc` on GitHub (it carries agent pictures, so the picture
+  table steps above apply to this release).
