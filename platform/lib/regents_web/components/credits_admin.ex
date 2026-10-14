@@ -2,11 +2,13 @@ defmodule RegentsWeb.CreditsAdmin do
   @moduledoc """
   The Credits admin page's parts, shown at regents.sh/admin/credits: give
   Credits, find a person's purchases and start a refund, then close each
-  refund with the Treasury Safe's USDC transfer.
+  refund with the Treasury Safe's USDC transfer. The team may also remove an
+  agent's picture, never set or change one.
 
   The host passes `account`, the signed-in account, and its `session_lease` as
-  `lease`; the panel acts as `Regents.Credits.admin/1` of it, and the library
-  refuses everything here to anyone not named in its `:admins` setting.
+  `lease`; the panel acts as `Regents.Credits.admin/1` of it, and as a team
+  `RegentAgents.Person` for pictures. Each library refuses everything here to
+  anyone not named in its `:admins` setting.
   """
   use RegentsWeb, :live_component
 
@@ -16,6 +18,7 @@ defmodule RegentsWeb.CreditsAdmin do
   alias RegentCredits.{Amount, Chains, Purchase, Refund}
   alias RegentCredits.Errors.{NotEnoughCredits, Refused}
   alias Regents.Credits
+  alias RegentsWeb.AgentPictureController
 
   @hash ~r/0x[0-9a-fA-F]{64}/
   @impl true
@@ -29,7 +32,10 @@ defmodule RegentsWeb.CreditsAdmin do
        search: "",
        purchases: nil,
        refunded: %{},
-       refund_note: nil
+       refund_note: nil,
+       picture_search: "",
+       picture: nil,
+       picture_note: nil
      )}
   end
 
@@ -44,7 +50,12 @@ defmodule RegentsWeb.CreditsAdmin do
 
   # The account as the page gave it, or as it reads now before each event and
   # each background result (`RegentsWeb.Live.Session.check_component_lease/2`).
-  defp take_account(socket, account), do: assign(socket, actor: Credits.admin(account))
+  defp take_account(socket, account) do
+    assign(socket,
+      actor: Credits.admin(account),
+      team: %RegentAgents.Person{privy_user_id: account.privy_user_id, role: :admin}
+    )
+  end
 
   @impl true
   def handle_event("give", %{"to" => to, "amount" => amount, "note" => note}, socket) do
@@ -96,6 +107,38 @@ defmodule RegentsWeb.CreditsAdmin do
       end
 
     {:noreply, socket |> assign(refund_note: note) |> find() |> read_refunds()}
+  end
+
+  def handle_event("find_picture", %{"wallet" => wallet}, socket) do
+    wallet = wallet |> String.trim() |> String.downcase()
+
+    picture =
+      case RegentAgents.agent_picture(wallet) do
+        {:ok, %RegentAgents.AgentPicture{} = picture} -> picture
+        _none -> :none
+      end
+
+    {:noreply, assign(socket, picture_search: wallet, picture: picture, picture_note: nil)}
+  end
+
+  def handle_event("remove_picture", _params, %{assigns: %{picture: picture}} = socket)
+      when is_struct(picture, RegentAgents.AgentPicture) do
+    case RegentAgents.remove_agent_picture_by_team(picture.paired_agent_id,
+           actor: socket.assigns.team
+         ) do
+      :ok ->
+        {:noreply,
+         assign(socket,
+           picture: :none,
+           picture_note: {:ok, "Picture removed. Its owner may choose another."}
+         )}
+
+      {:error, %Ash.Error.Forbidden{}} ->
+        {:noreply, assign(socket, picture_note: {:error, "Only the team can remove a picture."})}
+
+      {:error, _error} ->
+        {:noreply, assign(socket, picture_note: {:error, "Nothing changed. Try again."})}
+    end
   end
 
   defp parsed({amount, ""}), do: {:ok, amount}
@@ -263,6 +306,43 @@ defmodule RegentsWeb.CreditsAdmin do
             </P.button>
           </li>
         </ul>
+      </section>
+
+      <section class="credits-admin__part" aria-labelledby={"#{@id}-pictures"}>
+        <h2 id={"#{@id}-pictures"}>Agent pictures</h2>
+        <p>Remove a picture that breaks the rules. Its owner may choose another.</p>
+        <form id={"#{@id}-picture-form"} phx-submit="find_picture" phx-target={@myself}>
+          <P.field :let={field} id={"#{@id}-picture-wallet"} label="Agent address">
+            <input id={field.id} name="wallet" value={@picture_search} autocomplete="off" required />
+          </P.field>
+          <P.button type="submit" variant="secondary">Find</P.button>
+        </form>
+        <p :if={@picture == :none and is_nil(@picture_note)}>
+          No picture for {@picture_search}.
+        </p>
+        <div :if={is_struct(@picture, RegentAgents.AgentPicture)} class="credits-admin__picture">
+          <img
+            src={AgentPictureController.path(@picture_search, @picture.updated_at)}
+            alt={"The picture of #{@picture_search}"}
+            width="128"
+            height="128"
+          />
+          <P.button
+            type="button"
+            variant="secondary"
+            phx-click="remove_picture"
+            phx-target={@myself}
+            data-confirm="Remove this agent's picture?"
+          >
+            Remove picture
+          </P.button>
+        </div>
+        <P.notice
+          :if={@picture_note}
+          tone={if elem(@picture_note, 0) == :ok, do: "success", else: "error"}
+        >
+          {elem(@picture_note, 1)}
+        </P.notice>
       </section>
 
       <section class="credits-admin__part" aria-labelledby={"#{@id}-refunds"}>

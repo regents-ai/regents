@@ -130,6 +130,7 @@ defmodule RegentsWeb.Router do
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
     get "/articles/covers/:slug", BlogCoverController, :show
+    get "/agents/:wallet/picture", AgentPictureController, :show
   end
 
   scope "/", RegentsWeb do

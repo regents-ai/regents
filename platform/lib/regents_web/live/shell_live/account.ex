@@ -539,7 +539,7 @@ defmodule RegentsWeb.ShellLive.Account do
   # service in the background. What is already on screen for this agent stays until the new reading lands. Once the
   # person has asked for older activity, the list stays as they are reading it.
   defp show_agent(socket, id, actor) do
-    case RegentAgents.get_my_agent(id, actor: actor) do
+    case RegentAgents.get_my_agent(id, actor: actor, load: [:picture_updated_at]) do
       {:ok, %PairedAgent{} = agent} ->
         case socket.assigns.agent_detail do
           %{agent: %{id: ^id}, paged: true} = shown ->

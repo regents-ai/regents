@@ -36,6 +36,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/.well-known/security.txt"},
              {:get, "/paper-pro-daily/pictures/:id"},
              {:get, "/articles/covers/:slug"},
+             {:get, "/agents/:wallet/picture"},
              {:get, "/docs"},
              {:get, "/about"},
              {:get, "/contact"},

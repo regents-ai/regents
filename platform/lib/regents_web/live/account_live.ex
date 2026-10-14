@@ -137,6 +137,8 @@ defmodule RegentsWeb.AccountLive do
           detail={@agent_detail}
           notice={@agent_notice}
           now={@agents_now}
+          lease={@lease}
+          account={@account}
         />
 
         <div id="account-credits" class="account-panel account-credits">

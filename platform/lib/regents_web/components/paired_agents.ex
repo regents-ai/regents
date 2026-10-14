@@ -18,6 +18,8 @@ defmodule RegentsWeb.Components.PairedAgents do
   attr :detail, :map, default: nil
   attr :notice, :any, default: nil, doc: "`{:status | :alert, text}` for the last agent edit"
   attr :now, DateTime, required: true
+  attr :lease, :any, required: true, doc: "the page's `session_lease`"
+  attr :account, :map, required: true, doc: "the signed-in account"
 
   def paired_agents(assigns) do
     ~H"""
@@ -66,6 +68,8 @@ defmodule RegentsWeb.Components.PairedAgents do
             same_person={same_person(@agents, @detail.agent)}
             notice={@notice}
             now={@now}
+            lease={@lease}
+            account={@account}
           />
         </:footer>
       </Regent.Account.agents>
@@ -221,6 +225,8 @@ defmodule RegentsWeb.Components.PairedAgents do
   attr :same_person, :list, required: true
   attr :notice, :any, required: true
   attr :now, DateTime, required: true
+  attr :lease, :any, required: true
+  attr :account, :map, required: true
 
   defp agent_dialog(assigns) do
     ~H"""
@@ -279,6 +285,14 @@ defmodule RegentsWeb.Components.PairedAgents do
           </dd>
         </div>
       </dl>
+
+      <.live_component
+        module={RegentsWeb.AgentPictureUpload}
+        id="account-agent-picture"
+        lease={@lease}
+        account={@account}
+        agent={@detail.agent}
+      />
 
       <section class="account-agent-dialog__activity" aria-labelledby="account-agent-activity-title">
         <h3 id="account-agent-activity-title">Recent activity</h3>

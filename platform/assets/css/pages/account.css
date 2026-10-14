@@ -413,6 +413,77 @@
   max-width: 100%;
 }
 
+.account-agent-picture {
+  display: grid;
+  gap: 0.75rem;
+  margin-block-end: 1.5rem;
+}
+
+.account-agent-picture h3,
+.account-agent-picture p {
+  margin: 0;
+}
+
+.account-agent-picture__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* The kept picture is the middle square of the upload, so the preview shows that square. */
+.account-agent-picture__frame {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.account-agent-picture__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-agent-picture__frame .rg-account__mark {
+  width: 4rem;
+  height: 4rem;
+}
+
+.account-agent-picture__actions {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: 0.75rem;
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+}
+
+.account-agent-picture__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.account-agent-picture__choose {
+  cursor: pointer;
+}
+
+/* The file field is hidden; its button shows where keyboard focus is. */
+.account-agent-picture form:has(input[type="file"]:focus-visible) .account-agent-picture__choose {
+  outline: 2px solid var(--color-focus-ring, Highlight);
+  outline-offset: 2px;
+}
+
+/* One line kept for what the last change did, so nothing below moves. */
+.account-agent-picture__notice {
+  min-height: 1.5em;
+  font-size: 0.9rem;
+}
+
 .account-agent-dialog__activity {
   display: grid;
   gap: 0.75rem;

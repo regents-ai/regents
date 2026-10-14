@@ -202,6 +202,7 @@ defmodule Regents.ReleaseTest do
            ]
 
     assert table_names(config, "regent_agents") == [
+             "agent_pictures",
              "paired_agents",
              "pairing_codes",
              "pairing_history",

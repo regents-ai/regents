@@ -516,6 +516,20 @@
 .credits-admin__list li > button {
   justify-self: start;
 }
+
+.credits-admin__picture {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.credits-admin__picture img {
+  width: 8rem;
+  height: 8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
 }
 
 /* The Buy Credits dialog's close button, square in the dialog's top right

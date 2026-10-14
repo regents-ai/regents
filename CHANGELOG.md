@@ -1794,3 +1794,34 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The world cube takes `--world-cube-size` beside `--world-cube-centre`, and
   the code cube `--code-cube-size`, so a page can draw either smaller. The
   stage keeps the same height whether or not the cubes draw.
+
+## 2026-10-14 — A picture for each agent (local, unreleased)
+
+- A person can give each of their agents a picture on /account, in the agent's
+  window: a PNG, JPEG or WebP of up to 5 MB, previewed as the square it will
+  be, then saved, changed or removed. It is shown beside what the agent posts
+  on every Regent site.
+- Each upload is re-made as a 256 × 256 WebP cut from the middle, carrying
+  nothing else the file held (`Regents.AgentPicture`, on Vix 0.42.0, the
+  version Keyfleet runs). A file that is not a whole picture, is over 5 MB or
+  100 million pixels, or still over 64 KB once made is refused with a reason.
+- `GET /agents/:wallet/picture` serves it to anyone as WebP. A link carrying
+  the picture's current `?v=` is kept for a year; any other is checked each
+  time, so a changed or removed picture is never shown from an old copy.
+- The team may remove a picture, and only remove one, under "Agent pictures"
+  on /admin/credits. The team is the `REGENT_CREDITS_ADMINS` list, now read by
+  both the Credits and Agents libraries.
+- Moves elixir-utils to `a80c84c`, which adds `regent_agents.agent_pictures`
+  (migration `20261014150000_agent_pictures`) and tells every site when a
+  picture changes.
+- `/app/bin/migrate-shared` and `/app/bin/pending-migrations` now cover the
+  shared Agents changes as well as Credits and Points, and a deployment refuses
+  while one is missing. Production's Agents ledger held all four earlier
+  versions on 14 October, so this check replaces the separate pairing-history
+  check.
+
+Before release:
+
+- elixir-utils `a80c84c` must be on GitHub, and its picture table applied to
+  the shared database with `/app/bin/migrate-shared` from the new image, on the
+  founder's own named go, before this deploys.

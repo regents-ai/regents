@@ -73,10 +73,12 @@ if config_env() != :test do
   end
 end
 
-# The Privy accounts that may give Credits and handle refunds, comma separated.
+# The team's Privy accounts, comma separated: they may give Credits, handle
+# refunds and remove an agent's picture.
 if admins = System.get_env("REGENT_CREDITS_ADMINS") do
-  config :regent_credits,
-    admins: admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  config :regent_credits, admins: admins
+  config :regent_agents, admins: admins
 end
 
 migrating? = System.get_env("REGENTS_RELEASE_COMMAND") == "migrate"

@@ -19,16 +19,15 @@ defmodule Regents.Release do
     Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
       # Shared changes are applied on their own by `migrate_shared/0`, never by a deployment.
       require_shared_migrations!(repo)
-      RegentAgents.Migrator.require_pairing_history!(repo)
       RegentCredits.Migrator.require_pairing_grants!(repo)
       repo.migrate!(migrations_path())
     end)
   end
 
   @doc """
-  Applies the shared Credits and Points database changes this release's pinned
-  libraries carry that the database has not applied, and prints each one, or
-  `none`. Run as `/app/bin/migrate-shared`.
+  Applies the shared Agents, Credits and Points database changes this release's
+  pinned libraries carry that the database has not applied, and prints each
+  one, or `none`. Run as `/app/bin/migrate-shared`.
 
   Only Regents applies shared changes in production, and never as part of a
   deployment: `migrate/0` refuses while one is missing and applies none. Each
@@ -44,6 +43,7 @@ defmodule Regents.Release do
         unapplied = unapplied_shared_migrations(repo)
 
         if unapplied != [] do
+          RegentAgents.Migrator.up(repo)
           RegentCredits.Migrator.up(repo)
           RegentPoints.Migrator.up(repo)
         end
@@ -155,10 +155,10 @@ defmodule Regents.Release do
 
   Prints every migration the release carries that the database has not applied
   under `pending:`, every version the database has applied whose file the
-  release does not carry under `applied-without-file:`, and every shared Credits
-  or Points change `migrate_shared/0` would apply under `shared-pending:`. Prints
-  `none` when all three are empty. It applies nothing, creates nothing, and takes
-  no migration lock.
+  release does not carry under `applied-without-file:`, and every shared
+  Agents, Credits or Points change `migrate_shared/0` would apply under
+  `shared-pending:`. Prints `none` when all three are empty. It applies
+  nothing, creates nothing, and takes no migration lock.
   """
   def pending_migrations, do: pending_migrations_for_test([])
 
@@ -247,9 +247,9 @@ defmodule Regents.Release do
     if shared != [], do: IO.puts("shared-pending: #{Enum.join(shared, ", ")}")
   end
 
-  # The Credits and Points code this release carries reads tables and indexes
-  # from every migration its pinned library ships, so each must already be in
-  # that schema's own ledger. Every missing version is named at once.
+  # The Agents, Credits and Points code this release carries reads tables and
+  # indexes from every migration its pinned library ships, so each must already
+  # be in that schema's own ledger. Every missing version is named at once.
   defp require_shared_migrations!(repo) do
     case unapplied_shared_migrations(repo) do
       [] ->
@@ -265,7 +265,11 @@ defmodule Regents.Release do
   # migrator just selects each schema's ledger. Without both options this
   # listing would try to create and lock a table, so keep them.
   defp unapplied_shared_migrations(repo) do
-    for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"],
+    for {app, schema} <- [
+          regent_agents: "regent_agents",
+          regent_credits: "regent_credits",
+          regent_points: "regent_points"
+        ],
         {:down, version, _name} <-
           Ecto.Migrator.migrations(repo, [Application.app_dir(app, "priv/repo/migrations")],
             prefix: schema,
