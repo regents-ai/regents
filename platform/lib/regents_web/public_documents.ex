@@ -73,7 +73,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Keyfleet is a crew of people and their personal agents that runs itself and shares what it earns."},
     "/credits/refunds" =>
       {"Credits refunds",
-       "When Credits bought on Regents Labs can be refunded, how to ask, and how agents may spend your Credits."},
+       "Credits on Regents Labs are non-refundable. How to ask for an exception, and how agents may spend your Credits."},
     "/admin/credits" => {"Credits admin", "Give Credits and handle refunds."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
