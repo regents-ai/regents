@@ -1846,7 +1846,8 @@ Before release:
 
 ## 2026-10-14 — The Points list Sean set (local, unreleased)
 
-- Moves elixir-utils to `5cfce5a`, the Points list Sean set on 14 October:
-  "First paired agent" is worth 25, and the profile, email,
-  first-agent-connected and Patchbay solution awards are gone, 360 in one-time
-  awards. Points has not started, so nothing earns yet. No database change.
+- Moves elixir-utils to `72849c1`, the Points list Sean set on 14 October:
+  "First paired agent" is worth 25; the profile, email, first-agent-connected,
+  ERC-8004 listing and Patchbay solution awards are gone, 335 in one-time
+  awards. A Patchbay Offer placed earns 5 (up to 10 a day) and a reply 5 (once
+  a day). Points has not started, so nothing earns yet. No database change.
