@@ -172,6 +172,7 @@ defmodule RegentsWeb.PaperProDailyLive do
               <h2 id="paper-daily-research-title">Research List</h2>
               <ol
                 id="paper-daily-research-list"
+                tabindex={if @research_list_expanded?, do: "0"}
                 class={[
                   "paper-daily__research-list",
                   @research_list_expanded? && "paper-daily__research-list--expanded"
@@ -186,6 +187,20 @@ defmodule RegentsWeb.PaperProDailyLive do
                   </a>
                 </li>
               </ol>
+              <p
+                :if={@research_list_expanded?}
+                id="paper-daily-research-scroll-cue"
+                class="paper-daily__scroll-cue"
+                phx-hook="ResearchScrollCue"
+                data-scroll-target="paper-daily-research-list"
+              >
+                <span data-scroll-chevron aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                </span>
+                <span>Scroll for more papers</span>
+              </p>
               <Regent.Primitives.button
                 :if={length(@research_list) > 5}
                 id="paper-daily-research-toggle"

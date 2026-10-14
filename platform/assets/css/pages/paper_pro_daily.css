@@ -29,6 +29,28 @@
   overflow-wrap: anywhere;
 }
 
+.paper-daily__scroll-cue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+}
+
+.paper-daily__scroll-cue[hidden] {
+  display: none;
+}
+
+.paper-daily__scroll-cue [data-scroll-chevron] {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.paper-daily__scroll-cue svg {
+  inline-size: 20px;
+  block-size: 20px;
+}
+
 .paper-daily__copy h2 {
   scroll-margin-block-start: 24px;
 }

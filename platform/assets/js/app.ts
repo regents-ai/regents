@@ -29,6 +29,7 @@ import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
 import {installCopyButtons} from "./copy_buttons"
 import {installLiteratureChart} from "./literature_chart"
@@ -291,6 +292,7 @@ const hooks = {
   MotionRefusal,
   MotionTabs,
   OnchainSteps,
+  ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   TwinCube,
   VerifiedConnections,
