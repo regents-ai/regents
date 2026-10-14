@@ -64,7 +64,7 @@
   border: 1px solid color-mix(in srgb, var(--world-cube-ink) 26%, transparent);
   background: color-mix(in srgb, var(--world-cube-ink) 9%, transparent);
   backdrop-filter: blur(18px) saturate(1.4);
-  transition: opacity 320ms ease-out, translate 320ms ease-out, visibility 0s 320ms;
+  transition: opacity 320ms ease-out, translate 320ms ease-out;
 }
 
 .world-cube__world h3 {
@@ -145,13 +145,13 @@
 }
 
 /* The room's own card is a bar along the foot of the stage, its link beside its
-   name, so the room above it is left to the panes of glass. */
+   name, so the room above it is left to the panes of glass. The other cards are
+   unseen but still take focus, so a keyboard reaches every world's link. */
 .world-cube[data-world-ready="true"] .world-cube__world {
   position: absolute;
   inset: auto var(--space-3) var(--space-3);
   z-index: 1;
   opacity: 0;
-  visibility: hidden;
   translate: 0 0.75rem;
 }
 
@@ -174,10 +174,17 @@
     [data-world-face="5"] [data-world="5"]
   ) {
   opacity: 1;
-  visibility: visible;
   translate: 0 0;
   pointer-events: auto;
-  transition: opacity 420ms ease-out, translate 420ms ease-out, visibility 0s;
+  transition: opacity 420ms ease-out, translate 420ms ease-out;
+}
+
+/* A card a keyboard has focused shows over the room's own. */
+.world-cube[data-world-ready="true"] .world-cube__world:has(:focus-visible) {
+  z-index: 2;
+  opacity: 1;
+  translate: 0 0;
+  pointer-events: auto;
 }
 
 /* A room's panes of glass. They are part of the room, so they exist only where
