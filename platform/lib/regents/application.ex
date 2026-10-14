@@ -14,6 +14,7 @@ defmodule Regents.Application do
         RegentsWeb.Telemetry,
         {Regents.RateLimiter, []},
         {Regents.OpenSea.HoldingsCache, []},
+        {Task.Supervisor, name: Regents.SiteTools.Reads},
         Regents.SiteTools,
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},

@@ -10,7 +10,10 @@ defmodule Regents.SiteTools do
   Patchbay's card lists every tool it publishes, its Agent Offers among them;
   the other sites list the tools of their home page.
 
-  The table lives in this process and is read directly; this process only owns it.
+  A kept copy is read straight from the table. When there is none, this process
+  starts one read of the site and every caller asking meanwhile waits for that
+  read's answer, so a burst of requests asks a site once. Reads of different
+  sites run side by side.
   """
 
   use GenServer
@@ -18,6 +21,8 @@ defmodule Regents.SiteTools do
   @table __MODULE__
   @keep_ms :timer.hours(24)
   @again_ms :timer.minutes(1)
+  # Longer than a read can take: 3 s to connect and 5 s to answer.
+  @wait_ms 15_000
 
   @sites %{
     "regents" => %{name: "regents.sh", url: "https://regents.sh/capabilities", scopes: :home},
@@ -50,9 +55,10 @@ defmodule Regents.SiteTools do
   @doc "The site's tools, from the last day's copy or read from the site now."
   @spec tools(String.t()) :: {:ok, [tool()]} | {:error, :unknown_site | :unreachable}
   def tools(site) do
-    case Map.fetch(@sites, site) do
-      {:ok, config} -> with :miss <- kept(site), do: read(site, config)
-      :error -> {:error, :unknown_site}
+    if Map.has_key?(@sites, site) do
+      with :miss <- kept(site), do: GenServer.call(__MODULE__, {:read, site}, @wait_ms)
+    else
+      {:error, :unknown_site}
     end
   end
 
@@ -63,13 +69,6 @@ defmodule Regents.SiteTools do
       [{^site, answer, until}] when until > now -> answer
       _none_or_old -> :miss
     end
-  end
-
-  defp read(site, config) do
-    answer = ask(config)
-    keep = if match?({:ok, _tools}, answer), do: @keep_ms, else: @again_ms
-    :ets.insert(@table, {site, answer, System.monotonic_time(:millisecond) + keep})
-    answer
   end
 
   defp ask(config) do
@@ -134,6 +133,41 @@ defmodule Regents.SiteTools do
   @impl true
   def init(nil) do
     :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
-    {:ok, nil}
+    # Each site being read: its read's reference and the callers waiting for it.
+    {:ok, %{}}
+  end
+
+  @impl true
+  def handle_call({:read, site}, from, reads) do
+    case {kept(site), reads} do
+      {:miss, %{^site => {ref, waiting}}} ->
+        {:noreply, Map.put(reads, site, {ref, [from | waiting]})}
+
+      {:miss, _reads} ->
+        config = Map.fetch!(@sites, site)
+        %{ref: ref} = Task.Supervisor.async_nolink(__MODULE__.Reads, fn -> ask(config) end)
+        {:noreply, Map.put(reads, site, {ref, [from]})}
+
+      {answer, _reads} ->
+        {:reply, answer, reads}
+    end
+  end
+
+  @impl true
+  def handle_info({ref, answer}, reads) when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, finish(reads, ref, answer)}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, reads) do
+    {:noreply, finish(reads, ref, {:error, :unreachable})}
+  end
+
+  defp finish(reads, ref, answer) do
+    {site, {^ref, waiting}} = Enum.find(reads, fn {_site, {read, _waiting}} -> read == ref end)
+    keep = if match?({:ok, _tools}, answer), do: @keep_ms, else: @again_ms
+    :ets.insert(@table, {site, answer, System.monotonic_time(:millisecond) + keep})
+    Enum.each(waiting, &GenServer.reply(&1, answer))
+    Map.delete(reads, site)
   end
 end

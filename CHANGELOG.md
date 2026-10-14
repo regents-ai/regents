@@ -1784,8 +1784,10 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   readable at `GET /api/v1/site-tools/<site>`. No sign-in; they change nothing.
 - `Regents.SiteTools` reads each site's published tool list from its fixed
   address only (no redirects, 3 s to connect, 5 s to answer) and keeps it for
-  a day, or a minute after a failed read. The page asks for it in the
-  background, so a slow site never holds the homepage.
+  a day, or a minute after a failed read. Only one read of a site is ever
+  under way; requests that arrive meanwhile wait for its answer, so a burst of
+  visitors asks each site once. The page asks in the background, so a slow
+  site never holds the homepage.
 - The world cube takes `--world-cube-size` beside `--world-cube-centre`, and
   the code cube `--code-cube-size`, so a page can draw either smaller. The
   stage keeps the same height whether or not the cubes draw.
