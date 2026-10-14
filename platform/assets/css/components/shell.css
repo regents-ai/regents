@@ -36,7 +36,17 @@
 }
 
 #shell-header .rl-header-links {
-  margin-inline-end: 1.7rem;
+  gap: var(--space-1);
+  margin-inline-end: var(--space-1);
+}
+
+#shell-header .rl-header-links > a:not(.rg-button),
+#shell-header .rl-token-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
 }
 
 /* Beside the on-chain buttons while the wallet app has open a wallet the
@@ -102,6 +112,38 @@
   display: flex;
 }
 
+/* Match the template's centred account/balance controls. The header's native
+   buttons need explicit selectors to keep the fallback skin from sizing them. */
+#shell-header > .account-control {
+  align-self: center;
+  margin-inline-end: var(--space-1);
+}
+
+#app-shell #shell-header .account-chip {
+  height: auto;
+  min-height: 2.75rem;
+  font-size: 0.85rem;
+}
+
+#app-shell #shell-header .account-chip .account-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+#app-shell #shell-header .account-control > .rg-button {
+  min-height: 2.75rem;
+  margin: 0;
+  padding-block: 0.35rem;
+  font-size: 0.85rem;
+}
+
+#app-shell #shell-header .shell-tool {
+  align-self: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+}
+
 /* The shared prism control draws its own box and hover; the header only centres it.
    Its prism sits .5rem inside the press target, so this margin leaves the same space
    before the X icon as between the icons themselves. */
@@ -111,6 +153,7 @@
 }
 
 #shell-header .theme-control {
+  flex: 0 0 auto;
   margin-inline-end: var(--space-1);
 }
 
@@ -566,11 +609,17 @@
   #shell-header { flex-wrap: nowrap; }
   #shell-header .rl-header-links { display: none; }
   #shell-header > a:not(.shell-brand) { display: none; }
-  /* Only the brand's name gives way; the account button and the Credits
-     balance keep their width. */
-  #shell-header .account-control { min-width: 0; flex: 0 0 auto; }
+  /* Keep the balance and icon targets intact; long names give way first. */
+  #shell-header .shell-brand { min-width: 2.75rem; }
+  #shell-header .account-control { min-width: 0; flex: 0 1 auto; }
+  #shell-header .account-control:has(.account-chip) { min-width: 2.75rem; }
+  #app-shell #shell-header .account-chip { min-width: 2.75rem; padding-inline: 0.5rem; }
   #shell-header .shell-tool { flex: 0 0 auto; }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }
 /* The narrowest phones: the side panel button beside it opens the same panel, so the name gives way to it. */
-@media (max-width: 23.75rem) { #shell-header .account-chip { display: none; } }
+@media (max-width: 23.75rem) {
+  #shell-header .account-chip { display: none; }
+  #shell-header .account-control:has(.account-chip) { min-width: 0; margin-inline-end: 0; }
+  #shell-header .mobile-menu-button { min-width: 2.75rem; padding-inline: 0.25rem; }
+}

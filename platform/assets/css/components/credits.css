@@ -561,3 +561,33 @@
   stroke-width: 2;
   stroke-linecap: round;
 }
+
+/* The header balance follows the template's compact control. Keep this
+   outside the product layer so the native button fallback cannot replace it. */
+#app-shell #shell-header .shell-credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) {
+  #app-shell #shell-header .shell-credits:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  #app-shell #shell-header .shell-credits {
+    padding-inline: 0.5rem;
+    font-size: 0.8rem;
+  }
+}
