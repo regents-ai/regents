@@ -267,6 +267,9 @@ defmodule Regents.Release do
     end
   end
 
+  # A read only: with its table creation skipped and no migration lock the
+  # migrator just selects each schema's ledger. Without both options this
+  # listing would try to create and lock a table, so keep them.
   defp unapplied_shared_migrations(repo) do
     for {app, schema} <- [regent_credits: "regent_credits", regent_points: "regent_points"],
         {:down, version, _name} <-
