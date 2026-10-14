@@ -58,13 +58,14 @@ test("the Overview links every product to its real home", async ({page}) => {
   await ready(page)
 
   const products = page.getByRole("list", {name: "Products"})
-  await expect(products.getByRole("listitem")).toHaveCount(4)
+  await expect(products.getByRole("listitem")).toHaveCount(5)
   await expect(products.getByRole("link", {name: "Stake"})).toHaveAttribute("href", "/stake")
   await expect(products.getByRole("link", {name: "Redeem"})).toHaveAttribute("href", "/redeem")
   for (const [name, href] of [
     ["Open Autolaunch", "https://autolaunch.sh"],
     ["Open Techtree", "https://techtree.sh"],
     ["Open Patchbay", "https://patchbay.help"],
+    ["Early access", "https://keyfleet.ai/early"],
   ] as const) {
     const link = products.getByRole("link", {name})
     await expect(link).toHaveAttribute("href", href)
