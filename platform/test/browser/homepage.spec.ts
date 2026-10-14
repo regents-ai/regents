@@ -78,37 +78,7 @@ test("[U2] homepage is server-readable and lists all six worlds", async ({browse
     await expect(link).toHaveAttribute("rel", "noopener noreferrer")
   }
 
-  const buy = page.locator(".rl-stakers-actions a", {hasText: "Buy REGENT"})
-  await expect(buy).toHaveAttribute("href", /^https:\/\/app\.uniswap\.org\/explore\/tokens\/base\//)
-  await expect(buy).toHaveAttribute("target", "_blank")
-  const chart = page.locator(".rl-stakers-actions a", {hasText: "View Chart"})
-  await expect(chart).toHaveAttribute("href", /^https:\/\/dexscreener\.com\//)
-  await expect(chart).toHaveAttribute("target", "_blank")
-  const stake = page.locator(".rl-stakers-actions a", {hasText: "Stake REGENT"})
-  await expect(stake).toHaveAttribute("href", "/stake")
-  await expect(stake).not.toHaveAttribute("target", /.+/)
-
-  await expect(page.locator("#techtree, #autolaunch, #patchbay, #keyfleet")).toHaveCount(4)
-  await expect(page.locator("#regent a.rl-action--strong")).toHaveAttribute("href", "/stake")
   await context.close()
-})
-
-// A tab is only useful if its section actually arrives in view.
-test("[U1] a navigation tab brings its section into view", async ({page}) => {
-  await page.goto("/")
-  await waitForHomepage(page)
-
-  await page.locator("#home-nav-techtree").click()
-  await expect(page).toHaveURL(/#techtree$/)
-
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const section = document.querySelector("#techtree")!.getBoundingClientRect()
-        return section.top < window.innerHeight && section.bottom > 0
-      }),
-    )
-    .toBe(true)
 })
 
 // Each homepage header control leads to its place, by keyboard and at phone width.
@@ -118,13 +88,19 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
 
     await page.goto("/")
     const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
-    await expect(tabs).toHaveText(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Protocol"])
+    await expect(tabs).toHaveText([
+      "Autolaunch, opens in a new tab",
+      "Techtree, opens in a new tab",
+      "Patchbay, opens in a new tab",
+      "Keyfleet, opens in a new tab",
+      "Protocol",
+    ])
     await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/stake")
     await assertNoOverflow(page)
 
-    await page.locator("#home-nav-patchbay").focus()
-    await page.keyboard.press("Enter")
-    await expect(page).toHaveURL(/\/#patchbay$/)
+    const patchbay = page.locator("#home-nav-patchbay")
+    await expect(patchbay).toHaveAttribute("href", "https://patchbay.help")
+    await expect(patchbay).toHaveAttribute("target", "_blank")
 
     await page.locator("#home-nav-protocol").focus()
     await page.keyboard.press("Enter")
@@ -232,7 +208,7 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
 })
 
 // The founder's hero: the words stand over the top-left of the cube's stage, the worlds come
-// under the words, and the stakers band closes the hero, at every width.
+// under the words, at every width.
 test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) => {
   const boxOf = (selector: string) =>
     page.locator(selector).evaluate(element => {
@@ -263,7 +239,6 @@ test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) =>
       const tagline = await boxOf(".rl-hero-copy .rl-hero-description")
       const stage = await boxOf("#home-worlds")
       const listed = await boxOf("#home-worlds .world-cube__worlds")
-      const stakers = await boxOf(".rl-hero-stakers")
 
       expect(title.left).toBeGreaterThanOrEqual(hero.left)
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
@@ -273,7 +248,6 @@ test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) =>
       expect(stage.right).toBeLessThanOrEqual(hero.right)
       expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(tagline.bottom)
       expect(listed.bottom, "and stay on the stage").toBeLessThanOrEqual(stage.bottom)
-      expect(stakers.top, "the stakers band closes the hero").toBeGreaterThanOrEqual(stage.bottom)
 
       if (width >= 1024) {
         expect(title.right, "the words stay in the left half").toBeLessThanOrEqual(
@@ -398,8 +372,6 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
           heading: bottom("#home-title"),
           tagline: bottom(".rl-hero-copy .rl-hero-description"),
           worlds: bottom("#home-worlds"),
-          stakers: bottom(".rl-hero-stakers"),
-          stakersActions: bottom(".rl-stakers-actions"),
         }
       })
 
@@ -408,123 +380,6 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
         if (part === "scrolled") continue
         expect(edge, `${part} remains in the document`).toBeGreaterThan(0)
       }
-    })
-  }
-})
-
-// What staking pays and the two ways to take part are one thing, so they stand in one
-// container built like a product card, with the controls under the sentence.
-test("[U2] the stakers band is one container with its ways in underneath", async ({page}) => {
-  await page.setViewportSize({width: 1440, height: 900})
-  await page.goto("/")
-  await waitForHomepage(page)
-
-  const framing = await page.locator(".rl-hero-stakers").evaluate(element => ({
-    clip: getComputedStyle(element, "::after").clipPath,
-    overflow: getComputedStyle(element).overflow,
-    fill: getComputedStyle(element, "::after").backgroundColor,
-    host: getComputedStyle(element).backgroundColor,
-  }))
-  expect(framing.clip).toContain("polygon")
-  expect(framing.overflow).toBe("visible")
-  // Chromium serialises an opaque computed colour as rgb(); any alpha below 1 becomes rgba().
-  expect(framing.fill, "the panel paints an opaque surface").toMatch(/^rgb\(\d+, \d+, \d+\)$/)
-  expect(framing.host, "on a box that carries none of its own").toBe("rgba(0, 0, 0, 0)")
-
-  const sentence = (await page.locator(".rl-regent-copy").boundingBox())!
-  const actions = (await page.locator(".rl-stakers-actions").boundingBox())!
-  expect(actions.y, "the ways in stand under the sentence").toBeGreaterThanOrEqual(
-    sentence.y + sentence.height,
-  )
-  expect(actions.x, "and start on the same edge").toBeCloseTo(sentence.x, 0)
-  await expect(page.locator(".rl-stakers-actions a")).toHaveCount(3)
-})
-
-// The Techtree chapter reads as an ink heading over one muted description, with its three
-// proofs in the grid below.
-test("[U1] the Techtree chapter keeps its proofs under muted body copy", async ({page}) => {
-  await page.goto("/")
-  await waitForHomepage(page)
-
-  await expect(page.locator("#techtree .rl-proof-grid")).toHaveCount(1)
-  await expect(page.locator("#techtree .rl-proof-grid article")).toHaveCount(3)
-
-  const body = page.locator("#techtree .rl-chapter-intro div > p:not(.rl-overline)")
-  await expect(body).toHaveCount(1)
-
-  const type = await body.evaluateAll(elements => {
-    // The probe lives outside the chapter so the muted rule cannot claim it and make the
-    // comparison tautological.
-    const probe = document.createElement("p")
-    probe.style.color = "var(--rl-muted)"
-    document.querySelector(".rl-root")!.append(probe)
-    const muted = getComputedStyle(probe).color
-    probe.remove()
-    return {
-      colors: elements.map(element => getComputedStyle(element).color),
-      heading: getComputedStyle(elements[0].parentElement!.querySelector("h2")!).color,
-      ink: getComputedStyle(document.querySelector(".rl-root")!).color,
-      muted,
-    }
-  })
-
-  expect(type.colors).toEqual([type.muted])
-  expect(type.heading).toBe(type.ink)
-  expect(type.muted).not.toBe(type.heading)
-})
-
-// The closing frame carries no chapter number, so its headline has to be placed on the chapter
-// headline edge explicitly at every width, or the page would read as two columns of sections.
-test("[U1][U3] the numberless closing shares the chapter headline column", async ({page}) => {
-  for (const viewport of [
-    {name: "desktop", width: 1440, height: 1000},
-    {name: "review-1024x768", width: 1024, height: 768},
-    {name: "mobile-390", width: 390, height: 844},
-    {name: "mobile-320", width: 320, height: 720},
-  ]) {
-    await test.step(viewport.name, async () => {
-      await page.setViewportSize({width: viewport.width, height: viewport.height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      const edges = await page
-        .locator("#autolaunch h2, #techtree h2, #patchbay h2, #regent h2")
-        .evaluateAll(elements =>
-          elements.map(element => Math.round(element.getBoundingClientRect().left)),
-        )
-      expect(edges).toHaveLength(4)
-      expect(new Set(edges).size, "every section starts on one left edge").toBe(1)
-    })
-  }
-})
-
-test("[U5] the Patchbay action stays contained and reachable at every tested viewport", async ({page}) => {
-  for (const viewport of focusViewports) {
-    await test.step(viewport.name, async () => {
-      await page.setViewportSize({width: viewport.width, height: viewport.height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      const boxes = await page
-        .locator("#patchbay .rl-chapter-actions a")
-        .evaluateAll(elements =>
-          elements.map(element => {
-            const box = element.getBoundingClientRect()
-            return {
-              height: box.height,
-              href: element.getAttribute("href"),
-              left: box.left,
-              right: box.right,
-              text: element.textContent?.trim(),
-            }
-          }),
-        )
-
-      expect(boxes.map(box => [box.href, box.text])).toEqual([["https://patchbay.help", "fix ↗"]])
-      expect(boxes.every(box => box.left >= 0 && box.right <= viewport.width)).toBe(true)
-      expect(boxes.every(box => box.height >= 44)).toBe(true)
     })
   }
 })
@@ -558,139 +413,6 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
   }
 })
 
-test("[U2] the primary homepage action keeps its contrast on hover", async ({page}) => {
-  await page.goto("/")
-  await waitForHomepage(page)
-  const action = page.locator(".rl-closing").getByRole("link", {name: "Explore staking"})
-  const before = await action.evaluate(element => {
-    const style = getComputedStyle(element)
-    return {backgroundColor: style.backgroundColor, color: style.color}
-  })
-  await action.hover()
-  await expect.poll(() => action.evaluate(element => {
-    const style = getComputedStyle(element)
-    return {backgroundColor: style.backgroundColor, color: style.color}
-  })).toEqual(before)
-})
-
-test("[U1] the block primary action has a square high-contrast keyboard focus ring", async ({page}, testInfo) => {
-  for (const viewport of focusViewports) {
-    await page.setViewportSize({width: viewport.width, height: viewport.height})
-    await page.goto("/")
-    await waitForHomepage(page)
-
-    // Closing the page is the only beat that asks for something, so it is the page's one
-    // white action.
-    await expect(page.locator(".rl-action--strong")).toHaveCount(1)
-    await expect(page.locator(".rl-closing .rl-action--strong")).toHaveCount(1)
-
-    let reached = false
-    const focusableCount = await page.locator("a, button, input, select, textarea, [tabindex]:not([tabindex='-1'])").count()
-
-    for (let tab = 0; tab <= focusableCount && !reached; tab += 1) {
-      await page.keyboard.press("Tab")
-      const focused = page.locator(".rl-action--strong:focus-visible")
-      if (await focused.count() === 0) continue
-
-      reached = true
-      await expect(focused).toBeVisible()
-
-      const geometry = await focused.evaluate(element => {
-        const style = getComputedStyle(element)
-        const root = document.querySelector(".rl-root")
-        const rgb = (value: string) => {
-          const canvas = document.createElement("canvas")
-          canvas.width = 1
-          canvas.height = 1
-          const context = canvas.getContext("2d", {willReadFrequently: true})
-          if (!context) return {alpha: 0, channels: [0, 0, 0]}
-          context.fillStyle = value
-          context.fillRect(0, 0, 1, 1)
-          const pixel = [...context.getImageData(0, 0, 1, 1).data]
-          return {alpha: pixel[3], channels: pixel.slice(0, 3)}
-        }
-        const luminance = (channels: number[]) => {
-          const linear = channels.map(channel => {
-            const value = channel / 255
-            return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-          })
-          return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
-        }
-        const contrast = (foreground: number[], background: number[]) => {
-          const foregroundLuminance = luminance(foreground)
-          const backgroundLuminance = luminance(background)
-          return (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
-            (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
-        }
-        const outlineWidth = Number.parseFloat(style.outlineWidth)
-        const outlineOffset = Number.parseFloat(style.outlineOffset)
-        const outline = rgb(style.outlineColor)
-        const borderColors = style.borderTopStyle === "none" ? [] : [style.borderTopColor]
-        const adjacentValues = outlineOffset < 0
-          ? [style.backgroundColor, ...borderColors]
-          : [style.backgroundColor, ...borderColors, root ? getComputedStyle(root).backgroundColor : "transparent"]
-        const adjacent = adjacentValues
-          .map(rgb)
-          .filter(color => color.alpha === 255)
-        const rect = element.getBoundingClientRect()
-        const extent = Math.max(0, outlineWidth + outlineOffset)
-        const ring = {
-          bottom: rect.bottom + extent,
-          left: rect.left - extent,
-          right: rect.right + extent,
-          top: rect.top - extent,
-        }
-        const viewport = {bottom: window.innerHeight, left: 0, right: window.innerWidth, top: 0}
-        const clippingAncestors = []
-        for (let ancestor = element.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
-          const ancestorStyle = getComputedStyle(ancestor)
-          const clips = [ancestorStyle.overflow, ancestorStyle.overflowX, ancestorStyle.overflowY]
-            .some(value => ["auto", "clip", "hidden", "scroll"].includes(value))
-          if (!clips) continue
-          const ancestorRect = ancestor.getBoundingClientRect()
-          clippingAncestors.push({
-            bottom: ancestorRect.bottom,
-            left: ancestorRect.left,
-            right: ancestorRect.right,
-            top: ancestorRect.top,
-          })
-        }
-        const contains = (bounds: typeof viewport) =>
-          ring.left >= bounds.left && ring.right <= bounds.right && ring.top >= bounds.top && ring.bottom <= bounds.bottom
-
-        return {
-          adjacentContrasts: adjacent.map(color => contrast(outline.channels, color.channels)),
-          borderRadius: Number.parseFloat(style.borderRadius || "0"),
-          focusVisible: element.matches(":focus-visible"),
-          outlineVisible: outline.alpha > 0 && style.visibility !== "hidden" && Number.parseFloat(style.opacity || "1") > 0,
-          outlineStyle: style.outlineStyle,
-          outlineWidth,
-          ringFitsViewport: contains(viewport),
-          ringFitsClippingAncestors: clippingAncestors.every(contains),
-        }
-      })
-
-      expect(geometry.focusVisible).toBe(true)
-      expect(geometry.outlineStyle).toBe("solid")
-      expect(geometry.outlineVisible).toBe(true)
-      expect(geometry.outlineWidth).toBeGreaterThanOrEqual(2)
-      expect(geometry.adjacentContrasts.every(contrast => contrast >= 3)).toBe(true)
-      expect(geometry.borderRadius).toBeLessThanOrEqual(4)
-      expect(geometry.ringFitsViewport).toBe(true)
-      expect(geometry.ringFitsClippingAncestors).toBe(true)
-    }
-
-    expect(reached, "the primary action is reachable by keyboard").toBe(true)
-
-    if (["desktop", "review-1024x768", "mobile-390", "zoom-200"].includes(viewport.name)) {
-      await page.screenshot({
-        path: testInfo.outputPath(`focus-${viewport.name}.png`),
-        fullPage: true,
-      })
-    }
-  }
-})
-
 // The focus ring belongs to the whole page: it is set in Text and stays that same mark on
 // every control in the hero.
 test("[U1] every hero control retains visible paired keyboard focus", async ({page}) => {
@@ -716,7 +438,7 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
   expect([...reached]).toEqual(
-    expect.arrayContaining(["Visit Techtree, opens in a new tab", "Stake REGENT"]),
+    expect.arrayContaining(["Visit Techtree, opens in a new tab"]),
   )
 })
 // COPY_BUTTON: the $REGENT menu copies the contract address with the shared

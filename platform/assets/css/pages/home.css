@@ -43,63 +43,25 @@
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; margin-block-start: var(--space-3); }
-  /* The homepage hero: the heading stands over the top-left of the cube's
-     stage. The stage takes the heading's row and the one under it, so the list
-     of worlds starts below the heading wherever the cube is not drawn, and the
-     second row is tall enough for that list, so nothing below moves when the
-     cube takes its place. Each height is the list's own at the narrow end of
-     its band of widths, in the present wording. */
+  /* The homepage is the cube's stage between the header and the footer. The
+     heading stands over its top-left. The stage takes the heading's row and the
+     one under it, so the list of worlds starts below the heading wherever the
+     cube is not drawn, and the second row is tall enough for that list, so the
+     footer never moves when the cube takes its place. Each height is the list's
+     own at the narrow end of its band of widths, in the present wording. */
   .rl-hero--home {
     --rl-worlds-height: 75rem;
     display: grid; grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(var(--rl-worlds-height), auto) auto;
+    grid-template-rows: auto minmax(var(--rl-worlds-height), auto);
   }
   .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; transition: opacity 320ms ease-out; }
   /* A room fills the stage, so the page's name steps back while one is open. */
   .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
   .rl-hero--home .world-cube { grid-area: 1 / 1 / span 2; grid-template-rows: subgrid; min-height: 0; }
   .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
-  .rl-hero--home .rl-hero-stakers { grid-row: 3; margin-block-start: var(--rg-panel-padding); }
-  .rl-hero-stakers { margin: 0 var(--rg-panel-padding) var(--rg-panel-padding); padding: var(--rg-panel-padding); display: grid; gap: var(--space-3); }
-  .rl-regent-copy { width: fit-content; max-width: min(100%, 52ch); }
-  .rl-regent-copy h2 { margin-block: var(--space-1) var(--space-2); font-size: clamp(1.75rem, 3vw, 2.5rem); line-height: 1.1; font-weight: 400; }
-  .rl-regent-summary { max-width: 50ch; font-family: var(--font-family-sans); font-size: 1rem; line-height: 1.6; }
-  .rl-hero-stakers .rl-stakers-actions { width: fit-content; max-width: 100%; }
-  .rl-regent-edge { position: absolute; inset-block: var(--rg-cut-panel); inset-inline-start: 0; width: 3px; background: var(--palette-tangerine-tango); pointer-events: none; }
-  .rl-stakers-actions, .rl-chapter-actions, .rl-closing-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .rl-chapter, .rl-closing { padding: var(--rg-panel-padding); }
-  .rl-chapter-intro { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: var(--space-3); }
-  .rl-chapter-intro > div:only-child { grid-column: 2; }
-  .rl-chapter-index { font-family: var(--font-family-mono); font-size: .8125rem; border-block-start: 1px solid var(--rl-line); padding-block-start: var(--space-2); }
   .rl-overline { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; }
-  .rl-chapter-intro h2, .rl-closing h2 { max-width: 22ch; margin-block: var(--space-3); font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; letter-spacing: -.035em; }
-  .rl-chapter-intro p { max-width: 68ch; }
-  .rl-chapter-intro div > p:not(.rl-overline) { margin-block-start: var(--space-3); color: var(--rl-muted); }
-  .rl-chapter-intro div > .rl-mode-rail { color: var(--rl-ink); }
-  .rl-mode-rail { font-family: var(--font-family-ui); font-size: .8125rem; padding-block: var(--space-2); border-block: 1px solid var(--rl-line); }
-  .rl-chapter-support { font-size: .875rem; }
-  .rl-proof-grid { margin-block-start: var(--space-4); }
-  .rl-proof-card { --rl-proof-fill: var(--palette-platinum); --color-accent: var(--palette-charcoal); --color-fg-on-accent: var(--palette-platinum); }
-  .rl-proof-card[data-card-color="orange"] { --rl-proof-fill: var(--palette-tangerine-tango); }
-  .rl-proof-card[data-card-color="blue"] { --rl-proof-fill: var(--palette-powder-blue); }
   .rl-card-diagram { pointer-events: none; }
-  .rl-proof-card .rg-feature__caption { display: flex; flex-direction: column; }
-  .rl-proof-card .rg-feature__actions { flex-direction: column; align-items: flex-start; }
 
-  /* The only clipped host here is the entirely decorative media island.
-     Card headings, captions, actions and focus rings remain outside it. */
-  .rl-story { margin-block-start: var(--space-4); padding-block-start: var(--space-4); border-block-start: 1px solid var(--rl-line); }
-  .rl-story h3 { font-size: 1.5rem; margin-block-end: var(--space-3); }
-  .rl-story p { max-width: 72ch; }
-  .rl-story-state { margin-block-start: var(--space-3); padding: var(--rg-panel-padding); background: var(--support-panel-surface); color: var(--support-panel-ink); }
-  .rl-story-state strong { display: block; margin-block-end: var(--space-2); font-family: var(--font-family-title); font-weight: 400; }
-  .rl-chapter-actions, .rl-closing-actions { margin-block-start: var(--space-4); }
-  .rl-closing { padding-inline-start: calc(var(--rg-panel-padding) + 4rem + var(--space-3)); }
-  .rl-closing > p { max-width: 60ch; }
-  .rl-regent-economics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-4) 0 0; }
-  .rl-regent-economics > div { border-block-start: 1px solid var(--rl-line); padding-block-start: var(--space-2); }
-  .rl-regent-economics dt { margin-block-end: var(--space-2); font-family: var(--font-family-title); font-size: 1.25rem; line-height: 1.2; }
-  .rl-regent-economics dd { margin: 0; color: var(--rl-muted); line-height: 1.6; }
   .rl-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); padding: var(--rg-panel-padding); font-size: .8125rem; }
   .rl-document-links { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; }
   .rl-document-links a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-family-ui); }
@@ -112,10 +74,6 @@
     .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-hero-copy { padding: 0; }
-    .rl-closing { padding-inline-start: var(--rg-panel-padding); }
-    .rl-regent-economics { grid-template-columns: minmax(0, 1fr); }
-    .rl-chapter-intro { grid-template-columns: minmax(0, 1fr); }
-    .rl-chapter-intro > div:only-child { grid-column: 1; }
     .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
     .rl-brand { font-size: .875rem; }
   }
@@ -179,29 +137,4 @@
   .rg-button.rl-product-tab::before { transition: none; }
 }
 
-/* The callout is a foil face, which brings its own graphite ground and ink. Its
-   buttons keep their corner marks and let the foil show through their plates. */
-.rl-hero-stakers .rg-button::before { background-color: transparent; }
-/* Per-card stock/ink pairs use the shared panel's public color properties. */
-.rl-proof-card > .rg-panel { --rg-panel-fill: var(--rl-proof-fill); --rg-panel-ink: var(--palette-charcoal); }
-/* Compact desktop stock: 75% of the former card width with a 1ch gutter.
-   All product rows share the compact Patchbay reference height; narrow
-   layouts stay content-sized so the copy never needs clipping or scaling. */
-.rl-proof-grid { column-gap: 1ch; row-gap: 0; }
-@media (min-width: 64rem) {
-  .rl-chapter { container-type: inline-size; --rl-card-aspect: 327 / 593.1875; }
-  .rl-proof-grid {
-    width: calc(75% + 2ch - 1.5px);
-    block-size: calc((75cqw - 1.5px) / 3 / (var(--rl-card-aspect)));
-    grid-template-rows: max-content minmax(0, 1fr) max-content;
-  }
-  .rl-proof-card { min-block-size: 0; }
-  .rl-proof-card .rg-technical-figure { min-block-size: 0; grid-template-rows: minmax(0, 1fr); }
-  .rl-proof-card .rg-technical-figure__art { min-block-size: 0; height: 100%; }
-  .rl-proof-card .rg-feature__face .rg-technical-figure__art > svg { block-size: 100%; aspect-ratio: auto; }
-
-}
-@media (max-width: 63.99rem) {
-  .rl-proof-grid { row-gap: 1ch; }
-}
 html[data-home-theme-locked="true"] [data-theme-toggle] { display: none; }

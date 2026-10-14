@@ -3,7 +3,7 @@ defmodule RegentsWeb.HomeLive do
 
   alias RegentsWeb.Components.RegentLinks
   alias RegentsWeb.Components.WorldCube
-  alias RegentsWeb.{PublicDocuments, RouteCatalog, TokenLinks}
+  alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
   @staking_summary "Stake $REGENT for a share of USDC revenue of the protocol and additional emissions."
 
@@ -59,8 +59,6 @@ defmodule RegentsWeb.HomeLive do
     do:
       "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)}: [#{proof.link.label}](#{proof.link.href}))"
 
-  defp staking_summary, do: @staking_summary
-
   def mount(_params, _session, socket),
     do:
       {:ok,
@@ -75,12 +73,6 @@ defmodule RegentsWeb.HomeLive do
 
       <main>
         <Regent.Structure.row rail={false}><.hero /></Regent.Structure.row>
-
-        <%= for product <- products() do %>
-          <Regent.Structure.row rail={false}><.chapter chapter={product} /></Regent.Structure.row>
-        <% end %>
-
-        <Regent.Structure.row rail={false}><.closing_frame /></Regent.Structure.row>
       </main>
 
       <Regent.Structure.row rail={false}><.landing_footer /></Regent.Structure.row>
@@ -104,12 +96,14 @@ defmodule RegentsWeb.HomeLive do
 
         <nav class="rl-product-tabs" aria-label="Products and staking">
           <a
-            :for={{label, id, href} <- nav_links()}
+            :for={{label, id, href, new_tab?} <- nav_links()}
             id={"home-nav-#{id}"}
             href={href}
+            target={new_tab? && "_blank"}
+            rel={new_tab? && "noopener noreferrer"}
             class="rg-button rl-product-tab"
           >
-            {label}
+            {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
           </a>
         </nav>
 
@@ -131,46 +125,6 @@ defmodule RegentsWeb.HomeLive do
         <p class="rl-hero-description">The community-owned agentic product lab</p>
       </div>
       <WorldCube.cube id="home-worlds" label="Regents Labs products" worlds={worlds()} />
-
-      <div
-        id="home-regent-callout"
-        class="rl-hero-stakers rg-panel rg-panel--surface rg-holo-ground"
-        role="region"
-        aria-labelledby="home-regent-callout-title"
-        phx-hook="HolographicCard"
-        data-holo-crown="beside"
-        data-holo-tilt="0"
-        data-holo-shine="0.75"
-      >
-        <Regent.HolographicCard.foil id="home-regent-callout-foil" class="rg-holo-foil--face" />
-        <span class="rl-regent-edge" aria-hidden="true"></span>
-        <div class="rl-regent-copy">
-          <p class="rl-overline">$REGENT</p>
-          <h2 id="home-regent-callout-title">Stake in the work.</h2>
-          <p class="rl-regent-summary">
-            {staking_summary()}
-          </p>
-        </div>
-        <div class="rl-stakers-actions">
-          <a
-            href={TokenLinks.buy()}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rg-button rl-action"
-          ><span class="rg-button__label">
-            Buy REGENT <span aria-hidden="true">↗</span>
-          </span></a>
-          <a
-            href={TokenLinks.chart()}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rg-button rl-action"
-          ><span class="rg-button__label">
-            View Chart <span aria-hidden="true">↗</span>
-          </span></a>
-          <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">Stake REGENT</span></a>
-        </div>
-      </div>
     </section>
     """
   end
@@ -179,7 +133,7 @@ defmodule RegentsWeb.HomeLive do
   @product_faces %{"autolaunch" => 0, "techtree" => 1, "patchbay" => 2, "keyfleet" => 5}
 
   # Three panes of glass hang in each room. Autolaunch, Techtree and Patchbay hang
-  # the three proofs from their chapter below; the other rooms have panes of their own.
+  # the three proofs from their product; the other rooms have panes of their own.
   @keyfleet_cards [
     %{
       title: "A Key is a seat.",
@@ -271,98 +225,6 @@ defmodule RegentsWeb.HomeLive do
     end
   end
 
-  attr :product, :map, required: true
-  attr :label, :string, default: nil
-
-  defp product_site(assigns) do
-    ~H"""
-    <a
-      href={@product.site}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={@label && "#{@label} #{@product.name}"}
-      class="rg-button rg-button--secondary rl-action"
-    ><span class="rg-button__label">
-      {@label || "Open #{@product.name}"} <span aria-hidden="true">↗</span>
-    </span></a>
-    """
-  end
-
-  # A chapter carries a numbered product or, without a number, one of the beats between them.
-  defp chapter(assigns) do
-    ~H"""
-    <section
-      id={@chapter.anchor}
-      class={["rl-chapter", "rl-chapter--#{@chapter.anchor}"]}
-      aria-labelledby={"#{@chapter.anchor}-title"}
-    >
-      <header class="rl-chapter-intro">
-        <p :if={@chapter.index} class="rl-chapter-index" aria-hidden="true">{@chapter.index}</p>
-        <div>
-          <p :if={@chapter.eyebrow} class="rl-overline">{@chapter.eyebrow}</p>
-          <h2 id={"#{@chapter.anchor}-title"}>{@chapter.title}</h2>
-          <p>{@chapter.description}</p>
-          <p :if={@chapter.supporting} class="rl-chapter-support">{@chapter.supporting}</p>
-          <p :if={@chapter[:program]}>{@chapter[:program]}</p>
-          <p :if={@chapter[:modes]} class="rl-mode-rail">{@chapter[:modes]}</p>
-
-          <div class="rl-chapter-actions">
-            <.product_site
-              product={Enum.find(hero_products(), &(&1.name == @chapter.anchor))}
-              label={@chapter.action}
-            />
-          </div>
-        </div>
-      </header>
-
-      <.proof_grid proofs={@chapter.proofs} brand={@chapter.anchor} />
-
-      <div :if={@chapter.story} class="rl-story">
-        <div>
-          <h3>{@chapter.story.title}</h3>
-          <p>{@chapter.story.body}</p>
-          <p class="rl-story-state">
-            <strong>{@chapter.story.state_title}</strong>
-            {@chapter.story.state}
-          </p>
-        </div>
-      </div>
-    </section>
-    """
-  end
-
-  defp proof_grid(assigns) do
-    ~H"""
-    <div :if={@proofs != []} class="rl-proof-grid rg-feature-grid">
-      <Regent.Structure.capability_card
-        :for={{proof, index} <- Enum.with_index(@proofs)}
-        title={proof.title}
-        description={proof.copy}
-        id={"home-proof-#{@brand}-#{index}"}
-        class="rl-proof-card"
-        data-card-color={Enum.at(~w(orange blue platinum), index)}
-        phx-hook="HolographicCard"
-        data-holo-ink
-        data-holo-tilt="0"
-      >
-        <:actions>
-          <.proof_status proof={proof} />
-        </:actions>
-        <:media>
-          <Regent.HolographicCard.foil
-            id={"home-proof-foil-#{@brand}-#{index}"}
-            class="rg-holo-foil--ink"
-          />
-          <.card_diagram
-            id={"home-diagram-#{@brand}-#{index}"}
-            variant={artwork_variant(@brand, index)}
-          />
-        </:media>
-      </Regent.Structure.capability_card>
-    </div>
-    """
-  end
-
   # What a proof's product offers today, in the product's own words, and where to
   # try it when it can be tried.
   attr :proof, :map, required: true
@@ -388,16 +250,10 @@ defmodule RegentsWeb.HomeLive do
   defp status_label(:experimental), do: "Experimental"
   defp status_label(:planned), do: "Planned"
 
-  # Original static diagrams: registration marks and sparse geometry, not charts.
-  defp artwork_variant("techtree", index), do: index
-  defp artwork_variant("autolaunch", index), do: index + 3
-  defp artwork_variant("patchbay", index), do: index + 6
-  defp artwork_variant("keyfleet", index), do: Enum.at([5, 8, 7], index)
-
   attr :id, :string, required: true
   attr :variant, :integer, required: true
 
-  # Shared with the product Overview so both routes render the same SVG source.
+  # The product Overview's drawings, kept beside the product list they illustrate.
   def card_diagram(assigns) do
     ~H"""
     <svg
@@ -488,39 +344,6 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  defp closing_frame(assigns) do
-    ~H"""
-    <section id="regent" class="rl-closing" aria-labelledby="regent-title">
-      <p class="rl-overline">$REGENT</p>
-      <h2 id="regent-title">One position.<br />Two reward sources.</h2>
-      <p>
-        Stake REGENT to participate in contract-distributed USDC revenue rewards and REGENT emissions.
-      </p>
-      <dl class="rl-regent-economics">
-        <div>
-          <dt>USDC by share of all REGENT</dt>
-          <dd>
-            Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury.
-          </dd>
-        </div>
-        <div>
-          <dt>Contract-defined emissions</dt>
-          <dd>
-            REGENT emissions depend on the contract’s rate and available inventory. The rate can change.
-          </dd>
-        </div>
-        <div>
-          <dt>Your wallet. Your approval.</dt>
-          <dd>Stake, unstake, claim and compound each require your wallet signature.</dd>
-        </div>
-      </dl>
-      <div class="rl-closing-actions">
-        <a href={~p"/stake"} class="rg-button rl-action rl-action--strong"><span class="rg-button__label">Explore staking</span></a>
-      </div>
-    </section>
-    """
-  end
-
   defp landing_footer(assigns) do
     ~H"""
     <footer class="rl-footer">
@@ -550,14 +373,14 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  # Each product tab jumps to its section of the homepage; Protocol opens the
+  # Each product tab opens that product's site in a new tab; Protocol opens the
   # staking page. Founder decision (2026-09-28): the tab is named Protocol.
   defp nav_links do
-    sections =
-      for anchor <- ~w(autolaunch techtree patchbay keyfleet),
-          do: {String.capitalize(anchor), anchor, "##{anchor}"}
+    sites =
+      for product <- hero_products(),
+          do: {String.capitalize(product.name), product.name, product.site, true}
 
-    sections ++ [{"Protocol", "protocol", ~p"/stake"}]
+    sites ++ [{"Protocol", "protocol", ~p"/stake", false}]
   end
 
   # The four products and their public website destinations. The product pages
@@ -595,7 +418,7 @@ defmodule RegentsWeb.HomeLive do
     ]
   end
 
-  # Section order matches the hero and header navigation. Every proof says what
+  # Product order matches the header navigation. Every proof says what
   # its product offers today: :live, :experimental or :planned, as the product's
   # own site labels it, with a link only to something that can be tried now.
   @doc false

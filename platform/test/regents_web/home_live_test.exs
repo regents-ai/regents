@@ -7,8 +7,6 @@ defmodule RegentsWeb.HomeLiveTest do
   # - smoke: 200 mount and the public-home landmark, outside the signed-in shell
   # - launch-gate: in-app links stay on /stake, the public agent guide, or in-page
   #   anchors the document owns
-  # - proof-status: each card names its status, and only a feature that can be
-  #   tried now links to it
 
   test "SMOKE: the homepage mounts and keeps its landmark", %{conn: conn} do
     assert conn |> get("/") |> html_response(200)
@@ -36,7 +34,7 @@ defmodule RegentsWeb.HomeLiveTest do
     end
   end
 
-  test "NAV_MEANINGS: Protocol and App both open staking", %{conn: conn} do
+  test "NAV_MEANINGS: product tabs open their sites; Protocol and App open staking", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     # Founder decision (2026-09-28): the tab is named Protocol, and it and App open Stake.
@@ -45,23 +43,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
     assert attribute(html, ".rl-product-tabs a", "href") ==
-             ~w(#autolaunch #techtree #patchbay #keyfleet /stake)
-  end
-
-  test "PROOF_STATUS: every homepage card says what its product offers today", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/")
-
-    for product <- HomeLive.products(), {proof, index} <- Enum.with_index(product.proofs) do
-      card = "#home-proof-#{product.anchor}-#{index}"
-      assert proof.status in [:live, :experimental, :planned]
-      assert has_element?(view, "#{card} [data-proof-status=#{proof.status}]")
-
-      if proof.link do
-        assert has_element?(view, "#{card} a[href='#{proof.link.href}']", proof.link.label)
-      else
-        refute has_element?(view, "#{card} .rg-feature__caption a")
-      end
-    end
+             ~w(https://autolaunch.sh https://techtree.sh https://patchbay.help https://keyfleet.ai /stake)
   end
 
   test "PLANNED_HAS_NO_LINK: a planned feature is never offered as something to try" do
@@ -81,7 +63,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert Enum.all?(planned, &is_nil(&1.link))
   end
 
-  test "the Techtree section and agent guide claim only what Techtree offers", %{conn: conn} do
+  test "the homepage and agent guide claim only what Techtree offers", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
     guide = HomeLive.agent_markdown()
 

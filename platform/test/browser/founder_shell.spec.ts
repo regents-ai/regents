@@ -124,12 +124,12 @@ test("all approved routes render within their page budget", async ({page, reques
   await expect(page.locator("#app-shell")).toBeVisible()
 })
 
-test("the public homepage presents the product hero and marketing chapters", async ({page}) => {
+test("the public homepage presents the product hero", async ({page}) => {
   await page.goto("/")
 
   await expect(page.locator("#public-home")).toBeVisible()
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The hero names the six worlds; the chapters below it are a separate story.
+  // The hero names the six worlds and is the whole page between the header and the footer.
   const worlds = page.locator("#home-worlds .world-cube__world")
   await expect(worlds).toHaveCount(6)
   expect(
@@ -137,13 +137,6 @@ test("the public homepage presents the product hero and marketing chapters", asy
       elements.map(element => element.querySelector("h3")!.textContent!.trim()),
     ),
   ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Regents staking", "Regents on X"])
-  await expect(page.locator(".rl-hero-stakers")).toBeVisible()
-
-  const sectionTops = await page
-    .locator("#techtree, #autolaunch, #patchbay, #keyfleet")
-    .evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top + scrollY))
-  expect(sectionTops).toHaveLength(4)
-  expect(sectionTops).toEqual([...sectionTops].sort((left, right) => left - right))
   expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
@@ -175,33 +168,13 @@ test("the hero's cube never blocks the action", async ({page}) => {
     ).toBe("none")
     await expectOneHeroLayer()
     await expect(page.locator("#home-title")).toBeVisible()
-    await page.locator(".rl-hero-stakers").getByRole("link", {name: "Stake REGENT"}).click({trial: true})
+    await page.locator(".rl-header-links a.rl-action").click({trial: true})
     await page.emulateMedia({reducedMotion: "reduce"})
     await expect(page.locator("#home-worlds")).not.toHaveAttribute("data-world-ready", "true")
     await expectOneHeroLayer()
     await page.locator('#home-worlds [data-world="1"]').getByRole("link").click({trial: true})
     await page.emulateMedia({reducedMotion: "no-preference"})
   }
-})
-test("the primary homepage action keeps its contrast on hover", async ({page}) => {
-  await page.goto("/")
-
-  const action = page.locator(".rl-closing").getByRole("link", {name: "Explore staking"})
-  const before = await action.evaluate(element => {
-    const style = getComputedStyle(element)
-    return {backgroundColor: style.backgroundColor, color: style.color}
-  })
-
-  await action.hover()
-
-  await expect
-    .poll(() =>
-      action.evaluate(element => {
-        const style = getComputedStyle(element)
-        return {backgroundColor: style.backgroundColor, color: style.color}
-      }),
-    )
-    .toEqual(before)
 })
 
 test("anonymous Sign in stays separate from the brand link", async ({page}) => {

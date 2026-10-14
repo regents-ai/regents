@@ -1706,15 +1706,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 
 ## 2026-10-13 — The homepage hero is the world cube, on vgpu 0.6 (local, unreleased)
 
-- The top of the homepage is now a slowly turning cube with a room behind each
+- The homepage is now a slowly turning cube with a room behind each
   of its six sides, one per world: Autolaunch, Techtree, Patchbay, Keyfleet,
   Regents staking and Regents on X. Drag to turn it, click a side to step into
   its room, and follow the room's link in a new tab. "Regents Labs" and its
-  line stand over the top-left of the cube and step back while a room is open,
-  and the $REGENT panel stays where it was, under it.
+  line stand over the top-left of the cube and step back while a room is open.
+  The cube is the whole page between the header and the footer.
 - Three panes of frosted glass hang in each room. Autolaunch, Techtree and
-  Patchbay hang the titles and words of the three cards from their sections
-  further down the page. Keyfleet hangs three new ones (a Key is a seat, rooms
+  Patchbay hang the titles and words of the three cards from the sections that
+  used to sit further down the page. Keyfleet hangs three new ones (a Key is a seat, rooms
   for the work, notebooks the fleet keeps), Regents staking three in the words
   the staking page already uses, and Regents on X three past posts. A pane
   carries no link and no status words.
@@ -1732,17 +1732,26 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   `platform/assets/js/world_cube/`, the `WorldCube` hook and the
   `RegentsWeb.Components.WorldCube` component.
 - Gone from the homepage: the glass crown and the picture behind it, the four
-  product cards with their GitHub icons, and the "Stake REGENT" button that
-  stood under the heading (the one in the $REGENT panel stays). The crown in
-  the header and the Regents brand art are untouched.
+  product cards with their GitHub icons, the "Stake REGENT" button under the
+  heading, the $REGENT panel with Buy REGENT, View Chart and Stake REGENT, the
+  Autolaunch, Techtree, Patchbay and Keyfleet sections with their cards, and
+  the closing "Explore staking" frame. The crown in the header and the Regents
+  brand art are untouched. Staking stays one press away: Protocol and App in
+  the header, and the Regents staking room in the cube.
+- The Autolaunch, Techtree, Patchbay and Keyfleet tabs in the header now open
+  that product's own site in a new tab, since the sections they used to scroll
+  to are gone. Protocol still opens the staking page.
 - `vgpu` moves from 0.3.1 to 0.6.0 and `@vgpu/wgsl` 0.6.0 is added.
 - Removed with the crown: `platform/assets/js/home_prism/`,
   `platform/assets/js/home_field/` and the `HomePrism` hook, the four unit
   test files that tested them (`home_crown`, `home_palette`, `home_prism`,
   `home_scene`), and `platform/priv/static/images/home/hero-bg-dark.svg`. The
-  browser checks now read the six worlds in place of the four cards. Three
-  checks went with what they checked: the picture behind the hero being grey,
-  the GitHub links on the cards, and the crown being left out on a phone.
+  browser checks now read the six worlds in place of the four cards, and the
+  header check reads each product tab's site. The checks went with what they
+  checked: the picture behind the hero being grey, the GitHub links on the
+  cards, the crown being left out on a phone, the $REGENT panel and its
+  buttons, each product section and its cards and statuses, a tab scrolling
+  to its section, the closing frame and its white button.
 - Before release: the foil card needs the design-system revision that runs on
   vgpu 0.6 (92f9c69, not yet on GitHub), so `@design_system_ref` moves with
   this change once that revision is pushed.
