@@ -23,6 +23,8 @@ export type WorldCubeView = {
   hover: number
   /** How strongly the hovered face is lit, 0 to 1. */
   glow: number
+  /** How far right of the canvas middle the cube is drawn, where half the canvas height is 1. */
+  shift: number
   /** Seconds since the cube appeared. */
   time: number
 }
@@ -90,8 +92,13 @@ export const FACE_ON: readonly Quat[] = [
  * The face under a point on the canvas, or -1 when the point misses the cube.
  * The point is a fraction of the canvas box, measured from its top left.
  */
-export const faceAt = (view: WorldCubeView, aspect: number, x: number, y: number): number => {
-  const sx = (x - 0.5) * 2 * aspect * view.lens
+export const faceAt = (
+  view: Pick<WorldCubeView, "rotation" | "distance" | "lens" | "shift">,
+  aspect: number,
+  x: number,
+  y: number,
+): number => {
+  const sx = ((x - 0.5) * 2 * aspect - view.shift) * view.lens
   const sy = (0.5 - y) * 2 * view.lens
   const inverse: Quat = [-view.rotation[0], -view.rotation[1], -view.rotation[2], view.rotation[3]]
   const origin = rotate(inverse, [0, 0, view.distance])

@@ -57,6 +57,7 @@ export async function createWorldCubeRenderer(
           face: view.face,
           hover: view.hover,
           glow: view.glow,
+          shift: view.shift,
         },
       })
       frame(gpu, current => current.pass(stage, cube))

@@ -14,6 +14,7 @@ defmodule Regents.Application do
         RegentsWeb.Telemetry,
         {Regents.RateLimiter, []},
         {Regents.OpenSea.HoldingsCache, []},
+        Regents.SiteTools,
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
         # After the repository and PubSub: agent changes made on any Regent

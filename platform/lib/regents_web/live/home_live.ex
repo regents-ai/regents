@@ -1,8 +1,8 @@
 defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Components.RegentLinks
-  alias RegentsWeb.Components.WorldCube
+  alias Regents.SiteTools
+  alias RegentsWeb.Components.{CodeCube, RegentLinks, WorldCube}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
   @staking_summary "Stake $REGENT for a share of USDC revenue of the protocol and additional emissions."
@@ -64,7 +64,39 @@ defmodule RegentsWeb.HomeLive do
       {:ok,
        socket
        |> assign(route_spec: RouteCatalog.fetch!(:home))
-       |> assign(RegentsWeb.PublicDocuments.page("/"))}
+       |> assign(RegentsWeb.PublicDocuments.page("/"))
+       |> assign(help: SiteTools.connection_help(), open: nil, card: :loading, card_tools: [])}
+
+  # A face of the code cube opens its card. A site's tools are read in the
+  # background, one read for each site, and an answer lands only on that site's
+  # open card.
+  def handle_event("open_card", %{"site" => site}, socket) do
+    case CodeCube.face(site) do
+      nil ->
+        {:noreply, socket}
+
+      %{site: "siwa"} = face ->
+        {:noreply, assign(socket, open: face)}
+
+      face ->
+        {:noreply,
+         socket
+         |> assign(open: face, card: :loading, card_tools: [])
+         |> start_async({:site_tools, site}, fn -> SiteTools.tools(site) end)}
+    end
+  end
+
+  def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, open: nil)}
+
+  def handle_async({:site_tools, site}, result, %{assigns: %{open: %{site: site}}} = socket) do
+    {:noreply, assign(socket, card_answer(result))}
+  end
+
+  def handle_async({:site_tools, _site}, _result, socket), do: {:noreply, socket}
+
+  defp card_answer({:ok, {:ok, []}}), do: [card: :empty, card_tools: []]
+  defp card_answer({:ok, {:ok, tools}}), do: [card: :ready, card_tools: tools]
+  defp card_answer(_failure), do: [card: :error, card_tools: []]
 
   def render(assigns) do
     ~H"""
@@ -73,6 +105,16 @@ defmodule RegentsWeb.HomeLive do
 
       <main>
         <Regent.Structure.row rail={false}><.hero /></Regent.Structure.row>
+        <CodeCube.card
+          :if={@open}
+          id="home-card"
+          face={@open}
+          state={@card}
+          tools={@card_tools}
+          help={@help}
+          close="close_card"
+          retry="open_card"
+        />
       </main>
 
       <Regent.Structure.row rail={false}><.landing_footer /></Regent.Structure.row>
@@ -119,12 +161,23 @@ defmodule RegentsWeb.HomeLive do
 
   defp hero(assigns) do
     ~H"""
-    <section class="rl-hero rl-hero--home" aria-labelledby="home-title">
+    <section
+      id="home-twin"
+      class="rl-hero rl-hero--home"
+      aria-labelledby="home-title"
+      phx-hook="TwinCube"
+      phx-mounted={JS.ignore_attributes(["data-webmcp-status"])}
+    >
       <div class="rl-hero-copy">
         <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
         <p class="rl-hero-description">The community-owned agentic product lab</p>
       </div>
+      <div id="home-twin-labels" class="rl-twin-labels" phx-update="ignore" aria-hidden="true">
+        <p class="rl-twin-label" data-twin-label>Human Browsing</p>
+        <p class="rl-twin-label" data-twin-label>Agentic WebMCP</p>
+      </div>
       <WorldCube.cube id="home-worlds" label="Regents Labs products" worlds={worlds()} />
+      <CodeCube.cube id="home-code" label="The tools each site offers agents" click="open_card" />
     </section>
     """
   end

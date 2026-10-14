@@ -9,6 +9,10 @@
 .world-cube {
   --world-cube-ink: #e5e3d2;
   --world-cube-night: #07080c;
+  /* Where across the stage the cube is drawn, as a fraction of its width. */
+  --world-cube-centre: 0.5;
+  /* How large the cube is drawn at rest, against the most its part of the stage fits. */
+  --world-cube-size: 1;
   position: relative;
   isolation: isolate;
   display: grid;

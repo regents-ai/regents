@@ -144,6 +144,7 @@ defmodule RegentsWeb.Router do
     get "/claims", RegentsWeb.OwnedClaimsController, :index
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show
+    get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
     get "/staking/position", RegentsWeb.StakingPositionController, :show
     forward "/profile", RegentIdentity.HTTP, otp_app: :regents
   end

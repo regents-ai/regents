@@ -1,0 +1,330 @@
+@layer regents-product {
+/* The code cube and its cards (`CodeCube.cube` and `CodeCube.card`). The
+   page that shows it places it; this file is the same on every site. The
+   stage is night in either theme, so its colours are its own. */
+
+/* The code cube: a stage of falling code. Its six buttons are the cube
+   wherever it cannot be drawn. Once it is drawn (`data-code-ready`), they step
+   aside but stay in reach of the keyboard, and one with focus shows at the foot. */
+.code-cube {
+  --code-cube-ink: #e5e3d2;
+  /* How large the cube is drawn, against the most its stage fits. */
+  --code-cube-size: 1;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  min-height: 30rem;
+  padding: var(--space-3);
+  overflow: hidden;
+  background: #07080c;
+  color: var(--code-cube-ink);
+}
+
+.code-cube__stage {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 500ms ease-out;
+}
+
+.code-cube__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  /* A finger moving up or down still scrolls the page; sideways turns the cube. */
+  touch-action: pan-y;
+}
+
+.code-cube__canvas:active {
+  cursor: grabbing;
+}
+
+/* The site under a resting pointer, named under the cube. */
+.code-cube__caption {
+  position: absolute;
+  inset: auto var(--space-3) 3.5rem;
+  margin: 0;
+  font: 0.875rem/1.4 var(--font-family-mono);
+  letter-spacing: var(--tracking-microlabel);
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.code-cube__hint {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  margin: 0;
+  color: color-mix(in srgb, var(--code-cube-ink) 62%, transparent);
+  font: 0.72rem/1.5 var(--font-family-mono);
+  letter-spacing: var(--tracking-microlabel);
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.code-cube__faces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each face's button in the colours of its code. The site's own button rule
+   draws the border and the words in --color-fg; the screen behind them is a
+   layer of its own. */
+.code-cube__face {
+  --code-face-top: #001b08;
+  --code-face-foot: #000502;
+  --code-face-ink: #2ff07a;
+  --color-fg: var(--code-face-ink);
+  --color-surface-elevated: transparent;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 4.5rem;
+  font: 0.875rem/1.3 var(--font-family-mono);
+  text-align: left;
+}
+
+.code-cube__face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, var(--code-face-top), var(--code-face-foot));
+}
+
+.code-cube__face[data-code-face="0"] {
+  --code-face-top: #1f0d00;
+  --code-face-foot: #070200;
+  --code-face-ink: #ff9a1f;
+}
+
+.code-cube__face[data-code-face="1"] {
+  --code-face-top: #1c0029;
+  --code-face-foot: #05000d;
+  --code-face-ink: #ff3fa4;
+}
+
+.code-cube__face[data-code-face="2"] {
+  --code-face-top: #001619;
+  --code-face-foot: #00030f;
+  --code-face-ink: #1fd8dd;
+}
+
+.code-cube__face[data-code-face="3"] {
+  --code-face-top: #091233;
+  --code-face-foot: #000106;
+  --code-face-ink: #f4b63a;
+}
+
+.code-cube__face[data-code-face="5"] {
+  --code-face-top: #070b16;
+  --code-face-foot: #141f36;
+  --code-face-ink: #9cc4ff;
+}
+
+.code-cube__face:focus-visible {
+  outline-color: var(--code-face-ink);
+}
+
+.code-cube[data-code-ready="true"] .code-cube__stage {
+  opacity: 1;
+}
+
+.code-cube[data-code-ready="true"] .code-cube__hint {
+  opacity: 1;
+  visibility: visible;
+}
+
+.code-cube[data-code-ready="true"] .code-cube__faces {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  display: block;
+  pointer-events: none;
+}
+
+.code-cube[data-code-ready="true"] .code-cube__face {
+  position: absolute;
+  inset: auto 0 0;
+  height: auto;
+  opacity: 0;
+}
+
+.code-cube[data-code-ready="true"] .code-cube__face:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (min-width: 48rem) {
+  .code-cube__faces {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* A face's card: what it lists, in a column that scrolls, closed
+   with its X or Escape. */
+.code-card {
+  --code-card-ink: #e5e3d2;
+  --code-card-accent: #2ff07a;
+  width: min(40rem, calc(100vw - 2 * var(--space-3)));
+  max-height: min(42rem, calc(100dvh - 2 * var(--space-4)));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--code-card-accent) 45%, transparent);
+  background: #0a0c11;
+  color: var(--code-card-ink);
+}
+
+.code-card[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.code-card[data-face="0"] {
+  --code-card-accent: #ff9a1f;
+}
+
+.code-card[data-face="1"] {
+  --code-card-accent: #ff3fa4;
+}
+
+.code-card[data-face="2"] {
+  --code-card-accent: #1fd8dd;
+}
+
+.code-card[data-face="3"] {
+  --code-card-accent: #f4b63a;
+}
+
+.code-card[data-face="5"] {
+  --code-card-accent: #9cc4ff;
+}
+
+.code-card::backdrop {
+  background: rgb(4 5 8 / 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.code-card__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--code-card-accent) 30%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--code-card-accent) 14%, transparent),
+    transparent
+  );
+}
+
+.code-card__head h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.code-card__kicker {
+  margin: 0 0 0.35rem;
+  color: var(--code-card-accent);
+  font: 0.72rem/1.4 var(--font-family-mono);
+  letter-spacing: var(--tracking-microlabel);
+  text-transform: uppercase;
+}
+
+/* The site's own button rule draws it, in the card's colours. */
+.code-card__close {
+  --color-fg: var(--code-card-ink);
+  --color-surface-elevated: transparent;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.code-card__close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.code-card__body {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.code-card__note {
+  margin: 0;
+  color: color-mix(in srgb, var(--code-card-ink) 78%, transparent);
+}
+
+.code-card__list {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.code-card__tool {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border-left: 2px solid var(--code-card-accent);
+  background: color-mix(in srgb, var(--code-card-ink) 5%, transparent);
+}
+
+.code-card__tool h3,
+.code-card__tool p,
+.code-card__tool pre {
+  margin: 0;
+}
+
+.code-card__tool h3 {
+  font-family: var(--font-family-title);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.code-card__tool code {
+  color: var(--code-card-accent);
+  font: 0.75rem/1.4 var(--font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.code-card__tool p {
+  color: color-mix(in srgb, var(--code-card-ink) 82%, transparent);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.code-card__tool pre {
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.code-card__tool pre code {
+  color: var(--code-card-ink);
+  overflow-wrap: normal;
+}
+}

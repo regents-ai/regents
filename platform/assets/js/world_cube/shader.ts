@@ -35,6 +35,9 @@ struct Params {
   // The face under a resting pointer, and how strongly it is lit for it.
   hover: f32,
   glow: f32,
+  // How far the cube is drawn from the middle of the canvas, across, in the
+  // units the screen is measured in: half the canvas height is one.
+  shift: f32,
 }
 @group(0) @binding(0) var<uniform> params: Params;
 
@@ -1398,7 +1401,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let sp = vec2f((uv.x - 0.5) * 2.0 * res.x / res.y, (0.5 - uv.y) * 2.0);
   let spread = 2.0 * params.lens / res.y;
 
-  var rd = normalize(vec3f(sp * params.lens, -1.0));
+  var rd = normalize(vec3f((sp - vec2f(params.shift, 0.0)) * params.lens, -1.0));
   let yz = rot(params.look.y) * rd.yz;
   let xz = rot(params.look.x) * vec2f(rd.x, yz.y);
   rd = vec3f(xz.x, yz.x, xz.y);

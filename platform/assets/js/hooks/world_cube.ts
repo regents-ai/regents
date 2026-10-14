@@ -114,6 +114,13 @@ export const createWorldCubeController = (
   let time = 0
   let last = performance.now()
   let aspect = 1
+  // Where across its canvas the page wants the cube, as a fraction of the width.
+  let centre = 0.5
+  // How large the page wants the cube at rest, against the most its part of the canvas fits.
+  let size = 1
+  // The canvas shape the centre and size were last read for.
+  let measured = 0
+  let pointing = false
   let scope: Scope | undefined
 
   const view: WorldCubeView = {
@@ -124,6 +131,7 @@ export const createWorldCubeController = (
     face,
     hover,
     glow: 0,
+    shift: 0,
     time,
   }
 
@@ -158,14 +166,17 @@ export const createWorldCubeController = (
       coast = [coast[0] * drag, coast[1] * drag]
     }
 
-    const fit = Math.max(1, FITTED_ASPECT / aspect)
-    const outside = (REST + (NEAR - REST) * camera.approach) * fit
+    // The cube fits the part of the canvas it is drawn in, which is all of it when centred.
+    const fit = Math.max(1, FITTED_ASPECT / (aspect * 2 * Math.min(centre, 1 - centre)))
+    const outside = ((REST + (NEAR - REST) * camera.approach) * fit) / size
     view.rotation = rotation
     view.distance = outside * (INSIDE / outside) ** camera.zoom
     view.lens = LENS_OUT + (LENS_IN - LENS_OUT) * camera.zoom
     view.face = face
     view.time = time
     view.glow = camera.glow
+    // Off centre on the stage; a room fills the whole canvas, so the flight in draws it to the middle.
+    view.shift = (centre - 0.5) * 2 * aspect * (1 - camera.zoom)
 
     if (mode === "orbit") {
       // The cube turns under a still pointer, so the face beneath it is read every frame.
@@ -179,6 +190,11 @@ export const createWorldCubeController = (
       }
     }
     view.hover = hover
+    // The page hears when the pointer comes onto the cube and when it leaves it.
+    if (hover >= 0 !== pointing) {
+      pointing = hover >= 0
+      root.dispatchEvent(new CustomEvent("cube:pointing", {bubbles: true, detail: {pointing}}))
+    }
 
     const ease = 1 - Math.exp(-dt * 7)
     look = [look[0] + (lookTarget[0] - look[0]) * ease, look[1] + (lookTarget[1] - look[1]) * ease]
@@ -327,12 +343,19 @@ export const createWorldCubeController = (
         dragging = false
         press = undefined
         last = performance.now()
+        measured = 0
         setMode("orbit")
         const current = renderer()
         if (!current) return
         const draw = current.present.bind(current)
         current.present = () => {
           aspect = current.aspect()
+          if (aspect !== measured) {
+            measured = aspect
+            const style = getComputedStyle(cube)
+            centre = Number(style.getPropertyValue("--world-cube-centre"))
+            size = Number(style.getPropertyValue("--world-cube-size"))
+          }
           draw()
           lean()
         }

@@ -22,7 +22,7 @@ type Entry = {
   annotations: Annotations
   requires: "none" | "siwa" | "siwa_and_pairing"
   authentication: string
-  scope: "site" | "page"
+  scope: "site" | "/"
 }
 type Failure = {
   ok: false

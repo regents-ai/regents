@@ -36,6 +36,8 @@ import {installPublicTools} from "./public_tools"
 import {installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
 import {WorldCube} from "./hooks/world_cube"
+import {CodeCube} from "./hooks/code_cube"
+import {TwinCube} from "./hooks/twin_cube"
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -279,6 +281,7 @@ const hooks = {
   ...showcaseHooks,
   ...labHooks,
   ...colocatedHooks,
+  CodeCube,
   HolographicCard,
   HomeTokenMenu,
   InfiniteScroll,
@@ -289,6 +292,7 @@ const hooks = {
   MotionTabs,
   OnchainSteps,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
+  TwinCube,
   VerifiedConnections,
   WorldCube,
 }

@@ -1764,3 +1764,28 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   identical copies are gone.
 - Buttons follow the shared look: a little give under a press, and white with
   Charcoal text in light mode.
+
+## 2026-10-14 — Twin cubes on the homepage (local, unreleased)
+
+- The homepage hero holds two cubes, copied from ash-template's twin cube page.
+  The world cube moves into the left half; a code cube in the right half shows
+  falling code on each face, a different colour and texture per face. "Human
+  Browsing" and "Agentic WebMCP" appear above the two cubes while the pointer
+  is on either one, and stay shown on touch screens. On a phone the code cube
+  has its own stage under the world cube's.
+- Each of the code cube's faces opens a card: the browser tools regents.sh,
+  patchbay.help, techtree.sh, autolaunch.sh or keyfleet.ai offers on its home
+  page, or how to connect an agent through siwa-server. The card scrolls and
+  closes with its X or Escape. A room hides the code cube while it is open.
+- Six new browser tools on the homepage open the same cards for an agent:
+  `show_regents_webmcp_tools`, `show_patchbay_webmcp_tools`,
+  `show_techtree_webmcp_tools`, `show_autolaunch_webmcp_tools`,
+  `show_keyfleet_webmcp_tools` and `show_siwa_connection_help`, each also
+  readable at `GET /api/v1/site-tools/<site>`. No sign-in; they change nothing.
+- `Regents.SiteTools` reads each site's published tool list from its fixed
+  address only (no redirects, 3 s to connect, 5 s to answer) and keeps it for
+  a day, or a minute after a failed read. The page asks for it in the
+  background, so a slow site never holds the homepage.
+- The world cube takes `--world-cube-size` beside `--world-cube-centre`, and
+  the code cube `--code-cube-size`, so a page can draw either smaller. The
+  stage keeps the same height whether or not the cubes draw.
