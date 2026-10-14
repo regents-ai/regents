@@ -613,6 +613,7 @@
   #shell-header .shell-brand { min-width: 2.75rem; }
   #shell-header .account-control { min-width: 0; flex: 0 1 auto; }
   #shell-header .account-control:has(.account-chip) { min-width: 2.75rem; }
+  #shell-header .account-control:has([data-account-target="sign-in"]) { flex: 0 0 auto; }
   #app-shell #shell-header .account-chip { min-width: 2.75rem; padding-inline: 0.5rem; }
   #shell-header .shell-tool { flex: 0 0 auto; }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
