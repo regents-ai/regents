@@ -160,9 +160,11 @@ defmodule Regents.Release do
   Lists what a deployed database and the release disagree about.
 
   Prints every migration the release carries that the database has not applied
-  under `pending:`, and every version the database has applied whose file the
-  release does not carry under `applied-without-file:`. Prints `none` when both
-  are empty. It applies nothing, creates nothing, and takes no migration lock.
+  under `pending:`, every version the database has applied whose file the
+  release does not carry under `applied-without-file:`, and every shared Credits
+  or Points change `migrate_shared/0` would apply under `shared-pending:`. Prints
+  `none` when all three are empty. It applies nothing, creates nothing, and takes
+  no migration lock.
   """
   def pending_migrations, do: pending_migrations_for_test([])
 
@@ -175,12 +177,13 @@ defmodule Regents.Release do
     Application.put_env(@app, Regents.Repo, configuration!(opts, getenv))
     path = migrations_directory(opts)
 
-    {:ok, {pending, applied_without_file}, _started} =
+    {:ok, {pending, applied_without_file, shared}, _started} =
       Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
-        collect_disagreements(repo, path)
+        {pending, applied_without_file} = collect_disagreements(repo, path)
+        {pending, applied_without_file, unapplied_shared_migrations(repo)}
       end)
 
-    report(pending, applied_without_file)
+    report(pending, applied_without_file, shared)
   end
 
   defp collect_disagreements(repo, path) do
@@ -238,14 +241,16 @@ defmodule Regents.Release do
     |> MapSet.new()
   end
 
-  defp report([], []), do: IO.puts("none")
+  defp report([], [], []), do: IO.puts("none")
 
-  defp report(pending, applied_without_file) do
+  defp report(pending, applied_without_file, shared) do
     if pending != [], do: IO.puts("pending: #{Enum.join(pending, " ")}")
 
     if applied_without_file != [] do
       IO.puts("applied-without-file: #{Enum.join(applied_without_file, " ")}")
     end
+
+    if shared != [], do: IO.puts("shared-pending: #{Enum.join(shared, ", ")}")
   end
 
   # The Credits and Points code this release carries reads tables and indexes

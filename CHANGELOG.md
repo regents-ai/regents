@@ -1692,3 +1692,5 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   prints what it applied or "none". A Regents release still only checks that
   nothing is missing and refuses to go ahead if something is. Since 11 October
   there had been no way to apply one in production at all.
+- The team's "what is pending" command now also names any shared change still
+  to be applied, without applying anything.

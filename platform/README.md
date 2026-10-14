@@ -170,7 +170,8 @@ builds the schema itself on its first run.
 > to start while one its pinned libraries carry is missing. `/app/bin/migrate-shared`
 > applies them and prints each one, or `none`. Run it once from the new image, on a
 > one-off machine, before that image's deploy, and only on the founder's own named go
-> for each change.
+> for each change. `/app/bin/pending-migrations` from the same image lists what it
+> would apply under `shared-pending:`, without applying anything.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
 
