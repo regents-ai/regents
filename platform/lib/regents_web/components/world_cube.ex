@@ -13,6 +13,12 @@ defmodule RegentsWeb.Components.WorldCube do
   fixed by the renderer: 0 a launch bay, 1 a glowing tree, 2 a switchboard, 3 a
   signal observatory, 4 the crown hall, 5 a night harbour), `:name`, `:line` and
   `:href`.
+
+  A world may also carry `:cards`: three panes of glass that hang in its room
+  and lean with the visitor's gaze. Each is a map with `:label` (a few words
+  over the pane), `:copy`, and optionally `:title` and `:link` (a map with
+  `:label` and `:href`). They belong to the rooms, so they show only where the
+  cube is drawn.
   """
 
   use Phoenix.Component
@@ -30,7 +36,9 @@ defmodule RegentsWeb.Components.WorldCube do
       class="world-cube"
       aria-label={@label}
       phx-hook="WorldCube"
-      phx-mounted={JS.ignore_attributes(["data-world-ready", "data-world-state", "data-world-face"])}
+      phx-mounted={
+        JS.ignore_attributes(["data-world-ready", "data-world-state", "data-world-face", "style"])
+      }
     >
       <div id={"#{@id}-stage"} class="world-cube__stage" phx-update="ignore" aria-hidden="true">
         <canvas class="world-cube__canvas" data-world-canvas></canvas>
@@ -48,6 +56,30 @@ defmodule RegentsWeb.Components.WorldCube do
           </a>
         </li>
       </ol>
+      <div class="world-cube__rooms">
+        <ul
+          :for={world <- @worlds}
+          :if={world[:cards]}
+          class="world-cube__room"
+          data-room={world.face}
+          aria-label={"Inside #{world.name}"}
+        >
+          <li :for={card <- world.cards} class="world-cube__glass" data-world-glass>
+            <p class="world-cube__glass-label">{card.label}</p>
+            <h4 :if={card[:title]}>{card.title}</h4>
+            <p class="world-cube__glass-copy">{card.copy}</p>
+            <a
+              :if={card[:link]}
+              href={card.link.href}
+              class="world-cube__glass-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {card.link.label}<span aria-hidden="true"> ↗</span><span class="visually-hidden">, opens in a new tab</span>
+            </a>
+          </li>
+        </ul>
+      </div>
       <button type="button" class="world-cube__leave" data-world-leave aria-label="Leave this room">
         <svg viewBox="0 0 16 16" aria-hidden="true">
           <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.5" />

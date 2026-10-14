@@ -1712,6 +1712,14 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   its room, and follow the room's link in a new tab. "Regents Labs" and its
   line stand over the top-left of the cube and step back while a room is open,
   and the $REGENT panel stays where it was, under it.
+- Three panes of frosted glass hang in each room. Autolaunch, Techtree and
+  Patchbay hang the three cards from their sections further down the page.
+  Keyfleet hangs three new ones (a Key is a seat, rooms for the work, notebooks
+  the fleet keeps), Regents staking three in the words the staking page already
+  uses, and Regents on X three past posts, each with "Open on X". The panes
+  swing in one after another on arrival, lean a little with the pointer and
+  drop away on the way out. The room's name, line and link sit in a bar along
+  the foot of the room.
 - Where the cube cannot be drawn, or for a visitor who asked for less motion,
   the six worlds are a plain list of cards with the same links.
 - The cube is the one in ash-template, copied unchanged:

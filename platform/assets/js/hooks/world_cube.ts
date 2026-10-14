@@ -2,6 +2,9 @@ import {
   animate,
   createAnimatable,
   createScope,
+  spring,
+  stagger,
+  utils,
   type AnimatableObject,
   type JSAnimation,
   type Scope,
@@ -62,7 +65,8 @@ const clamp = (speed: number) => Math.max(-COAST_LIMIT, Math.min(COAST_LIMIT, sp
  * It turns by itself until it is pressed, and under a drag while it is held. It
  * keeps turning as it comes closer for a pointer resting on a face, and flies
  * through the face that is clicked. Inside, the pointer looks
- * around the room, the room's card offers its link, and the leave button or
+ * around the room, the room's panes of glass swing into place and lean with
+ * that look, the room's card offers its link, and the leave button or
  * Escape flies back out. Without WebGPU, or for a visitor who asked for less
  * motion, none of this runs and the six worlds stay the plain list the server
  * rendered.
@@ -78,6 +82,10 @@ export const createWorldCubeController = (
   let steer: AnimatableObject | undefined
   // The flight into a room or back out of it.
   let flight: JSAnimation[] = []
+  // The room's panes of glass, swinging into place or falling away.
+  let panes: JSAnimation | undefined
+  // Where the visitor's look was last written for the panes to lean with.
+  let leaned: [number, number] = [0, 0]
 
   let mode: Mode = "orbit"
   let rotation: Quat = normalize(multiply(aboutAxis([1, 0, 0], 0.42), aboutAxis([0, 1, 0], -0.62)))
@@ -186,6 +194,9 @@ export const createWorldCubeController = (
         return [(event.clientX - left) / width, (event.clientY - top) / height]
       }
 
+      const panesOf = (room: number) =>
+        cube.querySelectorAll<HTMLElement>(`[data-room="${room}"] [data-world-glass]`)
+
       scope = createScope({root: cube})
       const moves = scope
       moves.add(() => {
@@ -203,9 +214,28 @@ export const createWorldCubeController = (
               zoom: 1,
               duration: 1600,
               ease: "inOutCubic",
-              onComplete: () => setMode("inside"),
+              onComplete: () => {
+                moves.methods.hang!()
+                setMode("inside")
+              },
             }),
           ]
+        })
+        // The panes hang in the room once the visitor has landed in it, one after
+        // another, and are gone again before the flight out has left the room.
+        moves.add("hang", () => {
+          const glass = panesOf(face)
+          panes?.cancel()
+          utils.set(glass, {"--world-glass": 0})
+          panes = animate(glass, {
+            "--world-glass": 1,
+            delay: stagger(110),
+            ease: spring({bounce: 0.3, duration: 520}),
+          })
+        })
+        moves.add("drop", () => {
+          panes?.cancel()
+          panes = animate(panesOf(face), {"--world-glass": 0, duration: 260, ease: "inCubic"})
         })
         moves.add("leave", () => {
           for (const move of flight) move.cancel()
@@ -242,14 +272,27 @@ export const createWorldCubeController = (
         from = rotation
         to = rotation
         lookTarget = [0, 0]
+        if (mode === "inside") moves.methods.drop!()
         setMode("leaving")
         moves.methods.leave!()
+      }
+
+      // The panes lean with the look the room was just drawn with.
+      const lean = () => {
+        const x = view.look[0] / LOOK[0]
+        const y = view.look[1] / LOOK[1]
+        if (Math.abs(x - leaned[0]) < 0.002 && Math.abs(y - leaned[1]) < 0.002) return
+        leaned = [x, y]
+        cube.style.setProperty("--world-look-x", x.toFixed(3))
+        cube.style.setProperty("--world-look-y", y.toFixed(3))
       }
 
       // A renderer that lands, first or after a lost device, finds the cube at rest.
       onReady(() => {
         for (const move of flight) move.cancel()
         flight = []
+        panes?.cancel()
+        panes = undefined
         camera.zoom = 0
         camera.turn = 1
         steer!.approach!(0).spin!(1).glow!(0)
@@ -264,6 +307,7 @@ export const createWorldCubeController = (
         current.present = () => {
           aspect = current.aspect()
           draw()
+          lean()
         }
       })
 
@@ -332,25 +376,30 @@ export const createWorldCubeController = (
 
       const surface = canvas()
       surface.addEventListener("pointerdown", onPointerDown)
-      surface.addEventListener("pointermove", onPointerMove, {passive: true})
+      // The stage hears the pointer wherever it is, so a pane of glass or a card
+      // under it does not stop the look round the room.
+      cube.addEventListener("pointermove", onPointerMove, {passive: true})
       surface.addEventListener("pointerup", onPointerUp)
       surface.addEventListener("pointercancel", onPointerCancel)
-      surface.addEventListener("pointerleave", onPointerLeave, {passive: true})
+      cube.addEventListener("pointerleave", onPointerLeave, {passive: true})
       cube.addEventListener("click", onClick)
       document.addEventListener("keydown", onKeyDown)
 
       return () => {
         surface.removeEventListener("pointerdown", onPointerDown)
-        surface.removeEventListener("pointermove", onPointerMove)
+        cube.removeEventListener("pointermove", onPointerMove)
         surface.removeEventListener("pointerup", onPointerUp)
         surface.removeEventListener("pointercancel", onPointerCancel)
-        surface.removeEventListener("pointerleave", onPointerLeave)
+        cube.removeEventListener("pointerleave", onPointerLeave)
         cube.removeEventListener("click", onClick)
         document.removeEventListener("keydown", onKeyDown)
         scope?.revert()
         scope = undefined
         steer = undefined
         flight = []
+        panes = undefined
+        cube.style.removeProperty("--world-look-x")
+        cube.style.removeProperty("--world-look-y")
         delete cube.dataset.worldState
         delete cube.dataset.worldFace
       }

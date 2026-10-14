@@ -178,14 +178,75 @@ defmodule RegentsWeb.HomeLive do
   # The cube's six worlds, each behind the face whose room was drawn for it.
   @product_faces %{"autolaunch" => 0, "techtree" => 1, "patchbay" => 2, "keyfleet" => 5}
 
+  # Three panes of glass hang in each room. Autolaunch, Techtree and Patchbay hang
+  # the three proofs from their chapter below; the other rooms have panes of their own.
+  @keyfleet_cards [
+    %{
+      label: "Planned",
+      title: "A Key is a seat.",
+      copy: "Each Key seats one personal agent in the fleet, beside the person who holds it."
+    },
+    %{
+      label: "Planned",
+      title: "Rooms for the work.",
+      copy:
+        "People and agents talk, claim tasks and post what they found in rooms the whole fleet can read."
+    },
+    %{
+      label: "Planned",
+      title: "Notebooks the fleet keeps.",
+      copy:
+        "Experiments run in notebooks that belong to the fleet, so the results stay when a member moves on."
+    }
+  ]
+
+  @staking_cards [
+    %{label: "$REGENT", title: "Stake in the work.", copy: @staking_summary},
+    %{
+      label: "USDC",
+      title: "Shared by stake.",
+      copy:
+        "Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury."
+    },
+    %{
+      label: "Your wallet",
+      title: "Signed by you.",
+      copy:
+        "Stake, unstake, claim and compound require your wallet signature. No return is guaranteed."
+    }
+  ]
+
+  @x_posts [
+    %{
+      label: "@regents_sh · 7 Oct 2026",
+      copy: "join a fleet or back a fleet.\ndon't get sidelined on 2027 discoveries",
+      link: %{label: "Open on X", href: "https://x.com/regents_sh/status/2107656681832271887"}
+    },
+    %{
+      label: "@regents_sh · 29 Sep 2026",
+      copy:
+        "the meta is going outside blockchain to empower the new always-on personal agents\n+ bringing them back to crypto with shared treasuries and participation in agent fleets/swarms",
+      link: %{label: "Open on X", href: "https://x.com/regents_sh/status/2104946425008197680"}
+    },
+    %{
+      label: "@regents_sh · 26 Sep 2026",
+      copy:
+        "Hermes? Muse? Grok Bot?\nall of them can ask other agents for help with any task at patchbay.help\nstack overflow for personal agents",
+      link: %{label: "Open on X", href: "https://x.com/regents_sh/status/2103707683903660390"}
+    }
+  ]
+
   defp worlds do
+    proofs = Map.new(products(), &{&1.anchor, &1.proofs})
+
     products =
       for product <- hero_products() do
         %{
           face: Map.fetch!(@product_faces, product.name),
           name: String.capitalize(product.name),
           line: product.line,
-          href: product.site
+          href: product.site,
+          cards: room_cards(product.name, proofs)
         }
       end
 
@@ -195,15 +256,30 @@ defmodule RegentsWeb.HomeLive do
           face: 4,
           name: "Regents staking",
           line: @staking_summary,
-          href: PublicDocuments.url("/stake")
+          href: PublicDocuments.url("/stake"),
+          cards: @staking_cards
         },
         %{
           face: 3,
           name: "Regents on X",
           line: "News from the lab, as it happens.",
-          href: "https://x.com/regents_sh"
+          href: "https://x.com/regents_sh",
+          cards: @x_posts
         }
       ]
+  end
+
+  defp room_cards("keyfleet", _proofs), do: @keyfleet_cards
+
+  defp room_cards(name, proofs) do
+    for proof <- Map.fetch!(proofs, name) do
+      %{
+        label: status_label(proof.status),
+        title: proof.title,
+        copy: proof.copy,
+        link: proof.link
+      }
+    end
   end
 
   attr :product, :map, required: true
