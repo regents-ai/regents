@@ -100,6 +100,7 @@ defmodule Regents.MixProject do
       {:jose, "~> 1.11.12"},
       {:decimal, "== 3.1.2"},
       {:req, "~> 0.7"},
+      {:vix, "~> 0.42.0"},
       {:bandit, "~> 1.12.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
