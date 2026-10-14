@@ -1713,13 +1713,19 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   line stand over the top-left of the cube and step back while a room is open,
   and the $REGENT panel stays where it was, under it.
 - Three panes of frosted glass hang in each room. Autolaunch, Techtree and
-  Patchbay hang the three cards from their sections further down the page.
-  Keyfleet hangs three new ones (a Key is a seat, rooms for the work, notebooks
-  the fleet keeps), Regents staking three in the words the staking page already
-  uses, and Regents on X three past posts, each with "Open on X". The panes
-  swing in one after another on arrival, lean a little with the pointer and
-  drop away on the way out. The room's name, line and link sit in a bar along
-  the foot of the room.
+  Patchbay hang the titles and words of the three cards from their sections
+  further down the page. Keyfleet hangs three new ones (a Key is a seat, rooms
+  for the work, notebooks the fleet keeps), Regents staking three in the words
+  the staking page already uses, and Regents on X three past posts. A pane
+  carries no link and no status words.
+- The panes show one at a time for where the visitor looks: the first for a
+  look to the left, the third for a look to the right, the second for a look up
+  that is held for a moment. On a phone a tap looks where it lands. The room's
+  name, line and link sit in a bar along the foot of the room for as long as
+  the visitor is in it.
+- The Patchbay room is a great hall: a switchboard filling the far wall with
+  cords slung across it, rows of desks facing it, and a planet in the night
+  beyond the glass above.
 - Where the cube cannot be drawn, or for a visitor who asked for less motion,
   the six worlds are a plain list of cards with the same links.
 - The cube is the one in ash-template, copied unchanged:
@@ -1738,5 +1744,5 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   checks went with what they checked: the picture behind the hero being grey,
   the GitHub links on the cards, and the crown being left out on a phone.
 - Before release: the foil card needs the design-system revision that runs on
-  vgpu 0.6 (8bee776, not yet on GitHub), so `@design_system_ref` moves with
+  vgpu 0.6 (92f9c69, not yet on GitHub), so `@design_system_ref` moves with
   this change once that revision is pushed.

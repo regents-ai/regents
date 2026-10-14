@@ -3,7 +3,6 @@ import {
   createAnimatable,
   createScope,
   spring,
-  stagger,
   utils,
   type AnimatableObject,
   type JSAnimation,
@@ -51,6 +50,13 @@ const CLICK_SLOP = 6
 const REST_MS = 240
 /** How far the visitor's head turns inside a room, side to side and up and down. */
 const LOOK: [number, number] = [0.32, 0.16]
+/** How far the look must turn, of its full reach, before a pane shows, and how far back before it goes. */
+const PANE_SHOW = 0.45
+const PANE_HIDE = 0.3
+/** How long the visitor keeps looking up before the middle pane shows. */
+const HOLD_MS = 450
+/** No pane is showing. */
+const NO_PANE = -1
 
 /** The fastest the cube may be left spinning by a flick, in radians a second. */
 const COAST_LIMIT = 5
@@ -65,8 +71,10 @@ const clamp = (speed: number) => Math.max(-COAST_LIMIT, Math.min(COAST_LIMIT, sp
  * It turns by itself until it is pressed, and under a drag while it is held. It
  * keeps turning as it comes closer for a pointer resting on a face, and flies
  * through the face that is clicked. Inside, the pointer looks
- * around the room, the room's panes of glass swing into place and lean with
- * that look, the room's card offers its link, and the leave button or
+ * around the room and the room's card offers its link throughout. One of the
+ * room's three panes of glass shows at a time: the first for a look to the
+ * left, the last for a look to the right, the middle one for a look up that is
+ * held. A touch looks where it lands and stays there. The leave button or
  * Escape flies back out. Without WebGPU, or for a visitor who asked for less
  * motion, none of this runs and the six worlds stay the plain list the server
  * rendered.
@@ -82,8 +90,10 @@ export const createWorldCubeController = (
   let steer: AnimatableObject | undefined
   // The flight into a room or back out of it.
   let flight: JSAnimation[] = []
-  // The room's panes of glass, swinging into place or falling away.
-  let panes: JSAnimation | undefined
+  // Which of the room's panes of glass is showing, and since when the look has been up.
+  let shown = NO_PANE
+  let lookingUp = false
+  let upSince = 0
   // Where the visitor's look was last written for the panes to lean with.
   let leaned: [number, number] = [0, 0]
 
@@ -214,28 +224,20 @@ export const createWorldCubeController = (
               zoom: 1,
               duration: 1600,
               ease: "inOutCubic",
-              onComplete: () => {
-                moves.methods.hang!()
-                setMode("inside")
-              },
+              onComplete: () => setMode("inside"),
             }),
           ]
         })
-        // The panes hang in the room once the visitor has landed in it, one after
-        // another, and are gone again before the flight out has left the room.
-        moves.add("hang", () => {
+        // One pane shows at a time: the one leaving fades back as the next swings in.
+        moves.add("show", (next: number) => {
           const glass = panesOf(face)
-          panes?.cancel()
-          utils.set(glass, {"--world-glass": 0})
-          panes = animate(glass, {
-            "--world-glass": 1,
-            delay: stagger(110),
-            ease: spring({bounce: 0.3, duration: 520}),
-          })
-        })
-        moves.add("drop", () => {
-          panes?.cancel()
-          panes = animate(panesOf(face), {"--world-glass": 0, duration: 260, ease: "inCubic"})
+          const leaving = glass[shown]
+          const arriving = glass[next]
+          shown = next
+          if (leaving) animate(leaving, {"--world-glass": 0, duration: 260, ease: "inCubic"})
+          if (arriving) {
+            animate(arriving, {"--world-glass": 1, ease: spring({bounce: 0.3, duration: 520})})
+          }
         })
         moves.add("leave", () => {
           for (const move of flight) move.cancel()
@@ -262,6 +264,10 @@ export const createWorldCubeController = (
         rested = false
         coast = [0, 0]
         lookTarget = [0, 0]
+        // A room is entered with none of its panes showing.
+        utils.set(panesOf(target), {"--world-glass": 0})
+        shown = NO_PANE
+        lookingUp = false
         setMode("entering")
         moves.methods.enter!()
       }
@@ -272,15 +278,36 @@ export const createWorldCubeController = (
         from = rotation
         to = rotation
         lookTarget = [0, 0]
-        if (mode === "inside") moves.methods.drop!()
+        moves.methods.show!(NO_PANE)
         setMode("leaving")
         moves.methods.leave!()
+      }
+
+      // The pane for where the visitor is looking: left, right, or up once that look
+      // has been held. A pane already showing stays until the look is well clear of it.
+      const gaze = (x: number, y: number) => {
+        if (mode !== "inside") return
+        const past = (showing: boolean) => (showing ? PANE_HIDE : PANE_SHOW)
+        const now = performance.now()
+        const up = y > past(lookingUp)
+        if (up && !lookingUp) upSince = now
+        lookingUp = up
+        const next =
+          up && now - upSince >= HOLD_MS
+            ? 1
+            : x < -past(shown === 0)
+              ? 0
+              : x > past(shown === 2)
+                ? 2
+                : NO_PANE
+        if (next !== shown) moves.methods.show!(next)
       }
 
       // The panes lean with the look the room was just drawn with.
       const lean = () => {
         const x = view.look[0] / LOOK[0]
         const y = view.look[1] / LOOK[1]
+        gaze(x, y)
         if (Math.abs(x - leaned[0]) < 0.002 && Math.abs(y - leaned[1]) < 0.002) return
         leaned = [x, y]
         cube.style.setProperty("--world-look-x", x.toFixed(3))
@@ -291,8 +318,8 @@ export const createWorldCubeController = (
       onReady(() => {
         for (const move of flight) move.cancel()
         flight = []
-        panes?.cancel()
-        panes = undefined
+        shown = NO_PANE
+        lookingUp = false
         camera.zoom = 0
         camera.turn = 1
         steer!.approach!(0).spin!(1).glow!(0)
@@ -317,13 +344,24 @@ export const createWorldCubeController = (
         canvas().setPointerCapture(event.pointerId)
       }
 
+      const inRoom = () => mode === "inside" || mode === "entering"
+
+      const lookAt = ([x, y]: [number, number]) => {
+        lookTarget = [(x - 0.5) * 2 * LOOK[0], (0.5 - y) * 2 * LOOK[1]]
+      }
+
+      // A finger does not hover, so inside a room a touch looks where it lands.
+      const onTouchLook = (event: PointerEvent) => {
+        if (ready() && inRoom() && event.pointerType === "touch") lookAt(within(event))
+      }
+
       const onPointerMove = (event: PointerEvent) => {
         if (!ready()) return
         const [x, y] = within(event)
         pointer = [x, y]
         movedAt = performance.now()
-        if (mode === "inside" || mode === "entering") {
-          lookTarget = [(x - 0.5) * 2 * LOOK[0], (0.5 - y) * 2 * LOOK[1]]
+        if (inRoom()) {
+          lookAt([x, y])
           return
         }
         if (!press || press.id !== event.pointerId) return
@@ -361,9 +399,10 @@ export const createWorldCubeController = (
         dragging = false
       }
 
-      const onPointerLeave = () => {
+      // A lifted finger leaves the look where it was, so the pane it found can be read.
+      const onPointerLeave = (event: PointerEvent) => {
         pointer = undefined
-        lookTarget = [0, 0]
+        if (event.pointerType !== "touch") lookTarget = [0, 0]
       }
 
       const onKeyDown = (event: KeyboardEvent) => {
@@ -376,8 +415,9 @@ export const createWorldCubeController = (
 
       const surface = canvas()
       surface.addEventListener("pointerdown", onPointerDown)
-      // The stage hears the pointer wherever it is, so a pane of glass or a card
-      // under it does not stop the look round the room.
+      // The stage hears the pointer wherever it is, so the room's card under it
+      // does not stop the look round the room.
+      cube.addEventListener("pointerdown", onTouchLook, {passive: true})
       cube.addEventListener("pointermove", onPointerMove, {passive: true})
       surface.addEventListener("pointerup", onPointerUp)
       surface.addEventListener("pointercancel", onPointerCancel)
@@ -387,6 +427,7 @@ export const createWorldCubeController = (
 
       return () => {
         surface.removeEventListener("pointerdown", onPointerDown)
+        cube.removeEventListener("pointerdown", onTouchLook)
         cube.removeEventListener("pointermove", onPointerMove)
         surface.removeEventListener("pointerup", onPointerUp)
         surface.removeEventListener("pointercancel", onPointerCancel)
@@ -397,7 +438,7 @@ export const createWorldCubeController = (
         scope = undefined
         steer = undefined
         flight = []
-        panes = undefined
+        shown = NO_PANE
         cube.style.removeProperty("--world-look-x")
         cube.style.removeProperty("--world-look-y")
         delete cube.dataset.worldState

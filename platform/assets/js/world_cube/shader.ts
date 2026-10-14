@@ -248,50 +248,84 @@ fn fillTree(p: vec3f, loose: bool) -> vec2f {
 }
 
 // ------------------------------------------------------------------ Patchbay
-// A switchboard room: a wall of sockets, and cables carrying signals between them.
+// The exchange: a great hall whose whole end wall is a switchboard, cords slung
+// from socket to socket across it and signals running along them. Rows of desks
+// face it, an aisle of light runs up to it, and over it the hall is glass, with
+// a planet rising in the night beyond.
 
-// The cable nearest a point: how far, which one, and how far along it.
+// Where the board's first socket starts, across and up, in blocks.
+const PATCH_BOARD = vec2f(-48.0, -6.0);
+
+// How far a point on the far sheet is past the planet's edge; under zero is on it.
+fn patchPlanet(v: vec2f) -> f32 {
+  return length(v - vec2f(0.3, 0.12)) - 0.42;
+}
+
+// The cord nearest a point: how far, which one, and how far along it.
 fn patchCable(p: vec3f) -> vec3f {
-  // Each cable: its two sockets, then how far it sags.
-  var ends = array<vec4f, 6>(
-    vec4f(-16.0, 9.0, -4.0, 5.0),
-    vec4f(-12.0, 1.0, 8.0, 9.0),
-    vec4f(-8.0, 9.0, 16.0, 1.0),
-    vec4f(0.0, 1.0, 16.0, 9.0),
-    vec4f(-16.0, -3.0, 12.0, -3.0),
-    vec4f(4.0, 5.0, 12.0, 1.0));
-  var sags = array<f32, 6>(5.0, 6.0, 7.0, 5.0, 3.0, 3.0);
+  // Each cord: its two sockets, then how far it sags.
+  var ends = array<vec4f, 8>(
+    vec4f(-42.0, 15.0, -10.0, 7.0),
+    vec4f(-34.0, 3.0, 6.0, 15.0),
+    vec4f(-22.0, 15.0, 30.0, 11.0),
+    vec4f(-6.0, 3.0, 42.0, 15.0),
+    vec4f(-46.0, -1.0, 22.0, -1.0),
+    vec4f(10.0, 7.0, 38.0, 3.0),
+    vec4f(-30.0, 11.0, -14.0, 15.0),
+    vec4f(18.0, 15.0, 46.0, 7.0));
+  var sags = array<f32, 8>(8.0, 8.0, 10.0, 7.0, 4.0, 5.0, 4.0, 6.0);
   let b = p / U;
   var best = vec3f(1e3, 0.0, 0.0);
-  for (var i = 0; i < 6; i++) {
+  for (var i = 0; i < 8; i++) {
     let e = ends[i];
     let x = clamp(b.x, e.x, e.z);
     let u = (x - e.x) / (e.z - e.x);
     let droop = 4.0 * u * (1.0 - u);
     let y = mix(e.y, e.w, u) - sags[i] * droop;
     let slope = (e.w - e.y - sags[i] * 4.0 * (1.0 - 2.0 * u)) / (e.z - e.x);
-    let z = -22.5 + 3.0 * droop;
-    let d = (length(vec3f(b.x - x, (b.y - y) / sqrt(1.0 + slope * slope), b.z - z)) - 0.75) * U;
+    let z = -47.0 + 4.0 * droop;
+    let d = (length(vec3f(b.x - x, (b.y - y) / sqrt(1.0 + slope * slope), b.z - z)) - 1.0) * U;
     if (d < best.x) { best = vec3f(d, f32(i), u); }
   }
   return best;
 }
 
 fn fillPatch(p: vec3f, loose: bool) -> vec2f {
-  let side = vec3f(abs(p.x), p.y, p.z);
-  var res = vec2f(slab(p, vec3f(-28.0, -16.0, -28.0), vec3f(28.0, -12.0, 12.0)), 1.0);
-  var walls = slab(p, vec3f(-28.0, -12.0, -28.0), vec3f(28.0, 16.0, -24.0));
-  walls = min(walls, slab(side, vec3f(24.0, -12.0, -24.0), vec3f(28.0, 4.0, 0.0)));
-  walls = min(walls, slab(side, vec3f(24.0, 4.0, -24.0), vec3f(28.0, 10.0, -12.0)));
-  res = pick(res, walls, 2.0);
-  res = pick(res, slab(p, vec3f(-18.0, -4.0, -24.0), vec3f(18.0, 12.0, -23.0)), 3.0);
-  res = pick(res, slab(p, vec3f(-14.0, -12.0, -14.0), vec3f(14.0, -8.0, -8.0)), 4.0);
-  res = pick(res, slab(p, vec3f(-12.0, -8.0, -13.0), vec3f(12.0, -7.0, -9.0)), 5.0);
-  res = pick(res, slab(p, vec3f(-2.0, 12.0, -10.0), vec3f(2.0, 16.0, -6.0)), 6.0);
+  let b = p / U;
+  let side = abs(b.x);
+  var res = vec2f(slab(p, vec3f(-56.0, -16.0, -56.0), vec3f(56.0, -12.0, 12.0)), 1.0);
 
-  let near = slab(p, vec3f(-18.0, -8.0, -24.0), vec3f(18.0, 11.0, -18.0));
+  // The hall's frame: its side walls, the plinth the board stands on, the beam
+  // over the board, and the bars of the glass above and overhead.
+  let rib = b.z + 6.0 - 12.0 * clamp(round((b.z + 6.0) / 12.0), -3.0, 1.0);
+  let bar = b.x - 12.0 * clamp(round(b.x / 12.0), -4.0, 4.0);
+  var frame = sdBox(vec3f(side - 52.0, b.y - 12.0, b.z + 20.0), vec3f(2.0, 24.0, 32.0));
+  frame = min(frame, sdBox(vec3f(b.x, b.y + 9.0, b.z + 49.0), vec3f(50.0, 3.0, 3.0)));
+  frame = min(frame, sdBox(vec3f(b.x, b.y - 19.0, b.z + 49.0), vec3f(50.0, 1.0, 1.5)));
+  frame = min(frame, sdBox(vec3f(bar, b.y - 27.5, b.z + 49.0), vec3f(1.0, 7.5, 1.0)));
+  frame = min(frame, sdBox(vec3f(b.x, b.y - 35.5, b.z + 49.0), vec3f(50.0, 0.5, 1.0)));
+  frame = min(frame, sdBox(vec3f(b.x, b.y - 36.0, rib), vec3f(50.0, 1.0, 1.0)));
+  res = pick(res, frame * U, 2.0);
+
+  // The board fills the end wall, in the smallest blocks so each socket shows.
+  res = pick(res, fine(slab(p, vec3f(-48.0, -6.0, -50.0), vec3f(48.0, 18.0, -48.0))), 3.0);
+
+  // Desks in three rows, two each side of the aisle: a body, its keys, its screen.
+  let row = clamp(round((-10.0 - b.z) / 12.0), 0.0, 2.0);
+  let lz = b.z + 10.0 + 12.0 * row;
+  let lx = abs(side - 22.0) - 8.0;
+  let apart = select((6.0 - abs(lz)) * U, 1e3, abs(lz) > 6.0);
+  res = pick(res, fence(sdBox(vec3f(lx, b.y + 10.0, lz), vec3f(4.0, 2.0, 2.0)) * U, apart), 4.0);
+  res = pick(res, fence(sdBox(vec3f(lx, b.y + 7.5, lz - 0.5), vec3f(3.0, 0.5, 1.0)) * U, apart), 5.0);
+  res = pick(res, fence(sdBox(vec3f(lx, b.y + 6.0, lz + 1.5), vec3f(2.0, 1.0, 0.5)) * U, apart), 9.0);
+
+  // A lamp under every other bar of the roof, down the middle of the hall.
+  let lamp = b.z + 18.0 - 24.0 * clamp(round((b.z + 18.0) / 24.0), -1.0, 0.0);
+  res = pick(res, sdBox(vec3f(b.x, b.y - 34.0, lamp), vec3f(1.0)) * U, 6.0);
+
+  let near = slab(p, vec3f(-50.0, -8.0, -48.0), vec3f(50.0, 18.0, -41.0));
   if (near < 0.3) {
-    res = pick(res, patchCable(p).x, 7.0);
+    res = pick(res, fine(patchCable(p).x), 7.0);
   } else {
     res.x = min(res.x, near);
   }
@@ -559,9 +593,14 @@ fn wash(room: i32, v: vec2f) -> vec3f {
       return ramp(PLATINUM * 0.6, POWDER * 0.36, vec3f(0.015, 0.06, 0.08), vec3f(0.003, 0.012, 0.022), x);
     }
     case 2 {
-      // Lamplight: cream falling to tangerine and rust.
-      let x = clamp(0.45 - v.y * 0.4 - v.x * 0.22, 0.0, 1.0);
-      return ramp(PLATINUM * 0.7, vec3f(1.0, 0.45, 0.14) * 0.6, TANGERINE * 0.4, vec3f(0.08, 0.014, 0.01), x);
+      // Night past the glass, and a planet's lit edge rising into it.
+      let d = patchPlanet(v);
+      if (d > 0.0) { return vec3f(0.004, 0.007, 0.016) + POWDER * 0.3 * exp(-d * 14.0); }
+      // Lit from the upper left: day on that side of it, dusk across the middle,
+      // its own night on the other.
+      let day = smoothstep(-0.25, 0.3, dot(v - vec2f(0.3, 0.12), vec2f(-0.6, 0.8)));
+      return mix(vec3f(0.02, 0.055, 0.1), POWDER * 0.85 + PLATINUM * 0.15, day)
+        + TANGERINE * 0.2 * day * (1.0 - day);
     }
     case 3 {
       // Night, with one lane of the gradient across it.
@@ -606,6 +645,9 @@ fn sky(room: i32, rd: vec3f) -> vec3f {
   if (room == 0) {
     let sun = max(abs(v.x - 0.3), abs(v.y + 0.02));
     col = mix(col, PLATINUM * 2.6 + TANGERINE * 0.8, fade(0.2, 0.19, sun));
+  } else if (room == 2) {
+    col += vec3f(0.9, 0.95, 1.0) * step(0.8, h) * step(0.0, patchPlanet(at)) * fade(0.14, 0.1, max(f.x, f.y))
+      * (0.55 + 0.45 * sin(t * (0.4 + h * 2.0) + h * 60.0));
   } else if (room == 3) {
     col += vec3f(1.0, 0.98, 0.92) * step(0.9, h) * fade(0.16, 0.12, max(f.x, f.y))
       * (0.5 + 0.5 * sin(t * (0.5 + h * 2.0) + h * 60.0));
@@ -733,18 +775,36 @@ fn paint(room: i32, mat: i32, c: vec3f, girth: f32, h: f32, local: vec3f, face: 
     case 2 {
       if (mat == 1) {
         let tile = floor(b.xz / 4.0);
-        s.albedo = mix(vec3f(0.07, 0.055, 0.05), vec3f(0.3, 0.26, 0.2), fract((tile.x + tile.y) * 0.5) * 2.0);
-        s.gloss = 0.5;
+        s.albedo = mix(vec3f(0.05, 0.045, 0.045), vec3f(0.2, 0.18, 0.15), fract((tile.x + tile.y) * 0.5) * 2.0);
+        s.gloss = 0.6;
+        if (abs(b.x) < 2.5 && b.z > -46.0) {
+          // The aisle: a lane of light, with a question running up it to the board.
+          let along = (fract(b.z / 30.0 + t * 0.12) - 0.5) * 8.0;
+          s.albedo = TANGERINE * 0.4;
+          s.emit = TANGERINE * (0.12 + 2.2 * exp(-along * along));
+        }
       } else if (mat == 2) {
-        s.albedo = PLATINUM * 0.75;
-        if (b.y < -4.0) { s.albedo = vec3f(0.2, 0.17, 0.13); }
-        if (b.y > -6.0 && b.y < -4.0) {
+        s.albedo = vec3f(0.06, 0.055, 0.055);
+        s.gloss = 0.5;
+        if (abs(b.x) > 49.0) {
+          // The side walls: pale panels over a dark foot, a lit line between
+          // them, and a lamp here and there.
+          s.albedo = vec3f(0.11, 0.105, 0.1);
+          if (b.y < -4.0) { s.albedo = vec3f(0.05, 0.045, 0.04); }
+          if (b.y > -6.0 && b.y < -4.0) {
+            s.albedo = TANGERINE * 0.7;
+            s.emit = TANGERINE * 0.3;
+          }
+          let lamp = hash21(floor(b.zy / 4.0) + 9.0);
+          if (b.y > 0.0 && lamp > 0.84) { s.emit = POWDER * (0.5 + 0.4 * sin(t * (0.6 + lamp) + lamp * 50.0)); }
+        } else if (b.y < -6.0 && b.y > -8.0) {
+          // The lit lip of the plinth, under the board.
           s.albedo = TANGERINE * 0.7;
-          s.emit = TANGERINE * 0.2;
+          s.emit = TANGERINE * 0.45;
         }
       } else if (mat == 3) {
         // The board: four blocks to a socket, a dark hole and a lamp over it.
-        let cell = floor(b.xy - vec2f(-18.0, -4.0));
+        let cell = floor(b.xy - PATCH_BOARD);
         let tile = floor(cell / 4.0);
         let at = cell - tile * 4.0;
         let th = hash21(tile + 2.0);
@@ -763,7 +823,7 @@ fn paint(room: i32, mat: i32, c: vec3f, girth: f32, h: f32, local: vec3f, face: 
         }
       } else if (mat == 4) {
         s.albedo = vec3f(0.04, 0.035, 0.03);
-        if (b.y > -9.0 && b.z > -9.0) { s.emit = TANGERINE * 0.5; }
+        if (b.y > -9.0) { s.emit = TANGERINE * 0.3; }
         s.gloss = 0.4;
       } else if (mat == 5) {
         let key = floor(b.xz);
@@ -774,6 +834,13 @@ fn paint(room: i32, mat: i32, c: vec3f, girth: f32, h: f32, local: vec3f, face: 
       } else if (mat == 6) {
         s.albedo = vec3f(1.0, 0.78, 0.5);
         s.emit = vec3f(1.0, 0.78, 0.5) * 2.2;
+      } else if (mat == 9) {
+        // A desk's screen, each its own colour and its own slow breath.
+        let sh = hash21(floor(vec2f(b.x / 8.0, b.z / 12.0)) + 5.0);
+        let tint = mix(POWDER * 1.3, PLATINUM, step(0.6, sh));
+        s.albedo = tint * 0.25;
+        s.emit = tint * (0.32 + 0.16 * sin(t * (0.7 + sh * 1.5) + sh * 40.0));
+        s.gloss = 0.8;
       } else {
         let cable = patchCable(c);
         let hue = i32(cable.y + 0.5) % 3;
@@ -915,8 +982,8 @@ fn rig(room: i32) -> Rig {
         vec3f(0.03, 0.05, 0.055), 0.45, 0.06, 9.0);
     }
     case 2 {
-      return Rig(vec3f(0.0, 0.85, -0.65), vec3f(1.0, 0.8, 0.55) * 1.9, vec3f(0.0, 0.3, 0.8), vec3f(0.6, 0.66, 0.7) * 1.3,
-        vec3f(0.08, 0.068, 0.055), 0.3, 0.03, 7.0);
+      return Rig(vec3f(0.0, 2.6, -2.6), vec3f(1.0, 0.8, 0.55) * 3.4, vec3f(0.0, 0.3, 0.8), vec3f(0.6, 0.66, 0.7) * 1.0,
+        vec3f(0.045, 0.042, 0.048), 0.5, 0.0, 8.0);
     }
     case 3 {
       return Rig(vec3f(-1.5, 2.2, -0.8), vec3f(1.0) * 2.0, SIGNAL_AT * U, vec3f(1.0) * 1.3,
@@ -952,7 +1019,8 @@ fn halos(room: i32, ro: vec3f, rd: vec3f, reach: f32) -> vec3f {
       return vec3f(0.4, 0.8, 1.0) * halo(ro, rd, reach, vec3f(0.0, 5.0, -18.0) * U, 0.6) * 0.14;
     }
     case 2 {
-      return vec3f(1.0, 0.78, 0.5) * halo(ro, rd, reach, vec3f(0.0, 14.0, -8.0) * U, 0.22) * 0.28;
+      return vec3f(1.0, 0.78, 0.5) * (halo(ro, rd, reach, vec3f(0.0, 34.0, -18.0) * U, 0.16)
+          + halo(ro, rd, reach, vec3f(0.0, 34.0, -42.0) * U, 0.16)) * 0.22;
     }
     case 3 {
       return vec3f(1.0) * halo(ro, rd, reach, SIGNAL_AT * U, 0.5) * 0.12;

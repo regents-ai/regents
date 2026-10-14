@@ -2,9 +2,9 @@
 /* The world cube: a night stage the cube turns on. The six worlds are a list
    of cards on that stage, and stay exactly that wherever the cube cannot be
    drawn. Once it is drawn (`data-world-ready`), the cards step aside and only
-   the card of the room the visitor is standing in shows, with that room's
-   three panes of glass hanging over it. The stage is night in either theme, so
-   its colours are its own. */
+   the card of the room the visitor is in shows, for as long as they are in it.
+   That room's three panes of glass show one at a time, for where the visitor
+   looks. The stage is night in either theme, so its colours are its own. */
 
 .world-cube {
   --world-cube-ink: #e5e3d2;
@@ -163,8 +163,9 @@
   transition: opacity 320ms ease-out, visibility 0s;
 }
 
-/* Inside a room: its card, and only its card. */
-.world-cube[data-world-ready="true"][data-world-state="inside"] .world-cube__world:is(
+/* In a room, from the step in until the step out: its card, and only its card. */
+.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])
+  .world-cube__world:is(
     [data-world-face="0"] [data-world="0"],
     [data-world-face="1"] [data-world="1"],
     [data-world-face="2"] [data-world="2"],
@@ -180,10 +181,12 @@
 }
 
 /* A room's panes of glass. They are part of the room, so they exist only where
-   the cube is drawn. The hook eases `--world-glass` from 0 (far off, unseen) to
-   1 (hung in place) as the visitor lands, and writes where the visitor is
-   looking into `--world-look-x` and `--world-look-y`, each from -1 to 1, so the
-   panes lean with the room behind them. */
+   the cube is drawn. One shows at a time: the first for a look to the left, the
+   last for a look to the right, the middle one for a look up that is held. The
+   hook eases that pane's `--world-glass` from 0 (far off, unseen) to 1 (hung in
+   place) and back, and writes where the visitor is looking into
+   `--world-look-x` and `--world-look-y`, each from -1 to 1, so the pane leans
+   with the room behind it. */
 .world-cube__rooms {
   display: none;
 }
@@ -199,8 +202,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
-  /* In the middle of the room, where the visitor was looking when they stepped in;
-     never above the top when the panes are taller than the room. */
+  /* In the middle of the room; never above the top when a pane is taller than
+     the room. */
   align-content: safe center;
   margin: 0;
   /* Clear of the leave button above and the room's own card below. */
@@ -217,6 +220,11 @@
   --world-glass-turn: 0deg;
   --world-glass-depth: 0rem;
   --world-glass-drift: 0.5rem;
+  /* Where the pane comes in from: its own side, or above. */
+  --world-glass-from-x: 0rem;
+  --world-glass-from-y: 0rem;
+  /* On a narrow screen the three share one place, since only one shows. */
+  grid-area: 1 / 1;
   position: relative;
   display: grid;
   gap: 0.35rem;
@@ -241,21 +249,33 @@
     inset 0 -1px 0 rgb(0 0 0 / 0.3);
   opacity: var(--world-glass);
   transform: translate3d(
-      calc(var(--world-look-x, 0) * -1 * var(--world-glass-drift)),
-      calc(var(--world-look-y, 0) * var(--world-glass-drift)),
-      calc(var(--world-glass-depth) - (1 - var(--world-glass)) * 22rem)
+      calc(
+        var(--world-look-x, 0) * -1 * var(--world-glass-drift) + (1 - var(--world-glass)) *
+          var(--world-glass-from-x)
+      ),
+      calc(
+        var(--world-look-y, 0) * var(--world-glass-drift) + (1 - var(--world-glass)) *
+          var(--world-glass-from-y)
+      ),
+      calc(var(--world-glass-depth) - (1 - var(--world-glass)) * 14rem)
     )
     rotateY(calc(var(--world-glass-turn) + var(--world-look-x, 0) * 5deg))
     rotateX(calc(var(--world-look-y, 0) * 4deg + (1 - var(--world-glass)) * 16deg));
 }
 
-.world-cube__glass:nth-child(odd) {
-  --world-glass-turn: 2.5deg;
+.world-cube__glass:nth-child(1) {
+  --world-glass-turn: 6deg;
+  --world-glass-from-x: -3rem;
 }
 
-.world-cube__glass:nth-child(even) {
-  --world-glass-turn: -2.5deg;
+.world-cube__glass:nth-child(2) {
   --world-glass-drift: 0.875rem;
+  --world-glass-from-y: -3rem;
+}
+
+.world-cube__glass:nth-child(3) {
+  --world-glass-turn: -6deg;
+  --world-glass-from-x: 3rem;
 }
 
 /* The light that crosses a pane as the visitor looks from side to side. */
@@ -299,14 +319,7 @@
   white-space: pre-line;
 }
 
-.world-cube__glass-link {
-  color: var(--world-cube-ink);
-  font-size: 0.8125rem;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-/* Hung in the room the visitor is standing in, and falling away as they leave it. */
+/* A room's panes can be seen while the visitor is in it and as they leave it. */
 .world-cube[data-world-ready="true"]:is([data-world-state="inside"], [data-world-state="leaving"])
   .world-cube__room:is(
     [data-world-face="0"] [data-room="0"],
@@ -317,11 +330,6 @@
     [data-world-face="5"] [data-room="5"]
   ) {
   visibility: visible;
-}
-
-.world-cube[data-world-ready="true"][data-world-state="inside"] .world-cube__glass {
-  --world-glass: 1;
-  pointer-events: auto;
 }
 
 /* The narrowest phones wrap the list onto more lines, so the stage is taller there. */
@@ -376,7 +384,7 @@
     grid-area: 1 / 2 / span 2;
   }
 
-  /* Room to fan: three panes side by side, the outer two turned in. */
+  /* Room for each pane to have its own place: the outer two turned in. */
   .world-cube__room {
     grid-template-columns: repeat(3, minmax(0, 20rem));
     gap: var(--space-3);
@@ -385,6 +393,7 @@
   }
 
   .world-cube__glass {
+    grid-area: auto;
     gap: 0.5rem;
     padding: var(--space-3);
   }
@@ -393,8 +402,7 @@
     font-size: 1.25rem;
   }
 
-  .world-cube__glass-copy,
-  .world-cube__glass-link {
+  .world-cube__glass-copy {
     font-size: 0.9375rem;
   }
 

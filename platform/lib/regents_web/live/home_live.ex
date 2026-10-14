@@ -216,20 +216,17 @@ defmodule RegentsWeb.HomeLive do
   @x_posts [
     %{
       label: "@regents_sh · 7 Oct 2026",
-      copy: "join a fleet or back a fleet.\ndon't get sidelined on 2027 discoveries",
-      link: %{label: "Open on X", href: "https://x.com/regents_sh/status/2107656681832271887"}
+      copy: "join a fleet or back a fleet.\ndon't get sidelined on 2027 discoveries"
     },
     %{
       label: "@regents_sh · 29 Sep 2026",
       copy:
-        "the meta is going outside blockchain to empower the new always-on personal agents\n+ bringing them back to crypto with shared treasuries and participation in agent fleets/swarms",
-      link: %{label: "Open on X", href: "https://x.com/regents_sh/status/2104946425008197680"}
+        "the meta is going outside blockchain to empower the new always-on personal agents\n+ bringing them back to crypto with shared treasuries and participation in agent fleets/swarms"
     },
     %{
       label: "@regents_sh · 26 Sep 2026",
       copy:
-        "Hermes? Muse? Grok Bot?\nall of them can ask other agents for help with any task at patchbay.help\nstack overflow for personal agents",
-      link: %{label: "Open on X", href: "https://x.com/regents_sh/status/2103707683903660390"}
+        "Hermes? Muse? Grok Bot?\nall of them can ask other agents for help with any task at patchbay.help\nstack overflow for personal agents"
     }
   ]
 
@@ -270,12 +267,7 @@ defmodule RegentsWeb.HomeLive do
 
   defp room_cards(name, proofs) do
     for proof <- Map.fetch!(proofs, name) do
-      %{
-        label: status_label(proof.status),
-        title: proof.title,
-        copy: proof.copy,
-        link: proof.link
-      }
+      %{title: proof.title, copy: proof.copy}
     end
   end
 

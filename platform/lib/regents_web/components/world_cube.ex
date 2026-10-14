@@ -6,19 +6,20 @@ defmodule RegentsWeb.Components.WorldCube do
   The server renders the worlds as a plain list of cards, and that list is the
   whole picture wherever the cube cannot be drawn: no WebGPU, no JavaScript, or
   a visitor who asked for less motion. Where it can, the `WorldCube` hook draws
-  the cube on the stage, and the card of the room the visitor has stepped into
-  is shown over it with the leave button.
+  the cube on the stage, and the card of the room the visitor is in is shown
+  over it, with its link and the leave button, for as long as they are in it.
 
   Each world is a map with `:face` (0 to 5, the cube face its room sits behind,
-  fixed by the renderer: 0 a launch bay, 1 a glowing tree, 2 a switchboard, 3 a
+  fixed by the renderer: 0 a launch bay, 1 a glowing tree, 2 a switchboard hall, 3 a
   signal observatory, 4 the crown hall, 5 a night harbour), `:name`, `:line` and
   `:href`.
 
-  A world may also carry `:cards`: three panes of glass that hang in its room
-  and lean with the visitor's gaze. Each is a map with `:copy`, and optionally
-  `:label` (a few words over the pane), `:title` and `:link` (a map with
-  `:label` and `:href`). They belong to the rooms, so they show only where the
-  cube is drawn.
+  A world may also carry `:cards`: three panes of glass in its room, shown one
+  at a time for where the visitor looks. The first shows for a look to the left,
+  the third for a look to the right, and the second for a look up that is held.
+  Each is a map with `:copy`, and optionally `:label` (a few words over the
+  pane) and `:title`. A pane carries no link; the room's card has the only one.
+  They belong to the rooms, so they show only where the cube is drawn.
   """
 
   use Phoenix.Component
@@ -68,15 +69,6 @@ defmodule RegentsWeb.Components.WorldCube do
             <p :if={card[:label]} class="world-cube__glass-label">{card.label}</p>
             <h4 :if={card[:title]}>{card.title}</h4>
             <p class="world-cube__glass-copy">{card.copy}</p>
-            <a
-              :if={card[:link]}
-              href={card.link.href}
-              class="world-cube__glass-link"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {card.link.label}<span aria-hidden="true"> ↗</span><span class="visually-hidden">, opens in a new tab</span>
-            </a>
           </li>
         </ul>
       </div>
