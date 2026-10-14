@@ -35,15 +35,9 @@ defmodule Regents.Release do
   change needs the founder's own named go. Run this from the new image before
   its deployment, because only that image carries the change's file.
   """
-  def migrate_shared, do: migrate_shared_for_test([])
-
-  @doc false
-  # Arity zero above for the same reason as the bootstrap: the deployed command
-  # can only ever change the database its own release configuration resolves.
-  def migrate_shared_for_test(opts) when is_list(opts) do
-    getenv = Keyword.get(opts, :getenv, &System.get_env/1)
+  def migrate_shared do
     load_app()
-    Application.put_env(@app, Regents.Repo, configuration!(opts, getenv))
+    Application.put_env(@app, Regents.Repo, migration_config!())
 
     {:ok, applied, _started} =
       Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
