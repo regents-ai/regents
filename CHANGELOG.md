@@ -1654,3 +1654,11 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The Keyfleet page says "Club Keys come with a Regents Club Pass. Keys for
   sale open soon." and its second button is "See the Regents Club fleet", in
   place of "Tell me when it opens".
+
+## 2026-10-14 — A refused picture read keeps the picture (local, unreleased)
+
+- If the ENS picture service refuses this server's request, the name and
+  picture already held stay and the next sign-in asks again. Before, a refusal
+  was read as "no picture" and cleared a picture the account already had. Only
+  the service's own answers about a name (none, a name it refuses, a redirect)
+  mean no picture.

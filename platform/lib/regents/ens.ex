@@ -5,9 +5,9 @@ defmodule Regents.Ens do
   Sign-in never waits for this. `refresh/1` hands the lookup to a supervised task
   and returns immediately, the lookup gives up at a fixed deadline, and a lookup
   that fails or expires writes nothing, so the last known name and picture stand.
-  A picture service that does not answer in time, or answers busy or broken, is
-  such a failure too: it says nothing about the picture, so nothing is written
-  and the next sign-in asks again.
+  A picture service that does not answer in time, or answers busy, broken or
+  refusing this server, is such a failure too: it says nothing about the picture,
+  so nothing is written and the next sign-in asks again.
   A finished attempt announces itself on `topic/1` and the pages showing that
   account read it again.
 
@@ -84,9 +84,9 @@ defmodule Regents.Ens do
   # once on its own budget. So a record the service cannot resolve and an image
   # that has since gone leave the wallet's generated picture standing rather than
   # a box the browser cannot fill. A service that does not answer in time, or
-  # answers busy or broken (408, 429 or any 5xx), says nothing about the picture,
-  # so it is an error and not "no picture": it takes one to five seconds for a
-  # name it has not been asked about in the last hour.
+  # gives any other answer (busy, broken, or refusing this caller), says nothing
+  # about the picture, so it is an error and not "no picture": it takes one to
+  # five seconds for a name it has not been asked about in the last hour.
   # A redirect is not followed, so the request never leaves the service's host.
   defp served(nil), do: {:ok, nil}
 
@@ -99,12 +99,15 @@ defmodule Regents.Ens do
       {:ok, %{status: 200}} ->
         {:ok, url}
 
-      # Busy or broken says nothing about the picture, the same as no answer.
-      {:ok, %{status: status}} when status in [408, 429] or status >= 500 ->
-        {:error, {:avatar_service_status, status}}
-
-      {:ok, _no_picture} ->
+      # The service's own answers about the name: none (404), a name it
+      # refuses (400), or a redirect, which is never followed.
+      {:ok, %{status: status}} when status in [400, 404] or status in 300..399 ->
         {:ok, nil}
+
+      # Busy, broken or refusing this caller says nothing about the picture,
+      # the same as no answer.
+      {:ok, %{status: status}} ->
+        {:error, {:avatar_service_status, status}}
 
       {:error, reason} ->
         {:error, reason}
