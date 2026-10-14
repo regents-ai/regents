@@ -43,22 +43,16 @@
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; margin-block-start: var(--space-3); }
-  /* The homepage is the cube's stage between the header and the footer. The
-     heading stands over its top-left. The stage takes the heading's row and the
-     one under it, so the list of worlds starts below the heading wherever the
-     cube is not drawn, and the second row is tall enough for that list, so the
-     footer never moves when the cube takes its place. Each height is the list's
-     own at the narrow end of its band of widths, in the present wording. */
+  /* Phones stack the heading and two bounded stages. On desktop the heading
+     overlays the shared stage, whose fallback list reserves the same height
+     as the rendered cubes. */
   .rl-hero--home {
-    --rl-worlds-height: 75rem;
     display: grid; grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(var(--rl-worlds-height), auto) auto;
+    grid-template-rows: auto auto auto;
   }
   .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; transition: opacity 320ms ease-out; }
-  /* A room fills the stage, so the page's name steps back while one is open. */
-  .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
-  .rl-hero--home .world-cube { grid-area: 1 / 1 / span 2; grid-template-rows: subgrid; min-height: 0; }
-  .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
+  .rl-hero--home .world-cube { grid-area: 2 / 1; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+  .rl-hero--home .world-cube__worlds { align-self: stretch; }
   /* The code cube, for agents: on a phone a stage of its own under the world
      cube's; on a wide screen the right half of the one stage, with the world
      cube drawn in the left half. A room fills the whole stage, so the code cube
@@ -104,22 +98,19 @@
     .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
     .rl-brand { font-size: .875rem; }
   }
-  @media (min-width: 22.5rem) {
-    .rl-hero--home { --rl-worlds-height: 54.5rem; }
-  }
-  @media (min-width: 30rem) {
-    .rl-hero--home { --rl-worlds-height: 44rem; }
-  }
   @media (min-width: 48rem) {
     .rl-hero--home { --rl-worlds-height: 55.5rem; }
     .rl-hero--home .rl-hero-copy { padding: var(--space-5) var(--space-5) var(--space-3); }
+    /* A desktop room overlays the heading; phones keep theirs above the stage. */
+    .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
     .rl-hero--home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(var(--rl-worlds-height), auto); }
     /* Drawn, the world cube takes the left half of the stage and the code cube the
        right, both smaller on a wide screen to leave room for their names above them.
        Where they are not drawn, the list of worlds keeps the stage's full width and
        the code cube's six buttons sit beside the heading, so the stage is the same
        height either way. */
-    .rl-hero--home .world-cube { --world-cube-centre: .25; --world-cube-size: .85; grid-area: 1 / 1 / span 2 / span 2; }
+    .rl-hero--home .world-cube { --world-cube-centre: .25; --world-cube-size: .85; grid-area: 1 / 1 / span 2 / span 2; grid-template-rows: subgrid; }
+    .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
     .rl-hero--home .world-cube__hint { right: 50%; }
     .rl-hero--home .code-cube {
       --code-cube-size: .85; grid-area: 1 / 2; align-self: start; min-height: 0;

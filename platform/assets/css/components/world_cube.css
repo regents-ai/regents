@@ -343,10 +343,26 @@
   visibility: visible;
 }
 
-/* The narrowest phones wrap the list onto more lines, so the stage is taller there. */
-@media (max-width: 22.5rem) {
+/* Reserve the same phone stage before and after the renderer loads. The
+   fallback list scrolls inside it instead of leaving a list-sized empty band
+   beneath the cube. svh keeps browser chrome changes from resizing the stage. */
+@media (max-width: 47.99rem) {
   .world-cube {
-    min-height: 53rem;
+    --world-cube-stage-height: clamp(32rem, 72svh, 38rem);
+    height: var(--world-cube-stage-height);
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .world-cube__worlds {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  /* Drawn cards sit at the stage foot, including the keyboard-focused card. */
+  .world-cube[data-world-ready="true"] .world-cube__worlds {
+    overflow: visible;
   }
 }
 
