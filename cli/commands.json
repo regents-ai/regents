@@ -124,9 +124,14 @@
           "in": "body",
           "field": "after",
           "required": false,
-          "description": "The previous response next value, unchanged. Omit for the first page."
+          "description": "The previous page's pagination.next_cursor, unchanged. Omit for the first page."
         }
-      ]
+      ],
+      "pagination": {
+        "has_more": "pagination.has_more",
+        "cursor": "pagination.next_cursor",
+        "flag": "after"
+      }
     },
     {
       "command": "account budget",

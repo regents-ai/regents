@@ -2455,20 +2455,30 @@
               "additionalProperties": false
             }
           },
-          "more?": {
-            "type": "boolean"
-          },
-          "next": {
-            "type": [
-              "string",
-              "null"
-            ]
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "has_more": {
+                "type": "boolean"
+              },
+              "next_cursor": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Send it unchanged as after to read older entries. Null on the last page."
+              }
+            },
+            "required": [
+              "has_more",
+              "next_cursor"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "entries",
-          "more?",
-          "next"
+          "pagination"
         ],
         "additionalProperties": false
       },

@@ -1694,3 +1694,12 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   there had been no way to apply one in production at all.
 - The team's "what is pending" command now also names any shared change still
   to be applied, without applying anything.
+
+## 2026-10-14 — An agent's Credits history pages like every other read (local, unreleased)
+
+- The answer an agent gets for its person's Credits history now carries
+  `pagination.has_more` and `pagination.next_cursor`, the same paging keys as
+  the template's other reads, in place of `more?` and `next`. Send
+  `next_cursor` back unchanged as `after` for older entries.
+- The command tool now offers "read the next page" on `account credits-history`.
+- Same shape and same command entry as ash-template `41432ef` and `298c32a`.

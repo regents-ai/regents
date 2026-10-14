@@ -76,9 +76,17 @@ defmodule RegentsWeb.AgentReadsController do
     case pagination(conn.body_params) do
       {:ok, args} ->
         case RegentCredits.history(args, actor: credit_actor(conn)) do
-          {:ok, history} -> json(conn, history)
-          {:error, %Ash.Error.Invalid{}} -> invalid(conn)
-          {:error, _} -> unavailable(conn)
+          {:ok, history} ->
+            json(conn, %{
+              entries: history.entries,
+              pagination: %{has_more: history.more?, next_cursor: history.next}
+            })
+
+          {:error, %Ash.Error.Invalid{}} ->
+            invalid(conn)
+
+          {:error, _} ->
+            unavailable(conn)
         end
 
       :error ->
@@ -113,7 +121,7 @@ defmodule RegentsWeb.AgentReadsController do
         error: %{
           code: "invalid_cursor",
           message: "Send an empty JSON object or only a valid after cursor.",
-          hint: "Start with {}, then use the previous page's next value."
+          hint: "Start with {}, then use the previous page's pagination.next_cursor."
         }
       })
 

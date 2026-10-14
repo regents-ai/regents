@@ -38,9 +38,12 @@ may revoke access; pairing again creates a new episode and does not restore the
 old spending grant.
 
 For `account claims` and `account credits-history`, omit `--after` for the first
-page: the client signs the JSON body `{}`. On later pages use `--after CURSOR` with
-the exact returned `next` value: the client signs `{"after":"CURSOR"}`. Stop when
-`next` is null. Do not supply a user ID, an owner wallet or a query string. Private
+page: the client signs the JSON body `{}`. On later pages use `--after CURSOR`: the
+client signs `{"after":"CURSOR"}`. For `account claims` the cursor is the exact
+returned `next` value; stop when `next` is null. `account credits-history` answers
+`{"entries": […], "pagination": {"has_more", "next_cursor"}}`; the cursor is the exact
+`pagination.next_cursor`; stop when `pagination.has_more` is false. Do not supply a
+user ID, an owner wallet or a query string. Private
 responses are not cacheable; errors carry `code`, `message` and `hint`, and a 429
 includes `Retry-After`.
 
