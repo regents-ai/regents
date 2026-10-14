@@ -1862,3 +1862,10 @@ Before release:
   and does not keep the copy after sending it.
 - Each face's window has "Copy text as Markdown" for what that window lists.
   The button's space is held while the list is read.
+
+## 2026-10-14 — A balanced homepage footer (local, unreleased)
+
+- The homepage footer copies ash-template `6a5896a`: site links on the left,
+  X and GitHub centred, © on the right, all on one line, with larger text
+  and icons; stacked and centred on a phone. On a phone the code cube's copy
+  button sits under "Agentic WebMCP" so the two never overlap.
