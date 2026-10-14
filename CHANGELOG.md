@@ -1752,6 +1752,15 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
   cards, the crown being left out on a phone, the $REGENT panel and its
   buttons, each product section and its cards and statuses, a tab scrolling
   to its section, the closing frame and its white button.
-- Before release: the foil card needs the design-system revision that runs on
-  vgpu 0.6 (92f9c69, not yet on GitHub), so `@design_system_ref` moves with
-  this change once that revision is pushed.
+
+## 2026-10-14 — The shared agents list and new button press (local, unreleased)
+
+- Moves to design-system `92f9c69` (on `10a05c4`), the revision whose foil
+  card runs on the cube's vgpu 0.6. The account's agents list
+  is the shared one: each agent shows its picture, and "World ID Connected"
+  with World's mark only when its person has connected World ID.
+- Agent pictures now come from the shared package, staged by
+  `mix regent_ui.assets` into `priv/static/images/regent-ui/`; Regents' own
+  identical copies are gone.
+- Buttons follow the shared look: a little give under a press, and white with
+  Charcoal text in light mode.

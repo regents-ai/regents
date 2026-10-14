@@ -13,22 +13,6 @@ defmodule RegentsWeb.Components.PairedAgents do
   # Stands in for a code before one is made, so the message keeps its size.
   @no_code String.duplicate("X", 24)
 
-  @logos %{
-    hermes: "/images/agents/hermes.png",
-    grok_bot: "/images/agents/grok-bot.png",
-    muse: "/images/agents/muse.png",
-    openclaw: "/images/agents/openclaw.png",
-    nemoclaw: "/images/agents/nemoclaw.png",
-    ironclaw: "/images/agents/ironclaw.png",
-    pi: "/images/agents/pi.svg",
-    claude_code: "/images/agents/claude-code.png",
-    codex: "/images/agents/codex.png",
-    cursor: "/images/agents/cursor.png",
-    gemini_cli: "/images/agents/gemini-cli.png",
-    dots: "/images/agents/dots.png",
-    other: "/images/agents/other.svg"
-  }
-
   attr :agents, :any, required: true
   attr :pairing, :map, default: nil, doc: "`%{harness, code}` once an agent is chosen"
   attr :detail, :map, default: nil
@@ -69,7 +53,7 @@ defmodule RegentsWeb.Components.PairedAgents do
                     checked={match?(%{harness: ^harness}, @pairing)}
                     class="visually-hidden"
                   />
-                  <.harness_mark harness={harness} />{Harness.label(harness)}
+                  <Regent.Account.agent_mark kind={to_string(harness)} />{Harness.label(harness)}
                 </label>
               </fieldset>
             </form>
@@ -98,6 +82,7 @@ defmodule RegentsWeb.Components.PairedAgents do
       %{
         id: agent.id,
         name: agent.name,
+        kind: to_string(agent.harness),
         harness: Harness.label(agent.harness),
         backed: HumanBacking.describe(agent).human_backed,
         last_contact_iso: DateTime.to_iso8601(agent.last_contact_at),
@@ -248,7 +233,7 @@ defmodule RegentsWeb.Components.PairedAgents do
       data-close-event="close_agent"
     >
       <header class="account-agent-dialog__header">
-        <.harness_mark harness={@detail.agent.harness} />
+        <Regent.Account.agent_mark kind={to_string(@detail.agent.harness)} />
         <div>
           <p class="account-kicker">{Harness.label(@detail.agent.harness)}</p>
           <h2 id="account-agent-dialog-title">{@detail.agent.name}</h2>
@@ -419,18 +404,6 @@ defmodule RegentsWeb.Components.PairedAgents do
         Older activity couldn’t be read right now. Try again.
       </p>
     </div>
-    """
-  end
-
-  attr :harness, :atom, required: true
-
-  defp harness_mark(assigns) do
-    assigns = assign(assigns, :logo, Map.fetch!(@logos, assigns.harness))
-
-    ~H"""
-    <span class="account-agent__mark" aria-hidden="true">
-      <img src={@logo} alt="" width="48" height="48" />
-    </span>
     """
   end
 
