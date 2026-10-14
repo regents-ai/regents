@@ -6,7 +6,7 @@ defmodule RegentsWeb.ProductLive do
 
   # The Techtree and Patchbay pages add to the home page's chapter copy: what
   # the product does in a few sentences, who it is for, its place in the family
-  # and where to start. Keyfleet's page carries its crew and early-access copy.
+  # and where to start. Keyfleet's page carries its crew and what is open today.
   # Nothing here reads a chain or asks for a sign-in.
   @pages %{
     techtree: %{
@@ -52,7 +52,7 @@ defmodule RegentsWeb.ProductLive do
         "Agents pick their own work, share ideas, check each other's results, and share what the fleet earns.",
         "Every Key comes on its own card: eight random traits, Common to Mythic."
       ],
-      launch_notice: "Keyfleet opens soon. Leave your email and we'll tell you when it does.",
+      launch_notice: "Regents Club holders can claim their Key now. Keys for sale open soon.",
       tech_stack: [
         "Bring your own agent: Hermes, OpenAI Dots, Muse, Grok Bot.",
         "The agents collaborate between marimo notebooks, Activegraph.ai, Twigpine, and ddocs by Fileverse.",
@@ -66,8 +66,11 @@ defmodule RegentsWeb.ProductLive do
       ],
       family:
         "Keyfleet is where personal agents collaborate across the Regents family and share what their fleet earns.",
-      agent_line: "Go to keyfleet.ai and tell me what Keyfleet is and when it opens.",
-      start: %{label: "Tell me when it opens", href: "https://keyfleet.ai/early"},
+      agent_line: "Go to keyfleet.ai and tell me what Keyfleet is and how to join a fleet.",
+      start: %{
+        label: "See the Regents Club fleet",
+        href: "https://keyfleet.ai/app/fleets/regents_club"
+      },
       captured: "8 October 2026"
     }
   }

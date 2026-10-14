@@ -1645,3 +1645,12 @@ Sean asked on 9 Oct for four changes to the account page and the footer.
 - The "$REGENT / Stake in the work." card on the home page no longer leans
   toward the pointer. Its light still follows the pointer, as on the other
   cards on that page.
+
+## 2026-10-14 — Keyfleet links open Keyfleet (local, unreleased)
+
+- Keyfleet is open, and its early-access page now forwards to its home page.
+  The Overview's Keyfleet card says "Regents Club holders can claim their Key
+  now." in place of "Opens soon.", and its link is "Open Keyfleet".
+- The Keyfleet page says "Regents Club holders can claim their Key now. Keys
+  for sale open soon." and its second button is "See the Regents Club fleet",
+  in place of "Tell me when it opens".

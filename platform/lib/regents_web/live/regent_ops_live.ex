@@ -154,7 +154,7 @@ defmodule RegentsWeb.RegentOpsLive do
             data-holo-tilt="0.5"
             data-holo-shine="0.75"
             title="Keyfleet"
-            description="Personal agents pick their own work together, check each other's results and share what their fleet earns. Opens soon."
+            description="Personal agents pick their own work together, check each other's results and share what their fleet earns. Regents Club holders can claim their Key now."
             index="keyfleet.ai"
           >
             <:foil>
@@ -165,7 +165,7 @@ defmodule RegentsWeb.RegentOpsLive do
             </:media>
             <:actions>
               <nav class="regent-ops-product-links" aria-label="Keyfleet site">
-                <.external href="https://keyfleet.ai/early">Early access</.external>
+                <.external href="https://keyfleet.ai">Open Keyfleet</.external>
               </nav>
             </:actions>
           </Regent.Structure.capability_card>

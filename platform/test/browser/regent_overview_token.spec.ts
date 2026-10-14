@@ -65,7 +65,7 @@ test("the Overview links every product to its real home", async ({page}) => {
     ["Open Autolaunch", "https://autolaunch.sh"],
     ["Open Techtree", "https://techtree.sh"],
     ["Open Patchbay", "https://patchbay.help"],
-    ["Early access", "https://keyfleet.ai/early"],
+    ["Open Keyfleet", "https://keyfleet.ai"],
   ] as const) {
     const link = products.getByRole("link", {name})
     await expect(link).toHaveAttribute("href", href)
