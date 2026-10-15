@@ -101,7 +101,11 @@ defmodule Regents.MixProject do
       {:decimal, "== 3.1.2"},
       {:req, "~> 0.7"},
       {:vix, "~> 0.42.0"},
-      {:bandit, "~> 1.12.1"},
+      # CVE-2026-105659: upstream fix is not in a Hex release yet.
+      {:bandit,
+       git: "https://github.com/mtrudel/bandit.git",
+       ref: "d88b21953c65061f21136ea76a89a4f95a2ac7a1",
+       override: true},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:credo_ash,
