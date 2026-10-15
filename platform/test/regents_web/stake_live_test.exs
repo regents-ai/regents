@@ -544,7 +544,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(
              view,
              "#staking-activity-#{@hash}",
-             "Done. Your USDC rewards were claimed."
+             "Done. Any USDC you had waiting is now in your wallet."
            )
 
     # A wallet that is not the account's is one to switch away from.
@@ -935,8 +935,10 @@ defmodule RegentsWeb.StakeLiveTest do
     view = stake_as_signer(conn, "step-outcomes")
 
     for {name, hash, status, words} <- [
-          {"claim_usdc", hash("01"), "0x1", "Done. Your USDC rewards were claimed."},
-          {"claim_regent", hash("02"), "0x0", "There may be no REGENT rewards to claim yet"},
+          {"claim_usdc", hash("01"), "0x1",
+           "Done. Any USDC you had waiting is now in your wallet."},
+          {"claim_regent", hash("02"), "0x0",
+           "The reward pool may not hold enough REGENT right now."},
           {"claim_and_restake_regent", hash("03"), "0x1", "added to your stake"}
         ] do
       send_landed(view, name, hash, status)
@@ -1092,7 +1094,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(
              view,
              "#staking-activity-#{hash("34")}",
-             "There may be no USDC to claim yet"
+             "The claim did not go through and nothing moved. Try again in a little while."
            )
   end
 

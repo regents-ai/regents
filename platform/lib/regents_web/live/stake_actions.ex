@@ -505,11 +505,16 @@ defmodule RegentsWeb.StakeActions do
 
   defp confirmed("stake", _review), do: "Done. Your position is updating."
   defp confirmed("unstake", _review), do: "Done. The REGENT is back in your wallet."
-  defp confirmed("claim_usdc", _review), do: "Done. Your USDC rewards were claimed."
-  defp confirmed("claim_regent", _review), do: "Done. Your REGENT rewards were claimed."
+  # A claim with nothing waiting also lands, having moved nothing, so the words
+  # hold either way.
+  defp confirmed("claim_usdc", _review),
+    do: "Done. Any USDC you had waiting is now in your wallet."
+
+  defp confirmed("claim_regent", _review),
+    do: "Done. Any REGENT rewards you had waiting are now in your wallet."
 
   defp confirmed("claim_and_restake_regent", _review),
-    do: "Done. Your REGENT rewards were added to your stake."
+    do: "Done. Any REGENT rewards you had waiting were added to your stake."
 
   defp reverted("approve"),
     do: "The approval did not go through and nothing moved. Press Approve REGENT again."
@@ -523,15 +528,15 @@ defmodule RegentsWeb.StakeActions do
       "The unstake did not go through and nothing moved. Check the amount is not more than you have staked, then try again."
 
   defp reverted("claim_usdc"),
-    do: "The claim did not go through and nothing moved. There may be no USDC to claim yet."
+    do: "The claim did not go through and nothing moved. Try again in a little while."
 
   defp reverted("claim_regent"),
     do:
-      "The claim did not go through and nothing moved. There may be no REGENT rewards to claim yet, or not enough in the reward pool."
+      "The claim did not go through and nothing moved. The reward pool may not hold enough REGENT right now."
 
   defp reverted("claim_and_restake_regent"),
     do:
-      "The claim did not go through and nothing moved. There may be no REGENT rewards to restake yet, or staking may be paused."
+      "The claim did not go through and nothing moved. Staking may be paused or full, or the reward pool may not hold enough REGENT right now."
 
   defp portioned(balance, "half"), do: div(balance, 2)
   defp portioned(balance, "max"), do: balance
