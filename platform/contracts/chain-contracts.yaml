@@ -3,7 +3,7 @@ product: regents
 contracts:
   - id: base_mainnet_reviewed_evidence
     evidence_manifest: base-mainnet.json
-    evidence_sha256: 02da74d5a6de47f76206c12c1eb976696e0f36ba2292b38f1428e2e9389c3d35
+    evidence_sha256: 2573836958788a8a6669df1ddb5003bd8a6b93c72ff60e8c881a45f34af64be0
     chain_target: base-mainnet
     authority: evidence_only
     # `authority` names the pinned evidence source; the list below separately

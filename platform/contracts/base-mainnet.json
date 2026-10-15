@@ -29,7 +29,7 @@
         "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
       },
       "prepared_actions": [
-        {"id": "stake", "signature": "stake(uint256,address)", "selector": "0x7acb7757", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staking_contract", "argument_bindings": {"amount": "requested_stake_amount", "receiver": "connected_wallet"}, "approval": {"token": "stake_token", "spender": "regent_revenue_staking", "amount": "requested_stake_amount", "mode": "exact"}},
+        {"id": "stake", "signature": "stake(uint256,address)", "selector": "0x7acb7757", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staking_contract", "argument_bindings": {"amount": "requested_stake_amount", "receiver": "connected_wallet_or_acknowledged_address"}, "approval": {"token": "stake_token", "spender": "regent_revenue_staking", "amount": "max_uint256", "mode": "unlimited"}},
         {"id": "unstake", "signature": "unstake(uint256,address)", "selector": "0x8381e182", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {"amount": "requested_unstake_amount", "recipient": "connected_wallet"}},
         {"id": "claim_usdc", "signature": "claimUSDC(address)", "selector": "0x42852610", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {"recipient": "connected_wallet"}},
         {"id": "claim_regent", "signature": "claimRegent(address)", "selector": "0x739c8d0d", "value": "0", "signer_class": "staker_wallet", "beneficiary_class": "staker_wallet", "argument_bindings": {"recipient": "connected_wallet"}},

@@ -145,14 +145,14 @@ defmodule Regents.Contracts.ChainManifestTest do
 
     assert hd(actions)["argument_bindings"] == %{
              "amount" => "requested_stake_amount",
-             "receiver" => "connected_wallet"
+             "receiver" => "connected_wallet_or_acknowledged_address"
            }
 
     assert hd(actions)["approval"] == %{
              "token" => "stake_token",
              "spender" => "regent_revenue_staking",
-             "amount" => "requested_stake_amount",
-             "mode" => "exact"
+             "amount" => "max_uint256",
+             "mode" => "unlimited"
            }
 
     assert Enum.at(actions, 1)["argument_bindings"]["recipient"] == "connected_wallet"
