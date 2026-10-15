@@ -1,6 +1,6 @@
-/* A wallet button's words: its label, "Sign tx in wallet" while the wallet has
-   a press, or "Confirming" while a sent transaction is read on Base. The button
-   itself keeps taking presses; each one opens the wallet again. */
+/* A wallet button's words: its label, "Confirm in your wallet" while the wallet
+   has a press, or "Confirming" while a sent transaction is read on Base. The
+   button itself keeps taking presses; each one opens the wallet again. */
 [data-wallet-wait],
 [data-confirming-label] { display: none; }
 

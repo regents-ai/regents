@@ -1,7 +1,7 @@
 defmodule RegentsWeb.Components.OnchainButton do
   @moduledoc """
-  The words inside a wallet button. They say "Sign tx in wallet" while the wallet
-  has one of its presses (marked in the browser) and "Confirming" while a
+  The words inside a wallet button. They say "Confirm in your wallet" while the
+  wallet has one of its presses (marked in the browser) and "Confirming" while a
   transaction it sent is still being read on Base (`data-confirming`, from the
   server). The button itself keeps taking presses in every state.
   """
@@ -14,7 +14,7 @@ defmodule RegentsWeb.Components.OnchainButton do
     <span data-press-label>{@label}</span><span data-wallet-wait><span
       class="onchain-spinner"
       aria-hidden="true"
-    ></span>Sign tx in wallet</span><span data-confirming-label><span
+    ></span>Confirm in your wallet</span><span data-confirming-label><span
       class="onchain-spinner"
       aria-hidden="true"
     ></span>Confirming</span>
