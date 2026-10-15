@@ -43,6 +43,7 @@ defmodule RegentsWeb.Components.WorldCube do
     >
       <div id={"#{@id}-stage"} class="world-cube__stage" phx-update="ignore" aria-hidden="true">
         <canvas class="world-cube__canvas" data-world-canvas></canvas>
+        <p class="world-cube__caption" data-world-caption></p>
       </div>
       <p class="world-cube__hint">Drag to turn. Click a side to enter.</p>
       <ol class="world-cube__worlds">

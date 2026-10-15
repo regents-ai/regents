@@ -47,6 +47,18 @@
   cursor: grabbing;
 }
 
+.world-cube__caption {
+  position: absolute;
+  inset: auto var(--space-3) 5.5rem;
+  margin: 0;
+  font: 0.875rem/1.4 var(--font-family-mono);
+  letter-spacing: var(--tracking-microlabel);
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .world-cube__worlds {
   display: grid;
   gap: var(--space-1);

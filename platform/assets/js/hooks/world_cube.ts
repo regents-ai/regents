@@ -103,6 +103,7 @@ export const createWorldCubeController = (
   let to: Quat = rotation
   let face = 4
   let hover = -1
+  let named = -1
   let rested = false
   let pointer: [number, number] | undefined
   let movedAt = 0
@@ -147,6 +148,13 @@ export const createWorldCubeController = (
     )
   }
 
+  const name = (face: number) => {
+    if (face === named) return
+    named = face
+    const title = root.querySelector(`[data-world="${face}"] h3`)?.textContent ?? null
+    scope?.methods.caption!(title)
+  }
+
   /** One frame of the camera: the cube's turn, the pointer's rest, the eased values. */
   const nextView = (): WorldCubeView => {
     const now = performance.now()
@@ -180,8 +188,10 @@ export const createWorldCubeController = (
 
     if (mode === "orbit") {
       // The cube turns under a still pointer, so the face beneath it is read every frame.
-      hover = pointer && !dragging ? faceAt(view, aspect, pointer[0], pointer[1]) : -1
-      if (hover >= 0 && !rested && now - movedAt > REST_MS) {
+      hover = pointer ? faceAt(view, aspect, pointer[0], pointer[1]) : -1
+      // Keep naming the front face even when a captured drag leaves the cube.
+      if (dragging && hover < 0) hover = faceAt(view, aspect, centre, 0.5)
+      if (hover >= 0 && !rested && (dragging || now - movedAt > REST_MS)) {
         rested = true
         steer?.approach!(1).glow!(1)
       } else if (hover < 0 && rested) {
@@ -189,6 +199,7 @@ export const createWorldCubeController = (
         steer?.approach!(0).glow!(0)
       }
     }
+    name(mode === "orbit" && rested ? hover : -1)
     view.hover = hover
     // The page hears when the pointer comes onto the cube and when it leaves it.
     if (hover >= 0 !== pointing) {
@@ -230,6 +241,16 @@ export const createWorldCubeController = (
           approach: {duration: 700, ease: "outCubic"},
           spin: {duration: 900, ease: "outCubic"},
           glow: {duration: 500, ease: "outCubic"},
+        })
+        moves.add("caption", (title: string | null) => {
+          const line = cube.querySelector<HTMLElement>("[data-world-caption]")!
+          if (title !== null) line.textContent = title
+          animate(line, {
+            opacity: title === null ? 0 : 1,
+            translateY: title === null ? 6 : 0,
+            duration: 260,
+            ease: "outCubic",
+          })
         })
         moves.add("enter", () => {
           for (const move of flight) move.cancel()
@@ -392,10 +413,10 @@ export const createWorldCubeController = (
         const dy = event.clientY - press.y
         if (!dragging) {
           if (Math.hypot(dx, dy) < CLICK_SLOP) return
-          // The press already holds the cube still; a drag also steps it back.
+          // Keep the close view and face name throughout the drag.
           dragging = true
-          rested = false
-          steer!.approach!(0).glow!(0)
+          rested = true
+          steer!.approach!(1).glow!(1)
         }
         turnBy(dx * DRAG_TURN, dy * DRAG_TURN)
         // The cube keeps the speed it was let go at, and slows from there.
@@ -420,6 +441,7 @@ export const createWorldCubeController = (
       const onPointerCancel = () => {
         press = undefined
         dragging = false
+        pointer = undefined
       }
 
       // A lifted finger leaves the look where it was, so the pane it found can be read.
@@ -460,6 +482,7 @@ export const createWorldCubeController = (
         scope?.revert()
         scope = undefined
         steer = undefined
+        named = -1
         flight = []
         shown = NO_PANE
         cube.style.removeProperty("--world-look-x")

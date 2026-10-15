@@ -111,8 +111,10 @@ export const createCodeCubeController = (
     view.glow = camera.glow
 
     // The cube turns under a still pointer, so the face beneath it is read every frame.
-    hover = pointer && !dragging ? faceAt(view, aspect, pointer[0], pointer[1]) : -1
-    if (hover >= 0 && !rested && now - movedAt > REST_MS) {
+    hover = pointer ? faceAt(view, aspect, pointer[0], pointer[1]) : -1
+    // Pointer capture keeps a drag going beyond the cube: name its front face there.
+    if (dragging && hover < 0) hover = faceAt(view, aspect, 0.5, 0.5)
+    if (hover >= 0 && !rested && (dragging || now - movedAt > REST_MS)) {
       rested = true
       steer?.approach!(1).glow!(1).spin!(0.25)
     } else if (hover < 0 && rested) {
@@ -204,10 +206,10 @@ export const createCodeCubeController = (
         const dy = event.clientY - press.y
         if (!dragging) {
           if (Math.hypot(dx, dy) < CLICK_SLOP) return
-          // The press already holds the cube still; a drag also steps it back.
+          // Keep the close view and face name throughout the drag.
           dragging = true
-          rested = false
-          steer!.approach!(0).glow!(0)
+          rested = true
+          steer!.approach!(1).glow!(1).spin!(0.25)
         }
         turnBy(dx * DRAG_TURN, dy * DRAG_TURN)
         // The cube keeps the speed it was let go at, and slows from there.
@@ -232,6 +234,7 @@ export const createCodeCubeController = (
       const onPointerCancel = () => {
         press = undefined
         dragging = false
+        pointer = undefined
       }
 
       const onPointerLeave = () => {
