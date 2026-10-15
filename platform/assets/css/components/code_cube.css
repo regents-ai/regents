@@ -164,8 +164,8 @@
   pointer-events: auto;
 }
 
-/* The copy of every card, under the buttons, and in the drawn cube's lower
-   corner. It shows while the pointer is on the cube and for two seconds after
+/* The copy of every card, under the buttons, and below the drawn cube's site
+   title. It shows while the pointer is on the cube and for two seconds after
    it leaves, while the keyboard is on the cube, and always where nothing
    hovers. */
 .code-cube__copy {
@@ -202,7 +202,10 @@
 
 .code-cube[data-code-ready="true"] .code-cube__copy {
   position: absolute;
-  inset: auto var(--space-3) 2.75rem auto;
+  inset: auto var(--space-3) 2.75rem;
+  display: flex;
+  justify-content: center;
+  justify-self: stretch;
   max-width: calc(100% - 2 * var(--space-3));
   margin: 0;
 }
