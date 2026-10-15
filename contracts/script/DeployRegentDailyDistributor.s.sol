@@ -20,7 +20,7 @@ import {RegentDailyDistributor} from "src/autolaunch/revenue/RegentDailyDistribu
 ///           DISTRIBUTOR_OWNER            treasury multisig (its only right: sweep())
 ///           DISTRIBUTOR_TREASURY         protocol treasury — the pinned sweep destination
 ///
-///         Values come from Sean's address confirmation (bd regent-ux9j). DO NOT run
+///         Values come from Sean's address confirmation. DO NOT run
 ///         against any network beyond local/test until Sean's explicit deploy go, after
 ///         the human audit.
 contract DeployRegentDailyDistributorScript is Script {

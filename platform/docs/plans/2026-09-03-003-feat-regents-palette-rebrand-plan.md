@@ -281,4 +281,4 @@ under autolaunch, `#151717` under techtree, `#161615` under patchbay.
 
 No copy. No markup. No fallbacks, no compatibility branches, no dual-shape support: the old
 values are gone rather than kept beside the new ones. No Autolaunch file, no `techtree.css`,
-no design-system file, no Beads or control file.
+no design-system file, no control file.

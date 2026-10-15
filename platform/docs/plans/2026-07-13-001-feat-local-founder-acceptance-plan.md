@@ -367,7 +367,7 @@ Unit IDs are stable references; the dependency column and sequencing graph, not 
 
 | Unit | Title | Primary files | Depends on |
 |---|---|---|---|
-| U1 | Reconcile authority, custody, and convergence baseline | Founder/meta/repo/interface sources, Git manifests, Beads evidence | None |
+| U1 | Reconcile authority, custody, and convergence baseline | Founder/meta/repo/interface sources, Git manifests, recorded evidence | None |
 | U2 | Package the approved homepage | `home_live.ex`, homepage CSS/JS/assets/tests | U1 |
 | U4 | Guarded setup, reset, and fixture foundation | Mix tasks, config, fixture support, docs | U1 |
 | U3 | Package shell, Privy, profile, and Settings | shell/session/account files, `app.ts`, `app.css` | U2, U4 |
@@ -389,7 +389,7 @@ Unit IDs are stable references; the dependency column and sequencing graph, not 
 
 - **Goal:** Make the active human and machine sources agree on the Ash Platform boundary, then turn accepted commits, dirty worktrees, and private candidates into an explicit admission map without changing product behavior.
 - **Requirements:** R1, R2, R5, R55.
-- **Files:** Root `founder.md`; `metaprogramming/stack.yaml`; owning root and repo contracts; Ash Platform HTTP source; Regents CLI and JSON-RPC sources; new Ash Platform `contracts/chain-contracts.yaml` validated by the root schema; `docs/plans/2026-07-13-001-feat-local-founder-acceptance-plan.md`; Beads `regent-2mf0.30`; per-candidate manifests under OS temporary directories.
+- **Files:** Root `founder.md`; `metaprogramming/stack.yaml`; owning root and repo contracts; Ash Platform HTTP source; Regents CLI and JSON-RPC sources; new Ash Platform `contracts/chain-contracts.yaml` validated by the root schema; `docs/plans/2026-07-13-001-feat-local-founder-acceptance-plan.md`; per-candidate manifests under OS temporary directories.
 - **Approach:** Apply the founder-approved old-platform/Ash-platform ownership decision to the active sources before product writers resume. Name canonical HTTP, CLI, runtime, and prepared-chain-action owners. Pin the exact `elixir-utils` Privy commit. Record immutable bases, declared paths and hunks, collisions, generated residue, and evidence; establish one integration custodian. Every later unit records an `accepted_parent` equal to the current accepted integration HEAD immediately before its candidate is created; no historical scaffold hash is a reusable base. Preserve the two sealed unrelated CLI generated diffs.
 - **Test scenarios:** Detect contradictory owner declarations; invalid chain-contract source; missing or changed path dependency; changed old value before import; undeclared candidate paths; generated notebook/assets/package residue; non-empty shared index.
 - **Verification:** Founder, stack, repo, and interface sources agree; meta and contract validation passes; the pinned dependency is reproducible; candidate manifests are complete; `git diff --check` passes; shared status is unchanged except declared planning/governance files; every later unit has an exact base and owner.
@@ -597,6 +597,6 @@ Protected units U3, U5, U6, U8, U9, U11, U12, U13, U16, and U17 also require a g
 
 ### Per-unit completion
 
-- U1-U14, U16, and U17 are complete only when their declared manifests, focused scenarios, aggregate applicable gates, migration-from-populated-baseline proof where applicable, mutation requirements, independent reviews, clean imports, and Beads evidence are satisfied.
+- U1-U14, U16, and U17 are complete only when their declared manifests, focused scenarios, aggregate applicable gates, migration-from-populated-baseline proof where applicable, mutation requirements, independent reviews, clean imports, and recorded evidence are satisfied.
 - U15 is complete only when each requirement and acceptance example is mapped to fresh run evidence from the final immutable commits.
 - `regent-2mf0.30` closes only after the final founder acceptance run succeeds and no required work remains.

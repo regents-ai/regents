@@ -5,7 +5,7 @@ Read-only audits completed 2026-07-10 using explicit gpt-5.6-sol medium threads:
 - Privy browser auth: `019f4c6b-a118-79a1-aa64-167d3aecc52b`
 - Staking and redemption: `019f4c6b-9d9b-7cd1-b731-bffdf18c1a0e`
 
-No files, Beads, environment files, production services, wallets, databases, or deployments were touched by either audit.
+No files, environment files, production services, wallets, databases, or deployments were touched by either audit.
 
 ## Privy (`regent-2mf0.6`)
 
