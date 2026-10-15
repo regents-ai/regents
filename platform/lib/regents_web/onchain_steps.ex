@@ -7,7 +7,7 @@ defmodule RegentsWeb.OnchainSteps do
   it to `put_review/2`, which remembers it and pushes it to the page before
   anyone presses. The page reports each press against the review it sent from.
   Every sent step is then read at the latest block of the review's chain, every
-  quarter second, until it lands or the page stops asking. Nothing is kept beyond
+  two seconds, until it lands or the page stops asking. Nothing is kept beyond
   the page.
 
   The only wallet that may act is Privy's active wallet when it is one of the
@@ -21,7 +21,7 @@ defmodule RegentsWeb.OnchainSteps do
   alias RegentChain.{Outcome, Presses}
   alias Regents.ChainClient
 
-  @recheck_ms 250
+  @recheck_ms 2_000
   @no_wallet "Your account has no wallet yet. Sign in again to get one."
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
