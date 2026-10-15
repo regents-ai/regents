@@ -156,9 +156,14 @@ runs automatically.
 
 **Verify live in a real browser, not by trusting the deploy output.** The in-app
 browser pane reports `document.hidden === true`, so animation and WebGPU look dead in
-it even when they work. Drive a headed Playwright Chromium against https://regents.sh
+it even when they work. Drive a headless Playwright Chromium against https://regents.sh
 instead. Use `waitUntil: "domcontentloaded"` — `networkidle` never settles because of
 the LiveView socket.
+
+Browser checks never open a tab in Sean's Chrome or take the screen's focus (Sean,
+15 Oct 2026): never `open`, `osascript` or an attach to his running Chrome. A check
+that truly needs a visible window uses a Playwright-launched Chromium with its own
+profile, and says so in the thread first.
 
 ---
 
