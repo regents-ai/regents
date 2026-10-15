@@ -4,6 +4,8 @@ defmodule RegentsWeb.Router do
 
   alias RegentsWeb.ContentSecurityPolicy
 
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -38,6 +40,8 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.PairedAgent
   end
 
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
   pipeline :public_documents do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -56,6 +60,8 @@ defmodule RegentsWeb.Router do
   # The saved errors: Credits admins only. Anyone else gets the not-found page under
   # the reading policy; an admin's page replaces it with one carrying this
   # request's nonce (RegentsWeb.ErrorsAdmin).
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
   pipeline :errors_admin do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -75,6 +81,8 @@ defmodule RegentsWeb.Router do
   end
 
   if Application.compile_env(:regents, :local_showcase, false) do
+    # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+    # sobelow_skip ["Config.CSP"]
     pipeline :local_showcase do
       plug RegentsWeb.Showcase.LocalOnly
       plug :accepts, ["html", "json"]

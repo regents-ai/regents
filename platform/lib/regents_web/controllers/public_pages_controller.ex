@@ -37,6 +37,8 @@ defmodule RegentsWeb.PublicPagesController do
       |> put_resp_content_type("text/plain")
       |> send_resp(200, PublicDocuments.security_txt())
 
+  # XML from fixed page paths; PublicDocuments.sitemap/0 escapes every location.
+  # sobelow_skip ["XSS.SendResp"]
   def sitemap(conn, _params),
     do:
       conn

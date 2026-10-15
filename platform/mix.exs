@@ -4,9 +4,9 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "72849c13f1c41bb4507151194922d2b8576f79dc"
+  @elixir_utils_ref "b5824049d55012f2e8b1e4d7e3e2fcc549d93360"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "cf05816a4e75616ea0cdfbc7aeee6daf8067670a"
+  @design_system_ref "fb0542f656f68b30e56f370c8806639ac9067c07"
 
   def project do
     [
@@ -52,7 +52,7 @@ defmodule Regents.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.36"},
-      # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+      # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
       {:oban, "~> 2.24"},
@@ -60,7 +60,7 @@ defmodule Regents.MixProject do
       {:ash_phoenix, "~> 2.3.25"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
-      {:mdex, "== 0.13.3"},
+      {:mdex, "== 0.14.2"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
       {:siwa,
@@ -98,7 +98,7 @@ defmodule Regents.MixProject do
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
-      {:decimal, "== 3.1.2"},
+      {:decimal, "== 3.2.0"},
       {:req, "~> 0.7"},
       {:vix, "~> 0.42.0"},
       # CVE-2026-105659: upstream fix is not in a Hex release yet.
@@ -114,7 +114,7 @@ defmodule Regents.MixProject do
        sparse: "credo_ash",
        only: [:dev, :test],
        runtime: false},
-      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
     ]
   end
 

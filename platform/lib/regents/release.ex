@@ -19,6 +19,7 @@ defmodule Regents.Release do
     Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
       # Shared changes are applied on their own by `migrate_shared/0`, never by a deployment.
       require_shared_migrations!(repo)
+      RegentAgents.Migrator.require_pairing_history!(repo)
       RegentCredits.Migrator.require_pairing_grants!(repo)
       repo.migrate!(migrations_path())
     end)

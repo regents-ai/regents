@@ -3,7 +3,7 @@ defmodule RegentIdentity.MixProject do
 
   # regent_privy, pinned to the same published elixir-utils commit as the site.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "58acbc4742ea8acded42e8fb40816ac6e0400aaa"
+  @elixir_utils_ref "b5824049d55012f2e8b1e4d7e3e2fcc549d93360"
 
   def project do
     [
@@ -13,7 +13,7 @@ defmodule RegentIdentity.MixProject do
       elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
       deps: [
         {:ash, "~> 3.34 and >= 3.34.3"},
-        # 2.13.1 through 2.14.2 send upserts to the public schema, ignoring the
+        # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
         # repo's prefix that picks each site's schema on the shared database.
         {:ash_postgres, "== 2.13.0"},
         {:simple_sat, "~> 0.1"},
