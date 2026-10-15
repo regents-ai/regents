@@ -332,6 +332,23 @@
               }
             }
           },
+          "429": {
+            "description": "Too many reads from this address; wait the number of seconds in Retry-After",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StakingError"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Base has not answered yet, or sign-in checks are not set up",
             "content": {
@@ -2196,7 +2213,8 @@
                   "wallet_required",
                   "authentication_required",
                   "staking_unconfigured",
-                  "staking_unavailable"
+                  "staking_unavailable",
+                  "rate_limited"
                 ]
               },
               "message": {
