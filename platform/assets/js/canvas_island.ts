@@ -62,7 +62,10 @@ type IslandInteraction<Renderer extends IslandRenderer> = {
 type IslandKind<Renderer extends IslandRenderer> = {
   /** The canvas inside the island root. */
   readonly canvasSelector: string
-  /** Dataset flag raised on the root once a first frame really landed. */
+  /**
+   * Dataset flag on the root: "true" once a first frame really landed, "false" once
+   * the island knows it will not draw here, and absent while that is still open.
+   */
   readonly readyFlag: string
   readonly browserLoad: LoadRenderer<Renderer>
   /** A picture that moves is never drawn for a visitor who asked for less of it. */
@@ -243,10 +246,14 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
     renderer = undefined
   }
 
-  /** A retreat the island does not come back from: the GPU is not going to draw this. */
+  /**
+   * A retreat the island does not come back from: the GPU is not going to draw this,
+   * and the flag says so, so the page can show what the server rendered.
+   */
   const retire = () => {
     retired = true
     retreat()
+    root.dataset[kind.readyFlag] = "false"
   }
 
   /**
@@ -370,7 +377,11 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
 
   return {
     mount() {
-      if (release || !supportsWebGpu()) return
+      if (release) return
+      if (!supportsWebGpu()) {
+        root.dataset[kind.readyFlag] = "false"
+        return
+      }
       mounted = true
       retired = false
       recoveries = 0

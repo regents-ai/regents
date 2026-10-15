@@ -210,6 +210,22 @@
   margin: 0;
 }
 
+/* Until the page knows whether the cube draws here, the stage is night and
+   nothing else: the buttons would only flash before the cube took their place.
+   Where the cube cannot draw (`data-code-ready="false"`) they fade in. Without
+   scripts, or for a visitor who asked for less motion, the cube is never
+   drawn, so the buttons show from the start. */
+.code-cube__faces {
+  transition: opacity 320ms ease-out;
+}
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .code-cube:not([data-code-ready]) :is(.code-cube__faces, .code-cube__copy) {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 @media (max-width: 47.99rem) {
   /* Reserve room below the enlarged cube for its name, copy control and hint. */
   .code-cube__canvas { height: calc(100% - 6rem); }

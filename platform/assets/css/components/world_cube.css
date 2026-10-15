@@ -150,6 +150,22 @@
   height: 1rem;
 }
 
+/* Until the page knows whether the cube draws here, the stage is night and
+   nothing else: the list would only flash before the cube took its place.
+   Where the cube cannot draw (`data-world-ready="false"`) the list fades in.
+   Without scripts, or for a visitor who asked for less motion, the cube is
+   never drawn, so the list shows from the start. */
+.world-cube__worlds {
+  transition: opacity 320ms ease-out;
+}
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .world-cube:not([data-world-ready]) .world-cube__worlds {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 /* Drawn: the stage shows, and the list keeps its place but not its cards. */
 .world-cube[data-world-ready="true"] .world-cube__stage {
   z-index: 0;
