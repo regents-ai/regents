@@ -56,7 +56,7 @@ A person makes a one-time pairing code on their [Account]({{origin}}/account) pa
 Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line, install it and sign in once:
 
 ```sh
-uv tool install regents-cli==1.9.4
+uv tool install regents-cli==1.10.6
 regents auth login --site regents
 regents protocol agents whoami --json
 ```
