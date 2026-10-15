@@ -37,7 +37,7 @@ transaction.
 The server builds every wallet step (the `regent_chain` package from `elixir-utils/chain`) and
 pushes them to the page before anyone presses. The button only sends the step it names from the
 wallet the account signed in with. The server then reads the transaction on Base at the latest
-block every two seconds, checks it is exactly the step it built, and says whether it went through.
+block every quarter second, checks it is exactly the step it built, and says whether it went through.
 A confirmed step reads the wallet's position and the shared totals again.
 
 ## Supported actions
