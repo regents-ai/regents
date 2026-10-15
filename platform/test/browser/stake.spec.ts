@@ -43,16 +43,9 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
 
   await signIn(page)
   await page.evaluate(key => localStorage.setItem(key, "true"), disconnectedKey)
-  await page.route(bridgePattern, route => route.fulfill({
-    contentType: "application/javascript",
-    body: `export async function startPrivyBridge() {
-      return {async request(kind) {
-        if (kind !== "connect-wallet") return;
-        localStorage.removeItem("${disconnectedKey}");
-        window.dispatchEvent(new CustomEvent("ash:wallet-state"));
-      }};
-    }`,
-  }))
+  await page.route(bridgePattern, route =>
+    route.fulfill({contentType: "application/javascript", body: bridgeRecorder}),
+  )
   await page.goto("/stake")
   const documentStarted = await page.evaluate(() => performance.timeOrigin)
 
@@ -65,14 +58,22 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "none")
   await page.emulateMedia({reducedMotion: "no-preference"})
 
-  // A press with no wallet open asks the wallet app to connect, in place.
+  // A press with no wallet open sends nothing, names the account's wallet to
+  // open, and never opens the wallet app's connect step.
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
-  await expect
-    .poll(() => page.evaluate(key => localStorage.getItem(key), disconnectedKey))
-    .toBeNull()
+  await expect(page.locator("#staking-press-notice")).toContainText(
+    "You're signed in with 0x1111..1111, but your wallet app has no wallet open.",
+  )
+  expect(await privyRequests(page)).not.toContain("connect-wallet")
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
   expect(await sendCount(page)).toBe(0)
+
+  // The person opens that wallet in their wallet app.
+  await page.evaluate(key => {
+    localStorage.removeItem(key)
+    window.dispatchEvent(new CustomEvent("ash:wallet-state"))
+  }, disconnectedKey)
 
   // The wallet position carries its own block, which is not the block the
   // shared contract reading was taken at.
@@ -166,7 +167,7 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await expect.poll(() => privyRequests(page)).toContain("sign-in")
   expect(await privyRequests(page)).not.toContain("connect-wallet")
   expect(await sendCount(page)).toBe(0)
-  await expect(page.locator(".stake-notice")).toHaveCount(0)
+  await expect(page.locator(".stake-notice:visible")).toHaveCount(0)
 })
 
 // Signing out ends what the page may send. The same control that sent a

@@ -923,6 +923,9 @@ defmodule RegentsWeb.StakeActions do
     ~H"""
     <section id="staking-activity" class="stake-activity">
       <p :if={@press} id="staking-press-notice" class="stake-notice" role="alert">{@press}</p>
+      <p class="stake-notice" role="status" data-onchain-lost hidden>
+        Connection lost, so nothing was sent. Press again once it's back.
+      </p>
       <SubmittedTransactions.list id="staking-activity" sent={@sent} myself={@myself} />
     </section>
     """

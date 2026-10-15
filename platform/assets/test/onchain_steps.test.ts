@@ -190,9 +190,9 @@ describe("a press on a wallet button", () => {
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "network_mismatch"}]])
   })
 
-  it("opens the connect step when no wallet is active here", async () => {
+  it("sends nothing and opens no connect step when no wallet is active here", async () => {
     await press(review, "stake", push)
-    expect(dispatched).toEqual(["ash:wallet-connect"])
+    expect(dispatched).toEqual([])
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]])
   })
 
@@ -335,14 +335,14 @@ describe("the wallet-button hook", () => {
     await vi.waitFor(() => expect(sends).toHaveLength(1))
   })
 
-  it("opens the connect step at once when no wallet is active, whatever the form says", async () => {
+  it("sends nothing at once when no wallet is active, whatever the form says", async () => {
     const view = mount(inputs)
     view.review(review)
     view.fields.amount.value = "7"
 
     view.click(view.primary)
     await vi.waitFor(() => expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]]))
-    expect(dispatched).toContain("ash:wallet-connect")
+    expect(dispatched).not.toContain("ash:wallet-connect")
   })
 
   it("sends a claim at once while the form matches", async () => {
