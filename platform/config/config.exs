@@ -177,8 +177,8 @@ config :logger, :default_formatter,
   metadata: [:request_id]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
-# to Credits admins at /admin/errors. Only server faults are saved
-# (Regents.ErrorIgnorer), only where each one happened is kept
+# to Credits admins at /admin/errors. Only server faults, and only a job's last
+# attempt, are saved (Regents.ErrorIgnorer), only where each one happened is kept
 # (Regents.ErrorFilter), and Regents.ErrorPruner clears each one a week after it
 # was last seen.
 config :error_tracker,
