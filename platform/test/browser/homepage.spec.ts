@@ -207,8 +207,8 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
   ).toContain("Geist Pixel Square")
 })
 
-// The founder's hero: the words stand over the top-left of the cube's stage, the worlds come
-// under the words, at every width.
+// The founder's hero: on a wide screen the words stand over the top-left of the cube's stage;
+// a phone stacks the words above the stage. The worlds come under the words at every width.
 test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) => {
   const boxOf = (selector: string) =>
     page.locator(selector).evaluate(element => {
@@ -243,7 +243,13 @@ test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) =>
       expect(title.left).toBeGreaterThanOrEqual(hero.left)
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
       expect(stage.left, "the stage stands behind the words").toBeLessThanOrEqual(title.left)
-      expect(stage.top).toBeLessThanOrEqual(title.top)
+      if (width >= 768) {
+        expect(stage.top).toBeLessThanOrEqual(title.top)
+      } else {
+        expect(stage.top, "a phone stacks the stage under the words").toBeGreaterThanOrEqual(
+          tagline.bottom,
+        )
+      }
       expect(stage.right, "and crosses the midline").toBeGreaterThan(hero.left + hero.width / 2)
       expect(stage.right).toBeLessThanOrEqual(hero.right)
       expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(tagline.bottom)
