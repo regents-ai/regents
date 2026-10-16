@@ -384,7 +384,7 @@ defmodule RegentsWeb.ApiContractTest do
              Map.put(budget_headers, "Retry-After", %{"$ref" => "#/components/headers/RetryAfter"})
 
     assert contract["components"]["schemas"]["AgentHarness"]["enum"] ==
-             Enum.map(RegentAgents.Harness.values(), &Atom.to_string/1)
+             Enum.map(RegentAgents.Harness.offered(), &Atom.to_string/1)
 
     assert contract["components"]["schemas"]["PairedAgent"]["required"] ==
              [
