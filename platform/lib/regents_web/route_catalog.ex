@@ -300,8 +300,7 @@ defmodule RegentsWeb.RouteCatalog do
           label: "Daily Research",
           path: "/paper-pro-daily"
         },
-        %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"},
-        %RouteTarget{route_id: :blog, label: "Articles", path: "/articles"}
+        %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"}
       ]
     }
   end
