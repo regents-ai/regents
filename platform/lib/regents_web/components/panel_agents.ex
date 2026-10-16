@@ -84,11 +84,12 @@ defmodule RegentsWeb.PanelAgents do
   defp read_last_actions(socket), do: socket
 
   # Where and when each agent was last active, by id; an agent whose reading
-  # fails, or that has not been active since it paired, is left out, and its
-  # line stays empty.
+  # fails or crashes, or that has not been active since it paired, is left out,
+  # and its line stays empty. The reads are not linked to the page, so one that
+  # crashes ends only itself.
   defp last_actions(agents) do
-    agents
-    |> Task.async_stream(&{&1.id, last_action(&1)},
+    Regents.Agents.Reads
+    |> Task.Supervisor.async_stream_nolink(agents, &{&1.id, last_action(&1)},
       max_concurrency: 4,
       timeout: 8_000,
       on_timeout: :kill_task

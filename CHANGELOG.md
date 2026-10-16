@@ -1948,8 +1948,9 @@ No database migrations or changes to sign-in, staking or wallet behavior.
 
 ## 2026-10-16 — Side panel agents and Pair New Agent (on main, not yet released)
 
-Ported from ash-template v96 (f36a9da4), with the shared library at elixir-utils
-583e2c60 and design-system 28888839 (which holds the template's df44fc34).
+Ported from ash-template v96 (f36a9da4) and v98's 8c33273, with the shared library
+at elixir-utils 03433b80 and design-system 28888839 (which holds the template's
+df44fc34).
 No database migrations. Needs `SIWA_ACTIVITY_READ_TOKEN`, already set on regents-sh-web.
 
 - The side panel lists the signed-in person's agents, each with the site it was
@@ -1972,4 +1973,10 @@ No database migrations. Needs `SIWA_ACTIVITY_READ_TOKEN`, already set on regents
   The /start page's first step has a Pair New Agent link that opens the panel.
 - An agent's sites include the Regents mobile app (elixir-utils 583e2c60), so its
   days there are no longer left out.
+- A day from the sign-in service with a missing field or an unreadable value makes
+  that agent's reading `{:error, :bad_day}` instead of raising (elixir-utils
+  03433b80), and the panel reads each agent through
+  `Task.Supervisor.async_stream_nolink` under `Regents.Agents.Reads`, so a reading
+  that still crashes ends only itself and leaves that agent's line empty, never the
+  page (Sentinel's v193 finding F2).
 - An open pill menu closes on Escape or a tap outside it, iPhones included.
