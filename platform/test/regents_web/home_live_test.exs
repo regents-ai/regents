@@ -38,7 +38,7 @@ defmodule RegentsWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     # Founder decision (2026-09-28): the tab is named Protocol, and it and App open Stake.
-    assert html =~ ~r/id="home-nav-protocol"[^>]*>\s*Protocol\s*</
+    assert html =~ ~r/id="home-nav-protocol".*?<span class="rg-button__label">\s*Protocol\s*</s
     assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
