@@ -177,7 +177,10 @@ input:focus-visible,
 .regent-footer__guide-body:popover-open { display: grid; }
 
 /* A public page fills the screen with its footer, so the footer sits at the foot of
-   the screen however short the page is. The page grows to meet it, frame and all. */
+   the screen however short the page is. The page grows to meet it, frame and all.
+   A LiveView here keeps one root element in the screen-tall row (its empty flash
+   list beside it is fine); a second root, such as a header beside main, would be
+   stretched, so wrap them in one element. */
 body:has(> .regent-footer) { display: flex; flex-direction: column; height: auto; min-height: 100dvh; }
 body:has(> .regent-footer) > :first-child { flex: 1 0 auto; }
 body:has(> .regent-footer) > [data-phx-main] { display: grid; grid-template-rows: 1fr; }
