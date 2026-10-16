@@ -1869,3 +1869,9 @@ Before release:
   X and GitHub centred, © on the right, all on one line, with larger text
   and icons; stacked and centred on a phone. On a phone the code cube's copy
   button sits under "Agentic WebMCP" so the two never overlap.
+
+## 2026-10-16 — Regents Products
+
+- The menu behind the footer's nine dots is now headed "Regents Products", and
+  its button says the same, as in ash-template `fadd0f7` (Sean, 16 Oct; it was
+  "Regents Labs apps").

@@ -36,7 +36,7 @@ defmodule RegentsWeb.Layouts do
     """
   end
 
-  # The Regents Labs apps, each shown with the crown in its own pair of brand
+  # The Regents Products, each shown with the crown in its own pair of brand
   # colours. The other sites open in a new tab; this site's own pages do not.
   @regents_apps [
     %{name: "Patchbay", href: "https://patchbay.help", tone: "patchbay", away?: true},
@@ -59,14 +59,14 @@ defmodule RegentsWeb.Layouts do
       class="product-links__apps-button"
       type="button"
       popovertarget="footer-apps"
-      aria-label="Regents apps"
+      aria-label="Regents Products"
     >
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
       </svg>
     </button>
     <nav id="footer-apps" class="product-links__apps" popover aria-labelledby="footer-apps-title">
-      <h2 id="footer-apps-title">Regents Labs apps</h2>
+      <h2 id="footer-apps-title">Regents Products</h2>
       <ul>
         <li :for={app <- @apps}>
           <a href={app.href} target={app.away? && "_blank"} rel={app.away? && "noopener"}>
