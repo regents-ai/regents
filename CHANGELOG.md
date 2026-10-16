@@ -1897,3 +1897,21 @@ Released on Sean's "1. a" (RG-DEPS-W1-REL, 13:27Z), after Sentinel's GO on
   a list that copies as Markdown.
 - Deploys use `make deploy`, which labels the image with the commit it was
   built from.
+
+## 2026-10-16 — Regents v191 (main `ec0f2094`)
+
+Released on Sean's "3. a" (16:12Z), after Sentinel's GO on `ee99f43d..ec0f2094`
+(16:01Z). Protected: the agent check-in path. No database migrations. Rollback is
+v190 (`ee99f43d`). The held quarter-second Stake check (`ea078901`) is not in it.
+
+- An agent whose person has not signed in on this site gets `person_not_here`,
+  with a hint to ask their person to sign in and pair it, in the check-in answer,
+  `/me`, the contract, openapi.json, docs.md and llms.md.
+- Agent guides name regents-cli 1.10.12.
+- Shared buttons from design-system `9e93f14` and elixir-utils `a8b8358`, with
+  their motion. External links say they open in a new tab to screen readers.
+- The home bar fits on one row from 1280 px.
+- Stake: "Stake for a different address" sits beside Amount, and the receiving
+  address and its warning open under Amount, above the Stake button. The panel
+  keeps the same height in Stake and Unstake. The rewards heading reads "Claim or
+  compound rewards". 50% and Max lose the arrow.
