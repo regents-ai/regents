@@ -1875,3 +1875,25 @@ Before release:
 - The menu behind the footer's nine dots is now headed "Regents Products", and
   its button says the same, as in ash-template `fadd0f7` (Sean, 16 Oct; it was
   "Regents Labs apps").
+
+## 2026-10-16 — Regents v190 (main `ee99f43d`)
+
+Released on Sean's "1. a" (RG-DEPS-W1-REL, 13:27Z), after Sentinel's GO on
+`b8f97b4d..ee99f43d`. No database migrations. Rollback is v189 (`b8f97b4d`).
+
+- Dependency wave 1: Bandit 1.13.1 from Hex (with the CVE-2026-105659 fix),
+  Ash 3.36.1, AshOban 0.10.1, Thousand Island 1.6.0, Privy react-auth 3.49.1,
+  and test-tool patches.
+- elixir-utils `97cc964`: an agent check-in is refused when this site has no
+  account for the person, and a refused check-in leaves last contact as it was.
+- The side panel pairs agents. On a wide screen it sits beside the page; on a
+  narrow one it slides in over the page and opens only when opened there. It
+  takes focus on opening, and Escape closes it. The Account page has its own
+  pairing box, so the side panel leaves that out there.
+- Pairing offers only the agents the shared library allows.
+- One footer for the home page, public pages and the app: Developer docs,
+  Agent guide, Privacy policy and Terms of use. Regents Products moves to the
+  top bar and lists products only. Agents see the number of WebMCP tools, with
+  a list that copies as Markdown.
+- Deploys use `make deploy`, which labels the image with the commit it was
+  built from.
