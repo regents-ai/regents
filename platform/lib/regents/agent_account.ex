@@ -7,9 +7,12 @@ defmodule Regents.AgentAccount do
   alias Regents.Accounts
   alias Regents.Actors.System
 
-  @spec account(String.t()) :: %{display_name: String.t() | nil, ens_name: String.t() | nil}
+  # Nil when this site has no account for the person; the check-in is then refused.
+  @spec account(String.t()) :: %{display_name: String.t() | nil, ens_name: String.t() | nil} | nil
   def account(privy_user_id) do
-    account = Accounts.get_by_privy_did!(privy_user_id, actor: %System{}, load: [:ens_name])
-    %{display_name: account.display_name, ens_name: account.ens_name}
+    case Accounts.get_by_privy_did(privy_user_id, actor: %System{}, load: [:ens_name]) do
+      {:ok, %{} = account} -> %{display_name: account.display_name, ens_name: account.ens_name}
+      {:ok, nil} -> nil
+    end
   end
 end
