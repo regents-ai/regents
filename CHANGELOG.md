@@ -1933,3 +1933,15 @@ check (`fd7fd384`) is not in it.
   too narrow for the button beside 50% and Max (phones, and 1100–1240 px), the
   button takes the whole row with Available and the shortcuts below it. "Unstake
   REGENT" keeps one line, so both modes have the same height.
+
+## 2026-10-16 — Homepage button refinement
+
+Approved by Sean for push and deployment after reviewing the local preview.
+No database migrations or changes to sign-in, staking or wallet behavior.
+
+- Product links use equal spacing and padding, a quieter fill and a fine outline.
+- The existing VGPU foil follows the pointer and brightens on press; the shared
+  Anime.js press moves the paint and label while the clickable area stays fixed.
+- Narrow screens preserve label padding; keyboard focus remains clear, and
+  reduced-motion and forced-color settings suppress the foil.
+- The homepage App button no longer has an arrow.

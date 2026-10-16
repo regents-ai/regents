@@ -14,7 +14,7 @@
   .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
   .rl-brand { display: flex; gap: var(--space-1); align-items: center; font-family: var(--font-family-title); text-decoration: none; }
   .rl-brand img { width: 2rem; height: 2rem; object-fit: contain; }
-  .rl-product-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; order: 3; width: 100%; max-width: 52rem; margin-inline: auto; }
+  .rl-product-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .625rem; order: 3; width: 100%; max-width: 52rem; margin-inline: auto; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
   .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
@@ -142,35 +142,67 @@
 }
 .rg-button.rl-token-link::after { content: none; }
 
-/* Rectangular navigation uses the shared button's interaction sheen, with
-   page-owned sizing and muted paint. The header/background remains unchanged. */
+/* Quiet, equally padded keys. The existing VGPU foil supplies the light;
+   the shared Anime.js press scales its paint and label, never its hit target. */
 .rg-button.rl-product-tab {
   --rg-cut-control: 0px;
-  --rg-p-accent: color-mix(in srgb, var(--rl-ink) 16%, var(--rl-bg));
+  --rg-p-accent: color-mix(in srgb, var(--rl-ink) 7%, var(--rl-bg));
   --rg-p-on-accent: var(--rl-ink);
   --rg-button-border-color: color-mix(in srgb, var(--rl-ink) 30%, transparent);
-  --rg-shimmer-color: color-mix(in srgb, var(--palette-tangerine-tango) 40%, transparent);
-  --rg-shimmer-duration: 1.6s;
-  min-width: 0; min-height: 3.25rem; padding: .75rem .5rem;
-  border-radius: 0; font-size: clamp(.8125rem, 1.1vw, .9375rem);
-  font-weight: 400; letter-spacing: .045em; text-transform: uppercase;
-  text-align: center; justify-content: center; white-space: nowrap;
+  min-width: 0; min-height: 3.25rem; padding: .875rem 1rem;
+  border-radius: 0; font-size: .8125rem; line-height: 1.25;
+  font-weight: 400; letter-spacing: .06em; text-transform: uppercase;
+  text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
-.rg-button.rl-product-tab::after { content: none; }
+.rg-button.rl-product-tab::after, .rg-button.rl-action::after { content: none; }
 .rg-button.rl-action { white-space: nowrap; }
-.rg-button.rl-product-tab::before { transition: background-color 150ms ease; }
-.rg-button.rl-product-tab:is(:hover, :focus-visible) { --rg-p-accent: color-mix(in srgb, var(--rl-ink) 21%, var(--rl-bg)); }
+.rg-button.rl-product-tab::before {
+  border: 1px solid var(--rg-button-border-color);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.rl-product-tab__foil {
+  inset: 0; z-index: -1; opacity: 0;
+  transform: scale(var(--rg-press-scale, 1));
+  transition: opacity 140ms ease;
+  /* Keep the material strongest at the edge and quiet underneath the label. */
+  mask-image: linear-gradient(#000, rgb(0 0 0 / .3) 35% 65%, #000);
+}
+.rg-button.rl-product-tab:focus-visible {
+  outline: 2px solid var(--palette-powder-blue); outline-offset: 4px;
+  --rg-button-border-color: var(--palette-powder-blue);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rg-button.rl-product-tab:hover {
+    --rg-p-accent: color-mix(in srgb, var(--rl-ink) 11%, var(--rl-bg));
+    --rg-button-border-color: color-mix(in srgb, var(--palette-powder-blue) 65%, transparent);
+  }
+  .rl-product-tab[data-holo-ready="true"]:hover .rl-product-tab__foil { opacity: .65; }
+  .rl-product-tab[data-holo-ready="true"]:active .rl-product-tab__foil { opacity: 1; }
+}
+.rg-button.rl-product-tab:active {
+  --rg-p-accent: color-mix(in srgb, var(--rl-ink) 17%, var(--rl-bg));
+  --rg-button-border-color: var(--palette-powder-blue);
+}
 @media (min-width: 77rem) {
   .rl-header-bar { display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, 44rem) minmax(max-content, 1fr); }
   .rl-product-tabs { order: 0; max-width: none; }
   .rl-header-bar > .rl-header-links { justify-self: end; margin-inline-start: 0; }
 }
-@media (max-width: 39.99rem) {
+@media (max-width: 49.99rem) {
   .rl-product-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rl-product-tabs > :last-child { grid-column: 1 / -1; }
 }
+@media (max-width: 23.99rem) {
+  .rg-button.rl-product-tab { font-size: .75rem; }
+}
 @media (prefers-reduced-motion: reduce) {
+  .rl-product-tab__foil { display: none; }
   .rg-button.rl-product-tab::before { transition: none; }
+}
+@media (forced-colors: active) {
+  .rl-product-tab__foil { display: none; }
+  .rg-button.rl-product-tab { border-color: ButtonText; color: LinkText; }
+  .rg-button.rl-product-tab:focus-visible { outline-color: Highlight; }
 }
 
 html[data-home-theme-locked="true"] [data-theme-toggle] { display: none; }

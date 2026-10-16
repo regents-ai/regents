@@ -174,8 +174,15 @@ defmodule RegentsWeb.HomeLive do
             target={new_tab? && "_blank"}
             rel={new_tab? && "noopener noreferrer"}
             class="rg-button rl-product-tab"
+            phx-hook="HolographicCard"
+            data-holo-crown="false"
+            data-holo-tilt="0"
+            data-holo-shine="0.65"
           >
-            {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
+            <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />
+            <span class="rg-button__label">
+              {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
+            </span>
           </a>
         </nav>
 
