@@ -1,8 +1,17 @@
+/* The side panel's width slides, so the page beside it gives way smoothly. */
+@property --shell-aside {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
 #app-shell {
+  --shell-aside-open: 20rem;
+  --shell-aside: var(--shell-aside-open);
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template: auto minmax(0, 1fr) / var(--rg-rail-width) minmax(0, 1fr);
+  grid-template: auto minmax(0, 1fr) / var(--rg-rail-width) minmax(0, 1fr) var(--shell-aside);
   min-width: 0;
   height: 100dvh;
   overflow: visible;
@@ -10,6 +19,13 @@
   color: var(--color-fg);
   font-family: var(--font-family-ui);
   line-height: 1.55;
+  transition: --shell-aside var(--duration-slow) var(--ease-out);
+}
+
+/* Closed, or signed out with no side panel at all, it keeps no room. */
+:root:not([data-aside="open"]) #app-shell,
+#app-shell:not(:has(#shell-aside)) {
+  --shell-aside: 0px;
 }
 
 #shell-header,
@@ -486,11 +502,6 @@
   #route-content {
     padding: 1rem;
   }
-
-  #shell-aside {
-    width: 100%;
-    border-inline-start: 0;
-  }
 }
 
 /* ---- Regents Products ---- */
@@ -589,26 +600,62 @@
 
 /* ---- Side panel ---- */
 
-/* It covers the page's right edge, below the dialogs that open over it. */
+/* On a wide screen it slides in beside the page, which narrows to make room. */
 #shell-aside {
-  position: fixed;
-  inset: 0 0 0 auto;
-  z-index: 30;
+  position: relative;
+  z-index: 3;
   display: grid;
+  grid-area: 2 / 3;
   align-content: start;
-  width: min(22rem, 100%);
-  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden auto;
   border-inline-start: 1px solid var(--color-border);
   background: var(--color-bg);
-  transition:
-    transform var(--duration-slow) var(--ease-out),
-    visibility var(--duration-slow);
+  /* Shown at once on opening, hidden only once it has slid shut. */
+  transition: visibility var(--duration-slow);
 }
 
-/* It slides in from the page's edge, and is hidden only once it has slid shut. */
+/* Its parts keep their width while it slides, so nothing inside rewraps. */
+#shell-aside > * {
+  min-inline-size: calc(var(--shell-aside-open) - 1px);
+}
+
 :root:not([data-aside="open"]) #shell-aside {
   visibility: hidden;
-  transform: translateX(100%);
+}
+
+/* Below a wide screen it covers the page's right edge, below the dialogs that
+   open over it, and slides in from that edge. */
+@media (max-width: 63.99rem) {
+  #app-shell {
+    --shell-aside: 0px;
+  }
+
+  #shell-aside {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 30;
+    width: min(22rem, 100%);
+    transition:
+      transform var(--duration-slow) var(--ease-out),
+      visibility var(--duration-slow);
+  }
+
+  #shell-aside > * {
+    min-inline-size: 0;
+  }
+
+  :root:not([data-aside="open"]) #shell-aside {
+    transform: translateX(100%);
+  }
+}
+
+@media (max-width: 48rem) {
+  #shell-aside {
+    width: 100%;
+    border-inline-start: 0;
+  }
 }
 
 #shell-aside:focus {
@@ -679,6 +726,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #app-shell,
   #shell-aside {
     transition: none;
   }
