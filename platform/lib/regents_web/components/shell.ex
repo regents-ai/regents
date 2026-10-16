@@ -8,6 +8,8 @@ defmodule RegentsWeb.Components.Shell do
 
   The right side bar and its button are there only for someone signed in, so a
   page signed out has nothing beside the Sign in button.
+
+  The top bar's nine-dot button opens the Regents Products menu.
   """
 
   use Phoenix.Component
@@ -26,6 +28,16 @@ defmodule RegentsWeb.Components.Shell do
     {"Documentation", "/docs"},
     {"Agent guide", "/llms.txt"},
     {"Contact", "/contact"}
+  ]
+
+  # The Regents Products, each shown with the crown in its own pair of brand
+  # colours. The other sites open in a new tab; this site's own page does not.
+  @regents_apps [
+    %{name: "Patchbay", href: "https://patchbay.help", tone: "patchbay", away?: true},
+    %{name: "Autolaunch", href: "https://autolaunch.sh", tone: "autolaunch", away?: true},
+    %{name: "Keyfleet", href: "https://keyfleet.ai", tone: "keyfleet", away?: true},
+    %{name: "Techtree", href: "https://techtree.sh", tone: "techtree", away?: true},
+    %{name: "$REGENT Staking", href: "/stake", tone: "protocol", away?: false}
   ]
 
   attr(:route_spec, :map, required: true)
@@ -87,6 +99,8 @@ defmodule RegentsWeb.Components.Shell do
         <div class="rl-header-links">
           <RegentLinks.header_links id="shell-token-menu" />
         </div>
+
+        <.apps_menu />
 
         <button
           :if={@credits}
@@ -436,7 +450,44 @@ defmodule RegentsWeb.Components.Shell do
     >
       <path :if={@name == :panel} d="M3 4h18v16H3zM15 4v16" />
       <path :if={@name == :close} d="M6 6l12 12M18 6 6 18" />
+      <g :if={@name == :apps} fill="currentColor" stroke="none">
+        <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
+      </g>
     </svg>
     """
   end
+
+  # The browser opens and closes the panel itself (`popover`), so it closes on
+  # Escape or a press anywhere else, and a page update never shuts it.
+  defp apps_menu(assigns) do
+    assigns = assign(assigns, :apps, @regents_apps)
+
+    ~H"""
+    <button
+      id="shell-apps-button"
+      class="shell-tool"
+      type="button"
+      popovertarget="shell-apps"
+      aria-label="Regents Products"
+    >
+      <.icon name={:apps} />
+    </button>
+    <nav id="shell-apps" class="shell-apps" popover aria-labelledby="shell-apps-title">
+      <h2 id="shell-apps-title">Regents Products</h2>
+      <ul>
+        <li :for={app <- @apps}>
+          <a href={app.href} target={app.away? && "_blank"} rel={app.away? && "noopener"}>
+            <span class="shell-apps__tile" data-tone={app.tone}>
+              <RegentLinks.source_icon kind={:regent} />
+            </span>
+            <span>{app.name}</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    """
+  end
+
+  defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
+
 end
