@@ -1,7 +1,9 @@
 // The side panel, which the browser alone opens and closes, as the template's
 // shell does. Its state lives on <html data-aside>, which the server first draws
 // from the cookie written here (RegentsWeb.Plugs.Panels), so LiveView never
-// patches it away.
+// patches it away. Where the side panel covers the page, it opens only when the
+// person opens it on that page (<html data-aside-here>), never from the
+// remembered state.
 
 const yearInSeconds = 60 * 60 * 24 * 365
 const cookie = "regents_aside"
@@ -14,7 +16,9 @@ function remember(value: string) {
 }
 
 const root = () => document.documentElement
-export const asideOpen = () => root().dataset.aside === "open"
+const covering = window.matchMedia("(max-width: 63.99rem)")
+const asideOpen = () =>
+  root().dataset.aside === "open" && (!covering.matches || root().dataset.asideHere !== undefined)
 
 /** Wires the side panel inside `scope`. Returns `sync`, to run after every page update, and `cleanup`. */
 export function installShellPanels(scope: Document | HTMLElement = document) {
@@ -31,6 +35,8 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
   const setAside = (open: boolean) => {
     const value = open ? "open" : "closed"
     root().dataset.aside = value
+    if (open) root().dataset.asideHere = ""
+    else delete root().dataset.asideHere
     remember(value)
     sync()
 
@@ -62,6 +68,7 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
 
   scope.addEventListener("click", onClick)
   document.addEventListener("keydown", onKeydown)
+  covering.addEventListener("change", sync)
 
   sync()
 
@@ -70,6 +77,7 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     cleanup: () => {
       scope.removeEventListener("click", onClick)
       document.removeEventListener("keydown", onKeydown)
+      covering.removeEventListener("change", sync)
     },
   }
 }

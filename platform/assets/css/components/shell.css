@@ -655,7 +655,12 @@
     transform: translateX(100%);
   }
 
-  :root[data-aside="open"] #shell-aside {
+  /* Covering the page, it opens only when opened on this page, never on arrival. */
+  :root:not([data-aside-here]) #shell-aside {
+    display: none;
+  }
+
+  :root[data-aside="open"][data-aside-here] #shell-aside {
     transition: transform var(--duration-slow) var(--ease-out);
   }
 }
@@ -737,7 +742,7 @@
 @media (prefers-reduced-motion: reduce) {
   #app-shell,
   #shell-aside,
-  :root[data-aside="open"] #shell-aside {
+  :root[data-aside="open"][data-aside-here] #shell-aside {
     transition: none;
   }
 }
