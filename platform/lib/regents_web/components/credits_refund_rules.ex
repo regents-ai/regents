@@ -23,7 +23,7 @@ defmodule RegentsWeb.CreditsRefundRules do
         Only you and the Regent team can read the post, and only the team replies. The team
         sees your Credits purchases and spending beside the post.
       </p>
-      <p>You can also write to <a href="mailto:support@regents.sh">support@regents.sh</a>.</p>
+      <p>You can also write to <a href="mailto:build@regents.sh">build@regents.sh</a>.</p>
       <p>
         If the team agrees to a refund, it goes back as USDC to the wallet that paid, on the
         same network it was paid on.

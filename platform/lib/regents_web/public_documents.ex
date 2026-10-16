@@ -84,7 +84,7 @@ defmodule RegentsWeb.PublicDocuments do
        "What Regents Labs does and how it differs, who uses it, the team, key facts and common questions about REGENT and its products."},
     "/contact" =>
       {"Contact",
-       "How to reach Regents Labs about privacy requests, legal questions, security reports and product information."},
+       "How to get help with Regents Labs, and where to send privacy requests, legal questions, security reports and product information."},
     "/start" =>
       {"Connect your agent",
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},

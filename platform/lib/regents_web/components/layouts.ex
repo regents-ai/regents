@@ -32,8 +32,10 @@ defmodule RegentsWeb.Layouts do
 
   @doc """
   The footer of the home page, every public page and the app's pages, the same
-  on every Regent site: the social links, Buy $REGENT and the site's documents.
-  Below a public page it sits at the foot of the screen however short the page is.
+  on every Regent site: the social links, Buy $REGENT, the site's documents and
+  its two plain-text guides for agents, which open in the browser's popover from
+  "Agent guide". Below a public page it sits at the foot of the screen however
+  short the page is.
   """
   def product_links(assigns) do
     ~H"""
@@ -51,11 +53,21 @@ defmodule RegentsWeb.Layouts do
         <a href={RegentsWeb.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
           Buy $REGENT
         </a>
-        <a href={~p"/docs"}>Docs</a>
         <a href={~p"/about"}>About</a>
+        <a href={~p"/docs"}>Developer docs</a>
+        <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
+          Agent guide
+        </button>
+        <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
+          <p>Give your agent one of these.</p>
+          <a href={~p"/agents.md"}>What agents can do here</a>
+          <a href={~p"/llms.txt"}>The whole site in brief</a>
+        </div>
         <a href={~p"/contact"}>Contact</a>
-        <a href={~p"/privacy"}>Privacy</a>
-        <a href={~p"/terms"}>Terms</a>
+        <span class="regent-footer__legal">
+          <a href={~p"/privacy"}>Privacy policy</a>
+          <a href={~p"/terms"}>Terms of use</a>
+        </span>
       </nav>
       <p>© 2026 Regents Labs</p>
     </footer>
