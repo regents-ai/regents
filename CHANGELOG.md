@@ -1949,7 +1949,7 @@ No database migrations or changes to sign-in, staking or wallet behavior.
 ## 2026-10-16 — Side panel agents and Pair New Agent (on main, not yet released)
 
 Ported from ash-template v96 (f36a9da4), with the shared library at elixir-utils
-1b73b6c2 and design-system 28888839 (which holds the template's df44fc34).
+583e2c60 and design-system 28888839 (which holds the template's df44fc34).
 No database migrations. Needs `SIWA_ACTIVITY_READ_TOKEN`, already set on regents-sh-web.
 
 - The side panel lists the signed-in person's agents, each with the site it was
@@ -1967,6 +1967,9 @@ No database migrations. Needs `SIWA_ACTIVITY_READ_TOKEN`, already set on regents
   are kept on the machine for five minutes (`Regents.Agents.ActivityReading`),
   replacing `Regents.AgentActivity` and its own sign-in service settings.
 - Agents told to pair are sent to Pair New Agent in the side panel: the
-  agent_not_paired hint, the API description, agents.md, llms.md, the /start
-  page and prompts, the site tools and cli/COMMANDS.md.
+  agent_not_paired hint, the API description, agents.md, llms.md, docs.md, the
+  /start page and prompts, the site tools, cli/COMMANDS.md and cli/commands.json.
+  The /start page's first step has a Pair New Agent link that opens the panel.
+- An agent's sites include the Regents mobile app (elixir-utils 583e2c60), so its
+  days there are no longer left out.
 - An open pill menu closes on Escape or a tap outside it, iPhones included.

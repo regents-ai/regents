@@ -46,7 +46,7 @@ defmodule RegentsWeb.AgentStartLive do
             <p>
               Sign in, then open Pair New Agent in the side panel and choose your agent. The code works once, for ten minutes.
             </p>
-            <.link navigate={~p"/account"}>Open Account</.link>
+            <.link navigate={~p"/account"} data-aside-open>Pair New Agent</.link>
           </li>
           <li>
             <h3>Your agent pairs</h3>
