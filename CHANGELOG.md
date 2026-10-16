@@ -1916,10 +1916,13 @@ v190 (`ee99f43d`). The held quarter-second Stake check (`ea078901`) is not in it
   keeps the same height in Stake and Unstake. The rewards heading reads "Claim or
   compound rewards". 50% and Max lose the arrow.
 
-## 2026-10-16 — Agent wording and narrow-screen layout (on main, not yet released)
+## 2026-10-16 — Regents v192 (main `3c816f79`): agent wording, narrow-screen layout and homepage buttons
 
-No protected area and no database migrations. The held quarter-second Stake
-check (`fd7fd384`) is not in it.
+Live as Fly v192 at 19:42Z after Sentinel's GO on `ec0f2094..3c816f79` (19:37Z),
+and deployed again as Fly v193 at 20:44Z on Sean's "1. a" (20:38Z), the same
+image. Covers this entry and "Homepage button refinement" below. No protected
+area and no database migrations. Rollback is v191 (`ec0f2094`). The held
+quarter-second Stake check is not in it.
 
 - Agents read "this site", never "this website" or "/account". `person_not_here`
   says: "Ask your person to sign in on this site once, then send the request
@@ -1946,7 +1949,14 @@ No database migrations or changes to sign-in, staking or wallet behavior.
   reduced-motion and forced-color settings suppress the foil.
 - The homepage App button no longer has an arrow.
 
-## 2026-10-16 — Side panel agents and Pair New Agent (on main, not yet released)
+## 2026-10-16 — Regents v194 (main `01a9f9ac`): side panel agents and Pair New Agent
+
+Released as Fly v194 at 20:51Z on Sean's "4. a" (20:38Z), after Sentinel's GO on
+`6c0474df`, its delta reads of `40695b94` and `01a9f9ac`, and elixir-utils
+`03433b80`. Protected: sign-in area and agent pairing. Rollback is Fly v193
+(`3c816f79`). The held quarter-second Stake check is not in it. Live walk headless
+signed out at 390 and 1440 px: /, /stake and /start load with no page errors and
+no sideways spill, and /start's Pair New Agent lands on /account.
 
 Ported from ash-template v96 (f36a9da4) and v98's 8c33273, with the shared library
 at elixir-utils 03433b80 and design-system 28888839 (which holds the template's
