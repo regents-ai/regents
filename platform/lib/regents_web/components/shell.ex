@@ -9,13 +9,14 @@ defmodule RegentsWeb.Components.Shell do
   The right side bar and its button are there only for someone signed in, so a
   page signed out has nothing beside the Sign in button.
 
-  The top bar's nine-dot button opens the Regents Products menu.
+  The top bar's nine-dot button opens the Regents Products menu, and the
+  footer's button the list of tools agents see.
   """
 
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  alias RegentsWeb.Components.RegentLinks
+  alias RegentsWeb.Components.{AgentTools, RegentLinks}
 
   alias RegentsWeb.RouteCatalog.{
     PageTarget,
@@ -197,7 +198,7 @@ defmodule RegentsWeb.Components.Shell do
         <main id="route-content">
           {render_slot(@content)}
         </main>
-        <RegentsWeb.Layouts.product_links />
+        <RegentsWeb.Layouts.product_links agent_tools />
       </div>
 
       <aside
@@ -246,6 +247,8 @@ defmodule RegentsWeb.Components.Shell do
           </ul>
         </section>
       </aside>
+
+      <AgentTools.dialog id="shell-agent-tools" />
     </div>
     """
   end

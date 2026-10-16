@@ -31,6 +31,7 @@ import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
+import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
@@ -320,6 +321,7 @@ installAccountAuthLazyLoader()
 installPublicTools()
 installCrossTabCsrf()
 installCopyButtons()
+installAgentTools()
 installLiteratureChart()
 // A page drawn after navigation starts with its panel toggles closed; they follow the panel.
 const shellPanels = installShellPanels()

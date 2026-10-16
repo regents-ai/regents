@@ -26,6 +26,10 @@ defmodule RegentsWeb.Layouts do
     default: true,
     doc: "false on the home page, which is always dark"
 
+  attr :agent_tools, :boolean,
+    default: false,
+    doc: "true in the app, which has no bottom bar to hold the tools button"
+
   @doc """
   The footer of the home page, every public page and the app's pages, the same
   on every Regent site: the social links, Buy $REGENT and the site's documents.
@@ -37,6 +41,11 @@ defmodule RegentsWeb.Layouts do
       <div class="regent-footer__social">
         <RegentsWeb.Components.RegentLinks.social_links />
         <RegentsWeb.Components.Shell.theme_toggle :if={@theme_toggle} id="footer-theme-control" />
+        <RegentsWeb.Components.AgentTools.button
+          :if={@agent_tools}
+          id="shell-agent-tools-button"
+          dialog="shell-agent-tools"
+        />
       </div>
       <nav class="regent-footer__links" aria-label="About Regents Labs">
         <a href={RegentsWeb.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">

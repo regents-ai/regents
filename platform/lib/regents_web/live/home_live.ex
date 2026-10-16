@@ -2,7 +2,7 @@ defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
   alias Regents.SiteTools
-  alias RegentsWeb.Components.{CodeCube, RegentLinks, WorldCube}
+  alias RegentsWeb.Components.{AgentTools, CodeCube, RegentLinks, WorldCube}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
   @staking_summary "Stake $REGENT for a share of USDC revenue of the protocol and additional emissions."
@@ -201,7 +201,11 @@ defmodule RegentsWeb.HomeLive do
       <div class="rl-hero-copy">
         <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
         <p class="rl-hero-description">The community-owned agentic product lab</p>
+        <div class="rl-hero-actions">
+          <AgentTools.button id="home-agent-tools-button" dialog="home-agent-tools" />
+        </div>
       </div>
+      <AgentTools.dialog id="home-agent-tools" />
       <div id="home-twin-labels" class="rl-twin-labels" phx-update="ignore" aria-hidden="true">
         <p class="rl-twin-label" data-twin-label>Human Browsing</p>
         <p class="rl-twin-label" data-twin-label>Agentic WebMCP</p>
