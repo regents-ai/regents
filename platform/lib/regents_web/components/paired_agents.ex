@@ -7,14 +7,9 @@ defmodule RegentsWeb.Components.PairedAgents do
 
   use RegentsWeb, :html
 
-  alias RegentAgents.{Harness, HumanBacking, PairingCode}
-  alias RegentsWeb.AgentStart
-
-  # Stands in for a code before one is made, so the message keeps its size.
-  @no_code String.duplicate("X", 24)
+  alias RegentAgents.{Harness, HumanBacking}
 
   attr :agents, :any, required: true
-  attr :pairing, :map, default: nil, doc: "`%{harness, code}` once an agent is chosen"
   attr :detail, :map, default: nil
   attr :notice, :any, default: nil, doc: "`{:status | :alert, text}` for the last agent edit"
   attr :now, DateTime, required: true
@@ -41,26 +36,12 @@ defmodule RegentsWeb.Components.PairedAgents do
           </Regent.Primitives.button>
         </:actions>
         <:footer>
-          <div class="account-agents__pair">
-            <h3 id="account-agents-pair-title">
-              Select your personal agent you will pair to your Regents Account
-            </h3>
-            <form id="account-agents-choose" phx-change="issue_pairing_code">
-              <fieldset class="account-agents__choices" aria-labelledby="account-agents-pair-title">
-                <label :for={harness <- Harness.values()} class="account-agents__choice">
-                  <input
-                    type="radio"
-                    name="harness"
-                    value={harness}
-                    checked={match?(%{harness: ^harness}, @pairing)}
-                    class="visually-hidden"
-                  />
-                  <Regent.Account.agent_mark kind={to_string(harness)} />{Harness.label(harness)}
-                </label>
-              </fieldset>
-            </form>
-            <.pairing pairing={@pairing} />
-          </div>
+          <.live_component
+            module={RegentsWeb.PairingBox}
+            id="account-agents-pair"
+            lease={@lease}
+            account={@account}
+          />
 
           <.agent_dialog
             :if={@detail}
@@ -97,108 +78,6 @@ defmodule RegentsWeb.Components.PairedAgents do
 
   defp notice_text({_role, text}), do: text
   defp notice_text(nil), do: nil
-
-  attr :pairing, :map, default: nil
-
-  # One layout for every state, so choosing an agent never changes the panel's
-  # height: each agent's message sits in the same place, and what a state lacks
-  # keeps its space, unseen.
-  defp pairing(assigns) do
-    {harness, code} =
-      case assigns.pairing do
-        %{harness: harness, code: code} -> {harness, code}
-        nil -> {nil, nil}
-      end
-
-    issued = match?(%PairingCode.Issued{}, code)
-    shown_code = if issued, do: code.code, else: @no_code
-
-    assigns =
-      assign(assigns,
-        harness: harness,
-        code: code,
-        issued: issued,
-        message: if(issued, do: agent_message(shown_code, harness)),
-        messages: Harness.values() |> Enum.map(&agent_message(shown_code, &1)) |> Enum.uniq(),
-        expires_at: if(issued, do: code.expires_at)
-      )
-
-    ~H"""
-    <div id="account-agents-pairing" class="account-agents__code">
-      <ol class="account-agents__steps">
-        <li>Copy this message.</li>
-        <li>Paste it to your agent wherever you chat with it.</li>
-        <li>Your agent appears here once it pairs. This page updates on its own.</li>
-      </ol>
-      <div class="account-agents__message" role="status">
-        <pre :for={message <- @messages} data-unused={message != @message}><code>{message}</code></pre>
-        <.pairing_words code={@code} />
-      </div>
-      <div class="account-agents__actions">
-        <Regent.Primitives.copy_button
-          id="account-agents-copy"
-          text={@message || ""}
-          variant="primary"
-          data-unused={!@issued}
-        >
-          Copy message
-        </Regent.Primitives.copy_button>
-        <Regent.Primitives.button
-          id="account-agents-pair"
-          type="button"
-          variant="secondary"
-          phx-click="issue_pairing_code"
-          phx-value-harness={@harness}
-          phx-disable-with="Making a code…"
-          data-unused={is_nil(@harness)}
-        >
-          Make a new code
-        </Regent.Primitives.button>
-      </div>
-      <p class="account-agents__expiry" data-unused={!@issued}>
-        The code works once, until <.expiry expires_at={@expires_at} />.
-      </p>
-    </div>
-    """
-  end
-
-  attr :code, :any, required: true
-
-  defp pairing_words(%{code: nil} = assigns) do
-    ~H"""
-    <p class="account-agents__words">Choose your agent to get its message.</p>
-    """
-  end
-
-  defp pairing_words(%{code: {:paired, agent}} = assigns) do
-    assigns = assign(assigns, :agent, agent)
-
-    ~H"""
-    <p class="account-agents__words account-agents__paired">
-      {@agent.name} paired with your account. It is listed above.
-    </p>
-    """
-  end
-
-  defp pairing_words(%{code: :unavailable} = assigns) do
-    ~H"""
-    <p class="account-agents__words">
-      A pairing code couldn’t be made right now. Try again in a moment.
-    </p>
-    """
-  end
-
-  defp pairing_words(assigns), do: ~H""
-
-  attr :expires_at, :any, required: true, doc: "a `DateTime`, or nil before a code is made"
-
-  defp expiry(%{expires_at: nil} = assigns), do: ~H"<time>00:00 UTC</time>"
-
-  defp expiry(assigns) do
-    ~H"""
-    <time datetime={DateTime.to_iso8601(@expires_at)}>{Calendar.strftime(@expires_at, "%H:%M UTC")}</time>
-    """
-  end
 
   attr :id, :string, required: true
   attr :notice, :any, required: true
@@ -418,15 +297,6 @@ defmodule RegentsWeb.Components.PairedAgents do
         Older activity couldn’t be read right now. Try again.
       </p>
     </div>
-    """
-  end
-
-  # What the person pastes to their agent: the code and its own steps on /start.
-  defp agent_message(code, harness) do
-    """
-    Pair with my Regents account.
-    Pairing code: #{code}
-    Follow the steps for you at #{AgentStart.link(harness)}\
     """
   end
 

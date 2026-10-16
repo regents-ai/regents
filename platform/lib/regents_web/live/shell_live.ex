@@ -171,6 +171,14 @@ defmodule RegentsWeb.ShellLive do
           client_tag={@client_tag}
         />
       </:credits_panel>
+      <:pairing :if={current_account(@access_context)}>
+        <.live_component
+          module={RegentsWeb.PairingBox}
+          id="shell-pairing-box"
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+      </:pairing>
       <:content>
         <.link
           :if={@route_spec.route_id == :blog && Regents.Blog.admin?(current_account(@access_context))}
@@ -242,7 +250,6 @@ defmodule RegentsWeb.ShellLive do
           verified_connections={@verified_connections}
           verified_connections_notice={@verified_connections_notice}
           agents={@paired_agents}
-          agent_pairing={@agent_pairing}
           agent_detail={@agent_detail}
           agent_notice={@agent_notice}
           agents_now={@agents_now}

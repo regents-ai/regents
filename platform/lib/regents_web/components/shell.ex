@@ -7,7 +7,8 @@ defmodule RegentsWeb.Components.Shell do
   `<html data-aside>`), so the server never stores it.
 
   The right side bar and its button are there only for someone signed in, so a
-  page signed out has nothing beside the Sign in button.
+  page signed out has nothing beside the Sign in button. It holds the box to
+  pair an agent (the `pairing` slot) and a link to the agents on the Account page.
 
   The top bar's nine-dot button opens the Regents Products menu, and the
   footer's button the list of tools agents see.
@@ -24,12 +25,6 @@ defmodule RegentsWeb.Components.Shell do
     SidebarHeading,
     ViewerProfileTarget
   }
-
-  @help [
-    {"Documentation", "/docs"},
-    {"Agent guide", "/llms.txt"},
-    {"Contact", "/contact"}
-  ]
 
   # The Regents Products, each shown with the crown in its own pair of brand
   # colours. The other sites open in a new tab; this site's own page does not.
@@ -52,6 +47,7 @@ defmodule RegentsWeb.Components.Shell do
 
   slot(:content, required: true)
   slot(:credits_panel, doc: "The Buy Credits panel, opened from the header's balance.")
+  slot(:pairing, doc: "The box to pair an agent, in the right side bar.")
 
   def shell(assigns) do
     ~H"""
@@ -234,17 +230,10 @@ defmodule RegentsWeb.Components.Shell do
           </div>
         </section>
 
-        <section class="shell-promo" aria-labelledby="shell-promo-title">
-          <p class="shell-promo__kicker">New</p>
-          <h3 id="shell-promo-title">Pair your agent</h3>
-          <a href="/agents.md">How it works</a>
-        </section>
-
-        <section id="shell-aside-help" aria-labelledby="shell-help-title">
-          <h3 id="shell-help-title">Help</h3>
-          <ul>
-            <li :for={{label, path} <- help()}><a href={path}>{label}</a></li>
-          </ul>
+        <section id="shell-pairing" aria-labelledby="shell-pairing-title">
+          <h3 id="shell-pairing-title">Pair your agent</h3>
+          {render_slot(@pairing)}
+          <.link patch="/account#account-agents">Manage Agents</.link>
         </section>
       </aside>
 
@@ -252,8 +241,6 @@ defmodule RegentsWeb.Components.Shell do
     </div>
     """
   end
-
-  defp help, do: @help
 
   defp credits_label(%{state: :ready, value: balance}),
     do: RegentCredits.Amount.format(balance.available)
@@ -492,5 +479,4 @@ defmodule RegentsWeb.Components.Shell do
   end
 
   defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
-
 end

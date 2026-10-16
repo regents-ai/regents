@@ -30,13 +30,6 @@ defmodule RegentsWeb.AgentStart do
 
   def agent(id), do: Enum.find(@agents, hd(@agents), &(&1.id == id))
 
-  @doc "The address of the steps for an agent on `harness`."
-  def link(harness) do
-    id = Atom.to_string(harness)
-    id = if Enum.any?(@agents, &(&1.id == id)), do: id, else: "other"
-    "#{origin()}/start?agent=#{id}"
-  end
-
   @doc "What a person gives their agent: the steps for its client, ready to paste."
   def instruction(%{client: :cli} = agent) do
     """

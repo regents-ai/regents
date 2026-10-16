@@ -25,7 +25,6 @@ defmodule RegentsWeb.AccountLive do
   attr :verified_connections, :list, default: []
   attr :verified_connections_notice, :map, default: nil
   attr :agents, :any, default: nil
-  attr :agent_pairing, :any, default: nil
   attr :agent_detail, :map, default: nil
   attr :agent_notice, :any, default: nil
   attr :agents_now, DateTime, default: nil
@@ -133,7 +132,6 @@ defmodule RegentsWeb.AccountLive do
 
         <.paired_agents
           agents={@agents}
-          pairing={@agent_pairing}
           detail={@agent_detail}
           notice={@agent_notice}
           now={@agents_now}

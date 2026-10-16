@@ -3,26 +3,36 @@ defmodule RegentsWeb.ShellLive.Account do
   The Account page: the wallet's primary name, verified connections, the names
   the signed-in wallets hold and may still claim, and paired agents. Every read
   here is the account's own, made with the wallets its sign-in verified, so
-  nothing the browser sends can widen it. Agent changes from other tabs are
-  heard only while this page is open.
+  nothing the browser sends can widen it. Agent changes from other tabs and
+  sites reach the side panel's pairing box on every page, and this page's own
+  list and box while it is open.
   """
 
   import Phoenix.Component, only: [assign: 2]
 
   import Phoenix.LiveView,
-    only: [connected?: 1, put_flash: 3, push_event: 3, start_async: 3, stream: 3, stream: 4]
+    only: [
+      connected?: 1,
+      put_flash: 3,
+      push_event: 3,
+      send_update: 2,
+      start_async: 3,
+      stream: 3,
+      stream: 4
+    ]
 
-  alias RegentAgents.{Harness, PairedAgent, PairingCode, Person}
+  alias RegentAgents.{PairedAgent, Person}
   alias Regents.{Accounts, AgentActivity, Ens, Names}
   alias Regents.Accounts.LinkedIdentity.Providers
   alias Regents.Actors.Human
   alias RegentsWeb.EventInput
+  alias RegentsWeb.PairingBox
   alias RegentsWeb.ShellLive.Identity
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @names_page_size 50
   @blank_claim_name %{value: "", problems: [], availability: nil}
-  @page_events ~w(load_more_names check_claim_name claim_name issue_pairing_code open_agent load_more_activity unpair_agent)
+  @page_events ~w(load_more_names check_claim_name claim_name open_agent load_more_activity unpair_agent)
   # Far longer than any name a person claims; the name's own rules say what is too long.
   @claim_name_limit 255
 
@@ -34,13 +44,13 @@ defmodule RegentsWeb.ShellLive.Account do
   def init(socket) do
     socket
     |> stream(:account_names, [])
-    |> assign(agents_topic: nil, agents_now: DateTime.utc_now())
+    |> assign(agents_now: DateTime.utc_now())
+    |> follow_agents()
     |> cleared()
   end
 
   def route(socket, %{route_id: :account}) do
     socket
-    |> follow_agents()
     |> load_ens()
     |> reload_verified_connections()
     |> load_names()
@@ -48,7 +58,7 @@ defmodule RegentsWeb.ShellLive.Account do
     |> load_paired_agents()
   end
 
-  def route(socket, _route_spec), do: socket |> unfollow_agents() |> cleared()
+  def route(socket, _route_spec), do: cleared(socket)
 
   defp cleared(socket) do
     assign(socket,
@@ -59,31 +69,22 @@ defmodule RegentsWeb.ShellLive.Account do
       verified_connections: [],
       verified_connections_notice: nil,
       paired_agents: nil,
-      agent_pairing: nil,
       agent_detail: nil,
       agent_notice: nil
     )
   end
 
-  # Agents pair, check in and change from other tabs; only this page shows them.
-  defp follow_agents(%{assigns: %{agents_topic: nil}} = socket) do
+  # Agents pair, check in and change from other tabs and other Regent sites. The
+  # side panel's pairing box is on every page, so every signed-in page follows
+  # them. Signing in or out reloads the page, so the person followed is the
+  # page's own for as long as it is open.
+  defp follow_agents(socket) do
     with true <- connected?(socket),
          %Person{privy_user_id: id} <- agent_person(socket) do
-      topic = RegentAgents.topic(id)
-      Phoenix.PubSub.subscribe(Regents.PubSub, topic)
-      assign(socket, agents_topic: topic)
-    else
-      _not_followed -> socket
+      Phoenix.PubSub.subscribe(Regents.PubSub, RegentAgents.topic(id))
     end
-  end
 
-  defp follow_agents(socket), do: socket
-
-  defp unfollow_agents(%{assigns: %{agents_topic: nil}} = socket), do: socket
-
-  defp unfollow_agents(socket) do
-    Phoenix.PubSub.unsubscribe(Regents.PubSub, socket.assigns.agents_topic)
-    assign(socket, agents_topic: nil)
+    socket
   end
 
   def handle_event(
@@ -142,16 +143,6 @@ defmodule RegentsWeb.ShellLive.Account do
   def handle_event("claim_name", %{"name" => name}, socket)
       when is_binary(name) and byte_size(name) <= @claim_name_limit,
       do: claim_name(socket, name)
-
-  # Choosing an agent, or asking again for the chosen one, makes a code with that
-  # agent's message; codes made before keep working until they expire.
-  def handle_event("issue_pairing_code", %{"harness" => harness}, socket)
-      when is_binary(harness) do
-    case Harness.match(harness) do
-      {:ok, harness} -> issue_pairing_code(socket, harness)
-      :error -> socket
-    end
-  end
 
   def handle_event("open_agent", %{"id" => id}, socket) when is_binary(id),
     do: socket |> assign(agent_notice: nil) |> show_agent(id, agent_person(socket))
@@ -241,11 +232,21 @@ defmodule RegentsWeb.ShellLive.Account do
 
   def ens_finished(socket), do: socket
 
-  @doc "An agent paired, checked in, or was changed from another tab."
-  def agents_changed(%{assigns: %{route_spec: %{route_id: :account}}} = socket),
-    do: reload_paired_agents(socket, agent_person(socket))
+  @doc """
+  An agent paired, checked in or was unpaired, here or on another Regent site.
+  The side panel's pairing box is on every page; the Account page adds its own
+  and the list of agents.
+  """
+  def agents_changed(%{assigns: %{route_spec: %{route_id: :account}}} = socket) do
+    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
+    send_update(PairingBox, id: "account-agents-pair", agents_changed: true)
+    reload_paired_agents(socket, agent_person(socket))
+  end
 
-  def agents_changed(socket), do: socket
+  def agents_changed(socket) do
+    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
+    socket
+  end
 
   # Sign-in read the wallet's primary name once. A wallet never answered for, or
   # last answered for more than a day ago, is asked again when its own page
@@ -492,12 +493,7 @@ defmodule RegentsWeb.ShellLive.Account do
         reload_paired_agents(socket, actor)
 
       nil ->
-        assign(socket,
-          paired_agents: nil,
-          agent_pairing: nil,
-          agent_detail: nil,
-          agent_notice: nil
-        )
+        assign(socket, paired_agents: nil, agent_detail: nil, agent_notice: nil)
     end
   end
 
@@ -510,30 +506,13 @@ defmodule RegentsWeb.ShellLive.Account do
         {:error, _error} -> :unavailable
       end
 
-    socket =
-      assign(socket,
-        paired_agents: agents,
-        agents_now: DateTime.utc_now(),
-        agent_pairing: pairing_after(socket.assigns.agent_pairing, agents)
-      )
+    socket = assign(socket, paired_agents: agents, agents_now: DateTime.utc_now())
 
     case socket.assigns.agent_detail do
       %{agent: %{id: id}} -> show_agent(socket, id, actor)
       nil -> socket
     end
   end
-
-  # A code on screen gives way to the agent that used it, so a spent code is
-  # never left there to send again.
-  defp pairing_after(%{code: %PairingCode.Issued{issued_at: issued_at}} = shown, agents)
-       when is_list(agents) do
-    case Enum.find(agents, &(DateTime.compare(&1.paired_at, issued_at) != :lt)) do
-      nil -> shown
-      agent -> %{shown | code: {:paired, agent}}
-    end
-  end
-
-  defp pairing_after(shown, _agents), do: shown
 
   # What the agent has done and its registry listing are read from the sign-in
   # service in the background. What is already on screen for this agent stays until the new reading lands. Once the
@@ -621,14 +600,4 @@ defmodule RegentsWeb.ShellLive.Account do
 
   defp agent_notice({:error, _unavailable}),
     do: {:alert, "Your agents couldn’t be updated just now. Nothing changed. Try again."}
-
-  defp issue_pairing_code(socket, harness) do
-    code =
-      case RegentAgents.issue_pairing_code(actor: agent_person(socket)) do
-        {:ok, issued} -> issued
-        {:error, _error} -> :unavailable
-      end
-
-    assign(socket, agent_pairing: %{harness: harness, code: code}, agent_notice: nil)
-  end
 end

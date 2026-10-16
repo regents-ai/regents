@@ -11,7 +11,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   @listing "https://www.8004scan.io/agents/base/97609"
 
   # The pairing message on show; every other agent's waits unseen in its place.
-  @message "#account-agents-pairing pre:not([data-unused])"
+  @message "#account-agents-pair pre:not([data-unused])"
 
   # The sign-in service knows of nothing the agent did, and of no registry
   # listing, unless a test says so.
@@ -41,26 +41,29 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     choose(view, "hermes")
     assert has_element?(view, @message, "Pair with my Regents account.")
-    assert has_element?(view, @message, "/start?agent=hermes")
+    assert has_element?(view, @message, "/llms.txt")
     first = pairing_code(view)
 
     choose(view, "muse")
-    assert has_element?(view, @message, "/start?agent=muse")
+    assert has_element?(view, @message, "SIWA_BROKER")
     second = pairing_code(view)
     refute second == first
 
-    view |> element("#account-agents-pair", "Make a new code") |> render_click()
-    assert has_element?(view, @message, "/start?agent=muse")
+    view |> form("#account-agents-pair") |> render_submit()
+    assert has_element?(view, @message, "SIWA_BROKER")
     refute pairing_code(view) in [first, second]
 
     assert {:ok, agent} = RegentAgents.pair_agent(first, "Sol", :hermes, actor: @agent)
 
     heard(account)
+    # The page hands the change on to its pairing boxes in an update to itself,
+    # which lands after this first render.
+    render(view)
 
     # The agent that paired takes the code's place.
-    assert has_element?(view, "#account-agents-pairing", "Sol paired with your account.")
+    assert has_element?(view, "#account-agents-pair", "Sol paired with your account.")
     refute has_element?(view, @message)
-    assert has_element?(view, "#account-agents-pair:not([data-unused])", "Make a new code")
+    assert has_element?(view, "#account-agents-pair-new:not([data-unused])", "Make a new code")
     assert has_element?(view, "#account-agents-agent-#{agent.id} span", "Hermes")
     assert has_element?(view, "#account-agents-agent-#{agent.id} time", "just now")
   end
@@ -274,7 +277,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              RegentAgents.list_my_agents(actor: person(account))
   end
 
-  test "AGENTS_FOLLOWED_ONLY_HERE: agent changes are heard while the Account page is open",
+  test "AGENTS_FOLLOWED_ON_EVERY_PAGE: agent changes are heard on every signed-in page, once",
        %{conn: conn} do
     account = register_account("agents-follow")
     view = open_account(conn, account)
@@ -283,11 +286,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert following?(view, topic)
 
     render_patch(view, "/stake")
-    refute following?(view, topic)
+    assert following?(view, topic)
     agent = pair!(account, "Away", :hermes)
 
     render_patch(view, "/account")
-    assert following?(view, topic)
     assert has_element?(view, "#account-agents-agent-#{agent.id}")
 
     render_patch(view, "/account?again=1")
@@ -318,7 +320,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   defp person(account), do: %Person{privy_user_id: account.privy_user_id}
 
   defp choose(view, harness),
-    do: view |> form("#account-agents-choose", %{harness: harness}) |> render_change()
+    do: view |> form("#account-agents-pair", %{harness: harness}) |> render_change()
 
   defp pairing_code(view) do
     [_, code] =
