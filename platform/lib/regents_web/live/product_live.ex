@@ -165,12 +165,17 @@ defmodule RegentsWeb.ProductLive do
         <p class="product-lede">{@content.summary}</p>
         <p :if={@content.launch_notice} class="product-lede">{@content.launch_notice}</p>
         <nav class="product-actions" aria-label={"#{@content.name} site"}>
-          <.external href={@content.site} class="rg-button">
-            Open {@content.name}
-          </.external>
-          <.external href={@content.start.href} class="rg-button rg-button--secondary">
-            {@content.start.label}
-          </.external>
+          <a href={@content.site} target="_blank" rel="noopener noreferrer" class="rg-button">
+            <span class="rg-button__label">Open {@content.name}<span class="visually-hidden">, opens in a new tab</span></span>
+          </a>
+          <a
+            href={@content.start.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rg-button rg-button--secondary"
+          >
+            <span class="rg-button__label">{@content.start.label}<span class="visually-hidden">, opens in a new tab</span></span>
+          </a>
         </nav>
         <Regent.Primitives.disclosure
           :if={@content.tech_stack != []}
@@ -244,15 +249,12 @@ defmodule RegentsWeb.ProductLive do
   end
 
   attr :href, :string, required: true
-  attr :class, :any, default: nil
   slot :inner_block, required: true
 
   def external(assigns) do
     ~H"""
-    <a href={@href} target="_blank" rel="noopener noreferrer" class={@class}>
-      <span class="rg-button__label">
-        {render_slot(@inner_block)} <span aria-hidden="true">↗</span>
-      </span>
+    <a href={@href} target="_blank" rel="noopener noreferrer">
+      {render_slot(@inner_block)} <span aria-hidden="true">↗</span>
     </a>
     """
   end

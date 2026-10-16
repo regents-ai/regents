@@ -992,7 +992,7 @@ defmodule RegentsWeb.RedeemLive do
           href={@href}
           target="_blank"
           rel="noopener noreferrer"
-        >View collection on OpenSea ↗</a>
+        ><span class="rg-button__label">View collection on OpenSea<span class="visually-hidden">, opens in a new tab</span></span></a>
         <.link
           :if={@kind == "result"}
           class="rg-button rg-button--secondary"

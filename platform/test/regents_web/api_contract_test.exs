@@ -365,6 +365,7 @@ defmodule RegentsWeb.ApiContractTest do
     assert Map.keys(me["responses"]) |> Enum.sort() == [
              "200",
              "401",
+             "403",
              "404",
              "409",
              "429",

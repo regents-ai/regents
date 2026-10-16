@@ -36,8 +36,7 @@ defmodule RegentsWeb.RedeemGalleryLive do
             rel="noopener noreferrer"
             class="rg-button rg-button--secondary"
           >
-            <span class="rg-button__label">View collection on OpenSea
-            <span aria-hidden="true">↗</span></span>
+            <span class="rg-button__label">View collection on OpenSea<span class="visually-hidden">, opens in a new tab</span></span>
           </a>
         </nav>
         <div class="gallery-filter">

@@ -71,8 +71,8 @@ defmodule RegentsWeb.Plugs.PairedAgent do
           conn,
           403,
           "person_not_here",
-          "The paired owner has no Regents account yet.",
-          "Ask your owner to sign in at /account here, then sign fresh proof."
+          "The person this agent is paired with hasn't signed in on this site yet.",
+          "Ask your person to sign in on this website once, then send the request again."
         )
 
       {:error, _} ->

@@ -56,7 +56,7 @@ A person makes a one-time pairing code on their [Account]({{origin}}/account) pa
 Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line, install it and sign in once:
 
 ```sh
-uv tool install regents-cli==1.10.7
+uv tool install regents-cli==1.10.12
 regents auth login --site regents
 regents protocol agents whoami --json
 ```
@@ -93,7 +93,7 @@ The check-in answer looks like this:
 {"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "registry_listing": "https://www.8004scan.io/agents/base/97609", "human_backed": false, "same_person_agent_count": null, "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
-Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `409 agent_limit` means the person's account already has 100 paired agents; once they unpair one, the same code works until it expires. `401 verification_failed` means the signature could not be verified; `401 duplicate_proof`, `401 unsupported_query` and `401 missing_signed_body` mean a signature header was sent twice, the request carried a query string, or its body could not be read whole, so sign it again as the guide describes; any other refusal of the signature comes from the sign-in service with its own status, code, message and hint, such as `409 request_replayed`; the hint is written for this site and the way the agent signs. `503 siwa_request_failed` means the sign-in service could not be reached; try again in a minute. `404 not_paired` from a check-in means the person unpaired the agent.
+Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `409 agent_limit` means the person's account already has 100 paired agents; once they unpair one, the same code works until it expires. `401 verification_failed` means the signature could not be verified; `401 duplicate_proof`, `401 unsupported_query` and `401 missing_signed_body` mean a signature header was sent twice, the request carried a query string, or its body could not be read whole, so sign it again as the guide describes; any other refusal of the signature comes from the sign-in service with its own status, code, message and hint, such as `409 request_replayed`; the hint is written for this site and the way the agent signs. `503 siwa_request_failed` means the sign-in service could not be reached; try again in a minute. `404 not_paired` from a check-in means the person unpaired the agent. `403 person_not_here` from a check-in means the person hasn't signed in on this site yet; once they sign in, check in again.
 
 ## Request limits
 

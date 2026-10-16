@@ -7,7 +7,7 @@ defmodule Regents.AgentAccount do
   alias Regents.Accounts
   alias Regents.Actors.System
 
-  # Nil when this site has no account for the person; the check-in is then refused.
+  # Nil until the person first signs in here; the check-in is then refused.
   @spec account(String.t()) :: %{display_name: String.t() | nil, ens_name: String.t() | nil} | nil
   def account(privy_user_id) do
     case Accounts.get_by_privy_did(privy_user_id, actor: %System{}, load: [:ens_name]) do

@@ -37,7 +37,7 @@ defmodule RegentsWeb.StakeLive do
               target="_blank"
               rel="noopener noreferrer"
             ><span class="rg-button__label">
-              <span>Buy REGENT</span> <span aria-hidden="true">↗</span>
+              <span>Buy REGENT</span><span class="visually-hidden">, opens in a new tab</span>
             </span></a>
             <a
               class="rg-button stake-buy"
@@ -45,7 +45,7 @@ defmodule RegentsWeb.StakeLive do
               target="_blank"
               rel="noopener noreferrer"
             ><span class="rg-button__label">
-              <span>View Chart</span> <span aria-hidden="true">↗</span>
+              <span>View Chart</span><span class="visually-hidden">, opens in a new tab</span>
             </span></a>
           </div>
         </div>

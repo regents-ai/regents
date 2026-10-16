@@ -333,7 +333,7 @@ defmodule RegentsWeb.HomeLive do
       rel="noopener noreferrer"
       class="rg-button rg-button--secondary"
     ><span class="rg-button__label">
-      {@proof.link.label} <span aria-hidden="true">↗</span>
+      {@proof.link.label}<span class="visually-hidden">, opens in a new tab</span>
     </span></a>
     """
   end

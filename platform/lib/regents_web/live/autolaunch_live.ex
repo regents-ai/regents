@@ -104,12 +104,17 @@ defmodule RegentsWeb.AutolaunchLive do
         <h1 id="product-heading" tabindex="-1">{@content.headline}</h1>
         <p class="product-lede">{@content.summary}</p>
         <nav class="product-actions" aria-label="Autolaunch site">
-          <ProductLive.external href={@content.site} class="rg-button">
-            Open {@content.name}
-          </ProductLive.external>
-          <ProductLive.external href={@content.start.href} class="rg-button rg-button--secondary">
-            {@content.start.label}
-          </ProductLive.external>
+          <a href={@content.site} target="_blank" rel="noopener noreferrer" class="rg-button">
+            <span class="rg-button__label">Open {@content.name}<span class="visually-hidden">, opens in a new tab</span></span>
+          </a>
+          <a
+            href={@content.start.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rg-button rg-button--secondary"
+          >
+            <span class="rg-button__label">{@content.start.label}<span class="visually-hidden">, opens in a new tab</span></span>
+          </a>
         </nav>
       </header>
 
