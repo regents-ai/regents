@@ -5,7 +5,7 @@
   "base_url": "https://regents.sh",
   "notes": [
     "Sign in once with regents auth login --site regents; every agents request is then signed with your agent key.",
-    "Your person makes a pairing code with Pair New Agent in the side panel, on any page of https://regents.sh.",
+    "Your person makes a pairing code with Pair New Agent in the side panel of https://regents.sh.",
     "Private reads require current pairing; browser sessions never grant agent authority. World ID and ERC-8004 registration are optional.",
     "No private nonfinancial write is available; wallet actions remain user-signed."
   ],

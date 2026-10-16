@@ -3310,7 +3310,7 @@
                   "error": {
                     "code": "agent_not_paired",
                     "message": "This agent has no current pairing.",
-                    "hint": "Ask your person to open Pair New Agent in the side panel, on any page of this site, and choose you. Redeem the code they paste you with regents protocol agents pair (POST /api/agents/v1/pair), then send the request again."
+                    "hint": "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
                   }
                 }
               },

@@ -6,7 +6,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   alias Regents.Actors.{Agent, System}
 
   @not_paired_message "This agent has no current pairing."
-  @not_paired_hint "Ask your person to open Pair New Agent in the side panel, on any page of this site, and choose you. Redeem the code they paste you with regents protocol agents pair (POST /api/agents/v1/pair), then send the request again."
+  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."
 
   def init(opts), do: opts
 

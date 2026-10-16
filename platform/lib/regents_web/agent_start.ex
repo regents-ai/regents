@@ -107,7 +107,7 @@ defmodule RegentsWeb.AgentStart do
 
     Your agent pairs with your Regents account and reads it for you: your account, Credits, names, Points and staking. It can't spend, sign or change anything. Agent spending opens soon.
 
-    1. Your person makes a pairing code with Pair New Agent in the side panel, on any page of #{origin()}. A code works once, for ten minutes.
+    1. Your person makes a pairing code with Pair New Agent in the side panel of #{origin()}. A code works once, for ten minutes.
     2. Follow the steps for your agent below, with that code.
     3. Your agent then shows under its name in their side panel and on their account page.
 

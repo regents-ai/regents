@@ -2028,3 +2028,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   colours; Chromium shows no pixel change (`62d94044`, Sentinel GO).
 - v196 also carries the share pictures for the home page, Paper Pro Daily, Stake
   and Redeem described in the entry above.
+
+## 2026-10-16 — v196 candidate: agents are told to pair in the side panel
+
+- An unpaired agent's hint now reads exactly "Ask your person to sign in on this
+  site and pair you with Pair New Agent in the side panel, then send the request
+  again.", the template's new wording. agents.md, llms.md, docs.md, the agent
+  guide, the API contract copies, cli/COMMANDS.md and cli/commands.json no longer
+  say "on any page", since some pages have no side panel.
