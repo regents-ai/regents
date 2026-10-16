@@ -76,6 +76,11 @@
   @media (max-width: 63.99rem) {
     .rl-header-links { margin-inline-start: auto; }
   }
+  /* Just under 1280 the bar packs tighter, so the tabs keep their one row between the brand and links. */
+  @media (min-width: 77rem) and (max-width: 79.99rem) {
+    .rl-header-bar { gap: .75rem; }
+    .rl-header-links { gap: .5rem; }
+  }
   @media (max-width: 47.99rem) {
     .rl-header-links { position: relative; gap: .25rem; }
     /* Phone tap targets are 44px square; the icons keep their size. */
@@ -155,7 +160,7 @@
 .rg-button.rl-action { white-space: nowrap; }
 .rg-button.rl-product-tab::before { transition: background-color 150ms ease; }
 .rg-button.rl-product-tab:is(:hover, :focus-visible) { --rg-p-accent: color-mix(in srgb, var(--rl-ink) 21%, var(--rl-bg)); }
-@media (min-width: 80rem) {
+@media (min-width: 77rem) {
   .rl-header-bar { display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, 44rem) minmax(max-content, 1fr); }
   .rl-product-tabs { order: 0; max-width: none; }
   .rl-header-bar > .rl-header-links { justify-self: end; margin-inline-start: 0; }

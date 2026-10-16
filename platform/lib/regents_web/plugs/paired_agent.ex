@@ -6,7 +6,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   alias Regents.Actors.{Agent, System}
 
   @not_paired_message "This agent has no current pairing."
-  @not_paired_hint "Ask your owner to sign in at /account and use Agents > Pair an agent, then redeem the code and sign fresh proof."
+  @not_paired_hint "Ask your person to open the side panel, on any page of this site, and choose you under Pair your agent. Redeem the code they paste you with regents protocol agents pair (POST /api/agents/v1/pair), then send the request again."
 
   def init(opts), do: opts
 
@@ -72,7 +72,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
           403,
           "person_not_here",
           "The person this agent is paired with hasn't signed in on this site yet.",
-          "Ask your person to sign in on this website once, then send the request again."
+          "Ask your person to sign in on this site once, then send the request again."
         )
 
       {:error, _} ->

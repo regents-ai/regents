@@ -452,6 +452,10 @@
   align-items: flex-start;
 }
 
+#staking-tabpanel {
+  container: stake-panel / inline-size;
+}
+
 .stake-amount-action {
   display: grid;
   gap: 0.5rem;
@@ -869,15 +873,19 @@
   .stake-token-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
   .stake-preview { grid-template-columns: minmax(0, 1fr); }
   .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
-  /* Available, then the 50% and Max shortcuts beside it, then the submit
-     across the whole row. */
+  .stake-earned-split { grid-template-columns: minmax(0, 1fr); }
+  .stake-earned-part + .stake-earned-part { padding-left: 0; border-left: 0; }
+  .stake-contract-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+}
+
+/* When the panel is too narrow for the button beside 50% and Max (phones, and
+   the two-column page just under 1280 wide): Available, then the shortcuts
+   beside it, then the button across the whole row. */
+@container stake-panel (max-width: 27rem) {
   .stake-amount-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
   .stake-amount-action { display: contents; }
   .stake-amount-action .stake-submit { grid-column: 1 / -1; }
   .stake-amount-shortcuts { margin-inline-start: 0; }
-  .stake-earned-split { grid-template-columns: minmax(0, 1fr); }
-  .stake-earned-part + .stake-earned-part { padding-left: 0; border-left: 0; }
-  .stake-contract-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -893,7 +901,10 @@
   margin-block: 0.25rem 0.5rem;
 }
 
+/* Unstake keeps the address's room at the foot of the form, so no gap opens
+   between Amount and the button. */
 .stake-recipient[data-room-only] {
+  order: 1;
   visibility: hidden;
 }
 
@@ -1117,7 +1128,15 @@
  * type size sit outside this layer, so the narrower fit is set here. */
 @media (max-width: 30rem) {
   .stake-token-links .stake-buy {
-    padding-inline: var(--space-1);
-    font-size: 0.8125rem;
+    padding-inline: 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
   }
+}
+
+/* "Unstake REGENT" keeps one line, so the panel is the same height in both modes. */
+.stake-actions .rg-button.stake-submit {
+  padding-inline: 0.75rem;
+  white-space: nowrap;
 }

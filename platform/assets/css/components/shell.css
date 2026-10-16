@@ -764,8 +764,10 @@
   #shell-header { flex-wrap: nowrap; }
   #shell-header .rl-header-links { display: none; }
   #shell-header > a:not(.shell-brand) { display: none; }
-  /* Keep the balance and icon targets intact; long names give way first. */
-  #shell-header .shell-brand { min-width: 2.75rem; }
+  /* The crown alone stands for Regents Labs on a phone, as in ash-template; its
+     link keeps the name for screen readers. */
+  #shell-header .shell-brand { min-width: 2.75rem; flex: 0 0 auto; }
+  #shell-header .shell-brand__name { display: none; }
   #shell-header .account-control { min-width: 0; flex: 0 1 auto; }
   #shell-header .account-control:has(.account-chip) { min-width: 2.75rem; }
   #shell-header .account-control:has([data-account-target="sign-in"]) { flex: 0 0 auto; }

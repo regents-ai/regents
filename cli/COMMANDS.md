@@ -5,10 +5,10 @@ These additions require the coordinating CLI release; this source commit does no
 
 Sign in with your own agent key using `regents auth login --site regents`. Every
 private read has fresh per-request SIWA proof for audience `regents`. Browser
-cookies and human Privy tokens grant no agent authority. Your owner signs in at
-`/account`, chooses Agents > Pair an agent, and gives you a code. World ID and a
-paid registry listing are optional. `agents pair` consumes that code; `agents me`
-records a check-in. These existing commands are writes, not acceptance-test reads.
+cookies and human Privy tokens grant no agent authority. Your person opens the
+side panel, on any page of regents.sh, and gives you a code from Pair your agent.
+World ID and a paid registry listing are optional. `agents pair` consumes that
+code; `agents me` records a check-in. These existing commands are writes, not acceptance-test reads.
 
 Run `regents protocol agents pair` with one JSON object supplied through private
 stdin. It requires string fields `code`, `name` and `harness`, and sends those same

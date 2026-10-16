@@ -1915,3 +1915,21 @@ v190 (`ee99f43d`). The held quarter-second Stake check (`ea078901`) is not in it
   address and its warning open under Amount, above the Stake button. The panel
   keeps the same height in Stake and Unstake. The rewards heading reads "Claim or
   compound rewards". 50% and Max lose the arrow.
+
+## 2026-10-16 — Agent wording and narrow-screen layout (on main, not yet released)
+
+No protected area and no database migrations. The held quarter-second Stake
+check (`fd7fd384`) is not in it.
+
+- Agents read "this site", never "this website" or "/account". `person_not_here`
+  says: "Ask your person to sign in on this site once, then send the request
+  again." `agent_not_paired` points at Pair your agent in the side panel, on any
+  page of this site. The 403 description, the contract copies and openapi.json
+  say the same, and cli/COMMANDS.md names the side panel.
+- On a phone the header shows the crown alone, as the template does; the link
+  keeps the name for screen readers. Buy REGENT and View chart keep one line.
+- The home bar keeps one row from 1232 px, with tighter gaps just under 1280.
+- Stake: Unstake opens no gap between Amount and the button. When the panel is
+  too narrow for the button beside 50% and Max (phones, and 1100–1240 px), the
+  button takes the whole row with Available and the shortcuts below it. "Unstake
+  REGENT" keeps one line, so both modes have the same height.
