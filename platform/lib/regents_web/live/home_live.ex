@@ -145,7 +145,9 @@ defmodule RegentsWeb.HomeLive do
         />
       </main>
 
-      <Regent.Structure.row rail={false}><.landing_footer /></Regent.Structure.row>
+      <Regent.Structure.row rail={false}>
+        <RegentsWeb.Layouts.product_links theme_toggle={false} />
+      </Regent.Structure.row>
     </Regent.Structure.frame>
     """
   end
@@ -427,35 +429,6 @@ defmodule RegentsWeb.HomeLive do
         <path d="M174 114H136V156H174V198H136M155 98V214M48 120V72H96M272 200V248H224M40 80L48 72L56 80M264 240L272 248L280 240" />
       </g>
     </svg>
-    """
-  end
-
-  defp landing_footer(assigns) do
-    ~H"""
-    <footer class="rl-footer">
-      <nav class="rl-document-links" aria-label="Regents information">
-        <a href={~p"/docs"}>Docs</a>
-        <a href={~p"/about"}>About</a>
-        <a href={~p"/contact"}>Contact</a>
-        <a href={~p"/privacy"}>Privacy</a>
-        <a href={~p"/terms"}>Terms</a>
-      </nav>
-      <nav class="rl-footer-links" aria-label="Regents social links">
-        <a
-          href="https://x.com/regents_sh"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Regents on X"
-        ><RegentLinks.source_icon kind={:x} /></a>
-        <a
-          href="https://github.com/regents-ai"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Regents on GitHub"
-        ><RegentLinks.source_icon kind={:github} /></a>
-      </nav>
-      <p>© 2026 Regents Labs</p>
-    </footer>
     """
   end
 

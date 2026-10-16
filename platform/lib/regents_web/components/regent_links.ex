@@ -2,7 +2,8 @@ defmodule RegentsWeb.Components.RegentLinks do
   @moduledoc """
   The shared Regents Labs links: X, the $REGENT token menu and GitHub.
 
-  The landing header and the app shell header render the same three controls.
+  The landing header and the app shell header render the same three controls;
+  the footer shows X and GitHub (`social_links/1`).
   The token menu is a native details element driven by the global
   `HomeTokenMenu` hook; its styles ship in `pages/home.css`.
   """
@@ -11,9 +12,15 @@ defmodule RegentsWeb.Components.RegentLinks do
 
   alias RegentsWeb.TokenLinks
 
-  attr :id, :string, required: true
+  @doc "X and GitHub, as the footer shows them."
+  def social_links(assigns) do
+    ~H"""
+    <.x_link />
+    <.github_link />
+    """
+  end
 
-  def header_links(assigns) do
+  defp x_link(assigns) do
     ~H"""
     <a
       href="https://x.com/regents_sh"
@@ -23,6 +30,27 @@ defmodule RegentsWeb.Components.RegentLinks do
     >
       <.source_icon kind={:x} />
     </a>
+    """
+  end
+
+  defp github_link(assigns) do
+    ~H"""
+    <a
+      href="https://github.com/regents-ai"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Regents on GitHub"
+    >
+      <.source_icon kind={:github} />
+    </a>
+    """
+  end
+
+  attr :id, :string, required: true
+
+  def header_links(assigns) do
+    ~H"""
+    <.x_link />
     <details id={@id} class="rl-token-menu" phx-hook="HomeTokenMenu">
       <summary aria-label="$REGENT links">
         <.source_icon kind={:regent} />
@@ -60,14 +88,7 @@ defmodule RegentsWeb.Components.RegentLinks do
         </nav>
       </div>
     </details>
-    <a
-      href="https://github.com/regents-ai"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Regents on GitHub"
-    >
-      <.source_icon kind={:github} />
-    </a>
+    <.github_link />
     """
   end
 

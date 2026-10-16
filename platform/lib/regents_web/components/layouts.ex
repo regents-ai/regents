@@ -22,17 +22,34 @@ defmodule RegentsWeb.Layouts do
     """
   end
 
-  @doc "Product and source discovery without loading a browser integration."
+  attr :theme_toggle, :boolean,
+    default: true,
+    doc: "false on the home page, which is always dark"
+
+  @doc """
+  The footer of the home page, every public page and the app's pages, the same
+  on every Regent site: the social links, Buy $REGENT and the site's documents.
+  Below a public page it sits at the foot of the screen however short the page is.
+  """
   def product_links(assigns) do
     ~H"""
-    <footer aria-label="Project links" class="product-links">
-      <RegentsWeb.Components.Shell.theme_toggle id="footer-theme-control" />
-      <div class="rl-header-links">
-        <RegentsWeb.Components.RegentLinks.header_links id="footer-token-menu" />
+    <footer class="regent-footer">
+      <div class="regent-footer__social">
+        <RegentsWeb.Components.RegentLinks.social_links />
+        <RegentsWeb.Components.Shell.theme_toggle :if={@theme_toggle} id="footer-theme-control" />
       </div>
-      <a href="/llms.txt">For agents</a>
+      <nav class="regent-footer__links" aria-label="About Regents Labs">
+        <a href={RegentsWeb.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
+          Buy $REGENT
+        </a>
+        <a href={~p"/docs"}>Docs</a>
+        <a href={~p"/about"}>About</a>
+        <a href={~p"/contact"}>Contact</a>
+        <a href={~p"/privacy"}>Privacy</a>
+        <a href={~p"/terms"}>Terms</a>
+      </nav>
+      <p>© 2026 Regents Labs</p>
     </footer>
     """
   end
-
 end

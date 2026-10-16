@@ -541,17 +541,17 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#route-content h1", "Put REGENT to work.")
   end
 
-  # The shell fills the window, so links below it would let the window scroll
+  # The shell fills the window, so a footer below it would let the window scroll
   # the header out of view.
-  test "shell pages keep the project links inside their own scroll", %{conn: conn} do
+  test "shell pages keep the footer inside their own scroll", %{conn: conn} do
     html = conn |> get("/stake") |> html_response(200)
     document = LazyHTML.from_document(html)
 
     assert document
-           |> LazyHTML.query("#app-shell-scroller > footer.product-links")
+           |> LazyHTML.query("#app-shell-scroller > footer.regent-footer")
            |> Enum.count() == 1
 
-    assert document |> LazyHTML.query("footer.product-links") |> Enum.count() == 1
+    assert document |> LazyHTML.query("footer.regent-footer") |> Enum.count() == 1
   end
 
   # /app shows the same shared contract reading every other page does, and an

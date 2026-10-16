@@ -144,27 +144,33 @@ input:focus-visible,
   }
 }
 
-/* Source and product discovery; disclosure links remain in the document. */
-.product-links {
+/* The footer of the home page and every public page (`Layouts.product_links/1`). */
+.regent-footer {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.75rem 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--rg-panel-padding);
-  margin: 0 auto;
+  border-top: 1px solid var(--hairline);
+  font-size: 0.8125rem;
+}
+.regent-footer p { margin: 0; }
+.regent-footer__social { display: flex; align-items: center; gap: var(--space-2); }
+.regent-footer__social > a, .regent-footer__social > a svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
+.regent-footer__links { display: flex; flex-wrap: wrap; column-gap: var(--space-3); }
+.regent-footer__links a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; }
+
+/* A public page fills the screen with its footer, so the footer sits at the foot of
+   the screen however short the page is. The page grows to meet it, frame and all. */
+body:has(> .regent-footer) { display: flex; flex-direction: column; height: auto; min-height: 100dvh; }
+body:has(> .regent-footer) > :first-child { flex: 1 0 auto; }
+body:has(> .regent-footer) > [data-phx-main] { display: grid; grid-template-rows: 1fr; }
+body > .regent-footer {
+  margin-inline: auto;
   width: min(calc(100% - 2 * var(--rg-page-gutter)), var(--rg-frame-max));
   border-inline: 1px solid var(--hairline);
   border-bottom: 1px solid var(--hairline);
-  font-size: 0.875rem;
 }
-
-/* The footer ends the page and starts at the content's left edge, so its
-   $REGENT menu opens upward and to the right. */
-.product-links .rl-token-menu-panel {
-  inset-block: auto 100%;
-  inset-inline: 0 auto;
-  padding-block: 0 0.75rem;
-}
-
-@media (max-width: 74.99rem) { .product-links { --rg-page-gutter: var(--space-3); } }
-@media (max-width: 47.99rem) { .product-links { --rg-page-gutter: var(--space-2); } }
+@media (max-width: 74.99rem) { body > .regent-footer { --rg-page-gutter: var(--space-3); } }
+@media (max-width: 47.99rem) { body > .regent-footer { --rg-page-gutter: var(--space-2); } }

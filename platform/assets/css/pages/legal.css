@@ -1,8 +1,4 @@
 @layer regents-product {
-.legal-root {
-  min-height: 100vh;
-}
-
 .public-document .legal-header,
 .public-document .legal-nav {
   flex-wrap: wrap;

@@ -374,12 +374,9 @@
   padding: var(--rg-panel-padding);
 }
 
-/* The project links end the page's own scroll, spanning the content column. */
-#app-shell-scroller > .product-links {
+/* The footer ends the page's own scroll, spanning the content column. */
+#app-shell-scroller > .regent-footer {
   width: 100%;
-  border-inline: 0;
-  border-bottom: 0;
-  border-top: 1px solid var(--hairline);
 }
 
 @media (max-width: 48rem) {
