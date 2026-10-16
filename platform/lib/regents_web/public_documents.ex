@@ -195,17 +195,44 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
-  # The picture shown when a page is shared; every page but the literature chart
-  # shares the crown.
+  # The picture shown when a page is shared. The home page, Paper Pro Daily, Stake,
+  # Redeem and the literature chart each have their own; every other page shares the crown.
+  @share_cards %{
+    "/" => "home",
+    "/paper-pro-daily" => "paper-pro-daily",
+    "/stake" => "stake",
+    "/redeem" => "redeem"
+  }
+
   defp share_image("/literature"), do: "/images/literature/share.png"
+
+  defp share_image(path) when is_map_key(@share_cards, path),
+    do: "/images/share/#{@share_cards[path]}.png"
+
   defp share_image(_path), do: "/mark.png"
 
   defp share_image_size("/literature"), do: {2048, 1024}
+  defp share_image_size(path) when is_map_key(@share_cards, path), do: {1200, 630}
   defp share_image_size(_path), do: {1024, 512}
 
   defp share_image_alt("/literature"),
     do:
       "Hope for people, hope for machines: science-fiction book covers placed on a chart of how hopeful each is for humanity and for AI"
+
+  defp share_image_alt("/"),
+    do:
+      "Regents Labs, the community-owned agentic product lab, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
+
+  defp share_image_alt("/paper-pro-daily"),
+    do:
+      "Paper Pro Daily: a research paper each day, read with ChatGPT Astra 6 Pro, beside three paper first pages"
+
+  defp share_image_alt("/stake"),
+    do: "Put REGENT to work: stake REGENT for a share of USDC revenue and new REGENT"
+
+  defp share_image_alt("/redeem"),
+    do:
+      "Redeem your Animata: turn an Animata I or II Pass into Regents Club membership and a seven-day REGENT vest, beside the Animata artwork"
 
   defp share_image_alt(_path),
     do: "Regents' orange thirteen-square crown on a platinum background"

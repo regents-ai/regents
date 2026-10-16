@@ -2003,3 +2003,18 @@ Previous release: Fly v194 (`01a9f9ac`). No database migrations.
 - The left menu's Reading group ends at AI & SCIFI; Articles is no longer listed
   there. Articles, each article and the Articles editor still open by link
   (`73c6a9ce`, Sean: "remove the articles left sidenav button").
+
+## 2026-10-16 — Share pictures for the home page, Paper Pro Daily, Stake and Redeem
+
+Not yet released. No database migrations. No change to how Stake or Redeem work.
+
+- The home page, Paper Pro Daily, Stake and Redeem each share their own 1200×630
+  picture on X and other sites, in `priv/static/images/share/`, instead of the
+  1024×512 crown. Each picture shows the page's headline and purpose in the
+  platform look: cut corners, a Tangerine and a Powder Blue corner mark, the Geist
+  fonts, and a small version of the page's own pictures (the six site tiles, three
+  recent paper first pages, the Animata artwork). Sean's X post of Paper Pro Daily
+  showed a blank grey card.
+- Each picture has its own alt text, and its address is fingerprinted through
+  `Endpoint.static_path`, so X fetches it fresh. Every other page still shares the
+  crown, and `/literature` keeps its chart picture.
