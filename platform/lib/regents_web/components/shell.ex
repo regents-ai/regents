@@ -5,6 +5,9 @@ defmodule RegentsWeb.Components.Shell do
   The side panel's open and closed state is the browser's
   (`assets/js/shell_panels.ts` and the `regents_aside` cookie, read into
   `<html data-aside>`), so the server never stores it.
+
+  The right side bar and its button are there only for someone signed in, so a
+  page signed out has nothing beside the Sign in button.
   """
 
   use Phoenix.Component
@@ -103,6 +106,7 @@ defmodule RegentsWeb.Components.Shell do
         <.account_control account_control={@account_control} />
 
         <button
+          :if={@account_control.kind == :signed_in}
           id="shell-aside-button"
           class="shell-tool"
           type="button"
@@ -182,7 +186,12 @@ defmodule RegentsWeb.Components.Shell do
         <RegentsWeb.Layouts.product_links />
       </div>
 
-      <aside id="shell-aside" aria-labelledby="shell-aside-title" tabindex="-1">
+      <aside
+        :if={@account_control.kind == :signed_in}
+        id="shell-aside"
+        aria-labelledby="shell-aside-title"
+        tabindex="-1"
+      >
         <div class="shell-aside__head">
           <h2 id="shell-aside-title">For you</h2>
           <button
@@ -196,12 +205,7 @@ defmodule RegentsWeb.Components.Shell do
           </button>
         </div>
 
-        <section
-          :if={@account_control.kind == :signed_in}
-          id="shell-account"
-          class="shell-account"
-          aria-label="Your account"
-        >
+        <section id="shell-account" class="shell-account" aria-label="Your account">
           <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
           <div class="shell-account__actions">
             <.link patch="/account" class="rg-button rg-button--secondary">Account</.link>
