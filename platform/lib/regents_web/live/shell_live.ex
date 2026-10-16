@@ -171,7 +171,7 @@ defmodule RegentsWeb.ShellLive do
           client_tag={@client_tag}
         />
       </:credits_panel>
-      <:pairing :if={current_account(@access_context)}>
+      <:pairing :if={current_account(@access_context) && @route_spec.route_id != :account}>
         <.live_component
           module={RegentsWeb.PairingBox}
           id="shell-pairing-box"

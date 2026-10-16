@@ -234,11 +234,10 @@ defmodule RegentsWeb.ShellLive.Account do
 
   @doc """
   An agent paired, checked in or was unpaired, here or on another Regent site.
-  The side panel's pairing box is on every page; the Account page adds its own
+  The side panel's pairing box is on every page but Account, which has its own
   and the list of agents.
   """
   def agents_changed(%{assigns: %{route_spec: %{route_id: :account}}} = socket) do
-    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
     send_update(PairingBox, id: "account-agents-pair", agents_changed: true)
     reload_paired_agents(socket, agent_person(socket))
   end

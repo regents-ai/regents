@@ -9,6 +9,8 @@ defmodule RegentsWeb.Components.Shell do
   The right side bar and its button are there only for someone signed in, so a
   page signed out has nothing beside the Sign in button. It holds the box to
   pair an agent (the `pairing` slot) and a link to the agents on the Account page.
+  A page that shows its own pairing box leaves the slot out, and the side panel
+  then has neither.
 
   The top bar's nine-dot button opens the Regents Products menu, and the
   footer's button the list of tools agents see.
@@ -47,7 +49,10 @@ defmodule RegentsWeb.Components.Shell do
 
   slot(:content, required: true)
   slot(:credits_panel, doc: "The Buy Credits panel, opened from the header's balance.")
-  slot(:pairing, doc: "The box to pair an agent, in the right side bar.")
+
+  slot(:pairing,
+    doc: "The box to pair an agent, in the right side bar; left out on a page with its own."
+  )
 
   def shell(assigns) do
     ~H"""
@@ -230,7 +235,7 @@ defmodule RegentsWeb.Components.Shell do
           </div>
         </section>
 
-        <section id="shell-pairing" aria-labelledby="shell-pairing-title">
+        <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
           <h3 id="shell-pairing-title">Pair your agent</h3>
           {render_slot(@pairing)}
           <.link patch="/account#account-agents">Manage Agents</.link>
