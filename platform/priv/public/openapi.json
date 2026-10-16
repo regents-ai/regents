@@ -600,7 +600,7 @@
             }
           },
           "403": {
-            "description": "Missing current pairing or owner account",
+            "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in at /account and pair you, then send the request again.",
             "content": {
               "application/json": {
                 "schema": {
@@ -646,7 +646,7 @@
       "get": {
         "operationId": "agentAccount",
         "summary": "Read the paired account",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
           {
@@ -744,7 +744,7 @@
       "get": {
         "operationId": "agentStakingPosition",
         "summary": "Read the paired owner staking position",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
           {
@@ -842,7 +842,7 @@
       "post": {
         "operationId": "agentClaims",
         "summary": "Read the paired owner name claims",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
           {
@@ -961,7 +961,7 @@
       "get": {
         "operationId": "agentCreditsBalance",
         "summary": "Read shared Credits balance",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
           {
@@ -1059,7 +1059,7 @@
       "post": {
         "operationId": "agentCreditsHistory",
         "summary": "Read shared Credits history",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
           {
@@ -1178,7 +1178,7 @@
       "get": {
         "operationId": "agentCreditsBudget",
         "summary": "Read effective agent spending budget",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
           {
@@ -1317,7 +1317,7 @@
       "get": {
         "operationId": "agentPointsSummary",
         "summary": "Read shared Points summary",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing and an owner account on Regents. Reads only; creates no Points account or event and does not activate or award Points.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Reads only; creates no Points account or event and does not activate or award Points.",
         "security": [],
         "parameters": [
           {

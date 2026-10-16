@@ -33,7 +33,7 @@ and `other`; the existing server validates them. `--code`, `--name` and
 
 `agents whoami` needs fresh proof but no pairing. It returns your SIWA identity,
 current pairing and effective access without a check-in or Points award. Every
-other read requires the current pairing and an owner account on Regents. Owners
+other read requires the current pairing with a person who has signed in on this site. Owners
 may revoke access; pairing again creates a new episode and does not restore the
 old spending grant.
 

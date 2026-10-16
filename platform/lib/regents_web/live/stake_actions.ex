@@ -684,7 +684,26 @@ defmodule RegentsWeb.StakeActions do
           <div id="staking-tabpanel" role="tabpanel" aria-labelledby={"staking-tab-#{@action}"}>
             <form id="staking-amount-form" phx-change="change" phx-target={@myself}>
               <input type="hidden" name="action" value={@action} data-onchain-input="action" />
-              <Regent.Primitives.field id="staking-amount" label="Amount">
+              <Regent.Primitives.field id="staking-amount" label="Amount" class="stake-amount-field">
+                <%!-- Unstake keeps this choice's room, unseen, so the Amount row never moves. --%>
+                <label
+                  class="stake-for-other"
+                  for="staking-for-other"
+                  data-room-only={@action != "stake"}
+                  inert={@action != "stake"}
+                >
+                  <input
+                    id="staking-for-other"
+                    name="for_other"
+                    type="checkbox"
+                    value="true"
+                    checked={@form.for_other}
+                    data-onchain-input="for_other"
+                    aria-controls="staking-recipient-fields"
+                    aria-expanded={to_string(@form.for_other)}
+                  />
+                  <span>Stake for a different address</span>
+                </label>
                 <div class="stake-amount">
                   <input
                     id="staking-amount"
@@ -755,26 +774,13 @@ defmodule RegentsWeb.StakeActions do
                 {@amount_notice}
               </p>
 
-              <%!-- Unstake keeps this row's room, unseen, so the panel is the same height in both modes. --%>
+              <%!-- Unstake keeps these fields' room, unseen, so the panel is the same height in both modes. --%>
               <div
                 id="staking-recipient-controls"
                 class="stake-recipient"
                 data-room-only={@action != "stake"}
                 inert={@action != "stake"}
               >
-                <label class="stake-check" for="staking-for-other">
-                  <input
-                    id="staking-for-other"
-                    name="for_other"
-                    type="checkbox"
-                    value="true"
-                    checked={@form.for_other}
-                    data-onchain-input="for_other"
-                    aria-controls="staking-recipient-fields"
-                    aria-expanded={to_string(@form.for_other)}
-                  />
-                  <span>Stake for a different address</span>
-                </label>
                 <div id="staking-recipient-fields" hidden={!@form.for_other}>
                   <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
                     <input
@@ -860,10 +866,7 @@ defmodule RegentsWeb.StakeActions do
         />
 
         <section class="stake-rewards" aria-labelledby="staking-rewards-heading">
-          <div>
-            <p class="stake-section-kicker">Available rewards</p>
-            <h3 id="staking-rewards-heading">Claim or compound</h3>
-          </div>
+          <h3 id="staking-rewards-heading">Claim or compound rewards</h3>
           <div class="stake-button-row">
             <Regent.Primitives.button
               :for={claim <- @claims}
