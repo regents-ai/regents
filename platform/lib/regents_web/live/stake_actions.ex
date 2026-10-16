@@ -720,6 +720,56 @@ defmodule RegentsWeb.StakeActions do
                   <span>REGENT</span>
                 </div>
               </Regent.Primitives.field>
+
+              <%!-- Unstake keeps these fields' room, unseen, so the panel is the same height in both modes. --%>
+              <div
+                id="staking-recipient-controls"
+                class="stake-recipient"
+                data-room-only={@action != "stake"}
+                inert={@action != "stake"}
+              >
+                <div id="staking-recipient-fields" hidden={!@form.for_other}>
+                  <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
+                    <input
+                      id="staking-recipient"
+                      name="receiver"
+                      type="text"
+                      maxlength="64"
+                      value={@form.receiver}
+                      autocomplete="off"
+                      spellcheck="false"
+                      autocapitalize="none"
+                      placeholder="0x…"
+                      phx-debounce="200"
+                      data-onchain-input="receiver"
+                      aria-describedby="staking-recipient-error"
+                      aria-invalid={to_string(@receiver_invalid)}
+                    />
+                  </Regent.Primitives.field>
+                  <p id="staking-recipient-error" role="status" hidden={!@receiver_invalid}>
+                    Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
+                  </p>
+                  <label
+                    :if={@receiver}
+                    id="staking-recipient-warning"
+                    class="stake-check"
+                    for="staking-recipient-acknowledged"
+                  >
+                    <input
+                      id="staking-recipient-acknowledged"
+                      name="acknowledged"
+                      type="checkbox"
+                      value="true"
+                      checked={Steps.acknowledged?(@form)}
+                      data-onchain-input="acknowledged"
+                    />
+                    <span id="staking-recipient-warning-text">
+                      Warning: the wallet {@receiver} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               <div class="stake-amount-tools">
                 <div class="stake-amount-action">
                   <Regent.Primitives.button
@@ -773,55 +823,6 @@ defmodule RegentsWeb.StakeActions do
               >
                 {@amount_notice}
               </p>
-
-              <%!-- Unstake keeps these fields' room, unseen, so the panel is the same height in both modes. --%>
-              <div
-                id="staking-recipient-controls"
-                class="stake-recipient"
-                data-room-only={@action != "stake"}
-                inert={@action != "stake"}
-              >
-                <div id="staking-recipient-fields" hidden={!@form.for_other}>
-                  <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
-                    <input
-                      id="staking-recipient"
-                      name="receiver"
-                      type="text"
-                      maxlength="64"
-                      value={@form.receiver}
-                      autocomplete="off"
-                      spellcheck="false"
-                      autocapitalize="none"
-                      placeholder="0x…"
-                      phx-debounce="200"
-                      data-onchain-input="receiver"
-                      aria-describedby="staking-recipient-error"
-                      aria-invalid={to_string(@receiver_invalid)}
-                    />
-                  </Regent.Primitives.field>
-                  <p id="staking-recipient-error" role="status" hidden={!@receiver_invalid}>
-                    Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
-                  </p>
-                  <label
-                    :if={@receiver}
-                    id="staking-recipient-warning"
-                    class="stake-check"
-                    for="staking-recipient-acknowledged"
-                  >
-                    <input
-                      id="staking-recipient-acknowledged"
-                      name="acknowledged"
-                      type="checkbox"
-                      value="true"
-                      checked={Steps.acknowledged?(@form)}
-                      data-onchain-input="acknowledged"
-                    />
-                    <span id="staking-recipient-warning-text">
-                      Warning: the wallet {@receiver} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
-                    </span>
-                  </label>
-                </div>
-              </div>
 
               <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
                 <div>
