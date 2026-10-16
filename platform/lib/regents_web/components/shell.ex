@@ -50,9 +50,8 @@ defmodule RegentsWeb.Components.Shell do
   slot(:content, required: true)
   slot(:credits_panel, doc: "The Buy Credits panel, opened from the header's balance.")
 
-  slot(:pairing,
-    doc: "The box to pair an agent, in the right side bar; left out on a page with its own."
-  )
+  slot(:pairing, doc: "The box to pair an agent, in the side panel.")
+  slot(:agents, doc: "The agents paired with the account, in the side panel.")
 
   def shell(assigns) do
     ~H"""
@@ -205,40 +204,25 @@ defmodule RegentsWeb.Components.Shell do
       <aside
         :if={@account_control.kind == :signed_in}
         id="shell-aside"
-        aria-labelledby="shell-aside-title"
+        aria-label="Your account and agents"
         tabindex="-1"
       >
-        <div class="shell-aside__head">
-          <h2 id="shell-aside-title">For you</h2>
-          <button
-            class="shell-tool"
+        <div id="shell-account" class="shell-aside__head">
+          <Regent.Primitives.button
+            variant="secondary"
             type="button"
-            aria-controls="shell-aside"
-            aria-label="Close the side panel"
-            data-aside-close
+            data-account-target="sign-out"
           >
-            <.icon name={:close} />
-          </button>
+            Sign out
+          </Regent.Primitives.button>
+          <.link patch="/account" class="rg-button rg-button--secondary">Manage Account</.link>
         </div>
 
-        <section id="shell-account" class="shell-account" aria-label="Your account">
-          <p class="shell-account__name"><.account_name account_control={@account_control} /></p>
-          <div class="shell-account__actions">
-            <.link patch="/account" class="rg-button rg-button--secondary">Account</.link>
-            <Regent.Primitives.button
-              variant="secondary"
-              type="button"
-              data-account-target="sign-out"
-            >
-              Sign out
-            </Regent.Primitives.button>
-          </div>
-        </section>
+        {render_slot(@agents)}
 
         <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
-          <h3 id="shell-pairing-title">Pair your agent</h3>
+          <h2 id="shell-pairing-title">Pair New Agent</h2>
           {render_slot(@pairing)}
-          <.link patch="/account#account-agents">Manage Agents</.link>
         </section>
       </aside>
 
@@ -444,7 +428,6 @@ defmodule RegentsWeb.Components.Shell do
       aria-hidden="true"
     >
       <path :if={@name == :panel} d="M3 4h18v16H3zM15 4v16" />
-      <path :if={@name == :close} d="M6 6l12 12M18 6 6 18" />
       <g :if={@name == :apps} fill="currentColor" stroke="none">
         <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
       </g>

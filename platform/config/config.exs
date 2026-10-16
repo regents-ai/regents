@@ -107,7 +107,12 @@ config :regents, Regents.Repo,
   pool_size: 1
 
 config :regents, :sprite_provider, RegentSprites
-config :regents, :siwa, base_url: nil, activity_read_token: nil
+# Each paired agent's reading from the sign-in service, kept five minutes. Older
+# readings leave with the generation the collector drops every ten minutes.
+config :regents, Regents.Agents.ActivityReading,
+  gc_interval: :timer.minutes(10),
+  max_size: 10_000
+
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 config :regents, :credits_report_rate_limit, limit: 120, window_seconds: 60

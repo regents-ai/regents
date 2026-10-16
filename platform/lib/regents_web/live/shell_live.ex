@@ -87,9 +87,6 @@ defmodule RegentsWeb.ShellLive do
   def handle_async({:agent_activity, _id} = name, result, socket),
     do: {:noreply, Account.settle_activity(socket, name, result)}
 
-  def handle_async({:more_agent_activity, _id} = name, result, socket),
-    do: {:noreply, Account.settle_more_activity(socket, name, result)}
-
   def handle_async({reading, _generation} = name, result, socket)
       when reading in [:staking, :staking_quiet],
       do: {:noreply, Staking.settle(socket, name, result)}
@@ -171,7 +168,15 @@ defmodule RegentsWeb.ShellLive do
           client_tag={@client_tag}
         />
       </:credits_panel>
-      <:pairing :if={current_account(@access_context) && @route_spec.route_id != :account}>
+      <:agents :if={current_account(@access_context)}>
+        <.live_component
+          module={RegentsWeb.PanelAgents}
+          id="shell-agents"
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+      </:agents>
+      <:pairing :if={current_account(@access_context)}>
         <.live_component
           module={RegentsWeb.PairingBox}
           id="shell-pairing-box"

@@ -16,6 +16,9 @@ defmodule Regents.Application do
         {Regents.OpenSea.HoldingsCache, []},
         {Task.Supervisor, name: Regents.SiteTools.Reads},
         Regents.SiteTools,
+        # Each paired agent's reading from the sign-in service, kept five minutes
+        # and shared by the side panel and the Account page.
+        Regents.Agents.ActivityReading,
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
         # After the repository and PubSub: agent changes made on any Regent

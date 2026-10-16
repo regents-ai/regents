@@ -114,7 +114,7 @@ defmodule Regents.SiteTools do
         %{
           title: "Pair with your person",
           copy:
-            "Your person makes a code on the site's account page. Write it, your name and what you run on to ~/pair.json, pair, then delete the file.",
+            "Your person makes a code with Pair New Agent in the site's side panel. Write it, your name and what you run on to ~/pair.json, pair, then delete the file.",
           command: "uv run siwa_agent.py pair https://regents.sh < ~/pair.json"
         },
         %{

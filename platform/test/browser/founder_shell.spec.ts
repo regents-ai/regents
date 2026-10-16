@@ -245,8 +245,8 @@ test("a signed-in account without a Regent shows its available account menu", as
     .toBeGreaterThan(0)
   await account.click()
   const panel = page.locator("#shell-account")
-  await expect(panel.locator(".shell-account__actions > *")).toHaveText(["Account", "Sign out"])
-  await expect(panel.getByRole("link", {name: "Account", exact: true})).toHaveAttribute(
+  await expect(panel.locator("> *")).toHaveText(["Sign out", "Manage Account"])
+  await expect(panel.getByRole("link", {name: "Manage Account", exact: true})).toHaveAttribute(
     "href",
     "/account",
   )

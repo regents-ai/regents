@@ -7,6 +7,8 @@ const captured = vi.hoisted(() => ({hooks: {} as Record<string, Hook>}))
 
 vi.mock("phoenix", () => ({Socket: class Socket {}}))
 vi.mock("phoenix_html", () => ({}))
+// Closes pill menus on the real page; nothing here opens one.
+vi.mock("../vendor/regent_ui/pill_select.mjs", () => ({}))
 vi.mock("phoenix-colocated/regents", () => ({hooks: {}}))
 vi.mock("../js/auth_lazy", () => ({
   browserCsrfToken: () => "csrf-token",

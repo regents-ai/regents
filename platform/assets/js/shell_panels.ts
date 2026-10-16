@@ -17,7 +17,7 @@ function remember(value: string) {
 
 const root = () => document.documentElement
 const covering = window.matchMedia("(max-width: 63.99rem)")
-const asideOpen = () =>
+export const asideOpen = () =>
   root().dataset.aside === "open" && (!covering.matches || root().dataset.asideHere !== undefined)
 
 /** Wires the side panel inside `scope`. Returns `sync`, to run after every page update, and `cleanup`. */
@@ -41,8 +41,12 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     sync()
 
     // Opened, focus moves into it, so Escape closes it and returns focus to the
-    // button that opened it.
-    if (open) aside()?.focus()
+    // button that opened it, and what it shows is read again.
+    if (!open) return
+    aside()?.focus()
+    aside()
+      ?.querySelectorAll("[data-read-on-open]")
+      .forEach(reader => reader.dispatchEvent(new CustomEvent("regents:aside-opened")))
   }
 
   const onClick = (event: Event) => {
@@ -50,10 +54,8 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     if (!target) return
 
     if (target.closest("[data-aside-toggle]")) return setAside(!asideOpen())
-    if (target.closest("[data-aside-close]")) {
-      setAside(false)
-      return asideButton()?.focus()
-    }
+    // A page's own Pair New Agent button opens the panel, and leaves it open.
+    if (target.closest("[data-aside-open]")) return setAside(true)
     // On a phone the side bar covers the page, so a page link inside it closes it.
     if (phone() && target.closest("#shell-aside a")) setAside(false)
   }

@@ -1,8 +1,10 @@
 defmodule RegentsWeb.Components.PairedAgents do
   @moduledoc """
   The agents a person has paired with their account, in the shared agents
-  list (`Regent.Account.agents`), a way to pair another, and a larger view of
-  one agent with what it has been doing across the Regents sites.
+  list (`Regent.Account.agents`), with Pair New Agent opening the side panel's
+  pairing box (`RegentsWeb.PairingBox`), and a larger view of one agent with
+  where it has been active across the Regent sites, a line for each site and day
+  (`Regents.Agents.ActivityReading`).
   """
 
   use RegentsWeb, :html
@@ -36,12 +38,9 @@ defmodule RegentsWeb.Components.PairedAgents do
           </Regent.Primitives.button>
         </:actions>
         <:footer>
-          <.live_component
-            module={RegentsWeb.PairingBox}
-            id="account-agents-pair"
-            lease={@lease}
-            account={@account}
-          />
+          <Regent.Primitives.button type="button" variant="secondary" data-aside-open>
+            Pair New Agent
+          </Regent.Primitives.button>
 
           <.agent_dialog
             :if={@detail}
@@ -176,10 +175,9 @@ defmodule RegentsWeb.Components.PairedAgents do
       <section class="account-agent-dialog__activity" aria-labelledby="account-agent-activity-title">
         <h3 id="account-agent-activity-title">Recent activity</h3>
         <p class="account-agent-dialog__note">
-          Every request this agent signed on a Regents site since it paired, newest first. Kept for 30 days.
+          The Regent sites this agent signed requests on since it paired, a line for each site and day, newest first. Kept for 30 days.
         </p>
         <.activity activity={@detail.activity} />
-        <.more_activity :if={is_list(@detail.activity) and is_binary(@detail.next)} detail={@detail} />
       </section>
 
       <.agent_notice id="account-agent-dialog-notice" notice={@notice} />
@@ -266,38 +264,29 @@ defmodule RegentsWeb.Components.PairedAgents do
     """
   end
 
+  defp activity(%{activity: []} = assigns) do
+    ~H"""
+    <p role="status">No requests yet since it paired.</p>
+    """
+  end
+
   defp activity(assigns) do
     ~H"""
     <ol class="account-agent-dialog__log">
-      <li :for={entry <- @activity}>
-        <span>{entry.action}</span>
-        <span>{entry.site}</span>
-        <time datetime={DateTime.to_iso8601(entry.occurred_at)}>{moment(entry.occurred_at)}</time>
+      <li :for={line <- @activity}>
+        <span>{line.site}</span>
+        <span>{hours(line.first_seen_at, line.last_seen_at)}</span>
+        <time datetime={Date.to_iso8601(line.day)}>{Calendar.strftime(line.day, "%-d %B %Y")}</time>
       </li>
     </ol>
     """
   end
 
-  attr :detail, :map, required: true
-
-  defp more_activity(assigns) do
-    ~H"""
-    <div class="account-agent-dialog__more">
-      <Regent.Primitives.button
-        id="account-agent-load-more"
-        type="button"
-        variant="secondary"
-        phx-click="load_more_activity"
-        phx-value-id={@detail.agent.id}
-        disabled={@detail.more == :loading}
-      >
-        {if @detail.more == :loading, do: "Loading…", else: "Load more"}
-      </Regent.Primitives.button>
-      <p :if={@detail.more == :unavailable} id="account-agent-load-more-notice" role="status">
-        Older activity couldn’t be read right now. Try again.
-      </p>
-    </div>
-    """
+  # When the day's first and last request came, or the one time when they share
+  # a minute.
+  defp hours(first, last) do
+    {from, to} = {Calendar.strftime(first, "%H:%M"), Calendar.strftime(last, "%H:%M")}
+    if from == to, do: "#{to} UTC", else: "#{from} to #{to} UTC"
   end
 
   defp moment(datetime), do: Calendar.strftime(datetime, "%-d %B %Y, %H:%M UTC")

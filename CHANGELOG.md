@@ -1945,3 +1945,28 @@ No database migrations or changes to sign-in, staking or wallet behavior.
 - Narrow screens preserve label padding; keyboard focus remains clear, and
   reduced-motion and forced-color settings suppress the foil.
 - The homepage App button no longer has an arrow.
+
+## 2026-10-16 — Side panel agents and Pair New Agent (on main, not yet released)
+
+Ported from ash-template v96 (f36a9da4), with the shared library at elixir-utils
+1b73b6c2 and design-system 28888839 (which holds the template's df44fc34).
+No database migrations. Needs `SIWA_ACTIVITY_READ_TOKEN`, already set on regents-sh-web.
+
+- The side panel lists the signed-in person's agents, each with the site it was
+  last active on ("Active on Patchbay", with how long ago), read again each time
+  the panel opens. Below them, Pair New Agent holds the one pairing box: the
+  message to paste first, with icons to copy it and make a new code, then ten
+  agents to choose from by their pictures.
+- The panel's head has Sign out and Manage Account. The panel's own close button
+  is gone; the header's panel button opens and closes it, and on narrower screens
+  the panel now opens below the header so that button stays in reach.
+- The Account page's agents list has a Pair New Agent button that opens the
+  panel, in place of a second pairing box.
+- An agent's details show where it was active across the Regent sites, a line for
+  each site and day with its first and last request, kept for 30 days. Readings
+  are kept on the machine for five minutes (`Regents.Agents.ActivityReading`),
+  replacing `Regents.AgentActivity` and its own sign-in service settings.
+- Agents told to pair are sent to Pair New Agent in the side panel: the
+  agent_not_paired hint, the API description, agents.md, llms.md, the /start
+  page and prompts, the site tools and cli/COMMANDS.md.
+- An open pill menu closes on Escape or a tap outside it, iPhones included.

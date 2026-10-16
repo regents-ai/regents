@@ -1,5 +1,7 @@
 import "../css/app.css"
 import "../vendor/regent_ui/blog.mjs"
+// An open pill menu closes on Escape or a tap outside it, iPhones included.
+import "../vendor/regent_ui/pill_select.mjs"
 
 // Asks before any element carrying data-confirm acts, such as unpairing an agent.
 import "phoenix_html"
@@ -29,6 +31,7 @@ import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {PanelAgents} from "./hooks/panel_agents"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
 import {installAgentTools} from "./agent_tools"
@@ -293,6 +296,7 @@ const hooks = {
   MotionRefusal,
   MotionTabs,
   OnchainSteps,
+  PanelAgents,
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   TwinCube,

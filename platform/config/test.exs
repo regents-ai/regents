@@ -30,17 +30,12 @@ config :regents, :opensea_http_client, Regents.TestOpenSeaHttpClient
 config :regents, :opensea_api_key, "test-only-key"
 config :regents, :sprite_provider, Regents.TestSpriteProvider
 
-config :regents, :siwa,
-  base_url: "https://siwa.test",
-  activity_read_token: "test-activity-read-token"
-
-# Agent requests are verified by stubs each test sets.
+# Agent requests are verified, and agents' activity read, by stubs each test sets.
 config :regent_agents,
   siwa: [url: "https://siwa.test", audience: "regents-test"],
+  activity_read_token: "test-activity-read-token",
   req_options: [plug: {Req.Test, RegentAgents.Broker}]
 
-# Reads from the sign-in service answer from stubs each test sets.
-config :regents, :siwa_req_options, plug: {Req.Test, Regents.Siwa}
 config :regents, :database_startup_enabled, true
 
 # Jobs are queued, never run, unless a test runs one itself.

@@ -18,10 +18,12 @@ if config_env() == :dev and Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoi
   end
 end
 
-# The browser acceptance server names a test-only Privy app. Production can
-# never take this branch.
+# The browser acceptance server names a test-only Privy app, and has no reader
+# key for agents' activity, since nothing there answers the SIWA service.
+# Production can never take this branch.
 if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
   config :regents, :privy, app_id: "browser-test-public-id", verification_key: nil
+  config :regent_agents, activity_read_token: nil
 end
 
 if config_env() != :test do
@@ -31,13 +33,12 @@ end
 config :regent_sprites, token: System.get_env("SPRITES_TOKEN")
 
 if config_env() != :test do
-  config :regents, :siwa,
-    base_url: System.get_env("SIWA_SERVER_URL"),
-    activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
-
   config :regent_agents, :siwa,
     url: System.get_env("SIWA_SERVER_URL"),
     audience: System.get_env("SIWA_AUDIENCE")
+
+  # The reader key for each paired agent's activity across the Regent sites.
+  config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
 end
 
 # Production must say out loud whether the product surfaces are open. Anything

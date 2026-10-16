@@ -439,7 +439,7 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   await expect(page.locator("[data-phx-session]").first()).toBeVisible()
   await page.locator("#account-chip").click()
   await expect(page.getByRole("button", {name: "Sign out"})).toBeVisible()
-  await page.locator("#shell-aside [data-aside-close]").click()
+  await page.locator("#shell-aside-button").click()
   // Settings is intentionally disabled. Exercise the same live session on the
   // supported wallet page instead of depending on that retired menu entry.
   await page.locator("#shell-sidebar a[href='/stake']").click()

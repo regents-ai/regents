@@ -600,10 +600,12 @@
 
 /* ---- Side panel ---- */
 
-/* On a wide screen it slides in beside the page, which narrows to make room. */
+/* On a wide screen it slides in beside the page, which narrows to make room. A
+   size container, so the agents list can take a quarter of its height. */
 #shell-aside {
   position: relative;
   z-index: 3;
+  container-type: size;
   display: grid;
   grid-area: 2 / 3;
   align-content: start;
@@ -630,8 +632,9 @@
   visibility: hidden;
 }
 
-/* Below a wide screen it covers the page's right edge, below the dialogs that
-   open over it, and slides in from that edge. */
+/* Below a wide screen it covers the page's right edge under the header, whose
+   panel button closes it, below the dialogs that open over it, and slides in
+   from that edge. */
 @media (max-width: 63.99rem) {
   #app-shell {
     --shell-aside: 0px;
@@ -639,7 +642,7 @@
 
   #shell-aside {
     position: fixed;
-    inset: 0 0 0 auto;
+    inset: 4rem 0 0 auto;
     z-index: 30;
     width: min(22rem, 100%);
     transition:
@@ -666,6 +669,7 @@
 
 @media (max-width: 48rem) {
   #shell-aside {
+    inset-block-start: 3.5rem;
     width: 100%;
     border-inline-start: 0;
   }
@@ -675,22 +679,22 @@
   outline: none;
 }
 
+/* Sign out and Manage Account share one short row; the header's panel button
+   closes the panel. */
 .shell-aside__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   min-height: 3rem;
-  padding-inline-start: 1rem;
+  padding-inline: 1rem;
   border-block-end: 1px solid var(--color-border);
 }
 
-.shell-aside__head h2 {
-  margin: 0;
-  font-family: var(--font-family-ui);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.shell-aside__head .rg-button {
+  min-height: 2rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 #shell-aside section {
@@ -700,9 +704,11 @@
   border-block-end: 1px solid var(--color-border);
 }
 
-#shell-aside h3 {
+#shell-aside h2 {
   margin: 0;
+  font-family: var(--font-family-ui);
   font-size: 0.95rem;
+  font-weight: 600;
 }
 
 #shell-aside p {
@@ -718,24 +724,9 @@
   list-style: none;
 }
 
-.shell-account__name {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-width: 0;
-  font-weight: 600;
-}
-
-.shell-account__actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-}
-
-.shell-account__actions .rg-button {
-  width: 100%;
-  justify-content: center;
-  white-space: nowrap;
+/* The agents list keeps its own rows; the panel's list spacing is for its other lists. */
+#shell-aside .rg-account__brief-list {
+  gap: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

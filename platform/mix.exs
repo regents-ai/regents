@@ -4,9 +4,9 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "a8b83589c5e348cb2b3d23ceec8b04317c1dede1"
+  @elixir_utils_ref "1b73b6c2eb42e4691c67b5bd9f12682201c08eeb"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "9e93f1497f5a014bccd3be0e5c5729f2b866cc54"
+  @design_system_ref "288888391e47f5becd86a38c0a53c7b11a6599b3"
 
   def project do
     [
@@ -56,6 +56,8 @@ defmodule Regents.MixProject do
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
       {:oban, "~> 2.24"},
+      {:nebulex, "~> 3.0"},
+      {:nebulex_local, "~> 3.0"},
       {:ash_oban, "~> 0.10.0"},
       {:ash_phoenix, "~> 2.3.25"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},

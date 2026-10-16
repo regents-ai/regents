@@ -4,8 +4,8 @@ defmodule RegentsWeb.ShellLive.Account do
   the signed-in wallets hold and may still claim, and paired agents. Every read
   here is the account's own, made with the wallets its sign-in verified, so
   nothing the browser sends can widen it. Agent changes from other tabs and
-  sites reach the side panel's pairing box on every page, and this page's own
-  list and box while it is open.
+  sites reach the side panel's agents and pairing box on every page, and this
+  page's own list while it is open.
   """
 
   import Phoenix.Component, only: [assign: 2]
@@ -22,17 +22,18 @@ defmodule RegentsWeb.ShellLive.Account do
     ]
 
   alias RegentAgents.{PairedAgent, Person}
-  alias Regents.{Accounts, AgentActivity, Ens, Names}
+  alias Regents.{Accounts, Ens, Names}
   alias Regents.Accounts.LinkedIdentity.Providers
   alias Regents.Actors.Human
+  alias Regents.Agents.ActivityReading
   alias RegentsWeb.EventInput
-  alias RegentsWeb.PairingBox
+  alias RegentsWeb.{PairingBox, PanelAgents}
   alias RegentsWeb.ShellLive.Identity
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
   @names_page_size 50
   @blank_claim_name %{value: "", problems: [], availability: nil}
-  @page_events ~w(load_more_names check_claim_name claim_name open_agent load_more_activity unpair_agent)
+  @page_events ~w(load_more_names check_claim_name claim_name open_agent unpair_agent)
   # Far longer than any name a person claims; the name's own rules say what is too long.
   @claim_name_limit 255
 
@@ -147,9 +148,6 @@ defmodule RegentsWeb.ShellLive.Account do
   def handle_event("open_agent", %{"id" => id}, socket) when is_binary(id),
     do: socket |> assign(agent_notice: nil) |> show_agent(id, agent_person(socket))
 
-  def handle_event("load_more_activity", %{"id" => id}, socket) when is_binary(id),
-    do: load_more_activity(socket, id)
-
   def handle_event("unpair_agent", %{"id" => id}, socket) when is_binary(id) do
     actor = agent_person(socket)
 
@@ -165,25 +163,17 @@ defmodule RegentsWeb.ShellLive.Account do
     do: put_flash(socket, :error, EventInput.unreadable())
 
   @doc """
-  The newest page of what the open agent has done and its registry listing,
-  landing only while that agent is still open and its older activity has not
-  been asked for.
+  Where the open agent has been active, a line for each site and day, and its
+  registry listing, landing only while that agent is still open.
   """
   def settle_activity(
-        %{assigns: %{agent_detail: %{agent: %{id: id}, paged: false} = detail}} = socket,
+        %{assigns: %{agent_detail: %{agent: %{id: id}} = detail}} = socket,
         {:agent_activity, id},
         result
       ) do
     case result do
-      {:ok, {:ok, page}} ->
-        assign(socket,
-          agent_detail: %{
-            detail
-            | activity: page.entries,
-              next: page.next,
-              listing: page.listing
-          }
-        )
+      {:ok, {:ok, reading}} ->
+        assign(socket, agent_detail: %{detail | activity: reading.days, listing: reading.listing})
 
       _failed ->
         assign(socket, agent_detail: %{detail | activity: :unavailable})
@@ -191,32 +181,6 @@ defmodule RegentsWeb.ShellLive.Account do
   end
 
   def settle_activity(socket, _name, _result), do: socket
-
-  @doc """
-  The next page of the open agent's activity, added below what is shown.
-  """
-  def settle_more_activity(
-        %{assigns: %{agent_detail: %{agent: %{id: id}, more: :loading} = detail}} = socket,
-        {:more_agent_activity, id},
-        result
-      ) do
-    case result do
-      {:ok, {:ok, page}} ->
-        assign(socket,
-          agent_detail: %{
-            detail
-            | activity: detail.activity ++ page.entries,
-              next: page.next,
-              more: :idle
-          }
-        )
-
-      _failed ->
-        assign(socket, agent_detail: %{detail | more: :unavailable})
-    end
-  end
-
-  def settle_more_activity(socket, _name, _result), do: socket
 
   @doc """
   The session has already re-read the account by the time this arrives, so
@@ -234,17 +198,17 @@ defmodule RegentsWeb.ShellLive.Account do
 
   @doc """
   An agent paired, checked in or was unpaired, here or on another Regent site.
-  The side panel's pairing box is on every page but Account, which has its own
-  and the list of agents.
+  The side panel's agents and pairing box are on every page; the Account page
+  also has its own list of agents.
   """
-  def agents_changed(%{assigns: %{route_spec: %{route_id: :account}}} = socket) do
-    send_update(PairingBox, id: "account-agents-pair", agents_changed: true)
-    reload_paired_agents(socket, agent_person(socket))
-  end
-
   def agents_changed(socket) do
+    send_update(PanelAgents, id: "shell-agents", agents_changed: true)
     send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
-    socket
+
+    case socket.assigns.route_spec do
+      %{route_id: :account} -> reload_paired_agents(socket, agent_person(socket))
+      _other -> socket
+    end
   end
 
   # Sign-in read the wallet's primary name once. A wallet never answered for, or
@@ -513,16 +477,13 @@ defmodule RegentsWeb.ShellLive.Account do
     end
   end
 
-  # What the agent has done and its registry listing are read from the sign-in
-  # service in the background. What is already on screen for this agent stays until the new reading lands. Once the
-  # person has asked for older activity, the list stays as they are reading it.
+  # Where the agent has been active and its registry listing come from its
+  # shared reading in the background. What is already on screen for this agent
+  # stays until the new reading lands.
   defp show_agent(socket, id, actor) do
     case RegentAgents.get_my_agent(id, actor: actor, load: [:picture_updated_at]) do
       {:ok, %PairedAgent{} = agent} ->
         case socket.assigns.agent_detail do
-          %{agent: %{id: ^id}, paged: true} = shown ->
-            assign(socket, agent_detail: %{shown | agent: agent})
-
           %{agent: %{id: ^id}} = shown ->
             socket
             |> assign(agent_detail: %{shown | agent: agent})
@@ -530,16 +491,7 @@ defmodule RegentsWeb.ShellLive.Account do
 
           _other ->
             socket
-            |> assign(
-              agent_detail: %{
-                agent: agent,
-                activity: :loading,
-                next: nil,
-                more: :idle,
-                paged: false,
-                listing: nil
-              }
-            )
+            |> assign(agent_detail: %{agent: agent, activity: :loading, listing: nil})
             |> read_activity(agent)
         end
 
@@ -549,21 +501,7 @@ defmodule RegentsWeb.ShellLive.Account do
   end
 
   defp read_activity(socket, agent),
-    do: start_async(socket, {:agent_activity, agent.id}, fn -> AgentActivity.recent(agent) end)
-
-  defp load_more_activity(
-         %{
-           assigns: %{agent_detail: %{agent: %{id: id} = agent, next: next, more: more} = detail}
-         } = socket,
-         id
-       )
-       when is_binary(next) and more != :loading do
-    socket
-    |> assign(agent_detail: %{detail | more: :loading, paged: true})
-    |> start_async({:more_agent_activity, id}, fn -> AgentActivity.recent(agent, next) end)
-  end
-
-  defp load_more_activity(socket, _id), do: socket
+    do: start_async(socket, {:agent_activity, agent.id}, fn -> ActivityReading.read(agent) end)
 
   # Pairings name the person by their Privy user ID, the same on every site.
   defp agent_person(socket) do

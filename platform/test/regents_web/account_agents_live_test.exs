@@ -10,22 +10,19 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
   @listing "https://www.8004scan.io/agents/base/97609"
 
-  # The pairing message on show; every other agent's waits unseen in its place.
-  @message "#account-agents-pair pre:not([data-unused])"
+  # The pairing box in the side panel, and the message it shows once an agent is
+  # chosen.
+  @pairing "#shell-pairing-box"
+  @message "#shell-pairing-box pre"
 
   # The sign-in service knows of nothing the agent did, and of no registry
-  # listing, unless a test says so.
+  # listing, unless a test says so. Readings kept by an earlier test are dropped.
   setup do
+    Regents.Agents.ActivityReading.delete_all!()
+
     Req.Test.stub(
-      Regents.Siwa,
-      &Req.Test.json(&1, %{
-        "data" => %{
-          "activity" => [],
-          "next" => nil,
-          "agentRegistration" => nil,
-          "agentBook" => nil
-        }
-      })
+      RegentAgents.Broker,
+      &Req.Test.json(&1, %{"data" => %{"days" => [], "agentRegistration" => nil}})
     )
 
     :ok
@@ -49,7 +46,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     second = pairing_code(view)
     refute second == first
 
-    view |> form("#account-agents-pair") |> render_submit()
+    view |> form(@pairing) |> render_submit()
     assert has_element?(view, @message, "SIWA_BROKER")
     refute pairing_code(view) in [first, second]
 
@@ -61,9 +58,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     render(view)
 
     # The agent that paired takes the code's place.
-    assert has_element?(view, "#account-agents-pair", "Sol paired with your account.")
+    assert has_element?(view, @pairing, "Sol paired with your account.")
     refute has_element?(view, @message)
-    assert has_element?(view, "#account-agents-pair-new:not([data-unused])", "Make a new code")
+    assert has_element?(view, "#shell-pairing-box-new:not([data-unused])")
     assert has_element?(view, "#account-agents-agent-#{agent.id} span", "Hermes")
     assert has_element?(view, "#account-agents-agent-#{agent.id} time", "just now")
   end
@@ -83,25 +80,23 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     view = open_account(conn, account)
 
-    Req.Test.stub(Regents.Siwa, fn conn ->
+    Req.Test.stub(RegentAgents.Broker, fn conn ->
       Req.Test.json(conn, %{
         "data" => %{
-          "activity" => [
+          "days" => [
             %{
               "audience" => "patchbay",
-              "method" => "POST",
-              "path" => "/api/agent/reports",
-              "occurred_at" => DateTime.to_iso8601(DateTime.utc_now())
+              "day" => "2026-10-16",
+              "first_seen_at" => "2026-10-16T09:05:00Z",
+              "last_seen_at" => "2026-10-16T17:40:00Z"
             }
           ],
-          "next" => nil,
           "agentRegistration" => %{
             "agentId" => "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432:97609",
             "tokenId" => "97609",
             "profileUrl" => "https://siwa.regents.sh/agent-profiles/abc",
             "registryUrl" => @listing
-          },
-          "agentBook" => nil
+          }
         }
       })
     end)
@@ -116,9 +111,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     render_async(view)
     log = "#account-agent-dialog .account-agent-dialog__log li"
-    assert has_element?(view, log, "Asked to make a change")
     assert has_element?(view, log, "Patchbay")
-    assert has_element?(view, log, "Paired with your account")
+    assert has_element?(view, log, "09:05 to 17:40 UTC")
+    assert has_element?(view, ~s(#{log} time[datetime="2026-10-16"]), "16 October 2026")
 
     assert has_element?(view, "#account-agent-dialog dt", "Registry listing")
 
@@ -172,7 +167,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     agent = pair!(account, "Quiet", :hermes)
     view = open_account(conn, account)
 
-    Req.Test.stub(Regents.Siwa, fn conn ->
+    Req.Test.stub(RegentAgents.Broker, fn conn ->
       conn |> Plug.Conn.put_status(503) |> Req.Test.json(%{})
     end)
 
@@ -320,7 +315,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   defp person(account), do: %Person{privy_user_id: account.privy_user_id}
 
   defp choose(view, harness),
-    do: view |> form("#account-agents-pair", %{harness: harness}) |> render_change()
+    do: view |> form(@pairing, %{harness: harness}) |> render_change()
 
   defp pairing_code(view) do
     [_, code] =
