@@ -34,9 +34,9 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     remember(value)
     sync()
 
-    if (open && phone()) {
-      aside()?.focus()
-    }
+    // Opened, focus moves into it, so Escape closes it and returns focus to the
+    // button that opened it.
+    if (open) aside()?.focus()
   }
 
   const onClick = (event: Event) => {

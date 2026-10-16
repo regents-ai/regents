@@ -55,14 +55,16 @@ defmodule RegentsWeb.Layouts do
         </a>
         <a href={~p"/about"}>About</a>
         <a href={~p"/docs"}>Developer docs</a>
-        <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
-          Agent guide
-        </button>
-        <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
-          <p>Give your agent one of these.</p>
-          <a href={~p"/agents.md"}>What agents can do here</a>
-          <a href={~p"/llms.txt"}>The whole site in brief</a>
-        </div>
+        <span class="rg-tip">
+          <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
+            Agent guide
+          </button>
+          <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
+            <p>Give your agent one of these.</p>
+            <a href={~p"/agents.md"}>What agents can do here</a>
+            <a href={~p"/llms.txt"}>The whole site in brief</a>
+          </div>
+        </span>
         <a href={~p"/contact"}>Contact</a>
         <span class="regent-footer__legal">
           <a href={~p"/privacy"}>Privacy policy</a>
