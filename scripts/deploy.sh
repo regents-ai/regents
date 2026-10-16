@@ -19,6 +19,7 @@ git archive --format=tar "$commit" | tar -x -C "$context"
 echo "==> Building registry.fly.io/$app:$tag from commit $commit"
 (cd "$context" && fly deploy . --app "$app" --config platform/fly.toml \
   --build-only --push --remote-only --image-label "$tag" \
+  --ignorefile platform/Dockerfile.dockerignore \
   --label "org.opencontainers.image.revision=$commit")
 
 echo "==> Deploying registry.fly.io/$app:$tag"

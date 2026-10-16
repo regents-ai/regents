@@ -139,17 +139,12 @@ Afterwards restore with `mix phx.digest.clean --all && mix assets.build`.
 
 ## 5. Releasing to production
 
-`fly.toml` **has no `app` field**, so `-a regents-sh-web` is mandatory on every fly
-command. The build context is the repository at the pushed commit; the build fetches
-the pinned shared libraries from GitHub.
-
-```bash
-mkdir <context-dir> && git archive <sha> | tar -x -C <context-dir>
-cd <context-dir>
-cp platform/Dockerfile Dockerfile && cp platform/Dockerfile.dockerignore .dockerignore
-fly deploy . -a regents-sh-web -c platform/fly.toml --build-only --push --remote-only --image-label main-<sha12>
-fly deploy -a regents-sh-web -c platform/fly.toml --image registry.fly.io/regents-sh-web:main-<sha12> --ha=false
-```
+Release with `make deploy` from a clean checkout of the commit you mean to ship, after
+confirming that commit contains the live one (`git merge-base --is-ancestor <live sha>
+HEAD`). It runs `scripts/deploy.sh`, which builds `git archive` of HEAD on Fly with
+`platform/Dockerfile.dockerignore` and the `org.opencontainers.image.revision` label set
+to the commit, tags the image `main-<sha12>`, and deploys it to the one machine with
+`--ha=false`. The build fetches the pinned shared libraries from GitHub.
 
 The release runs `/app/bin/migrate` before boot, so any migration you add ships and
 runs automatically.
