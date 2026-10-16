@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform check-required-fixes check-cli check-identity check-contracts release
+.PHONY: help check check-platform check-required-fixes check-cli check-identity check-contracts release deploy
 
 # Every test run on a machine uses its own databases, named from MIX_TEST_PARTITION.
 REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
@@ -8,7 +8,7 @@ help:
 	@echo "make check runs every component gate. Run check-platform, check-required-fixes,"
 	@echo "check-cli, check-identity or check-contracts for one component. Set MIX_TEST_PARTITION"
 	@echo "(an underscore and a short id) first. make release checks, then builds and"
-	@echo "smoke-checks the committed tree."
+	@echo "smoke-checks the committed tree. make deploy puts the committed HEAD on regents.sh."
 check: check-platform check-required-fixes check-cli check-identity check-contracts
 check-platform:
 	cd platform && mix precommit && mix assets.build && npm run typecheck && npm test
@@ -37,3 +37,7 @@ release:
 	@test -z "$$(git status --porcelain)" || { echo "Commit every change first: the release checks and builds the committed tree." >&2; exit 1; }
 	$(MAKE) check
 	scripts/release.sh
+# Deploys the committed HEAD to regents.sh, its image labelled with that commit.
+deploy:
+	@test -z "$$(git status --porcelain --untracked-files=no)" || { echo "Commit every change first: the deploy builds the committed tree." >&2; exit 1; }
+	scripts/deploy.sh

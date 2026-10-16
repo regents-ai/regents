@@ -15,6 +15,8 @@ const pages: Array<[string, string]> = [
   ["/redeem", "#redemption-collections"],
 ]
 
+// The link sits outside the live view, so no update of the page can remove it
+// before the click; LiveView follows a patch link anywhere in the document.
 async function patchTo(page: Page, path: string) {
   await page.evaluate(destination => {
     document.querySelector("#patch-probe")?.remove()
@@ -24,7 +26,8 @@ async function patchTo(page: Page, path: string) {
     link.textContent = destination
     link.dataset.phxLink = "patch"
     link.dataset.phxLinkState = "push"
-    document.querySelector("#route-content")?.append(link)
+    link.style.cssText = "position: fixed; inset: 0 auto auto 0; z-index: 1000"
+    document.body.append(link)
   }, path)
   await page.locator("#patch-probe").click()
 }

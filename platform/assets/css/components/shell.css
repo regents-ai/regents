@@ -651,13 +651,12 @@
     min-inline-size: 0;
   }
 
-  :root:not([data-aside="open"]) #shell-aside {
-    transform: translateX(100%);
-  }
-
-  /* Covering the page, it opens only when opened on this page, never on arrival. */
+  /* Covering the page, it slides in from the edge, and opens only when opened
+     on this page, never on arrival. */
+  :root:not([data-aside="open"]) #shell-aside,
   :root:not([data-aside-here]) #shell-aside {
-    display: none;
+    visibility: hidden;
+    transform: translateX(100%);
   }
 
   :root[data-aside="open"][data-aside-here] #shell-aside {
