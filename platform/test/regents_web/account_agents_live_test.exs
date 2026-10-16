@@ -141,7 +141,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     # A check-in reloads the open agent without blanking what is shown. Its
     # request named no person, and the saved person stays for good.
-    assert {:ok, _agent} = RegentAgents.check_in_agent(actor: @agent)
+    assert {:ok, _agent} = RegentAgents.check_in_agent(account.privy_user_id, actor: @agent)
     heard(account)
     assert has_element?(view, log, "Patchbay")
     assert has_element?(view, "#account-agent-human dd", "Verified human")
