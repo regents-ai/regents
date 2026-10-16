@@ -7,7 +7,7 @@
     "Sign in once with regents auth login --site regents; every agents request is then signed with your agent key.",
     "Your person makes a pairing code on their Account page at https://regents.sh/account.",
     "Private reads require current pairing; browser sessions never grant agent authority. World ID and ERC-8004 registration are optional.",
-    "These source descriptions require the coordinated CLI release. No private nonfinancial write is available; wallet actions remain user-signed."
+    "No private nonfinancial write is available; wallet actions remain user-signed."
   ],
   "commands": [
     {
@@ -152,6 +152,35 @@
       "authority": "paired_agent",
       "effect": "read",
       "webmcp": "regents_points_summary"
+    },
+    {
+      "command": "products list",
+      "description": "List the Regents products in the order the site lists them: Autolaunch, Techtree, Patchbay and Keyfleet, each with its summary, website, source and page on regents.sh.",
+      "operation_id": "listProducts",
+      "webmcp": "regents_products",
+      "method": "GET",
+      "path": "/api/v1/products",
+      "authority": "public",
+      "effect": "read"
+    },
+    {
+      "command": "products get <product>",
+      "description": "Read everything one product's page on regents.sh shows.",
+      "operation_id": "getProduct",
+      "webmcp": "regents_product",
+      "method": "GET",
+      "path": "/api/v1/products/{slug}",
+      "authority": "public",
+      "effect": "read",
+      "arguments": [
+        {
+          "name": "product",
+          "type": "string",
+          "in": "path",
+          "field": "slug",
+          "description": "The product: autolaunch, techtree, patchbay or keyfleet; `regents protocol products list` names them."
+        }
+      ]
     }
   ]
 }
