@@ -2018,3 +2018,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - Each picture has its own alt text, and its address is fingerprinted through
   `Endpoint.static_path`, so X fetches it fresh. Every other page still shares the
   crown, and `/literature` keeps its chart picture.
+
+## 2026-10-16 — Regents v195 released; v196 candidate: share pictures and the /stake Safari fix
+
+- Fly v195 (main `0d236015`) went live at 21:25Z on Sean's "1. a" (21:22Z);
+  rollback Fly v194 (`01a9f9ac`).
+- v196 pins design-system `f9b0e25`: /stake no longer crashes Safari/WebKit (the
+  ratio card's badge border is one colour mix instead of a nested one). Same
+  colours; Chromium shows no pixel change (`62d94044`, Sentinel GO).
+- v196 also carries the share pictures for the home page, Paper Pro Daily, Stake
+  and Redeem described in the entry above.
