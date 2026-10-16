@@ -1990,3 +1990,16 @@ No database migrations. Needs `SIWA_ACTIVITY_READ_TOKEN`, already set on regents
   that still crashes ends only itself and leaves that agent's line empty, never the
   page (Sentinel's v193 finding F2).
 - An open pill menu closes on Escape or a tap outside it, iPhones included.
+
+## 2026-10-16 — Regents v195 (main `73c6a9ce`): quarter-second Stake check and Articles out of the left menu
+
+Previous release: Fly v194 (`01a9f9ac`). No database migrations.
+
+- After a wallet step on the Stake page is sent, the page checks Base for it every
+  quarter second (was every two seconds), up to 90 checks or until the step
+  settles, one loop per step, as the template does (template `9b728cb`). What the
+  step sends, its amounts and who signs it are unchanged (`e6ab2e8c`, Sean's
+  "2. a", Sentinel GO).
+- The left menu's Reading group ends at AI & SCIFI; Articles is no longer listed
+  there. Articles, each article and the Articles editor still open by link
+  (`73c6a9ce`, Sean: "remove the articles left sidenav button").
