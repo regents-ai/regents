@@ -2045,3 +2045,18 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   them (Sean, 16 Oct, with a screenshot: "the 9 dots icon, specifically on
   regents.sh and maybe elsewhere, looks wrong"). The other Regent sites were
   measured and are already centred.
+
+## 2026-10-17 — Regents v196 released; v197 candidate: agents' activity reads during an outage
+
+- v196 (`b8988ea9`) went live as Fly v196 at 01:21Z on Sean's go, with v195
+  (`0d236015`) as the rollback. All four share pictures (home, Paper Pro Daily,
+  Stake, Redeem) answer 200, and the signed-out walk of /, /stake and /start at
+  390 and 1440 px showed no overflow and no page errors. The empty platform-phx
+  Fly app was deleted on Sean's go.
+- Agents' activity in the side panel and on the Account page now keeps a failed
+  read from the sign-in service for one minute, so while that service is down each
+  agent is asked again at most once a minute, however often the panel opens
+  (template `ea1105e`). Each read that gives no reading is counted by reason in
+  `health.agent_activity_unread.total` (template `ca82af6`). elixir-utils moves to
+  `72ccfea`, which names an answer without a list of days `:bad_days`. The panel's
+  crash-proof reads (template `449e71a`) were already here.

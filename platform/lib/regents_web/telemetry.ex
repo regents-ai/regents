@@ -24,6 +24,11 @@ defmodule RegentsWeb.Telemetry do
   def prometheus_metrics do
     [
       counter("regents.privy.browser_failure.total", tags: [:reason]),
+      counter("health.agent_activity_unread.total",
+        event_name: [:regents, :agents, :activity_unread],
+        tags: [:reason],
+        description: "Agents' activity reads from the sign-in service that gave no reading"
+      ),
       sum("regents.staking.rpc.requests", tags: [:purpose, :method, :chain_id, :environment])
     ]
   end
