@@ -57,6 +57,16 @@
   text-wrap: pretty;
 }
 
+.stake-yield-badge {
+  justify-self: start;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--palette-tangerine-tango) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--palette-tangerine-tango) 12%, var(--color-surface));
+  color: color-mix(in srgb, var(--palette-tangerine-tango) 55%, var(--color-fg));
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 .stake-kicker,
 .stake-section-kicker,
 .stake-benefit-card dt,

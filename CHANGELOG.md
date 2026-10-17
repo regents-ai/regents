@@ -2089,3 +2089,10 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   wallet details, verified connections and sign-out stack in the right one. Each
   column stacks its own panels, so a tall panel never leaves a gap beside it. A
   phone shows one column in that same order (Sean, 17 Oct).
+
+## 2026-10-17 — Stake page: pro rata line and a 20% Yield badge
+
+- /stake's opening line now reads "Stake to earn a pro rata split of all Regents
+  Labs' USDC revenue." Under it, an orange badge reads "Temporary 20% Yield for
+  early community" (Sean, 17 Oct 15:44Z). This replaces the earlier v198 line,
+  which never went live.
