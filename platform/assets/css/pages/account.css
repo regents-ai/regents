@@ -70,15 +70,35 @@
 
 /* Panels */
 
-.account-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
-  gap: 1.5rem;
-  align-items: start;
+/* The account card and the agents run full width. Below them, two columns that
+   each stack their own panels, so a tall panel never leaves a gap beside it: what
+   a person uses (Credits and names) on the left, the wallet's details, connections
+   and sign-out on the right. A narrow page shows one column in that order. */
+.account-page {
+  container: account-page / inline-size;
 }
 
-.account-identity {
-  grid-column: 1 / -1;
+.account-grid,
+.account-column {
+  display: grid;
+  gap: 1.5rem;
+  align-content: start;
+}
+
+.account-column {
+  min-width: 0;
+}
+
+@container account-page (min-width: 46rem) {
+  .account-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .account-identity,
+  .account-agents {
+    grid-column: 1 / -1;
+  }
 }
 
 .account-panel,
@@ -172,10 +192,6 @@
 }
 
 /* Agents: the shared list, then pairing; the whole row of the grid. */
-
-.account-agents {
-  grid-column: 1 / -1;
-}
 
 /* How the last agent edit ended, in the open agent. */
 .account-agents__notice {

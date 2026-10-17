@@ -88,48 +88,6 @@ defmodule RegentsWeb.AccountLive do
           </div>
         </Regent.HolographicCard.card>
 
-        <section class="account-panel account-details" aria-labelledby="account-details-title">
-          <h2 id="account-details-title">Details</h2>
-          <dl>
-            <div>
-              <dt>Wallet</dt>
-              <dd :if={@account.wallet_address} class="account-wallet">
-                <code>{@account.wallet_address}</code>
-                <Regent.Primitives.copy_button
-                  id="account-wallet-copy"
-                  text={@account.wallet_address}
-                >
-                  Copy
-                </Regent.Primitives.copy_button>
-              </dd>
-              <dd :if={is_nil(@account.wallet_address)}>No wallet linked</dd>
-            </div>
-            <div :if={other_wallets(@account) != []}>
-              <dt>Other linked wallets</dt>
-              <dd>
-                <ul class="account-wallet-list">
-                  <li :for={wallet <- other_wallets(@account)}><code>{wallet}</code></li>
-                </ul>
-              </dd>
-            </div>
-            <div>
-              <dt>ENS name</dt>
-              <.ens_name account={@account} check={@ens} />
-            </div>
-            <div>
-              <dt>Display name</dt>
-              <dd>{@account.display_name || "Not set"}</dd>
-            </div>
-            <div>
-              <dt>World ID</dt>
-              <dd :if={@account.world_verified_at}>
-                Verified on {date(@account.world_verified_at)}
-              </dd>
-              <dd :if={is_nil(@account.world_verified_at)}>Not verified</dd>
-            </div>
-          </dl>
-        </section>
-
         <.paired_agents
           agents={@agents}
           detail={@agent_detail}
@@ -139,115 +97,162 @@ defmodule RegentsWeb.AccountLive do
           account={@account}
         />
 
-        <div id="account-credits" class="account-panel account-credits">
-          <Regent.Account.credits_summary
-            id="account-credits-summary"
-            available={@credits.value && RegentCredits.Amount.format(@credits.value.available)}
-            held={@credits.value && RegentCredits.Amount.format(@credits.value.held)}
-            state={credits_state(@credits.state)}
-          >
-            <div class="account-credits__more">
-              <p>One balance for every Regent site. One Credit is one US dollar.</p>
-              <div class="account-credits__actions">
-                <Regent.Primitives.button
-                  type="button"
-                  phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
-                >
-                  Buy Credits
-                </Regent.Primitives.button>
-                <.link navigate="/account/credits">Purchase History</.link>
-                <.link navigate="/account/points">Points</.link>
+        <%!-- What a person uses most comes first; on a phone the columns stack in this order. --%>
+        <div class="account-column">
+          <div id="account-credits" class="account-panel account-credits">
+            <Regent.Account.credits_summary
+              id="account-credits-summary"
+              available={@credits.value && RegentCredits.Amount.format(@credits.value.available)}
+              held={@credits.value && RegentCredits.Amount.format(@credits.value.held)}
+              state={credits_state(@credits.state)}
+            >
+              <div class="account-credits__more">
+                <p>One balance for every Regent site. One Credit is one US dollar.</p>
+                <div class="account-credits__actions">
+                  <Regent.Primitives.button
+                    type="button"
+                    phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+                  >
+                    Buy Credits
+                  </Regent.Primitives.button>
+                  <.link navigate="/account/credits">Purchase History</.link>
+                  <.link navigate="/account/points">Points</.link>
+                </div>
               </div>
-            </div>
-          </Regent.Account.credits_summary>
+            </Regent.Account.credits_summary>
 
-          <h3>What your agents may spend</h3>
-          <p>
-            Spending starts off for every agent. Turn it on for an agent and set its limits; they apply on every site you tick.
-          </p>
-          <.live_component
-            module={RegentsWeb.CreditsAgentSpending}
-            id="account-agent-spending"
-            lease={@lease}
-            account={@account}
-            agents={agent_wallets(@agents)}
-            sites={Regents.Credits.agent_sites()}
-          />
+            <h3>What your agents may spend</h3>
+            <p>
+              Spending starts off for every agent. Turn it on for an agent and set its limits; they apply on every site you tick.
+            </p>
+            <.live_component
+              module={RegentsWeb.CreditsAgentSpending}
+              id="account-agent-spending"
+              lease={@lease}
+              account={@account}
+              agents={agent_wallets(@agents)}
+              sites={Regents.Credits.agent_sites()}
+            />
+          </div>
+
+          <section class="account-panel account-names" aria-labelledby="account-names-title">
+            <div class="account-names__heading">
+              <h2 id="account-names-title">Claimed Regent Names</h2>
+              <p>The names your wallets have claimed, oldest first.</p>
+            </div>
+            <.names names={@names} stream={@names_stream} />
+          </section>
+
+          <section class="account-panel account-claim" aria-labelledby="account-claim-title">
+            <div class="account-names__heading">
+              <h2 id="account-claim-title">Claim a Regent Name</h2>
+              <.claims_available claims={@claims} />
+            </div>
+            <form
+              id="account-claim-form"
+              phx-change="check_claim_name"
+              phx-submit="claim_name"
+            >
+              <Regent.Primitives.field
+                :let={field}
+                id="account-claim-name"
+                label="Name"
+                errors={@claim_name.problems}
+              >
+                <div class="account-claim__name">
+                  <input
+                    id={field.id}
+                    name="name"
+                    value={@claim_name.value}
+                    autocomplete="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    placeholder="yourname"
+                    phx-debounce="300"
+                    aria-invalid={field.aria_invalid}
+                    aria-describedby={field.described_by}
+                  />
+                  <span>.regent.eth</span>
+                </div>
+                <:hint>
+                  3 to 14 characters: lowercase letters, numbers and hyphens, not starting or ending with a hyphen.
+                </:hint>
+              </Regent.Primitives.field>
+              <Regent.Primitives.button
+                id="account-claim-submit"
+                type="submit"
+                disabled={not claimable?(@claims, @claim_name)}
+                phx-disable-with="Claiming…"
+              >
+                Claim name
+              </Regent.Primitives.button>
+            </form>
+            <.claim_name_availability name={@claim_name} />
+            <%!-- The price is the one every paid claim on record was bought at. --%>
+            <p :if={match?(%{free: 0}, @claims)} class="account-claim__later">
+              Names cost 0.0025 ETH each, and buying one from this page isn’t open yet.
+            </p>
+          </section>
         </div>
 
-        <section class="account-panel account-names" aria-labelledby="account-names-title">
-          <div class="account-names__heading">
-            <h2 id="account-names-title">Claimed Regent Names</h2>
-            <p>The names your wallets have claimed, oldest first.</p>
-          </div>
-          <.names names={@names} stream={@names_stream} />
-        </section>
-
-        <section class="account-panel account-claim" aria-labelledby="account-claim-title">
-          <div class="account-names__heading">
-            <h2 id="account-claim-title">Claim a Regent Name</h2>
-            <.claims_available claims={@claims} />
-          </div>
-          <form
-            id="account-claim-form"
-            phx-change="check_claim_name"
-            phx-submit="claim_name"
-          >
-            <Regent.Primitives.field
-              :let={field}
-              id="account-claim-name"
-              label="Name"
-              errors={@claim_name.problems}
-            >
-              <div class="account-claim__name">
-                <input
-                  id={field.id}
-                  name="name"
-                  value={@claim_name.value}
-                  autocomplete="off"
-                  autocapitalize="none"
-                  spellcheck="false"
-                  placeholder="yourname"
-                  phx-debounce="300"
-                  aria-invalid={field.aria_invalid}
-                  aria-describedby={field.described_by}
-                />
-                <span>.regent.eth</span>
+        <div class="account-column">
+          <section class="account-panel account-details" aria-labelledby="account-details-title">
+            <h2 id="account-details-title">Details</h2>
+            <dl>
+              <div>
+                <dt>Wallet</dt>
+                <dd :if={@account.wallet_address} class="account-wallet">
+                  <code>{@account.wallet_address}</code>
+                  <Regent.Primitives.copy_button
+                    id="account-wallet-copy"
+                    text={@account.wallet_address}
+                  >
+                    Copy
+                  </Regent.Primitives.copy_button>
+                </dd>
+                <dd :if={is_nil(@account.wallet_address)}>No wallet linked</dd>
               </div>
-              <:hint>
-                3 to 14 characters: lowercase letters, numbers and hyphens, not starting or ending with a hyphen.
-              </:hint>
-            </Regent.Primitives.field>
-            <Regent.Primitives.button
-              id="account-claim-submit"
-              type="submit"
-              disabled={not claimable?(@claims, @claim_name)}
-              phx-disable-with="Claiming…"
-            >
-              Claim name
+              <div :if={other_wallets(@account) != []}>
+                <dt>Other linked wallets</dt>
+                <dd>
+                  <ul class="account-wallet-list">
+                    <li :for={wallet <- other_wallets(@account)}><code>{wallet}</code></li>
+                  </ul>
+                </dd>
+              </div>
+              <div>
+                <dt>ENS name</dt>
+                <.ens_name account={@account} check={@ens} />
+              </div>
+              <div>
+                <dt>Display name</dt>
+                <dd>{@account.display_name || "Not set"}</dd>
+              </div>
+              <div>
+                <dt>World ID</dt>
+                <dd :if={@account.world_verified_at}>
+                  Verified on {date(@account.world_verified_at)}
+                </dd>
+                <dd :if={is_nil(@account.world_verified_at)}>Not verified</dd>
+              </div>
+            </dl>
+          </section>
+
+          <.verified_connections
+            id="account-verified-connections"
+            class="account-panel"
+            identities={@verified_connections}
+            notice={@verified_connections_notice}
+          />
+
+          <section class="account-panel account-session" aria-labelledby="account-session-title">
+            <h2 id="account-session-title">Session</h2>
+            <p>Signing out ends this session on this browser only.</p>
+            <Regent.Primitives.button type="button" variant="secondary" data-account-target="sign-out">
+              Sign out
             </Regent.Primitives.button>
-          </form>
-          <.claim_name_availability name={@claim_name} />
-          <%!-- The price is the one every paid claim on record was bought at. --%>
-          <p :if={match?(%{free: 0}, @claims)} class="account-claim__later">
-            Names cost 0.0025 ETH each, and buying one from this page isn’t open yet.
-          </p>
-        </section>
-
-        <.verified_connections
-          id="account-verified-connections"
-          class="account-panel"
-          identities={@verified_connections}
-          notice={@verified_connections_notice}
-        />
-
-        <section class="account-panel account-session" aria-labelledby="account-session-title">
-          <h2 id="account-session-title">Session</h2>
-          <p>Signing out ends this session on this browser only.</p>
-          <Regent.Primitives.button type="button" variant="secondary" data-account-target="sign-out">
-            Sign out
-          </Regent.Primitives.button>
-        </section>
+          </section>
+        </div>
       </div>
     </article>
     """

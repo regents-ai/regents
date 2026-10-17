@@ -2078,3 +2078,14 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - /stake's opening line now reads "Staked $REGENT earns your share of USDC revenue
   from all products." in place of "Earn a share of Regents Labs' USDC revenue, plus
   new REGENT." (Sean, 17 Oct, word for word).
+
+## 2026-10-17 — Account page: panels in a sensible order
+
+- /account put the account card, then the wallet details alone in a narrow
+  column with empty space beside it, then the agents, then Credits beside the
+  names panels with large gaps under the shorter ones. Now the account card and
+  Agents run full width at the top; below them, on a wide screen, Credits,
+  Claimed Regent Names and Claim a Regent Name stack in the left column, and the
+  wallet details, verified connections and sign-out stack in the right one. Each
+  column stacks its own panels, so a tall panel never leaves a gap beside it. A
+  phone shows one column in that same order (Sean, 17 Oct).
