@@ -153,8 +153,10 @@
   font-size: 0.85rem;
 }
 
+/* The header cell rule above makes these flex boxes, so centre the icon here. */
 #app-shell #shell-header .shell-tool {
   align-self: center;
+  justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
   padding: 0;

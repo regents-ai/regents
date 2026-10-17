@@ -2036,3 +2036,12 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   again.", the template's new wording. agents.md, llms.md, docs.md, the agent
   guide, the API contract copies, cli/COMMANDS.md and cli/commands.json no longer
   say "on any page", since some pages have no side panel.
+
+## 2026-10-17 — The nine-dot button's icon is centred
+
+- The top bar's nine-dot button (Regents Products) and the side panel button showed
+  their icon about 11 pixels left of centre: the header's shared cell rule made them
+  flex boxes without centring. `#app-shell #shell-header .shell-tool` now centres
+  them (Sean, 16 Oct, with a screenshot: "the 9 dots icon, specifically on
+  regents.sh and maybe elsewhere, looks wrong"). The other Regent sites were
+  measured and are already centred.
