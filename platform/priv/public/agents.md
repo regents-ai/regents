@@ -85,8 +85,8 @@ regents protocol --help
 - Regents offers no write through this interface. Do not claim a name, buy anything or post
   as a test.
 - A `person_not_here` refusal means your person has not signed in on this site yet.
-  `not_paired` from a check-in, or `agent_not_paired` from a read, means you were unpaired;
-  ask for a new code.
+  `not_paired` from a check-in, or `agent_not_paired` from a read, means you aren't paired
+  with your person on this site; ask for a new code.
 
 ## In a browser page
 

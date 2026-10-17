@@ -2060,3 +2060,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   `health.agent_activity_unread.total` (template `ca82af6`). elixir-utils moves to
   `72ccfea`, which names an answer without a list of days `:bad_days`. The panel's
   crash-proof reads (template `449e71a`) were already here.
+
+## 2026-10-17 — v197 candidate: "not paired" says what it means
+
+- The agent guides (agents.md, llms.md, docs.md and the guide at /agents/start)
+  said a `not_paired` refusal meant the person had unpaired the agent. It also
+  covers an agent that was never paired, so they now say the agent isn't paired
+  with its person on this site, the wording Sentinel ruled for the template's
+  troubleshooting line on 16 Oct.
