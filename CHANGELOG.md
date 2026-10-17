@@ -2068,3 +2068,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   covers an agent that was never paired, so they now say the agent isn't paired
   with its person on this site, the wording Sentinel ruled for the template's
   troubleshooting line on 16 Oct.
+
+## 2026-10-17 — Regents v197 released; v198 candidate: the Stake page's opening line
+
+- v197 (`0604ce9a`) went live as Fly v197 at 01:50Z on Sean's go after Sentinel's
+  GO, with v196 (`b8988ea9`) as the rollback. Sentinel's after-read was healthy:
+  no 5xx, the new not_paired wording live on every agent guide, and the header
+  icon 0.5 px off centre.
+- /stake's opening line now reads "Staked $REGENT earns your share of USDC revenue
+  from all products." in place of "Earn a share of Regents Labs' USDC revenue, plus
+  new REGENT." (Sean, 17 Oct, word for word).

@@ -29,7 +29,7 @@ defmodule RegentsWeb.StakeLive do
         <div class="stake-heading-copy">
           <p class="stake-kicker">REGENT staking · Base</p>
           <h1 id="staking-page-heading" tabindex="-1">Put REGENT to work.</h1>
-          <p class="stake-lede">Earn a share of Regents Labs' USDC revenue, plus new REGENT.</p>
+          <p class="stake-lede">Staked $REGENT earns your share of USDC revenue from all products.</p>
           <div class="stake-token-links">
             <a
               class="rg-button stake-buy"
