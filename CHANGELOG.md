@@ -2096,3 +2096,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   Labs' USDC revenue." Under it, an orange badge reads "Temporary 20% Yield for
   early community" (Sean, 17 Oct 15:44Z). This replaces the earlier v198 line,
   which never went live.
+
+## 2026-10-17 — Staking described the same way everywhere
+
+- The home page's staking summary, the Stake link preview text, its share
+  picture and alt text, and the opening of about.md now match the Stake page:
+  stake to earn a pro rata split of all Regents Labs' USDC revenue, plus a
+  temporary REGENT yield for the early community (the share picture says "Early
+  20% yield"). They said "new REGENT" or "emissions" before (Sean, 17 Oct
+  16:04Z, decision 4. a). The detailed notes in about.md on how the REGENT rate
+  works are unchanged.

@@ -52,7 +52,7 @@ defmodule RegentsWeb.PublicDocuments do
       {"Points", "Your points, your NFT bonus and what earns points across Regent sites."},
     "/stake" =>
       {"Stake REGENT",
-       "Stake REGENT on Base to share in USDC revenue rewards paid out by the staking contract and to earn REGENT emissions."},
+       "Stake REGENT on Base to earn a pro rata split of all Regents Labs' USDC revenue, plus a temporary REGENT yield for the early community."},
     "/redeem" =>
       {"Redeem Animata",
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
@@ -228,7 +228,8 @@ defmodule RegentsWeb.PublicDocuments do
       "Paper Pro Daily: a research paper each day, read with ChatGPT Astra 6 Pro, beside three paper first pages"
 
   defp share_image_alt("/stake"),
-    do: "Put REGENT to work: stake REGENT for a share of USDC revenue and new REGENT"
+    do:
+      "Put REGENT to work: stake to earn a pro rata split of all Regents Labs' USDC revenue, with an early 20% yield"
 
   defp share_image_alt("/redeem"),
     do:
