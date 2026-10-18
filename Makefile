@@ -6,12 +6,13 @@ REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
 
 help:
 	@echo "make check runs every component gate. Run check-platform, check-required-fixes,"
-	@echo "check-cli, check-identity or check-contracts for one component. Set MIX_TEST_PARTITION"
+	@echo "check-cli, check-identity or check-contracts for one component; check-platform includes the"
+	@echo "headless browser checks in platform/test/browser. Set MIX_TEST_PARTITION"
 	@echo "(an underscore and a short id) first. make release checks, then builds and"
 	@echo "smoke-checks the committed tree. make deploy puts the committed HEAD on regents.sh."
 check: check-platform check-required-fixes check-cli check-identity check-contracts
 check-platform:
-	cd platform && mix precommit && mix assets.build && npm run typecheck && npm test
+	cd platform && mix precommit && mix assets.build && npm run typecheck && npm test && npx playwright test
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template

@@ -596,6 +596,74 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(page.locator(".stake-preview")).toBeVisible()
 })
 
+// Choices never change the height: whatever the different-address box shows,
+// the Stake panel keeps one height, so nothing below it moves.
+test("Stake keeps one height whatever the different-address box shows", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/stake")
+    await selectWallet(page, wallet)
+    await page.getByLabel("Amount", {exact: true}).fill("1")
+    const panel = page.locator(".stake-actions")
+    const toggle = page.getByLabel("Stake for a different address", {exact: true})
+    const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
+    const height = async () => (await panel.boundingBox())!.height
+    await expect(page.locator(".stake-preview")).toBeVisible()
+    const unticked = await height()
+
+    await toggle.check()
+    await expect(receiver).toBeVisible()
+    expect(await height()).toBeCloseTo(unticked, 0)
+
+    await receiver.fill("0x1234")
+    await expect(receiver).toHaveAttribute("aria-invalid", "true")
+    expect(await height()).toBeCloseTo(unticked, 0)
+
+    await receiver.fill(otherWallet)
+    await expect(page.locator("#staking-recipient-warning")).toBeVisible()
+    expect(await height()).toBeCloseTo(unticked, 0)
+
+    await page.locator("#staking-recipient-acknowledged").check()
+    expect(await height()).toBeCloseTo(unticked, 0)
+
+    // Tab from Amount to the Stake button only lands on rows a person can see.
+    await page.getByLabel("Amount", {exact: true}).focus()
+    let reachedSubmit = false
+    for (let press = 0; press < 8 && !reachedSubmit; press++) {
+      await page.keyboard.press("Tab")
+      const focused = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement
+        return {
+          seen: el.checkVisibility({visibilityProperty: true}) && !el.closest("[inert]"),
+          submit: el.matches("button.stake-submit"),
+        }
+      })
+      expect(focused.seen).toBe(true)
+      reachedSubmit = focused.submit
+    }
+    expect(reachedSubmit).toBe(true)
+
+    await toggle.uncheck()
+    await expect(receiver).toBeHidden()
+    expect(await height()).toBeCloseTo(unticked, 0)
+
+    // Unstake has its own height, whichever way the box was left on Stake.
+    const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
+    const stakeTab = page.getByRole("tab", {name: "Stake", exact: true})
+    await unstakeTab.click()
+    await expect(toggle).toBeHidden()
+    const unstake = await height()
+    await stakeTab.click()
+    await toggle.check()
+    await unstakeTab.click()
+    await expect(toggle).toBeHidden()
+    expect(await height()).toBeCloseTo(unstake, 0)
+  }
+})
+
 async function signOut(page: Page): Promise<void> {
   const csrfResponse = await page.request.get("/auth/csrf")
   const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
