@@ -2142,3 +2142,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   checks: the deployed image is labelled `17315589`; /healthz answers 200; /,
   /stake and /account answer 200 at 390 and 1440 px with no overflow or page
   errors; the six "Visit" buttons fit at 320 to 1440 px with none spilling.
+
+## 2026-10-18 — Home page: the site buttons fit beside the heading
+
+- Between 768 and 895 px wide, where the six site buttons (regents.sh,
+  patchbay.help and the rest) sit beside the heading, they now go two to a row
+  instead of three, so "patchbay.help" and "autolaunch.sh" are no longer cut off
+  by 14 px and "siwa-server" stays on one line (Sentinel's v199 read). From
+  896 px they go three to a row as before.
