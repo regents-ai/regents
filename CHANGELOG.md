@@ -2133,3 +2133,12 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   instead of showing the figures as unavailable straight away. Every refused
   read is now written to the log with its status, so a busy or failing
   provider shows up in the logs (Sentinel, v195 read).
+
+## 2026-10-18 — Regents v199 released
+
+- v199 (`17315589`) went live as Fly v199 at about 17:33Z on Sentinel's GO
+  (ordinary, 17:29Z), under the standing release permission. The rollback is
+  v198 (`9c875a9e`). It carries the home page's "Staking" card name. Live
+  checks: the deployed image is labelled `17315589`; /healthz answers 200; /,
+  /stake and /account answer 200 at 390 and 1440 px with no overflow or page
+  errors; the six "Visit" buttons fit at 320 to 1440 px with none spilling.
