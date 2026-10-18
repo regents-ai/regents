@@ -32,7 +32,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
-  alias RegentsWeb.ShellLive.{Account, Gallery, OpenSeaBudget, Points, Redemption, Staking}
+  alias RegentsWeb.ShellLive.{Account, Gallery, Points, Redemption, Staking}
 
   @no_credits %{state: :idle, value: nil}
 
@@ -55,7 +55,6 @@ defmodule RegentsWeb.ShellLive do
        credits: @no_credits
      )
      |> follow_credits()
-     |> OpenSeaBudget.init()
      |> Account.init()
      |> Points.init()
      |> Staking.init()

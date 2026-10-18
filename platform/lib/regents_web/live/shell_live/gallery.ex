@@ -47,11 +47,11 @@ defmodule RegentsWeb.ShellLive.Gallery do
 
   defp start_lookup(%{assigns: %{gallery_owned: %{status: status}}} = socket, account)
        when status in [:idle, :unavailable] do
-    case OpenSeaBudget.claim(socket) do
-      {:limited, socket} ->
+    case OpenSeaBudget.claim(socket.assigns.client_tag) do
+      :limited ->
         assign(socket, gallery_owned: %{status: :unavailable, ids: []})
 
-      {:ok, socket} ->
+      :ok ->
         wallets = Identity.account_wallets(account)
 
         socket

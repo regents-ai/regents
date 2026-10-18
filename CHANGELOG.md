@@ -2198,3 +2198,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   At 320 px two of them ("patchbay.help" and "autolaunch.sh") are still 1 px too
   narrow for their names, as before this release; that comes from the button
   spacing shared with the other sites and is with the template owner.
+
+## 2026-10-18 — Redeem and the gallery: owned-NFT lookups are shared fairly
+
+- Looking up which NFTs a wallet owns uses the site's one OpenSea allowance,
+  which every visitor shares. Each visitor could start six lookups a minute
+  for every page they had open, so one person with many tabs could use the
+  whole allowance and leave "Owned NFT lookup is unavailable" for everyone
+  else. The six a minute now count once per visitor across all their pages.
+  Past them, the page shows the lookup as unavailable and the collection and
+  token ID fields stay open, as before (security review follow-up, 7 Oct).

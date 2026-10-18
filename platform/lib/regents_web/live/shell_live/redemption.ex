@@ -370,20 +370,20 @@ defmodule RegentsWeb.ShellLive.Redemption do
   defp maybe_start_open_sea_lookup(socket, true), do: start_open_sea_lookup(socket)
   defp maybe_start_open_sea_lookup(socket, false), do: socket
 
-  # A lookup past this connection's OpenSea share is shown as unavailable: the
+  # A lookup past this visitor's OpenSea share is shown as unavailable: the
   # manual collection and token ID fields stay open and no wallet action is
   # refused.
   defp start_open_sea_lookup(
          %{assigns: %{redemption_wallet: wallet, owned_collectibles: %{status: status}}} = socket
        )
        when is_binary(wallet) and status in [:idle, :unavailable, :refreshing] do
-    case OpenSeaBudget.claim(socket) do
-      {:limited, socket} ->
+    case OpenSeaBudget.claim(socket.assigns.client_tag) do
+      :limited ->
         assign(socket,
           owned_collectibles: Map.put(socket.assigns.owned_collectibles, :status, :unavailable)
         )
 
-      {:ok, socket} ->
+      :ok ->
         name = {:open_sea, wallet}
 
         socket

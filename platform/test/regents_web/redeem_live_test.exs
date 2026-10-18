@@ -503,12 +503,14 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert has_element?(view, ~s(.redeem-nft-card[phx-value-token-id="84"]))
   end
 
-  test "LOOKUP_BUDGET: a connection past its share falls back to manual entry", %{conn: conn} do
+  test "LOOKUP_BUDGET: a visitor past their share falls back to manual entry on every page", %{
+    conn: conn
+  } do
     hold_lookup_share(2)
     Application.put_env(:regents, :test_open_sea_watcher, self())
 
-    view = conn |> mount_redeem() |> activate(@wallet)
-    activate(view, @other)
+    conn |> mount_redeem() |> activate(@wallet)
+    view = conn |> mount_redeem() |> activate(@other)
     assert length(drain_requests()) == 6
 
     activate(view, @third)
@@ -897,7 +899,12 @@ defmodule RegentsWeb.RedeemLiveTest do
   defp hold_lookup_share(share) do
     previous = Application.get_env(:regents, :opensea_lookups_per_minute)
     Application.put_env(:regents, :opensea_lookups_per_minute, share)
-    on_exit(fn -> Application.put_env(:regents, :opensea_lookups_per_minute, previous) end)
+    Regents.RateLimiter.reset()
+
+    on_exit(fn ->
+      Application.put_env(:regents, :opensea_lookups_per_minute, previous)
+      Regents.RateLimiter.reset()
+    end)
   end
 
   defp drain_requests(acc \\ []) do
