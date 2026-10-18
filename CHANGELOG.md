@@ -2239,3 +2239,21 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   Measured signed in at 1280, 390 and 320 px: unticked, ticked, an invalid
   address, four valid addresses, the warning acknowledged, and both tabs all
   give the same panel height at each amount.
+
+## 2026-10-18 — Regents v203 released
+
+- v203 (`b40dbded`) went live as Fly v203 at about 22:40Z on Sentinel's
+  protected GO (20:42Z) and Sean's "1, a" (22:35Z) naming `b40dbded`. The
+  rollback is v202 (`b14705c7`). It carries `b40dbded`, "Stake: ticking 'Stake
+  for a different address' keeps the panel's height".
+- Correction to the entry above: the Stake tab keeps one height in every state,
+  but the Unstake tab has its own, shorter height (1203 px against 1437 px at
+  1280 px). Holding one height leaves blank room above "Claim or compound
+  rewards": 219 px at 1280 and 262 px at 390 in the default view, 264 px and
+  392 px with another address entered (it was 0–30 px before).
+- Live checks: the deployed image is labelled
+  `b40dbded531c08f03fc73b418429f7137055be88`; /healthz answers 200; /, /stake,
+  /account, /redeem and /redeem/gallery answer 200 at 390, 1280 and 1440 px with
+  no overflow or page errors. The signed-in Stake panel cannot be measured on the
+  live site without a wallet; its heights were measured signed in on `b40dbded`
+  locally and by Sentinel at eight widths.
