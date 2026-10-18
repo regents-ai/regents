@@ -2106,3 +2106,14 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   20% yield"). They said "new REGENT" or "emissions" before (Sean, 17 Oct
   16:04Z, decision 4. a). The detailed notes in about.md on how the REGENT rate
   works are unchanged.
+
+## 2026-10-18 — Regents v198 released
+
+- v198 (`9c875a9e`) went live as Fly v198 at 02:37Z on Sean's go ("ok go ahead
+  to push", 18 Oct 02:33Z, after his yes to decisions 3 and 4) without a
+  Sentinel pre-read, which had not arrived. The rollback is v197 (`0604ce9a`). It
+  carries the /account panel order, the Stake page's pro rata line and 20% Yield
+  badge, and the matching staking wording on the home page, link preview, share
+  picture and about.md. Live checks: the deployed image is labelled `9c875a9e`;
+  /, /stake and /account answer 200 at 390 and 1440 px with no overflow or page
+  errors; the new share picture is served.
