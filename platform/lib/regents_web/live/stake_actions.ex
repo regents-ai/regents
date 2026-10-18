@@ -411,6 +411,36 @@ defmodule RegentsWeb.StakeActions do
     end
   end
 
+  # A stake for another address has no steps until that address is valid and
+  # acknowledged. Until then, the lines a stake of your own would show below the
+  # button keep their room, so ticking the box never changes the panel's height.
+  # Only the room is drawn from this: the steps on the page stay the form's own.
+  defp steps_room(%{action: "stake", form: %{for_other: true} = form} = assigns) do
+    own = %{assigns | form: %{form | for_other: false}}
+
+    with {:error, _unready} <- Steps.receiver(form),
+         signer when is_binary(signer) <- OnchainSteps.signer(assigns.linked, assigns.active) do
+      steps = Steps.steps(signer, assigns.staking, staking_form(own))
+
+      own = %{
+        own
+        | review: Review.new(assigns.id, signer, ChainClient.base(), steps, inputs(own))
+      }
+
+      room = %{
+        review_line: review_line(own),
+        approval_note: approval_note(own),
+        approval_offered: approval_offered?(own)
+      }
+
+      if room.review_line || room.approval_note || room.approval_offered, do: room
+    else
+      _ready_or_signed_out -> nil
+    end
+  end
+
+  defp steps_room(_assigns), do: nil
+
   defp amount(%{inputs: %{"amount" => amount}}), do: String.trim(amount)
 
   defp entry(socket, hash), do: Enum.find(socket.assigns.presses.sent, &(&1.hash == hash))
@@ -557,6 +587,7 @@ defmodule RegentsWeb.StakeActions do
         approval_note: approval_note(assigns),
         approval_offered: approval_offered?(assigns),
         review_line: review_line(assigns),
+        steps_room: steps_room(assigns),
         mismatch_note: OnchainSteps.mismatch_note(assigns.linked, assigns.active),
         sent: shown(assigns.presses, assigns.refusals)
       )
@@ -721,14 +752,15 @@ defmodule RegentsWeb.StakeActions do
                 </div>
               </Regent.Primitives.field>
 
-              <%!-- Unstake keeps these fields' room, unseen, so the panel is the same height in both modes. --%>
+              <%!-- Unstake, and a stake of your own, keep the address's room, unseen,
+                   so ticking the box or changing tab never changes the panel's height. --%>
               <div
                 id="staking-recipient-controls"
                 class="stake-recipient"
-                data-room-only={@action != "stake"}
-                inert={@action != "stake"}
+                data-room-only={@action != "stake" or !@form.for_other}
+                inert={@action != "stake" or !@form.for_other}
               >
-                <div id="staking-recipient-fields" hidden={!@form.for_other}>
+                <div id="staking-recipient-fields">
                   <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
                     <input
                       id="staking-recipient"
@@ -746,28 +778,47 @@ defmodule RegentsWeb.StakeActions do
                       aria-invalid={to_string(@receiver_invalid)}
                     />
                   </Regent.Primitives.field>
-                  <p id="staking-recipient-error" role="status" hidden={!@receiver_invalid}>
-                    Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
-                  </p>
-                  <label
-                    :if={@receiver}
-                    id="staking-recipient-warning"
-                    class="stake-check"
-                    for="staking-recipient-acknowledged"
-                  >
-                    <input
-                      id="staking-recipient-acknowledged"
-                      name="acknowledged"
-                      type="checkbox"
-                      value="true"
-                      checked={Steps.acknowledged?(@form)}
-                      data-onchain-input="acknowledged"
-                    />
-                    <span id="staking-recipient-warning-text">
-                      Warning: the wallet {@receiver} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
-                    </span>
-                  </label>
                 </div>
+              </div>
+
+              <%!-- The error and the warning take turns in one slot the size of the
+                   warning, which keeps its room, unseen, while neither is shown. --%>
+              <div
+                class="stake-recipient stake-recipient-note"
+                data-room-only={
+                  @action != "stake" or !@form.for_other or !(@receiver_invalid or @receiver)
+                }
+                inert={@action != "stake" or !@form.for_other}
+              >
+                <p class="stake-check" aria-hidden="true" inert>
+                  <input type="checkbox" />
+                  <span><.recipient_warning address={String.duplicate("0", 42)} /></span>
+                </p>
+                <p
+                  id="staking-recipient-error"
+                  role="status"
+                  data-visible={to_string(@receiver_invalid)}
+                >
+                  Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
+                </p>
+                <label
+                  :if={@receiver}
+                  id="staking-recipient-warning"
+                  class="stake-check"
+                  for="staking-recipient-acknowledged"
+                >
+                  <input
+                    id="staking-recipient-acknowledged"
+                    name="acknowledged"
+                    type="checkbox"
+                    value="true"
+                    checked={Steps.acknowledged?(@form)}
+                    data-onchain-input="acknowledged"
+                  />
+                  <span id="staking-recipient-warning-text">
+                    <.recipient_warning address={@receiver} />
+                  </span>
+                </label>
               </div>
 
               <div class="stake-amount-tools">
@@ -847,6 +898,20 @@ defmodule RegentsWeb.StakeActions do
                 data-confirming={OnchainSteps.confirming?(@presses, ~w(approve))}
                 phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
               ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
+
+              <%!-- Until the other address is ready, the lines a stake of your own
+                   shows here keep their room, unseen, after the rows in use. --%>
+              <div :if={@steps_room} class="stake-steps-room" aria-hidden="true" inert>
+                <p :if={@steps_room.review_line} class="stake-review">{@steps_room.review_line}</p>
+                <p :if={@steps_room.approval_note} class="stake-approval-note">
+                  {@steps_room.approval_note}
+                </p>
+                <Regent.Primitives.button
+                  :if={@steps_room.approval_offered}
+                  variant="secondary"
+                  type="button"
+                ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
+              </div>
             </form>
           </div>
         </div>
@@ -910,6 +975,16 @@ defmodule RegentsWeb.StakeActions do
     <div class="stake-metric">
       <dt>{@label}</dt><dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
     </div>
+    """
+  end
+
+  attr :address, :string, required: true
+
+  # The address is in fixed-width letters, so every address takes the same room.
+  defp recipient_warning(assigns) do
+    ~H"""
+    Warning: the wallet <span class="stake-recipient-address">{@address}</span>
+    will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
     """
   end
 

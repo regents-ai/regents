@@ -1105,7 +1105,7 @@ defmodule RegentsWeb.StakeLiveTest do
     set_amount(view, "1")
 
     stake_for(view, "not an address")
-    assert has_element?(view, "#staking-recipient-error:not([hidden])")
+    assert has_element?(view, "#staking-recipient-error[data-visible='true']")
     refute has_element?(view, "#staking-recipient-warning")
 
     stake_for(view, other)

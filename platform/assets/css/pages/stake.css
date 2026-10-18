@@ -911,21 +911,42 @@
   margin-block: 0.25rem 0.5rem;
 }
 
-/* Unstake keeps the address's room at the foot of the form, so no gap opens
-   between Amount and the button. */
-.stake-recipient[data-room-only] {
+/* Rows a choice leaves unused keep their room, unseen, at the foot of the
+   form, so no gap opens between Amount and the button: the address while the
+   box is unticked or Unstake is open, and the position preview and the lines a
+   stake of your own shows while the box is ticked. */
+.stake-recipient[data-room-only],
+.stake-steps-room,
+.stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
   order: 1;
   visibility: hidden;
 }
 
-.stake-recipient:has(> #staking-recipient-fields[hidden]) {
-  display: none;
+.stake-steps-room {
+  display: grid;
+  gap: inherit;
 }
 
-.stake-recipient [hidden],
-.stake-recipient .stake-check[hidden],
-.stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
-  display: none;
+/* The error and the warning take turns in one slot sized to the warning. */
+.stake-recipient-note {
+  display: grid;
+}
+
+.stake-recipient-note > * {
+  grid-area: 1 / 1;
+}
+
+.stake-recipient-note > [aria-hidden="true"] {
+  margin: 0;
+  visibility: hidden;
+}
+
+#staking-recipient-error[data-visible="false"] {
+  visibility: hidden;
+}
+
+.stake-recipient-address {
+  font-family: var(--font-family-mono);
 }
 
 .stake-actions .stake-check {
@@ -983,7 +1004,7 @@
   margin-block: 0.5rem;
 }
 
-#staking-recipient-warning {
+.stake-recipient-note .stake-check {
   line-height: 1.5;
 }
 

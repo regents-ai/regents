@@ -2222,3 +2222,20 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   /redeem and /redeem/gallery answer 200. The platform README now says that
   visitors who share one network address share one allowance (Sentinel's
   v202 read).
+
+## 2026-10-18 — Stake: ticking "Stake for a different address" keeps the panel's height
+
+- Ticking "Stake for a different address" used to grow or shrink the Stake
+  panel: the address box and its warning appeared, and the lines under the
+  button came and went while the address was not ready yet. The panel now keeps
+  one height whatever the box shows (Sean's 5. a, under the "choices never
+  change the height" rule). Rows the current choice does not use keep their
+  room, unseen, at the foot of the form: the address box and its note while the
+  box is unticked or Unstake is open, and the position preview and the lines a
+  stake of your own would show while it is ticked. The invalid-address message
+  and the warning share one slot the size of the warning, and the address in
+  the warning is in fixed-width letters so every address takes the same room.
+- Layout only: the button, the amounts and the wallet steps are unchanged.
+  Measured signed in at 1280, 390 and 320 px: unticked, ticked, an invalid
+  address, four valid addresses, the warning acknowledged, and both tabs all
+  give the same panel height at each amount.
