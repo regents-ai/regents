@@ -1,18 +1,21 @@
 defmodule RegentsWeb.Components.CodeCube do
   @moduledoc """
   The world cube's twin: a turning cube whose six faces are screens of falling
-  code, one for each Regent site and one for siwa-server, each opening a card.
+  code, one for each Regent site and one for siwa-server.
 
-  The server renders one button for each face, and those buttons are the whole
-  cube wherever it cannot be drawn: no WebGPU, no JavaScript, or a visitor who
-  asked for less motion. Where it can, the `CodeCube` hook draws the cube on the
-  stage and a click on a face presses that face's button. The buttons stay in
-  reach of the keyboard and show while one has focus.
+  The server renders one button for each face, and a View Tools button beside
+  it, and those buttons are the whole cube wherever it cannot be drawn: no
+  WebGPU, no JavaScript, or a visitor who asked for less motion. Where it can,
+  the `CodeCube` hook draws the cube on the stage and a click on a face presses
+  that face's button. The buttons stay in reach of the keyboard and show while
+  one has focus.
 
-  A face's card lists the browser tools that site offers agents, or, for
-  siwa-server, how an agent connects to it. The page owns the read behind it and
-  hands the card where the read stands. Each card copies what it lists as
-  Markdown, and the cube copies every card at once, each site its own section.
+  A face's button copies its card as Markdown, and the hook says so in a note
+  by the pointer. Its View Tools button opens the card, which lists the browser
+  tools that site offers agents, or, for siwa-server, how an agent connects to
+  it. The page owns the read behind it and hands the card where the read stands.
+  Each card copies what it lists, and the cube copies every card at once, each
+  site its own section.
   """
 
   use Phoenix.Component
@@ -59,6 +62,24 @@ defmodule RegentsWeb.Components.CodeCube do
     "# WebMCP tools on every Regent site\n\n#{sections}\n"
   end
 
+  @doc """
+  Each face's card as Markdown, by site key: siwa-server's always, and each site
+  whose read `reads` holds, in the shape `markdown/2` takes.
+  """
+  def cards(reads, help) do
+    @faces
+    |> Enum.filter(&(&1.site == "siwa" or Map.has_key?(reads, &1.site)))
+    |> Map.new(&{&1.site, card_markdown(&1, reads, help)})
+  end
+
+  defp card_markdown(%{site: "siwa"} = face, _reads, help),
+    do: section(face, nil, [], help, "#") <> "\n"
+
+  defp card_markdown(face, reads, help) do
+    {state, tools} = Map.fetch!(reads, face.site)
+    section(face, state, tools, help, "#") <> "\n"
+  end
+
   defp siwa_line, do: "One sign-in for agents on every Regent site."
 
   defp section(%{site: "siwa"} = face, _state, _tools, help, mark) do
@@ -87,7 +108,11 @@ defmodule RegentsWeb.Components.CodeCube do
 
   attr :id, :string, required: true
   attr :label, :string, required: true
-  attr :click, :string, required: true, doc: "The event a face's button sends."
+  attr :click, :string, required: true, doc: "The event a View Tools button sends, with `site`."
+
+  attr :cards, :map,
+    required: true,
+    doc: "Each face's card as Markdown by site key, from `cards/2`; a site joins once read."
 
   attr :copy_all, :string,
     default: nil,
@@ -108,22 +133,34 @@ defmodule RegentsWeb.Components.CodeCube do
         <canvas class="code-cube__canvas" data-code-canvas></canvas>
         <p class="code-cube__caption" data-code-caption></p>
       </div>
-      <p class="code-cube__hint">Drag to turn. Click a side for its tools.</p>
+      <p class="code-cube__hint">Drag to turn. Click a side to copy its tools.</p>
       <ul class="code-cube__faces">
-        <li :for={face <- @faces}>
+        <li :for={face <- @faces} class="code-cube__side">
           <button
             type="button"
             class="code-cube__face"
             data-code-face={face.face}
-            data-code-site={face.site}
             data-code-name={face.name}
-            phx-click={@click}
-            phx-value-site={face.site}
+            data-copy-text={@cards[face.site]}
+            data-copy-note={note(face, @cards)}
           >
             {face.name}
           </button>
+          <button
+            id={"#{@id}-view-#{face.face}"}
+            type="button"
+            class="code-cube__view"
+            data-code-view={face.face}
+            data-code-site={face.site}
+            phx-click={@click}
+            phx-value-site={face.site}
+            phx-mounted={JS.ignore_attributes(["data-shown"])}
+          >
+            View Tools<span class="visually-hidden"> for {face.name}</span>
+          </button>
         </li>
       </ul>
+      <p id={"#{@id}-note"} class="code-cube__note" phx-update="ignore" role="status"></p>
       <div :if={@copy_all} class="code-cube__copy">
         <Regent.Primitives.copy_button id={"#{@id}-copy"} text={@copy_all}>
           Copy all WebMCP Tools as Markdown
@@ -251,6 +288,15 @@ defmodule RegentsWeb.Components.CodeCube do
     </a>
     """
   end
+
+  # What the note by the pointer says once a face's button copies its card, or
+  # while there is nothing yet to copy.
+  defp note(%{site: "siwa"}, _cards), do: "quickstart text for agent copied"
+
+  defp note(face, cards) when is_map_key(cards, face.site),
+    do: "#{face.name} WebMCP tool text copied"
+
+  defp note(face, _cards), do: "Reading #{face.name}'s tools…"
 
   defp kicker(%{site: "siwa"}, _state, _tools), do: "Connect an agent"
   defp kicker(_face, :ready, tools), do: "#{length(tools)} WebMCP tools"

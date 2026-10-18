@@ -1,4 +1,11 @@
-import {animate, createAnimatable, createScope, type AnimatableObject, type Scope} from "animejs"
+import {
+  animate,
+  createAnimatable,
+  createScope,
+  type AnimatableObject,
+  type JSAnimation,
+  type Scope,
+} from "animejs"
 
 import {
   createCanvasIsland,
@@ -7,6 +14,7 @@ import {
   type LoadRenderer,
 } from "../canvas_island"
 import type {CodeCubeRenderer, CodeCubeView} from "../code_cube/renderer"
+import {deny} from "./motion/press"
 import {aboutAxis, faceAt, multiply, normalize, type Quat} from "../world_cube/view"
 
 /** Camera distances from the cube's centre, at rest and drawn close: the world cube's own. */
@@ -29,6 +37,12 @@ const CLICK_SLOP = 6
 const REST_MS = 240
 /** The fastest the cube may be left spinning by a flick, in radians a second. */
 const COAST_LIMIT = 5
+/** How long View Tools stays once the pointer is off the faces, time enough to reach it. */
+const VIEW_LINGER_MS = 2000
+/** How long the note by the pointer stays before it fades. */
+const NOTE_MS = 1400
+/** The gap between the note and the pointer, and the least it keeps from the cube's edges. */
+const NOTE_GAP = 14
 
 const clamp = (speed: number) => Math.max(-COAST_LIMIT, Math.min(COAST_LIMIT, speed))
 
@@ -38,9 +52,10 @@ const clamp = (speed: number) => Math.max(-COAST_LIMIT, Math.min(COAST_LIMIT, sp
  *
  * It turns by itself until it is pressed, and under a drag while it is held. A
  * pointer resting on a face lights it, brings the cube closer and names the
- * face's site; a click on a face presses that face's button, the one the
- * server rendered, which opens its card. Without WebGPU, or for a visitor who
- * asked for less motion, none of this runs and the six buttons are the cube.
+ * face's site, and shows that face's View Tools button at the cube's top right;
+ * a click on a face presses that face's button, the one the server rendered,
+ * which copies its card. Without WebGPU, or for a visitor who asked for less
+ * motion, none of this runs and the six buttons are the cube.
  */
 export const createCodeCubeController = (
   root: HTMLElement,
@@ -79,6 +94,19 @@ export const createCodeCubeController = (
 
   const caption = () => root.querySelector<HTMLElement>("[data-code-caption]")
   const button = (face: number) => root.querySelector<HTMLButtonElement>(`[data-code-face="${face}"]`)
+
+  // View Tools shows at the cube's top right for the face the pointer rests on,
+  // and stays a while after it leaves the cube, so the pointer can reach it.
+  let shown = -1
+  let hideAt = 0
+  const showView = (face: number) => {
+    hideAt = 0
+    if (face === shown) return
+    shown = face
+    for (const view of root.querySelectorAll<HTMLElement>("[data-code-view]")) {
+      view.toggleAttribute("data-shown", Number(view.dataset.codeView) === face)
+    }
+  }
 
   // The caption names the site under the pointer, and keeps the last one as it fades.
   const name = (face: number) => {
@@ -124,6 +152,13 @@ export const createCodeCubeController = (
     view.hover = hover
     if (rested) name(hover)
     else name(-1)
+
+    // View Tools moves to another face only once the pointer settles on it, so
+    // the way to the button may cross other faces.
+    if (hover >= 0 && (dragging || now - movedAt > REST_MS)) showView(hover)
+    else if (hover >= 0) hideAt = 0
+    else if (shown >= 0 && hideAt === 0) hideAt = now + VIEW_LINGER_MS
+    else if (hideAt > 0 && now >= hideAt) showView(-1)
 
     // The page hears when the pointer comes onto the cube and when it leaves it.
     if (hover >= 0 !== pointing) {
@@ -228,7 +263,12 @@ export const createCodeCubeController = (
         }
         if (!ready()) return
         const target = faceAt(view, aspect, ...within(event))
-        if (target >= 0) button(target)?.click()
+        if (target < 0) return
+        // A tap shows View Tools as a pointer resting on the face does.
+        showView(target)
+        button(target)!.dispatchEvent(
+          new MouseEvent("click", {bubbles: true, detail: 1, clientX: event.clientX, clientY: event.clientY}),
+        )
       }
 
       const onPointerCancel = () => {
@@ -258,18 +298,76 @@ export const createCodeCubeController = (
         scope = undefined
         steer = undefined
         named = -1
+        showView(-1)
       }
     },
   })
 }
 
+/**
+ * A press of a face's button, drawn or not, copies its card and says so in a
+ * note by the pointer, or above the button for a press from the keyboard. The
+ * button carries both: `data-copy-text`, absent until the site is read, and
+ * `data-copy-note`, the words for the note.
+ */
+export const installFaceCopy = (root: HTMLElement) => {
+  const note = root.querySelector<HTMLElement>(".code-cube__note")!
+  let fading: JSAnimation | undefined
+
+  const say = (words: string, at: [number, number]) => {
+    fading?.cancel()
+    note.textContent = words
+    const box = root.getBoundingClientRect()
+    const half = note.offsetWidth / 2
+    const x = Math.min(Math.max(at[0] - box.left, half + NOTE_GAP), box.width - half - NOTE_GAP)
+    const y = Math.max(at[1] - box.top - NOTE_GAP, note.offsetHeight + NOTE_GAP)
+    note.style.left = `${x}px`
+    note.style.top = `${y}px`
+    note.style.visibility = "visible"
+    fading = animate(note, {
+      opacity: [
+        {from: 0, to: 1, duration: 160, ease: "outCubic"},
+        {to: 0, delay: NOTE_MS, duration: 500, ease: "inCubic"},
+      ],
+      onComplete: () => {
+        note.style.visibility = "hidden"
+      },
+    })
+  }
+
+  const onClick = async (event: MouseEvent) => {
+    const face = event.target instanceof Element ? event.target.closest(".code-cube__face") : null
+    if (!(face instanceof HTMLButtonElement)) return
+    const {copyText, copyNote} = face.dataset
+    const rect = face.getBoundingClientRect()
+    const at: [number, number] =
+      event.detail === 0 ? [rect.left + rect.width / 2, rect.top] : [event.clientX, event.clientY]
+    if (copyText === undefined) return say(copyNote!, at)
+    try {
+      await navigator.clipboard.writeText(copyText)
+      say(copyNote!, at)
+    } catch {
+      say("Couldn't copy", at)
+      deny(face)
+    }
+  }
+
+  root.addEventListener("click", onClick)
+  return () => {
+    root.removeEventListener("click", onClick)
+    fading?.cancel()
+  }
+}
+
 type CodeCubeHook = {
   el: HTMLElement
   controller?: CanvasIslandController
+  uninstall?: () => void
 }
 
 export const CodeCube = {
   mounted(this: CodeCubeHook) {
+    this.uninstall = installFaceCopy(this.el)
     this.controller = createCodeCubeController(this.el)
     this.controller.mount()
   },
@@ -280,6 +378,7 @@ export const CodeCube = {
     this.controller?.resume()
   },
   destroyed(this: CodeCubeHook) {
+    this.uninstall?.()
     this.controller?.destroy()
     this.controller = undefined
   },

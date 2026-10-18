@@ -2257,3 +2257,21 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   no overflow or page errors. The signed-in Stake panel cannot be measured on the
   live site without a wallet; its heights were measured signed in on `b40dbded`
   locally and by Sentinel at eight widths.
+
+## 2026-10-18 — Home page code cube: a side copies its text; View Tools opens it
+
+- A click on a side of the code cube now copies that side's text as Markdown
+  and says so in a note by the pointer that fades away: "patchbay.help WebMCP
+  tool text copied" for a site, "quickstart text for agent copied" for
+  siwa-server (Sean, 18 Oct 23:05Z). Every click copies again. A site still
+  being read says "Reading patchbay.help's tools…" and copies nothing.
+- The tools window now opens from a "View Tools" button. Beside the drawn cube
+  it sits at the cube's top right for the side the pointer rests on, stays two
+  seconds after the pointer leaves so it can be reached, and shows after a tap
+  on a phone. Where the cube is six buttons, each has its own View Tools in its
+  top right, shown on hover or keyboard focus, and always on a touch screen.
+- The hint under the cube reads "Drag to turn. Click a side to copy its tools."
+  On a phone the "Human Browsing" and "Agentic WebMCP" names sit at the left of
+  their stages, clear of View Tools.
+- The page's own WebMCP tools still open the same window, now by pressing the
+  side's View Tools.

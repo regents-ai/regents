@@ -59,20 +59,23 @@ defmodule RegentsWeb.HomeLive do
     do:
       "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)}: [#{proof.link.label}](#{proof.link.href}))"
 
-  # The code cube's copy of every card is read once the page is live. It is
-  # sent to the page once and not kept here, since it holds every site's tools.
+  # The code cube's cards are read once the page is live: each face copies its
+  # own, and the cube copies them all. They are sent to the page once and not
+  # kept here, since they hold every site's tools.
   def mount(_params, _session, socket) do
+    help = SiteTools.connection_help()
+
     socket =
       socket
       |> assign(route_spec: RouteCatalog.fetch!(:home))
       |> assign(RegentsWeb.PublicDocuments.page("/"))
-      |> assign(help: SiteTools.connection_help(), open: nil, card: :loading, card_tools: [])
-      |> assign(copy_all: nil)
+      |> assign(help: help, open: nil, card: :loading, card_tools: [])
+      |> assign(cards: CodeCube.cards(%{}, help), copy_all: nil)
 
     socket =
       if connected?(socket), do: start_async(socket, :copy_all, &read_every_site/0), else: socket
 
-    {:ok, socket, temporary_assigns: [copy_all: nil]}
+    {:ok, socket, temporary_assigns: [cards: %{}, copy_all: nil]}
   end
 
   # Each site is asked side by side; SiteTools answers every read within its own limit.
@@ -104,7 +107,10 @@ defmodule RegentsWeb.HomeLive do
   def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, open: nil)}
 
   def handle_async(:copy_all, {:ok, reads}, socket) do
-    {:noreply, assign(socket, copy_all: CodeCube.markdown(reads, socket.assigns.help))}
+    help = socket.assigns.help
+
+    {:noreply,
+     assign(socket, cards: CodeCube.cards(reads, help), copy_all: CodeCube.markdown(reads, help))}
   end
 
   def handle_async(:copy_all, {:exit, _reason}, socket), do: {:noreply, socket}
@@ -132,7 +138,9 @@ defmodule RegentsWeb.HomeLive do
       <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
 
       <main>
-        <Regent.Structure.row rail={false}><.hero copy_all={@copy_all} /></Regent.Structure.row>
+        <Regent.Structure.row rail={false}>
+          <.hero cards={@cards} copy_all={@copy_all} />
+        </Regent.Structure.row>
         <CodeCube.card
           :if={@open}
           id="home-card"
@@ -222,6 +230,7 @@ defmodule RegentsWeb.HomeLive do
         id="home-code"
         label="The tools each site offers agents"
         click="open_card"
+        cards={@cards}
         copy_all={@copy_all}
       />
     </section>

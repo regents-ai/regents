@@ -465,3 +465,46 @@ test("[R14] the $REGENT menu copies the contract address", async ({browser}) => 
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^0x[0-9a-fA-F]{40}$/)
   await context.close()
 })
+
+// Sean, 18 Oct: a press of a code cube side copies that side's text and says so in a
+// fading note by the pointer; each side's View Tools, shown while the pointer or the
+// keyboard is on it, opens its card. siwa-server's text needs no site read, so it is
+// the side this checks. The six buttons stand in for the drawn cube here.
+for (const width of [1280, 390]) {
+  test(`[U1][U2] a code cube side copies its text and View Tools opens its card at ${width}`, async ({browser}) => {
+    const context = await browser.newContext({viewport: {width, height: 900}})
+    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+    const page = await context.newPage()
+    await keepTheListOfWorlds(page)
+    await page.goto("/")
+    await waitForHomepage(page)
+
+    const cube = page.locator("#home-code")
+    const siwa = cube.locator(".code-cube__side").filter({has: page.locator('[data-code-face="5"]')})
+    const face = siwa.locator(".code-cube__face")
+    const view = siwa.getByRole("button", {name: "View Tools for siwa-server"})
+    const note = cube.locator(".code-cube__note")
+
+    await expect(view).toBeHidden()
+    await face.click({position: {x: 16, y: 40}})
+    await expect(note).toHaveText("quickstart text for agent copied")
+    await expect(note).toBeVisible()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^# siwa-server\n/)
+    await expect(view).toBeVisible()
+    await expect(note).toBeHidden({timeout: 4000})
+
+    // From the keyboard: Enter copies, the next Tab reaches View Tools, and Enter opens the card.
+    await page.mouse.move(0, 0)
+    await page.evaluate(() => navigator.clipboard.writeText(""))
+    await face.focus()
+    await page.keyboard.press("Enter")
+    await expect(note).toHaveText("quickstart text for agent copied")
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^# siwa-server\n/)
+    await page.keyboard.press("Tab")
+    await expect(view).toBeFocused()
+    await expect(view).toBeVisible()
+    await page.keyboard.press("Enter")
+    await expect(page.getByRole("dialog", {name: "siwa-server"})).toBeVisible()
+    await context.close()
+  })
+}

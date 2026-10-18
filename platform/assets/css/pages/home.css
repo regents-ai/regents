@@ -88,6 +88,8 @@
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-hero-copy { padding: 0; }
     .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
+    /* On a phone the names sit at the left of their stages, clear of the code cube's View Tools. */
+    .rl-twin-label { justify-self: start; padding-inline: var(--space-3); }
     .rl-brand { font-size: .875rem; }
   }
   @media (min-width: 48rem) {

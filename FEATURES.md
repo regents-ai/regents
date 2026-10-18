@@ -4,19 +4,21 @@ Each thing a person or an agent can do on regents.sh, and the automated check
 that proves it. A row with no check is a gap. Add or update a row in the same
 commit that changes the feature.
 
-Checks run with `make check` (server tests in `platform/test`) and
-`cd platform && npx playwright test` (headless Chromium in `platform/test/browser`).
+`make check` runs every check: the server tests in `platform/test` and the
+browser suite in `platform/test/browser` (headless Chromium). The browser suite
+also runs alone with `cd platform && npx playwright test`.
 
 ## People
 
 | Feature | Proving check | Gap |
 | --- | --- | --- |
 | Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
+| Home code cube: a press of a side copies its text with a note by the pointer; View Tools opens its card | `browser/homepage.spec.ts` "a code cube side copies its text…" (1280 and 390, siwa-server side, mouse and keyboard) | The drawn cube needs WebGPU, which the headless browser lacks: checked by hand in headless Chrome |
 | Sign in and sign out with Privy; tabs stay in step | `browser/u3_auth_lazy_acceptance.spec.ts`, `regents_web/live/session_authority_gate_test.exs` | |
 | Walk every page in one visit, signed out and signed in | `browser/shell_walk.spec.ts` (R04) | R04 sometimes logs Chrome's "play() interrupted" on /redeem |
 | Stake: every press reaches the signed-in wallet; wrong wallet and signed-out send nothing | `browser/stake.spec.ts`, `regents_web/stake_live_test.exs` | |
 | Stake for a different address: consent, warning, credits that address | `browser/stake.spec.ts` "Alternate stake requires fresh address consent…" | |
-| Stake panel keeps one height whatever the different-address box shows | `browser/stake.spec.ts` "Stake keeps one height…" (1280 and 390) | Unstake tab has its own height |
+| Stake panel keeps one height whatever the different-address box shows, and Tab skips the hidden rows; the Unstake tab has its own height | `browser/stake.spec.ts` "Stake keeps one height…" (1280 and 390) | |
 | Stake wallet answers: declined, no usable hash | `browser/stake.spec.ts` | |
 | Redeem: approvals, Redeem, wrong wallet, refresh keeps place | `browser/redeem.spec.ts`, `regents_web/redeem_live_test.exs` | |
 | Redeem gallery: owned NFTs, fair OpenSea lookups per visitor | `regents_web/redeem_gallery_live_test.exs`, `regents/open_sea` | |

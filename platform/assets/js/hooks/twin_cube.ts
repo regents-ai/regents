@@ -133,7 +133,7 @@ export const TwinCube = {
         inputSchema: entry.input_schema,
         annotations: entry.annotations,
         async execute(_input, client) {
-          // The card opens on the page as it would for a click on its face.
+          // The card opens on the page as it would for a press of its View Tools.
           root.querySelector<HTMLButtonElement>(`[data-code-site="${site}"]`)!.click()
           return read(path, client?.signal)
         },
