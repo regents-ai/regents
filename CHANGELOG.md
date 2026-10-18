@@ -2208,3 +2208,17 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   else. The six a minute now count once per visitor across all their pages.
   Past them, the page shows the lookup as unavailable and the collection and
   token ID fields stay open, as before (security review follow-up, 7 Oct).
+
+## 2026-10-18 — Regents v202 released
+
+- v202 (`b14705c7`) went live as Fly v202 at about 18:30Z on Sentinel's GO
+  (ordinary, 18:23Z), under the standing release permission. The rollback is
+  v201 (`290e02af`). It carries `b14705c7`, "Redeem and the gallery: owned-NFT
+  lookups are shared fairly": the six OpenSea lookups a minute now count once
+  per visitor across all their pages instead of once per page.
+- Live checks: the deployed image is labelled
+  `b14705c7ca8282f2d72caf7e90d6132e75ad829b`; /healthz answers 200; /, /stake and
+  /account answer 200 at 390 and 1440 px with no overflow or page errors;
+  /redeem and /redeem/gallery answer 200. The platform README now says that
+  visitors who share one network address share one allowance (Sentinel's
+  v202 read).

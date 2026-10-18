@@ -92,7 +92,7 @@ development and from the deployment's secret store in production.
 | `REGENTS_DATABASE_CLUSTER_NAME` | For a remote target | Must match the approved cluster name. Set neither this nor the id to stay on the loopback database. |
 | `REGENTS_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
 | `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
-| `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. |
+| `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. Each visitor may start six lookups a minute across all of their pages (`:opensea_lookups_per_minute`), counted by network address: people who share one address (an office, a mobile network) share those six, and past them the page reports the lookup unavailable and offers manual entry. |
 | `REGENT_CREDITS_ADMINS` | No | Comma-separated Privy user ids of the Credits admins. Only they can open the saved errors at `/admin/errors`; anyone else gets the not-found page. |
 
 ## Public HTTP surface
