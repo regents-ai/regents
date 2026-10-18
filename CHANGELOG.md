@@ -2125,3 +2125,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   cards sit in three columns, "Visit Regents staking" was the one button that
   took two lines between about 1000 and 1240 px wide, and at 768 px its name ran
   past the button's edge (Sentinel's v192 read). Now it matches the other five.
+
+## 2026-10-18 — Base reads wait once when the provider is busy
+
+- When the Base read provider answers "too many requests", the site now waits
+  the pause the provider asks for (at most two seconds) and asks once more,
+  instead of showing the figures as unavailable straight away. Every refused
+  read is now written to the log with its status, so a busy or failing
+  provider shows up in the logs (Sentinel, v195 read).

@@ -208,11 +208,19 @@ defmodule Regents.WalletActions.Rpc do
       json: %{jsonrpc: "2.0", id: 1, method: method, params: params},
       finch: [pool_timeout: 3_000, conn_opts: [transport_opts: [timeout: 3_000]]],
       receive_timeout: @timeout,
-      retry: false
+      retry: &provider_busy/2,
+      max_retries: 1
     )
   rescue
     error -> {:error, error}
   end
+
+  # A provider that answers 429 is asked once more after the pause it names,
+  # held to two seconds so a page never waits long on it; Req logs the retry.
+  defp provider_busy(_request, %Req.Response{status: 429} = response),
+    do: {:delay, min(Req.Response.get_retry_after(response) || 1_000, 2_000)}
+
+  defp provider_busy(_request, _response_or_exception), do: false
 
   defp result({:ok, %{status: 200, body: %{"result" => result}}}, _method, _opts),
     do: {:ok, result}
@@ -220,7 +228,11 @@ defmodule Regents.WalletActions.Rpc do
   defp result({:ok, %{status: 200, body: %{"error" => %{} = error}}}, _method, _opts),
     do: {:error, {:rpc, error}}
 
-  defp result({:ok, _refused}, _method, _opts), do: {:error, :chain_unavailable}
+  defp result({:ok, %{status: status}}, method, opts) do
+    scope = Keyword.get(opts, :log_scope, "wallet")
+    Logger.warning("#{scope} chain read refused #{inspect(%{method: method, status: status})}")
+    {:error, :chain_unavailable}
+  end
 
   defp result({:error, reason}, method, opts) do
     log_failure(method, reason, opts)
