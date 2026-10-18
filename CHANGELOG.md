@@ -2158,3 +2158,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   the cards sit three to a row, every button wraps its name onto a second line
   inside the button (Sentinel's v199 after-read). That wrap comes from the shared
   world cube layout and is with the template owner.
+
+## 2026-10-18 — Regents v200 released
+
+- v200 (`399988a6`) went live as Fly v200 at about 17:44Z on Sentinel's GO
+  (ordinary), under the standing release permission. The rollback is v199
+  (`17315589`). It carries `351d8338`, "Base reads wait once when the provider
+  is busy". Live checks: the deployed image is labelled
+  `399988a6813d551bee881ea8cbe85b2b03b97864`; /healthz answers 200; /, /stake and
+  /account answer 200 at 390 and 1440 px with no overflow or page errors; the
+  logs since the release show no refused or retried Base reads.
