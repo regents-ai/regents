@@ -136,7 +136,7 @@ test("the public homepage presents the product hero", async ({page}) => {
     await worlds.evaluateAll(elements =>
       elements.map(element => element.querySelector("h3")!.textContent!.trim()),
     ),
-  ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Regents staking", "Regents on X"])
+  ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Staking", "Regents on X"])
   expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
   await expect(page.getByText("Public chatbox")).toHaveCount(0)

@@ -2117,3 +2117,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   picture and about.md. Live checks: the deployed image is labelled `9c875a9e`;
   /, /stake and /account answer 200 at 390 and 1440 px with no overflow or page
   errors; the new share picture is served.
+
+## 2026-10-18 — Home page: the staking card is called "Staking"
+
+- The home page's staking card and its button now say "Staking" and "Visit
+  Staking" instead of "Regents staking". Where the cube is not drawn and the six
+  cards sit in three columns, "Visit Regents staking" was the one button that
+  took two lines between about 1000 and 1240 px wide, and at 768 px its name ran
+  past the button's edge (Sentinel's v192 read). Now it matches the other five.

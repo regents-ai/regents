@@ -29,7 +29,7 @@ const worlds = [
   {face: "1", name: "Techtree", site: "https://techtree.sh"},
   {face: "2", name: "Patchbay", site: "https://patchbay.help"},
   {face: "5", name: "Keyfleet", site: "https://keyfleet.ai"},
-  {face: "4", name: "Regents staking", site: /\/stake$/},
+  {face: "4", name: "Staking", site: /\/stake$/},
   {face: "3", name: "Regents on X", site: "https://x.com/regents_sh"},
 ]
 

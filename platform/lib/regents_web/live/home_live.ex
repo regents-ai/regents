@@ -301,7 +301,7 @@ defmodule RegentsWeb.HomeLive do
       [
         %{
           face: 4,
-          name: "Regents staking",
+          name: "Staking",
           line: @staking_summary,
           href: PublicDocuments.url("/stake"),
           cards: @staking_cards
