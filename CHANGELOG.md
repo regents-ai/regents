@@ -2168,3 +2168,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   `399988a6813d551bee881ea8cbe85b2b03b97864`; /healthz answers 200; /, /stake and
   /account answer 200 at 390 and 1440 px with no overflow or page errors; the
   logs since the release show no refused or retried Base reads.
+
+## 2026-10-18 — Base reads: a garbled "wait" from the provider is ignored
+
+- When the Base read provider says "too many requests" with a pause the site
+  cannot read (a fraction of a second such as "1.5", a word, or two pauses at
+  once), the site now waits one second and asks once more, as it does when no
+  pause is given. Before, that read was logged as a broken connection instead
+  of a busy provider (Sentinel's v200 pre-read).

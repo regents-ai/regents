@@ -218,9 +218,17 @@ defmodule Regents.WalletActions.Rpc do
   # A provider that answers 429 is asked once more after the pause it names,
   # held to two seconds so a page never waits long on it; Req logs the retry.
   defp provider_busy(_request, %Req.Response{status: 429} = response),
-    do: {:delay, min(Req.Response.get_retry_after(response) || 1_000, 2_000)}
+    do: {:delay, min(retry_after(response), 2_000)}
 
   defp provider_busy(_request, _response_or_exception), do: false
+
+  # A Retry-After that is neither whole seconds nor an HTTP date, or that comes
+  # twice, is ignored as HTTP asks, and the second ask waits one second.
+  defp retry_after(response) do
+    Req.Response.get_retry_after(response) || 1_000
+  rescue
+    _malformed in [ArgumentError, CaseClauseError] -> 1_000
+  end
 
   defp result({:ok, %{status: 200, body: %{"result" => result}}}, _method, _opts),
     do: {:ok, result}
