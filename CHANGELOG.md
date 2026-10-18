@@ -2176,3 +2176,25 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   once), the site now waits one second and asks once more, as it does when no
   pause is given. Before, that read was logged as a broken connection instead
   of a busy provider (Sentinel's v200 pre-read).
+
+## 2026-10-18 — Regents v201 released
+
+- v201 (`290e02af`) went live as Fly v201 at about 18:03Z on Sentinel's GO
+  (ordinary, 18:00Z), under the standing release permission. The rollback is
+  v200 (`399988a6`). It carries four commits:
+  - `180c0834`: between 768 and 895 px wide the hero's six site buttons go two
+    to a row, so none is cut off ("Home page: the site buttons fit beside the
+    heading").
+  - `c5eab96f`: the correction to the v199 record on the "Visit" buttons. It
+    changes this file only.
+  - `4ea56a73`: the v200 release record. It changes this file only.
+  - `290e02af`: a "wait" from the Base read provider that the site cannot read
+    is ignored and the one retry waits a second ("Base reads: a garbled 'wait'
+    from the provider is ignored"). It changes the Base read client only.
+- Live checks: the deployed image is labelled
+  `290e02af40832b2b29ad94dcee01620b14dd1068`; /healthz answers 200; /, /stake and
+  /account answer 200 at 390 and 1440 px with no overflow or page errors; on the
+  live home page the six site buttons are cut off nowhere from 390 to 1440 px.
+  At 320 px two of them ("patchbay.help" and "autolaunch.sh") are still 1 px too
+  narrow for their names, as before this release; that comes from the button
+  spacing shared with the other sites and is with the template owner.
