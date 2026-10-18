@@ -2150,3 +2150,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   instead of three, so "patchbay.help" and "autolaunch.sh" are no longer cut off
   by 14 px and "siwa-server" stays on one line (Sentinel's v199 read). From
   896 px they go three to a row as before.
+
+## 2026-10-18 — Correction to the v199 release record
+
+- The v199 record says the six "Visit" buttons "fit at 320 to 1440 px". More
+  exactly: none spills past its edge, but between 768 and about 1000 px, where
+  the cards sit three to a row, every button wraps its name onto a second line
+  inside the button (Sentinel's v199 after-read). That wrap comes from the shared
+  world cube layout and is with the template owner.
