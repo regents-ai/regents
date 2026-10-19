@@ -136,6 +136,8 @@ config :regents, Regents.SiteTools, req_options: []
 config :regents, :opensea_live_lookups_per_minute, 60
 config :regents, :opensea_lookups_per_minute, 6
 config :regents, :opensea_holdings_clock, &Regents.OpenSea.HoldingsCache.monotonic_ms/0
+# The clock request budgets count windows on; tests set it to hold or cross a window's edge.
+config :regents, :rate_limiter_clock, &Regents.RateLimiter.monotonic_second/0
 # Also bounds how often one address may be reset: once per window.
 config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 

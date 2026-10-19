@@ -2328,3 +2328,12 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   buttons. It now keeps its row, and the two buttons move below it when both
   do not fit; on wider screens they still sit beside it.
 - The Stake check's pictures now show the whole form at 1280, 390 and 320.
+
+## 2026-10-19 — Sign-in limit checks never trip on the minute
+
+- The check that repeated failed sign-ins are reported at most 20 times a
+  minute could fail when its tries crossed into a new minute (Sentinel, v205
+  read). The limiter now reads a clock the checks can hold still; the site keeps
+  the machine's clock and the same limits.
+- A new check holds a budget up to the last second of its window and sees it
+  return at the next.

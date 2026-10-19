@@ -26,11 +26,15 @@ defmodule Regents.RateLimiter do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
+  @doc "The machine's clock in whole seconds, which `:rate_limiter_clock` names outside tests."
+  @spec monotonic_second() :: integer()
+  def monotonic_second, do: System.monotonic_time(:second)
+
   @spec admit(term(), pos_integer(), pos_integer()) ::
           {:ok, budget()} | {:error, :rate_limited, budget()}
   def admit(key, limit, window_seconds) do
     table = ensure_table()
-    now = System.monotonic_time(:second)
+    now = Application.fetch_env!(:regents, :rate_limiter_clock).()
     bucket = Integer.floor_div(now, window_seconds)
     sweep_expired(table, bucket, window_seconds)
     count = increment(table, {window_seconds, key}, bucket)

@@ -192,6 +192,10 @@ defmodule RegentsWeb.PrivySessionControllerTest do
   test "SESSION_FAILURE_DIAGNOSTIC: repeated rejected sessions share the actionable bound" do
     RateLimiter.reset()
     on_exit(&RateLimiter.reset/0)
+    # Every try lands in one window: the clock stands still, so no minute can turn over.
+    previous_clock = Application.fetch_env!(:regents, :rate_limiter_clock)
+    Application.put_env(:regents, :rate_limiter_clock, fn -> 1_000_000 end)
+    on_exit(fn -> Application.put_env(:regents, :rate_limiter_clock, previous_clock) end)
     handler = "bounded-session-failure-#{Elixir.System.unique_integer([:positive])}"
     parent = self()
 
