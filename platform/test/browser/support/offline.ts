@@ -1,4 +1,5 @@
 import {execFileSync} from "node:child_process"
+import {existsSync, readFileSync} from "node:fs"
 import {test as base, expect} from "@playwright/test"
 
 const port = process.env.PORT || "4002"
@@ -24,13 +25,21 @@ function serverOutsideConnections(): string[] {
     .filter(remote => !/^(127\.0\.0\.1|\[::1\]|localhost):/.test(remote))
 }
 
+// The requests the test server refused to send outside this machine, from the
+// log its Req adapter writes (Regents.OutsideRequests).
+function serverRefusedRequests(): string[] {
+  const log = process.env.REGENTS_OUTSIDE_LOG!
+  return existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : []
+}
+
 // A one-pixel GIF, for the Club Pass pictures the gallery shows from media.regents.sh.
 const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64")
 
 // Every test's browser stays on this machine: the one outside service pages call,
 // media.regents.sh's pictures, is answered with a pixel, and a request anywhere
 // else is answered empty and recorded, and the test fails on it. The test also
-// fails if the server it ran against held a connection outside when it ended.
+// fails once the server has refused a request to an outside address, or if it
+// held a connection outside when the test ended.
 export const test = base.extend<{outside: string[]; serverOffline: void}>({
   outside: async ({context}, use) => {
     const outside: string[] = []
@@ -48,6 +57,7 @@ export const test = base.extend<{outside: string[]; serverOffline: void}>({
   serverOffline: [
     async ({}, use) => {
       await use()
+      expect(serverRefusedRequests(), "server requests to outside addresses").toEqual([])
       expect(serverOutsideConnections(), "server connections that left the test machine").toEqual([])
     },
     {auto: true},

@@ -24,6 +24,11 @@ end
 if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
   config :regents, :privy, app_id: "browser-test-public-id", verification_key: nil
   config :regent_agents, activity_read_token: nil
+
+  # Every Req call to anywhere but this machine is refused and written to the
+  # log the browser checks read, so a check that reaches outside fails.
+  config :req, :default_options, adapter: Regents.OutsideRequests
+  config :regents, Regents.OutsideRequests, log: System.fetch_env!("REGENTS_OUTSIDE_LOG")
 end
 
 if config_env() != :test do

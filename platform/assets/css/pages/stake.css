@@ -403,7 +403,7 @@
   grid-column: 1 / -1;
 }
 
-/* Small on screen, but the press area stays finger-sized without pushing the row taller. */
+/* Small words, each with a press area a finger can take. */
 .stake-for-other {
   display: inline-flex;
   align-items: center;
@@ -413,12 +413,15 @@
   white-space: nowrap;
 }
 
+/* 2.75rem is the 44 px a finger needs, and the row keeps all of it, so the
+   Amount box below never covers part of the press. */
 .stake-actions .stake-for-other label {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin-block: -0.75rem;
-  padding-block: 0.75rem;
+  min-height: 2.75rem;
+  margin-block: 0;
+  padding-block: 0;
   font-family: inherit;
   font-size: inherit;
   letter-spacing: normal;
@@ -1206,9 +1209,12 @@
    area that does not push the row taller. The shared button rules sit outside
    this layer, so the link look is set here. */
 .stake-actions button.stake-for-other__change {
-  min-height: 0;
-  margin-block: -0.75rem;
-  padding: 0.75rem 0;
+  display: inline-flex;
+  align-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin-block: 0;
+  padding: 0;
   border: 0;
   background: none;
   color: var(--ash-accent);

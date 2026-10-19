@@ -127,7 +127,8 @@ export async function startPrivyBridge() {
 `
 
 // A pair the server refuses only ever reaches it through an explicit
-// establishment; startup reconciliation offers none.
+// establishment; startup reconciliation offers none. Like the bridge's own
+// sign-in, this reloads only when the establishment succeeds.
 const rejectedBearerBridgeStub = `
 import {createLocalSession} from "/assets/js/privy_bridge.js?u3_original=1"
 
@@ -138,7 +139,7 @@ export async function startPrivyBridge() {
       await createLocalSession({
         accessToken: "invalid",
         identityToken: "invalid-identity"
-      }).catch(() => undefined)
+      })
       window.location.reload()
     }
   }
@@ -1214,7 +1215,8 @@ test("a rejected bearer leaves the browser anonymous without a duplicate delete 
   await page.goto("/app")
 
   // The server already revoked and dropped the authority with its 401, so the
-  // bridge adds no delete of its own and the single reload lands anonymous.
+  // bridge adds no delete and no reload of its own. The server also closes this
+  // page's live connection, and that one reload lands anonymous.
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await page.waitForLoadState("networkidle")
 

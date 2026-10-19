@@ -195,9 +195,11 @@ function disconnectedStorage(): Pick<Storage, "getItem" | "setItem" | "removeIte
 
 // The browser test seam stands in for Privy's selection as well as for the
 // connected set, so the same wallet drives the wallet buttons there as in a real browser —
-// including staying gone after the visitor disconnects it.
+// including staying gone after the visitor disconnects it. Each browser test
+// server runs on its own port of this machine, and no public page is ever served
+// from it.
 function testEthereumWallet(): SelectedWallet | null {
-  return window.location.origin === "http://127.0.0.1:4002" &&
+  return window.location.hostname === "127.0.0.1" &&
     window.__regentsTestWallet &&
     !walletDisconnected()
     ? window.__regentsTestWallet

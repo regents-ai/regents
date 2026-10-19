@@ -2280,60 +2280,21 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   keep inside their buttons, and on a computer View Tools no longer touches
   the name below it.
 
-## 2026-10-19 — Regents v204 released
-
-- v204 (`f76843f9`) went live as Fly v204 at about 00:16Z on Sean's "1. a then
-  push and deploy changes" (00:11Z). The rollback is v203 (`b40dbded`). It
-  carries `6fc0c650` (a code cube side copies its text; View Tools opens its
-  card), which Sentinel read GO at 00:02Z, and `f76843f9` (Sentinel's two folds:
-  touch sizes and the each-side check). Sentinel had logged `f76843f9` as HOLD
-  for two changes to the check's evidence; the deploy was already under way on
-  Sean's word, and both changes go into the next head.
-- Live checks: the deployed image is labelled
-  `f76843f91a6ae95cb29b04f1e064fa50f5c05e28`; /healthz answers 200. On
-  https://regents.sh/ in headless Chromium at 1280 (mouse) and 390 (touch),
-  each of the six sides copies its own card ("# <its name>" first, six different
-  texts, each equal to its card's own copy text), the note names the side, and
-  View Tools opens that side's card. At 390 on touch View Tools is 44 px tall
-  with a 54 px strip below it.
-
 ## 2026-10-19 — Stake for a different address opens a window
 
-- Ticking "Stake for a different address" on /stake opens a small window with
-  the receiving address and its warning (Sean, decision 7, "1. a", 19 Oct
-  00:11Z). Done or Escape closes it.
-- The row beside "Amount" then says where the rewards go: "Rewards go to
-  0x2222..2222" with Change, or "No address yet" with Add until the address is
-  valid and its warning ticked. Unticking stakes for yourself again.
-- The blank band that held the address's room below a stake of your own is
-  gone. A stake for someone else still keeps the room of the position preview
-  it has no figures for, so the panel keeps one height.
-- On the narrowest phones the choice takes its own row under "Amount".
-
-## 2026-10-19 — Browser checks stay on the test machine
-
-- The code cube checks read every site's tools from fixed test lists instead
-  of the live sites, and each side's copy is compared with its card every time
-  (Sentinel, 19 Oct).
-- Every browser check now fails when the page asks another host for anything,
-  or when the test server opens a connection off the machine. Gallery images
-  are answered with a blank pixel, and the sign-out check answers Privy and
-  WalletConnect itself.
-- A new check holds the cube's touch sizes: View Tools at least 44 px with a
-  44 px strip below it, at 390 and 320.
+- Ticking "Stake for a different address" on /stake opens a small window for
+  the receiving address and its warning. Done or Escape closes it.
+- The row beside "Amount" then says where the rewards go: "Rewards go to" and
+  the short address with Change, or "No address yet" with Add until the address
+  is valid and its warning ticked. Unticking stakes for yourself again.
+- A stake of your own no longer leaves a blank band below the form. A stake for
+  someone else keeps the room of the position preview, so the panel keeps one
+  height.
+- On the narrowest phones the choice takes its own row under "Amount". The box
+  and Change are each a full finger's press.
 
 ## 2026-10-19 — Stake: what is available stays readable on small phones
 
-- On the narrowest phones "Available" on /stake sat under the 50% and Max
-  buttons. It now keeps its row, and the two buttons move below it when both
-  do not fit; on wider screens they still sit beside it.
-- The Stake check's pictures now show the whole form at 1280, 390 and 320.
-
-## 2026-10-19 — Sign-in limit checks never trip on the minute
-
-- The check that repeated failed sign-ins are reported at most 20 times a
-  minute could fail when its tries crossed into a new minute (Sentinel, v205
-  read). The limiter now reads a clock the checks can hold still; the site keeps
-  the machine's clock and the same limits.
-- A new check holds a budget up to the last second of its window and sees it
-  return at the next.
+- On the narrowest phones "Available" sat under the 50% and Max buttons. It now
+  keeps its row, and the two buttons move below it when both do not fit; on
+  wider screens they still sit beside it.

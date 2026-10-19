@@ -679,7 +679,10 @@ test("Stake keeps one height whatever the different-address box shows", async ({
         const overlaps = (a: DOMRect, b: DOMRect) =>
           a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
         return {
-          height: row.getBoundingClientRect().height,
+          // How far apart the parts' middles sit: 0 when they share one line.
+          spread:
+            Math.max(...parts.map(part => part.top + part.height / 2)) -
+            Math.min(...parts.map(part => part.top + part.height / 2)),
           // How far the furthest part reaches past either side of the form.
           past: Math.max(0, ...parts.map(part => Math.max(form.left - part.left, part.right - form.right))),
           clear: parts.every(part => !overlaps(part, label)),
@@ -687,7 +690,7 @@ test("Stake keeps one height whatever the different-address box shows", async ({
       })
       expect(fit.clear).toBe(true)
       expect(fit.past).toBeLessThan(0.5)
-      expect(fit.height).toBeLessThan(30)
+      expect(fit.spread).toBeLessThan(4)
     }
     await expect(page.locator(".stake-preview")).toBeVisible()
     const unticked = await height()
@@ -736,6 +739,32 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     expect(await height()).toBeCloseTo(unticked, 0)
     expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
     await oneRow()
+    // The box and Change each take a press 44 px tall, and Change 44 px wide, at
+    // every edge of that area, not only where their words are.
+    const pressAreas = await page.evaluate(() =>
+      ["label[for='staking-for-other']", "#staking-recipient-change"].map(selector => {
+        const control = document.querySelector(selector)!
+        const box = control.getBoundingClientRect()
+        const middle = {x: box.left + box.width / 2, y: box.top + box.height / 2}
+        const edges = [
+          [middle.x, box.top + 1],
+          [middle.x, box.bottom - 1],
+          [box.left + 1, middle.y],
+          [box.right - 1, middle.y],
+        ]
+        return {
+          selector,
+          width: box.width,
+          height: box.height,
+          pressed: edges.every(([x, y]) => control.contains(document.elementFromPoint(x, y))),
+        }
+      }),
+    )
+    for (const area of pressAreas) {
+      expect(area.height, `${area.selector} at ${width}`).toBeGreaterThanOrEqual(44)
+      expect(area.pressed, `${area.selector} at ${width}`).toBe(true)
+    }
+    expect(pressAreas[1].width, `Change at ${width}`).toBeGreaterThanOrEqual(44)
     // The form alone fits the screen at every width, so its picture is whole.
     await page
       .locator("#staking-amount-form")

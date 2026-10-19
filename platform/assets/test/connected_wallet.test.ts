@@ -33,10 +33,10 @@ function memoryStorage() {
   }
 }
 
-function stubWindow(origin = "https://regents.sh") {
+function stubWindow(address = "https://regents.sh") {
   const dispatched: string[] = []
   vi.stubGlobal("window", {
-    location: {origin},
+    location: new URL(address),
     localStorage: memoryStorage(),
     dispatchEvent: (event: Event) => void dispatched.push(event.type),
   })
@@ -161,6 +161,19 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
     expect(activeEthereumWallet()).toBeNull()
     expect(walletDisconnected()).toBe(true)
     expect(releasing).toBeInstanceOf(Promise)
+  })
+
+  it("drives the browser test wallet on any port of this machine, never on a public page", () => {
+    for (const [address, drives] of [
+      ["http://127.0.0.1:4002", true],
+      ["http://127.0.0.1:4123", true],
+      ["https://regents.sh", false],
+    ] as const) {
+      stubWindow(address)
+      const testWallet = {address: first, provider: provider()}
+      window.__regentsTestWallet = testWallet
+      expect(activeEthereumWallet(), address).toEqual(drives ? testWallet : null)
+    }
   })
 
   it("keeps the browser test wallet gone until the visitor connects again", async () => {

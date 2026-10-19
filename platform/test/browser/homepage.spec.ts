@@ -543,7 +543,10 @@ for (const width of [1280, 390]) {
       const cardCopy = card.locator(".rg-copy")
       await expect(cardCopy).toHaveCount(1)
       await expect(cardCopy).toHaveAttribute("data-copy-text", text)
-      if (name !== "siwa-server") await expect(card.getByRole("heading", {name: `Browse ${name}`})).toBeVisible()
+      // The card's first entry: a site's first tool, or siwa-server's first step.
+      const first = name === "siwa-server" ? "Get the client" : `Browse ${name}`
+      await expect(card.locator(".code-card__tool h3").first()).toHaveText(first)
+      expect(text).toContain(first)
       await page.keyboard.press("Escape")
       await expect(card).toBeHidden()
     }
