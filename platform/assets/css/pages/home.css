@@ -40,35 +40,27 @@
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); pointer-events: auto; }
-  /* Phones stack the heading and two bounded stages. On desktop the heading
-     overlays the shared stage, whose fallback list reserves the same height
-     as the rendered cubes. */
+  /* Phones stack the heading and the stage. On desktop the heading overlays
+     the stage, whose fallback list reserves the same height as the drawn cube. */
   .rl-hero--home {
     display: grid; grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
   }
   .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; transition: opacity 320ms ease-out; }
   .rl-hero--home .world-cube { grid-area: 2 / 1; grid-template-rows: minmax(0, 1fr); min-height: 0; }
   .rl-hero--home .world-cube__worlds { align-self: stretch; }
-  /* The code cube, for agents: on a phone a stage of its own under the world
-     cube's; on a wide screen the right half of the one stage, with the world
-     cube drawn in the left half. A room fills the whole stage, so the code cube
-     steps aside while one is open. */
-  .rl-hero--home .code-cube { grid-area: 3 / 1; }
-  /* "Human Browsing" and "Agentic WebMCP" over the two cubes, while the pointer
-     is on either; where nothing hovers, they stay shown. */
-  .rl-twin-labels { display: contents; }
-  .rl-twin-label {
+  /* "Human Browsing" over the cube, while the pointer is on it; where nothing
+     hovers, it stays shown. */
+  .rl-cube-label {
     position: relative; z-index: 2; grid-area: 2 / 1; align-self: start; justify-self: center;
     margin: 0; padding-top: var(--space-3);
     color: color-mix(in srgb, var(--rl-ink) 74%, transparent);
     font: .75rem/1.4 var(--font-family-mono); letter-spacing: var(--tracking-microlabel); text-transform: uppercase;
     opacity: 0; pointer-events: none;
   }
-  .rl-twin-label:nth-child(2) { grid-area: 3 / 1; padding-top: var(--space-4); }
-  .rl-hero--home:has(.world-cube:is([data-world-state="entering"], [data-world-state="inside"], [data-world-state="leaving"])) .rl-twin-label { visibility: hidden; }
+  .rl-hero--home:has(.world-cube:is([data-world-state="entering"], [data-world-state="inside"], [data-world-state="leaving"])) .rl-cube-label { visibility: hidden; }
   @media (hover: none) {
-    .rl-twin-label { opacity: 1; }
+    .rl-cube-label { opacity: 1; }
   }
   .rl-overline { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; }
   .rl-card-diagram { pointer-events: none; }
@@ -88,8 +80,8 @@
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-hero-copy { padding: 0; }
     .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
-    /* On a phone the names sit at the left of their stages, clear of the code cube's View Tools. */
-    .rl-twin-label { justify-self: start; padding-inline: var(--space-3); }
+    /* On a phone the name sits at the left of the stage. */
+    .rl-cube-label { justify-self: start; padding-inline: var(--space-3); }
     .rl-brand { font-size: .875rem; }
   }
   @media (min-width: 48rem) {
@@ -99,40 +91,21 @@
     .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
     .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-actions { pointer-events: none; }
     .rl-hero--home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(var(--rl-worlds-height), auto); }
-    /* Drawn, the world cube takes the left half of the stage and the code cube the
-       right, both smaller on a wide screen to leave room for their names above them.
-       Where they are not drawn, the list of worlds keeps the stage's full width and
-       the code cube's six buttons sit beside the heading, so the stage is the same
-       height either way. */
-    .rl-hero--home .world-cube { --world-cube-centre: .25; --world-cube-size: .85; grid-area: 1 / 1 / span 2 / span 2; grid-template-rows: subgrid; }
+    /* Drawn, the cube stands left of the middle of the stage, its name and hint
+       centred under it. Where it is not drawn, the list of worlds keeps the
+       stage's full width, so the stage is the same height either way. */
+    .rl-hero--home .world-cube { --world-cube-centre: .375; --world-cube-size: .85; grid-area: 1 / 1 / span 2 / span 2; grid-template-rows: subgrid; }
     .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
-    .rl-hero--home .world-cube__hint { right: 50%; }
-    .rl-hero--home .world-cube__caption { right: 50%; }
-    .rl-hero--home .code-cube {
-      --code-cube-size: .85; grid-area: 1 / 2; align-self: start; min-height: 0;
-      padding: var(--space-5) var(--space-5) 0 0; background: transparent;
-      transition: opacity 500ms ease-out, visibility 0s;
-    }
-    .rl-hero--home .code-cube__face { height: 4rem; }
-    .rl-hero--home .code-cube[data-code-ready="true"] { grid-area: 1 / 2 / span 2; align-self: stretch; padding: var(--space-5); }
-    .rl-hero--home:has(.world-cube:is([data-world-state="entering"], [data-world-state="inside"], [data-world-state="leaving"])) .code-cube {
-      opacity: 0; visibility: hidden; transition: opacity 320ms ease-in, visibility 0s 320ms;
-    }
-    .rl-twin-label { top: -.75rem; padding-top: 0; }
-    .rl-twin-label:nth-child(2) { grid-area: 2 / 2; padding-top: 0; }
-  }
-  /* Beside the heading the six site buttons share half the page, so they go
-     three to a row only once each holds its longest name on one line. */
-  @media (min-width: 48rem) and (max-width: 55.99rem) {
-    .rl-hero--home .code-cube__faces { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rl-hero--home .world-cube__hint { right: 25%; }
+    .rl-hero--home .world-cube__caption { right: 25%; }
+    .rl-cube-label { grid-area: 2 / 1 / auto / span 2; top: -.75rem; padding-top: 0; justify-self: start; inline-size: 75%; text-align: center; }
   }
   @media (min-width: 60rem) {
     .rl-hero--home { --rl-worlds-height: 44rem; }
+    .rl-hero--home .world-cube { --world-cube-size: 1; }
   }
   @media (min-width: 68.75rem) {
     .rl-hero--home { --rl-worlds-height: 38rem; }
-    .rl-hero--home .world-cube { --world-cube-size: .66; }
-    .rl-hero--home .code-cube { --code-cube-size: .66; }
   }
 }
 

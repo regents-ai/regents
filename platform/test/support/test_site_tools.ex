@@ -1,9 +1,9 @@
 defmodule Regents.TestSiteTools do
   @moduledoc """
   Answers each Regent site's published tool list in tests and on the browser
-  test server, so the code cube's cards never depend on the live sites. Each
-  site lists two of its own home-page tools, and one tool of another page that
-  only Patchbay's card shows.
+  test server, so the lists of every site's tools never depend on the live
+  sites. Each site lists three tools, for every page, its home page and one
+  other page.
   """
 
   @behaviour Plug

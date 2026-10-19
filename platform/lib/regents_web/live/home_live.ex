@@ -1,8 +1,7 @@
 defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
-  alias Regents.SiteTools
-  alias RegentsWeb.Components.{AgentTools, CodeCube, RegentLinks, WorldCube}
+  alias RegentsWeb.Components.{AgentTools, RegentLinks, WorldCube}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
   @staking_summary "Stake $REGENT to earn a pro rata split of all Regents Labs' USDC revenue, plus a temporary REGENT yield for the early community."
@@ -59,78 +58,12 @@ defmodule RegentsWeb.HomeLive do
     do:
       "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)}: [#{proof.link.label}](#{proof.link.href}))"
 
-  # The code cube's cards are read once the page is live: each face copies its
-  # own, and the cube copies them all. They are sent to the page once and not
-  # kept here, since they hold every site's tools.
   def mount(_params, _session, socket) do
-    help = SiteTools.connection_help()
-
-    socket =
-      socket
-      |> assign(route_spec: RouteCatalog.fetch!(:home))
-      |> assign(RegentsWeb.PublicDocuments.page("/"))
-      |> assign(help: help, open: nil, card: :loading, card_tools: [])
-      |> assign(cards: CodeCube.cards(%{}, help), copy_all: nil)
-
-    socket =
-      if connected?(socket), do: start_async(socket, :copy_all, &read_every_site/0), else: socket
-
-    {:ok, socket, temporary_assigns: [cards: %{}, copy_all: nil]}
+    {:ok,
+     socket
+     |> assign(route_spec: RouteCatalog.fetch!(:home))
+     |> assign(RegentsWeb.PublicDocuments.page("/"))}
   end
-
-  # Each site is asked side by side; SiteTools answers every read within its own limit.
-  defp read_every_site do
-    SiteTools.sites()
-    |> Task.async_stream(&{&1, card_read(SiteTools.tools(&1))}, timeout: :infinity)
-    |> Map.new(fn {:ok, read} -> read end)
-  end
-
-  # A face of the code cube opens its card. A site's tools are read in the
-  # background, one read for each site, and an answer lands only on that site's
-  # open card.
-  def handle_event("open_card", %{"site" => site}, socket) do
-    case CodeCube.face(site) do
-      nil ->
-        {:noreply, socket}
-
-      %{site: "siwa"} = face ->
-        {:noreply, assign(socket, open: face)}
-
-      face ->
-        {:noreply,
-         socket
-         |> assign(open: face, card: :loading, card_tools: [])
-         |> start_async({:site_tools, site}, fn -> SiteTools.tools(site) end)}
-    end
-  end
-
-  def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, open: nil)}
-
-  def handle_async(:copy_all, {:ok, reads}, socket) do
-    help = socket.assigns.help
-
-    {:noreply,
-     assign(socket, cards: CodeCube.cards(reads, help), copy_all: CodeCube.markdown(reads, help))}
-  end
-
-  def handle_async(:copy_all, {:exit, _reason}, socket), do: {:noreply, socket}
-
-  def handle_async({:site_tools, site}, result, %{assigns: %{open: %{site: site}}} = socket) do
-    {:noreply, assign(socket, card_answer(result))}
-  end
-
-  def handle_async({:site_tools, _site}, _result, socket), do: {:noreply, socket}
-
-  defp card_answer({:ok, answer}) do
-    {state, tools} = card_read(answer)
-    [card: state, card_tools: tools]
-  end
-
-  defp card_answer(_failure), do: [card: :error, card_tools: []]
-
-  defp card_read({:ok, []}), do: {:empty, []}
-  defp card_read({:ok, tools}), do: {:ready, tools}
-  defp card_read({:error, _reason}), do: {:error, []}
 
   def render(assigns) do
     ~H"""
@@ -139,18 +72,8 @@ defmodule RegentsWeb.HomeLive do
 
       <main>
         <Regent.Structure.row rail={false}>
-          <.hero cards={@cards} copy_all={@copy_all} />
+          <.hero />
         </Regent.Structure.row>
-        <CodeCube.card
-          :if={@open}
-          id="home-card"
-          face={@open}
-          state={@card}
-          tools={@card_tools}
-          help={@help}
-          close="close_card"
-          retry="open_card"
-        />
       </main>
 
       <Regent.Structure.row rail={false}>
@@ -207,11 +130,10 @@ defmodule RegentsWeb.HomeLive do
   defp hero(assigns) do
     ~H"""
     <section
-      id="home-twin"
+      id="home-hero"
       class="rl-hero rl-hero--home"
       aria-labelledby="home-title"
-      phx-hook="TwinCube"
-      phx-mounted={JS.ignore_attributes(["data-webmcp-status"])}
+      phx-hook="CubeLabel"
     >
       <div class="rl-hero-copy">
         <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
@@ -221,18 +143,10 @@ defmodule RegentsWeb.HomeLive do
         </div>
       </div>
       <AgentTools.dialog id="home-agent-tools" />
-      <div id="home-twin-labels" class="rl-twin-labels" phx-update="ignore" aria-hidden="true">
-        <p class="rl-twin-label" data-twin-label>Human Browsing</p>
-        <p class="rl-twin-label" data-twin-label>Agentic WebMCP</p>
-      </div>
+      <p id="home-cube-label" class="rl-cube-label" phx-update="ignore" aria-hidden="true">
+        Human Browsing
+      </p>
       <WorldCube.cube id="home-worlds" label="Regents Labs products" worlds={worlds()} />
-      <CodeCube.cube
-        id="home-code"
-        label="The tools each site offers agents"
-        click="open_card"
-        cards={@cards}
-        copy_all={@copy_all}
-      />
     </section>
     """
   end

@@ -2304,3 +2304,16 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - On a computer, "Stake for a different address" and its Add or Change link
   are the size of their words again, so the row no longer looks blocky. On a
   touch screen each still takes a full finger's press.
+
+## 2026-10-19 — The home page keeps one cube
+
+- The home page now shows one cube, with "Human Browsing" over it. On a
+  computer it is about half again as big as before.
+- The "Agents see" window has a new button, "Copy all Regents WebMCP tools",
+  which copies every Regent site's tools at once, each site in its own
+  section, then how an agent signs in. The line under it says how many tools
+  it found.
+- Agents get a tool for each site's full list of tools, and one tool for the
+  complete list of every site.
+- The window no longer shuts by itself when it is opened while the page is
+  still loading.

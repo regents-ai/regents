@@ -2,9 +2,9 @@ defmodule RegentsWeb.Components.AgentTools do
   @moduledoc """
   The WebMCP tools every page offers an agent, read when this module compiles
   from `priv/tool_manifest.json`, the file the pages register them from
-  (`assets/js/public_tools.ts` offers the entries scoped to the site). The bottom
-  bar's button says how many there are and opens a dialog listing each tool with
-  its description, which copies the whole list as Markdown.
+  (`assets/js/public_tools.ts`). The button says how many there are and opens a
+  dialog listing each tool with its description, which copies the list as
+  Markdown, or every Regent site's tools at once.
   """
 
   use Phoenix.Component
@@ -12,8 +12,7 @@ defmodule RegentsWeb.Components.AgentTools do
   manifest = Application.app_dir(:regents, "priv/tool_manifest.json")
   @external_resource manifest
 
-  @tools (for %{"scope" => "site"} = tool <-
-                manifest |> File.read!() |> Jason.decode!() |> Map.fetch!("tools") do
+  @tools (for tool <- manifest |> File.read!() |> Jason.decode!() |> Map.fetch!("tools") do
             %{name: tool["name"], title: tool["title"], description: tool["description"]}
           end)
 
@@ -53,34 +52,54 @@ defmodule RegentsWeb.Components.AgentTools do
 
   attr :id, :string, required: true
 
-  @doc "The dialog listing every tool, closed with its X, Escape or a press beside it."
+  @doc """
+  The dialog listing every tool, closed with its X, Escape or a press beside it.
+  Besides the copy of its own list, it copies every Regent site's tools at once,
+  which the page reads each time the dialog opens until one read succeeds
+  (`assets/js/agent_tools.ts`); until then that button waits, and the line
+  under it says how the read stands. Everything in it is fixed when the page is
+  built, so the page never redraws it: an opening, and what the read put in it,
+  last through the page connecting and every later update.
+  """
   def dialog(assigns) do
     assigns = assign(assigns, label: @label, tools: @tools, markdown: @markdown)
 
     ~H"""
     <dialog
       id={@id}
-      class="code-card agent-tools"
+      class="agent-tools"
       aria-labelledby={"#{@id}-title"}
       data-agent-tools
-      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+      phx-update="ignore"
     >
-      <header class="code-card__head">
+      <header class="agent-tools__head">
         <h2 id={"#{@id}-title"}>{@label}</h2>
-        <div class="code-card__copy">
-          <Regent.Primitives.copy_button id={"#{@id}-copy"} text={@markdown}>
-            Copy as Markdown
-          </Regent.Primitives.copy_button>
-        </div>
-        <button type="button" class="code-card__close" aria-label="Close" data-agent-tools-close>
+        <button type="button" class="agent-tools__close" aria-label="Close" data-agent-tools-close>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.5" />
           </svg>
         </button>
+        <div class="agent-tools__copies">
+          <Regent.Primitives.copy_button id={"#{@id}-copy"} text={@markdown}>
+            Copy as Markdown
+          </Regent.Primitives.copy_button>
+          <div class="agent-tools__every-site">
+            <Regent.Primitives.copy_button
+              id={"#{@id}-copy-all"}
+              target={"#{@id}-all"}
+              data-agent-tools-copy-all
+              {%{"disabled" => true}}
+            >
+              Copy all Regents WebMCP tools
+            </Regent.Primitives.copy_button>
+            <p class="agent-tools__note" data-agent-tools-note>Reading every site's tools…</p>
+            <pre id={"#{@id}-all"} hidden data-agent-tools-all></pre>
+          </div>
+        </div>
       </header>
-      <div class="code-card__body">
-        <ol class="code-card__list">
-          <li :for={tool <- @tools} class="code-card__tool">
+      <div class="agent-tools__body">
+        <ol class="agent-tools__list">
+          <li :for={tool <- @tools} class="agent-tools__tool">
             <h3>{tool.title}</h3>
             <code>{tool.name}</code>
             <p>{tool.description}</p>

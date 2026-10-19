@@ -22,7 +22,6 @@ type Entry = {
   annotations: Annotations
   requires: "none" | "siwa" | "siwa_and_pairing"
   authentication: string
-  scope: "site" | "/"
 }
 type Failure = {
   ok: false
@@ -48,6 +47,13 @@ const requests: Record<string, (input: Input) => Request> = {
   regents_about: input => ({path: `/${input.page}`, accept: "text/markdown"}),
   regents_products: () => ({path: "/api/v1/products", accept: json}),
   regents_product: input => ({path: `/api/v1/products/${encodeURIComponent(input.slug)}`, accept: json}),
+  list_regents_webmcp_tools: () => ({path: "/api/v1/site-tools/regents", accept: json}),
+  list_patchbay_webmcp_tools: () => ({path: "/api/v1/site-tools/patchbay", accept: json}),
+  list_techtree_webmcp_tools: () => ({path: "/api/v1/site-tools/techtree", accept: json}),
+  list_autolaunch_webmcp_tools: () => ({path: "/api/v1/site-tools/autolaunch", accept: json}),
+  list_keyfleet_webmcp_tools: () => ({path: "/api/v1/site-tools/keyfleet", accept: json}),
+  list_all_webmcp_tools: () => ({path: "/api/v1/site-tools", accept: json}),
+  get_siwa_connection_help: () => ({path: "/api/v1/site-tools/siwa", accept: json}),
 }
 
 function failure(code: Failure["error"]["code"], message: string): Failure {
@@ -154,7 +160,7 @@ export function installPublicTools(documentRoot: Document = document): void {
   if (!("modelContext" in documentRoot)) return
   const context = (documentRoot as Document & {modelContext: ModelContext}).modelContext
   const status = (value: string) => { documentRoot.documentElement.dataset.webmcpStatus = value }
-  const entries = (manifest.tools as unknown as Entry[]).filter(entry => entry.scope === "site")
+  const entries = manifest.tools as unknown as Entry[]
   let group: AbortController | undefined
 
   const start = () => {

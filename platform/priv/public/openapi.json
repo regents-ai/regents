@@ -114,11 +114,30 @@
         }
       }
     },
+    "/api/v1/site-tools": {
+      "get": {
+        "operationId": "getEverySiteTools",
+        "summary": "Read every Regent site's browser tools at once",
+        "description": "Every browser tool regents.sh, patchbay.help, techtree.sh, autolaunch.sh and keyfleet.ai offers agents, as each site published them within the last day, and the steps to connect an agent through siwa-server. A site that could not be read right now is named under unreachable. The tool text is each site's own words. Anyone may read them; no sign-in.",
+        "responses": {
+          "200": {
+            "description": "Every site's tools and how to connect an agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EverySiteTools"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/site-tools/{site}": {
       "get": {
         "operationId": "getSiteTools",
         "summary": "Read a Regent site's browser tools, or how to connect an agent",
-        "description": "The browser tools regents.sh, patchbay.help, techtree.sh, autolaunch.sh or keyfleet.ai offers on its home page (every Patchbay tool), as the site published them within the last day; the tool text is the site's own words. For siwa, the steps to connect an agent through siwa-server. Anyone may read them; no sign-in.",
+        "description": "Every browser tool regents.sh, patchbay.help, techtree.sh, autolaunch.sh or keyfleet.ai offers agents, as the site published them within the last day; the tool text is the site's own words. For siwa, the steps to connect an agent through siwa-server. Anyone may read them; no sign-in.",
         "parameters": [
           {
             "name": "site",
@@ -2917,6 +2936,103 @@
                 "type": "string"
               }
             }
+          }
+        }
+      },
+      "EverySiteTools": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sites",
+          "unreachable",
+          "connection"
+        ],
+        "properties": {
+          "sites": {
+            "type": "array",
+            "description": "Each site that could be read, in the order regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "site",
+                "tools"
+              ],
+              "properties": {
+                "site": {
+                  "type": "string",
+                  "description": "The site's address, such as patchbay.help."
+                },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "title",
+                      "description"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "unreachable": {
+            "type": "array",
+            "description": "The sites whose tools could not be read right now, such as patchbay.help.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "connection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "guide",
+              "steps"
+            ],
+            "properties": {
+              "guide": {
+                "type": "string",
+                "format": "uri"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "title",
+                    "copy",
+                    "command"
+                  ],
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "copy": {
+                      "type": "string"
+                    },
+                    "command": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "description": "How an agent connects to siwa-server, the sign-in every Regent site shares."
           }
         }
       }

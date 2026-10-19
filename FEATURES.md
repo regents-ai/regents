@@ -13,9 +13,8 @@ also runs alone with `cd platform && npx playwright test`.
 | Feature | Proving check | Gap |
 | --- | --- | --- |
 | Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
-| Home code cube: a press of a side copies its text with a note by the pointer; View Tools opens its card | `browser/homepage.spec.ts` "a code cube side copies its text…" (1280 and 390, siwa-server side, mouse and keyboard) | The drawn cube needs WebGPU, which the headless browser lacks: checked by hand in headless Chrome |
-| Home code cube: each side copies its own site's card, never another's | `browser/homepage.spec.ts` "each code cube side copies its own site's card" (1280 and 390, all six sides against each card's own copy and its first entry; the test server answers every site's tools from `test/support/test_site_tools.ex`) | |
-| Home code cube on a touch screen: every View Tools is at least 44 px, with a strip of at least 44 px below it that copies | `browser/homepage.spec.ts` "code cube sides are finger-sized on a touch screen" (390 and 320) | |
+| Home page shows one cube with "Human Browsing" over it, about half again as big on a computer | `browser/homepage.spec.ts` (the six worlds) | The drawn cube needs WebGPU, which the headless browser lacks: its size and the words over it are checked by hand in headless pictures |
+| The "Agents see" window copies every Regent site's tools at once, each site its own section, then how an agent signs in; it stays open when opened while the page is still connecting | `browser/agent_tools.spec.ts` "the tools window copies every site's tools…" (1280 and 390; the test server answers every site's tools from `test/support/test_site_tools.ex`) | |
 | Sign in and sign out with Privy; tabs stay in step; a sign-in the server refuses lands the page signed out with one reload, which the server's own disconnect brings | `browser/u3_auth_lazy_acceptance.spec.ts` ("a rejected bearer leaves the browser anonymous…"), `regents_web/live/session_authority_gate_test.exs` | |
 | Repeated failed sign-ins are reported at most 20 times a minute; a minute's budget lasts to its last second and returns at the next | `regents_web/controllers/privy_session_controller_test.exs` "repeated rejected sessions share the actionable bound" (the clock stands still), `regents/rate_limiter_test.exs` (both sides of a window's edge) | |
 | Walk every page in one visit, signed out and signed in | `browser/shell_walk.spec.ts` (R04) | R04 sometimes logs Chrome's "play() interrupted" on /redeem |
@@ -44,7 +43,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Signed agent reads: account, claims, staking position, credits, points | `regents_web/api_contract_test.exs`, `regents_web/agent_requests_test.exs` | |
 | Agent guides: agents.md, skill.md, llms.txt, openapi.json, docs | `regents_web/public_documents_test.exs`, `regents_web/content_negotiation_test.exs`, `make check-cli` | |
 | Profile API | `regents_web/controllers/profile_api_test.exs` | |
-| Site tools listing (`/site-tools/:site`) | none | No check |
+| Tool lists for agents: one for each site's tools (`/api/v1/site-tools/:site`), one complete list of every site (`/api/v1/site-tools`), and how to sign in through siwa-server | `browser/agent_tools.spec.ts` "every page offers a list of each site's tools and the complete list" | |
 
 ## Live site
 

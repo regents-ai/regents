@@ -1,8 +1,8 @@
 defmodule RegentsWeb.SiteToolsController do
   @moduledoc """
-  The browser tools each Regent site offers on its home page, and how an agent
-  connects to siwa-server: what the twin cube's six cards show, for anyone to
-  read. The twin cube's own browser tools read them here.
+  Every browser tool each Regent site offers agents, one site at a time or all
+  of them at once, and how an agent connects to siwa-server, for anyone to
+  read. The site's own browser tools and its list of tools read them here.
   """
 
   use RegentsWeb, :controller
@@ -16,6 +16,18 @@ defmodule RegentsWeb.SiteToolsController do
     "site_unreachable" =>
       {503, "That site's tools could not be read right now.", "Try again in a minute."}
   }
+
+  # Every site in one answer: the sites read, the ones that could not be read
+  # right now, and how an agent connects to siwa-server.
+  def index(conn, _params) do
+    {read, unreachable} = Enum.split_with(SiteTools.every_site(), &match?({_site, {:ok, _}}, &1))
+
+    json(conn, %{
+      sites: for({site, {:ok, tools}} <- read, do: %{site: SiteTools.name(site), tools: tools}),
+      unreachable: for({site, _failure} <- unreachable, do: SiteTools.name(site)),
+      connection: SiteTools.connection_help()
+    })
+  end
 
   def show(conn, %{"site" => "siwa"}) do
     json(conn, %{site: "siwa-server", connection: SiteTools.connection_help()})

@@ -31,20 +31,155 @@
   }
 }
 
-/* The list itself wears a face's card (`code_cube.css`). Its copy press holds
-   the place a face's guide link has, in the card's colours in either theme. */
-.code-card__copy {
-  margin-inline-start: auto;
+
+/* The list itself: a modal whose list scrolls, closed with its X or Escape.
+   It is night in either theme, so its colours are its own. */
+@layer regents-product {
+.agent-tools {
+  --agent-tools-ink: #e5e3d2;
+  --agent-tools-accent: #2ff07a;
+  width: min(40rem, calc(100vw - 2 * var(--space-3)));
+  max-height: min(42rem, calc(100dvh - 2 * var(--space-4)));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--agent-tools-accent) 45%, transparent);
+  background: #0a0c11;
+  color: var(--agent-tools-ink);
 }
 
-.code-card__copy .rg-button {
+.agent-tools[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-tools::backdrop {
+  background: rgb(4 5 8 / 0.62);
+  backdrop-filter: blur(6px);
+}
+
+/* The title and the X on one row, the two copy buttons under them. */
+.agent-tools__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--agent-tools-accent) 30%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--agent-tools-accent) 14%, transparent),
+    transparent
+  );
+}
+
+.agent-tools__head h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.agent-tools__copies {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+}
+
+/* The copy-all button and the line under it saying how the read stands. The
+   line always holds words, so nothing moves when they change. */
+.agent-tools__every-site {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.agent-tools__note {
+  margin: 0;
+  color: color-mix(in srgb, var(--agent-tools-ink) 78%, transparent);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* The site's own button rule draws it, in the dialog's colours. */
+.agent-tools__close {
+  --color-fg: var(--agent-tools-ink);
+  --color-surface-elevated: transparent;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.agent-tools__close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.agent-tools__body {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.agent-tools__list {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-tools__tool {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border-left: 2px solid var(--agent-tools-accent);
+  background: color-mix(in srgb, var(--agent-tools-ink) 5%, transparent);
+}
+
+.agent-tools__tool h3,
+.agent-tools__tool p {
+  margin: 0;
+}
+
+.agent-tools__tool h3 {
+  font-family: var(--font-family-title);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.agent-tools__tool code {
+  color: var(--agent-tools-accent);
+  font: 0.75rem/1.4 var(--font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.agent-tools__tool p {
+  color: color-mix(in srgb, var(--agent-tools-ink) 82%, transparent);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+}
+
+/* The copy buttons, in the dialog's colours in either theme. */
+.agent-tools__copies .rg-button {
   --rg-local-fill: rgb(7 8 12 / 0.72);
-  --rg-local-ink: var(--code-card-ink);
+  --rg-local-ink: var(--agent-tools-ink);
   min-height: 2.75rem;
   padding: 0 0.75rem;
   font-size: 0.8125rem;
 }
 
-.code-card__copy .rg-button:is(:hover, :focus-visible) {
-  --rg-local-ink: var(--code-card-accent);
+.agent-tools__copies .rg-button:is(:hover, :focus-visible) {
+  --rg-local-ink: var(--agent-tools-accent);
 }
