@@ -2317,3 +2317,6 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   complete list of every site.
 - The window no longer shuts by itself when it is opened while the page is
   still loading.
+- The cube now stands in the middle of the page on a computer, with "Human
+  Browsing" above it and the hint under it. On mid-size screens it is drawn a
+  little smaller so it sits under the heading instead of across it.
