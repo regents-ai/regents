@@ -27,6 +27,17 @@ defmodule Regents.Blog.Post do
       prepare build(sort: [date: :desc, slug: :asc], deselect: [:cover, :markdown])
     end
 
+    read :feed do
+      prepare build(sort: [date: :desc, slug: :asc], deselect: [:cover, :markdown])
+
+      pagination do
+        required? true
+        keyset? true
+        default_limit 10
+        max_page_size 10
+      end
+    end
+
     read :post do
       argument :slug, :string, allow_nil?: false
       get? true

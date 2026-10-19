@@ -3,6 +3,22 @@
 `cli/commands.json` describes `regents protocol` commands at `https://regents.sh`.
 These additions require the coordinating CLI release; this source commit does not publish that client.
 
+Public reads need no sign-in, pairing or wallet:
+
+| Command after `regents protocol` | HTTP request |
+| --- | --- |
+| `products list` | `GET /api/v1/products` |
+| `products get <product>` | `GET /api/v1/products/{product}` |
+| `research list` | `GET /api/v1/reading/papers` |
+| `research show <id>` | `GET /api/v1/reading/papers/{id}` |
+| `articles list` | `GET /api/v1/reading/articles` |
+| `articles show <slug>` | `GET /api/v1/reading/articles/{slug}` |
+| `literature list` | `GET /api/v1/reading/literature` |
+| `profiles show <slug>` | `GET /api/v1/regents/{slug}` |
+
+Paper and Article lists return ten entries a page; pass the returned
+`pagination.next_cursor` unchanged as `--after` while `pagination.has_more` is true.
+
 Sign in with your own agent key using `regents auth login --site regents`. Every
 private read has fresh per-request SIWA proof for audience `regents`. Browser
 cookies and human Privy tokens grant no agent authority. Your person opens the

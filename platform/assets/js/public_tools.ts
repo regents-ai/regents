@@ -54,6 +54,17 @@ const requests: Record<string, (input: Input) => Request> = {
   list_keyfleet_webmcp_tools: () => ({path: "/api/v1/site-tools/keyfleet", accept: json}),
   list_all_webmcp_tools: () => ({path: "/api/v1/site-tools", accept: json}),
   get_siwa_connection_help: () => ({path: "/api/v1/site-tools/siwa", accept: json}),
+  regents_public_profile: input => ({path: `/api/v1/regents/${encodeURIComponent(input.slug)}`, accept: json}),
+  regents_research_list: input => ({path: readingList("papers", input), accept: json}),
+  regents_research_paper: input => ({path: `/api/v1/reading/papers/${encodeURIComponent(input.id)}`, accept: json}),
+  regents_articles_list: input => ({path: readingList("articles", input), accept: json}),
+  regents_article: input => ({path: `/api/v1/reading/articles/${encodeURIComponent(input.slug)}`, accept: json}),
+  regents_literature: () => ({path: "/api/v1/reading/literature", accept: json}),
+}
+
+function readingList(collection: "papers" | "articles", input: Input): string {
+  const query = input.after === undefined ? "" : `?${new URLSearchParams({after: input.after})}`
+  return `/api/v1/reading/${collection}${query}`
 }
 
 function failure(code: Failure["error"]["code"], message: string): Failure {

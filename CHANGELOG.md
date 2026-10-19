@@ -2340,3 +2340,22 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   Browsing" shown; the tools window opens at 1440 and 390 with "Copy all Regents
   WebMCP tools" and 166 tools from 5 sites; /api/v1/site-tools lists no site as
   unreachable.
+
+## 2026-10-19 — Public reading and profile reads for agents
+
+- Agents and the command line can now read what anyone can already read on the
+  site, with no sign-in, pairing or wallet: the list of published papers and one
+  paper with its full write-up, the list of Articles and one Article in full, the
+  AI & SCIFI book list, and one public Regent profile by its address name.
+- New routes: `/api/v1/reading/papers`, `/api/v1/reading/papers/{id}`,
+  `/api/v1/reading/articles`, `/api/v1/reading/articles/{slug}`,
+  `/api/v1/reading/literature` and `/api/v1/regents/{slug}`. Lists page with an
+  `after` cursor taken unchanged from the previous answer. Drafts and future-dated
+  posts stay hidden, as on the pages.
+- New WebMCP tools: `regents_research_list`, `regents_research_paper`,
+  `regents_articles_list`, `regents_article`, `regents_literature` and
+  `regents_public_profile`.
+- Cover pictures in these answers carry the record's last-change time, so an
+  updated cover is never served from an old copy.
+- Restacked from the parked agent branch (`0271906c`, `a56a6c65`, `4116c36e`)
+  onto the live code; the other parked commits wait on the template or on Sean.

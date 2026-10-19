@@ -57,6 +57,37 @@ defmodule Regents.PaperProDaily.Paper do
       filter expr(id == ^arg(:id))
       prepare build(select: [:date, :picture, :picture_type])
     end
+
+    read :feed do
+      prepare build(
+                sort: [date: :desc, inserted_at: :asc, id: :asc],
+                select: [
+                  :id,
+                  :date,
+                  :title,
+                  :authors,
+                  :arxiv_url,
+                  :chatgpt_url,
+                  :author,
+                  :picture_alt,
+                  :updated_at
+                ]
+              )
+
+      pagination do
+        required? true
+        keyset? true
+        default_limit 10
+        max_page_size 10
+      end
+    end
+
+    read :details do
+      argument :id, :uuid, allow_nil?: false
+      get? true
+      filter expr(id == ^arg(:id))
+      prepare build(deselect: [:picture])
+    end
   end
 
   preparations do

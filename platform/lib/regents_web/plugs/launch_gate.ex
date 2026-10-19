@@ -36,6 +36,22 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily"]} = conn, _opts), do: conn
 
+  # These JSON reads expose the same published Reading records as the open pages.
+  # No write or other API prefix bypasses the product gate.
+  def call(
+        %Plug.Conn{method: "GET", path_info: ["api", "v1", "reading", collection]} = conn,
+        _opts
+      )
+      when collection in ["papers", "articles", "literature"],
+      do: conn
+
+  def call(
+        %Plug.Conn{method: "GET", path_info: ["api", "v1", "reading", collection, _id]} = conn,
+        _opts
+      )
+      when collection in ["papers", "articles"],
+      do: conn
+
   def call(%Plug.Conn{method: "DELETE", path_info: ["auth", "privy", "session"]} = conn, _opts),
     do: conn
 

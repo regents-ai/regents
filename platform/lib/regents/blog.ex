@@ -7,6 +7,7 @@ defmodule Regents.Blog do
       define :put_post, action: :put
       define :publish_post, action: :publish
       define :list_posts, action: :list
+      define :post_feed, action: :feed
       define :get_post, action: :post, args: [:slug], get?: true, not_found_error?: false
       define :get_cover, action: :cover, args: [:slug], get?: true, not_found_error?: false
     end

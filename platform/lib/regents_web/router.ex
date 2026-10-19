@@ -154,9 +154,19 @@ defmodule RegentsWeb.Router do
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show
     get "/site-tools", RegentsWeb.SiteToolsController, :index
+    get "/regents/:slug", RegentsWeb.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
     get "/staking/position", RegentsWeb.StakingPositionController, :show
     forward "/profile", RegentIdentity.HTTP, otp_app: :regents
+  end
+
+  scope "/api/v1/reading", RegentsWeb do
+    pipe_through :api
+    get "/papers", ReadingController, :papers
+    get "/papers/:id", ReadingController, :paper
+    get "/articles", ReadingController, :articles
+    get "/articles/:slug", ReadingController, :article
+    get "/literature", ReadingController, :literature
   end
 
   scope "/api/agent/v1", RegentsWeb do

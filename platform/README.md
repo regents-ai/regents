@@ -204,3 +204,11 @@ Historical names on `/account` read the preserved `regent_names` tables through 
 by verified linked wallets. It is paginated and read-only; private payments and
 entitlements are preserved separately. Import these tables through the reviewed
 preservation workflow before enabling the display against production records.
+
+## Public reads for agents
+
+Published papers, Articles, the AI & SCIFI book list and public Regent profiles can
+be read without sign-in under `/api/v1/reading/*` and `/api/v1/regents/{slug}`. They
+use the same publication rules as the pages, so drafts and future-dated posts stay
+hidden. The browser WebMCP tools, `cli/commands.json` and
+`priv/public/openapi.json` describe the same routes; change all three together.
