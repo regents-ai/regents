@@ -2390,3 +2390,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   the docs, CLI descriptions and tool text in plain words.
 - Two checks cover these: the pair and check-in answers name the same pairing
   id, and a bad cursor gets the 422 refusal.
+
+## 2026-10-19 — Home page share picture shows $REGENT and a larger crown
+
+- The picture shown when the home page is shared now has a large $REGENT line
+  under "The community-owned agentic product lab." and a larger crown alone
+  in the top left.
+- The six site tiles stay inside the picture's frame; patchbay.help and
+  autolaunch.sh were cut off at the right edge.
+- The picture's description names $REGENT and the crown.
+- Picture and description only: no page, Stake or Redeem change, no migrations.
