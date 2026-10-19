@@ -2420,3 +2420,12 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   spending opens soon."
 - One check covers this: with spending closed the section shows only the
   "opens soon" line, and with it open it shows only the invitation.
+
+## 2026-10-19 — Safety headers on files, deploy names its commit, quiet tests
+
+- Images, icons and other files served as they are now carry the same "this
+  page may do nothing" safety headers as the template's, and a check proves it.
+- A deploy refuses a commit that is not on GitHub main, and the image now
+  carries the commit it was built from.
+- Test runs print nothing from tests that succeed; a failing test still shows
+  everything it logged.

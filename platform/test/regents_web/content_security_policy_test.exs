@@ -27,6 +27,22 @@ defmodule RegentsWeb.ContentSecurityPolicyTest do
     end
   end
 
+  # An image, icon or script opened on its own is a page that may do nothing.
+  test "STATIC_POLICY: files served as they are say they may do nothing", %{conn: conn} do
+    for path <- ~w(/images/share/home.png /favicon.ico /api-contract.openapiv3.yaml) do
+      response = get(conn, path)
+
+      assert response.status == 200
+
+      assert get_resp_header(response, "content-security-policy") ==
+               ["default-src 'none'; frame-ancestors 'none'"]
+
+      assert get_resp_header(response, "x-frame-options") == ["DENY"]
+      assert get_resp_header(response, "referrer-policy") == ["no-referrer"]
+      assert get_resp_header(response, "x-content-type-options") == ["nosniff"]
+    end
+  end
+
   test "PAGE_POLICY: only sign-in pages admit Privy, and neither page may be framed" do
     refute ContentSecurityPolicy.reading() =~ "auth.privy.io"
     assert ContentSecurityPolicy.sign_in() =~ "frame-src https://auth.privy.io"

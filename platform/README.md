@@ -175,6 +175,8 @@ builds the schema itself on its first run.
 > would apply under `shared-pending:`, without applying anything.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
+`make deploy` (`scripts/deploy.sh`) deploys only a commit that is on origin/main, and
+passes it to the build as `SOURCE_COMMIT`; a build without it stops, as in ash-template.
 
 ## Related products
 
