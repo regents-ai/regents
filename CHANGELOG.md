@@ -2429,3 +2429,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   carries the commit it was built from.
 - Test runs print nothing from tests that succeed; a failing test still shows
   everything it logged.
+
+## 2026-10-19 — Home page share picture shows $REGENT and a larger crown
+
+- The picture shown when the home page is shared now has a large $REGENT line
+  under "The community-owned agentic product lab." and a larger crown alone
+  in the top left.
+- The six site tiles stay inside the picture's frame; patchbay.help and
+  autolaunch.sh were cut off at the right edge.
+- The picture's description names $REGENT and the crown.
+- Picture and description only: no page, Stake or Redeem change, no migrations.
