@@ -508,3 +508,45 @@ for (const width of [1280, 390]) {
     await context.close()
   })
 }
+
+// Sentinel, 19 Oct: a side once copied siwa-server's text whichever side was pressed.
+// Each side copies its own card: what the card's own copy button holds once the site
+// is read, and otherwise at least that site's own heading, and no two sides the same.
+for (const width of [1280, 390]) {
+  test(`[U1] each code cube side copies its own site's card at ${width}`, async ({browser}) => {
+    const context = await browser.newContext({viewport: {width, height: 900}})
+    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+    const page = await context.newPage()
+    await keepTheListOfWorlds(page)
+    await page.goto("/")
+    await waitForHomepage(page)
+
+    const cube = page.locator("#home-code")
+    const copied = new Set<string>()
+
+    for (const side of await cube.locator(".code-cube__side").all()) {
+      const face = side.locator(".code-cube__face")
+      const name = await face.getAttribute("data-code-name")
+      await expect(face).toHaveAttribute("data-copy-text", /./, {timeout: 20_000})
+      await page.evaluate(() => navigator.clipboard.writeText(""))
+      await face.click({position: {x: 16, y: 40}})
+      await expect(cube.locator(".code-cube__note")).toHaveText(await face.getAttribute("data-copy-note") ?? "")
+      const text = await page.evaluate(() => navigator.clipboard.readText())
+      const heading = `# ${name}\n\n`
+      expect(text.slice(0, heading.length)).toBe(heading)
+      copied.add(text)
+
+      await side.getByRole("button", {name: `View Tools for ${name}`}).click()
+      const card = page.getByRole("dialog", {name})
+      await expect(card).toBeVisible()
+      await expect(card.locator(".code-card__note", {hasText: "Reading"})).toHaveCount(0)
+      const cardCopy = card.locator(".rg-copy")
+      if (await cardCopy.count()) expect(text).toBe(await cardCopy.getAttribute("data-copy-text"))
+      await page.keyboard.press("Escape")
+      await expect(card).toBeHidden()
+    }
+
+    expect(copied.size).toBe(6)
+    await context.close()
+  })
+}

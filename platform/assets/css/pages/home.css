@@ -113,7 +113,7 @@
       padding: var(--space-5) var(--space-5) 0 0; background: transparent;
       transition: opacity 500ms ease-out, visibility 0s;
     }
-    .rl-hero--home .code-cube__face { height: 3.25rem; }
+    .rl-hero--home .code-cube__face { height: 4rem; }
     .rl-hero--home .code-cube[data-code-ready="true"] { grid-area: 1 / 2 / span 2; align-self: stretch; padding: var(--space-5); }
     .rl-hero--home:has(.world-cube:is([data-world-state="entering"], [data-world-state="inside"], [data-world-state="leaving"])) .code-cube {
       opacity: 0; visibility: hidden; transition: opacity 320ms ease-in, visibility 0s 320ms;

@@ -509,7 +509,16 @@
   font-size: 0.75rem;
 }
 
+/* A finger needs a full-size View Tools, and the face's button keeps a strip
+   that size below it to press for the copy. */
 @media (pointer: coarse), (hover: none) {
   .code-cube__copy .rg-button,
-  .code-cube[data-code-ready="true"] .code-cube__view { min-height: 2.75rem; }
+  .code-cube .code-cube__view { min-height: 2.75rem; }
+  .code-cube:not([data-code-ready="true"]) .code-cube__face { height: 6.5rem; }
+}
+
+/* Two to a row on the narrowest phones, the longest names keep inside their
+   buttons. */
+@media (max-width: 22.5rem) {
+  .code-cube .code-cube__face { font-size: 0.75rem; }
 }

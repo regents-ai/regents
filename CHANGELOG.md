@@ -2275,3 +2275,7 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   their stages, clear of View Tools.
 - The page's own WebMCP tools still open the same window, now by pressing the
   side's View Tools.
+- On a touch screen each View Tools is finger-sized, with a strip of its side
+  below it to press for the copy. On the narrowest phones the longest names
+  keep inside their buttons, and on a computer View Tools no longer touches
+  the name below it.

@@ -14,6 +14,7 @@ also runs alone with `cd platform && npx playwright test`.
 | --- | --- | --- |
 | Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
 | Home code cube: a press of a side copies its text with a note by the pointer; View Tools opens its card | `browser/homepage.spec.ts` "a code cube side copies its text…" (1280 and 390, siwa-server side, mouse and keyboard) | The drawn cube needs WebGPU, which the headless browser lacks: checked by hand in headless Chrome |
+| Home code cube: each side copies its own site's card, never another's | `browser/homepage.spec.ts` "each code cube side copies its own site's card" (1280 and 390, all six sides against each card's own copy) | The site reads come from the live sites; a site that cannot be read is checked by its heading only. Touch sizes (View Tools 44 px, a 44 px strip below it) were measured by hand at 320, 390 and 800 |
 | Sign in and sign out with Privy; tabs stay in step | `browser/u3_auth_lazy_acceptance.spec.ts`, `regents_web/live/session_authority_gate_test.exs` | |
 | Walk every page in one visit, signed out and signed in | `browser/shell_walk.spec.ts` (R04) | R04 sometimes logs Chrome's "play() interrupted" on /redeem |
 | Stake: every press reaches the signed-in wallet; wrong wallet and signed-out send nothing | `browser/stake.spec.ts`, `regents_web/stake_live_test.exs` | |
