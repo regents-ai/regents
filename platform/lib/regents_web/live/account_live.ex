@@ -122,9 +122,6 @@ defmodule RegentsWeb.AccountLive do
             </Regent.Account.credits_summary>
 
             <h3>What your agents may spend</h3>
-            <p>
-              Spending starts off for every agent. Turn it on for an agent and set its limits; they apply on every site you tick.
-            </p>
             <.live_component
               module={RegentsWeb.CreditsAgentSpending}
               id="account-agent-spending"

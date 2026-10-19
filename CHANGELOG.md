@@ -2408,3 +2408,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   is still refused before any cursor is looked at; /, /stake, /account, /redeem,
   /paper-pro-daily, /articles and /literature answer 200 at 390 and 1280 in
   headless Chromium with no page errors and no sideways scroll.
+
+## 2026-10-19 — Agent words match the template
+
+- The Connect your agent page and its Markdown guide now say what the template
+  says an agent cannot do: it can never use your wallet, change your account or
+  pair other agents. The old line said an agent can't sign anything, which was
+  wrong: it signs its own requests.
+- Account's "What your agents may spend" section only invites a person to turn
+  spending on while spending can be turned on. Until then it shows only "Agent
+  spending opens soon."
+- One check covers this: with spending closed the section shows only the
+  "opens soon" line, and with it open it shows only the invitation.

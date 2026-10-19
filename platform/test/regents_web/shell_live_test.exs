@@ -322,6 +322,32 @@ defmodule RegentsWeb.ShellLiveTest do
            )
   end
 
+  # The spending section only invites a person to turn spending on when it can be.
+  test "Account offers agent spending only while it can be turned on", %{conn: conn} do
+    enabled = Application.get_env(:regent_credits, :agent_grants_enabled)
+    on_exit(fn -> Application.put_env(:regent_credits, :agent_grants_enabled, enabled) end)
+    account = register_account("spending-copy", "0x6767676767676767676767676767676767676767")
+
+    Application.put_env(:regent_credits, :agent_grants_enabled, false)
+    {view, _html} = open_account(conn, account)
+
+    assert has_element?(
+             view,
+             "#account-agent-spending [role=status]",
+             "Agent spending opens soon."
+           )
+
+    refute render(view) =~ "Turn it on for an agent"
+
+    Application.put_env(:regent_credits, :agent_grants_enabled, true)
+
+    {:ok, view, _html} =
+      build_conn() |> init_test_session(%{human_account_id: account.id}) |> live("/account")
+
+    assert has_element?(view, "#account-agent-spending p", "Turn it on for an agent")
+    refute render(view) =~ "Agent spending opens soon."
+  end
+
   test "a connection is only called connected once the account's own record says so", %{
     conn: conn
   } do

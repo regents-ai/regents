@@ -15,7 +15,7 @@ defmodule RegentsWeb.AgentStartLive do
         <p class="account-kicker">Agents</p>
         <h1 tabindex="-1">Connect your agent</h1>
         <p class="account-lede">
-          It reads your account for you. It can’t spend, sign or change anything.
+          It reads your account for you. It can never use your wallet, change your account or pair other agents.
         </p>
       </header>
 
