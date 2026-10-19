@@ -2390,3 +2390,21 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   the docs, CLI descriptions and tool text in plain words.
 - Two checks cover these: the pair and check-in answers name the same pairing
   id, and a bad cursor gets the 422 refusal.
+
+## 2026-10-19 — Regents v208 released
+
+- v208 (`9626247b`, agent answers match the template) went live as Fly v208 at
+  about 18:35Z under the standing permission for ordinary releases. The rollback
+  is v207 (`2986ceed`). No migrations.
+- Before release, a fresh copy of `9626247b` succeeded: 553 server tests, 232
+  script tests, the browser suite (102) on port 4002 and again on 4123, the CLI
+  command check and the identity check; both deliberate breaks (a bad cursor no
+  longer refused, the pairing id dropped from the contract) were caught; the copy
+  stayed clean. The shared library check succeeded in the real checkout.
+  Evidence: `control/coordination/evidence/regents-sh-9626247b-*`.
+- Live checks: the image is labelled
+  `9626247b05fde174f559b15c1f5ed46ad0dea114`; /healthz answers ok; the published
+  contract lists the pairing id on both agent answers; an unsigned history read
+  is still refused before any cursor is looked at; /, /stake, /account, /redeem,
+  /paper-pro-daily, /articles and /literature answer 200 at 390 and 1280 in
+  headless Chromium with no page errors and no sideways scroll.
