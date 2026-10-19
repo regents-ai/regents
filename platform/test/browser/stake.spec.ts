@@ -739,32 +739,10 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     expect(await height()).toBeCloseTo(unticked, 0)
     expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
     await oneRow()
-    // The box and Change each take a press 44 px tall, and Change 44 px wide, at
-    // every edge of that area, not only where their words are.
-    const pressAreas = await page.evaluate(() =>
-      ["label[for='staking-for-other']", "#staking-recipient-change"].map(selector => {
-        const control = document.querySelector(selector)!
-        const box = control.getBoundingClientRect()
-        const middle = {x: box.left + box.width / 2, y: box.top + box.height / 2}
-        const edges = [
-          [middle.x, box.top + 1],
-          [middle.x, box.bottom - 1],
-          [box.left + 1, middle.y],
-          [box.right - 1, middle.y],
-        ]
-        return {
-          selector,
-          width: box.width,
-          height: box.height,
-          pressed: edges.every(([x, y]) => control.contains(document.elementFromPoint(x, y))),
-        }
-      }),
-    )
-    for (const area of pressAreas) {
-      expect(area.height, `${area.selector} at ${width}`).toBeGreaterThanOrEqual(44)
-      expect(area.pressed, `${area.selector} at ${width}`).toBe(true)
+    // A mouse keeps the choice and Change at the size of their words.
+    for (const area of await pressAreas(page)) {
+      expect(area.height, `${area.selector} at ${width}`).toBeLessThan(30)
     }
-    expect(pressAreas[1].width, `Change at ${width}`).toBeGreaterThanOrEqual(44)
     // The form alone fits the screen at every width, so its picture is whole.
     await page
       .locator("#staking-amount-form")
@@ -812,6 +790,61 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     expect(await height()).toBeCloseTo(unstake, 0)
   }
 })
+
+// The choice and Change each take a press 44 px tall, and Change 44 px wide, at
+// every edge of that area, on a touch phone.
+test.describe("on a touch phone", () => {
+  test.use({hasTouch: true, isMobile: true})
+
+  test("Stake gives the different-address choice finger-sized press areas", async ({page}) => {
+    await installWallet(page)
+    await signIn(page)
+
+    for (const width of [390, 320]) {
+      await page.setViewportSize({width, height: 900})
+      await page.goto("/stake")
+      await selectWallet(page, wallet)
+      await page.getByLabel("Amount", {exact: true}).fill("1")
+      await page.locator("#staking-for-other").check()
+      await page.getByLabel("Receiving Ethereum address", {exact: true}).fill(otherWallet)
+      await page.locator("#staking-recipient-acknowledged").check()
+      await page.locator("#staking-recipient-dialog").getByRole("button", {name: "Done", exact: true}).click()
+      await expect(page.locator(".stake-for-other")).toHaveText(/Rewards go to 0x2222\.\.2222\s*Change/)
+      await page.locator(".stake-for-other").scrollIntoViewIfNeeded()
+
+      const areas = await pressAreas(page)
+      for (const area of areas) {
+        expect(area.height, `${area.selector} at ${width}`).toBeGreaterThanOrEqual(44)
+        expect(area.pressed, `${area.selector} at ${width}`).toBe(true)
+      }
+      expect(areas[1].width, `Change at ${width}`).toBeGreaterThanOrEqual(44)
+    }
+  })
+})
+
+// The size of the choice and of Change, and whether a press at every edge of
+// each lands on it.
+function pressAreas(page: Page) {
+  return page.evaluate(() =>
+    ["label[for='staking-for-other']", "#staking-recipient-change"].map(selector => {
+      const control = document.querySelector(selector)!
+      const box = control.getBoundingClientRect()
+      const middle = {x: box.left + box.width / 2, y: box.top + box.height / 2}
+      const edges = [
+        [middle.x, box.top + 1],
+        [middle.x, box.bottom - 1],
+        [box.left + 1, middle.y],
+        [box.right - 1, middle.y],
+      ]
+      return {
+        selector,
+        width: box.width,
+        height: box.height,
+        pressed: edges.every(([x, y]) => control.contains(document.elementFromPoint(x, y))),
+      }
+    }),
+  )
+}
 
 async function signOut(page: Page): Promise<void> {
   const csrfResponse = await page.request.get("/auth/csrf")

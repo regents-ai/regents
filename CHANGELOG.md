@@ -2298,3 +2298,9 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - On the narrowest phones "Available" sat under the 50% and Max buttons. It now
   keeps its row, and the two buttons move below it when both do not fit; on
   wider screens they still sit beside it.
+
+## 2026-10-19 — Stake: the different-address choice keeps normal size on a computer
+
+- On a computer, "Stake for a different address" and its Add or Change link
+  are the size of their words again, so the row no longer looks blocky. On a
+  touch screen each still takes a full finger's press.
