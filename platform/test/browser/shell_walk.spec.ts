@@ -1,4 +1,4 @@
-import {expect, test, type Page} from "@playwright/test"
+import {expect, test, type Page} from "./support/offline"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 // R04 acceptance: one live session walks every page the shell's features own,

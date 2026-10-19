@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test"
+import {expect, test} from "./support/offline"
 
 const focusViewports = [
   {name: "desktop", width: 1440, height: 900},
@@ -510,8 +510,9 @@ for (const width of [1280, 390]) {
 }
 
 // Sentinel, 19 Oct: a side once copied siwa-server's text whichever side was pressed.
-// Each side copies its own card: what the card's own copy button holds once the site
-// is read, and otherwise at least that site's own heading, and no two sides the same.
+// Each side copies its own card, word for word what the card's own copy button holds,
+// and no two sides the same. The test server answers every site's tools from the fixed
+// lists in Regents.TestSiteTools, never the live sites, so every card can be copied.
 for (const width of [1280, 390]) {
   test(`[U1] each code cube side copies its own site's card at ${width}`, async ({browser}) => {
     const context = await browser.newContext({viewport: {width, height: 900}})
@@ -527,7 +528,7 @@ for (const width of [1280, 390]) {
     for (const side of await cube.locator(".code-cube__side").all()) {
       const face = side.locator(".code-cube__face")
       const name = await face.getAttribute("data-code-name")
-      await expect(face).toHaveAttribute("data-copy-text", /./, {timeout: 20_000})
+      await expect(face).not.toHaveAttribute("data-copy-note", /^Reading/)
       await page.evaluate(() => navigator.clipboard.writeText(""))
       await face.click({position: {x: 16, y: 40}})
       await expect(cube.locator(".code-cube__note")).toHaveText(await face.getAttribute("data-copy-note") ?? "")
@@ -539,14 +540,50 @@ for (const width of [1280, 390]) {
       await side.getByRole("button", {name: `View Tools for ${name}`}).click()
       const card = page.getByRole("dialog", {name})
       await expect(card).toBeVisible()
-      await expect(card.locator(".code-card__note", {hasText: "Reading"})).toHaveCount(0)
       const cardCopy = card.locator(".rg-copy")
-      if (await cardCopy.count()) expect(text).toBe(await cardCopy.getAttribute("data-copy-text"))
+      await expect(cardCopy).toHaveCount(1)
+      await expect(cardCopy).toHaveAttribute("data-copy-text", text)
+      if (name !== "siwa-server") await expect(card.getByRole("heading", {name: `Browse ${name}`})).toBeVisible()
       await page.keyboard.press("Escape")
       await expect(card).toBeHidden()
     }
 
     expect(copied.size).toBe(6)
+    await context.close()
+  })
+}
+
+// Sentinel, 19 Oct: on a touch screen there is no hover, so every side shows a
+// finger-sized View Tools, and the side keeps a finger-sized strip below it to
+// tap for the copy.
+for (const width of [390, 320]) {
+  test(`[U1] code cube sides are finger-sized on a touch screen at ${width}`, async ({browser}) => {
+    const context = await browser.newContext({viewport: {width, height: 900}, hasTouch: true, isMobile: true})
+    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+    const page = await context.newPage()
+    await keepTheListOfWorlds(page)
+    await page.goto("/")
+    await waitForHomepage(page)
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true)
+
+    const cube = page.locator("#home-code")
+    for (const side of await cube.locator(".code-cube__side").all()) {
+      const face = side.locator(".code-cube__face")
+      const view = side.locator(".code-cube__view")
+      await expect(view).toBeVisible()
+      const tile = (await face.boundingBox())!
+      const button = (await view.boundingBox())!
+      expect(button.height).toBeGreaterThanOrEqual(44)
+      expect(tile.y + tile.height - (button.y + button.height)).toBeGreaterThanOrEqual(44)
+      expect(button.x + button.width).toBeLessThanOrEqual(tile.x + tile.width + 0.5)
+    }
+
+    const siwa = cube.locator(".code-cube__side").filter({has: page.locator('[data-code-face="5"]')})
+    const face = siwa.locator(".code-cube__face")
+    const tile = (await face.boundingBox())!
+    await face.tap({position: {x: 16, y: tile.height - 16}})
+    await expect(cube.locator(".code-cube__note")).toHaveText("quickstart text for agent copied")
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^# siwa-server\n/)
     await context.close()
   })
 }

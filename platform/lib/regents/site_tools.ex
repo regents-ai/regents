@@ -75,13 +75,16 @@ defmodule Regents.SiteTools do
   end
 
   defp ask(config) do
-    case Req.get(config.url,
-           headers: [accept: "application/json"],
-           redirect: false,
-           retry: false,
-           connect_options: [timeout: 3_000],
-           receive_timeout: 5_000
-         ) do
+    options =
+      [
+        headers: [accept: "application/json"],
+        redirect: false,
+        retry: false,
+        connect_options: [timeout: 3_000],
+        receive_timeout: 5_000
+      ] ++ Keyword.fetch!(Application.fetch_env!(:regents, __MODULE__), :req_options)
+
+    case Req.get(config.url, options) do
       {:ok, %Req.Response{status: 200, body: %{"tools" => tools}}} when is_list(tools) ->
         {:ok,
          for(tool when is_map(tool) <- tools, shown?(tool, config.scopes), do: present(tool))}

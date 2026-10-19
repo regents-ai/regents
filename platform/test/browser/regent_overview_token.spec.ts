@@ -1,4 +1,4 @@
-import {expect, test, type Page} from "@playwright/test"
+import {expect, test, type Page} from "./support/offline"
 
 // The Overview is a public product map inside the persistent shell. These
 // checks cover disclosures by keyboard, product links, and both viewports in

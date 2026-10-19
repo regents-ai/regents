@@ -1,4 +1,4 @@
-import {test, expect} from "@playwright/test"
+import {test, expect} from "./support/offline"
 
 test.beforeEach(async ({page, baseURL}) => {
   await page.route("**/*", (route) => {

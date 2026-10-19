@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test"
+import {expect, test} from "./support/offline"
 
 // The harness boots one server with the default environment, where product surfaces are
 // open, so this file holds the open state honest end to end. The closed state is proven

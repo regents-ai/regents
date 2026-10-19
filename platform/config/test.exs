@@ -27,6 +27,8 @@ config :regents, :staking_snapshot_refresh_enabled, System.get_env("REGENTS_BROW
 
 config :regents, :redemption_chain_client, Regents.TestRedemptionChainClient
 config :regents, :opensea_http_client, Regents.TestOpenSeaHttpClient
+# The Regent sites' published tools come from fixed lists, never the live sites.
+config :regents, Regents.SiteTools, req_options: [plug: Regents.TestSiteTools]
 config :regents, :opensea_api_key, "test-only-key"
 config :regents, :sprite_provider, Regents.TestSpriteProvider
 

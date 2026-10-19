@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test"
+import {expect, test} from "./support/offline"
 
 // PAGE_POLICY: every page works inside its content security policy. A refusal
 // means a picture, video, script or connection the page needs is blocked.

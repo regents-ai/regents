@@ -1,4 +1,4 @@
-import {expect, test} from "@playwright/test"
+import {expect, test} from "./support/offline"
 
 import {identityTokenFor} from "./support/authenticated_privy"
 
@@ -646,6 +646,11 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   })
   await page.route(bridgePattern, route =>
     route.fulfill({body: productionSignOutBridgeStub, contentType: "application/javascript"}),
+  )
+  // The production bridge's Privy client asks Privy and WalletConnect about the
+  // stub's made-up app; neither answers, as for an app that does not exist.
+  await page.route(/^https:\/\/(auth\.privy\.io|explorer-api\.walletconnect\.com)\//, route =>
+    route.fulfill({status: 204}),
   )
 
   await establishLocalSession(page)

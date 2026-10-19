@@ -1,5 +1,5 @@
 import {decodeFunctionData, parseAbi, type Hex} from "viem"
-import {expect, test, type Page} from "@playwright/test"
+import {expect, test, type Page} from "./support/offline"
 
 import {identityTokenFor} from "./support/authenticated_privy"
 
@@ -506,35 +506,51 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await page.goto("/stake")
   await selectWallet(page, wallet)
   await page.getByLabel("Amount", {exact: true}).fill("1")
-  const toggle = page.getByLabel("Stake for a different address", {exact: true})
+  const toggle = page.locator("#staking-for-other")
+  const row = page.locator(".stake-for-other")
+  const change = page.locator("#staking-recipient-change")
+  const dialog = page.locator("#staking-recipient-dialog")
+  const done = dialog.getByRole("button", {name: "Done", exact: true})
   const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
   const acknowledgment = page.locator("#staking-recipient-acknowledged")
   const warning = page.locator("#staking-recipient-warning")
   const notice = page.locator("#staking-press-notice")
   const submit = page.locator("button.stake-submit")
 
-  await expect(receiver).toBeHidden()
+  // Ticking the box opens the window with the address field ready to type in.
+  await expect(dialog).toBeHidden()
   await toggle.focus()
   await page.keyboard.press("Space")
-  await expect(receiver).toBeVisible()
+  await expect(dialog).toBeVisible()
+  await expect(receiver).toBeFocused()
   await expect(page.locator(".stake-preview")).toBeHidden()
   for (const invalid of ["alice.eth", "0x1234", "0x" + "0".repeat(40)]) {
+    if (!(await dialog.isVisible())) await change.click()
     await receiver.fill(invalid)
     await expect(receiver).toHaveAttribute("aria-invalid", "true")
     await expect(warning).toBeHidden()
+    await done.click()
+    await expect(dialog).toBeHidden()
+    await expect(row).toHaveText(/No address yet\s*Add/)
     await submit.click()
     await expect(notice).toHaveText("Enter a valid receiving address. Nothing was sent.")
     expect(await sendCount(page)).toBe(0)
   }
 
+  await change.click()
   await receiver.fill(otherWallet)
   await expect(warning).toContainText(
     `the wallet ${otherWallet} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens`,
   )
+  // Escape closes the window as Done does.
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+  await expect(row).toHaveText(/No address yet\s*Add/)
   await submit.click()
   await expect(notice).toHaveText("Tick the warning about the receiving address first. Nothing was sent.")
   expect(await sendCount(page)).toBe(0)
 
+  await change.click()
   await acknowledgment.check()
   await receiver.fill(wallet)
   await expect(warning).toContainText(`the wallet ${wallet} will accrue`)
@@ -542,10 +558,16 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(warning).toContainText(`the wallet ${otherWallet} will accrue`)
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
+  await done.click()
+  await expect(row).toHaveText(/Rewards go to 0x2222\.\.2222\s*Change/)
   await toggle.uncheck()
+  await expect(dialog).toBeHidden()
+  await expect(row).toHaveText("Stake for a different address")
   await toggle.check()
+  await expect(dialog).toBeVisible()
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
+  await done.click()
   const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
   await unstakeTab.click()
   await expect(toggle).toBeHidden()
@@ -559,7 +581,10 @@ test("Alternate stake requires fresh address consent and credits that address", 
     .toBeLessThan(1)
   await page.getByRole("tab", {name: "Stake", exact: true}).click()
   await expect(acknowledgment).not.toBeChecked()
+  await expect(row).toHaveText(/No address yet\s*Add/)
+  await change.click()
   await acknowledgment.check()
+  await done.click()
   // The signed-in position stays put while the open wallet changes, so the
   // chosen destination and its acknowledgment stay too.
   await selectWallet(page, otherWallet)
@@ -571,16 +596,26 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await page.getByLabel("Amount", {exact: true}).fill("2")
   await expect(page.locator(".stake-preview")).toBeHidden()
   await expect(acknowledgment).toBeChecked()
+  await expect(row).toHaveText(/Rewards go to 0x2222\.\.2222\s*Change/)
 
-  for (const width of [1280, 390]) {
+  for (const width of [1280, 390, 320]) {
     await page.setViewportSize({width, height: 900})
+    await change.click()
     await expect(warning).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const box = (await dialog.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(0)
+    expect(box.x + box.width).toBeLessThanOrEqual(width)
+    if (width === 390) {
+      await page.emulateMedia({reducedMotion: "reduce"})
+      await acknowledgment.focus()
+      await expect(acknowledgment).toBeFocused()
+      await dialog.screenshot({path: test.info().outputPath("stake-recipient-mobile.png")})
+    }
+    await done.click()
+    await expect(dialog).toBeHidden()
   }
-  await page.emulateMedia({reducedMotion: "reduce"})
-  await acknowledgment.focus()
-  await expect(acknowledgment).toBeFocused()
-  await page.locator("#staking-amount-form").screenshot({path: test.info().outputPath("stake-recipient-mobile.png")})
+  await page.setViewportSize({width: 390, height: 900})
   await submit.click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(submit).toHaveText(/Stake REGENT/)
@@ -592,30 +627,76 @@ test("Alternate stake requires fresh address consent and credits that address", 
     call: {functionName: "stake", args: [2n * 10n ** 18n, otherWallet]},
   })
   await toggle.uncheck()
-  await expect(receiver).toBeHidden()
+  await expect(dialog).toBeHidden()
+  await expect(row).toHaveText("Stake for a different address")
   await expect(page.locator(".stake-preview")).toBeVisible()
 })
 
 // Choices never change the height: whatever the different-address box shows,
-// the Stake panel keeps one height, so nothing below it moves.
+// the Stake panel keeps one height, so nothing below it moves. A stake of your
+// own leaves no blank room below the form; a stake for someone else holds only
+// the room of the position preview it has no figures for.
 test("Stake keeps one height whatever the different-address box shows", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
-  for (const width of [1280, 390]) {
+  for (const width of [1280, 390, 320]) {
     await page.setViewportSize({width, height: 900})
     await page.goto("/stake")
     await selectWallet(page, wallet)
     await page.getByLabel("Amount", {exact: true}).fill("1")
     const panel = page.locator(".stake-actions")
-    const toggle = page.getByLabel("Stake for a different address", {exact: true})
+    const toggle = page.locator("#staking-for-other")
+    const row = page.locator(".stake-for-other")
+    const dialog = page.locator("#staking-recipient-dialog")
     const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
     const height = async () => (await panel.boundingBox())!.height
+    // The room between the form's last shown row and its foot.
+    const band = () =>
+      page.evaluate(() => {
+        const form = document.querySelector("#staking-amount-form")!
+        const shown = [...form.children].filter(
+          child => child.tagName !== "DIALOG" && child.checkVisibility({visibilityProperty: true}),
+        )
+        const last = Math.max(...shown.map(child => child.getBoundingClientRect().bottom))
+        return form.getBoundingClientRect().bottom - last
+      })
+    // The choice and the address it names keep to one row, inside the form and
+    // clear of "Amount".
+    const oneRow = async () => {
+      const fit = await page.evaluate(() => {
+        const row = document.querySelector(".stake-for-other")!
+        const form = document.querySelector("#staking-amount-form")!.getBoundingClientRect()
+        const label = document.querySelector("label[for='staking-amount']")!.getBoundingClientRect()
+        // What shows: the box, its words and Add or Change's own words, not the
+        // taller press area around them.
+        const parts = [...row.querySelectorAll("input, span, button")].map(el => {
+          if (el.tagName !== "BUTTON") return el.getBoundingClientRect()
+          const words = document.createRange()
+          words.selectNodeContents(el)
+          return words.getBoundingClientRect()
+        })
+        const overlaps = (a: DOMRect, b: DOMRect) =>
+          a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+        return {
+          height: row.getBoundingClientRect().height,
+          // How far the furthest part reaches past either side of the form.
+          past: Math.max(0, ...parts.map(part => Math.max(form.left - part.left, part.right - form.right))),
+          clear: parts.every(part => !overlaps(part, label)),
+        }
+      })
+      expect(fit.clear).toBe(true)
+      expect(fit.past).toBeLessThan(0.5)
+      expect(fit.height).toBeLessThan(30)
+    }
     await expect(page.locator(".stake-preview")).toBeVisible()
     const unticked = await height()
+    const previewRoom = (await page.locator(".stake-preview").boundingBox())!.height
+    expect(await band()).toBeLessThan(1)
+    await oneRow()
 
     await toggle.check()
-    await expect(receiver).toBeVisible()
+    await expect(dialog).toBeVisible()
     expect(await height()).toBeCloseTo(unticked, 0)
 
     await receiver.fill("0x1234")
@@ -625,9 +706,19 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     await receiver.fill(otherWallet)
     await expect(page.locator("#staking-recipient-warning")).toBeVisible()
     expect(await height()).toBeCloseTo(unticked, 0)
+    await page.keyboard.press("Escape")
+    await expect(row).toHaveText(/No address yet\s*Add/)
+    expect(await height()).toBeCloseTo(unticked, 0)
+    await oneRow()
+    await page.locator("#staking-recipient-change").click()
 
     await page.locator("#staking-recipient-acknowledged").check()
+    await dialog.getByRole("button", {name: "Done", exact: true}).click()
+    await expect(row).toHaveText(/Rewards go to 0x2222\.\.2222\s*Change/)
     expect(await height()).toBeCloseTo(unticked, 0)
+    expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
+    await oneRow()
+    await panel.screenshot({path: test.info().outputPath(`stake-other-address-${width}.png`)})
 
     // Tab from Amount to the Stake button only lands on rows a person can see,
     // ticked here and unticked below.
@@ -651,8 +742,9 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     await tabToStake()
 
     await toggle.uncheck()
-    await expect(receiver).toBeHidden()
+    await expect(dialog).toBeHidden()
     expect(await height()).toBeCloseTo(unticked, 0)
+    expect(await band()).toBeLessThan(1)
     await tabToStake()
 
     // Unstake has its own height, whichever way the box was left on Stake.
@@ -663,6 +755,8 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     const unstake = await height()
     await stakeTab.click()
     await toggle.check()
+    await page.keyboard.press("Escape")
+    await expect(dialog).toBeHidden()
     await unstakeTab.click()
     await expect(toggle).toBeHidden()
     expect(await height()).toBeCloseTo(unstake, 0)

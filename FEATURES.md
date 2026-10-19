@@ -14,12 +14,13 @@ also runs alone with `cd platform && npx playwright test`.
 | --- | --- | --- |
 | Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
 | Home code cube: a press of a side copies its text with a note by the pointer; View Tools opens its card | `browser/homepage.spec.ts` "a code cube side copies its text…" (1280 and 390, siwa-server side, mouse and keyboard) | The drawn cube needs WebGPU, which the headless browser lacks: checked by hand in headless Chrome |
-| Home code cube: each side copies its own site's card, never another's | `browser/homepage.spec.ts` "each code cube side copies its own site's card" (1280 and 390, all six sides against each card's own copy) | The site reads come from the live sites; a site that cannot be read is checked by its heading only. Touch sizes (View Tools 44 px, a 44 px strip below it) were measured by hand at 320, 390 and 800 |
+| Home code cube: each side copies its own site's card, never another's | `browser/homepage.spec.ts` "each code cube side copies its own site's card" (1280 and 390, all six sides against each card's own copy; the test server answers every site's tools from `test/support/test_site_tools.ex`) | |
+| Home code cube on a touch screen: every View Tools is at least 44 px, with a strip of at least 44 px below it that copies | `browser/homepage.spec.ts` "code cube sides are finger-sized on a touch screen" (390 and 320) | |
 | Sign in and sign out with Privy; tabs stay in step | `browser/u3_auth_lazy_acceptance.spec.ts`, `regents_web/live/session_authority_gate_test.exs` | |
 | Walk every page in one visit, signed out and signed in | `browser/shell_walk.spec.ts` (R04) | R04 sometimes logs Chrome's "play() interrupted" on /redeem |
 | Stake: every press reaches the signed-in wallet; wrong wallet and signed-out send nothing | `browser/stake.spec.ts`, `regents_web/stake_live_test.exs` | |
-| Stake for a different address: consent, warning, credits that address | `browser/stake.spec.ts` "Alternate stake requires fresh address consent…" | |
-| Stake panel keeps one height whatever the different-address box shows, and Tab skips the hidden rows; the Unstake tab has its own height | `browser/stake.spec.ts` "Stake keeps one height…" (1280 and 390) | |
+| Stake for a different address: ticking opens a window for the address and its warning; the row then reads "Rewards go to 0x….. · Change"; consent, credits that address | `browser/stake.spec.ts` "Alternate stake requires fresh address consent…" (window at 1280, 390, 320; Done and Escape close it) | |
+| Stake panel keeps one height whatever the different-address box shows, leaves no blank room below a stake of your own, keeps the choice on one row clear of "Amount", and Tab skips the hidden rows; the Unstake tab has its own height | `browser/stake.spec.ts` "Stake keeps one height…" (1280, 390, 320) | A stake for someone else still holds the position preview's room |
 | Stake wallet answers: declined, no usable hash | `browser/stake.spec.ts` | |
 | Redeem: approvals, Redeem, wrong wallet, refresh keeps place | `browser/redeem.spec.ts`, `regents_web/redeem_live_test.exs` | |
 | Redeem gallery: owned NFTs, fair OpenSea lookups per visitor | `regents_web/redeem_gallery_live_test.exs`, `regents/open_sea` | |
@@ -32,6 +33,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Paper Pro Daily and Literature | `regents_web/paper_pro_daily_live_test.exs`, `regents_web/controllers/literature_controller_test.exs` | |
 | Free name claim | `regents/names/claim_free_test.exs`; production has the unique index on each name | |
 | No page is refused by its security policy; no sideways scroll at any width | `browser/page_policy.spec.ts`, `browser/founder_shell.spec.ts` | |
+| The browser suite never leaves the test machine: the page's requests to other hosts and the test server's outside connections both fail the test | `browser/support/offline.ts`, imported by every browser spec | |
 
 ## Agents
 

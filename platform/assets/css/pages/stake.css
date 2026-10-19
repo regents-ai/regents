@@ -386,7 +386,13 @@
   text-transform: uppercase;
 }
 
-/* "Amount" and the small choice to stake for someone else share one row above the box. */
+/* "Amount" and the small choice to stake for someone else share one row above
+   the box. Where the form is too narrow for both, the choice takes its own row
+   in every state (below), so ticking it never changes the height. */
+#staking-amount-form {
+  container-type: inline-size;
+}
+
 .stake-amount-field {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
@@ -398,17 +404,38 @@
 }
 
 /* Small on screen, but the press area stays finger-sized without pushing the row taller. */
-.stake-actions .stake-for-other {
+.stake-for-other {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.stake-actions .stake-for-other label {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   margin-block: -0.75rem;
   padding-block: 0.75rem;
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: inherit;
   letter-spacing: normal;
   text-transform: none;
   cursor: pointer;
+}
+
+@container (max-width: 22rem) {
+  .stake-amount-field {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.5rem;
+  }
+
+  .stake-for-other {
+    gap: 0.4rem;
+    font-size: 0.7rem;
+  }
 }
 
 .stake-for-other input {
@@ -906,16 +933,9 @@
   .stake-contract-details summary > span:last-child { transition: none; }
 }
 
-/* The complete destination remains readable at mobile widths. */
-.stake-recipient {
-  margin-block: 0.25rem 0.5rem;
-}
-
 /* Rows a choice leaves unused keep their room, unseen, at the foot of the
-   form, so no gap opens between Amount and the button: the address while the
-   box is unticked or Unstake is open, and the position preview and the lines a
-   stake of your own shows while the box is ticked. */
-.stake-recipient[data-room-only],
+   form, so no gap opens between Amount and the button: the position preview
+   and the lines a stake of your own shows while the box is ticked. */
 .stake-steps-room,
 .stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
   order: 1;
@@ -977,9 +997,18 @@
   overflow-wrap: anywhere;
 }
 
-#staking-recipient-fields > label:first-child {
-  display: block;
-  margin-block: 0.5rem;
+/* The window holds the address and its warning, then Done. */
+.stake-recipient-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+}
+
+.stake-recipient-dialog .stake-recipient-note {
+  margin-block: 0.5rem 1rem;
+}
+
+.stake-recipient-done {
+  display: flex;
+  justify-content: flex-end;
 }
 
 #staking-recipient {
@@ -994,7 +1023,7 @@
   font: inherit;
 }
 
-.stake-recipient input:focus-visible {
+.stake-recipient-dialog input:focus-visible {
   outline: 2px solid var(--ash-accent);
   outline-offset: 3px;
 }
@@ -1170,4 +1199,21 @@
 .stake-actions .rg-button.stake-submit {
   padding-inline: 0.75rem;
   white-space: nowrap;
+}
+
+/* Add and Change read as links beside the choice, with a finger-sized press
+   area that does not push the row taller. The shared button rules sit outside
+   this layer, so the link look is set here. */
+.stake-actions button.stake-for-other__change {
+  min-height: 0;
+  margin-block: -0.75rem;
+  padding: 0.75rem 0;
+  border: 0;
+  background: none;
+  color: var(--ash-accent);
+  font-size: inherit;
+  letter-spacing: normal;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-transform: none;
 }

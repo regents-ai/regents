@@ -2296,3 +2296,28 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   texts, each equal to its card's own copy text), the note names the side, and
   View Tools opens that side's card. At 390 on touch View Tools is 44 px tall
   with a 54 px strip below it.
+
+## 2026-10-19 — Stake for a different address opens a window
+
+- Ticking "Stake for a different address" on /stake opens a small window with
+  the receiving address and its warning (Sean, decision 7, "1. a", 19 Oct
+  00:11Z). Done or Escape closes it.
+- The row beside "Amount" then says where the rewards go: "Rewards go to
+  0x2222..2222" with Change, or "No address yet" with Add until the address is
+  valid and its warning ticked. Unticking stakes for yourself again.
+- The blank band that held the address's room below a stake of your own is
+  gone. A stake for someone else still keeps the room of the position preview
+  it has no figures for, so the panel keeps one height.
+- On the narrowest phones the choice takes its own row under "Amount".
+
+## 2026-10-19 — Browser checks stay on the test machine
+
+- The code cube checks read every site's tools from fixed test lists instead
+  of the live sites, and each side's copy is compared with its card every time
+  (Sentinel, 19 Oct).
+- Every browser check now fails when the page asks another host for anything,
+  or when the test server opens a connection off the machine. Gallery images
+  are answered with a blank pixel, and the sign-out check answers Privy and
+  WalletConnect itself.
+- A new check holds the cube's touch sizes: View Tools at least 44 px with a
+  44 px strip below it, at 390 and 320.

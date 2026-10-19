@@ -716,25 +716,36 @@ defmodule RegentsWeb.StakeActions do
             <form id="staking-amount-form" phx-change="change" phx-target={@myself}>
               <input type="hidden" name="action" value={@action} data-onchain-input="action" />
               <Regent.Primitives.field id="staking-amount" label="Amount" class="stake-amount-field">
-                <%!-- Unstake keeps this choice's room, unseen, so the Amount row never moves. --%>
-                <label
+                <%!-- Unstake keeps this choice's room, unseen, so the Amount row never moves.
+                     Once the other address is set, this row names it in place of the choice. --%>
+                <div
                   class="stake-for-other"
-                  for="staking-for-other"
                   data-room-only={@action != "stake"}
                   inert={@action != "stake"}
                 >
-                  <input
-                    id="staking-for-other"
-                    name="for_other"
-                    type="checkbox"
-                    value="true"
-                    checked={@form.for_other}
-                    data-onchain-input="for_other"
-                    aria-controls="staking-recipient-fields"
-                    aria-expanded={to_string(@form.for_other)}
-                  />
-                  <span>Stake for a different address</span>
-                </label>
+                  <label for="staking-for-other">
+                    <input
+                      id="staking-for-other"
+                      name="for_other"
+                      type="checkbox"
+                      value="true"
+                      checked={@form.for_other}
+                      data-onchain-input="for_other"
+                      aria-controls="staking-recipient-dialog"
+                      phx-click={!@form.for_other && open_recipient()}
+                    />
+                    <span id="staking-for-other-text">{for_other_text(@form)}</span>
+                  </label>
+                  <button
+                    :if={@form.for_other}
+                    id="staking-recipient-change"
+                    type="button"
+                    class="stake-for-other__change"
+                    phx-click={open_recipient()}
+                  >
+                    {if ready_receiver(@form), do: "Change", else: "Add"}
+                  </button>
+                </div>
                 <div class="stake-amount">
                   <input
                     id="staking-amount"
@@ -752,74 +763,76 @@ defmodule RegentsWeb.StakeActions do
                 </div>
               </Regent.Primitives.field>
 
-              <%!-- Unstake, and a stake of your own, keep the address's room, unseen,
-                   so ticking the box or changing tab never changes the panel's height. --%>
-              <div
-                id="staking-recipient-controls"
-                class="stake-recipient"
-                data-room-only={@action != "stake" or !@form.for_other}
-                inert={@action != "stake" or !@form.for_other}
+              <%!-- The address and its warning, in a window the box opens. It stays in
+                   the form, so the steps are built from what it holds. --%>
+              <dialog
+                id="staking-recipient-dialog"
+                class="stake-supply-dialog stake-recipient-dialog"
+                aria-labelledby="staking-recipient-heading"
+                phx-hook="InfoDialog"
               >
-                <div id="staking-recipient-fields">
-                  <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
-                    <input
-                      id="staking-recipient"
-                      name="receiver"
-                      type="text"
-                      maxlength="64"
-                      value={@form.receiver}
-                      autocomplete="off"
-                      spellcheck="false"
-                      autocapitalize="none"
-                      placeholder="0x…"
-                      phx-debounce="200"
-                      data-onchain-input="receiver"
-                      aria-describedby="staking-recipient-error"
-                      aria-invalid={to_string(@receiver_invalid)}
-                    />
-                  </Regent.Primitives.field>
-                </div>
-              </div>
-
-              <%!-- The error and the warning take turns in one slot the size of the
-                   warning, which keeps its room, unseen, while neither is shown. --%>
-              <div
-                class="stake-recipient stake-recipient-note"
-                data-room-only={
-                  @action != "stake" or !@form.for_other or !(@receiver_invalid or @receiver)
-                }
-                inert={@action != "stake" or !@form.for_other}
-              >
-                <p class="stake-check" aria-hidden="true" inert>
-                  <input type="checkbox" />
-                  <span><.recipient_warning address={String.duplicate("0", 42)} /></span>
-                </p>
-                <p
-                  id="staking-recipient-error"
-                  role="status"
-                  data-visible={to_string(@receiver_invalid)}
-                >
-                  Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
-                </p>
-                <label
-                  :if={@receiver}
-                  id="staking-recipient-warning"
-                  class="stake-check"
-                  for="staking-recipient-acknowledged"
-                >
+                <h2 id="staking-recipient-heading">Stake for a different address</h2>
+                <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
                   <input
-                    id="staking-recipient-acknowledged"
-                    name="acknowledged"
-                    type="checkbox"
-                    value="true"
-                    checked={Steps.acknowledged?(@form)}
-                    data-onchain-input="acknowledged"
+                    id="staking-recipient"
+                    name="receiver"
+                    type="text"
+                    maxlength="64"
+                    value={@form.receiver}
+                    autocomplete="off"
+                    spellcheck="false"
+                    autocapitalize="none"
+                    placeholder="0x…"
+                    phx-debounce="200"
+                    data-onchain-input="receiver"
+                    aria-describedby="staking-recipient-error"
+                    aria-invalid={to_string(@receiver_invalid)}
                   />
-                  <span id="staking-recipient-warning-text">
-                    <.recipient_warning address={@receiver} />
-                  </span>
-                </label>
-              </div>
+                </Regent.Primitives.field>
+
+                <%!-- The error and the warning take turns in one slot the size of the
+                     warning, so the window keeps one height. --%>
+                <div class="stake-recipient-note">
+                  <p class="stake-check" aria-hidden="true" inert>
+                    <input type="checkbox" />
+                    <span><.recipient_warning address={String.duplicate("0", 42)} /></span>
+                  </p>
+                  <p
+                    id="staking-recipient-error"
+                    role="status"
+                    data-visible={to_string(@receiver_invalid)}
+                  >
+                    Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
+                  </p>
+                  <label
+                    :if={@receiver}
+                    id="staking-recipient-warning"
+                    class="stake-check"
+                    for="staking-recipient-acknowledged"
+                  >
+                    <input
+                      id="staking-recipient-acknowledged"
+                      name="acknowledged"
+                      type="checkbox"
+                      value="true"
+                      checked={Steps.acknowledged?(@form)}
+                      data-onchain-input="acknowledged"
+                    />
+                    <span id="staking-recipient-warning-text">
+                      <.recipient_warning address={@receiver} />
+                    </span>
+                  </label>
+                </div>
+
+                <div class="stake-recipient-done">
+                  <Regent.Primitives.button
+                    id="staking-recipient-done"
+                    variant="secondary"
+                    type="button"
+                    phx-click={JS.dispatch("regents:close", to: "#staking-recipient-dialog")}
+                  >Done</Regent.Primitives.button>
+                </div>
+              </dialog>
 
               <div class="stake-amount-tools">
                 <div class="stake-amount-action">
@@ -1160,6 +1173,25 @@ defmodule RegentsWeb.StakeActions do
   end
 
   defp receiver(_form), do: nil
+
+  # The other address a stake goes to once it is valid and its warning ticked.
+  defp ready_receiver(form) do
+    case Steps.receiver(form) do
+      {:ok, address} when is_binary(address) -> address
+      _signer_or_unready -> nil
+    end
+  end
+
+  defp for_other_text(%{for_other: false}), do: "Stake for a different address"
+
+  defp for_other_text(form) do
+    case ready_receiver(form) do
+      nil -> "No address yet"
+      address -> "Rewards go to #{RegentFormat.short_address(address)}"
+    end
+  end
+
+  defp open_recipient, do: JS.dispatch("regents:open", to: "#staking-recipient-dialog")
 
   defp receiver_invalid?(%{for_other: true, receiver: input}),
     do: String.trim(input) != "" and Steps.other_address(input) == :error

@@ -1,5 +1,5 @@
 import {decodeFunctionData, parseAbi, type Hex} from "viem"
-import {expect, test, type Locator, type Page} from "@playwright/test"
+import {expect, test, type Locator, type Page} from "./support/offline"
 
 import {identityTokenFor} from "./support/authenticated_privy"
 
