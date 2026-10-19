@@ -2279,3 +2279,20 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   below it to press for the copy. On the narrowest phones the longest names
   keep inside their buttons, and on a computer View Tools no longer touches
   the name below it.
+
+## 2026-10-19 — Regents v204 released
+
+- v204 (`f76843f9`) went live as Fly v204 at about 00:16Z on Sean's "1. a then
+  push and deploy changes" (00:11Z). The rollback is v203 (`b40dbded`). It
+  carries `6fc0c650` (a code cube side copies its text; View Tools opens its
+  card), which Sentinel read GO at 00:02Z, and `f76843f9` (Sentinel's two folds:
+  touch sizes and the each-side check). Sentinel had logged `f76843f9` as HOLD
+  for two changes to the check's evidence; the deploy was already under way on
+  Sean's word, and both changes go into the next head.
+- Live checks: the deployed image is labelled
+  `f76843f91a6ae95cb29b04f1e064fa50f5c05e28`; /healthz answers 200. On
+  https://regents.sh/ in headless Chromium at 1280 (mouse) and 390 (touch),
+  each of the six sides copies its own card ("# <its name>" first, six different
+  texts, each equal to its card's own copy text), the note names the side, and
+  View Tools opens that side's card. At 390 on touch View Tools is 44 px tall
+  with a 54 px strip below it.
