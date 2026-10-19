@@ -2408,3 +2408,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   is still refused before any cursor is looked at; /, /stake, /account, /redeem,
   /paper-pro-daily, /articles and /literature answer 200 at 390 and 1280 in
   headless Chromium with no page errors and no sideways scroll.
+
+## 2026-10-19 — Home page share picture shows $REGENT and a larger crown
+
+- The picture shown when the home page is shared now has a large $REGENT line
+  under "The community-owned agentic product lab." and a larger crown alone
+  in the top left.
+- The six site tiles stay inside the picture's frame; patchbay.help and
+  autolaunch.sh were cut off at the right edge.
+- The picture's description names $REGENT and the crown.
+- Picture and description only: no page, Stake or Redeem change, no migrations.
