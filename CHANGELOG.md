@@ -2439,3 +2439,11 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   autolaunch.sh were cut off at the right edge.
 - The picture's description names $REGENT and the crown.
 - Picture and description only: no page, Stake or Redeem change, no migrations.
+
+## 2026-10-19 — Pair New Agent shows where to choose your agent
+
+- Pressing Pair New Agent on the Account page now briefly flashes the agent
+  pictures in the side panel, so you can see where to choose. If the panel is
+  scrolled away from them, it brings them into view. On a phone the button
+  opens the panel and the pictures flash there. With reduced motion turned on,
+  the pictures are outlined for a moment instead of flashing.

@@ -726,6 +726,26 @@
   list-style: none;
 }
 
+/* Pair New Agent on the page flashes the agents to choose from here, twice. With
+   less motion asked for, the box stays marked for the same moment instead. */
+#shell-pairing .rg-account__choices[data-flash] {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 4px;
+  background: color-mix(in oklab, var(--ash-accent) 14%, transparent);
+  animation: shell-pairing-flash 1.2s ease-in-out forwards;
+}
+
+@keyframes shell-pairing-flash {
+  25%, 75%, 100% { outline-color: transparent; background: transparent; }
+  50% { outline-color: var(--ash-accent); background: color-mix(in oklab, var(--ash-accent) 14%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #shell-pairing .rg-account__choices[data-flash] {
+    animation: none;
+  }
+}
+
 /* The agents list keeps its own rows; the panel's list spacing is for its other lists. */
 #shell-aside .rg-account__brief-list {
   gap: 0;

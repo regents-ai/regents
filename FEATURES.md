@@ -25,6 +25,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Redeem: approvals, Redeem, wrong wallet, refresh keeps place | `browser/redeem.spec.ts`, `regents_web/redeem_live_test.exs` | |
 | Redeem gallery: owned NFTs, fair OpenSea lookups per visitor | `regents_web/redeem_gallery_live_test.exs`, `regents/open_sea` | |
 | Account page and paired agents | `regents_web/account_agents_live_test.exs`, `browser/shell_walk.spec.ts` | |
+| Pair New Agent on the Account page opens the side panel and flashes the agents to choose from there, scrolled into view, on every press; on a phone it opens the covering panel; with less motion asked for the box stays marked instead of flashing | `browser/pair_new_agent.spec.ts` (1280 and 390, a short window, a second press after scrolling away; less motion at 1280) | |
 | Account credits and points pages | `regents_web/route_catalog_test.exs` (route exists only) | No check of what the pages show |
 | Credits refunds and the credits admin page | `regents_web/route_catalog_test.exs` (route exists only), `regents/credits/credited_test.exs` | No page-level check |
 | Articles and the articles admin page | `browser/page_policy.spec.ts`, `regents_web/router_gate_coverage_test.exs` | No check of reading or editing an article |
