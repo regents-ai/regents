@@ -221,7 +221,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/"),
     do:
-      "Regents Labs, the community-owned agentic product lab, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
+      "The Regents crown with Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
 
   defp share_image_alt("/paper-pro-daily"),
     do:
