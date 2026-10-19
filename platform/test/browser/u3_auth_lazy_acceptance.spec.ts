@@ -1187,6 +1187,12 @@ test("a tab holding a stale token still signs out, and the revoked lineage canno
   await refreshInPage(refreshingTab)
   expect(await metaCsrfToken(signingOutTab)).toBe(staleToken)
 
+  // Sign out reloads the refreshing tab as well. Only documents that arrive
+  // count, because a second navigation started under it would cancel it.
+  const reloads: string[] = []
+  refreshingTab.on("response", response => {
+    if (response.request().resourceType() === "document") reloads.push(response.url())
+  })
   const deletes: number[] = []
   signingOutTab.on("response", response => {
     if (response.request().method() === "DELETE") deletes.push(response.status())
@@ -1204,11 +1210,22 @@ test("a tab holding a stale token still signs out, and the revoked lineage canno
   const session = await signingOutTab.request.get("/auth/session")
   expect((await session.json()).authenticated).toBe(false)
 
-  // The refreshing tab still holds the revoked lineage and cannot reconnect it.
+  // The refreshing tab reloads itself once, signed out, and its live connection
+  // runs signed out rather than on the revoked lineage. A reload of its own
+  // finds it signed out too.
+  const signIn = refreshingTab.locator("#account-control [data-account-target='sign-in']")
+  await expect.poll(() => reloads.length).toBe(1)
+  await expect(signIn).toBeVisible()
+  await expect
+    .poll(() =>
+      refreshingTab.evaluate(() =>
+        Boolean((window.liveSocket as unknown as {isConnected(): boolean}).isConnected()),
+      ),
+    )
+    .toBe(true)
   await refreshingTab.reload()
-  await expect(
-    refreshingTab.locator("#account-control [data-account-target='sign-in']"),
-  ).toBeVisible()
+  await expect(signIn).toBeVisible()
+  expect(reloads).toHaveLength(2)
 })
 
 test("a rejected bearer leaves the browser anonymous without a duplicate delete or a reload loop", async ({
