@@ -362,7 +362,12 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   let sessionPosts = 0
   const documentRequests: string[] = []
   await page.addInitScript(() => {
-    ;(window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls = []
+    const counted = window as Window & {__u3BridgeCalls?: string[]; __u3WalletSyncs?: number}
+    counted.__u3BridgeCalls = []
+    counted.__u3WalletSyncs = 0
+    window.addEventListener("ash:wallet-sync", () => {
+      counted.__u3WalletSyncs = (counted.__u3WalletSyncs ?? 0) + 1
+    })
   })
   page.on("request", request => {
     if (!request.url().endsWith("/auth/privy/session")) return
@@ -398,13 +403,14 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#account-auth-status")).toBeHidden()
+  // Startup asks for one sync. The Credits panel asks for one more when it
+  // mounts, which joins startup's while that is still running and is its own
+  // after it finishes. Nothing else asks the bridge for anything.
   await expect
     .poll(() =>
-      page.evaluate(
-        () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
-      ),
+      page.evaluate(() => (window as Window & {__u3WalletSyncs?: number}).__u3WalletSyncs),
     )
-    .toEqual(["sync"])
+    .toBe(1)
   await expect
     .poll(() =>
       page.evaluate(
@@ -412,6 +418,12 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
       ),
     )
     .toBe(true)
+  const calls = await page.evaluate(
+    () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
+  )
+  expect(calls).toContain("sync")
+  expect(calls.every(call => call === "sync")).toBe(true)
+  expect(calls.length).toBeLessThanOrEqual(2)
 
   expect(bridgeRequests).toBe(1)
   expect(sessionDeletes).toBe(0)
@@ -791,12 +803,15 @@ export async function startPrivyBridge(options) {
     if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
       sessionDeletes += 1
     }
-    if (request.isNavigationRequest() && request.resourceType() === "document") {
-      documentRequests.push(request.url())
-    }
   })
+  // Sign out reloads the page, and the server's disconnect can navigate it too;
+  // whichever starts second cancels the first. Only documents that arrive count.
   page.on("response", response => {
-    if (response.request().method() === "GET" && response.url().endsWith("/auth/session")) {
+    const request = response.request()
+    if (request.isNavigationRequest() && request.resourceType() === "document") {
+      documentRequests.push(response.url())
+    }
+    if (request.method() === "GET" && response.url().endsWith("/auth/session")) {
       order.push("anonymous-proof")
     }
   })
