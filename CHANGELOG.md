@@ -2320,3 +2320,23 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - The cube now stands in the middle of the page on a computer, with "Human
   Browsing" above it and the hint under it. On mid-size screens it is drawn a
   little smaller so it sits under the heading instead of across it.
+
+## 2026-10-19 — Regents v205 and v206 released
+
+- v205 (`0f993b76`, the Stake fixes) went live as Fly v205 at about 13:58Z, then
+  v206 (`9df1d931`, the one-cube home page, which contains `0f993b76`) as Fly
+  v206 at about 14:03Z, on Sean's "1. a" (13:53Z) to deploy on this thread's own
+  fresh-copy checks. The rollback for both is v204 (`f76843f9`). No migrations.
+- v205 carries `2fcfbf67`, `4ef219bb`, `2410c77a`, `6b3a757f`, `807a94b0`,
+  `b4d90922` and `0f993b76`. v206 adds `485275b7` and `9df1d931`.
+- Live checks after v205: the image is labelled
+  `0f993b76ad3564c645b7b78dca06622fd12b8ad5`; /healthz answers 200; /, /stake,
+  /account, /redeem and /redeem/gallery answer 200 at 320, 390, 1280 and 1440
+  in headless Chromium with no page errors and no sideways scroll. The signed-in
+  Stake form was not walked live (it needs a real sign-in).
+- Live checks after v206: the image is labelled
+  `9df1d9314ec4bf98baaf4e01d15c58c671c949cf`; the same pages answer 200 with no
+  errors or sideways scroll; one cube draws at 1920 to 390 with "Human
+  Browsing" shown; the tools window opens at 1440 and 390 with "Copy all Regents
+  WebMCP tools" and 166 tools from 5 sites; /api/v1/site-tools lists no site as
+  unreachable.
