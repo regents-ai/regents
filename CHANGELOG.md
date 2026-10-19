@@ -2359,3 +2359,22 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   updated cover is never served from an old copy.
 - Restacked from the parked agent branch (`0271906c`, `a56a6c65`, `4116c36e`)
   onto the live code; the other parked commits wait on the template or on Sean.
+
+## 2026-10-19 — Regents v207 released
+
+- v207 (`2986ceed`, public reading and profile reads for agents) went live as
+  Fly v207 at about 18:14Z under the standing permission for ordinary releases.
+  The rollback is v206 (`9df1d931`). No migrations.
+- Before release, a fresh copy of `2986ceed` succeeded: 551 server tests, 232
+  script tests, the browser suite (102) on port 4002 and again on 4123, the CLI
+  command check and the identity check; both deliberate breaks (drafts shown,
+  a private profile field added) were caught; the copy stayed clean. The shared
+  library check only runs in a real checkout, where it succeeded on the same
+  content. Evidence: `control/coordination/evidence/regents-sh-2986ceed-*`.
+- Live checks: the image is labelled
+  `2986ceed951732205077c92bb16baa91258d03a0`; /healthz answers ok; the paper,
+  Article and book reads answer 200, the second paper page follows the cursor,
+  covers load, an unknown profile answers 404 and an unknown query answers 400;
+  the six new tools appear in /api/v1/site-tools; /, /stake, /account, /redeem,
+  /paper-pro-daily, /articles and /literature answer 200 at 390 and 1280 in
+  headless Chromium with no page errors and no sideways scroll.
