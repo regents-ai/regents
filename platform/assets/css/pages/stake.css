@@ -916,13 +916,14 @@
 }
 
 /* When the panel is too narrow for the button beside 50% and Max (phones, and
-   the two-column page just under 1280 wide): Available, then the shortcuts
-   beside it, then the button across the whole row. */
+   the two-column page just under 1280 wide): the button across the whole row,
+   then Available with the shortcuts beside it, or under it where both do not
+   fit. */
 @container stake-panel (max-width: 27rem) {
-  .stake-amount-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .stake-amount-tools { align-items: center; }
   .stake-amount-action { display: contents; }
-  .stake-amount-action .stake-submit { grid-column: 1 / -1; }
-  .stake-amount-shortcuts { margin-inline-start: 0; }
+  .stake-amount-action .stake-submit { flex-basis: 100%; }
+  #staking-available { flex: 1 1 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

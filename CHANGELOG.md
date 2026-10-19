@@ -2321,3 +2321,10 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   WalletConnect itself.
 - A new check holds the cube's touch sizes: View Tools at least 44 px with a
   44 px strip below it, at 390 and 320.
+
+## 2026-10-19 — Stake: what is available stays readable on small phones
+
+- On the narrowest phones "Available" on /stake sat under the 50% and Max
+  buttons. It now keeps its row, and the two buttons move below it when both
+  do not fit; on wider screens they still sit beside it.
+- The Stake check's pictures now show the whole form at 1280, 390 and 320.

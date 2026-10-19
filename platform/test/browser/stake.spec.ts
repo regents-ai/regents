@@ -694,6 +694,24 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     const previewRoom = (await page.locator(".stake-preview").boundingBox())!.height
     expect(await band()).toBeLessThan(1)
     await oneRow()
+    // What is available stays readable beside or above 50% and Max, never under them.
+    const available = await page.evaluate(() => {
+      const line = document.querySelector("#staking-available")!
+      const words = document.createRange()
+      words.selectNodeContents(line)
+      const text = words.getBoundingClientRect()
+      const shortcuts = document.querySelector(".stake-amount-shortcuts")!.getBoundingClientRect()
+      return {
+        under:
+          text.left < shortcuts.right &&
+          shortcuts.left < text.right &&
+          text.top < shortcuts.bottom &&
+          shortcuts.top < text.bottom,
+        lines: Math.round(text.height / Number.parseFloat(getComputedStyle(line).lineHeight)),
+      }
+    })
+    expect(available.under, `Available at ${width}`).toBe(false)
+    expect(available.lines, `Available at ${width}`).toBeLessThanOrEqual(2)
 
     await toggle.check()
     await expect(dialog).toBeVisible()
@@ -718,7 +736,10 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     expect(await height()).toBeCloseTo(unticked, 0)
     expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
     await oneRow()
-    await panel.screenshot({path: test.info().outputPath(`stake-other-address-${width}.png`)})
+    // The form alone fits the screen at every width, so its picture is whole.
+    await page
+      .locator("#staking-amount-form")
+      .screenshot({path: test.info().outputPath(`stake-other-address-${width}.png`)})
 
     // Tab from Amount to the Stake button only lands on rows a person can see,
     // ticked here and unticked below.
