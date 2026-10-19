@@ -1078,7 +1078,7 @@
       "post": {
         "operationId": "agentCreditsHistory",
         "summary": "Read shared Credits history",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Sign the exact JSON body: {} for the first page, or only after from pagination.next_cursor for the next page; omit after when the cursor is null. A cursor or body that is not valid answers 422 invalid_cursor.",
         "security": [],
         "parameters": [
           {
@@ -1125,6 +1125,23 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The history cursor or body is not valid (invalid_cursor).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                },
+                "example": {
+                  "error": {
+                    "code": "invalid_cursor",
+                    "message": "That history cursor is invalid.",
+                    "hint": "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
+                  }
                 }
               }
             }
@@ -1184,7 +1201,8 @@
                   "after": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 2048
+                    "maxLength": 2048,
+                    "description": "The previous page's pagination.next_cursor, unchanged (at most 2048 bytes). Leave it out for the first page or when the cursor is null."
                   }
                 }
               }
@@ -1951,6 +1969,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
+          "id",
           "name",
           "harness",
           "wallet",
@@ -1961,6 +1980,10 @@
           "same_person_agent_count"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -2019,6 +2042,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
+          "id",
           "name",
           "harness",
           "wallet",
@@ -2030,6 +2054,10 @@
           "account"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
           "name": {
             "type": "string",
             "minLength": 1,

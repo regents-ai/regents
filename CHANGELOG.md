@@ -2378,3 +2378,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   the six new tools appear in /api/v1/site-tools; /, /stake, /account, /redeem,
   /paper-pro-daily, /articles and /literature answer 200 at 390 and 1280 in
   headless Chromium with no page errors and no sideways scroll.
+
+## 2026-10-19 — Agent answers match the template
+
+- The agent pair and check-in answers have always carried the pairing `id`; the
+  published contract now lists it, as ash-template's does. Redone from the
+  parked commit `e7c76b08`.
+- A Credits history cursor that is not valid now answers 422 `invalid_cursor`
+  with the template's words ("That history cursor is invalid."), instead of 400.
+  Other failures still answer 503. Redone from the parked commit `5e7ae9df`, with
+  the docs, CLI descriptions and tool text in plain words.
+- Two checks cover these: the pair and check-in answers name the same pairing
+  id, and a bad cursor gets the 422 refusal.

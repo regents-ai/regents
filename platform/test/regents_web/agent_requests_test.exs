@@ -56,6 +56,49 @@ defmodule RegentsWeb.AgentRequestsTest do
              conn |> recycle() |> get("/api/agents/v1/me") |> json_response(200)
   end
 
+  # The pair and check-in answers carry the pairing id the contract lists.
+  test "pairing and check-in name the same pairing id", %{conn: conn} do
+    {person, _account_id} = person!()
+    issued = RegentAgents.issue_pairing_code!(actor: person)
+    siwa_verifies(@agent_wallet)
+
+    assert %{"data" => %{"id" => id}} = conn |> pair(issued.code) |> json_response(201)
+    assert {:ok, _uuid} = Ecto.UUID.cast(id)
+
+    assert %{"data" => %{"id" => ^id}} =
+             conn |> recycle() |> get("/api/agents/v1/me") |> json_response(200)
+  end
+
+  # A Credits history cursor that is not valid gets the shared 422 refusal, not
+  # a "try again" answer.
+  test "a bad Credits history cursor is refused with the shared words", %{conn: conn} do
+    {person, _account_id} = person!()
+    issued = RegentAgents.issue_pairing_code!(actor: person)
+    siwa_verifies(@agent_wallet)
+    assert conn |> pair(issued.code) |> response(201)
+
+    history = fn body ->
+      conn
+      |> recycle()
+      |> put_req_header("content-type", "application/json")
+      |> post("/api/agent/v1/credits/history", Jason.encode!(body))
+    end
+
+    assert %{"entries" => [], "pagination" => %{"has_more" => false}} =
+             history.(%{}) |> json_response(200)
+
+    for body <- [%{after: "not-a-cursor"}, %{after: "", extra: 1}] do
+      assert history.(body) |> json_response(422) == %{
+               "error" => %{
+                 "code" => "invalid_cursor",
+                 "message" => "That history cursor is invalid.",
+                 "hint" =>
+                   "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
+               }
+             }
+    end
+  end
+
   test "pairing attempts from one address are limited, and each answer says what is left",
        %{conn: conn} do
     siwa_refuses()

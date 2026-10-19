@@ -73,24 +73,15 @@ defmodule RegentsWeb.AgentReadsController do
   end
 
   def history(conn, _params) do
-    case pagination(conn.body_params) do
-      {:ok, args} ->
-        case RegentCredits.history(args, actor: credit_actor(conn)) do
-          {:ok, history} ->
-            json(conn, %{
-              entries: history.entries,
-              pagination: %{has_more: history.more?, next_cursor: history.next}
-            })
-
-          {:error, %Ash.Error.Invalid{}} ->
-            invalid(conn)
-
-          {:error, _} ->
-            unavailable(conn)
-        end
-
-      :error ->
-        invalid(conn)
+    with {:ok, args} <- pagination(conn.body_params),
+         {:ok, history} <- RegentCredits.history(args, actor: credit_actor(conn)) do
+      json(conn, %{
+        entries: history.entries,
+        pagination: %{has_more: history.more?, next_cursor: history.next}
+      })
+    else
+      :error -> invalid(conn)
+      {:error, error} -> if cursor_error?(error), do: invalid(conn), else: unavailable(conn)
     end
   end
 
@@ -101,6 +92,14 @@ defmodule RegentsWeb.AgentReadsController do
        do: {:ok, %{after: cursor}}
 
   defp pagination(_), do: :error
+
+  defp cursor_error?(%Ash.Error.Action.InvalidArgument{field: :after}), do: true
+  defp cursor_error?(%Ash.Error.Page.InvalidKeyset{}), do: true
+
+  defp cursor_error?(%Ash.Error.Invalid{errors: [_ | _] = errors}),
+    do: Enum.all?(errors, &cursor_error?/1)
+
+  defp cursor_error?(_error), do: false
 
   defp credit_actor(conn) do
     actor = conn.assigns.actor
@@ -116,12 +115,13 @@ defmodule RegentsWeb.AgentReadsController do
   defp invalid(conn),
     do:
       conn
-      |> put_status(400)
+      |> put_status(422)
       |> json(%{
         error: %{
           code: "invalid_cursor",
-          message: "Send an empty JSON object or only a valid after cursor.",
-          hint: "Start with {}, then use the previous page's pagination.next_cursor."
+          message: "That history cursor is invalid.",
+          hint:
+            "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
         }
       })
 

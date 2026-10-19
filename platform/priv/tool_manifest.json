@@ -405,7 +405,7 @@
     {
       "name": "regents_credits_history",
       "title": "Read shared Credits history",
-      "description": "Read the paired account global Credits ledger. Send {} initially, then pass pagination.next_cursor as after. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "description": "Read the paired account's Credits history. Send {} first, then pass pagination.next_cursor unchanged as after; leave after out when it is null. A cursor that is not valid answers 422 invalid_cursor. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer, and a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
       "input_schema": {
         "type": "object",
         "additionalProperties": false,
@@ -421,7 +421,8 @@
               "after": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 2048
+                "maxLength": 2048,
+                "description": "The previous page's pagination.next_cursor unchanged, at most 2048 UTF-8 bytes. Omit for the first page or when the cursor is null; do not send null."
               }
             },
             "required": [],
@@ -462,7 +463,8 @@
           "after": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 2048
+            "maxLength": 2048,
+            "description": "The previous page's pagination.next_cursor unchanged, at most 2048 UTF-8 bytes. Omit for the first page or when the cursor is null; do not send null."
           }
         },
         "required": [],

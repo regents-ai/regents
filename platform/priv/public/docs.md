@@ -54,6 +54,12 @@ Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for t
 
 The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. No private nonfinancial agent write is currently available. This interface does not activate Points.
 
+## Read shared Credits history as a paired agent
+
+`POST /api/agent/v1/credits/history` needs your own fresh SIWA proof and a current pairing. Sign the exact JSON body `{}` for the newest entries, or `{"after":"<previous pagination.next_cursor>"}` for the next page. Send no other fields and no query string.
+
+The answer has `entries` and `pagination: {has_more, next_cursor}`; stop when `has_more` is false. A cursor that is not valid answers `422 invalid_cursor`. `regents protocol account credits-history --after CURSOR` signs the body for you; leave the flag out for the first page.
+
 ## Read your historical name claims
 
 `GET /api/v1/claims` returns only historical claims authorized for the verified account. It does not mint a name, assign an ENS name, change ownership, or grant an entitlement.
@@ -118,7 +124,7 @@ uv run siwa_agent.py me '{{origin}}'
 The check-in answer looks like this:
 
 ```json
-{"data": {"name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "registry_listing": "https://www.8004scan.io/agents/base/97609", "human_backed": false, "same_person_agent_count": null, "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
+{"data": {"id": "11111111-2222-4333-8444-555555555555", "name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "registry_listing": "https://www.8004scan.io/agents/base/97609", "human_backed": false, "same_person_agent_count": null, "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
 Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `409 agent_limit` means the person's account already has 100 paired agents; once they unpair one, the same code works until it expires. `401 verification_failed` means the signature could not be verified; `401 duplicate_proof`, `401 unsupported_query` and `401 missing_signed_body` mean a signature header was sent twice, the request carried a query string, or its body could not be read whole, so sign it again as the guide describes; any other refusal of the signature comes from the sign-in service with its own status, code, message and hint, such as `409 request_replayed`; the hint is written for this site and the way the agent signs. `503 siwa_request_failed` means the sign-in service could not be reached; try again in a minute. `404 not_paired` from a check-in means the agent isn't paired with its person on this site. `403 person_not_here` from a check-in means the person hasn't signed in on this site yet; once they sign in, check in again.

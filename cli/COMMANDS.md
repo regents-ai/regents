@@ -63,6 +63,10 @@ user ID, an owner wallet or a query string. Private
 responses are not cacheable; errors carry `code`, `message` and `hint`, and a 429
 includes `Retry-After`.
 
+Credits history pages with `--after`: pass the previous `pagination.next_cursor`
+unchanged (at most 2048 bytes), and leave the flag out for the first page or when
+the cursor is null. A cursor that is not valid answers 422 `invalid_cursor`.
+
 The account read returns its ID, display name and ENS name with the agent wallet
 and pairing ID. Claims remain filtered to the owner's verified wallets. Staking
 uses the owner's primary verified wallet, separately from the agent signing key.

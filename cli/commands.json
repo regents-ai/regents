@@ -110,7 +110,7 @@
     },
     {
       "command": "account credits-history",
-      "description": "Read the paired account global Credits ledger history.",
+      "description": "Read the paired account's Credits history. Follow pagination.next_cursor unchanged and leave after out when it is null. A cursor that is not valid answers 422 invalid_cursor.",
       "operation_id": "agentCreditsHistory",
       "method": "POST",
       "path": "/api/agent/v1/credits/history",
@@ -124,7 +124,7 @@
           "in": "body",
           "field": "after",
           "required": false,
-          "description": "The previous page's pagination.next_cursor, unchanged. Omit for the first page."
+          "description": "The previous page's pagination.next_cursor, unchanged (at most 2048 bytes). Leave it out for the first page or when the cursor is null."
         }
       ],
       "pagination": {

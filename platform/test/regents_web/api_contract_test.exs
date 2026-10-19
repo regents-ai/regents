@@ -389,6 +389,7 @@ defmodule RegentsWeb.ApiContractTest do
 
     assert contract["components"]["schemas"]["PairedAgent"]["required"] ==
              [
+               "id",
                "name",
                "harness",
                "wallet",
@@ -405,6 +406,7 @@ defmodule RegentsWeb.ApiContractTest do
 
     assert contract["components"]["schemas"]["CheckedInAgent"]["required"] ==
              [
+               "id",
                "name",
                "harness",
                "wallet",

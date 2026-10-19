@@ -240,7 +240,7 @@ paths:
       x-pairing-required: true
   /api/agent/v1/credits/history:
     post:
-      description: Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.
+      description: 'Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Sign the exact JSON body: {} for the first page, or only after from pagination.next_cursor for the next page; omit after when the cursor is null. A cursor or body that is not valid answers 422 invalid_cursor.'
       operationId: agentCreditsHistory
       parameters:
         - $ref: '#/components/parameters/SiwaReceipt'
@@ -258,6 +258,7 @@ paths:
               additionalProperties: false
               properties:
                 after:
+                  description: The previous page's pagination.next_cursor, unchanged (at most 2048 bytes). Leave it out for the first page or when the cursor is null.
                   maxLength: 2048
                   minLength: 1
                   type: string
@@ -276,6 +277,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+        '422':
+          description: The history cursor or body is not valid (invalid_cursor).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+              example:
+                error:
+                  code: invalid_cursor
+                  message: That history cursor is invalid.
+                  hint: Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries.
         '401':
           content:
             application/json:
@@ -875,8 +887,9 @@ components:
     PairedAgent:
       type: object
       additionalProperties: false
-      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count]
+      required: [id, name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count]
       properties:
+        id: {type: string, format: uuid}
         name: {type: string, minLength: 1, maxLength: 80}
         harness: {$ref: "#/components/schemas/AgentHarness"}
         wallet: {type: string, pattern: '^0x[0-9a-f]{40}$'}
@@ -904,8 +917,9 @@ components:
     CheckedInAgent:
       type: object
       additionalProperties: false
-      required: [name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count, account]
+      required: [id, name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count, account]
       properties:
+        id: {type: string, format: uuid}
         name: {type: string, minLength: 1, maxLength: 80}
         harness: {$ref: "#/components/schemas/AgentHarness"}
         wallet: {type: string, pattern: '^0x[0-9a-f]{40}$'}
