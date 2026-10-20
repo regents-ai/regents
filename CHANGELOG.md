@@ -2773,3 +2773,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - Why: a slide or a grow left a leftover mark written on the new line once it
   settled; the template fixed this on 19 Oct (kit note 6) and regents.sh had not
   taken it.
+
+## 2026-10-22 — Every site applies shared changes the same way
+
+- `/app/bin/migrate-shared` now uses ash-template's code: one list of the shared
+  Identity, Agents, Credits, Points and Payments libraries, filtered to the ones
+  this release carries. Regents is no longer the only site that applies shared
+  changes; every site carries this same command (Sean, 19 Oct 2026: every site
+  works the same). A deployment still never applies them.
+- The release check and `/app/bin/pending-migrations` read the same list, so a
+  deployment now also stops while a shared Identity or Payments change is
+  missing. The staging bootstrap applies every shared change before Regents' own
+  migrations, as production does.

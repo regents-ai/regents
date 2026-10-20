@@ -173,11 +173,12 @@ builds the schema itself on its first run.
 > deployed database and the release image disagree about, without applying anything.
 > Confirm the target and its secrets before running a deploy.
 >
-> A deploy never applies a change to the shared Credits or Points database; it refuses
-> to start while one its pinned libraries carry is missing. `/app/bin/migrate-shared`
-> applies them and prints each one, or `none`. Run it once from the new image, on a
-> one-off machine, before that image's deploy, and only on the founder's own named go
-> for each change. `/app/bin/pending-migrations` from the same image lists what it
+> A deploy never applies a change to the shared Identity, Agents, Credits, Points or
+> Payments database; it refuses to start while one its pinned libraries carry is
+> missing. `/app/bin/migrate-shared` applies them and prints each one, or `none`. Every
+> site carries this same command; the site whose release first carries a change runs it
+> once from the new image, on a one-off machine, before that image's deploy, and only on
+> the founder's own named go for each change. `/app/bin/pending-migrations` from the same image lists what it
 > would apply under `shared-pending:`, without applying anything.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
