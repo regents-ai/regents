@@ -2544,3 +2544,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   button keeps its height from 320 wide up. Wider screens are unchanged.
 - Not yet released. No database migrations. Nothing about how staking works
   changes.
+
+## 2026-10-20 — Sign-in pages allow the template's picture sources
+
+- Pages that can sign someone in allowed a picture from any https address. They
+  now allow the template's list: this site, ENS pictures (on every page, as on
+  the template), Privy's own pictures and WalletConnect's wallet logos, plus
+  this site's picture store at `media.regents.sh` for the Regents Club Pass
+  artwork. A Regent profile picture hosted elsewhere no longer shows.
+- Sean's 2. a, 20 Oct 13:23Z. Not yet released. No database migrations.
+

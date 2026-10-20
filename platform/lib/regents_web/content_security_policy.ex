@@ -10,10 +10,12 @@ defmodule RegentsWeb.ContentSecurityPolicy do
   Privy's published policy: Privy's API, frame and wallet RPC, Cloudflare
   Turnstile, WalletConnect's relays, verify frames, wallet list, logos, RPC and
   event reporting, Coinbase Wallet's relay, and the Telegram sign-in this Privy
-  app offers, whose script comes from both Privy and Telegram. Privy's sign-in window writes its own style elements, so only this
-  profile allows them. Its pages also show pictures from other sites: an ENS
-  avatar is whatever https address the name's holder set, so images may come
-  from any https host.
+  app offers, whose script comes from both Privy and Telegram. Privy's sign-in
+  window writes its own style elements, so only this profile allows them. Its
+  pictures are Privy's own and WalletConnect's wallet logos, plus the Regents
+  Club Pass artwork on this site's picture store.
+
+  Every page may show ENS pictures, which the ENS service draws for each name.
 
   `showcase/0` is `sign_in/0` for the local showcase, which frames its own
   preview page. `errors/1` is the baseline plus one request's nonce, for the
@@ -37,7 +39,7 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     # `JS.ignore_attributes(["style"])` keeps the one Anime.js wrote. Rising
     # words clip by class (`.split-clip`).
     {"style-src-attr", ["'unsafe-inline'"]},
-    {"img-src", ["'self'", "data:"]},
+    {"img-src", ["'self'", "data:", "https://metadata.ens.domains"]},
     {"font-src", ["'self'"]},
     # Redeem's artwork video is served from this site.
     {"media-src", ["'self'"]},
@@ -55,7 +57,11 @@ defmodule RegentsWeb.ContentSecurityPolicy do
       "https://telegram.org"
     ],
     "style-src" => ["'unsafe-inline'"],
-    "img-src" => ["blob:", "https:"],
+    "img-src" => [
+      "blob:",
+      "https://explorer-api.walletconnect.com",
+      "https://media.regents.sh"
+    ],
     "frame-src" => [
       "https://auth.privy.io",
       "https://verify.walletconnect.com",

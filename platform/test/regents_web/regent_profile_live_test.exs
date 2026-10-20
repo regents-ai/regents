@@ -55,7 +55,7 @@ defmodule RegentsWeb.RegentProfileLiveTest do
       regent,
       "Projection Atlas",
       "A field-limited public profile.",
-      %{avatar_url: "https://images.regents.sh/projection-atlas.png"},
+      %{avatar_url: "https://media.regents.sh/images/projection-atlas.png"},
       actor: actor
     )
 
@@ -66,7 +66,7 @@ defmodule RegentsWeb.RegentProfileLiveTest do
 
     assert has_element?(
              view,
-             ~s(img[src="https://images.regents.sh/projection-atlas.png"])
+             ~s(img[src="https://media.regents.sh/images/projection-atlas.png"])
            )
 
     assert has_element?(view, ~s(code[title="#{wallet}"]), "0x2222..2222")
