@@ -2447,3 +2447,21 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   scrolled away from them, it brings them into view. On a phone the button
   opens the panel and the pictures flash there. With reduced motion turned on,
   the pictures are outlined for a moment instead of flashing.
+
+## 2026-10-19 — Regents v209 released
+
+- v209 (`4e10f083`) went live as Fly v209 at about 00:10Z on 20 Oct, on Sean's
+  1. a (the flash) and the standing permission for ordinary releases. It carries
+  the agent words that match the template, safety headers on files served as
+  they are, the deploy that names its commit, the home share picture with
+  $REGENT, and the Pair New Agent flash. The rollback is v208 (`9626247b`). No
+  migrations.
+- Before release, the full check succeeded in the checkout: 555 server tests,
+  232 script tests and 105 browser tests, with no warnings printed. The one
+  Docker-backed packaging test did not run: Docker on the Mac was not answering.
+- Live checks: the image is labelled
+  `4e10f0830456cc9f8f163a3d12fec63f005d2d58`; one machine runs; /healthz answers
+  ok; the live share picture matches the repository's; a share image carries all
+  four safety headers; /, /start and /account answer 200 at 390 and 1280 in
+  headless Chromium with no page errors and no sideways scroll; the log tail
+  shows only the old machine's handover message.
