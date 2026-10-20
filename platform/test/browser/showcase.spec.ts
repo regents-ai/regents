@@ -61,6 +61,9 @@ test("eight palettes, editable colors and live updates retain their state", asyn
   await page.locator("[data-sc-brand=patchbay]").click()
   await expect(page.locator("[data-sc-color=accent]")).toHaveValue("#123456")
   await page.reload()
+  // A press before the palette controls are live is lost, so wait for them as
+  // beforeEach does.
+  await expect(page.locator("[data-sc-value=accent]")).toHaveText("#161616")
   await page.locator("[data-sc-brand=patchbay]").click()
   await page.locator("[data-sc-mode=light]").click()
   await expect(page.locator("[data-sc-color=accent]")).toHaveValue("#123456")

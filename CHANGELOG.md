@@ -2465,3 +2465,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   four safety headers; /, /start and /account answer 200 at 390 and 1280 in
   headless Chromium with no page errors and no sideways scroll; the log tail
   shows only the old machine's handover message.
+
+## 2026-10-20 — Three checks that sometimes failed now fail only for real faults
+
+- The design showcase check waits for the palette controls after reloading the
+  page, as it already does on first load. A press made before they were ready
+  was lost, so the check once read the wrong palette's colour.
+- The page walk no longer counts Chrome's note that the /redeem intro video was
+  stopped because the walk left the page before it played. Visitors see nothing.
+- The sign-in failure log check reports from an address no other check uses.
+  The log keeps at most 20 lines a minute for each address, so when other
+  checks from the same address ran first, its line was never written.
+- Checks only: nothing on the site changes.

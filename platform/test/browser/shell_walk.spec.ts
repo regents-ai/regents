@@ -34,9 +34,13 @@ async function patchTo(page: Page, path: string) {
 
 async function walk(page: Page, signedIn: boolean) {
   const problems: string[] = []
-  // The lab has no real Privy app, so a visitor's sign-in widget says so.
+  // The lab has no real Privy app, so a visitor's sign-in widget says so. Leaving
+  // /redeem before its muted intro video starts makes Chrome note that the play
+  // was interrupted; the visitor sees nothing.
   const note = (text: string) => {
-    if (!text.includes("invalid Privy app ID")) problems.push(text)
+    if (text.includes("invalid Privy app ID")) return
+    if (text.includes("The play() request was interrupted because the media was removed from the document")) return
+    problems.push(text)
   }
   page.on("pageerror", error => note(error.message))
   page.on("console", message => {

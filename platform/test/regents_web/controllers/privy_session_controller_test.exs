@@ -22,6 +22,9 @@ defmodule RegentsWeb.PrivySessionControllerTest do
   @limit @release_budget[:limit]
   @peer {203, 0, 113, 7}
   @other_peer {203, 0, 113, 8}
+  # The failure log allows 20 lines a minute for each reason group and address,
+  # so this test reports from an address no other test uses.
+  @diagnostic_peer {203, 0, 113, 41}
   @denial_event [:regents, :session_bootstrap, :rate_limited]
   @browser_failure_event [:regents, :privy, :browser_failure]
 
@@ -29,7 +32,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
     log =
       capture_log(fn ->
         response =
-          conn
+          %{conn | remote_ip: @diagnostic_peer}
           |> init_test_session(%{})
           |> put_valid_csrf()
           |> post("/auth/privy/failure", %{"reason" => "provider_error"})
