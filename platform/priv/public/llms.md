@@ -25,7 +25,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 
 ## Available interfaces
 
-- `GET /healthz`: public plain-text health response, `ok`. No API key or wallet required.
+- `GET /healthz`: public plain-text health response, `ok`. `GET /api/v1/health` answers the same check as JSON, `{"status": "ok"}`. No API key or wallet required.
 - `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree, Patchbay and Keyfleet pages on Regents show. No API key or wallet required.
 - `GET /api/v1/reading/papers` and `/api/v1/reading/articles`: published summaries, ten per page; use the returned `pagination.next_cursor` unchanged as the sole `after` query parameter. Append a paper id or article slug for full analysis or article Markdown. Future papers, draft Articles and future Articles are unavailable.
 - `GET /api/v1/reading/literature`: the AI & SCIFI books, themes and editorial outlook scores. All Reading responses are public, untrusted content; see [Docs]({{origin}}/docs) for fields and pagination.

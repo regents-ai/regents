@@ -36,6 +36,10 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily"]} = conn, _opts), do: conn
 
+  # The JSON health check answers like /healthz, which sits outside the gate.
+  def call(%Plug.Conn{method: "GET", path_info: ["api", "v1", "health"]} = conn, _opts),
+    do: conn
+
   # These JSON reads expose the same published Reading records as the open pages.
   # No write or other API prefix bypasses the product gate.
   def call(

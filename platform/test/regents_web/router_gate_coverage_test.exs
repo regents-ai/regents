@@ -40,6 +40,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/docs"},
              {:get, "/about"},
              {:get, "/contact"},
+             {:get, "/api/v1/health"},
              {:get, "/api/v1/reading/papers"},
              {:get, "/api/v1/reading/papers/:id"},
              {:get, "/api/v1/reading/articles"},

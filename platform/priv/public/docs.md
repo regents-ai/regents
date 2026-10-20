@@ -16,7 +16,7 @@ curl --fail '{{origin}}/api/v1/products/techtree'
 
 `GET /api/v1/products` lists Autolaunch, Techtree, Patchbay and Keyfleet with each one's summary and links; `GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug returns 404.
 
-The health response is the plain text `ok`. A health response confirms the web service is responding, not that every wallet or external service is available.
+`/healthz` answers `ok`; `GET /api/v1/health` answers `{"status": "ok"}`, or 503 with `unavailable`. It says the site and its database are up, not that every wallet or outside service is.
 
 The homepage, this documentation, About, Contact, Privacy and Terms support `Accept: text/markdown` at their ordinary URLs. Browsers receive HTML by default. Responses distinguish the representations with `Vary: Accept`. Unknown page URLs return 404 rather than a successful empty document.
 
@@ -142,9 +142,11 @@ RateLimit: "default";r=119;t=42
 
 ## Contracts and availability
 
-The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the product directory, published Reading content, the owner-authorized claims and stake reads, agent pairing and every signed agent read above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
+The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health reads, the product directory, published Reading content, the owner-authorized claims and stake reads, agent pairing and every signed agent read above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 We change the API in place and update these docs the same day; no old versions are kept.
+
+2026-10-20: `GET /api/v1/health` answers the health check as JSON, `{"status": "ok"}`, as on the other Regents sites. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 3.1.0.
 
 2026-10-20: one request limit covers `/healthz` and every `/api` address: 120 requests a minute for each client address, with pairing also held to 10 a minute. Past a limit the code is `too_many_requests` instead of `rate_limited`, and check-ins no longer have a separate budget of 60. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 3.0.0.
 

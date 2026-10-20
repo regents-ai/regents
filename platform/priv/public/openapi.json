@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "3.0.0",
+    "version": "3.1.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -14,7 +14,7 @@
       "get": {
         "operationId": "getServiceHealth",
         "summary": "Read web-service health",
-        "description": "Returns ok when the web service is responding. Does not establish readiness of every external service or wallet flow.",
+        "description": "Returns ok when the web service is responding and its database answers; 503 unavailable otherwise. Does not establish readiness of every outside service or wallet flow.",
         "responses": {
           "200": {
             "description": "Web service is responding",
@@ -31,6 +31,80 @@
                 "schema": {
                   "type": "string",
                   "const": "ok"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The web service is up but its database is not answering",
+            "headers": {
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              },
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "const": "unavailable"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Read whether the site and its database answer",
+        "description": "The same check as /healthz, answered in JSON. Responses use Cache-Control: no-store.",
+        "responses": {
+          "200": {
+            "description": "The site and its database answer",
+            "headers": {
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              },
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The site is up but its database is not answering (unavailable)",
+            "headers": {
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              },
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                },
+                "example": {
+                  "error": {
+                    "code": "unavailable",
+                    "message": "The site is up but its database is not answering.",
+                    "hint": "Try again in a minute."
+                  }
                 }
               }
             }
@@ -2579,6 +2653,18 @@
                 "type": "string"
               }
             }
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
           }
         }
       },

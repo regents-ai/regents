@@ -2509,3 +2509,14 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   /docs and /llms.txt state the new limits; /, /stake and /account answer 200
   at 390 and 1280 in headless Chromium with no page errors and no sideways
   scroll; the log tail shows ordinary requests only.
+
+## 2026-10-20 — Health check in JSON for agents
+
+- `GET /api/v1/health` answers `{"status": "ok"}` when the site and its
+  database answer, and 503 with the code `unavailable` when the database does
+  not, as on the template site. It stays open while the product pages are
+  closed, like `/healthz`, and uses the same request budget.
+- The API description now says that `/healthz` also checks the database and
+  answers 503 `unavailable` when it does not; it said only that the web service
+  was responding. `/openapi.json` is version 3.1.0; /docs and /llms.txt list the
+  new address.

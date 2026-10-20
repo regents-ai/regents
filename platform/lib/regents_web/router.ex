@@ -145,6 +145,7 @@ defmodule RegentsWeb.Router do
 
   scope "/api/v1" do
     pipe_through :api
+    get "/health", RegentsWeb.HealthController, :status
     get "/claims", RegentsWeb.OwnedClaimsController, :index
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show

@@ -103,6 +103,7 @@ is a map, not the contract.
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/healthz` | GET | Liveness check, used by the Fly health check. |
+| `/api/v1/health` | GET | The same check in JSON, `{"status": "ok"}`, for agents and the command line. |
 | `/api/formation/v1/regents/:regent_id/agent-links` | GET | Read agent links. |
 | `/api/formation/v1/regents/:regent_id/agent-links/claim` | POST | Claim an agent link. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
