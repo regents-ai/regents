@@ -30,3 +30,6 @@ primary_region = "iad"
   path = "/healthz"
   protocol = "http"
   timeout = "2s"
+
+  [http_service.checks.headers]
+    Host = "localhost"

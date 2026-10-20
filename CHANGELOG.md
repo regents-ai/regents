@@ -2554,3 +2554,12 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   artwork. A Regent profile picture hosted elsewhere no longer shows.
 - Sean's 2. a, 20 Oct 13:23Z. Not yet released. No database migrations.
 
+## 2026-10-20 — HTTPS notice on the health check, as in the template
+
+- `/healthz` was the one public address answered without the
+  Strict-Transport-Security notice, because the site exempted the path so
+  Fly's plain-HTTP health check would not be redirected. As in the template,
+  the site now exempts the machine's own names (`localhost`, `127.0.0.1`)
+  instead, and Fly's check in `fly.toml` and `fly.staging.toml` sends
+  `Host: localhost`. Public visits to `/healthz` now carry the notice.
+- Sean's 3. a, 20 Oct 13:23Z. Not yet released. No database migrations.
