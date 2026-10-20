@@ -381,7 +381,7 @@ defmodule RegentsWeb.ApiContractTest do
     assert pair["responses"]["201"]["headers"] == budget_headers
     assert me["responses"]["200"]["headers"] == budget_headers
 
-    assert contract["components"]["responses"]["AgentRateLimited"]["headers"] ==
+    assert contract["components"]["responses"]["RateLimited"]["headers"] ==
              Map.put(budget_headers, "Retry-After", %{"$ref" => "#/components/headers/RetryAfter"})
 
     assert contract["components"]["schemas"]["AgentHarness"]["enum"] ==

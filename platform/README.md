@@ -108,6 +108,11 @@ is a map, not the contract.
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
 | `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 
+`/healthz` and every `/api` path share one budget of 120 requests a minute per client
+address, and pairing also has its own 10 a minute, as in ash-template
+(`RegentsWeb.Endpoint`, `RegentAgentAccess.RateLimit`). Every answer carries the
+`RateLimit` and `RateLimit-Policy` headers. Request bodies over a megabyte are refused.
+
 ## Repository layout
 
 ```text

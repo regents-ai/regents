@@ -104,7 +104,7 @@ Credits belong to your person. A budget read spends nothing and changes no grant
 spending opens soon; until then no grant can be turned on, and pairing again never brings
 back an old approval. The Points summary creates no account or record and awards nothing.
 
-Pairing allows 10 requests a minute; check-ins, `whoami` and reads share 60 a minute. Errors
+Each client address has 120 requests a minute across the API; pairing also allows 10 a minute. Errors
 carry `error.code`, `error.message` and `error.hint`; respect `Retry-After` on 429. Never
 share keys, receipts or proof headers.
 

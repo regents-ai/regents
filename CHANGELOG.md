@@ -2477,3 +2477,20 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   The log keeps at most 20 lines a minute for each address, so when other
   checks from the same address ran first, its line was never written.
 - Checks only: nothing on the site changes.
+
+## 2026-10-20 — One request limit for the API, and a size limit on requests
+
+- `/healthz` and every `/api` address now share one budget of 120 requests a
+  minute for each client address, as on the template site. Pairing is still held
+  to 10 a minute on top of it. Before, only agent pairing and check-ins had a
+  limit (check-ins 60 a minute) and the public reads had none.
+- Past a limit the answer is 429 with the code `too_many_requests`, the message
+  `Too Many Requests` and `Retry-After`, the same words the template uses. It
+  was `rate_limited`. Every answer lists the budgets it counted against in the
+  `RateLimit` and `RateLimit-Policy` headers.
+- Requests with a body over a megabyte are refused before the body is read
+  (the largest request the site takes is a few kilobytes). File-upload bodies,
+  which nothing on the site uses, are no longer read.
+- The API description (`/openapi.json` and the YAML contract) is now version
+  3.0.0 and lists the headers and the 429 on every operation; /docs, /llms.txt
+  and /agents.md say the same.

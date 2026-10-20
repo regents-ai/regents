@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Regent API
-  version: 2.0.0
+  version: 3.0.0
 paths:
   /capabilities:
     get: {"operationId":"getCapabilities","summary":"Read the manifest of browser and HTTP agent operations","security":[],"responses":{"200":{"description":"Public operation manifest with authentication and availability metadata","content":{"application/json":{"schema":{"type":"object","required":["audience","proof_headers","tools"],"properties":{"audience":{"type":"string"},"proof_headers":{"type":"array","items":{"type":"string"}},"tools":{"type":"array","items":{"type":"object"}}}}}}}}}
@@ -24,18 +24,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentAccountRead'
           description: Read the paired account
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -44,18 +53,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read the paired account
       x-authentication: siwa_per_request
@@ -92,18 +103,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClaimsPage'
           description: Read the paired owner name claims
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -112,18 +132,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read the paired owner name claims
       x-authentication: siwa_per_request
@@ -147,18 +169,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentCreditsBalance'
           description: Read shared Credits balance
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -167,18 +198,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read shared Credits balance
       x-authentication: siwa_per_request
@@ -202,18 +235,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentCreditsBudget'
           description: Read effective agent spending budget
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -222,18 +264,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read effective agent spending budget
       x-authentication: siwa_per_request
@@ -271,14 +315,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentCreditsHistory'
           description: Read shared Credits history
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '422':
           description: The history cursor or body is not valid (invalid_cursor).
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
           content:
             application/json:
               schema:
@@ -294,6 +347,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -302,18 +358,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read shared Credits history
       x-authentication: siwa_per_request
@@ -337,18 +395,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/StakingPosition'
           description: Read the paired owner staking position
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -357,18 +424,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read the paired owner staking position
       x-authentication: siwa_per_request
@@ -392,42 +461,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentWhoami'
           description: Check agent identity and current pairing
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again.
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '409':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Check agent identity and current pairing
       x-authentication: siwa_per_request
@@ -474,7 +557,7 @@ paths:
         "400": {$ref: "#/components/responses/AgentPairingFailed"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
         "409": {$ref: "#/components/responses/AgentPairConflict"}
-        "429": {$ref: "#/components/responses/AgentRateLimited"}
+        "429": {$ref: "#/components/responses/RateLimited"}
         "503": {$ref: "#/components/responses/AgentVerificationUnavailable"}
         default: {$ref: "#/components/responses/AgentSignInRefused"}
   /api/agents/v1/me:
@@ -508,7 +591,7 @@ paths:
         "403": {$ref: "#/components/responses/AgentPersonNotHere"}
         "404": {$ref: "#/components/responses/AgentNotPaired"}
         "409": {$ref: "#/components/responses/AgentRequestReplayed"}
-        "429": {$ref: "#/components/responses/AgentRateLimited"}
+        "429": {$ref: "#/components/responses/RateLimited"}
         "503": {$ref: "#/components/responses/AgentVerificationUnavailable"}
         default: {$ref: "#/components/responses/AgentSignInRefused"}
   /auth/csrf:
@@ -606,18 +689,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentPointsSummary'
           description: Read shared Points summary
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '401':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '403':
           $ref: '#/components/responses/PairedAgentRefused'
         '409':
@@ -626,18 +718,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
         '429':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-          description: Request budget exceeded
+          $ref: '#/components/responses/RateLimited'
         '503':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
           description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
       security: []
       summary: Read shared Points summary
       x-authentication: siwa_per_request
@@ -646,17 +740,20 @@ components:
   headers:
     RateLimit:
       description: >-
-        What is left of the budget this request counted against, as
-        "policy";r=remaining;t=seconds until the window resets.
+        What is left of that budget, as "policy";r=remaining;t=seconds until
+        the window resets.
       schema: {type: string}
+      example: '"default";r=119;t=42'
     RateLimitPolicy:
       description: >-
         The budget this request counted against, as "policy";q=requests;w=window
-        seconds. Pairing allows 10 requests and check-ins 60 per client address
-        per minute.
+        seconds. Each client address has 120 requests per 60 seconds, shared by
+        the health check and the API; pairing also counts against a budget of
+        10 a minute, listed beside it.
       schema: {type: string}
+      example: '"default";q=120;w=60'
     RetryAfter:
-      description: Seconds to wait before the budget resets.
+      description: Seconds to wait before the window resets.
       schema: {type: integer, minimum: 1}
   parameters:
     SiwaReceipt:
@@ -709,6 +806,9 @@ components:
   responses:
     PairedAgentRefused:
       description: No current pairing for this agent (agent_not_paired), including a pairing revoked or replaced while the read ran, or its person has not signed in on this site yet (person_not_here)
+      headers:
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
       content:
         application/json:
           schema: {$ref: "#/components/schemas/PairedAgentError"}
@@ -855,18 +955,18 @@ components:
       content:
         application/json:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
-    AgentRateLimited:
-      description: Too many requests were received from the client address
+    RateLimited:
+      description: Too many requests from this client address in the current window
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
         Retry-After: {$ref: "#/components/headers/RetryAfter"}
       content:
         application/json:
-          schema: {$ref: "#/components/schemas/AgentPairingError"}
+          schema: {$ref: "#/components/schemas/HTTPError"}
           examples:
-            rateLimited:
-              value: {error: {code: rate_limited, message: "Too many requests.", hint: "Wait the number of seconds in Retry-After, then try again."}}
+            tooManyRequests:
+              value: {error: {code: too_many_requests, message: Too Many Requests, hint: "Wait the number of seconds in Retry-After, then send the request again."}}
   schemas:
     AgentPointsSummary: {"type":"object","properties":{"balance_micro":{"type":"integer","format":"int64","description":"Shared balance in micro-Points."},"earned_today_micro":{"type":"integer","format":"int64"},"pending":{"type":"integer","minimum":0},"allowances":{"type":"array","items":{"type":"object","properties":{"scope":{"type":"string"},"remaining":{"type":"integer","format":"int64","minimum":0}},"required":["scope","remaining"],"additionalProperties":false}},"more?":{"type":"boolean"},"entries":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"id":{"type":"string","format":"uuid"},"rule_id":{"type":"string"},"rule_version":{"type":"integer","format":"int64"},"source_app":{"type":"string"},"actor_kind":{"type":"string"},"actor_id":{"type":"string"},"points_micro_delta":{"type":"integer","format":"int64"},"earned_at":{"type":"string","format":"date-time"},"reason_code":{"type":"string"}},"required":["id","rule_id","rule_version","source_app","actor_kind","actor_id","points_micro_delta","earned_at","reason_code"],"additionalProperties":false}}},"required":["balance_micro","earned_today_micro","pending","allowances","more?","entries"],"additionalProperties":false}
     ClaimsPage: {"type":"object","required":["claims","next"],"properties":{"claims":{"type":"array","items":{"$ref":"#/components/schemas/Claim"}},"next":{"type":["string","null"],"description":"Opaque continuation cursor; null means there are no more records."}}}
@@ -980,9 +1080,9 @@ components:
               description: >-
                 pairing_failed, harness_unknown, agent_limit, not_paired,
                 person_not_here, verification_failed, duplicate_proof, unsupported_query,
-                missing_signed_body, siwa_request_failed or rate_limited, or
-                a code the sign-in service gave, which
-                https://siwa.regents.sh/skill.md explains
+                missing_signed_body or siwa_request_failed, or a code the
+                sign-in service gave, which https://siwa.regents.sh/skill.md
+                explains
             message: {type: string}
             hint: {type: string}
     Session:

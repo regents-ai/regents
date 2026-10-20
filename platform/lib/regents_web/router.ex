@@ -31,11 +31,6 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.LaunchGate
   end
 
-  # Agents sign every request; each answer names the budget it was counted against.
-  pipeline :agents do
-    plug RegentsWeb.Plugs.AgentRateLimit
-  end
-
   pipeline :paired_agent do
     plug RegentsWeb.Plugs.PairedAgent
   end
@@ -170,7 +165,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/agent/v1", RegentsWeb do
-    pipe_through [:api, :agents, :paired_agent]
+    pipe_through [:api, :paired_agent]
     get "/account", AgentReadsController, :account
     post "/claims", OwnedClaimsController, :agent_index
     get "/staking/position", StakingPositionController, :agent_show
@@ -181,7 +176,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/agents/v1" do
-    pipe_through [:api, :agents]
+    pipe_through :api
     forward "/", RegentAgents.HTTP
   end
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -18,6 +18,14 @@
         "responses": {
           "200": {
             "description": "Web service is responding",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "text/plain": {
                 "schema": {
@@ -26,6 +34,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -38,6 +49,14 @@
         "responses": {
           "200": {
             "description": "The product directory",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -48,6 +67,14 @@
           },
           "400": {
             "description": "A query parameter was sent",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -55,6 +82,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -83,6 +113,14 @@
         "responses": {
           "200": {
             "description": "The product",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -93,6 +131,14 @@
           },
           "400": {
             "description": "A query parameter was sent",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -103,6 +149,14 @@
           },
           "404": {
             "description": "No product has this slug",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -110,6 +164,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -122,6 +179,14 @@
         "responses": {
           "200": {
             "description": "Every site's tools and how to connect an agent",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -129,6 +194,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -160,6 +228,14 @@
         "responses": {
           "200": {
             "description": "The site's tools, or for siwa the steps to connect an agent",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -170,6 +246,14 @@
           },
           "404": {
             "description": "There is no site with that name (site_not_found)",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -180,6 +264,14 @@
           },
           "503": {
             "description": "That site's tools could not be read right now (site_unreachable)",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -187,6 +279,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -227,6 +322,14 @@
         "responses": {
           "200": {
             "description": "Authorized historical records; next is null at the end",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -237,6 +340,14 @@
           },
           "400": {
             "description": "Invalid query or cursor",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -247,6 +358,14 @@
           },
           "401": {
             "description": "Missing or invalid credentials",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -257,6 +376,14 @@
           },
           "403": {
             "description": "Account is not authorized for this read",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -267,6 +394,14 @@
           },
           "503": {
             "description": "Claims service unavailable or unconfigured",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -277,6 +412,14 @@
           },
           "default": {
             "description": "Other HTTP error",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -284,6 +427,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -313,6 +459,14 @@
         "responses": {
           "200": {
             "description": "The position",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -323,6 +477,14 @@
           },
           "400": {
             "description": "A query parameter was sent",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -333,6 +495,14 @@
           },
           "401": {
             "description": "Missing or invalid credentials",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -343,6 +513,14 @@
           },
           "409": {
             "description": "The sign-in has no wallet",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -352,12 +530,16 @@
             }
           },
           "429": {
-            "description": "Too many reads from this address; wait the number of seconds in Retry-After",
+            "description": "Too many requests from this client address in the current window (too_many_requests), or too many chain reads from it (rate_limited); wait the number of seconds in Retry-After",
             "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              },
               "Retry-After": {
-                "schema": {
-                  "type": "string"
-                }
+                "$ref": "#/components/headers/RetryAfter"
               }
             },
             "content": {
@@ -370,6 +552,14 @@
           },
           "503": {
             "description": "Base has not answered yet, or sign-in checks are not set up",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -473,7 +663,7 @@
             "$ref": "#/components/responses/AgentPairConflict"
           },
           "429": {
-            "$ref": "#/components/responses/AgentRateLimited"
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "$ref": "#/components/responses/AgentVerificationUnavailable"
@@ -542,7 +732,7 @@
             "$ref": "#/components/responses/AgentNotPaired"
           },
           "429": {
-            "$ref": "#/components/responses/AgentRateLimited"
+            "$ref": "#/components/responses/RateLimited"
           },
           "409": {
             "$ref": "#/components/responses/AgentRequestReplayed"
@@ -590,6 +780,14 @@
         "responses": {
           "200": {
             "description": "Check agent identity and current pairing",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -600,6 +798,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -610,6 +816,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -620,6 +834,14 @@
           },
           "403": {
             "description": "The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again.",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -630,6 +852,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -639,17 +869,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -695,6 +926,14 @@
         "responses": {
           "200": {
             "description": "Read the paired account",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -705,6 +944,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -715,6 +962,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -728,6 +983,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -737,17 +1000,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -793,6 +1057,14 @@
         "responses": {
           "200": {
             "description": "Read the paired owner staking position",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -803,6 +1075,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -813,6 +1093,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -826,6 +1114,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -835,17 +1131,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -894,6 +1191,14 @@
         "responses": {
           "200": {
             "description": "Read the paired owner name claims",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -904,6 +1209,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -914,6 +1227,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -927,6 +1248,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -936,17 +1265,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1010,6 +1340,14 @@
         "responses": {
           "200": {
             "description": "Read shared Credits balance",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1020,6 +1358,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1030,6 +1376,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1043,6 +1397,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1052,17 +1414,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1111,6 +1474,14 @@
         "responses": {
           "200": {
             "description": "Read shared Credits history",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1121,6 +1492,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1131,6 +1510,14 @@
           },
           "422": {
             "description": "The history cursor or body is not valid (invalid_cursor).",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1148,6 +1535,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1161,6 +1556,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1170,17 +1573,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1245,6 +1649,14 @@
         "responses": {
           "200": {
             "description": "Read effective agent spending budget",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1255,6 +1667,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1265,6 +1685,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1278,6 +1706,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1287,17 +1723,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1384,6 +1821,14 @@
         "responses": {
           "200": {
             "description": "Owner Points summary",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1394,6 +1839,14 @@
           },
           "400": {
             "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1404,6 +1857,14 @@
           },
           "401": {
             "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1417,6 +1878,14 @@
           },
           "409": {
             "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1426,17 +1895,18 @@
             }
           },
           "429": {
-            "description": "Request budget exceeded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
+            "$ref": "#/components/responses/RateLimited"
           },
           "503": {
             "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1457,6 +1927,14 @@
         "responses": {
           "200": {
             "description": "Published records only",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1467,6 +1945,14 @@
           },
           "400": {
             "description": "Invalid identifier or query",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1477,6 +1963,14 @@
           },
           "404": {
             "description": "No published record with this identifier",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1487,6 +1981,14 @@
           },
           "503": {
             "description": "Reading temporarily unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1494,6 +1996,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         },
         "parameters": [
@@ -1519,6 +2024,14 @@
         "responses": {
           "200": {
             "description": "Published records only",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1529,6 +2042,14 @@
           },
           "400": {
             "description": "Invalid identifier or query",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1539,6 +2060,14 @@
           },
           "404": {
             "description": "No published record with this identifier",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1549,6 +2078,14 @@
           },
           "503": {
             "description": "Reading temporarily unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1556,6 +2093,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         },
         "parameters": [
@@ -1580,6 +2120,14 @@
         "responses": {
           "200": {
             "description": "Published records only",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1590,6 +2138,14 @@
           },
           "400": {
             "description": "Invalid identifier or query",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1600,6 +2156,14 @@
           },
           "503": {
             "description": "Reading temporarily unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1607,6 +2171,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         },
         "parameters": [
@@ -1632,6 +2199,14 @@
         "responses": {
           "200": {
             "description": "Published records only",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1642,6 +2217,14 @@
           },
           "400": {
             "description": "Invalid identifier or query",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1652,6 +2235,14 @@
           },
           "503": {
             "description": "Reading temporarily unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1659,6 +2250,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -1672,6 +2266,14 @@
         "responses": {
           "200": {
             "description": "Published records only",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1682,6 +2284,14 @@
           },
           "400": {
             "description": "Invalid identifier or query",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1692,6 +2302,14 @@
           },
           "503": {
             "description": "Reading temporarily unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1699,6 +2317,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         },
         "parameters": [
@@ -1738,6 +2359,14 @@
         "responses": {
           "200": {
             "description": "The field-limited public Regent profile.",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1748,6 +2377,14 @@
           },
           "400": {
             "description": "Invalid slug or query parameters.",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1758,6 +2395,14 @@
           },
           "404": {
             "description": "No public Regent profile at this slug.",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1768,6 +2413,14 @@
           },
           "503": {
             "description": "The profile could not be read right now.",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1775,6 +2428,9 @@
                 }
               }
             }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -2163,7 +2819,7 @@
             "properties": {
               "code": {
                 "type": "string",
-                "description": "pairing_failed, harness_unknown, agent_limit, not_paired, person_not_here, verification_failed, duplicate_proof, unsupported_query, missing_signed_body, siwa_request_failed or rate_limited, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
+                "description": "pairing_failed, harness_unknown, agent_limit, not_paired, person_not_here, verification_failed, duplicate_proof, unsupported_query, missing_signed_body or siwa_request_failed, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
               },
               "message": {
                 "type": "string"
@@ -2595,7 +3251,8 @@
                   "authentication_required",
                   "staking_unconfigured",
                   "staking_unavailable",
-                  "rate_limited"
+                  "rate_limited",
+                  "too_many_requests"
                 ]
               },
               "message": {
@@ -3957,19 +4614,21 @@
     },
     "headers": {
       "RateLimit": {
-        "description": "What is left of the budget this request counted against, as \"policy\";r=remaining;t=seconds until the window resets.",
+        "description": "What is left of that budget, as \"policy\";r=remaining;t=seconds until the window resets.",
         "schema": {
           "type": "string"
-        }
+        },
+        "example": "\"default\";r=119;t=42"
       },
       "RateLimitPolicy": {
-        "description": "The budget this request counted against, as \"policy\";q=requests;w=window seconds. Pairing allows 10 requests and check-ins 60 per client address per minute.",
+        "description": "The budget this request counted against, as \"policy\";q=requests;w=window seconds. Each client address has 120 requests per 60 seconds, shared by the health check and the API; pairing also counts against a budget of 10 a minute, listed beside it.",
         "schema": {
           "type": "string"
-        }
+        },
+        "example": "\"default\";q=120;w=60"
       },
       "RetryAfter": {
-        "description": "Seconds to wait before the budget resets.",
+        "description": "Seconds to wait before the window resets.",
         "schema": {
           "type": "integer",
           "minimum": 1
@@ -4111,8 +4770,8 @@
           }
         }
       },
-      "AgentRateLimited": {
-        "description": "Too many requests were received from the client address",
+      "RateLimited": {
+        "description": "Too many requests from this client address in the current window",
         "headers": {
           "RateLimit": {
             "$ref": "#/components/headers/RateLimit"
@@ -4127,15 +4786,15 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/AgentPairingError"
+              "$ref": "#/components/schemas/HTTPError"
             },
             "examples": {
-              "rateLimited": {
+              "tooManyRequests": {
                 "value": {
                   "error": {
-                    "code": "rate_limited",
-                    "message": "Too many requests.",
-                    "hint": "Wait the number of seconds in Retry-After, then try again."
+                    "code": "too_many_requests",
+                    "message": "Too Many Requests",
+                    "hint": "Wait the number of seconds in Retry-After, then send the request again."
                   }
                 }
               }
@@ -4259,6 +4918,14 @@
       },
       "PairedAgentRefused": {
         "description": "No current pairing for this agent (agent_not_paired), including a pairing revoked or replaced while the read ran, or its person has not signed in on this site yet (person_not_here)",
+        "headers": {
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimitPolicy"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {

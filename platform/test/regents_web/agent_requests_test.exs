@@ -105,8 +105,12 @@ defmodule RegentsWeb.AgentRequestsTest do
 
     first = pair(conn, "code")
     assert response(first, 401)
-    assert get_resp_header(first, "ratelimit-policy") == [~s("pair";q=10;w=60)]
-    assert [~s("pair";r=9;t=) <> _reset] = get_resp_header(first, "ratelimit")
+
+    assert get_resp_header(first, "ratelimit-policy") ==
+             [~s("default";q=120;w=60, "pair";q=10;w=60)]
+
+    assert [~s("default";r=119;t=) <> rest] = get_resp_header(first, "ratelimit")
+    assert rest =~ ~s(, "pair";r=9;t=)
 
     for _attempt <- 2..10 do
       assert conn |> recycle() |> pair("code") |> response(401)
@@ -116,20 +120,45 @@ defmodule RegentsWeb.AgentRequestsTest do
 
     assert json_response(limited, 429) == %{
              "error" => %{
-               "code" => "rate_limited",
-               "message" => "Too many requests.",
-               "hint" => "Wait the number of seconds in Retry-After, then try again."
+               "code" => "too_many_requests",
+               "message" => "Too Many Requests",
+               "hint" => "Wait the number of seconds in Retry-After, then send the request again."
              }
            }
 
-    assert [~s("pair";r=0;t=) <> _reset] = get_resp_header(limited, "ratelimit")
     assert [retry_after] = get_resp_header(limited, "retry-after")
     assert String.to_integer(retry_after) in 1..60
 
-    # Check-ins count against their own budget.
+    # Everything else counts against the default budget only.
     check_in = conn |> recycle() |> get("/api/agents/v1/me")
     assert response(check_in, 401)
-    assert get_resp_header(check_in, "ratelimit-policy") == [~s("check-in";q=60;w=60)]
+    assert get_resp_header(check_in, "ratelimit-policy") == [~s("default";q=120;w=60)]
+    assert [~s("default";r=108;t=) <> _reset] = get_resp_header(check_in, "ratelimit")
+  end
+
+  test "the health check and the public API share one budget per address", %{conn: conn} do
+    assert conn |> get("/healthz") |> get_resp_header("ratelimit-policy") ==
+             [~s("default";q=120;w=60)]
+
+    products = conn |> recycle() |> get("/api/v1/products")
+    assert [~s("default";r=118;t=) <> _reset] = get_resp_header(products, "ratelimit")
+
+    # A page is not counted.
+    assert conn |> recycle() |> get("/docs") |> get_resp_header("ratelimit") == []
+  end
+
+  test "a body over a megabyte is refused before it is read", %{conn: conn} do
+    body =
+      Jason.encode!(%{code: String.duplicate("a", 1_000_000), name: "Sol", harness: "hermes"})
+
+    {413, _headers, refusal} =
+      assert_error_sent(413, fn ->
+        conn
+        |> put_req_header("content-type", "application/json")
+        |> post("/api/agents/v1/pair", body)
+      end)
+
+    assert %{"error" => %{"code" => _code}} = Jason.decode!(refusal)
   end
 
   defp pair(conn, code) do

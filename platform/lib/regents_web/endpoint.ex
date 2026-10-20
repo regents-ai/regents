@@ -47,20 +47,57 @@ defmodule RegentsWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # One budget per client address, shared by the health check and every /api path,
+  # answered or not; pairing counts against its own budget too. Every answer says
+  # what is left of each; past one, 429 with Retry-After.
+  plug :limit_rate
+
   # Before the parsers, so a body they reject on an /api path is answered in
   # JSON like every other API error.
   plug RegentAgentAccess.Plug,
     documents: &RegentsWeb.PublicDocuments.document/1,
     guide: "/llms.txt"
 
+  # The largest body the site takes is a sign-in request of a few kilobytes;
+  # anything past a megabyte is refused before it is read.
   plug RegentsWeb.Plugs.Parsers,
     body_reader: {RegentsWeb.Plugs.AgentBodyReader, :read_body, []},
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, :json],
     pass: ["*/*"],
+    length: 1_000_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride
   plug Plug.Head
   plug RegentsWeb.Plugs.RuntimeSession
   plug RegentsWeb.Router
+
+  defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),
+    do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
+
+  defp limit_rate(
+         %Plug.Conn{method: "POST", path_info: ["api", "agents", "v1", "pair"]} = conn,
+         _opts
+       ) do
+    conn = RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
+    if conn.halted, do: conn, else: RegentAgentAccess.RateLimit.call(conn, rate_limit("pair", 10))
+  end
+
+  defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
+    do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
+
+  defp limit_rate(conn, _opts), do: conn
+
+  # Built per request, so the endpoint does not compile against the limiter and
+  # the client address modules. Pairing also has its own small budget, since each
+  # try spends a guess at a code.
+  defp rate_limit(policy, limit) do
+    RegentAgentAccess.RateLimit.init(
+      policy: policy,
+      limit: limit,
+      window: 60,
+      admit: &Regents.RateLimiter.admit/3,
+      key: &RegentsWeb.ClientAddress.key/1
+    )
+  end
 end

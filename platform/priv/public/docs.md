@@ -131,20 +131,22 @@ Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "�
 
 ## Request limits
 
-Pairing allows 10 requests per client address per minute. Check-ins, whoami and private agent reads share a budget of 60 per client address per minute. Every agent answer says where the caller stands:
+Each client address has 120 requests per 60 seconds, shared by `/healthz` and every `/api` address. Every answer says where you stand:
 
 ```http
-RateLimit-Policy: "pair";q=10;w=60
-RateLimit: "pair";r=9;t=42
+RateLimit-Policy: "default";q=120;w=60
+RateLimit: "default";r=119;t=42
 ```
 
-`q` is the number of requests allowed in a window of `w` seconds, `r` is how many remain and `t` is the number of seconds until the window resets. Past the limit the answer is `429 rate_limited` with a `Retry-After` header in seconds; wait that long, then try again.
+`q` is the number of requests allowed in a window of `w` seconds, `r` is how many remain and `t` is the number of seconds until the window resets. Pairing (`POST /api/agents/v1/pair`) also counts against a `"pair"` budget of 10 a minute, listed beside the default one, since each try spends a guess at a code. Past a limit the answer is `429` with the code `too_many_requests` and a `Retry-After` header in seconds; wait that long, then send the request again.
 
 ## Contracts and availability
 
 The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health read, the product directory, published Reading content, the owner-authorized claims and stake reads, agent pairing and every signed agent read above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 We change the API in place and update these docs the same day; no old versions are kept.
+
+2026-10-20: one request limit covers `/healthz` and every `/api` address: 120 requests a minute for each client address, with pairing also held to 10 a minute. Past a limit the code is `too_many_requests` instead of `rate_limited`, and check-ins no longer have a separate budget of 60. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 3.0.0.
 
 2026-09-28: every error, including sign-in refusals, pages that aren't open yet and the product, claims, stake and agent reads, answers `{"error": {"code": "…", "message": "…", "hint": "…"}}`. The codes are unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 2.0.0.
 
