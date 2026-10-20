@@ -2465,3 +2465,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   four safety headers; /, /start and /account answer 200 at 390 and 1280 in
   headless Chromium with no page errors and no sideways scroll; the log tail
   shows only the old machine's handover message.
+
+## 2026-10-20 — Stake, Redeem and Paper Pro Daily share pictures match the home picture
+
+- The pictures shown when /stake, /redeem and /paper-pro-daily are shared now
+  use the home picture's dark look: the dark panel with its corner marks, the
+  crown alone in the top left and a cream pixel headline.
+- Each keeps its own words and picture: the Stake steps, the Animata artwork
+  and the three paper first pages.
+- The page's address sits beside the crown, inside the part of the picture X
+  keeps on a narrow screen and away from the corner where X writes the site's
+  name.
+- Pictures only: no page, Stake or Redeem change, no migrations.
