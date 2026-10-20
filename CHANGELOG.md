@@ -2597,3 +2597,17 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   keeps on a narrow screen and away from the corner where X writes the site's
   name.
 - Pictures only: no page, Stake or Redeem change, no migrations.
+
+## 2026-10-20 — Regents v213 released
+
+- v213 (`54f76759`) went live as Fly v213 at about 13:48Z on 20 Oct. It carries
+  the dark share pictures for /stake, /redeem and /paper-pro-daily, released for
+  the Design and Animation chief on Sean's 1. a (13:34Z). The rollback is v212
+  (`3d29a488`). No migrations.
+- Before release, the full check succeeded on this commit: 558 server tests,
+  232 script tests, 105 browser tests, the Docker packaging test and the
+  command-line check.
+- Live checks: one machine runs the image labelled `main-54f767598935`; Fly's
+  health check is passing; /stake, /redeem and /paper-pro-daily name
+  `stake-d63b80c2…`, `redeem-fdec377e…` and `paper-pro-daily-3a7579fa…`, and
+  each answers 200 `image/png` at the new picture's size.
