@@ -2785,3 +2785,20 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   deployment now also stops while a shared Identity or Payments change is
   missing. The staging bootstrap applies every shared change before Regents' own
   migrations, as production does.
+
+## 2026-10-22 — Release commands and local databases set up like the template
+
+- `mix regents.setup_local_auth`, which `mix test` runs, now prepares a local
+  database exactly as `bin/bootstrap-staging` prepares staging, through one
+  shared step: the tables Regents reads but does not own, every shared change
+  this release carries, then Regents' own migrations. Before, local setup ran
+  Agents, then Regents' migrations, then Credits and Points, and skipped
+  Identity and Payments.
+- The release commands now have ash-template's shape: `bootstrap_staging`,
+  `pending_migrations` and `migrate_shared` take the test options directly
+  instead of through separate test-only versions, and a shared library whose
+  ledger does not exist yet counts as wholly unapplied. Regents' own copy of
+  Identity is unchanged.
+- New release tests cover the listing of a missing shared change, the
+  deployment check that refuses it, and `migrate-shared` applying every shared
+  change once.

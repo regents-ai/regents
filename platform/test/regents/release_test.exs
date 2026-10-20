@@ -5,6 +5,7 @@ defmodule Regents.ReleaseTest do
 
   import ExUnit.CaptureIO
 
+  alias Regents.LocalDatabaseFixture
   alias Regents.Release
 
   @moduletag timeout: 300_000
@@ -104,13 +105,11 @@ defmodule Regents.ReleaseTest do
       refute script =~ "echo"
       refute script =~ "DATABASE_POOLED_URL"
       refute script =~ "DATABASE_DIRECT_URL"
-      refute script =~ "_for_test"
       assert File.stat!(path).mode |> Bitwise.band(0o100) != 0
 
-      # Every deployed command takes no arguments, so nothing a deployment can
+      # Every deployed command passes no options, so nothing a deployment can
       # write on the command line chooses which database the release touches.
       assert {command, 0} in exports
-      refute {command, 1} in exports
     end
   end
 
@@ -122,7 +121,7 @@ defmodule Regents.ReleaseTest do
       end
 
       assert_raise RuntimeError, @role_error, fn ->
-        Release.bootstrap_staging_for_test(getenv: getenv, config: @unreachable)
+        Release.bootstrap_staging(getenv: getenv, config: @unreachable)
       end
     end
   end
@@ -130,17 +129,16 @@ defmodule Regents.ReleaseTest do
   test "bootstrap refuses a database that already carries migration state" do
     config = disposable_database()
 
-    assert {:ok, _result, _started} =
-             Release.bootstrap_staging_for_test(
-               getenv: staging_getenv(),
-               config: config,
-               migrations_path: migrations_directory([])
-             )
+    Release.bootstrap_staging(
+      getenv: staging_getenv(),
+      config: config,
+      migrations_path: migrations_directory([])
+    )
 
     assert_raise RuntimeError,
                  "regents_app.schema_migrations already exists: destroy and recreate the staging database",
                  fn ->
-                   Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
+                   Release.bootstrap_staging(getenv: staging_getenv(), config: config)
                  end
   end
 
@@ -151,7 +149,7 @@ defmodule Regents.ReleaseTest do
     assert_raise RuntimeError,
                  "regent_names schema already exists: destroy and recreate the staging database",
                  fn ->
-                   Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
+                   Release.bootstrap_staging(getenv: staging_getenv(), config: config)
                  end
 
     refute migration_table?(config)
@@ -160,8 +158,7 @@ defmodule Regents.ReleaseTest do
   test "bootstrap prepares an empty staging database and runs every migration to completion" do
     config = disposable_database()
 
-    assert {:ok, _result, _started} =
-             Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
+    Release.bootstrap_staging(getenv: staging_getenv(), config: config)
 
     assert column_names(config, "regent_names", "platform_human_users") == [
              "avatar",
@@ -245,8 +242,7 @@ defmodule Regents.ReleaseTest do
     query!(config, "CREATE TABLE regent_allowance.openai_calls (id uuid PRIMARY KEY)")
     query!(config, "CREATE TABLE regent_allowance.schema_migrations (version bigint PRIMARY KEY)")
 
-    assert {:ok, _result, _started} =
-             Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
+    Release.bootstrap_staging(getenv: staging_getenv(), config: config)
 
     assert query!(
              config,
@@ -257,23 +253,22 @@ defmodule Regents.ReleaseTest do
   test "the listing prints none on a database the release agrees with" do
     config = bootstrapped_database()
 
-    assert capture_io(fn -> Release.pending_migrations_for_test(config: config) end) == "none\n"
+    assert capture_io(fn -> Release.pending_migrations(config: config) end) == "none\n"
   end
 
   test "the listing names every version the release carries that the database has not applied" do
     config = disposable_database()
     held_back = release_migration_files() |> Enum.take(-2)
 
-    assert {:ok, _result, _started} =
-             Release.bootstrap_staging_for_test(
-               getenv: staging_getenv(),
-               config: config,
-               migrations_path: migrations_directory(release_migration_files() -- held_back)
-             )
+    Release.bootstrap_staging(
+      getenv: staging_getenv(),
+      config: config,
+      migrations_path: migrations_directory(release_migration_files() -- held_back)
+    )
 
     expected = Enum.map_join(held_back, " ", &version_of/1)
 
-    assert capture_io(fn -> Release.pending_migrations_for_test(config: config) end) ==
+    assert capture_io(fn -> Release.pending_migrations(config: config) end) ==
              "pending: #{expected}\n"
   end
 
@@ -286,7 +281,7 @@ defmodule Regents.ReleaseTest do
       [20_990_101_000_000]
     )
 
-    assert capture_io(fn -> Release.pending_migrations_for_test(config: config) end) ==
+    assert capture_io(fn -> Release.pending_migrations(config: config) end) ==
              "applied-without-file: 20990101000000\n"
   end
 
@@ -294,10 +289,43 @@ defmodule Regents.ReleaseTest do
     config = disposable_database()
 
     assert_raise RuntimeError, @missing_table_error, fn ->
-      Release.pending_migrations_for_test(config: config)
+      Release.pending_migrations(config: config)
     end
 
     refute migration_table?(config)
+  end
+
+  # A shared change missing from its own ledger is what a release carrying a
+  # newer shared library meets: the listing names it, and the deployment check
+  # refuses and applies nothing.
+  test "a missing shared change is listed and stops the deployment check" do
+    config = bootstrapped_database()
+    [{schema, version} | _] = applied_shared(config)
+    query!(config, "DELETE FROM #{schema}.schema_migrations WHERE version = $1", [version])
+
+    assert capture_io(fn -> Release.pending_migrations(config: config) end) ==
+             "shared-pending: #{schema} #{version}\n"
+
+    assert_raise RuntimeError,
+                 "These separately approved shared migrations must be applied before deployment: #{schema} #{version}",
+                 fn ->
+                   with_config(config, fn ->
+                     with_repo(&Release.require_signed_access_schema!/1)
+                   end)
+                 end
+  end
+
+  test "migrate-shared applies every shared change this site carries, once" do
+    config = disposable_database()
+
+    with_config(config, fn ->
+      with_repo(fn _repo -> LocalDatabaseFixture.create_shared_tables!() end)
+    end)
+
+    assert capture_io(fn -> Release.migrate_shared(config: config) end) ==
+             "applied: #{Enum.join(shipped_shared(), ", ")}\n"
+
+    assert capture_io(fn -> Release.migrate_shared(config: config) end) == "none\n"
   end
 
   # The listing is meant to be safe to run while a migration is in flight, which
@@ -310,7 +338,7 @@ defmodule Regents.ReleaseTest do
     config = with_lock_timeout(bootstrapped_database())
     hold_migration_lock(config)
 
-    assert capture_io(fn -> Release.pending_migrations_for_test(config: config) end) == "none\n"
+    assert capture_io(fn -> Release.pending_migrations(config: config) end) == "none\n"
 
     # Ecto's migrator matches on a successful lock statement, so the cancelled
     # wait reaches the caller as a MatchError carrying PostgreSQL's own reason.
@@ -356,8 +384,7 @@ defmodule Regents.ReleaseTest do
   defp bootstrapped_database do
     config = disposable_database()
 
-    assert {:ok, _result, _started} =
-             Release.bootstrap_staging_for_test(getenv: staging_getenv(), config: config)
+    Release.bootstrap_staging(getenv: staging_getenv(), config: config)
 
     config
   end
@@ -499,15 +526,43 @@ defmodule Regents.ReleaseTest do
     end)
   end
 
-  defp query!(config, sql, params \\ []) do
-    with_config(config, fn ->
-      {:ok, result, _started} =
-        Ecto.Migrator.with_repo(Regents.Repo, fn repo ->
-          Ecto.Adapters.SQL.query!(repo, sql, params)
-        end)
+  # Every shared ledger's newest applied change, one per shared schema.
+  defp applied_shared(config) do
+    for schema <- ~w(regent_identity regent_agents regent_credits regent_points regent_payments),
+        query!(config, "SELECT to_regclass($1) IS NOT NULL", ["#{schema}.schema_migrations"]).rows ==
+          [[true]],
+        %{rows: [[version]]} =
+          query!(config, "SELECT max(version) FROM #{schema}.schema_migrations"),
+        do: {schema, version}
+  end
 
-      result
-    end)
+  # Every change the shared libraries this site carries ship, as the release
+  # names them, in the order they apply.
+  defp shipped_shared do
+    for app <- [
+          :regent_identity,
+          :regent_agents,
+          :regent_credits,
+          :regent_points,
+          :regent_payments
+        ],
+        file <-
+          app
+          |> Application.app_dir("priv/repo/migrations")
+          |> Path.join("*.exs")
+          |> Path.wildcard()
+          |> Enum.sort(),
+        do: "#{app} #{file |> Path.basename() |> version_of()}"
+  end
+
+  defp query!(config, sql, params \\ []) do
+    with_config(config, fn -> with_repo(&Ecto.Adapters.SQL.query!(&1, sql, params)) end)
+  end
+
+  # Starts only the repository, on the configuration in place, while `fun` runs.
+  defp with_repo(fun) do
+    {:ok, result, _started} = Ecto.Migrator.with_repo(Regents.Repo, fun)
+    result
   end
 
   defp with_config(config, fun) do

@@ -1,13 +1,13 @@
 defmodule Regents.LocalDatabaseFixture do
   @moduledoc false
 
+  # A local database is prepared exactly as staging's first deployment is
+  # (`Regents.Release.prepare_database!/2`): the same tables, the same shared
+  # changes, in production's order. `mix test` and `mix regents.setup_local_auth`
+  # run this. In production `bin/migrate-shared` applies the shared changes.
   def ensure_human_accounts! do
     validate_target!(current_env(), Regents.Repo.config())
-    create_shared_tables!()
-    RegentAgents.Migrator.up(Regents.Repo)
-    Regents.Repo.migrate!(Application.app_dir(:regents, "priv/repo/migrations"))
-    RegentCredits.Migrator.up(Regents.Repo)
-    RegentPoints.Migrator.up(Regents.Repo)
+    Regents.Release.prepare_database!(Regents.Repo)
   end
 
   def validate_target!(env, repo) when is_list(repo) do
