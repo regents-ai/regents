@@ -2494,3 +2494,18 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - The API description (`/openapi.json` and the YAML contract) is now version
   3.0.0 and lists the headers and the 429 on every operation; /docs, /llms.txt
   and /agents.md say the same.
+
+## 2026-10-20 — Regents v210 released
+
+- v210 (`70796965`) went live as Fly v210 at about 03:57Z on 20 Oct, on the
+  standing permission for ordinary releases. It carries the one request limit
+  for the API and the size limit on requests, and the three steadier checks
+  (`b5910f90`). The rollback is v209 (`4e10f083`). No migrations.
+- Before release, the full check succeeded on this commit: 557 server tests,
+  232 script tests and 105 browser tests.
+- Live checks: the machine runs the image labelled `main-707969659c15`; one
+  machine runs; /healthz and /api/v1/products answer 200 with
+  `RateLimit-Policy: "default";q=120;w=60`; /openapi.json is version 3.0.0;
+  /docs and /llms.txt state the new limits; /, /stake and /account answer 200
+  at 390 and 1280 in headless Chromium with no page errors and no sideways
+  scroll; the log tail shows ordinary requests only.
