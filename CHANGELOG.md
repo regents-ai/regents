@@ -2520,3 +2520,17 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   answers 503 `unavailable` when it does not; it said only that the web service
   was responding. `/openapi.json` is version 3.1.0; /docs and /llms.txt list the
   new address.
+
+## 2026-10-20 — Regents v211 released
+
+- v211 (`495d9da7`) went live as Fly v211 at about 04:13Z on 20 Oct, on the
+  standing permission for ordinary releases. It carries the health check in
+  JSON at `/api/v1/health`. The rollback is v210 (`70796965`). No migrations.
+- Before release, the full check succeeded on this commit: 558 server tests,
+  232 script tests, 105 browser tests and the Docker packaging test.
+- Live checks: the machine runs the image labelled `main-495d9da70494`; one
+  machine runs; `/api/v1/health` answers 200 `{"status":"ok"}` with
+  `Cache-Control: no-store` and the request-limit headers; /healthz answers ok;
+  /openapi.json is version 3.1.0 and lists the new address; /, /stake and
+  /account answer 200 at 390 and 1280 in headless Chromium with no page errors
+  and no sideways scroll; the log tail shows only the old machine's handover.
