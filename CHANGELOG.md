@@ -2563,3 +2563,25 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   instead, and Fly's check in `fly.toml` and `fly.staging.toml` sends
   `Host: localhost`. Public visits to `/healthz` now carry the notice.
 - Sean's 3. a, 20 Oct 13:23Z. Not yet released. No database migrations.
+
+## 2026-10-20 — Regents v212 released
+
+- v212 (`3d29a488`) went live as Fly v212 at about 13:37Z on 20 Oct, on Sean's
+  1. a, 2. a and 3. a (13:23Z). It carries the Stake page phone fix
+  (`96813c28`), the template's picture sources on sign-in pages (`1ba27398`)
+  and the HTTPS notice on `/healthz` (`3d29a488`). The rollback is v211
+  (`495d9da7`). No migrations.
+- Before release, the full check succeeded on this commit: 558 server tests,
+  232 script tests, 105 browser tests, the Docker packaging test and the
+  command-line check.
+- Live checks: one machine runs the image labelled `main-3d29a488839f`; Fly's
+  health check, which now sends `Host: localhost`, is passing; `/healthz` and
+  `/` over HTTPS carry `Strict-Transport-Security: max-age=31536000`; plain
+  HTTP to `/healthz` is redirected to HTTPS; sign-in pages list `img-src 'self'
+  data: https://metadata.ens.domains blob: https://explorer-api.walletconnect.com
+  https://media.regents.sh` and reading pages `img-src 'self' data:
+  https://metadata.ens.domains`; /, /stake, /redeem/gallery, /account and
+  /docs answer 200 at 320, 390 and 1280 in headless Chromium with no page
+  errors, no blocked pictures and no sideways scroll; the Club Pass artwork
+  draws on /redeem/gallery; Connect wallet on /stake keeps desktop height at
+  320 and 360.
