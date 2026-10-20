@@ -2534,3 +2534,13 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   /openapi.json is version 3.1.0 and lists the new address; /, /stake and
   /account answer 200 at 390 and 1280 in headless Chromium with no page errors
   and no sideways scroll; the log tail shows only the old machine's handover.
+
+## 2026-10-20 — Stake page buttons keep one line on a phone
+
+- On phones up to 360 wide, the Unstake tab of the Stake box broke across three
+  lines ("UNST / AKE") and stood taller than Stake, and at 320 wide the
+  Connect wallet button broke over two lines. On phones these labels now keep
+  one line with slightly tighter spacing, so the switch is one even row and the
+  button keeps its height from 320 wide up. Wider screens are unchanged.
+- Not yet released. No database migrations. Nothing about how staking works
+  changes.

@@ -1192,6 +1192,15 @@
     letter-spacing: 0.06em;
     white-space: nowrap;
   }
+
+  /* Stake and Unstake each keep one line, so the switch stays one row tall;
+     so does Connect wallet. */
+  .stake-mode button,
+  .stake-connect-flow .stake-primary {
+    padding-inline: 0.5rem;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
 }
 
 /* "Unstake REGENT" keeps one line, so the panel is the same height in both modes. */
