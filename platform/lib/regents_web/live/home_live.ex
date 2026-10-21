@@ -107,7 +107,6 @@ defmodule RegentsWeb.HomeLive do
             class="rg-button rl-product-tab"
             phx-hook="HolographicCard"
             data-holo-crown="false"
-            data-holo-tilt="0"
             data-holo-shine="0.65"
           >
             <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />

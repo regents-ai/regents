@@ -2642,3 +2642,28 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   roots; castore 1.0.22; the image has no Node, Python, curl or OpenSSL program
   and no /etc/ssl/certs, so nothing else in it keeps its own certificate list.
   One machine runs `main-acad29221bdd` with its health check passing.
+
+## 2026-10-21 — Info tips open on hover; vgpu's agent tools server uses the fixed MCP library
+
+- What: the shared UI library moves to design-system `5b4f47ec` (from
+  `f9b0e255`), the pin ash-template has, and `platform/assets/js/app.ts` loads
+  its `tip.mjs`, so every "i" tip opens while a mouse rests on it and closes a
+  moment after it leaves; a click keeps it open, and touch and keyboard still
+  use a press. The new pin also brings the library's charcoal window backdrop,
+  account card and address changes, and its cards no longer tilt: only the
+  light on the foil follows the pointer. `assets/js/hooks/holographic_card.ts`
+  is now the template's, and the overview's product cards and the home page's
+  product tabs drop their tilt settings. The library's buttons are about 40px
+  tall under a mouse and 44px under a finger, so the Stake browser test no
+  longer asks for 44px at desktop width; its touch-phone test keeps that check. `platform/package.json` overrides
+  `@modelcontextprotocol/server` and `@modelcontextprotocol/core` to 2.3.1 with
+  zod 4.6.7, and zod 4.6.7 under vgpu 0.6.0, as ash-template `1d2c2ffe` does.
+  Only `npx vgpu mcp`, the docs and examples server the vgpu-island skill
+  points agents to, uses that library; the site's pages do not.
+- Checked: `npm ls` shows server and core at 2.3.1 under vgpu; `npm audit`
+  finds nothing; `vgpu mcp` starts over stdio and lists its docs and examples
+  tools. The full check.
+- Why: Sean's 1. a (20 Oct 23:23Z) and go (21 Oct 00:58Z) for hover tips on
+  every site. MCP server 2.0.0 carries GHSA-rvq5-wwqv-78pq, GHSA-46jr-4wx8-v453
+  and GHSA-jm63-cq47-j5jp, fixed in 2.3.0; its licence moved from MIT to
+  Apache-2.0.

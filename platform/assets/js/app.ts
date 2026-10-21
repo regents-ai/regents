@@ -2,6 +2,7 @@ import "../css/app.css"
 import "../vendor/regent_ui/blog.mjs"
 // An open pill menu closes on Escape or a tap outside it, iPhones included.
 import "../vendor/regent_ui/pill_select.mjs"
+import "../vendor/regent_ui/tip.mjs"
 
 // Asks before any element carrying data-confirm acts, such as unpairing an agent.
 import "phoenix_html"

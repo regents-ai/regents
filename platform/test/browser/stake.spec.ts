@@ -389,10 +389,8 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
         ".stake-benefit-card:not(.stake-benefit-card-primary) dd",
       )!
       const supply = document.querySelector<HTMLElement>(".stake-supply-facts dd")!
-      const connect = document.querySelector<HTMLElement>(".stake-connect-flow .stake-primary")!
       const contractLink = document.querySelector<HTMLElement>(".stake-contract-link")!
       return {
-        connectHeight: connect.getBoundingClientRect().height,
         contractLinkHeight: contractLink.getBoundingClientRect().height,
         supplyFont: Number.parseFloat(getComputedStyle(supply).fontSize),
         stakedFont: Number.parseFloat(getComputedStyle(staked).fontSize),
@@ -402,7 +400,6 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     // The staked figure leads in the hero card and is repeated at reading size
     // in the supply block, so the hero has to be the larger of the two.
     expect(presentation.stakedFont).toBeGreaterThan(presentation.supplyFont)
-    expect(presentation.connectHeight).toBeGreaterThanOrEqual(44)
     expect(presentation.contractLinkHeight).toBeGreaterThanOrEqual(44)
   }
 })
