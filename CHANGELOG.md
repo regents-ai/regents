@@ -2627,3 +2627,18 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - Why: eMudhra's intermediate certificates were compromised (20 Oct 2026).
   castore dropped their roots the same day; Debian bookworm's list still has
   them. Released on Sean's 40a (21 Oct 08:12Z) for this one release.
+
+## 2026-10-21 — Regents v214 released
+
+- v214 (`acad2922`) went live as Fly v214 at about 09:12Z on 21 Oct. It carries
+  castore's certificate list for every outbound connection, released on Sean's
+  40a (08:12Z). The rollback is v213 (`54f76759`). No migrations.
+- Before release, the full check succeeded on this commit: 559 server tests,
+  232 script tests, 105 browser tests, the required-fixes check against
+  ash-template main `45aebaa3`, the command-line check and the identity check.
+- Live checks, from the machine itself: the eMudhra test site
+  dv-g3b-emudhra.we-have-a-problem.com is refused as an unknown issuer, while
+  Privy, Base, OpenRouter, GitHub and siwa.regents.sh connect; 118 trusted
+  roots; castore 1.0.22; the image has no Node, Python, curl or OpenSSL program
+  and no /etc/ssl/certs, so nothing else in it keeps its own certificate list.
+  One machine runs `main-acad29221bdd` with its health check passing.
