@@ -14,14 +14,12 @@ defmodule RegentsWeb.ShellLive.Staking do
   import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
 
   alias RegentChain.Address
-  alias Regents.Actors.Human
   alias Regents.Staking
   alias Regents.Staking.Facts, as: StakingFacts
   alias Regents.Staking.SnapshotCache
   alias RegentsWeb.ChainReadBudget
   alias RegentsWeb.ShellLive.Identity
 
-  @routes [:stake, :app]
   # After a step is sent, the wallet's figures are read again this often, this
   # many times: a minute of following Base while the step lands.
   @follow_every :timer.seconds(5)
@@ -61,22 +59,6 @@ defmodule RegentsWeb.ShellLive.Staking do
     if connected?(socket),
       do: socket |> follow_snapshots() |> paint_shared_snapshot() |> start_staking_read(),
       else: paint_shared_snapshot(socket, :loading)
-  end
-
-  # An anonymous visitor to either page buys no chain read at all: the shared
-  # contract reading is already on the server and is painted as it is. Only a
-  # signed-in account has a wallet to look up here, and that lookup takes its
-  # own fresh block.
-  defp enter(socket, %{route_id: :app}) do
-    if connected?(socket) do
-      socket
-      |> follow_snapshots()
-      |> clear_staking_wallet()
-      |> paint_shared_snapshot()
-      |> read_account_wallet()
-    else
-      paint_shared_snapshot(socket, :loading)
-    end
   end
 
   defp enter(socket, _route_spec) do
@@ -166,8 +148,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   connected wallet, still labelled with the block that wallet was read at, and
   a wallet already answered for is never re-read on its own.
   """
-  def snapshot(%{assigns: %{route_spec: %{route_id: route_id}}} = socket, protocol)
-      when route_id in @routes do
+  def snapshot(%{assigns: %{route_spec: %{route_id: :stake}}} = socket, protocol) do
     socket
     |> assign(
       staking: StakingFacts.adopt_protocol(socket.assigns.staking, protocol),
@@ -184,9 +165,8 @@ defmodule RegentsWeb.ShellLive.Staking do
   already showing stays on screen.
   """
   def snapshot_unavailable(
-        %{assigns: %{route_spec: %{route_id: route_id}, staking_shared_reading: true}} = socket
-      )
-      when route_id in @routes,
+        %{assigns: %{route_spec: %{route_id: :stake}, staking_shared_reading: true}} = socket
+      ),
       do: socket |> assign(staking_shared_reading: false) |> shared_read_failed()
 
   def snapshot_unavailable(socket), do: socket
@@ -246,16 +226,14 @@ defmodule RegentsWeb.ShellLive.Staking do
 
   def handle_event(
         "refresh_shared_snapshot",
-        %{assigns: %{route_spec: %{route_id: route_id}}} = socket
-      )
-      when route_id in @routes,
+        %{assigns: %{route_spec: %{route_id: :stake}}} = socket
+      ),
       do: read_shared_snapshot(socket)
 
   # The Stake footer asks for both readings at once, on the same terms each is
   # asked for on its own.
-  def handle_event("refresh_data", %{assigns: %{route_spec: %{route_id: route_id}}} = socket)
-      when route_id in @routes,
-      do: socket |> start_staking_read() |> read_shared_snapshot()
+  def handle_event("refresh_data", %{assigns: %{route_spec: %{route_id: :stake}}} = socket),
+    do: socket |> start_staking_read() |> read_shared_snapshot()
 
   # A control from a page that has since moved on changes nothing.
   def handle_event(_event, socket), do: socket
@@ -341,19 +319,6 @@ defmodule RegentsWeb.ShellLive.Staking do
   # arrives that wallet is looked up, rather than leaving somebody to ask for a
   # reading they already asked for. A wallet the page has an answer for, however
   # that answer turned out, is left alone.
-  # The Overview reads the signed-in account's own wallet, so one never read
-  # because the contract reading was missing is read once that reading arrives.
-  defp read_unanswered_wallet(
-         %{
-           assigns: %{
-             route_spec: %{route_id: :app},
-             staking: %{wallet_block_number: nil},
-             staking_read: nil
-           }
-         } = socket
-       ),
-       do: read_account_wallet(socket)
-
   defp read_unanswered_wallet(%{assigns: %{staking_wallet: nil}} = socket), do: socket
 
   defp read_unanswered_wallet(
@@ -362,17 +327,6 @@ defmodule RegentsWeb.ShellLive.Staking do
        do: socket
 
   defp read_unanswered_wallet(socket), do: start_staking_read(socket)
-
-  defp read_account_wallet(socket) do
-    case Identity.current_account(socket.assigns.access_context) do
-      nil ->
-        socket
-
-      account ->
-        actor = %Human{human_account_id: account.id}
-        start_wallet_read(socket, fn -> Staking.account(actor: actor) end)
-    end
-  end
 
   # This socket's own connected wallet, read again at a fresh block. Any
   # connected wallet may do this, signed in or not. With no wallet connected

@@ -35,7 +35,7 @@ defmodule RegentsWeb.Components.Shell do
     %{name: "Autolaunch", href: "https://autolaunch.sh", tone: "autolaunch", away?: true},
     %{name: "Keyfleet", href: "https://keyfleet.ai", tone: "keyfleet", away?: true},
     %{name: "Techtree", href: "https://techtree.sh", tone: "techtree", away?: true},
-    %{name: "$REGENT Staking", href: "/stake", tone: "protocol", away?: false}
+    %{name: "$REGENT Staking", href: "/", tone: "protocol", away?: false}
   ]
 
   attr(:route_spec, :map, required: true)

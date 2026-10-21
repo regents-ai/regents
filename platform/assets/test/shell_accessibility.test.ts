@@ -17,10 +17,8 @@ vi.mock("../js/auth_lazy", () => ({
   installCrossTabCsrf: vi.fn(),
   retireRefusedSession: vi.fn(),
 }))
-vi.mock("../js/hooks/home_hero", () => ({HomeHero: {}}))
+vi.mock("../js/hooks/fleet_figure", () => ({FleetFigure: {}}))
 vi.mock("../js/hooks/home_token_menu", () => ({HomeTokenMenu: {}}))
-vi.mock("../js/hooks/world_cube", () => ({WorldCube: {}}))
-vi.mock("../js/hooks/cube_label", () => ({CubeLabel: {}}))
 vi.mock("../js/hooks/research_scroll_cue", () => ({ResearchScrollCue: {}}))
 vi.mock("../js/hooks/motion/reveals", () => ({MotionTabs: {}, ShellViews: {}}))
 vi.mock("../js/hooks/motion/moments", () => ({MotionCount: {}, MotionList: {}, MotionRefusal: {}}))
@@ -101,7 +99,7 @@ const fakeStorage = new Map<string, string>()
 const fakeWindow = {
   liveSocket: undefined as unknown,
   // The shell under test is a signed-in page, never the marketing landing.
-  location: {pathname: "/stake"},
+  location: {pathname: "/"},
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
   matchMedia: () => ({
@@ -162,7 +160,7 @@ function shellFixture() {
   })
 
   shell.dataset.routeId = "stake"
-  shell.dataset.destination = "/stake"
+  shell.dataset.destination = "/"
   shell.dataset.menuOpen = "false"
 
   return {

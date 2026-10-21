@@ -2,10 +2,9 @@ defmodule RegentsWeb.Components.RegentLinks do
   @moduledoc """
   The shared Regents Labs links: X, the $REGENT token menu and GitHub.
 
-  The landing header and the app shell header render the same three controls;
-  the footer shows X and GitHub (`social_links/1`).
-  The token menu is a native details element driven by the global
-  `HomeTokenMenu` hook; its styles ship in `pages/home.css`.
+  The app shell header renders all three; the footer shows X and GitHub
+  (`social_links/1`). The token menu is a native details element driven by the
+  global `HomeTokenMenu` hook; its styles ship in `components/regent_links.css`.
   """
 
   use Phoenix.Component

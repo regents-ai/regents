@@ -516,7 +516,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
     topic = get_session(signed_in, :live_socket_id)
     RegentsWeb.Endpoint.subscribe(topic)
 
-    for read <- [&get(&1, "/app"), &get(&1, "/auth/session"), &get(&1, "/auth/csrf")] do
+    for read <- [&get(&1, "/redeem"), &get(&1, "/auth/session"), &get(&1, "/auth/csrf")] do
       refute browser |> recycled() |> read.() |> session_cookie()
     end
 
@@ -1080,7 +1080,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
   end
 
   defp assert_no_session_cookie(browser) do
-    for read <- [&get(&1, "/autolaunch"), &get(&1, "/auth/session"), &get(&1, "/app")] do
+    for read <- [&get(&1, "/autolaunch"), &get(&1, "/auth/session"), &get(&1, "/redeem")] do
       refute browser |> recycled() |> read.() |> session_cookie()
     end
   end

@@ -17,11 +17,11 @@ defmodule RegentsWeb.RouteCatalog do
 
   @entries [
     %Entry{
-      path_pattern: "/",
-      live_action: :home,
+      path_pattern: "/vgpu-demo",
+      live_action: :vgpu_demo,
       parameter_schema: %{},
       reserved_values: %{},
-      route_spec_id: :home
+      route_spec_id: :vgpu_demo
     },
     %Entry{
       path_pattern: "/paper-pro-daily",
@@ -36,13 +36,6 @@ defmodule RegentsWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :literature
-    },
-    %Entry{
-      path_pattern: "/app",
-      live_action: :app,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :app
     },
     %Entry{
       path_pattern: "/articles",
@@ -94,7 +87,7 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :regent_profile
     },
     %Entry{
-      path_pattern: "/stake",
+      path_pattern: "/",
       live_action: :stake,
       parameter_schema: %{},
       reserved_values: %{},
@@ -166,6 +159,7 @@ defmodule RegentsWeb.RouteCatalog do
   ]
 
   @specs %{
+    vgpu_demo: {:vgpu_demo, nil, nil, "vgpu demo", "/vgpu-demo", [], :vgpu_demo, %{}},
     articles_admin:
       {:articles_admin, :regent_ops, "Regents Labs", "New Article", "/articles",
        [:profile_actions], :regents_labs, %{}},
@@ -176,56 +170,52 @@ defmodule RegentsWeb.RouteCatalog do
       {:blog_post, :regent_ops, "Regents Labs", "Articles", "/articles", [:profile_actions],
        :regents_labs, %{}},
     agent_start:
-      {:agent_start, :regent_ops, "Regents Labs", "Connect your agent", "/app",
-       [:profile_actions], :regents_labs, %{}},
-    home: {:home, nil, nil, "Regent", "/", [], :home, %{}},
+      {:agent_start, :regent_ops, "Regents Labs", "Connect your agent", "/", [:profile_actions],
+       :regents_labs, %{}},
     paper_pro_daily:
       {:paper_pro_daily, :regent_ops, "Regents Labs", "Paper Pro Daily", "/paper-pro-daily", [],
        :regents_labs, %{}},
     literature:
       {:literature, :regent_ops, "Regents Labs", "AI & SCIFI", "/literature", [], :regents_labs,
        %{}},
-    app:
-      {:app, :regent_ops, "Regents Labs", "Overview", "/app",
-       [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
     account:
-      {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
-       :regents_labs, %{}},
+      {:account, :regent_ops, "Regents Labs", "Account", "/", [:profile_actions], :regents_labs,
+       %{}},
     account_credits:
-      {:account_credits, :regent_ops, "Regents Labs", "Credits", "/app", [:profile_actions],
+      {:account_credits, :regent_ops, "Regents Labs", "Credits", "/", [:profile_actions],
        :regents_labs, %{}},
     account_points:
-      {:account_points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions],
+      {:account_points, :regent_ops, "Regents Labs", "Points", "/", [:profile_actions],
        :regents_labs, %{}},
     regent_profile:
-      {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
+      {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/",
        [:wallet_status, :network_status, :profile_actions], :regent_record, %{}},
     stake:
-      {:stake, :regent_ops, "Regents Labs", "Stake", "/app",
+      {:stake, :regent_ops, "Regents Labs", "Stake", "/",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
     redeem:
-      {:redeem, :regent_ops, "Regents Labs", "Redeem", "/app",
+      {:redeem, :regent_ops, "Regents Labs", "Redeem", "/",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
     redeem_gallery:
-      {:redeem_gallery, :regent_ops, "Regents Labs", "Regents Club passes", "/app",
+      {:redeem_gallery, :regent_ops, "Regents Labs", "Regents Club passes", "/",
        [:profile_actions], :regents_labs, %{}},
     autolaunch:
-      {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
+      {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/", [:profile_actions],
        :regents_labs, %{}},
     techtree:
-      {:techtree, :regent_ops, "Regents Labs", "Techtree", "/app", [:profile_actions],
-       :regents_labs, %{}},
+      {:techtree, :regent_ops, "Regents Labs", "Techtree", "/", [:profile_actions], :regents_labs,
+       %{}},
     patchbay:
-      {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
-       :regents_labs, %{}},
+      {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/", [:profile_actions], :regents_labs,
+       %{}},
     keyfleet:
-      {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/app", [:profile_actions],
-       :regents_labs, %{}},
+      {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/", [:profile_actions], :regents_labs,
+       %{}},
     credits_refunds:
-      {:credits_refunds, :regent_ops, "Regents Labs", "Credits refunds", "/app",
-       [:profile_actions], :regents_labs, %{}},
+      {:credits_refunds, :regent_ops, "Regents Labs", "Credits refunds", "/", [:profile_actions],
+       :regents_labs, %{}},
     credits_admin:
-      {:credits_admin, :regent_ops, "Regents Labs", "Credits admin", "/app", [:profile_actions],
+      {:credits_admin, :regent_ops, "Regents Labs", "Credits admin", "/", [:profile_actions],
        :regents_labs, %{}}
   }
 
@@ -283,8 +273,7 @@ defmodule RegentsWeb.RouteCatalog do
     %SidebarModel{
       id: :regent_ops,
       targets: [
-        %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
-        %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
+        %RouteTarget{route_id: :stake, label: "Stake", path: "/"},
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
         %RouteTarget{route_id: :account_credits, label: "Credits", path: "/account/credits"},

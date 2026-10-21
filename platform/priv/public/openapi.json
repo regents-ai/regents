@@ -245,6 +245,51 @@
         }
       }
     },
+    "/api/v1/example-workflows": {
+      "get": {
+        "operationId": "readExampleWorkflows",
+        "summary": "Read the example workflows",
+        "description": "The home page's example of what a fleet could build: one project followed through Keyfleet, Techtree, Patchbay, Autolaunch and REGENT staking, with each step's inputs, outputs, tools, approval and link, and what each product sends to REGENT staking. Examples only, not live activity. Takes no query parameters.",
+        "responses": {
+          "200": {
+            "description": "The example workflows",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleWorkflowsEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter was sent",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExampleWorkflowsError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/site-tools": {
       "get": {
         "operationId": "getEverySiteTools",
@@ -4622,6 +4667,281 @@
           "profile"
         ],
         "additionalProperties": false
+      },
+      "ExampleWorkflowsEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "example_workflows"
+        ],
+        "properties": {
+          "example_workflows": {
+            "$ref": "#/components/schemas/ExampleWorkflows"
+          }
+        }
+      },
+      "ExampleWorkflows": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "story",
+          "workflows",
+          "connections",
+          "staking_revenue"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "enum": [
+              "Example workflow"
+            ]
+          },
+          "story": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "title",
+              "project",
+              "summary"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "project": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              }
+            }
+          },
+          "workflows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExampleWorkflow"
+            }
+          },
+          "connections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "to",
+                "kind",
+                "label"
+              ],
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "optional",
+                    "revenue"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "staking_revenue": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sources",
+              "split"
+            ],
+            "properties": {
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "share"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "share": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "split": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ExampleWorkflow": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "label",
+          "line",
+          "site",
+          "returns",
+          "steps"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "line": {
+            "type": "string"
+          },
+          "site": {
+            "type": "string",
+            "format": "uri"
+          },
+          "returns": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExampleWorkflowStep"
+            }
+          }
+        }
+      },
+      "ExampleWorkflowStep": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "detail",
+          "inputs",
+          "outputs",
+          "discover",
+          "act",
+          "approval",
+          "link"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "discover": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExampleWorkflowTool"
+            }
+          },
+          "act": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExampleWorkflowTool"
+            }
+          },
+          "approval": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "link": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "ExampleWorkflowTool": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "site",
+          "tool",
+          "needs"
+        ],
+        "properties": {
+          "site": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          },
+          "needs": {
+            "type": "string",
+            "enum": [
+              "nothing",
+              "sign-in or signed agent request"
+            ]
+          }
+        }
+      },
+      "ExampleWorkflowsError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message",
+              "hint"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_query"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "parameters": {

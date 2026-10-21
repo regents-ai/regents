@@ -16,7 +16,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
     :ok
   end
 
-  test "[U2] only the public operational routes, marketing and reading pages and sign-out stay open" do
+  test "[U2] only the public operational routes, the vgpu demo, reading pages and sign-out stay open" do
     still_open =
       for route <- routes(),
           conn = request(route),
@@ -37,6 +37,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/paper-pro-daily/pictures/:id"},
              {:get, "/articles/covers/:slug"},
              {:get, "/agents/:wallet/picture"},
+             {:get, "/stake"},
              {:get, "/docs"},
              {:get, "/about"},
              {:get, "/contact"},
@@ -46,7 +47,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/api/v1/reading/articles"},
              {:get, "/api/v1/reading/articles/:slug"},
              {:get, "/api/v1/reading/literature"},
-             {:get, "/"},
+             {:get, "/vgpu-demo"},
              {:get, "/paper-pro-daily"},
              {:get, "/literature"},
              {:get, "/privacy"},
@@ -71,7 +72,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
     ungated =
       for route <- routes(),
           live_view = route.metadata[:phoenix_live_view],
-          route.path not in ["/", "/paper-pro-daily", "/literature"],
+          route.path not in ["/vgpu-demo", "/paper-pro-daily", "/literature"],
           # The saved errors are Credits admins' own pages (RegentsWeb.ErrorsAdmin).
           not String.starts_with?(route.path, "/admin/errors"),
           not mounts_through_gate?(live_view),

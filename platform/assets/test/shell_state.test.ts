@@ -8,8 +8,8 @@ import {
 } from "../js/shell_state"
 
 const state = (overrides: Partial<ShellState> = {}): ShellState => ({
-  routeId: "app",
-  destination: "/app",
+  routeId: "stake",
+  destination: "/",
   menuOpen: false,
   ...overrides,
 })

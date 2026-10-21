@@ -96,7 +96,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     browser = init_test_session(build_conn(), %{human_account_id: account!().id})
 
     # The socket's own session names a different lineage and a decoy route.
-    handshake = Map.put(get_session(browser), "render_route", "/stake")
+    handshake = Map.put(get_session(browser), "render_route", "/")
 
     assert {:error, {:redirect, %{to: "/autolaunch"}}} =
              page |> connects_with(handshake) |> live("/autolaunch")
@@ -210,7 +210,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     assert has_element?(view, @profile)
 
     # A live navigation over the same transport revalidates under the drift.
-    assert render_patch(view, "/app") =~ @signed_in_markup
+    assert render_patch(view, "/redeem") =~ @signed_in_markup
 
     assert SessionAuthority.revoke(claim(signed_in))
     render_click(view, "refresh_verified_connections", %{})
@@ -246,7 +246,7 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
     account = account!()
     signed_in = init_test_session(conn, %{human_account_id: account.id})
 
-    {:ok, view, _html} = live(signed_in, "/stake")
+    {:ok, view, _html} = live(signed_in, "/")
     assert has_element?(view, @profile)
     # The balance, which the Buy Credits panel shows, is read in the background.
     render_async(view)

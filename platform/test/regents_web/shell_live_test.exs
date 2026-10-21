@@ -4,7 +4,6 @@ defmodule RegentsWeb.ShellLiveTest do
   alias Regents.AccessContext.AccountControl
   alias Regents.Accounts
   alias Regents.Actors.System
-  alias Regents.SharedStakingReading
   alias RegentsWeb.Components.Shell
   alias RegentsWeb.RouteCatalog
 
@@ -27,7 +26,7 @@ defmodule RegentsWeb.ShellLiveTest do
   end
 
   test "an anonymous socket rejects a forged verified connection request", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/app")
+    {:ok, view, _html} = live(conn, "/redeem")
 
     render_hook(view, "request_verified_connection", %{
       "action" => "link",
@@ -40,7 +39,7 @@ defmodule RegentsWeb.ShellLiveTest do
   test "an event the page doesn't take is refused with a note; account events elsewhere do nothing",
        %{conn: conn} do
     unreadable = "That couldn’t be read, so nothing changed."
-    {:ok, view, _html} = live(conn, "/stake")
+    {:ok, view, _html} = live(conn, "/")
 
     for {event, params} <- [
           {"claim_name", %{"name" => "someone"}},
@@ -84,7 +83,7 @@ defmodule RegentsWeb.ShellLiveTest do
   test "the switch names the theme showing by itself, whatever the server served", %{conn: conn} do
     for cookie <- [nil, "light", "dark"] do
       conn = if cookie, do: Plug.Test.put_req_cookie(conn, "regent_theme", cookie), else: conn
-      {:ok, view, _html} = live(conn, "/stake")
+      {:ok, view, _html} = live(conn, "/")
 
       assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
       assert has_element?(view, "#theme-control", "Dark theme on. Switch to light theme.")
@@ -93,7 +92,7 @@ defmodule RegentsWeb.ShellLiveTest do
   end
 
   test "anonymous account control renders Sign in separately from the brand link", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/app")
+    {:ok, view, _html} = live(conn, "/redeem")
 
     assert has_element?(view, ~s(#shell-brand[href="/"]), "Regents Labs")
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-light")
@@ -116,7 +115,7 @@ defmodule RegentsWeb.ShellLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/app")
+      |> live("/redeem")
 
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x1111..1111")
 
@@ -148,7 +147,7 @@ defmodule RegentsWeb.ShellLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/app")
+      |> live("/redeem")
 
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign in")
     refute has_element?(view, "#account-control [data-account-target=sign-out]", "Sign out")
@@ -160,7 +159,7 @@ defmodule RegentsWeb.ShellLiveTest do
     {:ok, view, html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/app")
+      |> live("/redeem")
 
     pid = view.pid
     [instance] = Regex.run(~r/data-shell-instance="(\d+)"/, html, capture: :all_but_first)
@@ -169,7 +168,7 @@ defmodule RegentsWeb.ShellLiveTest do
     |> element("#shell-sidebar a", "Stake")
     |> render_click()
 
-    assert_patch(view, "/stake")
+    assert_patch(view, "/")
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222..2222")
@@ -205,7 +204,7 @@ defmodule RegentsWeb.ShellLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/app")
+      |> live("/redeem")
 
     assert has_element?(view, "#account-control [data-account-target=profile]", "0xaaaa..0001")
 
@@ -553,7 +552,7 @@ defmodule RegentsWeb.ShellLiveTest do
   end
 
   test "in-shell navigation keeps the LiveView and shell identity", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/app")
+    {:ok, view, html} = live(conn, "/redeem")
     pid = view.pid
     [instance] = Regex.run(~r/data-shell-instance="(\d+)"/, html, capture: :all_but_first)
 
@@ -561,16 +560,21 @@ defmodule RegentsWeb.ShellLiveTest do
     |> element("#shell-sidebar a", "Stake")
     |> render_click()
 
-    assert_patch(view, "/stake")
+    assert_patch(view, "/")
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
-    assert has_element?(view, "#route-content h1", "Put REGENT to work.")
+
+    assert has_element?(
+             view,
+             "#route-content h1",
+             "Agents build together. Useful work creates value."
+           )
   end
 
   # The shell fills the window, so a footer below it would let the window scroll
   # the header out of view.
   test "shell pages keep the footer inside their own scroll", %{conn: conn} do
-    html = conn |> get("/stake") |> html_response(200)
+    html = conn |> get("/") |> html_response(200)
     document = LazyHTML.from_document(html)
 
     assert document
@@ -578,23 +582,6 @@ defmodule RegentsWeb.ShellLiveTest do
            |> Enum.count() == 1
 
     assert document |> LazyHTML.query("footer.regent-footer") |> Enum.count() == 1
-  end
-
-  # /app shows the same shared contract reading every other page does, and an
-  # anonymous visitor there buys no chain read either.
-  test "anonymous /app paints the shared contract reading without reading Base", %{conn: conn} do
-    seed_shared_snapshot()
-    Application.put_env(:regents, :test_staking_read_watcher, self())
-    on_exit(fn -> Application.delete_env(:regents, :test_staking_read_watcher) end)
-
-    {:ok, view, _html} = live(conn, "/app")
-
-    assert has_element?(view, ".regent-ops-metric", "Total REGENT staked")
-    assert render(view) =~ "100 REGENT"
-    refute_received {:staking_read, _scope, _reader}
-
-    # Nothing about any wallet is on screen for a visitor who has not signed in.
-    refute has_element?(view, ".regent-ops-balances")
   end
 
   test "Account counts the claims the signed-in wallets may still make, and no one else's",
@@ -689,34 +676,11 @@ defmodule RegentsWeb.ShellLiveTest do
     refute render(view) =~ "0x9e9e"
   end
 
-  test "signed-in /app reads the account wallet at its own fresh block", %{conn: conn} do
-    seed_shared_snapshot()
-    account = register_account("app-wallet-read", "0x1111111111111111111111111111111111111111")
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/app")
-
-    render_async(view)
-
-    assert has_element?(view, ".regent-ops-balances", "Staked REGENT")
-    assert render(view) =~ "5 REGENT"
-
-    staking = :sys.get_state(view.pid).socket.assigns.staking
-
-    assert staking.block_number == Regents.TestStakingChainClient.protocol_block()
-    assert staking.wallet_block_number == Regents.TestStakingChainClient.wallet_block()
-    assert staking.wallet_address == "0x1111111111111111111111111111111111111111"
-  end
-
   test "malformed route parameters return not found", %{conn: conn} do
     assert_error_sent 404, fn ->
       get(conn, "/regents/not%20valid")
     end
   end
-
-  defp seed_shared_snapshot, do: SharedStakingReading.share()
 
   # Opening Account asks Ethereum about a wallet it has not read; the page is
   # only settled once that answer has landed.
@@ -740,7 +704,7 @@ defmodule RegentsWeb.ShellLiveTest do
   end
 
   defp render_shell(account_control) do
-    route_spec = RouteCatalog.fetch!(:app, %{})
+    route_spec = RouteCatalog.fetch!(:redeem, %{})
 
     render_component(&Shell.shell/1,
       route_spec: route_spec,

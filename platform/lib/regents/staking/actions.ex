@@ -1,7 +1,5 @@
 defmodule Regents.Staking.Actions do
   @moduledoc false
-  alias Regents.Accounts
-  alias Regents.Actors.Human
   alias Regents.Staking.ChainClient
   alias Regents.WalletActions.Address
 
@@ -13,14 +11,6 @@ defmodule Regents.Staking.Actions do
       snapshot -> {:ok, snapshot}
     end
   end
-
-  def account(_input, %{actor: %Human{} = actor}) do
-    with {:ok, account} <- Accounts.get_human_account(actor.human_account_id, actor: actor),
-         {:ok, wallet} <- Address.normalize_wallet(account.wallet_address),
-         do: ChainClient.module().wallet_snapshot(wallet)
-  end
-
-  def account(_input, _context), do: {:error, :authentication_required}
 
   def account_for_wallet(input, _context) do
     with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),

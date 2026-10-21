@@ -12,9 +12,10 @@ curl --fail -H 'Accept: text/markdown' '{{origin}}/docs'
 curl --fail '{{origin}}/openapi.json'
 curl --fail '{{origin}}/api/v1/products'
 curl --fail '{{origin}}/api/v1/products/techtree'
+curl --fail '{{origin}}/api/v1/example-workflows'
 ```
 
-`GET /api/v1/products` lists Autolaunch, Techtree, Patchbay and Keyfleet with each one's summary and links; `GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug returns 404.
+`GET /api/v1/products` lists Autolaunch, Techtree, Patchbay and Keyfleet with each one's summary and links; `GET /api/v1/products/{slug}` returns everything that product's page on Regents shows. An unknown slug returns 404. `GET /api/v1/example-workflows` is the home page's example of what a fleet could build, as data: each step's inputs, outputs, the tools to read first without signing in, the tools that act after sign-in or a signed agent request, who approves it and the app's link, plus what each product sends to REGENT staking. These are examples, not live activity.
 
 `/healthz` answers `ok`; `GET /api/v1/health` answers `{"status": "ok"}`, or 503 with `unavailable`. It says the site and its database are up, not that every wallet or outside service is.
 
@@ -81,7 +82,7 @@ Missing or invalid credentials return 401. An invalid query or cursor returns 40
 
 ## Read your stake
 
-`GET /api/v1/staking/position`, with the same two tokens, returns what [Stake]({{origin}}/stake) shows for the wallet on that sign-in: the REGENT it has staked and holds, the USDC and REGENT it can claim, and the contract's totals. Every figure is a Base reading with the block it was read at; amounts are exact decimal strings, and a figure that could not be read is `"unavailable"`. A sign-in with no wallet returns 409 `wallet_required`; before Base has answered once, 503 `staking_unavailable`.
+`GET /api/v1/staking/position`, with the same two tokens, returns what [Stake]({{origin}}/) shows for the wallet on that sign-in: the REGENT it has staked and holds, the USDC and REGENT it can claim, and the contract's totals. Every figure is a Base reading with the block it was read at; amounts are exact decimal strings, and a figure that could not be read is `"unavailable"`. A sign-in with no wallet returns 409 `wallet_required`; before Base has answered once, 503 `staking_unavailable`.
 
 ## Pair an agent with a person's account
 
@@ -158,7 +159,7 @@ The published [@regentslabs/cli package](https://www.npmjs.com/package/@regentsl
 
 ## Wallet actions and browser agents
 
-Visit [Stake]({{origin}}/stake) or [Redeem]({{origin}}/redeem) for the corresponding wallet flow. Every transaction requires the user's explicit wallet approval. Network fees and contract conditions apply; staking returns are not guaranteed. Public documentation does not authorize a payment, signature, credential change or other mutation.
+Visit [Stake]({{origin}}/) or [Redeem]({{origin}}/redeem) for the corresponding wallet flow. Every transaction requires the user's explicit wallet approval. Network fees and contract conditions apply; staking returns are not guaranteed. Public documentation does not authorize a payment, signature, credential change or other mutation.
 
 ## In the browser (WebMCP)
 

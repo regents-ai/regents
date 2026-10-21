@@ -50,13 +50,6 @@
   text-wrap: balance;
 }
 
-.stake-lede {
-  max-width: 58ch;
-  color: var(--color-fg-muted);
-  font-size: clamp(1rem, 1.7vw, 1.2rem);
-  text-wrap: pretty;
-}
-
 .stake-yield-badge {
   justify-self: start;
   padding: 0.3rem 0.65rem;
@@ -198,6 +191,78 @@
   font-family: var(--font-family-mono);
   font-size: 0.9rem;
   letter-spacing: 0;
+}
+
+/* The hero: what fleets build on the left, about two thirds of the width, and
+   staking on the right. A narrow screen stacks them, story first. */
+.stake-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(21rem, 1fr);
+  gap: clamp(1rem, 2.4vw, 1.5rem);
+  align-items: start;
+  min-width: 0;
+}
+
+.stake-story {
+  display: grid;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.stake-story h1 {
+  max-width: 20ch;
+  font-size: clamp(2.1rem, 4.4vw, 3.7rem);
+}
+
+.stake-revenue {
+  display: grid;
+  gap: 0.85rem;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.stake-revenue > * {
+  margin: 0;
+}
+
+.stake-revenue h2 {
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+}
+
+.stake-revenue-share {
+  font-size: 0.95rem;
+}
+
+.stake-revenue-sources {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.stake-revenue-sources li {
+  display: grid;
+  gap: 0.15rem;
+  padding-block-start: 0.6rem;
+  border-block-start: 1px solid var(--color-border);
+  font-size: 0.88rem;
+}
+
+.stake-revenue-sources span,
+.stake-revenue-rule p {
+  color: var(--color-fg-muted);
+}
+
+.stake-revenue-rule summary {
+  width: fit-content;
+  color: var(--ash-accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.stake-revenue-rule p {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
 }
 
 .stake-layout {
@@ -586,7 +651,7 @@
 
 /* The hero's one outward link: same square mono cell as every other control,
    parked in the panel's bottom-right corner, with a light sweep on hover. */
-/* The two token links sit under the lede, where somebody deciding whether to
+/* The two token links sit under the yield badge, where somebody deciding whether to
    stake is already reading. */
 .stake-token-links {
   display: flex;
@@ -891,6 +956,7 @@
 }
 
 @media (max-width: 64rem) {
+  .stake-hero,
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -903,7 +969,8 @@
   .stake-button-row button { flex-basis: 100%; }
   .stake-heading,
   .stake-actions,
-  .stake-overview { padding: 1rem; }
+  .stake-overview,
+  .stake-revenue { padding: 1rem; }
   /* Buy and Chart side by side, so the Stake box stays near the top. */
   .stake-token-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
   .stake-preview { grid-template-columns: minmax(0, 1fr); }

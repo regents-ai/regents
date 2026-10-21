@@ -9,7 +9,7 @@ const focusViewports = [
   {name: "zoom-200", width: 640, height: 900},
 ]
 
-const waitForHomepage = async (page: import("@playwright/test").Page) => {
+const waitForDemo = async (page: import("@playwright/test").Page) => {
   const home = page.locator("#public-home")
   await expect(home).toBeVisible()
   await page.evaluate(async () => {
@@ -29,7 +29,7 @@ const worlds = [
   {face: "1", name: "Techtree", site: "https://techtree.sh"},
   {face: "2", name: "Patchbay", site: "https://patchbay.help"},
   {face: "5", name: "Keyfleet", site: "https://keyfleet.ai"},
-  {face: "4", name: "Staking", site: /\/stake$/},
+  {face: "4", name: "Staking", site: /^https?:\/\/[^/]+\/$/},
   {face: "3", name: "Regents on X", site: "https://x.com/regents_sh"},
 ]
 
@@ -49,10 +49,10 @@ const assertNoOverflow = async (page: import("@playwright/test").Page) => {
   ).toBe(true)
 }
 
-test("[U2] homepage is server-readable and lists all six worlds", async ({browser}) => {
+test("[U2] vgpu demo is server-readable and lists all six worlds", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
-  await page.goto("/")
+  await page.goto("/vgpu-demo")
 
   await expect(page.getByRole("heading", {name: "Regents Labs", level: 1})).toBeVisible()
   await expect(page.locator(".rl-hero-copy .rl-hero-description")).toHaveText(
@@ -81,12 +81,12 @@ test("[U2] homepage is server-readable and lists all six worlds", async ({browse
   await context.close()
 })
 
-// Each homepage header control leads to its place, by keyboard and at phone width.
+// Each vgpu demo header control leads to its place, by keyboard and at phone width.
 for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
-  test(`[R12] homepage header tabs and App lead to their places at ${name}`, async ({page}) => {
+  test(`[R12] vgpu demo header tabs and App lead to their places at ${name}`, async ({page}) => {
     await page.setViewportSize({width, height})
 
-    await page.goto("/")
+    await page.goto("/vgpu-demo")
     const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
     await expect(tabs).toHaveText([
       "Autolaunch, opens in a new tab",
@@ -95,7 +95,7 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
       "Keyfleet, opens in a new tab",
       "Protocol",
     ])
-    await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/stake")
+    await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/")
     await assertNoOverflow(page)
 
     const patchbay = page.locator("#home-nav-patchbay")
@@ -104,21 +104,21 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
 
     await page.locator("#home-nav-protocol").focus()
     await page.keyboard.press("Enter")
-    await expect(page).toHaveURL(/\/stake$/)
-    await expect(page.locator("#regent-staking")).toBeVisible()
+    await expect(page).toHaveURL(/:\d+\/$/)
+    await expect(page.locator("#staking-actions")).toBeVisible()
 
-    await page.goto("/")
+    await page.goto("/vgpu-demo")
     await page.locator(".rl-header-links a.rl-action").click()
-    await expect(page).toHaveURL(/\/stake$/)
-    await expect(page.locator("#regent-staking")).toBeVisible()
+    await expect(page).toHaveURL(/:\d+\/$/)
+    await expect(page.locator("#staking-actions")).toBeVisible()
   })
 }
 
 // Display titles and body copy keep their separate canonical typographic roles.
 test("[U1][U2] the tagline retains its sentence case", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
 
   const tagline = page.locator(".rl-hero-copy .rl-hero-description")
   await expect(tagline).toHaveText("The community-owned agentic product lab")
@@ -127,17 +127,17 @@ test("[U1][U2] the tagline retains its sentence case", async ({page}) => {
   )
 })
 
-test("[U2] homepage settles immediately for reduced motion", async ({browser}) => {
+test("[U2] vgpu demo settles immediately for reduced motion", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce"})
   const page = await context.newPage()
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
   await expect(page.locator(".rl-hero-copy")).toBeVisible()
   await expect(page.locator("#home-worlds .world-cube__world")).toHaveCount(6)
   await context.close()
 })
 
-// Everything a landing render is allowed to differ by: the CSRF token and the
+// Everything a render of the vgpu demo is allowed to differ by: the CSRF token and the
 // LiveView handshake, all minted per request.
 const stableRender = (html: string) =>
   html
@@ -146,22 +146,22 @@ const stableRender = (html: string) =>
     .replace(/data-phx-static="[^"]*"/g, 'data-phx-static="STATIC"')
     .replace(/id="phx-[^"]*"/g, 'id="ID"')
 
-// The landing is a dark-only composition: whatever palette the visitor saved, every render
+// The vgpu demo is a dark-only composition: whatever palette the visitor saved, every render
 // is the same dark page, and only the per-request tokens differ.
-test("[U3] the public landing renders the same dark page for every saved palette", async ({browser}) => {
-  const landing = async (saved?: "light" | "dark") => {
+test("[U3] the vgpu demo renders the same dark page for every saved palette", async ({browser}) => {
+  const render = async (saved?: "light" | "dark") => {
     const context = await browser.newContext()
     if (saved) {
       await context.addCookies([
         {name: "regent_theme", value: saved, url: test.info().project.use.baseURL as string},
       ])
     }
-    const served = await (await context.request.get("/")).text()
+    const served = await (await context.request.get("/vgpu-demo")).text()
     await context.close()
     return served
   }
 
-  const [none, light, dark] = await Promise.all([landing(), landing("light"), landing("dark")])
+  const [none, light, dark] = await Promise.all([render(), render("light"), render("dark")])
 
   const main = (html: string) => stableRender(html).match(/<main>[\s\S]*?<\/main>/)?.[0]
   expect(main(light)).toBe(main(dark))
@@ -169,26 +169,26 @@ test("[U3] the public landing renders the same dark page for every saved palette
 
   for (const served of [none, light, dark]) {
     expect(served).toContain('data-theme="dark"')
-    expect(served).toContain('data-home-theme-locked="true"')
+    expect(served).toContain('data-theme-locked="true"')
     expect(served).toContain('<meta name="color-scheme" content="dark"')
     expect(served).toContain('data-brand="platform"')
   }
 })
 
 // The lock is not a rewrite of the visitor's preference: a saved light theme still renders
-// the dark landing, offers no switch, and leaves the saved choice for the other pages.
-test("[U3] the landing stays dark and preserves the visitor's saved theme", async ({browser}) => {
+// the dark demo, offers no switch, and leaves the saved choice for the other pages.
+test("[U3] the vgpu demo stays dark and preserves the visitor's saved theme", async ({browser}) => {
   const context = await browser.newContext()
   await context.addCookies([
     {name: "regent_theme", value: "light", url: test.info().project.use.baseURL as string},
   ])
   const page = await context.newPage()
 
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
-  await expect(page.locator("html")).toHaveAttribute("data-home-theme-locked", "true")
+  await expect(page.locator("html")).toHaveAttribute("data-theme-locked", "true")
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("[data-theme-toggle]:visible")).toHaveCount(0)
   const saved = (await context.cookies()).find(cookie => cookie.name === "regent_theme")
@@ -196,9 +196,9 @@ test("[U3] the landing stays dark and preserves the visitor's saved theme", asyn
   await context.close()
 })
 
-test("the landing keeps its opted-in display face for headings", async ({page}) => {
-  await page.goto("/")
-  await waitForHomepage(page)
+test("the vgpu demo keeps its opted-in display face for headings", async ({page}) => {
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
 
   expect(
     await page
@@ -230,8 +230,8 @@ test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) =>
   ]) {
     await test.step(`${width} wide`, async () => {
       await page.setViewportSize({width, height})
-      await page.goto("/")
-      await waitForHomepage(page)
+      await page.goto("/vgpu-demo")
+      await waitForDemo(page)
       await assertNoOverflow(page)
 
       const hero = await boxOf(".rl-hero")
@@ -270,11 +270,11 @@ for (const viewport of [
   {name: "tablet-768", width: 768, height: 1024},
   {name: "desktop", width: 1440, height: 1000},
 ]) {
-  test(`[U1][U2][U3] homepage fits ${viewport.name} with usable focus targets`, async ({page}, testInfo) => {
+  test(`[U1][U2][U3] vgpu demo fits ${viewport.name} with usable focus targets`, async ({page}, testInfo) => {
     await page.setViewportSize({width: viewport.width, height: viewport.height})
     await keepTheListOfWorlds(page)
-    await page.goto("/")
-    await waitForHomepage(page)
+    await page.goto("/vgpu-demo")
+    await waitForDemo(page)
     await assertNoOverflow(page)
 
     const listed = page.locator("#home-worlds .world-cube__world")
@@ -307,8 +307,8 @@ test("[U1][U2] the worlds read in the founder's order at every viewport", async 
   for (const viewport of focusViewports) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
-      await page.goto("/")
-      await waitForHomepage(page)
+      await page.goto("/vgpu-demo")
+      await waitForDemo(page)
       await assertNoOverflow(page)
 
       const listed = await page.locator("#home-worlds .world-cube__world").evaluateAll(elements =>
@@ -347,8 +347,8 @@ test("[U1][U2] the worlds read in the founder's order at every viewport", async 
 test("[U2] world hover leaves the heading ink alone", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await keepTheListOfWorlds(page)
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
   for (const {face} of worlds.slice(0, 3)) {
     const heading = page.locator(`#home-worlds [data-world="${face}"] h3`)
     const ink = await heading.evaluate(e => getComputedStyle(e).color)
@@ -366,8 +366,8 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
   ]) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
-      await page.goto("/")
-      await waitForHomepage(page)
+      await page.goto("/vgpu-demo")
+      await waitForDemo(page)
       await assertNoOverflow(page)
 
       const edges = await page.evaluate(() => {
@@ -390,10 +390,10 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
   }
 })
 
-test("[U1][U2][U3] homepage remains usable at effective 200 percent zoom", async ({page}, testInfo) => {
+test("[U1][U2][U3] vgpu demo remains usable at effective 200 percent zoom", async ({page}, testInfo) => {
   await page.setViewportSize({width: 640, height: 900})
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
   await assertNoOverflow(page)
   await page.screenshot({
     path: testInfo.outputPath("final-zoom-200-dark.png"),
@@ -401,7 +401,7 @@ test("[U1][U2][U3] homepage remains usable at effective 200 percent zoom", async
   })
 })
 
-test("[U2][U3] homepage captures the accepted mobile and tablet states", async ({browser}, testInfo) => {
+test("[U2][U3] vgpu demo captures the accepted mobile and tablet states", async ({browser}, testInfo) => {
   for (const capture of [
     {height: 844, name: "final-mobile-390-dark.png", width: 390},
     {height: 1024, name: "final-tablet-768-dark.png", width: 768},
@@ -411,8 +411,8 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
       viewport: {width: capture.width, height: capture.height},
     })
     const page = await context.newPage()
-    await page.goto("/")
-    await waitForHomepage(page)
+    await page.goto("/vgpu-demo")
+    await waitForDemo(page)
     await assertNoOverflow(page)
     await page.screenshot({path: testInfo.outputPath(capture.name), fullPage: true})
     await context.close()
@@ -424,8 +424,8 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 test("[U1] every hero control retains visible paired keyboard focus", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await keepTheListOfWorlds(page)
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
   const count = await page.locator("a, button").count()
   const reached = new Set<string>()
   for (let tab = 0; tab <= count; tab += 1) {
@@ -453,8 +453,8 @@ test("[R14] the $REGENT menu copies the contract address", async ({browser}) => 
   const context = await browser.newContext({viewport: {width: 1440, height: 900}})
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
   const page = await context.newPage()
-  await page.goto("/")
-  await waitForHomepage(page)
+  await page.goto("/vgpu-demo")
+  await waitForDemo(page)
 
   const menu = page.locator("details.rl-token-menu").first()
   await menu.locator("summary").hover()
@@ -464,4 +464,57 @@ test("[R14] the $REGENT menu copies the contract address", async ({browser}) => 
   await expect(copy.locator(".rg-copy__copied")).toBeVisible()
   expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^0x[0-9a-fA-F]{40}$/)
   await context.close()
+})
+
+test("the vgpu demo presents the product hero", async ({page}) => {
+  await page.goto("/vgpu-demo")
+
+  await expect(page.locator("#public-home")).toBeVisible()
+  await expect(page.locator("#home-title")).toHaveText("Regents Labs")
+  // The hero names the six worlds and is the whole page between the header and the footer.
+  const worlds = page.locator("#home-worlds .world-cube__world")
+  await expect(worlds).toHaveCount(6)
+  expect(
+    await worlds.evaluateAll(elements =>
+      elements.map(element => element.querySelector("h3")!.textContent!.trim()),
+    ),
+  ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Staking", "Regents on X"])
+  expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
+  await expect(page.locator("#app-shell")).toHaveCount(0)
+  await expect(page.getByText("Public chatbox")).toHaveCount(0)
+})
+
+// The cube's stage is a picture the browser draws inside the hero: hidden from assistive
+// technology, under words that take no pointer events, and showing exactly one layer at a
+// time, the list of worlds until the cube is drawn, then the cube alone. Whether headless
+// Chromium brings a GPU decides which layer shows, never whether the heading and actions
+// stay reachable.
+test("the hero's cube never blocks the action", async ({page}) => {
+  const expectOneHeroLayer = () =>
+    expect
+      .poll(() =>
+        page.locator("#home-worlds").evaluate(element => {
+          const drawn = element.getAttribute("data-world-ready") === "true"
+          const listed = getComputedStyle(element.querySelector(".world-cube__world")!).visibility
+          return listed === (drawn ? "hidden" : "visible")
+        }),
+      )
+      .toBe(true)
+
+  for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
+    await page.setViewportSize(viewport)
+    await page.goto("/vgpu-demo")
+    await expect(page.locator("#home-worlds-stage")).toHaveAttribute("aria-hidden", "true")
+    expect(
+      await page.locator(".rl-hero-copy").evaluate(element => getComputedStyle(element).pointerEvents),
+    ).toBe("none")
+    await expectOneHeroLayer()
+    await expect(page.locator("#home-title")).toBeVisible()
+    await page.locator(".rl-header-links a.rl-action").click({trial: true})
+    await page.emulateMedia({reducedMotion: "reduce"})
+    await expect(page.locator("#home-worlds")).not.toHaveAttribute("data-world-ready", "true")
+    await expectOneHeroLayer()
+    await page.locator('#home-worlds [data-world="1"]').getByRole("link").click({trial: true})
+    await page.emulateMedia({reducedMotion: "no-preference"})
+  }
 })

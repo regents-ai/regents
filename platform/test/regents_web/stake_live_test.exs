@@ -99,7 +99,7 @@ defmodule RegentsWeb.StakeLiveTest do
     view = mount_stake(conn)
     html = render(view)
 
-    first_render = conn |> get("/stake") |> html_response(200)
+    first_render = conn |> get("/") |> html_response(200)
     assert first_render =~ ~s(id="staking-supply-bar")
     refute first_render =~ "Loading staking contract data"
     assert has_element?(view, "#staking-supply-bar")
@@ -187,7 +187,7 @@ defmodule RegentsWeb.StakeLiveTest do
     Application.put_env(:regents, :test_staking_read_watcher, self())
     on_exit(fn -> Application.delete_env(:regents, :test_staking_read_watcher) end)
 
-    {:ok, view, _html} = live(conn, "/stake")
+    {:ok, view, _html} = live(conn, "/")
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
 
     refute_receive {:staking_read, _scope, _reader}, 200
@@ -275,7 +275,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
   test "UNAVAILABLE_SNAPSHOT: with no shared reading the page offers an anonymous visitor no control",
        %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/stake")
+    {:ok, view, _html} = live(conn, "/")
     html = render(view)
 
     assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
@@ -531,7 +531,7 @@ defmodule RegentsWeb.StakeLiveTest do
              )
 
     {:ok, view, _html} =
-      conn |> init_test_session(%{human_account_id: account.id}) |> live("/stake")
+      conn |> init_test_session(%{human_account_id: account.id}) |> live("/")
 
     activate(view, @second)
     assert staking_assigns(view).staking_wallet == @second
@@ -568,7 +568,7 @@ defmodule RegentsWeb.StakeLiveTest do
              )
 
     {:ok, view, _html} =
-      conn |> init_test_session(%{human_account_id: account.id}) |> live("/stake")
+      conn |> init_test_session(%{human_account_id: account.id}) |> live("/")
 
     view = activate(view, @wallet)
     set_amount(view, "1")
@@ -882,8 +882,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert staking_assigns(view).staking_wallet == @wallet
   end
 
-  test "SNAPSHOTS_FOLLOWED_ONLY_HERE: contract readings are heard only on Stake and Overview",
-       %{conn: conn} do
+  test "SNAPSHOTS_FOLLOWED_ONLY_HERE: contract readings are heard only on Stake", %{conn: conn} do
     view = mount_stake(conn)
     assert followers(view) == 1
 
@@ -892,10 +891,7 @@ defmodule RegentsWeb.StakeLiveTest do
     share_new_snapshot()
     assert staking_assigns(view).staking == nil
 
-    render_patch(view, "/app")
-    assert followers(view) == 1
-
-    render_patch(view, "/stake")
+    render_patch(view, "/")
     assert followers(view) == 1
     assert staking_assigns(view).staking_status == :ready
   end
@@ -908,7 +904,7 @@ defmodule RegentsWeb.StakeLiveTest do
   test "COLD_START_WALLET: connecting a wallet with no contract reading buys no chain read", %{
     conn: conn
   } do
-    first_render = conn |> get("/stake") |> html_response(200)
+    first_render = conn |> get("/") |> html_response(200)
     assert first_render =~ ~s(id="staking-benefits-skeleton")
     assert first_render =~ ~s(id="staking-contract-skeleton")
     refute first_render =~ "Loading staking contract data"
@@ -916,7 +912,7 @@ defmodule RegentsWeb.StakeLiveTest do
     Application.put_env(:regents, :test_staking_read_watcher, self())
     on_exit(fn -> Application.delete_env(:regents, :test_staking_read_watcher) end)
 
-    {:ok, view, _html} = live(conn, "/stake")
+    {:ok, view, _html} = live(conn, "/")
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => @wallet})
 
     refute_receive {:staking_read, _scope, _reader}, 200
@@ -1291,7 +1287,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
   defp mount_stake(conn) do
     seed_snapshot()
-    {:ok, view, _html} = live(conn, "/stake")
+    {:ok, view, _html} = live(conn, "/")
 
     view
   end
@@ -1325,7 +1321,7 @@ defmodule RegentsWeb.StakeLiveTest do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/stake")
+      |> live("/")
 
     view
   end

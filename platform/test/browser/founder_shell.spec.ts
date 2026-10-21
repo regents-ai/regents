@@ -5,8 +5,7 @@ import {
 } from "./support/authenticated_privy"
 
 const shellRoutes = [
-  "/app",
-  "/stake",
+  "/",
   "/redeem",
 ]
 
@@ -40,7 +39,7 @@ function readFamily(page: Page) {
 }
 
 async function chooseTheme(page: Page, choice: "light" | "dark") {
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   // A press chooses the opposite of the theme showing, which before any choice
   // is the device's, so reaching one theme can take a second press.
@@ -55,7 +54,7 @@ test("[U2] the ruled shell keeps the Regents palette across pages", async ({page
   const palette: Record<string, {ground: string | null; text: string | null}> = {}
   for (const choice of ["light", "dark"] as const) {
     await chooseTheme(page, choice)
-    for (const route of ["/stake", "/app"]) {
+    for (const route of ["/", "/redeem"]) {
       await page.goto(route)
       await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
       await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
@@ -65,9 +64,9 @@ test("[U2] the ruled shell keeps the Regents palette across pages", async ({page
       palette[choice] ??= colors
       expect(colors).toEqual(palette[choice])
     }
-    await page.goto("/app")
+    await page.goto("/redeem")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-    for (const destination of ["/autolaunch", "/stake"]) {
+    for (const destination of ["/autolaunch", "/"]) {
       await patchTo(page, destination)
       await expect(page).toHaveURL(new RegExp(`${destination}$`))
       await expect.poll(() => readFamily(page)).toEqual(palette[choice])
@@ -82,7 +81,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
 }) => {
   for (const [route, brand] of [
     ["/redeem", "platform"],
-    ["/stake", "platform"],
+    ["/", "platform"],
   ] as const) {
     const served = await (await request.get(route)).text()
     expect(served).toContain(`data-brand="${brand}"`)
@@ -96,7 +95,7 @@ test("[U2] direct application loads seed the canonical RegentUI brand", async ({
 })
 
 test("product headings use canonical Pixel Square", async ({page}) => {
-  await page.goto("/stake")
+  await page.goto("/")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   expect(
@@ -120,65 +119,12 @@ test("all approved routes render within their page budget", async ({page, reques
   // No Regent profile exists here, so a profile address is an honest not-found.
   expect((await request.get("/regents/not-here")).status()).toBe(404)
 
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toBeVisible()
 })
 
-test("the public homepage presents the product hero", async ({page}) => {
-  await page.goto("/")
-
-  await expect(page.locator("#public-home")).toBeVisible()
-  await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The hero names the six worlds and is the whole page between the header and the footer.
-  const worlds = page.locator("#home-worlds .world-cube__world")
-  await expect(worlds).toHaveCount(6)
-  expect(
-    await worlds.evaluateAll(elements =>
-      elements.map(element => element.querySelector("h3")!.textContent!.trim()),
-    ),
-  ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Staking", "Regents on X"])
-  expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
-  await expect(page.locator("#app-shell")).toHaveCount(0)
-  await expect(page.getByText("Public chatbox")).toHaveCount(0)
-})
-
-// The cube's stage is a picture the browser draws inside the hero: hidden from assistive
-// technology, under words that take no pointer events, and showing exactly one layer at a
-// time, the list of worlds until the cube is drawn, then the cube alone. Whether headless
-// Chromium brings a GPU decides which layer shows, never whether the heading and actions
-// stay reachable.
-test("the hero's cube never blocks the action", async ({page}) => {
-  const expectOneHeroLayer = () =>
-    expect
-      .poll(() =>
-        page.locator("#home-worlds").evaluate(element => {
-          const drawn = element.getAttribute("data-world-ready") === "true"
-          const listed = getComputedStyle(element.querySelector(".world-cube__world")!).visibility
-          return listed === (drawn ? "hidden" : "visible")
-        }),
-      )
-      .toBe(true)
-
-  for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
-    await page.setViewportSize(viewport)
-    await page.goto("/")
-    await expect(page.locator("#home-worlds-stage")).toHaveAttribute("aria-hidden", "true")
-    expect(
-      await page.locator(".rl-hero-copy").evaluate(element => getComputedStyle(element).pointerEvents),
-    ).toBe("none")
-    await expectOneHeroLayer()
-    await expect(page.locator("#home-title")).toBeVisible()
-    await page.locator(".rl-header-links a.rl-action").click({trial: true})
-    await page.emulateMedia({reducedMotion: "reduce"})
-    await expect(page.locator("#home-worlds")).not.toHaveAttribute("data-world-ready", "true")
-    await expectOneHeroLayer()
-    await page.locator('#home-worlds [data-world="1"]').getByRole("link").click({trial: true})
-    await page.emulateMedia({reducedMotion: "no-preference"})
-  }
-})
-
 test("anonymous Sign in stays separate from the brand link", async ({page}) => {
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const brand = page.locator("#shell-brand")
@@ -229,7 +175,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
 
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#theme-control [data-theme-toggle]")).toBeVisible()
   await auth.expectAuthenticatedSession()
@@ -264,50 +210,8 @@ test("a signed-in account without a Regent shows its available account menu", as
   await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
 })
 
-test("the Overview maps the four products, keeps account details secondary, and reaches Formation", async ({page}) => {
-  await page.goto("/app")
-  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-
-  const overview = page.locator("#regent-ops-overview")
-  await expect(overview.getByRole("heading", {level: 1})).toBeVisible()
-
-  const products = overview.getByRole("list", {name: "Products"})
-  for (const name of ["Regents", "Autolaunch", "Techtree", "Patchbay"]) {
-    await expect(products.getByRole("heading", {level: 3, name})).toBeVisible()
-  }
-  await expect(products.getByRole("link", {name: "Open Autolaunch"})).toHaveAttribute(
-    "href",
-    "https://autolaunch.sh",
-  )
-  await expect(page.locator("#shell-brand")).toContainText("Regents Labs")
-
-  // Account details sit behind a closed disclosure for a visitor; opening it
-  // shows the shared reading and the sign-in prompt, never an invented wallet.
-  const account = page.locator("#regent-ops-account")
-  await expect(account).not.toHaveAttribute("open", "")
-  await account.locator("summary").click()
-  await expect(account).toHaveAttribute("open", "")
-  await expect(overview.getByLabel("Account summary")).toBeVisible()
-  await expect(overview).toContainText("100 REGENT")
-  await expect(overview).toContainText(
-    "Sign in to see any wallet verified on your account and the balances available to it.",
-  )
-
-  const actions = overview.getByRole("navigation", {name: "Account actions"})
-  await expect(actions.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute("href", "/stake")
-  await expect(actions.getByRole("link", {name: "Redeem Animata"})).toHaveAttribute(
-    "href",
-    "/redeem",
-  )
-  await expect(overview.getByRole("link", {name: "Hermes"})).toHaveAttribute(
-    "href",
-    "https://hermes-agent.nousresearch.com/",
-  )
-  await expect(page.getByRole("link", {name: "Profile", exact: true})).toHaveCount(0)
-})
-
 test("[U2][U6] navigation keeps brand, document, shell identity, and starts at the top", async ({page}) => {
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   const shellInstance = await page.locator("#app-shell").getAttribute("data-shell-instance")
@@ -328,8 +232,8 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
   ).toBe(true)
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 
-  await patchTo(page, "/stake")
-  await expect(page).toHaveURL(/\/stake$/)
+  await patchTo(page, "/")
+  await expect(page).toHaveURL(/:\d+\/$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await page.evaluate(() => {
     document
@@ -351,23 +255,23 @@ test("[U2][U6] navigation keeps brand, document, shell identity, and starts at t
     document.querySelector("#app-shell-scroller")?.scrollTo(0, 1000)
   })
   await page.goForward()
-  await expect(page).toHaveURL(/\/stake$/)
+  await expect(page).toHaveURL(/:\d+\/$/)
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", shellInstance ?? "")
   expect(await page.locator("#app-shell-scroller").evaluate(element => element.scrollTop)).toBe(0)
 })
 
 test("rapid app switches settle on the latest view with no motion left behind", async ({page}) => {
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   await patchTo(page, "/autolaunch")
   await expect(page).toHaveURL(/\/autolaunch$/)
-  await patchTo(page, "/stake")
+  await patchTo(page, "/")
 
-  await expect(page).toHaveURL(/\/stake$/)
+  await expect(page).toHaveURL(/:\d+\/$/)
   await expect(page.locator("#app-shell")).toHaveAttribute("data-app", "regent_ops")
-  await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Agents build together. Useful work creates value."})).toBeVisible()
   await expect(page.locator("#route-content"), "the glide tidies up after itself").not.toHaveAttribute("style")
   await expect(page.locator("#route-content")).toHaveCSS("opacity", "1")
 })
@@ -375,7 +279,7 @@ test("rapid app switches settle on the latest view with no motion left behind", 
 test("the theme preference applies immediately under reduced motion", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce", colorScheme: "dark"})
   const page = await context.newPage()
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   // With nothing saved the page carries no theme, the device's dark shows, and
@@ -406,7 +310,7 @@ test("the theme preference applies immediately under reduced motion", async ({br
 test("before any choice a device that asks for light gets light", async ({browser}) => {
   const context = await browser.newContext({colorScheme: "light"})
   const page = await context.newPage()
-  await page.goto("/app")
+  await page.goto("/redeem")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
   const toggle = page.locator("#theme-control [data-theme-toggle]")
@@ -423,7 +327,7 @@ test("before any choice a device that asks for light gets light", async ({browse
 for (const width of [320, 390]) {
   test(`${width}px drawer contains focus and cleans up every close path`, async ({page}) => {
     await page.setViewportSize({width, height: 720})
-    await page.goto("/app")
+    await page.goto("/redeem")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
     const menu = page.getByRole("button", {name: "Menu"})
@@ -460,7 +364,7 @@ for (const width of [320, 390]) {
     await expect(menu).toBeFocused()
 
     await menu.click()
-    const destination = sidebar.locator('a[href]:not([href="/app"])').first()
+    const destination = sidebar.locator('a[href]:not([href="/redeem"])').first()
     await destination.click()
     await expect(menu).toHaveAttribute("aria-expanded", "false")
     await expect(scrim).toBeHidden()
@@ -479,7 +383,7 @@ test("tablet, desktop, and effective 200 percent zoom have no horizontal overflo
     {width: 640, height: 900},
   ]) {
     await page.setViewportSize(viewport)
-    await page.goto("/app")
+    await page.goto("/redeem")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       viewport.width,

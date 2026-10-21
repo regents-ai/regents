@@ -64,7 +64,7 @@ defmodule RegentsWeb.RedeemGalleryLiveTest do
 
     view |> element("#gallery-mine") |> render_click()
     assert_receive {:held, held}
-    render_patch(view, "/stake")
+    render_patch(view, "/")
 
     release_lookups([held])
     render_async(view)

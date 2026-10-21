@@ -134,6 +134,8 @@ defmodule RegentsWeb.Router do
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
     get "/articles/covers/:slug", BlogCoverController, :show
     get "/agents/:wallet/picture", AgentPictureController, :show
+    # Staking moved to the home page; links to its old address still land there.
+    get "/stake", MovedController, :stake
   end
 
   scope "/", RegentsWeb do
@@ -149,6 +151,7 @@ defmodule RegentsWeb.Router do
     get "/claims", RegentsWeb.OwnedClaimsController, :index
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show
+    get "/example-workflows", RegentsWeb.ExampleWorkflowsController, :show
     get "/site-tools", RegentsWeb.SiteToolsController, :index
     get "/regents/:slug", RegentsWeb.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
@@ -184,7 +187,7 @@ defmodule RegentsWeb.Router do
   scope "/", RegentsWeb do
     pipe_through :browser
 
-    live "/", HomeLive, :home
+    live "/vgpu-demo", VgpuDemoLive, :vgpu_demo
 
     live_session :paper_reading,
       session: {RegentsWeb.Live.Session, :render_context, []},
@@ -214,7 +217,6 @@ defmodule RegentsWeb.Router do
         {RegentsWeb.Live.Session, :load_human},
         RegentsWeb.Live.ArticleAdminHook
       ] do
-      live "/app", ShellLive, :app
       live "/articles", ShellLive, :blog
       live "/articles/:slug", ShellLive, :blog_post
       live "/start", ShellLive, :agent_start
@@ -222,7 +224,7 @@ defmodule RegentsWeb.Router do
       live "/account/credits", ShellLive, :account_credits
       live "/account/points", ShellLive, :account_points
       live "/regents/:slug", ShellLive, :regent_profile
-      live "/stake", ShellLive, :stake
+      live "/", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
       live "/redeem/gallery", ShellLive, :redeem_gallery
       live "/autolaunch", ShellLive, :autolaunch

@@ -6,7 +6,7 @@ Regents Labs is a community-owned agentic product lab that builds tools for peop
 
 ### Regents: REGENT staking and Redeem
 
-Stake REGENT on [regents.sh]({{origin}}/stake) to earn a pro rata split of all the USDC that Regents Labs products earn, plus a temporary REGENT yield for the early community. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
+Stake REGENT on [regents.sh]({{origin}}/) to share in the USDC that Regents Labs products send to staking, plus a temporary REGENT yield for the early community. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
 
 On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into a Regents Club Digital Pass and a seven-day REGENT vest on Base.
 
@@ -99,7 +99,7 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub regents-ai](https://github.com/regents-ai) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base |
 | Token contract | `0x6f89bcA4eA5931EdFCB09786267b251DeE752b07` |
-| Staking | USDC from Regents Labs products and REGENT emissions. Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury. [Stake REGENT]({{origin}}/stake); staking contract `0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5` |
+| Staking | USDC from Regents Labs products and REGENT emissions. Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury. [Stake REGENT]({{origin}}/); staking contract `0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5` |
 
 Staking involves contract and network conditions, wallet approval and financial risk. No return is guaranteed.
 
@@ -115,7 +115,7 @@ Stakers share the USDC paid into the staking contract, each in proportion to the
 
 ### Where does the USDC come from?
 
-From the products: Regents Labs' share of Autolaunch trading fees and staking rewards on Base, and all the USDC Patchbay earns (paid assist fees and its share of priority reports).
+From the products, each sending a set part: every Credits purchase on Base in full; 10% of each new Keyfleet Key sale; each 0.10 USDC Patchbay assist and 10% of each paid priority report; and from Autolaunch, 2% of each Revstake token's USDC revenue and 1% of each Memestock trade on Base. Each deposit is then split by how much of REGENT's 100 billion supply is staked: stakers receive that share and the Regents Labs treasury the rest.
 
 ### Does Regents Labs hold my money or my keys?
 
@@ -131,7 +131,7 @@ Mostly. Regents, Autolaunch, Techtree, Patchbay, Regents Mobile, Sign-in with Ag
 
 ### Is a return guaranteed?
 
-No. Staking and buying tokens involve contract, network and financial risk, and emission rates can change. Read [Stake]({{origin}}/stake) before deciding.
+No. Staking and buying tokens involve contract, network and financial risk, and emission rates can change. Read [Stake]({{origin}}/) before deciding.
 
 ### How do I reach Regents Labs?
 

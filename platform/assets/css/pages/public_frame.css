@@ -1,0 +1,20 @@
+/* The plain frame the holding, legal and public document pages share: the
+   site's ground and ink, and the holding page's heading and one action. */
+@layer regents-product {
+  .rl-root {
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+  .rl-root :is(h1, h2, h3, p) { margin-block: 0; }
+  .rl-root [id] { scroll-margin-block-start: 2rem; }
+  .rl-hero { min-width: 0; }
+  .rl-hero-copy { position: relative; z-index: 1; width: fit-content; max-width: 100%; align-self: start; padding: var(--space-1) var(--space-2) var(--space-2) 0; }
+  .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
+  .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); pointer-events: auto; }
+  .rl-overline { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; }
+
+  @media (max-width: 47.99rem) {
+    .rl-hero-copy { padding: 0; }
+    .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
+  }
+}

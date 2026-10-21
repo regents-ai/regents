@@ -1,12 +1,12 @@
 defmodule RegentsWeb.ProductLiveTest do
   use RegentsWeb.ConnCase, async: true
 
-  alias RegentsWeb.HomeLive
+  alias RegentsWeb.ProductCatalog
 
   test "TECHTREE_PAGE: each card says what Techtree offers today, with a link only to what can be tried",
        %{conn: conn} do
     {:ok, view, html} = live(conn, "/techtree")
-    proofs = Enum.find(HomeLive.products(), &(&1.anchor == "techtree")).proofs
+    proofs = Enum.find(ProductCatalog.products(), &(&1.anchor == "techtree")).proofs
 
     for proof <- proofs do
       assert has_element?(view, ".product-proof [data-proof-status=#{proof.status}]")

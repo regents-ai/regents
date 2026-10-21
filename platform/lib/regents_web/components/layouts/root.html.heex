@@ -1,5 +1,5 @@
-<!DOCTYPE html> <% home? = @conn.request_path == "/" %>
-<% theme = if home?, do: "dark", else: @theme %>
+<!DOCTYPE html> <% demo? = @conn.request_path == "/vgpu-demo" %>
+<% theme = if demo?, do: "dark", else: @theme %>
 <% metadata =
   RegentsWeb.PublicDocuments.metadata(@conn.request_path, @page_title, @page_description) %>
 <%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
@@ -14,8 +14,8 @@
   lang="en"
   data-brand="platform"
   data-theme={theme}
+  data-theme-locked={if demo?, do: "true", else: "false"}
   data-aside={assigns[:aside]}
-  data-home-theme-locked={if home?, do: "true", else: "false"}
 >
   <head>
     <meta charset="utf-8" />
@@ -64,6 +64,6 @@
   </head>
   <body>
     {@inner_content}
-    <.product_links :if={!home? and !shell?} />
+    <.product_links :if={!demo? and !shell?} />
   </body>
 </html>

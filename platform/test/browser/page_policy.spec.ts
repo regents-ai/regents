@@ -18,18 +18,18 @@ test("[R14] no page is refused anything by its security policy", async ({page}) 
     refusals.push(...found.map(refusal => `${label}: ${refusal}`))
   }
 
-  for (const path of ["/", "/articles", "/docs", "/about", "/contact", "/privacy", "/terms",
-    "/app", "/stake", "/redeem", "/redeem/gallery", "/account",
+  for (const path of ["/", "/vgpu-demo", "/articles", "/docs", "/about", "/contact", "/privacy", "/terms",
+    "/redeem", "/redeem/gallery", "/account",
     "/autolaunch", "/techtree", "/patchbay", "/no-such-page"]) {
     await page.goto(path)
     await page.waitForLoadState("networkidle")
     await collect(path)
   }
 
-  await page.goto("/stake")
+  await page.goto("/")
   await page.getByRole("button", {name: /sign in/i}).first().click()
   await page.waitForLoadState("networkidle")
-  await collect("/stake after pressing sign in")
+  await collect("/ after pressing sign in")
 
   expect(refusals).toEqual([])
 })

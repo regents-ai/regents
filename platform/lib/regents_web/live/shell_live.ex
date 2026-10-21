@@ -29,7 +29,6 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.PublicDocuments
   alias RegentsWeb.RedeemGalleryLive
   alias RegentsWeb.RedeemLive
-  alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
   alias RegentsWeb.ShellLive.{Account, Gallery, Points, Redemption, Staking}
@@ -228,16 +227,6 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :regent_profile}
           regent={@regent}
           status={@regent_status}
-        />
-
-        <RegentOpsLive.page
-          :if={@route_spec.route_id == :app}
-          reading={Staking.reading?(assigns)}
-          staking={@staking}
-          status={@staking_status}
-          notice={@staking_notice}
-          account_control={@account_control}
-          account={current_account(@access_context)}
         />
 
         <AccountLive.page

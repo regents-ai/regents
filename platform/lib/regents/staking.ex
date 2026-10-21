@@ -12,7 +12,6 @@ defmodule Regents.Staking do
 
     resource Regents.Staking.Snapshot do
       define :overview, action: :overview
-      define :account, action: :account
       define :account_for_wallet, action: :account_for_wallet, args: [:expected_signer]
     end
   end

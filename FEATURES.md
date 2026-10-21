@@ -12,8 +12,10 @@ also runs alone with `cd platform && npx playwright test`.
 
 | Feature | Proving check | Gap |
 | --- | --- | --- |
-| Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
-| Home page shows one cube in the middle of the stage, with "Human Browsing" above it, about half again as big on a computer | `browser/homepage.spec.ts` (the six worlds) | The drawn cube needs WebGPU, which the headless browser lacks: its size and the words over it are checked by hand in headless pictures |
+| Home page fleet figure: five cards, each a name and a slogan that opens its app, joined by six labelled lines; no card or label covers another and nothing leaves the figure; it fits in the top half of a 1440 by 900 screen; without a GPU frame the still lines show | `browser/fleet_figure.spec.ts` (1440, 1024, 390 and 320, no sideways scroll) | The flowing lines need WebGPU: checked by hand in headless Chromium started with WebGPU switched on |
+| Agents read the same example workflows and the exact revenue split, as data and as the home page's Markdown; neither says every fee goes to stakers | `regents_web/example_workflows_test.exs` | |
+| The old /stake address sends people to the home page for good | `regents_web/example_workflows_test.exs` | |
+| The vgpu demo at /vgpu-demo: the cube of the four products and staking, six worlds in order, every width, keyboard focus, reduced motion, always dark, open while the rest of the app is closed | `browser/vgpu_demo.spec.ts`, `regents_web/vgpu_demo_live_test.exs`, `regents_web/launch_gate_test.exs` | The drawn cube needs WebGPU, which the headless browser lacks: its size and the words over it are checked by hand in headless pictures |
 | The "Agents see" window copies every Regent site's tools at once, each site its own section, then how an agent signs in; it stays open when opened while the page is still connecting | `browser/agent_tools.spec.ts` "the tools window copies every site's tools…" (1280 and 390; the test server answers every site's tools from `test/support/test_site_tools.ex`) | |
 | Sign in and sign out with Privy; tabs stay in step; a sign-in the server refuses lands the page signed out with one reload, which the server's own disconnect brings | `browser/u3_auth_lazy_acceptance.spec.ts` ("a rejected bearer leaves the browser anonymous…"), `regents_web/live/session_authority_gate_test.exs` | |
 | Repeated failed sign-ins are reported at most 20 times a minute; a minute's budget lasts to its last second and returns at the next | `regents_web/controllers/privy_session_controller_test.exs` "repeated rejected sessions share the actionable bound" (the clock stands still), `regents/rate_limiter_test.exs` (both sides of a window's edge) | |
@@ -30,7 +32,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Credits refunds and the credits admin page | `regents_web/route_catalog_test.exs` (route exists only), `regents/credits/credited_test.exs` | No page-level check |
 | Articles and the articles admin page | `browser/page_policy.spec.ts`, `regents_web/router_gate_coverage_test.exs` | No check of reading or editing an article |
 | Regent profile pages | `regents_web/regent_profile_live_test.exs` | |
-| Product pages (Autolaunch, Techtree, Patchbay, Keyfleet) and Overview | `browser/regent_overview_token.spec.ts`, `regents_web/product_live_test.exs` | |
+| Product pages (Autolaunch, Techtree, Patchbay, Keyfleet) | `regents_web/product_live_test.exs` | |
 | Paper Pro Daily and Literature | `regents_web/paper_pro_daily_live_test.exs`, `regents_web/controllers/literature_controller_test.exs` | |
 | Free name claim | `regents/names/claim_free_test.exs`; production has the unique index on each name | |
 | No page is refused by its security policy; no sideways scroll at any width | `browser/page_policy.spec.ts`, `browser/founder_shell.spec.ts` | |

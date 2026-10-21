@@ -27,7 +27,7 @@ defmodule RegentsWeb.ShowcaseLive do
        result: nil,
        identities: [],
        connection_notice: nil,
-       route_spec: RegentsWeb.RouteCatalog.fetch!(:app),
+       route_spec: RegentsWeb.RouteCatalog.fetch!(:stake),
        account: %Regents.AccessContext.AccountControl{
          kind: :preview,
          label: "Fixture",
@@ -557,7 +557,7 @@ defmodule RegentsWeb.ShowcaseLive do
                       verified with a real account. Wallet fixture state is separate.
                     </p>
                   </P.disclosure><h3>Product actions</h3><div class="sc-row">
-                    <a href="/stake">Stake ↗</a><a href="/redeem">Redeem ↗</a>
+                    <a href="/">Stake ↗</a><a href="/redeem">Redeem ↗</a>
                   </div><P.disclosure
                     phx-mounted={JS.ignore_attributes("open")}
                     id="real-actions"

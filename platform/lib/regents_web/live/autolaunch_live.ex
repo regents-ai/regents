@@ -2,7 +2,7 @@ defmodule RegentsWeb.AutolaunchLive do
   @moduledoc false
   use Phoenix.Component
 
-  alias RegentsWeb.{HomeLive, ProductLive}
+  alias RegentsWeb.{ProductCatalog, ProductLive}
 
   # The Autolaunch page carries its own copy: the two launch kinds and their
   # figures, taken from autolaunch.sh's own guide. Nothing here reads a chain.
@@ -69,7 +69,7 @@ defmodule RegentsWeb.AutolaunchLive do
   home page's directory entry supplies the site and source links.
   """
   def content do
-    site = Enum.find(HomeLive.hero_products(), &(&1.name == "autolaunch"))
+    site = Enum.find(ProductCatalog.hero_products(), &(&1.name == "autolaunch"))
 
     %{
       name: "Autolaunch",
@@ -181,7 +181,7 @@ defmodule RegentsWeb.AutolaunchLive do
         </p>
         <nav class="product-family__links" aria-label="Autolaunch links">
           <ProductLive.external href={@content.site}>Open {@content.name}</ProductLive.external>
-          <.link navigate="/stake">Stake REGENT</.link>
+          <.link navigate="/">Stake REGENT</.link>
           <ProductLive.external href={@content.github}>Source on GitHub</ProductLive.external>
         </nav>
       </Regent.Structure.panel>

@@ -12,9 +12,9 @@ revision at build time, and the attribution and licence text live in the design 
 `THIRD_PARTY_NOTICES.md`. The renderer runs on the `vgpu` 0.6.0 this repository
 pins, with `@vgpu/wgsl` 0.6.0 preparing its shader.
 
-## vgpu — homepage world cube
+## vgpu — the vgpu demo's world cube
 
-The turning cube on the homepage, under `assets/js/world_cube/` with its `WorldCube`
+The turning cube on `/vgpu-demo`, under `assets/js/world_cube/` with its `WorldCube`
 hook and component, is copied unchanged from ash-template, which records no
 third-party source for its scene or shader. It draws through Vercel's `vgpu`, which
 is bundled into the script the site serves, with `@vgpu/wgsl` preparing its one shader

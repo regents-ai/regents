@@ -1,6 +1,6 @@
 # Local REGENT staking verification
 
-This page explains how to verify the admitted `/stake` capability locally. It does not require
+This page explains how to verify staking on the home page, `/`, locally. It does not require
 or authorize a production deployment, database migration, or automated live transaction.
 
 ## Automated proof
@@ -25,7 +25,7 @@ transaction.
 3. Start the app with `mix phx.server`. When `BASE_READ_RPC_URL` is set,
    local Stake and Redeem read that same Base endpoint production reads; startup names only its
    host, never the key-bearing address itself.
-4. Open `http://localhost:4000/stake` and sign in with the Privy account whose embedded wallet you
+4. Open `http://localhost:4000/` and sign in with the Privy account whose embedded wallet you
    intend to use.
 5. Confirm the page shows Base, the deployed staking contract, your REGENT balance, your current
    stake, and your available USDC and REGENT rewards.
