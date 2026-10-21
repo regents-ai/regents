@@ -96,13 +96,13 @@ defmodule Regents.MixProject do
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:telemetry_metrics, "~> 1.0"},
       {:peep, "~> 5.0"},
-      {:telemetry_poller, "~> 1.0"},
+      {:telemetry_poller, "~> 1.3"},
       {:error_tracker, "~> 0.9"},
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.12"},
       {:decimal, "== 3.2.0"},
-      {:req, "~> 0.7"},
+      {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},
       # CVE-2026-105659 is fixed from 1.13.1.
       {:bandit, "~> 1.13.1"},

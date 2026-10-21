@@ -11,16 +11,13 @@ defmodule RegentsWeb.PublicPagesController do
   def developers(conn, _params), do: conn |> put_status(301) |> redirect(to: "/docs")
   def openapi(conn, _params), do: json(conn, PublicDocuments.openapi())
 
-  def llms(conn, _params),
-    do: conn |> put_resp_content_type("text/plain") |> send_resp(200, PublicDocuments.llms())
+  def llms(conn, _params), do: send_cached(conn, "text/plain", PublicDocuments.llms())
 
   def capabilities(conn, _params), do: json(conn, PublicDocuments.capabilities())
 
-  def agents(conn, _params),
-    do: conn |> put_resp_content_type("text/markdown") |> send_resp(200, PublicDocuments.agents())
+  def agents(conn, _params), do: send_cached(conn, "text/markdown", PublicDocuments.agents())
 
-  def skill(conn, _params),
-    do: conn |> put_resp_content_type("text/markdown") |> send_resp(200, PublicDocuments.skill())
+  def skill(conn, _params), do: send_cached(conn, "text/markdown", PublicDocuments.skill())
 
   def robots(conn, _params) do
     conn
@@ -44,6 +41,18 @@ defmodule RegentsWeb.PublicPagesController do
       conn
       |> put_resp_content_type("application/xml")
       |> send_resp(200, PublicDocuments.sitemap())
+
+  # These documents change only with a release: a sha256 ETag of the body and a
+  # five-minute public cache, as the template sends on its agent files. Every
+  # type and body comes from this site's own documents, never from the request.
+  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
+  defp send_cached(conn, type, body) do
+    conn
+    |> put_resp_header("etag", ~s("#{Base.encode16(:crypto.hash(:sha256, body), case: :lower)}"))
+    |> put_resp_header("cache-control", "public, max-age=300")
+    |> put_resp_content_type(type)
+    |> send_resp(200, body)
+  end
 end
 
 defmodule RegentsWeb.PublicPagesHTML do
