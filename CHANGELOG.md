@@ -2667,3 +2667,17 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   every site. MCP server 2.0.0 carries GHSA-rvq5-wwqv-78pq, GHSA-46jr-4wx8-v453
   and GHSA-jm63-cq47-j5jp, fixed in 2.3.0; its licence moved from MIT to
   Apache-2.0.
+
+## 2026-10-21 — Regents v215 released
+
+- v215 (`25600003`) went live as Fly v215 at about 09:28Z on 21 Oct. It carries
+  the hover info tips (Sean's go, 21 Oct 00:58Z), the shared UI library at
+  design-system `5b4f47ec` and the MCP library at 2.3.1. The rollback is v214
+  (`acad2922`). No migrations.
+- Before release, the full check succeeded on this commit: 559 server tests,
+  232 script tests, 105 browser tests, the required-fixes check, the
+  command-line check and the identity check.
+- Live checks: one machine runs `main-25600003927e` with its health check
+  passing. On the live /stake page in headless Chromium, a tip in the library's
+  markup opens while the mouse rests on its "i", closes after the mouse leaves,
+  and stays open after a click; the page raises no errors.
