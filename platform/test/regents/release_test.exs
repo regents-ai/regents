@@ -52,7 +52,7 @@ defmodule Regents.ReleaseTest do
     assert Release.migration_config!(getenv) == [
              ssl: [
                verify: :verify_peer,
-               cacerts: :public_key.cacerts_get(),
+               cacertfile: CAStore.file_path(),
                server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)

@@ -639,7 +639,7 @@ defmodule Regents.DatabaseConfigTest do
 
   defp assert_verified_tls(ssl, hostname) do
     assert ssl[:verify] == :verify_peer
-    assert is_list(ssl[:cacerts]) and ssl[:cacerts] != []
+    assert ssl[:cacertfile] == CAStore.file_path()
     assert ssl[:server_name_indication] == String.to_charlist(hostname)
 
     assert is_function(

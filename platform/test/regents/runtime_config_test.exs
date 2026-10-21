@@ -99,7 +99,7 @@ defmodule Regents.RuntimeConfigTest do
              pool_size: 5,
              ssl: [
                verify: :verify_peer,
-               cacerts: :public_key.cacerts_get(),
+               cacertfile: CAStore.file_path(),
                server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
@@ -194,7 +194,7 @@ defmodule Regents.RuntimeConfigTest do
     assert runtime_repo_config(:prod) == [
              ssl: [
                verify: :verify_peer,
-               cacerts: :public_key.cacerts_get(),
+               cacertfile: CAStore.file_path(),
                server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
@@ -281,7 +281,7 @@ defmodule Regents.RuntimeConfigTest do
     assert get_in(config, [:regents, Regents.Repo]) == [
              ssl: [
                verify: :verify_peer,
-               cacerts: :public_key.cacerts_get(),
+               cacertfile: CAStore.file_path(),
                server_name_indication: ~c"direct.dzx6qo6xqzvojpv5.flympg.net",
                customize_hostname_check: [
                  match_fun: :public_key.pkix_verify_hostname_match_fun(:https)

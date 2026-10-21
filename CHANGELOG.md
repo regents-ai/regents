@@ -2611,3 +2611,19 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   health check is passing; /stake, /redeem and /paper-pro-daily name
   `stake-d63b80c2…`, `redeem-fdec377e…` and `paper-pro-daily-3a7579fa…`, and
   each answers 200 `image/png` at the new picture's size.
+
+## 2026-10-21 — Outbound connections trust castore's certificate list
+
+- What: the site now trusts the certificate list castore 1.0.22 ships
+  (Mozilla's), instead of the server image's Debian list, for every outbound
+  connection: `Regents.Application` loads it first thing, and the Fly database
+  connection names the same file (`Regents.DatabaseConfig`, which runs before
+  the application starts). `platform/Dockerfile` no longer copies Debian's list
+  into the image. Copied from ash-template `fd9776a0`.
+- Checked: `platform/test/regents/trusted_roots_test.exs` (the trusted list is
+  castore's, without the three dropped eMudhra roots; it fails when the load
+  line is taken out). The database tests now expect castore's file. The full
+  check, including the required-fixes check against ash-template's main.
+- Why: eMudhra's intermediate certificates were compromised (20 Oct 2026).
+  castore dropped their roots the same day; Debian bookworm's list still has
+  them. Released on Sean's 40a (21 Oct 08:12Z) for this one release.
