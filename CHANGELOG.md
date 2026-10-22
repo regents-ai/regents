@@ -2841,3 +2841,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   (the refusal's code, and that the message carries the code and the guide).
 - Checked on this toolchain: 565 server tests, 232 script tests, 105 browser
   tests, required fixes (ash-template `cde83109`), CLI commands, identity 16.
+
+## 2026-10-22 — Regents v218 released
+
+- v218 (`1c144216`) went live as Fly v218 at about 22:40Z on 22 Oct: Elixir
+  1.20.4 on OTP 29, Node 26.12, elixir-utils `3ffd1647`, Phoenix held at
+  1.8.15. The rollback is v217 (`449cd52f`).
+- The release step (`/app/bin/migrate`) succeeded, so the Credits holds index
+  was already in production; `migrate-shared` was not run.
+- Live checks: one machine runs `main-1c1442165212` with its health check
+  passing; `/`, `/stake`, `/redeem`, `/account`, `/docs` and `/app` load in
+  headless Chromium at 1280 and 390 wide with no errors and no sideways scroll;
+  no errors in the machine's recent log. WebKit not run on the Mac.
