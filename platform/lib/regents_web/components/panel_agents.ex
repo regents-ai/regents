@@ -120,7 +120,9 @@ defmodule RegentsWeb.PanelAgents do
         kind: to_string(agent.harness),
         last_action: latest && "Active on #{latest.site}",
         last_action_iso: latest && DateTime.to_iso8601(latest.at),
-        last_action_at: latest && RegentFormat.short_relative_time(latest.at, now)
+        last_action_at: latest && RegentFormat.short_relative_time(latest.at, now),
+        light: nil,
+        light_label: nil
       }
     end)
   end

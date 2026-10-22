@@ -2853,3 +2853,16 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   passing; `/`, `/stake`, `/redeem`, `/account`, `/docs` and `/app` load in
   headless Chromium at 1280 and 390 wide with no errors and no sideways scroll;
   no errors in the machine's recent log. WebKit not run on the Mac.
+
+## 2026-10-22 — Each agent on the Account page names its wallet
+
+- design-system moves to `5dd12626`, as in ash-template (`a993f2d`). Each agent
+  row on the Account page shows the agent's own wallet beside its name: the
+  short form opens the full address, its icon copies it, and its arrow opens it
+  on Basescan. The contact line says "Last check-in".
+- The agent's window shows its address the same way instead of as plain text,
+  and says "Last check-in", in the library's words.
+- Rows carry `light: nil` and `light_label: nil`, as the library now asks of a
+  site without check-in lights.
+- Checked: the Account agents test now proves each of two agents' rows names its
+  own wallet.

@@ -68,9 +68,12 @@ defmodule RegentsWeb.Components.PairedAgents do
         name: agent.name,
         kind: to_string(agent.harness),
         harness: Harness.label(agent.harness),
+        wallet: agent.wallet,
         backed: HumanBacking.describe(agent).human_backed,
         last_contact_iso: DateTime.to_iso8601(agent.last_contact_at),
-        last_contact: RegentFormat.relative_time(agent.last_contact_at, now)
+        last_contact: RegentFormat.relative_time(agent.last_contact_at, now),
+        light: nil,
+        light_label: nil
       }
     end)
   end
@@ -130,7 +133,7 @@ defmodule RegentsWeb.Components.PairedAgents do
           <dd>{moment(@detail.agent.paired_at)}</dd>
         </div>
         <div>
-          <dt>Last contact</dt>
+          <dt>Last check-in</dt>
           <dd>
             {RegentFormat.relative_time(@detail.agent.last_contact_at, @now)}
             <span>{moment(@detail.agent.last_contact_at)}</span>
@@ -138,7 +141,12 @@ defmodule RegentsWeb.Components.PairedAgents do
         </div>
         <div>
           <dt>Agent address</dt>
-          <dd><code>{@detail.agent.wallet}</code></dd>
+          <dd>
+            <Regent.Primitives.address
+              id="account-agent-wallet"
+              address={@detail.agent.wallet}
+            />
+          </dd>
         </div>
         <div :if={@detail.listing}>
           <dt>Registry listing</dt>

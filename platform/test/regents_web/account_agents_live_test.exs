@@ -79,6 +79,15 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     view = open_account(conn, account)
 
+    # Each row names its own agent's wallet, the full address one press away.
+    assert has_element?(view, "#account-agents-agent-#{agent.id}-wallet-full", @agent_wallet)
+
+    assert has_element?(
+             view,
+             "#account-agents-agent-#{sibling.id}-wallet-full",
+             "0x3333333333333333333333333333333333333333"
+           )
+
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       Req.Test.json(conn, %{
         "data" => %{
