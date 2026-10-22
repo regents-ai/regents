@@ -2681,3 +2681,72 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   passing. On the live /stake page in headless Chromium, a tip in the library's
   markup opens while the mouse rests on its "i", closes after the mouse leaves,
   and stays open after a click; the page raises no errors.
+
+## 2026-10-21 — The home page is the fleet figure and REGENT staking
+
+- `/` now opens with "Agents build together. Useful work creates value." and,
+  under it, a web of five cards: Keyfleet, Techtree, Patchbay, Autolaunch and
+  Stake $REGENT, each a name and a slogan that opens its app. Labelled lines
+  join them: Ideas, Blockers and Projects go out from the fleet, and USDC goes
+  to staking from Keyfleet, Patchbay and Autolaunch. A label's tip gives the
+  full share behind it. The lines flow, drawn with vgpu; a card under the
+  pointer or keyboard lights its lines. Without WebGPU, or with less motion
+  asked for, the still lines show. The figure fits in the top half of the first
+  screen on a computer, and stacks the apps around the fleet on a phone.
+- REGENT staking sits beside the figure on the same page. Its "Where staking
+  USDC comes from" panel states exactly what reaches staking (every Credits
+  purchase on Base, 10% of each new Key sale, 10% of each paid Patchbay
+  priority report and each 0.10 USDC assist, 2% of each Revstake token's USDC
+  revenue and 1% of each Memestock trade on Base) and how each deposit is
+  split by the share of REGENT staked.
+- The cube home page moves to `/vgpu-demo`, unchanged apart from its links,
+  which now lead to `/`, and its staking card, which states the same split as
+  the home page. It stays dark and stays open while the rest of the app is
+  closed. `/stake` answers 301 to `/` for good; its share picture is removed.
+- The Overview page (`/app`) is removed with no redirect: its page, styles,
+  drawings, side-panel link, page title and checks are gone, and so is the
+  signed-in wallet read only it used (`Regents.Staking.account`). Pages that
+  named `/app` as their parent now name `/`, and checks that opened `/app` as
+  an ordinary signed-in page now open `/autolaunch`, and the Showcase links to
+  `/` in their place.
+- Agents read the same figure, with every example step, its tools and its
+  approvals, as `GET /api/v1/example-workflows`, the
+  `regents_example_workflows` browser tool and the home page's Markdown, all
+  from `RegentsWeb.ExampleWorkflows`. The page itself shows only the slogans.
+- New checks: `test/browser/fleet_figure.spec.ts` (no card or label covers
+  another at 1440, 1024, 390 and 320, nothing leaves the figure, it fits in
+  the top half of a 1440 by 900 screen, the cards' links, and the still lines
+  without a GPU frame) and `test/regents_web/example_workflows_test.exs` (the
+  agent read, the Markdown, the revenue split, the /stake move).
+- The cube's checks move with it: `test/browser/vgpu_demo.spec.ts` and
+  `test/regents_web/vgpu_demo_live_test.exs`.
+
+## 2026-10-22 — The web-of-cards home page is parked, not released
+
+- What: `cd12bc0c` reverts `f22ed359` (the entry above, "Home page: a web of
+  cards…"). The cube stays the home page, `/stake` stays the staking page and
+  `/app` stays. The tree matched live v215 (`25600003`) again. That revert also
+  dropped the entry above from this file; it is restored here, since this file
+  is append-only.
+- Why: Sean, 21 Oct 11:18Z: "these cards are not what I want. hold for later.
+  dont release". The design stays in `f22ed359`; reverting `cd12bc0c` brings it
+  back when Sean returns to it.
+
+## 2026-10-22 — Measurements under the template's names, in microseconds
+
+- What: the site measures the way ash-template does, through Peep, in whole
+  microseconds. Database waits are `health.db_queue.microseconds` (Fly Sentinel's
+  tiles read this name), each query's whole time
+  `regents.repo.query.microseconds`, each request's time by its route pattern
+  `regents.request.duration.microseconds`, background jobs by outcome and time,
+  and the engine's memory and run queues. Staking chain reads are the counter
+  `regents_staking_rpc_requests_total`. The old seconds-based names are gone (hard
+  cutover); Sentinel's database-wait tiles show "Waiting for data" until they read
+  the microsecond name. `/agents.md`, `/skill.md` and `/llms.txt` now carry an ETag
+  and cache tags so shared caches may keep them; req and telemetry_poller move to
+  version ranges as in the template.
+- Checked: 563 server tests, 232 script tests, 105 browser tests (headless
+  Chromium; WebKit not run on the Mac), the required-fixes check against
+  ash-template `36e32b8c`, the command-line check and the identity check (16 tests).
+- Why: Sean approved the quick wins on 21 Oct (10:33Z and 11:02Z), including
+  every site following the template's microsecond metric names.
