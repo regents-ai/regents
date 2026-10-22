@@ -14,6 +14,10 @@ defmodule Regents.Staking.Snapshot do
       run fn input, context -> Actions.overview(input, context) end
     end
 
+    action :account, :map do
+      run fn input, context -> Actions.account(input, context) end
+    end
+
     action :account_for_wallet, :map do
       argument :expected_signer, :string, allow_nil?: false
       run fn input, context -> Actions.account_for_wallet(input, context) end
@@ -23,6 +27,10 @@ defmodule Regents.Staking.Snapshot do
   policies do
     policy action([:overview, :account_for_wallet]) do
       authorize_if always()
+    end
+
+    policy action(:account) do
+      authorize_if Regents.Staking.Checks.HumanActor
     end
   end
 end

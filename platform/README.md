@@ -107,10 +107,7 @@ is a map, not the contract.
 | `/api/formation/v1/regents/:regent_id/agent-links` | GET | Read agent links. |
 | `/api/formation/v1/regents/:regent_id/agent-links/claim` | POST | Claim an agent link. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
-| `/api/v1/example-workflows` | GET | The home page's example workflows and the revenue sent to REGENT staking, as data. |
-| `/`, `/redeem` | LiveView | The home page (fleet figure and REGENT staking) and the signed-in product shell. |
-| `/vgpu-demo` | LiveView | The turning cube of the four products and REGENT staking; open while the rest of the app is closed. |
-| `/stake` | GET | Moved for good to `/`. |
+| `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 
 `/healthz` and every `/api` path share one budget of 120 requests a minute per client
 address, and pairing also has its own 10 a minute, as in ash-template

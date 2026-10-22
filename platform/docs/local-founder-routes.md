@@ -65,11 +65,11 @@ not end in `_dev` or `_test`.
 
 ## 3. Verify real Privy sign-in without moving value
 
-Open [http://localhost:4000/redeem](http://localhost:4000/redeem).
+Open [http://localhost:4000/app](http://localhost:4000/app).
 
 1. Choose **Sign in** and connect the Privy wallet you intend to inspect.
 2. Confirm the upper-right account control changes from **Sign in** to the signed-in identity.
-3. Open [http://localhost:4000/](http://localhost:4000/). Confirm the page shows Base,
+3. Open [http://localhost:4000/stake](http://localhost:4000/stake). Confirm the page shows Base,
    the verified staking contract, and that wallet's REGENT position and rewards.
 4. Open [http://localhost:4000/redeem](http://localhost:4000/redeem). Confirm the page shows the
    verified 80 USDC price, 5,000,000 REGENT payout, seven-day vest, and that wallet's balance,
@@ -82,7 +82,7 @@ Everything in this section is read-only. Reviewing an action is also safe until 
 
 ## 4. Optional real staking check
 
-Staking on `/` uses the deployed Base mainnet contracts. If you decide to continue past the review, the
+`/stake` uses the deployed Base mainnet contracts. If you decide to continue past the review, the
 wallet prompt is a real transaction and uses real REGENT and ETH for gas.
 
 Recommended first check:

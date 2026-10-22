@@ -10,16 +10,17 @@ the repository and the running site on 2026-09-03, at `main` = `0a82684`.
 `regents` is the Elixir/Phoenix application behind **https://regents.sh**. It is
 deployed on Fly.io as the app **`regents-sh-web`**.
 
-Three public surfaces are open today:
+Four public surfaces are open today:
 
 | Route | What it is |
 | --- | --- |
-| `/` | The home page: the fleet figure with its example workflows, and REGENT staking against the Base contract (`/stake` moves here) |
+| `/` | The marketing home page, with the WebGPU hero |
+| `/stake` | REGENT staking against the Base contract |
 | `/redeem` | Animata I / II → Regents Club membership + REGENT vest |
-| `/vgpu-demo` | The turning cube of the products and staking, the home page until 21 Oct 2026 |
+| `/app` | The signed-in Regent shell |
 
 Autolaunch and Techtree have left this app (see §9); their product copy on `/`
-stays, linking out to autolaunch.sh and techtree.sh.
+and `/stake` stays, linking out to autolaunch.sh and techtree.sh.
 
 Stack: Phoenix 1.8 · LiveView 1.2 · Ash 3.34 · AshPostgres · Privy for sign-in ·
 Base (chain 8453) for every on-chain figure.
@@ -56,9 +57,8 @@ Adding or removing a route means touching three places together:
 present in one and absent from another fails `mix regents.route_handoff --check`,
 which runs in the gate.
 
-`/` and `/redeem` render through the shell's stake/redeem page components. The fleet
-figure on `/` (`components/fleet_figure.ex`) draws `example_workflows.ex`, which also
-answers `GET /api/v1/example-workflows`.
+`/` (`HomeLive`), `/stake` and `/redeem` render through the shell's stake/redeem page
+components; the home page is its own LiveView.
 
 ### The launch gate
 
@@ -106,13 +106,13 @@ lib/regents/
 lib/regents_web/
   route_catalog.ex   the route allowlist and its behaviour metadata
   live/shell_live.ex the one shell LiveView (large; read the region you need)
+  live/home_live.ex  the marketing page
   live/stake_live.ex live/redeem_live.ex
-  example_workflows.ex the home page's example workflows, for the page and agents
-  product_catalog.ex the product list the product pages share
   token_links.ex     the Uniswap and DexScreener links, built from the pinned
                      token address so a link can never name another token
 assets/css/pages/    one stylesheet per surface
-assets/js/hooks/     LiveView hooks; fleet_figure opens one app's steps at a time
+assets/js/hooks/     LiveView hooks; world_cube turns the homepage's cube
+assets/js/world_cube/ the cube of six rooms on the homepage (from ash-template)
 contracts/           the pinned manifest, its digest, and the ABIs
 test/browser/        Playwright specs (real browser, port 4002)
 ```
@@ -202,7 +202,7 @@ Follow the founder rules in `/Users/sean/Documents/regent/AGENTS.md`.
 
 **Techtree has left this app.** The vertical, its routes, OpenAPI
 paths, comment reactions, and the `techtree` schema tables are gone. Product copy
-on `/` stays — Techtree is still a business and still a revenue source.
+on `/` and `/stake` stays — Techtree is still a business and still a revenue source.
 
 **Autolaunch has left this app.** Founder decision, 2026-09-18: remove it. The in-app
 pages, the `/api/autolaunch/v1/*` endpoints, the Base log indexer, comments and the

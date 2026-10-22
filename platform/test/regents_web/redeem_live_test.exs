@@ -101,7 +101,7 @@ defmodule RegentsWeb.RedeemLiveTest do
 
   test "REDEEM_ROUTE_OWNERSHIP: redemption events are inert outside /redeem", %{conn: conn} do
     Application.put_env(:regents, :test_redemption_read_gate, self())
-    {:ok, view, _html} = live(conn, "/")
+    {:ok, view, _html} = live(conn, "/stake")
 
     for {event, params} <- [
           {"redemption_selection_changed", %{"collection" => "animata_i", "token_id" => "42"}},
@@ -750,7 +750,7 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert_receive {:redemption_read_waiting, left_read}
     left_read_ref = Process.monitor(left_read)
 
-    render_patch(view, "/")
+    render_patch(view, "/stake")
     Application.delete_env(:regents, :test_redemption_read_gate)
     send(left_read, :continue_redemption_read)
     assert_receive {:DOWN, ^left_read_ref, :process, ^left_read, :normal}

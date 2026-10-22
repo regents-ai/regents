@@ -22,13 +22,13 @@ defmodule RegentsWeb.Layouts do
     """
   end
 
+  attr :theme_toggle, :boolean,
+    default: true,
+    doc: "false on the home page, which is always dark"
+
   attr :agent_tools, :boolean,
     default: false,
     doc: "true in the app, which has no bottom bar to hold the tools button"
-
-  attr :theme_toggle, :boolean,
-    default: true,
-    doc: "false on the vgpu demo page, which is always dark"
 
   @doc """
   The footer of the home page, every public page and the app's pages, the same

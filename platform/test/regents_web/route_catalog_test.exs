@@ -11,9 +11,10 @@ defmodule RegentsWeb.RouteCatalogTest do
   }
 
   @paths [
-    "/vgpu-demo",
+    "/",
     "/paper-pro-daily",
     "/literature",
+    "/app",
     "/articles",
     "/articles/:slug",
     "/start",
@@ -21,7 +22,7 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/account/credits",
     "/account/points",
     "/regents/:slug",
-    "/",
+    "/stake",
     "/redeem",
     "/redeem/gallery",
     "/autolaunch",
@@ -57,11 +58,15 @@ defmodule RegentsWeb.RouteCatalogTest do
     assert runtime_routes == catalog_routes
   end
 
-  test "every catalog entry builds the route spec it declares" do
+  test "every catalog entry builds the route spec it declares, including /app" do
     assert Enum.all?(RouteCatalog.entries(), fn entry ->
              spec = RouteCatalog.fetch!(entry.live_action, sample_params(entry.live_action))
              spec.route_id == entry.route_spec_id
            end)
+
+    app_entry = Enum.find(RouteCatalog.entries(), &(&1.path_pattern == "/app"))
+    assert app_entry.route_spec_id == :app
+    assert RouteCatalog.fetch!(:app).route_id == :app
   end
 
   test "account is the canonical Regents Labs detail route" do
@@ -72,15 +77,16 @@ defmodule RegentsWeb.RouteCatalogTest do
     assert account.app_id == :regent_ops
     assert account.app_display_label == "Regents Labs"
     assert account.page_display_label == "Account"
-    assert account.canonical_root == "/"
+    assert account.canonical_root == "/app"
     assert account.header_controls == [:profile_actions]
     assert account.background_slot == :regents_labs
     assert account.local_state == %{}
   end
 
   test "every Regents page shares one navigation" do
-    assert RouteCatalog.fetch!(:stake).sidebar_model.targets == [
-             %RouteTarget{route_id: :stake, label: "Stake", path: "/"},
+    assert RouteCatalog.fetch!(:app).sidebar_model.targets == [
+             %RouteTarget{route_id: :app, label: "Overview", path: "/app"},
+             %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %RouteTarget{route_id: :account, label: "Account", path: "/account"},
              %RouteTarget{route_id: :account_credits, label: "Credits", path: "/account/credits"},
@@ -139,7 +145,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 20
+    assert length(decoded["routes"]) == 21
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

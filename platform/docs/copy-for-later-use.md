@@ -108,7 +108,7 @@ still shows. Each entry has a state label, a title, and a body.
 
 ### Run a private Verify
 
-- Destination: `/`
+- Destination: `/app`
 - Emphasis: secondary
 - Caption: Establish a baseline, test a release candidate, or scope an Improvement Program.
 

@@ -2,7 +2,7 @@ defmodule RegentsWeb.ProductLive do
   @moduledoc false
   use Phoenix.Component
 
-  alias RegentsWeb.ProductCatalog
+  alias RegentsWeb.HomeLive
 
   # The Techtree and Patchbay pages add to the home page's chapter copy: what
   # the product does in a few sentences, who it is for, its place in the family
@@ -135,8 +135,8 @@ defmodule RegentsWeb.ProductLive do
 
   defp listing(product) do
     anchor = Atom.to_string(product)
-    chapter = Enum.find(ProductCatalog.products(), &(&1.anchor == anchor))
-    site = Enum.find(ProductCatalog.hero_products(), &(&1.name == anchor))
+    chapter = Enum.find(HomeLive.products(), &(&1.anchor == anchor))
+    site = Enum.find(HomeLive.hero_products(), &(&1.name == anchor))
 
     %{
       eyebrow: chapter.eyebrow,
@@ -214,7 +214,7 @@ defmodule RegentsWeb.ProductLive do
           <Regent.Structure.panel class="product-proof rg-panel__body">
             <h3>{proof.title}</h3>
             <p>{proof.copy}</p>
-            <div class="product-proof__status"><ProductCatalog.proof_status proof={proof} /></div>
+            <div class="product-proof__status"><HomeLive.proof_status proof={proof} /></div>
           </Regent.Structure.panel>
         </li>
       </ul>

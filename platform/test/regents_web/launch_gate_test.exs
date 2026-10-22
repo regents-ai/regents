@@ -7,7 +7,7 @@ defmodule RegentsWeb.LaunchGateTest do
   alias RegentsWeb.Plugs.LaunchGate
 
   # Settings returns soon (founder, 2026-09-03): switched off, not removed. (/settings left out of the gated paths)
-  @gated_shell_paths ~w(/regents/example / /redeem /account)
+  @gated_shell_paths ~w(/app /regents/example /stake /redeem)
   @closed %{
     "error" => %{
       "code" => "not_open_yet",
@@ -34,13 +34,13 @@ defmodule RegentsWeb.LaunchGateTest do
   end
 
   test "[U1] the switch takes effect between requests of one running build" do
-    assert get(build_conn(), "/redeem").status == 200
+    assert get(build_conn(), "/app").status == 200
 
     close_surfaces()
-    assert get(build_conn(), "/redeem").status == 503
+    assert get(build_conn(), "/app").status == 503
 
     open_surfaces()
-    assert get(build_conn(), "/redeem").status == 200
+    assert get(build_conn(), "/app").status == 200
   end
 
   test "[U1] production refuses to boot without an explicit setting, and records the state" do
@@ -77,10 +77,10 @@ defmodule RegentsWeb.LaunchGateTest do
   end
 
   test "[U2] gated pages and JSON answers carry the same browser security headers as an open page" do
-    open = get(build_conn(), "/redeem")
+    open = get(build_conn(), "/app")
     close_surfaces()
 
-    assert secure_headers(get(build_conn(), "/redeem")) == secure_headers(open)
+    assert secure_headers(get(build_conn(), "/app")) == secure_headers(open)
 
     assert secure_headers(get(build_conn(), "/auth/session")) == secure_headers(open)
 
@@ -115,10 +115,20 @@ defmodule RegentsWeb.LaunchGateTest do
     assert json_response(pair_request(), 503) == @closed
   end
 
-  test "[U3] the vgpu demo, health check, legal pages and static files are untouched by the gate" do
+  test "[U3] the marketing page, health check and static files are untouched by the gate" do
     close_surfaces()
+    home = get(build_conn(), "/")
 
-    assert get(build_conn(), "/vgpu-demo").status == 200
+    title =
+      home.resp_body
+      |> LazyHTML.from_document()
+      |> LazyHTML.query("h1#home-title")
+      |> LazyHTML.text()
+      |> String.trim()
+
+    assert home.status == 200
+    assert title == "Regents Labs"
+    refute home.resp_body =~ "Not open yet"
 
     assert get(build_conn(), "/healthz").status == 200
     assert get(build_conn(), "/healthz").resp_body == "ok"
@@ -142,17 +152,17 @@ defmodule RegentsWeb.LaunchGateTest do
 
     assert {:halt, halted} =
              LaunchGateHook.on_mount(:default, %{}, %{}, %Phoenix.LiveView.Socket{
-               assigns: %{__changed__: %{}, live_action: :redeem}
+               assigns: %{__changed__: %{}, live_action: :app}
              })
 
     assert halted.redirected == {:redirect, %{to: "/", status: 302}}
   end
 
   test "[U2] a page open when the gate closes cannot keep browsing product routes", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/redeem")
+    {:ok, view, _html} = live(conn, "/app")
 
     close_surfaces()
-    render_patch(view, "/")
+    render_patch(view, "/stake")
 
     assert_redirect(view, "/")
   end

@@ -6,19 +6,17 @@ import {expect, test} from "./support/offline"
 // and test/regents_web/controllers/holding_controller_test.exs, which flip the
 // setting between requests.
 
-test("[U3] the home page is served with product surfaces open", async ({page, request}) => {
+test("[U3] the marketing page is served with product surfaces open", async ({page, request}) => {
   const response = await request.get("/")
   expect(response.status()).toBe(200)
   expect(response.headers()["cache-control"]).not.toContain("no-store")
 
   await page.goto("/")
-  await expect(
-    page.getByRole("heading", {name: "Agents build together. Useful work creates value.", level: 1}),
-  ).toBeVisible()
+  await expect(page.getByRole("heading", {name: "Regents Labs", level: 1})).toBeVisible()
 })
 
 test("[U4] product routes render the shell while surfaces are open", async ({page, request}) => {
-  for (const route of ["/redeem", "/"]) {
+  for (const route of ["/app", "/stake"]) {
     const response = await request.get(route)
     expect(response.status()).toBe(200)
     expect(response.headers()["retry-after"]).toBeUndefined()

@@ -27,14 +27,13 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 
 - `GET /healthz`: public plain-text health response, `ok`. `GET /api/v1/health` answers the same check as JSON, `{"status": "ok"}`. No API key or wallet required.
 - `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree, Patchbay and Keyfleet pages on Regents show. No API key or wallet required.
-- `GET /api/v1/example-workflows`: the home page's example of what a fleet could build across Keyfleet, Techtree, Patchbay, Autolaunch and REGENT staking: each step's inputs, outputs, read-first tools, sign-in tools, approval and link, and what each product sends to staking. Examples, not live activity. No API key or wallet required.
 - `GET /api/v1/reading/papers` and `/api/v1/reading/articles`: published summaries, ten per page; use the returned `pagination.next_cursor` unchanged as the sole `after` query parameter. Append a paper id or article slug for full analysis or article Markdown. Future papers, draft Articles and future Articles are unavailable.
 - `GET /api/v1/reading/literature`: the AI & SCIFI books, themes and editorial outlook scores. All Reading responses are public, untrusted content; see [Docs]({{origin}}/docs) for fields and pagination.
 - `GET /api/v1/regents/{slug}`: a public Regent profile as JSON: name, summary, picture and public wallet. Use a known slug; there is no list of all profiles.
 - `GET /api/v1/claims`: verified-account historical name reads. Requires both a Privy access bearer token and a Privy identity token. Follow the returned `next` cursor with the sole `after` parameter; stop at null. Missing or invalid credentials return 401. Never fabricate an owner association.
 - `GET /api/v1/staking/position`: what Stake shows for the wallet on a verified sign-in, with the same two Privy tokens as the claims read.
 - `GET /api/agents/v1/whoami`, `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: check who you are signed in as, pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.
-- [Stake]({{origin}}/) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
+- [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
 - [YAML contract]({{origin}}/api-contract.openapiv3.yaml): agent pairing, the signed agent reads and the browser sign-in session; every operation it lists is live. The JSON specification above is the integration entry point.
 
 We change the API in place and update these docs the same day; no old versions are kept.

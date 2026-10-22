@@ -19,7 +19,7 @@
   overflow-x: auto;
   padding: 1rem;
   margin-block: 1rem;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--rl-line);
 }
 
 .public-document table {
@@ -33,7 +33,7 @@
 .public-document th,
 .public-document td {
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--rl-line);
   text-align: left;
   vertical-align: top;
   overflow-wrap: normal;
@@ -103,7 +103,7 @@
 
 .legal-page p,
 .legal-page li {
-  color: var(--color-fg-muted);
+  color: var(--rl-muted);
 }
 
 .legal-page p {
@@ -122,7 +122,7 @@
 }
 
 .legal-page strong {
-  color: var(--color-fg);
+  color: var(--rl-ink);
   font-weight: 600;
 }
 

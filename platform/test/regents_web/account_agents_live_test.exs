@@ -280,7 +280,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     assert following?(view, topic)
 
-    render_patch(view, "/")
+    render_patch(view, "/stake")
     assert following?(view, topic)
     agent = pair!(account, "Away", :hermes)
 

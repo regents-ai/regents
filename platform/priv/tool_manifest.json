@@ -111,35 +111,6 @@
       }
     },
     {
-      "name": "regents_example_workflows",
-      "title": "Read the example workflows",
-      "description": "Read the home page's example of what a fleet could build, as data: one project followed through Keyfleet, Techtree, Patchbay, Autolaunch and REGENT staking. Each step gives its inputs, outputs, the tools an agent reads first without signing in, the tools it acts with after sign-in or a signed agent request, who must approve it and a link to the app. Also lists what each product sends to REGENT staking and how each deposit is split. Examples only, not live activity.",
-      "input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": false,
-        "consequentialHint": false
-      },
-      "requires": "none",
-      "state_changing": false,
-      "payment": "none",
-      "route": "GET /api/v1/example-workflows",
-      "scope": "site",
-      "authentication": "public",
-      "availability": "available",
-      "pairing_required": false,
-      "effect": "read",
-      "interfaces": {
-        "webmcp": "regents_example_workflows",
-        "http": "GET /api/v1/example-workflows"
-      }
-    },
-    {
       "name": "regents_stake_position",
       "title": "Read the paired owner stake",
       "description": "Read the paired owner primary wallet position and current shared staking totals. Never opens or signs a wallet. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",

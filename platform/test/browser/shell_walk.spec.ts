@@ -4,11 +4,12 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 // R04 acceptance: one live session walks every page the shell's features own,
 // and each page still paints its own content after the others were visited.
 const pages: Array<[string, string]> = [
-  ["/", "#staking-actions"],
+  ["/stake", "#staking-actions"],
   ["/redeem", "#redemption-collections"],
   ["/redeem/gallery", "#gallery-heading"],
   ["/account", "#account-agents"],
-  ["/", "#staking-actions"],
+  ["/app", "#regent-ops-overview"],
+  ["/stake", "#staking-actions"],
   ["/redeem", "#redemption-collections"],
   ["/account", "#account-agents"],
   ["/redeem", "#redemption-collections"],
@@ -46,7 +47,7 @@ async function walk(page: Page, signedIn: boolean) {
     if (message.type() === "error") note(message.text())
   })
 
-  await page.goto("/")
+  await page.goto("/stake")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await page.evaluate(() => ((window as any).__r04Walk = true))
 
@@ -64,7 +65,7 @@ async function walk(page: Page, signedIn: boolean) {
   expect(problems).toEqual([])
 }
 
-test("[R04] a visitor walks Stake, Redeem and the gallery in one visit", async ({page}) => {
+test("[R04] a visitor walks Stake, Redeem, the gallery and Overview in one visit", async ({page}) => {
   await walk(page, false)
 })
 

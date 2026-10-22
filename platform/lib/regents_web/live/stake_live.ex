@@ -1,49 +1,8 @@
 defmodule RegentsWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
-  alias RegentsWeb.Components.{FleetFigure, Loading}
-  alias RegentsWeb.{ExampleWorkflows, ProductCatalog, PublicDocuments, TokenDisplay, TokenLinks}
-
-  @doc "The home page as agents read it: the same headline, figure and staking split."
-  def markdown do
-    products =
-      Enum.map_join(ProductCatalog.hero_products(), "\n", fn product ->
-        "- [#{String.capitalize(product.name)}](#{product.site}): #{product.line}"
-      end)
-
-    sources =
-      Enum.map_join(ExampleWorkflows.revenue_sources(), "\n", &"- #{&1.name}: #{&1.share}.")
-
-    """
-    # Agents build together. Useful work creates value.
-
-    ## Products
-
-    #{products}
-
-    Each product's details: #{PublicDocuments.url("/api/v1/products")}
-
-    #{ExampleWorkflows.markdown()}
-    The same workflows as data: #{PublicDocuments.url("/api/v1/example-workflows")}
-
-    ## REGENT staking
-
-    #{ExampleWorkflows.revenue_split()} USDC reaches the staking contract from:
-
-    #{sources}
-
-    REGENT emissions depend on the contract's rate and available inventory; the rate
-    can change. Stake, unstake, claim and compound require your wallet signature. No
-    return is guaranteed.
-
-    [Stake](#{PublicDocuments.url("/")}) · [Redemption](#{PublicDocuments.url("/redeem")})
-
-    ## Get started
-
-    [Developer documentation](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/llms.txt")})
-    [About](#{PublicDocuments.url("/about")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy](#{PublicDocuments.url("/privacy")})
-    """
-  end
+  alias RegentsWeb.Components.Loading
+  alias RegentsWeb.{TokenDisplay, TokenLinks}
 
   attr :lease, :map, required: true
   attr :staking, :map, default: nil
@@ -66,67 +25,32 @@ defmodule RegentsWeb.StakeLive do
       class="stake-page"
       aria-busy={to_string(@reading)}
     >
-      <div class="stake-hero">
-        <div class="stake-heading stake-story rg-panel rg-panel--surface rg-panel__body">
-          <header class="stake-heading-copy">
-            <h1 id="staking-page-heading" tabindex="-1">
-              Agents build together. Useful work creates value.
-            </h1>
-          </header>
-          <FleetFigure.figure />
-        </div>
-
-        <div class="stake-column stake-hero-stake">
-          <div class="stake-heading rg-panel rg-panel--surface rg-panel__body">
-            <div class="stake-heading-copy">
-              <p class="stake-kicker">REGENT staking · Base</p>
-              <p class="stake-yield-badge">Temporary 20% Yield for early community</p>
-              <div class="stake-token-links">
-                <a
-                  class="rg-button stake-buy"
-                  href={TokenLinks.buy()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                ><span class="rg-button__label">
-                  <span>Buy REGENT</span><span class="visually-hidden">, opens in a new tab</span>
-                </span></a>
-                <a
-                  class="rg-button stake-buy"
-                  href={TokenLinks.chart()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                ><span class="rg-button__label">
-                  <span>View Chart</span><span class="visually-hidden">, opens in a new tab</span>
-                </span></a>
-              </div>
-            </div>
+      <header class="stake-heading rg-panel rg-panel--surface rg-panel__body">
+        <div class="stake-heading-copy">
+          <p class="stake-kicker">REGENT staking · Base</p>
+          <h1 id="staking-page-heading" tabindex="-1">Put REGENT to work.</h1>
+          <p class="stake-lede">Stake to earn a pro rata split of all Regents Labs' USDC revenue.</p>
+          <p class="stake-yield-badge">Temporary 20% Yield for early community</p>
+          <div class="stake-token-links">
+            <a
+              class="rg-button stake-buy"
+              href={TokenLinks.buy()}
+              target="_blank"
+              rel="noopener noreferrer"
+            ><span class="rg-button__label">
+              <span>Buy REGENT</span><span class="visually-hidden">, opens in a new tab</span>
+            </span></a>
+            <a
+              class="rg-button stake-buy"
+              href={TokenLinks.chart()}
+              target="_blank"
+              rel="noopener noreferrer"
+            ><span class="rg-button__label">
+              <span>View Chart</span><span class="visually-hidden">, opens in a new tab</span>
+            </span></a>
           </div>
-
-          <div :if={@status == :error} class="stake-status">
-            <p role="alert">Staking details are unavailable right now.</p>
-            <.notice :if={@notice} notice={@notice} />
-            <.shared_refresh :if={@signed_in} reading={@shared_reading} label="Read the contract" />
-            <p :if={!@signed_in} class="stake-fine-print">
-              Contract data is read once for everyone. A signed-in visitor can ask for a new reading.
-            </p>
-          </div>
-
-          <.live_component
-            module={RegentsWeb.StakeActions}
-            id="staking-actions"
-            lease={@lease}
-            staking={@staking}
-            status={@status}
-            wallet={@wallet}
-            account={@account}
-            notice={@notice}
-            reading={@reading}
-            shared_reading={@shared_reading}
-          />
-
-          <.revenue share={@dashboard && @dashboard.stakers_share} loading={@status == :loading} />
         </div>
-      </div>
+      </header>
 
       <dialog
         :if={@dashboard}
@@ -206,7 +130,31 @@ defmodule RegentsWeb.StakeLive do
         </form>
       </dialog>
 
+      <div :if={@status == :error} class="stake-status">
+        <p role="alert">Staking details are unavailable right now.</p>
+        <.notice :if={@notice} notice={@notice} />
+        <.shared_refresh :if={@signed_in} reading={@shared_reading} label="Read the contract" />
+        <p :if={!@signed_in} class="stake-fine-print">
+          Contract data is read once for everyone. A signed-in visitor can ask for a new reading.
+        </p>
+      </div>
+
       <div class="stake-layout">
+        <div class="stake-column">
+          <.live_component
+            module={RegentsWeb.StakeActions}
+            id="staking-actions"
+            lease={@lease}
+            staking={@staking}
+            status={@status}
+            wallet={@wallet}
+            account={@account}
+            notice={@notice}
+            reading={@reading}
+            shared_reading={@shared_reading}
+          />
+        </div>
+
         <div class="stake-column">
           <dl
             :if={@dashboard}
@@ -283,9 +231,7 @@ defmodule RegentsWeb.StakeLive do
               <dd><.unread loading={@status == :loading} /></dd>
             </div>
           </dl>
-        </div>
 
-        <div class="stake-column">
           <Regent.Structure.section_bar class="rg-support-band">
             <h2 class="rg-section-bar__label">Supply &amp; revenue</h2>
           </Regent.Structure.section_bar>
@@ -402,41 +348,6 @@ defmodule RegentsWeb.StakeLive do
   defp unread(%{loading: true} = assigns), do: ~H"<Loading.skeleton kind={@kind} />"
   defp unread(assigns), do: ~H"<TokenDisplay.amount amount={:unavailable} />"
 
-  attr :share, :string, default: nil
-  attr :loading, :boolean, required: true
-
-  # Where the USDC that staking shares out comes from, and how much of each
-  # deposit stakers receive: the contract's own rule, read from the snapshot.
-  defp revenue(assigns) do
-    assigns = assign(assigns, :sources, ExampleWorkflows.revenue_sources())
-
-    ~H"""
-    <section
-      id="staking-revenue"
-      class="stake-revenue rg-panel rg-panel--surface rg-panel__body"
-      aria-labelledby="staking-revenue-heading"
-    >
-      <p class="stake-section-kicker">Revenue sharing</p>
-      <h2 id="staking-revenue-heading">Where staking USDC comes from</h2>
-      <p class="stake-revenue-share">
-        Stakers now receive
-        <strong :if={@share}>{@share}</strong><.unread :if={!@share} loading={@loading} />
-        of each deposit. The rest goes to the Regents Labs treasury.
-      </p>
-      <ul class="stake-revenue-sources">
-        <li :for={source <- @sources}>
-          <strong>{source.name}</strong>
-          <span>{source.share}</span>
-        </li>
-      </ul>
-      <details class="stake-revenue-rule">
-        <summary>How the split works</summary>
-        <p>{ExampleWorkflows.revenue_split()}</p>
-      </details>
-    </section>
-    """
-  end
-
   attr :reading, :boolean, required: true
   attr :label, :string, required: true
 
@@ -505,28 +416,8 @@ defmodule RegentsWeb.StakeLive do
       emission_apr: emission_apr,
       market_cap: market_cap(staking),
       price: price(staking),
-      stakers_share: stakers_share(staking),
       supply_bps: supply_basis_points(staking)
     }
-  end
-
-  # The part of each USDC deposit the contract gives stakers: what is staked
-  # over everything it can hold (staked plus room left), to two decimals,
-  # dropped rather than rounded up.
-  defp stakers_share(%{total_staked_raw: staked, remaining_capacity_raw: room}) do
-    with {:ok, staked} <- atomic(staked),
-         {:ok, room} <- atomic(room),
-         true <- staked + room > 0 do
-      staked
-      |> Decimal.new()
-      |> Decimal.mult(100)
-      |> Decimal.div(staked + room)
-      |> Decimal.round(2, :down)
-      |> Decimal.to_string(:normal)
-      |> Kernel.<>("%")
-    else
-      _ -> nil
-    end
   end
 
   # The four holdings the circulating supply leaves out, each with the words for

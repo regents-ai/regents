@@ -33,8 +33,8 @@ export async function startPrivyBridge() {
 test("Stake sends each press straight to the signed-in wallet and follows it on Base", async ({page}) => {
   await installWallet(page)
 
-  await page.goto("/")
-  await expect(page.getByRole("heading", {name: "Agents build together. Useful work creates value."})).toBeVisible()
+  await page.goto("/stake")
+  await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
 
   await selectWallet(page, otherWallet)
@@ -46,7 +46,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   await page.route(bridgePattern, route =>
     route.fulfill({contentType: "application/javascript", body: bridgeRecorder}),
   )
-  await page.goto("/")
+  await page.goto("/stake")
   const documentStarted = await page.evaluate(() => performance.timeOrigin)
 
   // A signed-in page opens on the account's own position, with no wallet open yet.
@@ -148,7 +148,7 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
     route.fulfill({body: bridgeRecorder, contentType: "application/javascript"}),
   )
 
-  await page.goto("/")
+  await page.goto("/stake")
   await selectWallet(page, wallet)
 
   // The position is read and shown; every control asks for the sign-in instead.
@@ -180,13 +180,13 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
     route.fulfill({body: bridgeRecorder, contentType: "application/javascript"}),
   )
 
-  await page.goto("/")
+  await page.goto("/stake")
   await expect(page.locator("#account-chip")).toBeVisible()
   await expect(page.locator("#staking-claim_usdc[data-onchain-step]")).toBeEnabled()
 
   await signOut(page)
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
-  await expect(page).toHaveURL(/:\d+\/$/)
+  await expect(page).toHaveURL(/\/stake$/)
   await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
@@ -203,7 +203,7 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
   await installWallet(page)
   await signIn(page)
 
-  await page.goto("/")
+  await page.goto("/stake")
   await selectWallet(page, wallet)
   await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
 
@@ -237,7 +237,7 @@ test("Sign out leaves Stake unconnected, and a reload keeps it that way", async 
   await installWallet(page)
   await signIn(page)
 
-  await page.goto("/")
+  await page.goto("/stake")
   await selectWallet(page, wallet)
   await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
 
@@ -307,9 +307,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
   for (const width of [1280, 390]) {
     await page.setViewportSize({width, height: 900})
-    await page.goto("/")
+    await page.goto("/stake")
 
-    await expect(page.getByRole("heading", {name: "Agents build together. Useful work creates value."})).toBeVisible()
+    await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
     await expect(page.locator("#staking-contract-overview")).toContainText("REGENT supply")
     // The contract reading every visitor is shown, with the block it came from
     // and how old it is. An anonymous visitor is offered no way to replace it.
@@ -449,7 +449,7 @@ test("Public Redeem collection cards fit desktop, tablet and mobile widths", asy
 test("Stake says to check the wallet when an approval returns no usable hash", async ({page}) => {
   await installWallet(page)
   await signIn(page)
-  await page.goto("/")
+  await page.goto("/stake")
   await selectWallet(page, wallet)
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.evaluate(() => {
@@ -474,7 +474,7 @@ test("Stake says to check the wallet when an approval returns no usable hash", a
 test("Stake says the wallet declined when the approval is rejected", async ({page}) => {
   await installWallet(page)
   await signIn(page)
-  await page.goto("/")
+  await page.goto("/stake")
   await selectWallet(page, wallet)
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.evaluate(() => {
@@ -500,7 +500,7 @@ test("Stake says the wallet declined when the approval is rejected", async ({pag
 test("Alternate stake requires fresh address consent and credits that address", async ({page}) => {
   await installWallet(page)
   await signIn(page)
-  await page.goto("/")
+  await page.goto("/stake")
   await selectWallet(page, wallet)
   await page.getByLabel("Amount", {exact: true}).fill("1")
   const toggle = page.locator("#staking-for-other")
@@ -639,7 +639,7 @@ test("Stake keeps one height whatever the different-address box shows", async ({
 
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({width, height: 900})
-    await page.goto("/")
+    await page.goto("/stake")
     await selectWallet(page, wallet)
     await page.getByLabel("Amount", {exact: true}).fill("1")
     const panel = page.locator(".stake-actions")
@@ -799,7 +799,7 @@ test.describe("on a touch phone", () => {
 
     for (const width of [390, 320]) {
       await page.setViewportSize({width, height: 900})
-      await page.goto("/")
+      await page.goto("/stake")
       await selectWallet(page, wallet)
       await page.getByLabel("Amount", {exact: true}).fill("1")
       await page.locator("#staking-for-other").check()

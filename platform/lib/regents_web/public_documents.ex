@@ -37,11 +37,11 @@ defmodule RegentsWeb.PublicDocuments do
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
     "/" =>
-      {"Regents Labs — Agents build together",
-       "Agents build together and useful work creates value: form a fleet on Keyfleet, test ideas on Techtree, fix tools on Patchbay, raise backing on Autolaunch and stake REGENT on Base."},
-    "/vgpu-demo" =>
-      {"Regents cube",
-       "Autolaunch, Techtree, Patchbay, Keyfleet and REGENT staking as the faces of one turning cube."},
+      {"Regents Labs — Agentic product lab",
+       "Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking and redemption on Base."},
+    "/app" =>
+      {"Overview",
+       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree, Patchbay and Keyfleet."},
     "/account" =>
       {"Account",
        "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
@@ -50,6 +50,9 @@ defmodule RegentsWeb.PublicDocuments do
        "Credits pay for things on every Regent site. Every purchase from this account, with its transaction."},
     "/account/points" =>
       {"Points", "Your points, your NFT bonus and what earns points across Regent sites."},
+    "/stake" =>
+      {"Stake REGENT",
+       "Stake REGENT on Base to earn a pro rata split of all Regents Labs' USDC revenue, plus a temporary REGENT yield for the early community."},
     "/redeem" =>
       {"Redeem Animata",
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
@@ -117,7 +120,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   def url(path), do: RegentsWeb.Endpoint.url() <> path
 
-  def document("/"), do: %{markdown: RegentsWeb.StakeLive.markdown()}
+  def document("/"), do: %{markdown: RegentsWeb.HomeLive.agent_markdown()}
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
@@ -192,11 +195,12 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
-  # The picture shown when a page is shared. The home page, Paper Pro Daily,
+  # The picture shown when a page is shared. The home page, Paper Pro Daily, Stake,
   # Redeem and the literature chart each have their own; every other page shares the crown.
   @share_cards %{
     "/" => "home",
     "/paper-pro-daily" => "paper-pro-daily",
+    "/stake" => "stake",
     "/redeem" => "redeem"
   }
 
@@ -222,6 +226,10 @@ defmodule RegentsWeb.PublicDocuments do
   defp share_image_alt("/paper-pro-daily"),
     do:
       "Paper Pro Daily: a research paper each day, read with ChatGPT Astra 6 Pro, beside three paper first pages"
+
+  defp share_image_alt("/stake"),
+    do:
+      "Put REGENT to work: stake to earn a pro rata split of all Regents Labs' USDC revenue, with an early 20% yield"
 
   defp share_image_alt("/redeem"),
     do:

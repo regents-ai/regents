@@ -3,7 +3,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
   Closes every non-marketing surface while the launch gate is closed.
 
   The setting is read on each request, so a deploy opens or closes surfaces
-  without rebuilding the release. The vgpu demo page and signing out stay open
+  without rebuilding the release. The marketing page and signing out stay open
   in either state. The Privacy Policy, Terms of Use, Articles, Paper Pro Daily and
   the agent start page stay open with them.
   """
@@ -21,7 +21,7 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   def init(opts), do: opts
 
-  def call(%Plug.Conn{method: "GET", path_info: ["vgpu-demo"]} = conn, _opts), do: conn
+  def call(%Plug.Conn{method: "GET", path_info: []} = conn, _opts), do: conn
 
   def call(%Plug.Conn{method: "GET", path_info: ["privacy"]} = conn, _opts), do: conn
 

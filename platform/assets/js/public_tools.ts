@@ -47,7 +47,6 @@ const requests: Record<string, (input: Input) => Request> = {
   regents_about: input => ({path: `/${input.page}`, accept: "text/markdown"}),
   regents_products: () => ({path: "/api/v1/products", accept: json}),
   regents_product: input => ({path: `/api/v1/products/${encodeURIComponent(input.slug)}`, accept: json}),
-  regents_example_workflows: () => ({path: "/api/v1/example-workflows", accept: json}),
   list_regents_webmcp_tools: () => ({path: "/api/v1/site-tools/regents", accept: json}),
   list_patchbay_webmcp_tools: () => ({path: "/api/v1/site-tools/patchbay", accept: json}),
   list_techtree_webmcp_tools: () => ({path: "/api/v1/site-tools/techtree", accept: json}),

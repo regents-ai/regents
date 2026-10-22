@@ -20,10 +20,11 @@ defmodule RegentsWeb.HoldingHTML do
           <p class="rl-overline">Regents Labs</p>
           <h1 class="rg-hero-title">Not open yet</h1>
           <p>
-            This part of Regent isn't open to visitors yet. Our articles are open to read.
+            This part of Regent isn't open to visitors yet. Everything we have shown so far
+            is on the homepage.
           </p>
           <div class="rl-hero-actions">
-            <a href={~p"/articles"} class="rg-button"><span class="rg-button__label">Read the articles</span></a>
+            <a href={~p"/"} class="rg-button"><span class="rg-button__label">Go to the homepage</span></a>
           </div>
         </div>
       </main>

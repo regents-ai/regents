@@ -25,7 +25,6 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
-import {FleetFigure} from "./hooks/fleet_figure"
 import {HolographicCard} from "./hooks/holographic_card"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
@@ -42,6 +41,8 @@ import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
 import {installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
+import {WorldCube} from "./hooks/world_cube"
+import {CubeLabel} from "./hooks/cube_label"
 
 type ShellHook = Hook & {
   el: HTMLElement
@@ -78,15 +79,15 @@ function showingTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
 }
 
-// The vgpu demo is a dark-only composition, not a change to visitor preference.
-const themeLocked = () => window.location.pathname === "/vgpu-demo"
+// The homepage is a dark-only composition, not a change to visitor preference.
+const homeThemeLocked = () => window.location.pathname === "/"
 
 // Live navigation keeps the document, so each page restates its theme: dark on
-// the vgpu demo, the visitor's choice elsewhere, or none so the device decides.
+// the homepage, the visitor's choice elsewhere, or none so the device decides.
 function syncTheme() {
   const root = document.documentElement
-  const theme = themeLocked() ? "dark" : chosenTheme()
-  root.dataset.themeLocked = String(themeLocked())
+  const theme = homeThemeLocked() ? "dark" : chosenTheme()
+  root.dataset.homeThemeLocked = String(homeThemeLocked())
   if (theme) root.dataset.theme = theme
   else delete root.dataset.theme
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme ?? "dark light")
@@ -281,15 +282,11 @@ const showcaseHooks = window.location.pathname.startsWith("/showcase")
   ? (await import("./showcase")).hooks : {}
 const labHooks = window.location.pathname === "/animations"
   ? (await import("./motion_lab")).hooks : {}
-// The cube and its renderer load only on the page that draws them.
-const cubeHooks = window.location.pathname === "/vgpu-demo"
-  ? {...await import("./hooks/world_cube"), ...await import("./hooks/cube_label")} : {}
 const hooks = {
   ...showcaseHooks,
   ...labHooks,
-  ...cubeHooks,
   ...colocatedHooks,
-  FleetFigure,
+  CubeLabel,
   HolographicCard,
   HomeTokenMenu,
   InfiniteScroll,
@@ -303,6 +300,7 @@ const hooks = {
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   VerifiedConnections,
+  WorldCube,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 
