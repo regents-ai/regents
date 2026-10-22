@@ -2802,3 +2802,18 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
 - New release tests cover the listing of a missing shared change, the
   deployment check that refuses it, and `migrate-shared` applying every shared
   change once.
+
+## 2026-10-22 — Regents v217 released
+
+- v217 (`449cd52f`) went live as Fly v217 at about 22:18Z on 22 Oct. It carries
+  the shared-changes command and release check in the template's shape (Sean,
+  20 Oct, "1. a 2. a") and the list fade-in. The rollback is v216 (`cd8fe2ad`).
+- The release step (`/app/bin/migrate`) succeeded, so every shared change this
+  release carries (Identity, Agents, Credits, Points, Payments) was already in
+  production's ledgers; `migrate-shared` was not run and was not needed.
+- Before release, on this commit: 565 server tests, 232 script tests, 105
+  browser tests.
+- Live checks: one machine runs `main-449cd52f669c` with its health check
+  passing; `/`, `/stake`, `/redeem`, `/account`, `/docs` and `/app` load in
+  headless Chromium at 1280 and 390 wide with no errors and no sideways scroll.
+  WebKit not run on the Mac.
