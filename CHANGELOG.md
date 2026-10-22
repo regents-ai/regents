@@ -2866,3 +2866,15 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   site without check-in lights.
 - Checked: the Account agents test now proves each of two agents' rows names its
   own wallet.
+
+## 2026-10-22 — The side panel opens under the header
+
+- Below a wide screen the side panel opened 1 px too high and covered the
+  header's bottom line; on a phone the menu and its backdrop did the same. The
+  shell now names the header's height once and opens all three where the
+  header's line ends, below the frame's top rule (ash-template `b9d301f`,
+  design-system `STYLE.md` "The side panel opens under the header").
+- New browser check `platform/test/browser/layout.spec.ts`: the panel at 2000,
+  1280, 800 and 390 wide, and the phone menu at 390.
+- Checked: 565 server tests, 232 script tests, 107 browser tests, required
+  fixes.

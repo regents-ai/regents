@@ -8,6 +8,11 @@
 #app-shell {
   --shell-aside-open: 20rem;
   --shell-aside: var(--shell-aside-open);
+  --shell-header: 4rem;
+  /* Where the header's bottom line ends, below the frame's top rule; the side
+     panel over the page, a phone's menu and its backdrop open here, so they
+     never cover that line. */
+  --shell-header-end: calc(var(--rg-rule-width) + var(--shell-header));
   position: relative;
   isolation: isolate;
   display: grid;
@@ -42,7 +47,7 @@
   grid-column: 1 / -1;
   align-items: stretch;
   min-width: 0;
-  min-height: 4rem;
+  min-height: var(--shell-header);
   border-block-end: 1px solid var(--color-border);
   background: var(--color-bg);
 }
@@ -399,12 +404,12 @@
 
 @media (max-width: 48rem) {
   #app-shell {
+    --shell-header: 3.5rem;
     grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
   }
 
   #shell-header {
     grid-column: 1;
-    min-height: 3.5rem;
   }
 
   #shell-header > * {
@@ -457,7 +462,7 @@
 
   #shell-sidebar {
     position: fixed;
-    inset: 3.5rem auto 0 0;
+    inset: var(--shell-header-end) auto 0 0;
     z-index: 5;
     display: none;
     width: min(20rem, calc(100% - 3rem));
@@ -486,7 +491,7 @@
 
   .shell-menu-scrim {
     position: fixed;
-    inset: 3.5rem 0 0;
+    inset: var(--shell-header-end) 0 0;
     z-index: 4;
     display: block;
     min-width: 0;
@@ -644,7 +649,7 @@
 
   #shell-aside {
     position: fixed;
-    inset: 4rem 0 0 auto;
+    inset: var(--shell-header-end) 0 0 auto;
     z-index: 30;
     width: min(22rem, 100%);
     transition:
@@ -671,7 +676,6 @@
 
 @media (max-width: 48rem) {
   #shell-aside {
-    inset-block-start: 3.5rem;
     width: 100%;
     border-inline-start: 0;
   }
