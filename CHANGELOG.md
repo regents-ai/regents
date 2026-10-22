@@ -2878,3 +2878,16 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   1280, 800 and 390 wide, and the phone menu at 390.
 - Checked: 565 server tests, 232 script tests, 107 browser tests, required
   fixes.
+
+## 2026-10-22 — Regents v219 released
+
+- v219 (`70ed94f6`) went live as Fly v219 at about 22:53Z on 22 Oct: each agent
+  on the Account page names its wallet (design-system `5dd12626`), and the side
+  panel, phone menu and its backdrop open under the header's line. The rollback
+  is v218 (`1c144216`).
+- The release step succeeded; no shared change was waiting.
+- Live checks: one machine runs `main-70ed94f6c1da` with its health check
+  passing; `/`, `/stake`, `/redeem`, `/account`, `/docs` and `/app` load in
+  headless Chromium at 1280 and 390 wide with no errors and no sideways scroll;
+  on regents.sh the phone menu's top meets the header's line at 390 (57 px) and
+  800 (65 px) wide. WebKit not run on the Mac.
