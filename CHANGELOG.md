@@ -2764,3 +2764,12 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   `/skill.md` and `/llms.txt` carry their ETag and a five-minute public cache. A
   repeat read with that ETag still gets the whole document (200, not 304), as on
   template.regents.sh. The new metric names were not read on the live machine.
+
+## 2026-10-22 — New lines in a list only fade in, as in ash-template
+
+- What: a line joining a list (Account and Redeem) fades in where it lands instead
+  of sliding in; the lines already there still glide to make room. The list motion is
+  now word for word the template's.
+- Why: a slide or a grow left a leftover mark written on the new line once it
+  settled; the template fixed this on 19 Oct (kit note 6) and regents.sh had not
+  taken it.
