@@ -2817,3 +2817,27 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   passing; `/`, `/stake`, `/redeem`, `/account`, `/docs` and `/app` load in
   headless Chromium at 1280 and 390 wide with no errors and no sideways scroll.
   WebKit not run on the Mac.
+
+## 2026-10-22 — Elixir 1.20.4 on OTP 29, as in ash-template
+
+- `.tool-versions`, the Dockerfile (each image digest under its tag) and both
+  `mix.exs` files move to Elixir 1.20.4 on Erlang/OTP 29.1.2 and Node 26.12.0,
+  the template's toolchain (ash-template `ba35e7a`).
+- elixir-utils moves to `3ffd1647` (same toolchain). It brings one shared
+  change, an index on Credits holds by owner and time held; the Privy wallet
+  changes after it are not taken.
+- Newer libraries: Ash 3.37, AshOban 0.10.2, AshSql 0.8.3, Spark 2.7.8,
+  LiveView 1.2.13, Nebulex 3.1, esbuild 0.10.1 and others; ash_postgres stays at
+  2.13.0.
+- Phoenix stays at 1.8.15. On 1.8.16 the server ends a signed-out page's live
+  connection as a normal close, which LiveView answers with a reload 5 to 10
+  seconds later, so a page stayed looking signed in for that long after sign
+  out, after another tab signed out, and after a refused sign-in (four browser
+  checks caught it). 1.8.15 ends it as "going away", so the page reconnects, is
+  refused and reloads signed out at once. Moving the page's own reload ahead of
+  the server's close goes to ash-template first.
+- The pairing message comes from the library's three-argument text, as in the
+  template; two tests that pinned the old wording now check the behaviour
+  (the refusal's code, and that the message carries the code and the guide).
+- Checked on this toolchain: 565 server tests, 232 script tests, 105 browser
+  tests, required fixes (ash-template `cde83109`), CLI commands, identity 16.

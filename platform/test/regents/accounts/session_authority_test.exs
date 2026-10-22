@@ -3,8 +3,6 @@ defmodule Regents.Accounts.SessionAuthorityTest do
 
   import Ecto.Query
 
-  require Ash.Query
-
   alias Regents.Accounts
   alias Regents.Accounts.SessionAuthority
   alias Regents.Actors.{Human, System}

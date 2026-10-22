@@ -37,7 +37,6 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     refute has_element?(view, @message)
 
     choose(view, "hermes")
-    assert has_element?(view, @message, "Pair with my Regents account.")
     assert has_element?(view, @message, "/llms.txt")
     first = pairing_code(view)
 

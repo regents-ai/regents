@@ -9,7 +9,7 @@ defmodule RegentIdentity.MixProject do
     [
       app: :regent_identity,
       version: "0.1.0",
-      elixir: "~> 1.19",
+      elixir: "~> 1.20",
       elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
       deps: [
         {:ash, "~> 3.34 and >= 3.34.3"},

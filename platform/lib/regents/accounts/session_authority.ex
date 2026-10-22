@@ -27,8 +27,6 @@ defmodule Regents.Accounts.SessionAuthority do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  require Ash.Query
-
   alias Regents.Accounts
   alias Regents.Accounts.VerifiedSession
   alias Regents.Actors.{Human, System}

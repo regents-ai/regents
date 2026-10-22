@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "72ccfea10551436a9b7aaad29d3ec6b5462d423f"
+  @elixir_utils_ref "3ffd16471b689912ccfce65f4d3b9eba0df89338"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "5b4f47ec731840a36994d7cdd1464070f803362b"
 
@@ -12,7 +12,7 @@ defmodule Regents.MixProject do
     [
       app: :regents,
       version: "0.1.0",
-      elixir: "~> 1.19",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: false,
       aliases: aliases(),
@@ -49,7 +49,10 @@ defmodule Regents.MixProject do
   defp deps do
     [
       {:castore, "~> 1.0"},
-      {:phoenix, "~> 1.8.9"},
+      # 1.8.16 closes a signed-out page's live connection with 1000, which
+      # LiveView reloads only after 5 to 10 seconds; 1.8.15 closes with 1001,
+      # so the page reconnects, is refused and reloads signed out at once.
+      {:phoenix, "== 1.8.15"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.36"},

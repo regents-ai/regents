@@ -102,14 +102,7 @@ defmodule RegentsWeb.LaunchGateTest do
   end
 
   test "[U2] the gate answers agent writes before pairing runs" do
-    assert json_response(pair_request(), 400) == %{
-             "error" => %{
-               "code" => "pairing_failed",
-               "message" => "The pairing code could not be used.",
-               "hint" =>
-                 "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."
-             }
-           }
+    assert %{"error" => %{"code" => "pairing_failed"}} = json_response(pair_request(), 400)
 
     close_surfaces()
     assert json_response(pair_request(), 503) == @closed

@@ -121,5 +121,5 @@ defmodule RegentsWeb.PairingBox do
 
   # What the person pastes to their agent.
   defp agent_message(code, harness),
-    do: PairingMessage.text(code, "Regents", RegentsWeb.Endpoint.url(), harness)
+    do: PairingMessage.text(code, RegentsWeb.Endpoint.url(), harness)
 end
