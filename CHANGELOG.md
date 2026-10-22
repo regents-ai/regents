@@ -2750,3 +2750,17 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   ash-template `36e32b8c`, the command-line check and the identity check (16 tests).
 - Why: Sean approved the quick wins on 21 Oct (10:33Z and 11:02Z), including
   every site following the template's microsecond metric names.
+
+## 2026-10-22 — Regents v216 released
+
+- v216 (`cd8fe2ad`) went live as Fly v216 at about 22:06Z on 22 Oct. It carries
+  the measurements under the template's microsecond names and the cached agent
+  documents. The rollback is v215 (`25600003`). No migrations, no library pin
+  change.
+- Before release, the full check succeeded on this commit (see the entry above).
+- Live checks: one machine runs `main-cd8fe2adc56b` with its health check
+  passing; `/`, `/stake`, `/redeem`, `/account`, `/docs` and `/app` answer 200 and
+  `/vgpu-demo` answers 404 (the parked page is not live); `/agents.md`,
+  `/skill.md` and `/llms.txt` carry their ETag and a five-minute public cache. A
+  repeat read with that ETag still gets the whole document (200, not 304), as on
+  template.regents.sh. The new metric names were not read on the live machine.
