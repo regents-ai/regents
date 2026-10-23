@@ -3,8 +3,8 @@ defmodule RegentsWeb.ShellLive do
   One LiveView behind every product-shell page. It keeps what the pages share,
   the route, the signed-in account (through the session hook) and the wallet
   Privy has active, and hands each page's reads, events and messages to the
-  feature that owns them: `Account`, `Points`, `Staking`, `Redemption` and
-  `Gallery`.
+  feature that owns them: `Account`, `Points`, `Staking`, `Redemption`,
+  `Gallery` and `PaperProDaily`.
   Each feature starts what its page needs when the page opens and lets go of
   it when the page is left.
   """
@@ -24,6 +24,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
+  alias RegentsWeb.PaperProDailyLive
   alias RegentsWeb.PointsLive
   alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
@@ -32,7 +33,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
-  alias RegentsWeb.ShellLive.{Account, Gallery, Points, Redemption, Staking}
+  alias RegentsWeb.ShellLive.{Account, Gallery, PaperProDaily, Points, Redemption, Staking}
 
   @no_credits %{state: :idle, value: nil}
 
@@ -59,7 +60,8 @@ defmodule RegentsWeb.ShellLive do
      |> Points.init()
      |> Staking.init()
      |> Redemption.init()
-     |> Gallery.init()}
+     |> Gallery.init()
+     |> PaperProDaily.init()}
   end
 
   @impl true
@@ -76,6 +78,7 @@ defmodule RegentsWeb.ShellLive do
      |> Points.route(route_spec)
      |> Staking.route(route_spec)
      |> Redemption.route(route_spec)
+     |> PaperProDaily.route(route_spec)
      |> read_credits()}
   end
 
@@ -104,12 +107,24 @@ defmodule RegentsWeb.ShellLive do
   @impl true
   def handle_event(event, params, socket) do
     cond do
-      Account.handles?(event) -> {:noreply, Account.handle_event(event, params, socket)}
-      Redemption.handles?(event) -> {:noreply, Redemption.handle_event(event, params, socket)}
-      Staking.handles?(event) -> {:noreply, Staking.handle_event(event, socket)}
-      event == "toggle_my_passes" -> {:noreply, Gallery.toggle(socket)}
+      Account.handles?(event) ->
+        {:noreply, Account.handle_event(event, params, socket)}
+
+      Redemption.handles?(event) ->
+        {:noreply, Redemption.handle_event(event, params, socket)}
+
+      Staking.handles?(event) ->
+        {:noreply, Staking.handle_event(event, socket)}
+
+      PaperProDaily.handles?(event) ->
+        {:noreply, PaperProDaily.handle_event(event, params, socket)}
+
+      event == "toggle_my_passes" ->
+        {:noreply, Gallery.toggle(socket)}
+
       # Anything else the page sent is not in a shape this page takes.
-      true -> {:noreply, put_flash(socket, :error, EventInput.unreadable())}
+      true ->
+        {:noreply, put_flash(socket, :error, EventInput.unreadable())}
     end
   end
 
@@ -147,6 +162,8 @@ defmodule RegentsWeb.ShellLive do
   # The header, the Buy Credits panel and the Account page follow. Every page
   # change reads the balance again too.
   def handle_info(:credits_changed, socket), do: {:noreply, read_credits(socket)}
+
+  def handle_info(:publication_midnight, socket), do: {:noreply, PaperProDaily.midnight(socket)}
 
   @impl true
   def render(assigns) do
@@ -309,6 +326,19 @@ defmodule RegentsWeb.ShellLive do
         />
 
         <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
+        <PaperProDailyLive.page
+          :if={@route_spec.route_id == :paper_pro_daily}
+          page_markdown={@page_markdown}
+          research_list={@research_list}
+          research_list_expanded?={@research_list_expanded?}
+          streams={@streams}
+          more?={@more?}
+          shown={@shown}
+        />
+        <RegentsWeb.LiteratureHTML.show
+          :if={@route_spec.route_id == :literature}
+          books={RegentsWeb.Literature.books()}
+        />
 
         <AgentStartLive.page
           :if={@route_spec.route_id == :agent_start}

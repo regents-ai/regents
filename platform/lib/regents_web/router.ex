@@ -186,18 +186,6 @@ defmodule RegentsWeb.Router do
 
     live "/", HomeLive, :home
 
-    live_session :paper_reading,
-      session: {RegentsWeb.Live.Session, :render_context, []},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
-      live "/paper-pro-daily", PaperProDailyLive, :paper_pro_daily
-    end
-
-    live_session :literature_reading,
-      session: {RegentsWeb.Live.Session, :render_context, []},
-      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
-      live "/literature", LiteratureLive, :literature
-    end
-
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
 
@@ -218,6 +206,8 @@ defmodule RegentsWeb.Router do
       live "/articles", ShellLive, :blog
       live "/articles/:slug", ShellLive, :blog_post
       live "/start", ShellLive, :agent_start
+      live "/paper-pro-daily", ShellLive, :paper_pro_daily
+      live "/literature", ShellLive, :literature
       live "/account", ShellLive, :account
       live "/account/credits", ShellLive, :account_credits
       live "/account/points", ShellLive, :account_points

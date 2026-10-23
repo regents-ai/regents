@@ -12,12 +12,12 @@ defmodule RegentsWeb.RouteCatalogTest do
 
   @paths [
     "/",
-    "/paper-pro-daily",
-    "/literature",
     "/app",
     "/articles",
     "/articles/:slug",
     "/start",
+    "/paper-pro-daily",
+    "/literature",
     "/account",
     "/account/credits",
     "/account/points",

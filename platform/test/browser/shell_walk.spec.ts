@@ -9,6 +9,8 @@ const pages: Array<[string, string]> = [
   ["/redeem/gallery", "#gallery-heading"],
   ["/account", "#account-agents"],
   ["/app", "#regent-ops-overview"],
+  ["/paper-pro-daily", "#paper-daily-title"],
+  ["/literature", "#literature-chart"],
   ["/stake", "#staking-actions"],
   ["/redeem", "#redemption-collections"],
   ["/account", "#account-agents"],
@@ -73,4 +75,19 @@ test("[R04] a signed-in person walks every page, Account included, in one visit"
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
   await walk(page, true)
+})
+
+// Every page with the side panel carries the whole of it: the agents, the
+// pairing box and the Credits button, opened straight from its own address.
+test("a signed-in person sees the whole side panel on every shell page", async ({page}) => {
+  const auth = await installAuthenticatedPrivy(page, "valid")
+  await auth.establishLocalSession()
+
+  for (const path of ["/app", "/stake", "/redeem", "/account", "/articles", "/start", "/paper-pro-daily", "/literature"]) {
+    await page.goto(path)
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+    await expect(page.locator("#shell-agents-reader"), path).toBeAttached()
+    await expect(page.locator("#shell-pairing"), path).toBeAttached()
+    await expect(page.locator("#shell-credits-button"), path).toBeVisible()
+  }
 })

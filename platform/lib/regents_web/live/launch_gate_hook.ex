@@ -15,6 +15,9 @@ defmodule RegentsWeb.Live.LaunchGateHook do
 
   alias RegentsWeb.Plugs.LaunchGate
 
+  # Pages anyone may read while the gate is closed, and use as they read them.
+  @public_pages [:blog, :blog_post, :agent_start, :paper_pro_daily, :literature]
+
   def on_mount(:default, _params, _session, socket) do
     with {:cont, socket} <- app_gate(socket) do
       {:cont,
@@ -27,13 +30,15 @@ defmodule RegentsWeb.Live.LaunchGateHook do
   defp gate_navigation(_params, _uri, socket), do: app_gate(socket)
 
   defp gate_event(_event, _params, socket) do
-    if LaunchGate.app_surfaces_enabled?(), do: {:cont, socket}, else: {:halt, %{}, socket}
+    if open?(socket), do: {:cont, socket}, else: {:halt, %{}, socket}
   end
 
   defp app_gate(socket) do
-    if socket.assigns.live_action in [:blog, :blog_post, :agent_start] or
-         LaunchGate.app_surfaces_enabled?(),
-       do: {:cont, socket},
-       else: {:halt, redirect(socket, to: ~p"/")}
+    if open?(socket),
+      do: {:cont, socket},
+      else: {:halt, redirect(socket, to: ~p"/")}
   end
+
+  defp open?(socket),
+    do: socket.assigns.live_action in @public_pages or LaunchGate.app_surfaces_enabled?()
 end

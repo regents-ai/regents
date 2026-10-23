@@ -3033,3 +3033,30 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - On `/keyfleet` the second button now reads "See Keyfleet #1 Public Pages" (was
   "See the Regents Club fleet"), Sean's words. It still opens
   keyfleet.ai/app/fleets/regents_club.
+
+## 2026-10-23 — v223 and v224 release records
+
+- v223 runs `93d25062` (the template's Pair New Agent box and the staking read
+  during a running pass); the rollback is v222 (`21aa6efb`). Sentinel's
+  after-read: healthy, no errors or crashes since release. Its one note, that
+  links to Paper Pro Daily cross into another live session and reload the page,
+  is fixed by the entry below.
+- v224 runs `c3691f4c` (the Keyfleet button's words); the rollback is v223
+  (`93d25062`). Health check passing.
+
+## 2026-10-23 — Paper Pro Daily and AI & SCIFI carry the whole side panel
+
+- `/paper-pro-daily` and `/literature` were their own LiveViews drawing the shell
+  without its agents, pairing box or Credits button, so signed in their side panel
+  showed only Sign out and Manage Account (Sean). Both are now pages of
+  `RegentsWeb.ShellLive` in the product shell, the way the template runs every
+  page with the side panel, so they show the whole panel and moving between them
+  and the rest of the app no longer reloads the page.
+- Paper Pro Daily's feed is `RegentsWeb.ShellLive.PaperProDaily`: read when the
+  page opens and at each UTC midnight while it stays open, with one timer at a
+  time, let go when the page is left. `RegentsWeb.LiteratureLive` is gone.
+- Both stay open to everyone while the launch gate is closed, events included
+  (`RegentsWeb.Live.LaunchGateHook`).
+- Checks: `platform/test/browser/shell_walk.spec.ts` walks both pages inside one
+  visit and, signed in, opens eight shell pages by address and finds the agents,
+  the pairing box and the Credits button on each.
