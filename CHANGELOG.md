@@ -3004,3 +3004,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `/app` load in headless Chromium at 1280 and 390 wide with no errors and no
   sideways scroll. The read-again icon shows only signed in, so it was not seen
   live. WebKit not run on the Mac.
+
+## 2026-10-23 — The Pair New Agent box never crashes with nothing chosen
+
+- `RegentsWeb.PairingBox` is now the template's (ash-template `13379ab`). A page
+  reconnecting sends the pairing form back with no agent picked, and a submit can
+  come before a choice; both crashed the side panel before (Sentinel, from
+  Patchbay's error mail). The box now stays as it is.
+- Also from the template: each agent keeps its own code until it expires, so
+  choosing another agent and coming back shows the same message, and Make a new
+  code replaces only the chosen agent's. A code that couldn't be made is logged
+  by the kind of failure only.
+- Checks: two new walks in `platform/test/browser/pair_new_agent.spec.ts`; both
+  fail on the old box (the crash walk with `channel_crash`) and succeed on the new.

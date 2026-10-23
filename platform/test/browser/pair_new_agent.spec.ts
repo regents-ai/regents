@@ -73,3 +73,69 @@ test("with less motion asked for, the agents' box stays marked without flashing"
   expect(await box.evaluate(el => getComputedStyle(el).outlineStyle)).toBe("solid")
   await expect(box).not.toHaveAttribute("data-flash", /.*/, {timeout: 3000})
 })
+
+// Pairing as a person does it: choosing their agent in the side panel's box.
+const pairingBox = (page: Page) => page.locator("#shell-pairing")
+const message = (page: Page) => page.locator("#shell-pairing-box pre")
+
+// A person presses the agent's picture: the radio's label, whose name only
+// screen readers hear.
+async function choose(page: Page, agent: string) {
+  const radio = pairingBox(page).getByRole("radio", {name: agent, exact: true})
+  await radio.locator("xpath=ancestor::label").click()
+  await expect(radio).toBeChecked()
+}
+
+async function openPairing(page: Page) {
+  await page.setViewportSize({width: 1280, height: 900})
+  await openAccount(page)
+  await page.locator("#shell-aside-button").click()
+  await pairNewAgent(page).click()
+}
+
+test("each agent keeps its own code until a new one is asked for", async ({page}) => {
+  const errors: string[] = []
+  page.on("pageerror", error => errors.push(error.message))
+  await openPairing(page)
+  await expect(message(page)).toHaveCount(0)
+
+  await choose(page, "Dots")
+  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
+  const first = await message(page).innerText()
+
+  await choose(page, "Hermes")
+  await expect(message(page)).not.toHaveText(first)
+  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
+
+  // Coming back shows the same code, so a message already pasted still works.
+  await choose(page, "Dots")
+  await expect(message(page)).toHaveText(first)
+
+  await pairingBox(page).getByRole("button", {name: "Make a new code"}).click()
+  await expect(message(page)).not.toHaveText(first)
+  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
+  expect(errors).toEqual([])
+})
+
+// A reconnecting page sends the pairing form back with no agent picked, and a
+// submit can come before a choice. Neither may crash the side panel (Sentinel,
+// 23 Oct 2026, from Patchbay's error mail; ash-template 13379ab).
+test("the pairing form with nothing chosen leaves the box as it is", async ({page}) => {
+  const crashes: string[] = []
+  page.on("websocket", socket =>
+    socket.on("framereceived", frame => {
+      if (String(frame.payload).includes('"phx_error"')) crashes.push(String(frame.payload).slice(0, 120))
+    }),
+  )
+  await openPairing(page)
+  const form = page.locator("form#shell-pairing-box")
+  await expect(form.getByRole("radio", {checked: true})).toHaveCount(0)
+
+  await form.getByRole("radio").first().dispatchEvent("input")
+  await form.evaluate(element => (element as HTMLFormElement).requestSubmit())
+
+  // The box still answers: choosing an agent shows its code.
+  await choose(page, "Dots")
+  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
+  expect(crashes).toEqual([])
+})
