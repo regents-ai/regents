@@ -38,21 +38,23 @@ RUN mix local.hex 2.5.1 --force && \
 # GitHub's download redirect sends headers longer than Erlang's HTTP client
 # accepts, so rustler_precompiled cannot fetch prebuilt native code from GitHub.
 # mdex_native uses its maker's mirror (config/config.exs); ex_keccak,
-# ex_secp256k1 and vix publish only on GitHub, so curl fetches the files this
-# build uses into the caches first, where rustler_precompiled (ex_keccak,
+# ex_secp256k1 and vix publish only on GitHub, so curl fetches the files for the
+# building machine's own chip (x86_64 on Fly, aarch64 on a Mac running
+# `make release`) into the caches first, where rustler_precompiled (ex_keccak,
 # ex_secp256k1) and elixir_make (vix) check each one against the package's own
 # checksums before using it. The versions follow mix.lock. Remove this when
-# GitHub or Erlang's client fixes the limit (ash-template 7745906).
+# GitHub or Erlang's client fixes the limit (ash-template 7745906, 8581a96).
 ENV RUSTLER_PRECOMPILED_GLOBAL_CACHE_PATH=/root/rustler_precompiled \
   ELIXIR_MAKE_CACHE_DIR=/root/elixir_make
-RUN mkdir -p /root/rustler_precompiled /root/elixir_make && cd /root/rustler_precompiled && \
+RUN target="$(uname -m)" && \
+  mkdir -p /root/rustler_precompiled /root/elixir_make && cd /root/rustler_precompiled && \
   curl --fail --silent --show-error --location --remote-name \
-    https://github.com/exWeb3/ex_keccak/releases/download/v0.7.8/libexkeccak-v0.7.8-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz && \
+    "https://github.com/exWeb3/ex_keccak/releases/download/v0.7.8/libexkeccak-v0.7.8-nif-2.16-${target}-unknown-linux-gnu.so.tar.gz" && \
   curl --fail --silent --show-error --location --remote-name \
-    https://github.com/ayrat555/ex_secp256k1/releases/download/v0.8.0/libex_secp256k1-v0.8.0-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz && \
+    "https://github.com/ayrat555/ex_secp256k1/releases/download/v0.8.0/libex_secp256k1-v0.8.0-nif-2.16-${target}-unknown-linux-gnu.so.tar.gz" && \
   cd /root/elixir_make && \
   curl --fail --silent --show-error --location --remote-name \
-    https://github.com/akash-akya/vix/releases/download/v0.42.0/vix-nif-2.17-x86_64-linux-gnu-0.42.0.tar.gz
+    "https://github.com/akash-akya/vix/releases/download/v0.42.0/vix-nif-2.17-${target}-linux-gnu-0.42.0.tar.gz"
 
 COPY platform/mix.exs platform/mix.lock ./
 COPY identity /workspace/identity

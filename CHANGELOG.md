@@ -3111,3 +3111,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   wide with no errors and no sideways scroll, AI & SCIFI moves to Paper Pro Daily
   without a reload, and `/images/regent-ui/agents/chatgpt.svg` is served. WebKit
   not run on the Mac.
+
+## 2026-10-23 — Builds on a Mac fetch their own native code
+
+- `platform/Dockerfile` fetches ex_keccak's, ex_secp256k1's and vix's files for
+  the building machine's chip (`uname -m`) instead of x86_64 only, so
+  `make release` on a Mac (aarch64) no longer asks GitHub for them and stops at
+  the long download headers. Fly builds are unchanged (ash-template `8581a96`,
+  from Techtree `78c5c5a5`). All six files, and mdex_native's mirror files for
+  both chips, answer 200.
