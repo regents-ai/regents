@@ -2942,3 +2942,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   sign-out still reloads at once.
 - Left out: the template's display-name save from the browser, which comes with
   the Account page port.
+
+## 2026-10-23 — Regents v221 released
+
+- v221 (`462c3935`) went live as Fly v221 at about 18:28Z on 23 Oct, on Sean's
+  "1. a": two wallets at sign-in, sign-out lets go of every wallet, and the
+  template's Connect wallet fix (f79a3149). The rollback is v220 (`135bcd5c`).
+- Checked before release: server tests 569, JavaScript 242, browser walk 107/107,
+  identity 16, required fixes (template f79a3149) and the command check all
+  succeeded; `mix hex.audit` and sobelow clean.
+- Live checks: the machine runs `main-462c39355135` with its health check
+  passing and no errors in its logs; `/`, `/stake`, `/redeem`, `/account`,
+  `/docs` and `/app` load in headless Chromium at 1280 and 390 wide with no
+  errors and no sideways scroll. A real Privy sign-in was not walked headless.
+  WebKit not run on the Mac.
