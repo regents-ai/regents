@@ -3072,3 +3072,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   wide with no errors and no sideways scroll, and AI & SCIFI moves to Paper Pro
   Daily without a page reload. The side panel shows only signed in, so it was not
   seen live. WebKit not run on the Mac.
+
+## 2026-10-23 — ChatGPT agents' picture, and builds that fetch native code again
+
+- design-system `cbf12f8d` (from `30d16360`): a paired agent of kind "chatgpt"
+  draws OpenAI's mark in the side panel and on the Account page; before, that
+  picture crashed (ash-template chief). ChatGPT pairing itself stays off.
+- GitHub's download redirect now sends headers longer than Erlang's HTTP client
+  accepts, so a build without the cached layer stopped at `mix deps.compile`.
+  As in ash-template `7745906`: mdex_native takes its native code from its
+  maker's mirror (`platform/config/config.exs`), and `platform/Dockerfile`
+  fetches ex_keccak 0.7.8's, ex_secp256k1 0.8.0's and vix 0.42.0's files with
+  curl into rustler_precompiled's and elixir_make's caches, where each is checked
+  against the package's own checksums. vix (pictures) is ours alone; a build
+  without the cache found it.
