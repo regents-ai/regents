@@ -2969,7 +2969,7 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   Base every five minutes instead of every minute, to cut paid node calls. It is
   read again within ten seconds after a signed-in person's on-chain press is
   confirmed, or after they press the new read-again icon beside "Updated …" on
-  Stake (the shared `Regent.Primitives.last_read`, design-system `19d8df6e`).
+  Stake (the shared `Regent.Primitives.last_read`, design-system `af32c1d3`).
   Many presses close together cost one read: the refresh job is unique and waits
   for the ten-second gap.
 - `Regents.ChainRefresh` (copied from ash-template's `AshTemplate.ChainRefresh`)
