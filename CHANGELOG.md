@@ -2898,3 +2898,10 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   on PyPI), which carries regents.sh's reading commands: protocol articles,
   literature, profiles and research. Asked for by the regents-cli chief.
 - Checked: `make check-cli` (cli/commands.json ok). No site code changed.
+
+## 2026-10-23 — Security update: plug_crypto 2.2.1
+
+- `platform/mix.lock` and `identity/mix.lock` move plug_crypto from 2.2.0 to
+  2.2.1 (advisory GHSA-ffw9-w85g-f2vh, medium: the secret key base could show in
+  stack trace arguments). `mix hex.audit` is clean in both apps again. Lock-only;
+  no site code changed. Reported by the Autolaunch chiefs to every site.
