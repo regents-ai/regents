@@ -3097,3 +3097,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   in, passes all three that way.
 - Checks: dropping the agents part from `RegentsWeb.ShellLive` fails
   `mix compile --warnings-as-errors` with "missing required slot".
+
+## 2026-10-23 — v226 release record
+
+- v226 runs `2c2c79bf` (design-system `cbf12f8d`, the native-code build fix, the
+  required side-panel parts); the rollback is v225 (`b4c48cc1`). No database
+  migrations.
+- Checked before release: server tests 570, JavaScript 242, browser walk 111/111;
+  a cache-free Fly build of `acc546a5` succeeded (the first, without vix's file,
+  stopped at vix with header_too_long).
+- Live checks: the machine runs `2c2c79bf` with its health check passing and no
+  errors in its logs; the eight pages load in headless Chromium at 1280 and 390
+  wide with no errors and no sideways scroll, AI & SCIFI moves to Paper Pro Daily
+  without a reload, and `/images/regent-ui/agents/chatgpt.svg` is served. WebKit
+  not run on the Mac.
