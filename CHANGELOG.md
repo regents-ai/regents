@@ -3060,3 +3060,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Checks: `platform/test/browser/shell_walk.spec.ts` walks both pages inside one
   visit and, signed in, opens eight shell pages by address and finds the agents,
   the pairing box and the Credits button on each.
+
+## 2026-10-23 — v225 release record
+
+- v225 runs `b4c48cc1` (Paper Pro Daily and AI & SCIFI in the product shell); the
+  rollback is v224 (`c3691f4c`). No database migrations.
+- Checked before release: server tests 570, JavaScript 242, browser walk 111/111.
+- Live checks: the machine runs `main-b4c48cc1099b` with its health check passing
+  and no errors in its logs; `/`, `/stake`, `/redeem`, `/account`, `/docs`, `/app`,
+  `/paper-pro-daily` and `/literature` load in headless Chromium at 1280 and 390
+  wide with no errors and no sideways scroll, and AI & SCIFI moves to Paper Pro
+  Daily without a page reload. The side panel shows only signed in, so it was not
+  seen live. WebKit not run on the Mac.
