@@ -3086,3 +3086,14 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   curl into rustler_precompiled's and elixir_make's caches, where each is checked
   against the package's own checksums. vix (pictures) is ours alone; a build
   without the cache found it.
+
+## 2026-10-23 — A page cannot draw half a side panel
+
+- `RegentsWeb.Components.Shell.shell` now requires its Credits panel, pairing
+  and agents parts (ash-template `98411ef`), so a page that draws the shell
+  without one fails to compile; a caller leaves a part out for someone signed out
+  with `:if`. This is the guard against v225's bug, where two pages showed only
+  Sign out and Manage Account. The local design showcase's preview, never signed
+  in, passes all three that way.
+- Checks: dropping the agents part from `RegentsWeb.ShellLive` fails
+  `mix compile --warnings-as-errors` with "missing required slot".

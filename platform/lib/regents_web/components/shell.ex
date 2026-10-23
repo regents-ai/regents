@@ -48,10 +48,17 @@ defmodule RegentsWeb.Components.Shell do
   )
 
   slot(:content, required: true)
-  slot(:credits_panel, doc: "The Buy Credits panel, opened from the header's balance.")
 
-  slot(:pairing, doc: "The box to pair an agent, in the side panel.")
-  slot(:agents, doc: "The agents paired with the account, in the side panel.")
+  # Required, so a page that draws the shell without one of these does not compile:
+  # signed in, it would show half a side panel or a balance that opens nothing. A
+  # caller leaves one out for someone signed out with `:if` (ash-template 98411ef).
+  slot(:credits_panel,
+    required: true,
+    doc: "The Buy Credits panel, opened from the header's balance."
+  )
+
+  slot(:pairing, required: true, doc: "The box to pair an agent, in the side panel.")
+  slot(:agents, required: true, doc: "The agents paired with the account, in the side panel.")
 
   def shell(assigns) do
     ~H"""
