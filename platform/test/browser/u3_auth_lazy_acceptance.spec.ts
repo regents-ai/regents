@@ -291,7 +291,7 @@ for (const viewport of retryViewports) {
     await expect.poll(() => bridgeRequests.length).toBe(1)
     await expect(status).toBeVisible()
     await expect(status).toContainText(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
     await expectStatusAnchored(page, headerHeight ?? 0)
     await expect(page.getByRole("button", {name: "Sign in"})).toBeDisabled()
@@ -304,7 +304,7 @@ for (const viewport of retryViewports) {
     expect(bridgeRequests).toHaveLength(1)
     await expect(status).toBeVisible()
     await expect(status).toContainText(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
     await expectStatusAnchored(page, headerHeight ?? 0)
 
@@ -344,7 +344,7 @@ test("the bounded failure report survives the recommended immediate reload exact
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await page.getByRole("button", {name: "Sign in"}).click()
   await expect(page.locator("#account-auth-status")).toContainText(
-    "Sign-in is unavailable on this page. Reload it or contact support.",
+    "Sign-in isn’t available right now. Reload this page.",
   )
 
   await page.reload()
@@ -674,7 +674,10 @@ test("sign out replaces pending sync and runs once after the bridge is ready", a
   await page.getByRole("button", {name: "Sign out"}).click()
   await expect.poll(() => sessionDeletes).toBe(1)
 
-  await expect.poll(() => documentRequests.length).toBe(2)
+  // Privy's logout is held open here, so the page's own reload waits on it; the
+  // server's disconnect reloads the page first, 5 to 10 seconds after it closes
+  // the live connection.
+  await expect.poll(() => documentRequests.length, {timeout: 15_000}).toBe(2)
   await expect(
     page.locator("#account-control [data-account-target='sign-in']"),
   ).toBeAttached()
@@ -1212,9 +1215,10 @@ test("a tab holding a stale token still signs out, and the revoked lineage canno
 
   // The refreshing tab reloads itself once, signed out, and its live connection
   // runs signed out rather than on the revoked lineage. A reload of its own
-  // finds it signed out too.
+  // finds it signed out too. LiveView reloads the tab 5 to 10 seconds after the
+  // server closes its live connection.
   const signIn = refreshingTab.locator("#account-control [data-account-target='sign-in']")
-  await expect.poll(() => reloads.length).toBe(1)
+  await expect.poll(() => reloads.length, {timeout: 15_000}).toBe(1)
   await expect(signIn).toBeVisible()
   await expect
     .poll(() =>
@@ -1248,8 +1252,11 @@ test("a rejected bearer leaves the browser anonymous without a duplicate delete 
 
   // The server already revoked and dropped the authority with its 401, so the
   // bridge adds no delete and no reload of its own. The server also closes this
-  // page's live connection, and that one reload lands anonymous.
-  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  // page's live connection, and that one reload, which LiveView makes 5 to 10
+  // seconds later, lands anonymous.
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible({
+    timeout: 15_000,
+  })
   await page.waitForLoadState("networkidle")
 
   expect(deletes).toEqual([])

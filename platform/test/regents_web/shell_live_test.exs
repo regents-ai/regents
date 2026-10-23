@@ -234,7 +234,8 @@ defmodule RegentsWeb.ShellLiveTest do
     html =
       render_component(&RegentsWeb.AccountLive.page/1, %{
         account_control: %AccountControl{kind: :sign_in, label: "Sign in", profile_path: nil},
-        signed_out_reason: :signed_out
+        signed_out_reason: :signed_out,
+        sign_in_wallets: %{}
       })
 
     assert html =~ ~s(id="account-page")
@@ -275,9 +276,11 @@ defmodule RegentsWeb.ShellLiveTest do
     refute html =~ "Sign in to see your account"
     assert has_element?(view, "#account-identity h2", "0x6666..6666")
     assert has_element?(view, "#account-identity canvas[data-holo-canvas]")
-    assert has_element?(view, ".account-details code", wallet)
-    assert has_element?(view, "#account-wallet-copy[data-copy-text='#{wallet}']", "Copy")
-    assert has_element?(view, ".account-wallet-list code", other)
+    # A session from before sign-ins named the Regents wallet lists every linked
+    # wallet, each with its full address one press away.
+    assert has_element?(view, "#account-wallet-#{wallet}-full", wallet)
+    assert has_element?(view, "#account-wallet-#{other}-full", other)
+    assert has_element?(view, ".account-details dd", "Made for you at your next sign-in")
     assert has_element?(view, ".account-details dd", "No primary name set for this wallet")
     assert has_element?(view, ".account-details dd", "Not set")
     assert has_element?(view, ".account-details dd", "Not verified")

@@ -258,6 +258,7 @@ defmodule RegentsWeb.ShellLive do
           agent_notice={@agent_notice}
           agents_now={@agents_now}
           credits={@credits}
+          sign_in_wallets={@sign_in_wallets}
         />
 
         <PointsLive.page

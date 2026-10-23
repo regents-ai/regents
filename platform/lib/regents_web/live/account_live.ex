@@ -28,12 +28,15 @@ defmodule RegentsWeb.AccountLive do
   attr :agent_detail, :map, default: nil
   attr :agent_notice, :any, default: nil
   attr :agents_now, DateTime, default: nil
+  attr :sign_in_wallets, :map, required: true
 
   attr :credits, :map,
     required: true,
     doc: "The account's Credits balance read: its state and value (`RegentCredits.balance/1`)."
 
   def page(assigns) do
+    assigns = assign(assigns, :named, named_wallets(assigns.account, assigns.sign_in_wallets))
+
     ~H"""
     <article id="account-page" class="account-page">
       <header class="account-heading">
@@ -82,7 +85,10 @@ defmodule RegentsWeb.AccountLive do
                   @account_control.label
                 ]
               }>
-                <code>{RegentFormat.short_address(@account.wallet_address)}</code>
+                <Regent.Primitives.address
+                  id="account-identity-wallet"
+                  address={@account.wallet_address}
+                />
               </p>
             </div>
           </div>
@@ -196,24 +202,26 @@ defmodule RegentsWeb.AccountLive do
           <section class="account-panel account-details" aria-labelledby="account-details-title">
             <h2 id="account-details-title">Details</h2>
             <dl>
-              <div>
-                <dt>Wallet</dt>
-                <dd :if={@account.wallet_address} class="account-wallet">
-                  <code>{@account.wallet_address}</code>
-                  <Regent.Primitives.copy_button
-                    id="account-wallet-copy"
-                    text={@account.wallet_address}
-                  >
-                    Copy
-                  </Regent.Primitives.copy_button>
+              <div :if={@named.user}>
+                <dt>User wallet</dt>
+                <dd>
+                  <Regent.Primitives.address id="account-user-wallet" address={@named.user} />
                 </dd>
-                <dd :if={is_nil(@account.wallet_address)}>No wallet linked</dd>
               </div>
-              <div :if={other_wallets(@account) != []}>
+              <div>
+                <dt>Regents embedded wallet</dt>
+                <dd :if={@named.embedded}>
+                  <Regent.Primitives.address id="account-embedded-wallet" address={@named.embedded} />
+                </dd>
+                <dd :if={is_nil(@named.embedded)}>Made for you at your next sign-in</dd>
+              </div>
+              <div :if={@named.others != []}>
                 <dt>Other linked wallets</dt>
                 <dd>
                   <ul class="account-wallet-list">
-                    <li :for={wallet <- other_wallets(@account)}><code>{wallet}</code></li>
+                    <li :for={wallet <- @named.others}>
+                      <Regent.Primitives.address id={"account-wallet-#{wallet}"} address={wallet} />
+                    </li>
                   </ul>
                 </dd>
               </div>
@@ -434,14 +442,18 @@ defmodule RegentsWeb.AccountLive do
   defp count(1, singular, _plural), do: "1 #{singular}"
   defp count(n, _singular, plural), do: "#{n} #{plural}"
 
-  defp other_wallets(%{wallet_address: primary, wallet_addresses: wallets}) do
-    primary = primary && String.downcase(primary)
+  # The sign-in names which linked wallet Privy made for the person and which is
+  # their own. A name for a wallet the account no longer holds is not shown, so
+  # an outside wallet is never shown as the Regents wallet.
+  defp named_wallets(nil, _sign_in_wallets), do: %{user: nil, embedded: nil, others: []}
 
-    wallets
-    |> List.wrap()
-    |> Enum.map(&String.downcase/1)
-    |> Enum.uniq()
-    |> Enum.reject(&(&1 == primary))
+  defp named_wallets(%{wallet_addresses: wallets}, sign_in_wallets) do
+    linked = wallets |> List.wrap() |> Enum.map(&String.downcase/1) |> Enum.uniq()
+    named = fn key -> if sign_in_wallets[key] in linked, do: sign_in_wallets[key] end
+    user = named.("user")
+    embedded = named.("embedded")
+
+    %{user: user, embedded: embedded, others: linked -- [user, embedded]}
   end
 
   defp date(datetime), do: Calendar.strftime(datetime, "%-d %B %Y")

@@ -19,14 +19,6 @@ declare module "phoenix-colocated/regents" {
 
 declare module "*.css"
 
-declare module "node:fs" {
-  export function readFileSync(path: URL): Uint8Array
-}
-
-declare module "node:zlib" {
-  export function gzipSync(input: Uint8Array): Uint8Array
-}
-
 interface Window {
   liveSocket: import("phoenix_live_view").LiveSocket
 }

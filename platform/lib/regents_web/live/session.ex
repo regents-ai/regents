@@ -40,11 +40,24 @@ defmodule RegentsWeb.Live.Session do
     socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
 
     if connected?(socket) do
-      connected(socket, session, get_connect_info(socket, :session))
+      handshake = get_connect_info(socket, :session)
+
+      socket
+      |> Phoenix.Component.assign(sign_in_wallets: sign_in_wallets(handshake))
+      |> connected(session, handshake)
     else
-      {:cont, assign_principal(socket, disconnected_account(session))}
+      {:cont,
+       socket
+       |> Phoenix.Component.assign(sign_in_wallets: sign_in_wallets(session))
+       |> assign_principal(disconnected_account(session))}
     end
   end
+
+  # Which wallets the sign-in named the Regents wallet and the person's own
+  # (`Regents.Accounts.VerifiedSession.wallet_labels/1`), read from the same
+  # cookie as the claim; the account itself only ever comes from the claim's row.
+  defp sign_in_wallets(%{"wallets" => %{} = wallets}), do: wallets
+  defp sign_in_wallets(_session), do: %{}
 
   # The cookie the socket connected with is the only authority, and a mount that
   # cannot honour it is refused there and then rather than left to a later hook.

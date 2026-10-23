@@ -251,7 +251,11 @@ defmodule RegentsWeb.PrivySessionControllerTest do
     assert signed_in.private[:plug_session_info] == :renew
     assert session_cookie(signed_in) != visitor_cookie
 
-    assert get_session(signed_in) |> Map.keys() |> Enum.sort() == @canonical_session_keys
+    # Beside the claim, the signed-in cookie only names which wallets the sign-in
+    # called the Regents wallet and the person's own, for the Account page.
+    assert get_session(signed_in) |> Map.keys() |> Enum.sort() ==
+             @canonical_session_keys ++ ["wallets"]
+
     refute get_session(signed_in, :human_account_id)
 
     assert get_session(signed_in, :session_lineage) == get_session(visitor, :session_lineage)

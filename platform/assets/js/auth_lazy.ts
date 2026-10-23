@@ -3,8 +3,7 @@ import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisco
 
 export type AccountRequest = "connect-wallet" | "sign-in" | "sign-out" | "sync"
 
-export type SignInFailureKind = "closed" | "provider" | "session" | "startup"
-type TerminalSignInFailureKind = Exclude<SignInFailureKind, "closed">
+export type SignInFailureKind = "provider" | "session" | "startup"
 
 export type SignInFailureDiagnostic =
   | "bridge_startup"
@@ -52,11 +51,7 @@ export type PrivyBridgeHandle = {
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
   finishSignOutOnly?: () => void
-  tokens?: () => Promise<PrivyTokenPair>
 }
-
-// Privy's access and identity tokens, which travel together.
-export type PrivyTokenPair = {accessToken: string; identityToken: string}
 
 export type PrivyBridgeStartupOptions = {
   mode?: "ordinary" | "sign-out-only"
@@ -93,15 +88,8 @@ const signOutHandoffKey = "regent:privy-sign-out-handoff:v1"
 const signOutHandoffMaxAgeMs = 30_000
 const consumedHandoffDocuments = new WeakSet<Document>()
 const reloadedDocuments = new WeakSet<Document>()
-const terminalSignInFailures = new WeakMap<Document, TerminalSignInFailureKind>()
+const terminalSignInFailures = new WeakMap<Document, SignInFailureKind>()
 const walletSignOuts = new WeakMap<Document, Promise<void>>()
-const accountTokenSources = new WeakMap<Document, () => Promise<PrivyTokenPair>>()
-
-/** The signed-in person's token pair, for a read this page makes on their behalf. */
-export function accountTokens(documentRoot: Document = document): Promise<PrivyTokenPair> {
-  const source = accountTokenSources.get(documentRoot)
-  return source ? source() : Promise.reject(new Error("Sign-in is not installed on this page."))
-}
 
 // Called only after server revocation/anonymous truth. Cleanup is shared by
 // explicit and provider logout; no extension can keep the page signed in.
@@ -119,6 +107,37 @@ export function finishWalletSignOut(
 }
 
 const bridgePath = /^\/assets\/js\/privy_bridge(?:-[a-f0-9]{32})?\.js$/
+
+// Privy brings a Google or other redirect sign-in back to the page with these.
+export function returnedFromOAuth(search: string): boolean {
+  return new URLSearchParams(search).has("privy_oauth_code")
+}
+
+// Where Privy 3.49 keeps a session of its own in this browser
+// (`@privy-io/react-auth`, pinned in package.json).
+const privySessionKeys = ["privy:token", "privy:refresh_token"]
+
+/**
+ * Whether Privy still holds a sign-in of its own in this browser. A person
+ * whose sign-in here has lapsed is then signed back in on whatever page they
+ * open, without pressing anything.
+ */
+export function privyHoldsSession(storage: Pick<Storage, "getItem"> | null): boolean {
+  if (!storage) return false
+  try {
+    return privySessionKeys.some(key => storage.getItem(key) !== null)
+  } catch {
+    return false
+  }
+}
+
+function localStorageOrNull(): Pick<Storage, "getItem"> | null {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
 
 export function reloadDocumentOnce(documentRoot: Document, reload: () => void): void {
   if (reloadedDocuments.has(documentRoot)) return
@@ -508,7 +527,7 @@ export function showAccountAuthFailure(
   signInFailure: SignInFailureKind = "startup",
 ): void {
   if (!documentRoot) return
-  if (request === "sign-in" && signInFailure !== "closed") {
+  if (request === "sign-in") {
     terminalSignInFailures.set(documentRoot, signInFailure)
     disableSignInControls(documentRoot)
   }
@@ -517,12 +536,9 @@ export function showAccountAuthFailure(
   status.textContent =
     request === "sign-in"
       ? {
-          closed: "Sign-in closed before completion. No account was connected.",
-          provider:
-            "Your wallet responded, but Privy couldn’t finish sign-in. Reload this page before trying again.",
-          session:
-            "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
-          startup: "Sign-in is unavailable on this page. Reload it or contact support.",
+          provider: "Sign-in didn’t finish. Reload this page, then try again.",
+          session: "We couldn’t sign you in. Reload this page, then try again.",
+          startup: "Sign-in isn’t available right now. Reload this page.",
         }[signInFailure]
       : {
           "connect-wallet": "Wallet connection couldn’t start. Try again.",
@@ -530,7 +546,7 @@ export function showAccountAuthFailure(
           sync: "Account connection couldn’t refresh. Try again.",
         }[request]
   status.hidden = false
-  if (request === "sign-in" && signInFailure !== "closed" &&
+  if (request === "sign-in" &&
       typeof documentRoot.createElement === "function" && typeof status.append === "function") {
     const retry = documentRoot.createElement("button")
     retry.type = "button"
@@ -570,7 +586,7 @@ export function reportSignInFailure(
   failure: SignInFailureDiagnostic,
   fetcher: typeof fetch = fetch,
 ): void {
-  console.warn("Regent Privy sign-in failure", failure)
+  console.warn("Privy sign-in failure", failure)
 
   void (async () => {
     if (!csrfStateIsCurrent()) await adoptUnreadRenewal(fetcher)
@@ -881,13 +897,6 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
-    async tokens(): Promise<PrivyTokenPair> {
-      assertActive()
-      if (state !== "ordinary") throw new Error("Provider sign out is still in progress.")
-      if (!handle) await (preparing ?? prepare())
-      if (!handle?.tokens) throw new Error("Privy bridge is not ready")
-      return handle.tokens()
-    },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return
       state = "handoff-terminal"
@@ -920,7 +929,6 @@ export function installAccountAuthLazyLoader(
     importBridge,
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
-  accountTokenSources.set(documentRoot, () => loader.tokens())
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -933,7 +941,7 @@ export function installAccountAuthLazyLoader(
       const diagnostic = classified?.diagnostic ?? "bridge_startup"
 
       if (classified?.diagnosticReported) {
-        console.warn("Regent Privy sign-in failure", diagnostic)
+        console.warn("Privy sign-in failure", diagnostic)
       } else {
         reportSignInFailure(diagnostic)
       }
@@ -1024,7 +1032,7 @@ export function installAccountAuthLazyLoader(
         showLoadFailure("sign-out", undefined)
         return
       }
-      // Sign out is one command. The Regent session is gone; every wallet
+      // Disconnect is one command. The site session is gone; every wallet
       // Privy holds is released here, before this document is replaced, so the
       // wallet apps are asked while the page that asked them still exists, and
       // the page goes anonymous whether or not they answer.
@@ -1083,7 +1091,6 @@ export function installAccountAuthLazyLoader(
         walletEvents.dispatchEvent(new CustomEvent(IDENTITY_STATE_EVENT, {detail: state}))
       })
   }
-  const onWalletConnect = () => request("connect-wallet")
   // A wallet page asks for the wallets Privy already holds as soon as it
   // mounts, so a returning customer sees their wallet without a click. Nothing
   // is shown when that cannot happen: the page still offers the connection.
@@ -1099,7 +1106,6 @@ export function installAccountAuthLazyLoader(
 
   documentRoot.addEventListener("click", onClick)
   walletEvents.addEventListener(IDENTITY_REQUEST_EVENT, onIdentityRequest)
-  walletEvents.addEventListener("ash:wallet-connect", onWalletConnect)
   walletEvents.addEventListener("ash:wallet-sync", onWalletSync)
   if (consumedHandoff) {
     // The page that signed out could not finish Privy's logout. It is waited
@@ -1110,10 +1116,13 @@ export function installAccountAuthLazyLoader(
     })
   } else if (documentRoot.querySelector("#account-control [data-account-target='profile']")) {
     reconcileSignedInStartup()
+  } else if (returnedFromOAuth(documentRoot.location?.search ?? "") || privyHoldsSession(localStorageOrNull())) {
+    // Privy finishes a redirect sign-in only once it is running on the page, and
+    // a sign-in Privy still holds here signs the person back in the same way.
+    onWalletSync()
   }
   return () => {
     installed = false
-    accountTokenSources.delete(documentRoot)
     loader.dispose()
 
     walletEvents.removeEventListener("storage", onWalletStorage)
@@ -1122,7 +1131,6 @@ export function installAccountAuthLazyLoader(
     documentRoot.removeEventListener("visibilitychange", onWalletFocus)
     documentRoot.removeEventListener("click", onClick)
     walletEvents.removeEventListener(IDENTITY_REQUEST_EVENT, onIdentityRequest)
-    walletEvents.removeEventListener("ash:wallet-connect", onWalletConnect)
     walletEvents.removeEventListener("ash:wallet-sync", onWalletSync)
   }
 }

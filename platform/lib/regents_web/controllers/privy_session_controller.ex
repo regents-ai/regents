@@ -58,7 +58,7 @@ defmodule RegentsWeb.PrivySessionController do
          {:ok, verified} <-
            verifier().verify(pair, Application.get_env(:regents, :privy, [])),
          {:ok, account, identity_conflicts} <- establish(verified) do
-      bind(conn, account, identity_conflicts)
+      bind(conn, account, verified, identity_conflicts)
     else
       {:error, {stage, reason}} -> refuse(conn, stage, reason)
     end
@@ -168,12 +168,15 @@ defmodule RegentsWeb.PrivySessionController do
 
   # Privy is verified before the row lock, so only the transition itself is
   # serialized. A different account is a two-step cutover: this response revokes
-  # and disconnects the old lineage and binds nothing.
-  defp bind(conn, account, identity_conflicts) do
+  # and disconnects the old lineage and binds nothing. The new cookie also keeps
+  # which of the account's wallets this sign-in named the Regents wallet and the
+  # person's own, for the Account page; they grant nothing.
+  defp bind(conn, account, verified, identity_conflicts) do
     case SessionAuthority.sign_in(claim(conn), account.id) do
       {:ok, transition, claim} ->
         conn
         |> rotate_session(claim)
+        |> put_session("wallets", VerifiedSession.wallet_labels(verified))
         |> put_identity_conflict_header(identity_conflicts)
         |> put_resp_header("x-ash-session-changed", to_string(transition == :bind))
         |> json(session_payload(account))

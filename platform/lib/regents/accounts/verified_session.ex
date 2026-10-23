@@ -36,6 +36,15 @@ defmodule Regents.Accounts.VerifiedSession do
 
   def establish(_verified), do: {:error, :invalid_verified_identity}
 
+  @doc """
+  Which of the verified session's wallets Privy made for the person (their
+  Regents embedded wallet) and which is their own, as the browser session keeps
+  them for the Account page. Either is nil when there is none. They only name
+  wallets: the account still comes from the session's own row.
+  """
+  def wallet_labels(%RegentPrivy.Session{} = verified),
+    do: %{"embedded" => verified.embedded_wallet_address, "user" => verified.user_wallet_address}
+
   def current?(%{wallet_address: primary, wallet_addresses: addresses})
       when is_binary(primary) and is_list(addresses) do
     addresses != [] and primary in addresses

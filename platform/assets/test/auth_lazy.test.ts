@@ -224,7 +224,7 @@ describe("lazy browser authentication", () => {
       headers: {"content-type": "application/json", "x-csrf-token": "csrf-safe"},
       body: JSON.stringify({reason: "provider_error"}),
     })
-    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "provider_error")
+    expect(warning).toHaveBeenCalledWith("Privy sign-in failure", "provider_error")
   })
 
   it("reports a client-owned session diagnostic that never reached a rejecting endpoint", async () => {
@@ -246,7 +246,7 @@ describe("lazy browser authentication", () => {
         body: JSON.stringify({reason: "session_exchange"}),
       }),
     )
-    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "session_exchange")
+    expect(warning).toHaveBeenCalledWith("Privy sign-in failure", "session_exchange")
   })
 
   it("does not duplicate a session diagnostic already emitted by the rejecting endpoint", async () => {
@@ -267,7 +267,7 @@ describe("lazy browser authentication", () => {
 
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(fetcher).not.toHaveBeenCalled()
-    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "session_exchange")
+    expect(warning).toHaveBeenCalledWith("Privy sign-in failure", "session_exchange")
   })
 
   it("cancels an uncommitted establishment before one local deletion and blocks later writes", async () => {
@@ -614,14 +614,14 @@ describe("lazy browser authentication", () => {
     page.click("sign-in")
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(page.status.textContent).toBe(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
     expect(initialControls.every(control => control.disabled)).toBe(true)
     expect(initialControls.map(control => control.getAttribute("aria-disabled"))).toEqual([
       "true",
       "true",
     ])
-    expect(warning).toHaveBeenCalledWith("Regent Privy sign-in failure", "bridge_startup")
+    expect(warning).toHaveBeenCalledWith("Privy sign-in failure", "bridge_startup")
     expect(JSON.stringify(warning.mock.calls)).not.toContain("chunk unavailable")
 
     const replacementStatus = page.replaceStatus()
@@ -632,7 +632,7 @@ describe("lazy browser authentication", () => {
     expect(handleRequest).not.toHaveBeenCalled()
     expect(replacementStatus.hidden).toBe(false)
     expect(replacementStatus.textContent).toBe(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
     expect(importer).toHaveBeenCalledOnce()
   })
@@ -652,24 +652,9 @@ describe("lazy browser authentication", () => {
 
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(page.status.textContent).toBe(
-      "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
+      "We couldn’t sign you in. Reload this page, then try again.",
     )
-    expect(warning).toHaveBeenLastCalledWith("Regent Privy sign-in failure", "session_exchange")
-  })
-
-  it("loads Privy for the first anonymous wallet connection without starting sign in", async () => {
-    const page = accountDocument()
-    const handleRequest = vi.fn(async () => undefined)
-    const startPrivyBridge = vi.fn(async () => ({request: handleRequest}))
-    const importer = vi.fn(async () => ({startPrivyBridge}))
-
-    installAccountAuthLazyLoader(page.documentRoot, importer)
-    page.dispatch("ash:wallet-connect")
-
-    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("connect-wallet"))
-    expect(importer).toHaveBeenCalledOnce()
-    expect(startPrivyBridge).toHaveBeenCalledOnce()
-    expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
+    expect(warning).toHaveBeenLastCalledWith("Privy sign-in failure", "session_exchange")
   })
 
   it("routes a signed-in wallet button to connection without sign-in or document reload", async () => {
@@ -720,8 +705,9 @@ describe("lazy browser authentication", () => {
     expect(page.status.hidden).toBe(true)
   })
 
-  it("announces an anonymous wallet connection failure to the active route", async () => {
-    const page = accountDocument()
+  it("announces a wallet connection failure to the active route", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument({signedIn: true})
     const failed = vi.fn()
     page.documentRoot.addEventListener("ash:wallet-connect-failed", failed)
 
@@ -731,7 +717,7 @@ describe("lazy browser authentication", () => {
         throw new Error("chunk unavailable")
       }),
     )
-    page.dispatch("ash:wallet-connect")
+    page.click("connect-wallet")
 
     await vi.waitFor(() => expect(failed).toHaveBeenCalledOnce())
     expect(page.status.textContent).toBe("Wallet connection couldn’t start. Try again.")
@@ -755,7 +741,7 @@ describe("lazy browser authentication", () => {
     await vi.waitFor(() => expect(startPrivyBridge).toHaveBeenCalledOnce())
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(page.status.textContent).toBe(
-      "Privy finished the wallet step, but Regent couldn’t finish sign-in. Reload this page or contact support.",
+      "We couldn’t sign you in. Reload this page, then try again.",
     )
   })
 
@@ -770,7 +756,7 @@ describe("lazy browser authentication", () => {
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(importer).toHaveBeenCalledOnce()
     expect(page.status.textContent).toBe(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
   })
 
@@ -1161,14 +1147,14 @@ describe("lazy browser authentication", () => {
     page.click("sign-in")
     await vi.waitFor(() => expect(page.status.hidden).toBe(false))
     expect(page.status.textContent).toBe(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
 
     finishCleanup?.()
     await vi.waitFor(() => expect(finishSignOutOnly).toHaveBeenCalledOnce())
     expect(page.status.hidden).toBe(false)
     expect(page.status.textContent).toBe(
-      "Sign-in is unavailable on this page. Reload it or contact support.",
+      "Sign-in isn’t available right now. Reload this page.",
     )
   })
 

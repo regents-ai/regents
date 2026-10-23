@@ -185,7 +185,11 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   await expect(page.locator("#staking-claim_usdc[data-onchain-step]")).toBeEnabled()
 
   await signOut(page)
-  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
+  // A sign-out from elsewhere closes the page's connection, and LiveView reloads
+  // the page 5 to 10 seconds later.
+  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible({
+    timeout: 15_000,
+  })
   await expect(page).toHaveURL(/\/stake$/)
   await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 

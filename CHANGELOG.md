@@ -2918,3 +2918,27 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   passing; `/`, `/stake`, `/redeem`, `/account` and `/docs` load in headless
   Chromium at 1280 and 390 wide with no errors and no sideways scroll. WebKit not
   run on the Mac.
+
+## 2026-10-23 — Two wallets at sign-in, and sign-out lets go of every wallet
+
+Sean, 22 Oct 2026, "1. a": build now; 23 Oct 2026, "1. a": release. Copied from
+ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
+
+- Privy makes a Regents wallet for everyone at their next sign-in. The Account
+  page names it as "Regents embedded wallet" and, only when the person signed in
+  with a wallet of their own, that wallet as "User wallet". Every wallet on the
+  page uses the shared address component. The sign-in cookie keeps which wallet
+  is which; it grants nothing.
+- The person's own wallet stays their main wallet (elixir-utils `dcd60691`).
+- A page whose browser still holds a Privy sign-in with a wallet signs back in
+  when it loads, unless the person pressed Disconnect. Closing the sign-in window
+  says nothing. The sign-in failure words match the template.
+- Sign-out lets go of every connected wallet before Privy signs out and never
+  waits on one. On a signed-out page, Connect wallet first ends any Privy
+  sign-in the browser still remembers, so it can never sign the last person
+  back in (template f79a3149).
+- Phoenix 1.8.16. A sign-out from another tab, or a refused sign-in, now reloads
+  the page within LiveView's 5 to 10 seconds, as on the template; a page's own
+  sign-out still reloads at once.
+- Left out: the template's display-name save from the browser, which comes with
+  the Account page port.

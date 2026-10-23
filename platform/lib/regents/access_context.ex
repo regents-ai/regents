@@ -25,7 +25,8 @@ defmodule Regents.AccessContext do
       kind: :signed_in,
       label: name,
       profile_path: "/regents/#{slug}",
-      avatar_src: PublicIdentity.avatar_src(account)
+      avatar_src: PublicIdentity.avatar_src(account),
+      wallet: own_wallet(account)
     }
   end
 
@@ -34,7 +35,13 @@ defmodule Regents.AccessContext do
       kind: :signed_in,
       label: PublicIdentity.label(account),
       profile_path: nil,
-      avatar_src: PublicIdentity.avatar_src(account)
+      avatar_src: PublicIdentity.avatar_src(account),
+      wallet: own_wallet(account)
     }
   end
+
+  defp own_wallet(%{wallet_address: address}) when is_binary(address),
+    do: String.downcase(address)
+
+  defp own_wallet(_account), do: nil
 end

@@ -1,4 +1,4 @@
-import {getAddress, type Address, type Hash, type Hex} from "viem"
+import type {Address, Hash, Hex} from "viem"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
@@ -40,8 +40,8 @@ export async function sendStep(
   const hash = await provider.request({
     method: "eth_sendTransaction",
     params: [{
-      from: getAddress(signer),
-      to: getAddress(step.to),
+      from: signer,
+      to: step.to,
       data: step.data,
       value: step.value,
       // A wallet that checks it refuses the send if it moved off the chain after the read above.
@@ -71,7 +71,7 @@ export async function signStep(
   sending()
   const signature = await provider.request({
     method: "eth_signTypedData_v4",
-    params: [getAddress(signer), JSON.stringify(step.typed_data)],
+    params: [signer, JSON.stringify(step.typed_data)],
   })
   if (typeof signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
     throw new Error("The wallet did not return a signature.")
@@ -100,7 +100,8 @@ async function ready(
   if ((await chainId(provider)) !== chain.chain_id) await switchChain(provider, chain)
 
   const [account] = await accounts(provider)
-  if (!account || getAddress(account) !== getAddress(signer)) throw new NothingSent("wallet_unavailable")
+  // Wallets answer addresses in any letter case.
+  if (account?.toLowerCase() !== signer.toLowerCase()) throw new NothingSent("wallet_unavailable")
   if ((await chainId(provider)) !== chain.chain_id) throw new NothingSent("network_mismatch")
   // Privy may have swapped the wallet during those reads; this check makes no request.
   if (wallet()?.provider !== provider) throw new NothingSent("wallet_unavailable")
