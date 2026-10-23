@@ -2905,3 +2905,16 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   2.2.1 (advisory GHSA-ffw9-w85g-f2vh, medium: the secret key base could show in
   stack trace arguments). `mix hex.audit` is clean in both apps again. Lock-only;
   no site code changed. Reported by the Autolaunch chiefs to every site.
+
+## 2026-10-23 — Regents v220 released
+
+- v220 (`135bcd5c`) went live as Fly v220 at about 15:48Z on 23 Oct: plug_crypto
+  2.2.1 in both locks (GHSA-ffw9-w85g-f2vh), plus the regents-cli 1.10.16 check
+  pin. The rollback is v219 (`70ed94f6`).
+- Checked before release: server tests 565, JavaScript 232, browser walk 107/107,
+  identity 16, required fixes and the command check all succeeded; `mix hex.audit`
+  clean in both apps.
+- Live checks: one machine runs `main-135bcd5cb89f` with its health check
+  passing; `/`, `/stake`, `/redeem`, `/account` and `/docs` load in headless
+  Chromium at 1280 and 390 wide with no errors and no sideways scroll. WebKit not
+  run on the Mac.
