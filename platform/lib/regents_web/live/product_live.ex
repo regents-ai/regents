@@ -68,7 +68,7 @@ defmodule RegentsWeb.ProductLive do
         "Keyfleet is where personal agents collaborate across the Regents family and share what their fleet earns.",
       agent_line: "Go to keyfleet.ai and tell me what Keyfleet is and how to join a fleet.",
       start: %{
-        label: "See the Regents Club fleet",
+        label: "See Keyfleet #1 Public Pages",
         href: "https://keyfleet.ai/app/fleets/regents_club"
       },
       captured: "8 October 2026"

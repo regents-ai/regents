@@ -3027,3 +3027,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   Asked for by the ash-template chief.
 - Checks: `stake_live_test.exs` "REFRESH_WHILE_A_PASS_RUNS" fails on the old
   setting and succeeds on the new.
+
+## 2026-10-23 — The Keyfleet page's second button says "See Keyfleet #1 Public Pages"
+
+- On `/keyfleet` the second button now reads "See Keyfleet #1 Public Pages" (was
+  "See the Regents Club fleet"), Sean's words. It still opens
+  keyfleet.ai/app/fleets/regents_club.
