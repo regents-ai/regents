@@ -2963,3 +2963,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   on PyPI). A paired command's help now names only that site's own pairing; no
   regents.sh command or contract changed. Asked for by the regents-cli chief.
 - Checked: `make check-cli` (cli/commands.json ok). No site code changed.
+## 2026-10-23 — Staking reads Base every five minutes
+
+- The shared staking reading (contract totals, revenue, supply) is now read from
+  Base every five minutes instead of every minute, to cut paid node calls. It is
+  read again within ten seconds after a signed-in person's on-chain press is
+  confirmed, or after they press the new read-again icon beside "Updated …" on
+  Stake (the shared `Regent.Primitives.last_read`, design-system `19d8df6e`).
+  Many presses close together cost one read: the refresh job is unique and waits
+  for the ten-second gap.
+- `Regents.ChainRefresh` (copied from ash-template's `AshTemplate.ChainRefresh`)
+  asks every chain reader the site names to read again; the staking cache is its
+  one reader. The old "refreshed for everyone moments ago" refusal is gone: a
+  press soon after a reading now waits for the gap instead of being turned down.
+- The "Refresh Data" button at the foot of Stake's actions is replaced by the
+  icon. Redeem's own "Refresh Data" is unchanged.

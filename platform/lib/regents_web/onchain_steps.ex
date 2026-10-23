@@ -8,7 +8,8 @@ defmodule RegentsWeb.OnchainSteps do
   anyone presses. The page reports each press against the review it sent from.
   Every sent step is then read at the latest block of the review's chain, every
   quarter second, until it lands or the page stops asking. Nothing is kept beyond
-  the page.
+  the page. A step that lands asks every reader of its chain to read it again
+  (`Regents.ChainRefresh`), so the shared figures show what it changed.
 
   The only wallet that may act is Privy's active wallet when it is one of the
   signed-in account's own (`signer/2`). Reads that show another wallet never
@@ -19,7 +20,7 @@ defmodule RegentsWeb.OnchainSteps do
   import Phoenix.LiveView, only: [push_event: 3, start_async: 3]
 
   alias RegentChain.{Outcome, Presses}
-  alias Regents.ChainClient
+  alias Regents.{ChainClient, ChainRefresh}
 
   @recheck_ms 250
   @no_wallet "Your account has no wallet yet. Sign in again to get one."
@@ -120,6 +121,7 @@ defmodule RegentsWeb.OnchainSteps do
 
       {entry, presses} ->
         socket = assign(socket, presses: presses)
+        if entry.outcome == :confirmed, do: ChainRefresh.request(entry.review.chain.chain_id)
         if Presses.reading?(entry), do: check(socket, entry), else: socket
     end
   end

@@ -940,3 +940,25 @@ async function selectWallet(page: Page, address: string): Promise<void> {
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   }, address)
 }
+
+test("Stake shows when Base was last read and reads it again on the icon", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/stake")
+    await selectWallet(page, wallet)
+
+    const lastRead = page.locator("#stake-read")
+    await expect(lastRead.locator("time")).toHaveText(/Updated \d{1,2} \w{3}, \d{2}:\d{2} UTC/)
+    const again = page.getByRole("button", {name: "Read Base again", exact: true})
+    await expect(again).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+
+    await again.click()
+    await expect(page.locator(".stake-supply-facts")).toBeVisible()
+    await expect(page.getByText("Couldn’t update just now.")).toHaveCount(0)
+    await page.screenshot({path: `${process.env.REGENTS_SHOT_DIR ?? "test-results"}/stake-read-${width}.png`})
+  }
+})

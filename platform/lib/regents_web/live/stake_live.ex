@@ -151,7 +151,6 @@ defmodule RegentsWeb.StakeLive do
             account={@account}
             notice={@notice}
             reading={@reading}
-            shared_reading={@shared_reading}
           />
         </div>
 

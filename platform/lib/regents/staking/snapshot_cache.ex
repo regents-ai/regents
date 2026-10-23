@@ -3,16 +3,18 @@ defmodule Regents.Staking.SnapshotCache do
   The last successful public staking reading, shared through Postgres.
 
   Pages buy no chain reads. Refreshes use one unique Oban job across the site's
-  machines; Oban owns scheduling and retries. A failure leaves the saved reading
-  and its original block/time untouched. Wallet balances are never stored here.
+  machines, every five minutes and early when `Regents.ChainRefresh` asks; Oban
+  owns scheduling and retries. A failure leaves the saved reading and its
+  original block/time untouched. Wallet balances are never stored here.
   """
 
-  alias Regents.Staking
+  @behaviour Regents.ChainRefresh
+
+  alias Regents.{ChainRefresh, Staking}
   alias Regents.Staking.{Facts, SnapshotRefresh}
   alias Regents.WalletActions.Abi
 
   @topic "staking:protocol_snapshot"
-  @minimum_interval 10
   @dates [:read_at, :regent_price_read_at, :clanker_vault_locked_until, :clanker_vault_vested_by]
 
   def topic, do: @topic
@@ -38,20 +40,19 @@ defmodule Regents.Staking.SnapshotCache do
     end
   end
 
-  def refresh(notify \\ self()) when is_pid(notify) do
-    if remaining_delay(snapshot()) > 0,
-      do: {:error, :refresh_too_soon},
-      else: enqueue(0)
-  end
-
-  # Confirmation may arrive just after a reading. Oban schedules the next one
-  # when it is allowed; this never delays or deduplicates a wallet action.
-  def refresh_soon, do: enqueue(remaining_delay(snapshot()))
+  @doc """
+  Reads the staking contract on Base again: at once, or ten seconds after the
+  last reading. This never delays or deduplicates a wallet action; it only
+  follows one.
+  """
+  @impl ChainRefresh
+  def refresh(8453), do: enqueue(remaining_delay(snapshot()))
+  def refresh(_chain_id), do: :ok
 
   def remaining_delay(nil), do: 0
 
   def remaining_delay(%{read_at: read_at}) do
-    max(@minimum_interval - DateTime.diff(DateTime.utc_now(), read_at, :second), 0)
+    max(ChainRefresh.gap_s() - DateTime.diff(DateTime.utc_now(), read_at, :second), 0)
   end
 
   defp enqueue(delay) do

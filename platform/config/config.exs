@@ -91,7 +91,9 @@ config :regents, Oban,
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
       {"@reboot", Regents.Staking.SnapshotRefresh},
-      {"* * * * *", Regents.Staking.SnapshotRefresh},
+      # Every five minutes, and early after a confirmed on-chain press or a press
+      # of the read-again icon (Regents.ChainRefresh).
+      {"*/5 * * * *", Regents.Staking.SnapshotRefresh},
       {"17 4 * * *", Regents.ErrorPruner}
     ]
   ],
@@ -141,9 +143,13 @@ config :regents, :rate_limiter_clock, &Regents.RateLimiter.monotonic_second/0
 # Also bounds how often one address may be reset: once per window.
 config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 
-# One shared Oban job warms and refreshes the durable staking projection each
-# minute. Development disables this automatic work unless explicitly enabled.
+# One shared Oban job warms and refreshes the durable staking projection every
+# five minutes. Development disables this automatic work unless explicitly enabled.
 config :regents, :staking_snapshot_refresh_enabled, true
+
+# Who reads a chain again when a person's action may have changed it
+# (`Regents.ChainRefresh`).
+config :regents, Regents.ChainRefresh, readers: [Regents.Staking.SnapshotCache]
 
 config :regents, :session_options,
   store: :cookie,

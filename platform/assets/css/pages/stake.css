@@ -680,7 +680,7 @@
 }
 
 .stake-footer {
-  justify-content: space-between;
+  justify-content: flex-end;
   padding-top: 0.25rem;
 }
 

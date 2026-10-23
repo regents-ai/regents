@@ -17,7 +17,7 @@ defmodule RegentsWeb.StakeActions do
   use RegentsWeb, :live_component
 
   alias Regents.{ChainClient, Staking}
-  alias Regents.Staking.{Actions, SnapshotCache, Steps}
+  alias Regents.Staking.{Actions, Steps}
 
   alias RegentsWeb.Components.{
     Loading,
@@ -85,8 +85,7 @@ defmodule RegentsWeb.StakeActions do
          :status,
          :wallet,
          :notice,
-         :reading,
-         :shared_reading
+         :reading
        ])
      )
      |> take_account(assigns.account)}
@@ -188,7 +187,6 @@ defmodule RegentsWeb.StakeActions do
 
     case entry(socket, hash) do
       %{outcome: :confirmed} = entry ->
-        SnapshotCache.refresh_soon()
         send(self(), :stake_step_landed)
         {:noreply, open_receipt(socket, entry)}
 
@@ -965,14 +963,12 @@ defmodule RegentsWeb.StakeActions do
         </section>
 
         <div class="stake-footer">
-          <Regent.Primitives.button
-            variant="secondary"
-            type="button"
+          <Regent.Primitives.last_read
+            id="stake-read"
+            at={@staking.read_at}
+            label="Read Base again"
             phx-click="refresh_data"
-            disabled={@reading || @shared_reading}
-          >
-            {if @reading || @shared_reading, do: "Updating…", else: "Refresh Data"}
-          </Regent.Primitives.button>
+          />
         </div>
       </div>
     </section>

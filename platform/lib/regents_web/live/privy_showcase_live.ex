@@ -11,7 +11,7 @@ defmodule RegentsWeb.PrivyShowcaseLive do
   use RegentsWeb, :live_view
 
   alias Regent.Primitives, as: P
-  alias Regents.Staking
+  alias Regents.{ChainRefresh, Staking}
   alias Regents.Staking.SnapshotCache
   alias Regents.WalletActions.Address
   alias RegentsWeb.Components.{Loading, Shell}
@@ -277,12 +277,9 @@ defmodule RegentsWeb.PrivyShowcaseLive do
   def handle_event("refresh_data", _params, socket) do
     notice =
       if socket.assigns.account_control.kind == :signed_in do
-        case SnapshotCache.refresh() do
+        case ChainRefresh.request(8453) do
           :ok ->
             nil
-
-          {:error, :refresh_too_soon} ->
-            "Protocol data was refreshed recently. Your wallet is still refreshed."
 
           {:error, _unavailable} ->
             "Protocol data is unavailable. Your wallet is still refreshed."

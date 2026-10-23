@@ -15,7 +15,7 @@ defmodule RegentsWeb.ShellLive.Staking do
 
   alias RegentChain.Address
   alias Regents.Actors.Human
-  alias Regents.Staking
+  alias Regents.{ChainRefresh, Staking}
   alias Regents.Staking.Facts, as: StakingFacts
   alias Regents.Staking.SnapshotCache
   alias RegentsWeb.ChainReadBudget
@@ -27,10 +27,6 @@ defmodule RegentsWeb.ShellLive.Staking do
   @follow_every :timer.seconds(5)
   @follow_reads 12
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
-  # Names the budget it belongs to. The Redeem page has its own, unrelated
-  # per-visitor limit on looking up owned NFTs, and the two refusals must never
-  # read as the same thing.
-  @shared_refresh_budget_notice "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
 
   def init(socket) do
     assign(socket,
@@ -323,16 +319,12 @@ defmodule RegentsWeb.ShellLive.Staking do
     end
   end
 
+  # A reading asked for within ten seconds of the last one comes when they are
+  # up, so every ask gets its reading.
   defp request_shared_refresh(socket) do
-    case SnapshotCache.refresh() do
-      :ok ->
-        assign(socket, staking_shared_reading: true, staking_notice: nil)
-
-      {:error, :refresh_too_soon} ->
-        assign(socket, staking_notice: %{tone: :info, message: @shared_refresh_budget_notice})
-
-      {:error, _unavailable} ->
-        shared_read_failed(socket)
+    case ChainRefresh.request(8453) do
+      :ok -> assign(socket, staking_shared_reading: true, staking_notice: nil)
+      {:error, _unavailable} -> shared_read_failed(socket)
     end
   end
 

@@ -14,7 +14,7 @@ defmodule RegentsWeb.StakeLiveTest do
   # - the server builds every wallet step and pushes them before any press
   # - allowance/approval branch, including a missing allowance
   # - a sent step is read on Base and its outcome is written by the server
-  # - refresh_data is signed-in only; a rate-limited refusal keeps the last reading
+  # - refresh_data is signed-in only; a press soon after a reading waits for the gap, then reads once
   # - an unavailable figure renders as unavailable without hiding the page (gu2.18)
   # - a zero seven-day window is the 0.00 figure, not unavailable or never-asked (gu2.18)
   # - revenue-share and staked-share arithmetic, including truncation and unstake
@@ -27,7 +27,6 @@ defmodule RegentsWeb.StakeLiveTest do
   @hash "0x" <> String.duplicate("a", 64)
   @receipt_block 1_249
   @refresh_failure "Couldn’t update just now. The figures shown are from the last successful reading."
-  @budget_refusal "Contract data was refreshed for everyone moments ago. Ask for a new reading again in a few seconds."
   @claim_controls ["Claim USDC", "Claim REGENT", "Claim and restake"]
 
   setup do
@@ -316,18 +315,19 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
-  test "SHARED_REFRESH_BUDGET: a refusal says so in its own words, not as a Base failure", %{
+  test "REFRESH_SOON_AFTER_A_READING: presses wait for the gap and cost one read", %{
     conn: conn
   } do
     seed_snapshot()
-    view = conn |> signed_in_stake("shared-budget") |> activate(@wallet)
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    view = conn |> signed_in_stake("refresh-soon") |> activate(@wallet)
 
-    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
-    html = render_async(view)
+    for _press <- 1..3 do
+      view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
+    end
 
-    assert html =~ @budget_refusal
-    refute html =~ @refresh_failure
+    assert [_one] = all_enqueued(worker: SnapshotRefresh)
+    assert_enqueued(worker: SnapshotRefresh, scheduled_at: {DateTime.utc_now(), delta: 10})
+    refute render_async(view) =~ @refresh_failure
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
