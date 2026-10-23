@@ -2956,3 +2956,10 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `/docs` and `/app` load in headless Chromium at 1280 and 390 wide with no
   errors and no sideways scroll. A real Privy sign-in was not walked headless.
   WebKit not run on the Mac.
+
+## 2026-10-23 — The command check follows regents-cli 1.10.17
+
+- `make check-cli` now runs regents-cli's checker at `773f8a67` (1.10.17, live
+  on PyPI). A paired command's help now names only that site's own pairing; no
+  regents.sh command or contract changed. Asked for by the regents-cli chief.
+- Checked: `make check-cli` (cli/commands.json ok). No site code changed.
