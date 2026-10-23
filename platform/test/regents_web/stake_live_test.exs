@@ -331,6 +331,17 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, ".stake-supply-facts", "100 REGENT")
   end
 
+  test "REFRESH_WHILE_A_PASS_RUNS: an ask during a running pass still gets one more" do
+    {:ok, running} = %{key: SnapshotCache.key()} |> SnapshotRefresh.new() |> Oban.insert()
+
+    running
+    |> Ecto.Changeset.change(state: "executing")
+    |> Regents.Repo.update!(prefix: "regents_app")
+
+    assert :ok = Regents.ChainRefresh.request(8453)
+    assert [_one_more] = all_enqueued(worker: SnapshotRefresh)
+  end
+
   test "REFRESH_DATA: one click reads this wallet's position and the contract everyone shares", %{
     conn: conn
   } do

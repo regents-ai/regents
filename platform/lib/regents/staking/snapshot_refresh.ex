@@ -1,10 +1,13 @@
 defmodule Regents.Staking.SnapshotRefresh do
   @moduledoc "The site's one restart-safe, incremental staking refresh."
 
+  # One waiting pass at a time. A pass already running does not count, so an ask
+  # that comes while it reads (a press that landed after its read) still gets
+  # one more pass (chain-events skill, ash-template).
   use Oban.Worker,
     queue: :staking_reads,
     max_attempts: 3,
-    unique: [fields: [:worker], period: :infinity, states: :incomplete]
+    unique: [fields: [:worker], period: :infinity, states: [:available, :scheduled]]
 
   require Logger
 

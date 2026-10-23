@@ -3017,3 +3017,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   by the kind of failure only.
 - Checks: two new walks in `platform/test/browser/pair_new_agent.spec.ts`; both
   fail on the old box (the crash walk with `channel_crash`) and succeed on the new.
+
+## 2026-10-23 — A staking read asked for during a running pass still happens
+
+- `Regents.Staking.SnapshotRefresh` is unique only while it waits
+  (`states: [:available, :scheduled]`), as the template's chain-events skill says.
+  Before, a pass already running counted too, so an ask that came while it read
+  (a press that landed after its read) was dropped until the next five-minute turn.
+  Asked for by the ash-template chief.
+- Checks: `stake_live_test.exs` "REFRESH_WHILE_A_PASS_RUNS" fails on the old
+  setting and succeeds on the new.
