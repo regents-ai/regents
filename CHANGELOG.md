@@ -2978,3 +2978,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   press soon after a reading now waits for the gap instead of being turned down.
 - The "Refresh Data" button at the foot of Stake's actions is replaced by the
   icon. Redeem's own "Refresh Data" is unchanged.
+
+## 2026-10-23 — Credits deposits read every five minutes
+
+- elixir-utils `e600ed34` (was `dcd60691`): the shared Credits deposit reader runs
+  every five minutes instead of every minute; a person's own Buy is still credited
+  within a minute. The pin also brings the library's side panel offering IronClaw
+  in NemoClaw's place and the Hermes pairing line that keeps the key paired with.
+- design-system `30d16360` (was `af32c1d3`): the read-again icon as it landed on
+  design-system main, with its tip-figure and plug_crypto 2.2.1 changes.
