@@ -2891,3 +2891,10 @@ Not yet released. No database migrations. No change to how Stake or Redeem work.
   headless Chromium at 1280 and 390 wide with no errors and no sideways scroll;
   on regents.sh the phone menu's top meets the header's line at 390 (57 px) and
   800 (65 px) wide. WebKit not run on the Mac.
+
+## 2026-10-23 — The command check follows regents-cli 1.10.16
+
+- `make check-cli` now runs regents-cli's checker at `2c98218e` (1.10.16, live
+  on PyPI), which carries regents.sh's reading commands: protocol articles,
+  literature, profiles and research. Asked for by the regents-cli chief.
+- Checked: `make check-cli` (cli/commands.json ok). No site code changed.
