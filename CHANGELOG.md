@@ -3120,3 +3120,6 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   the long download headers. Fly builds are unchanged (ash-template `8581a96`,
   from Techtree `78c5c5a5`). All six files, and mdex_native's mirror files for
   both chips, answer 200.
+- The runtime image installs `libsctp1`, which OTP 29 opens at start. Without
+  it every boot and `bin/regents rpc` printed a warning first, which broke the
+  release smoke check's database answer on the Mac (Techtree `fadc820d`).

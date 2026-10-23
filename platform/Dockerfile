@@ -103,6 +103,13 @@ WORKDIR /app
 
 COPY --from=runtime-support /runtime-support/libcrypto.so.3 /usr/lib/
 
+# OTP 29 opens libsctp when it starts and prints a warning on every boot and
+# `bin/regents rpc` without it (Techtree fadc820d).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends libsctp1 \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --system --gid 1001 app \
   && useradd --system --uid 1001 --gid app --home-dir /app app
 
