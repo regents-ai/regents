@@ -2987,3 +2987,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   in NemoClaw's place and the Hermes pairing line that keeps the key paired with.
 - design-system `30d16360` (was `af32c1d3`): the read-again icon as it landed on
   design-system main, with its tip-figure and plug_crypto 2.2.1 changes.
+
+## 2026-10-23 — Regents v222 released
+
+- v222 (`21aa6efb`) went live as Fly v222 at about 19:20Z on 23 Oct, handed over
+  by the RPC usage thread (Sean "1 a" there): staking figures read from Base every
+  five minutes and again after a confirmed press or the read-again icon, and pins
+  to design-system `30d16360` and elixir-utils `e600ed34` (Credits deposits read
+  every five minutes, IronClaw in the side panel, the Hermes pairing line). The
+  rollback is v221 (`462c3935`).
+- Checked before release: server tests 569, JavaScript 242, browser walk 108/108,
+  identity 16, required fixes (template `b59c6766`) and the command check all
+  succeeded. No database migrations.
+- Live checks: the machine runs `main-21aa6efba13e` with its health check passing
+  and no errors in its logs; `/`, `/stake`, `/redeem`, `/account`, `/docs` and
+  `/app` load in headless Chromium at 1280 and 390 wide with no errors and no
+  sideways scroll. The read-again icon shows only signed in, so it was not seen
+  live. WebKit not run on the Mac.
