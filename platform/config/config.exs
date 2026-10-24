@@ -7,11 +7,6 @@
 # General application configuration
 import Config
 
-# mdex_native downloads its prebuilt native code from its maker's own mirror,
-# not GitHub: GitHub's download redirect now sends headers longer than Erlang's
-# HTTP client accepts, which stops a fresh build (see platform/Dockerfile).
-config :mdex_native, artifact_source: :cloudflare
-
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
 

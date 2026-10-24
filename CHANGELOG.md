@@ -3178,3 +3178,11 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   as Markdown and /start name 1.10.17; six pages load in headless Chromium at 1280
   and 390 wide with no errors and no sideways scroll, and AI & SCIFI moves to Paper
   Pro Daily without a reload. WebKit not run on the Mac.
+
+## 2026-10-24 — Builds fetch native code straight from GitHub again
+
+- GitHub trimmed its download redirect's headers (about 5.5 KB against Erlang's
+  10,240-byte limit), so `platform/Dockerfile` no longer pre-fetches ex_keccak's,
+  ex_secp256k1's and vix's files with curl, and `platform/config/config.exs` no
+  longer sends mdex_native to its maker's mirror (ash-template `150c8a7`). Erlang's
+  own client fetched all four files from GitHub with certificate checks on.
