@@ -3140,3 +3140,19 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   7 days). Fly's default SIGINT made the VM halt at once, cutting open
   connections and running jobs; SIGTERM lets them drain and finish. The live
   machine had no stop setting. `fly config validate` accepts the file.
+
+## 2026-10-24 — v227 release record
+
+- v227 runs `a4f5e64f` (native files for the building machine's chip,
+  `libsctp1` in the runtime image, design-system `9c2a817`, `test_ignore_filters`,
+  SIGTERM with a 60 s stop timeout); the rollback is v226 (`2c2c79bf`). No
+  database migrations; the release command succeeded.
+- Checked before release: server tests 570, JavaScript 242, browser walk 111/111
+  on `034ef4cc`; `scripts/release.sh` on the Mac (aarch64) built and smoke-checked
+  `b560b280`; a cache-free Fly build of `88bcdcf8` succeeded; `fly config validate`
+  accepted `platform/fly.toml`.
+- Live checks: the machine runs `a4f5e64f` with its stop setting at SIGTERM and
+  1m0s and its health check passing; eight pages load in headless Chromium at 1280
+  and 390 wide with no errors and no sideways scroll, AI & SCIFI moves to Paper Pro
+  Daily without a reload, and the logs show no errors and no libsctp warning.
+  WebKit not run on the Mac.
