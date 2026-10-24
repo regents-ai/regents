@@ -3132,3 +3132,11 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `mix test` no longer warns that the Playwright walk's files match no test
   pattern (ash-template `9204b46`, from Autolaunch).
 - Checks: server tests 570, JavaScript 242, browser walk 111/111.
+
+## 2026-10-24 — Machines stop in order
+
+- `platform/fly.toml` sets `kill_signal = "SIGTERM"` and `kill_timeout = "60s"`
+  (ash-template `023c8a1`, after Sentinel saw 3 proxy lines at machine stops in
+  7 days). Fly's default SIGINT made the VM halt at once, cutting open
+  connections and running jobs; SIGTERM lets them drain and finish. The live
+  machine had no stop setting. `fly config validate` accepts the file.
