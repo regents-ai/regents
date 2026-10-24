@@ -35,8 +35,8 @@ defmodule RegentsWeb.AgentStart do
     """
     Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent in the side panel at #{origin()}.
 
-    1. Install the Regents command line and check it. Expect 1.10.12.
-       uv tool install regents-cli==1.10.12
+    1. Install the Regents command line and check it. Expect 1.10.17.
+       uv tool install regents-cli==1.10.17
        regents --version
     2. Sign in to Regents, then check. Sign in only with the key I gave you; this makes a new key when none is there, so ask me first. Never show the key.
        regents auth login --site regents

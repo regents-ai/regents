@@ -3156,3 +3156,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and 390 wide with no errors and no sideways scroll, AI & SCIFI moves to Paper Pro
   Daily without a reload, and the logs show no errors and no libsctp warning.
   WebKit not run on the Mac.
+
+## 2026-10-24 — Agents install the current command line
+
+- /llms.txt, /agents.md, /docs.md and the start steps now say
+  `uv tool install regents-cli==1.10.17` (was 1.10.12), with source commit
+  `773f8a67` and the published wheel's SHA256 `2612ac98…`, matching
+  ash-template. Sentinel noticed the old pin.
+- Checks: every command (15) and option (4) these pages name answers on
+  1.10.17; server tests 570, JavaScript 242, browser walk 111/111.

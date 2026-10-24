@@ -90,7 +90,7 @@ A person makes a one-time pairing code with Pair New Agent in the side panel and
 Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line, install it and sign in once:
 
 ```sh
-uv tool install regents-cli==1.10.12
+uv tool install regents-cli==1.10.17
 regents auth login --site regents
 regents protocol agents whoami --json
 ```
