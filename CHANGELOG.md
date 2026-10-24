@@ -3123,3 +3123,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The runtime image installs `libsctp1`, which OTP 29 opens at start. Without
   it every boot and `bin/regents rpc` printed a warning first, which broke the
   release smoke check's database answer on the Mac (Techtree `fadc820d`).
+
+## 2026-10-24 — Elixir 1.20 builds without two warnings
+
+- design-system pinned at `9c2a817` (was `cbf12f8d`): regent_ui asks for Elixir
+  `~> 1.19`, so building it on 1.20.4 no longer warns. Nothing else changed.
+- `platform/mix.exs` sets `test_ignore_filters` for `test/browser/`, so
+  `mix test` no longer warns that the Playwright walk's files match no test
+  pattern (ash-template `9204b46`, from Autolaunch).
+- Checks: server tests 570, JavaScript 242, browser walk 111/111.
