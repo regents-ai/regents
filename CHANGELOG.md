@@ -3165,3 +3165,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   ash-template. Sentinel noticed the old pin.
 - Checks: every command (15) and option (4) these pages name answers on
   1.10.17; server tests 570, JavaScript 242, browser walk 111/111.
+
+## 2026-10-24 — v228 release record
+
+- v228 runs `8d632fd6` (agent pages install regents-cli 1.10.17); the rollback is
+  v227 (`a4f5e64f`). No database migrations.
+- Checked before release: server tests 570, JavaScript 242, browser walk 111/111.
+- Live checks: the machine runs `8d632fd6` with stop setting SIGTERM / 1m0s and
+  its health check passing. The v227 machine was the first stopped by SIGTERM:
+  "SIGTERM received - shutting down", one LiveView connection drained, exit code
+  0. The new machine's boot shows no libsctp warning. /llms.txt, /agents.md, /docs
+  as Markdown and /start name 1.10.17; six pages load in headless Chromium at 1280
+  and 390 wide with no errors and no sideways scroll, and AI & SCIFI moves to Paper
+  Pro Daily without a reload. WebKit not run on the Mac.
