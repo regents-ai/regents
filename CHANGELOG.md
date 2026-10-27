@@ -3458,3 +3458,19 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `platform/test/regents_web/visit_log_page_test.exs`,
   `platform/test/browser/visits.spec.ts` and `platform/test/browser/arrivals.spec.ts` go
   with them.
+
+## 2026-10-27 — v235 release record
+
+- v235 runs `0a046b55`: the Stake page says what staking pays (`fe52d964`), the redrawn
+  /stake share picture (`4bd54a7c`), and the visit lines taken out (`0a046b55`). The
+  rollback is v234 (`f6930c94`). No database migrations in the range. Released under the
+  shared-database lock (Sean, STAKE-RELEASE 1 a).
+- Checked before release: server tests 577 (one property check), JavaScript 242, browser
+  walk 111/111; required fixes clean against ash-template `af46cc2`.
+- Live checks: one machine runs `0a046b55` (image label `main-0a046b55fc68`). Eight
+  public pages (/, /stake, /about, /app, /start, /techtree, /keyfleet, /articles) load in
+  headless Chromium at 1280 and 390 wide with no errors and no sideways scroll. /stake
+  shows the new opening line and badge, the three revenue figures from Base (paid to
+  stakers 594.32 USDC), and "How staking pays" with the 100 billion divisor, a 4.658
+  billion reward pool, "2 of 3 signers" and both contract addresses with copy icons.
+  WebKit not run on the Mac.
