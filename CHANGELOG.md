@@ -3328,3 +3328,19 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Checked in headless Chromium against the live pages at 1280 and 390 px, light
   and dark: every public page draws the same except the pairing icons. WebKit not
   run on the Mac.
+
+## 2026-10-27 — v233 release record
+
+- v233 runs `1d5f997e` (Credits Buy press certain to fail is not handed to the wallet,
+  from ash-template `344a1f4`; pairing-box icons keep their own look, button defaults in
+  the lowest style layer); the rollback is v232 (`a1c12207`). No database migrations in
+  the range; the release step completed.
+- Checked before release: server tests 575 (one property check), JavaScript 242,
+  browser walk 111/111; required fixes clean against ash-template `344a1f4`. No other
+  shared-database app had a release in progress; released under the lock.
+- Live checks: the machine runs `1d5f997e` with its health check passing (one failed
+  check during the five seconds before the server started listening); the live
+  stylesheet carries the layer order; eight public pages load in headless Chromium at
+  1280 and 390 wide with no errors and no sideways scroll, and Enter App opens /stake.
+  The signed-in Credits panel and pairing box were not opened live (they need a
+  sign-in); the property check and browser walk cover them. WebKit not run on the Mac.
