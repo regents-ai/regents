@@ -730,23 +730,33 @@
   list-style: none;
 }
 
-/* Pair New Agent on the page flashes the agents to choose from here, twice. With
-   less motion asked for, the box stays marked for the same moment instead. */
-#shell-pairing .rg-account__choices[data-flash] {
-  outline: 2px solid var(--ash-accent);
-  outline-offset: 4px;
-  background: color-mix(in oklab, var(--ash-accent) 14%, transparent);
-  animation: shell-pairing-flash 1.2s ease-in-out forwards;
+/* Pair New Agent on the page marks the agents to choose from here for a moment;
+   shell_panels.ts animates the mark's opacity. It sits behind the agents, on
+   the box's own layer. */
+#shell-pairing .rg-account__choices {
+  position: relative;
+  isolation: isolate;
+  scroll-margin: 1rem;
 }
 
-@keyframes shell-pairing-flash {
-  25%, 75%, 100% { outline-color: transparent; background: transparent; }
-  50% { outline-color: var(--ash-accent); background: color-mix(in oklab, var(--ash-accent) 14%, transparent); }
+#shell-pairing .rg-account__choices::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  border: 2px solid var(--ash-accent);
+  background: color-mix(in oklab, var(--ash-accent) 10%, transparent);
+  opacity: 0;
+  pointer-events: none;
 }
 
+/* With less motion asked for, every change on the site still takes 0.01 ms
+   (app.css), which leaves what is inside the panel hidden for that instant
+   after it opens, too hidden to take focus. Inside the panel, changes are at
+   once. */
 @media (prefers-reduced-motion: reduce) {
-  #shell-pairing .rg-account__choices[data-flash] {
-    animation: none;
+  #shell-aside * {
+    transition: none;
   }
 }
 

@@ -5,6 +5,9 @@
 // person opens it on that page (<html data-aside-here>), never from the
 // remembered state.
 
+import {beckon} from "./hooks/motion/press"
+import {byPointer, still} from "./hooks/motion/shared"
+
 const yearInSeconds = 60 * 60 * 24 * 365
 const cookie = "regents_aside"
 
@@ -17,8 +20,11 @@ function remember(value: string) {
 
 const root = () => document.documentElement
 const covering = window.matchMedia("(max-width: 63.99rem)")
-// How long the agents to choose from stay marked after Pair New Agent is pressed.
-const flashMs = 1200
+// How the agents to choose from are marked after Pair New Agent is pressed:
+// at once, for 1.2 s, then a 0.6 s fade; from the keyboard or with less motion
+// asked for, the mark simply goes at the same moment.
+const markHeld = 1200
+const markFade = 600
 export const asideOpen = () =>
   root().dataset.aside === "open" && (!covering.matches || root().dataset.asideHere !== undefined)
 
@@ -27,7 +33,9 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
   const aside = () => scope.querySelector<HTMLElement>("#shell-aside")
   const asideButton = () => scope.querySelector<HTMLButtonElement>("#shell-aside-button")
   const phone = () => window.matchMedia("(max-width: 47.99rem)").matches
-  let flashTimer: number | undefined
+  let marking: Animation | undefined
+  // A press on Pair New Agent as a link to another page, until that page arrives.
+  let arriving: {href: string; pointer: boolean} | undefined
 
   // The side panel's own button and the account name in the header both open it.
   const sync = () => {
@@ -35,7 +43,10 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
       toggle.setAttribute("aria-expanded", String(asideOpen())))
   }
 
-  const setAside = (open: boolean) => {
+  // Opened, focus moves into it (to the panel itself, or to what a press
+  // points to there), so Escape closes it and returns focus to the button that
+  // opened it, and what it shows is read again.
+  const setAside = (open: boolean, focus: () => HTMLElement | null | undefined = aside) => {
     const value = open ? "open" : "closed"
     root().dataset.aside = value
     if (open) root().dataset.asideHere = ""
@@ -43,45 +54,72 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     remember(value)
     sync()
 
-    // Opened, focus moves into it, so Escape closes it and returns focus to the
-    // button that opened it, and what it shows is read again.
-    if (!open) return
-    aside()?.focus()
+    if (!open) {
+      arriving = undefined
+      return
+    }
+    focus()?.focus({preventScroll: true})
     aside()
       ?.querySelectorAll("[data-read-on-open]")
       .forEach(reader => reader.dispatchEvent(new CustomEvent("regents:aside-opened")))
   }
 
+  const choices = () => aside()?.querySelector<HTMLElement>("#shell-pairing .rg-account__choices")
+  // The agent already chosen, or else the first, so a screen reader hears the
+  // box's question and that agent.
+  const firstChoice = () =>
+    choices()?.querySelector<HTMLInputElement>("input:checked") ?? choices()?.querySelector<HTMLInputElement>("input")
+
   // A page's own Pair New Agent button points to the agents to choose from in
-  // the panel: they come into view and their box flashes, again on every press.
-  const pointToAgents = () => {
-    const panel = aside()
-    const choices = panel?.querySelector<HTMLElement>("#shell-pairing .rg-account__choices")
-    if (!panel || !choices) return
+  // the panel: focus lands on them, their box glides into view and is marked
+  // for a moment while the agents settle in turn, again on every press. Pressed
+  // from the keyboard, or with less motion asked for, the box is simply there
+  // and marked. The mark is the browser's own animation of the box's `::after`,
+  // so a redraw of the box by the server leaves it alone.
+  const pointToAgents = (pointer: boolean) => {
+    setAside(true, firstChoice)
+    const box = choices()
+    if (!box) return
 
-    const box = choices.getBoundingClientRect()
-    const view = panel.getBoundingClientRect()
-    if (box.bottom > view.bottom) panel.scrollTop += box.bottom - view.bottom + 16
-    else if (box.top < view.top) panel.scrollTop -= view.top - box.top + 16
-
-    delete choices.dataset.flash
-    void choices.offsetWidth
-    choices.dataset.flash = ""
-    window.clearTimeout(flashTimer)
-    flashTimer = window.setTimeout(() => delete choices.dataset.flash, flashMs)
+    const moving = pointer && !still(box)
+    box.scrollIntoView({block: "nearest", behavior: moving ? "smooth" : "instant"})
+    marking?.cancel()
+    marking = box.animate(
+      moving
+        ? [{opacity: 1}, {opacity: 1, offset: markHeld / (markHeld + markFade), easing: "cubic-bezier(0.23, 1, 0.32, 1)"}, {opacity: 0}]
+        : [{opacity: 1}, {opacity: 1}],
+      {duration: moving ? markHeld + markFade : markHeld, pseudoElement: "::after"},
+    )
+    if (moving) beckon([...box.querySelectorAll(".rg-account__choice")])
   }
 
-  const onClick = (event: Event) => {
+  // Pair New Agent as a link to another page opens the panel now and points
+  // to the agents once that page has drawn itself, panel included: the first
+  // drawing of the page the link named. Closing the panel before then calls
+  // it off. A press that opens the link in another tab is the browser's own.
+  const onArrival = (event: Event) => {
+    const {to, kind} = (event as CustomEvent<{to?: string; kind?: string}>).detail ?? {}
+    if (kind !== "initial" || !arriving) return
+    const {href, pointer} = arriving
+    arriving = undefined
+    if (to === href) pointToAgents(pointer)
+  }
+
+  const onClick = (event: MouseEvent) => {
     const target = event.target instanceof Element ? event.target : null
     if (!target) return
 
     if (target.closest("[data-aside-toggle]")) return setAside(!asideOpen())
     // A page's own Pair New Agent button opens the panel, leaves it open, and
     // points to the agents to choose from.
-    if (target.closest("[data-aside-open]")) {
+    const pairNew = target.closest("[data-aside-open]")
+    if (pairNew instanceof HTMLAnchorElement) {
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return
       setAside(true)
-      return pointToAgents()
+      arriving = {href: pairNew.href, pointer: byPointer(event)}
+      return
     }
+    if (pairNew) return pointToAgents(byPointer(event))
     // On a phone the side bar covers the page, so a page link inside it closes it.
     if (phone() && target.closest("#shell-aside a")) setAside(false)
   }
@@ -94,7 +132,8 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     }
   }
 
-  scope.addEventListener("click", onClick)
+  scope.addEventListener("click", onClick as EventListener)
+  window.addEventListener("phx:page-loading-stop", onArrival)
   document.addEventListener("keydown", onKeydown)
   covering.addEventListener("change", sync)
 
@@ -103,8 +142,9 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
   return {
     sync,
     cleanup: () => {
-      window.clearTimeout(flashTimer)
-      scope.removeEventListener("click", onClick)
+      marking?.cancel()
+      scope.removeEventListener("click", onClick as EventListener)
+      window.removeEventListener("phx:page-loading-stop", onArrival)
       document.removeEventListener("keydown", onKeydown)
       covering.removeEventListener("change", sync)
     },

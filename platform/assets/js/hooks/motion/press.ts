@@ -5,7 +5,8 @@
  * hover style that moves it still can. One pressed again mid-move starts over
  * from rest.
  */
-import {play, still} from "./shared"
+import {stagger} from "animejs"
+import {EASE_OUT, SLOW, play, still} from "./shared"
 
 export const squish = (el: Element) =>
   play(el, {scale: [{to: 0.9, duration: 90, ease: "out(3)"}, {to: 1, duration: 360, ease: "outBack(3)"}]})
@@ -18,3 +19,9 @@ export const nope = (el: Element) =>
 export function deny(el: Element) {
   if (!still(el)) nope(el)
 }
+
+// A press that points to something elsewhere on the screen, such as Pair New
+// Agent pointing to the agents to choose from in the side panel: each item
+// settles into place in turn, once. Pressed again, it starts over.
+export const beckon = (items: Element[]) =>
+  play(items, {scale: {from: 0.9}, opacity: {from: 0.5}, delay: stagger(20), duration: SLOW, ease: EASE_OUT})

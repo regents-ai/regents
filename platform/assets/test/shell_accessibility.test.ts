@@ -25,6 +25,8 @@ vi.mock("../js/hooks/research_scroll_cue", () => ({ResearchScrollCue: {}}))
 vi.mock("../js/hooks/motion/reveals", () => ({MotionTabs: {}, ShellViews: {}}))
 vi.mock("../js/hooks/motion/moments", () => ({MotionCount: {}, MotionList: {}, MotionRefusal: {}}))
 vi.mock("../js/motion", () => ({mountMotion: vi.fn()}))
+vi.mock("../js/hooks/motion/press", () => ({beckon: vi.fn()}))
+vi.mock("../js/hooks/motion/shared", () => ({byPointer: vi.fn(), still: vi.fn()}))
 vi.mock("../js/copy_buttons", () => ({installCopyButtons: vi.fn()}))
 vi.mock("phoenix_live_view", () => ({
   LiveSocket: class LiveSocket {

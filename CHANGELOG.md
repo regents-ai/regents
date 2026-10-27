@@ -3504,3 +3504,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   check-in calls `:touch` inside `Ash.DataLayer.transaction/2`. Handed to the template
   chief, who owns that library; the whole suite can fail on missed notifications once it
   is fixed.
+
+## 2026-10-27 — Pair New Agent takes you straight to your agent choices
+
+- Pressing Pair New Agent now moves you to the agent pictures in the side
+  panel (the one you already chose, or else the first), so a keyboard or
+  screen reader user lands right where they choose. The panel glides to the
+  pictures instead of jumping, the box around them is marked for a moment,
+  and the pictures settle into place one after another. Every press does it
+  again.
+- The Pair New Agent link on the start page now does the same once the Account
+  page opens. Before, the panel opened but nothing pointed to the pictures.
+- Pressed from the keyboard, or with reduced motion turned on, the panel shows
+  the pictures at once and the box is simply marked for the same moment.
