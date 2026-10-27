@@ -302,6 +302,41 @@ for (const viewport of [
   })
 }
 
+// Under the buttons, one line sends a person whose agent works from the command line
+// to the steps for connecting it.
+test("[U2] the hero points agents to the command line", async ({page}) => {
+  for (const {width, height} of [
+    {width: 1280, height: 800},
+    {width: 390, height: 844},
+  ]) {
+    await test.step(`${width} wide`, async () => {
+      await page.setViewportSize({width, height})
+      await keepTheListOfWorlds(page)
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      const link = page.locator(".rl-hero-copy").getByRole("link", {
+        name: "Connect your agent from the command line",
+      })
+      await expect(link).toBeInViewport()
+      const [line, actions, worlds] = await Promise.all(
+        [link, page.locator(".rl-hero-actions"), page.locator("#home-worlds .world-cube__worlds")].map(
+          locator => locator.evaluate(element => element.getBoundingClientRect().toJSON()),
+        ),
+      )
+      expect(line.top, "the line sits under the buttons").toBeGreaterThanOrEqual(actions.bottom)
+      expect(line.bottom, "and above the worlds").toBeLessThanOrEqual(worlds.top)
+      expect(line.right).toBeLessThanOrEqual(width)
+      expect(line.height, "a full tap target").toBeGreaterThanOrEqual(44)
+
+      await link.click()
+      await expect(page).toHaveURL(/\/start$/)
+      await expect(page.getByRole("heading", {name: "Connect your agent", level: 1})).toBeVisible()
+    })
+  }
+})
+
 test("[U1][U2] the worlds read in the founder's order at every viewport", async ({page}) => {
   await keepTheListOfWorlds(page)
   for (const viewport of focusViewports) {

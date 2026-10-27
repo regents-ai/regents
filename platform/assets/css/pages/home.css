@@ -40,6 +40,10 @@
   .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); pointer-events: auto; }
+  /* One line under the buttons for people whose agent works from the command line;
+     the link is a full 44px tall so it is easy to tap on a phone. */
+  .rl-hero-agents { margin-block-start: var(--space-1); font-size: .875rem; line-height: 1.5; pointer-events: auto; }
+  .rl-hero-agents a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
   /* Phones stack the heading and the stage. On desktop the heading overlays
      the stage, whose fallback list reserves the same height as the drawn cube. */
   .rl-hero--home {
@@ -89,7 +93,7 @@
     .rl-hero--home .rl-hero-copy { padding: var(--space-5) var(--space-5) var(--space-3); }
     /* A desktop room overlays the heading; phones keep theirs above the stage. */
     .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
-    .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-actions { pointer-events: none; }
+    .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) :is(.rl-hero-actions, .rl-hero-agents) { pointer-events: none; }
     .rl-hero--home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(var(--rl-worlds-height), auto); }
     /* Drawn, the cube stands in the middle of the stage, its name over it and
        its hint under it. Where it is not drawn, the list of worlds keeps the

@@ -3517,3 +3517,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   page opens. Before, the panel opened but nothing pointed to the pictures.
 - Pressed from the keyboard, or with reduced motion turned on, the panel shows
   the pictures at once and the box is simply marked for the same moment.
+
+## 2026-10-27 — Newest Regents command line, and a way in from the home page
+
+- The agent guides, the developer documentation and the start page's steps now
+  install the newest Regents command line, 1.10.19, and the agent guide gives
+  that version's published fingerprint to check the download against.
+- The home page has a short line under its buttons, "Connect your agent from
+  the command line", which opens the steps for connecting your agent. Agents
+  reading the home page get the same pointer.

@@ -5,8 +5,8 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Invariants covered:
   # - smoke: 200 mount and the public-home landmark, outside the signed-in shell
-  # - launch-gate: in-app links stay on /stake, the public agent guide, or in-page
-  #   anchors the document owns
+  # - launch-gate: in-app links stay on /stake, the public agent guide, the agent
+  #   start page, or in-page anchors the document owns
 
   test "SMOKE: the homepage mounts and keeps its landmark", %{conn: conn} do
     assert conn |> get("/") |> html_response(200)
@@ -17,7 +17,7 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Stake is the one product page the homepage sends visitors to; every other
   # internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/app /stake /agents.md /llms.txt /docs /about /contact /privacy /terms)
+  @open_paths ~w(/app /stake /start /agents.md /llms.txt /docs /about /contact /privacy /terms)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")

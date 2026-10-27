@@ -46,6 +46,7 @@ defmodule RegentsWeb.HomeLive do
 
     ## Get started
 
+    [Connect your agent from the command line](#{PublicDocuments.url("/agents.md")})
     [Developer documentation](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/llms.txt")})
     [About](#{PublicDocuments.url("/about")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy](#{PublicDocuments.url("/privacy")})
     """
@@ -149,6 +150,9 @@ defmodule RegentsWeb.HomeLive do
             <span class="rg-button__label">WebMCP Tools</span>
           </AgentTools.button>
         </div>
+        <p class="rl-hero-agents">
+          <.link navigate={~p"/start"}>Connect your agent from the command line</.link>
+        </p>
       </div>
       <AgentTools.dialog id="home-agent-tools" />
       <p id="home-cube-label" class="rl-cube-label" phx-update="ignore" aria-hidden="true">
