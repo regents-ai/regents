@@ -3210,3 +3210,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   turns on the shared database (ash-template `2012700`).
 - Checks: server tests 570, JavaScript 242, browser walk 111/111; `mix hex.audit`
   lists only ash_postgres 2.13.0's two advisories.
+
+## 2026-10-27 — v229 release record
+
+- v229 runs `572230a1` (hero Enter App and WebMCP Tools; Bandit 1.14.0, Ash 3.37.2,
+  jose 1.11.13; deploys under the shared-database lock; also carries `7399fea2`,
+  native code fetched straight from GitHub). The rollback is v228 (`8d632fd6`).
+  No database migrations ("Migrations already up").
+- Checked before release: server tests 570, JavaScript 242, browser walk 111/111.
+  No other shared-database app had a release in progress.
+- Live checks: the machine runs `572230a1` (image label), Bandit 1.14.0 at boot,
+  stop setting SIGTERM / 1m0s, health check passing. Eight pages load in headless
+  Chromium at 1280 and 390 wide with no errors and no sideways scroll; Enter App
+  opens /stake; its marks rest at the square corners and cuts and grow into full
+  L-edges on hover; WebMCP Tools opens the tools list. WebKit not run on the Mac.
