@@ -3306,3 +3306,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   with no errors and no sideways scroll, and Enter App opens /stake. The signed-in
   Account list was not opened live (it needs a sign-in); its LiveView tests cover
   See Actions. WebKit not run on the Mac.
+
+## 2026-10-27 — A wallet press certain to fail is never handed to the wallet
+
+- Credits: a Buy pressed before its steps reached the page asks the server for them.
+  The reply now leaves out a Buy that the fresh build finds certain to fail (too little
+  USDC, or no approval on the chain yet), the same check that disables the button, so
+  the button shows why instead of opening the wallet. From ash-template `344a1f4`
+  (Keyfleet `1f4049bc`). Redeem and Stake disable no step for a chain reason, so their
+  replies are unchanged.
+- New property check `platform/test/regents_web/credits_press_test.exs` (fails on the
+  old reply), listed in `FEATURES.md`; `stream_data` is now a direct dependency, as in
+  the template.

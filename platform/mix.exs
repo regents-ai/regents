@@ -119,7 +119,9 @@ defmodule Regents.MixProject do
        sparse: "credo_ash",
        only: [:dev, :test],
        runtime: false},
-      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false}
+      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false},
+      # Property tests. Ash already ships it in every environment, so it cannot be test-only.
+      {:stream_data, "~> 1.4"}
     ]
   end
 
