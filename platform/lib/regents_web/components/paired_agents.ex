@@ -32,9 +32,9 @@ defmodule RegentsWeb.Components.PairedAgents do
             variant="quiet"
             phx-click="open_agent"
             phx-value-id={agent.id}
-            aria-label={"See what #{agent.name} has done"}
+            aria-label={"See #{agent.name}’s actions"}
           >
-            See what it has done
+            See Actions
           </Regent.Primitives.button>
         </:actions>
         <:footer>

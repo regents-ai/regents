@@ -110,7 +110,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     end)
 
     view
-    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
     assert has_element?(view, "#account-agent-dialog[data-open] h2", "Muse helper")
@@ -180,7 +180,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     end)
 
     view
-    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
     render_async(view)
@@ -198,7 +198,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     view = open_account(conn, account)
 
     view
-    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
     assert has_element?(view, "#account-agent-dialog")
@@ -240,7 +240,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     view = open_account(conn, account)
 
     view
-    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
     :ok = RegentAgents.unpair_agent(agent, actor: person(account))
@@ -265,7 +265,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     view = open_account(conn, account)
 
     view
-    |> element("#account-agents-agent-#{agent.id} button", "See what it has done")
+    |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
     render_hook(view, "unpair_agent", %{"id" => "not-an-agent"})

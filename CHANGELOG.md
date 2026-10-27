@@ -3283,3 +3283,14 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   headless Chromium at 1280 and 390 wide with no errors and no sideways scroll;
   Enter App opens /stake, WebMCP Tools opens the tools list, /contact/ answers 404,
   /api/v1/health and /api/v1/products answer 200. WebKit not run on the Mac.
+
+## 2026-10-27 — The agent list reads more clearly
+
+- Account's agent list takes design-system `0c72c964` (Sean 27 Oct, through the
+  template chief): each agent's whole name, its address with copy and explorer, and
+  its buttons on the line under it; a tip's words read in plain letters beside a
+  small-capitals label. The row button is **See Actions** (was "See what it has
+  done"), named "See <agent>'s actions" for screen readers, as ash-template `696c76f`.
+- The agent window here is still this site's own, so the template's new window
+  headings come with the move to the shared `Regent.Account.agent_detail`.
+- Checks: server tests 574, JavaScript 242, browser walk 111/111.
