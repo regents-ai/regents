@@ -56,6 +56,48 @@ defmodule RegentsWeb.AgentRequestsTest do
              conn |> recycle() |> get("/api/agents/v1/me") |> json_response(200)
   end
 
+  # A signed agent asking who it is gets its status, what it may do here in that
+  # status and its next step, in each of the three states.
+  test "an agent nobody paired is told it is not paired and how to pair", %{conn: conn} do
+    siwa_verifies(@agent_wallet)
+
+    data = whoami(conn)
+
+    assert %{"authenticated" => true, "status" => "not_paired", "pairing" => nil} = data
+    assert data["agent"]["wallet"] == @agent_wallet
+    assert data["allowed"] == allowed("not_paired")
+    assert data["next_step"] == RegentAgents.HTTP.next_step("not_paired")
+  end
+
+  test "an agent whose person has never signed in here is told so", %{conn: conn} do
+    elsewhere = %Person{privy_user_id: "did:privy:elsewhere:#{Elixir.System.unique_integer()}"}
+    issued = RegentAgents.issue_pairing_code!(actor: elsewhere)
+
+    pairing =
+      RegentAgents.pair_agent!(issued.code, "Sol", :codex,
+        actor: %RegentAgents.Agent{wallet: @agent_wallet}
+      )
+
+    siwa_verifies(@agent_wallet)
+
+    assert %{"status" => "person_not_here", "pairing" => %{"id" => id}} = data = whoami(conn)
+    assert id == pairing.id
+    assert data["allowed"] == allowed("person_not_here")
+    assert data["next_step"] == RegentAgents.HTTP.next_step("person_not_here")
+  end
+
+  test "a paired agent whose person signed in here is told it is paired", %{conn: conn} do
+    {person, _account_id} = person!()
+    issued = RegentAgents.issue_pairing_code!(actor: person)
+    siwa_verifies(@agent_wallet)
+    assert %{"data" => %{"id" => id}} = conn |> pair(issued.code) |> json_response(201)
+
+    assert %{"status" => "paired", "pairing" => %{"id" => ^id}, "next_step" => nil} =
+             data = conn |> recycle() |> whoami()
+
+    assert data["allowed"] == allowed("paired")
+  end
+
   # The pair and check-in answers carry the pairing id the contract lists.
   test "pairing and check-in name the same pairing id", %{conn: conn} do
     {person, _account_id} = person!()
@@ -160,6 +202,12 @@ defmodule RegentsWeb.AgentRequestsTest do
 
     assert %{"error" => %{"code" => _code}} = Jason.decode!(refusal)
   end
+
+  defp whoami(conn) do
+    conn |> get("/api/agents/v1/whoami") |> json_response(200) |> Map.fetch!("data")
+  end
+
+  defp allowed(status), do: Map.fetch!(Application.fetch_env!(:regent_agents, :allowed), status)
 
   defp pair(conn, code) do
     conn

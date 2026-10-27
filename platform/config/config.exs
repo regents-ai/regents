@@ -10,11 +10,37 @@ import Config
 config :regent_identity, repo: Regents.Repo, ash_domains: [RegentIdentity]
 config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
 
+# Agents pair with a person's account through the agent pairing every Regent site
+# shares (RegentAgents). `allowed` is what an agent may do here in each status,
+# as GET /api/agents/v1/whoami tells it and priv/public/agents.md and the tools
+# in priv/tool_manifest.json list it: true to the routes and policies, so change
+# them together.
 config :regent_agents,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,
   notifications: Regents.Notifications,
   account: {Regents.AgentAccount, :account},
+  allowed: %{
+    "not_paired" => [
+      "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
+      "Check your status here at any time, also with the regents_agent_whoami tool.",
+      "Pair with the code your person makes with Pair New Agent in the side panel."
+    ],
+    "person_not_here" => [
+      "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
+      "Check your status here at any time, also with the regents_agent_whoami tool.",
+      "Reading for your person answers person_not_here until your person signs in on this site."
+    ],
+    "paired" => [
+      "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
+      "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
+      "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
+      "Read your person's Credits and Points, also with the regents_credits_balance, regents_credits_history, regents_credits_budget and regents_points_summary tools.",
+      "You can never use your person's wallet, change their account or pair other agents.",
+      # Changes together with RegentCredits.agent_grants_enabled?/0.
+      "Spending your person's Credits isn't open to agents yet; your person can do it themselves."
+    ]
+  },
   ash_domains: [RegentAgents]
 
 # Regent Credits: one prepaid balance per Privy account, shared by every Regent

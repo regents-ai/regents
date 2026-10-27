@@ -3623,3 +3623,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and 390 wide with no page errors and no sideways scroll; the home page shows "Connect
   your agent from the command line"; the first Tab on /stake and /account shows "Skip to
   content"; no address on those pages is printed as plain text. WebKit not run on the Mac.
+
+## 2026-10-27 — An agent asking who it is gets its answer again
+
+- An agent asking Regents who it is (`regents protocol agents whoami`, or the
+  regents_agent_whoami tool) gets its answer again, instead of an error. The answer says
+  whether it is paired, what it may do here in that state and its next step: reading the
+  public pages and docs; once paired, also reading its person's account, name claims,
+  staking position, Credits and Points. It never uses the wallet, changes the account,
+  pairs other agents or spends Credits.
