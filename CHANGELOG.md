@@ -3224,3 +3224,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   Chromium at 1280 and 390 wide with no errors and no sideways scroll; Enter App
   opens /stake; its marks rest at the square corners and cuts and grow into full
   L-edges on hover; WebMCP Tools opens the tools list. WebKit not run on the Mac.
+
+## 2026-10-27 — One address per page
+
+- An address with a slash at the end, other than the homepage, is now not found:
+  the not-found page for a page, the API's not-found answer under /api. Before,
+  /contact/ and /about/ (Sentinel, 27 Oct) and others answered with a server error.
+  `RegentsWeb.Plugs.NoTrailingSlash`, copied from ash-template `9dd2237` and
+  `be54337`, runs right after the error format is chosen.
+- Checks: server tests 573 (3 new in `trailing_slash_test.exs`), JavaScript 242,
+  browser walk 111/111.

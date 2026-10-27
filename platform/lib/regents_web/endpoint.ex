@@ -58,6 +58,10 @@ defmodule RegentsWeb.Endpoint do
     documents: &RegentsWeb.PublicDocuments.document/1,
     guide: "/llms.txt"
 
+  # After the error format is chosen, so a slash address is answered as any
+  # address that names nothing.
+  plug RegentsWeb.Plugs.NoTrailingSlash
+
   # The largest body the site takes is a sign-in request of a few kilobytes;
   # anything past a megabyte is refused before it is read.
   plug RegentsWeb.Plugs.Parsers,

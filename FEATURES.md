@@ -12,6 +12,7 @@ also runs alone with `cd platform && npx playwright test`.
 
 | Feature | Proving check | Gap |
 | --- | --- | --- |
+| An address with a slash at the end, other than the homepage, is not found: the not-found page for a page, the API's not-found answer for an API address | `regents_web/trailing_slash_test.exs` | |
 | Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
 | Home page shows one cube in the middle of the stage, with "Human Browsing" above it, about half again as big on a computer | `browser/homepage.spec.ts` (the six worlds) | The drawn cube needs WebGPU, which the headless browser lacks: its size and the words over it are checked by hand in headless pictures |
 | The "Agents see" window copies every Regent site's tools at once, each site its own section, then how an agent signs in; it stays open when opened while the page is still connecting | `browser/agent_tools.spec.ts` "the tools window copies every site's tools…" (1280 and 390; the test server answers every site's tools from `test/support/test_site_tools.ex`) | |
