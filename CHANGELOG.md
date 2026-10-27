@@ -3394,3 +3394,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `platform/test/regents_web/visit_log_page_test.exs`,
   `platform/test/browser/visits.spec.ts` and `platform/test/browser/arrivals.spec.ts`,
   listed in `FEATURES.md`.
+
+## 2026-10-27 — Stake share picture: the new words
+
+- The picture a shared /stake link shows now says what staking gives: "Stake
+  REGENT to share in Regents Labs' USDC revenue, in proportion to how much of
+  all REGENT you stake. The business keeps the rest." Its last tile reads
+  "Plus 20% a year in REGENT" (was "Early 20% yield"). Same dark look, frame
+  and layout; the words stay clear of the corner where X writes the site's
+  name. The picture's description says the same.

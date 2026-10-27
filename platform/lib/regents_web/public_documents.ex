@@ -229,7 +229,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/stake"),
     do:
-      "Put REGENT to work: stake to earn a pro rata split of all Regents Labs' USDC revenue, with an early 20% yield"
+      "Put REGENT to work: stake REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT"
 
   defp share_image_alt("/redeem"),
     do:
