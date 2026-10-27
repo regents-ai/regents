@@ -25,6 +25,7 @@ export default defineConfig({
   webServer: {
     // Its own database, so what this server saves never reaches `mix test`.
     command:
+      "mkdir -p tmp && rm -f tmp/walk-lines.jsonl && " +
       "export MIX_ENV=test MIX_TEST_PARTITION=${MIX_TEST_PARTITION}_browser REGENTS_BROWSER_TEST=1 && mix do ecto.create --quiet + regents.setup_local_auth + run -e 'Regents.BrowserStakingReading.warm!()' + phx.server",
     url: `${baseURL}/`,
     reuseExistingServer: false,

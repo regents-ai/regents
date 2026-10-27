@@ -3474,3 +3474,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   stakers 594.32 USDC), and "How staking pays" with the 100 billion divisor, a 4.658
   billion reward pool, "2 of 3 signers" and both contract addresses with copy icons.
   WebKit not run on the Mac.
+
+## 2026-10-27 — Visit lines back, and Global Privacy Control respected
+
+- The visit lines (`29ca02b1`) are back: this reverts `0a046b55`. Sean answered
+  VISIT-SOURCES-PRIVACY with "a", relayed by the template chief, and the change below copies
+  ash-template `e61e4dd`.
+- `RegentsWeb.VisitLog` reads `Sec-GPC: 1`: such a visit gets no `arrival`, and
+  `VisitLog.step/2` writes nothing for it, in the request (the browser's `sign_in_opened`
+  report now goes through `step/2`) and on its pages (the render context carries `gpc` into
+  the LiveView's process). Its other lines are written as before.
+- The privacy policy's cookies section says so; its effective date is now 27 October 2026.
+- New walk in `platform/test/browser/arrivals.spec.ts` and a unit test in
+  `platform/test/regents_web/visit_log_test.exs`, listed in `FEATURES.md`.
