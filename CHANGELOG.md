@@ -3487,3 +3487,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The privacy policy's cookies section says so; its effective date is now 27 October 2026.
 - New walk in `platform/test/browser/arrivals.spec.ts` and a unit test in
   `platform/test/regents_web/visit_log_test.exs`, listed in `FEATURES.md`.
+
+## 2026-10-27 — Sign-in and sign-out stop warning in the logs
+
+- Sentinel's after-read of v234 and v235 saw two "Missed 1 notifications in action
+  Regents.Accounts.Sessi…" warnings. Every sign-in, refresh and sign-out wrote one:
+  `Regents.Accounts.SessionAuthority` ran its locked transitions in `Repo.transaction/1`,
+  a transaction Ash did not start, so each `Ash.update!` inside it was left with a
+  notification it could not send. It predates v234 and has nothing to do with the one
+  listening connection. The transitions now run in `Ash.transact/2`; a refused transition's
+  answer is wrapped so what it wrote (the seeded row, a revocation) still commits.
+- `platform/test/regents/accounts/session_authority_test.exs` now fails on a missed
+  notification (14 of its 17 tests fail against the old code). Its race helper holds the
+  lock open inside `Ash.transact/2` too.
+- The same warning comes from the shared agents library: `RegentAgents.PairedAgent`'s
+  check-in calls `:touch` inside `Ash.DataLayer.transaction/2`. Handed to the template
+  chief, who owns that library; the whole suite can fail on missed notifications once it
+  is fixed.
