@@ -3268,3 +3268,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   ash-template `810223a6` all present; no table written to `public`. Four sign-in tests
   compare account ids rather than whole records, since ash_postgres 2.15.2 adds its
   upsert note to a record's metadata.
+
+## 2026-10-27 — v231 release record
+
+- v231 runs `49745bb1` (ash_postgres from ash-project `55db7d44`, elixir-utils
+  `e796a9d`, version 7 `public.ash_required`). The rollback is v230 (`c3ab4a63`) and
+  needs no database change: version 7 is the same function under the same name.
+- Authority: Sean 27 Oct "1. a" (release with the helper migration).
+- Release step: "Migrated 20261027045129 in 0.0s", the one statement
+  `CREATE OR REPLACE FUNCTION public.ash_required(…)`. No other shared-database app
+  had a release in progress; built and released under the shared-database lock.
+- Live checks: the machine runs `49745bb1` with stop setting SIGTERM / 1m0s and its
+  health check passing, Bandit 1.14.0 at boot, no error lines. Eight pages load in
+  headless Chromium at 1280 and 390 wide with no errors and no sideways scroll;
+  Enter App opens /stake, WebMCP Tools opens the tools list, /contact/ answers 404,
+  /api/v1/health and /api/v1/products answer 200. WebKit not run on the Mac.
