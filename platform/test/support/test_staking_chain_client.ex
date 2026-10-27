@@ -24,6 +24,7 @@ defmodule Regents.TestStakingChainClient do
   # is asking for something.
   @seven_day_usdc "1250500000"
   @lifetime_usdc "5074870000"
+  @credited_usdc "353240000"
   @regent_total_supply "100000000000000000000000000000"
 
   # The four holdings and what they leave circulating: forty billion in the
@@ -108,6 +109,9 @@ defmodule Regents.TestStakingChainClient do
       remaining_capacity_raw: Integer.to_string(capacity),
       usdc_received_lifetime_raw: @lifetime_usdc,
       usdc_received_lifetime: scaled(@lifetime_usdc, 6),
+      usdc_credited_to_stakers_raw: @credited_usdc,
+      usdc_credited_to_stakers: scaled(@credited_usdc, 6),
+      revenue_share_denominator: scaled(Integer.to_string(denominator), 18),
       regent_total_supply_raw: @regent_total_supply,
       regent_total_supply: scaled(@regent_total_supply, 18),
       regent_circulating_supply_raw: circulating,
@@ -120,6 +124,8 @@ defmodule Regents.TestStakingChainClient do
       treasury_address: "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e",
       treasury_held_raw: @treasury_held,
       treasury_held: scaled(@treasury_held, 18),
+      treasury_threshold: 2,
+      treasury_signer_count: 3,
       animata_redeemer_address: "0x71065b775a590c43933f10c0055dc7d74afabb0e",
       animata_redeemer_held_raw: @animata_redeemer_held,
       animata_redeemer_held: scaled(@animata_redeemer_held, 18),

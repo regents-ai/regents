@@ -324,11 +324,21 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
     // The hero is the two cards the contract answers for.
     const earned = page.locator(".stake-benefit-card-primary")
-    await expect(earned).toContainText("Regent Labs USDC Earned")
+    await expect(earned).toContainText("USDC revenue")
     await expect(earned).toContainText("Last 7 days")
     await expect(earned).toContainText("1,250.50 USDC")
     await expect(earned).toContainText("Lifetime")
     await expect(earned).toContainText("5,074.87 USDC")
+    await expect(earned).toContainText("Paid to stakers (lifetime)")
+    await expect(earned).toContainText("353.24 USDC")
+
+    // How it pays names the contract's own divisor, reward pool and Safe, each
+    // read at the same block, and both addresses can be copied in full.
+    const pays = page.locator("#staking-how-it-pays")
+    await expect(pays).toContainText("÷ 1k.")
+    await expect(pays).toContainText("a reward pool, 5 billion today")
+    await expect(pays).toContainText("Regent Safe (2 of 3 signers)")
+    await expect(pays.locator("#staking-how-safe")).toBeVisible()
     await expect(page.locator(".stake-benefit-grid")).toContainText("REGENT Staked")
     await expect(page.locator(".stake-benefit-grid")).toContainText("100 REGENT")
 

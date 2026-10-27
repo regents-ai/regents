@@ -77,14 +77,15 @@ defmodule Regents.WalletActions.Rpc do
   Several reads of one Base block, answered by one `eth_call` to `aggregator`.
 
   `calls` is the ordered list of `{target, calldata, kind}` this read wants,
-  `kind` being `:uint`, `:bool`, `:address` or `{:words, count}` for a call
-  returning exactly `count` unsigned words. The whole aggregate is pinned to
+  `kind` being `:uint`, `:bool`, `:address`, `:addresses` for a call returning
+  one `address[]`, or `{:words, count}` for a call returning exactly `count`
+  unsigned words. The whole aggregate is pinned to
   the caller's block hash with `requireCanonical`, exactly as a single read is,
   so a moved block fails rather than answering, and `allowFailure` is `false`,
   so a reverting sub-call reverts everything and the page is told the chain is
   unavailable instead of being handed a partial reading.
   """
-  @type kind :: :uint | :bool | :address | {:words, pos_integer()}
+  @type kind :: :uint | :bool | :address | :addresses | {:words, pos_integer()}
 
   @spec aggregate3(String.t(), [{String.t(), String.t(), kind()}], block(), keyword()) ::
           {:ok, [term()]} | {:error, atom()}
@@ -169,6 +170,7 @@ defmodule Regents.WalletActions.Rpc do
   defp decode_kind(:uint, value), do: decode_uint(value)
   defp decode_kind(:bool, value), do: decode_bool(value)
   defp decode_kind(:address, value), do: decode_address(value)
+  defp decode_kind(:addresses, value), do: decode_addresses(value)
   defp decode_kind({:words, count}, value), do: decode_words(value, count)
 
   def request(method, params, opts \\ []) do
@@ -330,6 +332,26 @@ defmodule Regents.WalletActions.Rpc do
       :error -> :error
     end
   end
+
+  # One `address[]` and nothing after it: the offset to the list, its length,
+  # then exactly that many address words.
+  defp decode_addresses("0x" <> hex = value)
+       when byte_size(hex) >= 128 and rem(byte_size(hex), 64) == 0 do
+    count = div(byte_size(hex), 64) - 2
+
+    with {:ok, [32, ^count | _]} <- decode_words(value, count + 2),
+         addresses =
+           for(<<word::binary-size(64) <- binary_part(hex, 128, count * 64)>>,
+             do: decode_address("0x" <> word)
+           ),
+         false <- :error in addresses do
+      {:ok, Enum.map(addresses, fn {:ok, address} -> address end)}
+    else
+      _ -> :error
+    end
+  end
+
+  defp decode_addresses(_value), do: :error
 
   defp exact_hex("0x" <> hex, size) when byte_size(hex) == size do
     if String.match?(hex, ~r/\A[0-9a-fA-F]+\z/), do: {:ok, hex}, else: :error

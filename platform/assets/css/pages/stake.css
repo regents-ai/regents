@@ -160,16 +160,24 @@
   overflow-wrap: anywhere;
 }
 
+/* The three labels share one row and the three figures the next, so a label
+   that wraps never pushes its figure below the others. */
 .stake-earned-split {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  gap: 0.25rem 0.75rem;
 }
 
 .stake-earned-part {
   display: grid;
-  gap: 0.25rem;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
   min-width: 0;
+}
+
+.stake-earned-label {
+  align-self: end;
 }
 
 .stake-earned-part + .stake-earned-part {
@@ -179,6 +187,24 @@
 
 .stake-earned-figure {
   font-size: clamp(1.05rem, 2.4vw, 1.6rem);
+}
+
+.stake-how {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.stake-how h2 {
+  margin: 0;
+}
+
+.stake-how ol {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.95rem;
+  text-wrap: pretty;
 }
 
 /* The two supply lines are context for the figures above them rather than
@@ -909,6 +935,8 @@
   .stake-preview { grid-template-columns: minmax(0, 1fr); }
   .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
   .stake-earned-split { grid-template-columns: minmax(0, 1fr); }
+  .stake-earned-split { row-gap: 0.75rem; }
+  .stake-earned-part { grid-row: auto; grid-template-rows: none; gap: 0.25rem; }
   .stake-earned-part + .stake-earned-part { padding-left: 0; border-left: 0; }
   .stake-contract-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }

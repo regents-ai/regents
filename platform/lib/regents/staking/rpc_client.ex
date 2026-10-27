@@ -79,6 +79,7 @@ defmodule Regents.Staking.RpcClient do
             total_staked,
             denominator,
             usdc_received,
+            usdc_credited,
             emission_apr_bps,
             stake_token,
             usdc,
@@ -100,6 +101,8 @@ defmodule Regents.Staking.RpcClient do
          true <- usdc == Abi.normalize_address!(Abi.usdc_address()),
          {:ok, [treasury_held]} <-
            Rpc.aggregate3(aggregator(), treasury_calls(treasury), block, @rpc_opts) do
+      {threshold, signers} = treasury_signers(treasury, block)
+
       capacity = max(denominator - total_staked, 0)
 
       circulating =
@@ -127,6 +130,9 @@ defmodule Regents.Staking.RpcClient do
          remaining_capacity_raw: Integer.to_string(capacity),
          usdc_received_lifetime_raw: Integer.to_string(usdc_received),
          usdc_received_lifetime: Rpc.format_units(usdc_received, 6),
+         usdc_credited_to_stakers_raw: Integer.to_string(usdc_credited),
+         usdc_credited_to_stakers: Rpc.format_units(usdc_credited, 6),
+         revenue_share_denominator: Rpc.format_units(denominator, 18),
          regent_total_supply_raw: Integer.to_string(regent_total_supply),
          regent_total_supply: Rpc.format_units(regent_total_supply, 18),
          regent_circulating_supply_raw: Integer.to_string(circulating),
@@ -139,6 +145,8 @@ defmodule Regents.Staking.RpcClient do
          treasury_address: treasury,
          treasury_held_raw: Integer.to_string(treasury_held),
          treasury_held: Rpc.format_units(treasury_held, 18),
+         treasury_threshold: threshold,
+         treasury_signer_count: signers,
          animata_redeemer_address: Abi.normalize_address!(Supply.animata_redeemer()),
          animata_redeemer_held_raw: Integer.to_string(redeemer_held),
          animata_redeemer_held: Rpc.format_units(redeemer_held, 18),
@@ -252,6 +260,7 @@ defmodule Regents.Staking.RpcClient do
       {staking, Abi.encode_read("total_staked"), :uint},
       {staking, Abi.encode_supply_denominator(), :uint},
       {staking, Abi.encode_total_usdc_received(), :uint},
+      {staking, Abi.encode_total_usdc_credited(), :uint},
       {staking, Abi.encode_emission_apr_bps(), :uint},
       {staking, Abi.encode_read("stake_token"), :address},
       {staking, Abi.encode_read("usdc"), :address},
@@ -272,6 +281,22 @@ defmodule Regents.Staking.RpcClient do
   # reading came from, so the supply this page works out is one block's.
   defp treasury_calls(treasury),
     do: [{Abi.stake_token_address(), Abi.encode_erc20("balance_of", [treasury]), :uint}]
+
+  # The treasury's signers are asked for on their own, at the same block. The
+  # contract lets its owner name any address as the treasury, and one that is
+  # not a Safe has no signers to report: that leaves these two figures
+  # unavailable and every other figure of the reading standing.
+  defp treasury_signers(treasury, block) do
+    calls = [
+      {treasury, Abi.encode_safe_threshold(), :uint},
+      {treasury, Abi.encode_safe_owners(), :addresses}
+    ]
+
+    case Rpc.aggregate3(aggregator(), calls, block, @rpc_opts) do
+      {:ok, [threshold, owners]} -> {threshold, length(owners)}
+      {:error, _reason} -> {:unavailable, :unavailable}
+    end
+  end
 
   defp wallet_calls(wallet) do
     staking = Abi.staking_address()

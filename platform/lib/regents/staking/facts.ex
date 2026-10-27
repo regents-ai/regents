@@ -12,7 +12,9 @@ defmodule Regents.Staking.Facts do
   begin at `usdc_received_from_block`, so the window is always the chain's own
   and never the clock's. Beside the circulating supply it carries the four
   holdings that were taken out of it, each with its address and amount, and for
-  the Clanker vault the day its lock ends and the day its release completes.
+  the Clanker vault the day its lock ends and the day its release completes. The
+  treasury is the Safe that owns the contract, and the reading names how many
+  of its signers must agree out of how many there are.
 
   A figure the reading asked for and could not get holds the atom
   `:unavailable` in place of its value. Every figure has that one shape, whether
@@ -38,6 +40,9 @@ defmodule Regents.Staking.Facts do
     :usdc_received_7d,
     :usdc_received_lifetime_raw,
     :usdc_received_lifetime,
+    :usdc_credited_to_stakers_raw,
+    :usdc_credited_to_stakers,
+    :revenue_share_denominator,
     :regent_total_supply_raw,
     :regent_total_supply,
     :regent_circulating_supply_raw,
@@ -50,6 +55,8 @@ defmodule Regents.Staking.Facts do
     :treasury_address,
     :treasury_held_raw,
     :treasury_held,
+    :treasury_threshold,
+    :treasury_signer_count,
     :animata_redeemer_address,
     :animata_redeemer_held_raw,
     :animata_redeemer_held,

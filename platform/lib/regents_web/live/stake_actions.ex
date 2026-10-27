@@ -893,7 +893,7 @@ defmodule RegentsWeb.StakeActions do
                   </dd>
                 </div>
                 <div>
-                  <dt>USDC Revenue Share</dt><dd>{@preview.revenue_share}</dd>
+                  <dt>Your share of revenue</dt><dd>{@preview.revenue_share}</dd>
                 </div>
               </dl>
 

@@ -29,8 +29,10 @@ defmodule RegentsWeb.StakeLive do
         <div class="stake-heading-copy">
           <p class="stake-kicker">REGENT staking · Base</p>
           <h1 id="staking-page-heading" tabindex="-1">Put REGENT to work.</h1>
-          <p class="stake-lede">Stake to earn a pro rata split of all Regents Labs' USDC revenue.</p>
-          <p class="stake-yield-badge">Temporary 20% Yield for early community</p>
+          <p class="stake-lede">
+            Stake REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake. The business keeps the rest.
+          </p>
+          <p class="stake-yield-badge">Plus 20% a year in REGENT, for now</p>
           <div class="stake-token-links">
             <a
               class="rg-button stake-buy"
@@ -164,7 +166,7 @@ defmodule RegentsWeb.StakeLive do
             data-variant={RegentsWeb.Motion.standard("count")}
           >
             <div class="stake-benefit-card stake-benefit-card-primary">
-              <dt>Regent Labs USDC Earned</dt>
+              <dt>USDC revenue</dt>
               <dd class="stake-earned-split">
                 <span class="stake-earned-part">
                   <span class="stake-earned-label">Last 7 days</span>
@@ -176,6 +178,12 @@ defmodule RegentsWeb.StakeLive do
                   <span class="stake-earned-label">Lifetime</span>
                   <span class="stake-earned-figure">
                     <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
+                  </span>
+                </span>
+                <span class="stake-earned-part">
+                  <span class="stake-earned-label">Paid to stakers (lifetime)</span>
+                  <span class="stake-earned-figure">
+                    <TokenDisplay.amount amount={@staking.usdc_credited_to_stakers} unit="USDC" />
                   </span>
                 </span>
               </dd>
@@ -210,9 +218,12 @@ defmodule RegentsWeb.StakeLive do
             aria-busy={to_string(@status == :loading)}
           >
             <div class="stake-benefit-card stake-benefit-card-primary">
-              <dt>Regent Labs USDC Earned</dt>
+              <dt>USDC revenue</dt>
               <dd class="stake-earned-split">
-                <span :for={label <- ["Last 7 days", "Lifetime"]} class="stake-earned-part">
+                <span
+                  :for={label <- ["Last 7 days", "Lifetime", "Paid to stakers (lifetime)"]}
+                  class="stake-earned-part"
+                >
                   <span class="stake-earned-label">{label}</span>
                   <span class="stake-earned-figure"><.unread loading={@status == :loading} /></span>
                 </span>
@@ -230,6 +241,8 @@ defmodule RegentsWeb.StakeLive do
               <dd><.unread loading={@status == :loading} /></dd>
             </div>
           </dl>
+
+          <.how_it_pays staking={@staking} loading={@status == :loading} />
 
           <Regent.Structure.section_bar class="rg-support-band">
             <h2 class="rg-section-bar__label">Supply &amp; revenue</h2>
@@ -338,6 +351,71 @@ defmodule RegentsWeb.StakeLive do
     </section>
     """
   end
+
+  attr :staking, :map, default: nil
+  attr :loading, :boolean, required: true
+
+  # What the contract does with each USDC that reaches it, in the words a
+  # stranger needs. The divisor, the reward pool, the Safe's signers and both
+  # addresses come from the same Base reading as every other figure here.
+  defp how_it_pays(assigns) do
+    ~H"""
+    <section
+      id="staking-how-it-pays"
+      class="stake-how rg-panel rg-panel--surface rg-panel__body"
+      aria-labelledby="staking-how-heading"
+    >
+      <h2 id="staking-how-heading" class="stake-section-kicker">How staking pays</h2>
+      <ol>
+        <li>
+          Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷
+          <.read staking={@staking} key={:revenue_share_denominator} loading={@loading} />.
+        </li>
+        <li>The business keeps the share of REGENT that isn't staked.</li>
+        <li>
+          Revenue comes from Credits bought on Base, 10% of Keyfleet Key sales and 10% of Patchbay paid posts.
+        </li>
+        <li>Claim USDC at any time. There is no lock-up.</li>
+        <li>
+          REGENT rewards come from a reward pool,
+          <.read staking={@staking} key={:reward_inventory} loading={@loading} /> today. The
+          Regent Safe (<.signers staking={@staking} loading={@loading} />) sets the rate.
+        </li>
+        <li :if={@staking}>
+          Contracts: staking
+          <Regent.Primitives.address id="staking-how-contract" address={@staking.contract_address} />,
+          Regent Safe
+          <Regent.Primitives.address id="staking-how-safe" address={@staking.treasury_address} />.
+        </li>
+        <li :if={!@staking}>Contracts: <.unread loading={@loading} /></li>
+      </ol>
+    </section>
+    """
+  end
+
+  attr :staking, :map, default: nil
+  attr :key, :atom, required: true
+  attr :loading, :boolean, required: true
+
+  # A figure inside a sentence is written in words alone, such as 100 billion, so
+  # the sentence's own punctuation sits right after it.
+  defp read(%{staking: nil} = assigns), do: ~H"<.unread loading={@loading} />"
+
+  defp read(%{staking: staking, key: key} = assigns)
+       when is_binary(:erlang.map_get(key, staking)),
+       do: ~H"{TokenDisplay.compact(Map.fetch!(@staking, @key))}"
+
+  defp read(assigns), do: ~H"<TokenDisplay.amount amount={:unavailable} />"
+
+  attr :staking, :map, default: nil
+  attr :loading, :boolean, required: true
+
+  defp signers(%{staking: %{treasury_threshold: needed, treasury_signer_count: of}} = assigns)
+       when is_integer(needed) and is_integer(of),
+       do: ~H"{@staking.treasury_threshold} of {@staking.treasury_signer_count} signers"
+
+  defp signers(%{staking: nil} = assigns), do: ~H"<.unread loading={@loading} />"
+  defp signers(assigns), do: ~H"<TokenDisplay.amount amount={:unavailable} />"
 
   attr :loading, :boolean, required: true
   attr :kind, :string, default: "line"

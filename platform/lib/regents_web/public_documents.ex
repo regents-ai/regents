@@ -52,7 +52,7 @@ defmodule RegentsWeb.PublicDocuments do
       {"Points", "Your points, your NFT bonus and what earns points across Regent sites."},
     "/stake" =>
       {"Stake REGENT",
-       "Stake REGENT on Base to earn a pro rata split of all Regents Labs' USDC revenue, plus a temporary REGENT yield for the early community."},
+       "Stake REGENT on Base to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."},
     "/redeem" =>
       {"Redeem Animata",
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},

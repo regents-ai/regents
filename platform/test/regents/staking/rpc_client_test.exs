@@ -9,6 +9,11 @@ defmodule Regents.Staking.RpcClientTest do
 
   @wallet "0x1111111111111111111111111111111111111111"
   @treasury "0x3333333333333333333333333333333333333333"
+  @signers [
+    "0x4444444444444444444444444444444444444444",
+    "0x5555555555555555555555555555555555555555",
+    "0x6666666666666666666666666666666666666666"
+  ]
 
   # One REGENT, and the four holdings this stubbed chain keeps out of
   # circulation: forty billion in the Clanker vault, twenty billion in the
@@ -46,7 +51,7 @@ defmodule Regents.Staking.RpcClientTest do
     :ok
   end
 
-  test "ONE_PROTOCOL_CALL: the contract reads arrive on one block, the treasury's balance too" do
+  test "ONE_PROTOCOL_CALL: the contract reads arrive on one block, the treasury's too" do
     assert {:ok, snapshot, _history} = RpcClient.protocol_snapshot(nil)
 
     assert snapshot.block_number == 0x20
@@ -57,6 +62,9 @@ defmodule Regents.Staking.RpcClientTest do
     assert snapshot.remaining_capacity_raw == "900"
     assert snapshot.usdc_received_lifetime_raw == "125000000000"
     assert snapshot.usdc_received_lifetime == "125000"
+    assert snapshot.usdc_credited_to_stakers_raw == "9375000000"
+    assert snapshot.usdc_credited_to_stakers == "9375"
+    assert snapshot.revenue_share_denominator == "0.000000000000001"
     assert snapshot.regent_total_supply_raw == "100000000000000000000000000000"
     assert snapshot.regent_total_supply == "100000000000"
     assert snapshot.regent_circulating_supply_raw == "33000000000000000000000000000"
@@ -67,6 +75,8 @@ defmodule Regents.Staking.RpcClientTest do
     assert snapshot.clanker_vault_vested_by == ~U[2028-11-05 16:01:07Z]
     assert snapshot.treasury_address == @treasury
     assert snapshot.treasury_held == "20000000000"
+    assert snapshot.treasury_threshold == 2
+    assert snapshot.treasury_signer_count == 3
     assert snapshot.animata_redeemer_address == Abi.normalize_address!(Supply.animata_redeemer())
     assert snapshot.animata_redeemer_held == "2000000000"
     assert snapshot.reward_inventory == "5000000000"
@@ -79,8 +89,21 @@ defmodule Regents.Staking.RpcClientTest do
 
     aggregates([
       Abi.encode_aggregate3(expected_protocol_calls()),
-      Abi.encode_aggregate3(expected_treasury_calls())
+      Abi.encode_aggregate3(expected_treasury_calls()),
+      Abi.encode_aggregate3(expected_signer_calls())
     ])
+  end
+
+  # The contract's owner may name any address as its treasury. One that is not
+  # a Safe has no signers to tell, which costs those two figures and no other.
+  test "TREASURY_SIGNERS: a treasury that cannot name its signers costs only those figures" do
+    Stub.put(%{not_a_safe: true})
+
+    assert {:ok, snapshot, _history} = RpcClient.protocol_snapshot(nil)
+    assert snapshot.treasury_threshold == :unavailable
+    assert snapshot.treasury_signer_count == :unavailable
+    assert snapshot.treasury_held == "20000000000"
+    assert snapshot.usdc_credited_to_stakers == "9375"
   end
 
   # Every holding is subtracted, so a reading that quietly dropped one would
@@ -112,12 +135,18 @@ defmodule Regents.Staking.RpcClientTest do
 
     assert Abi.treasury_recipient_signature() == "treasuryRecipient()"
     assert Abi.reward_inventory_signature() == "availableRegentRewardInventory()"
+    assert Abi.total_usdc_credited_signature() == "totalUsdcCreditedToStakers()"
     assert Abi.vault_allocation_signature() == "allocation(address)"
+    assert Abi.safe_threshold_signature() == "getThreshold()"
+    assert Abi.safe_owners_signature() == "getOwners()"
 
     assert selector(Abi.total_usdc_received_signature()) == Abi.encode_total_usdc_received()
     assert selector(Abi.erc20_total_supply_signature()) == Abi.encode_erc20_total_supply()
     assert selector(Abi.treasury_recipient_signature()) == Abi.encode_treasury_recipient()
     assert selector(Abi.reward_inventory_signature()) == Abi.encode_reward_inventory()
+    assert selector(Abi.total_usdc_credited_signature()) == Abi.encode_total_usdc_credited()
+    assert selector(Abi.safe_threshold_signature()) == Abi.encode_safe_threshold()
+    assert selector(Abi.safe_owners_signature()) == Abi.encode_safe_owners()
 
     assert Abi.encode_vault_allocation(Abi.stake_token_address()) ==
              selector(Abi.vault_allocation_signature()) <>
@@ -368,6 +397,7 @@ defmodule Regents.Staking.RpcClientTest do
       {staking, Abi.encode_read("total_staked")},
       {staking, Abi.encode_supply_denominator()},
       {staking, Abi.encode_total_usdc_received()},
+      {staking, Abi.encode_total_usdc_credited()},
       {staking, Abi.encode_emission_apr_bps()},
       {staking, Abi.encode_read("stake_token")},
       {staking, Abi.encode_read("usdc")},
@@ -382,6 +412,9 @@ defmodule Regents.Staking.RpcClientTest do
 
   defp expected_treasury_calls,
     do: [{Abi.stake_token_address(), Abi.encode_erc20("balance_of", [@treasury])}]
+
+  defp expected_signer_calls,
+    do: [{@treasury, Abi.encode_safe_threshold()}, {@treasury, Abi.encode_safe_owners()}]
 
   defp head(number),
     do:
@@ -463,14 +496,22 @@ defmodule Regents.Staking.RpcClientTest do
 
   # One aggregate is one `eth_call`, so the stub answers it by decoding the sub
   # calls the reader asked for and returning one word for each in order.
+  # A treasury that is not a Safe reverts its signer reads, and Multicall3
+  # reverts the whole aggregate with them.
   defp call("0x82ad56cb" <> _rest = data, state) do
-    Stub.aggregate3_result(
-      cond do
-        data == Abi.encode_aggregate3(expected_protocol_calls()) -> protocol_words(state)
-        data == Abi.encode_aggregate3(expected_treasury_calls()) -> treasury_words(state)
-        true -> wallet_words(state)
-      end
-    )
+    cond do
+      data == Abi.encode_aggregate3(expected_protocol_calls()) ->
+        Stub.aggregate3_result(protocol_words(state))
+
+      data == Abi.encode_aggregate3(expected_treasury_calls()) ->
+        Stub.aggregate3_result(treasury_words(state))
+
+      data == Abi.encode_aggregate3(expected_signer_calls()) ->
+        if state[:not_a_safe], do: :unavailable, else: Stub.aggregate3_result(signer_words())
+
+      true ->
+        Stub.aggregate3_result(wallet_words(state))
+    end
   end
 
   defp call("0xdd62ed3e" <> _data, state), do: Stub.uint(Map.get(state, :allowance, 0))
@@ -481,6 +522,7 @@ defmodule Regents.Staking.RpcClientTest do
       Stub.uint(Map.get(state, :total_staked, 100)),
       Stub.uint(Map.get(state, :denominator, 1_000)),
       Stub.uint(125_000_000_000),
+      Stub.uint(9_375_000_000),
       Stub.uint(1_200),
       Stub.uint(Map.get(state, :stake_token) || word(Abi.stake_token_address())),
       Stub.uint(Map.get(state, :usdc) || word(Abi.usdc_address())),
@@ -505,6 +547,16 @@ defmodule Regents.Staking.RpcClientTest do
   end
 
   defp treasury_words(state), do: [Stub.uint(Map.get(state, :treasury_held, @treasury_held))]
+
+  # Two of three signers must agree; the owners come back as one `address[]`.
+  defp signer_words do
+    [
+      Stub.uint(2),
+      "0x" <>
+        Stub.hex_word(32) <>
+        Stub.hex_word(length(@signers)) <> Enum.map_join(@signers, &Stub.address_word/1)
+    ]
+  end
 
   defp wallet_words(_state), do: Enum.map(11..17, &Stub.uint/1)
 

@@ -30,6 +30,8 @@ defmodule Regents.WalletActions.Abi do
   @treasury_recipient_selector "0xeb4eebc7"
   @reward_inventory_signature "availableRegentRewardInventory()"
   @reward_inventory_selector "0xe2cfe6b9"
+  @total_usdc_credited_signature "totalUsdcCreditedToStakers()"
+  @total_usdc_credited_selector "0x98460766"
 
   # `totalSupply()` belongs to the REGENT token, not to this contract, so it is
   # not proved against the staking ABI below.
@@ -42,6 +44,14 @@ defmodule Regents.WalletActions.Abi do
   # ABI below either.
   @vault_allocation_signature "allocation(address)"
   @vault_allocation_selector "0xb81b8630"
+
+  # `getThreshold()` and `getOwners()` belong to the Safe the staking contract
+  # names as its treasury: how many signers must agree, and who they are. They
+  # are not proved against the staking ABI below either.
+  @safe_threshold_signature "getThreshold()"
+  @safe_threshold_selector "0xe75235b8"
+  @safe_owners_signature "getOwners()"
+  @safe_owners_selector "0xa0e67e2b"
 
   # Multicall3 is the canonical read aggregator, deployed at the same address on
   # every chain it reaches, Base included. It is never a send target: the only
@@ -78,7 +88,8 @@ defmodule Regents.WalletActions.Abi do
     {"function", @total_usdc_received_signature},
     {"function", @emission_apr_signature},
     {"function", @treasury_recipient_signature},
-    {"function", @reward_inventory_signature}
+    {"function", @reward_inventory_signature},
+    {"function", @total_usdc_credited_signature}
     | for({_id, signature} <- @event_signatures, do: {"event", signature})
   ]
 
@@ -117,6 +128,9 @@ defmodule Regents.WalletActions.Abi do
   def encode_emission_apr_bps, do: @emission_apr_selector
   def encode_treasury_recipient, do: @treasury_recipient_selector
   def encode_reward_inventory, do: @reward_inventory_selector
+  def encode_total_usdc_credited, do: @total_usdc_credited_selector
+  def encode_safe_threshold, do: @safe_threshold_selector
+  def encode_safe_owners, do: @safe_owners_selector
   def encode_erc20_total_supply, do: @erc20_total_supply_selector
 
   def encode_vault_allocation(token),
@@ -126,6 +140,9 @@ defmodule Regents.WalletActions.Abi do
   def total_usdc_received_signature, do: @total_usdc_received_signature
   def treasury_recipient_signature, do: @treasury_recipient_signature
   def reward_inventory_signature, do: @reward_inventory_signature
+  def total_usdc_credited_signature, do: @total_usdc_credited_signature
+  def safe_threshold_signature, do: @safe_threshold_signature
+  def safe_owners_signature, do: @safe_owners_signature
   def erc20_total_supply_signature, do: @erc20_total_supply_signature
   def vault_allocation_signature, do: @vault_allocation_signature
 

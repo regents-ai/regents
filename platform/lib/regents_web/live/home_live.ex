@@ -4,7 +4,7 @@ defmodule RegentsWeb.HomeLive do
   alias RegentsWeb.Components.{AgentTools, RegentLinks, WorldCube}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
-  @staking_summary "Stake $REGENT to earn a pro rata split of all Regents Labs' USDC revenue, plus a temporary REGENT yield for the early community."
+  @staking_summary "Stake $REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."
 
   @doc "A public text representation using the same product descriptions as the page."
   def agent_markdown do

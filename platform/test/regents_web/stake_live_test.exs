@@ -790,7 +790,7 @@ defmodule RegentsWeb.StakeLiveTest do
     set_amount(view, "500000000")
     html = render(view)
 
-    assert html =~ "USDC Revenue Share"
+    assert html =~ "Your share of revenue"
     refute html =~ "Pool share"
     assert html =~ "2.0000%"
 

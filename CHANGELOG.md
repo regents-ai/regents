@@ -3420,3 +3420,29 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   sideways scroll, and Enter App opens /stake; /stake shows live Base figures. The
   signed-in Credits panel was not opened live (it needs a sign-in). WebKit not run on the
   Mac.
+
+## 2026-10-27 — The Stake page says what staking pays
+
+- The Stake page now says what the staking contract actually does. A staker shares in
+  Regents Labs' USDC revenue in proportion to how much of all REGENT they stake, and
+  the business keeps the rest. The page used to promise "a pro rata split of all"
+  revenue, which a reader takes to mean stakers get all of it. The badge reads "Plus 20%
+  a year in REGENT, for now". The home page, the About page and the page list agents
+  read now use the same words.
+- The revenue card, now "USDC revenue", adds "Paid to stakers (lifetime)" beside the
+  last seven days and the lifetime total. The stake form's preview reads "Your share of
+  revenue".
+- A short "How staking pays" box gives the payout formula with the contract's own
+  divisor, where the revenue comes from, that USDC can be claimed at any time with no
+  lock-up, the REGENT reward pool, how many of the Regent Safe's signers must agree,
+  and both contract addresses with their copy icons.
+- The shared staking reading adds the contract's `totalUsdcCreditedToStakers` and its
+  `revenueShareSupplyDenominator` beside the figures it already read. It also asks the
+  treasury Safe for `getThreshold()` and `getOwners()` at the same block. That ask is
+  separate, so a treasury that is not a Safe leaves only those two figures unavailable.
+  A Base reading taken before this change has none of the new figures, and the page
+  shows a dash for them until the next reading, at most five minutes later.
+- The share picture for /stake carries the same words (entry above). Checks:
+  `platform/test/regents/staking/rpc_client_test.exs`
+  (`TREASURY_SIGNERS`, `ONE_PROTOCOL_CALL`, `PINNED_SELECTORS`) and
+  `platform/test/browser/stake.spec.ts`.
