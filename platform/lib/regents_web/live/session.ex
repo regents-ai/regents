@@ -34,8 +34,6 @@ defmodule RegentsWeb.Live.Session do
     |> rendered_topic()
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
     |> Map.put("client_tag", RegentsWeb.ClientAddress.tag(conn))
-    |> Map.put("visit", conn.assigns.visit)
-    |> Map.put("arrival", conn.assigns[:arrival])
   end
 
   def on_mount(:load_human, _params, session, socket) do

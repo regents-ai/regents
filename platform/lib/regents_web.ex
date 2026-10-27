@@ -58,8 +58,6 @@ defmodule RegentsWeb do
     quote do
       use Phoenix.LiveView, layout: {RegentsWeb.Layouts, :app}
 
-      on_mount RegentsWeb.VisitLog
-
       unquote(html_helpers())
     end
   end

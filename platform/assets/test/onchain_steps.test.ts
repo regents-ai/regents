@@ -72,9 +72,6 @@ beforeEach(() => {
     addEventListener: () => {},
     removeEventListener: () => {},
     dispatchEvent: (event: Event) => void dispatched.push(event.type),
-    // A lost press is reported to the visit lines (visit_log.ts); its post never goes here.
-    setTimeout: () => 1,
-    clearTimeout: () => {},
   })
 })
 

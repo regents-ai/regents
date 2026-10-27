@@ -37,7 +37,6 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta :if={assigns[:session_refused]} name="session-refused" content="true" />
     <meta name="privy-app-id" content={Application.get_env(:regents, :privy, [])[:app_id]} />
-    <meta :if={assigns[:visit]} name="regent-visit" content={assigns[:visit]} />
     <meta
       name="privy-bridge-src"
       content={RegentsWeb.Endpoint.static_path("/assets/js/privy_bridge.js")}

@@ -3446,3 +3446,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `platform/test/regents/staking/rpc_client_test.exs`
   (`TREASURY_SIGNERS`, `ONE_PROTOCOL_CALL`, `PINNED_SELECTORS`) and
   `platform/test/browser/stake.spec.ts`.
+
+## 2026-10-27 — Visit lines taken out until the privacy answer
+
+- The visit lines (`29ca02b1`, entry above) are reverted on main so the new Stake page
+  words can be released now (Sean, STAKE-RELEASE 1 a). The template chief asked every site
+  to keep visit lines out of production until Sean answers VISIT-SOURCES-PRIVACY. They come
+  back as one commit once he answers. No database changes either way. The `logger_json`
+  dependency, the privacy-page lines about visits and the checks
+  `platform/test/regents_web/visit_log_test.exs`,
+  `platform/test/regents_web/visit_log_page_test.exs`,
+  `platform/test/browser/visits.spec.ts` and `platform/test/browser/arrivals.spec.ts` go
+  with them.

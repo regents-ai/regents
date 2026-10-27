@@ -45,14 +45,11 @@ defmodule RegentsWeb.Endpoint do
   end
 
   plug Plug.RequestId
-  # Which visit, and which kind of caller, each line of this request belongs to.
-  plug RegentsWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
-  # One budget per client address, shared by the health check, the browser's visit
-  # reports and every /api path, answered or not; pairing counts against its own
-  # budget too. Every answer says what is left of each; past one, 429 with
-  # Retry-After.
+  # One budget per client address, shared by the health check and every /api path,
+  # answered or not; pairing counts against its own budget too. Every answer says
+  # what is left of each; past one, 429 with Retry-After.
   plug :limit_rate
 
   # Before the parsers, so a body they reject on an /api path is answered in
@@ -89,9 +86,6 @@ defmodule RegentsWeb.Endpoint do
     conn = RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
     if conn.halted, do: conn, else: RegentAgentAccess.RateLimit.call(conn, rate_limit("pair", 10))
   end
-
-  defp limit_rate(%Plug.Conn{method: "POST", path_info: ["visit-log"]} = conn, _opts),
-    do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
