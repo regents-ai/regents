@@ -129,7 +129,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
         phx-target={@myself}
       >
         <input type="hidden" name="agent" value={agent} />
-        <h4>{name} <code>{RegentFormat.short_address(agent)}</code></h4>
+        <h4>{name} <Regent.Primitives.address id={"#{@id}-#{index}-agent"} address={agent} /></h4>
         <label class="credits-agent__switch">
           <input type="hidden" name={@forms[agent][:enabled].name} value="false" />
           <input

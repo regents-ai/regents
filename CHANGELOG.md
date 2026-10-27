@@ -3553,9 +3553,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 
 - Stake's "What is not circulating" window, Stake's and Redeem's Verification lists, the
   wallet each panel acts for, the notes that name a wallet when the wrong one is open, a
-  sent stake for someone else (in the activity list and its receipt) and the side panel's
-  paying wallet now show each address the way every Regent page does: a short form that
-  opens the full address, a copy icon and a link to Basescan. The wallet on Stake's panel
-  keeps its own letters instead of being shown in capitals.
+  sent stake for someone else (in the activity list and its receipt), the Buy Credits
+  window's paying wallet and each agent under "What your agents may spend" on Account now
+  show each address the way every Regent page does: a short form that opens the full
+  address, a copy icon and a link to Basescan. The wallet on Stake's panel keeps its own
+  letters instead of being shown in capitals.
+- In the activity list, an address in a step's title keeps its usual size and colour,
+  including when the step did not go through.
 - A browser walk of Stake and Redeem at computer and phone widths, signed out and signed
-  in, now fails if any address there is printed as plain text.
+  in, with the Buy Credits window open, now fails if any address there is printed as
+  plain text.

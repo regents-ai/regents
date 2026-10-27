@@ -75,12 +75,13 @@
   font-weight: 400;
 }
 
-.submitted-transactions li[data-outcome="reverted"] span,
-.submitted-transactions li[data-outcome="not_this_step"] span {
+/* Only the box's own lines: an address in the title keeps its look. */
+.submitted-transactions li[data-outcome="reverted"] > span,
+.submitted-transactions li[data-outcome="not_this_step"] > span {
   color: var(--ash-accent);
 }
 
-.submitted-transactions a {
+.submitted-transactions li > a {
   display: inline-flex;
   align-items: center;
   justify-self: start;
@@ -90,4 +91,4 @@
   text-underline-offset: 0.22em;
 }
 
-.submitted-transactions button { justify-self: start; }
+.submitted-transactions li > button { justify-self: start; }

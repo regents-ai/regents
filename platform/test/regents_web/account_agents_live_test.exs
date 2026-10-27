@@ -88,6 +88,11 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              "0x3333333333333333333333333333333333333333"
            )
 
+    # So does each agent's row in what the agents may spend.
+    for wallet <- [@agent_wallet, "0x3333333333333333333333333333333333333333"] do
+      assert has_element?(view, "#account-agent-spending h4 .rg-address__full", wallet)
+    end
+
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       Req.Test.json(conn, %{
         "data" => %{

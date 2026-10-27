@@ -425,8 +425,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 })
 
 // Every address Stake and Redeem show opens and copies in full: the dashboard,
-// its supply window, both Verification lists, the wallet each panel acts for and
-// the notes that name a wallet, signed out and signed in, at both widths.
+// its supply window, both Verification lists, the wallet each panel acts for,
+// the notes that name a wallet and the Buy Credits window's paying wallet,
+// signed out and signed in, at both widths.
 test("Stake and Redeem draw every address with the address primitive", async ({page}) => {
   await installWallet(page)
 
@@ -453,6 +454,16 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
     expect(await addressesOutOfCase(page), `/stake ${at}`).toEqual([])
     await supply.getByRole("button", {name: "Done"}).click()
     await expect(supply).toBeHidden()
+    if (signedIn) {
+      // The Buy Credits window names the wallet it pays from.
+      const credits = page.locator("#shell-credits")
+      await page.locator("#shell-credits-button").click()
+      await expect(credits.locator(".credits-panel__wallet .rg-address")).toBeVisible()
+      expect(await bareAddresses(page), `Buy Credits ${at}`).toEqual([])
+      expect(await addressesOutOfCase(page), `Buy Credits ${at}`).toEqual([])
+      await credits.getByRole("button", {name: "Close"}).click()
+      await expect(credits).toBeHidden()
+    }
 
     await page.goto("/redeem")
     await expect(page.locator("#redemption-collections")).toBeVisible()
@@ -691,7 +702,16 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(submit).toHaveText(/Stake REGENT/)
   await submit.click()
   await expect.poll(() => sendCount(page)).toBe(2)
-  await expect(page.locator(`#staking-activity-${expectedHash(2)}`)).toContainText("Stake 2 REGENT for 0x2222..2222")
+  const forOther = page.locator(`#staking-activity-${expectedHash(2)}`)
+  await expect(forOther).toContainText("Stake 2 REGENT for")
+  // The address the stake went to opens and copies in full.
+  await expect(forOther.locator("strong .rg-address__full")).toHaveText(otherWallet)
+  expect(await bareAddresses(page, "#staking-activity")).toEqual([])
+  // The list's own link style leaves the address's Basescan arrow the size of its copy icon.
+  const [copyHeight, arrowHeight] = await forOther.locator("strong .rg-address").evaluate(address =>
+    [".rg-copy--icon", ".rg-address__explorer"].map(icon => address.querySelector(icon)!.getBoundingClientRect().height),
+  )
+  expect(arrowHeight).toBe(copyHeight)
   expect(await sent(page, 2)).toEqual({
     to: stakingContract,
     call: {functionName: "stake", args: [2n * 10n ** 18n, otherWallet]},

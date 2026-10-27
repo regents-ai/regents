@@ -445,6 +445,22 @@ defmodule RegentsWeb.StakeLiveTest do
     refute has_element?(view, "#staking-receipt-dialog")
   end
 
+  test "STAKE_RECEIPT_FOR_SOMEONE: the receipt for a stake to another wallet opens and copies that address",
+       %{conn: conn} do
+    other = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe"
+    view = stake_as_signer(conn, "stake-receipt-for")
+    set_amount(view, "1")
+    stake_for(view, other)
+    acknowledge(view, other)
+
+    send_landed(view, "stake", @hash, "0x1")
+    render_async(view)
+
+    assert has_element?(view, "#staking-receipt-dialog h2", "You staked 1 REGENT for")
+    assert has_element?(view, "#staking-receipt-dialog h2 .rg-address__full", other)
+    assert has_element?(view, "#staking-activity-#{@hash} strong .rg-address__full", other)
+  end
+
   test "UNSTAKE_RECEIPT: an unstake Base confirmed says the REGENT is back in the wallet",
        %{conn: conn} do
     view = stake_as_signer(conn, "unstake-receipt")
