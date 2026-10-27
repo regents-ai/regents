@@ -3234,3 +3234,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `be54337`, runs right after the error format is chosen.
 - Checks: server tests 573 (3 new in `trailing_slash_test.exs`), JavaScript 242,
   browser walk 111/111.
+
+## 2026-10-27 — v230 release record
+
+- v230 runs `c3ab4a63` (one address per page); the rollback is v229 (`572230a1`).
+  No database migrations.
+- Checked before release: server tests 573, JavaScript 242, browser walk 111/111.
+  No other shared-database app had a release in progress; built and released under
+  the shared-database lock.
+- Live checks: the machine runs `c3ab4a63` with its health check passing; /contact/,
+  /about/ and /stake/ answer 404 with the not-found page, /api/v1/products/ answers
+  the API's `not_found`, and /, /contact and /api/v1/health answer 200. Eight pages
+  load in headless Chromium at 1280 and 390 wide with no errors and no sideways
+  scroll, and Enter App opens /stake. WebKit not run on the Mac.
