@@ -3361,3 +3361,36 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and staking listeners on it, so a machine holds one listening connection instead
   of three. New check `platform/test/regents/shared_changes_test.exs`, listed in
   `FEATURES.md`.
+
+## 2026-10-27 — Visit lines: what each visit did, where it came from and where it stopped
+
+- Production now writes one line for each thing a person or agent does on regents.sh
+  and how it ended: the page or file asked for, the page shown, each press, each change
+  the site saved, each background job, each call to another site and each tool call,
+  with how long it took. Every line carries the same few things and nothing else: a
+  random id for the browser visit (a cookie that ends when the browser closes, never
+  tied to the account), a one-way code for the person or agent that cannot be turned
+  back into the account, and whether a page, a page's tool, Regents CLI or another
+  program made it. Nothing a person writes, no address and no wallet reaches a line, so
+  a visit can be told again from its lines alone. The same as ash-template `e060f3a`,
+  `b47b11a`, `7fec82e` and `a254442`.
+- A visit's first page names where it came from (an AI answer such as ChatGPT or
+  Claude, a search engine, a social site, another site, or nowhere) by name only, never
+  the address it came from. A press on any Sign in button and a finished sign-in are
+  the journey's first steps. The Privacy Policy's cookies section says so in one
+  sentence, the template's own.
+- The page reports the few things only it can see: a script error (by page, never its
+  message), one of its tools getting no answer, and a wallet press that never reached
+  the site. They go together to `/visit-log`, at most 20 at a time, which counts
+  against the same per-address budget as the API. The page's tools and the agent tools
+  list name the visit when they call the site. Phoenix's own request lines are off in
+  production, since the visit lines replace them.
+- Not here yet: the "pairing code shown" and "agent paired" steps belong to the
+  pairing box, which stays as it is until the shared agents panel arrives from the
+  template.
+- The home page now has its own live session carrying what the render knew, as in the
+  template, so its opening is a line too. New dependency `logger_json` 7.0.4. New
+  checks `platform/test/regents_web/visit_log_test.exs`,
+  `platform/test/regents_web/visit_log_page_test.exs`,
+  `platform/test/browser/visits.spec.ts` and `platform/test/browser/arrivals.spec.ts`,
+  listed in `FEATURES.md`.

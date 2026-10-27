@@ -29,6 +29,14 @@ if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
   # log the browser checks read, so a check that reaches outside fails.
   config :req, :default_options, adapter: Regents.OutsideRequests
   config :regents, Regents.OutsideRequests, log: System.fetch_env!("REGENTS_OUTSIDE_LOG")
+
+  # It writes its lines in production's shape, at production's level, to a file,
+  # which test/browser/visits.spec.ts reads to replay a visit.
+  config :logger, level: :info
+
+  config :logger, :default_handler,
+    config: [file: String.to_charlist(Path.expand("../tmp/walk-lines.jsonl", __DIR__))],
+    formatter: LoggerJSON.Formatters.Basic.new(metadata: RegentsWeb.VisitLog.fields())
 end
 
 if config_env() != :test do
@@ -126,6 +134,11 @@ if config_env() == :prod do
   config :regents, :base_read_rpc_url, System.fetch_env!("BASE_READ_RPC_URL")
 
   config :regents, :session_options, secure: true, http_only: true
+
+  # One JSON object a line, which Fly Sentinel reads, carrying only the visit
+  # fields (RegentsWeb.VisitLog). Release commands write the same shape.
+  config :logger, :default_handler,
+    formatter: LoggerJSON.Formatters.Basic.new(metadata: RegentsWeb.VisitLog.fields())
 
   unless migrating? do
     host = String.trim(System.fetch_env!("PHX_HOST"))

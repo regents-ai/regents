@@ -13,6 +13,7 @@ defmodule Regents.Application do
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
     :ok = Regents.Staking.SnapshotRefresh.attach_failure_notice()
+    :ok = RegentsWeb.VisitLog.Events.attach()
 
     children =
       [
