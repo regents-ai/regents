@@ -113,11 +113,7 @@ defmodule RegentsWeb.CreditsHistory do
   defp words(%{status: :checking}, nil), do: "Checking"
   defp words(%{status: :failed}, nil), do: "No Credits added"
 
-  # USDC to the millionth, as exact as it was paid: "5.00 USDC", "4.123456 USDC".
-  defp usdc(amount) do
-    places = max(-Decimal.normalize(amount).exp, 2)
-    "#{amount |> Decimal.round(places) |> Decimal.to_string(:normal)} USDC"
-  end
+  defp usdc(amount), do: "#{RegentFormat.amount(amount)} USDC"
 
   defp day(purchase), do: Calendar.strftime(purchase.inserted_at, "%-d %b %Y")
 

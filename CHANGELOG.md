@@ -3344,3 +3344,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   1280 and 390 wide with no errors and no sideways scroll, and Enter App opens /stake.
   The signed-in Credits panel and pairing box were not opened live (they need a
   sign-in); the property check and browser walk cover them. WebKit not run on the Mac.
+
+## 2026-10-27 — Amounts shown the one Regent way; one listening connection
+
+- Credits amounts follow Sean's one rule (ash-template `d0c846c`): from 1 up, the
+  number with exactly 2 decimals; below 1, three significant digits; digits are cut,
+  never rounded up. The Credits window's USDC balance, the purchase rows on the Credits
+  history and admin pages, and Credits and Points figures from the shared library all
+  show it. What an admin locks and sends for a refund stays exact to the millionth,
+  since the refund is matched to the purchase to the millionth on chain.
+- elixir-utils `e796a9d` -> `78f92d5` (amounts, the listeners' shared connection
+  `85d05a7`, siwa_keyring 0.2.0 and the Anthropic error message); mix.lock moves only
+  those refs.
+- `Regents.SharedChanges` opens one database listening connection,
+  `Regents.Notifications` (named `regents-listen`), and starts the Credits, Agents
+  and staking listeners on it, so a machine holds one listening connection instead
+  of three. New check `platform/test/regents/shared_changes_test.exs`, listed in
+  `FEATURES.md`.

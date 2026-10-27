@@ -13,6 +13,7 @@ config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
 config :regent_agents,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,
+  notifications: Regents.Notifications,
   account: {Regents.AgentAccount, :account},
   ash_domains: [RegentAgents]
 
@@ -29,6 +30,7 @@ config :ex_money,
 config :regent_credits,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,
+  notifications: Regents.Notifications,
   ash_domains: [RegentCredits],
   admins: [],
   chain_client: Regents.ChainClient,

@@ -228,10 +228,11 @@ defmodule RegentsWeb.CreditsAdmin do
   defp refundable?(%{status: :credited, privy_user_id: owner}, nil), do: owner != nil
   defp refundable?(_purchase, _refund), do: false
 
-  # USDC to the millionth, as exact as it was paid: "5.00 USDC", "4.123456 USDC".
-  defp usdc(amount), do: "#{plain(amount)} USDC"
+  defp usdc(amount), do: "#{RegentFormat.amount(amount)} USDC"
 
-  defp plain(amount) do
+  # What an admin locks and sends stays as exact as it was paid ("4.123456"): a
+  # refund is matched to the purchase to the millionth on chain.
+  defp exact(amount) do
     places = max(-Decimal.normalize(amount).exp, 2)
     amount |> Decimal.round(places) |> Decimal.to_string(:normal)
   end
@@ -300,7 +301,7 @@ defmodule RegentsWeb.CreditsAdmin do
               phx-click="start_refund"
               phx-value-id={purchase.id}
               phx-target={@myself}
-              data-confirm={"Lock #{plain(purchase.amount)} purchased Credits for a refund?"}
+              data-confirm={"Lock #{exact(purchase.amount)} purchased Credits for a refund?"}
             >
               Refund
             </P.button>
@@ -357,7 +358,7 @@ defmodule RegentsWeb.CreditsAdmin do
         <ul :if={@refunds != []} class="credits-admin__list">
           <li :for={refund <- @refunds}>
             <p>
-              Send exactly <strong>{usdc(refund.amount)}</strong>
+              Send exactly <strong>{exact(refund.amount)} USDC</strong>
               on <strong>{chain_name(refund.chain)}</strong>
               from the Treasury Safe <code>{@treasury}</code>
               to <code>{refund.wallet}</code>.

@@ -52,6 +52,26 @@ defmodule Regents.DatabaseConfig do
 
   def runtime_config!(_environment, _getenv), do: nil
 
+  @doc """
+  The connection the site's listeners share (`Regents.SharedChanges`): the
+  repository's own login and address, one connection rather than a pool, named
+  in pg_stat_activity.
+  """
+  def notifications_config(repo_config) do
+    repo_config
+    |> Keyword.drop([:name, :pool, :pool_size, :prepare, :parameters])
+    |> connection_keys()
+    |> Keyword.merge(auto_reconnect: true, parameters: [application_name: "regents-listen"])
+  end
+
+  # Postgrex.Notifications takes connection keys, not the repository's URL.
+  defp connection_keys(options) do
+    case Keyword.pop(options, :url) do
+      {nil, options} -> options
+      {url, options} -> Keyword.merge(Ecto.Repo.Supervisor.parse_url(url), options)
+    end
+  end
+
   def release_config!(getenv \\ &System.get_env/1) do
     case deployment_role!(getenv) do
       :production ->

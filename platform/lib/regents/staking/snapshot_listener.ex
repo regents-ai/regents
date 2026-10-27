@@ -1,5 +1,8 @@
 defmodule Regents.Staking.SnapshotListener do
-  @moduledoc "Passes shared database refresh notices to this machine's staking pages."
+  @moduledoc """
+  Passes shared database refresh notices to this machine's staking pages, heard on
+  the site's listening connection (`Regents.SharedChanges`).
+  """
 
   use GenServer
   alias Regents.Staking.SnapshotCache
@@ -8,20 +11,17 @@ defmodule Regents.Staking.SnapshotListener do
 
   @impl true
   def init(nil) do
-    {:ok, connection} =
-      Regents.Repo.config()
-      |> Keyword.drop([:name, :pool, :pool_size])
-      |> Keyword.put(:auto_reconnect, true)
-      |> Postgrex.Notifications.start_link()
+    # Listening starts now, or as soon as the connection is up.
+    {_now_or_on_connect, ref} =
+      Postgrex.Notifications.listen(Regents.Notifications, SnapshotCache.channel())
 
-    {_listening, ref} = Postgrex.Notifications.listen(connection, SnapshotCache.channel())
-    {:ok, {connection, ref}}
+    {:ok, ref}
   end
 
   @impl true
   def handle_info(
-        {:notification, connection, ref, _channel, "updated"},
-        {connection, ref} = state
+        {:notification, _connection, ref, _channel, "updated"},
+        ref
       ) do
     if snapshot = SnapshotCache.snapshot() do
       Phoenix.PubSub.broadcast(
@@ -31,12 +31,12 @@ defmodule Regents.Staking.SnapshotListener do
       )
     end
 
-    {:noreply, state}
+    {:noreply, ref}
   end
 
   def handle_info(
-        {:notification, connection, ref, _channel, "unavailable"},
-        {connection, ref} = state
+        {:notification, _connection, ref, _channel, "unavailable"},
+        ref
       ) do
     Phoenix.PubSub.broadcast(
       Regents.PubSub,
@@ -44,7 +44,7 @@ defmodule Regents.Staking.SnapshotListener do
       {:staking_snapshot_unavailable, :unavailable}
     )
 
-    {:noreply, state}
+    {:noreply, ref}
   end
 
   def handle_info(_message, state), do: {:noreply, state}

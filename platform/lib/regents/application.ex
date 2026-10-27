@@ -28,13 +28,9 @@ defmodule Regents.Application do
         {Task.Supervisor, name: Regents.Agents.Reads},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
-        # After the repository and PubSub: agent changes made on any Regent
-        # site reach the Account pages showing them.
-        agents_listener_child(),
-        # After the repository and PubSub: a Credits balance changed on any
-        # Regent site reaches the pages showing it.
-        credits_listener_child(),
-        staking_listener_child(),
+        # After the repository and PubSub: a Credits balance, a pairing or the
+        # staking figures changed on any Regent site reach the pages showing them.
+        shared_changes_child(),
         # After the repository: background jobs, including Credits purchase checks.
         oban_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
@@ -59,19 +55,9 @@ defmodule Regents.Application do
       do: Regents.Repo
   end
 
-  defp agents_listener_child do
+  defp shared_changes_child do
     if Application.get_env(:regents, :database_startup_enabled, false),
-      do: RegentAgents.Listener
-  end
-
-  defp credits_listener_child do
-    if Application.get_env(:regents, :database_startup_enabled, false),
-      do: RegentCredits.Listener
-  end
-
-  defp staking_listener_child do
-    if Application.get_env(:regents, :database_startup_enabled, false),
-      do: Regents.Staking.SnapshotListener
+      do: Regents.SharedChanges
   end
 
   # AshOban adds a queue and a sweep for every trigger in the site's domains and

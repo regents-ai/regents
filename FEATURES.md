@@ -13,6 +13,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Feature | Proving check | Gap |
 | --- | --- | --- |
 | An address with a slash at the end, other than the homepage, is not found: the not-found page for a page, the API's not-found answer for an API address | `regents_web/trailing_slash_test.exs` | |
+| A Credits balance, a pairing and the staking figures changed on any Regent site, announced through the database, reach this site's open pages, all heard on the site's one listening connection | `regents/shared_changes_test.exs` | |
 | A Credits Buy pressed before its steps reached the page is never handed to the wallet when the fresh build finds it certain to fail (too little USDC, or no approval on the chain yet); a Buy that may go through, and an approval, are handed over | `regents_web/credits_press_test.exs` (property test) | |
 | Home page: hero, six worlds in order, every width, keyboard focus, reduced motion | `browser/homepage.spec.ts`, `regents_web/home_live_test.exs` | |
 | Home page shows one cube in the middle of the stage, with "Human Browsing" above it, about half again as big on a computer | `browser/homepage.spec.ts` (the six worlds) | The drawn cube needs WebGPU, which the headless browser lacks: its size and the words over it are checked by hand in headless pictures |
