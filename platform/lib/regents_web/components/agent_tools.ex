@@ -27,11 +27,28 @@ defmodule RegentsWeb.Components.AgentTools do
 
   attr :id, :string, required: true
   attr :dialog, :string, required: true, doc: "The id of the `dialog/1` it opens."
+  attr :class, :string, default: nil, doc: "Classes for a button given its own words."
+  slot :inner_block, doc: "Its own words, in place of the count."
 
   @doc """
   The button naming how many tools agents see, which opens their list. A phone
-  shows only the count.
+  shows only the count. Given its own words, it shows those instead.
   """
+  def button(%{inner_block: [_ | _]} = assigns) do
+    ~H"""
+    <button
+      id={@id}
+      class={@class}
+      type="button"
+      aria-haspopup="dialog"
+      aria-controls={@dialog}
+      data-agent-tools-open
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+
   def button(assigns) do
     assigns = assign(assigns, label: @label, count: @count)
 

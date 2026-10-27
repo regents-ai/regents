@@ -24,13 +24,24 @@ trap 'rm -r "$context"' EXIT
 
 git archive --format=tar "$commit" | tar -x -C "$context"
 
-echo "==> Building registry.fly.io/$app:$tag from commit $commit"
-(cd "$context" && fly deploy . --app "$app" --config platform/fly.toml \
-  --build-only --push --remote-only --image-label "$tag" \
-  --ignorefile platform/Dockerfile.dockerignore \
-  --build-arg SOURCE_COMMIT="$commit" \
-  --label "org.opencontainers.image.revision=$commit")
+release() {
+  echo "==> Building registry.fly.io/$app:$tag from commit $commit"
+  (cd "$context" && fly deploy . --app "$app" --config platform/fly.toml \
+    --build-only --push --remote-only --image-label "$tag" \
+    --ignorefile platform/Dockerfile.dockerignore \
+    --build-arg SOURCE_COMMIT="$commit" \
+    --label "org.opencontainers.image.revision=$commit")
 
-echo "==> Deploying registry.fly.io/$app:$tag"
-fly deploy --app "$app" --config platform/fly.toml \
-  --image "registry.fly.io/$app:$tag" --ha=false
+  echo "==> Deploying registry.fly.io/$app:$tag"
+  fly deploy --app "$app" --config platform/fly.toml \
+    --image "registry.fly.io/$app:$tag" --ha=false
+}
+
+# Every site shares one production database, and a release briefly doubles a
+# site's connections, so releases from this machine take turns: the build and
+# release run under one lock that every site's deploy takes, and wait for it.
+lock=/tmp/regent-shared-db-release.lock
+echo "==> Waiting for any other release holding $lock"
+export app commit tag context
+export -f release
+lockf -k "$lock" bash -euo pipefail -c release

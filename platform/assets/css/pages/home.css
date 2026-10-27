@@ -138,7 +138,25 @@
   font-weight: 400; letter-spacing: .06em; text-transform: uppercase;
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
-.rg-button.rl-product-tab::after, .rg-button.rl-action::after { content: none; }
+.rg-button.rl-product-tab::after, .rg-button.rl-action::after, .rg-button.rl-hero-cta::after { content: none; }
+/* The hero's Enter App rests with the marks a main button shows on hover in
+   dark: Powder Blue at the square corners, Tangerine along the cuts. Hover runs
+   the Powder Blue on into two full L-edges and keeps the cuts. The hero's id
+   lifts these over the shared hover rule. */
+#home-hero .rg-button.rl-hero-cta::before {
+  --rg-button-edge-ink: var(--rg-button-mark-color, var(--palette-powder-blue, #aecacd));
+  --rg-button-cut-ink: var(--rg-button-mark-color, var(--palette-tangerine-tango, #ff5b19));
+  background-size:
+    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+    var(--rg-cut-control) 1px, 1px var(--rg-cut-control),
+    var(--rg-cut-control) 1px, 1px var(--rg-cut-control);
+}
+#home-hero .rg-button.rl-hero-cta:is(:hover, :focus-visible)::before {
+  background-size:
+    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+}
 .rg-button.rl-action { white-space: nowrap; }
 .rg-button.rl-product-tab::before {
   border: 1px solid var(--rg-button-border-color);

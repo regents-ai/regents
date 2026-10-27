@@ -54,7 +54,7 @@ defmodule Regents.MixProject do
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
-      {:ash, "~> 3.36"},
+      {:ash, "~> 3.37"},
       # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
       # repo's prefix that picks each site's schema on the shared database.
       {:ash_postgres, "== 2.13.0"},
@@ -102,12 +102,11 @@ defmodule Regents.MixProject do
       {:error_tracker, "~> 0.9"},
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
-      {:jose, "~> 1.11.12"},
+      {:jose, "~> 1.11.13"},
       {:decimal, "== 3.2.0"},
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},
-      # CVE-2026-105659 is fixed from 1.13.1.
-      {:bandit, "~> 1.13.1"},
+      {:bandit, "~> 1.14"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:credo_ash,

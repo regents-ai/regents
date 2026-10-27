@@ -3186,3 +3186,27 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   ex_secp256k1's and vix's files with curl, and `platform/config/config.exs` no
   longer sends mdex_native to its maker's mirror (ash-template `150c8a7`). Erlang's
   own client fetched all four files from GitHub with certificate checks on.
+
+## 2026-10-27 — The homepage hero opens the app
+
+- The hero's main button is **Enter App**, which opens Stake like the header's App.
+  It rests with the marks a main button shows on hover in dark (Powder Blue at
+  the two square corners, Tangerine along the two cuts); hover runs the Powder
+  Blue on into two full L-edges and keeps the cuts.
+- **WebMCP Tools** sits beside it as the secondary button and opens the same tools
+  list as before. The shell footer's tools button is unchanged.
+
+## 2026-10-27 — Web server, Ash and signing library security updates
+
+- Bandit 1.14.0 (was 1.13.1; eleven advisories, nine high: HTTP/2, chunked
+  bodies, WebSockets, Content-Length), Ash 3.37.2 (was 3.37.0; two advisories)
+  and jose 1.11.13 (was 1.11.12; eight advisories), as ash-template `14bdb108` and
+  `628d719`. spark, splode, crux and elixir_make moved with them.
+- ash_postgres stays at 2.13.0 for now. Its two advisories need attribute
+  multitenancy, which no resource here uses; the move to ash-project's fixed copy
+  carries a database helper migration and goes out in its own release.
+- `scripts/deploy.sh` builds and releases under
+  `lockf -k /tmp/regent-shared-db-release.lock`, so releases from this Mac take
+  turns on the shared database (ash-template `2012700`).
+- Checks: server tests 570, JavaScript 242, browser walk 111/111; `mix hex.audit`
+  lists only ash_postgres 2.13.0's two advisories.
