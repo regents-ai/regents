@@ -273,7 +273,7 @@
   font-size: 0.72rem;
 }
 
-.stake-signer > span {
+.stake-signer > span[aria-hidden="true"] {
   width: 0.45rem;
   height: 0.45rem;
   background: var(--ash-accent);
@@ -888,13 +888,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.stake-holdings a {
-  color: var(--ash-accent);
-  overflow-wrap: anywhere;
+/* An address sits at the start of its row, as long as its words and icons. */
+.stake-holdings dd > .rg-address,
+.stake-contract-facts dd > .rg-address {
+  justify-self: start;
 }
 
-.stake-holdings code {
-  font-size: 0.78rem;
+/* An address keeps its own letters, even inside the panel's uppercase controls. */
+.stake-page .rg-address,
+.stake-page .rg-address .rg-address__label {
+  letter-spacing: normal;
+  text-transform: none;
 }
 .stake-dialog-kicker,
 .stake-dialog-summary { margin-block: 0 0.75rem; }

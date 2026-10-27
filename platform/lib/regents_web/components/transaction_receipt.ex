@@ -6,10 +6,10 @@ defmodule RegentsWeb.Components.TransactionReceipt do
   when the reader closes it.
   """
   use Phoenix.Component
-  alias RegentsWeb.TokenDisplay
+  alias RegentsWeb.{OnchainSteps, TokenDisplay}
 
   attr :id, :string, required: true
-  attr :title, :string, required: true
+  attr :title, :list, required: true, doc: "parts for `OnchainSteps.note/1`"
   attr :summary, :string, required: true
   attr :hash, :string, required: true
   attr :close_event, :string, required: true
@@ -31,7 +31,7 @@ defmodule RegentsWeb.Components.TransactionReceipt do
       data-close-event={@close_event}
     >
       <p class="transaction-receipt__kicker">Base transaction receipt</p>
-      <h2 id={"#{@id}-heading"}>{@title}</h2>
+      <h2 id={"#{@id}-heading"}><OnchainSteps.note id={"#{@id}-title"} parts={@title} /></h2>
       <p class="transaction-receipt__summary">{@summary}</p>
       <dl>
         <div :for={figure <- @figures}>

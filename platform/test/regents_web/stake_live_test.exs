@@ -547,7 +547,7 @@ defmodule RegentsWeb.StakeLiveTest do
     activate(view, @second)
     assert staking_assigns(view).staking_wallet == @second
     assert actions_assigns(view).review.signer == @second
-    assert has_element?(view, ".stake-signer[title='#{@second}']")
+    assert has_element?(view, "#staking-signer-wallet-full", @second)
     refute has_element?(view, ".shell-sending-wallet")
 
     send_landed(view, "claim_usdc", @hash, "0x1")
@@ -562,11 +562,8 @@ defmodule RegentsWeb.StakeLiveTest do
     activate(view, @other)
     assert staking_assigns(view).staking_wallet == @wallet
 
-    assert has_element?(
-             view,
-             ".shell-sending-wallet",
-             "Your wallet is on 0x2222..2222, which isn't linked to this account."
-           )
+    assert has_element?(view, ".shell-sending-wallet", "which isn't linked to this account.")
+    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @other)
   end
 
   test "APPROVAL_PER_WALLET: an approval counts for the wallet that sent it, even after a switch",

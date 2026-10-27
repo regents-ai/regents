@@ -76,11 +76,10 @@ defmodule RegentsWeb.StakeLive do
             <dd>
               <strong><TokenDisplay.amount amount={holding.amount} unit="REGENT" /></strong>
               <span>{holding.release}</span>
-              <a
-                href={"https://basescan.org/address/#{holding.address}"}
-                target="_blank"
-                rel="noopener noreferrer"
-              ><code>{holding.address}</code> <span aria-hidden="true">↗</span></a>
+              <Regent.Primitives.address
+                id={"staking-supply-#{holding.key}"}
+                address={holding.address}
+              />
             </dd>
           </div>
         </dl>
@@ -332,13 +331,25 @@ defmodule RegentsWeb.StakeLive do
           >View verified staking contract on BaseScan <span aria-hidden="true">↗</span></a>
           <dl class="stake-contract-facts">
             <div>
-              <dt>Staking contract</dt><dd><code>{@staking.contract_address}</code></dd>
+              <dt>Staking contract</dt><dd>
+                <Regent.Primitives.address
+                  id="stake-details-contract"
+                  address={@staking.contract_address}
+                />
+              </dd>
             </div>
             <div>
-              <dt>REGENT token</dt><dd><code>{@staking.stake_token_address}</code></dd>
+              <dt>REGENT token</dt><dd>
+                <Regent.Primitives.address
+                  id="stake-details-regent"
+                  address={@staking.stake_token_address}
+                />
+              </dd>
             </div>
             <div>
-              <dt>USDC token</dt><dd><code>{@staking.usdc_address}</code></dd>
+              <dt>USDC token</dt><dd>
+                <Regent.Primitives.address id="stake-details-usdc" address={@staking.usdc_address} />
+              </dd>
             </div>
             <div>
               <dt>Base block</dt><dd>
@@ -502,6 +513,7 @@ defmodule RegentsWeb.StakeLive do
   defp holdings(staking, emission_apr) do
     [
       %{
+        key: "clanker-vault",
         name: "Clanker vault",
         address: staking.clanker_vault_address,
         amount: staking.clanker_vault_held,
@@ -509,12 +521,14 @@ defmodule RegentsWeb.StakeLive do
           "Locked until #{day(staking.clanker_vault_locked_until)}, then released gradually until #{day(staking.clanker_vault_vested_by)}."
       },
       %{
+        key: "treasury",
         name: "Regent treasury",
         address: staking.treasury_address,
         amount: staking.treasury_held,
         release: "Held by the protocol. No release date."
       },
       %{
+        key: "animata-redeemer",
         name: "Animata redeemer",
         address: staking.animata_redeemer_address,
         amount: staking.animata_redeemer_held,
@@ -522,6 +536,7 @@ defmodule RegentsWeb.StakeLive do
           "Released as Animata I and II holders redeem: 5,000,000 REGENT per token, vesting over seven days. No fixed date."
       },
       %{
+        key: "reward-inventory",
         name: "Staking reward inventory",
         address: staking.contract_address,
         amount: staking.reward_inventory,

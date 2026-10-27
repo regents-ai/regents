@@ -1,6 +1,7 @@
 import {decodeFunctionData, parseAbi, type Hex} from "viem"
 import {expect, test, type Page} from "./support/offline"
 
+import {addressesOutOfCase, bareAddresses} from "./support/addresses"
 import {identityTokenFor} from "./support/authenticated_privy"
 
 const wallet = "0x1111111111111111111111111111111111111111"
@@ -39,7 +40,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
 
   await selectWallet(page, otherWallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
-  await expect(page.locator(".stake-signer")).toHaveAttribute("title", otherWallet)
+  await expect(page.locator("#staking-signer-wallet-full")).toHaveText(otherWallet)
 
   await signIn(page)
   await page.evaluate(key => localStorage.setItem(key, "true"), disconnectedKey)
@@ -51,7 +52,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
 
   // A signed-in page opens on the account's own position, with no wallet open yet.
   await expect(page.locator(".stake-connect-flow")).toHaveCount(0)
-  await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
   await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "stake-wallet-enter")
   await page.emulateMedia({reducedMotion: "reduce"})
@@ -63,7 +64,10 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("button.stake-primary").click()
   await expect(page.locator("#staking-press-notice")).toContainText(
-    "You're signed in with 0x1111..1111, but your wallet app has no wallet open.",
+    "You're signed in with 0x1111..1111",
+  )
+  await expect(page.locator("#staking-press-notice")).toContainText(
+    ", but your wallet app has no wallet open.",
   )
   expect(await privyRequests(page)).not.toContain("connect-wallet")
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
@@ -212,7 +216,7 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
   await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
 
   await selectWallet(page, otherWallet)
-  await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
   const note = page.locator(".shell-sending-wallet").first()
   await expect(note).toContainText("0x2222..2222")
   await expect(note).toContainText("0x1111..1111")
@@ -249,7 +253,7 @@ test("Sign out leaves Stake unconnected, and a reload keeps it that way", async 
   await installWallet(sibling)
   await sibling.route(bridgePattern, route => route.fulfill({body: bridgeStub, contentType: "application/javascript"}))
   await sibling.goto("/redeem")
-  await expect(sibling.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+  await expect(sibling.locator("#redemption-signer-wallet-full")).toHaveText(wallet)
 
   await page.locator("#account-chip").click()
   await page.getByRole("button", {name: "Sign out"}).click()
@@ -354,9 +358,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
     await page.locator(".stake-contract-details summary").click()
     const details = page.locator("#stake-contract-details")
-    await expect(details.getByText(contract, {exact: true})).toBeVisible()
-    await expect(details.getByText(regent, {exact: true})).toBeVisible()
-    await expect(details.getByText(usdc, {exact: true})).toBeVisible()
+    await expect(details.locator("#stake-details-contract-full")).toHaveText(contract)
+    await expect(details.locator("#stake-details-regent-full")).toHaveText(regent)
+    await expect(details.locator("#stake-details-usdc-full")).toHaveText(usdc)
 
     const bar = page.locator("#staking-supply-bar").getByRole("meter")
     await expect(bar).toHaveAttribute("aria-valuenow", "0")
@@ -381,7 +385,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 
     const fit = await page.evaluate(viewport => {
-      const addresses = [...document.querySelectorAll<HTMLElement>(".stake-contract-facts code")]
+      const addresses = [...document.querySelectorAll<HTMLElement>(
+        ".stake-contract-facts :is(code, .rg-address)",
+      )]
       return {
         addresses: addresses.map(node => node.scrollWidth - node.clientWidth),
         document: document.documentElement.scrollWidth - viewport,
@@ -415,6 +421,59 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     // in the supply block, so the hero has to be the larger of the two.
     expect(presentation.stakedFont).toBeGreaterThan(presentation.supplyFont)
     expect(presentation.contractLinkHeight).toBeGreaterThanOrEqual(44)
+  }
+})
+
+// Every address Stake and Redeem show opens and copies in full: the dashboard,
+// its supply window, both Verification lists, the wallet each panel acts for and
+// the notes that name a wallet, signed out and signed in, at both widths.
+test("Stake and Redeem draw every address with the address primitive", async ({page}) => {
+  await installWallet(page)
+
+  const walk = async (signedIn: boolean, width: number) => {
+    const at = `${signedIn ? "signed in" : "signed out"} at ${width}`
+
+    await page.goto("/stake")
+    await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
+    await selectWallet(page, signedIn ? otherWallet : wallet)
+    await expect(page.locator(".stake-signer")).toBeVisible()
+    if (signedIn) {
+      // A wallet the account does not link: the notes name both wallets.
+      await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
+      await page.getByLabel("Amount", {exact: true}).fill("1")
+      await page.locator("button.stake-primary").click()
+      await expect(page.locator("#staking-press-notice")).toContainText("isn't linked to this account")
+    }
+    await page.locator(".stake-contract-details summary").click()
+    await expect(page.locator(".stake-contract-facts")).toBeVisible()
+    await page.getByRole("button", {name: "What is not circulating"}).first().click()
+    const supply = page.locator("#staking-supply-dialog")
+    await expect(supply.locator(".stake-holdings")).toBeVisible()
+    expect(await bareAddresses(page), `/stake ${at}`).toEqual([])
+    expect(await addressesOutOfCase(page), `/stake ${at}`).toEqual([])
+    await supply.getByRole("button", {name: "Done"}).click()
+    await expect(supply).toBeHidden()
+
+    await page.goto("/redeem")
+    await expect(page.locator("#redemption-collections")).toBeVisible()
+    await selectWallet(page, signedIn ? otherWallet : wallet)
+    await expect(page.locator(".redeem-signer")).toBeVisible()
+    if (signedIn) await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
+    await page.locator(".redeem-contract-details summary").click()
+    await expect(page.locator(".redeem-contract-details dl")).toBeVisible()
+    expect(await bareAddresses(page), `/redeem ${at}`).toEqual([])
+    expect(await addressesOutOfCase(page), `/redeem ${at}`).toEqual([])
+  }
+
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width, height: 900})
+    await walk(false, width)
+  }
+
+  await signIn(page)
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width, height: 900})
+    await walk(true, width)
   }
 })
 
@@ -600,7 +659,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   // chosen destination and its acknowledgment stay too.
   await selectWallet(page, otherWallet)
   await selectWallet(page, wallet)
-  await expect(page.locator(".stake-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
   await expect(receiver).toHaveValue(otherWallet)
   await expect(acknowledgment).toBeChecked()
   // A normal LiveView amount update preserves the acknowledged destination.

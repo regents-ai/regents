@@ -5,9 +5,15 @@ defmodule RegentsWeb.Components.SubmittedTransactions do
   wallet has sent one.
   """
   use Phoenix.Component
+  alias RegentsWeb.OnchainSteps
 
   attr :id, :string, required: true, doc: "each transaction's box is `\#{id}-\#{hash}`"
-  attr :sent, :list, required: true
+
+  attr :sent, :list,
+    required: true,
+    doc:
+      "each with `title` as parts for `OnchainSteps.note/1`, `hash`, `state`, `words` and `href`"
+
   attr :myself, :any, required: true
 
   def list(assigns) do
@@ -16,7 +22,7 @@ defmodule RegentsWeb.Components.SubmittedTransactions do
       <h3 id={"#{@id}-heading"} class="submitted-transactions__title">Submitted Transactions</h3>
       <ol aria-labelledby={"#{@id}-heading"} aria-live="polite">
         <li :for={entry <- @sent} id={"#{@id}-#{entry.hash}"} data-outcome={entry.state}>
-          <strong>{entry.title}</strong>
+          <strong><OnchainSteps.note id={"#{@id}-#{entry.hash}-title"} parts={entry.title} /></strong>
           <span>{entry.words}</span>
           <a href={entry.href} target="_blank" rel="noopener noreferrer">
             View on BaseScan <span aria-hidden="true">↗</span>

@@ -243,7 +243,7 @@ test("Redeem sends nothing from a wallet that is not the account's", async ({pag
   await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
 
   await selectWallet(page, otherWallet)
-  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator("#redemption-signer-wallet-full")).toHaveText(wallet)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   const note = page.locator(".shell-sending-wallet").first()
   await expect(note).toContainText("0x2222..2222")
@@ -274,7 +274,7 @@ test("Redeem keeps sent results when the active wallet changes", async ({page}) 
 
   const first = page.locator(`#redemption-activity-${expectedHash(1)}`)
   await selectWallet(page, otherWallet)
-  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator("#redemption-signer-wallet-full")).toHaveText(wallet)
   await expect(page.locator(".shell-sending-wallet").first()).toContainText("0x2222..2222")
   await expect(first).toContainText("Animata I approval")
 
@@ -283,7 +283,7 @@ test("Redeem keeps sent results when the active wallet changes", async ({page}) 
   await page.locator("#redemption-approve_nft_collection").click()
   await expect.poll(() => sendCount(page)).toBe(2)
   await signOutWallet(page)
-  await expect(page.locator(".redeem-signer")).toHaveAttribute("title", wallet)
+  await expect(page.locator("#redemption-signer-wallet-full")).toHaveText(wallet)
   await expect(first).toBeVisible()
   await expect(page.locator(`#redemption-activity-${expectedHash(2)}`)).toContainText(
     "Animata I approval",

@@ -99,7 +99,7 @@ defmodule RegentsWeb.RedeemLive do
         |> prepare(name)
 
       :error ->
-        {:reply, %{}, assign(socket, press_note: EventInput.unreadable(), press_step: nil)}
+        {:reply, %{}, assign(socket, press_note: [EventInput.unreadable()], press_step: nil)}
     end
   end
 
@@ -120,7 +120,7 @@ defmodule RegentsWeb.RedeemLive do
 
   # Anything else the page sent is not in a shape this panel takes.
   def handle_event(_event, _params, socket),
-    do: {:noreply, assign(socket, press_note: EventInput.unreadable(), press_step: nil)}
+    do: {:noreply, assign(socket, press_note: [EventInput.unreadable()], press_step: nil)}
 
   # A step that landed moved this wallet's figures, so the page reads them again.
   @impl true
@@ -167,8 +167,8 @@ defmodule RegentsWeb.RedeemLive do
 
   defp position(_failed), do: :unavailable
 
-  defp receipt_title(%{name: "redeem", inputs: inputs}), do: "You redeemed #{animata(inputs)}"
-  defp receipt_title(%{name: "claim"}), do: "You claimed your unlocked REGENT"
+  defp receipt_title(%{name: "redeem", inputs: inputs}), do: ["You redeemed #{animata(inputs)}"]
+  defp receipt_title(%{name: "claim"}), do: ["You claimed your unlocked REGENT"]
 
   defp receipt_summary(%{name: "redeem"}),
     do:
@@ -210,7 +210,7 @@ defmodule RegentsWeb.RedeemLive do
   defp failure_note("step_unknown", "redeem", %{linked: linked, active: active} = assigns)
        when is_list(linked) and is_binary(active) do
     (OnchainSteps.signer(linked, active) && Steps.token_id(assigns.selection.token_id) == :error &&
-       "Enter a token ID from 1 to 999. Nothing was sent.") ||
+       ["Enter a token ID from 1 to 999. Nothing was sent."]) ||
       OnchainSteps.failure_note("step_unknown", linked, active, "Base")
   end
 
@@ -237,10 +237,11 @@ defmodule RegentsWeb.RedeemLive do
   defp step_words(:reverted, name, _inputs), do: reverted(name)
   defp step_words(_state, _name, _inputs), do: nil
 
-  defp title("approve_nft_collection", inputs), do: "#{collection(inputs)} approval"
-  defp title("approve_exact_usdc", _inputs), do: "80 USDC approval"
-  defp title("redeem", inputs), do: "Redeem #{animata(inputs)}"
-  defp title("claim", _inputs), do: "REGENT claim"
+  # Each title is parts for `OnchainSteps.note/1`, as every step list's is.
+  defp title("approve_nft_collection", inputs), do: ["#{collection(inputs)} approval"]
+  defp title("approve_exact_usdc", _inputs), do: ["80 USDC approval"]
+  defp title("redeem", inputs), do: ["Redeem #{animata(inputs)}"]
+  defp title("claim", _inputs), do: ["REGENT claim"]
 
   defp confirmed("approve_nft_collection", inputs),
     do: "Done. #{collection(inputs)} is approved for redemption."
@@ -621,16 +622,36 @@ defmodule RegentsWeb.RedeemLive do
         >
           <dl>
             <div>
-              <dt>Redeemer</dt><dd><code>{@redemption.redeemer_address}</code></dd>
+              <dt>Redeemer</dt><dd>
+                <Regent.Primitives.address
+                  id="redeem-details-redeemer"
+                  address={@redemption.redeemer_address}
+                />
+              </dd>
             </div>
             <div>
-              <dt>Animata I</dt><dd><code>{@redemption.animata_i_address}</code></dd>
+              <dt>Animata I</dt><dd>
+                <Regent.Primitives.address
+                  id="redeem-details-animata-i"
+                  address={@redemption.animata_i_address}
+                />
+              </dd>
             </div>
             <div>
-              <dt>Animata II</dt><dd><code>{@redemption.animata_ii_address}</code></dd>
+              <dt>Animata II</dt><dd>
+                <Regent.Primitives.address
+                  id="redeem-details-animata-ii"
+                  address={@redemption.animata_ii_address}
+                />
+              </dd>
             </div>
             <div>
-              <dt>Regents Club</dt><dd><code>{@redemption.result_collection_address}</code></dd>
+              <dt>Regents Club</dt><dd>
+                <Regent.Primitives.address
+                  id="redeem-details-regents-club"
+                  address={@redemption.result_collection_address}
+                />
+              </dd>
             </div>
             <div>
               <dt>Base block</dt><dd>
@@ -674,9 +695,10 @@ defmodule RegentsWeb.RedeemLive do
             {if @wallet, do: "Complete your redemption", else: "Redeem in four signed steps"}
           </h2>
         </div>
-        <span :if={@wallet} class="redeem-signer" title={@wallet}><span aria-hidden="true"></span>{RegentFormat.short_address(
-          @wallet
-        )}</span>
+        <span :if={@wallet} class="redeem-signer"><span aria-hidden="true"></span><Regent.Primitives.address
+          id="redemption-signer-wallet"
+          address={@wallet}
+        /></span>
       </div>
 
       <div :if={!@wallet} class="redeem-connect-panel">
@@ -787,7 +809,7 @@ defmodule RegentsWeb.RedeemLive do
             ><OnchainButton.label label={control.label} /></Regent.Primitives.button>
           </div>
         </section>
-        <.mismatch :if={@signed_in} note={@mismatch_note} />
+        <.mismatch :if={@signed_in} id="redemption-flow-mismatch" note={@mismatch_note} />
         <.activity
           id="redemption-activity"
           sent={@flow_sent}
@@ -811,7 +833,7 @@ defmodule RegentsWeb.RedeemLive do
   attr :confirming, :boolean, required: true
   attr :note, :any, default: nil
   attr :sent, :list, required: true
-  attr :press, :string, default: nil
+  attr :press, :list, default: nil
   attr :myself, :any, required: true
 
   defp claim_control(assigns) do
@@ -825,7 +847,7 @@ defmodule RegentsWeb.RedeemLive do
       data-confirming={@confirming}
       phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
     ><OnchainButton.label label="Claim unlocked REGENT" /></Regent.Primitives.button>
-    <.mismatch note={@note || nil} />
+    <.mismatch id="redemption-claim-mismatch" note={@note || nil} />
     <.activity id="redemption-claim-activity" sent={@sent} press={@press} myself={@myself} />
     """
   end
@@ -1030,19 +1052,22 @@ defmodule RegentsWeb.RedeemLive do
     """
   end
 
-  attr :note, :string, default: nil
+  attr :id, :string, required: true
+  attr :note, :list, default: nil
 
   # Only the wallet the wallet app has open can act, and only when it is one of
   # the account's own. When it is not, both are named so the person can switch.
   defp mismatch(assigns) do
     ~H"""
-    <p :if={@note} class="shell-sending-wallet" role="note">{@note}</p>
+    <p :if={@note} class="shell-sending-wallet" role="note">
+      <OnchainSteps.note id={@id} parts={@note} />
+    </p>
     """
   end
 
   attr :id, :string, required: true
   attr :sent, :list, required: true
-  attr :press, :string, default: nil
+  attr :press, :list, default: nil
   attr :myself, :any, required: true
 
   # What happened to each press, newest first, read on Base by the server.
@@ -1053,7 +1078,9 @@ defmodule RegentsWeb.RedeemLive do
       class="redeem-activity"
       hidden={@sent == [] and is_nil(@press)}
     >
-      <p :if={@press} id={"#{@id}-press"} class="redeem-notice" role="alert">{@press}</p>
+      <p :if={@press} id={"#{@id}-press"} class="redeem-notice" role="alert">
+        <OnchainSteps.note id={"#{@id}-press-words"} parts={@press} />
+      </p>
       <SubmittedTransactions.list id={@id} sent={@sent} myself={@myself} />
     </section>
     """

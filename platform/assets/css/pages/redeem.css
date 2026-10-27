@@ -190,7 +190,7 @@
   letter-spacing: 0.08em;
 }
 
-.redeem-signer > span {
+.redeem-signer > span[aria-hidden="true"] {
   width: 0.45rem;
   height: 0.45rem;
   background: var(--ash-accent);
@@ -681,6 +681,18 @@
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* An address keeps its own letters, even inside the page's uppercase controls,
+   and sits at the start of its row. */
+.redeem-page .rg-address,
+.redeem-page .rg-address .rg-address__label {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.redeem-contract-details dd > .rg-address {
+  justify-self: start;
 }
 
 .redeem-contract-details code {

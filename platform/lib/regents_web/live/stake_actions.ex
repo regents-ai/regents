@@ -141,7 +141,7 @@ defmodule RegentsWeb.StakeActions do
          |> sync()}
 
       _unreadable ->
-        {:noreply, assign(socket, press_note: EventInput.unreadable())}
+        {:noreply, assign(socket, press_note: [EventInput.unreadable()])}
     end
   end
 
@@ -152,7 +152,7 @@ defmodule RegentsWeb.StakeActions do
       when is_binary(name) do
     case EventInput.texts(form, @form_limits) do
       {:ok, fields} -> prepare(socket |> apply_form(fields) |> sync(), name)
-      :error -> {:reply, %{}, assign(socket, press_note: EventInput.unreadable())}
+      :error -> {:reply, %{}, assign(socket, press_note: [EventInput.unreadable()])}
     end
   end
 
@@ -176,7 +176,7 @@ defmodule RegentsWeb.StakeActions do
 
   # Anything else the page sent is not in a shape this panel takes.
   def handle_event(_event, _params, socket),
-    do: {:noreply, assign(socket, press_note: EventInput.unreadable())}
+    do: {:noreply, assign(socket, press_note: [EventInput.unreadable()])}
 
   # A step that landed moved this wallet's figures and the contract's, so the
   # page reads both again, and the steps follow what the new reading says. A
@@ -457,13 +457,13 @@ defmodule RegentsWeb.StakeActions do
   defp missing(name, form) do
     cond do
       match?({:error, _}, Staking.parse_amount(form.amount)) ->
-        "Enter an amount in REGENT above zero. Nothing was sent."
+        ["Enter an amount in REGENT above zero. Nothing was sent."]
 
       name != "unstake" and Steps.receiver(form) == {:error, :receiver_invalid} ->
-        "Enter a valid receiving address. Nothing was sent."
+        ["Enter a valid receiving address. Nothing was sent."]
 
       name != "unstake" and Steps.receiver(form) == {:error, :receiver_unacknowledged} ->
-        "Tick the warning about the receiving address first. Nothing was sent."
+        ["Tick the warning about the receiving address first. Nothing was sent."]
 
       true ->
         nil
@@ -514,17 +514,19 @@ defmodule RegentsWeb.StakeActions do
 
   defp turned_down(_limit), do: nil
 
-  defp title("approve", _review), do: "REGENT approval"
+  # Each title is parts for `OnchainSteps.note/1`, so the address a stake goes to
+  # opens and copies in full.
+  defp title("approve", _review), do: ["REGENT approval"]
 
   defp title("stake", %{inputs: %{"for_other" => "true", "receiver" => receiver}} = review),
-    do: "Stake #{amount(review)} REGENT for #{RegentFormat.short_address(String.trim(receiver))}"
+    do: ["Stake #{amount(review)} REGENT for ", {:address, String.trim(receiver)}]
 
-  defp title("stake", %{} = review), do: "Stake #{amount(review)} REGENT"
-  defp title("unstake", %{} = review), do: "Unstake #{amount(review)} REGENT"
-  defp title("claim_usdc", _review), do: "USDC claim"
-  defp title("claim_regent", _review), do: "REGENT claim"
-  defp title("claim_and_restake_regent", _review), do: "Claim and restake"
-  defp title(_name, _review), do: "Transaction"
+  defp title("stake", %{} = review), do: ["Stake #{amount(review)} REGENT"]
+  defp title("unstake", %{} = review), do: ["Unstake #{amount(review)} REGENT"]
+  defp title("claim_usdc", _review), do: ["USDC claim"]
+  defp title("claim_regent", _review), do: ["REGENT claim"]
+  defp title("claim_and_restake_regent", _review), do: ["Claim and restake"]
+  defp title(_name, _review), do: ["Transaction"]
 
   defp confirmed("approve", _review), do: "Approved. You can stake now."
 
@@ -605,8 +607,11 @@ defmodule RegentsWeb.StakeActions do
             {if @wallet, do: "Manage your stake", else: "Stake in three steps"}
           </h2>
         </div>
-        <span :if={@wallet} class="stake-signer" title={@wallet}>
-          <span aria-hidden="true"></span>{RegentFormat.short_address(@wallet)}
+        <span :if={@wallet} class="stake-signer">
+          <span aria-hidden="true"></span><Regent.Primitives.address
+            id="staking-signer-wallet"
+            address={@wallet}
+          />
         </span>
       </div>
 
@@ -876,7 +881,7 @@ defmodule RegentsWeb.StakeActions do
               >
                 {@signed_in && @review_line}
               </p>
-              <.mismatch :if={@signed_in} note={@mismatch_note} />
+              <.mismatch :if={@signed_in} id="staking-form-mismatch" note={@mismatch_note} />
               <p
                 id="staking-amount-feedback"
                 class="stake-amount-notice"
@@ -959,7 +964,7 @@ defmodule RegentsWeb.StakeActions do
               claim.claimable
             )}</span></Regent.Primitives.button>
           </div>
-          <.mismatch :if={@signed_in} note={@mismatch_note} />
+          <.mismatch :if={@signed_in} id="staking-claims-mismatch" note={@mismatch_note} />
         </section>
 
         <div class="stake-footer">
@@ -997,25 +1002,30 @@ defmodule RegentsWeb.StakeActions do
     """
   end
 
-  attr :note, :string, default: nil
+  attr :id, :string, required: true
+  attr :note, :list, default: nil
 
   # Only the wallet the wallet app has open can act, and only when it is one of
   # the account's own. When it is not, both are named so the person can switch.
   defp mismatch(assigns) do
     ~H"""
-    <p :if={@note} class="shell-sending-wallet" role="note">{@note}</p>
+    <p :if={@note} class="shell-sending-wallet" role="note">
+      <OnchainSteps.note id={@id} parts={@note} />
+    </p>
     """
   end
 
   attr :sent, :list, required: true
-  attr :press, :string, default: nil
+  attr :press, :list, default: nil
   attr :myself, :any, required: true
 
   # What happened to each press, newest first, read on Base by the server.
   defp activity(assigns) do
     ~H"""
     <section id="staking-activity" class="stake-activity">
-      <p :if={@press} id="staking-press-notice" class="stake-notice" role="alert">{@press}</p>
+      <p :if={@press} id="staking-press-notice" class="stake-notice" role="alert">
+        <OnchainSteps.note id="staking-press-notice-words" parts={@press} />
+      </p>
       <p class="stake-notice" role="status" data-onchain-lost hidden>
         Connection lost, so nothing was sent. Press again once it's back.
       </p>
@@ -1029,13 +1039,13 @@ defmodule RegentsWeb.StakeActions do
          name: "stake",
          review: %{inputs: %{"for_other" => "true", "receiver" => receiver}} = review
        }),
-       do:
-         "You staked #{amount(review)} REGENT for #{RegentFormat.short_address(String.trim(receiver))}"
+       do: ["You staked #{amount(review)} REGENT for ", {:address, String.trim(receiver)}]
 
-  defp receipt_title(%{name: "stake", review: review}), do: "You staked #{amount(review)} REGENT"
+  defp receipt_title(%{name: "stake", review: review}),
+    do: ["You staked #{amount(review)} REGENT"]
 
   defp receipt_title(%{name: "unstake", review: review}),
-    do: "You unstaked #{amount(review)} REGENT"
+    do: ["You unstaked #{amount(review)} REGENT"]
 
   defp receipt_summary(%{name: "stake", review: %{inputs: %{"for_other" => "true"}}}),
     do:
