@@ -3294,3 +3294,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The agent window here is still this site's own, so the template's new window
   headings come with the move to the shared `Regent.Account.agent_detail`.
 - Checks: server tests 574, JavaScript 242, browser walk 111/111.
+
+## 2026-10-27 — v232 release record
+
+- v232 runs `a1c12207` (agent list from design-system `0c72c964`, See Actions); the
+  rollback is v231 (`49745bb1`). No database migrations ("Migrations already up").
+- Checked before release: server tests 574, JavaScript 242, browser walk 111/111.
+  No other shared-database app had a release in progress; released under the lock.
+- Live checks: the machine runs `a1c12207` with its health check passing and no
+  error lines; eight public pages load in headless Chromium at 1280 and 390 wide
+  with no errors and no sideways scroll, and Enter App opens /stake. The signed-in
+  Account list was not opened live (it needs a sign-in); its LiveView tests cover
+  See Actions. WebKit not run on the Mac.
