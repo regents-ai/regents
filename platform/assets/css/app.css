@@ -1,3 +1,6 @@
+/* Layer order: the native-control defaults first, so every product rule wins over them. */
+@layer regents-base, regents-product;
+
 @import "../vendor/regent_ui/design_system_tokens.css";
 @import "../vendor/regent_ui/primitives.css";
 @import "./tokens/root.css";
@@ -85,19 +88,22 @@ h6 {
   font-synthesis: none;
 }
 
-/* Native fallback controls; actual application actions use Regent.Primitives. */
-button:not(.rg-button),
-input {
-  border: 1px solid currentColor;
-  border-radius: 0;
-  background: var(--color-surface-elevated, Canvas);
-  color: var(--color-fg, CanvasText);
-}
+/* Native fallback controls; actual application actions use Regent.Primitives.
+   In the lowest layer, so any component's own button or field rule wins. */
+@layer regents-base {
+  button:not(.rg-button),
+  input {
+    border: 1px solid currentColor;
+    border-radius: 0;
+    background: var(--color-surface-elevated, Canvas);
+    color: var(--color-fg, CanvasText);
+  }
 
-button:not(.rg-button) {
-  min-height: 2.75rem;
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
+  button:not(.rg-button) {
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+  }
 }
 
 button:focus-visible,

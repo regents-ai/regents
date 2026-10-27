@@ -3318,3 +3318,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - New property check `platform/test/regents_web/credits_press_test.exs` (fails on the
   old reply), listed in `FEATURES.md`; `stream_data` is now a direct dependency, as in
   the template.
+
+## 2026-10-27 — Small icon buttons keep their own look
+
+- The plain-button defaults (a dark border, a 44 px floor and padding) now sit
+  in the lowest style layer, as ash-template has them, so every component's own
+  button rule wins over them. The pairing box's copy and new-code icons are small
+  and even again instead of sitting in large dark boxes of unequal height.
+- Checked in headless Chromium against the live pages at 1280 and 390 px, light
+  and dark: every public page draws the same except the pairing icons. WebKit not
+  run on the Mac.
