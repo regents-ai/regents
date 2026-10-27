@@ -3403,3 +3403,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   "Plus 20% a year in REGENT" (was "Early 20% yield"). Same dark look, frame
   and layout; the words stay clear of the corner where X writes the site's
   name. The picture's description says the same.
+
+## 2026-10-27 — v234 release record
+
+- v234 runs `f6930c94` (Credits amounts shown the one Regent way; one listening database
+  connection, `regents-listen`, for Credits, pairing and staking changes); the rollback is
+  v233 (`1d5f997e`). No database migrations in the range. The visit lines on main
+  (`29ca02b1`) are left out on purpose: the template chief asked every site to hold them
+  until Sean answers VISIT-SOURCES-PRIVACY, so the release was built from the commit before
+  them.
+- Checked before release: server tests 576 (one property check), JavaScript 242, browser
+  walk 111/111; required fixes clean. Released under the shared-database lock.
+- Live checks: one machine runs `f6930c94` (image label `main-f6930c94a00b`) with its
+  health check passing (one failed check in the seconds before the server listened). Eight
+  public pages load in headless Chromium at 1280 and 390 wide with no errors and no
+  sideways scroll, and Enter App opens /stake; /stake shows live Base figures. The
+  signed-in Credits panel was not opened live (it needs a sign-in). WebKit not run on the
+  Mac.
