@@ -11,11 +11,12 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
     verified = verified_identity("reconcile", [social(:x, "x-42", "regent")])
 
     assert {:ok, account, []} = VerifiedSession.establish(verified)
+    account_id = account.id
 
     assert {:ok, [%{provider: :x, subject: "x-42", username: "regent"}]} =
              Accounts.list_my_linked_identities(actor: %Human{human_account_id: account.id})
 
-    assert {:ok, ^account, []} =
+    assert {:ok, %{id: ^account_id}, []} =
              VerifiedSession.establish(%{verified | linked_socials: []})
 
     assert {:ok, []} =
@@ -25,6 +26,7 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
   test "session refresh leaves ENS and World identities untouched" do
     verified = verified_identity("preserve", [social(:github, "github-7", "regents-ai")])
     assert {:ok, account, []} = VerifiedSession.establish(verified)
+    account_id = account.id
 
     for {provider, subject} <- [ens: "regent.eth", world: "world-nullifier"] do
       assert {:ok, _identity} =
@@ -40,7 +42,7 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
                )
     end
 
-    assert {:ok, ^account, []} =
+    assert {:ok, %{id: ^account_id}, []} =
              VerifiedSession.establish(%{verified | linked_socials: []})
 
     assert {:ok, identities} =
@@ -68,6 +70,7 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
   test "a subject conflict preserves the existing provider row and reports the conflict" do
     verified = verified_identity("preserve-conflict", [social(:x, "x-old", "old-user")])
     assert {:ok, account, []} = VerifiedSession.establish(verified)
+    account_id = account.id
 
     assert {:ok, _owner, []} =
              VerifiedSession.establish(
@@ -76,7 +79,7 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
                ])
              )
 
-    assert {:ok, ^account, [:x]} =
+    assert {:ok, %{id: ^account_id}, [:x]} =
              VerifiedSession.establish(%{
                verified
                | linked_socials: [social(:x, "x-shared", "shared-user")]
@@ -119,6 +122,7 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
       ])
 
     assert {:ok, account, []} = VerifiedSession.establish(verified)
+    account_id = account.id
 
     assert {:ok, _owner, []} =
              VerifiedSession.establish(
@@ -127,7 +131,7 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
                ])
              )
 
-    assert {:ok, ^account, [:x]} =
+    assert {:ok, %{id: ^account_id}, [:x]} =
              VerifiedSession.establish(%{
                verified
                | linked_socials: [

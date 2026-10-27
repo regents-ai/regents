@@ -3247,3 +3247,24 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   the API's `not_found`, and /, /contact and /api/v1/health answer 200. Eight pages
   load in headless Chromium at 1280 and 390 wide with no errors and no sideways
   scroll, and Enter App opens /stake. WebKit not run on the Mac.
+
+## 2026-10-27 — Ash's database layer from its fixed copy; required values report Ash's error
+
+- ash_postgres comes from ash-project/ash_postgres at `55db7d44` (2.15.2 with #910:
+  upserts use the repository's prefix, so rows stay in `regents_app` on the shared
+  database), as ash-template `33c5cd1`; ash_sql 0.8.4, ash_phoenix 2.3.26, ash_oban
+  0.10.3. Every shared Regent library moves to elixir-utils `e796a9d` (the Credits
+  library installs the version 7 helper on a fresh database). `mix hex.audit` is clean.
+- Migration `20261027045129_ash_functions_v7_extensions_1` replaces
+  `public.ash_required`, the helper every site's queries find, with version 7: the old
+  one ran with an empty search path and could not find `ash_raise_error`, so a missing
+  required value failed with "function does not exist" rather than Ash's error. It is
+  the body ash-template v111 and Patchbay v274 already put there (Sean, 27 Oct "1. a").
+- Signed WebMCP calls label themselves `x-regent-client: webmcp/<tool>`, beside the
+  proof and never part of it, as elixir-utils now requires.
+- Checks: on a database built from every migration, server tests 574 (new
+  `test/regents/required_value_test.exs`, which fails with "does not exist" when
+  version 6 is put back), JavaScript 242, browser walk 111/111; required fixes against
+  ash-template `810223a6` all present; no table written to `public`. Four sign-in tests
+  compare account ids rather than whole records, since ash_postgres 2.15.2 adds its
+  upsert note to a record's metadata.

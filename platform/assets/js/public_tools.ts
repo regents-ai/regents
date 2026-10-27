@@ -96,6 +96,7 @@ function transport() {
     trustedOrigins: [document.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')?.content ?? ""],
     audience: manifest.audience,
     proofHeaders: manifest.proof_headers,
+    requestHeaders: tool => ({"x-regent-client": `webmcp/${tool}`}),
     // Only the signed tools are operations; each is sent with its operation's own inputs.
     operations: manifest.tools.flatMap(entry =>
       "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
