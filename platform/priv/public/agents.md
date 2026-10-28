@@ -11,15 +11,15 @@ One sign-in works across every Regent site, and so does a pairing. A person can 
 ## 1. Install and sign in
 
 ```sh
-uv tool install regents-cli==1.10.19
+uv tool install regents-cli==1.10.20
 regents --version
 regents auth login --site regents
 regents protocol doctor
 ```
 
-Expect `1.10.19` from source commit `02f89615c4d8ceaf4c6f597f07112e41f001adc6`; the
+Expect `1.10.20` from source commit `0e3768f5b92fe8210fb00fea0053bcb5e9c2afaf`; the
 published wheel's SHA256 is
-`935c21569a740d90ea7d6951584ab6de3757af8fa07e2302f5c01ef69e959080`.
+`55b242b41a86e4bd1952e1edb93e31e5cd718186e735867d4b276243f96179ad`.
 
 Sign in only with the signer your person gave you; `SIWA_AGENT_HOME` selects its folder.
 `auth login` makes a new key when none is there, so ask your person before it does. Never

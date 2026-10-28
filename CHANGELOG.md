@@ -3781,3 +3781,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Keyfleet's three rows on the home page link to its live pages.
 - Keyfleet's browser tools are read from the address Keyfleet now uses.
 - The Buy Credits window and the book tips sit flat on the page, with a border and no shadow.
+
+## 2026-10-28 — Agents install the newest command line
+
+- The start page, agent guide, docs and llms.md point agents at regents-cli 1.10.20,
+  which reads agent status with `regents agents status`.
+- The web server moves to Bandit 1.14.1, which closes a memory-use weakness in how it
+  reads uploads sent in many tiny pieces (EEF-CVE-2026-116078), as ash-template did.
+- Release record: v241 = review fixes 9a4c815b..21a1eeea plus this pin. agent_start.ex,
+  agents.md (source commit 0e3768f5b92fe8210fb00fea0053bcb5e9c2afaf, wheel SHA256
+  55b242b41a86e4bd1952e1edb93e31e5cd718186e735867d4b276243f96179ad), docs.md, llms.md
+  and the Makefile's REGENTS_CLI_REV move from 1.10.19. No database changes. Rollback:
+  v240 787b0e05.
