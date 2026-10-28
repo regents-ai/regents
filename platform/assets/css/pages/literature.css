@@ -295,7 +295,6 @@
   padding: 0.9rem 1rem 1rem;
   border: 1px solid var(--ash-line-strong);
   background: var(--color-bg);
-  box-shadow: 0 8px 24px color-mix(in oklab, var(--palette-charcoal) 30%, transparent);
 }
 
 .lit-pop__title {
