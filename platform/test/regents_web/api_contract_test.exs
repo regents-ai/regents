@@ -445,12 +445,24 @@ defmodule RegentsWeb.ApiContractTest do
   end
 
   test "the tool list also says which commit and image the site runs", %{conn: conn} do
+    previous = Application.fetch_env!(:regents, :build)
+    on_exit(fn -> Application.put_env(:regents, :build, previous) end)
+
+    Application.put_env(:regents, :build, %{
+      commit: "0123abcd",
+      release: "registry.fly.io/regents-sh-web:deployment-test"
+    })
+
     body = conn |> get("/capabilities.json") |> json_response(200)
 
     assert body["tools"] != []
 
-    assert body["build"] ==
-             Map.new(Application.fetch_env!(:regents, :build), fn {k, v} -> {"#{k}", v} end)
+    assert body["build"] == %{
+             "commit" => "0123abcd",
+             "release" => "registry.fly.io/regents-sh-web:deployment-test"
+           }
+
+    assert conn |> recycle() |> get("/capabilities") |> response(404)
   end
 
   defp refusal(code, message, hint),

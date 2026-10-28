@@ -29,7 +29,7 @@ defmodule Regents.SiteTools do
     "patchbay" => %{name: "patchbay.help", url: "https://patchbay.help/forum/capabilities"},
     "techtree" => %{name: "techtree.sh", url: "https://techtree.sh/capabilities"},
     "autolaunch" => %{name: "autolaunch.sh", url: "https://autolaunch.sh/capabilities"},
-    "keyfleet" => %{name: "keyfleet.ai", url: "https://keyfleet.ai/capabilities"}
+    "keyfleet" => %{name: "keyfleet.ai", url: "https://keyfleet.ai/capabilities.json"}
   }
 
   @type tool :: %{name: String.t(), title: String.t(), description: String.t()}

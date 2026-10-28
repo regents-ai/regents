@@ -169,6 +169,7 @@
 
   .world-cube:not([data-world-ready]):focus-within .world-cube__worlds {
     opacity: 1;
+    pointer-events: auto;
   }
 }
 

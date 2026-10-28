@@ -1,6 +1,7 @@
 defmodule Regents.RateLimiter do
   @moduledoc """
-  Fixed-window request budgets, kept in memory on each instance.
+  Fixed-window request budgets in one ETS table, kept in memory on each instance
+  (the template's `AshTemplate.Accounts.RequestRateLimiter`).
 
   This is a per-instance best-effort bound, not a global hard cap. With N
   application instances, a caller can make up to N × limit requests in one
@@ -33,11 +34,12 @@ defmodule Regents.RateLimiter do
   @spec admit(term(), pos_integer(), pos_integer()) ::
           {:ok, budget()} | {:error, :rate_limited, budget()}
   def admit(key, limit, window_seconds) do
-    table = ensure_table()
     now = Application.fetch_env!(:regents, :rate_limiter_clock).()
     bucket = Integer.floor_div(now, window_seconds)
-    sweep_expired(table, bucket, window_seconds)
-    count = increment(table, {window_seconds, key}, bucket)
+    sweep(window_seconds, bucket)
+    # Each window has its own row, so a new window starts from a fresh counter.
+    row = {window_seconds, key, bucket}
+    count = :ets.update_counter(@table, row, {2, 1}, {row, 0})
 
     budget = %{
       limit: limit,
@@ -52,50 +54,19 @@ defmodule Regents.RateLimiter do
   @doc false
   @spec reset() :: :ok
   def reset do
-    case :ets.whereis(@table) do
-      :undefined -> :ok
-      table -> :ets.delete_all_objects(table)
-    end
-  end
-
-  defp increment(table, key, bucket) do
-    case :ets.lookup(table, key) do
-      [] -> insert_first(table, key, bucket)
-      [{^key, ^bucket, _count}] -> :ets.update_counter(table, key, {3, 1})
-      [{^key, old_bucket, count}] -> reset_expired(table, key, old_bucket, count, bucket)
-    end
-  end
-
-  defp insert_first(table, key, bucket) do
-    if :ets.insert_new(table, {key, bucket, 1}),
-      do: 1,
-      else: increment(table, key, bucket)
-  end
-
-  defp reset_expired(table, key, old_bucket, count, bucket) do
-    replacement = [{{key, old_bucket, count}, [], [{{key, bucket, 1}}]}]
-
-    if :ets.select_replace(table, replacement) == 1,
-      do: 1,
-      else: increment(table, key, bucket)
-  end
-
-  defp sweep_expired(table, bucket, window_seconds) do
-    if :ets.insert_new(table, {{:sweep, window_seconds, bucket}, true}) do
-      :ets.select_delete(table, [
-        {{{window_seconds, :"$1"}, :"$2", :"$3"}, [{:<, :"$2", bucket}], [true]}
-      ])
-
-      :ets.select_delete(table, [
-        {{{:sweep, window_seconds, :"$1"}, :"$2"}, [{:<, :"$1", bucket}], [true]}
-      ])
-    end
-
+    :ets.delete_all_objects(@table)
     :ok
   end
 
-  defp ensure_table do
-    GenServer.call(__MODULE__, :table)
+  # The first request of a window drops that window's older counters, and the
+  # older sweep markers with them.
+  defp sweep(window_seconds, bucket) do
+    if :ets.insert_new(@table, {{:swept, window_seconds, bucket}}) do
+      :ets.select_delete(@table, [
+        {{{window_seconds, :_, :"$1"}, :_}, [{:<, :"$1", bucket}], [true]},
+        {{{:swept, window_seconds, :"$1"}}, [{:<, :"$1", bucket}], [true]}
+      ])
+    end
   end
 
   @impl true
@@ -110,7 +81,4 @@ defmodule Regents.RateLimiter do
 
     {:ok, nil}
   end
-
-  @impl true
-  def handle_call(:table, _from, state), do: {:reply, @table, state}
 end

@@ -188,7 +188,7 @@ defmodule RegentsWeb.VisitLog do
     conn = fetch_cookies(conn)
     gpc = gpc?(conn)
     {surface, client} = surface(conn)
-    {conn, visit} = if gpc, do: {conn, nil}, else: visit(conn, surface)
+    {conn, visit} = if gpc, do: {forget(conn), nil}, else: visit(conn, surface)
     # Only a browser sends Global Privacy Control, so its API calls are its page's own.
     surface = if surface == "agent_http" and (visit || gpc), do: "page", else: surface
     Logger.metadata(visit: visit, surface: surface)
@@ -254,6 +254,12 @@ defmodule RegentsWeb.VisitLog do
 
   @doc "Whether the browser sent Global Privacy Control: no visit, cookie, `arrival` or `step` line for it."
   def gpc?(conn), do: get_req_header(conn, "sec-gpc") == ["1"]
+
+  # A browser that now asks not to be tracked loses the visit it was given before.
+  defp forget(%Plug.Conn{cookies: %{@cookie => _visit}} = conn),
+    do: delete_resp_cookie(conn, @cookie)
+
+  defp forget(conn), do: conn
 
   @doc "Where a visit that starts with this request came from (see the moduledoc)."
   def arrival(conn) do
