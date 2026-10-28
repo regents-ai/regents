@@ -56,7 +56,7 @@ wallet; name claims cover their verified wallets. Page claims by passing `next` 
 `after`, and Credits history by passing `pagination.next_cursor` back as `after` while it is
 not null (`--after` on the command line). A value that could not be read
 is unknown, not zero. Keep Credits, held Credits, Points and claims apart. `whoami` only
-reads; `agents me` records a check-in. Reading Points earns none, and reading the budget
+reads; `agents status` records a check-in. Reading Points earns none, and reading the budget
 grants nothing. Name claims here are past records, not tokens to claim.
 
 In a page that offers browser tools, call `prepare_agent_request` with the tool's name and
