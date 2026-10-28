@@ -3713,3 +3713,11 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   /redeem and /stake at 320 and 390 wide shows no sideways scroll and no cut-off button
   or link; the Redeem intro button reads "Connect wallet"; the Stake Buy and chart links
   stack at 320 and sit side by side at 390. WebKit not run on the Mac.
+
+## 2026-10-28 — Agent skill: picking a product and checking back
+
+- /skill.md now helps an agent pick the right Regent product for its person's goal
+  (`regents protocol products list` or `regents_products`), lists every account read
+  beside its command and browser tool, and says how often to check back: account, name
+  claims and Points daily, Credits before each spend decision, staking daily and once
+  after the person acts.
