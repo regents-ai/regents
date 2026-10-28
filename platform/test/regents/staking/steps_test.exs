@@ -9,12 +9,19 @@ defmodule Regents.Staking.StepsTest do
   @regent "0x6f89bca4ea5931edfcb09786267b251dee752b07"
   @one "1000000000000000000"
 
+  # Every step ends with Regent's Base Builder Code, bc_u09360jo (ERC-8021 schema 0).
+  @code "62635f7530393336306a6f0b0080218021802180218021802180218021"
+
   # Calldata the page's browser code built for these same presses before the
-  # server took over, byte for byte; the approval is for every REGENT there is.
-  @approve_unlimited "0x095ea7b3000000000000000000000000b027dc261636e30cbc0fe25b2f8e1ed273354ab5ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-  @stake_one "0x7acb77570000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000001111111111111111111111111111111111111111"
-  @stake_one_for_other "0x7acb77570000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000de0b295669a9fd93d5f28d9ec85e40f4cb697bae"
-  @unstake_one "0x8381e1820000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000001111111111111111111111111111111111111111"
+  # server took over, byte for byte, then the code; the approval is for every REGENT there is.
+  @approve_unlimited "0x095ea7b3000000000000000000000000b027dc261636e30cbc0fe25b2f8e1ed273354ab5ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" <>
+                       @code
+  @stake_one "0x7acb77570000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000001111111111111111111111111111111111111111" <>
+               @code
+  @stake_one_for_other "0x7acb77570000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000de0b295669a9fd93d5f28d9ec85e40f4cb697bae" <>
+                         @code
+  @unstake_one "0x8381e1820000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000001111111111111111111111111111111111111111" <>
+                 @code
 
   defp form(overrides \\ %{}),
     do:
@@ -54,13 +61,17 @@ defmodule Regents.Staking.StepsTest do
     assert [
              %{
                step: "claim_usdc",
-               data: "0x428526100000000000000000000000001111111111111111111111111111111111111111"
+               data:
+                 "0x428526100000000000000000000000001111111111111111111111111111111111111111" <>
+                   @code
              },
              %{
                step: "claim_regent",
-               data: "0x739c8d0d0000000000000000000000001111111111111111111111111111111111111111"
+               data:
+                 "0x739c8d0d0000000000000000000000001111111111111111111111111111111111111111" <>
+                   @code
              },
-             %{step: "claim_and_restake_regent", data: "0xe72a8732"}
+             %{step: "claim_and_restake_regent", data: "0xe72a8732" <> @code}
            ] = steps(%{paused: true}, form(%{amount: ""}))
 
     for amount <- ["", "0", "-1", "1.0000000000000000001", "abc"] do

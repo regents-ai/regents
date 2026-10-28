@@ -3793,3 +3793,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   55b242b41a86e4bd1952e1edb93e31e5cd718186e735867d4b276243f96179ad), docs.md, llms.md
   and the Makefile's REGENTS_CLI_REV move from 1.10.19. No database changes. Rollback:
   v240 787b0e05.
+
+## 2026-10-28 — Newest shared sign-in and wallet library
+
+- Each agent keeps its own key folder, and an agent's check-in no longer loses its notifications.
+- Every Stake and Redeem wallet step ends with Regent's Base builder code, so Base credits Regent for it; the contracts ignore it.
+- The Credits card purchase table comes with the library, as on every Regents site; buying Credits by card stays off.
