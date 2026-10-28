@@ -3728,3 +3728,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   of its pages, tool calls or reports carries a visit, so nothing groups its activity
   into one visit. Before, only the lines for where a visit came from and how far it got
   were left out; the visit itself was still kept.
+
+## 2026-10-28 — v240 release record
+
+- v240 runs `787b0e05`: a browser that sends Global Privacy Control starts no visit (no
+  `_visit` cookie, no visit on its pages, tool calls or reports), and the agent skill page
+  update `db98e9c3` from another lane. Shipped on its own ahead of the template rollout,
+  on Sean's 08:24Z answer. Rollback v239 (`d791de80`). No database migrations.
+- Checked before v240: server tests 592 (587 tests, five property checks), JavaScript 242,
+  browser walk 125/127 with the other two passing on a rerun (load timeouts, machine load
+  about 240), required fixes all present.
+- Live checks on v240: the machine's image label is `787b0e05`; headless Chromium over /,
+  /stake and /redeem gets the `_visit` cookie and the visit tag without Global Privacy
+  Control, and neither with it. WebKit not run on the Mac.
