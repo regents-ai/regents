@@ -35,26 +35,85 @@
   .rl-token-copy__icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
   .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
+  /* Two columns of flat panels, like a printed sheet laid out in blocks. The first
+     column is the shorter; a phone stacks it above the second. Each panel keeps
+     the design system's cut corners and its own flat fill. */
+  .rl-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); }
+  .rl-column { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2); min-width: 0; }
+  .rl-panel { display: grid; align-content: start; gap: var(--space-3); padding: var(--rg-panel-padding); }
+  .rl-panel:is(.rl-panel--how, .rl-panel--products) { container-type: inline-size; }
+  /* A panel's links are its own ink, outlined, so they read on every fill. */
+  .rl-panel-link {
+    --rg-p-surface: transparent; --rg-p-text: var(--rg-panel-ink); --rg-p-control-border: currentColor;
+    justify-self: start;
+  }
+  /* A small mono label over a panel's words, ruled off above like a printed sheet. */
+  .rl-eyebrow {
+    font: var(--font-weight-regular) .75rem/1.4 var(--font-family-mono);
+    letter-spacing: var(--tracking-microlabel); text-transform: uppercase;
+  }
+  .rl-panel > .rl-eyebrow:first-child { padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
+  .rl-mono { font: .875rem/1.55 var(--font-family-mono); }
+
+  .rl-statement {
+    padding-block-end: var(--space-4); border-block-end: 1px solid var(--rg-local-rule); text-wrap: pretty;
+    font: var(--font-weight-regular) clamp(1.75rem, 3.2vw, 2.5rem)/1.2 var(--font-family-sans); letter-spacing: -.02em;
+  }
+  .rl-statement strong { font-weight: var(--font-weight-semibold); }
+
+  /* Four product cards on the Products sheet, two by two, ruled off above like the
+     rows of How it works. Each card's drawing stands on a flat tile of its colour. */
+  .rl-product-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+  .rl-product-card { display: grid; grid-template-rows: auto auto auto 1fr auto; gap: var(--space-1); min-width: 0; padding-block-start: var(--space-3); border-block-start: 1px solid var(--rg-local-rule); }
+  /* The drawing fills its shapes with --rg-panel-fill, so the tile names its own. */
+  .rl-product-card__tile { --rg-panel-fill: var(--rl-tile); display: grid; place-items: center; width: 6rem; aspect-ratio: 1; margin-block-end: var(--space-2); background: var(--rl-tile); color: var(--rl-tile-ink); }
+  .rl-product-card[data-product="autolaunch"] { --rl-tile: var(--support-band-surface); --rl-tile-ink: var(--support-band-ink); }
+  .rl-product-card[data-product="techtree"] { --rl-tile: var(--support-figure-surface); --rl-tile-ink: var(--support-figure-ink); }
+  .rl-product-card[data-product="patchbay"] { --rl-tile: var(--support-panel-surface); --rl-tile-ink: var(--support-panel-ink); }
+  .rl-product-card[data-product="keyfleet"] { --rl-tile: var(--palette-charcoal); --rl-tile-ink: var(--palette-platinum); }
+  .rl-product-card[data-product="keyfleet"] .rl-product-card__tile { outline: 1px solid var(--rg-local-rule); outline-offset: -1px; }
+  .rl-product-card .rl-card-diagram { width: 4.5rem; height: 4.5rem; }
+  .rl-product-card__name { font: 400 1.75rem/1.1 var(--font-family-title); }
+  .rl-product-card .rl-mono { align-self: start; }
+  .rl-product-card .rl-panel-link { margin-block-start: var(--space-2); }
+  /* The drawings are the Overview's, made line icons at this size. */
+  .rl-panels .rl-card-diagram :is(path, rect) { vector-effect: non-scaling-stroke; }
+
+  /* How it works: three ruled columns, each a drawing, a label, a line and a link. */
+  .rl-how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+  .rl-how__step { display: grid; grid-template-rows: auto auto 1fr auto; gap: var(--space-2); min-width: 0; padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
+  .rl-how .rl-card-diagram { width: 3.5rem; height: 3.5rem; }
+  .rl-how__title { font: var(--font-weight-semibold) .8125rem/1.4 var(--font-family-mono); letter-spacing: var(--tracking-microlabel); text-transform: uppercase; }
+
+  /* Principles: a short ruled list of statements. */
+  .rl-principles { display: grid; margin: 0; padding: 0; list-style: none; }
+  .rl-principles > li { display: grid; gap: var(--space-1); padding-block: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
+  .rl-principles > li:last-child { border-block-end: 1px solid var(--rg-local-rule); }
+  .rl-principles__title { font: var(--font-weight-regular) clamp(1.375rem, 2.2vw, 1.75rem)/1.2 var(--font-family-sans); letter-spacing: -.015em; }
+  .rl-principles .rl-mono { color: color-mix(in srgb, var(--rg-panel-ink) 72%, var(--rg-panel-fill)); }
+
+  /* The hero is a panel of the second column: its words, then the cube's stage
+     below them, the cube drawn in the middle. The stage is the hero's width, so
+     the cube's own layout answers to the hero, not the window. */
+  .rl-panel--hero { padding: var(--space-3); }
   .rl-hero { min-width: 0; }
-  .rl-hero-copy { position: relative; z-index: 1; width: fit-content; max-width: 100%; align-self: start; padding: var(--space-1) var(--space-2) var(--space-2) 0; }
-  .rl-hero-copy h1 { margin-block-start: var(--space-2); font-size: clamp(2.75rem, 5vw, 4.5rem); line-height: 1.05; letter-spacing: -.035em; }
+  .rl-hero--home {
+    container-type: inline-size;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto;
+  }
+  .rl-hero-copy { width: fit-content; max-width: 100%; align-self: start; padding: var(--space-2) 0 var(--space-4); }
+  .rl-hero-copy h1 { font-size: clamp(2.25rem, 11cqi, 4.5rem); line-height: 1.05; letter-spacing: -.035em; overflow-wrap: anywhere; }
   .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
-  .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); pointer-events: auto; }
+  .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); }
   /* One line under the buttons for people whose agent works from the command line;
      the link is a full 44px tall so it is easy to tap on a phone. */
-  .rl-hero-agents { margin-block-start: var(--space-1); font-size: .875rem; line-height: 1.5; pointer-events: auto; }
+  .rl-hero-agents { margin-block-start: var(--space-1); font-size: .875rem; line-height: 1.5; }
   .rl-hero-agents a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
-  /* Phones stack the heading and the stage. On desktop the heading overlays
-     the stage, whose fallback list reserves the same height as the drawn cube. */
-  .rl-hero--home {
-    display: grid; grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-  }
-  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding: var(--space-3); pointer-events: none; transition: opacity 320ms ease-out; }
+  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; }
   .rl-hero--home .world-cube { grid-area: 2 / 1; grid-template-rows: minmax(0, 1fr); min-height: 0; }
   .rl-hero--home .world-cube__worlds { align-self: stretch; }
-  /* "Human Browsing" over the cube, while the pointer is on it; where nothing
-     hovers, it stays shown. */
+  /* "Human Browsing" centred over the cube, while the pointer is on it; where
+     nothing hovers, it stays shown. */
   .rl-cube-label {
     position: relative; z-index: 2; grid-area: 2 / 1; align-self: start; justify-self: center;
     margin: 0; padding-top: var(--space-3);
@@ -82,40 +141,22 @@
     /* Phone tap targets are 44px square; the icons keep their size. */
     .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
-    .rl-hero-copy { padding: 0; }
-    .rl-hero-copy h1 { font-size: clamp(2.5rem, 10vw, 4.5rem); }
-    /* On a phone the name sits at the left of the stage. */
-    .rl-cube-label { justify-self: start; padding-inline: var(--space-3); }
     .rl-brand { font-size: .875rem; }
   }
-  @media (min-width: 48rem) {
-    .rl-hero--home { --rl-worlds-height: 55.5rem; }
-    .rl-hero--home .rl-hero-copy { padding: var(--space-5) var(--space-5) var(--space-3); }
-    /* A desktop room overlays the heading; phones keep theirs above the stage. */
-    .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) .rl-hero-copy { opacity: 0; }
-    .rl-hero--home:has(.world-cube[data-world-ready="true"]:is([data-world-state="entering"], [data-world-state="inside"])) :is(.rl-hero-actions, .rl-hero-agents) { pointer-events: none; }
-    .rl-hero--home { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto minmax(var(--rl-worlds-height), auto); }
-    /* Drawn, the cube stands in the middle of the stage, its name over it and
-       its hint under it. Where it is not drawn, the list of worlds keeps the
-       stage's full width, so the stage is the same height either way. */
-    .rl-hero--home .world-cube { --world-cube-size: .85; grid-area: 1 / 1 / span 2 / span 2; grid-template-rows: subgrid; }
-    .rl-hero--home .world-cube__worlds { grid-row: 2; align-self: center; }
-    .rl-cube-label { grid-area: 2 / 1 / auto / span 2; top: -.75rem; padding-top: 0; }
-  }
+  /* From here the panels stand in two columns. */
   @media (min-width: 60rem) {
-    .rl-hero--home { --rl-worlds-height: 44rem; }
-    /* The cube reaches up level with the heading, so it is drawn smaller to
-       pass under the heading's words. */
-    .rl-hero--home .world-cube { --world-cube-size: .66; }
+    .rl-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-3); padding: var(--space-3); }
+    .rl-column { gap: var(--space-3); }
   }
-  @media (min-width: 68.75rem) {
-    /* Wide enough for the heading to sit beside the cube at full size, its
-       name at the top of the stage. */
-    .rl-hero--home { --rl-worlds-height: 38rem; }
-    .rl-hero--home .world-cube { --world-cube-size: 1; }
-    .rl-cube-label { grid-area: 1 / 1 / auto / span 2; top: 0; padding-top: var(--space-5); }
+  /* A narrow panel stacks its cards and steps one under another. */
+  @container (max-width: 30rem) {
+    :is(.rl-how, .rl-product-cards) { grid-template-columns: minmax(0, 1fr); }
   }
 }
+
+/* The How it works sheet takes the figure colour. It sits outside the layer so
+   it wins over the shared panel's own surface fill. */
+.rg-panel.rl-panel--how { --rg-panel-fill: var(--support-figure-surface); --rg-panel-ink: var(--support-figure-ink); }
 
 .rg-button.rl-token-link {
   --rg-cut-control: 0px;

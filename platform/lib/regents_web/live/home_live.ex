@@ -6,58 +6,130 @@ defmodule RegentsWeb.HomeLive do
 
   @staking_summary "Stake $REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."
 
-  @doc "A public text representation using the same product descriptions as the page."
+  # The lab's one sentence, its bold words marked, so the page and the agent copy
+  # stress the same words.
+  @mission [
+    {"Regents Labs is a ", false},
+    {"community-owned", true},
+    {" lab building tools for ", false},
+    {"people and their agents", true},
+    {", tied to ", false},
+    {"one token, REGENT", true},
+    {".", false}
+  ]
+
+  # Each product's card carries the drawing the product Overview shows for it.
+  @product_diagrams %{"autolaunch" => 3, "techtree" => 2, "patchbay" => 7, "keyfleet" => 8}
+
+  @how_it_works [
+    %{
+      id: "agents",
+      variant: 6,
+      title: "Agents",
+      copy: "One sign-in for your agent on every Regent site.",
+      link: "Agent guide",
+      href: "/agents.md"
+    },
+    %{
+      id: "tools",
+      variant: 0,
+      title: "Open tools",
+      copy: "WebMCP Tools in the browser. regents-cli on the command line.",
+      link: "Developer docs",
+      href: "/docs"
+    },
+    %{
+      id: "staking",
+      variant: 4,
+      title: "Staking",
+      copy: "Stake $REGENT to share in the lab's USDC revenue, by stake.",
+      link: "Stake",
+      href: "/stake"
+    }
+  ]
+
+  @principles [
+    %{
+      title: "One token, not equity.",
+      copy: "Autolaunch and Patchbay send part of what they earn to REGENT stakers."
+    },
+    %{title: "Your wallet signs.", copy: "We never hold your keys or your money."},
+    %{title: "Public code.", copy: "Most of the code is public on GitHub."}
+  ]
+
+  @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
-    directory =
-      Enum.map_join(hero_products(), "\n", fn product ->
-        "- [#{product.name}](#{product.site}): #{product.line}"
+    sentence =
+      Enum.map_join(@mission, fn {words, bold?} -> if bold?, do: "**#{words}**", else: words end)
+
+    products =
+      Enum.map_join(product_cards(), "\n", fn card ->
+        planned = if card.planned?, do: " · Planned", else: ""
+        "- [#{card.label}](#{card.site}) · #{card.action}#{planned}: #{card.line}"
       end)
 
-    chapters =
-      Enum.map_join(products(), "\n\n", fn product ->
-        proofs = Enum.map_join(product.proofs, "\n", &proof_markdown/1)
+    steps =
+      Enum.map_join(@how_it_works, "\n", fn step ->
+        "- **#{step.title}:** #{step.copy} [#{step.link}](#{PublicDocuments.url(step.href)})"
+      end)
 
-        ["## #{product.title}", product.description, proofs]
-        |> Enum.reject(&is_nil/1)
-        |> Enum.join("\n\n")
+    principles = Enum.map_join(@principles, "\n", &"- **#{&1.title}** #{&1.copy}")
+
+    worlds =
+      Enum.map_join(worlds(), "\n\n", fn world ->
+        cards = Enum.map_join(world.cards, "\n", &card_markdown/1)
+        "### #{world.name}\n\n#{world.line}\n\n#{cards}\n\n[Visit #{world.name}](#{world.href})"
       end)
 
     """
     # Regents Labs
 
-    The community-owned agentic product lab.
+    ## Mission
+
+    #{sentence}
 
     ## Products
 
-    #{directory}
+    #{products}
 
-    #{chapters}
+    ## How it works
 
-    ## REGENT staking
+    #{steps}
 
-    #{@staking_summary}
+    ## Principles
 
-    Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes
-    to the Regents Labs treasury. REGENT emissions depend on the contract's rate and
-    available inventory; the rate can change. Stake, unstake, claim and compound require
-    your wallet signature. No return is guaranteed.
+    #{principles}
 
-    [Staking](#{PublicDocuments.url("/stake")}) · [Redemption](#{PublicDocuments.url("/redeem")})
+    [About Regents Labs](#{PublicDocuments.url("/about")})
 
-    ## Get started
+    ## The community-owned agentic product lab
 
-    [Connect your agent from the command line](#{PublicDocuments.url("/agents.md")})
-    [Developer documentation](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/llms.txt")})
-    [About](#{PublicDocuments.url("/about")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy](#{PublicDocuments.url("/privacy")})
+    [Enter App](#{PublicDocuments.url("/stake")}) · [WebMCP Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
+
+    #{worlds}
+
+    ---
+
+    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [What agents can do here](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
     """
   end
 
-  defp proof_markdown(%{link: nil} = proof),
-    do: "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)})"
+  # A room's pane in the agent copy. A product's panes are its proofs, so they say
+  # what each offers today, as its product page does.
+  defp card_markdown(%{status: status, link: nil} = card),
+    do: "- **#{card.title}** #{card.copy} (#{status_label(status)})"
 
-  defp proof_markdown(proof),
+  defp card_markdown(%{status: status, link: link} = card),
     do:
-      "- **#{proof.title}** #{proof.copy} (#{status_label(proof.status)}: [#{proof.link.label}](#{proof.link.href}))"
+      "- **#{card.title}** #{card.copy} (#{status_label(status)}: [#{link.label}](#{link.href}))"
+
+  defp card_markdown(%{label: label, title: title, copy: copy}),
+    do: "- **#{label} · #{title}** #{copy}"
+
+  defp card_markdown(%{label: label, copy: copy}),
+    do: "- #{label}: #{String.replace(copy, "\n", " ")}"
+
+  defp card_markdown(%{title: title, copy: copy}), do: "- **#{title}** #{copy}"
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -71,9 +143,23 @@ defmodule RegentsWeb.HomeLive do
     <Regent.Structure.frame id="public-home" class="rl-root">
       <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
 
+      <%!-- Two columns of panels, the first shorter; a phone reads the first column,
+           then the second. The hero is the third panel of the second column. --%>
       <main>
         <Regent.Structure.row rail={false}>
-          <.hero />
+          <div class="rl-panels">
+            <div class="rl-column" data-home-column="short">
+              <.mission />
+              <.product_panel />
+            </div>
+            <div class="rl-column" data-home-column="long">
+              <.how_it_works />
+              <.principles />
+              <Regent.Structure.panel class="rl-panel rl-panel--hero" data-home-panel="hero">
+                <.hero />
+              </Regent.Structure.panel>
+            </div>
+          </div>
         </Regent.Structure.row>
       </main>
 
@@ -125,6 +211,126 @@ defmodule RegentsWeb.HomeLive do
       </div>
     </header>
     """
+  end
+
+  defp mission(assigns) do
+    assigns = assign(assigns, sentence: @mission)
+
+    ~H"""
+    <Regent.Structure.panel
+      class="rl-panel rl-panel--mission rg-support-panel"
+      data-home-panel="mission"
+      aria-labelledby="home-mission-title"
+    >
+      <h2 id="home-mission-title" class="rl-eyebrow">Mission</h2>
+      <p class="rl-statement"><.words :for={part <- @sentence} part={part} /></p>
+    </Regent.Structure.panel>
+    """
+  end
+
+  defp words(%{part: {_words, true}} = assigns), do: ~H"<strong>{elem(@part, 0)}</strong>"
+  defp words(assigns), do: ~H"{elem(@part, 0)}"
+
+  defp product_panel(assigns) do
+    assigns = assign(assigns, cards: product_cards())
+
+    ~H"""
+    <Regent.Structure.panel
+      class="rl-panel rl-panel--products"
+      data-home-panel="products"
+      aria-labelledby="home-products-title"
+    >
+      <h2 id="home-products-title" class="rl-eyebrow">Products</h2>
+      <ul class="rl-product-cards">
+        <li :for={card <- @cards} class="rl-product-card" data-product={card.name}>
+          <span class="rl-product-card__tile">
+            <.card_diagram id={"home-product-#{card.name}"} variant={card.variant} />
+          </span>
+          <p class="rl-eyebrow">
+            {card.action}<span :if={card.planned?}> · Planned</span>
+          </p>
+          <h3 class="rl-product-card__name">{card.label}</h3>
+          <p class="rl-mono">{card.line}</p>
+          <a
+            href={card.site}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rg-button rg-button--secondary rl-panel-link"
+          >
+            <span class="rg-button__label">
+              {card.host}<span class="visually-hidden">, {card.label}, opens in a new tab</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </Regent.Structure.panel>
+    """
+  end
+
+  defp how_it_works(assigns) do
+    assigns = assign(assigns, steps: @how_it_works)
+
+    ~H"""
+    <Regent.Structure.panel
+      class="rl-panel rl-panel--how"
+      data-home-panel="how"
+      aria-labelledby="home-how-title"
+    >
+      <h2 id="home-how-title" class="rl-eyebrow">How it works</h2>
+      <ul class="rl-how">
+        <li :for={step <- @steps} class="rl-how__step">
+          <.card_diagram id={"home-how-#{step.id}"} variant={step.variant} />
+          <h3 class="rl-how__title">{step.title}</h3>
+          <p class="rl-mono">{step.copy}</p>
+          <a href={step.href} class="rg-button rg-button--secondary rl-panel-link">
+            <span class="rg-button__label">{step.link}</span>
+          </a>
+        </li>
+      </ul>
+    </Regent.Structure.panel>
+    """
+  end
+
+  defp principles(assigns) do
+    assigns = assign(assigns, principles: @principles)
+
+    ~H"""
+    <Regent.Structure.panel
+      class="rl-panel rl-panel--principles rg-support-panel"
+      data-home-panel="principles"
+      aria-labelledby="home-principles-title"
+    >
+      <h2 id="home-principles-title" class="rl-eyebrow">Principles</h2>
+      <ul class="rl-principles">
+        <li :for={principle <- @principles}>
+          <h3 class="rl-principles__title">{principle.title}</h3>
+          <p class="rl-mono">{principle.copy}</p>
+        </li>
+      </ul>
+      <a href={~p"/about"} class="rg-button rg-button--secondary rl-panel-link">
+        <span class="rg-button__label">About Regents Labs</span>
+      </a>
+    </Regent.Structure.panel>
+    """
+  end
+
+  defp product_cards do
+    sites = Map.new(hero_products(), &{&1.name, &1.site})
+
+    for product <- products() do
+      site = Map.fetch!(sites, product.anchor)
+
+      %{
+        name: product.anchor,
+        label: String.capitalize(product.anchor),
+        action: String.capitalize(product.action),
+        line: product.title,
+        site: site,
+        host: URI.parse(site).host,
+        planned?: Enum.all?(product.proofs, &(&1.status == :planned)),
+        variant: Map.fetch!(@product_diagrams, product.anchor)
+      }
+    end
   end
 
   defp hero(assigns) do
@@ -255,7 +461,7 @@ defmodule RegentsWeb.HomeLive do
 
   defp room_cards(name, proofs) do
     for proof <- Map.fetch!(proofs, name) do
-      %{title: proof.title, copy: proof.copy}
+      Map.take(proof, [:title, :copy, :status, :link])
     end
   end
 

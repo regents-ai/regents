@@ -33,10 +33,14 @@ const worlds = [
   {face: "3", name: "Regents on X", site: "https://x.com/regents_sh"},
 ]
 
-// From this width up the list of worlds stands three across, in two rows; below it the
-// worlds read as one column.
+// Where the hero's panel is at least this wide, the list of worlds stands three across,
+// in two rows; in a narrower panel the worlds read as one column.
 const WORLD_GRID_MIN_WIDTH = 768
-const worldRowsAt = (width: number) => (width >= WORLD_GRID_MIN_WIDTH ? 2 : 6)
+const worldRowsIn = async (page: import("@playwright/test").Page) =>
+  (await page.locator(".rl-hero--home").evaluate(element => element.clientWidth)) >=
+  WORLD_GRID_MIN_WIDTH
+    ? 2
+    : 6
 
 // The list of worlds is the hero wherever the cube is not drawn. A visitor who asks for
 // less motion always gets it, so a test that reads the list asks for that first.
@@ -207,9 +211,9 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
   ).toContain("Geist Pixel Square")
 })
 
-// The founder's hero: on a wide screen the words stand over the top-left of the cube's stage;
-// a phone stacks the words above the stage. The worlds come under the words at every width.
-test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) => {
+// The founder's hero, a panel of the page: the words stand above the cube's stage at every
+// width, and the worlds come under the words.
+test("[U1][U2] the hero sets its words above the cube's stage", async ({page}) => {
   const boxOf = (selector: string) =>
     page.locator(selector).evaluate(element => {
       const box = element.getBoundingClientRect()
@@ -242,24 +246,12 @@ test("[U1][U2] the hero sets its words over the cube's stage", async ({page}) =>
 
       expect(title.left).toBeGreaterThanOrEqual(hero.left)
       expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
-      expect(stage.left, "the stage stands behind the words").toBeLessThanOrEqual(title.left)
-      if (width >= 768) {
-        expect(stage.top).toBeLessThanOrEqual(title.top)
-      } else {
-        expect(stage.top, "a phone stacks the stage under the words").toBeGreaterThanOrEqual(
-          tagline.bottom,
-        )
-      }
+      expect(stage.left, "the stage lines up with the words").toBeLessThanOrEqual(title.left)
+      expect(stage.top, "the stage stands under the words").toBeGreaterThanOrEqual(tagline.bottom)
       expect(stage.right, "and crosses the midline").toBeGreaterThan(hero.left + hero.width / 2)
       expect(stage.right).toBeLessThanOrEqual(hero.right)
       expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(tagline.bottom)
       expect(listed.bottom, "and stay on the stage").toBeLessThanOrEqual(stage.bottom)
-
-      if (width >= 1024) {
-        expect(title.right, "the words stay in the left half").toBeLessThanOrEqual(
-          hero.left + hero.width / 2,
-        )
-      }
     })
   }
 })
@@ -288,7 +280,7 @@ for (const viewport of [
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
     // Three across where the frame is wide enough, one column below that.
-    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(worldRowsAt(viewport.width))
+    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(await worldRowsIn(page))
 
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
@@ -319,6 +311,8 @@ test("[U2] the hero points agents to the command line", async ({page}) => {
       const link = page.locator(".rl-hero-copy").getByRole("link", {
         name: "Connect your agent from the command line",
       })
+      // The hero is the last panel of its column, so a wide screen scrolls to it.
+      await link.scrollIntoViewIfNeeded()
       await expect(link).toBeInViewport()
       const [line, actions, worlds] = await Promise.all(
         [link, page.locator(".rl-hero-actions"), page.locator("#home-worlds .world-cube__worlds")].map(
@@ -362,7 +356,7 @@ test("[U1][U2] the worlds read in the founder's order at every viewport", async 
       // The worlds read in the founder's order, row by row: each starts a new row on the first
       // world's left edge or follows the one before it on the same row.
       expect(new Set(listed.map(world => Math.round(world.top))).size).toBe(
-        worldRowsAt(viewport.width),
+        await worldRowsIn(page),
       )
       for (const [index, world] of listed.entries()) {
         if (index === 0) continue

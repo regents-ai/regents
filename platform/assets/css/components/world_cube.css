@@ -371,10 +371,12 @@
   visibility: visible;
 }
 
-/* Reserve the same phone stage before and after the renderer loads. The
-   fallback list scrolls inside it instead of leaving a list-sized empty band
-   beneath the cube. svh keeps browser chrome changes from resizing the stage. */
-@media (max-width: 47.99rem) {
+/* The stage's layout answers to the width of the box it stands in, which the
+   page makes a container (`container-type: inline-size`), not to the window.
+   A narrow stage keeps the same height before and after the renderer loads.
+   The fallback list scrolls inside it instead of leaving a list-sized empty
+   band beneath the cube. svh keeps browser chrome changes from resizing it. */
+@container (max-width: 47.99rem) {
   .world-cube {
     --world-cube-stage-height: clamp(32rem, 72svh, 38rem);
     height: var(--world-cube-stage-height);
@@ -394,7 +396,7 @@
   }
 }
 
-@media (min-width: 48rem) {
+@container (min-width: 48rem) {
   .world-cube {
     min-height: clamp(30rem, 72vh, 46rem);
     padding: var(--space-5);

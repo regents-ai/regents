@@ -3663,3 +3663,26 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   answers 401 with the missing headers; /privacy shows October 28, 2026; arrival lines
   appear in the logs; /, /privacy and /stake load in headless Chromium at 1280 and 390
   wide with no page errors and no sideways scroll. WebKit not run on the Mac.
+
+## 2026-10-28 — The home page in two columns of panels
+
+- The home page now reads as two columns of flat panels under the same header,
+  one column shorter than the other. The first holds the mission in one sentence
+  and the four products, each with its drawing on a tile of its colour, what it
+  does in a line and a link to its site. The second holds how it works (one
+  sign-in for agents, WebMCP Tools and regents-cli, staking $REGENT for a share
+  of the lab's USDC revenue), three principles, and the hero with its cube as
+  the third panel. On a phone the panels stand in one column, the shorter
+  column's panels first.
+- The hero keeps everything it had: Enter App, WebMCP Tools, the command-line
+  line, the six worlds and the cube, now in the middle of its own panel. The
+  words sit above the cube's stage instead of over it.
+- The copy of the home page that agents read says the same things in the same
+  order as the page.
+- Release record: panels are design-system sheets (`Regent.Structure.panel`,
+  four cut corners) on the page ground; the product cards and the how-it-works
+  steps are cards ruled off on their sheet. The cube's stage now follows the
+  width of its panel rather than the window. Browser checks updated where the
+  layout changed: the hero's words above the stage, the worlds' rows read from
+  the hero's width, and the hero scrolled into view before its checks. No
+  database changes. WebKit not run on the Mac.

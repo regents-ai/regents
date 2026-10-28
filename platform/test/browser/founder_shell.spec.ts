@@ -129,7 +129,7 @@ test("the public homepage presents the product hero", async ({page}) => {
 
   await expect(page.locator("#public-home")).toBeVisible()
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The hero names the six worlds and is the whole page between the header and the footer.
+  // The hero names the six worlds.
   const worlds = page.locator("#home-worlds .world-cube__world")
   await expect(worlds).toHaveCount(6)
   expect(
@@ -143,7 +143,7 @@ test("the public homepage presents the product hero", async ({page}) => {
 })
 
 // The cube's stage is a picture the browser draws inside the hero: hidden from assistive
-// technology, under words that take no pointer events, and showing exactly one layer at a
+// technology, below the words rather than under them, and showing exactly one layer at a
 // time, the list of worlds until the cube is drawn, then the cube alone. Whether headless
 // Chromium brings a GPU decides which layer shows, never whether the heading and actions
 // stay reachable.
@@ -162,10 +162,15 @@ test("the hero's cube never blocks the action", async ({page}) => {
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
+    // The cube only starts once its stage is on screen, and the hero is the last panel of its column.
+    await page.locator("#home-worlds").scrollIntoViewIfNeeded()
     await expect(page.locator("#home-worlds-stage")).toHaveAttribute("aria-hidden", "true")
-    expect(
-      await page.locator(".rl-hero-copy").evaluate(element => getComputedStyle(element).pointerEvents),
-    ).toBe("none")
+    const [words, stage] = await Promise.all(
+      [".rl-hero-copy", "#home-worlds"].map(selector =>
+        page.locator(selector).evaluate(element => element.getBoundingClientRect().toJSON()),
+      ),
+    )
+    expect(words.bottom, "the stage starts below the words").toBeLessThanOrEqual(stage.top)
     await expectOneHeroLayer()
     await expect(page.locator("#home-title")).toBeVisible()
     await page.locator(".rl-header-links a.rl-action").click({trial: true})
