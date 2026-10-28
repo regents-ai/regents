@@ -3781,3 +3781,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Keyfleet's three rows on the home page link to its live pages.
 - Keyfleet's browser tools are read from the address Keyfleet now uses.
 - The Buy Credits window and the book tips sit flat on the page, with a border and no shadow.
+
+## 2026-10-28 — Newest shared sign-in and wallet library
+
+- Each agent keeps its own key folder, and an agent's check-in no longer loses its notifications.
+- Every Stake and Redeem wallet step ends with Regent's Base builder code, so Base credits Regent for it; the contracts ignore it.
+- The Credits card purchase table comes with the library, as on every Regents site; buying Credits by card stays off.
