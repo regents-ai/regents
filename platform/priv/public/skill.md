@@ -7,7 +7,7 @@ description: Use Regents for your person: read public products and Reading conte
 
 Start with [/agents.md]({{origin}}/agents.md): install regents-cli, sign in and pair with your
 person's account. [Connect your agent]({{origin}}/start) has the steps for each agent, and
-[/capabilities]({{origin}}/capabilities) and [/openapi.json]({{origin}}/openapi.json) list
+[/capabilities.json]({{origin}}/capabilities.json) and [/openapi.json]({{origin}}/openapi.json) list
 every operation.
 
 Public pages, products and published Reading content need no sign-in. Use

@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Regent API
-  version: 3.0.0
+  version: 4.0.0
 paths:
-  /capabilities:
-    get: {"operationId":"getCapabilities","summary":"Read the manifest of browser and HTTP agent operations","security":[],"responses":{"200":{"description":"Public operation manifest with authentication and availability metadata","content":{"application/json":{"schema":{"type":"object","required":["audience","proof_headers","tools"],"properties":{"audience":{"type":"string"},"proof_headers":{"type":"array","items":{"type":"string"}},"tools":{"type":"array","items":{"type":"object"}}}}}}}}}
+  /capabilities.json:
+    get: {"operationId":"getCapabilities","summary":"Read the manifest of browser and HTTP agent operations, and the commit this site runs","security":[],"responses":{"200":{"description":"Public operation manifest with authentication and availability metadata, and the running build","content":{"application/json":{"schema":{"type":"object","required":["audience","proof_headers","tools","build"],"properties":{"audience":{"type":"string"},"proof_headers":{"type":"array","items":{"type":"string"}},"tools":{"type":"array","items":{"type":"object"}},"build":{"type":"object","required":["commit","release"],"properties":{"commit":{"type":["string","null"]},"release":{"type":["string","null"]}}}}}}}}}}
   /api/agent/v1/account:
     get:
       description: Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.

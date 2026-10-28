@@ -106,7 +106,7 @@ then pairs from that file, deletes it whether pairing worked or not, and checks 
 ```sh
 regents protocol agents pair --json < ~/pair.json
 rm ~/pair.json
-regents protocol agents me
+regents protocol agents status
 ```
 
 With the SIWA client, once its key is set up, the same file:
@@ -145,6 +145,8 @@ RateLimit: "default";r=119;t=42
 The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health reads, the product directory, published Reading content, the owner-authorized claims and stake reads, agent pairing and every signed agent read above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 We change the API in place and update these docs the same day; no old versions are kept.
+
+2026-10-28: the browser tool list moved from `/capabilities` to [/capabilities.json]({{origin}}/capabilities.json), and now also gives `build`: the `commit` and `release` this site runs, as on the other Regents sites. The check-in command is `regents protocol agents status`, formerly `agents me`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 4.0.0.
 
 2026-10-20: `GET /api/v1/health` answers the health check as JSON, `{"status": "ok"}`, as on the other Regents sites. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 3.1.0.
 

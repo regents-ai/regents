@@ -126,7 +126,7 @@ defmodule RegentsWeb.Router do
     get "/openapi.json", PublicPagesController, :openapi
     get "/sitemap.xml", PublicPagesController, :sitemap
     get "/robots.txt", PublicPagesController, :robots
-    get "/capabilities", PublicPagesController, :capabilities
+    get "/capabilities.json", PublicPagesController, :capabilities
     get "/agents.md", PublicPagesController, :agents
     get "/skill.md", PublicPagesController, :skill
     get "/llms.txt", PublicPagesController, :llms

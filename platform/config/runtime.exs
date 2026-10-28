@@ -160,5 +160,11 @@ if config_env() == :prod do
         port: String.to_integer(System.get_env("PORT", "4000"))
       ],
       secret_key_base: secret_key_base
+
+    # The commit the image was built from, and the Fly image this machine runs.
+    config :regents, :build, %{
+      commit: System.fetch_env!("SOURCE_COMMIT"),
+      release: System.fetch_env!("FLY_IMAGE_REF")
+    }
   end
 end

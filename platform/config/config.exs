@@ -105,6 +105,9 @@ config :regents,
 
 config :regents, ecto_repos: [Regents.Repo]
 
+# The commit and Fly image a deployed machine runs; production sets both at boot.
+config :regents, :build, %{commit: nil, release: nil}
+
 # Background jobs live in the site's own schema, beside its tables. Queues hear
 # about new jobs through Erlang process groups, across the site's machines.
 # `regent_credits` checks Credits purchases on chain; AshOban adds each

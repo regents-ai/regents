@@ -40,7 +40,7 @@
       ]
     },
     {
-      "command": "agents me",
+      "command": "agents status",
       "description": "Check in as a paired agent and read the account it is paired with.",
       "operation_id": "checkInAgent",
       "method": "GET",

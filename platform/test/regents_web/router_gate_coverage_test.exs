@@ -29,7 +29,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/openapi.json"},
              {:get, "/sitemap.xml"},
              {:get, "/robots.txt"},
-             {:get, "/capabilities"},
+             {:get, "/capabilities.json"},
              {:get, "/agents.md"},
              {:get, "/skill.md"},
              {:get, "/llms.txt"},

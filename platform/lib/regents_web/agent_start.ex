@@ -49,7 +49,7 @@ defmodule RegentsWeb.AgentStart do
        regents protocol agents pair --json < ~/pair.json
        rm ~/pair.json
     5. Check in:
-       regents protocol agents me
+       regents protocol agents status
     6. Read my account when I ask:
        regents protocol account show
        regents protocol account balances

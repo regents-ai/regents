@@ -155,7 +155,8 @@ defmodule RegentsWeb.PublicDocuments do
     [page_title: title, page_description: description]
   end
 
-  def capabilities, do: @manifest
+  @doc "The tool manifest, with the commit and Fly image this machine runs."
+  def capabilities, do: Map.put(@manifest, "build", Application.fetch_env!(:regents, :build))
   def llms, do: source("llms")
   def agents, do: source("agents")
   def skill, do: source("skill")

@@ -3741,3 +3741,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Live checks on v240: the machine's image label is `787b0e05`; headless Chromium over /,
   /stake and /redeem gets the `_visit` cookie and the visit tag without Global Privacy
   Control, and neither with it. WebKit not run on the Mac.
+
+## 2026-10-28 — The site says which version it runs
+
+- Agents and site checks read the browser tool list at `/capabilities.json`, which now
+  also names the commit and release this site runs, the same way every Regents site
+  does. `/capabilities` is gone.
+- The check-in command is `regents protocol agents status`, the name the other Regents
+  sites use; `agents me` is gone.
+- Release record: `build` comes from `SOURCE_COMMIT` and `FLY_IMAGE_REF` at boot
+  (`config :regents, :build`), following ash-template's capabilities document and
+  control rollout 2026-10-28-live-commit. The served document stays the tool manifest
+  plus `build`; the template's per-operation rows are not adopted here. OpenAPI and
+  YAML contract move to 4.0.0. No database changes.

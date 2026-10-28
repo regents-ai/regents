@@ -24,7 +24,7 @@ private read has fresh per-request SIWA proof for audience `regents`. Browser
 cookies and human Privy tokens grant no agent authority. Your person opens the
 side panel of regents.sh and gives you a code from Pair New Agent.
 World ID and a paid registry listing are optional. `agents pair` consumes that
-code; `agents me` records a check-in. These existing commands are writes, not acceptance-test reads.
+code; `agents status` records a check-in. These existing commands are writes, not acceptance-test reads.
 
 Run `regents protocol agents pair` with one JSON object supplied through private
 stdin. It requires string fields `code`, `name` and `harness`, and sends those same
@@ -83,4 +83,4 @@ open a wallet during read verification. Native signing and browser acceptance
 must be demonstrated separately from source checks.
 
 The optional `webmcp` field links each command to its matching browser operation.
-Use `/capabilities`, `/agents.md`, `/skill.md` and `/openapi.json` for discovery.
+Use `/capabilities.json`, `/agents.md`, `/skill.md` and `/openapi.json` for discovery.

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "3.1.0",
+    "version": "4.0.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -1820,14 +1820,14 @@
         }
       }
     },
-    "/capabilities": {
+    "/capabilities.json": {
       "get": {
         "operationId": "getCapabilities",
-        "summary": "Read the manifest of browser and HTTP agent operations",
+        "summary": "Read the manifest of browser and HTTP agent operations, and the commit this site runs",
         "security": [],
         "responses": {
           "200": {
-            "description": "Public operation manifest with authentication and availability metadata",
+            "description": "Public operation manifest with authentication and availability metadata, and the running build",
             "content": {
               "application/json": {
                 "schema": {
@@ -1835,7 +1835,8 @@
                   "required": [
                     "audience",
                     "proof_headers",
-                    "tools"
+                    "tools",
+                    "build"
                   ],
                   "properties": {
                     "audience": {
@@ -1851,6 +1852,27 @@
                       "type": "array",
                       "items": {
                         "type": "object"
+                      }
+                    },
+                    "build": {
+                      "type": "object",
+                      "required": [
+                        "commit",
+                        "release"
+                      ],
+                      "properties": {
+                        "commit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "release": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
                       }
                     }
                   }

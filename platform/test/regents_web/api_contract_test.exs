@@ -22,7 +22,7 @@ defmodule RegentsWeb.ApiContractTest do
              "/auth/privy/failure",
              "/auth/privy/session",
              "/auth/session",
-             "/capabilities"
+             "/capabilities.json"
            ]
 
     assert Map.take(contract["paths"], [
@@ -442,6 +442,15 @@ defmodule RegentsWeb.ApiContractTest do
     conn = get(conn, "/api-contract.openapiv3.yaml")
     assert response(conn, 200) == File.read!(@contract)
     assert get_resp_header(conn, "content-type") == ["application/yaml"]
+  end
+
+  test "the tool list also says which commit and image the site runs", %{conn: conn} do
+    body = conn |> get("/capabilities.json") |> json_response(200)
+
+    assert body["tools"] != []
+
+    assert body["build"] ==
+             Map.new(Application.fetch_env!(:regents, :build), fn {k, v} -> {"#{k}", v} end)
   end
 
   defp refusal(code, message, hint),

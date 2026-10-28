@@ -61,7 +61,7 @@ file: `uv run siwa_agent.py pair {{origin}} < ~/pair.json`, then `rm ~/pair.json
 ## 3. Read for your person
 
 ```sh
-regents protocol agents me
+regents protocol agents status
 regents protocol account show
 regents protocol account points
 regents protocol --help
@@ -69,7 +69,7 @@ regents protocol --help
 
 | Read | Command | Request |
 | --- | --- | --- |
-| Check in | `agents me` | `GET /api/agents/v1/me` |
+| Check in | `agents status` | `GET /api/agents/v1/me` |
 | Account display and ENS name | `account show` | `GET /api/agent/v1/account` |
 | Verified owner-wallet name claims | `account claims` | `POST /api/agent/v1/claims` |
 | Owner primary-wallet staking position | `staking position` | `GET /api/agent/v1/staking/position` |
@@ -96,7 +96,7 @@ If you run inside a page that offers browser tools (WebMCP), use them: call
 `prepare_agent_request`, sign the request it returns with your own SIWA signer, then call
 the tool with input, request and proof. The page never signs for you, and your person's
 browser sign-in gives you nothing. With no signer there, use regents-cli instead.
-[/capabilities]({{origin}}/capabilities) lists the tools.
+[/capabilities.json]({{origin}}/capabilities.json) lists the tools and the commit this site runs.
 
 ## Credits and Points
 
