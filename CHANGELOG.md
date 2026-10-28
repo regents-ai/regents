@@ -3604,3 +3604,22 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   fix (`38a95149`), both entries above, are taken out of this release so the ordinary work
   above them can go out now. Both touch areas that wait for Sean's letter (VISITS-RELEASE).
   They come back as one revert of this commit once he answers. No database changes.
+
+## 2026-10-28 — v236 release record
+
+- v236 runs `ac923423`: Pair New Agent points to the agent choices (`810864f3`),
+  regents-cli 1.10.19 on every agent page and the home page's command-line line
+  (`8278c549`), design-system `804c7521` with the shared layer places and the "Skip to
+  content" link (`75915c59`), every address on Stake and Redeem drawn with the address
+  component (`50c1dfcd`, `e30cb130`), the full and compact address forms on Stake
+  (`cc8c5613`, `7a5baeba`), and the visit lines and sign-in log fix held back
+  (`ac923423`). The rollback is v235 (`0a046b55`). No database migrations in the range.
+  Ordinary release under AUTONOMY-RULE a, under the shared-database lock.
+- Checked before release: server tests 578 (one property check), JavaScript 242, browser
+  walk 121/121; required fixes clean against ash-template; command list ok against
+  regents-cli `02f89615`.
+- Live checks: one machine runs `ac923423` (image label `main-ac923423d139`), /healthz
+  200. /, /stake, /redeem, /account, /start and /docs load in headless Chromium at 1280
+  and 390 wide with no page errors and no sideways scroll; the home page shows "Connect
+  your agent from the command line"; the first Tab on /stake and /account shows "Skip to
+  content"; no address on those pages is printed as plain text. WebKit not run on the Mac.
