@@ -23,7 +23,9 @@ defmodule Regents.RuntimeConfigTest do
       "SECRET_KEY_BASE",
       "REGENTS_APP_SURFACES",
       "BASE_READ_RPC_URL",
-      "OPENSEA_API_KEY"
+      "OPENSEA_API_KEY",
+      "SOURCE_COMMIT",
+      "FLY_IMAGE_REF"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
@@ -94,6 +96,11 @@ defmodule Regents.RuntimeConfigTest do
     config = read_runtime_config(:prod)
 
     assert get_in(config, [:regents, :database_startup_enabled])
+
+    assert get_in(config, [:regents, :build]) == %{
+             commit: "0123abcd",
+             release: "registry.fly.io/regents-sh-web:deployment-test"
+           }
 
     assert get_in(config, [:regents, Regents.Repo]) == [
              pool_size: 5,
@@ -347,6 +354,8 @@ defmodule Regents.RuntimeConfigTest do
 
   defp put_production_role do
     System.put_env("REGENTS_DEPLOYMENT_ROLE", "production")
+    System.put_env("SOURCE_COMMIT", "0123abcd")
+    System.put_env("FLY_IMAGE_REF", "registry.fly.io/regents-sh-web:deployment-test")
   end
 
   defp put_pooled_url do
