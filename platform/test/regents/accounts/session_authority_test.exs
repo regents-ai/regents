@@ -11,13 +11,6 @@ defmodule Regents.Accounts.SessionAuthorityTest do
   @maximum_generation 9_223_372_036_854_775_807
   @wallet "0x1111111111111111111111111111111111111111"
 
-  # Production warned on every sign-in and sign-out while the transitions ran in
-  # a transaction Ash did not start; here any such notification fails the test.
-  setup do
-    Application.put_env(:ash, :missed_notifications, :raise)
-    on_exit(fn -> Application.put_env(:ash, :missed_notifications, :ignore) end)
-  end
-
   test "CANONICAL_AUTHORITY_ROW: a claim parses only from canonical, self-consistent fields" do
     claim = SessionAuthority.bootstrap()
     session = SessionAuthority.session(claim)
@@ -387,9 +380,7 @@ defmodule Regents.Accounts.SessionAuthorityTest do
     {task, holder, backend}
   end
 
-  # Wrapped so a refused attempt's `{:error, _}` is held, not rolled back.
-  defp hold(attempt, test),
-    do: Ash.transact(SessionAuthority, fn -> {:held, hold_open(attempt, test)} end)
+  defp hold(attempt, test), do: Repo.transaction(fn -> hold_open(attempt, test) end)
 
   defp hold_open(attempt, test) do
     result = attempt.()
@@ -399,7 +390,7 @@ defmodule Regents.Accounts.SessionAuthorityTest do
 
   defp release({task, holder, _backend}) do
     send(holder, :release)
-    {:ok, {:held, result}} = Task.await(task, 15_000)
+    {:ok, result} = Task.await(task, 15_000)
     result
   end
 

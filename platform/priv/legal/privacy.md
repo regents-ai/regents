@@ -1,6 +1,6 @@
 # Regents Labs Privacy Policy
 
-**Effective date:** October 27, 2026  
+**Effective date:** September 26, 2026  
 **Version:** 1.1
 
 This Privacy Policy explains how **Regents Labs, Inc.** (“Regents Labs,” “we,” “us,” or “our”) collects, uses, discloses, and protects personal information when you use the websites, applications, command-line tools, browser tools, APIs, hosted services, smart-contract interfaces, documentation, and related services that we operate under the **Regents**, **Techtree**, **Patchbay**, and **Autolaunch** names (collectively, the “Services”).
@@ -257,8 +257,6 @@ We use cookies, local storage, and similar technologies that are necessary to:
 - maintain reliability and security.
 
 Our hosting, authentication, and other service providers may also set or read technologies needed to provide their services.
-
-A cookie that ends when your browser closes groups one visit's activity, so we can count where visits come from (for example a search engine, an AI assistant or a social site) and how far they get, such as signing in or pairing an agent. We record only the name of the site that sent you, never the address you came from. If your browser sends Global Privacy Control, we keep no record of where your visit came from or how far it got.
 
 If we introduce non-essential analytics, advertising, or similar tracking, we will update this Policy and request consent or provide opt-out choices where required. We do not currently use personal information for cross-context behavioral advertising.
 

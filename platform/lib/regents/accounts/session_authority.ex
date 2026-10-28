@@ -254,7 +254,7 @@ defmodule Regents.Accounts.SessionAuthority do
     digest = digest(lineage)
 
     {:ok, _revoked} =
-      Ash.transact(__MODULE__, fn ->
+      Repo.transaction(fn ->
         ensure(digest, DateTime.utc_now())
         digest |> lock() |> revoke!()
       end)
@@ -353,16 +353,13 @@ defmodule Regents.Accounts.SessionAuthority do
 
   # Bind and refresh may ensure the unbound generation-zero row the claim names,
   # so the absent-row order of a race takes the same lock as the present-row one.
-  # A refused transition still commits what it wrote (the seeded row, a
-  # revocation), so its answer is wrapped: `Ash.transact/2` rolls back an
-  # `{:error, _}` returned as is.
   defp locked(%{lineage: lineage, generation: generation}, callback) do
     digest = digest(lineage)
 
-    {:ok, {:committed, result}} =
-      Ash.transact(__MODULE__, fn ->
+    {:ok, result} =
+      Repo.transaction(fn ->
         if generation == 0, do: ensure(digest, nil)
-        {:committed, digest |> lock() |> callback.()}
+        digest |> lock() |> callback.()
       end)
 
     result

@@ -184,16 +184,13 @@ defmodule RegentsWeb.Router do
   scope "/", RegentsWeb do
     pipe_through :browser
 
-    live_session :home, session: {RegentsWeb.Live.Session, :render_context, []} do
-      live "/", HomeLive, :home
-    end
+    live "/", HomeLive, :home
 
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
 
     get "/auth/csrf", PrivySessionController, :csrf
     post "/auth/privy/failure", PrivySessionController, :failure
-    post "/visit-log", VisitLogController, :create, log: false
     post "/auth/privy/session", PrivySessionController, :create
     get "/auth/session", PrivySessionController, :show
     delete "/auth/privy/session", PrivySessionController, :delete

@@ -43,10 +43,6 @@ import {installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
 import {WorldCube} from "./hooks/world_cube"
 import {CubeLabel} from "./hooks/cube_label"
-import {installVisitLog} from "./visit_log"
-
-// First, so an error anywhere below is reported too.
-installVisitLog()
 
 type ShellHook = Hook & {
   el: HTMLElement

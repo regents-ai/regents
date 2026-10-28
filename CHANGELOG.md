@@ -3597,3 +3597,10 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   in full in the warning and compact under Rewards go to" now also fails on any
   button or link inside a label on /stake and on any other name for the box
   (both fail on `cc8c5613`). WebKit not run on the Mac.
+
+## 2026-10-28 — Visit lines and the sign-in log fix held back for Sean's answer
+
+- The visit lines with the Global Privacy Control rule (`59154547`) and the sign-in log
+  fix (`38a95149`), both entries above, are taken out of this release so the ordinary work
+  above them can go out now. Both touch areas that wait for Sean's letter (VISITS-RELEASE).
+  They come back as one revert of this commit once he answers. No database changes.
