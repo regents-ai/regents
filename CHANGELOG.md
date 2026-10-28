@@ -3799,3 +3799,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Each agent keeps its own key folder, and an agent's check-in no longer loses its notifications.
 - Every Stake and Redeem wallet step ends with Regent's Base builder code, so Base credits Regent for it; the contracts ignore it.
 - The Credits card purchase table comes with the library, as on every Regents site; buying Credits by card stays off.
+- Correction to "Review fixes before the next release": Keyfleet's three rows on the
+  home page never showed links. The home page's Keyfleet room and the /keyfleet page
+  draw their own panes, so the three links were in data no page draws. They are
+  removed; Keyfleet's rows still read "Available now".
+- Release record: v242 = elixir-utils 14013e42 (template v124's pin) on v241 206f8c1f,
+  with step and release tests following it and a two-minute limit on the twelve-state
+  Stake walk. The library's Credits change `20261027170554_card_purchases` is a shared
+  change: Sean's "2. a" (28 Oct 15:45Z) allows checking for the table and adding it
+  only if missing. Rollback: v241 206f8c1f.
