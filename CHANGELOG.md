@@ -3686,3 +3686,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   layout changed: the hero's words above the stage, the worlds' rows read from
   the hero's width, and the hero scrolled into view before its checks. No
   database changes. WebKit not run on the Mac.
+
+## 2026-10-28 — Redeem and Stake fit the narrowest phones
+
+- On Redeem, the first button now reads "Connect wallet", so it no longer runs
+  out of room on a 320-wide phone.
+- On Stake, below 360 wide the Buy and chart links each take their own row
+  instead of cutting their words short.
+- Release record: redeem_live.ex intro button label; stake.css one-column token
+  links under 22.5rem; the Redeem browser check now finds the intro button
+  inside its own actions, since the connect panel has a button of the same
+  name. Checks: 591 Elixir, 242 TypeScript, 127 browser, all passed. No
+  database changes. WebKit not run on the Mac.

@@ -34,7 +34,7 @@ test("Redeem intro is bounded and still at reduced motion", async ({page}) => {
   await expect(page.getByRole("heading", {name: "Redeem your Animata."})).toBeVisible()
 
   // Connecting a wallet here is the Privy sign-in, the same one the header runs.
-  await expect(page.getByRole("button", {name: "Connect wallet to redeem"})).toHaveAttribute(
+  await expect(page.locator(".redeem-intro-actions").getByRole("button", {name: "Connect wallet"})).toHaveAttribute(
     "data-account-target",
     "sign-in",
   )
@@ -353,7 +353,7 @@ test("Sign out leaves Redeem unconnected, and a reload keeps it that way", async
 
 async function expectDisconnected(page: Page): Promise<void> {
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
-  await expect(page.getByRole("button", {name: "Connect wallet to redeem"})).toHaveAttribute(
+  await expect(page.locator(".redeem-intro-actions").getByRole("button", {name: "Connect wallet"})).toHaveAttribute(
     "data-account-target",
     "sign-in",
   )

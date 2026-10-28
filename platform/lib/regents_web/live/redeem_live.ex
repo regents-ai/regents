@@ -334,7 +334,7 @@ defmodule RegentsWeb.RedeemLive do
               class="redeem-primary"
               data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
             >
-              Connect wallet to redeem
+              Connect wallet
             </Regent.Primitives.button>
           </div>
         </div>

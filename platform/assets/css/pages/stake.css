@@ -1235,6 +1235,12 @@
     white-space: nowrap;
   }
 
+  /* Below 360px wide the two links no longer fit side by side, so each takes
+     its own row rather than cutting its words short. */
+  @media (max-width: 22.5rem) {
+    .stake-token-links { grid-template-columns: minmax(0, 1fr); }
+  }
+
   /* Stake and Unstake each keep one line, so the switch stays one row tall;
      so does Connect wallet. */
   .stake-mode button,
