@@ -59,24 +59,22 @@ for (const width of [1280, 390]) {
   })
 }
 
-// A browser that sends Global Privacy Control is counted like any other page
-// view, but its visit writes no arrival and no step, on the page or in its reports.
-test("a visit that asks not to be tracked writes no arrival or step", async ({page, context}) => {
+// A browser that sends Global Privacy Control starts no visit: no `_visit`
+// cookie and no visit on the page, so none of its lines can be grouped into a
+// visit, and its Sign in press still reaches the site.
+test("a visit that asks not to be tracked starts no visit", async ({page, context}) => {
   await page.route(bridgePattern, route =>
     route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
   )
   await page.setExtraHTTPHeaders({"Sec-GPC": "1"})
   await page.goto("/articles", {referer: "https://chatgpt.com/c/a-private-chat"})
   await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
-  const visit = (await context.cookies()).find(cookie => cookie.name === "_visit")!.value
-
-  await expect.poll(() => lines(visit).map(told)).toContain("page /articles")
+  expect((await context.cookies()).map(cookie => cookie.name)).not.toContain("_visit")
+  await expect(page.locator("meta[name='regent-visit']")).toHaveCount(0)
 
   const reported = page.waitForResponse(response => new URL(response.url()).pathname === "/visit-log")
   await page.locator("#account-control [data-account-target='sign-in']").click()
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")))
   expect((await reported).status()).toBe(204)
-
-  const all = lines(visit).map(told)
-  expect(all.filter(line => line.startsWith("arrival") || line.startsWith("step"))).toEqual([])
+  expect((await context.cookies()).map(cookie => cookie.name)).not.toContain("_visit")
 })

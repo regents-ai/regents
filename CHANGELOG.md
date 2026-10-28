@@ -3721,3 +3721,10 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   beside its command and browser tool, and says how often to check back: account, name
   claims and Points daily, Credits before each spend decision, staking daily and once
   after the person acts.
+
+## 2026-10-28 — A browser that asks not to be tracked starts no visit
+
+- When a browser sends Global Privacy Control, the site sets no visit cookie and none
+  of its pages, tool calls or reports carries a visit, so nothing groups its activity
+  into one visit. Before, only the lines for where a visit came from and how far it got
+  were left out; the visit itself was still kept.
