@@ -3698,3 +3698,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   inside its own actions, since the connect panel has a button of the same
   name. Checks: 591 Elixir, 242 TypeScript, 127 browser, all passed. No
   database changes. WebKit not run on the Mac.
+
+## 2026-10-28 — v238 and v239 release record
+
+- v238 runs `d58a8dbc`: the home page in two columns of panels, the hero third in the
+  second column. Rollback v237 (`16454a74`). No database migrations. Sentinel 07:46Z read
+  v238 healthy: signed who-am-I works, unsigned refused, no errors kept.
+- v239 runs `d791de80`: the Redeem intro button reads "Connect wallet", and the Stake token
+  links take a row each below 360 wide. Rollback v238 (`d58a8dbc`). No database
+  migrations.
+- Checked before v239: server tests 591 (586 tests, five property checks), JavaScript 242,
+  browser walk 127/127.
+- Live checks on v239: the machine's image label is `d791de80`; headless Chromium on
+  /redeem and /stake at 320 and 390 wide shows no sideways scroll and no cut-off button
+  or link; the Redeem intro button reads "Connect wallet"; the Stake Buy and chart links
+  stack at 320 and sit side by side at 390. WebKit not run on the Mac.
