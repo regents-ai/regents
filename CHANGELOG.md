@@ -3808,3 +3808,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   Stake walk. The library's Credits change `20261027170554_card_purchases` is a shared
   change: Sean's "2. a" (28 Oct 15:45Z) allows checking for the table and adding it
   only if missing. Rollback: v241 206f8c1f.
+
+## 2026-10-28 — Regents v241 and v242 released
+
+- v241 (`206f8c1f`) went live as Fly v241 at about 17:28Z: the review fixes, agents
+  on regents-cli 1.10.20 and Bandit 1.14.1. The rollback is v240 (`787b0e05`).
+- v242 (`599de2bb`) went live as Fly v242 at about 17:43Z: elixir-utils 14013e42 on
+  Sean's "1. a" (28 Oct 15:45Z). The rollback is v241 (`206f8c1f`).
+- The release step (`/app/bin/migrate`) succeeded, so the shared Credits change
+  `20261027170554_card_purchases` was already in production's ledger;
+  `migrate-shared` was not run and was not needed (Sean's "2. a" allowed it only if
+  the table was missing).
+- Before release, on each commit: 593 server tests, 242 script tests, 127 browser
+  tests, required fixes clean.
+- Live checks after each release: one machine on the new image with its health check
+  passing; `/capabilities.json` reports the commit; `/`, `/stake`, `/redeem`, `/docs`,
+  `/app` and `/start` load in headless Chromium at 1280 and 390 wide, light and dark,
+  with no errors and no sideways scroll. WebKit not run on the Mac.
