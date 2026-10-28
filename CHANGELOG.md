@@ -3772,3 +3772,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   the shared footer's "What agents can do here" label (the template chief is
   renaming it on every site at once) and the narrow cube layout inside the
   desktop hero panel.
+
+## 2026-10-28 — Review fixes before the next release
+
+- A browser that asks not to be tracked also loses a visit cookie it was given earlier.
+- Request limits no longer fail for some callers; a stuck limit had refused them with an error.
+- The cube's list of worlds can be clicked once a keyboard has shown it.
+- Keyfleet's three rows on the home page link to its live pages.
+- Keyfleet's browser tools are read from the address Keyfleet now uses.
+- The Buy Credits window and the book tips sit flat on the page, with a border and no shadow.
