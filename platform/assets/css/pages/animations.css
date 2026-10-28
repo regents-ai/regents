@@ -191,7 +191,7 @@
 .motion-lab__fx {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--rg-layer-tip);
   overflow: hidden;
   pointer-events: none;
 }
@@ -233,12 +233,12 @@
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  z-index: 30;
+  z-index: var(--rg-layer-tip);
   display: grid;
   min-width: 13rem;
   border: 1px solid var(--ash-line-strong);
   background: var(--color-surface);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--rg-layer-tip-shadow);
   transform-origin: 1.5rem 0;
 }
 
@@ -266,14 +266,15 @@
 .motion-lab__shade {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--rg-layer-shade);
   background: color-mix(in oklch, var(--color-bg) 72%, transparent);
 }
 
 .motion-lab__drawer,
 .motion-lab__sheet {
   position: fixed;
-  z-index: 70;
+  z-index: var(--rg-layer-panel);
+  box-shadow: var(--rg-layer-panel-shadow);
   display: grid;
   align-content: start;
   gap: var(--space-2);
@@ -338,14 +339,14 @@
   position: fixed;
   bottom: var(--space-3);
   left: var(--space-3);
-  z-index: 65;
+  z-index: var(--rg-layer-tip);
   display: grid;
   gap: var(--space-1);
   width: min(15rem, calc(100vw - 2 * var(--space-3)));
   padding: var(--space-2);
   border: 1px solid var(--ash-line-strong);
   background: color-mix(in oklab, var(--ash-accent-warm) 22%, var(--color-surface));
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--rg-layer-tip-shadow);
   rotate: -2deg;
   transform-origin: 0 100%;
 }

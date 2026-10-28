@@ -12,7 +12,6 @@
 .privy-reference-facts dd { margin: 0; overflow-wrap: anywhere; }
 .privy-reference :where(p, li, code) { overflow-wrap: anywhere; }
 .privy-reference li + li { margin-top: 12px; }
-.privy-reference .account-auth-status { z-index: 20; }
 @media (max-width: 48rem) {
   .privy-reference-content { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; }
   .privy-reference-content > section { padding: 16px; }

@@ -33,6 +33,21 @@
   --shell-aside: 0px;
 }
 
+/* Unseen until a keyboard reaches it. */
+.shell-skip {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: var(--rg-layer-skip);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.shell-skip:not(:focus) {
+  clip-path: inset(50%);
+}
+
 #shell-header,
 #shell-sidebar,
 #app-shell-scroller {
@@ -42,7 +57,7 @@
 /* One hairline grid: the header draws the line under it, the sidebar the line
    beside it, and nothing floats. */
 #shell-header {
-  z-index: 4;
+  z-index: var(--rg-layer-header);
   display: flex;
   grid-column: 1 / -1;
   align-items: stretch;
@@ -286,7 +301,6 @@
 }
 
 #shell-sidebar {
-  z-index: 2;
   min-height: 0;
   overflow: auto;
   border-inline-end: 1px solid var(--color-border);
@@ -463,11 +477,12 @@
   #shell-sidebar {
     position: fixed;
     inset: var(--shell-header-end) auto 0 0;
-    z-index: 5;
+    z-index: var(--rg-layer-panel);
     display: none;
     width: min(20rem, calc(100% - 3rem));
     border-inline-end: 1px solid var(--ash-line-strong);
     background: var(--color-bg);
+    box-shadow: var(--rg-layer-panel-shadow);
   }
 
   #app-shell[data-menu-open="true"] #shell-sidebar {
@@ -492,7 +507,7 @@
   .shell-menu-scrim {
     position: fixed;
     inset: var(--shell-header-end) 0 0;
-    z-index: 4;
+    z-index: var(--rg-layer-shade);
     display: block;
     min-width: 0;
     min-height: 0;
@@ -532,6 +547,7 @@
   border: 1px solid var(--ash-line-strong);
   background: var(--color-surface);
   color: var(--color-fg);
+  box-shadow: var(--rg-layer-tip-shadow);
 }
 
 .shell-apps h2 {
@@ -611,7 +627,7 @@
    size container, so the agents list can take a quarter of its height. */
 #shell-aside {
   position: relative;
-  z-index: 3;
+  z-index: var(--rg-layer-panel);
   container-type: size;
   display: grid;
   grid-area: 2 / 3;
@@ -650,8 +666,9 @@
   #shell-aside {
     position: fixed;
     inset: var(--shell-header-end) 0 0 auto;
-    z-index: 30;
+    z-index: var(--rg-layer-panel);
     width: min(22rem, 100%);
+    box-shadow: var(--rg-layer-panel-shadow);
     transition:
       transform var(--duration-slow) var(--ease-out),
       visibility var(--duration-slow);

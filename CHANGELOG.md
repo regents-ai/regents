@@ -3526,3 +3526,25 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The home page has a short line under its buttons, "Connect your agent from
   the command line", which opens the steps for connecting your agent. Agents
   reading the home page get the same pointer.
+
+## 2026-10-27 — Menus, panels and notes stack the same way on every page
+
+- On a phone or a narrow screen, a note under your account, such as "Sign out
+  couldn't finish. Try again.", now shows over the open side panel. Before, it
+  opened behind the panel and you never saw it.
+- Pressing Tab first on any app page now shows a "Skip to content" link over the
+  header; Enter takes you straight to the page, past the header and the menu.
+- The $REGENT menu now sits flat on the page, without a soft shadow under it.
+- Release record: every floating part of the site (header, side panel, phone
+  menu and its shade, the account note, the $REGENT menu, the skip link, the
+  Buy Credits close button and the local motion lab's panels) now takes its
+  place from design-system's shared layer names, re-pinned to `804c7521`
+  (design-system STYLE.md "Layers", Sean LAYERS-DEPTH a = flat), copying
+  ash-template `e8ed190`. Ordering inside one picture (the world cube, the
+  home hero, a book on Literature, a product tab's foil) keeps its own numbers.
+  No window on regents.sh opens over another window today, so none moved to a
+  popover. New checks in `platform/test/browser/layout.spec.ts`: "on a phone, the
+  open menu and side panel cover the page, and the account's note sits over
+  them" (fails on `8278c549`, the note behind the panel) and "the first Tab
+  shows Skip to content over the header" (1280 and 390). WebKit not run on the
+  Mac.

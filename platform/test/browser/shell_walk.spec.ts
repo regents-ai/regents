@@ -28,7 +28,7 @@ async function patchTo(page: Page, path: string) {
     link.textContent = destination
     link.dataset.phxLink = "patch"
     link.dataset.phxLinkState = "push"
-    link.style.cssText = "position: fixed; inset: 0 auto auto 0; z-index: 1000"
+    link.style.cssText = "position: fixed; inset: 0 auto auto 0; z-index: var(--rg-layer-skip)"
     document.body.append(link)
   }, path)
   await page.locator("#patch-probe").click()
