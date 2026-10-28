@@ -492,9 +492,11 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
 // shows every character, wrapping, for the person to check, with the copy icon
 // and Basescan arrow after it. Under "Rewards go to" the compact form holds the
 // short form and the copy icon, beside Change. Both copy the whole address, and
-// a copy press neither ticks the warning nor unticks the choice. Nothing on the
-// page names the address outside the primitive or scrolls sideways, signed out
-// and signed in, at every width, light and dark.
+// a copy press neither ticks the warning nor unticks the choice. No label on the
+// page holds a button or link: the warning's words tick its box, and the box is
+// named by the sentence alone. Nothing on the page names the address outside
+// the primitive or scrolls sideways, signed out and signed in, at every width,
+// light and dark.
 test("Stake shows the other address in full in the warning and compact under Rewards go to", async ({page}) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
   await installWallet(page)
@@ -539,8 +541,22 @@ test("Stake shows the other address in full in the warning and compact under Rew
     expect(await addressesOutOfCase(page), `warning ${at}`).toEqual([])
     expect(await copied(full.locator(".rg-copy--icon")), at).toBe(otherWallet)
     await expect(acknowledgment, at).not.toBeChecked()
+    // No press inside a label anywhere on the page, and the box is named by the
+    // warning's sentence with the address read once, never by its icons.
+    await expect(page.locator("label :is(button, a)"), at).toHaveCount(0)
+    await expect(acknowledgment, at).toHaveAccessibleName(
+      `Warning: the wallet ${otherWallet} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.`,
+    )
+    // The hidden copy that holds the warning's room is exactly as tall, so the
+    // window keeps one height whichever of the two shows.
+    const [room, shown] = await page
+      .locator(".stake-recipient-note > .stake-check")
+      .evaluateAll(checks => checks.map(check => check.getBoundingClientRect().height))
+    expect(Math.abs(room - shown), at).toBeLessThan(0.5)
     await dialog.screenshot({path: test.info().outputPath(`warning-${at.replaceAll(" ", "-")}.png`)})
-    await acknowledgment.check()
+    // The warning's words tick the box.
+    await page.locator("#staking-recipient-warning-text").getByText("will accrue the USDC revenue").click()
+    await expect(acknowledgment, at).toBeChecked()
     await dialog.getByRole("button", {name: "Done", exact: true}).click()
     await expect(dialog).toBeHidden()
 
@@ -560,6 +576,7 @@ test("Stake shows the other address in full in the warning and compact under Rew
     expect(await addressesOutOfCase(page), `row ${at}`).toEqual([])
     expect(await copied(compact.locator(".rg-copy--icon")), at).toBe(otherWallet)
     await expect(toggle, at).toBeChecked()
+    await expect(page.locator("label :is(button, a)"), `row ${at}`).toHaveCount(0)
     await page
       .locator("#staking-amount-form")
       .screenshot({path: test.info().outputPath(`rewards-go-to-${at.replaceAll(" ", "-")}.png`)})

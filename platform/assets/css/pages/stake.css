@@ -1012,9 +1012,14 @@
   box-sizing: border-box;
   min-height: 44px;
   padding-block: 0.6rem;
-  color: inherit;
-  font-family: inherit;
   font-size: 0.9rem;
+}
+
+/* The words before and after the address tick the box. They read as the
+   sentence they are, not as the panel's small field labels. */
+.stake-actions .stake-check label {
+  color: inherit;
+  font: inherit;
   letter-spacing: normal;
   text-transform: none;
   cursor: pointer;

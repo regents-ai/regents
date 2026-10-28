@@ -3582,3 +3582,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   signed in, light and dark, 1280, 390 and 320; fails on `e30cb130`) and
   `platform/test/regents_web/stake_live_test.exs` "STAKE_FOR_SOMEONE". WebKit
   not run on the Mac.
+
+## 2026-10-27 — The warning's tick box reads clearly aloud
+
+- In the window for staking for someone else, a screen reader now reads the
+  warning's tick box as the warning itself, with the receiving address read
+  once. Before, it also read out "Copy the full address" and "Open on
+  Basescan" in the middle of the sentence. Pressing the warning's words still
+  ticks the box, and the window looks the same.
+- Release record: the warning is no longer one `<label>` around the address
+  component's copy button and Basescan link; the words before and after the
+  address are two labels for the box, the address sits between them, and the
+  box takes the sentence as its name. The walk "Stake shows the other address
+  in full in the warning and compact under Rewards go to" now also fails on any
+  button or link inside a label on /stake and on any other name for the box
+  (both fail on `cc8c5613`). WebKit not run on the Mac.

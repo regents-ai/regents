@@ -34,6 +34,8 @@ defmodule RegentsWeb.StakeActions do
   import RegentsWeb.EventInput, only: [failure_reason: 1]
 
   @blank_form %{for_other: false, receiver: "", acknowledged: nil}
+  @warning_before "Warning: the wallet"
+  @warning_after "will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens."
   # Longer than any amount or address a person types; the inputs stop there too.
   @form_limits %{
     "action" => 16,
@@ -820,12 +822,10 @@ defmodule RegentsWeb.StakeActions do
                   >
                     Enter a valid Ethereum wallet address. ENS names, the zero address and the staking contract are not accepted.
                   </p>
-                  <label
-                    :if={@receiver}
-                    id="staking-recipient-warning"
-                    class="stake-check"
-                    for="staking-recipient-acknowledged"
-                  >
+                  <%!-- The words before and after the address each tick the box; the
+                       address and its icons sit between them, outside both, and the box
+                       is named by the sentence with the address read once. --%>
+                  <div :if={@receiver} id="staking-recipient-warning" class="stake-check">
                     <input
                       id="staking-recipient-acknowledged"
                       name="acknowledged"
@@ -833,11 +833,16 @@ defmodule RegentsWeb.StakeActions do
                       value="true"
                       checked={Steps.acknowledged?(@form)}
                       data-onchain-input="acknowledged"
+                      aria-label={recipient_sentence(@receiver)}
                     />
                     <span id="staking-recipient-warning-text">
-                      <.recipient_warning id="staking-recipient-address" address={@receiver} />
+                      <.recipient_warning
+                        id="staking-recipient-address"
+                        address={@receiver}
+                        for="staking-recipient-acknowledged"
+                      />
                     </span>
-                  </label>
+                  </div>
                 </div>
 
                 <div class="stake-recipient-done">
@@ -1007,15 +1012,21 @@ defmodule RegentsWeb.StakeActions do
 
   attr :id, :string, required: true
   attr :address, :string, required: true
+  attr :for, :string, default: nil, doc: "the box the words tick"
 
   # Every character of the address, for the person to check, in fixed-width
   # letters, so every address takes the same room.
   defp recipient_warning(assigns) do
+    assigns = assign(assigns, opening: @warning_before, closing: @warning_after)
+
     ~H"""
-    Warning: the wallet <Regent.Primitives.address id={@id} address={@address} variant="full" />
-    will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
+    <label for={@for}>{@opening}</label>
+    <Regent.Primitives.address id={@id} address={@address} variant="full" />
+    <label for={@for}>{@closing}</label>
     """
   end
+
+  defp recipient_sentence(address), do: "#{@warning_before} #{address} #{@warning_after}"
 
   attr :id, :string, required: true
   attr :note, :list, default: nil
