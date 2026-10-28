@@ -429,14 +429,29 @@
   grid-column: 1 / -1;
 }
 
-/* Small words, each with a press area a finger can take. */
+/* Small words, each with a press area a finger can take. Every state keeps a
+   second line, where the address the rewards go to sits under its words, with
+   Change beside it; Add sits beside "No address yet". */
 .stake-for-other {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto 1.75rem;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: start;
+  column-gap: 0.6rem;
   min-width: 0;
   font-size: 0.8rem;
   white-space: nowrap;
+}
+
+/* Under the words, past the box. */
+.stake-for-other__address {
+  grid-area: 2 / 1;
+  margin-inline-start: 1.25rem;
+}
+
+.stake-for-other__address + .stake-for-other__change {
+  grid-area: 2 / 2;
 }
 
 .stake-actions .stake-for-other label {
@@ -457,7 +472,7 @@
   }
 
   .stake-for-other {
-    gap: 0.4rem;
+    column-gap: 0.4rem;
     font-size: 0.7rem;
   }
 }
@@ -894,12 +909,6 @@
   justify-self: start;
 }
 
-/* An address keeps its own letters, even inside the panel's uppercase controls. */
-.stake-page .rg-address,
-.stake-page .rg-address .rg-address__label {
-  letter-spacing: normal;
-  text-transform: none;
-}
 .stake-dialog-kicker,
 .stake-dialog-summary { margin-block: 0 0.75rem; }
 .stake-dialog-summary { font-size: 1.05rem; }
@@ -994,10 +1003,6 @@
 
 #staking-recipient-error[data-visible="false"] {
   visibility: hidden;
-}
-
-.stake-recipient-address {
-  font-family: var(--font-family-mono);
 }
 
 .stake-actions .stake-check {
@@ -1262,6 +1267,10 @@
    and the row keeps all of it, so the Amount box below never covers part of
    the press. A mouse keeps the words at their own size. */
 @media (hover: none), (pointer: coarse) {
+  .stake-for-other {
+    grid-template-rows: auto 2.75rem;
+  }
+
   .stake-actions .stake-for-other label {
     min-height: 2.75rem;
   }

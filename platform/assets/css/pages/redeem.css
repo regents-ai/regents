@@ -683,14 +683,7 @@
   overflow-wrap: anywhere;
 }
 
-/* An address keeps its own letters, even inside the page's uppercase controls,
-   and sits at the start of its row. */
-.redeem-page .rg-address,
-.redeem-page .rg-address .rg-address__label {
-  letter-spacing: normal;
-  text-transform: none;
-}
-
+/* An address sits at the start of its row. */
 .redeem-contract-details dd > .rg-address {
   justify-self: start;
 }

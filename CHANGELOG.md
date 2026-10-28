@@ -3563,3 +3563,22 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - A browser walk of Stake and Redeem at computer and phone widths, signed out and signed
   in, with the Buy Credits window open, now fails if any address there is printed as
   plain text.
+
+## 2026-10-27 — Staking for someone else shows their whole address
+
+- When you stake for a different address, the warning in its window now shows
+  every character of the wallet that will receive the stake, wrapping onto the
+  next line where it must, with a copy icon and a link to Basescan after it, so
+  you can check it against what you meant to type.
+- Once you confirm, the choice above Amount reads "Rewards go to" with the
+  address on the line under it: its short form, which opens the full address,
+  and a copy icon, with Change beside it. Both copy icons copy the whole
+  address.
+- Release record: the warning uses design-system `804c7521`'s full address form
+  and the row its compact form; Stake and Redeem drop their own letter-case
+  rules for addresses, which the shared component now applies itself. New
+  checks: `platform/test/browser/stake.spec.ts` "Stake shows the other address
+  in full in the warning and compact under Rewards go to" (signed out and
+  signed in, light and dark, 1280, 390 and 320; fails on `e30cb130`) and
+  `platform/test/regents_web/stake_live_test.exs` "STAKE_FOR_SOMEONE". WebKit
+  not run on the Mac.

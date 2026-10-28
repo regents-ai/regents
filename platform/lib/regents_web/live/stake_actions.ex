@@ -720,7 +720,8 @@ defmodule RegentsWeb.StakeActions do
               <input type="hidden" name="action" value={@action} data-onchain-input="action" />
               <Regent.Primitives.field id="staking-amount" label="Amount" class="stake-amount-field">
                 <%!-- Unstake keeps this choice's room, unseen, so the Amount row never moves.
-                     Once the other address is set, this row names it in place of the choice. --%>
+                     Once the other address is set, "Rewards go to" sits above it, in
+                     the line every state keeps for it. --%>
                 <div
                   class="stake-for-other"
                   data-room-only={@action != "stake"}
@@ -739,6 +740,13 @@ defmodule RegentsWeb.StakeActions do
                     />
                     <span id="staking-for-other-text">{for_other_text(@form)}</span>
                   </label>
+                  <Regent.Primitives.address
+                    :if={ready_receiver(@form)}
+                    id="staking-for-other-address"
+                    class="stake-for-other__address"
+                    address={ready_receiver(@form)}
+                    variant="compact"
+                  />
                   <button
                     :if={@form.for_other}
                     id="staking-recipient-change"
@@ -798,7 +806,12 @@ defmodule RegentsWeb.StakeActions do
                 <div class="stake-recipient-note">
                   <p class="stake-check" aria-hidden="true" inert>
                     <input type="checkbox" />
-                    <span><.recipient_warning address={String.duplicate("0", 42)} /></span>
+                    <span>
+                      <.recipient_warning
+                        id="staking-recipient-room-address"
+                        address={"0x" <> String.duplicate("0", 40)}
+                      />
+                    </span>
                   </p>
                   <p
                     id="staking-recipient-error"
@@ -822,7 +835,7 @@ defmodule RegentsWeb.StakeActions do
                       data-onchain-input="acknowledged"
                     />
                     <span id="staking-recipient-warning-text">
-                      <.recipient_warning address={@receiver} />
+                      <.recipient_warning id="staking-recipient-address" address={@receiver} />
                     </span>
                   </label>
                 </div>
@@ -992,12 +1005,14 @@ defmodule RegentsWeb.StakeActions do
     """
   end
 
+  attr :id, :string, required: true
   attr :address, :string, required: true
 
-  # The address is in fixed-width letters, so every address takes the same room.
+  # Every character of the address, for the person to check, in fixed-width
+  # letters, so every address takes the same room.
   defp recipient_warning(assigns) do
     ~H"""
-    Warning: the wallet <span class="stake-recipient-address">{@address}</span>
+    Warning: the wallet <Regent.Primitives.address id={@id} address={@address} variant="full" />
     will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.
     """
   end
@@ -1191,10 +1206,7 @@ defmodule RegentsWeb.StakeActions do
   defp for_other_text(%{for_other: false}), do: "Stake for a different address"
 
   defp for_other_text(form) do
-    case ready_receiver(form) do
-      nil -> "No address yet"
-      address -> "Rewards go to #{RegentFormat.short_address(address)}"
-    end
+    if ready_receiver(form), do: "Rewards go to", else: "No address yet"
   end
 
   defp open_recipient, do: JS.dispatch("regents:open", to: "#staking-recipient-dialog")

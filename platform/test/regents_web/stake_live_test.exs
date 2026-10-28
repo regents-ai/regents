@@ -1133,10 +1133,24 @@ defmodule RegentsWeb.StakeLiveTest do
     refute has_element?(view, "#staking-recipient-warning")
 
     stake_for(view, other)
-    assert has_element?(view, "#staking-recipient-warning-text", String.downcase(other))
+    # The warning shows every character of the address it names.
+    assert has_element?(
+             view,
+             "#staking-recipient-warning-text #staking-recipient-address.rg-address--full .rg-address__words",
+             String.downcase(other)
+           )
+
     assert step(view, "stake") == []
 
     acknowledge(view, other)
+    # "Rewards go to" names it in the compact form, which copies it whole.
+    assert has_element?(view, "#staking-for-other-text", "Rewards go to")
+
+    assert has_element?(
+             view,
+             "#staking-for-other-address.rg-address--compact [data-copy-text='#{String.downcase(other)}']"
+           )
+
     assert [%{data: data}] = step(view, "stake")
     assert data =~ "de0b295669a9fd93d5f28d9ec85e40f4cb697bae"
 
