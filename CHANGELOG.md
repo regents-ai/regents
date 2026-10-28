@@ -3754,3 +3754,21 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   control rollout 2026-10-28-live-commit. The served document stays the tool manifest
   plus `build`; the template's per-operation rows are not adopted here. OpenAPI and
   YAML contract move to 4.0.0. No database changes.
+
+## 2026-10-28 — Home page review fixes
+
+- Keyboard users reach the six "Visit" links in the cube, and the list shows as soon as
+  one of its links has focus, even before the cube has drawn.
+- The home page has a "Skip to content" link, as every other page does.
+- Keyfleet is shown as available now, and the "One token, not equity." principle names
+  Keyfleet beside Autolaunch and Patchbay as sending part of what it earns to stakers.
+- With less motion asked for, or without scripts, the list of worlds on a narrow stage
+  shows in full instead of scrolling inside its box.
+- Release record: from the adversarial review of v238. world_cube.css hides the
+  not-yet-drawn list with opacity only (no `visibility: hidden`), shows it on
+  `:focus-within`, and lets the narrow stage grow under `prefers-reduced-motion:
+  reduce` or `scripting: none`; home_live.ex adds the skip link and `main#home-content`,
+  marks the three Keyfleet items live and updates the principle. Kept as they were:
+  the shared footer's "What agents can do here" label (the template chief is
+  renaming it on every site at once) and the narrow cube layout inside the
+  desktop hero panel.

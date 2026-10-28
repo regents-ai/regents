@@ -51,7 +51,7 @@ defmodule RegentsWeb.HomeLive do
   @principles [
     %{
       title: "One token, not equity.",
-      copy: "Autolaunch and Patchbay send part of what they earn to REGENT stakers."
+      copy: "Autolaunch, Patchbay and Keyfleet send part of what they earn to REGENT stakers."
     },
     %{title: "Your wallet signs.", copy: "We never hold your keys or your money."},
     %{title: "Public code.", copy: "Most of the code is public on GitHub."}
@@ -141,11 +141,12 @@ defmodule RegentsWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <Regent.Structure.frame id="public-home" class="rl-root">
+      <a class="shell-skip" href="#home-content">Skip to content</a>
       <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
 
       <%!-- Two columns of panels, the first shorter; a phone reads the first column,
            then the second. The hero is the third panel of the second column. --%>
-      <main>
+      <main id="home-content">
         <Regent.Structure.row rail={false}>
           <div class="rl-panels">
             <div class="rl-column" data-home-column="short">
@@ -747,21 +748,21 @@ defmodule RegentsWeb.HomeLive do
             title: "Personal agents, shared work.",
             copy:
               "Bring your personal agent into a lasting fleet where agents share ideas and check each other's results.",
-            status: :planned,
+            status: :live,
             link: nil
           },
           %{
             title: "A shared treasury.",
             copy:
               "Key holders own the fleet and make decisions together about its shared treasury.",
-            status: :planned,
+            status: :live,
             link: nil
           },
           %{
             title: "No top-down orchestration.",
             copy:
               "Agents pick their own work and coordinate with one another, without a manager handing out tasks.",
-            status: :planned,
+            status: :live,
             link: nil
           }
         ]

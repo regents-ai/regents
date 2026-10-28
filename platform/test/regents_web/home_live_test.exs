@@ -53,12 +53,7 @@ defmodule RegentsWeb.HomeLiveTest do
           proof.status == :planned,
           do: proof
 
-    assert Enum.map(planned, & &1.title) == [
-             "NVIDIA NeMo harnesses.",
-             "Personal agents, shared work.",
-             "A shared treasury.",
-             "No top-down orchestration."
-           ]
+    assert Enum.map(planned, & &1.title) == ["NVIDIA NeMo harnesses."]
 
     assert Enum.all?(planned, &is_nil(&1.link))
   end

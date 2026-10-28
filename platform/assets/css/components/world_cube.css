@@ -154,7 +154,9 @@
    nothing else: the list would only flash before the cube took its place.
    Where the cube cannot draw (`data-world-ready="false"`) the list fades in.
    Without scripts, or for a visitor who asked for less motion, the cube is
-   never drawn, so the list shows from the start. */
+   never drawn, so the list shows from the start. The unseen list stays in the
+   keyboard order, since the cube only starts once it is on screen, and shows
+   as soon as a keyboard reaches one of its links. */
 .world-cube__worlds {
   transition: opacity 320ms ease-out;
 }
@@ -162,7 +164,11 @@
 @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
   .world-cube:not([data-world-ready]) .world-cube__worlds {
     opacity: 0;
-    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .world-cube:not([data-world-ready]):focus-within .world-cube__worlds {
+    opacity: 1;
   }
 }
 
@@ -393,6 +399,21 @@
   /* Drawn cards sit at the stage foot, including the keyboard-focused card. */
   .world-cube[data-world-ready="true"] .world-cube__worlds {
     overflow: visible;
+  }
+}
+
+/* Without scripts, or with less motion asked for, the cube is never drawn and
+   that is known before the first paint, so the stage simply grows to its list. */
+@media (scripting: none), (prefers-reduced-motion: reduce) {
+  @container (max-width: 47.99rem) {
+    .world-cube {
+      height: auto;
+      grid-template-rows: auto;
+    }
+
+    .world-cube__worlds {
+      overflow: visible;
+    }
   }
 }
 
