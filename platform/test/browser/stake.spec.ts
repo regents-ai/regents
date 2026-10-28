@@ -498,6 +498,8 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
 // the primitive or scrolls sideways, signed out and signed in, at every width,
 // light and dark.
 test("Stake shows the other address in full in the warning and compact under Rewards go to", async ({page}) => {
+  // Twelve walks (signed out and in, light and dark, three widths) take about 25 seconds alone.
+  test.setTimeout(120_000)
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
   await installWallet(page)
   const toggle = page.locator("#staking-for-other")
