@@ -3646,3 +3646,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Release record: brings back `59154547` and `38a95149` by reverting `ac923423` (Sean,
   VISITS-RELEASE a, 28 Oct 06:58Z), with the privacy date moved to the release day, and
   ships the who-am-I fix and its published description (Sean, WHOAMI-FIX a).
+
+## 2026-10-28 — v237 release record
+
+- v237 runs `16454a74`: whoami answers again with the template-shaped `allowed` config
+  (`dd73f5ae`) and its real answer shape in the API contract (`df18636d`); the visit
+  lines and the sign-in log fix return, with the privacy effective date moved to 28
+  October (`16454a74`). The rollback is v236 (`ac923423`). No database migrations in the
+  range. Sean's letters 28 Oct 06:58Z: WHOAMI-FIX a and VISITS-RELEASE a; Sentinel asked
+  for main to ship 07:10Z. Released under the shared-database lock.
+- Checked before release: server tests 591 (586 tests, five property checks), JavaScript
+  242, browser walk 127/127; required fixes clean against ash-template `e9a5fba`; command
+  list ok against regents-cli `02f89615`.
+- Live checks: one machine runs `16454a74` (image label revision), /healthz 200; a signed
+  whoami from a paired agent answers `paired` with its allowed list, an unsigned one
+  answers 401 with the missing headers; /privacy shows October 28, 2026; arrival lines
+  appear in the logs; /, /privacy and /stake load in headless Chromium at 1280 and 390
+  wide with no page errors and no sideways scroll. WebKit not run on the Mac.
