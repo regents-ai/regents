@@ -3632,3 +3632,7 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   public pages and docs; once paired, also reading its person's account, name claims,
   staking position, Credits and Points. It never uses the wallet, changes the account,
   pairs other agents or spends Credits.
+- The published API description (`/openapi.json` and `/api-contract.openapiv3.yaml`) now
+  describes that answer as it really is: `status`, `allowed` and `next_step`, with no
+  `effective_access` field. An agent checking the answer against the description no longer
+  finds a mismatch.

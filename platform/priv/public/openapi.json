@@ -3692,13 +3692,16 @@
                 "type": "object",
                 "properties": {
                   "wallet": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^0x[0-9a-f]{40}$"
                   },
                   "registry_listing": {
                     "type": [
                       "string",
                       "null"
-                    ]
+                    ],
+                    "format": "uri",
+                    "description": "The agent's page in the agent registry, or null when it has none."
                   }
                 },
                 "required": [
@@ -3708,12 +3711,15 @@
                 "additionalProperties": false
               },
               "audience": {
-                "type": "string"
+                "type": "string",
+                "const": "regents"
               },
               "authenticated": {
-                "type": "boolean"
+                "type": "boolean",
+                "const": true
               },
               "pairing": {
+                "description": "Null until a person pairs this agent.",
                 "anyOf": [
                   {
                     "type": "object",
@@ -3738,29 +3744,28 @@
                   }
                 ]
               },
-              "effective_access": {
-                "type": "object",
-                "properties": {
-                  "paired": {
-                    "type": "boolean"
-                  },
-                  "product_permissions": {
-                    "type": "string"
-                  },
-                  "account_management": {
-                    "type": "boolean"
-                  },
-                  "spending": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "paired",
-                  "product_permissions",
-                  "account_management",
-                  "spending"
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_paired",
+                  "person_not_here",
+                  "paired"
                 ],
-                "additionalProperties": false
+                "description": "not_paired: no person has paired this agent. person_not_here: paired, but its person has never signed in on this site. paired: it acts for its person."
+              },
+              "allowed": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "What the agent may do on this site in this status, in short plain sentences."
+              },
+              "next_step": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "What to do next, in one sentence; null when paired."
               }
             },
             "required": [
@@ -3768,7 +3773,9 @@
               "audience",
               "authenticated",
               "pairing",
-              "effective_access"
+              "status",
+              "allowed",
+              "next_step"
             ],
             "additionalProperties": false
           }

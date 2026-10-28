@@ -426,7 +426,7 @@ defmodule RegentsWeb.ApiContractTest do
        %{conn: conn} do
     contract = YamlElixir.read_from_file!(@contract)
     public = conn |> get("/openapi.json") |> json_response(200)
-    agent_paths = ["/api/agents/v1/me", "/api/agents/v1/pair"]
+    agent_paths = ["/api/agents/v1/me", "/api/agents/v1/pair", "/api/agents/v1/whoami"]
 
     assert Map.take(public["paths"], agent_paths) == Map.take(contract["paths"], agent_paths)
 

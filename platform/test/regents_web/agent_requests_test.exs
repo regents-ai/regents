@@ -203,8 +203,20 @@ defmodule RegentsWeb.AgentRequestsTest do
     assert %{"error" => %{"code" => _code}} = Jason.decode!(refusal)
   end
 
+  # The answer has exactly the fields the published contract lists, in its status.
   defp whoami(conn) do
-    conn |> get("/api/agents/v1/whoami") |> json_response(200) |> Map.fetch!("data")
+    data = conn |> get("/api/agents/v1/whoami") |> json_response(200) |> Map.fetch!("data")
+    schema = whoami_schema()
+    assert data |> Map.keys() |> Enum.sort() == Enum.sort(schema["required"])
+    assert data["status"] in schema["properties"]["status"]["enum"]
+    data
+  end
+
+  defp whoami_schema do
+    "../../contracts/api-contract.openapiv3.yaml"
+    |> Path.expand(__DIR__)
+    |> YamlElixir.read_from_file!()
+    |> get_in(["components", "schemas", "AgentWhoami", "properties", "data"])
   end
 
   defp allowed(status), do: Map.fetch!(Application.fetch_env!(:regent_agents, :allowed), status)
