@@ -3636,3 +3636,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   describes that answer as it really is: `status`, `allowed` and `next_step`, with no
   `effective_access` field. An agent checking the answer against the description no longer
   finds a mismatch.
+
+## 2026-10-28 — Visits counted, quieter sign-in, and agents can ask who they are
+
+- regents.sh counts its own visits again, so we can see which pages people find and use.
+  A browser that sends Global Privacy Control is never counted that way. The privacy
+  policy says so, and its effective date is now 28 October 2026.
+- Signing in, refreshing and signing out no longer leave a warning in the site's logs.
+- Release record: brings back `59154547` and `38a95149` by reverting `ac923423` (Sean,
+  VISITS-RELEASE a, 28 Oct 06:58Z), with the privacy date moved to the release day, and
+  ships the who-am-I fix and its published description (Sean, WHOAMI-FIX a).

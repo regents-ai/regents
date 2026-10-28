@@ -3,6 +3,7 @@
 // the request each one makes. None of them opens a wallet or signs.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
 import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools"
+import {report, visitId} from "./visit_log"
 
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
 type Input = Record<string, string>
@@ -84,6 +85,13 @@ function validInput(input: unknown, {properties, required}: Schema): input is In
     (!properties[key].enum || properties[key].enum.includes(value)))
 }
 
+// Every call names its tool and this visit, so the site's log can put the call
+// beside the rest of the visit (RegentsWeb.VisitLog). Neither is a credential.
+function client(tool: string): Record<string, string> {
+  const visit = visitId()
+  return {"x-regent-client": `webmcp/${tool}`, ...(visit && {"x-regent-visit": visit})}
+}
+
 // One signal per run: it ends with the page's registration or when the host cancels.
 function runSignal(lifetime: AbortSignal, client: unknown): AbortSignal {
   const host = client && typeof client === "object" ? (client as {signal?: unknown}).signal : undefined
@@ -96,7 +104,7 @@ function transport() {
     trustedOrigins: [document.querySelector<HTMLMetaElement>('meta[name="agent-request-origin"]')?.content ?? ""],
     audience: manifest.audience,
     proofHeaders: manifest.proof_headers,
-    requestHeaders: tool => ({"x-regent-client": `webmcp/${tool}`}),
+    requestHeaders: client,
     // Only the signed tools are operations; each is sent with its operation's own inputs.
     operations: manifest.tools.flatMap(entry =>
       "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
@@ -108,7 +116,7 @@ async function read(entry: Entry, input: unknown, signal: AbortSignal): Promise<
   if (signal.aborted) return cancelled()
   if (!validInput(input, entry.input_schema)) return invalidInput()
   const target = requests[entry.name](input)
-  const headers: Record<string, string> = {Accept: target.accept}
+  const headers: Record<string, string> = {Accept: target.accept, ...client(entry.name)}
 
   let response: Response
   try {
@@ -121,7 +129,10 @@ async function read(entry: Entry, input: unknown, signal: AbortSignal): Promise<
       signal,
     })
   } catch {
-    return signal.aborted ? cancelled() : failure("network_error", "regents.sh could not be reached.")
+    if (signal.aborted) return cancelled()
+    // The site never heard it, so the page reports it.
+    report({name: "tool.unsent", where: entry.name, outcome: "unreachable"})
+    return failure("network_error", "regents.sh could not be reached.")
   }
 
   try {
@@ -154,8 +165,13 @@ function tool(entry: Entry, lifetime: AbortSignal): Tool {
         try {
           const response = await transport().execute(entry.name, input as SignedInput, signal)
           return {ok: response.ok, status: response.status, body: await response.json()}
-        } catch {
-          return signal.aborted ? cancelled() : {ok: false, error: {
+        } catch (error) {
+          if (signal.aborted) return cancelled()
+          // fetch fails with a TypeError when the network fails; the transport's own
+          // refusals, made before anything is sent, are plain Errors. Only a call
+          // the site never heard is reported.
+          if (error instanceof TypeError) report({name: "tool.unsent", where: entry.name, outcome: "unreachable"})
+          return {ok: false, error: {
             code: "signed_request_failed",
             message: "Prepare the request and sign its exact bytes with your existing SIWA signer for regents. Use fresh proof; if no signer is available, report that blocker.",
           }}

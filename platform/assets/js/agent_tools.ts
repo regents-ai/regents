@@ -1,3 +1,5 @@
+import {visitId} from "./visit_log"
+
 type Tool = {name: string; title: string; description: string}
 type Step = {title: string; copy: string; command: string}
 type EverySite = {
@@ -38,9 +40,11 @@ async function readEverySite(dialog: HTMLDialogElement): Promise<void> {
   const note = dialog.querySelector<HTMLElement>("[data-agent-tools-note]")!
   const all = dialog.querySelector<HTMLElement>("[data-agent-tools-all]")!
   note.textContent = "Reading every site's tools…"
+  // It sends no cookies, so it names this visit for the site's log (RegentsWeb.VisitLog).
+  const visit = visitId()
   try {
     const response = await fetch("/api/v1/site-tools", {
-      headers: {Accept: "application/json"},
+      headers: {Accept: "application/json", ...(visit && {"x-regent-visit": visit})},
       credentials: "omit",
       cache: "no-store",
       redirect: "error",
