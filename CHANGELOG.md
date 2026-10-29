@@ -3984,3 +3984,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Buy Credits takes the template's frame padding, so its close button sits in the
   frame's corner; its phone-only sizes are gone because the frame sizes itself.
 - No database changes. The design-system pin stays at `3134bab0`.
+
+## 2026-10-29 — Regents v250 released
+
+- v250 (`db4c6239`) went live at 21:08Z: every window in the shared cut-corner frame
+  (Buy Credits, Agent tools, the stake windows, the transaction receipt and the Paper Pro
+  Daily prompt), from the design chief's `43cf7344`. The rollback is v249 (`3580b4a7`).
+  No database, secret or library changes.
+- Before release, on the exact tree: 604 server tests, 252 script tests, 141 browser
+  tests, required fixes, CLI and identity checks all clean.
+- Live at 390 and 1280, light and dark: the stake supply window, the Paper Pro Daily
+  prompt and Agent tools open in the shared frame, fit the screen, close with Escape, and
+  the pages have no sideways scroll or console errors.
