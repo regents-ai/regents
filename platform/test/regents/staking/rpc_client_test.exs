@@ -384,7 +384,7 @@ defmodule Regents.Staking.RpcClientTest do
         assert {:error, :chain_unavailable} = RpcClient.protocol_snapshot(nil)
       end)
 
-    assert log =~ "class: :timeout"
+    assert log =~ ~s(class: "timeout")
     refute log =~ "super-secret"
     refute log =~ "provider.invalid"
   end

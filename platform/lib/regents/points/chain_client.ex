@@ -10,5 +10,5 @@ defmodule Regents.Points.ChainClient do
 
   @impl true
   def rpc(%{chain_id: 8453}, method, params),
-    do: Rpc.request(method, params, log_scope: "points")
+    do: Rpc.request(method, params, scope: "points")
 end

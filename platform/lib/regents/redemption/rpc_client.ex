@@ -6,7 +6,7 @@ defmodule Regents.Redemption.RpcClient do
 
   @read_timeout 12_000
   @chain_id 8453
-  @rpc_opts [client_key: :redemption_http_client, log_scope: "redemption"]
+  @rpc_opts [client_key: :redemption_http_client, scope: "redemption"]
   # ERC721A's `OwnerQueryForNonexistentToken()`, which both Animata
   # collections answer `ownerOf` with for a token that does not exist.
   @nonexistent_token "0xdf2d9b42"

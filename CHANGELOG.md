@@ -3882,3 +3882,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - An agent's picture is set in its window on the Account page, as before.
 - Libraries unchanged: design-system 3134bab0, elixir-utils 9da44bdc (no database
   changes).
+
+## 2026-10-29 — Chain reads that fail are counted for Sentinel
+
+- Every chain read that gets no answer (a node error, a refused request, a timeout or a
+  dropped connection) is now counted on the private metrics listener as
+  `health_chain_request_failures_total`, by method, kind of failure, chain and the part
+  of the site that asked (`wallet`, `wallet_steps`, `staking`, `points`, `redemption`),
+  in the same words as ash-template. Sentinel reads it beside the other health numbers.
+- regents.sh sends nothing from a wallet of its own, so it reports no unconfirmed sends.

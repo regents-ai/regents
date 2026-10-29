@@ -9,7 +9,7 @@ defmodule Regents.Staking.RpcClient do
 
   @read_timeout 20_000
   @chain_id 8453
-  @rpc_opts [client_key: :staking_http_client, log_scope: "staking", purpose: :staking_protocol]
+  @rpc_opts [client_key: :staking_http_client, scope: "staking", purpose: :staking_protocol]
 
   # A public Base endpoint answers `eth_getLogs` over at most ten thousand
   # blocks, so the window is asked for in that many at a time, a few at a time.

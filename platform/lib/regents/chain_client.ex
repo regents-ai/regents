@@ -20,7 +20,7 @@ defmodule Regents.ChainClient do
 
   @behaviour RegentCredits.ChainClient
 
-  @rpc_opts [log_scope: "wallet steps"]
+  @rpc_opts [scope: "wallet_steps"]
   @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}
 
   @doc "Base, as a wallet is asked to switch to it."
@@ -60,7 +60,7 @@ defmodule Regents.ChainClient do
   def request(%{chain_id: 1}, method, params) do
     case Application.get_env(:regents, :ethereum_read_rpc_url) do
       nil -> {:error, :chain_unavailable}
-      url -> Rpc.answer(method, params, [url: url] ++ @rpc_opts)
+      url -> Rpc.answer(method, params, [url: url, chain_id: 1] ++ @rpc_opts)
     end
   end
 end

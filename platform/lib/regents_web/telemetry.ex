@@ -8,7 +8,9 @@ defmodule RegentsWeb.Telemetry do
   controller is timed by its route pattern (`[:phoenix, :router_dispatch, :stop]`),
   never by its path. Background jobs report each run's outcome and time from
   Oban's own events. Each staking chain read (`Regents.WalletActions.Rpc`) is
-  counted by its purpose and method.
+  counted by its purpose and method, and every chain request that got no answer
+  by its method, class, chain and the caller's fixed scope
+  (`[:regents, :chain, :failure]`, a `health.*` series).
   The engine's memory, run queues and process counts come from telemetry_poller's
   default poller.
 
@@ -105,6 +107,11 @@ defmodule RegentsWeb.Telemetry do
         event_name: [:regents, :agents, :activity_unread],
         tags: [:reason],
         description: "Agents' activity reads from the sign-in service that gave no reading"
+      ),
+      counter("health.chain_request_failures.total",
+        event_name: [:regents, :chain, :failure],
+        tags: [:method, :class, :chain_id, :scope],
+        description: "Chain requests that got no answer"
       ),
       counter("regents.staking.rpc_requests.total",
         event_name: [:regents, :staking, :rpc],

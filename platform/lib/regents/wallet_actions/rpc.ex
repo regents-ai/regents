@@ -235,19 +235,43 @@ defmodule Regents.WalletActions.Rpc do
   defp result({:ok, %{status: 200, body: %{"result" => result}}}, _method, _opts),
     do: {:ok, result}
 
-  defp result({:ok, %{status: 200, body: %{"error" => %{} = error}}}, _method, _opts),
-    do: {:error, {:rpc, error}}
+  defp result({:ok, %{status: 200, body: %{"error" => %{} = error}}}, method, opts) do
+    failed(method, "rpc", opts)
+    {:error, {:rpc, error}}
+  end
 
   defp result({:ok, %{status: status}}, method, opts) do
-    scope = Keyword.get(opts, :log_scope, "wallet")
-    Logger.warning("#{scope} chain read refused #{inspect(%{method: method, status: status})}")
+    failed(method, "http_#{status}", opts)
+
+    Logger.warning(
+      "#{scope(opts)} chain read refused #{inspect(%{method: method, status: status})}"
+    )
+
     {:error, :chain_unavailable}
   end
 
   defp result({:error, reason}, method, opts) do
-    log_failure(method, reason, opts)
+    failed(method, error_class(reason), opts)
+
+    Logger.warning(
+      "#{scope(opts)} chain read failed #{inspect(%{method: method, class: error_class(reason)})}"
+    )
+
     {:error, :chain_unavailable}
   end
+
+  # Every request that got no answer counts in `health.chain_request_failures.total`,
+  # under the caller's fixed `scope` and the chain it asked.
+  defp failed(method, class, opts) do
+    :telemetry.execute([:regents, :chain, :failure], %{count: 1}, %{
+      method: method,
+      class: class,
+      chain_id: Keyword.get(opts, :chain_id, @chain_id),
+      scope: scope(opts)
+    })
+  end
+
+  defp scope(opts), do: Keyword.get(opts, :scope, "wallet")
 
   def format_units(value, decimals) do
     value
@@ -366,18 +390,9 @@ defmodule Regents.WalletActions.Rpc do
     end
   end
 
-  defp log_failure(method, reason, opts) do
-    scope = Keyword.get(opts, :log_scope, "wallet")
-
-    Logger.warning(
-      "#{scope} chain read failed #{inspect(%{method: method, class: error_class(reason)})}"
-    )
-  end
-
   defp error_class(%Req.TransportError{reason: reason})
        when reason in [:timeout, :connect_timeout],
-       do: :timeout
+       do: "timeout"
 
-  defp error_class(%Req.TransportError{}), do: :transport
-  defp error_class(_reason), do: :transport
+  defp error_class(_transport), do: "transport"
 end
