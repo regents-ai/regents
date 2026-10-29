@@ -7,7 +7,7 @@
     "Sign in once with regents auth login --site regents; every agents request is then signed with your agent key.",
     "Your person makes a pairing code with Pair New Agent on their Account page at https://regents.sh.",
     "Private reads require current pairing; browser sessions never grant agent authority. World ID and ERC-8004 registration are optional.",
-    "No private nonfinancial write is available; wallet actions remain user-signed."
+    "The one private write is claiming a free Regent Name for the paired owner, only when they ask; wallet actions remain user-signed."
   ],
   "commands": [
     {
@@ -85,6 +85,46 @@
           "field": "after",
           "required": false,
           "description": "The previous response next value, unchanged. Omit for the first page."
+        }
+      ]
+    },
+    {
+      "command": "names check",
+      "description": "Check a Regent Name for the paired owner: the rules it breaks, whether it is taken, and the free and paid claims left. Changes nothing.",
+      "operation_id": "agentNameCheck",
+      "method": "POST",
+      "path": "/api/agent/v1/names/check",
+      "authority": "paired_agent",
+      "effect": "read",
+      "webmcp": "regents_name_check",
+      "flags": [
+        {
+          "name": "name",
+          "type": "string",
+          "in": "body",
+          "field": "name",
+          "required": true,
+          "description": "The Regent Name without its ending, such as ada for ada.regent.eth."
+        }
+      ]
+    },
+    {
+      "command": "names claim",
+      "description": "Claim a free Regent Name for the paired owner. Spends one of their free claims and can't be undone; claim only a name they asked for, after names check.",
+      "operation_id": "agentNameClaim",
+      "method": "POST",
+      "path": "/api/agent/v1/names/claim",
+      "authority": "paired_agent",
+      "effect": "write",
+      "webmcp": "regents_name_claim",
+      "flags": [
+        {
+          "name": "name",
+          "type": "string",
+          "in": "body",
+          "field": "name",
+          "required": true,
+          "description": "The Regent Name without its ending, such as ada for ada.regent.eth."
         }
       ]
     },

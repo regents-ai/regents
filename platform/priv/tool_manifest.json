@@ -241,6 +241,156 @@
       "effect": "read"
     },
     {
+      "name": "regents_name_check",
+      "title": "Check a Regent Name",
+      "description": "Check a Regent Name for your paired person, as their Names page does: the rules it breaks (problems, empty when it follows every rule), whether a claim already holds it (taken, null while it breaks a rule), and the free and paid claims their wallets have left. Changes nothing. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer, and a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "description": "The Regent Name without its ending, such as ada for ada.regent.eth."
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": false,
+      "payment": "none",
+      "route": "POST /api/agent/v1/names/check",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_name_check",
+        "http": "POST /api/agent/v1/names/check"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "The Regent Name without its ending, such as ada for ada.regent.eth."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "effect": "read"
+    },
+    {
+      "name": "regents_name_claim",
+      "title": "Claim a free Regent Name",
+      "description": "Claim a free Regent Name for your paired person, as Claim on their Names page does: it spends one of their free claims, records the name for their wallet as name.regent.eth, and can't be undone. Claim only a name your person asked for, after regents_name_check shows it follows every rule, isn't taken and a free claim is left. Sends no transaction and spends no Credits. Answers 201 with the claim; name_breaks_rules 422, name_taken 409, no_free_claims 409 and names_unavailable 503 change nothing; after names_unavailable, try again with fresh proof. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer, and a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "description": "The Regent Name without its ending, such as ada for ada.regent.eth."
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "untrustedContentHint": false
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "POST /api/agent/v1/names/claim",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_name_claim",
+        "http": "POST /api/agent/v1/names/claim"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "The Regent Name without its ending, such as ada for ada.regent.eth."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "effect": "write"
+    },
+    {
       "name": "regents_agent_whoami",
       "title": "Check my agent identity and pairing",
       "description": "Check your SIWA identity and current pairing. Does not check in or award Points. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Browser cookies and human Privy tokens grant no agent authority.",
@@ -610,6 +760,8 @@
             "enum": [
               "regents_stake_position",
               "regents_claims",
+              "regents_name_check",
+              "regents_name_claim",
               "regents_agent_whoami",
               "regents_account",
               "regents_credits_balance",
@@ -1081,5 +1233,5 @@
     "x-agent-chain-id",
     "content-digest"
   ],
-  "private_write_available": false
+  "private_write_available": true
 }

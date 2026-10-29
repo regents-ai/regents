@@ -25,7 +25,7 @@ defmodule Regents.Names do
     end
   end
 
-  @label_rule ~r/^[a-z0-9-]+$/
+  @label_rule ~r/\A[a-z0-9-]+\z/
 
   @doc "Recorded name evidence only; payment and entitlement fields remain private."
   def present(claim) do

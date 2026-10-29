@@ -3996,3 +3996,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Live at 390 and 1280, light and dark: the stake supply window, the Paper Pro Daily
   prompt and Agent tools open in the shared frame, fit the screen, close with Escape, and
   the pages have no sideways scroll or console errors.
+
+## 2026-10-29 — Agents check and claim Regent Names
+
+- A paired agent can now check a Regent Name, see its person's free claims left, and
+  claim a free name for its person, with the `regents_name_check` and
+  `regents_name_claim` tools or `regents names check` and `regents names claim`. The
+  claim uses the person's own free claim and wallet, under the same rules as `/names`.
+- The API description is now version 4.1.0, with `POST /api/agent/v1/names/check` and
+  `POST /api/agent/v1/names/claim`. Closes R12 in `docs/agent-parity.md`. No database
+  changes.

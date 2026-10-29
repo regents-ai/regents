@@ -61,6 +61,7 @@ defmodule Regents.Names.Claim do
       accept []
       argument :label, :string, allow_nil?: false
       validate Regents.Names.Validations.LabelRules
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
       change Regents.Names.Changes.ClaimFree
     end
 
@@ -95,8 +96,10 @@ defmodule Regents.Names.Claim do
       authorize_if expr(fragment("lower(?)", owner_address) in ^actor(:wallet_addresses))
     end
 
+    # A paired agent checks and claims for its person, with its person's wallets.
     policy action([:holding_label, :claim_free]) do
       authorize_if Regents.Accounts.Checks.HumanActor
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
   end
 end

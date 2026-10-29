@@ -165,6 +165,8 @@ defmodule RegentsWeb.Router do
     pipe_through [:api, :paired_agent]
     get "/account", AgentReadsController, :account
     post "/claims", OwnedClaimsController, :agent_index
+    post "/names/check", AgentNamesController, :check
+    post "/names/claim", AgentNamesController, :claim
     get "/staking/position", StakingPositionController, :agent_show
     get "/credits/balance", AgentReadsController, :balance
     post "/credits/history", AgentReadsController, :history
