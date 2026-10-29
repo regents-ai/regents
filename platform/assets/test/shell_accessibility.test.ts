@@ -103,7 +103,7 @@ const fakeStorage = new Map<string, string>()
 const fakeWindow = {
   liveSocket: undefined as unknown,
   // The shell under test is a signed-in page, never the marketing landing.
-  location: {pathname: "/stake"},
+  location: {pathname: "/stake", hash: ""},
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
   matchMedia: () => ({

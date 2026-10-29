@@ -1,33 +1,6 @@
 import {expect, test} from "./support/offline"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
-// The site header runs the full width over the side panel, and the panel opens under
-// its bottom line at every width: beside the page on a wide screen, over it below that,
-// and over the whole page on a phone.
-test("the side panel opens under the header", async ({page}) => {
-  const auth = await installAuthenticatedPrivy(page, "valid")
-  await auth.establishLocalSession()
-
-  for (const width of [2000, 1280, 800, 390]) {
-    await page.setViewportSize({width, height: 900})
-    await page.goto("/account")
-    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-    const aside = page.locator("#shell-aside")
-    if (!(await aside.isVisible())) await page.locator("#shell-aside-button").click()
-    await expect(aside).toBeVisible()
-    // Measured once the panel has finished sliding in.
-    const sliding = () =>
-      page.evaluate(() => document.getAnimations().filter(a => a instanceof CSSTransition).length)
-    await expect.poll(sliding).toBe(0)
-
-    const header = (await page.locator("#shell-header").boundingBox())!
-    const panel = (await aside.boundingBox())!
-    expect(panel.y, `at ${width} wide`).toBeCloseTo(header.y + header.height, 0)
-    expect(panel.x).toBeLessThan(header.x + header.width)
-    expect(panel.x + panel.width).toBeGreaterThan(header.x)
-  }
-})
-
 // On a phone the menu and its backdrop also open under the header's line.
 test("the phone menu opens under the header", async ({page}) => {
   await page.setViewportSize({width: 390, height: 844})
@@ -44,11 +17,11 @@ test("the phone menu opens under the header", async ({page}) => {
 })
 
 // Ported from the template's layers check of 27 Oct. regents.sh has no bottom bar,
-// so on a phone the open menu and side panel are checked against the page's foot
-// and the account's note. Before the layers cutover the side panel took a higher
-// place than the header, so a "Sign out couldn't finish" note pressed from the
-// panel opened behind it, unseen.
-test("on a phone, the open menu and side panel cover the page, and the account's note sits over them", async ({page}) => {
+// so on a phone the open menu is checked against the page's foot, and the account's
+// note against the account menu. Before the layers cutover the account's panel took
+// a higher place than the header, so a "Sign out couldn't finish" note opened behind
+// it, unseen.
+test("on a phone, the open menu covers the page and stills it, and the account's note shows once the account menu closes", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
   await page.setViewportSize({width: 390, height: 844})
@@ -56,12 +29,10 @@ test("on a phone, the open menu and side panel cover the page, and the account's
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   const onTop = (x: number, y: number, selector: string) =>
     page.evaluate(([x, y, selector]) => document.elementFromPoint(x, y)?.closest(selector) !== null, [x, y, selector] as const)
-  const sliding = () =>
-    page.evaluate(() => document.getAnimations().filter(a => a instanceof CSSTransition).length)
   const foot = 844 - 8
 
   // The menu covers the page down to the foot of the screen, and past its edge the
-  // shade lies over the page.
+  // shade lies over the page. The page behind takes no press, key or scroll.
   await page.locator(".mobile-menu-button").click()
   const menu = page.locator("#shell-sidebar")
   await expect(menu).toBeVisible()
@@ -70,22 +41,21 @@ test("on a phone, the open menu and side panel cover the page, and the account's
   const drawer = (await menu.boundingBox())!
   expect(await onTop(drawer.x + 8, foot, "#shell-sidebar")).toBe(true)
   expect(await onTop(drawer.x + drawer.width + 8, foot, ".shell-menu-scrim")).toBe(true)
+  await expect(page.locator("#app-shell-scroller")).toHaveAttribute("inert", "")
   await page.locator("[data-shell-menu-close]").click()
   await expect(menu).toBeHidden()
+  await expect(page.locator("#app-shell-scroller")).not.toHaveAttribute("inert")
 
-  // The side panel covers the page down to the foot of the screen.
-  await page.locator("#shell-aside-button").click()
-  const aside = page.locator("#shell-aside")
-  await expect(aside).toBeVisible()
-  await expect.poll(sliding).toBe(0)
-  expect(await onTop(195, foot, "#shell-aside")).toBe(true)
-
-  // Sign out pressed in the panel while the site cannot be reached: its note shows
-  // over the panel.
+  // Sign out pressed in the account menu while the site cannot be reached: the menu
+  // closes, so its note shows under the account button with nothing over it.
   await page.route("**/auth/privy/session", route =>
     route.request().method() === "DELETE" ? route.abort() : route.fallback(),
   )
-  await aside.locator("[data-account-target='sign-out']").click()
+  await page.locator("#account-chip").click()
+  const account = page.locator("#account-menu")
+  await expect(account).toBeVisible()
+  await account.locator("[data-account-target='sign-out']").click()
+  await expect(account).toBeHidden()
   const note = page.locator("#account-auth-status")
   await expect(note).toHaveText("Sign out couldn’t finish. Try again.")
   // The note lets presses through to what is under it, so it takes them for this

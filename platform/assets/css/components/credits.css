@@ -427,7 +427,8 @@
     font-size: 0.8rem;
   }
 
-  #app-shell .shell-credits__unit {
+  /* The header's button only: the account menu's balance row keeps the word. */
+  #app-shell .shell-credits .shell-credits__unit {
     display: none;
   }
 
@@ -576,6 +577,14 @@
   font: inherit;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* Narrower than 22.5rem the header has no room for the balance: the account
+   menu shows it instead, as its balance row, which opens the same panel. */
+@media (max-width: 22.49rem) {
+  #app-shell #shell-header .shell-credits {
+    display: none;
+  }
 }
 
 @media (hover: hover) {

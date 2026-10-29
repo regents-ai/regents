@@ -26,7 +26,8 @@ defmodule Regents.AccessContext do
       label: name,
       profile_path: "/regents/#{slug}",
       avatar_src: PublicIdentity.avatar_src(account),
-      wallet: own_wallet(account)
+      wallet: own_wallet(account),
+      ens_name: PublicIdentity.ens_name(account)
     }
   end
 
@@ -36,7 +37,8 @@ defmodule Regents.AccessContext do
       label: PublicIdentity.label(account),
       profile_path: nil,
       avatar_src: PublicIdentity.avatar_src(account),
-      wallet: own_wallet(account)
+      wallet: own_wallet(account),
+      ens_name: PublicIdentity.ens_name(account)
     }
   end
 

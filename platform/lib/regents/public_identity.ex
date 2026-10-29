@@ -22,6 +22,9 @@ defmodule Regents.PublicIdentity do
 
   def label(_identity), do: "Account"
 
+  @doc "The ENS name the wallet publishes, if any."
+  def ens_name(identity) when is_map(identity), do: present(Map.get(identity, :ens_name))
+
   def avatar_src(identity) when is_map(identity) do
     case present(Map.get(identity, :ens_avatar_url)) do
       nil -> generated_avatar(Map.get(identity, :wallet_address))

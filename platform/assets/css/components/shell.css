@@ -1,22 +1,12 @@
-/* The side panel's width slides, so the page beside it gives way smoothly. */
-@property --shell-aside {
-  syntax: "<length>";
-  inherits: true;
-  initial-value: 0px;
-}
-
 #app-shell {
-  --shell-aside-open: 20rem;
-  --shell-aside: var(--shell-aside-open);
   --shell-header: 4rem;
-  /* Where the header's bottom line ends, below the frame's top rule; the side
-     panel over the page, a phone's menu and its backdrop open here, so they
-     never cover that line. */
+  /* Where the header's bottom line ends, below the frame's top rule; a phone's
+     menu and its backdrop open here, so they never cover that line. */
   --shell-header-end: calc(var(--rg-rule-width) + var(--shell-header));
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template: auto minmax(0, 1fr) / var(--rg-rail-width) minmax(0, 1fr) var(--shell-aside);
+  grid-template: auto minmax(0, 1fr) / var(--rg-rail-width) minmax(0, 1fr);
   min-width: 0;
   height: 100dvh;
   overflow: visible;
@@ -24,13 +14,6 @@
   color: var(--color-fg);
   font-family: var(--font-family-ui);
   line-height: 1.55;
-  transition: --shell-aside var(--duration-slow) var(--ease-out);
-}
-
-/* Closed, or signed out with no side panel at all, it keeps no room. */
-:root:not([data-aside="open"]) #app-shell,
-#app-shell:not(:has(#shell-aside)) {
-  --shell-aside: 0px;
 }
 
 /* Unseen until a keyboard reaches it. */
@@ -204,9 +187,9 @@
   }
 }
 
-/* The account name and the side panel button both open the side panel; the
-   nine-dot button opens the Regents Products menu. */
-[data-aside-toggle][aria-expanded="true"],
+/* The account name opens the account menu; the nine-dot button opens the
+   Regents Products menu. */
+#app-shell:has(#account-menu:popover-open) #account-chip,
 #app-shell:has(#shell-apps:popover-open) #shell-apps-button {
   background: color-mix(in oklch, var(--color-fg) 10%, transparent);
 }
@@ -215,6 +198,11 @@
   max-width: 14rem;
   min-width: 0;
   font: inherit;
+}
+
+/* The account menu hangs from the account button. */
+#app-shell #account-chip {
+  anchor-name: --rg-account-menu;
 }
 
 .account-name {
@@ -621,175 +609,6 @@
   color: var(--palette-tangerine-tango);
 }
 
-/* ---- Side panel ---- */
-
-/* On a wide screen it slides in beside the page, which narrows to make room. A
-   size container, so the agents list can take a quarter of its height. */
-#shell-aside {
-  position: relative;
-  z-index: var(--rg-layer-panel);
-  container-type: size;
-  display: grid;
-  grid-area: 2 / 3;
-  align-content: start;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden auto;
-  border-inline-start: 1px solid var(--color-border);
-  background: var(--color-bg);
-  /* Hidden only once it has slid shut. */
-  transition: visibility var(--duration-slow);
-}
-
-/* Shown at once on opening, so focus can move into it and Escape closes it. */
-:root[data-aside="open"] #shell-aside {
-  transition: none;
-}
-
-/* Its parts keep their width while it slides, so nothing inside rewraps. */
-#shell-aside > * {
-  min-inline-size: calc(var(--shell-aside-open) - 1px);
-}
-
-:root:not([data-aside="open"]) #shell-aside {
-  visibility: hidden;
-}
-
-/* Below a wide screen it covers the page's right edge under the header, whose
-   panel button closes it, below the dialogs that open over it, and slides in
-   from that edge. */
-@media (max-width: 63.99rem) {
-  #app-shell {
-    --shell-aside: 0px;
-  }
-
-  #shell-aside {
-    position: fixed;
-    inset: var(--shell-header-end) 0 0 auto;
-    z-index: var(--rg-layer-panel);
-    width: min(22rem, 100%);
-    box-shadow: var(--rg-layer-panel-shadow);
-    transition:
-      transform var(--duration-slow) var(--ease-out),
-      visibility var(--duration-slow);
-  }
-
-  #shell-aside > * {
-    min-inline-size: 0;
-  }
-
-  /* Covering the page, it slides in from the edge, and opens only when opened
-     on this page, never on arrival. */
-  :root:not([data-aside="open"]) #shell-aside,
-  :root:not([data-aside-here]) #shell-aside {
-    visibility: hidden;
-    transform: translateX(100%);
-  }
-
-  :root[data-aside="open"][data-aside-here] #shell-aside {
-    transition: transform var(--duration-slow) var(--ease-out);
-  }
-}
-
-@media (max-width: 48rem) {
-  #shell-aside {
-    width: 100%;
-    border-inline-start: 0;
-  }
-}
-
-#shell-aside:focus {
-  outline: none;
-}
-
-/* Sign out and Manage Account share one short row; the header's panel button
-   closes the panel. */
-.shell-aside__head {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 3rem;
-  padding-inline: 1rem;
-  border-block-end: 1px solid var(--color-border);
-}
-
-.shell-aside__head .rg-button {
-  min-height: 2rem;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-
-#shell-aside section {
-  display: grid;
-  gap: 0.6rem;
-  padding: 1rem;
-  border-block-end: 1px solid var(--color-border);
-}
-
-#shell-aside h2 {
-  margin: 0;
-  font-family: var(--font-family-ui);
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-#shell-aside p {
-  margin: 0;
-}
-
-#shell-aside ul,
-#shell-aside ol {
-  display: grid;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Pair New Agent on the page marks the agents to choose from here for a moment;
-   shell_panels.ts animates the mark's opacity. It sits behind the agents, on
-   the box's own layer. */
-#shell-pairing .rg-account__choices {
-  position: relative;
-  isolation: isolate;
-  scroll-margin: 1rem;
-}
-
-#shell-pairing .rg-account__choices::after {
-  content: "";
-  position: absolute;
-  inset: -6px;
-  z-index: -1;
-  border: 2px solid var(--ash-accent);
-  background: color-mix(in oklab, var(--ash-accent) 10%, transparent);
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* With less motion asked for, every change on the site still takes 0.01 ms
-   (app.css), which leaves what is inside the panel hidden for that instant
-   after it opens, too hidden to take focus. Inside the panel, changes are at
-   once. */
-@media (prefers-reduced-motion: reduce) {
-  #shell-aside * {
-    transition: none;
-  }
-}
-
-/* The agents list keeps its own rows; the panel's list spacing is for its other lists. */
-#shell-aside .rg-account__brief-list {
-  gap: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #app-shell,
-  #shell-aside,
-  :root[data-aside="open"][data-aside-here] #shell-aside {
-    transition: none;
-  }
-}
-
 /* The frame itself owns the ruled edges; there is no decorative page mat. */
 #shell-sidebar ul { padding: var(--space-1); }
 #shell-sidebar [aria-current="page"] { border-inline-start: 3px solid currentColor; font-weight: 600; }
@@ -819,9 +638,14 @@
   #shell-header .shell-tool { flex: 0 0 auto; }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }
-/* The narrowest phones: the side panel button beside it opens the same panel, so the name gives way to it. */
+/* The narrowest phones: the account button is its picture alone. */
 @media (max-width: 23.75rem) {
-  #shell-header .account-chip { display: none; }
-  #shell-header .account-control:has(.account-chip) { min-width: 0; margin-inline-end: 0; }
+  #app-shell #shell-header .account-chip { max-width: 2.75rem; }
+  #shell-header .account-control:has(.account-chip) { margin-inline-end: 0; }
   #shell-header .mobile-menu-button { min-width: 2.75rem; padding-inline: 0.25rem; }
+}
+/* Narrower than 22.5rem the header has no room for the balance: the account
+   menu shows it instead, as its balance row, which opens the same panel. */
+@media (max-width: 22.49rem) {
+  #app-shell #shell-credits-button { display: none; }
 }

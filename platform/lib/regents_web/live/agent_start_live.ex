@@ -44,13 +44,13 @@ defmodule RegentsWeb.AgentStartLive do
           <li>
             <h3>Make a code</h3>
             <p>
-              Sign in, then open Pair New Agent in the side panel and choose your agent. The code works once, for ten minutes.
+              Sign in, then open Pair New Agent on your Account page and choose your agent. The code works once, for ten minutes.
             </p>
-            <.link navigate={~p"/account"} data-aside-open>Pair New Agent</.link>
+            <.link navigate={~p"/account#account-pairing"}>Pair New Agent</.link>
           </li>
           <li>
             <h3>Your agent pairs</h3>
-            <p>It shows in your side panel under its name.</p>
+            <p>It shows in your account menu under its name.</p>
           </li>
           <li>
             <h3>It reads for you</h3>

@@ -77,9 +77,9 @@ test("[R04] a signed-in person walks every page, Account included, in one visit"
   await walk(page, true)
 })
 
-// Every page with the side panel carries the whole of it: the agents, the
-// pairing box and the Credits button, opened straight from its own address.
-test("a signed-in person sees the whole side panel on every shell page", async ({page}) => {
+// Every shell page carries the whole account menu, its agents and Pair New Agent,
+// and the Credits button, opened straight from its own address.
+test("a signed-in person has the whole account menu on every shell page", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
 
@@ -87,7 +87,7 @@ test("a signed-in person sees the whole side panel on every shell page", async (
     await page.goto(path)
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
     await expect(page.locator("#shell-agents-reader"), path).toBeAttached()
-    await expect(page.locator("#shell-pairing"), path).toBeAttached()
+    await expect(page.locator("#account-menu a[href='/account#account-pairing']"), path).toBeAttached()
     await expect(page.locator("#shell-credits-button"), path).toBeVisible()
   }
 })

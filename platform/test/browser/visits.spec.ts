@@ -53,12 +53,10 @@ for (const width of [1280, 390]) {
     await page.goto("/account")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-    // On a computer the panel opens beside the page first; on a phone the press opens it.
-    if (width === 1280) await page.locator("#shell-aside-button").click()
-    await page.locator("#account-agents").getByRole("button", {name: "Pair New Agent"}).click()
-    const radio = page.locator("#shell-pairing").getByRole("radio", {name: "Dots", exact: true})
+    await page.locator("#account-agents").getByRole("link", {name: "Pair New Agent"}).click()
+    const radio = page.locator("#account-pairing").getByRole("radio", {name: "Dots", exact: true})
     await radio.locator("xpath=ancestor::label").click()
-    const message = page.locator("#shell-pairing-box pre")
+    const message = page.locator("#account-pairing-box pre")
     await expect(message).toContainText(/Pairing code:\s*\S{12,}/)
     const code = (await message.innerText()).match(/Pairing code:\s*(\S+)/)![1]
 

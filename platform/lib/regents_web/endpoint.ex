@@ -15,6 +15,10 @@ defmodule RegentsWeb.Endpoint do
     "referrer-policy" => "no-referrer"
   }
 
+  # Chrome's WebMCP origin trial, issued to https://regents.sh and valid until
+  # 30 Mar 2027. The token is public; Chrome ignores it on any other host.
+  @webmcp_origin_trial "AmQTY8hPv9mTZTHeJKyu3FofvOMuRBSdSVDAUkj6+RB4Dds1KtJTsvi5WsbR6QTuinMfsJO5yngUcA+aq93BhAoAAABKeyJvcmlnaW4iOiJodHRwczovL3JlZ2VudHMuc2g6NDQzIiwiZmVhdHVyZSI6IldlYk1DUCIsImV4cGlyeSI6MTgwNjM2NDgwMH0="
+
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [:peer_data, :uri, session: @session_options]],
     longpoll: [connect_info: [:peer_data, :uri, session: @session_options]]
@@ -49,6 +53,11 @@ defmodule RegentsWeb.Endpoint do
   plug RegentsWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # Every answer, including the Markdown and refusals the next plugs give before
+  # the router, lets browser agents use the tools this site's pages register and
+  # carries the origin-trial token, so Chrome knows it before reading `tools`.
+  plug :allow_page_tools
+
   # One budget per client address, shared by the health check, the browser's visit
   # reports and every /api path, answered or not; pairing counts against its own
   # budget too. Every answer says what is left of each; past one, 429 with
@@ -78,6 +87,12 @@ defmodule RegentsWeb.Endpoint do
   plug Plug.Head
   plug RegentsWeb.Plugs.RuntimeSession
   plug RegentsWeb.Router
+
+  defp allow_page_tools(conn, _opts) do
+    conn
+    |> Plug.Conn.put_resp_header("permissions-policy", "tools=(self)")
+    |> Plug.Conn.put_resp_header("origin-trial", @webmcp_origin_trial)
+  end
 
   defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))

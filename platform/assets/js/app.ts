@@ -32,14 +32,14 @@ import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
-import {PanelAgents} from "./hooks/panel_agents"
+import {MenuAgents} from "./hooks/menu_agents"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
-import {installShellPanels} from "./shell_panels"
+import {arriveAt, installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
 import {WorldCube} from "./hooks/world_cube"
 import {CubeLabel} from "./hooks/cube_label"
@@ -111,6 +111,12 @@ document.addEventListener("click", event => {
 window.addEventListener("phx:page-loading-stop", syncTheme)
 window.addEventListener("popstate", syncTheme)
 window.addEventListener("pageshow", syncTheme)
+
+// The element the address's #fragment names, such as the Account page's pairing box.
+const hashTarget = () => {
+  const id = decodeURIComponent(window.location.hash.slice(1))
+  return id ? document.getElementById(id) : null
+}
 
 const shellBehavior: Hook = {
   mounted(this: ShellHook) {
@@ -216,11 +222,8 @@ const shellBehavior: Hook = {
         return
       }
 
-      // Escape inside the side panel closes the panel (shell_panels.ts), not a
-      // disclosure on the page behind it.
-      const inPanel = event.target instanceof Element && event.target.closest("#shell-aside")
-
-      if (event.key === "Escape" && !inPanel) {
+      // An open account or apps menu takes Escape itself, before any section behind it.
+      if (event.key === "Escape" && !shell.querySelector(":popover-open")) {
         const openDetails = [...shell.querySelectorAll<HTMLDetailsElement>("details[open]")].at(-1)
 
         if (openDetails) {
@@ -237,11 +240,23 @@ const shellBehavior: Hook = {
       scroller()?.scrollTo({top: 0})
     }
 
+    // A link to another page's #fragment, such as the account menu's Pair New
+    // Agent from any page to the Account page's pairing box: what the
+    // #fragment names is reached here, after the page has started at its top.
+    const onNavigate = () => {
+      const named = hashTarget()
+      if (named) arriveAt(named)
+    }
+
     shell.addEventListener("click", onClick)
     shell.addEventListener("keydown", onKeydown)
     window.addEventListener("popstate", onHistoryNavigation)
+    window.addEventListener("phx:navigate", onNavigate)
     this.restoreState()
-    scroller()?.scrollTo({top: 0})
+    // A page opened at a #fragment starts at what it names, otherwise at its top.
+    const opened = hashTarget()
+    if (opened) arriveAt(opened)
+    else scroller()?.scrollTo({top: 0})
     shell.dataset.behaviorReady = "true"
 
     this.cleanup = () => {
@@ -249,6 +264,7 @@ const shellBehavior: Hook = {
       shell.removeEventListener("click", onClick)
       shell.removeEventListener("keydown", onKeydown)
       window.removeEventListener("popstate", onHistoryNavigation)
+      window.removeEventListener("phx:navigate", onNavigate)
     }
   },
 
@@ -299,8 +315,8 @@ const hooks = {
   MotionList,
   MotionRefusal,
   MotionTabs,
+  MenuAgents,
   OnchainSteps,
-  PanelAgents,
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   VerifiedConnections,
@@ -330,8 +346,6 @@ installCrossTabCsrf()
 installCopyButtons()
 installAgentTools()
 installLiteratureChart()
-// A page drawn after navigation starts with its panel toggles closed; they follow the panel.
-const shellPanels = installShellPanels()
-window.addEventListener("phx:page-loading-stop", shellPanels.sync)
+installShellPanels()
 mountMotion(document)
 window.liveSocket = liveSocket

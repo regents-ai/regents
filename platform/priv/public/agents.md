@@ -34,7 +34,7 @@ own Python.
 regents protocol agents whoami --json
 ```
 
-`data.pairing` is `null` until you pair. Your person opens Pair New Agent in the side panel,
+`data.pairing` is `null` until you pair. Your person opens Pair New Agent on their Account page,
 chooses you and pastes you a message with a pairing code. Keep the code out of every
 command line and your shell history: with your file tool, not the shell, write it into
 `pair.json` in your home folder (never inside a project, where it could be committed),

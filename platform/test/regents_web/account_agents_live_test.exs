@@ -10,10 +10,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
   @listing "https://www.8004scan.io/agents/base/97609"
 
-  # The pairing box in the side panel, and the message it shows once an agent is
+  # The pairing box on the Account page, and the message it shows once an agent is
   # chosen.
-  @pairing "#shell-pairing-box"
-  @message "#shell-pairing-box pre"
+  @pairing "#account-pairing-box"
+  @message "#account-pairing-box pre"
 
   # The sign-in service knows of nothing the agent did, and of no registry
   # listing, unless a test says so. Readings kept by an earlier test are dropped.
@@ -53,13 +53,14 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     heard(account)
     # The page hands the change on to its pairing boxes in an update to itself,
-    # which lands after this first render.
+    # which lands after this first render. The account menu reads Sol's last action.
     render(view)
+    render_async(view)
 
     # The agent that paired takes the code's place.
     assert has_element?(view, @pairing, "Sol paired with your account.")
     refute has_element?(view, @message)
-    assert has_element?(view, "#shell-pairing-box-new:not([data-unused])")
+    assert has_element?(view, "#account-pairing-box-new:not([data-unused])")
     assert has_element?(view, "#account-agents-agent-#{agent.id} span", "Hermes")
     assert has_element?(view, "#account-agents-agent-#{agent.id} time", "just now")
   end
@@ -151,6 +152,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     # request named no person, and the saved person stays for good.
     assert {:ok, _agent} = RegentAgents.check_in_agent(account.privy_user_id, actor: @agent)
     heard(account)
+    render_async(view)
     assert has_element?(view, log, "Patchbay")
     assert has_element?(view, "#account-agent-human dd", "Verified human")
 
@@ -248,8 +250,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
+    render_async(view)
     :ok = RegentAgents.unpair_agent(agent, actor: person(account))
     heard(account)
+    render_async(view)
 
     refute has_element?(view, "#account-agent-dialog")
     refute has_element?(view, "#account-agents-agent-#{agent.id}")
@@ -273,6 +277,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
+    render_async(view)
     render_hook(view, "unpair_agent", %{"id" => "not-an-agent"})
 
     assert has_element?(
@@ -301,6 +306,8 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert has_element?(view, "#account-agents-agent-#{agent.id}")
 
     render_patch(view, "/account?again=1")
+    # The account menu reads Away's last action; no read outlives the test's stub.
+    render_async(view)
 
     assert Registry.lookup(Regents.PubSub, topic) |> Enum.count(&(elem(&1, 0) == view.pid)) ==
              1

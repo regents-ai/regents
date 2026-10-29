@@ -487,7 +487,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
-          description: The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again.
+          description: The agent is not paired (agent_not_paired), or its person has not signed in on this site yet (person_not_here). Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again.
           headers:
             RateLimit: {$ref: '#/components/headers/RateLimit'}
             RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
@@ -814,7 +814,7 @@ components:
           schema: {$ref: "#/components/schemas/PairedAgentError"}
           examples:
             agentNotPaired:
-              value: {error: {code: agent_not_paired, message: "This agent has no current pairing.", hint: "Ask your person to sign in on this site and pair you with Pair New Agent in the side panel, then send the request again."}}
+              value: {error: {code: agent_not_paired, message: "This agent has no current pairing.", hint: "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again."}}
             personNotHere:
               value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then send the request again."}}
     Session:

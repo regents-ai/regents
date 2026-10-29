@@ -43,6 +43,27 @@ defmodule RegentsWeb.ContentSecurityPolicyTest do
     end
   end
 
+  # Chrome turns WebMCP on for a page only when the answer carries this site's
+  # origin-trial token, so every kind of answer carries it with the tools policy.
+  test "WEBMCP_TRIAL: every answer lets browser agents use this site's tools", %{conn: conn} do
+    for path <- ~w(/ /docs /llms.txt /api/nothing-here) do
+      response = get(conn, path)
+
+      assert get_resp_header(response, "permissions-policy") == ["tools=(self)"]
+      assert [token] = get_resp_header(response, "origin-trial")
+
+      # After its version and signature, a token holds its terms: the origin, the
+      # feature and the expiry.
+      <<_version, _signature::binary-64, size::32, terms::binary-size(size)>> =
+        Base.decode64!(token)
+
+      %{"origin" => origin, "feature" => feature, "expiry" => expiry} = Jason.decode!(terms)
+
+      assert {origin, feature} == {"https://regents.sh:443", "WebMCP"}
+      assert DateTime.from_unix!(expiry) |> DateTime.after?(DateTime.utc_now())
+    end
+  end
+
   test "PAGE_POLICY: only sign-in pages admit Privy, and neither page may be framed" do
     refute ContentSecurityPolicy.reading() =~ "auth.privy.io"
     assert ContentSecurityPolicy.sign_in() =~ "frame-src https://auth.privy.io"

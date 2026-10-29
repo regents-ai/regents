@@ -110,7 +110,7 @@ defmodule RegentsWeb.ShellLiveTest do
     refute has_element?(view, "#account-control a", "Nous Portal")
   end
 
-  test "signed-in account control renders its address avatar and side panel", %{conn: conn} do
+  test "signed-in account control renders its address avatar and account menu", %{conn: conn} do
     account = register_account("signed-in-control", "0x1111111111111111111111111111111111111111")
 
     {:ok, view, _html} =
@@ -125,16 +125,23 @@ defmodule RegentsWeb.ShellLiveTest do
              "#account-control img.account-avatar[src^='data:image/svg+xml;base64,']"
            )
 
-    assert has_element?(view, "#account-control #account-chip[data-aside-toggle]")
+    assert has_element?(view, "#account-control #account-chip[popovertarget=account-menu]")
 
     assert has_element?(
              view,
-             "#shell-account button[type=button][data-account-target=sign-out]",
+             "#account-menu button[type=button][data-account-target=sign-out]",
              "Sign out"
            )
 
     refute has_element?(view, "#account-control [data-account-target=profile]", "Profile")
-    assert has_element?(view, ~s(#shell-account a[href="/account"]), "Account")
+    assert has_element?(view, ~s(#account-menu a[href="/account"]), "Manage Account")
+
+    assert has_element?(
+             view,
+             ~s(#account-menu a[href="/account#account-pairing"]),
+             "Pair New Agent"
+           )
+
     assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
   end
@@ -173,7 +180,7 @@ defmodule RegentsWeb.ShellLiveTest do
     assert view.pid == pid
     assert render(view) =~ ~s(data-shell-instance="#{instance}")
     assert has_element?(view, "#account-control [data-account-target=profile]", "0x2222..2222")
-    assert has_element?(view, "#shell-account [data-account-target=sign-out]", "Sign out")
+    assert has_element?(view, "#account-menu [data-account-target=sign-out]", "Sign out")
   end
 
   test "account control renders Profile only for a server-supplied canonical path" do
@@ -191,7 +198,7 @@ defmodule RegentsWeb.ShellLiveTest do
     assert html =~ ~s(class="account-avatar")
     assert html =~ ~s(src="data:image/svg+xml;base64,PHN2Zy8+")
     assert html =~ ~s(href="/account")
-    assert html =~ ~s(id="shell-account")
+    assert html =~ ~s(id="account-menu")
     assert html =~ "Sign out"
   end
 
@@ -275,7 +282,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     refute html =~ "Sign in to see your account"
     assert has_element?(view, "#account-identity h2", "0x6666..6666")
-    assert has_element?(view, "#account-identity canvas[data-holo-canvas]")
+    assert has_element?(view, "#account-identity img[src^='data:image/svg+xml;base64,']")
     # A session from before sign-ins named the Regents wallet lists every linked
     # wallet, each with its full address one press away.
     assert has_element?(view, "#account-wallet-#{wallet}-full", wallet)
@@ -302,7 +309,9 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#account-verified-connections-github", "Not connected")
     assert has_element?(view, "#account-verified-connections-github button", "Connect")
     refute render(view) =~ "account-x-subject"
-    assert has_element?(view, "#account-page button[data-account-target=sign-out]", "Sign out")
+    # Sign out is in the account menu, on this page as on every other.
+    refute has_element?(view, "#account-page [data-account-target=sign-out]")
+    assert has_element?(view, "#account-menu button[data-account-target=sign-out]", "Sign out")
 
     view
     |> element("#account-verified-connections-x button", "Disconnect")
@@ -751,7 +760,6 @@ defmodule RegentsWeb.ShellLiveTest do
       shell_instance: 1,
       content: [%{inner_block: fn _, _ -> "Fixture content" end}],
       credits_panel: [],
-      pairing: [],
       agents: []
     )
   end

@@ -1,8 +1,11 @@
 defmodule RegentsWeb.AccountLive do
   @moduledoc """
-  The signed-in person's own page: who the site knows them as, the wallets
-  their sign-in verified, the agents they have paired, the names those wallets
-  hold and the accounts they have connected.
+  The signed-in person's own page, in the layout every Regent site shares
+  (`Regent.Account.layout`): this site's own sections first (the names the
+  wallets hold and may claim, and the accounts they have connected), then who
+  the site knows them as, the agents they have paired with the pairing box, and
+  their Credits over their details (the wallets their sign-in verified, their
+  names and World ID) in the profile's place.
 
   Everything here is read from the sign-in the shell already holds; nothing on
   the page asks the visitor to sign in again.
@@ -59,85 +62,8 @@ defmodule RegentsWeb.AccountLive do
         </:sign_in>
       </Regent.Account.signed_out>
 
-      <div :if={@account} class="account-grid">
-        <Regent.HolographicCard.card
-          id="account-identity"
-          class="account-identity"
-          phx-hook="HolographicCard"
-        >
-          <p class="account-kicker">Regents account</p>
-          <div class="account-identity__who">
-            <img
-              :if={@account_control.avatar_src}
-              class="account-identity__avatar"
-              src={@account_control.avatar_src}
-              referrerpolicy="no-referrer"
-              width="64"
-              height="64"
-              alt=""
-            />
-            <div class="account-identity__name">
-              <h2>{@account_control.label}</h2>
-              <%!-- The wallet is repeated only when the name above is something else. --%>
-              <p :if={
-                RegentFormat.short_address(@account.wallet_address) not in [
-                  nil,
-                  @account_control.label
-                ]
-              }>
-                <Regent.Primitives.address
-                  id="account-identity-wallet"
-                  address={@account.wallet_address}
-                />
-              </p>
-            </div>
-          </div>
-        </Regent.HolographicCard.card>
-
-        <.paired_agents
-          agents={@agents}
-          detail={@agent_detail}
-          notice={@agent_notice}
-          now={@agents_now}
-          lease={@lease}
-          account={@account}
-        />
-
-        <%!-- What a person uses most comes first; on a phone the columns stack in this order. --%>
-        <div class="account-column">
-          <div id="account-credits" class="account-panel account-credits">
-            <Regent.Account.credits_summary
-              id="account-credits-summary"
-              available={@credits.value && RegentCredits.Amount.format(@credits.value.available)}
-              held={@credits.value && RegentCredits.Amount.format(@credits.value.held)}
-              state={credits_state(@credits.state)}
-            >
-              <div class="account-credits__more">
-                <p>One balance for every Regent site. One Credit is one US dollar.</p>
-                <div class="account-credits__actions">
-                  <Regent.Primitives.button
-                    type="button"
-                    phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
-                  >
-                    Buy Credits
-                  </Regent.Primitives.button>
-                  <.link navigate="/account/credits">Purchase History</.link>
-                  <.link navigate="/account/points">Points</.link>
-                </div>
-              </div>
-            </Regent.Account.credits_summary>
-
-            <h3>What your agents may spend</h3>
-            <.live_component
-              module={RegentsWeb.CreditsAgentSpending}
-              id="account-agent-spending"
-              lease={@lease}
-              account={@account}
-              agents={agent_wallets(@agents)}
-              sites={Regents.Credits.agent_sites()}
-            />
-          </div>
-
+      <Regent.Account.layout :if={@account} id="account">
+        <:site>
           <section class="account-panel account-names" aria-labelledby="account-names-title">
             <div class="account-names__heading">
               <h2 id="account-names-title">Claimed Regent Names</h2>
@@ -145,7 +71,8 @@ defmodule RegentsWeb.AccountLive do
             </div>
             <.names names={@names} stream={@names_stream} />
           </section>
-
+        </:site>
+        <:site>
           <section class="account-panel account-claim" aria-labelledby="account-claim-title">
             <div class="account-names__heading">
               <h2 id="account-claim-title">Claim a Regent Name</h2>
@@ -196,9 +123,87 @@ defmodule RegentsWeb.AccountLive do
               Names cost 0.0025 ETH each, and buying one from this page isn’t open yet.
             </p>
           </section>
-        </div>
+        </:site>
+        <:site>
+          <.verified_connections
+            id="account-verified-connections"
+            class="account-panel"
+            identities={@verified_connections}
+            notice={@verified_connections_notice}
+          />
+        </:site>
+        <:identity>
+          <Regent.Account.identity
+            id="account-identity"
+            name={@account_control.label}
+            wallet={@account_control.wallet}
+            ens_name={@account_control.ens_name}
+          >
+            <:picture>
+              <img
+                :if={@account_control.avatar_src}
+                src={@account_control.avatar_src}
+                referrerpolicy="no-referrer"
+                width="64"
+                height="64"
+                alt=""
+              />
+            </:picture>
+          </Regent.Account.identity>
+        </:identity>
+        <:agents>
+          <.paired_agents
+            agents={@agents}
+            detail={@agent_detail}
+            notice={@agent_notice}
+            now={@agents_now}
+            lease={@lease}
+            account={@account}
+          />
+        </:agents>
+        <:pairing>
+          <.live_component
+            module={RegentsWeb.PairingBox}
+            id="account-pairing-box"
+            lease={@lease}
+            account={@account}
+          />
+        </:pairing>
+        <:credits>
+          <div id="account-credits" class="account-panel account-credits">
+            <Regent.Account.credits_summary
+              id="account-credits-summary"
+              available={@credits.value && RegentCredits.Amount.format(@credits.value.available)}
+              held={@credits.value && RegentCredits.Amount.format(@credits.value.held)}
+              state={credits_state(@credits.state)}
+            >
+              <div class="account-credits__more">
+                <p>One balance for every Regent site. One Credit is one US dollar.</p>
+                <div class="account-credits__actions">
+                  <Regent.Primitives.button
+                    type="button"
+                    phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+                  >
+                    Buy Credits
+                  </Regent.Primitives.button>
+                  <.link navigate="/account/credits">Purchase History</.link>
+                  <.link navigate="/account/points">Points</.link>
+                </div>
+              </div>
+            </Regent.Account.credits_summary>
 
-        <div class="account-column">
+            <h3>What your agents may spend</h3>
+            <.live_component
+              module={RegentsWeb.CreditsAgentSpending}
+              id="account-agent-spending"
+              lease={@lease}
+              account={@account}
+              agents={agent_wallets(@agents)}
+              sites={Regents.Credits.agent_sites()}
+            />
+          </div>
+        </:credits>
+        <:profile>
           <section class="account-panel account-details" aria-labelledby="account-details-title">
             <h2 id="account-details-title">Details</h2>
             <dl>
@@ -242,23 +247,8 @@ defmodule RegentsWeb.AccountLive do
               </div>
             </dl>
           </section>
-
-          <.verified_connections
-            id="account-verified-connections"
-            class="account-panel"
-            identities={@verified_connections}
-            notice={@verified_connections_notice}
-          />
-
-          <section class="account-panel account-session" aria-labelledby="account-session-title">
-            <h2 id="account-session-title">Session</h2>
-            <p>Signing out ends this session on this browser only.</p>
-            <Regent.Primitives.button type="button" variant="secondary" data-account-target="sign-out">
-              Sign out
-            </Regent.Primitives.button>
-          </section>
-        </div>
-      </div>
+        </:profile>
+      </Regent.Account.layout>
     </article>
     """
   end

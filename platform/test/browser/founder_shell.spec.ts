@@ -249,13 +249,15 @@ test("a signed-in account without a Regent shows its available account menu", as
     .poll(() => account.locator("img.account-avatar").evaluate(image => image.naturalWidth))
     .toBeGreaterThan(0)
   await account.click()
-  const panel = page.locator("#shell-account")
-  await expect(panel.locator("> *")).toHaveText(["Sign out", "Manage Account"])
-  await expect(panel.getByRole("link", {name: "Manage Account", exact: true})).toHaveAttribute(
+  const menu = page.locator("#account-menu")
+  await expect(menu).toBeVisible()
+  await expect(menu.getByRole("link", {name: "Manage Account", exact: true})).toHaveAttribute(
     "href",
     "/account",
   )
-  await expect(panel.getByRole("button", {name: "Sign out"})).toBeVisible()
+  await expect(menu.getByRole("button", {name: "Sign out"})).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(menu).toBeHidden()
 
   await page.emulateMedia({colorScheme: "dark"})
   await expect(page.locator("html")).not.toHaveAttribute("data-theme")

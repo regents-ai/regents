@@ -2,15 +2,13 @@ defmodule RegentsWeb.Components.Shell do
   @moduledoc """
   Semantic presentation seam for Ash-owned shell behavior.
 
-  The side panel's open and closed state is the browser's
-  (`assets/js/shell_panels.ts` and the `regents_aside` cookie, read into
-  `<html data-aside>`), so the server never stores it.
-
-  The right side bar and its button are there only for someone signed in, so a
-  page signed out has nothing beside the Sign in button. It holds the box to
-  pair an agent (the `pairing` slot) and a link to the agents on the Account page.
-  A page that shows its own pairing box leaves the slot out, and the side panel
-  then has neither.
+  Signed in, the account's picture and name at the top right open the account menu
+  (`Regent.Account.menu`), the same on every page: the person's picture, name and
+  wallet, the agents paired with the account (the `agents` slot), Pair New Agent,
+  Manage Account and Sign out. Pairing itself and everything else about the account
+  are on the Account page. On a screen narrower than 22.5rem the header has no room
+  for the Credits balance, so the menu shows it instead, under the wallet, and it
+  opens the same Buy Credits panel. Signed out, the header has Sign in alone.
 
   The top bar's nine-dot button opens the Regents Products menu, and the
   footer's button the list of tools agents see.
@@ -50,15 +48,14 @@ defmodule RegentsWeb.Components.Shell do
   slot(:content, required: true)
 
   # Required, so a page that draws the shell without one of these does not compile:
-  # signed in, it would show half a side panel or a balance that opens nothing. A
-  # caller leaves one out for someone signed out with `:if` (ash-template 98411ef).
+  # signed in, it would show a menu without agents or a balance that opens nothing.
+  # A caller leaves one out for someone signed out with `:if`.
   slot(:credits_panel,
     required: true,
     doc: "The Buy Credits panel, opened from the header's balance."
   )
 
-  slot(:pairing, required: true, doc: "The box to pair an agent, in the side panel.")
-  slot(:agents, required: true, doc: "The agents paired with the account, in the side panel.")
+  slot(:agents, required: true, doc: "The agents paired with the account, in the account menu.")
 
   def shell(assigns) do
     ~H"""
@@ -119,7 +116,7 @@ defmodule RegentsWeb.Components.Shell do
           aria-haspopup="dialog"
           aria-controls="shell-credits"
           aria-label={credits_label(@credits)}
-          phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#shell-credits")}
+          phx-click={JS.dispatch("regents:open", to: "#shell-credits")}
           phx-hook="MotionCount"
           data-variant="flash"
         >
@@ -128,19 +125,40 @@ defmodule RegentsWeb.Components.Shell do
 
         <.account_control account_control={@account_control} />
 
-        <button
+        <Regent.Account.menu
           :if={@account_control.kind == :signed_in}
-          id="shell-aside-button"
-          class="shell-tool"
-          type="button"
-          aria-controls="shell-aside"
-          aria-expanded="false"
-          aria-label="Side panel"
-          data-aside-toggle
-          phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+          id="account-menu"
+          name={@account_control.label}
+          wallet={@account_control.wallet}
+          ens_name={@account_control.ens_name}
+          manage_href="/account"
+          pair_href="/account#account-pairing"
         >
-          <.icon name={:panel} />
-        </button>
+          <:picture>
+            <img
+              :if={@account_control.avatar_src}
+              src={@account_control.avatar_src}
+              referrerpolicy="no-referrer"
+              width="40"
+              height="40"
+              alt=""
+            />
+          </:picture>
+          <:balance :if={@credits}>
+            <button
+              type="button"
+              id="account-menu-credits"
+              aria-haspopup="dialog"
+              aria-controls="shell-credits"
+              aria-label={credits_label(@credits)}
+              phx-click={JS.dispatch("regents:open", to: "#shell-credits")}
+              data-credits-open
+            >
+              <.credits_amount amount={@credits} />
+            </button>
+          </:balance>
+          <:agents>{render_slot(@agents)}</:agents>
+        </Regent.Account.menu>
       </header>
 
       <dialog
@@ -209,31 +227,6 @@ defmodule RegentsWeb.Components.Shell do
         <RegentsWeb.Layouts.product_links agent_tools />
       </div>
 
-      <aside
-        :if={@account_control.kind == :signed_in}
-        id="shell-aside"
-        aria-label="Your account and agents"
-        tabindex="-1"
-      >
-        <div id="shell-account" class="shell-aside__head">
-          <Regent.Primitives.button
-            variant="secondary"
-            type="button"
-            data-account-target="sign-out"
-          >
-            Sign out
-          </Regent.Primitives.button>
-          <.link patch="/account" class="rg-button rg-button--secondary">Manage Account</.link>
-        </div>
-
-        {render_slot(@agents)}
-
-        <section :if={@pairing != []} id="shell-pairing" aria-labelledby="shell-pairing-title">
-          <h2 id="shell-pairing-title">Pair New Agent</h2>
-          {render_slot(@pairing)}
-        </section>
-      </aside>
-
       <AgentTools.dialog id="shell-agent-tools" />
     </div>
     """
@@ -268,12 +261,12 @@ defmodule RegentsWeb.Components.Shell do
   attr :account_control, Regents.AccessContext.AccountControl, required: true
   attr :enabled, :boolean, default: true
 
-  attr :panel, :boolean,
+  attr :menu, :boolean,
     default: true,
     doc: """
-    Signed in, the name opens the side panel, which holds Account and Sign out.
-    A page without the side panel (the local Privy reference) shows Sign out
-    beside the name.
+    Signed in, the name opens the account menu, which holds Account and Sign out.
+    A page without the menu (the local Privy reference) shows Sign out beside the
+    name.
     """
 
   @doc """
@@ -293,18 +286,15 @@ defmodule RegentsWeb.Components.Shell do
         {@account_control.label}
       </Regent.Primitives.button>
       <button
-        :if={@panel and @account_control.kind == :signed_in}
+        :if={@menu and @account_control.kind == :signed_in}
         id="account-chip"
         class="account-chip"
         type="button"
-        aria-controls="shell-aside"
-        aria-expanded="false"
-        data-aside-toggle
-        phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+        popovertarget="account-menu"
       >
         <.account_name account_control={@account_control} />
       </button>
-      <%= if !@panel and @account_control.kind == :signed_in do %>
+      <%= if !@menu and @account_control.kind == :signed_in do %>
         <span class="account-chip"><.account_name account_control={@account_control} /></span>
         <Regent.Primitives.button
           variant="quiet"
@@ -431,7 +421,6 @@ defmodule RegentsWeb.Components.Shell do
       stroke-linecap="square"
       aria-hidden="true"
     >
-      <path :if={@name == :panel} d="M3 4h18v16H3zM15 4v16" />
       <g :if={@name == :apps} fill="currentColor" stroke="none">
         <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
       </g>

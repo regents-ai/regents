@@ -13,16 +13,13 @@ defmodule RegentsWeb.Router do
     plug :fetch_live_flash
     plug RegentsWeb.Plugs.RequireArticleAdmin
     plug RegentsWeb.Plugs.Theme
-    plug RegentsWeb.Plugs.Panels
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
     plug RegentsWeb.Plugs.LaunchGate
     plug :protect_from_forgery
 
-    # These pages can start wallet sign-in. Browser agents may use the tools the
-    # pages register, from this site only.
+    # These pages can start wallet sign-in.
     plug :put_secure_browser_headers, %{
-      "content-security-policy" => ContentSecurityPolicy.sign_in(),
-      "permissions-policy" => "tools=(self)"
+      "content-security-policy" => ContentSecurityPolicy.sign_in()
     }
   end
 
@@ -47,7 +44,6 @@ defmodule RegentsWeb.Router do
     # Reading only: these pages never start sign-in, so they send no referrer.
     plug :put_secure_browser_headers, %{
       "content-security-policy" => ContentSecurityPolicy.reading(),
-      "permissions-policy" => "tools=(self)",
       "referrer-policy" => "no-referrer"
     }
   end

@@ -3825,3 +3825,27 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   passing; `/capabilities.json` reports the commit; `/`, `/stake`, `/redeem`, `/docs`,
   `/app` and `/start` load in headless Chromium at 1280 and 390 wide, light and dark,
   with no errors and no sideways scroll. WebKit not run on the Mac.
+
+## 2026-10-29 — Account menu, and Chrome's WebMCP trial
+
+- The account's button at the top right opens a small account menu on every page,
+  as on every Regent site: the person's picture, name and wallet, their three most
+  recently active agents with Manage, Pair New Agent, Manage Account and Sign out.
+  It replaces the side panel, and the cookie that remembered whether the panel was
+  open is gone.
+- The Account page takes the layout every Regent site shares: the names and
+  connected accounts first, then the account card and the agents, then Pair New
+  Agent beside Credits and the account's details. Pair New Agent is there and
+  nowhere else; every Pair New Agent link, the menu's and the start page's included,
+  leads to it, and the keyboard starts on the agent choice.
+- On a phone, the open navigation menu leaves the page behind it still. On the
+  narrowest phones the Credits balance moves from the header into the account menu.
+- Sign out closes the account menu, so a note saying it couldn't finish shows under
+  the account button instead of behind the menu.
+- Every guide, tool description and error hint that sent agents' people to the side
+  panel now sends them to Pair New Agent on their Account page.
+- Every page and answer carries Chrome's WebMCP origin-trial token for
+  https://regents.sh (valid until 30 Mar 2027), so Chrome lets browser agents use the
+  tools regents.sh's pages offer.
+- Claude Duet's picture shows for Claude agents, from design-system 3134bab0.
+- Libraries: design-system 3134bab0, elixir-utils 9da44bdc (no database changes).

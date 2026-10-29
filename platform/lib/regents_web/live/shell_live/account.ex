@@ -4,8 +4,8 @@ defmodule RegentsWeb.ShellLive.Account do
   the signed-in wallets hold and may still claim, and paired agents. Every read
   here is the account's own, made with the wallets its sign-in verified, so
   nothing the browser sends can widen it. Agent changes from other tabs and
-  sites reach the side panel's agents and pairing box on every page, and this
-  page's own list while it is open.
+  sites reach the account menu's agents on every page, and this page's own list
+  and pairing box while it is open.
   """
 
   import Phoenix.Component, only: [assign: 2]
@@ -27,7 +27,7 @@ defmodule RegentsWeb.ShellLive.Account do
   alias Regents.Actors.Human
   alias Regents.Agents.ActivityReading
   alias RegentsWeb.EventInput
-  alias RegentsWeb.{PairingBox, PanelAgents}
+  alias RegentsWeb.{MenuAgents, PairingBox}
   alias RegentsWeb.ShellLive.Identity
 
   @identity_providers %{"x" => :x, "github" => :github, "farcaster" => :farcaster}
@@ -76,7 +76,7 @@ defmodule RegentsWeb.ShellLive.Account do
   end
 
   # Agents pair, check in and change from other tabs and other Regent sites. The
-  # side panel's pairing box is on every page, so every signed-in page follows
+  # account menu's agents are on every page, so every signed-in page follows
   # them. Signing in or out reloads the page, so the person followed is the
   # page's own for as long as it is open.
   defp follow_agents(socket) do
@@ -198,16 +198,19 @@ defmodule RegentsWeb.ShellLive.Account do
 
   @doc """
   An agent paired, checked in or was unpaired, here or on another Regent site.
-  The side panel's agents and pairing box are on every page; the Account page
-  also has its own list of agents.
+  The account menu's agents are on every page; the Account page also has its
+  own list of agents and the pairing box.
   """
   def agents_changed(socket) do
-    send_update(PanelAgents, id: "shell-agents", agents_changed: true)
-    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
+    send_update(MenuAgents, id: "shell-agents", agents_changed: true)
 
     case socket.assigns.route_spec do
-      %{route_id: :account} -> reload_paired_agents(socket, agent_person(socket))
-      _other -> socket
+      %{route_id: :account} ->
+        send_update(PairingBox, id: "account-pairing-box", agents_changed: true)
+        reload_paired_agents(socket, agent_person(socket))
+
+      _other ->
+        socket
     end
   end
 

@@ -33,7 +33,7 @@ defmodule RegentsWeb.AgentStart do
   @doc "What a person gives their agent: the steps for its client, ready to paste."
   def instruction(%{client: :cli} = agent) do
     """
-    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent in the side panel at #{origin()}.
+    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent on my Account page at #{origin()}.
 
     1. Install the Regents command line and check it. Expect 1.10.20.
        uv tool install regents-cli==1.10.20
@@ -65,7 +65,7 @@ defmodule RegentsWeb.AgentStart do
 
   def instruction(%{client: :siwa} = agent) do
     """
-    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent in the side panel at #{origin()}.
+    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent on my Account page at #{origin()}.
 
     1. Get the Regent sign-in client:
        curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py
@@ -107,9 +107,9 @@ defmodule RegentsWeb.AgentStart do
 
     Your agent pairs with your Regents account and reads it for you: your account, Credits, names, Points and staking. It can never use your wallet, change your account or pair other agents. Agent spending opens soon.
 
-    1. Your person makes a pairing code with Pair New Agent in the side panel of #{origin()}. A code works once, for ten minutes.
+    1. Your person makes a pairing code with Pair New Agent on their Account page at #{origin()}. A code works once, for ten minutes.
     2. Follow the steps for your agent below, with that code.
-    3. Your agent then shows under its name in their side panel and on their account page.
+    3. Your agent then shows under its name in their account menu and on their Account page.
 
     A refusal names what went wrong: `pairing_failed` means the code is used, expired or mistyped, so ask for a new one; `not_paired` means you aren't paired with your person on this site.
 

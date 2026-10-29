@@ -85,7 +85,7 @@ Missing or invalid credentials return 401. An invalid query or cursor returns 40
 
 ## Pair an agent with a person's account
 
-A person makes a one-time pairing code with Pair New Agent in the side panel and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
+A person makes a one-time pairing code with Pair New Agent on their Account page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
 
 Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. With the `regents` command line, install it and sign in once:
 

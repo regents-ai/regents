@@ -47,11 +47,11 @@ defmodule RegentsWeb.PrivyShowcaseLive do
         <a class="sc-wordmark" href="/showcase">Regent <span>Workshop</span></a>
         <span class="sc-local">Local only · read-only wallet data</span>
         <%!-- Same markup and event markers as the site header. No second auth handler.
-        This page has no side panel, so Sign out sits beside the name. --%>
+        This page has no account menu, so Sign out sits beside the name. --%>
         <Shell.account_control
           account_control={@account_control}
           enabled={@mode == :configured}
-          panel={false}
+          menu={false}
         />
         <Shell.theme_toggle id="privy-reference-theme" />
       </header>

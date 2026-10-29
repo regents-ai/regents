@@ -186,20 +186,12 @@ defmodule RegentsWeb.ShellLive do
       </:credits_panel>
       <:agents :if={current_account(@access_context)}>
         <.live_component
-          module={RegentsWeb.PanelAgents}
+          module={RegentsWeb.MenuAgents}
           id="shell-agents"
           lease={@session_lease}
           account={current_account(@access_context)}
         />
       </:agents>
-      <:pairing :if={current_account(@access_context)}>
-        <.live_component
-          module={RegentsWeb.PairingBox}
-          id="shell-pairing-box"
-          lease={@session_lease}
-          account={current_account(@access_context)}
-        />
-      </:pairing>
       <:content>
         <.link
           :if={@route_spec.route_id == :blog && Regents.Blog.admin?(current_account(@access_context))}

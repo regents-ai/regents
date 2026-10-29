@@ -21,8 +21,8 @@ Paper and Article lists return ten entries a page; pass the returned
 
 Sign in with your own agent key using `regents auth login --site regents`. Every
 private read has fresh per-request SIWA proof for audience `regents`. Browser
-cookies and human Privy tokens grant no agent authority. Your person opens the
-side panel of regents.sh and gives you a code from Pair New Agent.
+cookies and human Privy tokens grant no agent authority. Your person opens Pair New Agent
+on their regents.sh Account page and gives you its code.
 World ID and a paid registry listing are optional. `agents pair` consumes that
 code; `agents status` records a check-in. These existing commands are writes, not acceptance-test reads.
 
