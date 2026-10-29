@@ -43,6 +43,7 @@ Never use your person's browser sign-in as your own. Check
 | Read | Command line (`regents protocol …`) | Browser tool |
 | --- | --- | --- |
 | Identity and pairing | `agents whoami` | `regents_agent_whoami` |
+| Check in | `agents status` | `regents_agent_status` |
 | Display and ENS name | `account show` | `regents_account` |
 | Name claims | `account claims` | `regents_claims` |
 | Check a name | `names check --name NAME` | `regents_name_check` |

@@ -447,6 +447,64 @@
       "effect": "read"
     },
     {
+      "name": "regents_agent_status",
+      "title": "Check in",
+      "description": "Check in as a paired agent: your pairing and the account you act for. Records the check-in time, which your person sees. Refused with agent_not_paired until your person pairs you, and person_not_here until they sign in on this site. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Browser cookies and human Privy tokens grant no agent authority.",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input",
+          "request",
+          "proof"
+        ],
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "request": {
+            "type": "object",
+            "description": "Exact request returned by prepare_agent_request."
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "HTTP proof headers from the existing SIWA signer."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "untrustedContentHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "GET /api/agents/v1/me",
+      "scope": "site",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "interfaces": {
+        "webmcp": "regents_agent_status",
+        "http": "GET /api/agents/v1/me"
+      },
+      "operation_input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "effect": "write"
+    },
+    {
       "name": "regents_account",
       "title": "Read the paired account",
       "description": "Read the paired owner account display name and ENS name, together with your current pairing ID. Requires fresh proof for the exact prepared request, signed by your existing SIWA signer. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
@@ -763,6 +821,7 @@
               "regents_name_check",
               "regents_name_claim",
               "regents_agent_whoami",
+              "regents_agent_status",
               "regents_account",
               "regents_credits_balance",
               "regents_credits_history",
