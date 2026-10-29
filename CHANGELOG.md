@@ -3921,7 +3921,10 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `SIWA_SITE_VERIFY_KEY` to the sign-in service with every signed agent request, and
   the key names the audience; the `x-siwa-audience` header is gone. If the service
   refuses the key, the site logs an error and agents get 503 `siwa_request_failed`.
-- `agents whoami` also answers `human_backed` and `same_person_agent_count`, so
-  regents-cli can check a sign-in through this site. The OpenAPI documents are 4.1.0.
+- The new library pin also changes the agent contract: `agents whoami`'s `agent` also
+  answers `human_backed` and `same_person_agent_count`, so regents-cli can check a
+  sign-in through this site. The API contract moves from 4.0.0 to 4.1.0.
+- A test sends a verify key the sign-in service refuses: agents get 503
+  `siwa_request_failed` and the site logs an error without the key.
 - Libraries: elixir-utils d9b60bfd (the verify key, a1b6e5db, joined onto 9539469f).
   No database changes. Releases only in the joint verify-key release.

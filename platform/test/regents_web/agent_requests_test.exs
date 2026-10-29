@@ -71,6 +71,26 @@ defmodule RegentsWeb.AgentRequestsTest do
     assert data["next_step"] == RegentAgents.HTTP.next_step("not_paired")
   end
 
+  # A wrong verify key is this site's own fault: agents get 503 and the site logs it.
+  test "a verify key the sign-in service refuses tells agents to try later and logs an error",
+       %{conn: conn} do
+    siwa = Application.fetch_env!(:regent_agents, :siwa)
+    Application.put_env(:regent_agents, :siwa, Keyword.put(siwa, :verify_key, "wrong-key"))
+    on_exit(fn -> Application.put_env(:regent_agents, :siwa, siwa) end)
+    siwa_verifies(@agent_wallet)
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert %{"error" => %{"code" => "siwa_request_failed"}} =
+                 conn |> get("/api/agents/v1/whoami") |> json_response(503)
+      end)
+
+    assert_received {:verified, ["Bearer wrong-key"], _envelope}
+    assert log =~ "[error]"
+    assert log =~ "refused this site's verify key"
+    refute log =~ "wrong-key"
+  end
+
   test "an agent whose person has never signed in here is told so", %{conn: conn} do
     elsewhere = %Person{privy_user_id: "did:privy:elsewhere:#{Elixir.System.unique_integer()}"}
     issued = RegentAgents.issue_pairing_code!(actor: elsewhere)
