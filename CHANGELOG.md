@@ -3940,3 +3940,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   the download is disabled with "Coming soon", all six protections read "Planned", and
   "Set up with your agent" opens the guide. /cloak/guide answers Markdown to
   `Accept: text/markdown`; llms.txt and the sitemap list both pages. 1 of 1 checks pass.
+
+## 2026-10-29 — Regents Cloak wording
+
+- The Cloak protections read Private rewriting, Private payments, Separate chats,
+  Private network, Decoy traffic and Contained agent. Two lines now claim only what the
+  spec promises: requests are routed through a private network, and conversations are
+  kept apart. The page no longer names the technology; the guide for agents still does.
+- New limit: until every release passes its tests, some programs may connect without a
+  private network. The release line now reads "Each protection must pass its tests
+  before release."

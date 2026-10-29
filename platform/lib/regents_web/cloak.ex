@@ -10,21 +10,25 @@ defmodule RegentsWeb.Cloak do
 
   @protections [
     %{
-      title: "Rewriting",
+      title: "Private rewriting",
       copy: "Personal details are rewritten on your Mac before a request leaves."
     },
-    %{title: "Payments", copy: "Pay for each request without an account tied to you."},
-    %{title: "Conversations", copy: "Each conversation gets its own route and history."},
-    %{title: "Tor", copy: "Every request the agent makes leaves through Tor."},
-    %{title: "Cover", copy: "Decoy requests make real ones harder to spot."},
-    %{title: "Sandbox", copy: "The agent reaches only the files and tools you allow."}
+    %{title: "Private payments", copy: "Pay for each request without an account tied to you."},
+    %{title: "Separate chats", copy: "Conversations are kept apart from each other."},
+    %{
+      title: "Private network",
+      copy: "The agent's requests are routed through a private network."
+    },
+    %{title: "Decoy traffic", copy: "Decoy requests make real ones harder to spot."},
+    %{title: "Contained agent", copy: "The agent reaches only the files and tools you allow."}
   ]
 
   @limits [
     "The model you use still reads what you send it, after rewriting.",
     "Someone watching both ends of a connection may still match requests by their timing.",
+    "Until every release passes its tests, some programs may connect without a private network.",
     "Cloak protects your agent's work, not the rest of your Mac.",
-    "A release ships only when every protection passes its tests."
+    "Each protection must pass its tests before release."
   ]
 
   @post "https://x.com/VitalikButerin/status/2111046730959433793"
