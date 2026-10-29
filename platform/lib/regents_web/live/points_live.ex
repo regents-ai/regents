@@ -1,11 +1,17 @@
 defmodule RegentsWeb.PointsLive do
   @moduledoc "Private Account Points presentation; the NFT bonus is added at the end of each 30-day period."
   use RegentsWeb, :html
+  import RegentsWeb.Components.PageHead, only: [page_head: 1]
   alias RegentPoints.{Amount, Rules}
+  alias RegentsWeb.PointsEntries
   attr :account, :map, default: nil
-  attr :signed_out_reason, :atom, required: true
-  attr :points, :map, required: true, doc: "the account's summary read: its state and value"
-  attr :bonus, :map, required: true, doc: "the NFT tier the account's wallets hold now"
+  attr :signed_out_reason, :atom, default: :signed_out
+  attr :points, RegentsWeb.Read, required: true
+
+  attr :bonus, RegentsWeb.Read,
+    required: true,
+    doc: "the NFT tier the account's wallets hold now"
+
   attr :earning, :list, required: true, doc: "the catalog rules earning now"
 
   def page(assigns) do
@@ -14,13 +20,11 @@ defmodule RegentsWeb.PointsLive do
 
     ~H"""
     <article id="points-page" class="account-page">
-      <header class="account-heading">
-        <p class="account-kicker">Regents Labs</p>
-        <h1 tabindex="-1">Points</h1>
-        <p class="account-lede">
-          Eligible activity by you and your connected agents, in one account.
-        </p>
-      </header>
+      <.page_head title="Points">
+        <:tip>
+          What you and your paired agents earn on every Regent site, counted in one account.
+        </:tip>
+      </.page_head>
       <Regent.Account.signed_out
         :if={is_nil(@account)}
         id="points-signed-out"
@@ -32,9 +36,6 @@ defmodule RegentsWeb.PointsLive do
           </Regent.Primitives.button>
         </:sign_in>
       </Regent.Account.signed_out>
-      <p :if={@account && is_nil(@points.value) && @points.state in [:idle, :loading]} role="status">
-        Reading your points…
-      </p>
       <Regent.Primitives.notice :if={@points.state == :error} tone="error">
         Points could not be read. Try refreshing this page.
       </Regent.Primitives.notice>
@@ -45,8 +46,16 @@ defmodule RegentsWeb.PointsLive do
           confirmed={Amount.format(@points.value.balance_micro)}
           today={Amount.format(@points.value.earned_today_micro)}
           pending={to_string(@points.value.pending)}
-          state={summary_state(@points.state)}
-          allowances={allowances(@points.value, @earning)}
+          state={@points.state}
+          allowances={
+            Enum.map(
+              @points.value.allowances,
+              &%{
+                label: PointsEntries.allowance_name(&1.scope),
+                value: "#{Amount.format(&1.remaining)} remaining"
+              }
+            )
+          }
         />
         <section class="account-panel account-details">
           <h2>
@@ -57,11 +66,14 @@ defmodule RegentsWeb.PointsLive do
               bonus to the points you earned in that period, one-time awards included.
             </Regent.Primitives.tip>
           </h2>
-          <p :if={@bonus.state in [:idle, :loading]} role="status">Checking your NFTs…</p>
-          <p :if={@bonus.state == :error}>
-            Your NFTs could not be checked. Try refreshing this page.
+          <p :if={@earning == []}>Your NFTs are counted once earning opens.</p>
+          <p :if={@earning != [] and @bonus.state in [:idle, :loading]} role="status">
+            Checking your NFTs…
           </p>
-          <dl :if={@bonus.state == :ready}>
+          <p :if={@earning != [] and @bonus.state in [:error, :stale]}>
+            Your NFTs could not be checked. {retry(@bonus.error)}
+          </p>
+          <dl :if={@earning != [] and @bonus.state == :ready}>
             <div>
               <dt>NFTs held</dt>
               <dd>{@bonus.value.nft_count}</dd>
@@ -80,16 +92,16 @@ defmodule RegentsWeb.PointsLive do
             </div>
           </dl>
         </section>
-        <section class="account-panel points-activity">
+        <section class="account-panel">
           <h2>Recent points activity</h2>
           <p :if={@points.value.entries == []}>No confirmed points activity yet.</p>
           <ol>
             <li :for={entry <- @points.value.entries}>
               <p>
-                {Rules.label(entry.rule_id)} · {actor_name(
+                {Rules.label(entry.rule_id)} · {PointsEntries.agent_name(
                   entry,
                   @points.value.agent_names
-                )}
+                ) || "You"}
               </p>
               <p>{Amount.format(entry.points_micro_delta)} points</p>
               <Regent.Primitives.tip
@@ -102,7 +114,10 @@ defmodule RegentsWeb.PointsLive do
                 )} awarded. {Amount.format(entry.cap_reduction_micro)} exceeded the daily or per-action allowance.
               </Regent.Primitives.tip>
               <p>
-                {entry_status(entry)} · {Calendar.strftime(entry.earned_at, "%d %b %Y %H:%M UTC")}
+                {PointsEntries.status_label(PointsEntries.status(entry))} · {Calendar.strftime(
+                  entry.earned_at,
+                  "%d %b %Y %H:%M UTC"
+                )}
               </p>
             </li>
           </ol>
@@ -238,25 +253,7 @@ defmodule RegentsWeb.PointsLive do
     end)
   end
 
-  defp actor_name(%{actor_kind: "human"}, _names), do: "You"
-  defp actor_name(entry, names), do: Map.get(names, entry.actor_id, "Previously connected agent")
-
-  defp entry_status(%{reversal_of_entry_id: id}) when not is_nil(id), do: "Correction"
-  defp entry_status(%{points_micro_delta: 0}), do: "Allowance reached"
-  defp entry_status(_), do: "Confirmed"
-
-  defp scope_name("credits"), do: "Credits purchases"
-  defp scope_name("activity:account"), do: "You and your agents"
-
-  defp summary_state(:idle), do: :loading
-  defp summary_state(state), do: state
-
-  defp allowances(_points, []), do: []
-
-  defp allowances(points, _earning) do
-    Enum.map(
-      points.allowances,
-      &%{label: scope_name(&1.scope), value: "#{Amount.format(&1.remaining)} remaining"}
-    )
-  end
+  # Reading again at once while limited would only be refused again.
+  defp retry(:limited), do: "Try again in a minute."
+  defp retry(_reason), do: "Try refreshing this page."
 end

@@ -1,5 +1,5 @@
 defmodule RegentsWeb.SignInWalletsTest do
-  # Sean, 20 Oct 2026: the Account page shows "User wallet" only when the person
+  # Sean, 20 Oct 2026: the Wallets tab of Account shows "User wallet" only when the person
   # signed in to Privy with a wallet of their own, and the wallet Privy made for
   # everyone as the "Regents embedded wallet". An outside wallet must never show
   # as the Regents wallet. Sean, 21 Oct 2026 (9. a): the person's own wallet is
@@ -43,7 +43,7 @@ defmodule RegentsWeb.SignInWalletsTest do
         wallet(@own, 2_000, "metamask"),
         wallet(@made, 2_001, "privy")
       ])
-      |> get("/account")
+      |> get("/account/wallets")
       |> html_response(200)
 
     assert section(html, "User wallet") =~ @own
@@ -73,7 +73,7 @@ defmodule RegentsWeb.SignInWalletsTest do
     html =
       conn
       |> sign_in(key, "did:privy:email-only", [email, wallet(@made, 1_001, "privy")])
-      |> get("/account")
+      |> get("/account/wallets")
       |> html_response(200)
 
     refute html =~ "User wallet"
@@ -87,7 +87,7 @@ defmodule RegentsWeb.SignInWalletsTest do
     html =
       conn
       |> sign_in(key, "did:privy:not-made-yet", [wallet(@own, 3_000, "metamask")])
-      |> get("/account")
+      |> get("/account/wallets")
       |> html_response(200)
 
     assert section(html, "User wallet") =~ @own

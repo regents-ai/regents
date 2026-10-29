@@ -1,6 +1,6 @@
 defmodule RegentsWeb.AgentPictureUpload do
   @moduledoc """
-  The picture beside one of a person's agents, on regents.sh/account. The
+  The picture beside one of a person’s agents, on regents.sh/account. The
   person chooses a PNG, JPEG or WebP of up to 5 MB and saves it, re-made as the
   small square kept for the agent (`Regents.AgentPicture`), or removes the one
   saved. Every Regent site shows it beside what the agent posts.

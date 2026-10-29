@@ -1,39 +1,34 @@
 defmodule Regents.Accounts.LinkedIdentity.Providers do
   @moduledoc false
 
-  @providers [
-    %{provider: :x, label: "X"},
-    %{provider: :github, label: "GitHub"},
-    %{provider: :farcaster, label: "Farcaster"}
-  ]
+  @labels [x: "X", github: "GitHub", farcaster: "Farcaster"]
+  @by_name Map.new(@labels, fn {provider, _label} -> {Atom.to_string(provider), provider} end)
+  @profile_roots %{
+    x: "https://x.com/",
+    github: "https://github.com/",
+    farcaster: "https://farcaster.xyz/"
+  }
 
-  def all, do: @providers
+  def all, do: for({provider, label} <- @labels, do: %{provider: provider, label: label})
 
-  def label(provider), do: Enum.find_value(@providers, &(&1.provider == provider && &1.label))
+  def label(provider), do: @labels[provider]
 
-  def profile_url(:x, username), do: build_profile_url("https://x.com/", username)
-  def profile_url(:github, username), do: build_profile_url("https://github.com/", username)
+  @doc "The provider a browser names by its string form, or `:error` for any other string."
+  def parse(name), do: Map.fetch(@by_name, name)
 
-  def profile_url(:farcaster, username),
-    do: build_profile_url("https://farcaster.xyz/", username)
-
-  def profile_url(_provider, _username), do: nil
+  def profile_url(provider, username) do
+    case {@profile_roots[provider], present(username)} do
+      {root, name} when is_binary(root) and is_binary(name) -> root <> URI.encode_www_form(name)
+      _unlinked -> nil
+    end
+  end
 
   def handle(%{provider: :github, username: username}), do: present(username)
 
   def handle(%{username: username}) do
     case present(username) do
       nil -> nil
-      username -> "@#{username}"
-    end
-  end
-
-  defp build_profile_url(_base, username) when not is_binary(username), do: nil
-
-  defp build_profile_url(base, username) do
-    case String.trim(username) do
-      "" -> nil
-      username -> base <> URI.encode_www_form(username)
+      name -> "@" <> name
     end
   end
 

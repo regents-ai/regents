@@ -73,18 +73,39 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :account
     },
     %Entry{
-      path_pattern: "/account/credits",
-      live_action: :account_credits,
+      path_pattern: "/account/points",
+      live_action: :points,
       parameter_schema: %{},
       reserved_values: %{},
-      route_spec_id: :account_credits
+      route_spec_id: :points
     },
     %Entry{
-      path_pattern: "/account/points",
-      live_action: :account_points,
+      path_pattern: "/account/credits",
+      live_action: :credits,
       parameter_schema: %{},
       reserved_values: %{},
-      route_spec_id: :account_points
+      route_spec_id: :credits
+    },
+    %Entry{
+      path_pattern: "/account/wallets",
+      live_action: :wallets,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :wallets
+    },
+    %Entry{
+      path_pattern: "/account/connections",
+      live_action: :connections,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :connections
+    },
+    %Entry{
+      path_pattern: "/names",
+      live_action: :names,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :names
     },
     %Entry{
       path_pattern: "/regents/:slug",
@@ -191,12 +212,21 @@ defmodule RegentsWeb.RouteCatalog do
     account:
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
        :regents_labs, %{}},
-    account_credits:
-      {:account_credits, :regent_ops, "Regents Labs", "Credits", "/app", [:profile_actions],
+    points:
+      {:points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions], :regents_labs,
+       %{}},
+    credits:
+      {:credits, :regent_ops, "Regents Labs", "Credits", "/app", [:profile_actions],
        :regents_labs, %{}},
-    account_points:
-      {:account_points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions],
+    wallets:
+      {:wallets, :regent_ops, "Regents Labs", "Wallets", "/app", [:profile_actions],
        :regents_labs, %{}},
+    connections:
+      {:connections, :regent_ops, "Regents Labs", "Connections", "/app", [:profile_actions],
+       :regents_labs, %{}},
+    names:
+      {:names, :regent_ops, "Regents Labs", "Names", "/app", [:profile_actions], :regents_labs,
+       %{}},
     regent_profile:
       {:regent_profile, :regent_ops, "Regents Labs", "Regent Profile", "/app",
        [:wallet_status, :network_status, :profile_actions], :regent_record, %{}},
@@ -228,6 +258,16 @@ defmodule RegentsWeb.RouteCatalog do
       {:credits_admin, :regent_ops, "Regents Labs", "Credits admin", "/app", [:profile_actions],
        :regents_labs, %{}}
   }
+
+  # The Account pages are tabs of one another.
+  @account_tabs [
+    %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+    %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
+    %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
+    %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
+    %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"}
+  ]
+  @tabs Map.new(@account_tabs, &{&1.route_id, @account_tabs})
 
   def entries, do: @entries
 
@@ -270,6 +310,7 @@ defmodule RegentsWeb.RouteCatalog do
       page_display_label: page_label,
       canonical_root: root,
       sidebar_model: sidebar_model(app_id),
+      tabs: Map.get(@tabs, route_id, []),
       header_controls: controls,
       background_slot: background,
       scroll_policy: :top,
@@ -287,7 +328,7 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
-        %RouteTarget{route_id: :account_credits, label: "Credits", path: "/account/credits"},
+        %RouteTarget{route_id: :names, label: "Names", path: "/names"},
         %ViewerProfileTarget{label: "Profile"},
         %SidebarHeading{label: "Products"},
         %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
@@ -323,7 +364,8 @@ defmodule RegentsWeb.RouteCatalog do
       "reserved_values" => entry.reserved_values,
       "route_id" => spec.route_id,
       "scroll_policy" => spec.scroll_policy,
-      "sidebar_model" => sidebar_handoff(spec.sidebar_model)
+      "sidebar_model" => sidebar_handoff(spec.sidebar_model),
+      "tabs" => Enum.map(spec.tabs, &sidebar_target_handoff/1)
     }
   end
 

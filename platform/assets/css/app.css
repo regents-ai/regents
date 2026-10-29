@@ -5,6 +5,7 @@
 @import "../vendor/regent_ui/primitives.css";
 @import "./tokens/root.css";
 @import "./components/shell.css";
+@import "./components/page_head.css";
 @import "./components/loading.css";
 @import "./components/transaction_receipt.css";
 @import "./components/submitted_transactions.css";

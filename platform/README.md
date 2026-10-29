@@ -195,7 +195,7 @@ MIT — see [LICENSE](../LICENSE).
 
 ## Shared private profile
 
-`/account` is the signed-in person's own page. The private `/api/v1/profile` contract,
+`/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Points, Credits, Wallets and Connections, and the page starts in ash-template. The private `/api/v1/profile` contract,
 served by the Regents-owned Ash identity domain, provides `GET`, `PATCH`, and `POST /sync`;
 the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,
@@ -208,7 +208,7 @@ Do not repoint existing databases or replay migration histories: legacy identity
 mappings, schema collisions and a recovery copy require a separate verified cutover.
 See the identity package README and CLI private-profile contract for proof handling.
 
-Historical names on `/account` read the preserved `regent_names` tables through Ash.
+Historical names on `/names` read the preserved `regent_names` tables through Ash.
 `GET /api/v1/claims` requires fresh paired Privy proofs and returns only records owned
 by verified linked wallets. It is paginated and read-only; private payments and
 entitlements are preserved separately. Import these tables through the reviewed

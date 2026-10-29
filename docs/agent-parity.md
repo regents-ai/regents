@@ -47,12 +47,12 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Sign in / make the account | Privy sign-in window (`POST /auth/privy/session`), untested for agents | — | — | — | — | sign-in | R1 |
-| Sign out | `/account` Session (`DELETE /auth/privy/session`) | — | — | — | — | sign-in | R1 |
+| Sign out | account menu Sign out (`DELETE /auth/privy/session`) | — | — | — | — | sign-in | R1 |
 | Agent's own identity (whoami, check in) | agents only | `regents_agent_whoami` | — | — | `agents whoami`, `agents status` | no | R2, R3, R4 |
-| Read display name and ENS name | `/account` Details | `regents_account` | — | — | `account show` | no | R2, R3 |
-| Read wallets and World ID | `/account` Details | — | — | — | — | wallet | R11 |
-| Set display name and chosen wallet | no page; `PATCH /api/v1/profile` with a Privy proof pair | — | — | — | — | sign-in | R11 |
-| Verified connections (X, GitHub, Farcaster: start, refresh) | `/account` Verified connections | — | — | — | — | sign-in | R11 |
+| Read display name and ENS name | `/account` | `regents_account` | — | — | `account show` | no | R2, R3 |
+| Read wallets | `/account/wallets` | — | — | — | — | wallet | R11 |
+| Set display name | `/account` Public Display Name (`PATCH /api/v1/profile` with a Privy proof pair) | — | — | — | — | sign-in | R11 |
+| Verified connections (X, GitHub, Farcaster: start, refresh) | `/account/connections` | — | — | — | — | sign-in | R11 |
 
 ## Agents
 
@@ -61,16 +61,16 @@ were skipped.
 | Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
 | Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
-| Set or remove an agent's picture | `/account` agent card (upload) | — | — | — | — | no | R6 |
-| Set what each agent may spend (on or off, per spend, daily, sites) | `/account` | — | — | — | — | money | R7 |
+| Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
+| Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
 | Read the agent's own spending budget | agents only | `regents_credits_budget` | — | — | `account budget` | no | R2, R3 |
 
 ## Names
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Read claimed Regent Names | `/account` Claimed Regent Names (more on scroll) | `regents_claims` | — | — | `account claims` | no | R2, R3 |
-| Check a name, see free claims left, claim a free name | `/account` Claim a Regent Name | — | — | — | — | no | R12 |
+| Read claimed Regent Names | `/names` (more on scroll) | `regents_claims` | — | — | `account claims` | no | R2, R3 |
+| Check a name, see free claims left, claim a free name | `/names` Claim | — | — | — | — | no | R12 |
 
 ## Credits
 
@@ -163,11 +163,11 @@ were skipped.
   account menu and on `/account`. They stay out of reach of a paired helper agent and
   open only to the owner from R1. Not protected (owner only).
 - **R6. Agent pictures are page-only.** The person uploads or removes an agent's
-  picture on `/account`; the agent has no route to set its own (the shared agents
+  picture in its window on `/account`; the agent has no route to set its own (the shared agents
   router serves only pair, me and whoami). Plan: a signed picture route, tools and
   `agents picture set` and `agents picture remove` commands. Not protected.
 - **R7. Agent spending limits are page-only.** Turning an agent's spending on, its
-  limits and its sites are saved only for a person signed in on `/account`. Plan: an
+  limits and its sites are saved only for a person signed in on `/account/credits`. Plan: an
   owner-only signed route, tool and command after R1. Protected (money).
 - **R8. Buying Credits has no agent path.** Only the Buy Credits panel builds the
   approve and buy steps and reports the sent buy so it counts.
@@ -186,14 +186,13 @@ were skipped.
   only from `/redeem`. `Regents.Redemption.Steps.steps/1` names no sender, so any key
   can sign its steps. Plan: a signed read, a steps route, `redeem` commands and tools.
   Protected (money, wallet) for the steps; the read is not.
-- **R11. Account settings are page-only.** Linked wallets and World ID are not in
+- **R11. Account settings are page-only.** Linked wallets are not in
   `regents_account`, verified connections need the Privy session, and the display name
-  and chosen wallet change only through `/api/v1/profile` with a Privy proof pair (no
-  page offers it either). Plan: owner reads in `account show`, and a signed profile
+  changes only on `/account`, through `/api/v1/profile` with a Privy proof pair. Plan: owner reads in `account show`, and a signed profile
   change in this repository's `identity` library, after R1. Protected (sign-in,
   wallet).
 - **R12. Name claims are page-only.** Checking a name, seeing free claims left and
-  claiming a free Regent Name run only on `/account`; agents can only read the claims
+  claiming a free Regent Name run only on `/names`; agents can only read the claims
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
 - **R13. Some site pages have no tool.** `regents_about` covers `/about` and `/docs`;

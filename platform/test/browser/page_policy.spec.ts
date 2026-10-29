@@ -20,6 +20,7 @@ test("[R14] no page is refused anything by its security policy", async ({page}) 
 
   for (const path of ["/", "/articles", "/docs", "/about", "/contact", "/privacy", "/terms",
     "/app", "/stake", "/redeem", "/redeem/gallery", "/account",
+    "/account/points", "/account/credits", "/account/wallets", "/account/connections", "/names",
     "/autolaunch", "/techtree", "/patchbay", "/no-such-page"]) {
     await page.goto(path)
     await page.waitForLoadState("networkidle")

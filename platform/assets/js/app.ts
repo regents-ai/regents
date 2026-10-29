@@ -13,6 +13,7 @@ import {hooks as colocatedHooks} from "phoenix-colocated/regents"
 import {composeHooks, type Hook} from "./hook_composition"
 import {
   browserCsrfToken,
+  holdAdoptionWhileLeaving,
   holdSocketDuringCookieRotation,
   installAccountAuthLazyLoader,
   installCrossTabCsrf,
@@ -32,6 +33,7 @@ import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {PublicName} from "./hooks/public_name"
 import {MenuAgents} from "./hooks/menu_agents"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
@@ -317,6 +319,7 @@ const hooks = {
   MotionTabs,
   MenuAgents,
   OnchainSteps,
+  PublicName,
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   VerifiedConnections,
@@ -336,6 +339,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // subject to the barrier. `types.d.ts` describes only the LiveSocket surface
 // this application calls, so the transport entry point is named at the cast.
 holdSocketDuringCookieRotation(liveSocket.getSocket() as PinnedSocket)
+holdAdoptionWhileLeaving()
 // Started before the first connect, so a page rendered for a refused cookie
 // holds its socket until that cookie is retired.
 void retireRefusedSession()

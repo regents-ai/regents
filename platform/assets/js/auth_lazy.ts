@@ -1,3 +1,4 @@
+import {loadProfileAction, type ProfileAction} from "../vendor/regent_identity/profile_client.mjs"
 import {disconnectEveryEthereumWallet, invalidateWalletWork, rememberWalletDisconnected,
   walletDisconnected, walletDisconnectedStorageKey} from "./wallet_actions/connected_wallet"
 
@@ -50,6 +51,7 @@ export type PrivyBridgeHandle = {
   dispose?: () => void
   request: (request: AccountRequest) => Promise<void>
   identity?: (request: IdentityRequest) => Promise<void>
+  openProfile?: () => ProfileAction
   finishSignOutOnly?: () => void
 }
 
@@ -228,7 +230,19 @@ export async function csrfToken(
 let openRotations = 0
 let unreadRenewal = false
 let adoptingRenewal: Promise<void> | null = null
+let documentLeaving = false
 const heldSockets = new Set<() => void>()
+
+// A document that has begun to leave, by a reload or any other full
+// navigation, is replaced by one rendered for the cookie its own request
+// carries. An adoption read this document sent after that would write a newer
+// cookie behind the new page's back: the new page's socket would then carry a
+// CSRF token its cookie no longer backs, Phoenix would refuse the join as stale
+// and load the page a second time. So from `beforeunload` on, a held socket
+// here stays held and reads nothing; the page that replaces it reads its own.
+export function holdAdoptionWhileLeaving(view: Pick<Window, "addEventListener"> = window): void {
+  view.addEventListener("beforeunload", () => { documentLeaving = true }, {once: true})
+}
 
 // True only while this tab is known to hold the CSRF state of the cookie it
 // would connect under.
@@ -283,7 +297,8 @@ function adoptUnreadRenewal(fetcher: typeof fetch): Promise<void> {
     // one of them may already have read what the cookie carries by the time it
     // runs. Reading again would answer for a renewal this tab no longer has,
     // and closing it again would strand a transport that is already current.
-    if (!unreadRenewal) return
+    // A document already leaving reads nothing (`holdAdoptionWhileLeaving`).
+    if (!unreadRenewal || documentLeaving) return
     await csrfToken(fetcher, signal)
     // A rotation that opened while this read was in flight latched a renewal
     // newer than the one it answers for, and only that rotation can say this
@@ -897,6 +912,27 @@ export function createLazyAuthLoader(
       if (handle) return deliverPending()
       return preparing ?? prepare()
     },
+    // One change to the shared profile, answered by the page's one bridge, started
+    // here when nothing has started it. The change opens as it is asked for, so it
+    // belongs to whoever is signed in then, and every call of it uses that client.
+    openProfile(): ProfileAction {
+      const ready = () => {
+        assertActive()
+        if (state !== "ordinary") throw new Error("Provider sign out is still in progress.")
+      }
+      const opening = (async () => {
+        ready()
+        if (!handle) await (preparing ?? prepare())
+        if (!handle?.openProfile) throw new Error("Privy profile bridge is not ready")
+        return handle.openProfile()
+      })()
+      // A change that is never used still settles quietly; each use reports its own failure.
+      opening.catch(() => {})
+      return (...args) => loadProfileAction(async () => {
+        ready()
+        return opening
+      }, ...args)
+    },
     finishHandoff(): void {
       if (state !== "handoff-preterminal") return
       state = "handoff-terminal"
@@ -904,6 +940,15 @@ export function createLazyAuthLoader(
       handle?.finishSignOutOnly?.()
     },
   }
+}
+
+// The Account page's name form saves through the page's own sign-in loader.
+const profileOpeners = new WeakMap<Document, () => ProfileAction>()
+
+export function openProfile(documentRoot: Document = document): ProfileAction {
+  const open = profileOpeners.get(documentRoot)
+  if (!open) throw new Error("The account loader is not installed")
+  return open()
 }
 
 export function installAccountAuthLazyLoader(
@@ -929,6 +974,8 @@ export function installAccountAuthLazyLoader(
     importBridge,
     consumedHandoff ? {mode: "sign-out-only"} : {},
   )
+  // Read at each save, since a retried sign-in replaces the loader.
+  profileOpeners.set(documentRoot, () => loader.openProfile())
   const clearStatus = () => {
     const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
     if (!status) return
@@ -1123,6 +1170,7 @@ export function installAccountAuthLazyLoader(
   }
   return () => {
     installed = false
+    profileOpeners.delete(documentRoot)
     loader.dispose()
 
     walletEvents.removeEventListener("storage", onWalletStorage)

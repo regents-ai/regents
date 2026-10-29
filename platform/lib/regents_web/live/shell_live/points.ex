@@ -3,24 +3,29 @@ defmodule RegentsWeb.ShellLive.Points do
   The Points page: the signed-in account's own points summary, read with the
   account as actor, and the catalog rules earning now. Awards and corrections
   from any site are heard only while this page is open, and each one reads the
-  summary again. A refresh that fails keeps the last summary on screen as
-  stale; a first read that fails is an error, never zero. The NFT tier the
-  account's wallets hold now is read from Base once per page open and never saved.
-  That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it, the
-  page says the NFTs could not be checked.
+  summary again. The NFT tier the account's wallets hold now is read from Base
+  once per page open, never on each award notice, and not at all while nothing
+  earns. That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it,
+  the page says the NFTs could not be checked.
   """
 
   import Phoenix.Component, only: [assign: 2]
-  import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
+  import Phoenix.LiveView, only: [connected?: 1]
 
-  alias RegentsWeb.ChainReadBudget
+  alias Regents.Actors.Human
+  alias RegentsWeb.{ChainReadBudget, Read}
   alias RegentsWeb.ShellLive.Identity
 
   def init(socket),
     do:
-      assign(socket, points_topic: nil, points: idle(), points_bonus: idle(), points_earning: [])
+      assign(socket,
+        points_topic: nil,
+        points: %Read{},
+        points_bonus: %Read{},
+        points_earning: []
+      )
 
-  def route(socket, %{route_id: :account_points}) do
+  def route(socket, %{route_id: :points}) do
     socket
     |> follow()
     |> assign(points_earning: RegentPoints.Rules.active())
@@ -29,79 +34,43 @@ defmodule RegentsWeb.ShellLive.Points do
   end
 
   def route(socket, _route_spec),
-    do: socket |> unfollow() |> assign(points: idle(), points_bonus: idle())
+    do: socket |> unfollow() |> Read.clear(:points) |> Read.clear(:points_bonus)
 
   @doc "An award or correction landed for this account."
   def changed(socket), do: read(socket)
 
-  @doc """
-  A summary answers only for the account it was read for, and only while the
-  Points page is open. A newer read for the same account replaces an older one
-  that is still running, whose answer LiveView then drops.
-  """
-  def settle(%{assigns: %{route_spec: %{route_id: :account_points}}} = socket, name, result),
-    do: landed(socket, name, result)
-
-  def settle(socket, _name, _result), do: socket
-
-  defp landed(socket, {:points, account_id}, result) do
-    case {Identity.current_account(socket.assigns.access_context), result} do
-      {%{id: ^account_id}, {:ok, {:ok, summary}}} ->
-        assign(socket, points: %{state: :ready, value: summary})
-
-      {%{id: ^account_id}, _failed} ->
-        assign(socket, points: failed(socket.assigns.points))
-
-      _session_ended ->
-        assign(socket, points: idle())
-    end
-  end
-
-  defp landed(socket, {:points_bonus, account_id}, result) do
-    case {Identity.current_account(socket.assigns.access_context), result} do
-      {%{id: ^account_id}, {:ok, {:ok, tier}}} ->
-        assign(socket, points_bonus: %{state: :ready, value: tier})
-
-      {%{id: ^account_id}, _failed} ->
-        assign(socket, points_bonus: %{state: :error, value: nil})
-
-      _session_ended ->
-        assign(socket, points_bonus: idle())
-    end
-  end
-
   defp read(socket) do
     case Identity.human_actor(socket) do
-      nil ->
-        assign(socket, points: idle())
-
-      actor ->
-        socket
-        |> assign(points: %{socket.assigns.points | state: :loading})
-        |> start_async({:points, actor.human_account_id}, fn ->
+      %Human{} = actor ->
+        Read.now(socket, :points, actor.human_account_id, fn ->
           RegentPoints.summary(actor: actor)
         end)
+
+      nil ->
+        Read.clear(socket, :points)
     end
   end
+
+  defp read_bonus(%{assigns: %{points_earning: []}} = socket),
+    do: Read.clear(socket, :points_bonus)
 
   defp read_bonus(socket) do
     case Identity.human_actor(socket) do
-      nil ->
-        assign(socket, points_bonus: idle())
+      %Human{human_account_id: id} ->
+        tag = socket.assigns.client_tag
+        Read.start(socket, :points_bonus, id, fn -> bonus(id, tag) end)
 
-      %{human_account_id: id} ->
-        read_bonus(socket, id, ChainReadBudget.admit(socket.assigns.client_tag))
+      nil ->
+        Read.clear(socket, :points_bonus)
     end
   end
 
-  defp read_bonus(socket, id, :ok) do
-    socket
-    |> assign(points_bonus: %{state: :loading, value: nil})
-    |> start_async({:points_bonus, id}, fn -> RegentPoints.Bonus.current(id) end)
+  defp bonus(id, tag) do
+    case ChainReadBudget.admit(tag) do
+      :ok -> RegentPoints.Bonus.current(id)
+      {:limited, _seconds} -> {:error, :limited}
+    end
   end
-
-  defp read_bonus(socket, _id, {:limited, _seconds}),
-    do: assign(socket, points_bonus: %{state: :error, value: nil})
 
   defp follow(%{assigns: %{points_topic: nil}} = socket) do
     with true <- connected?(socket),
@@ -122,9 +91,4 @@ defmodule RegentsWeb.ShellLive.Points do
     Phoenix.PubSub.unsubscribe(Regents.PubSub, socket.assigns.points_topic)
     assign(socket, points_topic: nil)
   end
-
-  defp failed(%{value: nil}), do: %{state: :error, value: nil}
-  defp failed(points), do: %{points | state: :stale}
-
-  defp idle, do: %{state: :idle, value: nil}
 end

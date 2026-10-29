@@ -1,26 +1,27 @@
 @layer regents-product {
-/* Account stands on the Overview grammar: one ground, hairline panels, the
-   display face for headings and a mono voice for kickers. The page's sections
-   sit in the shared Account layout (`Regent.Account.layout`). */
+/* Utility pages use open sections, readable headings and quiet separators. */
 
 .account-page {
   display: grid;
   gap: 1.5rem;
   min-width: 0;
+  max-width: 64rem;
 }
 
-.account-heading,
+.account-page h1 { font-size: clamp(1.5rem, 3vw, 1.75rem); line-height: 1.25; }
+
 .account-panel {
   min-width: 0;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border: 0;
+  border-block-start: 1px solid var(--color-border);
+  background: transparent;
 }
 
 .account-page h1,
 .account-page h2 {
   margin: 0;
-  font-family: var(--font-family-title);
-  font-weight: 400;
+  font-family: var(--font-family-ui);
+  font-weight: 600;
 }
 
 .account-page p {
@@ -31,68 +32,32 @@
 .account-details dt {
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-/* Heading */
-
-.account-heading {
-  display: grid;
-  gap: 1rem;
-  padding: var(--rg-panel-padding);
-}
-
-.account-heading h1 {
-  max-width: 18ch;
-  font-size: clamp(2rem, 5vw, 3.75rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-
-.account-heading h1:focus {
-  outline: none;
-}
-
-.account-lede {
-  max-width: 56ch;
-  color: var(--color-fg-muted);
-  font-size: 1.05rem;
-  line-height: 1.5;
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 /* Panels */
 
-/* The Points page's panels: two columns on a wide page, one on a narrow one. */
-.account-page {
-  container: account-page / inline-size;
-}
-
+/* Panels side by side when there is room: Notes, Points, Credits history. */
 .account-grid {
   display: grid;
-  gap: 1.5rem;
-  align-content: start;
-}
-
-@container account-page (min-width: 46rem) {
-  .account-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem 2.5rem;
+  align-items: start;
 }
 
 .account-panel {
   display: grid;
   gap: 1rem;
-  padding: var(--rg-panel-padding);
+  padding: 1.5rem 0;
 }
 
+/* The same size as the shared sections beside them (Agents, Credits). */
 .account-panel h2 {
-  font-size: 1.35rem;
-  line-height: 1.1;
+  font-size: 1.125rem;
+  line-height: 1.35;
 }
 
 /* Details */
@@ -103,9 +68,13 @@
   margin: 0;
 }
 
+/* Rules go between rows only; the section's own rule is above its heading. */
 .account-details dl > div {
   display: grid;
   gap: 0.35rem;
+}
+
+.account-details dl > div + div {
   padding-block-start: 0.75rem;
   border-block-start: 1px solid var(--color-border);
 }
@@ -135,121 +104,190 @@
   list-style: none;
 }
 
-/* How the last agent edit ended, in the open agent. */
-.account-agents__notice {
+/* Verified connections */
+
+.verified-connections__list {
+  display: grid;
+  gap: 0.5rem;
   margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verified-connections__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+}
+
+.verified-connections__list li > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* Only the text cell is muted; the row's button keeps the shared button's ink. */
+.verified-connections__list li > div span {
+  color: var(--color-fg-muted);
+}
+
+.verified-connections__notice {
   padding-inline-start: 0.75rem;
   border-inline-start: 3px solid var(--ash-accent);
 }
 
-.account-agents__notice[role="alert"] {
+.verified-connections__notice--error {
   border-inline-start-color: var(--ash-accent-warm);
 }
 
-/* The agent's own view: who it is, when it paired, and what it has done. */
-
-.account-agent-dialog {
-  width: min(52rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
-  overflow: auto;
-  padding: clamp(1.1rem, 4vw, 2rem);
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-  color: var(--color-fg);
+@media (max-width: 30rem) {
+  .verified-connections__list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
-.account-agent-dialog::backdrop {
-  background: var(--ash-scrim);
 }
 
-.account-agent-dialog h2,
-.account-agent-dialog h3 {
+/* What earns points: the catalog as plain tables, then limits and bonus tiers. */
+.points-earn h3 {
   margin: 0;
-  font-family: var(--font-family-title);
-  font-weight: 400;
+  font-family: var(--font-family-ui);
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-fg-muted);
 }
 
-.account-agent-dialog h2 {
-  font-size: clamp(1.5rem, 4vw, 2.1rem);
-  line-height: 1.05;
-  overflow-wrap: anywhere;
+.points-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
 }
 
-.account-agent-dialog h3 {
-  font-size: 1.15rem;
+.points-table th,
+.points-table td {
+  padding: 0.6rem 0;
+  border-block-start: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: baseline;
 }
 
-.account-agent-dialog__header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-block-end: 1.25rem;
+.points-table thead th {
+  border-block-start: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: .875rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
-.account-agent-dialog__header .rg-account__mark {
-  flex: none;
-  width: 4rem;
-  height: 4rem;
+/* The action takes the width; points and limits sit right-aligned. */
+.points-table tbody th {
+  width: 100%;
+  font-weight: 600;
 }
 
-.account-agent-dialog__facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-  gap: 0 1.5rem;
-  margin: 0 0 1.5rem;
+.points-table td,
+.points-table thead th + th {
+  padding-inline-start: 1rem;
+  text-align: end;
 }
 
-.account-agent-dialog__facts > div {
-  display: grid;
-  gap: 0.35rem;
-  padding-block: 0.75rem;
+/* In a wide panel, points and limits stay on one line and the action's words
+   wrap instead; a phone-width panel wraps them all to fit. */
+.points-earn {
+  container-type: inline-size;
+}
+
+@container (min-width: 30rem) {
+  .points-table td {
+    white-space: nowrap;
+  }
+}
+
+/* A narrow screen wraps the tables' words rather than widening the panel. */
+.points-earn > * {
+  min-width: 0;
+}
+
+/* Before earning opens, the ways to earn are listed with no amounts. */
+.points-ways {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.points-ways li {
+  padding: 0.6rem 0;
   border-block-start: 1px solid var(--color-border);
 }
 
-.account-agent-dialog__facts dt {
+.points-earn__soon {
+  margin-inline-start: 0.5rem;
   color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 0.85em;
 }
 
-.account-agent-dialog__facts dd {
+.points-earn__notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1.5rem;
+}
+
+.points-earn__notes > div {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+/* What Credits buy: one row per place, the site above a link to it. */
+.credits-uses ul {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.credits-uses li {
   display: grid;
   gap: 0.2rem;
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
-.account-agent-dialog__facts dd > span {
+/* regents.sh's own pages on the same ground: the agent start page, the article
+   editor and Credits admin open with a heading; Names lists and claims names;
+   each agent's picture is kept here for every Regent site. */
+@layer regents-product {
+/* Heading */
+
+.account-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.account-heading h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.account-heading h1:focus {
+  outline: none;
+}
+
+.account-lede {
+  max-width: 56ch;
   color: var(--color-fg-muted);
-  font-size: 0.9rem;
-}
-
-.account-agent-dialog__facts dd > .account-agent-human {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.account-agent-dialog__facts dd > .account-agent-human--verified {
-  color: var(--color-fg);
-  font-size: inherit;
-}
-
-.account-agent-human__mark {
-  color: var(--color-success);
-  font-weight: 700;
-}
-
-.account-agent-human__others {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-}
-
-.account-agent-dialog__facts select {
-  max-width: 100%;
+  font-size: 1.05rem;
+  line-height: 1.5;
 }
 
 .account-agent-picture {
@@ -323,56 +361,7 @@
   font-size: 0.9rem;
 }
 
-.account-agent-dialog__activity {
-  display: grid;
-  gap: 0.75rem;
-  margin-block-end: 1.5rem;
-}
-
-.account-agent-dialog__note {
-  margin: 0;
-  color: var(--color-fg-muted);
-  font-size: 0.9rem;
-}
-
-.account-agent-dialog__log {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  border-block-start: 1px solid var(--color-border);
-  list-style: none;
-}
-
-.account-agent-dialog__log li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.2rem 1rem;
-  padding-block: 0.65rem;
-  border-block-end: 1px solid var(--color-border);
-}
-
-.account-agent-dialog__log li > span:nth-child(2),
-.account-agent-dialog__log time {
-  color: var(--color-fg-muted);
-  font-size: 0.9rem;
-}
-
-.account-agent-dialog__log time {
-  grid-column: 1 / -1;
-}
-
-.account-agent-dialog__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.account-agent-dialog__actions form {
-  margin: 0;
-}
-
-/* Claimed Regent Names */
+/* Names: the names the wallets hold */
 
 .account-names__heading {
   display: grid;
@@ -419,7 +408,7 @@
   color: var(--color-fg-muted);
 }
 
-/* Claim a Regent Name */
+/* Names: claiming another */
 #account-claim-form {
   display: grid;
   gap: 0.75rem;
@@ -453,189 +442,4 @@
 .account-claim__claimed {
   color: var(--color-error);
 }
-
-/* Verified connections */
-
-.verified-connections > div:first-child {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.verified-connections__list {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.verified-connections__list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-}
-
-.verified-connections__list li > div {
-  display: grid;
-  gap: 0.25rem;
-}
-
-/* Only the text cell is muted; the row's button keeps the shared button's ink. */
-.verified-connections__list li > div span {
-  color: var(--color-fg-muted);
-}
-
-.verified-connections__notice {
-  padding-inline-start: 0.75rem;
-  border-inline-start: 3px solid var(--ash-accent);
-}
-
-.verified-connections__notice--error {
-  border-inline-start-color: var(--ash-accent-warm);
-}
-
-/* Session */
-
-.account-session {
-  justify-items: start;
-}
-
-@media (max-width: 30rem) {
-  .verified-connections__list li {
-    align-items: stretch;
-    flex-direction: column;
-  }
-}
-
-/* Points */
-
-.points-activity ol {
-  display: grid;
-  gap: 1rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.points-activity li {
-  display: grid;
-  gap: 0.35rem;
-  padding-block-start: 0.75rem;
-  border-block-start: 1px solid var(--color-border);
-}
-
-.points-activity li p + p {
-  color: var(--color-fg-muted);
-}
-
-/* What earns points: the catalog as plain tables, then limits and bonus tiers. */
-.points-earn h3 {
-  margin: 0;
-  font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-fg-muted);
-}
-
-/* Before earning opens: the ways to earn, named with no amounts. */
-.points-ways {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.points-ways li {
-  padding: 0.6rem 0;
-  border-block-start: 1px solid var(--color-border);
-}
-
-.points-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-
-.points-table th,
-.points-table td {
-  padding: 0.6rem 0;
-  border-block-start: 1px solid var(--color-border);
-  text-align: start;
-  vertical-align: baseline;
-}
-
-.points-table thead th {
-  border-block-start: 0;
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-/* The action takes the width; points and limits sit right-aligned. */
-.points-table tbody th {
-  width: 100%;
-  font-weight: 400;
-}
-
-.points-table td,
-.points-table thead th + th {
-  padding-inline-start: 1rem;
-  text-align: end;
-}
-
-/* In a wide panel, points and limits stay on one line and the action's words
-   wrap instead; a phone-width panel wraps them all to fit. */
-.points-earn {
-  container-type: inline-size;
-}
-
-@container (min-width: 30rem) {
-  .points-table td {
-    white-space: nowrap;
-  }
-}
-
-/* A narrow screen wraps the tables' words rather than widening the panel. */
-.points-earn > * {
-  min-width: 0;
-}
-
-.points-earn__soon {
-  margin-inline-start: 0.5rem;
-  color: var(--color-fg-muted);
-  font-size: 0.85em;
-}
-
-.points-earn__notes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: 1.5rem;
-}
-
-.points-earn__notes > div {
-  display: grid;
-  gap: 0.75rem;
-  align-content: start;
-}
-}
-
-/* The same person's other agents read as links; they are skinned outside the
-   page layer to beat the native button. */
-.account-agent-human__others .account-agent-human__other {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-fg);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  cursor: pointer;
 }

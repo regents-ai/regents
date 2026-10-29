@@ -1,7 +1,14 @@
 defmodule RegentsWeb.PublicDocumentsTest do
   use ExUnit.Case, async: true
 
-  alias RegentsWeb.PublicDocuments
+  alias RegentsWeb.{PublicDocuments, RouteCatalog}
+
+  test "every page without a slug has its own title and description" do
+    for %{path_pattern: path} <- RouteCatalog.entries(), not String.contains?(path, ":") do
+      assert [page_title: title, page_description: description] = PublicDocuments.page(path)
+      assert title != "" and description != "", path
+    end
+  end
 
   test "a blog post is described in its own words when it has them" do
     post = %{title: "Launch notes", author: "Regent", description: "What shipped this week."}

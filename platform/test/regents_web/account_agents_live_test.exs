@@ -57,7 +57,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     render(view)
     render_async(view)
 
-    # The agent that paired takes the code's place.
+    # The agent that paired takes its own code's place; the agent chosen now
+    # keeps its code.
+    assert has_element?(view, @message, "SIWA_BROKER")
+    choose(view, "hermes")
     assert has_element?(view, @pairing, "Sol paired with your account.")
     refute has_element?(view, @message)
     assert has_element?(view, "#account-pairing-box-new:not([data-unused])")
@@ -89,11 +92,6 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
              "0x3333333333333333333333333333333333333333"
            )
 
-    # So does each agent's row in what the agents may spend.
-    for wallet <- [@agent_wallet, "0x3333333333333333333333333333333333333333"] do
-      assert has_element?(view, "#account-agent-spending h4 .rg-address__full", wallet)
-    end
-
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       Req.Test.json(conn, %{
         "data" => %{
@@ -119,33 +117,33 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     |> element("#account-agents-agent-#{agent.id} button", "See Actions")
     |> render_click()
 
-    assert has_element?(view, "#account-agent-dialog[data-open] h2", "Muse helper")
-    assert has_element?(view, "#account-agent-dialog dd", @agent_wallet)
-    assert has_element?(view, "#account-agent-dialog dt", "First paired")
+    dialog = "#account-agent-dialog[data-open]"
+    assert has_element?(view, "#{dialog} h2", "Muse helper")
+    assert has_element?(view, "#account-agent-dialog-wallet-full", @agent_wallet)
+    assert has_element?(view, "#{dialog} dt", "First paired")
 
     render_async(view)
-    log = "#account-agent-dialog .account-agent-dialog__log li"
+    log = "#{dialog} .rg-account__log li"
     assert has_element?(view, log, "Patchbay")
     assert has_element?(view, log, "09:05 to 17:40 UTC")
     assert has_element?(view, ~s(#{log} time[datetime="2026-10-16"]), "16 October 2026")
-
-    assert has_element?(view, "#account-agent-dialog dt", "Registry listing")
+    assert has_element?(view, "#{dialog} [role=status]", "0 Credits spent for you")
 
     assert has_element?(
              view,
-             ~s(#account-agent-registry-listing[href="#{@listing}"][target="_blank"]),
+             ~s(#{dialog} dd a[href="#{@listing}"][target="_blank"]),
              "Agent #97609"
            )
 
-    assert has_element?(view, "#account-agent-human dd", "Verified human")
+    assert has_element?(view, "#{dialog} .rg-account__world-words", "World ID Connected")
+    assert has_element?(view, "#{dialog} dd", "1 of 3 agents run by the same person")
 
     assert has_element?(
              view,
-             "#account-agent-same-person",
-             "1 of 3 agents run by the same person"
+             ~s(#{dialog} .rg-account__others button[phx-value-id="#{sibling.id}"]),
+             "Pi helper"
            )
 
-    assert has_element?(view, "#account-agent-same-person-#{sibling.id}", "Pi helper")
     refute render(view) =~ String.duplicate("ab", 32)
 
     # A check-in reloads the open agent without blanking what is shown. Its
@@ -154,13 +152,8 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     heard(account)
     render_async(view)
     assert has_element?(view, log, "Patchbay")
-    assert has_element?(view, "#account-agent-human dd", "Verified human")
-
-    assert has_element?(
-             view,
-             "#account-agent-same-person",
-             "1 of 3 agents run by the same person"
-           )
+    assert has_element?(view, "#{dialog} .rg-account__world-words", "World ID Connected")
+    assert has_element?(view, "#{dialog} dd", "1 of 3 agents run by the same person")
 
     view |> element("#account-agent-dialog button", "Unpair") |> render_click()
 
@@ -175,6 +168,23 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
     assert {:ok, [%{id: sibling_id}]} = RegentAgents.list_my_agents(actor: person(account))
     assert sibling_id == sibling.id
+  end
+
+  test "the Credits tab lists what each paired agent may spend, by its wallet", %{conn: conn} do
+    account = register_account("agents-spending")
+    pair!(account, "Muse helper", :muse)
+    pair!(account, "Pi helper", :pi, %Agent{wallet: "0x3333333333333333333333333333333333333333"})
+
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account/credits")
+
+    render_async(view)
+
+    for wallet <- [@agent_wallet, "0x3333333333333333333333333333333333333333"] do
+      assert has_element?(view, "#account-agent-spending h4 .rg-address__full", wallet)
+    end
   end
 
   test "activity that can't be read says so", %{conn: conn} do
@@ -213,9 +223,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     # An agent with no registry listing shows no listing.
     render_async(view)
     refute has_element?(view, "#account-agent-dialog dt", "Registry listing")
-    refute has_element?(view, "#account-agent-human-backed")
+    refute has_element?(view, "#account-agent-dialog .rg-account__world-words")
 
-    render_hook(view, "close_agent", %{})
+    render_hook(agents(view), "close_agent", %{})
     refute has_element?(view, "#account-agent-dialog")
     assert has_element?(view, "#account-agents-agent-#{agent.id}")
   end
@@ -226,10 +236,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     other = register_account("agents-other")
     view = open_account(conn, other)
 
-    render_hook(view, "open_agent", %{"id" => agent.id})
+    render_hook(agents(view), "open_agent", %{"id" => agent.id})
     refute has_element?(view, "#account-agent-dialog")
 
-    render_hook(view, "unpair_agent", %{"id" => agent.id})
+    render_hook(agents(view), "unpair_agent", %{"id" => agent.id})
 
     assert has_element?(
              view,
@@ -259,7 +269,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     refute has_element?(view, "#account-agents-agent-#{agent.id}")
 
     # A press sent before the page caught up.
-    render_hook(view, "unpair_agent", %{"id" => agent.id})
+    render_hook(agents(view), "unpair_agent", %{"id" => agent.id})
 
     assert has_element?(
              view,
@@ -278,13 +288,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     |> render_click()
 
     render_async(view)
-    render_hook(view, "unpair_agent", %{"id" => "not-an-agent"})
+    render_hook(agents(view), "unpair_agent", %{"id" => "not-an-agent"})
 
-    assert has_element?(
-             view,
-             "#account-agent-dialog-notice[role=alert]",
-             "This agent is no longer paired with your account. Nothing changed."
-           )
+    assert has_element?(view, "#account-agent-dialog [role=alert]", "Nothing changed.")
 
     assert {:ok, [%{harness: :hermes}]} =
              RegentAgents.list_my_agents(actor: person(account))
@@ -323,6 +329,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
       :agents_changed
     )
   end
+
+  # The agents panel takes its own presses; its outer element names it.
+  defp agents(view), do: with_target(view, ".account-agents")
 
   defp following?(view, topic),
     do: Enum.any?(Registry.lookup(Regents.PubSub, topic), &(elem(&1, 0) == view.pid))

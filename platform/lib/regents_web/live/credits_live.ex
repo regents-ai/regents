@@ -1,8 +1,9 @@
 defmodule RegentsWeb.CreditsLive do
   @moduledoc """
   The Regent Credits pages regents.sh hosts for every Regent site: the refund
-  rules and the Credits page with the purchase history every Buy Credits panel links to, and the
-  admin page where a Credits admin gives Credits and handles refunds. The library refuses every
+  rules, what agents may spend (on the Credits tab, below the history every Buy
+  Credits panel links to), and the admin page where a Credits admin gives
+  Credits and handles refunds. The library refuses every
   admin action to anyone its `:admins` setting does not name; this page only
   decides what to show.
   """
@@ -21,42 +22,35 @@ defmodule RegentsWeb.CreditsLive do
   end
 
   attr :lease, :map, required: true
-  attr :account, :map, default: nil
-  attr :signed_out_reason, :atom, required: true
-  attr :balance, :map, default: nil
+  attr :account, :map, required: true
 
-  def history(assigns) do
+  attr :agents, RegentsWeb.Read,
+    required: true,
+    doc: "the agents paired with the account (`RegentAgents.list_my_agents/1`)"
+
+  @doc """
+  What each agent paired with the account may spend of its Credits, below the
+  Credits history. Only regents.sh saves these settings.
+  """
+  def agent_spending(assigns) do
     ~H"""
-    <article id="credits-history-page" class="account-page credits-page">
-      <header class="account-heading">
-        <p class="account-kicker">Regents Labs</p>
-        <h1 tabindex="-1">Credits</h1>
-        <p class="account-lede">Pay for things on every Regent site. Buy them with USDC on Base.</p>
-      </header>
-
-      <Regent.Account.signed_out
-        :if={is_nil(@account)}
-        id="credits-history-signed-out"
-        reason={@signed_out_reason}
-      >
-        <:sign_in>
-          <Regent.Primitives.button type="button" data-account-target="sign-in">
-            Sign in
-          </Regent.Primitives.button>
-        </:sign_in>
-      </Regent.Account.signed_out>
-
-      <section :if={@account} class="account-panel" aria-labelledby="credits-history-title">
-        <h2 id="credits-history-title">Purchases</h2>
+    <section id="credits-agent-spending" class="account-page rg-utility">
+      <div class="account-panel">
+        <h2>Agent spending</h2>
+        <p :if={@agents.state == :error} role="status">
+          Your agents couldn’t be read right now. Refresh to try again.
+        </p>
         <.live_component
-          module={RegentsWeb.CreditsHistory}
-          id="credits-history"
+          :if={@agents.state != :error}
+          module={RegentsWeb.CreditsAgentSpending}
+          id="account-agent-spending"
           lease={@lease}
           account={@account}
-          balance={@balance}
+          agents={Enum.map(@agents.value || [], &{&1.wallet, &1.name})}
+          sites={Credits.agent_sites()}
         />
-      </section>
-    </article>
+      </div>
+    </section>
     """
   end
 
@@ -91,7 +85,7 @@ defmodule RegentsWeb.CreditsLive do
         <h2>This page is for Credits admins</h2>
         <p>
           Your Credits and what your agents may spend are on your
-          <.link patch="/account">Account</.link>
+          <.link patch="/account/credits">Credits</.link>
           page.
         </p>
       </section>

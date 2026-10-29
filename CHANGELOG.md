@@ -3868,3 +3868,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   scroll and no side panel, and every one carries the `origin-trial` token and
   `permissions-policy: tools=(self)`. Duet's picture is served. The signed-in menu and
   the Duet tile were not checked live (that needs a sign-in). WebKit not run on the Mac.
+
+## 2026-10-29 — Account is the same page on every Regent site
+
+- `/account` is now the shared Account page every Regent site has, starting in
+  ash-template: your profile, your Credits, your agents and Pair New Agent, and your
+  public display name, which you can now change from the page.
+- Account has five tabs: Account, Points, Credits, Wallets and Connections. Wallets and
+  Connections each have their own page (`/account/wallets`, `/account/connections`).
+- Your Regent names and claiming a new one move to their own page, `/names`, in the
+  left menu.
+- What your agents may spend moves to the Credits tab, under the history.
+- An agent's picture is set in its window on the Account page, as before.
+- Libraries unchanged: design-system 3134bab0, elixir-utils 9da44bdc (no database
+  changes).

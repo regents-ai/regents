@@ -44,7 +44,6 @@ defmodule RegentsWeb.ShellLiveTest do
 
     for {event, params} <- [
           {"claim_name", %{"name" => "someone"}},
-          {"open_agent", %{"id" => "7"}},
           {"load_more_names", %{}}
         ] do
       render_hook(view, event, params)
@@ -58,13 +57,12 @@ defmodule RegentsWeb.ShellLiveTest do
 
     for {event, params} <- [
           {"check_claim_name", %{"name" => String.duplicate("a", 256)}},
-          {"claim_name", %{"name" => %{"label" => "a"}}},
-          {"open_agent", %{"id" => ["7"]}}
+          {"claim_name", %{"name" => %{"label" => "a"}}}
         ] do
       {:ok, view, _html} =
         conn
         |> init_test_session(%{human_account_id: account.id})
-        |> live("/account")
+        |> live("/names")
 
       render_hook(view, event, params)
       assert has_element?(view, "#flash-region", unreadable), event
@@ -239,16 +237,16 @@ defmodule RegentsWeb.ShellLiveTest do
 
   test "Account owns its own page rather than relabeling the whole shell" do
     html =
-      render_component(&RegentsWeb.AccountLive.page/1, %{
+      render_component(&RegentsWeb.AccountLive.profile/1, %{
+        lease: %{},
         account_control: %AccountControl{kind: :sign_in, label: "Sign in", profile_path: nil},
-        signed_out_reason: :signed_out,
-        sign_in_wallets: %{}
+        signed_out_reason: :signed_out
       })
 
     assert html =~ ~s(id="account-page")
     assert html =~ ">Account<"
-    assert html =~ "Sign in to see your account"
-    refute html =~ "Verified connections"
+    assert html =~ "Sign in to see your account."
+    refute html =~ "account-agents"
   end
 
   test "Account shows the signed-in person, their wallets, names and connections", %{
@@ -282,22 +280,42 @@ defmodule RegentsWeb.ShellLiveTest do
 
     refute html =~ "Sign in to see your account"
     assert has_element?(view, "#account-identity h2", "0x6666..6666")
-    assert has_element?(view, "#account-identity img[src^='data:image/svg+xml;base64,']")
+    assert has_element?(view, "#account-identity-picture[src^='data:image/svg+xml;base64,']")
+    assert has_element?(view, "#account-credits")
+    assert has_element?(view, "#account-agents")
+    assert has_element?(view, "#account-pairing-box")
+    assert has_element?(view, "#account-public-name")
+    # Sign out is in the account menu, on this page as on every other.
+    refute has_element?(view, "#account-page [data-account-target=sign-out]")
+    assert has_element?(view, "#account-menu button[data-account-target=sign-out]", "Sign out")
+
+    # Each tab is the same page, a press away.
+    for {label, path} <- [
+          {"Points", "/account/points"},
+          {"Credits", "/account/credits"},
+          {"Wallets", "/account/wallets"},
+          {"Connections", "/account/connections"}
+        ] do
+      assert has_element?(view, ~s(#shell-tabs a[href="#{path}"]), label)
+    end
+
     # A session from before sign-ins named the Regents wallet lists every linked
     # wallet, each with its full address one press away.
+    render_patch(view, "/account/wallets")
     assert has_element?(view, "#account-wallet-#{wallet}-full", wallet)
     assert has_element?(view, "#account-wallet-#{other}-full", other)
     assert has_element?(view, ".account-details dd", "Made for you at your next sign-in")
-    assert has_element?(view, ".account-details dd", "No primary name set for this wallet")
-    assert has_element?(view, ".account-details dd", "Not set")
-    assert has_element?(view, ".account-details dd", "Not verified")
-    assert has_element?(view, "#account-names-title", "Claimed Regent Names")
 
+    render_patch(view, "/names")
+    assert has_element?(view, "#account-names-title", "Your names")
     assert has_element?(view, "#account-names strong", "first.regent.eth")
     assert has_element?(view, "#account-names strong", "name-2.regent.eth")
     refute render(view) =~ "agent.base.eth"
     refute render(view) =~ "name-3."
     refute has_element?(view, "#account-names-more")
+
+    render_patch(view, "/account/connections")
+    render_async(view)
 
     assert has_element?(
              view,
@@ -330,18 +348,18 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(
              view,
              "#account-verified-connections [role=alert]",
-             "already connected to another Regent account"
+             "already connected to another account here"
            )
   end
 
-  # The spending section only invites a person to turn spending on when it can be.
-  test "Account offers agent spending only while it can be turned on", %{conn: conn} do
+  # The Credits tab's spending section only invites a person to turn spending on when it can be.
+  test "Credits offers agent spending only while it can be turned on", %{conn: conn} do
     enabled = Application.get_env(:regent_credits, :agent_grants_enabled)
     on_exit(fn -> Application.put_env(:regent_credits, :agent_grants_enabled, enabled) end)
     account = register_account("spending-copy", "0x6767676767676767676767676767676767676767")
 
     Application.put_env(:regent_credits, :agent_grants_enabled, false)
-    {view, _html} = open_account(conn, account)
+    view = open_tab(conn, account, "/account/credits")
 
     assert has_element?(
              view,
@@ -353,8 +371,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     Application.put_env(:regent_credits, :agent_grants_enabled, true)
 
-    {:ok, view, _html} =
-      build_conn() |> init_test_session(%{human_account_id: account.id}) |> live("/account")
+    view = open_tab(build_conn(), account, "/account/credits")
 
     assert has_element?(view, "#account-agent-spending p", "Turn it on for an agent")
     refute render(view) =~ "Agent spending opens soon."
@@ -377,7 +394,7 @@ defmodule RegentsWeb.ShellLiveTest do
       actor: %System{}
     )
 
-    {view, _html} = open_account(conn, account)
+    view = open_tab(conn, account, "/account/connections")
 
     view |> element("#account-verified-connections-github button", "Connect") |> render_click()
     assert_push_event(view, "verified-connections:request", %{action: :link, provider: :github})
@@ -460,30 +477,19 @@ defmodule RegentsWeb.ShellLiveTest do
       |> init_test_session(%{human_account_id: account.id})
       |> live("/account")
 
-    assert html =~ "Checking Ethereum for a primary name…"
-    refute html =~ "No primary name set"
+    refute html =~ "atlas.eth"
 
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
-    assert has_element?(view, ".account-details dd", "atlas.eth")
     assert has_element?(view, "#account-identity h2", "atlas.eth")
-    refute render(view) =~ "Checking Ethereum"
   end
 
-  test "Account says so when Ethereum could not be asked, never that there is no name", %{
-    conn: conn
-  } do
-    account =
-      register_account("account-ens-down", Regents.TestEnsChainClient.wallet(:unreachable))
+  test "Account names the wallet when Ethereum could not be asked", %{conn: conn} do
+    wallet = Regents.TestEnsChainClient.wallet(:unreachable)
+    account = register_account("account-ens-down", wallet)
 
     {view, _html} = open_account(conn, account)
 
-    assert has_element?(
-             view,
-             ".account-details dd[role=status]",
-             "Couldn’t check Ethereum right now. Refresh to try again."
-           )
-
-    refute render(view) =~ "No primary name set"
+    assert has_element?(view, "#account-identity-wallet-full", wallet)
   end
 
   test "Account re-reads a primary name last read more than a day ago", %{conn: conn} do
@@ -509,7 +515,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     assert html =~ "yesterday.eth"
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
-    assert has_element?(view, ".account-details dd", "atlas.eth")
+    assert has_element?(view, "#account-identity h2", "atlas.eth")
     refute render(view) =~ "yesterday.eth"
   end
 
@@ -528,11 +534,11 @@ defmodule RegentsWeb.ShellLiveTest do
       |> init_test_session(%{human_account_id: account.id})
       |> live("/account")
 
-    assert has_element?(view, ".account-details dd", "today.eth")
+    assert has_element?(view, "#account-identity h2", "today.eth")
     refute_receive {:ens_lookup_finished, _account_id}, 300
   end
 
-  test "Account lists claimed names oldest first and adds the next page as the reader reaches the end",
+  test "Names lists claimed names oldest first and adds the next page as the reader reaches the end",
        %{conn: conn} do
     wallet = "0x5555555555555555555555555555555555555555"
     account = register_account("account-many-names", wallet)
@@ -541,13 +547,13 @@ defmodule RegentsWeb.ShellLiveTest do
       insert_claim(id, wallet, %{created_at: DateTime.add(~U[2025-01-01 00:00:00Z], id, :day)})
     end
 
-    {view, _html} = open_account(conn, account)
+    view = open_tab(conn, account, "/names")
 
     assert has_element?(view, "#account-names li:first-child strong", "name-1.regent.eth")
 
     assert has_element?(view, "#account-names li:first-child span", "Claimed 2 January 2025")
-    assert has_element?(view, "#account_names-50")
-    refute has_element?(view, "#account_names-51")
+    assert has_element?(view, "#names-50")
+    refute has_element?(view, "#names-51")
     assert has_element?(view, "#account-names-more[data-event=load_more_names][data-cursor]")
 
     render_hook(view, "load_more_names", %{})
@@ -560,7 +566,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     # Nothing more to ask for leaves the list as it is.
     render_hook(view, "load_more_names", %{})
-    assert has_element?(view, "#account_names-51")
+    assert has_element?(view, "#names-51")
     refute has_element?(view, "#account-names-more")
   end
 
@@ -609,7 +615,7 @@ defmodule RegentsWeb.ShellLiveTest do
     refute has_element?(view, ".regent-ops-balances")
   end
 
-  test "Account counts the claims the signed-in wallets may still make, and no one else's",
+  test "Names counts the claims the signed-in wallets may still make, and no one else's",
        %{conn: conn} do
     wallet = "0x9999999999999999999999999999999999999999"
     other = "0x9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a"
@@ -627,9 +633,9 @@ defmodule RegentsWeb.ShellLiveTest do
     insert_payment_credit(2, wallet, %{consumed_at: DateTime.utc_now()})
     insert_payment_credit(3, stranger)
 
-    {view, _html} = open_account(conn, account)
+    view = open_tab(conn, account, "/names")
 
-    assert has_element?(view, "#account-claim-title", "Claim a Regent Name")
+    assert has_element?(view, "#account-claim-title", "Claim")
     assert has_element?(view, "#account-claims-available", "You can claim 2 more names free.")
 
     assert has_element?(
@@ -645,12 +651,12 @@ defmodule RegentsWeb.ShellLiveTest do
     refute has_element?(view, ".account-claim__later")
   end
 
-  test "Account tells a wallet with no free claims the price", %{conn: conn} do
+  test "Names tells a wallet with no free claims the price", %{conn: conn} do
     wallet = "0x9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c"
     account = register_account("account-no-claims", wallet)
     insert_allowance(wallet, 1, 1)
 
-    {view, _html} = open_account(conn, account)
+    view = open_tab(conn, account, "/names")
 
     assert has_element?(view, "#account-claims-available", "No free claims on your wallets.")
 
@@ -661,7 +667,7 @@ defmodule RegentsWeb.ShellLiveTest do
            )
   end
 
-  test "Account judges a typed name by the rules and by the names already claimed", %{
+  test "Names judges a typed name by the rules and by the names already claimed", %{
     conn: conn
   } do
     wallet = "0x9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d"
@@ -669,7 +675,7 @@ defmodule RegentsWeb.ShellLiveTest do
     account = register_account("account-claim-name", wallet)
     insert_claim(1, stranger, %{label: "taken", fqdn: "taken.agent.base.eth"})
 
-    {view, _html} = open_account(conn, account)
+    view = open_tab(conn, account, "/names")
 
     render_change(element(view, "#account-claim-form"), %{"name" => "ab"})
     assert has_element?(view, "#account-claim-name-errors li", "Use at least 3 characters.")
@@ -742,6 +748,17 @@ defmodule RegentsWeb.ShellLiveTest do
 
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
     {view, html}
+  end
+
+  # A tab that reads in the background is settled once its reads have landed.
+  defp open_tab(conn, account, path) do
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live(path)
+
+    render_async(view)
+    view
   end
 
   defp register_account(suffix, wallet) do

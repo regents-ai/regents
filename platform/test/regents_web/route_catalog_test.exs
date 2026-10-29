@@ -19,8 +19,11 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/paper-pro-daily",
     "/literature",
     "/account",
-    "/account/credits",
     "/account/points",
+    "/account/credits",
+    "/account/wallets",
+    "/account/connections",
+    "/names",
     "/regents/:slug",
     "/stake",
     "/redeem",
@@ -89,7 +92,7 @@ defmodule RegentsWeb.RouteCatalogTest do
              %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %RouteTarget{route_id: :account, label: "Account", path: "/account"},
-             %RouteTarget{route_id: :account_credits, label: "Credits", path: "/account/credits"},
+             %RouteTarget{route_id: :names, label: "Names", path: "/names"},
              %ViewerProfileTarget{label: "Profile"},
              %SidebarHeading{label: "Products"},
              %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
@@ -104,6 +107,22 @@ defmodule RegentsWeb.RouteCatalogTest do
              },
              %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"}
            ]
+  end
+
+  test "the Account pages are tabs of one another, and no other page has tabs" do
+    tabs = [
+      %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+      %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
+      %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
+      %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
+      %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"}
+    ]
+
+    for entry <- RouteCatalog.entries() do
+      spec = RouteCatalog.fetch!(entry.live_action, sample_params(entry.live_action))
+      expected = if String.starts_with?(entry.path_pattern, "/account"), do: tabs, else: []
+      assert spec.tabs == expected, entry.path_pattern
+    end
   end
 
   test "rejects empty and malformed dynamic identifiers before content loading" do
@@ -145,7 +164,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 21
+    assert length(decoded["routes"]) == 24
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

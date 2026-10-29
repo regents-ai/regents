@@ -3,8 +3,9 @@ defmodule RegentsWeb.ShellLive do
   One LiveView behind every product-shell page. It keeps what the pages share,
   the route, the signed-in account (through the session hook) and the wallet
   Privy has active, and hands each page's reads, events and messages to the
-  feature that owns them: `Account`, `Points`, `Staking`, `Redemption`,
-  `Gallery` and `PaperProDaily`.
+  feature that owns them: `Account`, `Points`, `Names`, `Staking`,
+  `Redemption`, `Gallery` and `PaperProDaily`. Reads go through
+  `RegentsWeb.Read`, so only the newest answer for the reader lands.
   Each feature starts what its page needs when the page opens and lets go of
   it when the page is left.
   """
@@ -22,20 +23,30 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AccountLive
   alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
+  alias RegentsWeb.CreditsHistoryLive
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
+  alias RegentsWeb.NamesLive
   alias RegentsWeb.PaperProDailyLive
   alias RegentsWeb.PointsLive
   alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
+  alias RegentsWeb.Read
   alias RegentsWeb.RedeemGalleryLive
   alias RegentsWeb.RedeemLive
   alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
-  alias RegentsWeb.ShellLive.{Account, Gallery, PaperProDaily, Points, Redemption, Staking}
 
-  @no_credits %{state: :idle, value: nil}
+  alias RegentsWeb.ShellLive.{
+    Account,
+    Gallery,
+    Names,
+    PaperProDaily,
+    Points,
+    Redemption,
+    Staking
+  }
 
   @impl true
   def mount(params, session, socket) do
@@ -53,11 +64,12 @@ defmodule RegentsWeb.ShellLive do
        blog_posts: [],
        blog_post: nil,
        shell_instance: System.unique_integer([:positive, :monotonic]),
-       credits: @no_credits
+       credits: %Read{}
      )
      |> follow_credits()
      |> Account.init()
      |> Points.init()
+     |> Names.init()
      |> Staking.init()
      |> Redemption.init()
      |> Gallery.init()
@@ -76,6 +88,7 @@ defmodule RegentsWeb.ShellLive do
      |> assign_page(route_spec, uri)
      |> Account.route(route_spec)
      |> Points.route(route_spec)
+     |> Names.route(route_spec)
      |> Staking.route(route_spec)
      |> Redemption.route(route_spec)
      |> PaperProDaily.route(route_spec)
@@ -83,11 +96,8 @@ defmodule RegentsWeb.ShellLive do
   end
 
   @impl true
-  def handle_async({:credits, privy_user_id}, result, socket),
-    do: {:noreply, credits_landed(socket, privy_user_id, result)}
-
-  def handle_async({:agent_activity, _id} = name, result, socket),
-    do: {:noreply, Account.settle_activity(socket, name, result)}
+  def handle_async({Read, _name, _generation} = name, result, socket),
+    do: {:noreply, Read.settle(socket, name, result)}
 
   def handle_async({reading, _generation} = name, result, socket)
       when reading in [:staking, :staking_quiet],
@@ -100,15 +110,14 @@ defmodule RegentsWeb.ShellLive do
   def handle_async({:gallery_owned, _account_id} = name, result, socket),
     do: {:noreply, Gallery.settle(socket, name, result)}
 
-  def handle_async({points, _account_id} = name, result, socket)
-      when points in [:points, :points_bonus],
-      do: {:noreply, Points.settle(socket, name, result)}
-
   @impl true
   def handle_event(event, params, socket) do
     cond do
       Account.handles?(event) ->
         {:noreply, Account.handle_event(event, params, socket)}
+
+      Names.handles?(event) ->
+        {:noreply, Names.handle_event(event, params, socket)}
 
       Redemption.handles?(event) ->
         {:noreply, Redemption.handle_event(event, params, socket)}
@@ -150,8 +159,9 @@ defmodule RegentsWeb.ShellLive do
   def handle_info({:redeem_step_landed, name}, socket),
     do: {:noreply, Redemption.step_landed(socket, name)}
 
-  def handle_info({:ens_lookup_finished, _account_id}, socket),
-    do: {:noreply, Account.ens_finished(socket)}
+  # The session has already read the account again, so every place showing the
+  # wallet's name shows the answer.
+  def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
 
   def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
 
@@ -159,9 +169,10 @@ defmodule RegentsWeb.ShellLive do
   def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, Points.changed(socket)}
 
   # The balance changed on this or any Regent site: a purchase, a gift, a spend.
-  # The header, the Buy Credits panel and the Account page follow. Every page
-  # change reads the balance again too.
-  def handle_info(:credits_changed, socket), do: {:noreply, read_credits(socket)}
+  # The header, the Buy Credits panel, the Account page and the Credits history
+  # follow. Every page change reads the balance again too.
+  def handle_info(:credits_changed, socket),
+    do: {:noreply, socket |> read_credits() |> Account.credits_changed()}
 
   def handle_info(:publication_midnight, socket), do: {:noreply, PaperProDaily.midnight(socket)}
 
@@ -249,34 +260,60 @@ defmodule RegentsWeb.ShellLive do
           account={current_account(@access_context)}
         />
 
-        <AccountLive.page
+        <AccountLive.profile
           :if={@route_spec.route_id == :account}
+          signed_out_reason={@signed_out_reason}
           lease={@session_lease}
           account={current_account(@access_context)}
-          signed_out_reason={@signed_out_reason}
           account_control={@account_control}
-          ens={@account_ens}
-          names={@account_names}
-          names_stream={@streams.account_names}
-          claims={@account_claims}
-          claim_name={@account_claim_name}
-          verified_connections={@verified_connections}
-          verified_connections_notice={@verified_connections_notice}
-          agents={@paired_agents}
-          agent_detail={@agent_detail}
-          agent_notice={@agent_notice}
-          agents_now={@agents_now}
-          credits={@credits}
-          sign_in_wallets={@sign_in_wallets}
+          credits_read={@credits}
         />
 
         <PointsLive.page
-          :if={@route_spec.route_id == :account_points}
-          account={current_account(@access_context)}
+          :if={@route_spec.route_id == :points}
           signed_out_reason={@signed_out_reason}
+          account={current_account(@access_context)}
           points={@points}
           bonus={@points_bonus}
           earning={@points_earning}
+        />
+
+        <CreditsHistoryLive.page
+          :if={@route_spec.route_id == :credits}
+          signed_out_reason={@signed_out_reason}
+          account={current_account(@access_context)}
+          history={@credits_history}
+        />
+        <CreditsLive.agent_spending
+          :if={@route_spec.route_id == :credits && current_account(@access_context)}
+          lease={@session_lease}
+          account={current_account(@access_context)}
+          agents={@spending_agents}
+        />
+
+        <AccountLive.wallets
+          :if={@route_spec.route_id == :wallets}
+          signed_out_reason={@signed_out_reason}
+          account={current_account(@access_context)}
+          sign_in_wallets={@sign_in_wallets}
+        />
+
+        <AccountLive.connections
+          :if={@route_spec.route_id == :connections}
+          signed_out_reason={@signed_out_reason}
+          account={current_account(@access_context)}
+          verified_connections={@verified_connections}
+          verified_connections_notice={@verified_connections_notice}
+        />
+
+        <NamesLive.page
+          :if={@route_spec.route_id == :names}
+          signed_out_reason={@signed_out_reason}
+          account={current_account(@access_context)}
+          names={@names}
+          stream={@streams.names}
+          claims={@name_claims}
+          claim_name={@claim_name}
         />
 
         <.page
@@ -344,14 +381,6 @@ defmodule RegentsWeb.ShellLive do
 
         <CreditsLive.refunds :if={@route_spec.route_id == :credits_refunds} />
 
-        <CreditsLive.history
-          :if={@route_spec.route_id == :account_credits}
-          lease={@session_lease}
-          account={current_account(@access_context)}
-          signed_out_reason={@signed_out_reason}
-          balance={@credits.value}
-        />
-
         <CreditsLive.admin
           :if={@route_spec.route_id == :credits_admin}
           lease={@session_lease}
@@ -414,39 +443,18 @@ defmodule RegentsWeb.ShellLive do
     socket
   end
 
-  # The balance is read in the background, so a read that fails leaves the
-  # page standing and says so where the balance is shown. A failed refresh
-  # keeps the last balance as stale; a first read that fails is an error,
-  # never zero. Only the connected page reads, so the first render shows it
-  # loading.
+  # A read that fails leaves the page standing and says so where the balance is
+  # shown: a failed refresh keeps the last balance as stale, and a first read
+  # that fails is an error, never zero.
   defp read_credits(socket) do
     case current_account(socket.assigns.access_context) do
       nil ->
-        assign(socket, :credits, @no_credits)
+        Read.clear(socket, :credits)
 
       %{privy_user_id: id} ->
-        socket
-        |> assign(:credits, %{socket.assigns.credits | state: :loading})
-        |> start_async({:credits, id}, fn -> RegentCredits.balance(id) end)
+        Read.now(socket, :credits, id, fn -> {:ok, RegentCredits.balance(id)} end)
     end
   end
-
-  # A balance answers only for the account it was read for.
-  defp credits_landed(socket, id, result) do
-    case {current_account(socket.assigns.access_context), result} do
-      {%{privy_user_id: ^id}, {:ok, balance}} ->
-        assign(socket, :credits, %{state: :ready, value: balance})
-
-      {%{privy_user_id: ^id}, _failed} ->
-        assign(socket, :credits, credits_failed(socket.assigns.credits))
-
-      _session_ended ->
-        assign(socket, :credits, @no_credits)
-    end
-  end
-
-  defp credits_failed(%{value: nil}), do: %{state: :error, value: nil}
-  defp credits_failed(credits), do: %{credits | state: :stale}
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do
     case Formation.get_public_regent_profile(slug) do

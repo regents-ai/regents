@@ -2,7 +2,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
   @moduledoc """
   What a person lets each of their linked agents spend from their Credits: on
   or off, the most per spend, a daily limit and the sites it may spend on.
-  Spending starts off for every agent. Only regents.sh/account shows this; the
+  Spending starts off for every agent. Only regents.sh/account/credits shows this; the
   Credits library saves it only for a person signed in there.
 
   The host passes `account` (the signed-in account, read as

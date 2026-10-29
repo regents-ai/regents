@@ -16,7 +16,6 @@ defmodule RegentsWeb.Components.Shell do
 
   use Phoenix.Component
 
-  alias Phoenix.LiveView.JS
   alias RegentsWeb.Components.{AgentTools, RegentLinks}
 
   alias RegentsWeb.RouteCatalog.{
@@ -116,8 +115,8 @@ defmodule RegentsWeb.Components.Shell do
           aria-haspopup="dialog"
           aria-controls="shell-credits"
           aria-label={credits_label(@credits)}
-          phx-click={JS.dispatch("regents:open", to: "#shell-credits")}
           phx-hook="MotionCount"
+          data-credits-open
           data-variant="flash"
         >
           <.credits_amount amount={@credits} />
@@ -151,7 +150,6 @@ defmodule RegentsWeb.Components.Shell do
               aria-haspopup="dialog"
               aria-controls="shell-credits"
               aria-label={credits_label(@credits)}
-              phx-click={JS.dispatch("regents:open", to: "#shell-credits")}
               data-credits-open
             >
               <.credits_amount amount={@credits} />
@@ -221,6 +219,21 @@ defmodule RegentsWeb.Components.Shell do
       ></Regent.Primitives.button>
 
       <div id="app-shell-scroller" tabindex="-1">
+        <nav
+          :if={@route_spec.tabs != []}
+          id="shell-tabs"
+          class="shell-tabs"
+          data-shell-nav
+          aria-label="Account views"
+        >
+          <.link
+            :for={tab <- @route_spec.tabs}
+            patch={tab.path}
+            aria-current={@route_spec.route_id == tab.route_id && "page"}
+          >
+            {tab.label}
+          </.link>
+        </nav>
         <main id="route-content">
           {render_slot(@content)}
         </main>

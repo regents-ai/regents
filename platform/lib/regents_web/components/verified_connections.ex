@@ -3,82 +3,85 @@ defmodule RegentsWeb.Components.VerifiedConnections do
 
   use Phoenix.Component
 
+  alias Regent.Primitives, as: P
   alias Regents.Accounts.LinkedIdentity.Providers
 
   attr :id, :string, required: true
-  attr :identities, :list, default: []
+  attr :identities, :list, default: [], doc: "nil until the account's connections are read"
+
+  attr :read_state, :atom,
+    default: :ready,
+    values: [:idle, :loading, :ready, :empty, :stale, :error]
+
   attr :notice, :map, default: nil
   attr :authenticated, :boolean, default: true
-  attr :title, :string, default: "Verified connections"
-  attr :description, :string, default: "Connect accounts that help people recognize your work."
   attr :class, :string, default: nil
 
   def verified_connections(assigns) do
-    assigns =
-      assigns
-      |> assign(:providers, Providers.all())
-      |> assign(:identities_by_provider, Map.new(assigns.identities, &{&1.provider, &1}))
+    assigns = assign(assigns, :rows, rows(assigns.identities))
 
     ~H"""
-    <section
-      id={@id}
-      class={["verified-connections", @class]}
-      aria-labelledby={"#{@id}-title"}
-      phx-hook="VerifiedConnections"
-    >
-      <div>
-        <h2 id={"#{@id}-title"}>{@title}</h2>
-        <p>{@description}</p>
-        <p
-          :if={@notice}
-          class={[
-            "verified-connections__notice",
-            @notice.tone == :error && "verified-connections__notice--error"
-          ]}
-          role={if(@notice.tone == :error, do: "alert", else: "status")}
-        >
-          {@notice.message}
-        </p>
-      </div>
+    <section id={@id} class={["verified-connections", @class]} phx-hook="VerifiedConnections">
+      <p
+        :if={@notice}
+        id={"#{@id}-notice"}
+        class={[
+          "verified-connections__notice",
+          @notice.tone == :error && "verified-connections__notice--error"
+        ]}
+        role={if(@notice.tone == :error, do: "alert", else: "status")}
+        phx-hook="MotionRefusal"
+        data-refused={@notice.tone == :error}
+      >
+        {@notice.message}
+      </p>
+      <p :if={@read_state in [:idle, :loading] and is_nil(@identities)} role="status">
+        Loading your connections…
+      </p>
+      <p :if={@read_state == :stale} class="verified-connections__notice" role="status">
+        Your connections couldn’t be refreshed. This is what they were last time.
+      </p>
+      <p
+        :if={@read_state == :error}
+        class="verified-connections__notice verified-connections__notice--error"
+        role="alert"
+      >
+        Your connections couldn’t be loaded. Refresh the page to try again.
+      </p>
 
-      <ul class="verified-connections__list">
-        <li :for={entry <- @providers} id={"#{@id}-#{entry.provider}"}>
+      <ul :if={@rows} class="verified-connections__list">
+        <li :for={{entry, identity} <- @rows} id={"#{@id}-#{entry.provider}"}>
           <div>
             <strong>{entry.label}</strong>
-            <.connection identity={@identities_by_provider[entry.provider]} />
+            <.connection identity={identity} />
           </div>
 
-          <Regent.Primitives.button
-            :if={@authenticated && is_nil(@identities_by_provider[entry.provider])}
+          <P.button
+            :if={@authenticated}
             type="button"
             phx-click="request_verified_connection"
-            phx-value-action="link"
+            phx-value-action={if identity, do: "unlink", else: "link"}
             phx-value-provider={entry.provider}
           >
-            Connect
-          </Regent.Primitives.button>
+            {if identity, do: "Disconnect", else: "Connect"}
+          </P.button>
 
-          <Regent.Primitives.button
-            :if={@authenticated && @identities_by_provider[entry.provider]}
-            type="button"
-            phx-click="request_verified_connection"
-            phx-value-action="unlink"
-            phx-value-provider={entry.provider}
-          >
-            Disconnect
-          </Regent.Primitives.button>
-
-          <Regent.Primitives.button
-            :if={!@authenticated}
-            type="button"
-            data-account-target="sign-in"
-          >
+          <P.button :if={!@authenticated} type="button" data-account-target="sign-in">
             Sign in to connect
-          </Regent.Primitives.button>
+          </P.button>
         </li>
       </ul>
     </section>
     """
+  end
+
+  # One row per provider with the identity connected to it, or nothing at all
+  # until the connections are read.
+  defp rows(nil), do: nil
+
+  defp rows(identities) do
+    for entry <- Providers.all(),
+        do: {entry, Enum.find(identities, &(&1.provider == entry.provider))}
   end
 
   attr :identity, :map, default: nil
@@ -89,11 +92,11 @@ defmodule RegentsWeb.Components.VerifiedConnections do
     """
   end
 
-  defp connection(assigns) do
+  defp connection(%{identity: identity} = assigns) do
     assigns =
       assign(assigns,
-        handle: Providers.handle(assigns.identity),
-        profile_url: Providers.profile_url(assigns.identity.provider, assigns.identity.username)
+        handle: Providers.handle(identity),
+        profile_url: Providers.profile_url(identity.provider, identity.username)
       )
 
     ~H"""

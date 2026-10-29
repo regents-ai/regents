@@ -8,6 +8,11 @@ const pages: Array<[string, string]> = [
   ["/redeem", "#redemption-collections"],
   ["/redeem/gallery", "#gallery-heading"],
   ["/account", "#account-agents"],
+  ["/account/points", "#points-page"],
+  ["/account/credits", "#credits-agent-spending"],
+  ["/account/wallets", "#account-wallets-title"],
+  ["/account/connections", "#account-verified-connections"],
+  ["/names", "#account-names-title"],
   ["/app", "#regent-ops-overview"],
   ["/paper-pro-daily", "#paper-daily-title"],
   ["/literature", "#literature-chart"],
@@ -54,7 +59,7 @@ async function walk(page: Page, signedIn: boolean) {
   await page.evaluate(() => ((window as any).__r04Walk = true))
 
   for (const [path, marker] of pages) {
-    if (path === "/account" && !signedIn) continue
+    if ((path.startsWith("/account") || path === "/names") && !signedIn) continue
     await patchTo(page, path)
     await expect(page).toHaveURL(new RegExp(`${path.replace("/", "\\/")}$`))
     await expect(page.locator(marker)).toBeVisible()
@@ -89,5 +94,30 @@ test("a signed-in person has the whole account menu on every shell page", async 
     await expect(page.locator("#shell-agents-reader"), path).toBeAttached()
     await expect(page.locator("#account-menu a[href='/account#account-pairing']"), path).toBeAttached()
     await expect(page.locator("#shell-credits-button"), path).toBeVisible()
+  }
+})
+
+// The Account tabs and Names fit a phone and a desktop, in light and dark, with
+// nothing pushing the page sideways.
+test("the Account tabs and Names fit a phone and a desktop, light and dark", async ({page}, testInfo) => {
+  const auth = await installAuthenticatedPrivy(page, "valid")
+  await auth.establishLocalSession()
+
+  for (const width of [390, 1280]) {
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.setViewportSize({width, height: 900})
+      await page.emulateMedia({colorScheme})
+
+      for (const [path, marker] of pages.filter(([path]) => path.startsWith("/account") || path === "/names")) {
+        await page.goto(path)
+        await expect(page.locator(marker), path).toBeVisible()
+        const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+        expect(sideways, `${path} at ${width} ${colorScheme}`).toBeLessThanOrEqual(0)
+        await page.screenshot({
+          path: testInfo.outputPath(`${path.slice(1).replaceAll("/", "-")}-${width}-${colorScheme}.png`),
+          fullPage: true,
+        })
+      }
+    }
   }
 })

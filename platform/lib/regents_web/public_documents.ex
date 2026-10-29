@@ -42,14 +42,14 @@ defmodule RegentsWeb.PublicDocuments do
     "/app" =>
       {"Overview",
        "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree, Patchbay and Keyfleet."},
-    "/account" =>
-      {"Account",
-       "The wallet you signed in with, the Regent names it holds and the accounts you have connected."},
+    "/account" => {"Account", "Your profile, agents, Credits and the session on this browser."},
+    "/account/points" => {"Points", "Your points and activity."},
     "/account/credits" =>
-      {"Credits",
-       "Credits pay for things on every Regent site. Every purchase from this account, with its transaction."},
-    "/account/points" =>
-      {"Points", "Your points, your NFT bonus and what earns points across Regent sites."},
+      {"Credits history", "Everything that changed your Credits, on every Regent site."},
+    "/account/wallets" => {"Wallets", "The wallets your sign-in verified."},
+    "/account/connections" =>
+      {"Connections", "The accounts you have connected, such as X, GitHub and Farcaster."},
+    "/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/stake" =>
       {"Stake REGENT",
        "Stake REGENT on Base to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."},

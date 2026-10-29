@@ -208,8 +208,11 @@ defmodule RegentsWeb.Router do
       live "/paper-pro-daily", ShellLive, :paper_pro_daily
       live "/literature", ShellLive, :literature
       live "/account", ShellLive, :account
-      live "/account/credits", ShellLive, :account_credits
-      live "/account/points", ShellLive, :account_points
+      live "/account/points", ShellLive, :points
+      live "/account/credits", ShellLive, :credits
+      live "/account/wallets", ShellLive, :wallets
+      live "/account/connections", ShellLive, :connections
+      live "/names", ShellLive, :names
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

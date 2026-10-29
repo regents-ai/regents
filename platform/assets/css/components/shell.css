@@ -392,6 +392,30 @@
   overscroll-behavior: contain;
 }
 
+/* The Account pages' views, as in ash-template. */
+.shell-tabs {
+  display: flex;
+  gap: 1.5rem;
+  padding-inline: var(--rg-panel-padding);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--color-border);
+  scrollbar-width: thin;
+}
+
+.shell-tabs a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: var(--shell-header);
+  color: var(--color-fg-muted);
+  text-decoration: none;
+}
+
+.shell-tabs a[aria-current="page"] {
+  color: var(--color-fg);
+  box-shadow: inset 0 -2px var(--palette-tangerine-tango);
+}
+
 #route-content {
   width: 100%;
   min-height: 100%;
@@ -622,6 +646,12 @@
   #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 47.99rem) {
+  /* On a phone the tabs sit closer; at 320px the strip scrolls sideways. */
+  .shell-tabs {
+    gap: 0.625rem;
+    padding-inline: 1rem;
+    font-size: 0.875rem;
+  }
   /* One row on a phone: brand, Menu, theme, products, account. X, GitHub and
      Buy $REGENT stay reachable in the footer, so the header never wraps over content. */
   #shell-header { flex-wrap: nowrap; }

@@ -12,6 +12,7 @@ vi.mock("../vendor/regent_ui/pill_select.mjs", () => ({}))
 vi.mock("phoenix-colocated/regents", () => ({hooks: {}}))
 vi.mock("../js/auth_lazy", () => ({
   browserCsrfToken: () => "csrf-token",
+  holdAdoptionWhileLeaving: vi.fn(),
   holdSocketDuringCookieRotation: vi.fn(),
   installAccountAuthLazyLoader: vi.fn(),
   installCrossTabCsrf: vi.fn(),
