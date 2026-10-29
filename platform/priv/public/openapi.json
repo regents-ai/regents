@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "4.0.0",
+    "version": "4.1.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -3724,11 +3724,25 @@
                     ],
                     "format": "uri",
                     "description": "The agent's page in the agent registry, or null when it has none."
+                  },
+                  "human_backed": {
+                    "type": "boolean",
+                    "description": "Whether a person verified with World ID stands behind the agent, as the sign-in service names them on this request."
+                  },
+                  "same_person_agent_count": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "description": "How many agents, this one included, that same person stands behind, or null when none does."
                   }
                 },
                 "required": [
                   "wallet",
-                  "registry_listing"
+                  "registry_listing",
+                  "human_backed",
+                  "same_person_agent_count"
                 ],
                 "additionalProperties": false
               },

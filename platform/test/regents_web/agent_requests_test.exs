@@ -26,7 +26,9 @@ defmodule RegentsWeb.AgentRequestsTest do
              |> json_response(201)
 
     # The sign-in server gets the digest of the exact bytes the agent sent, for this site.
-    assert_received {:verified, ["regents-test"], %{"path" => "/api/agents/v1/pair"} = envelope}
+    assert_received {:verified, ["Bearer test-site-verify-key"],
+                     %{"path" => "/api/agents/v1/pair"} = envelope}
+
     assert envelope["body_digest"] == Siwa.content_digest_for_body(body)
 
     assert {:ok, [%{name: "Sol", harness: :claude_code}]} =
@@ -208,6 +210,10 @@ defmodule RegentsWeb.AgentRequestsTest do
     data = conn |> get("/api/agents/v1/whoami") |> json_response(200) |> Map.fetch!("data")
     schema = whoami_schema()
     assert data |> Map.keys() |> Enum.sort() == Enum.sort(schema["required"])
+
+    assert data["agent"] |> Map.keys() |> Enum.sort() ==
+             Enum.sort(schema["properties"]["agent"]["required"])
+
     assert data["status"] in schema["properties"]["status"]["enum"]
     data
   end
@@ -227,27 +233,34 @@ defmodule RegentsWeb.AgentRequestsTest do
     |> post("/api/agents/v1/pair", Jason.encode!(%{code: code, name: "Sol", harness: "hermes"}))
   end
 
-  # The sign-in service verifies the request and names the key that signed it.
+  # The sign-in service verifies the request and names the key that signed it. It
+  # answers only this site's own verify key (config/test.exs), as the real one does.
   defp siwa_verifies(wallet) do
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       {:ok, body, conn} = Plug.Conn.read_body(conn)
-      audience = Plug.Conn.get_req_header(conn, "x-siwa-audience")
-      send(self(), {:verified, audience, Jason.decode!(body)})
+      key = Plug.Conn.get_req_header(conn, "authorization")
+      send(self(), {:verified, key, Jason.decode!(body)})
 
-      Req.Test.json(conn, %{
-        "code" => "http_envelope_valid",
-        "data" => %{
-          "verified" => true,
-          "principal" => %{
-            "kind" => "wallet",
-            "wallet_address" => wallet,
-            "chain_id" => 8453,
-            "audience" => "regents-test"
-          },
-          "agentRegistration" => nil,
-          "agentBook" => nil
-        }
-      })
+      if key == ["Bearer test-site-verify-key"] do
+        Req.Test.json(conn, %{
+          "code" => "http_envelope_valid",
+          "data" => %{
+            "verified" => true,
+            "principal" => %{
+              "kind" => "wallet",
+              "wallet_address" => wallet,
+              "chain_id" => 8453,
+              "audience" => "regents-test"
+            },
+            "agentRegistration" => nil,
+            "agentBook" => nil
+          }
+        })
+      else
+        conn
+        |> Plug.Conn.put_status(401)
+        |> Req.Test.json(%{"error" => %{"code" => "site_verify_unauthorized"}})
+      end
     end)
   end
 

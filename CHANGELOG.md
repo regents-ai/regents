@@ -3914,3 +3914,14 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `/account`, `/names`, `/redeem` and `/docs` load with no errors and no sideways
   scroll; `/openapi.json` carries both help links. A refused agent request was not sent
   live (that needs an unpaired agent's signature). WebKit not run on the Mac.
+
+## 2026-10-29 — Agent requests are checked with this site's own verify key
+
+- Agent requests are checked with this site's own verify key. regents.sh sends
+  `SIWA_SITE_VERIFY_KEY` to the sign-in service with every signed agent request, and
+  the key names the audience; the `x-siwa-audience` header is gone. If the service
+  refuses the key, the site logs an error and agents get 503 `siwa_request_failed`.
+- `agents whoami` also answers `human_backed` and `same_person_agent_count`, so
+  regents-cli can check a sign-in through this site. The OpenAPI documents are 4.1.0.
+- Libraries: elixir-utils d9b60bfd (the verify key, a1b6e5db, joined onto 9539469f).
+  No database changes. Releases only in the joint verify-key release.

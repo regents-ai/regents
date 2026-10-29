@@ -141,6 +141,10 @@ if config_env() == :prod do
     formatter: LoggerJSON.Formatters.Basic.new(metadata: RegentsWeb.VisitLog.fields())
 
   unless migrating? do
+    # This site's own key at the sign-in service, which names the audience it checks
+    # agents' signed requests for (RegentAgents.Broker).
+    config :regent_agents, :siwa, verify_key: System.fetch_env!("SIWA_SITE_VERIFY_KEY")
+
     host = String.trim(System.fetch_env!("PHX_HOST"))
     secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
 

@@ -22,6 +22,11 @@ config :regents, RegentsWeb.Endpoint,
     esbuild: {Esbuild, :install_and_run, [:regents, ~w(--sourcemap=inline --watch)]}
   ]
 
+# The sign-in service's development key for this site, from its `config/dev.exs`,
+# so a sign-in service run on this machine (SIWA_SERVER_URL) checks agents' signed
+# requests. https://siwa.regents.sh refuses it.
+config :regent_agents, :siwa, verify_key: "siwa-dev-regents-site-verify-key-0000001"
+
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

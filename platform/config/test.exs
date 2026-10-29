@@ -34,7 +34,7 @@ config :regents, :sprite_provider, Regents.TestSpriteProvider
 
 # Agent requests are verified, and agents' activity read, by stubs each test sets.
 config :regent_agents,
-  siwa: [url: "https://siwa.test", audience: "regents-test"],
+  siwa: [url: "https://siwa.test", audience: "regents-test", verify_key: "test-site-verify-key"],
   activity_read_token: "test-activity-read-token",
   req_options: [plug: {Req.Test, RegentAgents.Broker}]
 

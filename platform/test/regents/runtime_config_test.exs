@@ -25,7 +25,8 @@ defmodule Regents.RuntimeConfigTest do
       "BASE_READ_RPC_URL",
       "OPENSEA_API_KEY",
       "SOURCE_COMMIT",
-      "FLY_IMAGE_REF"
+      "FLY_IMAGE_REF",
+      "SIWA_SITE_VERIFY_KEY"
     ]
 
     previous = Map.new(names, &{&1, System.get_env(&1)})
@@ -356,6 +357,7 @@ defmodule Regents.RuntimeConfigTest do
     System.put_env("REGENTS_DEPLOYMENT_ROLE", "production")
     System.put_env("SOURCE_COMMIT", "0123abcd")
     System.put_env("FLY_IMAGE_REF", "registry.fly.io/regents-sh-web:deployment-test")
+    System.put_env("SIWA_SITE_VERIFY_KEY", "site-verify-key-test")
   end
 
   defp put_pooled_url do
