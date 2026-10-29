@@ -58,9 +58,9 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Make a pairing code, choose the agent | Pair New Agent (side panel) | — | — | — | — | no (owner only) | R5 |
+| Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
-| Open or unpair an agent, read its last actions | side panel Agents, `/account` | — | — | — | — | no (owner only) | R5 |
+| Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
 | Set or remove an agent's picture | `/account` agent card (upload) | — | — | — | — | no | R6 |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account` | — | — | — | — | money | R7 |
 | Read the agent's own spending budget | agents only | `regents_credits_budget` | — | — | `account budget` | no | R2, R3 |
@@ -160,7 +160,7 @@ were skipped.
   `/api/agents/v1/pair` and `/me` routes. Not protected. Owner: agent-access lane.
 - **R5. Owner-only agent controls are page-only.** Making a pairing code, choosing the
   agent, opening and unpairing an agent and reading its last actions run only in the
-  side panel and on `/account`. They stay out of reach of a paired helper agent and
+  account menu and on `/account`. They stay out of reach of a paired helper agent and
   open only to the owner from R1. Not protected (owner only).
 - **R6. Agent pictures are page-only.** The person uploads or removes an agent's
   picture on `/account`; the agent has no route to set its own (the shared agents
