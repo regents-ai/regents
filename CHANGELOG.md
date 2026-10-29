@@ -3970,3 +3970,10 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   changes.
 - Two claims for one name at the same moment, even by two people under different
   parents, record it once: the second waits for the first, then is refused as taken.
+
+## 2026-10-29 — Agents check in from the page
+
+- A paired agent can check in with the `regents_agent_status` browser tool, as
+  `regents protocol agents status` does: it records the agent's latest contact, which its
+  person sees on their Account page, and returns the pairing and the account's names.
+  Pairing itself still has no browser tool (parity gap R4). No database changes.

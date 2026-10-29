@@ -48,7 +48,7 @@ were skipped.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Sign in / make the account | Privy sign-in window (`POST /auth/privy/session`), untested for agents | — | — | — | — | sign-in | R1 |
 | Sign out | account menu Sign out (`DELETE /auth/privy/session`) | — | — | — | — | sign-in | R1 |
-| Agent's own identity (whoami, check in) | agents only | `regents_agent_whoami` | — | — | `agents whoami`, `agents status` | no | R2, R3, R4 |
+| Agent's own identity (whoami, check in) | agents only | `regents_agent_whoami`, `regents_agent_status` | — | — | `agents whoami`, `agents status` | no | R2, R3, R4 |
 | Read display name and ENS name | `/account` | `regents_account` | — | — | `account show` | no | R2, R3 |
 | Read wallets | `/account/wallets` | — | — | — | — | wallet | R11 |
 | Set display name | `/account` Public Display Name (`PATCH /api/v1/profile` with a Privy proof pair) | — | — | — | — | sign-in | R11 |
@@ -155,10 +155,10 @@ were skipped.
 - **R3. No Claude connector.** There are no OAuth routes and no connector tools. Plan:
   the shared connector with OAuth sign-in from ash-template, serving the same tools as
   R2. Protected (sign-in: OAuth approval). Owner: agent-access lane.
-- **R4. Pairing and check-in have no WebMCP tool.** `agents pair` and `agents status`
-  exist in the CLI; the page tools offer only `regents_agent_whoami`. Plan: signed
-  `regents_agent_pair` and `regents_agent_status` tools on the existing
-  `/api/agents/v1/pair` and `/me` routes. Not protected. Owner: agent-access lane.
+- **R4. Pairing has no WebMCP tool.** Checking in has one: `regents_agent_status`, on
+  `GET /api/agents/v1/me`, as `agents status` does. Pairing is `agents pair` only; its
+  signed `regents_agent_pair` tool comes from the template's G6, then regents copies
+  it. Not protected. Owner: agent-access lane.
 - **R5. Owner-only agent controls are page-only.** Making a pairing code, choosing the
   agent, opening and unpairing an agent and reading its last actions run only in the
   account menu and on `/account`. They stay out of reach of a paired helper agent and
