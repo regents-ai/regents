@@ -11,6 +11,7 @@ defmodule Regents.Names.ClaimFreeTest do
   alias Regents.Actors.Human
   alias Regents.Names
   alias Regents.Repo
+  alias Regents.SandboxRace
 
   @main "0x7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a"
   @linked "0x7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b"
@@ -106,4 +107,62 @@ defmodule Regents.Names.ClaimFreeTest do
 
     assert used(@main) == 1
   end
+
+  test "two claims racing for a wallet's last free claim record one name" do
+    insert_allowance(@main, 1, 0)
+
+    results =
+      SandboxRace.race_each([
+        fn -> Names.claim_free_name("race-one", actor: actor([@main])) end,
+        fn -> Names.claim_free_name("race-two", actor: actor([@main])) end
+      ])
+
+    assert [{:ok, _claim}] = Enum.filter(results, &match?({:ok, _}, &1))
+    assert claim_count() == 1
+    assert used(@main) == 1
+  end
+
+  test "one name claimed by two people under different parents is recorded once" do
+    insert_allowance(@main, 1, 0)
+    insert_allowance(@linked, 1, 0, %{parent_node: "other-parent", parent_name: "other.base.eth"})
+
+    results =
+      SandboxRace.race_each([
+        fn -> Names.claim_free_name("one-name", actor: actor([@main])) end,
+        fn -> Names.claim_free_name("one-name", actor: actor([@linked])) end
+      ])
+
+    assert [{:ok, _claim}] = Enum.filter(results, &match?({:ok, _}, &1))
+    assert claim_count() == 1
+    assert used(@main) + used(@linked) == 1
+  end
+
+  # This test's own transaction stays open until it ends, so the claim below
+  # still holds its name. A claim from another connection then waits for that
+  # name, and for no other.
+  test "a claim in progress makes another connection wait for the same name" do
+    insert_allowance(@main, 1, 0)
+    assert {:ok, _claim} = Names.claim_free_name("held-open", actor: actor([@main]))
+
+    assert {:error, same} = claim_elsewhere("held-open")
+    assert lock_wait?(same)
+
+    assert {:error, other} = claim_elsewhere("not-held")
+    refute lock_wait?(other)
+  end
+
+  # Outside this test's transaction nothing it wrote can be seen, so a claim
+  # there that gets past the name finds no free claim and records nothing.
+  defp claim_elsewhere(label) do
+    Ecto.Adapters.SQL.Sandbox.unboxed_run(Repo, fn ->
+      Repo.transaction(fn ->
+        Repo.query!("SET LOCAL lock_timeout = '200ms'")
+        Names.claim_free_name(label, actor: actor([@linked]))
+      end)
+    end)
+  end
+
+  # The refused claim's transaction rolls back with its changeset.
+  defp lock_wait?(%Ash.Changeset{errors: errors}),
+    do: Enum.any?(errors, &match?(%Postgrex.Error{postgres: %{code: :lock_not_available}}, &1))
 end
