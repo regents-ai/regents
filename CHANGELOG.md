@@ -3899,3 +3899,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   at every other signed request, in the same words as ash-template (2362ad83). The
   contract examples say the same.
 - Libraries: elixir-utils 9539469f (the check-in refusals), no database changes.
+
+## 2026-10-29 — Regents v245 and v246 released
+
+- v245 (`7912758d`) went live as Fly v245 at about 18:42Z: chain reads that fail are
+  counted for Sentinel. The rollback is v244 (`5bdfc471`).
+- v246 (`e5c36148`) went live as Fly v246 at about 18:50Z: agent refusals link to their
+  help page, elixir-utils 9539469f. The rollback is v245 (`7912758d`). No database
+  changes in either.
+- Before release: 600 server tests, 252 script tests, 139 browser tests (one Redeem walk
+  timed out under load in the v246 run and passed three times out of three alone), the
+  CLI command check, identity and required fixes (ash-template 74403fb1) clean.
+- Live checks after release, headless Chromium at 390 and 1280: `/`, `/stake`,
+  `/account`, `/names`, `/redeem` and `/docs` load with no errors and no sideways
+  scroll; `/openapi.json` carries both help links. A refused agent request was not sent
+  live (that needs an unpaired agent's signature). WebKit not run on the Mac.
