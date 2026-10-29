@@ -88,15 +88,19 @@ defmodule Regents.NamesFixtures do
   end
 
   @doc "Inserts one synthetic free-claim allowance for a wallet inside the caller's sandbox."
-  def insert_allowance(address, total, used) do
-    row = %{
-      parent_node: "parent",
-      parent_name: "agent.base.eth",
-      address: address,
-      snapshot_block_number: 1,
-      snapshot_total: total,
-      free_mints_used: used
-    }
+  def insert_allowance(address, total, used, extra \\ %{}) do
+    row =
+      Map.merge(
+        %{
+          parent_node: "parent",
+          parent_name: "agent.base.eth",
+          address: address,
+          snapshot_block_number: 1,
+          snapshot_total: total,
+          free_mints_used: used
+        },
+        extra
+      )
 
     # Fixture-only SQL: the allowance Ash resource deliberately has no mutation actions.
     Repo.insert_all("basenames_mint_allowances", [row], prefix: "regent_names")

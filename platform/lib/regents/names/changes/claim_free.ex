@@ -12,6 +12,7 @@ defmodule Regents.Names.Changes.ClaimFree do
   alias Ash.Error.Changes.InvalidChanges
   alias Regents.Names
   alias Regents.Names.Allowance
+  alias Regents.Repo
 
   @ens_parent "regent.eth"
 
@@ -23,7 +24,8 @@ defmodule Regents.Names.Changes.ClaimFree do
   defp claim(changeset, opts) do
     label = Ash.Changeset.get_argument(changeset, :label)
 
-    with {:ok, false} <- Names.label_claimed?(label, opts),
+    with :ok <- hold_label(label),
+         {:ok, false} <- Names.label_claimed?(label, opts),
          {:ok, allowance} <- spend_free_claim(opts),
          {:ok, names} <- names(label, allowance.parent_name) do
       Ash.Changeset.force_change_attributes(
@@ -43,6 +45,17 @@ defmodule Regents.Names.Changes.ClaimFree do
       {:ok, true} -> Ash.Changeset.add_error(changeset, label_error("is already claimed"))
       {:error, error} -> Ash.Changeset.add_error(changeset, error)
     end
+  end
+
+  # Claims of one name wait for each other here until the first one's
+  # transaction ends, whatever parent each is under, so the second sees the
+  # first. Names have no unique index to do this.
+  defp hold_label(label) do
+    with {:ok, _result} <-
+           Repo.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+             "regent_names:" <> String.downcase(label)
+           ]),
+         do: :ok
   end
 
   defp spend_free_claim(opts) do

@@ -111,6 +111,30 @@ defmodule RegentsWeb.AgentNamesTest do
     assert used(wallet) == 0
   end
 
+  test "an agent unpaired partway through a claim is refused and spends nothing",
+       %{conn: conn, wallet: wallet, person: person} do
+    insert_allowance(wallet, 1, 0)
+    [agent] = RegentAgents.list_my_agents!(actor: person)
+    handler = "unpair-during-claim-#{inspect(self())}"
+
+    # The person unpairs the agent after its request was let in, as the claim starts.
+    :telemetry.attach(
+      handler,
+      [:ash, :names, :create, :start],
+      fn _event, _measurements, _metadata, _config ->
+        RegentAgents.unpair_agent!(agent, actor: person)
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
+
+    assert %{"error" => %{"code" => "agent_not_paired"}} =
+             conn |> names("claim", "mid-claim") |> json_response(403)
+
+    assert {claim_count(), used(wallet)} == {0, 0}
+  end
+
   test "a request with anything but one name is refused", %{conn: conn} do
     for body <- [%{}, %{name: ""}, %{name: "ok-name", extra: 1}, %{name: 7}] do
       assert %{"error" => %{"code" => "invalid_input"}} =

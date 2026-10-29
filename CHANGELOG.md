@@ -4006,3 +4006,5 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The API description is now version 4.1.0, with `POST /api/agent/v1/names/check` and
   `POST /api/agent/v1/names/claim`. Closes R12 in `docs/agent-parity.md`. No database
   changes.
+- Two claims for one name at the same moment, even by two people under different
+  parents, record it once: the second waits for the first, then is refused as taken.
