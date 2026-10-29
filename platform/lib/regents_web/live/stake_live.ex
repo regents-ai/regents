@@ -54,7 +54,7 @@ defmodule RegentsWeb.StakeLive do
         </div>
       </header>
 
-      <dialog
+      <Regent.Structure.dialog
         :if={@dashboard}
         id="staking-supply-dialog"
         class="stake-supply-dialog"
@@ -86,9 +86,9 @@ defmodule RegentsWeb.StakeLive do
         <form method="dialog">
           <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
         </form>
-      </dialog>
+      </Regent.Structure.dialog>
 
-      <dialog
+      <Regent.Structure.dialog
         :if={@dashboard && @dashboard.market_cap}
         id="staking-value-dialog"
         class="stake-supply-dialog"
@@ -129,7 +129,7 @@ defmodule RegentsWeb.StakeLive do
         <form method="dialog">
           <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
         </form>
-      </dialog>
+      </Regent.Structure.dialog>
 
       <div :if={@status == :error} class="stake-status">
         <p role="alert">Staking details are unavailable right now.</p>

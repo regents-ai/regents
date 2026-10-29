@@ -38,23 +38,13 @@
 .agent-tools {
   --agent-tools-ink: #e5e3d2;
   --agent-tools-accent: #2ff07a;
-  width: min(40rem, calc(100vw - 2 * var(--space-3)));
-  max-height: min(42rem, calc(100dvh - 2 * var(--space-4)));
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--agent-tools-accent) 45%, transparent);
-  background: #0a0c11;
-  color: var(--agent-tools-ink);
+  --rg-dialog-size: 40rem;
 }
 
-.agent-tools[open] {
+.agent-tools .rg-dialog__body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-}
-
-.agent-tools::backdrop {
-  background: rgb(4 5 8 / 0.62);
-  backdrop-filter: blur(6px);
 }
 
 /* The title and the X on one row, the two copy buttons under them. */
@@ -169,6 +159,23 @@
   font-size: 0.875rem;
   line-height: 1.45;
 }
+}
+
+/* The shared frame's own rules sit outside any layer, so the night colours on
+   it, and its body's edge-to-edge padding, sit outside one too. The head stays
+   put and the list scrolls, clipped to the frame's cut corners. */
+:root .agent-tools.rg-dialog {
+  --rg-dialog-fill: #0a0c11;
+  --rg-dialog-edge: color-mix(in srgb, var(--agent-tools-accent) 45%, #0a0c11);
+  --rg-dialog-cut-ink: var(--agent-tools-accent);
+  --rg-dialog-mark-ink: var(--agent-tools-accent);
+  color: var(--agent-tools-ink);
+}
+
+.agent-tools .rg-dialog__body {
+  padding: 0;
+  overflow: hidden;
+  clip-path: polygon(var(--rg-dialog-cut) 0, 100% 0, 100% calc(100% - var(--rg-dialog-cut)), calc(100% - var(--rg-dialog-cut)) 100%, 0 100%, 0 var(--rg-dialog-cut));
 }
 
 /* The copy buttons, in the dialog's colours in either theme. */

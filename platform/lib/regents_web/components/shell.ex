@@ -159,7 +159,7 @@ defmodule RegentsWeb.Components.Shell do
         </Regent.Account.menu>
       </header>
 
-      <dialog
+      <Regent.Structure.dialog
         :if={@credits_panel != []}
         id="shell-credits"
         class="shell-credits-dialog"
@@ -178,7 +178,7 @@ defmodule RegentsWeb.Components.Shell do
           </Regent.Primitives.button>
         </form>
         {render_slot(@credits_panel)}
-      </dialog>
+      </Regent.Structure.dialog>
 
       <nav
         id="shell-sidebar"

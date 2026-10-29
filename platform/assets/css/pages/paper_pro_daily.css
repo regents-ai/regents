@@ -234,19 +234,7 @@
   border-block-start: 1px solid var(--rg-page-rule);
 }
 
-.paper-daily__prompt-dialog {
-  inline-size: min(48rem, calc(100vw - 2rem));
-  max-block-size: calc(100dvh - 2rem);
-  overflow: auto;
-  padding: clamp(20px, 4vw, 32px);
-  border: 1px solid var(--rg-page-rule);
-  background: var(--color-surface);
-  color: var(--color-fg);
-}
-
-.paper-daily__prompt-dialog::backdrop {
-  background: var(--ash-scrim);
-}
+.paper-daily__prompt-dialog { --rg-dialog-size: 48rem; }
 
 .paper-daily__prompt-dialog h2 {
   margin: 0 0 24px;

@@ -23,22 +23,12 @@
   }
 }
 
+/* The close button sits in the frame's top corner, as far in as the frame's
+   own padding. */
 .shell-credits-dialog {
-  --shell-credits-pad-top: 1.5rem;
-  --shell-credits-pad-side: 1.5rem;
-  box-sizing: border-box;
-  width: min(30rem, calc(100% - 2rem));
-  max-height: calc(100dvh - 4rem);
-  padding: var(--shell-credits-pad-top) var(--shell-credits-pad-side) 1rem;
-  border: 1px solid var(--ash-line-strong);
-  border-radius: 1.25rem;
-  background: var(--color-surface);
-  color: var(--color-fg);
-  overflow-y: auto;
-}
-
-.shell-credits-dialog::backdrop {
-  background: var(--ash-scrim);
+  --rg-dialog-size: 30rem;
+  --shell-credits-pad-top: clamp(var(--space-2), 4vw, var(--space-4));
+  --shell-credits-pad-side: clamp(var(--space-2), 4vw, var(--space-4));
 }
 
 .shell-credits-dialog .credits-panel__head {
@@ -430,14 +420,6 @@
   /* The header's button only: the account menu's balance row keeps the word. */
   #app-shell .shell-credits .shell-credits__unit {
     display: none;
-  }
-
-  .shell-credits-dialog {
-    width: calc(100% - 1rem);
-    --shell-credits-pad-top: 1rem;
-    --shell-credits-pad-side: 0.75rem;
-    max-height: calc(100dvh - 1rem);
-    padding-block-end: 0.75rem;
   }
 
   .credits-panel__amount {
