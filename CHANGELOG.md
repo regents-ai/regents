@@ -3825,3 +3825,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   passing; `/capabilities.json` reports the commit; `/`, `/stake`, `/redeem`, `/docs`,
   `/app` and `/start` load in headless Chromium at 1280 and 390 wide, light and dark,
   with no errors and no sideways scroll. WebKit not run on the Mac.
+
+## 2026-10-29 — Agent parity table
+
+- Add docs/agent-parity.md: every action a person can do on regents.sh, with its five agent
+  surfaces (page, WebMCP, hosted MCP, Claude connector, CLI) and the gap for each
+  missing one (39 actions, gaps R1 to R16). Docs only; nothing on the site changes.
