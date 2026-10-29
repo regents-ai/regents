@@ -3927,3 +3927,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   first signed release.
 - Cloak joins Products in the side panel, the sitemap and llms.txt. No database
   changes.
+
+## 2026-10-29 — Regents v247 released
+
+- v247 (`194a16f6`) went live as Fly v247 at about 19:56Z: the Regents Cloak pages,
+  /cloak and /cloak/guide, with the download off and "Coming soon" beside it (Sean,
+  "1. a", 19:30:58Z). The rollback is v246 (`e5c36148`). No database, secret or library
+  changes.
+- Before release, on the exact tree: 602 server tests, 252 script tests, 141 browser
+  tests, required fixes, CLI and identity checks all clean.
+- Live at 390 and 1280: /, /cloak, /cloak/guide, /stake and /docs answer 200 and fit;
+  the download is disabled with "Coming soon", all six protections read "Planned", and
+  "Set up with your agent" opens the guide. /cloak/guide answers Markdown to
+  `Accept: text/markdown`; llms.txt and the sitemap list both pages. 1 of 1 checks pass.
