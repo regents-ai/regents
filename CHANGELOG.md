@@ -3855,3 +3855,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Add docs/agent-parity.md: every action a person can do on regents.sh, with its five agent
   surfaces (page, WebMCP, hosted MCP, Claude connector, CLI) and the gap for each
   missing one (39 actions, gaps R1 to R16). Docs only; nothing on the site changes.
+
+## 2026-10-29 — Regents v243 released
+
+- v243 (`b0630139`) went live as Fly v243 at about 08:46Z: the account menu, Chrome's
+  WebMCP trial token, Duet's picture and the agent parity table. No database changes.
+  The rollback is v242 (`599de2bb`).
+- Before release: 596 server tests, 242 script tests, 138 browser tests, the CLI
+  command check and required fixes (ash-template cb75f6be) clean.
+- Live checks after release, headless Chromium at 390 and 1280, light and dark:
+  `/`, `/stake`, `/account`, `/start` and `/docs` load with no errors, no sideways
+  scroll and no side panel, and every one carries the `origin-trial` token and
+  `permissions-policy: tools=(self)`. Duet's picture is served. The signed-in menu and
+  the Duet tile were not checked live (that needs a sign-in). WebKit not run on the Mac.
