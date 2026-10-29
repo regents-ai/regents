@@ -6,7 +6,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   alias Regents.Actors.{Agent, System}
 
   @not_paired_message "This agent has no current pairing."
-  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again."
+  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
 
   def init(opts), do: opts
 
@@ -72,7 +72,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
           403,
           "person_not_here",
           "The person this agent is paired with hasn't signed in on this site yet.",
-          "Ask your person to sign in on this site once, then send the request again."
+          "Ask your person to sign in on this site once, then send the request again. Help: https://patchbay.help/errors/person_not_here"
         )
 
       {:error, _} ->

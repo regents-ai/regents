@@ -3891,3 +3891,11 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   of the site that asked (`wallet`, `wallet_steps`, `staking`, `points`, `redemption`),
   in the same words as ash-template. Sentinel reads it beside the other health numbers.
 - regents.sh sends nothing from a wallet of its own, so it reports no unconfirmed sends.
+
+## 2026-10-29 — Agent refusals link to their help page
+
+- An agent refused as `agent_not_paired` or `person_not_here` now reads
+  "Help: https://patchbay.help/errors/<code>" at the end of the hint, at check-in and
+  at every other signed request, in the same words as ash-template (2362ad83). The
+  contract examples say the same.
+- Libraries: elixir-utils 9539469f (the check-in refusals), no database changes.

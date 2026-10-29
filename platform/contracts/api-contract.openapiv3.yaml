@@ -814,9 +814,9 @@ components:
           schema: {$ref: "#/components/schemas/PairedAgentError"}
           examples:
             agentNotPaired:
-              value: {error: {code: agent_not_paired, message: "This agent has no current pairing.", hint: "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again."}}
+              value: {error: {code: agent_not_paired, message: "This agent has no current pairing.", hint: "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"}}
             personNotHere:
-              value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then send the request again."}}
+              value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then send the request again. Help: https://patchbay.help/errors/person_not_here"}}
     Session:
       description: Current browser session
       content:
@@ -875,7 +875,7 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             personNotHere:
-              value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then check in again."}}
+              value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then check in again. Help: https://patchbay.help/errors/person_not_here"}}
     AgentPairingFailed:
       description: The pairing code could not be claimed, or the runtime is not on the list
       headers:
