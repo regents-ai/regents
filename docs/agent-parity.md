@@ -103,8 +103,8 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read about Regents and the docs | `/about`, `/docs` | `regents_about` | — | — | — (plain fetch) | no | R2, R3 |
-| Read other site pages (start, contact, refund rules, privacy, terms) | `/start`, `/contact`, `/credits/refunds`, `/privacy`, `/terms` | — | — | — | — (plain fetch) | no | R13 |
-| Read Regents Cloak and its setup guide | `/cloak`, `/cloak/guide` | — | — | — | — (plain fetch, `/cloak/guide` as Markdown) | no | R13 |
+| Read other site pages (start, contact, refund rules, privacy, terms) | `/start`, `/contact`, `/credits/refunds`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
+| Read Regents Cloak and its setup guide | `/cloak`, `/cloak/guide` | `regents_about` (the guide) | — | — | — (plain fetch, `/cloak/guide` as Markdown) | no | R2, R3 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
 | Read Articles | `/articles`, `/articles/:slug` | `regents_articles_list`, `regents_article` | — | — | `articles list`, `articles show` | no | R2, R3 |
@@ -196,10 +196,10 @@ were skipped.
   claiming a free Regent Name run only on `/names`; agents can only read the claims
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
-- **R13. Some site pages have no tool.** `regents_about` covers `/about` and `/docs`;
-  `/start`, `/contact`, `/credits/refunds`, `/privacy` and `/terms` are plain fetches
-  only. The refund rules matter once R8 lets an agent buy Credits. Plan: name them in
-  `regents_about`. Not protected.
+- **R13. Closed.** `regents_about` reads every page that has words to read, as
+  Markdown: `/about`, `/docs`, `/start`, `/contact`, `/credits/refunds`, `/privacy`,
+  `/terms` and `/cloak/guide`. `/cloak` itself shows the guide's facts beside the
+  disabled download, so the guide stands for it.
 - **R14. Publishing Articles is page-only.** `/admin/articles` is for article admins in a
   browser. An admin agent needs the same through the five surfaces. Protected
   (production data, public post); after R1.

@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /docs /about /contact /privacy /terms /start /cloak/guide)
+  @documents ~w(/ /docs /about /contact /privacy /terms /start /cloak/guide /credits/refunds)
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -131,6 +131,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
   def document("/cloak/guide"), do: %{markdown: RegentsWeb.Cloak.guide_markdown()}
+  def document("/credits/refunds"), do: %{markdown: RegentsWeb.CreditsRefundRules.markdown()}
 
   def document(path) when path in ["/docs", "/about", "/contact"],
     do: %{markdown: source(String.trim_leading(path, "/"))}

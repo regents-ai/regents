@@ -3950,3 +3950,11 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - New limit: until every release passes its tests, some programs may connect without a
   private network. The release line now reads "Each protection must pass its tests
   before release."
+
+## 2026-10-29 — Agents read every site page
+
+- The `regents_about` browser tool now reads every page that has words to read, as
+  Markdown: about, docs, start, contact, refunds (`/credits/refunds`), privacy, terms
+  and cloak (`/cloak/guide`). Before, it read only about and docs. Closes parity gap R13.
+- `/credits/refunds` answers Markdown to `Accept: text/markdown`. The page and agents
+  read the same text, so the two never differ. No database changes.
