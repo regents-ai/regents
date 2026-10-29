@@ -850,21 +850,7 @@
   margin: 0;
 }
 
-.stake-supply-dialog {
-  width: min(34rem, calc(100vw - 2rem));
-  padding: clamp(1.1rem, 4vw, 1.75rem);
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-  color: var(--color-fg);
-}
-
-.stake-supply-dialog {
-  width: min(38rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
-  overflow: auto;
-}
-
-.stake-supply-dialog::backdrop { background: var(--ash-scrim); }
+.stake-supply-dialog { --rg-dialog-size: 38rem; }
 .stake-supply-dialog h2 { margin: 0.25rem 0 0.75rem; }
 .stake-supply-dialog form { display: flex; justify-content: flex-end; }
 
@@ -1039,9 +1025,7 @@
 }
 
 /* The window holds the address and its warning, then Done. */
-.stake-recipient-dialog {
-  width: min(30rem, calc(100vw - 2rem));
-}
+.stake-recipient-dialog { --rg-dialog-size: 30rem; }
 
 .stake-recipient-dialog .stake-recipient-note {
   margin-block: 0.5rem 1rem;

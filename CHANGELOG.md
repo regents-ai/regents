@@ -3950,3 +3950,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - New limit: until every release passes its tests, some programs may connect without a
   private network. The release line now reads "Each protection must pass its tests
   before release."
+
+## 2026-10-29 — Every window in the shared cut-corner frame
+
+- Buy Credits, Agent tools, the stake supply, stake value and payout address windows,
+  the transaction receipt and the Paper Pro Daily prompt now open in the shared window
+  frame (`Regent.Structure.dialog`), as the template's do: cut top-left and bottom-right
+  corners, square marked corners, and the shared dimmed page behind. Each keeps its
+  width; contents scroll inside the frame.
+- Agent tools keeps its night colours on the frame and loses its blurred backdrop.
+- Buy Credits takes the template's frame padding, so its close button sits in the
+  frame's corner; its phone-only sizes are gone because the frame sizes itself.
+- No database changes. The design-system pin stays at `3134bab0`.

@@ -22,7 +22,7 @@ defmodule RegentsWeb.Components.TransactionReceipt do
 
   def receipt(assigns) do
     ~H"""
-    <dialog
+    <Regent.Structure.dialog
       id={@id}
       class="transaction-receipt"
       aria-labelledby={"#{@id}-heading"}
@@ -50,7 +50,7 @@ defmodule RegentsWeb.Components.TransactionReceipt do
       <form method="dialog">
         <Regent.Primitives.button variant="secondary" type="submit" value="close">Done</Regent.Primitives.button>
       </form>
-    </dialog>
+    </Regent.Structure.dialog>
     """
   end
 

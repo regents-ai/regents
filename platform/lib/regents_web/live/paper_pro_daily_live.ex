@@ -130,7 +130,7 @@ defmodule RegentsWeb.PaperProDailyLive do
         </div>
       </section>
     </div>
-    <dialog
+    <Regent.Structure.dialog
       id="paper-daily-prompt-dialog"
       class="paper-daily__prompt-dialog"
       aria-labelledby="paper-daily-prompt-title"
@@ -149,7 +149,7 @@ defmodule RegentsWeb.PaperProDailyLive do
           <Regent.Primitives.button variant="secondary" type="submit">Close</Regent.Primitives.button>
         </form>
       </div>
-    </dialog>
+    </Regent.Structure.dialog>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".ResearchList">
       export default {
         mounted() {

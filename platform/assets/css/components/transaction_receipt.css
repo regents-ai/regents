@@ -1,16 +1,6 @@
 /* The pop-up a confirmed wallet step opens: what happened and where the wallet
    stands now, one figure to a row. */
-.transaction-receipt {
-  width: min(34rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
-  overflow: auto;
-  padding: clamp(1.1rem, 4vw, 1.75rem);
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-  color: var(--color-fg);
-}
-
-.transaction-receipt::backdrop { background: var(--ash-scrim); }
+.transaction-receipt { --rg-dialog-size: 34rem; }
 
 .transaction-receipt__kicker {
   margin-block: 0 0.75rem;

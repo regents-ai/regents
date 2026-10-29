@@ -778,7 +778,7 @@ defmodule RegentsWeb.StakeActions do
 
               <%!-- The address and its warning, in a window the box opens. It stays in
                    the form, so the steps are built from what it holds. --%>
-              <dialog
+              <Regent.Structure.dialog
                 id="staking-recipient-dialog"
                 class="stake-supply-dialog stake-recipient-dialog"
                 aria-labelledby="staking-recipient-heading"
@@ -853,7 +853,7 @@ defmodule RegentsWeb.StakeActions do
                     phx-click={JS.dispatch("regents:close", to: "#staking-recipient-dialog")}
                   >Done</Regent.Primitives.button>
                 </div>
-              </dialog>
+              </Regent.Structure.dialog>
 
               <div class="stake-amount-tools">
                 <div class="stake-amount-action">
