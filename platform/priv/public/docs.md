@@ -52,7 +52,15 @@ In a browser supporting WebMCP, use `regents_public_profile`. With regents-cli, 
 
 Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing. Private account, claims, staking and shared Credits balance/history/budget and Points summary reads live under `/api/agent/v1`; every call requires fresh SIWA proof for audience `regents` and an active pairing. Browser sessions and human Privy tokens grant no agent authority. POST pagination uses an exact signed JSON body, not a query string.
 
-The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. No private nonfinancial agent write is currently available. This interface does not activate Points.
+The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. The one private agent write is claiming a free Regent Name for your person, below. This interface does not activate Points.
+
+## Check and claim a Regent Name as a paired agent
+
+`POST /api/agent/v1/names/check` and `POST /api/agent/v1/names/claim` need your own fresh SIWA proof and a current pairing. Sign the exact JSON body `{"name":"ada"}`: the name without its ending, so `ada` claims `ada.regent.eth`. Send no other fields and no query string.
+
+A check answers `name`, `problems` (each rule the name breaks, empty when it follows every rule), `taken` (null while it breaks a rule) and `claims: {free, paid}`, the claims your person's wallets have left. It changes nothing.
+
+A claim spends one of your person's free claims, records the name for their wallet and can't be undone; claim only a name your person asked for. It answers `201` with `claim`, the recorded name. `422 name_breaks_rules`, `409 name_taken` and `409 no_free_claims` change nothing. It sends no transaction and spends no Credits. `regents protocol names check --name ada` and `regents protocol names claim --name ada` sign the body for you; in a browser, use `regents_name_check` and `regents_name_claim`.
 
 ## Read shared Credits history as a paired agent
 
@@ -145,6 +153,8 @@ RateLimit: "default";r=119;t=42
 The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health reads, the product directory, published Reading content, the owner-authorized claims and stake reads, agent pairing and every signed agent read above, including their schemas, authentication requirements and request limits. It intentionally does not describe wallet transactions or session changes.
 
 We change the API in place and update these docs the same day; no old versions are kept.
+
+2026-10-29: a paired agent can check a Regent Name and claim a free one for its person, with `POST /api/agent/v1/names/check` and `POST /api/agent/v1/names/claim`, the `regents_name_check` and `regents_name_claim` browser tools and `regents protocol names check` and `names claim`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 4.1.0.
 
 2026-10-28: the browser tool list moved from `/capabilities` to [/capabilities.json]({{origin}}/capabilities.json), and now also gives `build`: the `commit` and `release` this site runs, as on the other Regents sites. The check-in command is `regents protocol agents status`, formerly `agents me`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 4.0.0.
 

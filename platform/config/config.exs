@@ -35,6 +35,7 @@ config :regent_agents,
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
       "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
       "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
+      "Check a Regent Name and, when your person asks, claim a free one for them, also with the regents_name_check and regents_name_claim tools.",
       "Read your person's Credits and Points, also with the regents_credits_balance, regents_credits_history, regents_credits_budget and regents_points_summary tools.",
       "You can never use your person's wallet, change their account or pair other agents.",
       # Changes together with RegentCredits.agent_grants_enabled?/0.

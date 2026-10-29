@@ -61,6 +61,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Feature | Proving check | Gap |
 | --- | --- | --- |
 | Signed agent reads: account, claims, staking position, credits, points | `regents_web/api_contract_test.exs`, `regents_web/agent_requests_test.exs` | |
+| A paired agent checks a Regent Name and claims a free one for its person | `regents_web/agent_names_test.exs` | |
 | Agent guides: agents.md, skill.md, llms.txt, openapi.json, docs | `regents_web/public_documents_test.exs`, `regents_web/content_negotiation_test.exs`, `make check-cli` | |
 | Profile API | `regents_web/controllers/profile_api_test.exs` | |
 | Tool lists for agents: one for each site's tools (`/api/v1/site-tools/:site`), one complete list of every site (`/api/v1/site-tools`), and how to sign in through siwa-server | `browser/agent_tools.spec.ts` "every page offers a list of each site's tools and the complete list" | |

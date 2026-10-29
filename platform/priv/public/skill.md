@@ -1,6 +1,6 @@
 ---
 name: regents
-description: Use Regents for your person: read public products and Reading content, and once paired, their account, name claims, staking position, Credits and Points.
+description: Use Regents for your person: read public products and Reading content, and once paired, their account, name claims, staking position, Credits and Points, and claim a free Regent Name when they ask.
 ---
 
 # Use Regents
@@ -45,6 +45,8 @@ Never use your person's browser sign-in as your own. Check
 | Identity and pairing | `agents whoami` | `regents_agent_whoami` |
 | Display and ENS name | `account show` | `regents_account` |
 | Name claims | `account claims` | `regents_claims` |
+| Check a name | `names check --name NAME` | `regents_name_check` |
+| Claim a free name | `names claim --name NAME` | `regents_name_claim` |
 | Staking position | `staking position` | `regents_stake_position` |
 | Credits balance | `account balances` | `regents_credits_balance` |
 | Credits history | `account credits-history` | `regents_credits_history` |
@@ -57,14 +59,15 @@ wallet; name claims cover their verified wallets. Page claims by passing `next` 
 not null (`--after` on the command line). A value that could not be read
 is unknown, not zero. Keep Credits, held Credits, Points and claims apart. `whoami` only
 reads; `agents status` records a check-in. Reading Points earns none, and reading the budget
-grants nothing. Name claims here are past records, not tokens to claim.
+grants nothing. The claims read lists names already claimed and claims nothing.
 
 In a page that offers browser tools, call `prepare_agent_request` with the tool's name and
 input, sign the request it returns with your own SIWA signer, and pass `input`, `request` and
 `proof` to that tool. Preparing changes nothing. With no signer there, use regents-cli.
 
-Regents offers no write through this interface. Do not spend Credits, claim a name, sign a
-transaction, change a grant or turn on Points while you read. An unpaired agent has no
+The one write is claiming a free Regent Name, and only one your person asked for: check it
+first, then claim it. A claim spends one of their free claims and can't be undone. Do not
+spend Credits, sign a transaction, change a grant or turn on Points. An unpaired agent has no
 private access; ask your person for a new code.
 
 ## Check back

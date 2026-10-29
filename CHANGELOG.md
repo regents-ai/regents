@@ -3958,3 +3958,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and cloak (`/cloak/guide`). Before, it read only about and docs. Closes parity gap R13.
 - `/credits/refunds` answers Markdown to `Accept: text/markdown`. The page and agents
   read the same text, so the two never differ. No database changes.
+
+## 2026-10-29 — Agents check and claim Regent Names
+
+- A paired agent can now check a Regent Name, see its person's free claims left, and
+  claim a free name for its person, with the `regents_name_check` and
+  `regents_name_claim` tools or `regents names check` and `regents names claim`. The
+  claim uses the person's own free claim and wallet, under the same rules as `/names`.
+- The API description is now version 4.1.0, with `POST /api/agent/v1/names/check` and
+  `POST /api/agent/v1/names/claim`. Closes R12 in `docs/agent-parity.md`. No database
+  changes.

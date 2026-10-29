@@ -70,7 +70,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read claimed Regent Names | `/names` (more on scroll) | `regents_claims` | — | — | `account claims` | no | R2, R3 |
-| Check a name, see free claims left, claim a free name | `/names` Claim | — | — | — | — | no | R12 |
+| Check a name, see free claims left, claim a free name | `/names` Claim | `regents_name_check`, `regents_name_claim` | — | — | `names check`, `names claim` | no | R2, R3 |
 
 ## Credits
 
@@ -192,10 +192,12 @@ were skipped.
   changes only on `/account`, through `/api/v1/profile` with a Privy proof pair. Plan: owner reads in `account show`, and a signed profile
   change in this repository's `identity` library, after R1. Protected (sign-in,
   wallet).
-- **R12. Name claims are page-only.** Checking a name, seeing free claims left and
-  claiming a free Regent Name run only on `/names`; agents can only read the claims
-  made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
-  `names check` and `names claim` commands. Not protected (free, no wallet step).
+- **R12. Closed.** A paired agent checks a name and its person's free claims left with
+  `regents_name_check` (`names check`), and claims a free Regent Name for its person
+  with `regents_name_claim` (`names claim`), through the signed
+  `POST /api/agent/v1/names/check` and `/names/claim`. The claim spends the person's
+  own free claim for their wallet, under the same rules as `/names`, and rechecks the
+  pairing as it saves. Not protected (free, no wallet step).
 - **R13. Closed.** `regents_about` reads every page that has words to read, as
   Markdown: `/about`, `/docs`, `/start`, `/contact`, `/credits/refunds`, `/privacy`,
   `/terms` and `/cloak/guide`. `/cloak` itself shows the guide's facts beside the

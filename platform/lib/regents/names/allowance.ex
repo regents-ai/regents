@@ -4,7 +4,8 @@ defmodule Regents.Names.Allowance do
   used. Storage is imported independently into regent_names; this resource
   never generates or replays migrations. Its one write spends a single free
   claim, and only while one is left. Ownership is the site's own sign-in: a
-  wallet that sign-in verified for the signed-in person.
+  wallet that sign-in verified for the signed-in person, or for the person a
+  paired agent acts for.
   """
   use Ash.Resource,
     domain: Regents.Names,
@@ -47,6 +48,7 @@ defmodule Regents.Names.Allowance do
   policies do
     policy action([:mine, :use_free_claim]) do
       authorize_if Regents.Accounts.Checks.HumanActor
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
 
     policy action([:mine, :use_free_claim]) do

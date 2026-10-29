@@ -14,6 +14,8 @@ defmodule RegentsWeb.Capabilities do
   @words %{
     "regents_stake_position" => "Read your staking position",
     "regents_claims" => "Read your name claims",
+    "regents_name_check" => "Check a name and your free claims left",
+    "regents_name_claim" => "Claim a free name for you",
     "regents_agent_whoami" => nil,
     "regents_account" => "Read your display name and ENS name",
     "regents_credits_balance" => "Read your Credits balance",
