@@ -3849,3 +3849,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   tools regents.sh's pages offer.
 - Claude Duet's picture shows for Claude agents, from design-system 3134bab0.
 - Libraries: design-system 3134bab0, elixir-utils 9da44bdc (no database changes).
+
+## 2026-10-29 — Agent parity table
+
+- Add docs/agent-parity.md: every action a person can do on regents.sh, with its five agent
+  surfaces (page, WebMCP, hosted MCP, Claude connector, CLI) and the gap for each
+  missing one (39 actions, gaps R1 to R16). Docs only; nothing on the site changes.
