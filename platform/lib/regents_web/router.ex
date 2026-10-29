@@ -221,6 +221,8 @@ defmodule RegentsWeb.Router do
       live "/techtree", ShellLive, :techtree
       live "/patchbay", ShellLive, :patchbay
       live "/keyfleet", ShellLive, :keyfleet
+      live "/cloak", ShellLive, :cloak
+      live "/cloak/guide", ShellLive, :cloak_guide
       live "/credits/refunds", ShellLive, :credits_refunds
       live "/admin/credits", ShellLive, :credits_admin
       live "/admin/articles", ShellLive, :articles_admin

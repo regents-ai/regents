@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /docs /about /contact /privacy /terms /start)
+  @documents ~w(/ /docs /about /contact /privacy /terms /start /cloak/guide)
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -71,6 +71,12 @@ defmodule RegentsWeb.PublicDocuments do
     "/keyfleet" =>
       {"Keyfleet",
        "Keyfleet is a crew of people and their personal agents that runs itself and shares what it earns."},
+    "/cloak" =>
+      {"Regents Cloak",
+       "The private agent stack, ready to run. Install the complete setup through one Mac app, or ask your personal agent to do it for you."},
+    "/cloak/guide" =>
+      {"Cloak setup",
+       "Set up Regents Cloak on a Mac with your personal agent: the steps, what only you approve, and its limits."},
     "/credits/refunds" =>
       {"Credits refunds",
        "Credits on Regents Labs are non-refundable. How to ask for an exception, and how agents may spend your Credits."},
@@ -124,6 +130,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
+  def document("/cloak/guide"), do: %{markdown: RegentsWeb.Cloak.guide_markdown()}
 
   def document(path) when path in ["/docs", "/about", "/contact"],
     do: %{markdown: source(String.trim_leading(path, "/"))}
@@ -253,7 +260,7 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /docs /about /contact /privacy /terms /start /articles /paper-pro-daily),
+        ~w(/ /docs /about /contact /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()

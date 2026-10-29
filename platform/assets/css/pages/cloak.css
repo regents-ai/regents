@@ -1,0 +1,55 @@
+@layer regents-product {
+/* Regents Cloak stands on the product page grammar (product.css). Only the
+   download's reason and the guide's text need their own rules. */
+
+.cloak-download {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cloak-download__soon {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The guide is one Markdown document, the same one agents read. */
+
+.cloak-guide {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  padding: var(--rg-panel-padding);
+  overflow-wrap: anywhere;
+}
+
+.cloak-guide h1 {
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.cloak-guide h2 {
+  padding-block-start: 1rem;
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.02em;
+}
+
+.cloak-guide p,
+.cloak-guide li {
+  max-width: 56ch;
+  line-height: 1.5;
+}
+
+.cloak-guide ol,
+.cloak-guide ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-inline-start: 1.5rem;
+}
+}

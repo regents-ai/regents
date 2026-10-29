@@ -164,6 +164,20 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :keyfleet
     },
     %Entry{
+      path_pattern: "/cloak",
+      live_action: :cloak,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :cloak
+    },
+    %Entry{
+      path_pattern: "/cloak/guide",
+      live_action: :cloak_guide,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :cloak_guide
+    },
+    %Entry{
       path_pattern: "/credits/refunds",
       live_action: :credits_refunds,
       parameter_schema: %{},
@@ -251,6 +265,12 @@ defmodule RegentsWeb.RouteCatalog do
     keyfleet:
       {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/app", [:profile_actions],
        :regents_labs, %{}},
+    cloak:
+      {:cloak, :regent_ops, "Regents Labs", "Cloak", "/app", [:profile_actions], :regents_labs,
+       %{}},
+    cloak_guide:
+      {:cloak_guide, :regent_ops, "Regents Labs", "Cloak guide", "/app", [:profile_actions],
+       :regents_labs, %{}},
     credits_refunds:
       {:credits_refunds, :regent_ops, "Regents Labs", "Credits refunds", "/app",
        [:profile_actions], :regents_labs, %{}},
@@ -335,6 +355,7 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
         %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
         %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
+        %RouteTarget{route_id: :cloak, label: "Cloak", path: "/cloak"},
         %SidebarHeading{label: "Reading"},
         %PageTarget{
           route_id: :paper_pro_daily,

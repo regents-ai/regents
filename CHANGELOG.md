@@ -3914,3 +3914,16 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `/account`, `/names`, `/redeem` and `/docs` load with no errors and no sideways
   scroll; `/openapi.json` carries both help links. A refused agent request was not sent
   live (that needs an unpaired agent's signature). WebKit not run on the Mac.
+
+## 2026-10-29 — Regents Cloak pages
+
+- New `/cloak` page: "The private agent stack, ready to run." Download for Mac stays
+  off with "Coming soon" beside it until the first signed release exists; Set up with
+  your agent opens the guide. Six protections are shown as Planned, with the limits
+  beside them.
+- New `/cloak/guide`: the setup steps an agent follows, what only the owner does
+  (macOS prompts, funds, recovery, new files or tools), the rules and the limits. Agents
+  get the same guide as Markdown at the same address. Install commands arrive with the
+  first signed release.
+- Cloak joins Products in the side panel, the sitemap and llms.txt. No database
+  changes.
