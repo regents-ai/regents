@@ -3958,3 +3958,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and cloak (`/cloak/guide`). Before, it read only about and docs. Closes parity gap R13.
 - `/credits/refunds` answers Markdown to `Accept: text/markdown`. The page and agents
   read the same text, so the two never differ. No database changes.
+
+## 2026-10-29 — Regents v248 and v249 released
+
+- v248 (`8d6e2e63`) went live at 20:39Z: the Cloak page claims only what the spec
+  promises (six protections, five limits, no Tor on /cloak). The rollback is v247
+  (`194a16f6`).
+- v249 (`3580b4a7`) went live at 20:49Z: `regents_about` reads every page with
+  words to read, and /credits/refunds answers Markdown (R13). The rollback is v248
+  (`8d6e2e63`). No database, secret or library changes in either release.
+- Live at 390 and 1280: /, /cloak and /cloak/guide answer 200 and fit; /cloak shows the
+  six headings, five limits, a disabled download and six "Planned". The eight
+  `regents_about` pages answer `# ` Markdown to `Accept: text/markdown` and list their
+  Markdown copy in the page head; the live browser bundle maps refunds and cloak to
+  their pages.
