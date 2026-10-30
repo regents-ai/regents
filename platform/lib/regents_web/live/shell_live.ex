@@ -23,6 +23,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AccountLive
   alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
+  alias RegentsWeb.CloakLive
   alias RegentsWeb.CreditsHistoryLive
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
@@ -378,6 +379,9 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id in [:techtree, :patchbay, :keyfleet]}
           product={@route_spec.route_id}
         />
+
+        <CloakLive.page :if={@route_spec.route_id == :cloak} />
+        <CloakLive.guide :if={@route_spec.route_id == :cloak_guide} />
 
         <CreditsLive.refunds :if={@route_spec.route_id == :credits_refunds} />
 

@@ -17,7 +17,7 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Stake is the one product page the homepage sends visitors to; every other
   # internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/app /stake /start /agents.md /llms.txt /docs /about /contact /privacy /terms)
+  @open_paths ~w(/app /stake /start /agents.md /llms.txt /docs /about /privacy /terms)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -70,6 +70,45 @@ defmodule RegentsWeb.HomeLiveTest do
     assert guide =~ "(Planned)"
     assert guide =~ "(Experimental: [Explore Techtree](https://techtree.sh/start))"
   end
+
+  test "the page and the agent guide read in the same order", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "[data-home-panel]", "data-home-panel") ==
+             ~w(mission hero products staking how)
+
+    assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
+             [["Products"], ["Staking"], ["How it works"]]
+  end
+
+  test "the lab's name stands once, top left, then says one plain line", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+    line = "We build tools for people and their agents. REGENT stakers share in the revenue."
+
+    assert text(html, "h1") == "Regents Labs"
+    assert text(html, "#home-mission h1") == "Regents Labs"
+    assert text(html, "#home-mission .rl-statement__line") == line
+    refute text(html, ".rl-hero-copy") =~ "Regents Labs"
+    assert HomeLive.agent_markdown() =~ ~r/\A# Regents Labs\n\n#{Regex.escape(line)}\n/
+  end
+
+  # Founder decision (2026-10-30): the home page never sets words in bold inside a sentence.
+  test "the home page sets no words in bold", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html
+           |> LazyHTML.from_document()
+           |> LazyHTML.query("#home-content strong, #home-content b")
+           |> Enum.empty?()
+  end
+
+  defp text(html, selector),
+    do:
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query(selector)
+      |> LazyHTML.text()
+      |> String.trim()
 
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)

@@ -58,10 +58,10 @@ test("[U2] homepage is server-readable and lists all six worlds", async ({browse
   const page = await context.newPage()
   await page.goto("/")
 
-  await expect(page.getByRole("heading", {name: "Regents Labs", level: 1})).toBeVisible()
-  await expect(page.locator(".rl-hero-copy .rl-hero-description")).toHaveText(
-    "The community-owned agentic product lab",
-  )
+  // The lab's name stands once, in its own panel; the cube's panel opens on its buttons.
+  await expect(page.getByRole("heading", {level: 1})).toHaveText("Regents Labs")
+  await expect(page.locator("#home-mission").getByRole("heading", {level: 1})).toBeVisible()
+  await expect(page.locator(".rl-hero-copy")).not.toContainText("Regents Labs")
 
   const listed = page.locator("#home-worlds .world-cube__world")
   await expect(listed).toHaveCount(6)
@@ -119,16 +119,16 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
 }
 
 // Display titles and body copy keep their separate canonical typographic roles.
-test("[U1][U2] the tagline retains its sentence case", async ({page}) => {
+test("[U1][U2] the mission line retains its sentence case", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await page.goto("/")
   await waitForHomepage(page)
 
-  const tagline = page.locator(".rl-hero-copy .rl-hero-description")
-  await expect(tagline).toHaveText("The community-owned agentic product lab")
-  expect(await tagline.evaluate(element => getComputedStyle(element).textTransform)).toBe(
-    "none",
+  const line = page.locator("#home-mission .rl-statement__line")
+  await expect(line).toHaveText(
+    "We build tools for people and their agents. REGENT stakers share in the revenue.",
   )
+  expect(await line.evaluate(element => getComputedStyle(element).textTransform)).toBe("none")
 })
 
 test("[U2] homepage settles immediately for reduced motion", async ({browser}) => {
@@ -206,7 +206,7 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
 
   expect(
     await page
-      .locator(".rl-hero-copy h1")
+      .locator("#home-title")
       .evaluate(element => getComputedStyle(element).fontFamily),
   ).toContain("Geist Pixel Square")
 })
@@ -239,18 +239,16 @@ test("[U1][U2] the hero sets its words above the cube's stage", async ({page}) =
       await assertNoOverflow(page)
 
       const hero = await boxOf(".rl-hero")
-      const title = await boxOf("#home-title")
-      const tagline = await boxOf(".rl-hero-copy .rl-hero-description")
+      const words = await boxOf(".rl-hero-copy")
       const stage = await boxOf("#home-worlds")
       const listed = await boxOf("#home-worlds .world-cube__worlds")
 
-      expect(title.left).toBeGreaterThanOrEqual(hero.left)
-      expect(title.bottom, "the heading sits above the tagline").toBeLessThanOrEqual(tagline.top)
-      expect(stage.left, "the stage lines up with the words").toBeLessThanOrEqual(title.left)
-      expect(stage.top, "the stage stands under the words").toBeGreaterThanOrEqual(tagline.bottom)
+      expect(words.left).toBeGreaterThanOrEqual(hero.left)
+      expect(stage.left, "the stage lines up with the words").toBeLessThanOrEqual(words.left)
+      expect(stage.top, "the stage stands under the words").toBeGreaterThanOrEqual(words.bottom)
       expect(stage.right, "and crosses the midline").toBeGreaterThan(hero.left + hero.width / 2)
       expect(stage.right).toBeLessThanOrEqual(hero.right)
-      expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(tagline.bottom)
+      expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(words.bottom)
       expect(listed.bottom, "and stay on the stage").toBeLessThanOrEqual(stage.bottom)
     })
   }
@@ -311,8 +309,7 @@ test("[U2] the hero points agents to the command line", async ({page}) => {
       const link = page.locator(".rl-hero-copy").getByRole("link", {
         name: "Connect your agent from the command line",
       })
-      // The hero is the last panel of its column, so a wide screen scrolls to it.
-      await link.scrollIntoViewIfNeeded()
+      // The hero comes under the lab's name on a phone and stands top right on a wide screen.
       await expect(link).toBeInViewport()
       const [line, actions, worlds] = await Promise.all(
         [link, page.locator(".rl-hero-actions"), page.locator("#home-worlds .world-cube__worlds")].map(
@@ -385,8 +382,19 @@ test("[U2] world hover leaves the heading ink alone", async ({page}) => {
     expect(await heading.evaluate(e => getComputedStyle(e).color)).toBe(ink)
   }
 })
-// Generous compartments stay in natural flow rather than shrinking to a viewport budget.
-test("[U1][U2] the complete hero grows in document flow on desktop", async ({page}) => {
+const homeEdges = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => {
+    const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON()
+    return {
+      hero: box('[data-home-panel="hero"]'),
+      worlds: box("#home-worlds"),
+      mission: box("#home-mission"),
+      how: box("#home-how"),
+    }
+  })
+
+// The hero stands top right and stays in view while the name and sheets on the left scroll past it.
+test("[U1][U2] the hero stays top right while the sheets scroll on desktop", async ({page}) => {
   for (const viewport of [
     {name: "1280x640", width: 1280, height: 640},
     {name: "1280x720", width: 1280, height: 720},
@@ -399,22 +407,52 @@ test("[U1][U2] the complete hero grows in document flow on desktop", async ({pag
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
-      const edges = await page.evaluate(() => {
-        const bottom = (selector: string) =>
-          document.querySelector(selector)!.getBoundingClientRect().bottom
-        return {
-          scrolled: window.scrollY,
-          heading: bottom("#home-title"),
-          tagline: bottom(".rl-hero-copy .rl-hero-description"),
-          worlds: bottom("#home-worlds"),
-        }
-      })
+      const first = await homeEdges(page)
+      expect(first.hero.left, "the hero is the right column").toBeGreaterThanOrEqual(first.mission.right)
+      expect(first.hero.top, "and starts level with Mission").toBeCloseTo(first.mission.top, 0)
 
-      expect(edges.scrolled, "nothing has scrolled away").toBe(0)
-      for (const [part, edge] of Object.entries(edges)) {
-        if (part === "scrolled") continue
-        expect(edge, `${part} remains in the document`).toBeGreaterThan(0)
-      }
+      await page.evaluate(() => window.scrollTo(0, 240))
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(240)
+      const scrolled = await homeEdges(page)
+      expect(scrolled.mission.top, "the sheets scroll").toBeCloseTo(first.mission.top - 240, 0)
+      expect(scrolled.hero.top, "the hero holds near the top").toBeGreaterThanOrEqual(0)
+      expect(scrolled.hero.top).toBeLessThan(first.hero.top)
+      expect(scrolled.hero.bottom, "the whole hero is in view").toBeLessThanOrEqual(viewport.height)
+      expect(scrolled.worlds.bottom, "the worlds too").toBeLessThanOrEqual(viewport.height)
+    })
+  }
+})
+
+// With less motion asked for, the hero stays in the page and grows to everything it holds.
+test("[U1][U2] with reduced motion the hero scrolls with the page", async ({page}) => {
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await page.setViewportSize({width: 1440, height: 900})
+  await page.goto("/")
+  await waitForHomepage(page)
+  await assertNoOverflow(page)
+
+  const first = await homeEdges(page)
+  await page.evaluate(() => window.scrollTo(0, 240))
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(240)
+  const scrolled = await homeEdges(page)
+  expect(scrolled.hero.top, "the hero moves with the sheets").toBeCloseTo(first.hero.top - 240, 0)
+})
+
+// A phone reads the lab's name first, then the hero, then the sheets.
+test("[U1][U2] a phone reads the name, the hero, then the sheets", async ({page}) => {
+  for (const {width, height} of [
+    {width: 320, height: 640},
+    {width: 390, height: 844},
+  ]) {
+    await test.step(`${width} wide`, async () => {
+      await page.setViewportSize({width, height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      const edges = await homeEdges(page)
+      expect(edges.mission.bottom, "the name comes first").toBeLessThanOrEqual(edges.hero.top)
+      expect(edges.hero.bottom, "then the hero, then the sheets").toBeLessThanOrEqual(edges.how.top)
     })
   }
 })

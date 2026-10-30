@@ -44,8 +44,18 @@ type ModelContext = {registerTool(tool: Tool, options: {signal: AbortSignal}): P
 type Request = {path: string; accept: "application/json" | "text/markdown"}
 
 const json = "application/json"
+// The pages regents_about reads, by the manifest's page names.
+const pages: Record<string, string> = {
+  about: "/about",
+  docs: "/docs",
+  start: "/start",
+  refunds: "/credits/refunds",
+  privacy: "/privacy",
+  terms: "/terms",
+  cloak: "/cloak/guide",
+}
 const requests: Record<string, (input: Input) => Request> = {
-  regents_about: input => ({path: `/${input.page}`, accept: "text/markdown"}),
+  regents_about: input => ({path: pages[input.page], accept: "text/markdown"}),
   regents_products: () => ({path: "/api/v1/products", accept: json}),
   regents_product: input => ({path: `/api/v1/products/${encodeURIComponent(input.slug)}`, accept: json}),
   list_regents_webmcp_tools: () => ({path: "/api/v1/site-tools/regents", accept: json}),

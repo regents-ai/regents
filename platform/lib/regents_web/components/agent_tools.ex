@@ -82,7 +82,7 @@ defmodule RegentsWeb.Components.AgentTools do
     assigns = assign(assigns, label: @label, tools: @tools, markdown: @markdown)
 
     ~H"""
-    <dialog
+    <Regent.Structure.dialog
       id={@id}
       class="agent-tools"
       aria-labelledby={"#{@id}-title"}
@@ -123,7 +123,7 @@ defmodule RegentsWeb.Components.AgentTools do
           </li>
         </ol>
       </div>
-    </dialog>
+    </Regent.Structure.dialog>
     """
   end
 end

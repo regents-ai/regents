@@ -2,8 +2,8 @@
   "tools": [
     {
       "name": "regents_about",
-      "title": "Read about Regents",
-      "description": "Read the Regents Labs About page or the developer documentation as Markdown, exactly as regents.sh/about and regents.sh/docs serve it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions; docs covers the public reads, signed-in reads, agent pairing and these browser tools.",
+      "title": "Read a Regents page",
+      "description": "Read a regents.sh page as Markdown, exactly as the site serves it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions, and how to reach us for help, privacy, legal and security questions; docs covers the public reads, signed-in reads, agent pairing and these browser tools; start is how a person pairs their agent; refunds is the Credits refund rules; privacy and terms are the Privacy Policy and Terms of Use; cloak is the Regents Cloak setup guide.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11,9 +11,14 @@
             "type": "string",
             "enum": [
               "about",
-              "docs"
+              "docs",
+              "start",
+              "refunds",
+              "privacy",
+              "terms",
+              "cloak"
             ],
-            "description": "about for the About page, docs for the developer documentation."
+            "description": "about for /about, docs for /docs, start for /start, refunds for /credits/refunds, privacy for /privacy, terms for /terms, cloak for /cloak/guide."
           }
         },
         "required": [
@@ -29,7 +34,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /about, GET /docs",
+      "route": "GET /about, GET /docs, GET /start, GET /credits/refunds, GET /privacy, GET /terms, GET /cloak/guide",
       "scope": "site",
       "authentication": "public",
       "availability": "available",
@@ -37,7 +42,7 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_about",
-        "http": "GET /about, GET /docs"
+        "http": "GET /about, GET /docs, GET /start, GET /credits/refunds, GET /privacy, GET /terms, GET /cloak/guide"
       }
     },
     {

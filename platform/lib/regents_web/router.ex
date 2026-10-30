@@ -136,7 +136,6 @@ defmodule RegentsWeb.Router do
     pipe_through :public_documents
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
-    get "/contact", PublicPagesController, :show
   end
 
   scope "/api/v1" do
@@ -221,6 +220,8 @@ defmodule RegentsWeb.Router do
       live "/techtree", ShellLive, :techtree
       live "/patchbay", ShellLive, :patchbay
       live "/keyfleet", ShellLive, :keyfleet
+      live "/cloak", ShellLive, :cloak
+      live "/cloak/guide", ShellLive, :cloak_guide
       live "/credits/refunds", ShellLive, :credits_refunds
       live "/admin/credits", ShellLive, :credits_admin
       live "/admin/articles", ShellLive, :articles_admin

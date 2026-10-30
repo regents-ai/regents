@@ -127,7 +127,7 @@ The check-in answer looks like this:
 {"data": {"id": "11111111-2222-4333-8444-555555555555", "name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "registry_listing": "https://www.8004scan.io/agents/base/97609", "human_backed": false, "same_person_agent_count": null, "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
-Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 harness_unknown` means `harness` is not one of the listed runtimes. `409 agent_limit` means the person's account already has 100 paired agents; once they unpair one, the same code works until it expires. `401 verification_failed` means the signature could not be verified; `401 duplicate_proof`, `401 unsupported_query` and `401 missing_signed_body` mean a signature header was sent twice, the request carried a query string, or its body could not be read whole, so sign it again as the guide describes; any other refusal of the signature comes from the sign-in service with its own status, code, message and hint, such as `409 request_replayed`; the hint is written for this site and the way the agent signs. `503 siwa_request_failed` means the sign-in service could not be reached; try again in a minute. `404 not_paired` from a check-in means the agent isn't paired with its person on this site. `403 person_not_here` from a check-in means the person hasn't signed in on this site yet; once they sign in, check in again.
+Errors share one shape, `{"error": {"code": "…", "message": "…", "hint": "…"}}`: the message says what happened and the hint says what to do next. `400 pairing_failed` means the code is used, expired or mistyped; a code works once and expires ten minutes after it was made. `400 invalid_name` means the name is empty, longer than 80 characters or holds hidden characters; pair again with another name and the same code. `400 harness_unknown` means `harness` is not one of the listed runtimes. `409 agent_limit` means the person's account already has 100 paired agents; once they unpair one, the same code works until it expires. `401 verification_failed` means the signature could not be verified; `401 duplicate_proof`, `401 unsupported_query` and `401 missing_signed_body` mean a signature header was sent twice, the request carried a query string, or its body could not be read whole, so sign it again as the guide describes; any other refusal of the signature comes from the sign-in service with its own status, code, message and hint, such as `409 request_replayed`; the hint is written for this site and the way the agent signs. `503 siwa_request_failed` means the sign-in service could not be reached; try again in a minute. `403 agent_not_paired` from a check-in means the agent isn't paired with its person on this site. `403 person_not_here` from a check-in means the person hasn't signed in on this site yet; once they sign in, check in again.
 
 ## Request limits
 
@@ -146,7 +146,11 @@ The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health r
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
-2026-10-29: `agents whoami` also answers `human_backed` and `same_person_agent_count`, as the sign-in service names them on that request. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 4.1.0.
+2026-10-30: `agents whoami` also answers `human_backed` and `same_person_agent_count`, as the sign-in service names them on that request. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 4.1.0.
+
+2026-10-30: the contact page is gone. Its help, privacy, legal and security addresses are in the Contact section of [About]({{origin}}/about), and the `regents_about` browser tool no longer takes `contact`.
+
+2026-10-30: the [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) list the check-in refusal for an unpaired agent as `403 agent_not_paired`, as the site answers, and list `400 invalid_name` among the pairing refusals. They are now version 4.0.1.
 
 2026-10-28: the browser tool list moved from `/capabilities` to [/capabilities.json]({{origin}}/capabilities.json), and now also gives `build`: the `commit` and `release` this site runs, as on the other Regents sites. The check-in command is `regents protocol agents status`, formerly `agents me`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 4.0.0.
 
@@ -170,4 +174,4 @@ Every page offers these tools to browsers that support WebMCP. They make the sam
 
 {{tools}}
 
-Need help? Read [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).
+Need help? Read [About]({{origin}}/about), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).

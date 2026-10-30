@@ -3915,6 +3915,198 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   scroll; `/openapi.json` carries both help links. A refused agent request was not sent
   live (that needs an unpaired agent's signature). WebKit not run on the Mac.
 
+## 2026-10-29 — Regents Cloak pages
+
+- New `/cloak` page: "The private agent stack, ready to run." Download for Mac stays
+  off with "Coming soon" beside it until the first signed release exists; Set up with
+  your agent opens the guide. Six protections are shown as Planned, with the limits
+  beside them.
+- New `/cloak/guide`: the setup steps an agent follows, what only the owner does
+  (macOS prompts, funds, recovery, new files or tools), the rules and the limits. Agents
+  get the same guide as Markdown at the same address. Install commands arrive with the
+  first signed release.
+- Cloak joins Products in the side panel, the sitemap and llms.txt. No database
+  changes.
+
+## 2026-10-29 — Regents v247 released
+
+- v247 (`194a16f6`) went live as Fly v247 at about 19:56Z: the Regents Cloak pages,
+  /cloak and /cloak/guide, with the download off and "Coming soon" beside it (Sean,
+  "1. a", 19:30:58Z). The rollback is v246 (`e5c36148`). No database, secret or library
+  changes.
+- Before release, on the exact tree: 602 server tests, 252 script tests, 141 browser
+  tests, required fixes, CLI and identity checks all clean.
+- Live at 390 and 1280: /, /cloak, /cloak/guide, /stake and /docs answer 200 and fit;
+  the download is disabled with "Coming soon", all six protections read "Planned", and
+  "Set up with your agent" opens the guide. /cloak/guide answers Markdown to
+  `Accept: text/markdown`; llms.txt and the sitemap list both pages. 1 of 1 checks pass.
+
+## 2026-10-29 — Regents Cloak wording
+
+- The Cloak protections read Private rewriting, Private payments, Separate chats,
+  Private network, Decoy traffic and Contained agent. Two lines now claim only what the
+  spec promises: requests are routed through a private network, and conversations are
+  kept apart. The page no longer names the technology; the guide for agents still does.
+- New limit: until every release passes its tests, some programs may connect without a
+  private network. The release line now reads "Each protection must pass its tests
+  before release."
+
+## 2026-10-29 — Agents read every site page
+
+- The `regents_about` browser tool now reads every page that has words to read, as
+  Markdown: about, docs, start, contact, refunds (`/credits/refunds`), privacy, terms
+  and cloak (`/cloak/guide`). Before, it read only about and docs. Closes parity gap R13.
+- `/credits/refunds` answers Markdown to `Accept: text/markdown`. The page and agents
+  read the same text, so the two never differ. No database changes.
+
+## 2026-10-29 — Regents v248 and v249 released
+
+- v248 (`8d6e2e63`) went live at 20:39Z: the Cloak page claims only what the spec
+  promises (six protections, five limits, no Tor on /cloak). The rollback is v247
+  (`194a16f6`).
+- v249 (`3580b4a7`) went live at 20:49Z: `regents_about` reads every page with
+  words to read, and /credits/refunds answers Markdown (R13). The rollback is v248
+  (`8d6e2e63`). No database, secret or library changes in either release.
+- Live at 390 and 1280: /, /cloak and /cloak/guide answer 200 and fit; /cloak shows the
+  six headings, five limits, a disabled download and six "Planned". The eight
+  `regents_about` pages answer `# ` Markdown to `Accept: text/markdown` and list their
+  Markdown copy in the page head; the live browser bundle maps refunds and cloak to
+  their pages.
+
+## 2026-10-29 — Every window in the shared cut-corner frame
+
+- Buy Credits, Agent tools, the stake supply, stake value and payout address windows,
+  the transaction receipt and the Paper Pro Daily prompt now open in the shared window
+  frame (`Regent.Structure.dialog`), as the template's do: cut top-left and bottom-right
+  corners, square marked corners, and the shared dimmed page behind. Each keeps its
+  width; contents scroll inside the frame.
+- Agent tools keeps its night colours on the frame and loses its blurred backdrop.
+- Buy Credits takes the template's frame padding, so its close button sits in the
+  frame's corner; its phone-only sizes are gone because the frame sizes itself.
+- No database changes. The design-system pin stays at `3134bab0`.
+
+## 2026-10-29 — Regents v250 released
+
+- v250 (`db4c6239`) went live at 21:08Z: every window in the shared cut-corner frame
+  (Buy Credits, Agent tools, the stake windows, the transaction receipt and the Paper Pro
+  Daily prompt), from the design chief's `43cf7344`. The rollback is v249 (`3580b4a7`).
+  No database, secret or library changes.
+- Before release, on the exact tree: 604 server tests, 252 script tests, 141 browser
+  tests, required fixes, CLI and identity checks all clean.
+- Live at 390 and 1280, light and dark: the stake supply window, the Paper Pro Daily
+  prompt and Agent tools open in the shared frame, fit the screen, close with Escape, and
+  the pages have no sideways scroll or console errors.
+
+## 2026-10-29 — Home page: hero top right, held in view
+
+- On a wide screen the hero (title, buttons and the worlds cube) now stands top right
+  and stays in view while Mission, Products and How it works scroll past it on the left.
+  Sheets that start below the fold settle in the first time they come into view.
+- On a phone the hero comes first, then the sheets.
+- With reduced motion, without scripts or in a window under 40rem tall, the hero
+  scrolls with the page and grows to everything it holds.
+- Principles is gone from the page and from its agent copy, which now reads in the
+  page's order.
+- A new Staking box under Products says what staking $REGENT earns and links to
+  /stake; How it works keeps its other two steps.
+- Keyfleet has a new drawing, a key leading a small fleet, on the home page and the
+  product Overview. The old coin drawing now marks the Staking box.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v251 released
+
+- v251 (`f462b2f4`) went live at 00:39Z: the home page hero stands top right and stays
+  in view, Principles is gone, a Staking box links to /stake, and Keyfleet has its new
+  drawing. The rollback is v250 (`db4c6239`). No database, secret or library changes.
+- Before release, on the exact tree: 605 server tests, 252 script tests, 143 browser
+  tests, required fixes and CLI checks all clean. Identity and contracts are untouched.
+- Live at 1440, 1280, 390 and 320: the hero holds its place top right while the page
+  scrolls on desktop, a phone reads the hero first, Staking links to /stake (which
+  answers), there is no sideways scroll and no console error.
+
+## 2026-10-30 — Home page: Mission box in plain words
+
+- The Mission box now leads with "Regents Labs" in the title face, then one plain
+  line: "We build tools for people and their agents. REGENT stakers share in the
+  revenue." The long sentence with bold words is gone, along with the code that
+  bolded words inside it. The agent copy says the same.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v252 released
+
+- v252 (`a15edd32`) went live at 00:50Z: the Mission box shows "Regents Labs" and one
+  plain line. The rollback is v251 (`f462b2f4`). No database, secret or library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean.
+- Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
+  Markdown copy of the page says the same, no sideways scroll and no console error.
+
+## 2026-10-30 — Agent contract 4.0.1: refusals as the site answers them
+
+- The OpenAPI JSON and the YAML contract listed a check-in from an unpaired agent as
+  `404 not_paired`; the site answers `403 agent_not_paired`. The check-in's 403 now covers
+  both `agent_not_paired` and `person_not_here`, with the site's own words in the examples.
+- Pairing's 400 now lists `invalid_name` (a name that is empty, over 80 characters or holds
+  hidden characters) beside `pairing_failed` and `harness_unknown`, and the
+  `pairing_failed` example uses the site's hint.
+- llms.txt, agents.md, the agent start page and /docs say the same; /docs Changes has the
+  entry. Contract version 4.0.1. The site's answers do not change.
+- No database, secret or library changes.
+
+## 2026-10-30 — Home page: orange tools window, five sites, hover on every control
+
+- The WebMCP tools window is orange (Tangerine Tango) instead of green.
+- "Copy all Regents WebMCP tools" read 4 of 5 sites: Techtree moved its tool list to
+  `/capabilities.json` and the site still asked the old address, which now answers 404.
+  It now reads Techtree's new address, and the line reads "N tools from 5 sites".
+- Every link and button on the home page answers a pointer: the brand dims, the header
+  icons, the footer links and the command-line link turn blue, the outlined buttons (WebMCP
+  Tools, the product and guide links) take a faint wash, and the $REGENT menu rows lighten.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v254 released
+
+- v254 (`ea427af8`) went live at 15:56Z: the orange tools window, "252 tools from 5 sites"
+  and the home-page hovers. The rollback is v253 (`9f10a961`). No database, secret or
+  library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440 and 390: accent `#FF5B19`, all five sites read, the WebMCP
+  Tools button answers a pointer, no sideways scroll and no console error.
+
+## 2026-10-30 — Docs and About in the side menu; Contact folded into About
+
+- The side menu lists Docs and About Regents Labs under Reading, between Daily Research
+  and AI & SCIFI.
+- Everything the Contact page said (help, privacy requests, legal questions, security
+  reports, product information) is now the Contact section of About. `/contact` is gone
+  and answers the not-found page; the footer, the page header on Docs and About, llms.txt,
+  /docs, the home page's Markdown, the sitemap, security.txt's Policy and the OpenAPI
+  contact all point at About.
+- The `regents_about` browser tool no longer takes `contact`; its About description says
+  About covers how to reach us. /docs records the change.
+- No database, secret or library changes.
+
+## 2026-10-30 — The lab's name stands once, top left
+
+- "Regents Labs" and "The community-owned agentic product lab" are gone from the cube's
+  panel, which now opens on Enter App, WebMCP Tools and the command-line link above the cube.
+- The name stands once, top left, as the page's heading in the Mission panel, over its
+  one plain line. On a phone the name comes first, then the cube's panel, then the rest.
+- The home page's Markdown opens the same way: the name, the plain line, then the links.
+- A page check fails if the home page ever sets words in bold again.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v256 released
+
+- v256 (`42467c4d`) went live at 16:42Z: "Regents Labs" stands once, top left, as the page's
+  heading; the cube's panel opens on its buttons; the bold-word page check. The rollback is
+  v255 (`cf82440c`). No database, secret or library changes.
+- Before release, on the exact tree: 607 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440, 1280, 390 and 320: one heading, "Regents Labs", in the Mission
+  panel; the cube's panel reads only Enter App, WebMCP Tools and the command-line link; no
+  bold words; on a phone the name comes before the cube's panel; no sideways scroll and no
+  console error. The home page's Markdown opens with the name and the plain line.
+
 ## 2026-10-29 — Agent requests are checked with this site's own verify key
 
 - Agent requests are checked with this site's own verify key. regents.sh sends

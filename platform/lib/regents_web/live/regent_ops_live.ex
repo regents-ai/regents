@@ -151,7 +151,7 @@ defmodule RegentsWeb.RegentOpsLive do
               <Regent.HolographicCard.foil id="overview-foil-keyfleet" class="rg-holo-foil--face" />
             </:foil>
             <:media>
-              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-keyfleet" variant={8} />
+              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-keyfleet" variant={9} />
             </:media>
             <:actions>
               <nav class="regent-ops-product-links" aria-label="Keyfleet site">

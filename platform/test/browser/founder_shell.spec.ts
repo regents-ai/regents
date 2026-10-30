@@ -162,7 +162,7 @@ test("the hero's cube never blocks the action", async ({page}) => {
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
-    // The cube only starts once its stage is on screen, and the hero is the last panel of its column.
+    // The cube only starts once its stage is on screen.
     await page.locator("#home-worlds").scrollIntoViewIfNeeded()
     await expect(page.locator("#home-worlds-stage")).toHaveAttribute("aria-hidden", "true")
     const [words, stage] = await Promise.all(

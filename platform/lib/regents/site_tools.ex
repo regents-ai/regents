@@ -27,7 +27,7 @@ defmodule Regents.SiteTools do
   @sites %{
     "regents" => %{name: "regents.sh", url: "https://regents.sh/capabilities.json"},
     "patchbay" => %{name: "patchbay.help", url: "https://patchbay.help/forum/capabilities"},
-    "techtree" => %{name: "techtree.sh", url: "https://techtree.sh/capabilities"},
+    "techtree" => %{name: "techtree.sh", url: "https://techtree.sh/capabilities.json"},
     "autolaunch" => %{name: "autolaunch.sh", url: "https://autolaunch.sh/capabilities"},
     "keyfleet" => %{name: "keyfleet.ai", url: "https://keyfleet.ai/capabilities.json"}
   }
