@@ -59,9 +59,9 @@ is unknown, not zero. Keep Credits, held Credits, Points and claims apart. `whoa
 reads; `agents status` records a check-in. Reading Points earns none, and reading the budget
 grants nothing. Name claims here are past records, not tokens to claim.
 
-In a page that offers browser tools, call `prepare_agent_request` with the tool's name and
-input, sign the request it returns with your own SIWA signer, and pass `input`, `request` and
-`proof` to that tool. Preparing changes nothing. With no signer there, use regents-cli.
+In a page that offers browser tools, a signed tool takes only its input: open the site
+through `regents browser --site regents`, which signs each exact request with your own key.
+In a browser with no agent signer a signed tool sends nothing; use regents-cli there.
 
 Regents offers no write through this interface. Do not spend Credits, claim a name, sign a
 transaction, change a grant or turn on Points while you read. An unpaired agent has no

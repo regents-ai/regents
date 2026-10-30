@@ -1,0 +1,692 @@
+{
+  "authorities": [
+    {
+      "name": "public",
+      "words": "Anyone, with no sign-in."
+    },
+    {
+      "name": "signed_agent",
+      "words": "An agent signing each request with its own key."
+    },
+    {
+      "name": "paired_agent",
+      "words": "A signed agent its person paired with their account."
+    },
+    {
+      "name": "owner_only",
+      "words": "The person, signed in on this site."
+    },
+    {
+      "name": "connected_app",
+      "words": "An app its person connected to their account here, such as Claude."
+    }
+  ],
+  "conditions": [
+    {
+      "name": "pairing_code",
+      "words": "A pairing code the person made with Pair New Agent on their Account page."
+    }
+  ],
+  "switches": [
+    {
+      "name": "app_surfaces",
+      "words": "This site isn't open yet."
+    },
+    {
+      "name": "connected_apps",
+      "words": "Connecting apps isn't open on this site yet."
+    }
+  ],
+  "operations": [
+    {
+      "operation": "getServiceHealth",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": "For the host's own checks; agents read health instead.",
+        "hosted_mcp": "For the host's own checks; agents read health instead.",
+        "http": true,
+        "cli": "For the host's own checks; agents read health instead."
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getHealth",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": "No browser tool yet.",
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "listProducts",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": "/",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getProduct",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getEverySiteTools",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getSiteTools",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "listMyHistoricalNameClaims",
+      "effect": "read",
+      "authority": "owner_only",
+      "conditions": [],
+      "person_page": "/names",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": "The person's own sign-in reads it; a paired agent makes the same read with its own operation.",
+        "hosted_mcp": "The person's own sign-in reads it; a paired agent makes the same read with its own operation.",
+        "http": true,
+        "cli": "The person's own sign-in reads it; a paired agent makes the same read with its own operation."
+      },
+      "auth_modes": [
+        "privy_session"
+      ],
+      "fresh_proof": false,
+      "actor": "person",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getMyStakingPosition",
+      "effect": "read",
+      "authority": "owner_only",
+      "conditions": [],
+      "person_page": "/stake",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": "The person's own sign-in reads it; a paired agent makes the same read with its own operation.",
+        "hosted_mcp": "The person's own sign-in reads it; a paired agent makes the same read with its own operation.",
+        "http": true,
+        "cli": "The person's own sign-in reads it; a paired agent makes the same read with its own operation."
+      },
+      "auth_modes": [
+        "privy_session"
+      ],
+      "fresh_proof": false,
+      "actor": "person",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "pairAgent",
+      "effect": "write",
+      "authority": "signed_agent",
+      "conditions": [
+        "pairing_code"
+      ],
+      "person_page": "/account",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": "No browser tool yet.",
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "none",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "checkInAgent",
+      "effect": "write",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/account",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": "No browser tool yet.",
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "none",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentWhoami",
+      "effect": "read",
+      "authority": "signed_agent",
+      "conditions": [],
+      "person_page": "/account",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentAccount",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/account",
+      "may": "Read your display name and ENS name",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request",
+        "site_oauth"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentStakingPosition",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/stake",
+      "may": "Read your staking position",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentClaims",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/names",
+      "may": "Read your name claims",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentCreditsBalance",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/account/credits",
+      "may": "Read your Credits balance",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request",
+        "site_oauth"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentCreditsHistory",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/account/credits",
+      "may": "Read your Credits history",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request",
+        "site_oauth"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentCreditsBudget",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/account",
+      "may": "Read what it may spend of your Credits",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request",
+        "site_oauth"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getCapabilities",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": "Agents list the browser tools with list_regents_webmcp_tools instead.",
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": "No regents-cli command yet."
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "agentPointsSummary",
+      "effect": "read",
+      "authority": "paired_agent",
+      "conditions": [],
+      "person_page": "/account/points",
+      "may": "Read your Points",
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": true,
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [
+        "siwa_request",
+        "site_oauth"
+      ],
+      "fresh_proof": true,
+      "actor": "agent",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getArticle",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": "/articles/{slug}",
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getResearchPaper",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "listArticles",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": "/articles",
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "listLiterature",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": "/literature",
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "listResearchPapers",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": null,
+      "may": null,
+      "switch": null,
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getPublicRegentProfile",
+      "effect": "read",
+      "authority": "public",
+      "conditions": [],
+      "person_page": "/regents/{slug}",
+      "may": null,
+      "switch": "app_surfaces",
+      "surfaces": {
+        "webmcp": true,
+        "hosted_mcp": "Not on the hosted MCP server yet.",
+        "http": true,
+        "cli": true
+      },
+      "auth_modes": [],
+      "fresh_proof": false,
+      "actor": "anonymous",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "registerIdentity",
+      "effect": "write",
+      "authority": "connected_app",
+      "conditions": [],
+      "person_page": "/account",
+      "may": null,
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents agents commands instead."
+      },
+      "auth_modes": [
+        "site_oauth"
+      ],
+      "fresh_proof": false,
+      "actor": "connected_app",
+      "context": "none",
+      "retry": "none",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "getIdentity",
+      "effect": "read",
+      "authority": "connected_app",
+      "conditions": [],
+      "person_page": "/account",
+      "may": null,
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents agents commands instead."
+      },
+      "auth_modes": [
+        "site_oauth"
+      ],
+      "fresh_proof": false,
+      "actor": "connected_app",
+      "context": "none",
+      "retry": "read_safe",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "pairIdentity",
+      "effect": "write",
+      "authority": "connected_app",
+      "conditions": [
+        "pairing_code"
+      ],
+      "person_page": "/account",
+      "may": null,
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents agents commands instead."
+      },
+      "auth_modes": [
+        "site_oauth"
+      ],
+      "fresh_proof": false,
+      "actor": "connected_app",
+      "context": "none",
+      "retry": "none",
+      "lifecycle": "immediate"
+    },
+    {
+      "operation": "checkIn",
+      "effect": "write",
+      "authority": "connected_app",
+      "conditions": [],
+      "person_page": "/account",
+      "may": null,
+      "switch": "connected_apps",
+      "surfaces": {
+        "webmcp": "Belongs to an app connected to its person's account, which reaches the site through the hosted MCP server.",
+        "hosted_mcp": true,
+        "http": "Runs only on the hosted MCP server, for an app connected to its person's account.",
+        "cli": "An agent with its own wallet pairs and checks in with regents auth and regents agents commands instead."
+      },
+      "auth_modes": [
+        "site_oauth"
+      ],
+      "fresh_proof": false,
+      "actor": "connected_app",
+      "context": "none",
+      "retry": "none",
+      "lifecycle": "immediate"
+    }
+  ]
+}

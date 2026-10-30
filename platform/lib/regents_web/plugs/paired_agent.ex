@@ -54,19 +54,16 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   end
 
   defp resolve(conn, wallet) do
-    with {:ok, pairing} <- Authority.resolve(Regents.Repo, wallet),
-         {:ok, account} when not is_nil(account) <-
-           Regents.Accounts.get_by_privy_did(pairing.privy_user_id, actor: %System{}) do
-      actor = Agent.paired(wallet, pairing, account)
+    case actor_for(wallet) do
+      {:ok, actor} ->
+        conn
+        |> assign(:actor, actor)
+        |> recheck_before_send(actor)
 
-      conn
-      |> assign(:actor, actor)
-      |> register_before_send(&recheck(&1, actor))
-    else
       {:error, :not_paired} ->
         refuse(conn, 403, "agent_not_paired", @not_paired_message, @not_paired_hint)
 
-      {:ok, nil} ->
+      {:error, :person_not_here} ->
         refuse(
           conn,
           403,
@@ -85,6 +82,32 @@ defmodule RegentsWeb.Plugs.PairedAgent do
         )
     end
   end
+
+  @doc """
+  The paired agent a wallet acts as here: its current pairing and the person's
+  account on this site. The hosted MCP server uses it too, for the wallet of a
+  connected app's own identity (`RegentsWeb.Plugs.McpAgent`).
+  """
+  @spec actor_for(String.t()) ::
+          {:ok, Agent.t()} | {:error, :not_paired | :person_not_here | term()}
+  def actor_for(wallet) do
+    with {:ok, pairing} <- Authority.resolve(Regents.Repo, wallet),
+         {:ok, %{} = account} <-
+           Regents.Accounts.get_by_privy_did(pairing.privy_user_id, actor: %System{}) do
+      {:ok, Agent.paired(wallet, pairing, account)}
+    else
+      {:ok, nil} -> {:error, :person_not_here}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Checks the agent's pairing again just before the answer leaves, and replaces
+  the answer when it has ended or changed hands meanwhile.
+  """
+  @spec recheck_before_send(Plug.Conn.t(), Agent.t()) :: Plug.Conn.t()
+  def recheck_before_send(conn, %Agent{} = actor),
+    do: register_before_send(conn, &recheck(&1, actor))
 
   # The read ran after the pairing was resolved. Before anything is sent, the
   # wallet's current pairing must still be this request's episode and owner;

@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "9539469f3afbfcdb6925f1916723887d36bee700"
+  @elixir_utils_ref "466ca10fbad6e7a6fd5254e84651c2292af72368"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "3134bab0a23452fb82d3248072327e1d0199cc9a"
 
@@ -50,6 +50,14 @@ defmodule Regents.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      # regent_mcp_agents names regent_oauth, regent_agents and regent_agent_access
+      # by sibling paths; these pins replace them.
+      {:regent_oauth,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "oauth", override: true},
+      # The Claude connector's identity tools at /mcp (Regents.Agents.Connection).
+      {:regent_mcp_agents, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "mcp_agents"},
+      # The site's unexpected-failure lines (RegentHttp.UnexpectedFailure).
+      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http"},
       {:castore, "~> 1.0"},
       {:phoenix, "~> 1.8.9"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -66,6 +74,7 @@ defmodule Regents.MixProject do
       {:nebulex, "~> 3.0"},
       {:nebulex_local, "~> 3.0"},
       {:ash_oban, "~> 0.10.3"},
+      {:ash_ai, "~> 1.4.1"},
       {:ash_phoenix, "~> 2.3.26"},
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
@@ -86,13 +95,16 @@ defmodule Regents.MixProject do
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
-      {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      {:regent_agent_access,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access", override: true},
       {:regent_format,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
       # regent_credits names regent_chain by a sibling path; this pin replaces it.
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
-      {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
+      # regent_payments names regent_credits by a sibling path; this pin replaces it.
+      {:regent_credits,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits", override: true},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
       {:regent_sprites, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "sprites"},
       {:picosat_elixir, "~> 0.2.3"},
@@ -186,7 +198,11 @@ defmodule Regents.MixProject do
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
         # The measured compile-connected baseline; lower it whenever references are removed.
         # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
-        "xref graph --label compile-connected --fail-above 38",
+        # The agents domain adds one for each of its two resources (it reads them at compile time).
+        # The hosted MCP forward adds one: the router reads its input check from ToolErrors (AshAi
+        # takes it only as a function). The identity tools' policy check adds one
+        # (`Agents.Connection.Caller`: Ash reads an `authorize_if` check module at compile time).
+        "xref graph --label compile-connected --fail-above 42",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

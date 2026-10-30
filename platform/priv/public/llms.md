@@ -46,6 +46,8 @@ Every regents.sh page offers these tools to browsers that support WebMCP (`docum
 
 {{tools}}
 
+{{hosted_mcp}}
+
 ## Pair with a person's account
 
 When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need no wallet funds, registration or API key.

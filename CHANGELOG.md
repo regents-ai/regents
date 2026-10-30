@@ -4040,3 +4040,36 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   tests clean.
 - Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
   Markdown copy of the page says the same, no sideways scroll and no console error.
+
+## 2026-10-30 — Claude connector and hosted MCP (branch, not released)
+
+- Hosted MCP at `/mcp`: a paired agent signs with its own key and reads its person's
+  account, Credits balance, spending grant, Credits history and Points. Each is the Ash
+  action the agent API already calls, so the answers and refusals are the same. One
+  call a request; query strings, other sites' pages, batches and bodies that aren't
+  JSON are refused before any signature is checked. Tool answers are private, never cached.
+- The Claude connector, copied from ash-template: OAuth sign-in and Connected apps, the
+  identity tools (`get_identity`, `register_identity`, `pair_identity`, `check_in`),
+  Claude in Pair New Agent and the guide at `/agents/claude`. Once Claude is paired and
+  allowed to work as the person's agent it reads the same five things. Its switch,
+  `REGENTS_CLAUDE_CONNECTOR_ENABLED`, stays off; turning it on needs
+  `SIWA_HOSTED_SIGNING_KEY`, the Regents hosted signing key on siwa-server, which is
+  not issued yet.
+- Migration `20261030002730_add_oauth_connector` adds the OAuth tables in `regents_app`.
+  It only creates tables; nothing existing changes. It has run on the local test
+  database only.
+- `priv/capabilities.json` lists every operation and its surfaces, as the template's
+  does; the nine hosted tools are the rows with `hosted_mcp` on.
+- elixir-utils moves to `466ca10f`: the connector round's `8cea309d` plus the hosted
+  audience list naming Regents, Autolaunch and Techtree. The template re-pins it in the
+  window, and this branch re-syncs to the template's pin then.
+- Ships only in the joint connector window with the other four sites.
+- Signed browser tools take only their input, as on the template: elixir-utils from
+  `466ca10f` carries the shared change, so a signed page tool builds its request, asks the
+  agent's browser host (`window.regentsSign`, as `regents browser` gives) to sign it, and
+  sends exactly those bytes with the proof and no cookie. With no signer it sends nothing
+  and answers `agent_auth_required`; a signer's refusal is the tool's answer. Hard cutover
+  in `platform/priv/tool_manifest.json`: each signed tool's `input_schema` is its own
+  input and `prepare_agent_request` is gone. `/agents.md` has a Browser tools section,
+  `/docs` lists the change, and `test/browser/page_tools.spec.ts` walks the four cases
+  at 1280 and 390.

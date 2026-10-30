@@ -78,6 +78,8 @@ development and from the deployment's secret store in production.
 | `SIWA_SERVER_URL` | For signed agent requests | Base URL of the `siwa-server` verification service. |
 | `SIWA_AUDIENCE` | For signed agent requests | Audience value required for agent request verification. |
 | `SIWA_ACTIVITY_READ_TOKEN` | No | The reader key for the sign-in service's agent activity, which gives the account menu each agent's last active site and the Account page each agent's sites by day. `Regents.Agents.ActivityReading` keeps each agent's reading for five minutes. Unset means neither shows activity. |
+| `REGENTS_CLAUDE_CONNECTOR_ENABLED` | No | `true` turns the Claude connector on: its sign-in under `/oauth`, its identity tools at `/mcp`, Claude in Pair New Agent and the guide at `/agents/claude`. Anything else leaves all of it off. Turn it on only after the migrations have run. Signed agents use `/mcp` whatever this says. |
+| `SIWA_HOSTED_SIGNING_KEY` | When the connector is on | This site's hosted signing key from the sign-in service, which holds the connector's agent identities. 32 or more letters, digits, `-` or `_`; boot fails without it while the connector is on. Server only. |
 | `SPRITES_TOKEN` | For Formation | Server-only token used to provision and inspect Formation runtimes. |
 | `BASE_READ_RPC_URL` | Yes in production | Base mainnet JSON-RPC endpoint the Stake and Redeem pages read. Development falls back to a public endpoint. |
 | `REGENTS_APP_SURFACES` | Yes in production | `on` opens the product surfaces. Anything else keeps them closed, so a typo closes rather than opens. Boot fails in production if unset. |

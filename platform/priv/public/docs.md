@@ -146,6 +146,8 @@ The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health r
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
+2026-10-30: a signed browser tool takes only its own input. `prepare_agent_request` is gone, and so is calling a signed tool with `input`, `request` and `proof`: your browser host signs the request the page builds, as [regents browser]({{origin}}/agents.md#browser-tools) does. With no host signer a signed tool sends nothing and answers `agent_auth_required`.
+
 2026-10-28: the browser tool list moved from `/capabilities` to [/capabilities.json]({{origin}}/capabilities.json), and now also gives `build`: the `commit` and `release` this site runs, as on the other Regents sites. The check-in command is `regents protocol agents status`, formerly `agents me`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 4.0.0.
 
 2026-10-20: `GET /api/v1/health` answers the health check as JSON, `{"status": "ok"}`, as on the other Regents sites. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 3.1.0.
@@ -164,8 +166,14 @@ Visit [Stake]({{origin}}/stake) or [Redeem]({{origin}}/redeem) for the correspon
 
 ## In the browser (WebMCP)
 
-Every page offers these tools to browsers that support WebMCP. They make the same reads as the API above and never open a wallet or sign. Private browser tools require the agent’s own fresh SIWA proof and current pairing; the owner’s browser session grants no agent authority.
+Every page offers these tools to browsers that support WebMCP. They make the same reads as the API above and never open a wallet. A signed tool takes only its input: your browser host signs the exact request with your own agent key, and the page sends it. [regents browser]({{origin}}/agents.md#browser-tools) is such a host. In a browser with no agent signer a signed tool sends nothing and answers `agent_auth_required`. Private browser tools need a current pairing; the owner’s browser session grants no agent authority.
 
 {{tools}}
+
+## Hosted MCP
+
+`{{origin}}/mcp` serves `regents_account`, `regents_credits_balance`, `regents_credits_budget`, `regents_credits_history` and `regents_points_summary` to an MCP client, with the same answers and refusals as the signed agent reads under `/api/agent/v1`. An agent signs each request with its own key, with the same headers as a signed request, and needs a current pairing; a connected app sends its token instead. A request with neither a signature nor a connected app's token answers 401: `connection_required`, with the `WWW-Authenticate` sign-in challenge, while Claude can connect this site, otherwise `agent_auth_required`. A signature beside a Bearer token answers 401 with `ambiguous_credentials`.
+
+Each request is one JSON-RPC call, POSTed to `{{origin}}/mcp` itself with `Content-Type: application/json`. A query string, a batch of calls, another method or address, another body type and a page on another site are refused in the same `{"error": {"code", "message", "hint"}}` shape. An agent's address may send 120 requests a minute, and a connected app has its own 120 a minute. A tool that lists no inputs is called with empty `arguments`; `regents_credits_history` takes `after` under `input`, as the previous page's `pagination.next_cursor`. A tool's refusal is its error, whose text is the same `{"error": {"code", "message", "hint"}}`, with the codes the API uses, such as `invalid_cursor` and `unavailable`; a read answers `invalid_input` for input that is not an object or names something it does not take. Nothing is kept between calls, and every tool answer and refusal of a credential is `cache-control: private, no-store`.
 
 Need help? Read [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).

@@ -99,7 +99,8 @@ config :regents,
     Regents.Staking,
     Regents.PaperProDaily,
     Regents.Points,
-    Regents.Blog
+    Regents.Blog,
+    Regents.Agents
   ],
   generators: [timestamp_type: :utc_datetime]
 
@@ -233,6 +234,47 @@ config :error_tracker,
   prefix: "regents_app",
   ignorer: Regents.ErrorIgnorer,
   filter: Regents.ErrorFilter
+
+# The Claude connector's sign-in, through the person's verified account
+# (Regents.OAuth). Its one permission lets the app pair with the account and
+# check in; nothing else. config/runtime.exs switches it on and sets its issuer
+# and resource from the site's own address. Lifetimes are the library's, not set
+# here: a Bearer token lives at most an hour and a refresh token 30 days
+# (RegentOAuth.configure/1). A refresh token used again within 30 seconds of its
+# rotation is only refused, as the app's own retry; later, it disconnects the app
+# (`@refresh_grace_seconds` in RegentOAuth.Protocol).
+config :regents, Regents.OAuth,
+  brand: "platform",
+  scope: "regent.identity.manage",
+  permission_description:
+    "pair with your account using a code you give it, and check in so you see it is active",
+  # Once paired, the app works here as that agent (Regents.OAuth.agent_scope/0).
+  additional_scopes: %{
+    "regents.agent" =>
+      "work here as the agent you paired, with the same rights as any agent you pair"
+  },
+  consent_note:
+    "This connection works here only as the agent you pair it with, with that agent's rights. Every app you connect here works as that same agent. It cannot make payments or change your wallets."
+
+# The connector's identity tools (RegentMCPAgents): which site's signers they use
+# at the sign-in service, and the words a refused tool call ends with.
+# config/runtime.exs switches them on with the connector and gives the key.
+config :regent_mcp_agents, :config,
+  audience: "regents",
+  refusal:
+    "Call get_identity to see where this connection stands. Not paired: ask your person for a new code from Pair New Agent on their Account page. Asked to connect: your person connects this app to Regents again."
+
+config :phoenix, :filter_parameters, [
+  "password",
+  "payment_signature",
+  "code",
+  "code_verifier",
+  "access_token",
+  "refresh_token",
+  "client_secret",
+  "id_token",
+  "_csrf_token"
+]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

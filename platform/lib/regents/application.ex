@@ -14,6 +14,10 @@ defmodule Regents.Application do
     :ok = :public_key.cacerts_load(CAStore.file_path())
     :ok = Regents.Staking.SnapshotRefresh.attach_failure_notice()
     :ok = RegentsWeb.VisitLog.Events.attach()
+    # The Claude connector stays off until its one switch turns it on
+    # (config/runtime.exs); these only check and store its settings.
+    :ok = RegentOAuth.configure(Regents.OAuth)
+    :ok = RegentMCPAgents.configure!()
 
     children =
       [
@@ -28,7 +32,10 @@ defmodule Regents.Application do
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Agents.Reads},
         database_child(),
+        if(RegentOAuth.enabled?(), do: RegentOAuth.Repo),
         {Phoenix.PubSub, name: Regents.PubSub},
+        # The wallet of each connected app's own identity, asked for once.
+        Regents.Agents.HostedAddress,
         # After the repository and PubSub: a Credits balance, a pairing or the
         # staking figures changed on any Regent site reach the pages showing them.
         shared_changes_child(),

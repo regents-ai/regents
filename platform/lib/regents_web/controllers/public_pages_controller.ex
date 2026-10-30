@@ -4,7 +4,7 @@ defmodule RegentsWeb.PublicPagesController do
   alias RegentsWeb.PublicDocuments
 
   def show(conn, _params) do
-    document = PublicDocuments.document(conn.request_path)
+    document = PublicDocuments.document(conn.request_path) || raise(RegentsWeb.NotFoundError)
     render(conn, :show, [document: document] ++ PublicDocuments.page(conn.request_path))
   end
 

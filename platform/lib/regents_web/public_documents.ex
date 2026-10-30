@@ -5,6 +5,10 @@ defmodule RegentsWeb.PublicDocuments do
   @files Enum.map(~w(docs about contact llms agents skill), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
+  # Claude's page, shown only while its connector is on (`Regents.OAuth.enabled?/0`).
+  @claude_path Path.join(@directory, "agents/claude.md")
+  @external_resource @claude_path
+  @claude File.read!(@claude_path)
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
   [_about, facts] = String.split(@sources["about"], "\n## Key facts\n")
   @key_facts "## Key facts\n" <> String.trim_trailing(hd(String.split(facts, "\n## ", parts: 2)))
@@ -29,7 +33,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /docs /about /contact /privacy /terms /start /cloak/guide /credits/refunds)
+  @documents ~w(/ /docs /about /contact /privacy /terms /start /cloak/guide /credits/refunds /agents/claude)
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -91,6 +95,8 @@ defmodule RegentsWeb.PublicDocuments do
     "/contact" =>
       {"Contact",
        "How to get help with Regents Labs, and where to send privacy requests, legal questions, security reports and product information."},
+    "/agents/claude" =>
+      {"Claude", "Pairs through this site's connector, with no command line or key of its own."},
     "/start" =>
       {"Connect your agent",
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
@@ -135,6 +141,10 @@ defmodule RegentsWeb.PublicDocuments do
 
   def document(path) when path in ["/docs", "/about", "/contact"],
     do: %{markdown: source(String.trim_leading(path, "/"))}
+
+  def document("/agents/claude") do
+    if Regents.OAuth.enabled?(), do: %{markdown: fill(@claude)}
+  end
 
   def document(_path), do: nil
 
@@ -261,7 +271,8 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /docs /about /contact /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide),
+        ~w(/ /docs /about /contact /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
+          if(Regents.OAuth.enabled?(), do: ["/agents/claude"], else: []),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
@@ -311,13 +322,49 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   # `{{key_facts}}` is the About page's Key facts section and `{{tools}}` the
-  # browser tools table; `{{origin}}` goes last, since they name it.
+  # browser tools table. The `{{claude_connector}}` line and its blank line become
+  # the Claude connector's paragraph only while it is on, and `{{hosted_mcp}}`
+  # says what the hosted MCP address serves, both read on each call. `{{origin}}`
+  # goes last, since they name it.
   defp source(name) do
+    connector? = Regents.OAuth.enabled?()
+
     @sources[name]
+    |> String.replace("{{claude_connector}}\n\n", claude_connector(connector?))
+    |> String.replace("{{hosted_mcp}}", hosted_mcp(connector?))
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{tools}}", @tool_table)
-    |> String.replace("{{origin}}", url(""))
+    |> fill()
   end
+
+  defp fill(markdown), do: String.replace(markdown, "{{origin}}", url(""))
+
+  defp claude_connector(false), do: ""
+
+  defp claude_connector(true),
+    do:
+      "Claude doesn't use these steps: it pairs through this site's connector, with no " <>
+        "command line or key of its own. [Claude]({{origin}}/agents/claude) has the setup.\n\n"
+
+  defp hosted_mcp(connector?) do
+    "Regents' hosted MCP endpoint is {{origin}}/mcp. Your agent signs each call there with " <>
+      "its own key, as for a signed request: `regents_account`, `regents_credits_balance`, " <>
+      "`regents_credits_budget`, `regents_credits_history` and `regents_points_summary` read " <>
+      "your person's account, Credits and Points. Their answers and refusals are the same as " <>
+      "the API's. Reading without signing in is the browser tools and the API." <>
+      connector(connector?)
+  end
+
+  defp connector(false), do: ""
+
+  defp connector(true),
+    do:
+      " It is also Claude's connector: the person adds it in Claude's settings, then signs " <>
+        "in here when Claude asks and allows it. Claude's tools there (`get_identity`, " <>
+        "`register_identity`, `pair_identity` and `check_in`) only keep an identity for the " <>
+        "connection, pair it with the person's account and check in. Allowing it also " <>
+        "lets Claude work here as the person's agent, so once paired it reads the same five. " <>
+        "[Claude]({{origin}}/agents/claude) has the setup."
 
   def recovery_links do
     [
