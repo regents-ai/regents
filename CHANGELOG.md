@@ -4140,3 +4140,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   not_paired`), pairing can answer `400 invalid_name`, and stake reads answer `429
   rate_limited` past the Base reading budget of 30 a minute. Signed reads now list
   their claims paging and every refusal.
+
+## 2026-10-30 — Regents v258 failed, v259 and v260 released
+
+- v258 (`3a397286`, the docs rebuild) failed at 17:51Z at Fly's release step, after the
+  migration step finished cleanly. Live stayed on v257. The same image went out again as
+  v259 at 22:11Z without a fault. Its rollback is v257 (`630474ba`).
+- Live on v259: all 13 docs pages answer 200, with no console error, at 375 and 1280.
+- v260 (`71ef1ab2`) went live at 22:20Z: on a phone the docs page buttons wrap instead of
+  running 16px past the margin. The rollback is v259 (`3a397286`). No database, secret or
+  library changes.
+- Live on v260 at 360, 390, 414 and 1280, light and dark: the buttons end inside the text
+  column, there is no sideways scroll and no console error.
