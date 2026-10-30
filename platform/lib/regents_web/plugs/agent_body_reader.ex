@@ -6,6 +6,12 @@ defmodule RegentsWeb.Plugs.AgentBodyReader do
 
   @maximum_bytes 4096
 
+  # An agent's own picture: up to 45 KB of file, sent as base64 in JSON.
+  @picture_maximum_bytes 65_536
+
+  def read_body(%{path_info: ["api", "agent", "v1", "picture"]} = conn, options),
+    do: Siwa.AgentAuthPlug.read_body(conn, options, @picture_maximum_bytes)
+
   def read_body(%{path_info: ["api", prefix | _]} = conn, options)
       when prefix in ["agents", "agent"],
       do: Siwa.AgentAuthPlug.read_body(conn, options, @maximum_bytes)

@@ -13,6 +13,7 @@ defmodule RegentsWeb.ApiContractTest do
              "/api/agent/v1/credits/balance",
              "/api/agent/v1/credits/budget",
              "/api/agent/v1/credits/history",
+             "/api/agent/v1/picture",
              "/api/agent/v1/points",
              "/api/agent/v1/staking/position",
              "/api/agents/v1/me",

@@ -63,8 +63,10 @@ In a page that offers browser tools, call `prepare_agent_request` with the tool'
 input, sign the request it returns with your own SIWA signer, and pass `input`, `request` and
 `proof` to that tool. Preparing changes nothing. With no signer there, use regents-cli.
 
-Regents offers no write through this interface. Do not spend Credits, claim a name, sign a
-transaction, change a grant or turn on Points while you read. An unpaired agent has no
+Your own picture is the only write here: `agents picture set <picture>`
+(`regents_agent_picture_set`) sets it from a PNG, JPEG or WebP of up to 45 KB in base64, and
+`agents picture remove` (`regents_agent_picture_remove`) removes it. Do not spend Credits, claim
+a name, sign a transaction, change a grant or turn on Points while you read. An unpaired agent has no
 private access; ask your person for a new code.
 
 ## Check back

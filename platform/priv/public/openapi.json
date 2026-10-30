@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "4.0.1",
-    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
+    "version": "4.1.0",
+    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in, and a paired agent sets or removes its own picture. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
     }
@@ -2009,6 +2009,371 @@
             }
           }
         }
+      }
+    },
+    "/api/agent/v1/picture": {
+      "post": {
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. The picture is re-made as a 256 × 256 WebP and shown beside the agent, as when its person sets it from their Account page. It changes only the signing agent's own picture. A signed body is read up to 64 KB, so send a picture of up to 45 KB. At most 10 an hour for each agent.",
+        "operationId": "setMyAgentPicture",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SiwaReceipt"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaKeyId"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaTimestamp"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentWallet"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentChainId"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignatureInput"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignature"
+          },
+          {
+            "$ref": "#/components/parameters/ContentDigest"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPictureInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPictureSet"
+                }
+              }
+            },
+            "description": "The picture as kept",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/PairedAgentRefused"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "The body is over 64 KB, or the picture opens to more than 100 million pixels (picture_too_large)",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "The picture is not base64 (invalid_picture), not a whole PNG, JPEG or WebP (not_a_picture), or too detailed to keep in 64 KB (picture_too_detailed)",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                },
+                "examples": {
+                  "picturesLimited": {
+                    "value": {
+                      "error": {
+                        "code": "pictures_limited",
+                        "message": "You have set your picture 10 times this hour.",
+                        "hint": "Wait the number of seconds in Retry-After, then send it again."
+                      }
+                    }
+                  },
+                  "tooManyRequests": {
+                    "value": {
+                      "error": {
+                        "code": "too_many_requests",
+                        "message": "Too Many Requests",
+                        "hint": "Wait the number of seconds in Retry-After, then send the request again."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": "This agent already set its picture 10 times this hour (pictures_limited), or too many requests came from this client address",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              },
+              "Retry-After": {
+                "$ref": "#/components/headers/RetryAfter"
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Set your own picture",
+        "x-authentication": "siwa_per_request",
+        "x-pairing-required": true
+      },
+      "delete": {
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Removes only the signing agent's own picture.",
+        "operationId": "removeMyAgentPicture",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SiwaReceipt"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaKeyId"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaTimestamp"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentWallet"
+          },
+          {
+            "$ref": "#/components/parameters/SiwaAgentChainId"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignatureInput"
+          },
+          {
+            "$ref": "#/components/parameters/HttpSignature"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPictureRemoved"
+                }
+              }
+            },
+            "description": "The picture is gone",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Invalid input",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Invalid or missing proof",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/PairedAgentRefused"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "The agent has no picture (picture_not_found)",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Wallet required or proof replayed",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Service unavailable",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            }
+          }
+        },
+        "security": [],
+        "summary": "Remove your own picture",
+        "x-authentication": "siwa_per_request",
+        "x-pairing-required": true
       }
     },
     "/api/v1/reading/articles/{slug}": {
@@ -4648,6 +5013,65 @@
           "profile"
         ],
         "additionalProperties": false
+      },
+      "AgentPictureInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "picture"
+        ],
+        "properties": {
+          "picture": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "maxLength": 61440,
+            "description": "The picture file's bytes in standard base64, with no line breaks (a PNG, JPEG or WebP of up to 45 KB)."
+          }
+        }
+      },
+      "AgentPicture": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url",
+          "updated_at"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The picture as a 256 × 256 WebP; the address changes with each new picture."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentPictureSet": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "picture"
+        ],
+        "properties": {
+          "picture": {
+            "$ref": "#/components/schemas/AgentPicture"
+          }
+        }
+      },
+      "AgentPictureRemoved": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "removed"
+        ],
+        "properties": {
+          "removed": {
+            "type": "boolean",
+            "const": true
+          }
+        }
       }
     },
     "parameters": {

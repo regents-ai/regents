@@ -19,7 +19,9 @@ defmodule RegentsWeb.Capabilities do
     "regents_credits_balance" => "Read your Credits balance",
     "regents_credits_history" => "Read your Credits history",
     "regents_credits_budget" => "Read what it may spend of your Credits",
-    "regents_points_summary" => "Read your Points"
+    "regents_points_summary" => "Read your Points",
+    "regents_agent_picture_set" => "Set and remove its own picture",
+    "regents_agent_picture_remove" => "Set and remove its own picture"
   }
 
   signed =

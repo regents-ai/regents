@@ -36,6 +36,7 @@ config :regent_agents,
       "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
       "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
       "Read your person's Credits and Points, also with the regents_credits_balance, regents_credits_history, regents_credits_budget and regents_points_summary tools.",
+      "Set and remove your own picture, also with the regents_agent_picture_set and regents_agent_picture_remove tools.",
       "You can never use your person's wallet, change their account or pair other agents.",
       # Changes together with RegentCredits.agent_grants_enabled?/0.
       "Spending your person's Credits isn't open to agents yet; your person can do it themselves."
@@ -149,6 +150,7 @@ config :regents, Regents.Agents.ActivityReading,
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 config :regents, :credits_report_rate_limit, limit: 120, window_seconds: 60
+config :regents, :agent_picture_rate_limit, limit: 10, window_seconds: 3600
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false

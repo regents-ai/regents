@@ -7,7 +7,7 @@
     "Sign in once with regents auth login --site regents; every agents request is then signed with your agent key.",
     "Your person makes a pairing code with Pair New Agent on their Account page at https://regents.sh.",
     "Private reads require current pairing; browser sessions never grant agent authority. World ID and ERC-8004 registration are optional.",
-    "No private nonfinancial write is available; wallet actions remain user-signed."
+    "The one private write is setting or removing your own picture; wallet actions remain user-signed."
   ],
   "commands": [
     {
@@ -57,6 +57,35 @@
       "authority": "signed_agent",
       "effect": "read",
       "webmcp": "regents_agent_whoami"
+    },
+    {
+      "command": "agents picture set <picture>",
+      "description": "Set your own picture, as your person can from their Account page. It is kept as a 256 × 256 WebP.",
+      "operation_id": "setMyAgentPicture",
+      "method": "POST",
+      "path": "/api/agent/v1/picture",
+      "authority": "paired_agent",
+      "effect": "write",
+      "webmcp": "regents_agent_picture_set",
+      "arguments": [
+        {
+          "name": "picture",
+          "type": "string",
+          "in": "body",
+          "field": "picture",
+          "description": "The picture file's bytes in standard base64, with no line breaks (a PNG, JPEG or WebP of up to 45 KB)."
+        }
+      ]
+    },
+    {
+      "command": "agents picture remove",
+      "description": "Remove your own picture.",
+      "operation_id": "removeMyAgentPicture",
+      "method": "DELETE",
+      "path": "/api/agent/v1/picture",
+      "authority": "paired_agent",
+      "effect": "write",
+      "webmcp": "regents_agent_picture_remove"
     },
     {
       "command": "account show",

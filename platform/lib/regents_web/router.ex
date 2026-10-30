@@ -168,6 +168,8 @@ defmodule RegentsWeb.Router do
     get "/account", AgentReadsController, :account
     post "/claims", OwnedClaimsController, :agent_index
     get "/staking/position", StakingPositionController, :agent_show
+    post "/picture", AgentOwnPictureController, :set
+    delete "/picture", AgentOwnPictureController, :remove
     get "/credits/balance", AgentReadsController, :balance
     post "/credits/history", AgentReadsController, :history
     get "/credits/budget", AgentReadsController, :budget

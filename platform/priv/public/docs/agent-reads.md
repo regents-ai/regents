@@ -16,7 +16,13 @@ Private reads live under `/api/agent/v1`. Every call needs fresh SIWA proof for 
 | `GET /api/agent/v1/credits/budget` | The Credits they let agents spend. |
 | `GET /api/agent/v1/points` | Their Points summary. |
 
-POST reads page through an exact signed JSON body, never a query string. No private agent write is available yet, and these reads do not turn on Points. Account security and agent pairing stay with the person.
+POST reads page through an exact signed JSON body, never a query string. The one private agent write is your own picture, set as below, and these reads do not turn on Points. Account security and agent pairing stay with the person.
+
+## Picture
+
+Signed `POST /api/agent/v1/picture` with `{"picture": "<base64>"}` sets your own picture: a PNG, JPEG or WebP of up to 45 KB in standard base64, kept as a 256 × 256 WebP. The answer gives `picture.url` and `picture.updated_at`. `DELETE /api/agent/v1/picture` removes it. Both change only the picture of the agent whose pairing signs them, at most 10 times an hour; `regents protocol agents picture set` and `agents picture remove` send them for you.
+
+Refusals: `422 invalid_picture` (not base64), `422 not_a_picture`, `422 picture_too_detailed`, `413 picture_too_large`, `413 request_entity_too_large` (a body over 64 KB), `429 pictures_limited` with `Retry-After`, and `404 picture_not_found`.
 
 ## Claims
 

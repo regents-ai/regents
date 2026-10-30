@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Regent API
-  version: 4.0.1
+  version: 4.1.0
 paths:
   /capabilities.json:
     get: {"operationId":"getCapabilities","summary":"Read the manifest of browser and HTTP agent operations, and the commit this site runs","security":[],"responses":{"200":{"description":"Public operation manifest with authentication and availability metadata, and the running build","content":{"application/json":{"schema":{"type":"object","required":["audience","proof_headers","tools","build"],"properties":{"audience":{"type":"string"},"proof_headers":{"type":"array","items":{"type":"string"}},"tools":{"type":"array","items":{"type":"object"}},"build":{"type":"object","required":["commit","release"],"properties":{"commit":{"type":["string","null"]},"release":{"type":["string","null"]}}}}}}}}}}
@@ -735,6 +735,184 @@ paths:
       summary: Read shared Points summary
       x-authentication: siwa_per_request
       x-pairing-required: true
+  /api/agent/v1/picture:
+    post:
+      description: Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. The picture is re-made as a 256 × 256 WebP and shown beside the agent, as when its person sets it from their Account page. It changes only the signing agent's own picture. A signed body is read up to 64 KB, so send a picture of up to 45 KB. At most 10 an hour for each agent.
+      operationId: setMyAgentPicture
+      parameters:
+        - $ref: '#/components/parameters/SiwaReceipt'
+        - $ref: '#/components/parameters/SiwaKeyId'
+        - $ref: '#/components/parameters/SiwaTimestamp'
+        - $ref: '#/components/parameters/SiwaAgentWallet'
+        - $ref: '#/components/parameters/SiwaAgentChainId'
+        - $ref: '#/components/parameters/HttpSignatureInput'
+        - $ref: '#/components/parameters/HttpSignature'
+        - $ref: '#/components/parameters/ContentDigest'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentPictureInput'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPictureSet'
+          description: The picture as kept
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '403':
+          $ref: '#/components/responses/PairedAgentRefused'
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: The body is over 64 KB, or the picture opens to more than 100 million pixels (picture_too_large)
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: The picture is not base64 (invalid_picture), not a whole PNG, JPEG or WebP (not_a_picture), or too detailed to keep in 64 KB (picture_too_detailed)
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+              examples:
+                picturesLimited:
+                  value: {error: {code: pictures_limited, message: "You have set your picture 10 times this hour.", hint: "Wait the number of seconds in Retry-After, then send it again."}}
+                tooManyRequests:
+                  value: {error: {code: too_many_requests, message: Too Many Requests, hint: "Wait the number of seconds in Retry-After, then send the request again."}}
+          description: This agent already set its picture 10 times this hour (pictures_limited), or too many requests came from this client address
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+            Retry-After: {$ref: '#/components/headers/RetryAfter'}
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+      security: []
+      summary: Set your own picture
+      x-authentication: siwa_per_request
+      x-pairing-required: true
+    delete:
+      description: Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Removes only the signing agent's own picture.
+      operationId: removeMyAgentPicture
+      parameters:
+        - $ref: '#/components/parameters/SiwaReceipt'
+        - $ref: '#/components/parameters/SiwaKeyId'
+        - $ref: '#/components/parameters/SiwaTimestamp'
+        - $ref: '#/components/parameters/SiwaAgentWallet'
+        - $ref: '#/components/parameters/SiwaAgentChainId'
+        - $ref: '#/components/parameters/HttpSignatureInput'
+        - $ref: '#/components/parameters/HttpSignature'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPictureRemoved'
+          description: The picture is gone
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Invalid input
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Invalid or missing proof
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '403':
+          $ref: '#/components/responses/PairedAgentRefused'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: The agent has no picture (picture_not_found)
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Wallet required or proof replayed
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+          description: Service unavailable
+          headers:
+            RateLimit: {$ref: '#/components/headers/RateLimit'}
+            RateLimit-Policy: {$ref: '#/components/headers/RateLimitPolicy'}
+      security: []
+      summary: Remove your own picture
+      x-authentication: siwa_per_request
+      x-pairing-required: true
 components:
   headers:
     RateLimit:
@@ -964,6 +1142,10 @@ components:
     ClaimsPage: {"type":"object","required":["claims","next"],"properties":{"claims":{"type":"array","items":{"$ref":"#/components/schemas/Claim"}},"next":{"type":["string","null"],"description":"Opaque continuation cursor; null means there are no more records."}}}
     Claim: {"type":"object","required":["id","name","ens_name","owner_address","status","transaction","ens_transaction","claimed_at","ens_assigned_at"],"properties":{"id":{"type":"string","description":"Recorded numeric identifier represented as a string."},"name":{"type":["string","null"],"description":"Recorded fully qualified name."},"ens_name":{"type":["string","null"],"description":"Recorded ENS name, when present."},"owner_address":{"type":["string","null"],"description":"Historical wallet ownership evidence, not an entitlement grant."},"status":{"type":["string","null"]},"transaction":{"type":["string","null"]},"ens_transaction":{"type":["string","null"]},"claimed_at":{"type":["string","null"],"format":"date-time"},"ens_assigned_at":{"type":["string","null"],"format":"date-time"}}}
     StakingPosition: {"type":"object","additionalProperties":false,"required":["position"],"properties":{"position":{"type":"object","additionalProperties":false,"description":"The contract reading and the wallet reading the Stake page shows, merged. Amounts are exact decimal strings, and each has a _raw companion in base units. block_number belongs to the contract figures and wallet_block_number to the wallet's. A figure that could not be read is the string unavailable.","properties":{"chain_id":{},"chain_label":{},"block_number":{},"block_hash":{},"read_at":{},"contract_address":{},"stake_token_address":{},"usdc_address":{},"paused":{},"total_staked_raw":{},"total_staked":{},"remaining_capacity_raw":{},"usdc_received_from_block":{},"usdc_received_7d_raw":{},"usdc_received_7d":{},"usdc_received_lifetime_raw":{},"usdc_received_lifetime":{},"regent_total_supply_raw":{},"regent_total_supply":{},"regent_circulating_supply_raw":{},"regent_circulating_supply":{},"clanker_vault_address":{},"clanker_vault_held_raw":{},"clanker_vault_held":{},"clanker_vault_locked_until":{},"clanker_vault_vested_by":{},"treasury_address":{},"treasury_held_raw":{},"treasury_held":{},"animata_redeemer_address":{},"animata_redeemer_held_raw":{},"animata_redeemer_held":{},"reward_inventory_raw":{},"reward_inventory":{},"regent_price_usd":{},"emission_apr_bps":{},"emission_apr_percent":{},"wallet_block_number":{},"wallet_block_hash":{},"wallet_address":{},"wallet_token_balance_raw":{},"wallet_token_balance":{},"wallet_usdc_balance_raw":{},"wallet_usdc_balance":{},"wallet_stake_allowance_raw":{},"wallet_stake_balance_raw":{},"wallet_stake_balance":{},"wallet_claimable_usdc_raw":{},"wallet_claimable_usdc":{},"wallet_claimable_regent_raw":{},"wallet_claimable_regent":{},"wallet_funded_claimable_regent_raw":{},"wallet_funded_claimable_regent":{}}}}}
+    AgentPictureInput: {"type":"object","additionalProperties":false,"required":["picture"],"properties":{"picture":{"type":"string","contentEncoding":"base64","maxLength":61440,"description":"The picture file's bytes in standard base64, with no line breaks (a PNG, JPEG or WebP of up to 45 KB)."}}}
+    AgentPicture: {"type":"object","additionalProperties":false,"required":["url","updated_at"],"properties":{"url":{"type":"string","format":"uri","description":"The picture as a 256 × 256 WebP; the address changes with each new picture."},"updated_at":{"type":"string","format":"date-time"}}}
+    AgentPictureSet: {"type":"object","additionalProperties":false,"required":["picture"],"properties":{"picture":{"$ref":"#/components/schemas/AgentPicture"}}}
+    AgentPictureRemoved: {"type":"object","additionalProperties":false,"required":["removed"],"properties":{"removed":{"type":"boolean","const":true}}}
     HTTPError: {"type":"object","required":["error"],"properties":{"error":{"type":"object","required":["code","message","hint"],"properties":{"code":{"type":"string"},"message":{"type":"string"},"hint":{"type":"string"}}}}}
     AgentAccountRead: {"type":"object","properties":{"account":{"type":"object","properties":{"id":{"type":"integer"},"display_name":{"type":["string","null"]},"ens_name":{"type":["string","null"]}},"required":["id","display_name","ens_name"],"additionalProperties":false},"pairing_id":{"type":"string","format":"uuid"},"agent_wallet":{"type":"string"}},"required":["account","pairing_id","agent_wallet"],"additionalProperties":false}
     AgentCreditsBalance: {"type":"object","properties":{"credits":{"type":"object","properties":{"available":{"type":"string","description":"Exact decimal amount"},"given":{"type":"string","description":"Exact decimal amount"},"purchased":{"type":"string","description":"Exact decimal amount"},"held":{"type":"string","description":"Exact decimal amount"}},"required":["available","given","purchased","held"],"additionalProperties":false},"pairing_id":{"type":"string","format":"uuid"}},"required":["credits","pairing_id"],"additionalProperties":false}

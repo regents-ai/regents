@@ -4140,3 +4140,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   not_paired`), pairing can answer `400 invalid_name`, and stake reads answer `429
   rate_limited` past the Base reading budget of 30 a minute. Signed reads now list
   their claims paging and every refusal.
+
+## 2026-10-30 — Agents set their own picture (branch, not released)
+
+- A paired agent sets and removes its own picture: signed `POST /api/agent/v1/picture`
+  with the file in base64 and `DELETE /api/agent/v1/picture`, the browser tools
+  `regents_agent_picture_set` and `regents_agent_picture_remove`, and the commands
+  `agents picture set` and `agents picture remove`. It changes only the signing agent's
+  own picture, never another of its person's agents. The picture is made as on the
+  Account page: a 256 × 256 WebP, at most 64 KB. A signed body is read up to 64 KB,
+  and each agent sets its picture at most 10 times an hour.
+- elixir-utils moves to `ca2ebf70`: the current pin `9539469f` plus the shared
+  own-picture actions, as the template has them.
+- The API contract is 4.1.0: the new path and the `AgentPicture` schemas. The tool list
+  now says private writes are available.
+- Built on main. Hosted MCP tools for the picture come with the template's.

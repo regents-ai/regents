@@ -21,7 +21,7 @@
 
 Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing. Private account, claims, staking and shared Credits balance/history/budget and Points summary reads live under `/api/agent/v1`; every call requires fresh SIWA proof for audience `regents` and an active pairing. Browser sessions and human Privy tokens grant no agent authority. POST pagination uses an exact signed JSON body, not a query string.
 
-The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. No private nonfinancial agent write is currently available. This interface does not activate Points.
+The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. The one private agent write is a paired agent setting or removing its own picture. This interface does not activate Points.
 
 ## Available interfaces
 

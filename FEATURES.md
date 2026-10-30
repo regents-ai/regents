@@ -62,6 +62,7 @@ also runs alone with `cd platform && npx playwright test`.
 | --- | --- | --- |
 | Signed agent reads: account, claims, staking position, credits, points | `regents_web/api_contract_test.exs`, `regents_web/agent_requests_test.exs` | |
 | Docs: one page per topic under /docs, each also as Markdown, with search, sidebar, On this page, Copy for LLM and View as Markdown | `regents_web/docs_test.exs` (every page as a page and as Markdown, links between pages lead somewhere, an unknown page is not found), `browser/docs.spec.ts` (search, copy, Markdown, every page from the sidebar at 390 and 1280) | Search and Ask AI checked in Chromium only; Ask AI's menu sits under its button only where the browser places popovers by anchor |
+| A paired agent sets and removes its own picture, never another agent's; a body over 64 KB is refused before it is read, and an eleventh try in an hour waits | `regents_web/agent_own_picture_test.exs` | No browser walk: the browser suite pairs no agents |
 | Agent guides: agents.md, skill.md, llms.txt, openapi.json, docs | `regents_web/public_documents_test.exs`, `regents_web/content_negotiation_test.exs`, `make check-cli` | |
 | Profile API | `regents_web/controllers/profile_api_test.exs` | |
 | Tool lists for agents: one for each site's tools (`/api/v1/site-tools/:site`), one complete list of every site (`/api/v1/site-tools`), and how to sign in through siwa-server | `browser/agent_tools.spec.ts` "every page offers a list of each site's tools and the complete list" | |

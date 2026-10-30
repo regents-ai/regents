@@ -86,6 +86,10 @@ defmodule RegentsWeb.Plugs.PairedAgent do
     end
   end
 
+  @doc "The words of the refusal for an agent with no current pairing: its message and hint."
+  @spec not_paired() :: {String.t(), String.t()}
+  def not_paired, do: {@not_paired_message, @not_paired_hint}
+
   # The read ran after the pairing was resolved. Before anything is sent, the
   # wallet's current pairing must still be this request's episode and owner;
   # otherwise the answer is replaced, so a revoke or re-pairing during the read

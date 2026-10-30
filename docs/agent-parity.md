@@ -61,7 +61,7 @@ were skipped.
 | Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
 | Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
-| Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
+| Set or remove an agent's picture | `/account` agent window (upload) | `regents_agent_picture_set`, `regents_agent_picture_remove` (its own) | — | — | `agents picture set`, `agents picture remove` (its own) | no | R6 (MCP, connector) |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
 | Read the agent's own spending budget | agents only | `regents_credits_budget` | — | — | `account budget` | no | R2, R3 |
 
@@ -163,10 +163,12 @@ were skipped.
   agent, opening and unpairing an agent and reading its last actions run only in the
   account menu and on `/account`. They stay out of reach of a paired helper agent and
   open only to the owner from R1. Not protected (owner only).
-- **R6. Agent pictures are page-only.** The person uploads or removes an agent's
-  picture in its window on `/account`; the agent has no route to set its own (the shared agents
-  router serves only pair, me and whoami). Plan: a signed picture route, tools and
-  `agents picture set` and `agents picture remove` commands. Not protected.
+- **R6. Agent pictures are not on hosted MCP.** The person uploads or removes an agent's
+  picture in its window on `/account`. A paired agent sets and removes its own with signed
+  `POST` and `DELETE /api/agent/v1/picture`, the `regents_agent_picture_set` and
+  `regents_agent_picture_remove` browser tools and `agents picture set` and
+  `agents picture remove`, the template's `RegentAgents.set_own_agent_picture` and
+  `remove_own_agent_picture`. Left: the hosted MCP tools, with the template's. Not protected.
 - **R7. Agent spending limits are page-only.** Turning an agent's spending on, its
   limits and its sites are saved only for a person signed in on `/account/credits`. Plan: an
   owner-only signed route, tool and command after R1. Protected (money).

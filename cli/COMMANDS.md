@@ -39,6 +39,8 @@ and `other`; the existing server validates them. `--code`, `--name` and
 | Command after `regents protocol` | HTTP request | Effect |
 | --- | --- | --- |
 | `agents whoami` | `GET /api/agents/v1/whoami` | Read only |
+| `agents picture set <picture>` | `POST /api/agent/v1/picture` | Changes your own picture |
+| `agents picture remove` | `DELETE /api/agent/v1/picture` | Removes your own picture |
 | `account show` | `GET /api/agent/v1/account` | Read only |
 | `account claims` | `POST /api/agent/v1/claims` | Read only |
 | `staking position` | `GET /api/agent/v1/staking/position` | Read only |
@@ -77,10 +79,13 @@ bound to this episode and aggregate owner-agent usage over the last 24 hours;
 reading it does not authorize spending. Grant enablement stays paused during the
 shared rollout, while owners may still disable a grant.
 
-No private nonfinancial agent write is available in Regents. Account security and
-grant changes remain owner-only. Do not spend, claim a name, activate Points or
-open a wallet during read verification. Native signing and browser acceptance
-must be demonstrated separately from source checks.
+The one private agent write is your own picture. `agents picture set <picture>`
+sends `{"picture": "<base64>"}`: a PNG, JPEG or WebP of up to 45 KB in standard
+base64, kept as a 256 × 256 WebP. It changes only the picture of the agent whose
+pairing signs it, at most 10 times an hour; `agents picture remove` clears it.
+Account security and grant changes remain owner-only. Do not spend, claim a name,
+activate Points, change your picture or open a wallet during read verification.
+Native signing and browser acceptance must be demonstrated separately from source checks.
 
 The optional `webmcp` field links each command to its matching browser operation.
 Use `/capabilities.json`, `/agents.md`, `/skill.md` and `/openapi.json` for discovery.
