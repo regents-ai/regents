@@ -86,8 +86,9 @@
 
   /* Staking: the coin on a dark tile, one line, the terms, and the way in. */
   .rl-staking { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); }
-  .rl-staking__tile { --rg-panel-fill: var(--palette-charcoal); display: grid; place-items: center; width: 6rem; aspect-ratio: 1; background: var(--palette-charcoal); color: var(--palette-platinum); }
-  .rl-staking .rl-card-diagram { width: 4.5rem; height: 4.5rem; }
+  /* The crown carries its own black ground, so the tile is the crown itself. */
+  .rl-staking__tile { display: block; width: 6rem; }
+  .rl-staking__tile img { display: block; width: 100%; height: auto; }
   .rl-staking__line { font: 400 clamp(1.5rem, 2.6vw, 2rem)/1.15 var(--font-family-title); text-wrap: pretty; }
   .rl-staking > .rl-mono, .rl-staking__link { grid-column: 1 / -1; }
   .rl-staking__link { justify-self: start; }

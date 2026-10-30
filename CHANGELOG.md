@@ -4106,3 +4106,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   panel; the cube's panel reads only Enter App, WebMCP Tools and the command-line link; no
   bold words; on a phone the name comes before the cube's panel; no sideways scroll and no
   console error. The home page's Markdown opens with the name and the plain line.
+
+## 2026-10-30 — Home page: the Regents crown in Staking
+
+- The Staking panel on the home page shows the Regents crown, the same one as the top
+  left, where the $ coin drawing was.
+- No database, secret or library changes.

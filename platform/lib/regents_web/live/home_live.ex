@@ -254,7 +254,7 @@ defmodule RegentsWeb.HomeLive do
       <h2 id="home-staking-title" class="rl-eyebrow">Staking</h2>
       <div class="rl-staking">
         <span class="rl-staking__tile">
-          <.card_diagram id="home-staking-diagram" variant={8} />
+          <img src={~p"/images/brand/regents-crown-flat-dark.svg"} width="252" height="186" alt="" />
         </span>
         <p class="rl-staking__line">Stake $REGENT. Share the lab's revenue.</p>
         <p class="rl-mono">{@summary}</p>
