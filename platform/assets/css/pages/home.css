@@ -35,13 +35,13 @@
   .rl-token-copy__icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
   .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
-  /* Two columns of flat panels, like a printed sheet laid out in blocks. The first
-     column is the shorter; a phone stacks it above the second. Each panel keeps
-     the design system's cut corners and its own flat fill. */
+  /* Two columns of flat panels, like a printed sheet laid out in blocks: the hero
+     on the right, the sheets on the left. A phone stacks the hero above the sheets.
+     Each panel keeps the design system's cut corners and its own flat fill. */
   .rl-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); }
   .rl-column { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2); min-width: 0; }
   .rl-panel { display: grid; align-content: start; gap: var(--space-3); padding: var(--rg-panel-padding); }
-  .rl-panel:is(.rl-panel--how, .rl-panel--products) { container-type: inline-size; }
+  .rl-panel:is(.rl-panel--how, .rl-panel--products, .rl-panel--staking) { container-type: inline-size; }
   /* A panel's links are its own ink, outlined, so they read on every fill. */
   .rl-panel-link {
     --rg-p-surface: transparent; --rg-p-text: var(--rg-panel-ink); --rg-p-control-border: currentColor;
@@ -55,11 +55,10 @@
   .rl-panel > .rl-eyebrow:first-child { padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
   .rl-mono { font: .875rem/1.55 var(--font-family-mono); }
 
-  .rl-statement {
-    padding-block-end: var(--space-4); border-block-end: 1px solid var(--rg-local-rule); text-wrap: pretty;
-    font: var(--font-weight-regular) clamp(1.75rem, 3.2vw, 2.5rem)/1.2 var(--font-family-sans); letter-spacing: -.02em;
-  }
-  .rl-statement strong { font-weight: var(--font-weight-semibold); }
+  /* The lab's name in the title face, then one plain line in body weight. */
+  .rl-statement { display: grid; gap: var(--space-2); padding-block-end: var(--space-4); border-block-end: 1px solid var(--rg-local-rule); }
+  .rl-statement__name { font: 400 clamp(2.5rem, 4.4vw, 3.5rem)/1 var(--font-family-title); }
+  .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-sans); text-wrap: pretty; }
 
   /* Four product cards on the Products sheet, two by two, ruled off above like the
      rows of How it works. Each card's drawing stands on a flat tile of its colour. */
@@ -79,20 +78,21 @@
   /* The drawings are the Overview's, made line icons at this size. */
   .rl-panels .rl-card-diagram :is(path, rect) { vector-effect: non-scaling-stroke; }
 
-  /* How it works: three ruled columns, each a drawing, a label, a line and a link. */
-  .rl-how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+  /* How it works: two ruled columns, each a drawing, a label, a line and a link. */
+  .rl-how { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
   .rl-how__step { display: grid; grid-template-rows: auto auto 1fr auto; gap: var(--space-2); min-width: 0; padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
   .rl-how .rl-card-diagram { width: 3.5rem; height: 3.5rem; }
+
+  /* Staking: the coin on a dark tile, one line, the terms, and the way in. */
+  .rl-staking { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); }
+  .rl-staking__tile { --rg-panel-fill: var(--palette-charcoal); display: grid; place-items: center; width: 6rem; aspect-ratio: 1; background: var(--palette-charcoal); color: var(--palette-platinum); }
+  .rl-staking .rl-card-diagram { width: 4.5rem; height: 4.5rem; }
+  .rl-staking__line { font: 400 clamp(1.5rem, 2.6vw, 2rem)/1.15 var(--font-family-title); text-wrap: pretty; }
+  .rl-staking > .rl-mono, .rl-staking__link { grid-column: 1 / -1; }
+  .rl-staking__link { justify-self: start; }
   .rl-how__title { font: var(--font-weight-semibold) .8125rem/1.4 var(--font-family-mono); letter-spacing: var(--tracking-microlabel); text-transform: uppercase; }
 
-  /* Principles: a short ruled list of statements. */
-  .rl-principles { display: grid; margin: 0; padding: 0; list-style: none; }
-  .rl-principles > li { display: grid; gap: var(--space-1); padding-block: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
-  .rl-principles > li:last-child { border-block-end: 1px solid var(--rg-local-rule); }
-  .rl-principles__title { font: var(--font-weight-regular) clamp(1.375rem, 2.2vw, 1.75rem)/1.2 var(--font-family-sans); letter-spacing: -.015em; }
-  .rl-principles .rl-mono { color: color-mix(in srgb, var(--rg-panel-ink) 72%, var(--rg-panel-fill)); }
-
-  /* The hero is a panel of the second column: its words, then the cube's stage
+  /* The hero is the right column's panel: its words, then the cube's stage
      below them, the cube drawn in the middle. The stage is the hero's width, so
      the cube's own layout answers to the hero, not the window. */
   .rl-panel--hero { padding: var(--space-3); }
@@ -143,20 +143,36 @@
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-brand { font-size: .875rem; }
   }
-  /* From here the panels stand in two columns. */
+  /* From here the panels stand in two columns, the hero on the right. */
   @media (min-width: 60rem) {
     .rl-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-3); padding: var(--space-3); }
     .rl-column { gap: var(--space-3); }
+    .rl-column[data-home-column="hero"] { grid-area: 1 / 2; }
+    .rl-column[data-home-column="sheets"] { grid-area: 1 / 1; }
   }
-  /* A narrow panel stacks its cards and steps one under another. */
+  /* Where the window is tall enough and the cube is drawn, the hero fills the
+     window's height and stays in view while the sheets scroll past it. The words
+     keep their height and the cube's stage takes the rest. Without scripts or with
+     less motion the cube is never drawn, so the hero stays in the page's flow and
+     grows to its list of worlds. */
+  @media (min-width: 60rem) and (min-height: 40rem) and (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .rl-column[data-home-column="hero"] { position: sticky; inset-block-start: var(--space-3); }
+    .rl-panel--hero { block-size: calc(100svh - 2 * var(--space-3)); grid-template-rows: minmax(0, 1fr); align-content: stretch; }
+    .rl-hero--home { grid-template-rows: auto minmax(0, 1fr); }
+    .rl-hero--home .world-cube { block-size: auto; min-block-size: 0; }
+    .rl-hero--home .world-cube__worlds { min-block-size: 0; overflow-y: auto; }
+    .rl-hero--home .world-cube[data-world-ready="true"] .world-cube__worlds { overflow: visible; }
+  }
+  /* A narrow panel stacks its cards, steps and staking one under another. */
   @container (max-width: 30rem) {
-    :is(.rl-how, .rl-product-cards) { grid-template-columns: minmax(0, 1fr); }
+    :is(.rl-how, .rl-product-cards, .rl-staking) { grid-template-columns: minmax(0, 1fr); }
   }
 }
 
-/* The How it works sheet takes the figure colour. It sits outside the layer so
-   it wins over the shared panel's own surface fill. */
+/* The How it works sheet takes the figure colour and Staking the band colour.
+   They sit outside the layer so they win over the shared panel's own surface fill. */
 .rg-panel.rl-panel--how { --rg-panel-fill: var(--support-figure-surface); --rg-panel-ink: var(--support-figure-ink); }
+.rg-panel.rl-panel--staking { --rg-panel-fill: var(--support-band-surface); --rg-panel-ink: var(--support-band-ink); }
 
 .rg-button.rl-token-link {
   --rg-cut-control: 0px;

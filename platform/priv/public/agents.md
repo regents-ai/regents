@@ -93,8 +93,8 @@ regents protocol --help
   for, after `names check` shows no problems, `taken` false and a free claim left. Never
   claim, buy anything or post as a test.
 - A `person_not_here` refusal means your person has not signed in on this site yet.
-  `not_paired` from a check-in, or `agent_not_paired` from a read, means you aren't paired
-  with your person on this site; ask for a new code.
+  `agent_not_paired`, from a check-in or a read, means you aren't paired with your person
+  on this site; ask for a new code.
 
 ## In a browser page
 

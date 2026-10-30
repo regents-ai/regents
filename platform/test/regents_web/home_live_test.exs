@@ -71,6 +71,39 @@ defmodule RegentsWeb.HomeLiveTest do
     assert guide =~ "(Experimental: [Explore Techtree](https://techtree.sh/start))"
   end
 
+  test "the page and the agent guide read in the same order", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "[data-home-panel]", "data-home-panel") ==
+             ~w(hero mission products staking how)
+
+    assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
+             [
+               ["The community-owned agentic product lab"],
+               ["Mission"],
+               ["Products"],
+               ["Staking"],
+               ["How it works"]
+             ]
+  end
+
+  test "the Mission box names the lab, then says one plain line", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+    line = "We build tools for people and their agents. REGENT stakers share in the revenue."
+
+    assert text(html, "#home-mission .rl-statement__name") == "Regents Labs"
+    assert text(html, "#home-mission .rl-statement__line") == line
+    assert HomeLive.agent_markdown() =~ "## Mission\n\n### Regents Labs\n\n#{line}\n"
+  end
+
+  defp text(html, selector),
+    do:
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query(selector)
+      |> LazyHTML.text()
+      |> String.trim()
+
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
 end

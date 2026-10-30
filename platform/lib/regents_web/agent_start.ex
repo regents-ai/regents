@@ -111,7 +111,7 @@ defmodule RegentsWeb.AgentStart do
     2. Follow the steps for your agent below, with that code.
     3. Your agent then shows under its name in their account menu and on their Account page.
 
-    A refusal names what went wrong: `pairing_failed` means the code is used, expired or mistyped, so ask for a new one; `not_paired` means you aren't paired with your person on this site.
+    A refusal names what went wrong: `pairing_failed` means the code is used, expired or mistyped, so ask for a new one; `agent_not_paired` means you aren't paired with your person on this site.
 
     #{Enum.map_join(@agents, "\n", &section/1)}\
     """

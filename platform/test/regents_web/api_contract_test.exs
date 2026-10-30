@@ -368,7 +368,6 @@ defmodule RegentsWeb.ApiContractTest do
              "200",
              "401",
              "403",
-             "404",
              "409",
              "429",
              "503",

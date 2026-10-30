@@ -6,20 +6,11 @@ defmodule RegentsWeb.HomeLive do
 
   @staking_summary "Stake $REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."
 
-  # The lab's one sentence, its bold words marked, so the page and the agent copy
-  # stress the same words.
-  @mission [
-    {"Regents Labs is a ", false},
-    {"community-owned", true},
-    {" lab building tools for ", false},
-    {"people and their agents", true},
-    {", tied to ", false},
-    {"one token, REGENT", true},
-    {".", false}
-  ]
+  # The lab's one plain line under its name, on the page and in the agent copy.
+  @mission "We build tools for people and their agents. REGENT stakers share in the revenue."
 
   # Each product's card carries the drawing the product Overview shows for it.
-  @product_diagrams %{"autolaunch" => 3, "techtree" => 2, "patchbay" => 7, "keyfleet" => 8}
+  @product_diagrams %{"autolaunch" => 3, "techtree" => 2, "patchbay" => 7, "keyfleet" => 9}
 
   @how_it_works [
     %{
@@ -37,31 +28,11 @@ defmodule RegentsWeb.HomeLive do
       copy: "WebMCP Tools in the browser. regents-cli on the command line.",
       link: "Developer docs",
       href: "/docs"
-    },
-    %{
-      id: "staking",
-      variant: 4,
-      title: "Staking",
-      copy: "Stake $REGENT to share in the lab's USDC revenue, by stake.",
-      link: "Stake",
-      href: "/stake"
     }
-  ]
-
-  @principles [
-    %{
-      title: "One token, not equity.",
-      copy: "Autolaunch, Patchbay and Keyfleet send part of what they earn to REGENT stakers."
-    },
-    %{title: "Your wallet signs.", copy: "We never hold your keys or your money."},
-    %{title: "Public code.", copy: "Most of the code is public on GitHub."}
   ]
 
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
-    sentence =
-      Enum.map_join(@mission, fn {words, bold?} -> if bold?, do: "**#{words}**", else: words end)
-
     products =
       Enum.map_join(product_cards(), "\n", fn card ->
         planned = if card.planned?, do: " · Planned", else: ""
@@ -73,8 +44,6 @@ defmodule RegentsWeb.HomeLive do
         "- **#{step.title}:** #{step.copy} [#{step.link}](#{PublicDocuments.url(step.href)})"
       end)
 
-    principles = Enum.map_join(@principles, "\n", &"- **#{&1.title}** #{&1.copy}")
-
     worlds =
       Enum.map_join(worlds(), "\n\n", fn world ->
         cards = Enum.map_join(world.cards, "\n", &card_markdown/1)
@@ -84,29 +53,29 @@ defmodule RegentsWeb.HomeLive do
     """
     # Regents Labs
 
-    ## Mission
-
-    #{sentence}
-
-    ## Products
-
-    #{products}
-
-    ## How it works
-
-    #{steps}
-
-    ## Principles
-
-    #{principles}
-
-    [About Regents Labs](#{PublicDocuments.url("/about")})
-
     ## The community-owned agentic product lab
 
     [Enter App](#{PublicDocuments.url("/stake")}) · [WebMCP Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
 
     #{worlds}
+
+    ## Mission
+
+    ### Regents Labs
+
+    #{@mission}
+
+    ## Products
+
+    #{products}
+
+    ## Staking
+
+    Stake $REGENT. Share the lab's revenue. #{@staking_summary} [Stake](#{PublicDocuments.url("/stake")})
+
+    ## How it works
+
+    #{steps}
 
     ---
 
@@ -144,21 +113,22 @@ defmodule RegentsWeb.HomeLive do
       <a class="shell-skip" href="#home-content">Skip to content</a>
       <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
 
-      <%!-- Two columns of panels, the first shorter; a phone reads the first column,
-           then the second. The hero is the third panel of the second column. --%>
+      <%!-- Two columns of panels. The hero stands top right and stays in view while
+           the sheets on the left scroll past it; a phone reads the hero first, then
+           the sheets. A sheet below the fold settles in the first time it is seen. --%>
       <main id="home-content">
         <Regent.Structure.row rail={false}>
           <div class="rl-panels">
-            <div class="rl-column" data-home-column="short">
-              <.mission />
-              <.product_panel />
-            </div>
-            <div class="rl-column" data-home-column="long">
-              <.how_it_works />
-              <.principles />
+            <div class="rl-column" data-home-column="hero">
               <Regent.Structure.panel class="rl-panel rl-panel--hero" data-home-panel="hero">
                 <.hero />
               </Regent.Structure.panel>
+            </div>
+            <div class="rl-column" data-home-column="sheets">
+              <.mission />
+              <.product_panel />
+              <.staking />
+              <.how_it_works />
             </div>
           </div>
         </Regent.Structure.row>
@@ -215,22 +185,25 @@ defmodule RegentsWeb.HomeLive do
   end
 
   defp mission(assigns) do
-    assigns = assign(assigns, sentence: @mission)
+    assigns = assign(assigns, line: @mission)
 
     ~H"""
     <Regent.Structure.panel
       class="rl-panel rl-panel--mission rg-support-panel"
+      id="home-mission"
       data-home-panel="mission"
+      phx-hook="MotionCascade"
+      data-variant={RegentsWeb.Motion.standard("grid")}
       aria-labelledby="home-mission-title"
     >
       <h2 id="home-mission-title" class="rl-eyebrow">Mission</h2>
-      <p class="rl-statement"><.words :for={part <- @sentence} part={part} /></p>
+      <div class="rl-statement">
+        <p class="rl-statement__name">Regents Labs</p>
+        <p class="rl-statement__line">{@line}</p>
+      </div>
     </Regent.Structure.panel>
     """
   end
-
-  defp words(%{part: {_words, true}} = assigns), do: ~H"<strong>{elem(@part, 0)}</strong>"
-  defp words(assigns), do: ~H"{elem(@part, 0)}"
 
   defp product_panel(assigns) do
     assigns = assign(assigns, cards: product_cards())
@@ -238,7 +211,10 @@ defmodule RegentsWeb.HomeLive do
     ~H"""
     <Regent.Structure.panel
       class="rl-panel rl-panel--products"
+      id="home-products"
       data-home-panel="products"
+      phx-hook="MotionCascade"
+      data-variant={RegentsWeb.Motion.standard("grid")}
       aria-labelledby="home-products-title"
     >
       <h2 id="home-products-title" class="rl-eyebrow">Products</h2>
@@ -268,13 +244,43 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
+  defp staking(assigns) do
+    assigns = assign(assigns, summary: @staking_summary)
+
+    ~H"""
+    <Regent.Structure.panel
+      class="rl-panel rl-panel--staking"
+      id="home-staking"
+      data-home-panel="staking"
+      phx-hook="MotionCascade"
+      data-variant={RegentsWeb.Motion.standard("grid")}
+      aria-labelledby="home-staking-title"
+    >
+      <h2 id="home-staking-title" class="rl-eyebrow">Staking</h2>
+      <div class="rl-staking">
+        <span class="rl-staking__tile">
+          <.card_diagram id="home-staking-diagram" variant={8} />
+        </span>
+        <p class="rl-staking__line">Stake $REGENT. Share the lab's revenue.</p>
+        <p class="rl-mono">{@summary}</p>
+        <a href={~p"/stake"} class="rg-button rl-staking__link">
+          <span class="rg-button__label">Stake</span>
+        </a>
+      </div>
+    </Regent.Structure.panel>
+    """
+  end
+
   defp how_it_works(assigns) do
     assigns = assign(assigns, steps: @how_it_works)
 
     ~H"""
     <Regent.Structure.panel
       class="rl-panel rl-panel--how"
+      id="home-how"
       data-home-panel="how"
+      phx-hook="MotionCascade"
+      data-variant={RegentsWeb.Motion.standard("grid")}
       aria-labelledby="home-how-title"
     >
       <h2 id="home-how-title" class="rl-eyebrow">How it works</h2>
@@ -288,29 +294,6 @@ defmodule RegentsWeb.HomeLive do
           </a>
         </li>
       </ul>
-    </Regent.Structure.panel>
-    """
-  end
-
-  defp principles(assigns) do
-    assigns = assign(assigns, principles: @principles)
-
-    ~H"""
-    <Regent.Structure.panel
-      class="rl-panel rl-panel--principles rg-support-panel"
-      data-home-panel="principles"
-      aria-labelledby="home-principles-title"
-    >
-      <h2 id="home-principles-title" class="rl-eyebrow">Principles</h2>
-      <ul class="rl-principles">
-        <li :for={principle <- @principles}>
-          <h3 class="rl-principles__title">{principle.title}</h3>
-          <p class="rl-mono">{principle.copy}</p>
-        </li>
-      </ul>
-      <a href={~p"/about"} class="rg-button rg-button--secondary rl-panel-link">
-        <span class="rg-button__label">About Regents Labs</span>
-      </a>
     </Regent.Structure.panel>
     """
   end
@@ -575,6 +558,19 @@ defmodule RegentsWeb.HomeLive do
         <path d="M56 56H224V180H110L80 210V180H56Z" fill="var(--rg-panel-fill)" />
         <path d="M80 88H198M80 108H182M80 128H198M80 148H150M140 208H240M140 224H208" />
         <rect x="236" y="146" width="12" height="36" fill={"url(##{@id}-hatch)"} />
+      </g>
+      <g :if={@variant == 9}>
+        <path
+          d="M44 92A36 36 0 1 0 116 92A36 36 0 1 0 44 92ZM68 92A12 12 0 1 0 92 92A12 12 0 1 0 68 92Z"
+          fill="var(--rg-panel-fill)"
+        />
+        <path d="M116 92H200V128M152 92V114M176 92V108" />
+        <rect x="164" y="128" width="72" height="72" fill={"url(##{@id}-hatch)"} />
+        <path d="M200 200V236M200 214H116V236M200 214H284V236" />
+        <rect x="94" y="236" width="44" height="44" fill="var(--rg-panel-fill)" />
+        <rect x="178" y="236" width="44" height="44" fill="var(--rg-panel-fill)" />
+        <rect x="262" y="236" width="44" height="44" fill="var(--rg-panel-fill)" />
+        <path d="M106 258H126M190 258H210M274 258H294" />
       </g>
       <g :if={@variant == 8}>
         <path d="M126 70H194L242 118V202L194 250H126L78 202V118Z" fill="var(--rg-panel-fill)" />

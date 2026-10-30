@@ -743,8 +743,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
         "401": {$ref: "#/components/responses/AgentVerificationFailed"}
-        "403": {$ref: "#/components/responses/AgentPersonNotHere"}
-        "404": {$ref: "#/components/responses/AgentNotPaired"}
+        "403": {$ref: "#/components/responses/AgentCheckInRefused"}
         "409": {$ref: "#/components/responses/AgentRequestReplayed"}
         "429": {$ref: "#/components/responses/RateLimited"}
         "503": {$ref: "#/components/responses/AgentVerificationUnavailable"}
@@ -1009,8 +1008,8 @@ components:
             properties: {ok: {type: boolean, const: true}}
     CsrfForbidden:
       description: CSRF token was absent or invalid
-    AgentNotPaired:
-      description: The signing agent is not paired with an account
+    AgentCheckInRefused:
+      description: The signing agent is not paired with an account (agent_not_paired), or the person it is paired with hasn't signed in on this site yet (person_not_here)
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
@@ -1019,20 +1018,11 @@ components:
           schema: {$ref: "#/components/schemas/AgentPairingError"}
           examples:
             notPaired:
-              value: {error: {code: not_paired, message: "This agent is not paired with an account.", hint: "Ask your person for a pairing code, then pair again."}}
-    AgentPersonNotHere:
-      description: The person this agent is paired with hasn't signed in on this site yet
-      headers:
-        RateLimit: {$ref: "#/components/headers/RateLimit"}
-        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
-      content:
-        application/json:
-          schema: {$ref: "#/components/schemas/AgentPairingError"}
-          examples:
+              value: {error: {code: agent_not_paired, message: "This agent is not paired with an account.", hint: "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then check in again. Help: https://patchbay.help/errors/agent_not_paired"}}
             personNotHere:
               value: {error: {code: person_not_here, message: "The person this agent is paired with hasn't signed in on this site yet.", hint: "Ask your person to sign in on this site once, then check in again. Help: https://patchbay.help/errors/person_not_here"}}
     AgentPairingFailed:
-      description: The pairing code could not be claimed, the name can't be used, or the runtime is not on the list
+      description: The pairing code could not be claimed (pairing_failed), the name can't be used (invalid_name), or the runtime is not on the list (harness_unknown)
       headers:
         RateLimit: {$ref: "#/components/headers/RateLimit"}
         RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
@@ -1238,7 +1228,7 @@ components:
             code:
               type: string
               description: >-
-                pairing_failed, invalid_name, harness_unknown, agent_limit, not_paired,
+                pairing_failed, invalid_name, harness_unknown, agent_limit, agent_not_paired,
                 person_not_here, verification_failed, duplicate_proof, unsupported_query,
                 missing_signed_body or siwa_request_failed, or a code the
                 sign-in service gave, which https://siwa.regents.sh/skill.md

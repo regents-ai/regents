@@ -3997,6 +3997,62 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   prompt and Agent tools open in the shared frame, fit the screen, close with Escape, and
   the pages have no sideways scroll or console errors.
 
+## 2026-10-29 — Home page: hero top right, held in view
+
+- On a wide screen the hero (title, buttons and the worlds cube) now stands top right
+  and stays in view while Mission, Products and How it works scroll past it on the left.
+  Sheets that start below the fold settle in the first time they come into view.
+- On a phone the hero comes first, then the sheets.
+- With reduced motion, without scripts or in a window under 40rem tall, the hero
+  scrolls with the page and grows to everything it holds.
+- Principles is gone from the page and from its agent copy, which now reads in the
+  page's order.
+- A new Staking box under Products says what staking $REGENT earns and links to
+  /stake; How it works keeps its other two steps.
+- Keyfleet has a new drawing, a key leading a small fleet, on the home page and the
+  product Overview. The old coin drawing now marks the Staking box.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v251 released
+
+- v251 (`f462b2f4`) went live at 00:39Z: the home page hero stands top right and stays
+  in view, Principles is gone, a Staking box links to /stake, and Keyfleet has its new
+  drawing. The rollback is v250 (`db4c6239`). No database, secret or library changes.
+- Before release, on the exact tree: 605 server tests, 252 script tests, 143 browser
+  tests, required fixes and CLI checks all clean. Identity and contracts are untouched.
+- Live at 1440, 1280, 390 and 320: the hero holds its place top right while the page
+  scrolls on desktop, a phone reads the hero first, Staking links to /stake (which
+  answers), there is no sideways scroll and no console error.
+
+## 2026-10-30 — Home page: Mission box in plain words
+
+- The Mission box now leads with "Regents Labs" in the title face, then one plain
+  line: "We build tools for people and their agents. REGENT stakers share in the
+  revenue." The long sentence with bold words is gone, along with the code that
+  bolded words inside it. The agent copy says the same.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v252 released
+
+- v252 (`a15edd32`) went live at 00:50Z: the Mission box shows "Regents Labs" and one
+  plain line. The rollback is v251 (`f462b2f4`). No database, secret or library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean.
+- Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
+  Markdown copy of the page says the same, no sideways scroll and no console error.
+
+## 2026-10-30 — Agent contract 4.0.1: refusals as the site answers them
+
+- The OpenAPI JSON and the YAML contract listed a check-in from an unpaired agent as
+  `404 not_paired`; the site answers `403 agent_not_paired`. The check-in's 403 now covers
+  both `agent_not_paired` and `person_not_here`, with the site's own words in the examples.
+- Pairing's 400 now lists `invalid_name` (a name that is empty, over 80 characters or holds
+  hidden characters) beside `pairing_failed` and `harness_unknown`, and the
+  `pairing_failed` example uses the site's hint.
+- llms.txt, agents.md, the agent start page and /docs say the same; /docs Changes has the
+  entry. Contract version 4.0.1. The site's answers do not change.
+- No database, secret or library changes.
+
 ## 2026-10-29 — Agents check and claim Regent Names
 
 - A paired agent can now check a Regent Name, see its person's free claims left, and
