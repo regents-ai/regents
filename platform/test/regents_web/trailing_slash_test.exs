@@ -1,5 +1,5 @@
 defmodule RegentsWeb.TrailingSlashTest do
-  # Regression: the router matched /contact/ and /about/ as /contact and /about,
+  # Regression: the router matched /docs/ and /about/ as /docs and /about,
   # and the page then looked up its document under the slash address and crashed.
   use ExUnit.Case, async: true
 
@@ -7,7 +7,7 @@ defmodule RegentsWeb.TrailingSlashTest do
   import Plug.Test, only: [conn: 2]
 
   test "a page address with a slash at the end is the site's not-found page" do
-    for path <- ["/contact/", "/about/", "/stake/", "/llms.txt/"] do
+    for path <- ["/docs/", "/about/", "/stake/", "/llms.txt/"] do
       response = request(path, "text/html")
       assert response.status == 404
       assert response.resp_body =~ "We can’t find that page"

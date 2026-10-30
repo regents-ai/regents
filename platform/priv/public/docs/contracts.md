@@ -16,4 +16,4 @@ Each product owns its own permissions and integration contract. For token auctio
 
 ## Help
 
-Read [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).
+Read [About]({{origin}}/about), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).

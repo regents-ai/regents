@@ -4053,6 +4053,49 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   entry. Contract version 4.0.1. The site's answers do not change.
 - No database, secret or library changes.
 
+## 2026-10-30 — Home page: orange tools window, five sites, hover on every control
+
+- The WebMCP tools window is orange (Tangerine Tango) instead of green.
+- "Copy all Regents WebMCP tools" read 4 of 5 sites: Techtree moved its tool list to
+  `/capabilities.json` and the site still asked the old address, which now answers 404.
+  It now reads Techtree's new address, and the line reads "N tools from 5 sites".
+- Every link and button on the home page answers a pointer: the brand dims, the header
+  icons, the footer links and the command-line link turn blue, the outlined buttons (WebMCP
+  Tools, the product and guide links) take a faint wash, and the $REGENT menu rows lighten.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v254 released
+
+- v254 (`ea427af8`) went live at 15:56Z: the orange tools window, "252 tools from 5 sites"
+  and the home-page hovers. The rollback is v253 (`9f10a961`). No database, secret or
+  library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440 and 390: accent `#FF5B19`, all five sites read, the WebMCP
+  Tools button answers a pointer, no sideways scroll and no console error.
+
+## 2026-10-30 — Docs and About in the side menu; Contact folded into About
+
+- The side menu lists Docs and About Regents Labs under Reading, between Daily Research
+  and AI & SCIFI.
+- Everything the Contact page said (help, privacy requests, legal questions, security
+  reports, product information) is now the Contact section of About. `/contact` is gone
+  and answers the not-found page; the footer, the page header on Docs and About, llms.txt,
+  /docs, the home page's Markdown, the sitemap, security.txt's Policy and the OpenAPI
+  contact all point at About.
+- The `regents_about` browser tool no longer takes `contact`; its About description says
+  About covers how to reach us. /docs records the change.
+- No database, secret or library changes.
+
+## 2026-10-30 — The lab's name stands once, top left
+
+- "Regents Labs" and "The community-owned agentic product lab" are gone from the cube's
+  panel, which now opens on Enter App, WebMCP Tools and the command-line link above the cube.
+- The name stands once, top left, as the page's heading in the Mission panel, over its
+  one plain line. On a phone the name comes first, then the cube's panel, then the rest.
+- The home page's Markdown opens the same way: the name, the plain line, then the links.
+- A page check fails if the home page ever sets words in bold again.
+- No database, secret or library changes.
+
 ## 2026-10-30 — Docs rebuilt as a docs section
 
 - /docs is now a real docs section: a top bar with search and Ask AI, tabs for Start,

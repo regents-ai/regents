@@ -176,6 +176,10 @@ input:focus-visible,
 /* The two legal documents stay together, apart from the rest by a hairline where
    they share its line and on a line of their own on a phone. */
 .regent-footer__legal { display: flex; column-gap: var(--space-3); }
+.regent-footer :is(a, .regent-footer__guide) { transition: color 140ms ease; }
+@media (hover: hover) {
+  .regent-footer :is(a, .regent-footer__guide):hover { color: var(--ash-accent); }
+}
 @media (min-width: 48rem) {
   .regent-footer__legal { padding-inline-start: var(--space-3); border-inline-start: 1px solid var(--hairline); }
 }

@@ -2,7 +2,7 @@ defmodule RegentsWeb.PublicDocuments do
   @moduledoc "Public documents only; never projects a signed-in page or account."
 
   @directory Application.app_dir(:regents, "priv/public")
-  @files Enum.map(~w(about contact llms agents skill), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(~w(about llms agents skill), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /contact /privacy /terms /start /cloak/guide /credits/refunds) ++
+  @documents ~w(/ /about /privacy /terms /start /cloak/guide /credits/refunds) ++
                RegentsWeb.Docs.Pages.paths()
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
@@ -119,10 +119,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/docs/changes" => {"Changes · Docs", "Each change to these requests, newest first."},
     "/about" =>
       {"About",
-       "What Regents Labs does and how it differs, who uses it, the team, key facts and common questions about REGENT and its products."},
-    "/contact" =>
-      {"Contact",
-       "How to get help with Regents Labs, and where to send privacy requests, legal questions, security reports and product information."},
+       "What Regents Labs does and how it differs, who uses it, the team, key facts, common questions about REGENT and its products, and how to reach us."},
     "/start" =>
       {"Connect your agent",
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
@@ -165,8 +162,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/cloak/guide"), do: %{markdown: RegentsWeb.Cloak.guide_markdown()}
   def document("/credits/refunds"), do: %{markdown: RegentsWeb.CreditsRefundRules.markdown()}
 
-  def document(path) when path in ["/about", "/contact"],
-    do: %{markdown: source(String.trim_leading(path, "/"))}
+  def document("/about"), do: %{markdown: source("about")}
 
   def document(path) do
     case RegentsWeb.Docs.Pages.page(path) do
@@ -216,7 +212,7 @@ defmodule RegentsWeb.PublicDocuments do
     Expires: #{@released_at |> DateTime.shift(year: 1) |> DateTime.to_iso8601()}
     Preferred-Languages: en
     Canonical: #{url("/.well-known/security.txt")}
-    Policy: #{url("/contact")}
+    Policy: #{url("/about")}
     """
   end
 
@@ -291,14 +287,14 @@ defmodule RegentsWeb.PublicDocuments do
       "url" => url("/docs"),
       "description" => "Developer documentation"
     })
-    |> put_in(["info", "contact", "url"], url("/contact"))
+    |> put_in(["info", "contact", "url"], url("/about"))
     |> put_in(["info", "termsOfService"], url("/terms"))
   end
 
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /contact /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
+        ~w(/ /about /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
           RegentsWeb.Docs.Pages.paths(),
         "\n",
         fn path ->

@@ -53,17 +53,11 @@ defmodule RegentsWeb.HomeLive do
     """
     # Regents Labs
 
-    ## The community-owned agentic product lab
+    #{@mission}
 
     [Enter App](#{PublicDocuments.url("/stake")}) · [WebMCP Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
 
     #{worlds}
-
-    ## Mission
-
-    ### Regents Labs
-
-    #{@mission}
 
     ## Products
 
@@ -79,7 +73,7 @@ defmodule RegentsWeb.HomeLive do
 
     ---
 
-    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [What agents can do here](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
+    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [What agents can do here](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
     """
   end
 
@@ -113,19 +107,20 @@ defmodule RegentsWeb.HomeLive do
       <a class="shell-skip" href="#home-content">Skip to content</a>
       <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
 
-      <%!-- Two columns of panels. The hero stands top right and stays in view while
-           the sheets on the left scroll past it; a phone reads the hero first, then
-           the sheets. A sheet below the fold settles in the first time it is seen. --%>
+      <%!-- Two columns of panels. The lab's name stands top left and the hero top
+           right, staying in view while the sheets below the name scroll past it; a
+           phone reads the name, then the hero, then the sheets. A sheet below the
+           fold settles in the first time it is seen. --%>
       <main id="home-content">
         <Regent.Structure.row rail={false}>
           <div class="rl-panels">
+            <.mission />
             <div class="rl-column" data-home-column="hero">
               <Regent.Structure.panel class="rl-panel rl-panel--hero" data-home-panel="hero">
                 <.hero />
               </Regent.Structure.panel>
             </div>
             <div class="rl-column" data-home-column="sheets">
-              <.mission />
               <.product_panel />
               <.staking />
               <.how_it_works />
@@ -194,11 +189,11 @@ defmodule RegentsWeb.HomeLive do
       data-home-panel="mission"
       phx-hook="MotionCascade"
       data-variant={RegentsWeb.Motion.standard("grid")}
-      aria-labelledby="home-mission-title"
+      aria-labelledby="home-title"
     >
-      <h2 id="home-mission-title" class="rl-eyebrow">Mission</h2>
+      <p class="rl-eyebrow">Mission</p>
       <div class="rl-statement">
-        <p class="rl-statement__name">Regents Labs</p>
+        <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
         <p class="rl-statement__line">{@line}</p>
       </div>
     </Regent.Structure.panel>
@@ -322,12 +317,9 @@ defmodule RegentsWeb.HomeLive do
     <section
       id="home-hero"
       class="rl-hero rl-hero--home"
-      aria-labelledby="home-title"
       phx-hook="CubeLabel"
     >
       <div class="rl-hero-copy">
-        <h1 id="home-title" class="rl-hero-title">Regents Labs</h1>
-        <p class="rl-hero-description">The community-owned agentic product lab</p>
         <div class="rl-hero-actions">
           <a href={~p"/stake"} class="rg-button rl-hero-cta">
             <span class="rg-button__label">Enter App</span>

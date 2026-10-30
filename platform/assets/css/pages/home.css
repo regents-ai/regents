@@ -36,7 +36,8 @@
   .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
   /* Two columns of flat panels, like a printed sheet laid out in blocks: the hero
-     on the right, the sheets on the left. A phone stacks the hero above the sheets.
+     on the right, the lab's name and the sheets on the left. A phone stacks the
+     name, then the hero, then the sheets.
      Each panel keeps the design system's cut corners and its own flat fill. */
   .rl-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); }
   .rl-column { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2); min-width: 0; }
@@ -103,13 +104,14 @@
   }
   .rl-hero-copy { width: fit-content; max-width: 100%; align-self: start; padding: var(--space-2) 0 var(--space-4); }
   .rl-hero-copy h1 { font-size: clamp(2.25rem, 11cqi, 4.5rem); line-height: 1.05; letter-spacing: -.035em; overflow-wrap: anywhere; }
-  .rl-hero-description { margin-block-start: var(--space-2); max-width: 34ch; font-size: 1.125rem; line-height: 1.5; }
   .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); }
   /* One line under the buttons for people whose agent works from the command line;
      the link is a full 44px tall so it is easy to tap on a phone. */
   .rl-hero-agents { margin-block-start: var(--space-1); font-size: .875rem; line-height: 1.5; }
   .rl-hero-agents a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
-  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; }
+  /* The home hero opens on its buttons; the lab's name stands in its own panel. */
+  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding-block-start: 0; }
+  .rl-hero--home .rl-hero-actions { margin-block-start: 0; }
   .rl-hero--home .world-cube { grid-area: 2 / 1; grid-template-rows: minmax(0, 1fr); min-height: 0; }
   .rl-hero--home .world-cube__worlds { align-self: stretch; }
   /* "Human Browsing" centred over the cube, while the pointer is on it; where
@@ -143,12 +145,14 @@
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-brand { font-size: .875rem; }
   }
-  /* From here the panels stand in two columns, the hero on the right. */
+  /* From here the panels stand in two columns: the name above the sheets on the
+     left, the hero beside both on the right. */
   @media (min-width: 60rem) {
     .rl-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-3); padding: var(--space-3); }
     .rl-column { gap: var(--space-3); }
-    .rl-column[data-home-column="hero"] { grid-area: 1 / 2; }
-    .rl-column[data-home-column="sheets"] { grid-area: 1 / 1; }
+    .rl-panel--mission { grid-area: 1 / 1; }
+    .rl-column[data-home-column="hero"] { grid-area: 1 / 2 / span 2; }
+    .rl-column[data-home-column="sheets"] { grid-area: 2 / 1; }
   }
   /* Where the window is tall enough and the cube is drawn, the hero fills the
      window's height and stays in view while the sheets scroll past it. The words
@@ -167,6 +171,20 @@
   @container (max-width: 30rem) {
     :is(.rl-how, .rl-product-cards, .rl-staking) { grid-template-columns: minmax(0, 1fr); }
   }
+}
+
+/* Everything the home page lets a pointer press answers it: the brand dims, the
+   icons and plain links take the pointing blue, and outlined and menu buttons
+   take a faint wash of their own ink. Outside the layer, so they win over the
+   links' and buttons' own unlayered colours. */
+.rl-brand, .rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-agents a { transition: color 140ms ease, opacity 140ms ease; }
+.rl-root .rg-button--secondary::before { transition: box-shadow 140ms ease; }
+.rg-button.rl-token-link::before { transition: background-color 140ms ease; }
+@media (hover: hover) {
+  .rl-brand:hover { opacity: .72; }
+  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-agents a, .rl-token-copy):hover { color: var(--ash-accent); }
+  .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
+  .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
 }
 
 /* The How it works sheet takes the figure colour and Staking the band colour.

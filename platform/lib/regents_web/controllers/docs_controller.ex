@@ -135,7 +135,7 @@ defmodule RegentsWeb.DocsHTML do
           <div class="docs-nav__foot">
             <a href={~p"/llms.txt"}>llms.txt</a>
             <a href={~p"/openapi.json"}>OpenAPI</a>
-            <a href={~p"/contact"}>Contact</a>
+            <a href={~p"/about"}>About</a>
           </div>
         </nav>
 

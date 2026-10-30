@@ -139,7 +139,6 @@ defmodule RegentsWeb.Router do
         do: get(path, DocsController, :show, private: %{docs_path: path})
 
     get "/about", PublicPagesController, :show
-    get "/contact", PublicPagesController, :show
   end
 
   scope "/api/v1" do
