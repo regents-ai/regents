@@ -37,7 +37,7 @@
 @layer regents-product {
 .agent-tools {
   --agent-tools-ink: #e5e3d2;
-  --agent-tools-accent: #2ff07a;
+  --agent-tools-accent: var(--palette-tangerine-tango);
   --rg-dialog-size: 40rem;
 }
 

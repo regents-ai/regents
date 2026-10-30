@@ -60,10 +60,9 @@ async function readEverySite(dialog: HTMLDialogElement): Promise<void> {
   }
 }
 
-function summary({sites, unreachable}: EverySite): string {
+function summary({sites}: EverySite): string {
   const tools = sites.reduce((count, site) => count + site.tools.length, 0)
-  const read = unreachable.length === 0 ? `${sites.length} sites` : `${sites.length} of ${sites.length + unreachable.length} sites`
-  return `${tools} tools from ${read}`
+  return `${tools} tools from ${sites.length} sites`
 }
 
 // Every site's tools as Markdown, one section for each site, then how an agent

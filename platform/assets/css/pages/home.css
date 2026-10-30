@@ -169,6 +169,20 @@
   }
 }
 
+/* Everything the home page lets a pointer press answers it: the brand dims, the
+   icons and plain links take the pointing blue, and outlined and menu buttons
+   take a faint wash of their own ink. Outside the layer, so they win over the
+   links' and buttons' own unlayered colours. */
+.rl-brand, .rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-agents a { transition: color 140ms ease, opacity 140ms ease; }
+.rl-root .rg-button--secondary::before { transition: box-shadow 140ms ease; }
+.rg-button.rl-token-link::before { transition: background-color 140ms ease; }
+@media (hover: hover) {
+  .rl-brand:hover { opacity: .72; }
+  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-agents a, .rl-token-copy):hover { color: var(--ash-accent); }
+  .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
+  .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
+}
+
 /* The How it works sheet takes the figure colour and Staking the band colour.
    They sit outside the layer so they win over the shared panel's own surface fill. */
 .rg-panel.rl-panel--how { --rg-panel-fill: var(--support-figure-surface); --rg-panel-ink: var(--support-figure-ink); }

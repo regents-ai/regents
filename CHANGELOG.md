@@ -4052,3 +4052,14 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - llms.txt, agents.md, the agent start page and /docs say the same; /docs Changes has the
   entry. Contract version 4.0.1. The site's answers do not change.
 - No database, secret or library changes.
+
+## 2026-10-30 — Home page: orange tools window, five sites, hover on every control
+
+- The WebMCP tools window is orange (Tangerine Tango) instead of green.
+- "Copy all Regents WebMCP tools" read 4 of 5 sites: Techtree moved its tool list to
+  `/capabilities.json` and the site still asked the old address, which now answers 404.
+  It now reads Techtree's new address, and the line reads "N tools from 5 sites".
+- Every link and button on the home page answers a pointer: the brand dims, the header
+  icons, the footer links and the command-line link turn blue, the outlined buttons (WebMCP
+  Tools, the product and guide links) take a faint wash, and the $REGENT menu rows lighten.
+- No database, secret or library changes.
