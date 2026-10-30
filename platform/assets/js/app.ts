@@ -39,6 +39,7 @@ import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
+import {installDocs} from "./docs"
 import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
 import {arriveAt, installShellPanels} from "./shell_panels"
@@ -349,6 +350,7 @@ installAccountAuthLazyLoader()
 installPublicTools()
 installCrossTabCsrf()
 installCopyButtons()
+installDocs()
 installAgentTools()
 installLiteratureChart()
 installShellPanels()

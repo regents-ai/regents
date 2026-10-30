@@ -1,0 +1,822 @@
+/* The developer docs: a top bar with search, the section tabs, then the sidebar,
+   the page and its "On this page" list. The top bar and tabs stay in view while
+   the page scrolls; so do the sidebar and the list beside the page. */
+
+.docs {
+  --docs-top: 3.5rem;
+  --docs-tabs: 2.75rem;
+  --docs-stuck: calc(var(--docs-top) + var(--docs-tabs));
+  --docs-rule: var(--rg-page-rule);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.docs-skip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--rg-layer-skip);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg);
+  transform: translateY(-120%);
+}
+
+.docs-skip:focus-visible {
+  transform: none;
+}
+
+/* Top bar */
+
+.docs-top {
+  position: sticky;
+  top: 0;
+  z-index: var(--rg-layer-header);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--docs-top);
+  padding-inline: var(--space-3);
+  border-bottom: 1px solid var(--docs-rule);
+  background: var(--color-bg);
+}
+
+.docs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+.docs-brand__mark {
+  position: relative;
+  display: block;
+  width: 1.6rem;
+  height: 1.3rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.docs-brand__mark img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Dark is the default; light shows once chosen, or before any choice on a
+   device that asks for light. */
+.docs-brand__light,
+:root[data-theme="light"] .docs-brand__dark {
+  display: none;
+}
+
+:root[data-theme="light"] .docs-brand__light {
+  display: block;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .docs-brand__light {
+    display: block;
+  }
+
+  :root:not([data-theme]) .docs-brand__dark {
+    display: none;
+  }
+}
+
+.docs-brand__name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.docs-brand__docs {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline-start: var(--space-2);
+  border-inline-start: 1px solid var(--docs-rule);
+  color: var(--color-fg-muted);
+  text-decoration: none;
+}
+
+.docs-brand__docs:hover {
+  color: var(--color-fg);
+}
+
+/* Search */
+
+.docs-search {
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 28rem;
+  margin-inline-start: auto;
+}
+
+.docs-search input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0 2.5rem 0 var(--space-2);
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+}
+
+.docs-search input::placeholder {
+  color: var(--color-fg-muted);
+}
+
+.docs-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.docs-search__key {
+  position: absolute;
+  top: 50%;
+  right: var(--space-1);
+  padding: 0 0.4rem;
+  border: 1px solid var(--docs-rule);
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.docs-search:focus-within .docs-search__key {
+  display: none;
+}
+
+/* The results are a tip: the firmest edge, the raised fill, the shortest stay. */
+.docs-search__results {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  left: 0;
+  z-index: var(--rg-layer-tip);
+  max-height: min(28rem, 70dvh);
+  margin: 0;
+  padding: var(--space-1) 0;
+  overflow-y: auto;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--rg-layer-tip-shadow);
+  list-style: none;
+}
+
+.docs-search__results a {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+.docs-search__results [aria-selected="true"] a {
+  background: var(--ash-panel-strong);
+  box-shadow: inset 2px 0 0 var(--color-fg);
+}
+
+.docs-search__results strong {
+  display: block;
+  font-weight: 600;
+}
+
+.docs-search__results span {
+  display: block;
+  overflow: hidden;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs-search__results .docs-search__none {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-fg-muted);
+}
+
+/* Ask AI */
+
+.docs-ask {
+  display: inline-flex;
+}
+
+.docs-ask .rg-button {
+  anchor-name: --docs-ask;
+}
+
+/* The menu hangs from Ask AI, its right edge lined up with the button's. */
+.docs-menu {
+  position: fixed;
+  position-anchor: --docs-ask;
+  inset: anchor(bottom) anchor(right) auto auto;
+  min-width: 12rem;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1) 0;
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface-elevated);
+  color: var(--color-fg);
+  box-shadow: var(--rg-layer-tip-shadow);
+}
+
+.docs-menu:popover-open {
+  display: grid;
+}
+
+.docs-menu a {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding-inline: var(--space-2);
+  text-decoration: none;
+}
+
+.docs-menu a::after {
+  content: "↗";
+  margin-inline-start: auto;
+  padding-inline-start: var(--space-2);
+  color: var(--color-fg-muted);
+}
+
+.docs-menu a:hover {
+  background: var(--ash-panel-strong);
+}
+
+.docs-menu-button.rg-button {
+  display: none;
+}
+
+/* Tabs */
+
+.docs-tabs {
+  position: sticky;
+  top: var(--docs-top);
+  z-index: calc(var(--rg-layer-header) - 1);
+  display: flex;
+  gap: var(--space-3);
+  min-height: var(--docs-tabs);
+  padding-inline: var(--space-3);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--docs-rule);
+  background: var(--color-bg);
+  scrollbar-width: none;
+}
+
+.docs-tabs a {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-fg-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.docs-tabs a:hover {
+  color: var(--color-fg);
+}
+
+.docs-tabs a[aria-current] {
+  border-bottom-color: var(--color-fg);
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+/* Sidebar, page and "On this page" */
+
+.docs-body {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr) 14rem;
+  flex: 1 0 auto;
+}
+
+/* The sidebar is the phone's panel too; on wider screens it stays in its column. */
+.docs-nav {
+  position: sticky;
+  inset: var(--docs-stuck) auto auto;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  height: auto;
+  max-height: calc(100dvh - var(--docs-stuck));
+  margin: 0;
+  padding: var(--space-2) var(--space-2) 0;
+  overflow-y: auto;
+  border: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  align-self: start;
+}
+
+.docs-nav__close {
+  display: none;
+}
+
+.docs-nav__group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.5rem;
+  padding-inline: var(--space-1);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.docs-nav__group summary::-webkit-details-marker {
+  display: none;
+}
+
+.docs-nav__group summary::after {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+}
+
+.docs-nav__group[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.docs-nav ul {
+  margin: 0 0 var(--space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.docs-nav li a {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding-inline: calc(var(--space-2) - 2px) var(--space-1);
+  border-inline-start: 2px solid var(--docs-rule);
+  color: var(--color-fg-muted);
+  text-decoration: none;
+}
+
+.docs-nav li a:hover {
+  color: var(--color-fg);
+}
+
+.docs-nav li a[aria-current="page"] {
+  border-inline-start-color: var(--color-fg);
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.docs-nav__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  margin-top: auto;
+  padding: var(--space-2) var(--space-1);
+  border-top: 1px solid var(--docs-rule);
+  font-size: 0.8125rem;
+}
+
+.docs-nav__foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  color: var(--color-fg-muted);
+}
+
+.docs-article {
+  min-width: 0;
+  max-width: 50rem;
+  border-inline-start: 1px solid var(--docs-rule);
+  padding: var(--space-4) var(--space-5) var(--space-6);
+  outline: none;
+}
+
+.docs-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  list-style: none;
+}
+
+.docs-crumbs li + li::before {
+  content: "/";
+  padding-inline: var(--space-1);
+}
+
+.docs-crumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.docs-crumbs a:hover {
+  color: var(--color-fg);
+  text-decoration: underline;
+}
+
+.docs-title {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem);
+  line-height: 1.1;
+}
+
+.docs-lede {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.docs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-block: var(--space-3) var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--docs-rule);
+}
+
+.docs-toc-phone {
+  display: none;
+}
+
+.docs-toc {
+  position: sticky;
+  top: var(--docs-stuck);
+  max-height: calc(100dvh - var(--docs-stuck));
+  padding: var(--space-4) var(--space-2);
+  overflow-y: auto;
+  align-self: start;
+  font-size: 0.875rem;
+}
+
+.docs-toc__title {
+  margin: 0 0 var(--space-1);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-microlabel, 0.16em);
+  text-transform: uppercase;
+}
+
+.docs-toc__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.docs-toc__list a {
+  display: block;
+  padding: 0.3rem 0 0.3rem calc(var(--space-1) + 2px);
+  border-inline-start: 2px solid var(--docs-rule);
+  color: var(--color-fg-muted);
+  text-decoration: none;
+}
+
+.docs-toc__sub a {
+  padding-inline-start: var(--space-3);
+}
+
+.docs-toc__list a:hover,
+.docs-toc__list a[aria-current="true"] {
+  color: var(--color-fg);
+}
+
+.docs-toc__list a[aria-current="true"] {
+  border-inline-start-color: var(--color-fg);
+}
+
+/* Prose */
+
+.docs-prose {
+  font-size: 1rem;
+  line-height: 1.65;
+  overflow-wrap: break-word;
+}
+
+.docs-prose h2,
+.docs-prose h3 {
+  font-family: var(--font-family-ui);
+  font-weight: 600;
+  scroll-margin-top: calc(var(--docs-stuck) + var(--space-2));
+}
+
+.docs-prose h2 {
+  margin: var(--space-5) 0 var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--docs-rule);
+  font-size: 1.375rem;
+  line-height: 1.3;
+}
+
+.docs-prose > h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.docs-prose h3 {
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: 1.0625rem;
+}
+
+.docs-prose p,
+.docs-prose ul,
+.docs-prose ol {
+  margin: 0 0 var(--space-2);
+}
+
+.docs-prose ul,
+.docs-prose ol {
+  padding-inline-start: 1.25rem;
+}
+
+.docs-prose li + li {
+  margin-top: 0.35rem;
+}
+
+.docs-prose a {
+  color: var(--ash-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.docs-prose :not(pre) > code {
+  padding: 0.1em 0.3em;
+  border: 1px solid var(--docs-rule);
+  background: var(--color-surface);
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+.docs-code {
+  position: relative;
+  margin: 0 0 var(--space-3);
+}
+
+.docs-code pre {
+  margin: 0;
+  padding: var(--space-2) 3rem var(--space-2) var(--space-2);
+  overflow-x: auto;
+  border: 1px solid var(--docs-rule);
+  background: var(--color-surface);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.docs-code .rg-copy--icon {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  background: var(--color-surface);
+}
+
+.docs-table {
+  margin: 0 0 var(--space-3);
+  overflow-x: auto;
+}
+
+.docs-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.docs-table th,
+.docs-table td {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--docs-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs-table th {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+.docs-table td:first-child {
+  white-space: nowrap;
+}
+
+/* Previous and next */
+
+.docs-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+.docs-pager a {
+  display: grid;
+  gap: 0.15rem;
+  padding: var(--space-2);
+  border: 1px solid var(--docs-rule);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.docs-pager a:hover {
+  border-color: var(--color-fg);
+}
+
+.docs-pager span {
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: var(--tracking-microlabel, 0.16em);
+  text-transform: uppercase;
+}
+
+.docs-pager__next {
+  grid-column: 2;
+  text-align: end;
+}
+
+/* Below a wide screen the "On this page" list folds into the top of the page. */
+@media (max-width: 74.99rem) {
+  .docs-body {
+    grid-template-columns: 14rem minmax(0, 1fr);
+  }
+
+  .docs-toc {
+    display: none;
+  }
+
+  .docs-toc-phone {
+    display: block;
+    margin-bottom: var(--space-3);
+    border: 1px solid var(--docs-rule);
+  }
+
+  .docs-toc-phone summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.75rem;
+    padding-inline: var(--space-2);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .docs-toc-phone summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .docs-toc-phone summary::after {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 150ms ease;
+  }
+
+  .docs-toc-phone[open] summary::after {
+    transform: rotate(-135deg);
+  }
+
+  .docs-toc-phone .docs-toc__list {
+    padding: 0 var(--space-2) var(--space-2);
+  }
+
+  .docs-article {
+    padding-inline: var(--space-4);
+  }
+}
+
+/* A phone: the search takes its own row and the sidebar slides in from the left. */
+@media (max-width: 47.99rem) {
+  .docs {
+    --docs-top: 6.5rem;
+  }
+
+  .docs-top {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding-inline: var(--space-2);
+  }
+
+  .docs-brand__name {
+    display: none;
+  }
+
+  .docs-ask {
+    margin-inline-start: auto;
+  }
+
+  .docs-menu-button.rg-button {
+    display: inline-flex;
+  }
+
+  .docs-search {
+    order: 1;
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0 0 var(--space-1);
+  }
+
+  .docs-search__key {
+    display: none;
+  }
+
+  .docs-tabs {
+    gap: var(--space-2);
+    padding-inline: var(--space-2);
+  }
+
+  .docs-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .docs-nav:not(:popover-open) {
+    display: none;
+  }
+
+  .docs-nav:popover-open {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(20rem, 85vw);
+    max-height: none;
+    height: 100dvh;
+    padding-top: var(--space-3);
+    border-inline-end: 1px solid var(--ash-line-strong);
+    box-shadow: var(--rg-layer-panel-shadow);
+    animation: docs-panel-in 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .docs-nav__close {
+    display: inline-flex;
+    align-self: flex-end;
+    margin-bottom: var(--space-1);
+  }
+
+  .docs-nav::backdrop {
+    background: color-mix(in srgb, var(--palette-charcoal) 45%, transparent);
+  }
+
+  .docs-article {
+    padding: var(--space-3) var(--space-2) var(--space-5);
+    border-inline-start: 0;
+  }
+
+  .docs-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .docs-actions > * {
+    justify-content: center;
+  }
+
+  .docs-actions > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .docs-pager {
+    grid-template-columns: 1fr;
+  }
+
+  .docs-pager__next {
+    grid-column: 1;
+  }
+}
+
+@keyframes docs-panel-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .docs-nav li a,
+  .docs-toc__list a,
+  .docs-nav__foot a {
+    min-height: 2.75rem;
+  }
+
+  .docs-toc__list a {
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-nav:popover-open {
+    animation: none;
+  }
+
+  .docs-nav__group summary::after,
+  .docs-toc-phone summary::after {
+    transition: none;
+  }
+}

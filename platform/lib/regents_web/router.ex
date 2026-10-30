@@ -134,7 +134,10 @@ defmodule RegentsWeb.Router do
 
   scope "/", RegentsWeb do
     pipe_through :public_documents
-    get "/docs", PublicPagesController, :show
+
+    for path <- RegentsWeb.Docs.Pages.paths(),
+        do: get(path, DocsController, :show, private: %{docs_path: path})
+
     get "/about", PublicPagesController, :show
     get "/contact", PublicPagesController, :show
   end

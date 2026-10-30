@@ -2,7 +2,7 @@ defmodule RegentsWeb.PublicDocuments do
   @moduledoc "Public documents only; never projects a signed-in page or account."
 
   @directory Application.app_dir(:regents, "priv/public")
-  @files Enum.map(~w(docs about contact llms agents skill), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(~w(about contact llms agents skill), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
   # The About page's Key facts, repeated in llms.txt so AI tools read the same facts.
@@ -29,7 +29,8 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /docs /about /contact /privacy /terms /start /cloak/guide /credits/refunds)
+  @documents ~w(/ /about /contact /privacy /terms /start /cloak/guide /credits/refunds) ++
+               RegentsWeb.Docs.Pages.paths()
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -83,8 +84,39 @@ defmodule RegentsWeb.PublicDocuments do
     "/admin/credits" => {"Credits admin", "Give Credits and handle refunds."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
-      {"Developer documentation",
-       "Start reading Regents Labs without an account: the agent guide, public reads, historical name claims and contract details."},
+      {"Docs",
+       "Read Regents Labs without an account, then pair an agent to read a person's own figures."},
+    "/docs/limits" =>
+      {"Limits · Docs",
+       "Each client address gets 120 requests a minute, and every answer says how many are left."},
+    "/docs/errors" =>
+      {"Errors · Docs",
+       "Every refusal has one shape: a code, a message saying what happened and a hint saying what to do."},
+    "/docs/products" =>
+      {"Products · Docs",
+       "Autolaunch, Techtree, Patchbay and Keyfleet as JSON, with each one's summary and links."},
+    "/docs/reading" =>
+      {"Reading · Docs",
+       "Published research papers, Articles and the AI & SCIFI books, open to everyone."},
+    "/docs/profiles" => {"Profiles · Docs", "A public Regent profile as JSON, by its slug."},
+    "/docs/pairing" =>
+      {"Pairing · Docs",
+       "Pair an agent with a person's account using a one-time code, then check in."},
+    "/docs/agent-reads" =>
+      {"Signed reads · Docs",
+       "A paired agent reads its person's account, claims, stake, Credits and Points."},
+    "/docs/webmcp" =>
+      {"WebMCP · Docs", "Every page offers read tools to browsers that support WebMCP."},
+    "/docs/claims" =>
+      {"Claims · Docs",
+       "A signed-in person's historical name claims, read with their Privy tokens."},
+    "/docs/staking" =>
+      {"Staking · Docs",
+       "A signed-in person's stake as Stake shows it, and where wallet actions happen."},
+    "/docs/contracts" =>
+      {"Contracts · Docs",
+       "The OpenAPI and YAML descriptions of every request, and which product owns what."},
+    "/docs/changes" => {"Changes · Docs", "Each change to these requests, newest first."},
     "/about" =>
       {"About",
        "What Regents Labs does and how it differs, who uses it, the team, key facts and common questions about REGENT and its products."},
@@ -133,10 +165,15 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/cloak/guide"), do: %{markdown: RegentsWeb.Cloak.guide_markdown()}
   def document("/credits/refunds"), do: %{markdown: RegentsWeb.CreditsRefundRules.markdown()}
 
-  def document(path) when path in ["/docs", "/about", "/contact"],
+  def document(path) when path in ["/about", "/contact"],
     do: %{markdown: source(String.trim_leading(path, "/"))}
 
-  def document(_path), do: nil
+  def document(path) do
+    case RegentsWeb.Docs.Pages.page(path) do
+      nil -> nil
+      page -> %{markdown: RegentsWeb.Docs.markdown(page)}
+    end
+  end
 
   @doc """
   The title and description a page is rendered with, as the `page_title` and
@@ -261,7 +298,8 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /docs /about /contact /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide),
+        ~w(/ /about /contact /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
+          RegentsWeb.Docs.Pages.paths(),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
@@ -310,10 +348,15 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
-  # `{{key_facts}}` is the About page's Key facts section and `{{tools}}` the
-  # browser tools table; `{{origin}}` goes last, since they name it.
-  defp source(name) do
-    @sources[name]
+  defp source(name), do: fill(@sources[name])
+
+  @doc """
+  Committed Markdown with its placeholders filled: `{{key_facts}}` is the About
+  page's Key facts section and `{{tools}}` the browser tools table; `{{origin}}`
+  goes last, since they name it.
+  """
+  def fill(markdown) do
+    markdown
     |> String.replace("{{key_facts}}", @key_facts)
     |> String.replace("{{tools}}", @tool_table)
     |> String.replace("{{origin}}", url(""))

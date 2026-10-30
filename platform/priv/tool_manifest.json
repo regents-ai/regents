@@ -3,7 +3,7 @@
     {
       "name": "regents_about",
       "title": "Read a Regents page",
-      "description": "Read a regents.sh page as Markdown, exactly as the site serves it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions; docs covers the public reads, signed-in reads, agent pairing and these browser tools; start is how a person pairs their agent; contact is where to get help and send privacy, legal and security questions; refunds is the Credits refund rules; privacy and terms are the Privacy Policy and Terms of Use; cloak is the Regents Cloak setup guide.",
+      "description": "Read a regents.sh page as Markdown, exactly as the site serves it. page chooses which one: about says what Regents Labs does and how it differs, who uses it, the team, key facts and common questions; docs is the docs overview and its list of pages, and each of these is one docs page: docs-limits (request limits), docs-errors (refusal shape and codes), docs-products, docs-reading (papers, Articles, books), docs-profiles, docs-pairing (pairing an agent and checking in), docs-agent-reads (a paired agent reading its person's account), docs-webmcp (these browser tools), docs-claims, docs-staking, docs-contracts (OpenAPI) and docs-changes; start is how a person pairs their agent; contact is where to get help and send privacy, legal and security questions; refunds is the Credits refund rules; privacy and terms are the Privacy Policy and Terms of Use; cloak is the Regents Cloak setup guide.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12,6 +12,18 @@
             "enum": [
               "about",
               "docs",
+              "docs-limits",
+              "docs-errors",
+              "docs-products",
+              "docs-reading",
+              "docs-profiles",
+              "docs-pairing",
+              "docs-agent-reads",
+              "docs-webmcp",
+              "docs-claims",
+              "docs-staking",
+              "docs-contracts",
+              "docs-changes",
               "start",
               "contact",
               "refunds",
@@ -19,7 +31,7 @@
               "terms",
               "cloak"
             ],
-            "description": "about for /about, docs for /docs, start for /start, contact for /contact, refunds for /credits/refunds, privacy for /privacy, terms for /terms, cloak for /cloak/guide."
+            "description": "about for /about, docs for /docs, docs-limits for /docs/limits and the same for each docs page (docs-errors, docs-products, docs-reading, docs-profiles, docs-pairing, docs-agent-reads, docs-webmcp, docs-claims, docs-staking, docs-contracts, docs-changes), start for /start, contact for /contact, refunds for /credits/refunds, privacy for /privacy, terms for /terms, cloak for /cloak/guide."
           }
         },
         "required": [
@@ -35,7 +47,7 @@
       "requires": "none",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /about, GET /docs, GET /start, GET /contact, GET /credits/refunds, GET /privacy, GET /terms, GET /cloak/guide",
+      "route": "GET /about, GET /docs, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /contact, GET /credits/refunds, GET /privacy, GET /terms, GET /cloak/guide",
       "scope": "site",
       "authentication": "public",
       "availability": "available",
@@ -43,7 +55,7 @@
       "effect": "read",
       "interfaces": {
         "webmcp": "regents_about",
-        "http": "GET /about, GET /docs, GET /start, GET /contact, GET /credits/refunds, GET /privacy, GET /terms, GET /cloak/guide"
+        "http": "GET /about, GET /docs, GET /docs/limits, GET /docs/errors, GET /docs/products, GET /docs/reading, GET /docs/profiles, GET /docs/pairing, GET /docs/agent-reads, GET /docs/webmcp, GET /docs/claims, GET /docs/staking, GET /docs/contracts, GET /docs/changes, GET /start, GET /contact, GET /credits/refunds, GET /privacy, GET /terms, GET /cloak/guide"
       }
     },
     {

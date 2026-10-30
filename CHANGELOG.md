@@ -4040,3 +4040,25 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   tests clean.
 - Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
   Markdown copy of the page says the same, no sideways scroll and no console error.
+
+## 2026-10-30 — Docs rebuilt as a docs section
+
+- /docs is now a real docs section: a top bar with search and Ask AI, tabs for Start,
+  API, Agents, Account and Reference, a sidebar with folding sections, a breadcrumb, a
+  large title with a one-line description, Copy for LLM, View as Markdown and Set up
+  agent, an On this page list that follows the reader, and previous and next links.
+  Light and dark, phone and desktop; on a phone the sidebar opens from Menu.
+- The one long page is now thirteen pages: Overview, Limits, Errors, Products,
+  Reading, Profiles, Pairing, Signed reads, WebMCP, Claims, Staking, Contracts and
+  Changes. Each answers `Accept: text/markdown` at its own address and is in the
+  sitemap and llms.txt.
+- `regents_about` reads each docs page by name (`docs-pairing` and so on); `docs` is
+  the overview. The CLI is unaffected.
+- Search runs in the page from the same words the pages show; `/` or Cmd/Ctrl+K
+  opens it. Code blocks have a copy icon. No database, secret or library changes;
+  adds Floki to the platform's own dependencies (it was already locked).
+- Corrected refusals in the docs, llms.txt, agents.md and the agent start page: a
+  check-in from an unpaired agent answers `403 agent_not_paired` (it said `404
+  not_paired`), pairing can answer `400 invalid_name`, and stake reads answer `429
+  rate_limited` past the Base reading budget of 30 a minute. Signed reads now list
+  their claims paging and every refusal.

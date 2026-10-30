@@ -70,6 +70,7 @@ defmodule Regents.MixProject do
       {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
       {:mdex, "== 0.14.2"},
+      {:floki, "== 0.38.4"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
       {:siwa,
