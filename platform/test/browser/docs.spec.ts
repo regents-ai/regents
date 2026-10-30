@@ -38,7 +38,7 @@ test("[DOCS] Copy for LLM and View as Markdown give the page's Markdown", async 
   await markdown.close()
 })
 
-for (const width of [390, 1280]) {
+for (const width of [360, 1280]) {
   test(`[DOCS] every docs page is reached from the sidebar and fits at ${width} wide`, async ({page}) => {
     await page.setViewportSize({width, height: 900})
     await page.goto("/docs")
@@ -46,14 +46,19 @@ for (const width of [390, 1280]) {
     expect(paths.length).toBeGreaterThan(10)
 
     for (const path of paths.slice(1)) {
-      if (width === 390) await page.getByRole("button", {name: "Menu"}).click()
+      if (width === 360) await page.getByRole("button", {name: "Menu"}).click()
       const link = page.locator(`#docs-nav a[href="${path}"]`)
       if (!(await link.isVisible())) await link.locator("xpath=ancestor::details[1]/summary").click()
       await link.click()
       await expect(page).toHaveURL(new RegExp(`${path}$`))
       await expect(page.locator("h1.docs-title")).toBeVisible()
-      await expect(page.locator("#docs-nav")).toBeVisible({visible: width !== 390})
+      await expect(page.locator("#docs-nav")).toBeVisible({visible: width !== 360})
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      const overhang = await page.evaluate(() => {
+        const column = document.querySelector("h1.docs-title")!.getBoundingClientRect().right
+        return Math.max(...[...document.querySelectorAll(".docs-actions > .rg-button")].map(button => button.getBoundingClientRect().right - column))
+      })
+      expect(overhang).toBeLessThanOrEqual(0)
     }
   })
 }

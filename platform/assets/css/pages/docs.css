@@ -769,17 +769,13 @@
     border-inline-start: 0;
   }
 
-  .docs-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
   .docs-actions > * {
+    flex: 1 1 auto;
     justify-content: center;
   }
 
   .docs-actions > :last-child {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
   }
 
   .docs-pager {
