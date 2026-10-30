@@ -4031,3 +4031,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   revenue." The long sentence with bold words is gone, along with the code that
   bolded words inside it. The agent copy says the same.
 - No database, secret or library changes.
+
+## 2026-10-30 — Regents v252 released
+
+- v252 (`a15edd32`) went live at 00:50Z: the Mission box shows "Regents Labs" and one
+  plain line. The rollback is v251 (`f462b2f4`). No database, secret or library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean.
+- Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
+  Markdown copy of the page says the same, no sideways scroll and no console error.
