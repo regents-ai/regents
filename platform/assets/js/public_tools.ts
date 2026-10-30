@@ -49,7 +49,6 @@ const pages: Record<string, string> = {
   about: "/about",
   docs: "/docs",
   start: "/start",
-  contact: "/contact",
   refunds: "/credits/refunds",
   privacy: "/privacy",
   terms: "/terms",

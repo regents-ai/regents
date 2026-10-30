@@ -4063,3 +4063,25 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   icons, the footer links and the command-line link turn blue, the outlined buttons (WebMCP
   Tools, the product and guide links) take a faint wash, and the $REGENT menu rows lighten.
 - No database, secret or library changes.
+
+## 2026-10-30 — Regents v254 released
+
+- v254 (`ea427af8`) went live at 15:56Z: the orange tools window, "252 tools from 5 sites"
+  and the home-page hovers. The rollback is v253 (`9f10a961`). No database, secret or
+  library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440 and 390: accent `#FF5B19`, all five sites read, the WebMCP
+  Tools button answers a pointer, no sideways scroll and no console error.
+
+## 2026-10-30 — Docs and About in the side menu; Contact folded into About
+
+- The side menu lists Docs and About Regents Labs under Reading, between Daily Research
+  and AI & SCIFI.
+- Everything the Contact page said (help, privacy requests, legal questions, security
+  reports, product information) is now the Contact section of About. `/contact` is gone
+  and answers the not-found page; the footer, the page header on Docs and About, llms.txt,
+  /docs, the home page's Markdown, the sitemap, security.txt's Policy and the OpenAPI
+  contact all point at About.
+- The `regents_about` browser tool no longer takes `contact`; its About description says
+  About covers how to reach us. /docs records the change.
+- No database, secret or library changes.

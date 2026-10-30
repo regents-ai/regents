@@ -79,7 +79,7 @@ defmodule RegentsWeb.HomeLive do
 
     ---
 
-    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [What agents can do here](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Contact](#{PublicDocuments.url("/contact")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
+    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [What agents can do here](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
     """
   end
 

@@ -146,6 +146,8 @@ The [OpenAPI JSON specification]({{origin}}/openapi.json) describes the health r
 
 We change the API in place and update these docs the same day; no old versions are kept.
 
+2026-10-30: the contact page is gone. Its help, privacy, legal and security addresses are in the Contact section of [About]({{origin}}/about), and the `regents_about` browser tool no longer takes `contact`.
+
 2026-10-30: the [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) list the check-in refusal for an unpaired agent as `403 agent_not_paired`, as the site answers, and list `400 invalid_name` among the pairing refusals. They are now version 4.0.1.
 
 2026-10-28: the browser tool list moved from `/capabilities` to [/capabilities.json]({{origin}}/capabilities.json), and now also gives `build`: the `commit` and `release` this site runs, as on the other Regents sites. The check-in command is `regents protocol agents status`, formerly `agents me`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 4.0.0.
@@ -170,4 +172,4 @@ Every page offers these tools to browsers that support WebMCP. They make the sam
 
 {{tools}}
 
-Need help? Read [About]({{origin}}/about), [Contact]({{origin}}/contact), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).
+Need help? Read [About]({{origin}}/about), [Privacy]({{origin}}/privacy) and [Terms]({{origin}}/terms).

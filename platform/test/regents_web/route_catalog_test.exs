@@ -108,6 +108,8 @@ defmodule RegentsWeb.RouteCatalogTest do
                label: "Daily Research",
                path: "/paper-pro-daily"
              },
+             %PageTarget{route_id: :docs, label: "Docs", path: "/docs"},
+             %PageTarget{route_id: :about, label: "About Regents Labs", path: "/about"},
              %PageTarget{route_id: :literature, label: "AI & SCIFI", path: "/literature"}
            ]
   end

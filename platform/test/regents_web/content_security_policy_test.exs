@@ -16,7 +16,7 @@ defmodule RegentsWeb.ContentSecurityPolicyTest do
   end
 
   test "PAGE_POLICY: reading pages carry the strict policy and send no referrer", %{conn: conn} do
-    for path <- ~w(/docs /about /contact) do
+    for path <- ~w(/docs /about) do
       response = get(conn, path)
 
       assert get_resp_header(response, "content-security-policy") == [

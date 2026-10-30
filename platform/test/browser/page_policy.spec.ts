@@ -18,7 +18,7 @@ test("[R14] no page is refused anything by its security policy", async ({page}) 
     refusals.push(...found.map(refusal => `${label}: ${refusal}`))
   }
 
-  for (const path of ["/", "/articles", "/docs", "/about", "/contact", "/privacy", "/terms",
+  for (const path of ["/", "/articles", "/docs", "/about", "/privacy", "/terms",
     "/app", "/stake", "/redeem", "/redeem/gallery", "/account",
     "/account/points", "/account/credits", "/account/wallets", "/account/connections", "/names",
     "/autolaunch", "/techtree", "/patchbay", "/cloak", "/cloak/guide", "/no-such-page"]) {
