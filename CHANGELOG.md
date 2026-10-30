@@ -4085,3 +4085,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The `regents_about` browser tool no longer takes `contact`; its About description says
   About covers how to reach us. /docs records the change.
 - No database, secret or library changes.
+
+## 2026-10-30 — The lab's name stands once, top left
+
+- "Regents Labs" and "The community-owned agentic product lab" are gone from the cube's
+  panel, which now opens on Enter App, WebMCP Tools and the command-line link above the cube.
+- The name stands once, top left, as the page's heading in the Mission panel, over its
+  one plain line. On a phone the name comes first, then the cube's panel, then the rest.
+- The home page's Markdown opens the same way: the name, the plain line, then the links.
+- A page check fails if the home page ever sets words in bold again.
+- No database, secret or library changes.
