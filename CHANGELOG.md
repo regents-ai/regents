@@ -4040,3 +4040,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   tests clean.
 - Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
   Markdown copy of the page says the same, no sideways scroll and no console error.
+
+## 2026-10-30 — Agent contract 4.0.1: refusals as the site answers them
+
+- The OpenAPI JSON and the YAML contract listed a check-in from an unpaired agent as
+  `404 not_paired`; the site answers `403 agent_not_paired`. The check-in's 403 now covers
+  both `agent_not_paired` and `person_not_here`, with the site's own words in the examples.
+- Pairing's 400 now lists `invalid_name` (a name that is empty, over 80 characters or holds
+  hidden characters) beside `pairing_failed` and `harness_unknown`, and the
+  `pairing_failed` example uses the site's hint.
+- llms.txt, agents.md, the agent start page and /docs say the same; /docs Changes has the
+  entry. Contract version 4.0.1. The site's answers do not change.
+- No database, secret or library changes.
