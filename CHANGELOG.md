@@ -4096,6 +4096,29 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - A page check fails if the home page ever sets words in bold again.
 - No database, secret or library changes.
 
+## 2026-10-30 — Regents v256 released
+
+- v256 (`42467c4d`) went live at 16:42Z: "Regents Labs" stands once, top left, as the page's
+  heading; the cube's panel opens on its buttons; the bold-word page check. The rollback is
+  v255 (`cf82440c`). No database, secret or library changes.
+- Before release, on the exact tree: 607 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440, 1280, 390 and 320: one heading, "Regents Labs", in the Mission
+  panel; the cube's panel reads only Enter App, WebMCP Tools and the command-line link; no
+  bold words; on a phone the name comes before the cube's panel; no sideways scroll and no
+  console error. The home page's Markdown opens with the name and the plain line.
+
+## 2026-10-30 — Home page: the Regents crown in Staking
+
+- The Staking panel on the home page shows the Regents crown, the same one as the top
+  left, where the $ coin drawing was.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v257 released
+
+- v257 (`630474ba`) went live at 17:28Z: the Regents crown in the home page's Staking panel.
+  The rollback is v256 (`42467c4d`). No database, secret or library changes.
+- Live at 1440 and 390: the crown loads in the tile, no sideways scroll, no console error.
+
 ## 2026-10-30 — Docs rebuilt as a docs section
 
 - /docs is now a real docs section: a top bar with search and Ask AI, tabs for Start,
