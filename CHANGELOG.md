@@ -4012,3 +4012,14 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Keyfleet has a new drawing, a key leading a small fleet, on the home page and the
   product Overview. The old coin drawing now marks the Staking box.
 - No database, secret or library changes.
+
+## 2026-10-30 — Regents v251 released
+
+- v251 (`f462b2f4`) went live at 00:39Z: the home page hero stands top right and stays
+  in view, Principles is gone, a Staking box links to /stake, and Keyfleet has its new
+  drawing. The rollback is v250 (`db4c6239`). No database, secret or library changes.
+- Before release, on the exact tree: 605 server tests, 252 script tests, 143 browser
+  tests, required fixes and CLI checks all clean. Identity and contracts are untouched.
+- Live at 1440, 1280, 390 and 320: the hero holds its place top right while the page
+  scrolls on desktop, a phone reads the hero first, Staking links to /stake (which
+  answers), there is no sideways scroll and no console error.
