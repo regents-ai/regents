@@ -87,6 +87,23 @@ defmodule RegentsWeb.HomeLiveTest do
              ]
   end
 
+  test "the Mission box names the lab, then says one plain line", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+    line = "We build tools for people and their agents. REGENT stakers share in the revenue."
+
+    assert text(html, "#home-mission .rl-statement__name") == "Regents Labs"
+    assert text(html, "#home-mission .rl-statement__line") == line
+    assert HomeLive.agent_markdown() =~ "## Mission\n\n### Regents Labs\n\n#{line}\n"
+  end
+
+  defp text(html, selector),
+    do:
+      html
+      |> LazyHTML.from_document()
+      |> LazyHTML.query(selector)
+      |> LazyHTML.text()
+      |> String.trim()
+
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
 end

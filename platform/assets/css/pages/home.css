@@ -55,11 +55,10 @@
   .rl-panel > .rl-eyebrow:first-child { padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
   .rl-mono { font: .875rem/1.55 var(--font-family-mono); }
 
-  .rl-statement {
-    padding-block-end: var(--space-4); border-block-end: 1px solid var(--rg-local-rule); text-wrap: pretty;
-    font: var(--font-weight-regular) clamp(1.75rem, 3.2vw, 2.5rem)/1.2 var(--font-family-sans); letter-spacing: -.02em;
-  }
-  .rl-statement strong { font-weight: var(--font-weight-semibold); }
+  /* The lab's name in the title face, then one plain line in body weight. */
+  .rl-statement { display: grid; gap: var(--space-2); padding-block-end: var(--space-4); border-block-end: 1px solid var(--rg-local-rule); }
+  .rl-statement__name { font: 400 clamp(2.5rem, 4.4vw, 3.5rem)/1 var(--font-family-title); }
+  .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-sans); text-wrap: pretty; }
 
   /* Four product cards on the Products sheet, two by two, ruled off above like the
      rows of How it works. Each card's drawing stands on a flat tile of its colour. */

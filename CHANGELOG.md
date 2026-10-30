@@ -4023,3 +4023,11 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Live at 1440, 1280, 390 and 320: the hero holds its place top right while the page
   scrolls on desktop, a phone reads the hero first, Staking links to /stake (which
   answers), there is no sideways scroll and no console error.
+
+## 2026-10-30 — Home page: Mission box in plain words
+
+- The Mission box now leads with "Regents Labs" in the title face, then one plain
+  line: "We build tools for people and their agents. REGENT stakers share in the
+  revenue." The long sentence with bold words is gone, along with the code that
+  bolded words inside it. The agent copy says the same.
+- No database, secret or library changes.

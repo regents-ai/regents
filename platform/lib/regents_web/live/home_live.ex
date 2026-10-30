@@ -6,17 +6,8 @@ defmodule RegentsWeb.HomeLive do
 
   @staking_summary "Stake $REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."
 
-  # The lab's one sentence, its bold words marked, so the page and the agent copy
-  # stress the same words.
-  @mission [
-    {"Regents Labs is a ", false},
-    {"community-owned", true},
-    {" lab building tools for ", false},
-    {"people and their agents", true},
-    {", tied to ", false},
-    {"one token, REGENT", true},
-    {".", false}
-  ]
+  # The lab's one plain line under its name, on the page and in the agent copy.
+  @mission "We build tools for people and their agents. REGENT stakers share in the revenue."
 
   # Each product's card carries the drawing the product Overview shows for it.
   @product_diagrams %{"autolaunch" => 3, "techtree" => 2, "patchbay" => 7, "keyfleet" => 9}
@@ -42,9 +33,6 @@ defmodule RegentsWeb.HomeLive do
 
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
-    sentence =
-      Enum.map_join(@mission, fn {words, bold?} -> if bold?, do: "**#{words}**", else: words end)
-
     products =
       Enum.map_join(product_cards(), "\n", fn card ->
         planned = if card.planned?, do: " · Planned", else: ""
@@ -73,7 +61,9 @@ defmodule RegentsWeb.HomeLive do
 
     ## Mission
 
-    #{sentence}
+    ### Regents Labs
+
+    #{@mission}
 
     ## Products
 
@@ -195,7 +185,7 @@ defmodule RegentsWeb.HomeLive do
   end
 
   defp mission(assigns) do
-    assigns = assign(assigns, sentence: @mission)
+    assigns = assign(assigns, line: @mission)
 
     ~H"""
     <Regent.Structure.panel
@@ -207,13 +197,13 @@ defmodule RegentsWeb.HomeLive do
       aria-labelledby="home-mission-title"
     >
       <h2 id="home-mission-title" class="rl-eyebrow">Mission</h2>
-      <p class="rl-statement"><.words :for={part <- @sentence} part={part} /></p>
+      <div class="rl-statement">
+        <p class="rl-statement__name">Regents Labs</p>
+        <p class="rl-statement__line">{@line}</p>
+      </div>
     </Regent.Structure.panel>
     """
   end
-
-  defp words(%{part: {_words, true}} = assigns), do: ~H"<strong>{elem(@part, 0)}</strong>"
-  defp words(assigns), do: ~H"{elem(@part, 0)}"
 
   defp product_panel(assigns) do
     assigns = assign(assigns, cards: product_cards())
