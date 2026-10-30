@@ -71,6 +71,22 @@ defmodule RegentsWeb.HomeLiveTest do
     assert guide =~ "(Experimental: [Explore Techtree](https://techtree.sh/start))"
   end
 
+  test "the page and the agent guide read in the same order", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "[data-home-panel]", "data-home-panel") ==
+             ~w(hero mission products staking how)
+
+    assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
+             [
+               ["The community-owned agentic product lab"],
+               ["Mission"],
+               ["Products"],
+               ["Staking"],
+               ["How it works"]
+             ]
+  end
+
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
 end

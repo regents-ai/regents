@@ -3996,3 +3996,19 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Live at 390 and 1280, light and dark: the stake supply window, the Paper Pro Daily
   prompt and Agent tools open in the shared frame, fit the screen, close with Escape, and
   the pages have no sideways scroll or console errors.
+
+## 2026-10-29 — Home page: hero top right, held in view
+
+- On a wide screen the hero (title, buttons and the worlds cube) now stands top right
+  and stays in view while Mission, Products and How it works scroll past it on the left.
+  Sheets that start below the fold settle in the first time they come into view.
+- On a phone the hero comes first, then the sheets.
+- With reduced motion, without scripts or in a window under 40rem tall, the hero
+  scrolls with the page and grows to everything it holds.
+- Principles is gone from the page and from its agent copy, which now reads in the
+  page's order.
+- A new Staking box under Products says what staking $REGENT earns and links to
+  /stake; How it works keeps its other two steps.
+- Keyfleet has a new drawing, a key leading a small fleet, on the home page and the
+  product Overview. The old coin drawing now marks the Staking box.
+- No database, secret or library changes.
