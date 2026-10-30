@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+case "$#" in
+  1)
+    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER_TAGS="$1" exec "$(dirname "$0")/regents" eval 'Regents.Release.tag_papers(System.fetch_env!("REGENTS_PAPER_TAGS"))'
+    ;;
+  *)
+    echo 'usage: tag-papers <tags.yaml>' >&2
+    exit 1
+    ;;
+esac

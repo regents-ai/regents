@@ -13,6 +13,7 @@ defmodule RegentsWeb.PaperProDaily.Reading do
     Paper URL: #{paper.arxiv_url}
     ChatGPT URL: #{paper.chatgpt_url}
     ChatGPT model: #{paper.author}
+    Tags: #{Enum.join(paper.tags, ", ")}
 
     """ <> paper.answer
   end
@@ -20,8 +21,15 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   @doc "All papers as Markdown, including those not yet reached by scrolling."
   def page_markdown(papers) do
     "# Paper Pro Daily\n\nA research paper each day, read with ChatGPT Astra 6 Pro.\n\n" <>
-      Enum.map_join(papers, "\n\n---\n\n", &details_markdown/1)
+      papers_markdown(papers)
   end
+
+  @doc "The papers filed under any of the chosen tags, as Markdown."
+  def filtered_markdown(papers, tags) do
+    "# Paper Pro Daily: #{Enum.join(tags, ", ")}\n\n" <> papers_markdown(papers)
+  end
+
+  defp papers_markdown(papers), do: Enum.map_join(papers, "\n\n---\n\n", &details_markdown/1)
 
   @doc "The opening paper information, analysis HTML, excerpt, and whether there is more to read."
   def render(answer) do

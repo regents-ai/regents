@@ -1,7 +1,8 @@
 defmodule Regents.PaperProDaily.Paper do
   @moduledoc """
   A paper on /paper-pro-daily: its title, its authors, the source paper, the
-  shared ChatGPT answer, who wrote the answer, the answer's Markdown and its picture.
+  shared ChatGPT answer, who wrote the answer, the answer's Markdown, its picture
+  and the one to three topics it is filed under (`Regents.PaperProDaily.Tag`).
 
   A day may have several papers; putting the same source paper on the same day
   again replaces it. Only a release command writes papers
@@ -25,7 +26,8 @@ defmodule Regents.PaperProDaily.Paper do
     :answer,
     :picture,
     :picture_type,
-    :picture_alt
+    :picture_alt,
+    :tags
   ]
 
   actions do
@@ -34,6 +36,32 @@ defmodule Regents.PaperProDaily.Paper do
       upsert? true
       upsert_identity :paper_on_day
       upsert_fields (@fields -- [:date, :arxiv_url]) ++ [:updated_at]
+    end
+
+    # Files a paper under other topics without touching the rest of it.
+    update :tag do
+      accept [:tags]
+      # Papers have no primary read to upgrade an atomic update with.
+      require_atomic? false
+    end
+
+    # Files many published papers at once, all or none: paper ids to their tags.
+    action :tag_papers, :integer do
+      argument :tags, :map, allow_nil?: false
+      transaction? true
+
+      run fn input, context ->
+        opts = Ash.Context.to_opts(context)
+
+        Enum.each(input.arguments.tags, fn {id, tags} ->
+          case Regents.PaperProDaily.get_paper!(id, opts) do
+            nil -> raise ArgumentError, "#{id}: no published paper has this id"
+            paper -> Regents.PaperProDaily.tag_paper!(paper, %{tags: tags}, opts)
+          end
+        end)
+
+        {:ok, map_size(input.arguments.tags)}
+      end
     end
 
     # The given days' papers, newest day first and each day's papers in the order
@@ -47,7 +75,7 @@ defmodule Regents.PaperProDaily.Paper do
     read :export do
       prepare build(
                 sort: [date: :desc, inserted_at: :asc],
-                select: [:id, :date, :title, :arxiv_url, :chatgpt_url, :author, :answer]
+                select: [:id, :date, :title, :arxiv_url, :chatgpt_url, :author, :answer, :tags]
               )
     end
 
@@ -70,6 +98,7 @@ defmodule Regents.PaperProDaily.Paper do
                   :chatgpt_url,
                   :author,
                   :picture_alt,
+                  :tags,
                   :updated_at
                 ]
               )
@@ -97,7 +126,7 @@ defmodule Regents.PaperProDaily.Paper do
   end
 
   policies do
-    policy action(:put) do
+    policy action([:put, :tag, :tag_papers]) do
       authorize_if Regents.Checks.SystemActor
     end
 
@@ -107,16 +136,18 @@ defmodule Regents.PaperProDaily.Paper do
     end
   end
 
+  # The saved paper's own rules; tagging changes only its tags.
   validations do
-    validate match(:arxiv_url, ~r{\Ahttps://[^\s/?#]+(?:[/?#][^\s]*)?\z})
+    validate match(:arxiv_url, ~r{\Ahttps://[^\s/?#]+(?:[/?#][^\s]*)?\z}), on: :create
 
     validate match(
                :chatgpt_url,
                ~r{\Ahttps://chatgpt\.com/(?:share/[A-Za-z0-9\-]+|s/t_[A-Za-z0-9]+)\z}
-             )
+             ),
+             on: :create
 
-    validate one_of(:picture_type, ~w(image/webp image/png image/jpeg))
-    validate byte_size(:picture, max: 1_000_000)
+    validate one_of(:picture_type, ~w(image/webp image/png image/jpeg)), on: :create
+    validate byte_size(:picture, max: 1_000_000), on: :create
   end
 
   identities do
@@ -140,6 +171,13 @@ defmodule Regents.PaperProDaily.Paper do
     attribute :picture, :binary, allow_nil?: false
     attribute :picture_type, :string, allow_nil?: false
     attribute :picture_alt, :string, allow_nil?: false, public?: true
+
+    attribute :tags, {:array, Regents.PaperProDaily.Tag},
+      allow_nil?: false,
+      default: [],
+      public?: true,
+      constraints: [min_length: 1, max_length: 3, nil_items?: false, remove_nil_items?: false]
+
     timestamps()
   end
 

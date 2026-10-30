@@ -359,6 +359,8 @@ defmodule RegentsWeb.ShellLive do
         <PaperProDailyLive.page
           :if={@route_spec.route_id == :paper_pro_daily}
           page_markdown={@page_markdown}
+          paper_tags={@paper_tags}
+          filtered_markdown={@filtered_markdown}
           research_list={@research_list}
           research_list_expanded?={@research_list_expanded?}
           streams={@streams}

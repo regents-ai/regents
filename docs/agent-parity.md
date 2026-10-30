@@ -107,6 +107,7 @@ were skipped.
 | Read Regents Cloak and its setup guide | `/cloak`, `/cloak/guide` | `regents_about` (the guide) | — | — | — (plain fetch, `/cloak/guide` as Markdown) | no | R2, R3 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
+| Filter research by tag and copy it as Markdown | `/paper-pro-daily?tags=` (Tags, Copy Filtered as Markdown) | `regents_research_list` returns each paper's `tags`; keep the matching ones, then `regents_research_paper` for each analysis | — | — | `research list` returns `tags` in its JSON | no | R2, R3 |
 | Read Articles | `/articles`, `/articles/:slug` | `regents_articles_list`, `regents_article` | — | — | `articles list`, `articles show` | no | R2, R3 |
 | Read literature | `/literature` | `regents_literature` | — | — | `literature list` | no | R2, R3 |
 | Read a public Regent profile | `/regents/:slug` | `regents_public_profile` | — | — | `profiles show` | no | R2, R3 |

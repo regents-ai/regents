@@ -122,6 +122,7 @@ defmodule RegentsWeb.ReadingController do
       paper_url: paper.arxiv_url,
       chatgpt_url: paper.chatgpt_url,
       chatgpt_model: paper.author,
+      tags: paper.tags,
       cover_url:
         PublicDocuments.url(
           "/paper-pro-daily/pictures/#{paper.id}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}"

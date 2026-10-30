@@ -95,6 +95,25 @@ defmodule Regents.Release do
     IO.puts("Paper Pro Daily #{paper.date}: \"#{paper.title}\" saved.")
   end
 
+  @doc """
+  Files published papers under their topics from a YAML file that maps each paper's
+  id to one to three `Regents.PaperProDaily.Tag` names, for example
+  `6ff56eaa-…: [Safety]`. Every paper in the file is tagged, or none is.
+  Run as `/app/bin/tag-papers <file>`.
+  """
+  # The path is the operator's own argument on the machine they are signed in to.
+  # sobelow_skip ["Traversal.FileModule"]
+  def tag_papers(path) do
+    count =
+      with_release_repo([], fn _repo ->
+        path
+        |> YamlElixir.read_from_file!()
+        |> Regents.PaperProDaily.tag_papers!(actor: %Regents.Actors.System{})
+      end)
+
+    IO.puts("Paper Pro Daily: #{count} papers tagged.")
+  end
+
   @doc "Saves post.md and its cover using /app/bin/put-post <folder>. The slug identifies the post."
   def put_post(folder) do
     attributes = Regents.Blog.PostFile.read!(folder)

@@ -17,7 +17,8 @@ defmodule Regents.PaperProDailyFixtures do
           "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO/aF1cAAAAASUVORK5CYII="
         ),
       picture_type: "image/png",
-      picture_alt: "Cover for #{date}"
+      picture_alt: "Cover for #{date}",
+      tags: ["Swarms"]
     }
     |> Map.merge(attrs)
     |> PaperProDaily.put_paper!(actor: %System{})

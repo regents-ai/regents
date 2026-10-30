@@ -3,18 +3,18 @@ defmodule Regents.PaperProDaily.PaperFile do
   Reads one paper from a folder, or the original two-file upload format.
 
   A folder contains `paper.md` with `title`, `date` (MM-DD-YYYY), `paper_url`,
-  `chatgpt_url`, `chatgpt_model`, optional `authors` (a list of names) and
-  optional `cover_alt` in its YAML header,
+  `chatgpt_url`, `chatgpt_model`, `tags` (one to three `Regents.PaperProDaily.Tag`
+  names), optional `authors` (a list of names) and optional `cover_alt` in its YAML header,
   followed by the answer in Markdown, and one `cover.webp`, PNG or JPEG.
 
   The original paper is `<YYYY-MM-DD>.md`, named by its day: YAML front matter (`title`,
-  `arxiv_url`, `chatgpt_url`, `author`, `picture_alt`), then ChatGPT's answer in
+  `arxiv_url`, `chatgpt_url`, `author`, `picture_alt`, `tags`), then ChatGPT's answer in
   Markdown. The picture is a WebP, PNG or JPEG file. The paper's own rules, such
   as its links and the picture's size, are checked when it is saved.
   """
 
-  @keys ~w(title arxiv_url chatgpt_url author picture_alt)
-  @folder_keys ~w(title authors date paper_url chatgpt_url chatgpt_model cover_alt)
+  @keys ~w(title arxiv_url chatgpt_url author picture_alt tags)
+  @folder_keys ~w(title authors date paper_url chatgpt_url chatgpt_model cover_alt tags)
 
   @doc "Reads paper.md and exactly one cover.webp, cover.png, cover.jpg or cover.jpeg."
   # sobelow_skip ["Traversal.FileModule"]
@@ -44,6 +44,7 @@ defmodule Regents.PaperProDaily.PaperFile do
       chatgpt_url: required!(meta, "chatgpt_url", paper_path),
       author: required!(meta, "chatgpt_model", paper_path),
       picture_alt: Map.get(meta, "cover_alt", "Cover for #{title}"),
+      tags: Map.get(meta, "tags"),
       answer: answer
     }
     |> Map.merge(picture!(picture_path))

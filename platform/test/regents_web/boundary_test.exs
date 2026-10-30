@@ -14,7 +14,7 @@ defmodule RegentsWeb.BoundaryTest do
     end
   end
 
-  test "the application migrations are the baseline, agent pairing and its move, the allowance removal, Oban, the sign-in time, the papers and several a day, the staking readings, the articles, the saved errors and the version 7 Ash helper" do
+  test "the application migrations are exactly the known ones, from the baseline to the paper tags" do
     assert [extensions_migration] =
              Path.wildcard("priv/repo/migrations/*_initial_regents_app_extensions_1.exs")
 
@@ -58,6 +58,9 @@ defmodule RegentsWeb.BoundaryTest do
     assert [ash_functions_v7_migration] =
              Path.wildcard("priv/repo/migrations/*_ash_functions_v7_extensions_1.exs")
 
+    assert [paper_tags_migration] =
+             Path.wildcard("priv/repo/migrations/*_paper_pro_daily_tags.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
@@ -75,7 +78,8 @@ defmodule RegentsWeb.BoundaryTest do
                articles_migration,
                article_authors_migration,
                error_tracker_migration,
-               ash_functions_v7_migration
+               ash_functions_v7_migration,
+               paper_tags_migration
              ])
 
     # The sign-in time only adds a column and fills it for bound sessions.

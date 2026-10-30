@@ -4214,6 +4214,27 @@
           "chatgpt_model": {
             "type": "string"
           },
+          "tags": {
+            "type": "array",
+            "description": "One to three topics the paper is filed under.",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "enum": [
+                "Autoresearch",
+                "Swarms",
+                "Self-Improvement",
+                "Harnesses",
+                "Training",
+                "Memory",
+                "Evaluation",
+                "Safety",
+                "Economics",
+                "Science"
+              ]
+            }
+          },
           "cover_url": {
             "type": "string",
             "format": "uri"
@@ -4238,6 +4259,7 @@
           "paper_url",
           "chatgpt_url",
           "chatgpt_model",
+          "tags",
           "cover_url",
           "cover_alt",
           "url",
@@ -4387,6 +4409,27 @@
           "chatgpt_model": {
             "type": "string"
           },
+          "tags": {
+            "type": "array",
+            "description": "One to three topics the paper is filed under.",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "enum": [
+                "Autoresearch",
+                "Swarms",
+                "Self-Improvement",
+                "Harnesses",
+                "Training",
+                "Memory",
+                "Evaluation",
+                "Safety",
+                "Economics",
+                "Science"
+              ]
+            }
+          },
           "cover_url": {
             "type": "string",
             "format": "uri"
@@ -4407,6 +4450,7 @@
           "paper_url",
           "chatgpt_url",
           "chatgpt_model",
+          "tags",
           "cover_url",
           "cover_alt",
           "url"

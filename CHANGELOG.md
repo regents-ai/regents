@@ -4140,3 +4140,19 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   not_paired`), pairing can answer `400 invalid_name`, and stake reads answer `429
   rate_limited` past the Base reading budget of 30 a minute. Signed reads now list
   their claims paging and every refusal.
+
+## 2026-10-30 — Paper Pro Daily tags
+
+- Every paper on /paper-pro-daily is filed under one to three of ten tags:
+  Autoresearch, Swarms, Self-Improvement, Harnesses, Training, Memory, Evaluation,
+  Safety, Economics and Science.
+- A Tags row at the top of the page narrows the list to the papers under any chosen
+  tag; several can be chosen, and the address keeps them so a filtered list can be
+  shared. While a tag is chosen, Copy Filtered as Markdown copies only those papers.
+- Each paper's Markdown now has a Tags line, and the reading API returns `tags` on
+  every paper (`GET /api/v1/reading/papers` and `/papers/<id>`, WebMCP
+  `regents_research_list` and `regents_research_paper`).
+- New papers need `tags` in their upload header; `/app/bin/tag-papers <file>` files
+  published papers under their tags, all or none.
+- Database: one added column, `paper_pro_daily_papers.tags` (empty until the papers
+  are tagged). Nothing removed or changed.

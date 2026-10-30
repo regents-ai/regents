@@ -19,6 +19,8 @@ defmodule RegentsWeb.PaperProDailyLive do
   """
 
   attr :page_markdown, :string, required: true
+  attr :paper_tags, :list, required: true
+  attr :filtered_markdown, :string, required: true
   attr :research_list, :list, required: true
   attr :research_list_expanded?, :boolean, required: true
   attr :streams, :map, required: true
@@ -49,6 +51,36 @@ defmodule RegentsWeb.PaperProDailyLive do
             </Regent.Primitives.button>
           </div>
         </header>
+
+        <section
+          id="paper-daily-tags"
+          class="paper-daily__tags"
+          aria-labelledby="paper-daily-tags-title"
+        >
+          <h2 id="paper-daily-tags-title">Tags</h2>
+          <div class="paper-daily__tag-list" role="group" aria-labelledby="paper-daily-tags-title">
+            <Regent.Primitives.button
+              :for={tag <- Regents.PaperProDaily.Tag.values()}
+              id={"paper-daily-tag-" <> String.downcase(tag)}
+              variant={if tag in @paper_tags, do: "primary", else: "secondary"}
+              arrow={false}
+              aria-pressed={to_string(tag in @paper_tags)}
+              phx-click="filter_papers"
+              phx-value-tag={tag}
+            >
+              {tag}
+            </Regent.Primitives.button>
+          </div>
+          <%!-- Kept in place, unseen, while no tag is chosen, so the list below never moves. --%>
+          <div
+            class={["paper-daily__filtered", @paper_tags == [] && "paper-daily__filtered--off"]}
+            inert={@paper_tags == []}
+          >
+            <Regent.Primitives.copy_button id="paper-daily-copy-filtered" text={@filtered_markdown}>
+              Copy Filtered as Markdown
+            </Regent.Primitives.copy_button>
+          </div>
+        </section>
 
         <nav
           :if={@research_list != []}
@@ -118,7 +150,10 @@ defmodule RegentsWeb.PaperProDailyLive do
         >
           Loading more papers…
         </p>
-        <p :if={@shown == 0} class="paper-daily__more">No papers yet.</p>
+        <p :if={@shown == 0 && @paper_tags == []} class="paper-daily__more">No papers yet.</p>
+        <p :if={@shown == 0 && @paper_tags != []} class="paper-daily__more">
+          No papers with these tags.
+        </p>
         <div :if={!@more? && @shown > 0} class="paper-daily__end">
           <a
             href="#paper-daily-top"

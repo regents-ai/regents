@@ -23,6 +23,26 @@ title when a day has several papers:
 authors: ["Ashish Vaswani", "Noam Shazeer"]
 ```
 
+## Tags
+
+Every paper is filed under one to three tags, listed in `Regents.PaperProDaily.Tag`:
+Autoresearch, Swarms, Self-Improvement, Harnesses, Training, Memory, Evaluation,
+Safety, Economics and Science. Both upload formats require them in the header:
+
+```yaml
+tags: [Swarms, Memory]
+```
+
+The Tags row at the top of the page narrows the list to the papers filed under any
+chosen tag and keeps the choice in the address (`/paper-pro-daily?tags=Swarms,Memory`),
+so a filtered list can be shared. While a tag is chosen, Copy Filtered as Markdown
+copies only those papers. Each paper's Markdown, and the reading API, list its tags.
+
+To file papers that are already published under other tags, write a YAML file that
+maps each paper's id (from `/api/v1/reading/papers`) to its tags and run
+`/app/bin/tag-papers <file>` on the machine. Every paper in the file is tagged, or
+none is; an unknown id, a paper not yet public or a tag outside the list stops it.
+
 ## Several papers on one day
 
 A day with one paper looks as it always has. A day with two or more opens with

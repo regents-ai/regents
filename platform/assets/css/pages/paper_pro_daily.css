@@ -1,5 +1,26 @@
 @layer regents-product {
 /* One row per day: its paper's picture beside the title, links and ChatGPT's answer. */
+/* The tags that narrow the list, then the filtered copy, which keeps its row when hidden. */
+.paper-daily__tags {
+  padding: 24px clamp(20px, 4vw, 48px);
+  border-block-start: 1px solid var(--rg-page-rule);
+}
+
+.paper-daily__tags h2 {
+  margin: 0 0 16px;
+}
+
+.paper-daily__tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.paper-daily__filtered--off {
+  visibility: hidden;
+}
+
 .paper-daily__research {
   padding: 24px clamp(20px, 4vw, 48px);
   border-block: 1px solid var(--rg-page-rule);

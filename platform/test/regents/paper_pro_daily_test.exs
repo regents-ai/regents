@@ -68,6 +68,47 @@ defmodule Regents.PaperProDailyTest do
     end
   end
 
+  test "a paper is saved with one to three of the page's tags" do
+    today = Date.utc_today()
+    paper = paper_fixture!(today, %{tags: ["Safety", "Memory", "Science"]})
+    assert paper.tags == ["Safety", "Memory", "Science"]
+
+    for tags <- [nil, [], ["Safety", "Memory", "Science", "Swarms"], ["Gossip"]] do
+      assert_raise Ash.Error.Invalid, fn -> paper_fixture!(today, %{tags: tags}) end
+    end
+  end
+
+  test "papers are tagged all at once, or not at all" do
+    today = Date.utc_today()
+    first = paper_fixture!(today, %{arxiv_url: "https://arxiv.org/abs/2610.00001"})
+    second = paper_fixture!(today, %{arxiv_url: "https://arxiv.org/abs/2610.00002"})
+    future = paper_fixture!(Date.add(today, 1))
+    system = [actor: %Regents.Actors.System{}]
+
+    assert PaperProDaily.tag_papers!(
+             %{first.id => ["Economics"], second.id => ["Safety", "Training"]},
+             system
+           ) == 2
+
+    assert Enum.map(PaperProDaily.export_papers!(), &{&1.id, &1.tags}) == [
+             {first.id, ["Economics"]},
+             {second.id, ["Safety", "Training"]}
+           ]
+
+    # An unknown tag, or a paper that is not yet public, leaves every paper as it was.
+    for {error, tags} <- [
+          {Ash.Error.Invalid, %{first.id => ["Memory"], second.id => ["Gossip"]}},
+          {Ash.Error.Unknown, %{first.id => ["Memory"], future.id => ["Memory"]}}
+        ] do
+      assert_raise error, fn -> PaperProDaily.tag_papers!(tags, system) end
+      assert PaperProDaily.get_paper!(first.id).tags == ["Economics"]
+    end
+
+    assert_raise Ash.Error.Forbidden, fn ->
+      PaperProDaily.tag_papers!(%{first.id => ["Memory"]})
+    end
+  end
+
   defp papers_at(now) do
     Paper
     |> Publication.published_query(now)

@@ -12,7 +12,7 @@ curl --fail '{{origin}}/api/v1/reading/literature'
 
 ## Fields
 
-Paper and Article lists return at most ten entries, newest publication date first, with their titles, dates, authors, page and cover URLs. Papers include their source and ChatGPT URLs and analysis model; Articles include descriptions and authors' X profiles. Detail reads add the full original `analysis_markdown` or `markdown` text. Literature returns the books and editorial outlook scores shown on AI & SCIFI.
+Paper and Article lists return at most ten entries, newest publication date first, with their titles, dates, authors, page and cover URLs. Papers include their source and ChatGPT URLs, analysis model and `tags`, one to three of Autoresearch, Swarms, Self-Improvement, Harnesses, Training, Memory, Evaluation, Safety, Economics and Science; Articles include descriptions and authors' X profiles. Detail reads add the full original `analysis_markdown` or `markdown` text. Literature returns the books and editorial outlook scores shown on AI & SCIFI.
 
 ## Pagination
 

@@ -5,6 +5,8 @@ defmodule Regents.PaperProDaily do
   resources do
     resource Regents.PaperProDaily.Paper do
       define :put_paper, action: :put
+      define :tag_paper, action: :tag
+      define :tag_papers, action: :tag_papers, args: [:tags]
       define :list_papers, action: :list, args: [:dates]
       define :export_papers, action: :export
       define :paper_feed, action: :feed
