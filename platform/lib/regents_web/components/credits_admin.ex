@@ -240,7 +240,6 @@ defmodule RegentsWeb.CreditsAdmin do
   defp sent_on(purchase), do: Calendar.strftime(purchase.inserted_at, "%d %b %Y %H:%M UTC")
 
   defp chain_name(:base), do: "Base"
-  defp chain_name(:ethereum), do: "Ethereum"
 
   @impl true
   def render(assigns) do

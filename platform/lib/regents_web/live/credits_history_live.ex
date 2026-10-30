@@ -27,10 +27,7 @@ defmodule RegentsWeb.CreditsHistoryLive do
     }
   ]
 
-  @explorers %{
-    base: %{name: "Basescan", tx: "https://basescan.org/tx/"},
-    ethereum: %{name: "Etherscan", tx: "https://etherscan.io/tx/"}
-  }
+  @explorers %{base: %{name: "Basescan", tx: "https://basescan.org/tx/"}}
 
   attr :account, :map, default: nil
   attr :signed_out_reason, :atom, default: :signed_out

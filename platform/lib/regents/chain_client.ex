@@ -1,14 +1,12 @@
 defmodule Regents.ChainClient do
   @moduledoc """
-  Reads at the latest block for a sent wallet step, on Base or Ethereum.
+  Reads at the latest block on Base, for a sent wallet step and for Regent Credits.
 
   `RegentChain.Outcome` reads sent steps through `transaction/2` and `receipt/2`;
-  Regent Credits also reads the newest block number to count Ethereum purchases,
-  and the Credits deposits on Base through `logs/2`.
+  Regent Credits reads the Credits deposits through `block_number/1` and `logs/2`.
   Every read is at `latest`: never wait for `safe` or `finalized`. Regents reads
-  each chain through its own read endpoint (`:base_read_rpc_url`,
-  `:ethereum_read_rpc_url`); the review's `rpc_url` is the public one the wallet
-  is given, never a keyed server endpoint.
+  Base through its own read endpoint (`:base_read_rpc_url`); the review's
+  `rpc_url` is the public one the wallet is given, never a keyed server endpoint.
   """
 
   alias Regents.WalletActions.Rpc
@@ -50,17 +48,9 @@ defmodule Regents.ChainClient do
   def logs(chain, filter), do: request(chain, "eth_getLogs", [filter])
 
   @doc """
-  One JSON-RPC read on Base or Ethereum through the site's own endpoint. A node
-  that answers with a JSON-RPC error gives `{:error, {:rpc, error}}`; for
-  `logs/2` that means it refused the span. Without an Ethereum endpoint
-  configured, nothing on Ethereum is read.
+  One JSON-RPC read on Base through the site's own endpoint. A node that answers
+  with a JSON-RPC error gives `{:error, {:rpc, error}}`; for `logs/2` that means
+  it refused the span.
   """
   def request(%{chain_id: 8453}, method, params), do: Rpc.answer(method, params, @rpc_opts)
-
-  def request(%{chain_id: 1}, method, params) do
-    case Application.get_env(:regents, :ethereum_read_rpc_url) do
-      nil -> {:error, :chain_unavailable}
-      url -> Rpc.answer(method, params, [url: url, chain_id: 1] ++ @rpc_opts)
-    end
-  end
 end

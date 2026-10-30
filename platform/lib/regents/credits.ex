@@ -11,7 +11,6 @@ defmodule Regents.Credits do
   alias RegentCredits.{Actor, Hold}
 
   @site "regents"
-  @explorers %{base: "https://basescan.org/tx/", ethereum: "https://etherscan.io/tx/"}
 
   @doc "The name this site places holds and attaches wallets under."
   def site, do: @site
@@ -46,8 +45,8 @@ defmodule Regents.Credits do
   @doc "The site's own server code."
   def site_actor, do: Actor.site(@site)
 
-  @doc "Where a person can see a transaction on its chain."
-  def transaction_url(chain, tx_hash), do: @explorers[chain] <> tx_hash
+  @doc "Where a person can see a Base transaction."
+  def transaction_url(:base, tx_hash), do: "https://basescan.org/tx/" <> tx_hash
 
   @doc "The sites a person may let an agent spend Credits on, with their names."
   def agent_sites, do: [{"patchbay", "patchbay.help"}, {"template", "template.regents.sh"}]
