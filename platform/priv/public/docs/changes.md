@@ -1,5 +1,7 @@
 ## 2026-10-30
 
+The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) list the check-in refusal for an unpaired agent as `403 agent_not_paired`, as the site answers, and list `400 invalid_name` among the pairing refusals. They are now version 4.0.1.
+
 The developer docs are one page per topic under `/docs`, and each answers `Accept: text/markdown` at its own address. The `regents_about` browser tool reads each docs page by its own name, such as `docs-pairing`; `docs` is the overview.
 
 ## 2026-10-28
