@@ -4112,3 +4112,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - The Staking panel on the home page shows the Regents crown, the same one as the top
   left, where the $ coin drawing was.
 - No database, secret or library changes.
+
+## 2026-10-30 — Regents v257 released
+
+- v257 (`630474ba`) went live at 17:28Z: the Regents crown in the home page's Staking panel.
+  The rollback is v256 (`42467c4d`). No database, secret or library changes.
+- Live at 1440 and 390: the crown loads in the tile, no sideways scroll, no console error.
