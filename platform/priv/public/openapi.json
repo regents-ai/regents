@@ -3233,7 +3233,7 @@
             "properties": {
               "code": {
                 "type": "string",
-                "description": "pairing_failed, harness_unknown, agent_limit, not_paired, person_not_here, verification_failed, duplicate_proof, unsupported_query, missing_signed_body or siwa_request_failed, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
+                "description": "pairing_failed, invalid_name, harness_unknown, agent_limit, not_paired, person_not_here, verification_failed, duplicate_proof, unsupported_query, missing_signed_body or siwa_request_failed, or a code the sign-in service gave, which https://siwa.regents.sh/skill.md explains"
               },
               "message": {
                 "type": "string"
@@ -5191,7 +5191,7 @@
         }
       },
       "AgentPairingFailed": {
-        "description": "The pairing code could not be claimed, or the runtime is not on the list",
+        "description": "The pairing code could not be claimed, the name can't be used, or the runtime is not on the list",
         "headers": {
           "RateLimit": {
             "$ref": "#/components/headers/RateLimit"
@@ -5211,7 +5211,16 @@
                   "error": {
                     "code": "pairing_failed",
                     "message": "The pairing code could not be used.",
-                    "hint": "Ask your person for a new pairing code. Each code works once and expires ten minutes after it was made."
+                    "hint": "Ask your person for a new code from Pair New Agent on their Account page on this site. Each code works once and expires ten minutes after it was made."
+                  }
+                }
+              },
+              "invalidName": {
+                "value": {
+                  "error": {
+                    "code": "invalid_name",
+                    "message": "That name can't be used.",
+                    "hint": "Send a name of 1 to 80 characters with no hidden characters: no control, line-break, text-direction or zero-width characters, except a zero-width joiner between two visible characters, as in an emoji. The same code works until it expires."
                   }
                 }
               },
@@ -5404,7 +5413,7 @@
                   "error": {
                     "code": "agent_limit",
                     "message": "This account already has 100 paired agents.",
-                    "hint": "Ask your person to unpair an agent on their Regents account page, then pair again. The same code works until it expires."
+                    "hint": "Ask your person to unpair an agent on their Account page on this site, then pair again. The same code works until it expires."
                   }
                 }
               }

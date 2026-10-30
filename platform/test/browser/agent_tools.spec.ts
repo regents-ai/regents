@@ -1,3 +1,4 @@
+import {existsSync, readFileSync} from "node:fs"
 import {expect, test, type Page} from "./support/offline"
 
 // The test server answers every site's tools from the fixed lists in
@@ -105,4 +106,52 @@ test("every page offers a list of each site's tools and the complete list", asyn
   expect(all.body.sites.every(site => site.tools.length === 3)).toBe(true)
   expect(all.body.unreachable).toEqual([])
   expect(all.body.connection.steps).toHaveLength(4)
+})
+
+// R4: an agent pairs from the page with the bytes it signed, as `agents pair` sends
+// them. The code goes only in the signed body: never in the address, the answer or
+// the server's lines.
+test("an agent pairs from the page with exactly the request it signed", async ({page}) => {
+  await pageTools(page, "/docs")
+  const run = (name: string, input: unknown) =>
+    page.evaluate(
+      ([name, input]) =>
+        (window as unknown as {registeredTools: Registered[]}).registeredTools.find(tool => tool.name === name)!.execute(input),
+      [name, input] as const,
+    )
+  const pairing = {code: `code-${crypto.randomUUID()}`, name: "Ada", harness: "claude_code"}
+
+  // A harness the site does not offer is refused before anything is prepared.
+  expect(await run("prepare_agent_request", {operation: "regents_agent_pair", input: {...pairing, harness: "robot"}}))
+    .toMatchObject({ok: false, error: {code: "invalid_input"}})
+
+  const prepared = (await run("prepare_agent_request", {operation: "regents_agent_pair", input: pairing})) as {
+    ok: boolean
+    request: {method: string; path: string; body: string}
+  }
+  expect(prepared.request).toMatchObject({operation: "regents_agent_pair", method: "POST", path: "/api/agents/v1/pair"})
+  expect(JSON.parse(prepared.request.body)).toEqual(pairing)
+
+  const sent = page.waitForRequest(request => new URL(request.url()).pathname === "/api/agents/v1/pair")
+  const proof = {
+    "x-siwa-signature": "sig=:AA==:",
+    "x-siwa-signature-input": "sig=()",
+    "x-siwa-receipt": "receipt",
+    "x-key-id": "key",
+    "x-timestamp": "1",
+    "x-agent-wallet-address": `0x${"2".repeat(40)}`,
+    "x-agent-chain-id": "8453",
+    "content-digest": "sha-256=:AA==:",
+  }
+  const answer = await run("regents_agent_pair", {input: pairing, request: prepared.request, proof})
+  const request = await sent
+  expect(new URL(request.url()).search).toBe("")
+  expect(request.postData()).toBe(prepared.request.body)
+  expect(JSON.stringify(answer)).not.toContain(pairing.code)
+
+  const requestId = (await request.response())!.headers()["x-request-id"]
+  const file = "tmp/walk-lines.jsonl"
+  const logged = () => (existsSync(file) ? readFileSync(file, "utf8") : "")
+  await expect.poll(() => logged().includes(requestId)).toBe(true)
+  expect(logged()).not.toContain(pairing.code)
 })

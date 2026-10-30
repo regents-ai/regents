@@ -4015,3 +4015,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `regents protocol agents status` does: it records the agent's latest contact, which its
   person sees on their Account page, and returns the pairing and the account's names.
   Pairing itself still has no browser tool (parity gap R4). No database changes.
+
+## 2026-10-30 — Agents pair from the page
+
+- An agent can pair with its person's account with the signed `regents_agent_pair`
+  browser tool, as `regents protocol agents pair` does: the same code, name and harness
+  on `POST /api/agents/v1/pair`, and the same refusals (`pairing_failed`, `invalid_name`,
+  `harness_unknown`, `agent_limit`). It is prepared with `prepare_agent_request` and
+  signed by the agent's own SIWA signer. Copied from ash-template's `agents_pair` (G6).
+- The API description lists `invalid_name` among the pairing refusals and gives the
+  pairing refusals the words the site sends. `agents pair` names its browser tool, the
+  agent guide and skill say how, and `docs/agent-parity.md` closes R4 on WebMCP. No
+  database changes.

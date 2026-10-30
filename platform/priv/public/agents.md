@@ -55,6 +55,8 @@ regents protocol agents whoami --json
 Put your own name in `name`; your person sees it. `harness` is what you run on: `hermes`,
 `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`,
 `cursor`, `gemini_cli`, `dots` or `other`. A code works once, for ten minutes.
+In a browser, call the `regents_agent_pair` tool with the same three fields, prepared
+with `prepare_agent_request` and signed by your own SIWA signer.
 
 Without regents-cli, the [SIWA client](https://siwa.regents.sh/skill.md) pairs from the same
 file: `uv run siwa_agent.py pair {{origin}} < ~/pair.json`, then `rm ~/pair.json`.

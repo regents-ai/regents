@@ -59,7 +59,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
-| Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
+| Pair with a code | agents only | `regents_agent_pair` | — | — | `agents pair` | no | R2, R3 |
 | Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
 | Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
@@ -155,10 +155,10 @@ were skipped.
 - **R3. No Claude connector.** There are no OAuth routes and no connector tools. Plan:
   the shared connector with OAuth sign-in from ash-template, serving the same tools as
   R2. Protected (sign-in: OAuth approval). Owner: agent-access lane.
-- **R4. Pairing has no WebMCP tool.** Checking in has one: `regents_agent_status`, on
-  `GET /api/agents/v1/me`, as `agents status` does. Pairing is `agents pair` only; its
-  signed `regents_agent_pair` tool comes from the template's G6, then regents copies
-  it. Not protected. Owner: agent-access lane.
+- **R4. Pairing and checking in from the page.** Closed on WebMCP 30 Oct: checking in
+  with `regents_agent_status` (`GET /api/agents/v1/me`) and pairing with
+  `regents_agent_pair` (`POST /api/agents/v1/pair`), copied from the template's G6;
+  each is the same request as its `agents` command. Hosted MCP follows with R2.
 - **R5. Owner-only agent controls are page-only.** Making a pairing code, choosing the
   agent, opening and unpairing an agent and reading its last actions run only in the
   account menu and on `/account`. They stay out of reach of a paired helper agent and

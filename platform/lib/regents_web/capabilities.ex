@@ -16,6 +16,7 @@ defmodule RegentsWeb.Capabilities do
     "regents_claims" => "Read your name claims",
     "regents_name_check" => "Check a name and your free claims left",
     "regents_name_claim" => "Claim a free name for you",
+    "regents_agent_pair" => nil,
     "regents_agent_whoami" => nil,
     "regents_agent_status" => "Check in with you",
     "regents_account" => "Read your display name and ENS name",

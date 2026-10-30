@@ -18,6 +18,7 @@
       "path": "/api/agents/v1/pair",
       "authority": "signed_agent",
       "effect": "write",
+      "webmcp": "regents_agent_pair",
       "stdin_fields": [
         {
           "field": "code",
