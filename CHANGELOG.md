@@ -4041,6 +4041,72 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Live at 1440, 390 and 320: the box shows the name and the line with no bold words, the
   Markdown copy of the page says the same, no sideways scroll and no console error.
 
+## 2026-10-30 — Agent contract 4.0.1: refusals as the site answers them
+
+- The OpenAPI JSON and the YAML contract listed a check-in from an unpaired agent as
+  `404 not_paired`; the site answers `403 agent_not_paired`. The check-in's 403 now covers
+  both `agent_not_paired` and `person_not_here`, with the site's own words in the examples.
+- Pairing's 400 now lists `invalid_name` (a name that is empty, over 80 characters or holds
+  hidden characters) beside `pairing_failed` and `harness_unknown`, and the
+  `pairing_failed` example uses the site's hint.
+- llms.txt, agents.md, the agent start page and /docs say the same; /docs Changes has the
+  entry. Contract version 4.0.1. The site's answers do not change.
+- No database, secret or library changes.
+
+## 2026-10-30 — Home page: orange tools window, five sites, hover on every control
+
+- The WebMCP tools window is orange (Tangerine Tango) instead of green.
+- "Copy all Regents WebMCP tools" read 4 of 5 sites: Techtree moved its tool list to
+  `/capabilities.json` and the site still asked the old address, which now answers 404.
+  It now reads Techtree's new address, and the line reads "N tools from 5 sites".
+- Every link and button on the home page answers a pointer: the brand dims, the header
+  icons, the footer links and the command-line link turn blue, the outlined buttons (WebMCP
+  Tools, the product and guide links) take a faint wash, and the $REGENT menu rows lighten.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v254 released
+
+- v254 (`ea427af8`) went live at 15:56Z: the orange tools window, "252 tools from 5 sites"
+  and the home-page hovers. The rollback is v253 (`9f10a961`). No database, secret or
+  library changes.
+- Before release, on the exact tree: 606 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440 and 390: accent `#FF5B19`, all five sites read, the WebMCP
+  Tools button answers a pointer, no sideways scroll and no console error.
+
+## 2026-10-30 — Docs and About in the side menu; Contact folded into About
+
+- The side menu lists Docs and About Regents Labs under Reading, between Daily Research
+  and AI & SCIFI.
+- Everything the Contact page said (help, privacy requests, legal questions, security
+  reports, product information) is now the Contact section of About. `/contact` is gone
+  and answers the not-found page; the footer, the page header on Docs and About, llms.txt,
+  /docs, the home page's Markdown, the sitemap, security.txt's Policy and the OpenAPI
+  contact all point at About.
+- The `regents_about` browser tool no longer takes `contact`; its About description says
+  About covers how to reach us. /docs records the change.
+- No database, secret or library changes.
+
+## 2026-10-30 — The lab's name stands once, top left
+
+- "Regents Labs" and "The community-owned agentic product lab" are gone from the cube's
+  panel, which now opens on Enter App, WebMCP Tools and the command-line link above the cube.
+- The name stands once, top left, as the page's heading in the Mission panel, over its
+  one plain line. On a phone the name comes first, then the cube's panel, then the rest.
+- The home page's Markdown opens the same way: the name, the plain line, then the links.
+- A page check fails if the home page ever sets words in bold again.
+- No database, secret or library changes.
+
+## 2026-10-30 — Regents v256 released
+
+- v256 (`42467c4d`) went live at 16:42Z: "Regents Labs" stands once, top left, as the page's
+  heading; the cube's panel opens on its buttons; the bold-word page check. The rollback is
+  v255 (`cf82440c`). No database, secret or library changes.
+- Before release, on the exact tree: 607 server tests, 252 script tests and 143 browser
+  tests clean. Live at 1440, 1280, 390 and 320: one heading, "Regents Labs", in the Mission
+  panel; the cube's panel reads only Enter App, WebMCP Tools and the command-line link; no
+  bold words; on a phone the name comes before the cube's panel; no sideways scroll and no
+  console error. The home page's Markdown opens with the name and the plain line.
+
 ## 2026-10-30 — Claude connector and hosted MCP (branch, not released)
 
 - Hosted MCP at `/mcp`: a paired agent signs with its own key and reads its person's
@@ -4073,3 +4139,23 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   input and `prepare_agent_request` is gone. `/agents.md` has a Browser tools section,
   `/docs` lists the change, and `test/browser/page_tools.spec.ts` walks the four cases
   at 1280 and 390.
+
+## 2026-10-30 — Claude connector and hosted MCP: review fixes (branch, not released)
+
+- Merged with main `1078cc22`; the template now pins elixir-utils `466ca10f` on its main.
+- A request to `/mcp` counts 120 a minute against its address until its token checks out,
+  as on template `32877704`: no token in the endpoint, a token that isn't this site's when
+  it is refused. Only a checked token moves to its address's 600 and its account's own
+  120, and an address that has spent its 120 is refused before any token is looked up,
+  so made-up tokens cannot fill the sign-in store's connections.
+- Every answer from `/mcp`, streams included, is `cache-control: private, no-store`.
+- A connected identity's signing address is kept in a Nebulex local cache that keeps
+  only answers, with no hold after an outage.
+- A null or `false` tool input is `invalid_input`; a null `after` is `invalid_cursor`
+  on Credits history only. The unavailable read's hint reads "Try again in a moment."
+- `/docs` names all nine hosted tools.
+- The connector migration can be rolled back: it drops the four tables it made.
+- The test sign-in address for the connector lives in `config/test.exs`.
+- Signed agents keep `/mcp` while the switch is off, as the hosted MCP rollout says.
+  The branch ships only with the regents-cli release that has `regents mcp` and
+  `regents browser`.

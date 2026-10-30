@@ -84,7 +84,7 @@ defmodule RegentsWeb.AgentReadsController do
          error: %{
            code: "unavailable",
            message: "The private read could not be completed.",
-           hint: "Try again in a moment with fresh proof."
+           hint: "Try again in a moment."
          }
        }}
 end

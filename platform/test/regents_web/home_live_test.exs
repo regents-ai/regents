@@ -17,7 +17,7 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Stake is the one product page the homepage sends visitors to; every other
   # internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/app /stake /start /agents.md /llms.txt /docs /about /contact /privacy /terms)
+  @open_paths ~w(/app /stake /start /agents.md /llms.txt /docs /about /privacy /terms)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -75,25 +75,31 @@ defmodule RegentsWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     assert attribute(html, "[data-home-panel]", "data-home-panel") ==
-             ~w(hero mission products staking how)
+             ~w(mission hero products staking how)
 
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
-             [
-               ["The community-owned agentic product lab"],
-               ["Mission"],
-               ["Products"],
-               ["Staking"],
-               ["How it works"]
-             ]
+             [["Products"], ["Staking"], ["How it works"]]
   end
 
-  test "the Mission box names the lab, then says one plain line", %{conn: conn} do
+  test "the lab's name stands once, top left, then says one plain line", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
     line = "We build tools for people and their agents. REGENT stakers share in the revenue."
 
-    assert text(html, "#home-mission .rl-statement__name") == "Regents Labs"
+    assert text(html, "h1") == "Regents Labs"
+    assert text(html, "#home-mission h1") == "Regents Labs"
     assert text(html, "#home-mission .rl-statement__line") == line
-    assert HomeLive.agent_markdown() =~ "## Mission\n\n### Regents Labs\n\n#{line}\n"
+    refute text(html, ".rl-hero-copy") =~ "Regents Labs"
+    assert HomeLive.agent_markdown() =~ ~r/\A# Regents Labs\n\n#{Regex.escape(line)}\n/
+  end
+
+  # Founder decision (2026-10-30): the home page never sets words in bold inside a sentence.
+  test "the home page sets no words in bold", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html
+           |> LazyHTML.from_document()
+           |> LazyHTML.query("#home-content strong, #home-content b")
+           |> Enum.empty?()
   end
 
   defp text(html, selector),

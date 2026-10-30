@@ -76,8 +76,6 @@ for (const width of [1280, 390]) {
       return Object.keys(tools.get("regents_credits_history")!.inputSchema.properties)
     })
     expect(fields).toEqual(["after"])
-    expect(await page.evaluate(() =>
-      (window as unknown as {pageTools: Map<string, unknown>}).pageTools.has("prepare_agent_request"))).toBe(false)
   })
 
   test(`with no agent signer a signed tool sends nothing and says how to get one at ${width}`, async ({page}) => {

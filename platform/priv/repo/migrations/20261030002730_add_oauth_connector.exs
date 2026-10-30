@@ -8,6 +8,8 @@ defmodule Regents.Repo.Migrations.AddOAuthConnector do
 
   Neither needs the site's address: each code and token gets this site's issuer
   and resource written on it as it is issued.
+
+  Going back drops the four tables, and with them every app connected since.
   """
 
   use Ecto.Migration
@@ -17,5 +19,12 @@ defmodule Regents.Repo.Migrations.AddOAuthConnector do
 
     RegentOAuth.Migration.up()
     RegentOAuth.Migration.V2.up()
+  end
+
+  def down do
+    drop table(:oauth_tokens)
+    drop table(:oauth_clients_scopes)
+    drop table(:oauth_scopes)
+    drop table(:oauth_clients)
   end
 end

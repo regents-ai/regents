@@ -66,7 +66,7 @@ defmodule RegentsWeb.PublicPagesHTML do
         <a href={~p"/"} class="legal-home">Regents Labs</a>
         <nav class="legal-nav" aria-label="Information">
           <a
-            :for={{label, path} <- [{"Docs", "/docs"}, {"About", "/about"}, {"Contact", "/contact"}]}
+            :for={{label, path} <- [{"Docs", "/docs"}, {"About", "/about"}]}
             href={path}
             aria-current={if(@conn.request_path == path, do: "page")}
           >

@@ -13,8 +13,8 @@ defmodule RegentsWeb.ToolErrors do
   same input gets over HTTP: a Credits history read's `invalid_cursor`, a
   pairing's `invalid_request` in the library's words
   (`RegentMCPAgents.pairing_input_refusal/0`), and another identity tool's
-  `identity_request_refused`. A read's input that is not an object, or names an
-  input the read has not, is `invalid_input`. As AshAi reads it, a call without
+  `identity_request_refused`. A read's input that is not an object (null
+  included), or names an input the read has not, is `invalid_input`. As AshAi reads it, a call without
   `input` sends none, which is how a tool listed with no inputs is called.
   """
 
@@ -27,12 +27,16 @@ defmodule RegentsWeb.ToolErrors do
   """
   @spec check_input(AshAi.Tool.t(), term(), map()) :: {:ok, term()} | {:error, String.t()}
   # The action would take a null cursor as none; HTTP refuses it.
-  def check_input(%AshAi.Tool{resource: AccountReads}, %{"input" => %{"after" => nil}}, _context),
-    do: {:error, read("invalid_cursor")}
+  def check_input(
+        %AshAi.Tool{resource: AccountReads, action: %{name: :credits_history}},
+        %{"input" => %{"after" => nil}},
+        _context
+      ),
+      do: {:error, read("invalid_cursor")}
 
   def check_input(%AshAi.Tool{resource: resource, action: %{name: action}}, arguments, _context) do
     with %{} <- arguments,
-         %{} = input <- arguments["input"] || %{},
+         %{} = input <- Map.get(arguments, "input", %{}),
          %{valid?: true} <- Ash.ActionInput.for_action(resource, action, input) do
       {:ok, arguments}
     else

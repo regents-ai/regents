@@ -19,6 +19,12 @@ connector window with the other four sites, and the switch stays off until then.
   off, `/agents/claude` and the protocol addresses under `/oauth` are not found;
   the library's Connected apps page and its consent page refuse, and reach no data.
 
+The switch governs tokens, not signatures: a signed paired agent keeps `/mcp` and its
+five reads while the switch is off, on purpose, as in the hosted MCP rollout's go-live
+check (`control/rollouts/2026-10-29-hosted-mcp.md`). The signed browser tools and the
+hosted MCP hint name `regents mcp` and `regents browser`, so this branch ships only
+with the regents-cli release that has both commands.
+
 With the switch on, boot stops unless `SIWA_HOSTED_SIGNING_KEY` is the Regents
 hosted signing key at the sign-in service (`SIWA_SERVER_URL`). The audience is
 `regents`, which elixir-utils accepts from `466ca10f`. siwa-server does not yet
@@ -57,9 +63,23 @@ Arguments are checked against the action before it runs
 (`RegentsWeb.ToolErrors.check_input/3`): unknown input is `invalid_input`, a bad
 `after` on Credits history is `invalid_cursor`, as over HTTP.
 
-Budgets: the endpoint counts each address, 120 a minute (`mcp_address`), or 600 for
-requests with a token (`mcp_connected_address`, since Claude calls from shared
-servers); McpAgent then counts each connected account, 120 a minute.
+Budgets, all through `RegentAgentAccess.RateLimit` and `Regents.RateLimiter`: every
+request whose token has not been checked counts 120 a minute against its address
+(`mcp_address`, the API's figure), a request with no token in the endpoint before
+its body is read (`RegentsWeb.Plugs.McpAgent.limit_address/1`), one with a token
+that isn't this site's when McpAgent refuses it. Only a token `RegentOAuth.verify/3`
+accepts counts against its address's ceiling of 600 a minute
+(`mcp_connected_address`) instead, since Claude's connector calls from Anthropic's
+shared servers and one address carries many accounts, and then against its connected
+account's own 120 under its OAuth subject (`mcp`). Once an address has spent its 120,
+its next request with a token is refused 429 in the endpoint, before the token is
+looked up, so a stream of made-up tokens costs the sign-in store at most 120 lookups
+a minute from one address. Every answer from `/mcp` says `cache-control: private,
+no-store`, set as it leaves, over AshAi's own `no-cache` on a streamed answer.
+
+A connected identity's signing address is kept in `Regents.Agents.HostedAddress`, a
+Nebulex local cache: only a successful answer from the sign-in service is kept, so
+the first call after an outage asks again.
 
 ## Issuer, resource and tokens
 

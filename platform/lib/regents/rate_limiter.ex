@@ -51,6 +51,18 @@ defmodule Regents.RateLimiter do
     if count <= limit, do: {:ok, budget}, else: {:error, :rate_limited, budget}
   end
 
+  @doc "Whether `key` has spent its `limit` in this window. Counts nothing."
+  @spec spent?(term(), pos_integer(), pos_integer()) :: boolean()
+  def spent?(key, limit, window_seconds) do
+    now = Application.fetch_env!(:regents, :rate_limiter_clock).()
+    bucket = Integer.floor_div(now, window_seconds)
+
+    case :ets.lookup(@table, {window_seconds, key, bucket}) do
+      [{_row, count}] -> count >= limit
+      [] -> false
+    end
+  end
+
   @doc false
   @spec reset() :: :ok
   def reset do

@@ -136,7 +136,6 @@ defmodule RegentsWeb.Router do
     pipe_through :public_documents
     get "/docs", PublicPagesController, :show
     get "/about", PublicPagesController, :show
-    get "/contact", PublicPagesController, :show
     # Shown only while the Claude connector is on; not found otherwise.
     get "/agents/claude", PublicPagesController, :show
   end

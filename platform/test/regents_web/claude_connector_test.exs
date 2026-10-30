@@ -383,18 +383,91 @@ defmodule RegentsWeb.ClaudeConnectorTest do
       assert Enum.count(signer_asks(), &match?({_, _, %{"operation" => "register"}}, &1)) <= 1
     end
 
-    test "while the hosted signer is down, it is asked once for many calls" do
+    test "while the hosted signer is down, each call is refused and asks again; its first answer is kept" do
       subject = sign_in!()
       %{access: token} = connect!(subject, @agent_scopes)
       test = self()
 
       Req.Test.stub(RegentMCPAgents.HostedSigner, fn conn ->
-        send(test, :signer_down)
+        send(test, :signer_asked)
         conn |> put_status(503) |> Req.Test.json(%{})
       end)
 
-      for _ <- 1..5, do: post_mcp(rpc("ping"), token)
-      assert down_asks() == 1
+      for _ <- 1..3 do
+        refused = post_mcp(rpc("ping"), token)
+        assert refused.status == 503
+        assert json(refused)["error"]["code"] == "identity_unavailable"
+      end
+
+      assert signer_asked() == 3
+
+      Req.Test.stub(RegentMCPAgents.HostedSigner, fn conn ->
+        send(test, :signer_asked)
+        Req.Test.json(conn, %{"address" => @wallet})
+      end)
+
+      for _ <- 1..3, do: assert(post_mcp(rpc("ping"), token).status == 200)
+      assert signer_asked() == 1
+    end
+  end
+
+  describe "the hosted MCP server's address budgets, with the connector on" do
+    setup :connector_on
+
+    test "a token that isn't this site's spends its address's 120, and one past them is refused before any token is looked up" do
+      from = {10, 9, 8, 7}
+      first = post_mcp(rpc("ping"), "not-this-sites", from)
+      assert first.status == 401
+      assert policies(first) == ["mcp_address"]
+      assert oauth_calls(fn -> post_mcp(rpc("ping"), "not-this-sites", from) end) > 0
+
+      for _ <- 3..120, do: assert(post_mcp(rpc("ping"), "not-this-sites", from).status == 401)
+
+      assert oauth_calls(fn ->
+               refused = post_mcp(rpc("ping"), "not-this-sites", from)
+               assert refused.status == 429
+               assert policies(refused) == ["mcp_address"]
+             end) == 0
+    end
+
+    test "a checked token spends its address's 600 and its account's 120, never the address's 120" do
+      subject = sign_in!()
+      %{access: token} = connect!(subject)
+      answered = post_mcp(rpc("ping"), token, {10, 9, 8, 6})
+      assert answered.status == 200
+      assert policies(answered) == ["mcp_connected_address", "mcp"]
+    end
+
+    test "every answer is private and never kept, a tool's, a stream's and a refusal" do
+      subject = sign_in!()
+      %{access: token} = connect!(subject)
+
+      # AshAi streams this answer and names its own cache-control on it.
+      version = "2026-07-28"
+
+      meta = %{
+        "io.modelcontextprotocol/protocolVersion" => version,
+        "io.modelcontextprotocol/clientCapabilities" => %{}
+      }
+
+      listen = rpc("subscriptions/listen", %{"_meta" => meta})
+
+      stream =
+        post_mcp(listen, token, {127, 0, 0, 1}, [
+          {"mcp-protocol-version", version},
+          {"mcp-method", "subscriptions/listen"}
+        ])
+
+      assert get_resp_header(stream, "content-type") == ["text/event-stream"]
+
+      for answer <- [
+            stream,
+            post_mcp(rpc("tools/list"), token),
+            post_mcp(rpc("ping"), nil),
+            post_mcp(rpc("ping"), "not-this-sites")
+          ] do
+        assert get_resp_header(answer, "cache-control") == ["private, no-store"]
+      end
     end
   end
 
@@ -543,11 +616,16 @@ defmodule RegentsWeb.ClaudeConnectorTest do
 
   defp read_call(name), do: rpc("tools/call", %{"name" => name, "arguments" => %{}})
 
-  defp post_mcp(body, token) do
+  defp post_mcp(body, token, from \\ {127, 0, 0, 1}, headers \\ []) do
     conn =
-      conn(:post, "/mcp", Jason.encode!(body))
-      |> put_req_header("content-type", "application/json")
-      |> put_req_header("accept", "application/json, text/event-stream")
+      Enum.reduce(
+        headers,
+        conn(:post, "/mcp", Jason.encode!(body))
+        |> Map.put(:remote_ip, from)
+        |> put_req_header("content-type", "application/json")
+        |> put_req_header("accept", "application/json, text/event-stream"),
+        fn {name, value}, conn -> put_req_header(conn, name, value) end
+      )
 
     conn = if token, do: put_req_header(conn, "authorization", "Bearer " <> token), else: conn
     @endpoint.call(conn, [])
@@ -595,11 +673,42 @@ defmodule RegentsWeb.ClaudeConnectorTest do
     |> Enum.map(& &1["name"])
   end
 
-  defp down_asks do
+  defp signer_asked do
     receive do
-      :signer_down -> 1 + down_asks()
+      :signer_asked -> 1 + signer_asked()
     after
       0 -> 0
+    end
+  end
+
+  # The budgets an answer was counted under, in order.
+  defp policies(conn) do
+    [header] = get_resp_header(conn, "ratelimit-policy")
+    for [_, policy] <- Regex.scan(~r/"([^"]+)"/, header), do: policy
+  end
+
+  # How many calls the sign-in store took while `fun` ran. It sends nothing to
+  # telemetry, so this process's calls into it are traced, to a process of their
+  # own: a process is never its own tracer.
+  defp oauth_calls(fun) do
+    test = self()
+    tracer = spawn_link(fn -> count_calls(test, 0) end)
+    :erlang.trace_pattern({RegentOAuth.Repo, :_, :_}, true, [])
+    :erlang.trace(test, true, [:call, {:tracer, tracer}])
+    fun.()
+    :erlang.trace(test, false, [:call])
+    :erlang.trace_pattern({RegentOAuth.Repo, :_, :_}, false, [])
+    delivered = :erlang.trace_delivered(test)
+    assert_receive {:trace_delivered, ^test, ^delivered}
+    send(tracer, :done)
+    assert_receive {:calls, calls}
+    calls
+  end
+
+  defp count_calls(test, calls) do
+    receive do
+      {:trace, ^test, :call, {RegentOAuth.Repo, _name, _args}} -> count_calls(test, calls + 1)
+      :done -> send(test, {:calls, calls})
     end
   end
 

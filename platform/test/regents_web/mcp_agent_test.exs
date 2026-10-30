@@ -9,8 +9,8 @@ defmodule RegentsWeb.McpAgentTest do
   #   and any other method or address are refused in the site's shape, before
   #   any signature is checked;
   # - input a read cannot take gets the code HTTP gives it;
-  # - one address gets the API's 120 requests a minute, and requests with a
-  #   token share 600.
+  # - one address gets the API's 120 requests a minute, and a token nobody has
+  #   checked spends the same 120.
   # A connected app's own calls are in RegentsWeb.ClaudeConnectorTest. The
   # sign-in service is stubbed: it vouches for the wallet a request names when the
   # request carries the fixture proof. Each test calls from its own address, so it
@@ -188,7 +188,10 @@ defmodule RegentsWeb.McpAgentTest do
           {"regents_credits_history", %{after: "not-a-cursor"}, "invalid_cursor"},
           {"regents_credits_history", %{foo: 1}, "invalid_input"},
           {"regents_credits_history", "after", "invalid_input"},
+          {"regents_credits_history", nil, "invalid_input"},
+          {"regents_credits_history", false, "invalid_input"},
           {"regents_account", %{foo: 1}, "invalid_input"},
+          {"regents_account", %{after: nil}, "invalid_input"},
           {"regents_points_summary", [], "invalid_input"}
         ] do
       assert %{"isError" => true, "content" => [%{"text" => text}]} =
@@ -256,14 +259,15 @@ defmodule RegentsWeb.McpAgentTest do
     assert List.last(statuses) == 429
   end
 
-  test "requests with a token share 600 a minute from one address, Claude's servers among them",
+  test "a token that isn't checked spends the same 120 from its address, each request once",
        %{from: from} do
     statuses =
-      for _ <- 1..601, do: mcp(rpc("tools/list"), from: from, token: "not-a-token").status
+      for n <- 1..121,
+          do:
+            mcp(rpc("tools/list"), from: from, token: if(rem(n, 2) == 0, do: "not-a-token")).status
 
-    assert Enum.uniq(Enum.take(statuses, 600)) == [401]
+    assert Enum.uniq(Enum.take(statuses, 120)) == [401]
     assert List.last(statuses) == 429
-    assert mcp(rpc("tools/list"), from: from).status == 401
   end
 
   defp mcp(body, opts) do

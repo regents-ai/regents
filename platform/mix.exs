@@ -202,7 +202,9 @@ defmodule Regents.MixProject do
         # The hosted MCP forward adds one: the router reads its input check from ToolErrors (AshAi
         # takes it only as a function). The identity tools' policy check adds one
         # (`Agents.Connection.Caller`: Ash reads an `authorize_if` check module at compile time).
-        "xref graph --label compile-connected --fail-above 42",
+        # The hosted MCP server's address budgets add one: McpAgent builds them at compile time
+        # with ClientAddress's key.
+        "xref graph --label compile-connected --fail-above 43",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

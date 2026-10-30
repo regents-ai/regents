@@ -112,20 +112,8 @@ defmodule RegentsWeb.Endpoint do
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 
-  # An agent's own request to /mcp counts against its address as on the API.
-  # Claude's connector calls /mcp from Anthropic's servers, so one address carries
-  # many people's connected apps: its ceiling is against a flood, and each
-  # connected account's own budget (`RegentsWeb.Plugs.McpAgent`) is the working
-  # limit.
-  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts) do
-    case Plug.Conn.get_req_header(conn, "authorization") do
-      ["Bearer " <> _token] ->
-        RegentAgentAccess.RateLimit.call(conn, rate_limit("mcp_connected_address", 600))
-
-      _no_token ->
-        RegentAgentAccess.RateLimit.call(conn, rate_limit("mcp_address", 120))
-    end
-  end
+  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts),
+    do: RegentsWeb.Plugs.McpAgent.limit_address(conn)
 
   defp limit_rate(conn, _opts), do: conn
 

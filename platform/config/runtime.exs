@@ -50,6 +50,8 @@ if config_env() != :test do
     url: System.get_env("SIWA_SERVER_URL"),
     audience: System.get_env("SIWA_AUDIENCE")
 
+  config :regent_mcp_agents, :config, hosted_signer: [base_url: System.get_env("SIWA_SERVER_URL")]
+
   # The reader key for each paired agent's activity across the Regent sites.
   config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
 end
@@ -92,18 +94,11 @@ config :regents, Regents.OAuth,
   issuer: site_url,
   resource: site_url && site_url <> "/mcp"
 
-# The same sign-in service that checks agents' signed requests: SIWA_SERVER_URL
-# above, or the test service.
+# Asked at the same sign-in service that checks agents' signed requests,
+# SIWA_SERVER_URL above (config/test.exs names the test service).
 config :regent_mcp_agents, :config,
   enabled?: claude_connector?,
-  hosted_signer: [
-    base_url:
-      if(config_env() == :test,
-        do: Application.fetch_env!(:regent_agents, :siwa)[:url],
-        else: System.get_env("SIWA_SERVER_URL")
-      ),
-    key: hosted_signing_key
-  ]
+  hosted_signer: [key: hosted_signing_key]
 
 # Claude is offered in the pairing box, and accepted by the pair request, only
 # while its connector is on.
