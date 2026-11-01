@@ -4152,3 +4152,13 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   library changes.
 - Live on v260 at 360, 390, 414 and 1280, light and dark: the buttons end inside the text
   column, there is no sideways scroll and no console error.
+
+## 2026-11-01 — Regents v261 released
+
+- v261 (`8e9729d3`) went live at 00:14Z: phoenix_html 4.3.0 to 4.4.0 (EEF-CVE-2026-117645),
+  lock only. `make check-platform` exit 0 (609 server tests, 252 script tests, 147 browser
+  walks, Chromium only); `make check-required-fixes` exit 0. No database, secret or other
+  library changes. The rollback is v260 (`71ef1ab2`).
+- Live on v261: `/capabilities.json` reports commit `8e9729d3` and image
+  `main-8e9729d3754d`; `/`, `/docs`, `/stake`, `/account`, `/agents.md` and `/healthz`
+  answer 200.
