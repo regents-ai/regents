@@ -4221,3 +4221,22 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   454 forge tests. Identity and contracts ran after the rest on the same tree: the first
   run stopped at identity on packages left installed from an earlier copy of this work;
   `mix deps.get` changed no tracked file.
+
+## 2026-11-02 — Regents v263 released
+
+- v263 (`502abe72`, image `main-502abe729f97`) went live about 17:25Z: the Agents page at
+  `/account/agents`. The rollback is v262 (`9350ffa8`). No database, secret or elixir-utils
+  changes.
+- make check on this commit, every part exit 0: server tests 609 (603 tests, 6 properties,
+  1 excluded), script tests 252, browser walk 151 in headless Chromium (WebKit not run on
+  the Mac), required fixes against ash-template `0b65960c`, command list ok, identity 16,
+  contracts 454 forge tests.
+- Live on v263: `/capabilities.json` reports commit `502abe72`; `/openapi.json` reports
+  4.0.2; `/`, `/docs`, `/stake`, `/account`, `/account/agents`, `/account/points`,
+  `/account/credits`, `/account/wallets`, `/account/connections`, `/start`, `/agents.md`,
+  `/llms.txt`, `/skill.md`, `/docs/changes` and `/healthz` answer 200. In a real browser,
+  signed out, `/account/agents` shows the Agents tab selected and the sign-in line, with
+  no console error.
+- Not proven on the live site: `/account/agents` signed in, since no agent signs in to
+  production. The browser walk proves it on this commit (list, pairing box and its link,
+  account menu, at 1280, 390 and 320).
