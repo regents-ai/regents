@@ -4,7 +4,7 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 // The account menu, opened by the account's button at the top right of every page.
 // The walk's person has four agents (Regents.BrowserAgents) and none has been
 // active, so the menu shows the three paired last and leaves out Spare Agent, paired
-// first. Manage beside the heading opens the agents on the Account page; with a
+// first. Manage beside the heading opens the Agents page; with a
 // mouse it shows while the pointer is over the list or a key has moved into it, and
 // the rows never move when it does. Ported from ash-template's account_menu.spec.ts.
 async function signIn(page: Page, path = "/stake") {
@@ -41,7 +41,7 @@ test("the account menu shows three agents and Manage", async ({page}) => {
 
   const manage = agents.getByRole("link", {name: "Manage your agents"})
   await expect(manage).toHaveText("Manage")
-  await expect(manage).toHaveAttribute("href", "/account#account-agents")
+  await expect(manage).toHaveAttribute("href", "/account/agents")
   const opacity = () => manage.evaluate(link => getComputedStyle(link).opacity)
 
   // Where the rows sit inside the menu.
@@ -62,7 +62,7 @@ test("the account menu shows three agents and Manage", async ({page}) => {
   await expect.poll(opacity).toBe("1")
 
   await manage.click()
-  await expect(page).toHaveURL(/\/account#account-agents$/)
+  await expect(page).toHaveURL(/\/account\/agents$/)
   await problems.expect()
 })
 
@@ -146,18 +146,18 @@ for (const width of [1280, 390]) {
     await expect(menu(page).getByRole("button", {name: "Sign out"})).toBeVisible()
     await menu(page).getByRole("link", {name: "Manage Account"}).click()
     await expect(page).toHaveURL(/\/account$/)
-    await expect(page.locator("#account-agents")).toBeVisible()
+    await expect(page.locator("#account-identity")).toBeVisible()
     await expect(menu(page)).toBeHidden()
     await problems.expect()
   })
 
-  test(`Pair New Agent in the menu lands on the Account page's pairing box at ${width}`, async ({page}) => {
+  test(`Pair New Agent in the menu lands on the Agents page's pairing box at ${width}`, async ({page}) => {
     const problems = watch(page)
     await page.setViewportSize({width, height: 900})
     await signIn(page)
     await openMenu(page)
     await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(page).toHaveURL(/\/account#account-pairing$/)
+    await expect(page).toHaveURL(/\/account\/agents#account-pairing$/)
     await expect(menu(page)).toBeHidden()
     await expect(page.locator("#account-pairing")).toBeInViewport()
     // The keyboard starts on the agent choice.

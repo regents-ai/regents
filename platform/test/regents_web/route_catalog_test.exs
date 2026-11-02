@@ -19,6 +19,7 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/paper-pro-daily",
     "/literature",
     "/account",
+    "/account/agents",
     "/account/points",
     "/account/credits",
     "/account/wallets",
@@ -117,6 +118,7 @@ defmodule RegentsWeb.RouteCatalogTest do
   test "the Account pages are tabs of one another, and no other page has tabs" do
     tabs = [
       %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+      %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
       %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
       %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
       %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
@@ -169,7 +171,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 26
+    assert length(decoded["routes"]) == 27
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 

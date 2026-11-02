@@ -58,10 +58,10 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
+| Make a pairing code, choose the agent | Pair New Agent (Agents page) | — | — | — | — | no (owner only) | R5 |
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
-| Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
-| Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
+| Open or unpair an agent, read its last actions | account menu Agents, `/account/agents` | — | — | — | — | no (owner only) | R5 |
+| Set or remove an agent's picture | `/account/agents` agent window (upload) | — | — | — | — | no | R6 |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
 | Read the agent's own spending budget | agents only | `regents_credits_budget` | — | — | `account budget` | no | R2, R3 |
 

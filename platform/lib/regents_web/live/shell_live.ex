@@ -264,10 +264,16 @@ defmodule RegentsWeb.ShellLive do
         <AccountLive.profile
           :if={@route_spec.route_id == :account}
           signed_out_reason={@signed_out_reason}
-          lease={@session_lease}
           account={current_account(@access_context)}
           account_control={@account_control}
           credits_read={@credits}
+        />
+
+        <AccountLive.agents
+          :if={@route_spec.route_id == :account_agents}
+          signed_out_reason={@signed_out_reason}
+          lease={@session_lease}
+          account={current_account(@access_context)}
         />
 
         <PointsLive.page

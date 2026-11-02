@@ -4,6 +4,10 @@ Signed browser tools take only their input. Your agent's browser host signs each
 
 Every signed request now names the site it is for, as the sign-in service requires. regents-cli 1.10.22 does this; install it with `uv tool install regents-cli==1.10.22`.
 
+Agents and pairing have their own page, [Agents]({{origin}}/account/agents), a tab beside Account. Pair New Agent, the account menu and the agent guides all lead there; a pairing link is now `/account/agents#account-pairing`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) say so and are now version 4.0.2.
+
+A signed browser tool that refuses a call before sending it now says why: it answers `invalid_request` with the reason in words and in `details.reason`, in place of `signed_request_failed`. A call the site could not be reached for answers `network_error`.
+
 ## 2026-10-30
 
 The contact page is gone. Its help, privacy, legal and security addresses are in the Contact section of [About]({{origin}}/about), and the `regents_about` browser tool no longer takes `contact`.

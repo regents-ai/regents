@@ -1,7 +1,7 @@
 defmodule RegentsWeb.Capabilities do
   @moduledoc """
   What a paired agent may do on this site, in its person's words, which the
-  Account page shows. Each browser tool an agent signs for in
+  Agents page shows. Each browser tool an agent signs for in
   `priv/tool_manifest.json` has its words here, or `nil` for a tool about the
   agent itself; the two are checked against each other when this module
   compiles, so a new signed tool cannot reach agents without saying what it lets

@@ -73,6 +73,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :account
     },
     %Entry{
+      path_pattern: "/account/agents",
+      live_action: :account_agents,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :account_agents
+    },
+    %Entry{
       path_pattern: "/account/points",
       live_action: :points,
       parameter_schema: %{},
@@ -226,6 +233,9 @@ defmodule RegentsWeb.RouteCatalog do
     account:
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
        :regents_labs, %{}},
+    account_agents:
+      {:account_agents, :regent_ops, "Regents Labs", "Agents", "/app", [:profile_actions],
+       :regents_labs, %{}},
     points:
       {:points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions], :regents_labs,
        %{}},
@@ -282,6 +292,7 @@ defmodule RegentsWeb.RouteCatalog do
   # The Account pages are tabs of one another.
   @account_tabs [
     %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+    %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
     %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
     %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
     %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},

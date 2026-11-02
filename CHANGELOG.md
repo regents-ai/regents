@@ -4193,3 +4193,31 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   forge tests with build and format. The contracts are main's, byte for byte; their
   submodule-record step needs a git checkout, so forge build, test and format ran
   directly.
+
+## 2026-11-02 — Regents Agents page (/account/agents)
+
+- SIWA v2 window, step 3: v262 (`9350ffa8`) went live 16:54Z from the template chief's row;
+  the rollback was v261 (`8e9729d3`). `/account/agents` still answered 404, which this
+  release closes (window rule 3).
+- Agents and pairing move from `/account` to their own Agents tab at `/account/agents`,
+  ported from ash-template `6fd34696` and `a0564ce2`, with the template's words and tips as
+  they are today. New route, catalog entry and tab; `RegentsWeb.AccountSite`; the live
+  update now follows `:account_agents`; `Regent.Account.agents_layout`. Pair New Agent, the
+  account menu, `/start` and the guides lead there (`/account/agents#account-pairing`).
+- Design-system `3134bab0` to `7a853f85` (agents_layout, the list's Paired heading, and
+  `a5fe5c4`, `84642bc`, `a0affdc`), before Geist.
+- "Account page" to "Agents page" wherever a line means pairing or agents: guides, agent
+  start text, refusal hints, API contract (4.0.2, both copies), `cli/commands.json`,
+  `cli/COMMANDS.md`, `docs/agent-parity.md`, `FEATURES.md`. Lines about the account's own
+  name keep "Account page". Route handoff regenerated.
+- A signed browser tool's refusal before sending now answers as the template does:
+  `invalid_request`, the reason in words and in `details.reason`, a hint, and
+  `network_error` when the site could not be reached. It replaces one catch-all
+  `signed_request_failed`, which told an agent to check its input even on a network failure.
+- No database, secret or elixir-utils changes. The rollback is v262 (`9350ffa8`).
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template `0b65960c`, command list ok, identity 16, contracts
+  454 forge tests. Identity and contracts ran after the rest on the same tree: the first
+  run stopped at identity on packages left installed from an earlier copy of this work;
+  `mix deps.get` changed no tracked file.

@@ -23,7 +23,7 @@ defmodule Regents.Application do
         {Task.Supervisor, name: Regents.SiteTools.Reads},
         Regents.SiteTools,
         # Each paired agent's reading from the sign-in service, kept five minutes
-        # and shared by the account menu and the Account page.
+        # and shared by the account menu and the Agents page.
         Regents.Agents.ActivityReading,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Agents.Reads},
