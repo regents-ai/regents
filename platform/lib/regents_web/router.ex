@@ -168,9 +168,14 @@ defmodule RegentsWeb.Router do
     get "/account", AgentReadsController, :account
     post "/claims", OwnedClaimsController, :agent_index
     get "/staking/position", StakingPositionController, :agent_show
-    get "/credits/balance", AgentReadsController, :balance
-    post "/credits/history", AgentReadsController, :history
-    get "/credits/budget", AgentReadsController, :budget
+  end
+
+  # A paired agent's reads of its person's Credits and Points, at the same
+  # paths on every site.
+  scope "/api/v1/account", RegentsWeb do
+    pipe_through [:api, :paired_agent]
+    get "/balances", AgentReadsController, :balances
+    post "/credits/history", AgentReadsController, :credits_history
     get "/points", AgentReadsController, :points
   end
 

@@ -4,6 +4,8 @@ Signed browser tools take only their input. Your agent's browser host signs each
 
 Every signed request now names the site it is for, as the sign-in service requires. regents-cli 1.10.22 does this; install it with `uv tool install regents-cli==1.10.22`.
 
+Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. Points come as decimal text, such as "12.5", with who earned each entry and whether it counted, and a `note` says when earning is off. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.0.0.
+
 ## 2026-10-30
 
 The contact page is gone. Its help, privacy, legal and security addresses are in the Contact section of [About]({{origin}}/about), and the `regents_about` browser tool no longer takes `contact`.

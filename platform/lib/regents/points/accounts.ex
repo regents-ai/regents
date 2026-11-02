@@ -6,8 +6,6 @@ defmodule Regents.Points.Accounts do
 
   @behaviour RegentPoints.Accounts
 
-  require Ash.Query
-
   alias Regents.Accounts
   alias Regents.Actors.System
 
@@ -17,14 +15,12 @@ defmodule Regents.Points.Accounts do
   @impl true
   def agent_names(_id, []), do: {:ok, %{}}
 
-  def agent_names(id, agent_ids) do
-    query = Ash.Query.filter(RegentAgents.PairedAgent, id in ^agent_ids)
-
-    # Reads as the account's own person, so the agents policy shows only that person's agents.
+  def agent_names(id, wallets) do
+    # The canonical account supplies the owner; a wallet's newest pairing names it.
     with {:ok, account} <- Accounts.points_account(id, actor: %System{}),
-         person = %RegentAgents.Person{privy_user_id: account.privy_user_id},
-         {:ok, agents} <- RegentAgents.list_my_agents(query: query, actor: person) do
-      {:ok, Map.new(agents, &{&1.id, &1.name})}
+         {:ok, pairings} <- RegentAgents.pairing_histories(account.privy_user_id) do
+      names = for %{wallet: wallet, name: name} <- pairings, wallet in wallets, do: {wallet, name}
+      {:ok, Map.new(names)}
     end
   end
 end

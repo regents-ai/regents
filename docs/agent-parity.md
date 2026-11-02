@@ -63,7 +63,6 @@ were skipped.
 | Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
 | Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
-| Read the agent's own spending budget | agents only | `regents_credits_budget` | — | — | `account budget` | no | R2, R3 |
 
 ## Names
 
@@ -76,10 +75,10 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Read Credits balance | header, `/account` | `regents_credits_balance` | — | — | `account balances` | no | R2, R3 |
-| Read Credits purchase history | `/account/credits` (more) | `regents_credits_history` | — | — | `account credits-history` | no | R2, R3 |
+| Read Credits and the agent's spending allowance | header, `/account` | `account_balances` | — | — | `account balances` | no | R2, R3 |
+| Read Credits purchase history | `/account/credits` (more) | `account_credits_history` | — | — | `account credits-history` | no | R2, R3 |
 | Buy Credits with USDC on Base (approve, buy, then the purchase counts) | Buy Credits panel | — | — | — | — | money, wallet | R8 |
-| Read Points | `/account/points` | `regents_points_summary` | — | — | `account points` | no | R2, R3 |
+| Read Points | `/account/points` | `account_points` | — | — | `account points` | no | R2, R3 |
 
 ## Stake
 

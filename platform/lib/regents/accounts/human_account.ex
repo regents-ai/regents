@@ -48,7 +48,16 @@ defmodule Regents.Accounts.HumanAccount do
       change set_attribute(:wallet_addresses, arg(:wallet_addresses))
       upsert? true
       upsert_identity :unique_privy_user_id
-      upsert_fields []
+      # A sign-in to an existing account writes nothing to it, and the account
+      # comes back marked as skipped.
+      upsert_condition expr(false)
+      return_skipped_upsert? true
+
+      emit Regents.Accounts.Signals, :account_registered,
+        dynamic?: true,
+        description: "Only when the sign-in inserted the account."
+
+      change Regents.Accounts.HumanAccount.AnnounceRegistration
     end
 
     update :refresh_verified do

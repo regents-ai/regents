@@ -42,10 +42,9 @@ and `other`; the existing server validates them. `--code`, `--name` and
 | `account show` | `GET /api/agent/v1/account` | Read only |
 | `account claims` | `POST /api/agent/v1/claims` | Read only |
 | `staking position` | `GET /api/agent/v1/staking/position` | Read only |
-| `account balances` | `GET /api/agent/v1/credits/balance` | Read only |
-| `account credits-history` | `POST /api/agent/v1/credits/history` | Read only |
-| `account points` | `GET /api/agent/v1/points` | Read only |
-| `account budget` | `GET /api/agent/v1/credits/budget` | Read only |
+| `account balances` | `GET /api/v1/account/balances` | Read only |
+| `account credits-history` | `POST /api/v1/account/credits/history` | Read only |
+| `account points` | `GET /api/v1/account/points` | Read only |
 
 `agents whoami` needs fresh proof but no pairing. It returns your SIWA identity,
 current pairing and effective access without a check-in or Points award. Every

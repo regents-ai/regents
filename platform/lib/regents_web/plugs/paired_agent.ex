@@ -27,17 +27,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
 
     case conn.assigns do
       %{regent_agent: %RegentAgents.Agent{wallet: wallet}} ->
-        if conn.method == "GET" and is_binary(conn.assigns[:raw_body]) do
-          refuse(
-            conn,
-            400,
-            "invalid_input",
-            "This read accepts no request body.",
-            "Sign the GET request without a body or query string."
-          )
-        else
-          resolve(conn, wallet)
-        end
+        resolve(conn, wallet)
 
       %{regent_agent_refusal: refusal} ->
         refuse_proof(conn, refusal)

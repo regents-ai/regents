@@ -10,7 +10,10 @@ defmodule RegentsWeb.Telemetry do
   Oban's own events. Each staking chain read (`Regents.WalletActions.Rpc`) is
   counted by its purpose and method, and every chain request that got no answer
   by its method, class, chain and the caller's fixed scope
-  (`[:regents, :chain, :failure]`, a `health.*` series).
+  (`[:regents, :chain, :failure]`, a `health.*` series). Each time the Points
+  tally of finished periods runs to its end (`[:regent_points, :tally_periods,
+  :finished]`), the clock time it finished is kept as a `health.*` gauge, so a
+  stalled tally shows as a time that stops moving.
   The engine's memory, run queues and process counts come from telemetry_poller's
   default poller.
 
@@ -112,6 +115,12 @@ defmodule RegentsWeb.Telemetry do
         event_name: [:regents, :chain, :failure],
         tags: [:method, :class, :chain_id, :scope],
         description: "Chain requests that got no answer"
+      ),
+      last_value("health.points_tally_finished.seconds",
+        event_name: [:regent_points, :tally_periods, :finished],
+        measurement: fn _measurements -> System.system_time(:second) end,
+        description:
+          "When the Points tally of finished periods last ran to its end, in Unix seconds"
       ),
       counter("regents.staking.rpc_requests.total",
         event_name: [:regents, :staking, :rpc],

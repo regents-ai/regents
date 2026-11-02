@@ -246,9 +246,9 @@
       "effect": "read"
     },
     {
-      "name": "regents_credits_balance",
-      "title": "Read shared Credits balance",
-      "description": "Read the paired account global Credits balance: available, given, purchased and held. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "name": "account_balances",
+      "title": "Read Credits",
+      "description": "Read your person's Credits and your spending allowance. Spends nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -262,29 +262,32 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/credits/balance",
+      "route": "GET /api/v1/account/balances",
       "scope": "site",
+      "operation_id": "getAccountBalances",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
-        "webmcp": "regents_credits_balance",
-        "http": "GET /api/agent/v1/credits/balance"
+        "webmcp": "account_balances",
+        "http": "GET /api/v1/account/balances",
+        "cli": {
+          "command": "account balances"
+        }
       },
       "effect": "read"
     },
     {
-      "name": "regents_credits_history",
-      "title": "Read shared Credits history",
-      "description": "Read the paired account's Credits history. Send {} first, then pass pagination.next_cursor unchanged as after; leave after out when it is null. A cursor that is not valid answers 422 invalid_cursor. Requires a current pairing. Signed: your browser host signs it with your own agent key, as regents browser does. Browser cookies and human Privy tokens grant no agent authority.",
+      "name": "account_credits_history",
+      "title": "Read Credits history",
+      "description": "Read your person's Credits history, 50 entries a page; send after (the previous page's next_cursor) for older ones. Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "input_schema": {
         "type": "object",
         "properties": {
           "after": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 2048,
-            "description": "The previous page's pagination.next_cursor unchanged, at most 2048 UTF-8 bytes. Omit for the first page or when the cursor is null; do not send null."
+            "description": "The previous page's next_cursor, unchanged, for older entries."
           }
         },
         "required": [],
@@ -297,21 +300,25 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "POST /api/agent/v1/credits/history",
+      "route": "POST /api/v1/account/credits/history",
       "scope": "site",
+      "operation_id": "listCreditsHistory",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
-        "webmcp": "regents_credits_history",
-        "http": "POST /api/agent/v1/credits/history"
+        "webmcp": "account_credits_history",
+        "http": "POST /api/v1/account/credits/history",
+        "cli": {
+          "command": "account credits-history"
+        }
       },
       "effect": "read"
     },
     {
-      "name": "regents_credits_budget",
-      "title": "Read my effective spending budget",
-      "description": "Read only this current pairing spending grant, site eligibility and aggregate owner agent usage over the last 24 hours. Does not change a grant or spend. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "name": "account_points",
+      "title": "Read Points",
+      "description": "Read your person's Points, today's total, daily allowances and recent entries, each saying who earned it and whether it counted. Points are decimal text, such as \"12.5\". Changes nothing. Needs a pairing. Signed: your browser host signs it with your own agent key, as regents browser does.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -325,42 +332,15 @@
       "requires": "siwa_and_pairing",
       "state_changing": false,
       "payment": "none",
-      "route": "GET /api/agent/v1/credits/budget",
+      "route": "GET /api/v1/account/points",
       "scope": "site",
+      "operation_id": "getAccountPoints",
       "authentication": "siwa_per_request",
       "pairing_required": true,
       "availability": "available",
       "interfaces": {
-        "webmcp": "regents_credits_budget",
-        "http": "GET /api/agent/v1/credits/budget"
-      },
-      "effect": "read"
-    },
-    {
-      "name": "regents_points_summary",
-      "title": "Read shared Points summary",
-      "description": "Read the paired owner's shared Points balance, recent ledger entries, pending count and remaining daily allowances. Uses the canonical owner account and current pairing. Creates no account or event and awards no Points. Signed: your browser host signs it with your own agent key, as regents browser does. Browser cookies and human Privy tokens grant no agent authority.",
-      "input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": true
-      },
-      "requires": "siwa_and_pairing",
-      "state_changing": false,
-      "payment": "none",
-      "route": "GET /api/agent/v1/points",
-      "scope": "site",
-      "authentication": "siwa_per_request",
-      "pairing_required": true,
-      "availability": "available",
-      "interfaces": {
-        "webmcp": "regents_points_summary",
-        "http": "GET /api/agent/v1/points",
+        "webmcp": "account_points",
+        "http": "GET /api/v1/account/points",
         "cli": {
           "command": "account points"
         }
