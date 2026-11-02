@@ -66,14 +66,14 @@ test("a signed tool lists only its own input, and no tool prepares requests", as
   const tools = await page.evaluate(() =>
     [...(window as unknown as {pageTools: Map<string, {name: string; inputSchema: {properties: object}}>}).pageTools.values()]
       .map(tool => ({name: tool.name, fields: Object.keys(tool.inputSchema.properties).sort()})))
-  expect(tools.find(tool => tool.name === "regents_credits_history")!.fields).toEqual(["after"])
+  expect(tools.find(tool => tool.name === "account_credits_history")!.fields).toEqual(["after"])
   expect(tools.map(tool => tool.name)).not.toContain("prepare_agent_request")
 })
 
 test("with no agent signer a signed tool sends nothing and says how to get one", async ({page}) => {
   await open(page, "none")
   const sent = toApi(page)
-  const answer = await call(page, "regents_credits_history", history)
+  const answer = await call(page, "account_credits_history", history)
   expect(answer).toMatchObject({ok: false, error: {code: "agent_auth_required"}})
   expect((answer as {error: {hint: string}}).error.hint).toContain("regents browser --site regents")
   expect(sent).toEqual([])
@@ -82,7 +82,7 @@ test("with no agent signer a signed tool sends nothing and says how to get one",
 test("a signer's refusal is the tool's answer, and nothing is sent", async ({page}) => {
   await open(page, "refuses")
   const sent = toApi(page)
-  const answer = await call(page, "regents_credits_history", history)
+  const answer = await call(page, "account_credits_history", history)
   expect(answer).toEqual({ok: false, error: {code: "call_mismatch", message: "This is not the call your agent made.", hint: "Call the tool again."}})
   expect(sent).toEqual([])
 })
@@ -90,12 +90,12 @@ test("a signer's refusal is the tool's answer, and nothing is sent", async ({pag
 test("the page sends exactly the request the signer signed, with its proof and no cookie", async ({page, baseURL}) => {
   await open(page, "signs")
   const sent = toApi(page)
-  await call(page, "regents_credits_history", history)
+  await call(page, "account_credits_history", history)
 
   const asked = await page.evaluate(() => (window as unknown as {signerAsked: Array<Record<string, string>>}).signerAsked)
   expect(asked).toHaveLength(1)
   const [signed] = asked
-  expect(signed).toMatchObject({operation: "regents_credits_history", audience: "regents", origin: new URL(baseURL!).origin, method: "POST", path: "/api/agent/v1/credits/history"})
+  expect(signed).toMatchObject({operation: "account_credits_history", audience: "regents", origin: new URL(baseURL!).origin, method: "POST", path: "/api/v1/account/credits/history"})
   expect(JSON.parse(signed.body)).toEqual(history)
 
   expect(sent).toHaveLength(1)
@@ -108,7 +108,7 @@ test("the page sends exactly the request the signer signed, with its proof and n
   expect(headers.cookie).toBeUndefined()
 
   // An input the tool does not take is refused before the signer is asked.
-  const refused = await call(page, "regents_credits_history", {...history, colour: "blue"})
+  const refused = await call(page, "account_credits_history", {...history, colour: "blue"})
   expect(refused).toMatchObject({ok: false, error: {code: "invalid_request", details: {reason: "invalid_field:colour"}}})
   expect(await page.evaluate(() => (window as unknown as {signerAsked: unknown[]}).signerAsked.length)).toBe(1)
   expect(sent).toHaveLength(1)

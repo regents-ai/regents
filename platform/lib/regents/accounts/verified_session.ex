@@ -138,15 +138,14 @@ defmodule Regents.Accounts.VerifiedSession do
            Accounts.get_linked_identity_by_subject(provider, subject, actor: actor),
          :ok <- subject_available(current, human_account_id),
          {:ok, _identity} <-
-           Accounts.upsert_linked_identity(
+           save_social(
+             current,
              provider,
              subject,
              username,
              display_name,
-             DateTime.utc_now(),
-             %{},
              human_account_id,
-             actor: actor
+             actor
            ) do
       {:ok, provider}
     else
@@ -157,6 +156,33 @@ defmodule Regents.Accounts.VerifiedSession do
 
   defp upsert_linked_social(_social, _human_account_id, _actor),
     do: {:error, :invalid_verified_identity}
+
+  # A subject new to the account links it; the same subject again refreshes it.
+  defp save_social(nil, provider, subject, username, display_name, human_account_id, actor) do
+    Accounts.upsert_linked_identity(
+      provider,
+      subject,
+      username,
+      display_name,
+      DateTime.utc_now(),
+      %{},
+      human_account_id,
+      actor: actor
+    )
+  end
+
+  defp save_social(current, _provider, _subject, username, display_name, _account_id, actor) do
+    Accounts.refresh_linked_identity(
+      current,
+      %{
+        username: username,
+        display_name: display_name,
+        verified_at: DateTime.utc_now(),
+        metadata: %{}
+      },
+      actor: actor
+    )
+  end
 
   defp subject_available(nil, _human_account_id), do: :ok
   defp subject_available(%{human_account_id: id}, id), do: :ok

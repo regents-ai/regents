@@ -4240,3 +4240,38 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Not proven on the live site: `/account/agents` signed in, since no agent signs in to
   production. The browser walk proves it on this commit (list, pairing box and its link,
   account menu, at 1280, 390 and 320).
+
+## 2026-11-02 — Regents Points row (branch `regents/points-1102`)
+
+- Built on main `5d0cc194` (the Agents page, v263), and re-stacked again on main when it
+  ships. It ships with Sean's sign-off on the Points rules; the rollback is the release
+  live just before it.
+- elixir-utils `64475364` to `e37cb01d` in `platform/` and `identity/` (pin lines only):
+  `RegentAgents.Signals` `:agent_paired`, `RegentAgents.pairing_history/1` and
+  `pairing_histories/1`, and the Points tally's `[:regent_points, :tally_periods, :finished]`.
+- The template's account rules (ash-template `f942d3b4`): `account.activated` when a
+  sign-in creates the account, `social.x`, `social.github` and `social.farcaster` when a
+  sign-in links a social account new to the account, and `agent.activated` when an agent
+  pairs, each offered to Points inside the save that earns it (`Regents.Accounts.Signals`,
+  `Regents.Points.Award`) and checked by `Regents.Points.AccountActivated`, `LinkedSocial`
+  and `PairedAgent`. A paired agent's award names its wallet, and the Points page names the
+  agent from the library's pairing reads. A sign-in with a social account already linked
+  refreshes it (`refresh_verified`) and offers nothing. Credits is unchanged. The rule list
+  stays empty and `starts_at` nil, so nothing earns yet.
+- A paired agent's Credits and Points reads move to the template's paths as a hard
+  cutover: `GET /api/v1/account/balances` (Credits with the whole spending grant and a
+  `note`, replacing `credits/balance` and `credits/budget`), `POST
+  /api/v1/account/credits/history` and `GET /api/v1/account/points` (decimal text, with a
+  `note` while earning is off). The browser tools are `account_balances`,
+  `account_credits_history` and `account_points`; `cli/commands.json` drops `account
+  budget`. The contract and `openapi.json` are 5.0.0, and the guides, agent start page,
+  parity table and public `/docs/changes` say so.
+- Every POST or PATCH under `/api` keeps its exact body bytes for the signature check
+  (`RegentsWeb.Plugs.AgentBodyReader`, the template's rule, at most 8,192 bytes, the profile
+  cap). A GET body is never kept, so the paired-agent plug's GET-with-body refusal is gone.
+- New gauge `health_points_tally_finished_seconds` on the metrics listener: the Unix time
+  the Points tally last ran to its end.
+- make check, every part exit 0: server tests 614 (608 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "4.0.2",
+    "version": "5.0.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -1377,10 +1377,10 @@
         }
       }
     },
-    "/api/agent/v1/credits/balance": {
+    "/api/v1/account/balances": {
       "get": {
-        "operationId": "agentCreditsBalance",
-        "summary": "Read shared Credits balance",
+        "operationId": "getAccountBalances",
+        "summary": "Read your person's Credits and your spending allowance. note says what your person can do when you can't spend on this site. Spends nothing.",
         "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
         "security": [],
         "parameters": [
@@ -1410,7 +1410,7 @@
         "x-pairing-required": true,
         "responses": {
           "200": {
-            "description": "Read shared Credits balance",
+            "description": "Your person's Credits and your spending allowance",
             "headers": {
               "RateLimit": {
                 "$ref": "#/components/headers/RateLimit"
@@ -1422,7 +1422,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentCreditsBalance"
+                  "$ref": "#/components/schemas/AccountBalances"
                 }
               }
             }
@@ -1508,11 +1508,11 @@
         }
       }
     },
-    "/api/agent/v1/credits/history": {
+    "/api/v1/account/credits/history": {
       "post": {
-        "operationId": "agentCreditsHistory",
-        "summary": "Read shared Credits history",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Sign the exact JSON body: {} for the first page, or only after from pagination.next_cursor for the next page; omit after when the cursor is null. A cursor or body that is not valid answers 422 invalid_cursor.",
+        "operationId": "listCreditsHistory",
+        "summary": "Read your person's Credits history, 50 entries a page. Changes nothing.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Sign the exact JSON body: {} for the newest 50 entries, or after set to the previous page's pagination.next_cursor for older ones; omit after when the cursor is null. A cursor that is not valid answers 422 invalid_cursor.",
         "security": [],
         "parameters": [
           {
@@ -1544,7 +1544,7 @@
         "x-pairing-required": true,
         "responses": {
           "200": {
-            "description": "Read shared Credits history",
+            "description": "Your person's Credits history",
             "headers": {
               "RateLimit": {
                 "$ref": "#/components/headers/RateLimit"
@@ -1580,7 +1580,7 @@
             }
           },
           "422": {
-            "description": "The history cursor or body is not valid (invalid_cursor).",
+            "description": "The cursor is not valid (invalid_cursor).",
             "headers": {
               "RateLimit": {
                 "$ref": "#/components/headers/RateLimit"
@@ -1597,7 +1597,7 @@
                 "example": {
                   "error": {
                     "code": "invalid_cursor",
-                    "message": "That history cursor is invalid.",
+                    "message": "That cursor is invalid.",
                     "hint": "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
                   }
                 }
@@ -1675,141 +1675,9 @@
                 "properties": {
                   "after": {
                     "type": "string",
-                    "minLength": 1,
                     "maxLength": 2048,
-                    "description": "The previous page's pagination.next_cursor, unchanged (at most 2048 bytes). Leave it out for the first page or when the cursor is null."
+                    "description": "The previous page's next_cursor, unchanged, for older entries."
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agent/v1/credits/budget": {
-      "get": {
-        "operationId": "agentCreditsBudget",
-        "summary": "Read effective agent spending budget",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site.",
-        "security": [],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/SiwaReceipt"
-          },
-          {
-            "$ref": "#/components/parameters/SiwaKeyId"
-          },
-          {
-            "$ref": "#/components/parameters/SiwaTimestamp"
-          },
-          {
-            "$ref": "#/components/parameters/SiwaAgentWallet"
-          },
-          {
-            "$ref": "#/components/parameters/SiwaAgentChainId"
-          },
-          {
-            "$ref": "#/components/parameters/HttpSignatureInput"
-          },
-          {
-            "$ref": "#/components/parameters/HttpSignature"
-          }
-        ],
-        "x-authentication": "siwa_per_request",
-        "x-pairing-required": true,
-        "responses": {
-          "200": {
-            "description": "Read effective agent spending budget",
-            "headers": {
-              "RateLimit": {
-                "$ref": "#/components/headers/RateLimit"
-              },
-              "RateLimit-Policy": {
-                "$ref": "#/components/headers/RateLimitPolicy"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentCreditsBudget"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid input",
-            "headers": {
-              "RateLimit": {
-                "$ref": "#/components/headers/RateLimit"
-              },
-              "RateLimit-Policy": {
-                "$ref": "#/components/headers/RateLimitPolicy"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid or missing proof",
-            "headers": {
-              "RateLimit": {
-                "$ref": "#/components/headers/RateLimit"
-              },
-              "RateLimit-Policy": {
-                "$ref": "#/components/headers/RateLimitPolicy"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
-          },
-          "403": {
-            "$ref": "#/components/responses/PairedAgentRefused"
-          },
-          "409": {
-            "description": "Wallet required or proof replayed",
-            "headers": {
-              "RateLimit": {
-                "$ref": "#/components/headers/RateLimit"
-              },
-              "RateLimit-Policy": {
-                "$ref": "#/components/headers/RateLimitPolicy"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }
-          },
-          "429": {
-            "$ref": "#/components/responses/RateLimited"
-          },
-          "503": {
-            "description": "Service unavailable",
-            "headers": {
-              "RateLimit": {
-                "$ref": "#/components/headers/RateLimit"
-              },
-              "RateLimit-Policy": {
-                "$ref": "#/components/headers/RateLimitPolicy"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
                 }
               }
             }
@@ -1880,11 +1748,11 @@
         }
       }
     },
-    "/api/agent/v1/points": {
+    "/api/v1/account/points": {
       "get": {
-        "operationId": "agentPointsSummary",
-        "summary": "Read shared Points summary",
-        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Reads only; creates no Points account or event and does not activate or award Points.",
+        "operationId": "getAccountPoints",
+        "summary": "Read your person's Points, today's total, daily allowances, recent entries with who earned each and whether it counted, and period bonuses. note says when earning is off.",
+        "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Points are decimal text, such as \"12.5\". Changes nothing.",
         "security": [],
         "parameters": [
           {
@@ -1913,7 +1781,7 @@
         "x-pairing-required": true,
         "responses": {
           "200": {
-            "description": "Owner Points summary",
+            "description": "Your person's Points",
             "headers": {
               "RateLimit": {
                 "$ref": "#/components/headers/RateLimit"
@@ -1925,7 +1793,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentPointsSummary"
+                  "$ref": "#/components/schemas/AccountPoints"
                 }
               }
             }
@@ -3414,7 +3282,7 @@
         ],
         "additionalProperties": false
       },
-      "AgentCreditsBalance": {
+      "AccountBalances": {
         "type": "object",
         "properties": {
           "credits": {
@@ -3445,32 +3313,16 @@
             ],
             "additionalProperties": false
           },
-          "pairing_id": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "credits",
-          "pairing_id"
-        ],
-        "additionalProperties": false
-      },
-      "AgentCreditsBudget": {
-        "type": "object",
-        "properties": {
-          "pairing_id": {
-            "type": "string",
-            "format": "uuid"
-          },
           "spending_grant": {
             "type": "object",
             "properties": {
               "enabled": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Whether your person lets you spend their Credits"
               },
               "site_allowed": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Whether you may spend them on this site"
               },
               "max_per_spend": {
                 "type": "string",
@@ -3489,6 +3341,14 @@
               "used_24h": {
                 "type": "string",
                 "description": "Exact decimal amount"
+              },
+              "remaining_24h": {
+                "type": "string",
+                "description": "Exact decimal amount"
+              },
+              "grant_approvals_available": {
+                "type": "boolean",
+                "description": "Whether a person can let agents spend yet"
               }
             },
             "required": [
@@ -3497,13 +3357,19 @@
               "max_per_spend",
               "daily_limit",
               "sites",
-              "used_24h"
+              "used_24h",
+              "remaining_24h",
+              "grant_approvals_available"
             ],
             "additionalProperties": false
+          },
+          "note": {
+            "type": "string",
+            "description": "What to do next; present only when there is something to say"
           }
         },
         "required": [
-          "pairing_id",
+          "credits",
           "spending_grant"
         ],
         "additionalProperties": false
@@ -3804,106 +3670,144 @@
         ],
         "additionalProperties": false
       },
-      "AgentPointsSummary": {
+      "AccountPoints": {
         "type": "object",
         "properties": {
-          "balance_micro": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Shared balance in micro-Points."
-          },
-          "earned_today_micro": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "pending": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "allowances": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "scope": {
-                  "type": "string"
-                },
-                "remaining": {
-                  "type": "integer",
-                  "format": "int64",
-                  "minimum": 0
-                }
-              },
-              "required": [
-                "scope",
-                "remaining"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "more?": {
-            "type": "boolean"
-          },
           "entries": {
             "type": "array",
             "maxItems": 50,
             "items": {
               "type": "object",
               "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "rule_id": {
-                  "type": "string"
-                },
-                "rule_version": {
-                  "type": "integer",
-                  "format": "int64"
-                },
-                "source_app": {
-                  "type": "string"
-                },
-                "actor_kind": {
-                  "type": "string"
-                },
-                "actor_id": {
-                  "type": "string"
-                },
-                "points_micro_delta": {
-                  "type": "integer",
-                  "format": "int64"
-                },
                 "earned_at": {
                   "type": "string",
                   "format": "date-time"
                 },
-                "reason_code": {
+                "label": {
                   "type": "string"
+                },
+                "points": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "counted",
+                    "allowance_reached",
+                    "correction"
+                  ]
+                },
+                "allowance_reduction": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                },
+                "by": {
+                  "type": "string",
+                  "enum": [
+                    "agent",
+                    "person"
+                  ]
+                },
+                "agent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The name the person gave the agent that earned it"
                 }
               },
               "required": [
-                "id",
-                "rule_id",
-                "rule_version",
-                "source_app",
-                "actor_kind",
-                "actor_id",
-                "points_micro_delta",
-                "earned_at",
-                "reason_code"
+                "label",
+                "points",
+                "status",
+                "allowance_reduction",
+                "by",
+                "agent",
+                "earned_at"
               ],
               "additionalProperties": false
             }
+          },
+          "points": {
+            "type": "string",
+            "description": "Points as decimal text"
+          },
+          "earned_today": {
+            "type": "string",
+            "description": "Points as decimal text"
+          },
+          "activity_being_verified": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "daily_allowances": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "remaining": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                }
+              },
+              "required": [
+                "name",
+                "remaining"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "period_bonuses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "points": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                },
+                "nft_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "bonus_percent": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "period",
+                "points",
+                "nft_count",
+                "bonus_percent"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "description": "What to do next; present only when there is something to say"
           }
         },
         "required": [
-          "balance_micro",
-          "earned_today_micro",
-          "pending",
-          "allowances",
-          "more?",
-          "entries"
+          "points",
+          "earned_today",
+          "activity_being_verified",
+          "daily_allowances",
+          "entries",
+          "period_bonuses",
+          "more"
         ],
         "additionalProperties": false
       },

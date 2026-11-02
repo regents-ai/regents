@@ -123,22 +123,75 @@ defmodule RegentsWeb.AgentRequestsTest do
       conn
       |> recycle()
       |> put_req_header("content-type", "application/json")
-      |> post("/api/agent/v1/credits/history", Jason.encode!(body))
+      |> post("/api/v1/account/credits/history", Jason.encode!(body))
     end
 
     assert %{"entries" => [], "pagination" => %{"has_more" => false}} =
              history.(%{}) |> json_response(200)
 
-    for body <- [%{after: "not-a-cursor"}, %{after: "", extra: 1}] do
+    for body <- [%{after: "not-a-cursor"}, %{after: 7}] do
       assert history.(body) |> json_response(422) == %{
                "error" => %{
                  "code" => "invalid_cursor",
-                 "message" => "That history cursor is invalid.",
+                 "message" => "That cursor is invalid.",
                  "hint" =>
                    "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
                }
              }
     end
+  end
+
+  # Every body the API takes keeps its exact bytes for the sign-in server, so
+  # spacing the agent signed but a parser would drop still matches.
+  test "a signed account read sends the digest of the exact body bytes", %{conn: conn} do
+    {person, _account_id} = person!()
+    issued = RegentAgents.issue_pairing_code!(actor: person)
+    siwa_verifies(@agent_wallet)
+    assert conn |> pair(issued.code) |> response(201)
+    assert_received {:verified, _audience, _pairing}
+
+    body = "{ }"
+
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("content-type", "application/json")
+      |> post("/api/v1/account/credits/history", body)
+
+    assert %{"entries" => []} = json_response(conn, 200)
+
+    assert_received {:verified, ["regents-test"],
+                     %{"path" => "/api/v1/account/credits/history"} = envelope}
+
+    assert envelope["body_digest"] == Siwa.content_digest_for_body(body)
+  end
+
+  test "a paired agent reads its person's Credits and Points under /api/v1/account",
+       %{conn: conn} do
+    {person, _account_id} = person!()
+    issued = RegentAgents.issue_pairing_code!(actor: person)
+    siwa_verifies(@agent_wallet)
+    assert conn |> pair(issued.code) |> response(201)
+
+    balances = conn |> recycle() |> get("/api/v1/account/balances") |> json_response(200)
+
+    assert %{
+             "credits" => %{"available" => _, "given" => _, "purchased" => _, "held" => _},
+             "spending_grant" => %{"site_allowed" => false, "remaining_24h" => _},
+             "note" => note
+           } = balances
+
+    assert note in [
+             "Agent spending isn't open yet. Your person can do this themselves.",
+             "Your person can allow you to spend Credits on this site on their Regents account at regents.sh/account."
+           ]
+
+    assert %{
+             "points" => "0",
+             "entries" => [],
+             "more" => false,
+             "note" => "Earning Points is off on this site."
+           } = conn |> recycle() |> get("/api/v1/account/points") |> json_response(200)
   end
 
   test "pairing attempts from one address are limited, and each answer says what is left",

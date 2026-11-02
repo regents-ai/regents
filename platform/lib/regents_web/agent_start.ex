@@ -53,7 +53,6 @@ defmodule RegentsWeb.AgentStart do
     6. Read my account when I ask:
        regents protocol account show
        regents protocol account balances
-       regents protocol account budget
        regents protocol account credits-history
        regents protocol account claims
        regents protocol account points
@@ -80,11 +79,10 @@ defmodule RegentsWeb.AgentStart do
        uv run siwa_agent.py me #{origin()}
     5. Read my account when I ask:
        uv run siwa_agent.py request GET #{origin()}/api/agent/v1/account
-       uv run siwa_agent.py request GET #{origin()}/api/agent/v1/credits/balance
-       uv run siwa_agent.py request GET #{origin()}/api/agent/v1/credits/budget
-       uv run siwa_agent.py request POST #{origin()}/api/agent/v1/credits/history --body '{}'
+       uv run siwa_agent.py request GET #{origin()}/api/v1/account/balances
+       uv run siwa_agent.py request POST #{origin()}/api/v1/account/credits/history --body '{}'
        uv run siwa_agent.py request POST #{origin()}/api/agent/v1/claims --body '{}'
-       uv run siwa_agent.py request GET #{origin()}/api/agent/v1/points
+       uv run siwa_agent.py request GET #{origin()}/api/v1/account/points
        uv run siwa_agent.py request GET #{origin()}/api/agent/v1/staking/position
     #{broker_note(agent)}
     These steps only read. Never spend, sign a transaction or run register-agent.\

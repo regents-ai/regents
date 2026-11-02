@@ -46,10 +46,9 @@ Never use your person's browser sign-in as your own. Check
 | Display and ENS name | `account show` | `regents_account` |
 | Name claims | `account claims` | `regents_claims` |
 | Staking position | `staking position` | `regents_stake_position` |
-| Credits balance | `account balances` | `regents_credits_balance` |
-| Credits history | `account credits-history` | `regents_credits_history` |
-| Spending grant and usage | `account budget` | `regents_credits_budget` |
-| Points | `account points` | `regents_points_summary` |
+| Credits and spending allowance | `account balances` | `account_balances` |
+| Credits history | `account credits-history` | `account_credits_history` |
+| Points | `account points` | `account_points` |
 
 Each reads only the account you are paired with. Staking covers your person's primary
 wallet; name claims cover their verified wallets. Page claims by passing `next` back as

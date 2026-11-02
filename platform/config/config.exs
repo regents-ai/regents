@@ -35,7 +35,7 @@ config :regent_agents,
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
       "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
       "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
-      "Read your person's Credits and Points, also with the regents_credits_balance, regents_credits_history, regents_credits_budget and regents_points_summary tools.",
+      "Read your person's Credits and Points, also with the account_balances, account_credits_history and account_points tools.",
       "You can never use your person's wallet, change their account or pair other agents.",
       # Changes together with RegentCredits.agent_grants_enabled?/0.
       "Spending your person's Credits isn't open to agents yet; your person can do it themselves."
@@ -78,7 +78,14 @@ config :regent_points,
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
-  adapters: %{"credits.purchase_settled" => Regents.Points.CreditsPurchase}
+  adapters: %{
+    "account.activated" => Regents.Points.AccountActivated,
+    "agent.activated" => Regents.Points.PairedAgent,
+    "credits.purchase_settled" => Regents.Points.CreditsPurchase,
+    "social.farcaster" => Regents.Points.LinkedSocial,
+    "social.github" => Regents.Points.LinkedSocial,
+    "social.x" => Regents.Points.LinkedSocial
+  }
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes

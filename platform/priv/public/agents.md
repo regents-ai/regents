@@ -73,13 +73,12 @@ regents protocol --help
 | Account display and ENS name | `account show` | `GET /api/agent/v1/account` |
 | Verified owner-wallet name claims | `account claims` | `POST /api/agent/v1/claims` |
 | Owner primary-wallet staking position | `staking position` | `GET /api/agent/v1/staking/position` |
-| Shared Points summary and daily allowances | `account points` | `GET /api/agent/v1/points` |
-| Global Credits balance | `account balances` | `GET /api/agent/v1/credits/balance` |
-| Global Credits history | `account credits-history` | `POST /api/agent/v1/credits/history` |
-| Current pairing spending grant and usage | `account budget` | `GET /api/agent/v1/credits/budget` |
+| Points, daily allowances and recent entries | `account points` | `GET /api/v1/account/points` |
+| Credits and your spending allowance | `account balances` | `GET /api/v1/account/balances` |
+| Credits history | `account credits-history` | `POST /api/v1/account/credits/history` |
 
 - For claims, sign `{}` first, then `{"after":"<previous next>"}`. Stop when `next` is null.
-- For Credits history, sign `{}` first, then only `{"after":"<previous pagination.next_cursor>"}`.
+- For Credits history, sign `{}` first, then `{"after":"<previous pagination.next_cursor>"}`.
   Stop when `pagination.has_more` is false. A cursor that is not valid answers
   `422 invalid_cursor`.
 - No owner or wallet you name is accepted: these reads are always your person's.

@@ -100,23 +100,23 @@
     },
     {
       "command": "account balances",
-      "description": "Read the shared global Credits balance.",
-      "operation_id": "agentCreditsBalance",
+      "description": "Read your person's Credits and your spending allowance.",
+      "operation_id": "getAccountBalances",
+      "webmcp": "account_balances",
       "method": "GET",
-      "path": "/api/agent/v1/credits/balance",
+      "path": "/api/v1/account/balances",
       "authority": "paired_agent",
-      "effect": "read",
-      "webmcp": "regents_credits_balance"
+      "effect": "read"
     },
     {
       "command": "account credits-history",
-      "description": "Read the paired account's Credits history. Follow pagination.next_cursor unchanged and leave after out when it is null. A cursor that is not valid answers 422 invalid_cursor.",
-      "operation_id": "agentCreditsHistory",
+      "description": "Read your person's Credits history, up to 50 transfers grouped into complete entries per page.",
+      "operation_id": "listCreditsHistory",
+      "webmcp": "account_credits_history",
       "method": "POST",
-      "path": "/api/agent/v1/credits/history",
+      "path": "/api/v1/account/credits/history",
       "authority": "paired_agent",
       "effect": "read",
-      "webmcp": "regents_credits_history",
       "flags": [
         {
           "name": "after",
@@ -124,7 +124,7 @@
           "in": "body",
           "field": "after",
           "required": false,
-          "description": "The previous page's pagination.next_cursor, unchanged (at most 2048 bytes). Leave it out for the first page or when the cursor is null."
+          "description": "The previous page's pagination.next_cursor unchanged, at most 2048 characters. Omit for the first page or when the cursor is null; do not send null."
         }
       ],
       "pagination": {
@@ -134,24 +134,14 @@
       }
     },
     {
-      "command": "account budget",
-      "description": "Read this current pairing spending grant, site eligibility and shared owner agent usage. Does not change a grant or spend.",
-      "operation_id": "agentCreditsBudget",
-      "method": "GET",
-      "path": "/api/agent/v1/credits/budget",
-      "authority": "paired_agent",
-      "effect": "read",
-      "webmcp": "regents_credits_budget"
-    },
-    {
       "command": "account points",
-      "description": "Read the paired owner shared Points summary without creating records or awarding Points.",
-      "operation_id": "agentPointsSummary",
+      "description": "Read your person's Points, today's total, daily allowances and recent entries, each saying who earned it and whether it counted.",
+      "operation_id": "getAccountPoints",
+      "webmcp": "account_points",
       "method": "GET",
-      "path": "/api/agent/v1/points",
+      "path": "/api/v1/account/points",
       "authority": "paired_agent",
-      "effect": "read",
-      "webmcp": "regents_points_summary"
+      "effect": "read"
     },
     {
       "command": "products list",
