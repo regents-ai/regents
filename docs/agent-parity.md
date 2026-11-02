@@ -26,9 +26,9 @@ were skipped.
   (`REGENTS_APP_SURFACES=off`) only the home page, signing out, the legal pages,
   Articles, Paper Pro Daily and `/start` stay open; the code does not say which way
   production is set.
-- **WebMCP**: the tool in `platform/priv/tool_manifest.json`. Signed tools are prepared
-  with `prepare_agent_request`, signed by the agent's own SIWA key, and act for the
-  agent's paired person. There are no wallet tools.
+- **WebMCP**: the tool in `platform/priv/tool_manifest.json`. A signed tool takes only its
+  input; the agent's browser host signs the exact request with the agent's own SIWA key, and
+  it acts for the agent's paired person. There are no wallet tools.
 - **MCP**: hosted `/mcp` for signed agents. regents.sh has none: no route, no plug and
   no MCP library in its dependencies (R2).
 - **Connector**: the Claude connector at `/mcp`, signed in with OAuth. regents.sh has

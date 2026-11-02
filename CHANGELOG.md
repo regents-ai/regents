@@ -4162,3 +4162,34 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Live on v261: `/capabilities.json` reports commit `8e9729d3` and image
   `main-8e9729d3754d`; `/`, `/docs`, `/stake`, `/account`, `/agents.md` and `/healthz`
   answer 200.
+
+## 2026-11-02 — Regents SIWA v2 window row (branch `regents/siwa-v2-1102`)
+
+- Built on main `9e7ea0ef` (= live v261, `8e9729d3` image) for the SIWA v2 window; it ships
+  in the window, not before. The rollback is v261 (`8e9729d3`).
+- `platform/mix.exs`, `platform/mix.lock`, `identity/mix.exs` and `identity/mix.lock`: every
+  elixir-utils package moves to `64475364` (SIWA contract v2: every signed request names the
+  site it is for), from `9539469f` (platform) and `a8b83589` (identity). Only the pin lines
+  change in the locks. `regent_credits` is marked `override: true`, as in ash-template,
+  because `regent_payments` at that commit names it by a sibling path.
+- regents-cli 1.10.22 (source `0b08d4a2`, wheel SHA256
+  `89b661d2378e49750bf9538fb144a8d20797e7ea0fcc9e6c33a95753e8beda7a`), straight from
+  1.10.20: the Makefile's `REGENTS_CLI_REV`, and the install lines in the agent start page,
+  `agents.md`, `docs/pairing.md` and `llms.md`.
+- Signed browser tools take only their input (agent_access at this pin: eu `5d6ccf6`,
+  `6d0d40e`), ported from ash-template `d60c47cc` and `2269d897` as a hard cutover. In
+  `platform/priv/tool_manifest.json` each signed tool's `input_schema` is its own input,
+  `operation_input_schema` and `prepare_agent_request` are gone, and the descriptions say the
+  browser host signs. `platform/assets/js/public_tools.ts` calls `execute(name, input)` and
+  answers a `Refused` as the tool's answer. `agents.md`, `skill.md`, `docs/agent-parity.md`
+  and the public `/docs/changes` page say so. New walk `platform/test/browser/page_tools.spec.ts`
+  covers: input-only schema, no signer, a signer's refusal, and the exact signed bytes sent
+  with no cookie.
+- No regents code or test calls `sign_request` or `sign_authenticated_request`, so no
+  helper changes. No database, secret or other library changes.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template e8936e78, command list, identity 16, contracts 454
+  forge tests with build and format. The contracts are main's, byte for byte; their
+  submodule-record step needs a git checkout, so forge build, test and format ran
+  directly.

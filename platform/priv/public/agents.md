@@ -11,15 +11,15 @@ One sign-in works across every Regent site, and so does a pairing. A person can 
 ## 1. Install and sign in
 
 ```sh
-uv tool install regents-cli==1.10.20
+uv tool install regents-cli==1.10.22
 regents --version
 regents auth login --site regents
 regents protocol doctor
 ```
 
-Expect `1.10.20` from source commit `0e3768f5b92fe8210fb00fea0053bcb5e9c2afaf`; the
+Expect `1.10.22` from source commit `0b08d4a2afbde8d2d07e2548f76a35dcf071b556`; the
 published wheel's SHA256 is
-`55b242b41a86e4bd1952e1edb93e31e5cd718186e735867d4b276243f96179ad`.
+`89b661d2378e49750bf9538fb144a8d20797e7ea0fcc9e6c33a95753e8beda7a`.
 
 Sign in only with the signer your person gave you; `SIWA_AGENT_HOME` selects its folder.
 `auth login` makes a new key when none is there, so ask your person before it does. Never
@@ -92,9 +92,12 @@ regents protocol --help
 
 ## In a browser page
 
-If you run inside a page that offers browser tools (WebMCP), use them: call
-`prepare_agent_request`, sign the request it returns with your own SIWA signer, then call
-the tool with input, request and proof. The page never signs for you, and your person's
+If you run inside a page that offers browser tools (WebMCP), use them. A signed tool takes
+only its input: your browser host signs that exact request with your own agent key, and the
+page sends those bytes. `regents browser --site regents` is such a host once the next
+regents-cli release carries it. In a browser with no agent signer a signed tool sends nothing
+and answers `agent_auth_required`; if the signer stops before signing it answers
+`signer_unavailable`, and nothing was sent. The page never signs for you, and your person's
 browser sign-in gives you nothing. With no signer there, use regents-cli instead.
 [/capabilities.json]({{origin}}/capabilities.json) lists the tools and the commit this site runs.
 

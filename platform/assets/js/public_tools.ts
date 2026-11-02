@@ -1,8 +1,10 @@
 // WebMCP (document.modelContext): the read tools every regents.sh page offers.
 // Every tool is described once, in priv/tool_manifest.json; this file adds only
-// the request each one makes. None of them opens a wallet or signs.
+// the request each one makes. None of them opens a wallet. A signed tool takes only
+// its input; the agent's browser host signs the exact request (window.regentsSign),
+// so no key, signature or receipt passes through the page.
 import manifest from "../../priv/tool_manifest.json" with {type: "json"}
-import {signedTools, type SignedOperation, type SignedInput} from "../vendor/regent_agent_access/signed_tools"
+import {Refused, signedTools, type SignedOperation} from "../vendor/regent_agent_access/signed_tools"
 import {report, visitId} from "./visit_log"
 
 type Json = null | boolean | number | string | Json[] | {[key: string]: Json}
@@ -127,10 +129,8 @@ function transport() {
     audience: manifest.audience,
     proofHeaders: manifest.proof_headers,
     requestHeaders: client,
-    // Only the signed tools are operations; each is sent with its operation's own inputs.
-    operations: manifest.tools.flatMap(entry =>
-      "operation_input_schema" in entry ? [{...entry, input_schema: entry.operation_input_schema}] : [],
-    ) as unknown as SignedOperation[],
+    // Only the signed tools are operations.
+    operations: manifest.tools.filter(entry => entry.authentication === "siwa_per_request") as unknown as SignedOperation[],
   })
 }
 
@@ -175,27 +175,22 @@ function tool(entry: Entry, lifetime: AbortSignal): Tool {
     execute: async (input, client) => {
       const signal = runSignal(lifetime, client)
       if (signal.aborted) return cancelled()
-      if (entry.name === "prepare_agent_request") {
-        try {
-          const args = input as {operation: string; input: Record<string, string>}
-          return {ok: true, request: transport().prepare(args.operation, args.input)}
-        } catch {
-          return invalidInput()
-        }
-      }
       if (entry.authentication === "siwa_per_request") {
         try {
-          const response = await transport().execute(entry.name, input as SignedInput, signal)
+          const response = await transport().execute(entry.name, input as Record<string, unknown>, signal)
           return {ok: response.ok, status: response.status, body: await response.json()}
         } catch (error) {
+          // No agent signer, a signer that failed or said no, or a call cancelled
+          // while it signed: nothing was sent, and the refusal has the words.
+          if (error instanceof Refused) return {ok: false, error: error.refusal}
           if (signal.aborted) return cancelled()
           // fetch fails with a TypeError when the network fails; the transport's own
-          // refusals, made before anything is sent, are plain Errors. Only a call
-          // the site never heard is reported.
+          // refusals of the input, made before anything is sent, are plain Errors.
+          // Only a call the site never heard is reported.
           if (error instanceof TypeError) report({name: "tool.unsent", where: entry.name, outcome: "unreachable"})
           return {ok: false, error: {
             code: "signed_request_failed",
-            message: "Prepare the request and sign its exact bytes with your existing SIWA signer for regents. Use fresh proof; if no signer is available, report that blocker.",
+            message: "Nothing was sent. Check the input against this tool's schema, and open regents.sh through regents browser --site regents so your own agent key signs each call.",
           }}
         }
       }
