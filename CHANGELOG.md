@@ -4240,3 +4240,18 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Not proven on the live site: `/account/agents` signed in, since no agent signs in to
   production. The browser walk proves it on this commit (list, pairing box and its link,
   account menu, at 1280, 390 and 320).
+
+## 2026-11-02 — Released v264 (Autolaunch tool list address)
+
+- Commit `fe7bd1a0`, image `main-fe7bd1a07060`, release v264, rollback v263 `502abe72`.
+- regents.sh reads Autolaunch's tool list from `https://autolaunch.sh/capabilities.json`,
+  after Autolaunch's v233 moved it there as a hard cutover. No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- Checked live after release: capabilities.json commit `fe7bd1a0`;
+  `/api/v1/site-tools/autolaunch` lists Autolaunch's tools, where it answered
+  `site_unreachable` before; `/api/v1/site-tools` names no unreachable site; `/`, `/docs`,
+  `/stake`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
+  `/docs/changes` and `/healthz` all 200.
