@@ -30,7 +30,7 @@ defmodule RegentsWeb.StakeLive do
           <p class="stake-kicker">REGENT staking · Base</p>
           <h1 id="staking-page-heading" tabindex="-1">Put REGENT to work.</h1>
           <p class="stake-lede">
-            Stake REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake. The business keeps the rest.
+            Stake REGENT to get a slice of all revenue from any Regents Labs product.
           </p>
           <p class="stake-yield-badge">Plus 20% a year in REGENT, for now</p>
           <div class="stake-token-links">
