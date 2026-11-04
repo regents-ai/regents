@@ -220,7 +220,9 @@ defmodule RegentsWeb.PublicDocuments do
   # The HTML is MDEx-sanitized from the committed public markdown.
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
-    markdown |> MDEx.to_html!(extension: [table: true], sanitize: @sanitize) |> Phoenix.HTML.raw()
+    markdown
+    |> MDEx.to_html!(extension: [table: true, inline_code_attributes: false], sanitize: @sanitize)
+    |> Phoenix.HTML.raw()
   end
 
   def metadata(path, title, description) do

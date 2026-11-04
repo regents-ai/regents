@@ -2,7 +2,7 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   @moduledoc "Turns a paper's Markdown answer into the page's HTML: the whole answer, and its opening words."
 
   @excerpt_words 100
-  @extension [table: true, strikethrough: true, math_dollars: true]
+  @extension [table: true, strikethrough: true, math_dollars: true, inline_code_attributes: false]
 
   @doc "A paper's details and complete, original analysis as Markdown."
   def details_markdown(paper) do

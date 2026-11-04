@@ -34,7 +34,7 @@ defmodule Regents.Legal do
   # sobelow_skip ["XSS.Raw"]
   defp to_safe_html(markdown) do
     markdown
-    |> MDEx.to_html!(sanitize: @sanitize)
+    |> MDEx.to_html!(extension: [inline_code_attributes: false], sanitize: @sanitize)
     |> Phoenix.HTML.raw()
   end
 end

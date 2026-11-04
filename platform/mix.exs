@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "644753647a6e3ab6bf945053e08d084bc665eb4f"
+  @elixir_utils_ref "c4a78d220033354ee447142a8a974c95e82298aa"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "7a853f854168f208975815286eace8a502ec9aea"
 
@@ -60,7 +60,7 @@ defmodule Regents.MixProject do
       # stands in for the Hex release that ash_money and ash_double_entry ask for.
       {:ash_postgres,
        git: "https://github.com/ash-project/ash_postgres.git",
-       ref: "54ebf2c942aa08824b44da0c1d2a7092bc21b268",
+       ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
        override: true},
       {:oban, "~> 2.24"},
       {:nebulex, "~> 3.0"},
@@ -69,7 +69,7 @@ defmodule Regents.MixProject do
       {:ash_phoenix, "~> 2.3.26"},
       {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
       {:usage_rules, "~> 1.3", only: [:dev, :test], runtime: false},
-      {:mdex, "== 0.14.2"},
+      {:mdex, "== 0.14.6"},
       {:floki, "== 0.38.5"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
