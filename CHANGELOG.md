@@ -4194,6 +4194,234 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   submodule-record step needs a git checkout, so forge build, test and format ran
   directly.
 
+## 2026-11-02 — Regents Agents page (/account/agents)
+
+- SIWA v2 window, step 3: v262 (`9350ffa8`) went live 16:54Z from the template chief's row;
+  the rollback was v261 (`8e9729d3`). `/account/agents` still answered 404, which this
+  release closes (window rule 3).
+- Agents and pairing move from `/account` to their own Agents tab at `/account/agents`,
+  ported from ash-template `6fd34696` and `a0564ce2`, with the template's words and tips as
+  they are today. New route, catalog entry and tab; `RegentsWeb.AccountSite`; the live
+  update now follows `:account_agents`; `Regent.Account.agents_layout`. Pair New Agent, the
+  account menu, `/start` and the guides lead there (`/account/agents#account-pairing`).
+- Design-system `3134bab0` to `7a853f85` (agents_layout, the list's Paired heading, and
+  `a5fe5c4`, `84642bc`, `a0affdc`), before Geist.
+- "Account page" to "Agents page" wherever a line means pairing or agents: guides, agent
+  start text, refusal hints, API contract (4.0.2, both copies), `cli/commands.json`,
+  `cli/COMMANDS.md`, `docs/agent-parity.md`, `FEATURES.md`. Lines about the account's own
+  name keep "Account page". Route handoff regenerated.
+- A signed browser tool's refusal before sending now answers as the template does:
+  `invalid_request`, the reason in words and in `details.reason`, a hint, and
+  `network_error` when the site could not be reached. It replaces one catch-all
+  `signed_request_failed`, which told an agent to check its input even on a network failure.
+- No database, secret or elixir-utils changes. The rollback is v262 (`9350ffa8`).
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template `0b65960c`, command list ok, identity 16, contracts
+  454 forge tests. Identity and contracts ran after the rest on the same tree: the first
+  run stopped at identity on packages left installed from an earlier copy of this work;
+  `mix deps.get` changed no tracked file.
+
+## 2026-11-02 — Regents v263 released
+
+- v263 (`502abe72`, image `main-502abe729f97`) went live about 17:25Z: the Agents page at
+  `/account/agents`. The rollback is v262 (`9350ffa8`). No database, secret or elixir-utils
+  changes.
+- make check on this commit, every part exit 0: server tests 609 (603 tests, 6 properties,
+  1 excluded), script tests 252, browser walk 151 in headless Chromium (WebKit not run on
+  the Mac), required fixes against ash-template `0b65960c`, command list ok, identity 16,
+  contracts 454 forge tests.
+- Live on v263: `/capabilities.json` reports commit `502abe72`; `/openapi.json` reports
+  4.0.2; `/`, `/docs`, `/stake`, `/account`, `/account/agents`, `/account/points`,
+  `/account/credits`, `/account/wallets`, `/account/connections`, `/start`, `/agents.md`,
+  `/llms.txt`, `/skill.md`, `/docs/changes` and `/healthz` answer 200. In a real browser,
+  signed out, `/account/agents` shows the Agents tab selected and the sign-in line, with
+  no console error.
+- Not proven on the live site: `/account/agents` signed in, since no agent signs in to
+  production. The browser walk proves it on this commit (list, pairing box and its link,
+  account menu, at 1280, 390 and 320).
+
+## 2026-11-02 — Released v264 (Autolaunch tool list address)
+
+- Commit `fe7bd1a0`, image `main-fe7bd1a07060`, release v264, rollback v263 `502abe72`.
+- regents.sh reads Autolaunch's tool list from `https://autolaunch.sh/capabilities.json`,
+  after Autolaunch's v233 moved it there as a hard cutover. No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- Checked live after release: capabilities.json commit `fe7bd1a0`;
+  `/api/v1/site-tools/autolaunch` lists Autolaunch's tools, where it answered
+  `site_unreachable` before; `/api/v1/site-tools` names no unreachable site; `/`, `/docs`,
+  `/stake`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
+  `/docs/changes` and `/healthz` all 200.
+
+## 2026-11-04 — Released v265 (stake page sentence)
+
+- Commit `bfe8d087`, image `main-bfe8d0878843`, release v265, rollback v264 `fe7bd1a0`.
+- The opening sentence on `/stake` is Sean's: "Stake REGENT to get a slice of all revenue
+  from any Regents Labs product." No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- The first release attempt was stopped from outside about a minute into its image build
+  (23:50Z 3 Nov), before anything reached Fly's machine; the second finished at 02:27Z.
+- Checked live after release: capabilities.json commit `bfe8d087`; `/stake` shows the new
+  sentence and not the old; `/`, `/docs`, `/stake`, `/account` and `/healthz` all 200.
+
+## 2026-11-04 — Released v266 (staking words, ash_sql 0.8.7)
+
+- Commit `00f94d3c`, image `main-00f94d3c0de2`, release v266, rollback v265 `bfe8d087`.
+- The home page, About page and page summaries use Sean's staking sentence and keep the 20%
+  reward (his answer "2 a"). Hex retired ash_sql 0.8.4 for a security problem, which stops the
+  audit in precommit, so the platform moves to 0.8.7. No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- Checked live after release: capabilities.json commit `00f94d3c`; `/`, `/about` and `/stake`
+  show the new words and none of the old; `/`, `/docs`, `/stake`, `/about`, `/account` and
+  `/healthz` all 200.
+
+## 2026-11-04 — Released v267 (packages to the template's list, sign-in libraries included)
+
+- Commit `908621cd`, image `main-908621cd2d46`, release v267, created 2026-11-04T04:42:46Z,
+  rollback v266 `00f94d3c`. No migration.
+- Major moved: uuid override 11.1.1 → 14.0.3.
+- Sign-in libraries, on the template's versions after Sean's sign-in there (TEMPLATE-SIGN-IN a):
+  Privy 3.49.1 → 3.51.1, viem 2.57.7 → 2.57.16, @solana/kit 8.5.0 → 8.6.0,
+  @solana-program/system 0.15.0 → 0.16.0, @solana-program/token 0.17.0 → 0.18.0.
+- Other npm: @types/node 26.6.5 → 26.6.6, vitest 5.0.5 → 5.1.0, ws 8.22.0 → 8.22.1,
+  axios 1.20.0 → 1.21.0, decode-uri-component 0.5.0 → 0.5.1, @modelcontextprotocol/server and
+  core 2.3.1 → 2.4.0, follow-redirects to 1.16.2; esbuild 0.25.4 → 0.28.2.
+- Platform Hex: ash_double_entry 1.0.19 → 1.1.1, ash_money 0.2.6 → 0.2.7, ex_money 6.2.1 → 6.3.0,
+  ex_money_sql 2.1.0 → 2.2.0, fine 0.1.6 → 0.2.0, floki 0.38.4 → 0.38.5, igniter 0.8.4 → 0.8.5,
+  lazy_html 0.1.13 → 0.1.14, localize 1.3.0 → 1.6.1, localize_sql 1.0.1 → 1.1.0,
+  mdex 0.14.2 → 0.14.6, mdex_native 0.2.12 → 0.3.1, rustler_precompiled 0.10.0 → 0.10.1,
+  sobelow 0.16.0 → 0.18.1, usage_rules 1.2.8 → 1.3.1, websock_adapter 0.6.0 → 0.7.0, every
+  elixir-utils library 64475364 → c4a78d22.
+- Identity: ash 3.37.0 → 3.37.2, ash_postgres 2.13.0 → 2.15.2 (closes EEF-CVE-2026-115627 and
+  115635), ash_sql 0.8.3 → 0.8.7, crux 0.1.4 → 0.1.5, jose 1.11.12 → 1.11.13, spark 2.7.8 → 2.7.9,
+  splode 0.3.2 → 0.3.3, regent_privy 64475364 → c4a78d22.
+- `inline_code_attributes: false` at the three MDEx callers, with a regression test, because
+  mdex 0.14.6 otherwise drops brace text straight after inline code.
+- Stopped, with the newest beside it: design-system 7a853f85 (4c7bbaa5 comes in the Geist
+  Serif release). Contract libraries stay at their pins because they are the frozen on-chain
+  record: forge-std v1.9.7 (v1.17.0), OpenZeppelin 5.6.1 (v5.7.0), Safe v1.4.1 (v1.5.0),
+  uerc20-factory v1.0.0 (v2.0.0), solady v0.1.26+13 (v0.1.26), solmate v6+ (v6),
+  v4-core v4.0.0+12 (v4.0.0); v4-periphery and permit2 have no newer tag checked.
+- Alerts: regents/154 fixed 04:35:55Z by this commit reaching main. regents/137-153, which
+  include 137, 140 and 141, are dismissed as not used, because cli/packages/verify-runtime/uv.lock
+  left main in 5307bf21. Open list read at 18:06Z: 0, so the push did not raise them again.
+- `npm audit --omit=dev`: 20 high remain, mostly old zod under Privy's packages, under
+  ZOD-OVERRIDE b at the time of this release. One zod (ZOD-WHOLE-TREE a) comes with Ecto 3.14.3.
+- make check, every part exit 0: server tests 610 (604 tests, 6 properties, 1 excluded), script
+  tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac), required fixes
+  against ash-template edc91001, command list, identity 16, contracts 454 forge tests with build
+  and format.
+- Checked live after release: capabilities.json commit `908621cd`; `/`, `/docs`, `/stake`,
+  `/about`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
+  `/docs/changes`, `/healthz` and `/api/v1/site-tools/autolaunch` all 200. In a real browser
+  `/account` shows Sign in and `/stake` shows the new sentence and its figures, no console errors.
+  Signed agent reads at 18:05Z as the Claude Code test agent 0x5ff2..d164: account, Credits
+  balance, Points and staking position all 200.
+- Not proven: a real Privy sign-in on regents.sh, which no agent can do. The release record was
+  written at 18:10Z because the session waited on a prompt after the release.
+
+## 2026-11-04 — Released v268 (Ecto 3.14.3, one zod, Geist Serif, strict headers on every answer)
+
+- Commit `255a6ea4`, image `main-255a6ea43e15`, release v268, created 2026-11-04T19:15:44Z,
+  rollback v267 `908621cd`. No migration.
+- Moved, on template list commit `5cd1f0b6`: no majors. ecto 3.14.2 → 3.14.3 in both the platform
+  and identity locks (ecto_sql 3.14.0 already there), zod to one 4.6.7 across the tree by override,
+  design-system 7a853f85 → 4c7bbaa5. npm audit 20 high → 0.
+- Exposure to the zod alert was read as a text search of our own code, not a run of the affected
+  path. Dependabot alert 136 reads `fixed` at 19:11:08Z, on the push to main; open alerts 0.
+- Also in it: Geist Serif everywhere with two font files, the Contact page folded into About
+  (/contact answers 404), the template's strict headers on every answer including JSON and missing
+  pages, "View Prompt" so that button fits, redrawn share pictures.
+- Full `make check` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 19:02Z to 19:10Z: server 612
+  (6 properties, 606 tests, 1 excluded), scripts 252, browser 151 (headless Chromium; WebKit is not
+  run on the Mac), required fixes, identity 16, contracts 454.
+- Live: Fly shows v268 complete, capabilities.json commit 255a6ea4. /contact 404 with no Location.
+  /api/v1/health and a missing page both carry nosniff, CSP, referrer policy, HSTS and permissions
+  policy. Signed agent reads of account, Credits balance, Points and staking position all 200.
+  Privy's window opened from /account at 1280, 390 and 320, whole and readable, no page errors.
+  /, /stake, /paper-pro-daily, /about and /account at 1280, 390 and 320: Geist Serif, no sideways
+  scroll, no page errors.
+- Found by the live look at 320: "Copy Entire Page as Markdown" on /paper-pro-daily is cut at the
+  button's edge. Fixed in the paper links release, not this one.
+- Not proven: a real Privy sign-in on regents.sh, which no agent can do.
+
+## 2026-11-04 — Released v269 (seven-day USDC figure by each block's own time)
+
+- Commit `068e7fc4` (the fix is `eb7db55e`, merged onto main), image `main-068e7fc4025a`, release
+  v269, created 2026-11-04T19:30:19Z, rollback v268 `255a6ea4`. No migration. No package moved.
+- Ships before Base Denim activates on 5 Nov 18:00Z, when blocks go to five a second. The window's
+  first block now comes from the chain's own timestamps, and the newest minute of recorded blocks
+  (300) is replaced on each pass.
+- Full `make check` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 19:19Z to 19:27Z: server 619
+  (7 properties, 612 tests, 1 excluded), scripts 252, browser 151 (headless Chromium; WebKit is not
+  run on the Mac), required fixes, identity 16, contracts 454.
+- Live: Fly shows v269 complete, capabilities.json commit 068e7fc4. /stake reads 605.522156 USDC
+  for the last seven days, the same as just before the release, as it should be while blocks are
+  still two seconds apart. Signed staking read: from-block 53213827, head 53516226, 302,400 blocks.
+  Read from mainnet.base.org: block 53213827 is stamped 1793217001, the block before it 1793216999,
+  and the cut-off is 1793216999, so the first block is the first one inside the seven days.
+- Not proven: the figure at five blocks a second on the real chain, which starts only at
+  activation. The tests cover that spacing. Read it again after 5 Nov 18:00Z.
+
+## 2026-11-04 — Released v270 (paper short addresses, Share, paper-only previews)
+
+- Commit `259f4e4d`, image `main-259f4e4d2770`, release v270, created 2026-11-04T20:16:31Z,
+  rollback v269 `068e7fc4`. No migration. Sean's order: a Share icon on every paper, a shorter
+  link, and previews carrying only "Daily Research Papers Reviewed by ChatGPT Pro", the title and
+  the authors.
+- `0ca107f6` is on main unchecked, superseded by `259f4e4d`. It was never released. A command that
+  read the check's log also pushed, so it reached main at 19:56Z with make exit 2 (a Credo finding,
+  which stopped the platform part before its tests). Main was checked only up to `e3d277ea` until
+  `259f4e4d`. Two more full checks stopped before the clean one: one compile reference over the
+  limit, and the open-routes list missing the new addresses. From then on, the push is a separate
+  command after reading the log's last line.
+- Full `make check` on `259f4e4d` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 20:05Z to 20:13Z:
+  server 622 (7 properties, 615 tests, 1 excluded), scripts 252, browser 151 (headless Chromium;
+  WebKit is not run on the Mac), required fixes, identity 16, contracts 454.
+- Defect in this release: every preview picture drew empty boxes. The server's text library found
+  no fonts and ignored the fontconfig settings file. Window: 20:16Z to v271 at 20:33Z. The one case
+  it affects: a preview fetched in that window showed boxes.
+- Production reads, ssh + rpc on regents-sh-web: one font measure and one picture rendered in
+  memory. No state changed. Separately, a name filter ran `/app/bin/bootstrap-staging` once at about
+  20:19Z. It raised at its role check, which runs before any connection opens, so nothing changed.
+  Commands against this app now name the script in full.
+
+## 2026-11-04 — Released v271 (preview pictures in Geist Serif, address names the build)
+
+- Commit `d15bc48c`, image `main-d15bc48c9fef`, release v271, created 2026-11-04T20:33:17Z,
+  rollback v270 `259f4e4d`, whose pictures draw boxes, so a rollback for any reason goes to v269
+  `068e7fc4` and takes the paper links with it. No migration.
+- Each text draw is given the font file itself; the fontconfig file and its start-up setting are
+  gone. The picture address carries the build commit (`share.png?v=<commit>`), so a scraper or
+  browser holding an older picture fetches the new one after each release. The one-day cache stays.
+  A post already shared keeps whatever its platform stored. The feed's title drops the site name.
+- Full `make check` on `d15bc48c` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 20:22Z to 20:30Z:
+  server 622 (7 properties, 615 tests, 1 excluded), scripts 252, browser 151 (WebKit not run),
+  required fixes, identity 16, contracts 454.
+- Live: Fly shows v271 complete, capabilities.json commit d15bc48c. Pictures fetched from each
+  page's own tag and looked at: feed, a paper with one author, a paper with eight authors
+  ("et al."), all real Geist Serif at 1200 by 630. Unknown address and its picture answer 404.
+  At 1280, 390 and 320: Share copies https://regents.sh/paper-pro-daily/b879e39c, that address opens
+  its paper with the whole article in view, no sideways scroll, no page errors.
+- Old link: /paper-pro-daily#paper-b879e39c-0f67-4459-8667-1c7a69fcde64-title opens at the top of
+  the page (scroll position 0) at all three widths.
+- Copy button at 320, named in the v268 record. Before: the label read "Copy Entire Page as Mar",
+  cut at the button's edge. After: "Copy Page", its text from 71 to 172 inside a button from 54 to
+  189, whole.
+- Agent read: the `url` field keeps its name; its value is the new address. CLI notice sent at this
+  release.
+- Not proven: how each social site shows the preview, since none of them was posted to; the tags
+  and pictures they read are what was checked. Previews still carry the site name in `og:site_name`.
+
 ## 2026-11-02 — Regents Points row (branch `regents/points-1102`)
 
 - Built on the SIWA v2 window row `9350ffa8`; it ships after the window, with Sean's

@@ -58,10 +58,10 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
+| Make a pairing code, choose the agent | Pair New Agent (Agents page) | — | — | — | — | no (owner only) | R5 |
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
-| Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
-| Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
+| Open or unpair an agent, read its last actions | account menu Agents, `/account/agents` | — | — | — | — | no (owner only) | R5 |
+| Set or remove an agent's picture | `/account/agents` agent window (upload) | — | — | — | — | no | R6 |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
 
 ## Names
@@ -102,7 +102,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read about Regents and the docs | `/about`, `/docs` and each `/docs/<page>` | `regents_about` (`docs`, `docs-<page>`) | — | — | — (plain fetch) | no | R2, R3 |
-| Read other site pages (start, contact, refund rules, privacy, terms) | `/start`, `/contact`, `/credits/refunds`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
+| Read other site pages (start, refund rules, privacy, terms) | `/start`, `/credits/refunds`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
 | Read Regents Cloak and its setup guide | `/cloak`, `/cloak/guide` | `regents_about` (the guide) | — | — | — (plain fetch, `/cloak/guide` as Markdown) | no | R2, R3 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
@@ -196,7 +196,7 @@ were skipped.
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
 - **R13. Closed.** `regents_about` reads every page that has words to read, as
-  Markdown: `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/contact`, `/credits/refunds`, `/privacy`,
+  Markdown: `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/credits/refunds`, `/privacy`,
   `/terms` and `/cloak/guide`. `/cloak` itself shows the guide's facts beside the
   disabled download, so the guide stands for it.
 - **R14. Publishing Articles is page-only.** `/admin/articles` is for article admins in a

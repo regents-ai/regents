@@ -21,7 +21,6 @@
 .account-page h2 {
   margin: 0;
   font-family: var(--font-family-ui);
-  font-weight: 600;
 }
 
 .account-page p {
@@ -33,7 +32,6 @@
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: .875rem;
-  font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
 }
@@ -156,7 +154,6 @@
   margin: 0;
   font-family: var(--font-family-ui);
   font-size: .875rem;
-  font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
   color: var(--color-fg-muted);
@@ -181,7 +178,6 @@
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: .875rem;
-  font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
 }
@@ -189,7 +185,6 @@
 /* The action takes the width; points and limits sit right-aligned. */
 .points-table tbody th {
   width: 100%;
-  font-weight: 600;
 }
 
 .points-table td,

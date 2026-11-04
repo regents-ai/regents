@@ -208,7 +208,7 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
     await page
       .locator("#home-title")
       .evaluate(element => getComputedStyle(element).fontFamily),
-  ).toContain("Geist Pixel Square")
+  ).toContain("Geist Serif")
 })
 
 // The founder's hero, a panel of the page: the words stand above the cube's stage at every

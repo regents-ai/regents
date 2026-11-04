@@ -2,7 +2,19 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   @moduledoc "Turns a paper's Markdown answer into the page's HTML: the whole answer, and its opening words."
 
   @excerpt_words 100
-  @extension [table: true, strikethrough: true, math_dollars: true]
+  @extension [table: true, strikethrough: true, math_dollars: true, inline_code_attributes: false]
+
+  @doc "The short name that ends a paper's address."
+  def anchor(paper), do: String.slice(paper.id, 0, 8)
+
+  @doc "The full address that opens this paper on its page."
+  def url(paper), do: RegentsWeb.PublicDocuments.url("/paper-pro-daily/#{anchor(paper)}")
+
+  @doc "A paper's authors for a shared link: all of up to three, or the first three."
+  def byline(%{authors: [first, second, third, _fourth | _rest]}),
+    do: Enum.join([first, second, third], ", ") <> " et al."
+
+  def byline(%{authors: authors}), do: Enum.join(authors, ", ")
 
   @doc "A paper's details and complete, original analysis as Markdown."
   def details_markdown(paper) do

@@ -109,7 +109,7 @@ test("the page sends exactly the request the signer signed, with its proof and n
 
   // An input the tool does not take is refused before the signer is asked.
   const refused = await call(page, "account_credits_history", {...history, colour: "blue"})
-  expect(refused).toMatchObject({ok: false, error: {code: "signed_request_failed"}})
+  expect(refused).toMatchObject({ok: false, error: {code: "invalid_request", details: {reason: "invalid_field:colour"}}})
   expect(await page.evaluate(() => (window as unknown as {signerAsked: unknown[]}).signerAsked.length)).toBe(1)
   expect(sent).toHaveLength(1)
 })

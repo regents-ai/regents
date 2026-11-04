@@ -17,8 +17,10 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/articles/:slug",
     "/start",
     "/paper-pro-daily",
+    "/paper-pro-daily/:paper",
     "/literature",
     "/account",
+    "/account/agents",
     "/account/points",
     "/account/credits",
     "/account/wallets",
@@ -117,6 +119,7 @@ defmodule RegentsWeb.RouteCatalogTest do
   test "the Account pages are tabs of one another, and no other page has tabs" do
     tabs = [
       %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+      %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
       %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
       %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
       %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
@@ -169,7 +172,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 26
+    assert length(decoded["routes"]) == 28
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 
@@ -201,5 +204,6 @@ defmodule RegentsWeb.RouteCatalogTest do
 
   defp sample_params(:regent_profile), do: %{"slug" => "regent"}
   defp sample_params(:blog_post), do: %{"slug" => "article"}
+  defp sample_params(:paper_pro_daily_paper), do: %{"paper" => "b879e39c"}
   defp sample_params(_), do: %{}
 end

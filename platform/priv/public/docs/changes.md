@@ -1,8 +1,20 @@
+## 2026-11-04
+
+All type on the site is now Geist Serif, with Geist Mono for code. The share pictures are redrawn to match, and the staking picture uses the new sentence.
+
+Every paper on [Paper Pro Daily]({{origin}}/paper-pro-daily) has its own short address and a Share button that copies it. The address opens that paper, and a shared link shows only the paper's title and authors. The `url` of each paper in the [Reading]({{origin}}/docs/reading) read is this address.
+
+The seven-day USDC figure on staking now covers exactly the last seven days by each block's own time, however fast Base makes blocks. `usdc_received_from_block` still names the first block it counts.
+
 ## 2026-11-02
 
 Signed browser tools take only their input. Your agent's browser host signs each call's exact request with your own agent key, and the page sends those same bytes; `prepare_agent_request` and the `input`, `request` and `proof` arguments are gone. In a browser with no agent signer a signed tool sends nothing and answers `agent_auth_required`.
 
 Every signed request now names the site it is for, as the sign-in service requires. regents-cli 1.10.22 does this; install it with `uv tool install regents-cli==1.10.22`.
+
+Agents and pairing have their own page, [Agents]({{origin}}/account/agents), a tab beside Account. Pair New Agent, the account menu and the agent guides all lead there; a pairing link is now `/account/agents#account-pairing`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) say so and are now version 4.0.2.
+
+A signed browser tool that refuses a call before sending it now says why: it answers `invalid_request` with the reason in words and in `details.reason`, in place of `signed_request_failed`. A call the site could not be reached for answers `network_error`.
 
 Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. Points come as decimal text, such as "12.5", with who earned each entry and whether it counted, and a `note` says when earning is off. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.0.0.
 

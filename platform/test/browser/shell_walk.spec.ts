@@ -7,7 +7,8 @@ const pages: Array<[string, string]> = [
   ["/stake", "#staking-actions"],
   ["/redeem", "#redemption-collections"],
   ["/redeem/gallery", "#gallery-heading"],
-  ["/account", "#account-agents"],
+  ["/account", "#account-identity"],
+  ["/account/agents", "#account-agents"],
   ["/account/points", "#points-page"],
   ["/account/credits", "#credits-agent-spending"],
   ["/account/wallets", "#account-wallets-title"],
@@ -18,7 +19,7 @@ const pages: Array<[string, string]> = [
   ["/literature", "#literature-chart"],
   ["/stake", "#staking-actions"],
   ["/redeem", "#redemption-collections"],
-  ["/account", "#account-agents"],
+  ["/account/agents", "#account-agents"],
   ["/redeem", "#redemption-collections"],
 ]
 
@@ -92,7 +93,7 @@ test("a signed-in person has the whole account menu on every shell page", async 
     await page.goto(path)
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
     await expect(page.locator("#shell-agents-reader"), path).toBeAttached()
-    await expect(page.locator("#account-menu a[href='/account#account-pairing']"), path).toBeAttached()
+    await expect(page.locator("#account-menu a[href='/account/agents#account-pairing']"), path).toBeAttached()
     await expect(page.locator("#shell-credits-button"), path).toBeVisible()
   }
 })

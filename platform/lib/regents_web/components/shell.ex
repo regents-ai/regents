@@ -5,8 +5,8 @@ defmodule RegentsWeb.Components.Shell do
   Signed in, the account's picture and name at the top right open the account menu
   (`Regent.Account.menu`), the same on every page: the person's picture, name and
   wallet, the agents paired with the account (the `agents` slot), Pair New Agent,
-  Manage Account and Sign out. Pairing itself and everything else about the account
-  are on the Account page. On a screen narrower than 22.5rem the header has no room
+  Manage Account and Sign out. The agents and pairing are on the Agents page, and
+  everything else about the account is on the Account page. On a screen narrower than 22.5rem the header has no room
   for the Credits balance, so the menu shows it instead, under the wallet, and it
   opens the same Buy Credits panel. Signed out, the header has Sign in alone.
 
@@ -131,7 +131,7 @@ defmodule RegentsWeb.Components.Shell do
           wallet={@account_control.wallet}
           ens_name={@account_control.ens_name}
           manage_href="/account"
-          pair_href="/account#account-pairing"
+          pair_href="/account/agents#account-pairing"
         >
           <:picture>
             <img

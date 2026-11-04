@@ -51,7 +51,7 @@
   block-size: 20px;
 }
 
-.paper-daily__copy h2 {
+.paper-daily__item {
   scroll-margin-block-start: 24px;
 }
 
@@ -127,7 +127,6 @@
 }
 
 .paper-daily__pick-title {
-  font-weight: 600;
   line-height: 1.3;
   overflow-wrap: break-word;
   hyphens: auto;
@@ -212,8 +211,8 @@
   text-align: start;
 }
 
-.paper-daily__details {
-  margin-block-end: 20px;
+.paper-daily__paper-actions {
+  margin-block: 0 20px;
 }
 
 .paper-daily__copy-label {

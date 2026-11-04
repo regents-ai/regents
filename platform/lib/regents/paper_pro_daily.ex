@@ -9,6 +9,13 @@ defmodule Regents.PaperProDaily do
       define :export_papers, action: :export
       define :paper_feed, action: :feed
       define :get_paper, action: :details, args: [:id], get?: true, not_found_error?: false
+
+      define :get_paper_by_anchor,
+        action: :by_anchor,
+        args: [:anchor],
+        get?: true,
+        not_found_error?: false
+
       define :get_picture, action: :picture, args: [:id], get?: true, not_found_error?: false
     end
   end

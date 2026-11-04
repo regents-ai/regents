@@ -4,7 +4,7 @@ defmodule RegentsWeb.HomeLive do
   alias RegentsWeb.Components.{AgentTools, RegentLinks, WorldCube}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
-  @staking_summary "Stake $REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."
+  @staking_summary "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now."
 
   # The lab's one plain line under its name, on the page and in the agent copy.
   @mission "We build tools for people and their agents. REGENT stakers share in the revenue."

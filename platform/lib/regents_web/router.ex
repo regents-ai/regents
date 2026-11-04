@@ -128,6 +128,8 @@ defmodule RegentsWeb.Router do
     get "/llms.txt", PublicPagesController, :llms
     get "/.well-known/security.txt", PublicPagesController, :security
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
+    get "/paper-pro-daily/share.png", PaperPictureController, :page_share
+    get "/paper-pro-daily/:paper/share.png", PaperPictureController, :paper_share
     get "/articles/covers/:slug", BlogCoverController, :show
     get "/agents/:wallet/picture", AgentPictureController, :show
   end
@@ -213,8 +215,10 @@ defmodule RegentsWeb.Router do
       live "/articles/:slug", ShellLive, :blog_post
       live "/start", ShellLive, :agent_start
       live "/paper-pro-daily", ShellLive, :paper_pro_daily
+      live "/paper-pro-daily/:paper", ShellLive, :paper_pro_daily_paper
       live "/literature", ShellLive, :literature
       live "/account", ShellLive, :account
+      live "/account/agents", ShellLive, :account_agents
       live "/account/points", ShellLive, :points
       live "/account/credits", ShellLive, :credits
       live "/account/wallets", ShellLive, :wallets

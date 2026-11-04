@@ -50,7 +50,7 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({width, height: 900})
     const auth = await installAuthenticatedPrivy(page, "valid")
     await auth.establishLocalSession()
-    await page.goto("/account")
+    await page.goto("/account/agents")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
     await page.locator("#account-agents").getByRole("link", {name: "Pair New Agent"}).click()
@@ -65,10 +65,10 @@ for (const width of [1280, 390]) {
     const told = lines(visit)
     const steps = told.map(step)
 
-    expect(steps[0]).toBe("request /account")
+    expect(steps[0]).toBe("request /account/agents")
     const order = [
-      "request /account",
-      "page /account",
+      "request /account/agents",
+      "page /account/agents",
       "action pairing_code.issue",
       "press PairingBox:choose_agent",
     ].map(wanted => steps.indexOf(wanted))

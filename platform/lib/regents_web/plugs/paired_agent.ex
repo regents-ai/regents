@@ -6,7 +6,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   alias Regents.Actors.{Agent, System}
 
   @not_paired_message "This agent has no current pairing."
-  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
+  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
 
   def init(opts), do: opts
 

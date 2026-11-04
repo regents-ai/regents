@@ -24,7 +24,7 @@ config :regent_agents,
     "not_paired" => [
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
       "Check your status here at any time, also with the regents_agent_whoami tool.",
-      "Pair with the code your person makes with Pair New Agent on their Account page."
+      "Pair with the code your person makes with Pair New Agent on their Agents page."
     ],
     "person_not_here" => [
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
@@ -216,7 +216,7 @@ config :regents, RegentsWeb.Endpoint,
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.25.4",
+  version: "0.28.2",
   regents: [
     args:
       ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --loader:.woff2=file --loader:.woff=file --loader:.ttf=file),

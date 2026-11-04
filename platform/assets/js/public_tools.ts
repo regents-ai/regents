@@ -99,6 +99,55 @@ function failure(code: Failure["error"]["code"], message: string): Failure {
 const invalidInput = () => failure("invalid_input", "Use the documented fields and values.")
 const cancelled = () => failure("aborted", "The read was cancelled.")
 
+// Reasons that mean the tool itself is set up wrongly, not the agent's input.
+const siteFaults = new Set(["invalid_operation", "invalid_path", "invalid_request_header", "unsupported_field_type"])
+
+// The signing transport refuses with a reason such as "missing_field:title".
+// The agent reads it in words; the reason itself stays in details.
+const invalid = (error: unknown) => {
+  const reason = error instanceof Error ? error.message : String(error)
+  return {ok: false, error: {
+    code: "invalid_request",
+    message: explain(reason),
+    hint: siteFaults.has(reason.split(":", 1)[0])
+      ? "Use another way in, such as the API, and tell the site's team."
+      : "Check the input against this tool's schema, then call the tool again.",
+    details: {reason},
+  }}
+}
+
+function explain(reason: string): string {
+  const [kind, field] = reason.split(":", 2)
+  switch (kind) {
+    case "invalid_input": return "Send an object of named fields."
+    case "missing_field": return `${field} is required.`
+    case "invalid_field": return `${field} is not a field of this tool, or is not the kind of value it takes.`
+    case "invalid_path_field": return `${field} must be a name: not empty, "." or "..".`
+    case "unexpected_read_body": return "This tool reads only. Send only the fields its address names."
+    case "invalid_raw_body": return "Send the body as JSON text, and nothing else."
+    case "invalid_operation":
+    case "invalid_path":
+    case "invalid_request_header":
+    case "unsupported_field_type":
+      return "This tool is set up wrongly on the site, so nothing was sent."
+    case "operation_unavailable": return "No signed tool has that name. Use a name from this page's tools."
+    case "operation_id_required": return "operation_id is required. Use a new one for each change and keep it when retrying."
+    case "body_too_large": return "The input is too large."
+    case "input_complexity_exceeded": return "The input has too many parts or is nested too deeply."
+    case "invalid_signer_answer":
+    case "proof_required":
+    case "invalid_proof":
+    case "incomplete_proof":
+    case "body_proof_required":
+    case "unexpected_body_proof":
+      return "Your agent's signer gave an incomplete answer, so nothing was sent. Update regents-cli and open this site again with regents browser."
+    case "untrusted_origin":
+    case "insecure_origin":
+      return "This page can't send signed requests."
+    default: return "The input doesn't fit this tool's schema."
+  }
+}
+
 function validInput(input: unknown, {properties, required}: Schema): input is Input {
   if (!input || typeof input !== "object" || Array.isArray(input)) return false
   const values = input as Record<string, unknown>
@@ -180,18 +229,17 @@ function tool(entry: Entry, lifetime: AbortSignal): Tool {
           const response = await transport().execute(entry.name, input as Record<string, unknown>, signal)
           return {ok: response.ok, status: response.status, body: await response.json()}
         } catch (error) {
-          // No agent signer, a signer that failed or said no, or a call cancelled
-          // while it signed: nothing was sent, and the refusal has the words.
+          // No agent signer, a signer that stopped or said no, or a call cancelled
+          // while it signed: nothing was sent, and its words are the answer.
           if (error instanceof Refused) return {ok: false, error: error.refusal}
           if (signal.aborted) return cancelled()
-          // fetch fails with a TypeError when the network fails; the transport's own
-          // refusals of the input, made before anything is sent, are plain Errors.
-          // Only a call the site never heard is reported.
-          if (error instanceof TypeError) report({name: "tool.unsent", where: entry.name, outcome: "unreachable"})
-          return {ok: false, error: {
-            code: "signed_request_failed",
-            message: "Nothing was sent. Check the input against this tool's schema, and open regents.sh through regents browser --site regents so your own agent key signs each call.",
-          }}
+          // fetch fails with a TypeError when the network fails. Only a call the
+          // site never heard is reported.
+          if (error instanceof TypeError) {
+            report({name: "tool.unsent", where: entry.name, outcome: "unreachable"})
+            return failure("network_error", "regents.sh could not be reached.")
+          }
+          return invalid(error)
         }
       }
       return read(entry, input, signal)

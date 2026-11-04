@@ -136,7 +136,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     assert has_element?(
              view,
-             ~s(#account-menu a[href="/account#account-pairing"]),
+             ~s(#account-menu a[href="/account/agents#account-pairing"]),
              "Pair New Agent"
            )
 
@@ -282,8 +282,6 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#account-identity h2", "0x6666..6666")
     assert has_element?(view, "#account-identity-picture[src^='data:image/svg+xml;base64,']")
     assert has_element?(view, "#account-credits")
-    assert has_element?(view, "#account-agents")
-    assert has_element?(view, "#account-pairing-box")
     assert has_element?(view, "#account-public-name")
     # Sign out is in the account menu, on this page as on every other.
     refute has_element?(view, "#account-page [data-account-target=sign-out]")
@@ -291,6 +289,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     # Each tab is the same page, a press away.
     for {label, path} <- [
+          {"Agents", "/account/agents"},
           {"Points", "/account/points"},
           {"Credits", "/account/credits"},
           {"Wallets", "/account/wallets"},

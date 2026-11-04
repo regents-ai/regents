@@ -15,6 +15,17 @@ defmodule Regents.BaseRpcStub do
   @latest_hash "0x" <> String.duplicate("1c", 32)
   @receipt_block_hash "0x" <> String.duplicate("7b", 32)
 
+  @doc "A block's timestamp on this stub's chain, which makes a block every two seconds."
+  def block_time(number), do: 1_700_000_000 + 2 * number
+
+  defp header(number, hash),
+    do: %{"number" => number, "hash" => hash, "timestamp" => stamp(number)}
+
+  defp stamp("0x" <> hex) do
+    {number, ""} = Integer.parse(hex, 16)
+    "0x" <> (number |> block_time() |> Integer.to_string(16))
+  end
+
   def safe_hash, do: @safe_hash
   def latest_hash, do: @latest_hash
   def receipt_block_hash, do: @receipt_block_hash
@@ -151,16 +162,16 @@ defmodule Regents.BaseRpcStub do
   defp result("eth_chainId", _params, state), do: Map.get(state, :chain_id, "0x2105")
 
   defp result("eth_getBlockByNumber", ["safe", false], state),
-    do: Map.get(state, :safe_block, %{"number" => "0x20", "hash" => @safe_hash})
+    do: Map.get(state, :safe_block, header("0x20", @safe_hash))
 
   defp result("eth_getBlockByNumber", ["latest", false], state),
-    do: Map.get(state, :latest_block, %{"number" => "0x20", "hash" => @latest_hash})
+    do: Map.get(state, :latest_block, header("0x20", @latest_hash))
 
   defp result("eth_getBlockByNumber", [number, false], state),
     do:
       state
       |> Map.get(:blocks, %{})
-      |> Map.get(number, %{"number" => number, "hash" => @receipt_block_hash})
+      |> Map.get_lazy(number, fn -> header(number, @receipt_block_hash) end)
 
   defp result("eth_getTransactionReceipt", [hash], state),
     do: state |> Map.get(:receipts, %{}) |> Map.get(hash)

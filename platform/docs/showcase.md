@@ -52,8 +52,8 @@ corners, square controls and the 24px select-chevron inset. Primary buttons reus
 the Regents Buy Regent diagonal shimmer: 1.15 seconds per sweep on hover/focus.
 Capabilities cards use the same sweep at 3.45 seconds, exactly three times slower.
 Reduced-motion users get a static card edge; forced colors retain system borders
-without decorative gradients. Titles and subtitles use Geist Pixel Square at weight 400; body and
-interface use Geist Sans. Code and technical identifiers use Geist Mono. Supporting bands/figures use shared semantic color roles.
+without decorative gradients. Titles, body text, controls and addresses use
+Geist Serif at weight 400. Code uses Geist Mono. Supporting bands/figures use shared semantic color roles.
 The workshop applies canonical tokens locally so product-local legacy type tokens
 do not override this collection. It does not change unrelated route styles.
 

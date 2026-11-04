@@ -38,7 +38,6 @@
 }
 
 .agent-start__head label {
-  font-weight: 500;
 }
 
 .agent-start textarea {
@@ -74,14 +73,13 @@
 .agent-start__steps li::before {
   content: counter(agent-start);
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.8rem;
 }
 
 .agent-start__steps h3 {
   margin: 0;
   font-size: 1rem;
-  font-weight: 500;
 }
 
 .agent-start__steps p {

@@ -14,10 +14,6 @@ defmodule Regents.TestStakingChainClient do
   @denominator "1000000000000000000000"
   @total_staked "100000000000000000000"
 
-  # Seven days of Base blocks, exactly as the reader counts them, so the window
-  # this reports starts where a real reading's would.
-  @window_blocks 302_400
-
   # USDC to six places and REGENT to eighteen. The lifetime total and the token's
   # whole supply are fixed: nothing a test does moves them. The seven-day sum is
   # the one figure a test sets, and it starts non-zero so a test asking for zero
@@ -134,15 +130,15 @@ defmodule Regents.TestStakingChainClient do
       emission_apr_bps: 1_200,
       emission_apr_percent: "12"
     }
-    |> Map.merge(seven_day_window(block))
+    |> Map.merge(seven_day_window())
   end
 
   # The seven days of deposits ending at the reading's block.
-  defp seven_day_window(block) do
+  defp seven_day_window do
     received = Application.get_env(:regents, :test_staking_usdc_7d, @seven_day_usdc)
 
     %{
-      usdc_received_from_block: max(block - @window_blocks + 1, 0),
+      usdc_received_from_block: 0,
       usdc_received_7d_raw: received,
       usdc_received_7d: scaled(received, 6)
     }

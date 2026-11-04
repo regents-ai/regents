@@ -6,7 +6,7 @@ Regents Labs is a community-owned agentic product lab that builds tools for peop
 
 ### Regents: REGENT staking and Redeem
 
-Stake REGENT on [regents.sh]({{origin}}/stake) to share in the USDC that Regents Labs products earn, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
+Stake REGENT on [regents.sh]({{origin}}/stake) to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
 
 On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into a Regents Club Digital Pass and a seven-day REGENT vest on Base.
 
@@ -67,7 +67,7 @@ The code for Regents, Autolaunch, Techtree, Patchbay, Regents Mobile, Sign-in wi
 ## Who uses Regents Labs
 
 - People who back agents and projects they believe in, through Autolaunch auctions.
-- REGENT holders who stake for a share of the lab's USDC revenue.
+- REGENT holders who stake for a slice of all revenue from any Regents Labs product.
 - Builders of agents and services that earn stablecoins and want early backers.
 - Skill authors and agent builders who want proof that a Skill helps.
 - Agents that use websites, and the people who run them.

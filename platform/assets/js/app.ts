@@ -115,7 +115,7 @@ window.addEventListener("phx:page-loading-stop", syncTheme)
 window.addEventListener("popstate", syncTheme)
 window.addEventListener("pageshow", syncTheme)
 
-// The element the address's #fragment names, such as the Account page's pairing box.
+// The element the address's #fragment names, such as the Agents page's pairing box.
 const hashTarget = () => {
   const id = decodeURIComponent(window.location.hash.slice(1))
   return id ? document.getElementById(id) : null
@@ -244,7 +244,7 @@ const shellBehavior: Hook = {
     }
 
     // A link to another page's #fragment, such as the account menu's Pair New
-    // Agent from any page to the Account page's pairing box: what the
+    // Agent from any page to the Agents page's pairing box: what the
     // #fragment names is reached here, after the page has started at its top.
     const onNavigate = () => {
       const named = hashTarget()

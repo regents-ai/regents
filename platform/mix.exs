@@ -4,9 +4,9 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "e37cb01da2376fc95d9b5547132473c28d14130d"
+  @elixir_utils_ref "c4a78d220033354ee447142a8a974c95e82298aa"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "3134bab0a23452fb82d3248072327e1d0199cc9a"
+  @design_system_ref "4c7bbaa533f32363dfbf37a75669124ad404dc5c"
 
   def project do
     [
@@ -67,10 +67,10 @@ defmodule Regents.MixProject do
       {:nebulex_local, "~> 3.0"},
       {:ash_oban, "~> 0.10.3"},
       {:ash_phoenix, "~> 2.3.26"},
-      {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
-      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
-      {:mdex, "== 0.14.2"},
-      {:floki, "== 0.38.4"},
+      {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 1.3", only: [:dev, :test], runtime: false},
+      {:mdex, "== 0.14.6"},
+      {:floki, "== 0.38.5"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
       {:siwa,

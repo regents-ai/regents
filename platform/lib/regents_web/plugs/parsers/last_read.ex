@@ -1,7 +1,7 @@
 defmodule RegentsWeb.Plugs.Parsers.LastRead do
   @moduledoc """
-  One of Plug's own parsers (`:json`, `:urlencoded`), whose refusals carry the
-  request its last body read returned. Bandit answers only on that request, so
+  One of Plug's own parsers (`Plug.Parsers.JSON`, `Plug.Parsers.URLENCODED`),
+  whose refusals carry the request its last body read returned. Bandit answers only on that request, so
   a body over its limit or one that does not decode otherwise became a server
   error instead of 413 or 400. `Plug.Parsers` raises both without the request,
   so each read is noted for this parse and forgotten once it ends.
@@ -11,9 +11,8 @@ defmodule RegentsWeb.Plugs.Parsers.LastRead do
 
   @impl Plug.Parsers
   def init(opts) do
-    {name, opts} = Keyword.pop!(opts, :parser)
+    {module, opts} = Keyword.pop!(opts, :parser)
     {reader, opts} = Keyword.pop(opts, :body_reader, {Plug.Conn, :read_body, []})
-    module = Module.concat(Plug.Parsers, name |> Atom.to_string() |> String.upcase())
     {module, module.init([body_reader: {__MODULE__, :read_body, [reader]}] ++ opts)}
   end
 

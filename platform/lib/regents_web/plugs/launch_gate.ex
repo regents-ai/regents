@@ -36,6 +36,9 @@ defmodule RegentsWeb.Plugs.LaunchGate do
 
   def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily"]} = conn, _opts), do: conn
 
+  def call(%Plug.Conn{method: "GET", path_info: ["paper-pro-daily", _paper]} = conn, _opts),
+    do: conn
+
   # The JSON health check answers like /healthz, which sits outside the gate.
   def call(%Plug.Conn{method: "GET", path_info: ["api", "v1", "health"]} = conn, _opts),
     do: conn
