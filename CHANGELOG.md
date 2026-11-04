@@ -4371,3 +4371,53 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and the cut-off is 1793216999, so the first block is the first one inside the seven days.
 - Not proven: the figure at five blocks a second on the real chain, which starts only at
   activation. The tests cover that spacing. Read it again after 5 Nov 18:00Z.
+
+## 2026-11-04 — Released v270 (paper short addresses, Share, paper-only previews)
+
+- Commit `259f4e4d`, image `main-259f4e4d2770`, release v270, created 2026-11-04T20:16:31Z,
+  rollback v269 `068e7fc4`. No migration. Sean's order: a Share icon on every paper, a shorter
+  link, and previews carrying only "Daily Research Papers Reviewed by ChatGPT Pro", the title and
+  the authors.
+- `0ca107f6` is on main unchecked, superseded by `259f4e4d`. It was never released. A command that
+  read the check's log also pushed, so it reached main at 19:56Z with make exit 2 (a Credo finding,
+  which stopped the platform part before its tests). Main was checked only up to `e3d277ea` until
+  `259f4e4d`. Two more full checks stopped before the clean one: one compile reference over the
+  limit, and the open-routes list missing the new addresses. From then on, the push is a separate
+  command after reading the log's last line.
+- Full `make check` on `259f4e4d` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 20:05Z to 20:13Z:
+  server 622 (7 properties, 615 tests, 1 excluded), scripts 252, browser 151 (headless Chromium;
+  WebKit is not run on the Mac), required fixes, identity 16, contracts 454.
+- Defect in this release: every preview picture drew empty boxes. The server's text library found
+  no fonts and ignored the fontconfig settings file. Window: 20:16Z to v271 at 20:33Z. The one case
+  it affects: a preview fetched in that window showed boxes.
+- Production reads, ssh + rpc on regents-sh-web: one font measure and one picture rendered in
+  memory. No state changed. Separately, a name filter ran `/app/bin/bootstrap-staging` once at about
+  20:19Z. It raised at its role check, which runs before any connection opens, so nothing changed.
+  Commands against this app now name the script in full.
+
+## 2026-11-04 — Released v271 (preview pictures in Geist Serif, address names the build)
+
+- Commit `d15bc48c`, image `main-d15bc48c9fef`, release v271, created 2026-11-04T20:33:17Z,
+  rollback v270 `259f4e4d`, whose pictures draw boxes, so a rollback for any reason goes to v269
+  `068e7fc4` and takes the paper links with it. No migration.
+- Each text draw is given the font file itself; the fontconfig file and its start-up setting are
+  gone. The picture address carries the build commit (`share.png?v=<commit>`), so a scraper or
+  browser holding an older picture fetches the new one after each release. The one-day cache stays.
+  A post already shared keeps whatever its platform stored. The feed's title drops the site name.
+- Full `make check` on `d15bc48c` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 20:22Z to 20:30Z:
+  server 622 (7 properties, 615 tests, 1 excluded), scripts 252, browser 151 (WebKit not run),
+  required fixes, identity 16, contracts 454.
+- Live: Fly shows v271 complete, capabilities.json commit d15bc48c. Pictures fetched from each
+  page's own tag and looked at: feed, a paper with one author, a paper with eight authors
+  ("et al."), all real Geist Serif at 1200 by 630. Unknown address and its picture answer 404.
+  At 1280, 390 and 320: Share copies https://regents.sh/paper-pro-daily/b879e39c, that address opens
+  its paper with the whole article in view, no sideways scroll, no page errors.
+- Old link: /paper-pro-daily#paper-b879e39c-0f67-4459-8667-1c7a69fcde64-title opens at the top of
+  the page (scroll position 0) at all three widths.
+- Copy button at 320, named in the v268 record. Before: the label read "Copy Entire Page as Mar",
+  cut at the button's edge. After: "Copy Page", its text from 71 to 172 inside a button from 54 to
+  189, whole.
+- Agent read: the `url` field keeps its name; its value is the new address. CLI notice sent at this
+  release.
+- Not proven: how each social site shows the preview, since none of them was posted to; the tags
+  and pictures they read are what was checked. Previews still carry the site name in `og:site_name`.
