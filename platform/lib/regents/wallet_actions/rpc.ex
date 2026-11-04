@@ -9,7 +9,7 @@ defmodule Regents.WalletActions.Rpc do
   @chain_id 8453
   @environment to_string(Mix.env())
 
-  @type block :: %{number: non_neg_integer(), hash: String.t()}
+  @type block :: %{number: non_neg_integer(), hash: String.t(), timestamp: non_neg_integer()}
 
   def verify_base_chain(opts \\ []) do
     with {:ok, result} <- request("eth_chainId", [], opts),
@@ -26,8 +26,8 @@ defmodule Regents.WalletActions.Rpc do
   @doc """
   One `latest` Base block, accepted only after the chain identity is proved.
 
-  Base's sequencer confirms `latest` in about two seconds, so this is the head a
-  person waiting on their own transaction is actually watching. Every read pinned
+  Base's sequencer confirms `latest` first, so this is the head a person waiting
+  on their own transaction is actually watching. Every read pinned
   to it uses this block hash, so a page never mixes two histories and a moved
   block fails rather than answering.
   """
@@ -36,6 +36,17 @@ defmodule Regents.WalletActions.Rpc do
     with :ok <- verify_base_chain(opts),
          {:ok, header} <- request("eth_getBlockByNumber", ["latest", false], opts),
          do: block_identity(header)
+  end
+
+  @doc "When a block was made, in whole seconds, as the block itself says."
+  @spec block_timestamp(non_neg_integer(), keyword()) ::
+          {:ok, non_neg_integer()} | {:error, atom()}
+  def block_timestamp(number, opts \\ []) do
+    tag = "0x" <> (number |> Integer.to_string(16) |> String.downcase())
+
+    with {:ok, header} <- request("eth_getBlockByNumber", [tag, false], opts),
+         {:ok, block} <- block_identity(header),
+         do: {:ok, block.timestamp}
   end
 
   def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &decode_uint/1, opts)
@@ -307,10 +318,11 @@ defmodule Regents.WalletActions.Rpc do
     _ -> {:error, :invalid_chain_response}
   end
 
-  defp block_identity(%{"number" => number, "hash" => hash}) do
+  defp block_identity(%{"number" => number, "hash" => hash, "timestamp" => timestamp}) do
     with {:ok, number} <- quantity(number),
-         true <- valid_hash?(hash) do
-      {:ok, %{number: number, hash: String.downcase(hash)}}
+         true <- valid_hash?(hash),
+         {:ok, timestamp} <- quantity(timestamp) do
+      {:ok, %{number: number, hash: String.downcase(hash), timestamp: timestamp}}
     else
       _malformed -> {:error, :invalid_block_header}
     end

@@ -193,7 +193,7 @@ defmodule Regents.Redemption.RpcClientTest do
     for state <- [
           %{latest_block: :unavailable},
           %{latest_block: %{"number" => "0x20"}},
-          %{latest_block: %{"number" => "0x20", "hash" => "0xnope"}},
+          %{latest_block: %{"number" => "0x20", "timestamp" => "0x1", "hash" => "0xnope"}},
           %{chain_id: "0x1"}
         ] do
       Stub.put(state)

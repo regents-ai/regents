@@ -110,7 +110,9 @@ defmodule Regents.WalletActions.RpcTest do
   test "ONE_LATEST_BLOCK: the latest head is one proved Base block, or nothing" do
     Stub.install(:wallet_http_client, fn _data, _state -> Stub.uint(0) end)
 
-    assert Rpc.latest_block() == {:ok, %{number: 0x20, hash: Stub.latest_hash()}}
+    assert Rpc.latest_block() ==
+             {:ok, %{number: 0x20, hash: Stub.latest_hash(), timestamp: Stub.block_time(0x20)}}
+
     assert_received {:rpc, "eth_getBlockByNumber", ["latest", false]}
 
     Stub.put(%{chain_id: "0x1"})
@@ -118,7 +120,7 @@ defmodule Regents.WalletActions.RpcTest do
 
     Stub.put(%{
       chain_id: "0x2105",
-      latest_block: %{"number" => "later", "hash" => Stub.latest_hash()}
+      latest_block: %{"number" => "later", "timestamp" => "0x1", "hash" => Stub.latest_hash()}
     })
 
     assert Rpc.latest_block() == {:error, :invalid_block_header}

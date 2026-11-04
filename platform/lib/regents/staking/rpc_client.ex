@@ -8,6 +8,8 @@ defmodule Regents.Staking.RpcClient do
   alias Regents.WalletActions.{Abi, Rpc}
 
   @read_timeout 20_000
+  # A first pass has seven days of logs to ask for; every later pass has minutes.
+  @window_timeout 60_000
   @chain_id 8453
   @rpc_opts [client_key: :staking_http_client, scope: "staking", purpose: :staking_protocol]
 
@@ -41,7 +43,9 @@ defmodule Regents.Staking.RpcClient do
   # SnapshotRefresh checks the head against the reading too. A head behind the
   # history's own, or a first reading with no history to keep, is no reading.
   defp revenue_window(history, block) do
-    case bounded(fn -> RevenueHistory.read(history, block, &history_logs/2) end) do
+    read = fn -> RevenueHistory.read(history, block, &history_logs/2, &block_timestamp/1) end
+
+    case bounded(read, @window_timeout) do
       {:ok, _history, _window} = read ->
         read
 
@@ -167,6 +171,8 @@ defmodule Regents.Staking.RpcClient do
     |> Stream.take_while(&(&1 <= to_block))
     |> Enum.map(&{&1, min(&1 + @chunk_blocks - 1, to_block)})
   end
+
+  defp block_timestamp(number), do: Rpc.block_timestamp(number, @rpc_opts)
 
   defp history_logs(from, to) do
     chunks(from, to)
@@ -325,10 +331,10 @@ defmodule Regents.Staking.RpcClient do
         opts
       )
 
-  defp bounded(read) do
+  defp bounded(read, timeout \\ @read_timeout) do
     task = Task.async(read)
 
-    case Task.yield(task, @read_timeout) || Task.shutdown(task, :brutal_kill) do
+    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
       _timeout -> {:error, :chain_timeout}
     end
