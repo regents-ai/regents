@@ -14,8 +14,8 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   def share_heading, do: "Daily Research Papers Reviewed by ChatGPT Pro"
 
   @doc "A paper's authors for a shared link: all of up to three, or the first three."
-  def byline(%{authors: authors}) when length(authors) > 3,
-    do: (authors |> Enum.take(3) |> Enum.join(", ")) <> " et al."
+  def byline(%{authors: [first, second, third, _fourth | _rest]}),
+    do: Enum.join([first, second, third], ", ") <> " et al."
 
   def byline(%{authors: authors}), do: Enum.join(authors, ", ")
 
