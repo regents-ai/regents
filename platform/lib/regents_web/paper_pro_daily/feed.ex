@@ -4,8 +4,9 @@ defmodule RegentsWeb.PaperProDaily.Feed do
   every open of the page, so a crowd of readers costs the database one read a
   minute, and a reader's first load and live connection cost one between them.
 
-  A paper saved with `put-paper` shows within the minute. Each reading is kept
-  under the UTC day, so a day's papers appear as soon as that day begins.
+  `put-paper` clears what is kept once it has saved, so a new paper shows at once.
+  Each reading is kept under the UTC day, so a day's papers appear as soon as that
+  day begins.
   """
   use Nebulex.Cache, otp_app: :regents, adapter: Nebulex.Adapters.Local
 

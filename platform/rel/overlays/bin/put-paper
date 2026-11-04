@@ -1,15 +1,21 @@
 #!/bin/sh
 set -eu
 
+bin="$(dirname "$0")"
+
 case "$#" in
   1)
-    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$1" exec "$(dirname "$0")/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"))'
+    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$1" "$bin/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"))'
     ;;
   2)
-    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$1" REGENTS_PAPER_PICTURE="$2" exec "$(dirname "$0")/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"), System.fetch_env!("REGENTS_PAPER_PICTURE"))'
+    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$1" REGENTS_PAPER_PICTURE="$2" "$bin/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"), System.fetch_env!("REGENTS_PAPER_PICTURE"))'
     ;;
   *)
     echo 'usage: put-paper <folder> OR put-paper <YYYY-MM-DD>.md <picture>' >&2
     exit 1
     ;;
 esac
+
+# The save ran in its own short-lived program; what the page keeps lives in the
+# running site, which is told here so the new paper shows at once.
+exec "$bin/regents" rpc 'RegentsWeb.PaperProDaily.Feed.delete_all!()'

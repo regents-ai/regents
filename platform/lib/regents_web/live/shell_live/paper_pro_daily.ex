@@ -57,17 +57,10 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
   defp go_to_paper(socket, nil), do: socket
 
   defp go_to_paper(socket, target) do
-    case Enum.find(socket.assigns.research_list, &(&1.target == target)) do
-      # Saved in the last minute: the page opens, and the paper joins the list soon after.
-      nil -> socket
-      paper -> show_paper(socket, paper)
-    end
-  end
-
-  defp show_paper(socket, paper) do
+    paper = Enum.find(socket.assigns.research_list, &(&1.target == target))
     missing = Enum.find_index(socket.assigns.days, &(&1 == paper.date)) + 1 - socket.assigns.shown
     socket = if missing > 0, do: show_more(socket, missing), else: socket
-    push_event(socket, "paper-daily:go-to-paper", %{target: paper.target})
+    push_event(socket, "paper-daily:go-to-paper", %{target: target})
   end
 
   defp read_feed(%{assigns: %{days: [_ | _]}} = socket), do: socket
