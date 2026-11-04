@@ -8,7 +8,7 @@ const { chromium } = require(path.join(root, "platform/node_modules/playwright")
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   let failed = false;
-  for (const name of ["home", "stake", "redeem", "paper-pro-daily"]) {
+  for (const name of ["home", "stake", "redeem"]) {
     await page.goto(`file://${__dirname}/card.html?c=${name}`);
     await page.evaluate(() => document.fonts.ready);
     await page.waitForFunction(() => [...document.images].every((image) => image.complete));

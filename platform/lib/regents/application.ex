@@ -7,6 +7,8 @@ defmodule Regents.Application do
 
   @impl true
   def start(_type, _args) do
+    RegentsWeb.PaperProDaily.ShareCard.use_own_font()
+
     # Every outbound TLS connection trusts castore's list, not the operating
     # system's: castore drops a compromised root as soon as Mozilla does, which a
     # Debian image can lag by weeks. Req, Finch and Mint read this list through

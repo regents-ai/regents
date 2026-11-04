@@ -31,6 +31,8 @@ defmodule RegentsWeb.PublicDocuments do
   """
   @documents ~w(/ /about /privacy /terms /start /cloak/guide /credits/refunds) ++
                RegentsWeb.Docs.Pages.paths()
+  alias RegentsWeb.PaperProDaily.Reading
+
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -126,8 +128,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
     "/articles" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
-    "/paper-pro-daily" =>
-      {"Paper Pro Daily", "A research paper each day, read with ChatGPT Astra 6 Pro."},
+    "/paper-pro-daily" => {"Paper Pro Daily", Reading.share_heading()},
     "/literature" =>
       {"Literature",
        "Science-fiction books about artificial minds, placed by how hopeful each is for humanity and for the minds themselves."},
@@ -183,6 +184,16 @@ defmodule RegentsWeb.PublicDocuments do
       page_description: "#{regent.display_name}'s public Regent profile on #{@site_name}."
     ]
 
+  def page({:paper, paper}),
+    do: [
+      page_title: paper.title,
+      page_description:
+        Enum.join(
+          Enum.reject([Reading.share_heading(), Reading.byline(paper)], &(&1 == "")),
+          " · "
+        )
+    ]
+
   def page({:blog_post, %{description: ""} = post}),
     do: [
       page_title: post.title,
@@ -225,6 +236,19 @@ defmodule RegentsWeb.PublicDocuments do
     |> Phoenix.HTML.raw()
   end
 
+  def metadata("/paper-pro-daily" <> rest = path, title, description) when rest != "" do
+    %{
+      title: title,
+      suffix: "",
+      description: description,
+      canonical: url(path),
+      image: url(path <> "/share.png"),
+      image_size: {1200, 630},
+      image_alt: title,
+      markdown?: false
+    }
+  end
+
   def metadata(path, title, description) do
     suffix = if path == "/", do: "", else: " · #{@site_name}"
 
@@ -233,7 +257,7 @@ defmodule RegentsWeb.PublicDocuments do
       suffix: suffix,
       description: description,
       canonical: url(path),
-      image: url(RegentsWeb.Endpoint.static_path(share_image(path))),
+      image: share_image(path),
       image_size: share_image_size(path),
       image_alt: share_image_alt(path),
       markdown?: path in @documents
@@ -244,19 +268,22 @@ defmodule RegentsWeb.PublicDocuments do
   # Redeem and the literature chart each have their own; every other page shares the crown.
   @share_cards %{
     "/" => "home",
-    "/paper-pro-daily" => "paper-pro-daily",
     "/stake" => "stake",
     "/redeem" => "redeem"
   }
 
-  defp share_image("/literature"), do: "/images/literature/share.png"
+  defp share_image("/paper-pro-daily"), do: url("/paper-pro-daily/share.png")
+  defp share_image(path), do: url(RegentsWeb.Endpoint.static_path(static_share_image(path)))
 
-  defp share_image(path) when is_map_key(@share_cards, path),
+  defp static_share_image("/literature"), do: "/images/literature/share.png"
+
+  defp static_share_image(path) when is_map_key(@share_cards, path),
     do: "/images/share/#{@share_cards[path]}.png"
 
-  defp share_image(_path), do: "/mark.png"
+  defp static_share_image(_path), do: "/mark.png"
 
   defp share_image_size("/literature"), do: {2048, 1024}
+  defp share_image_size("/paper-pro-daily"), do: {1200, 630}
   defp share_image_size(path) when is_map_key(@share_cards, path), do: {1200, 630}
   defp share_image_size(_path), do: {1024, 512}
 
@@ -268,9 +295,7 @@ defmodule RegentsWeb.PublicDocuments do
     do:
       "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
 
-  defp share_image_alt("/paper-pro-daily"),
-    do:
-      "Paper Pro Daily: a research paper each day, read with ChatGPT Astra 6 Pro, beside three paper first pages"
+  defp share_image_alt("/paper-pro-daily"), do: Reading.share_heading()
 
   defp share_image_alt("/stake"),
     do:

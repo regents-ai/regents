@@ -61,8 +61,6 @@ const cards = {
     html: tile("Stake REGENT", "#E5E3D2") + `<div class="arrow">↓</div>` + tile("USDC revenue", "#FF5B19") + tile("Plus 20% a year in REGENT", "#AECACD") },
   redeem: { where: "regents.sh/redeem", eyebrow: "Animata redemption · Base", h1: "Redeem your<br>Animata.", lede: "Turn an Animata I or II Pass into Regents Club membership and a seven-day REGENT vest.", art: "picture",
     html: `<img src="art/redeem.png" alt="" style="margin-right:64px">` },
-  "paper-pro-daily": { where: "regents.sh/paper-pro-daily", eyebrow: "Daily research", h1: "Paper Pro<br>Daily", lede: "A research paper each day, read with ChatGPT Astra 6 Pro.", art: "picture",
-    html: `<img src="art/paper.png" alt="">` },
 };
 const name = new URLSearchParams(location.search).get("c");
 const card = cards[name];

@@ -88,6 +88,13 @@ defmodule Regents.PaperProDaily.Paper do
       filter expr(id == ^arg(:id))
       prepare build(deselect: [:picture])
     end
+
+    read :by_anchor do
+      argument :anchor, :string, allow_nil?: false
+      get? true
+      filter expr(fragment("left(?::text, 8)", id) == ^arg(:anchor))
+      prepare build(deselect: [:picture], sort: [date: :desc], limit: 1)
+    end
   end
 
   preparations do

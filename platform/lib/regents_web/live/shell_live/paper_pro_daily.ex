@@ -14,15 +14,21 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
   alias RegentsWeb.PaperProDaily.Reading
 
   @page_size 6
-  @events ~w(load_more toggle_research_list go_to_paper)
+  @events ~w(load_more toggle_research_list)
 
   def handles?(event), do: event in @events
 
   def init(socket),
     do: socket |> assign(paper_midnight: nil) |> cleared()
 
-  def route(socket, %{route_id: :paper_pro_daily}),
-    do: socket |> refresh_papers() |> follow_midnight()
+  # A link to one paper goes to it within the feed; moving between papers keeps the
+  # feed as it is, so the reader's place and open papers stay.
+  def route(socket, %{route_id: :paper_pro_daily}) do
+    socket
+    |> read_feed()
+    |> follow_midnight()
+    |> go_to_paper(socket.assigns.route_params["paper"])
+  end
 
   def route(socket, _route_spec), do: socket |> forget_midnight() |> cleared()
 
@@ -43,19 +49,22 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
   def handle_event("toggle_research_list", _params, socket),
     do: assign(socket, research_list_expanded?: !socket.assigns.research_list_expanded?)
 
-  def handle_event("go_to_paper", %{"target" => target}, socket) do
-    case Enum.find(socket.assigns.research_list, &(&1.target == target)) do
-      nil ->
-        socket
-
-      paper ->
-        missing =
-          Enum.find_index(socket.assigns.days, &(&1 == paper.date)) + 1 - socket.assigns.shown
-
-        socket = if missing > 0, do: show_more(socket, missing), else: socket
-        push_event(socket, "paper-daily:go-to-paper", %{target: target})
-    end
+  @doc "The paper a link names, or a 404 when it names none that is published."
+  def linked_paper!(%{"paper" => anchor}) do
+    PaperProDaily.get_paper_by_anchor!(anchor) || raise RegentsWeb.NotFoundError
   end
+
+  defp go_to_paper(socket, nil), do: socket
+
+  defp go_to_paper(socket, target) do
+    paper = Enum.find(socket.assigns.research_list, &(&1.target == target))
+    missing = Enum.find_index(socket.assigns.days, &(&1 == paper.date)) + 1 - socket.assigns.shown
+    socket = if missing > 0, do: show_more(socket, missing), else: socket
+    push_event(socket, "paper-daily:go-to-paper", %{target: target})
+  end
+
+  defp read_feed(%{assigns: %{days: [_ | _]}} = socket), do: socket
+  defp read_feed(socket), do: refresh_papers(socket)
 
   defp cleared(socket) do
     socket
@@ -82,7 +91,7 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
       more?: false,
       page_markdown: Reading.page_markdown(papers),
       research_list:
-        Enum.map(papers, &%{title: &1.title, date: &1.date, target: "paper-#{&1.id}-title"})
+        Enum.map(papers, &%{title: &1.title, date: &1.date, target: Reading.anchor(&1)})
     )
     |> stream(:days, [], reset: true)
     |> show_more()
@@ -141,7 +150,9 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
     |> Map.merge(%{
       picture:
         "/paper-pro-daily/pictures/#{paper.id}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}",
-      markdown: Reading.details_markdown(paper)
+      markdown: Reading.details_markdown(paper),
+      anchor: Reading.anchor(paper),
+      url: Reading.url(paper)
     })
   end
 end

@@ -59,6 +59,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :paper_pro_daily
     },
     %Entry{
+      path_pattern: "/paper-pro-daily/:paper",
+      live_action: :paper_pro_daily_paper,
+      parameter_schema: %{paper: :paper_anchor},
+      reserved_values: %{},
+      route_spec_id: :paper_pro_daily
+    },
+    %Entry{
       path_pattern: "/literature",
       live_action: :literature,
       parameter_schema: %{},
@@ -329,6 +336,9 @@ defmodule RegentsWeb.RouteCatalog do
 
   defp valid_parameter?(:slug, value), do: is_binary(value) and Regex.match?(@slug, value)
 
+  defp valid_parameter?(:paper_anchor, value),
+    do: is_binary(value) and Regex.match?(~r/\A[0-9a-f]{8}\z/, value)
+
   defp build_spec(action, params) do
     {route_id, app_id, app_label, page_label, root, controls, background, local_state} =
       Map.fetch!(@specs, action)
@@ -439,10 +449,12 @@ defmodule RegentsWeb.RouteCatalog do
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
   defp handoff_params(:blog_post), do: %{"slug" => "example-post"}
+  defp handoff_params(:paper_pro_daily_paper), do: %{"paper" => "00000000"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
   defp destination(:blog_post, %{"slug" => slug}), do: "/articles/#{slug}"
+  defp destination(:paper_pro_daily, %{"paper" => paper}), do: "/paper-pro-daily/#{paper}"
 
   defp destination(action, _params) do
     @entries

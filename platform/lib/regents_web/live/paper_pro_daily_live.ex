@@ -70,9 +70,7 @@ defmodule RegentsWeb.PaperProDailyLive do
               :for={{paper, index} <- Enum.with_index(@research_list)}
               hidden={!@research_list_expanded? && index >= 5}
             >
-              <a href={"##{paper.target}"} phx-click="go_to_paper" phx-value-target={paper.target}>
-                {paper.title}
-              </a>
+              <.link patch={"/paper-pro-daily/#{paper.target}"}>{paper.title}</.link>
             </li>
           </ol>
           <p
@@ -157,17 +155,11 @@ defmodule RegentsWeb.PaperProDailyLive do
             const heading = document.getElementById(target)
             if (!heading) return
             // A paper behind another of its day's papers is chosen first.
-            const pick = document.getElementById(target.replace(/-title$/, "-pick"))
+            const pick = document.getElementById(`${heading.closest(".paper-daily__panel").id}-pick`)
             if (pick?.getAttribute("aria-pressed") === "false") pick.click()
             heading.focus({preventScroll: true})
-            heading.scrollIntoView({block: "start", behavior: "instant"})
-            if (window.location.hash !== `#${target}`) {
-              window.history.pushState(null, "", `#${target}`)
-            }
+            heading.closest("article").scrollIntoView({block: "start", behavior: "instant"})
           })
-          // A copied paper link also works when its paper is beyond the first batch.
-          const target = window.location.hash.slice(1)
-          if (/^paper-[0-9a-f-]{36}-title$/.test(target)) this.pushEvent("go_to_paper", {target})
         }
       }
     </script>
@@ -267,7 +259,7 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   defp paper(assigns) do
     ~H"""
-    <article class="paper-daily__item" aria-labelledby={"#{@id}-title"}>
+    <article class="paper-daily__item" aria-labelledby={@paper.anchor}>
       <img
         class="paper-daily__image"
         src={@paper.picture}
@@ -277,23 +269,17 @@ defmodule RegentsWeb.PaperProDailyLive do
       />
       <div class="paper-daily__copy">
         <time datetime={Date.to_iso8601(@paper.date)}>{Calendar.strftime(@paper.date, "%B %-d, %Y")}</time>
-        <h2 id={"#{@id}-title"} tabindex="-1">{@paper.title}</h2>
+        <h2 id={@paper.anchor} tabindex="-1">{@paper.title}</h2>
         <p class="paper-daily__links">
           <a href={@paper.arxiv_url} rel="noopener noreferrer">Paper Link</a>
           <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT Thread</a>
         </p>
-        <Regent.Primitives.copy_button
-          id={"#{@id}-copy-details"}
-          text={@paper.markdown}
-          class="paper-daily__details"
-        >
-          <span class="paper-daily__copy-label">
-            <span class="paper-daily__copy-icon"><RegentsWeb.Components.RegentLinks.source_icon kind={
-              :copy
-            } /></span>
+        <div class="paper-daily__actions paper-daily__paper-actions">
+          <.icon_copy id={"#{@id}-copy-details"} text={@paper.markdown} icon={:copy}>
             Copy Details
-          </span>
-        </Regent.Primitives.copy_button>
+          </.icon_copy>
+          <.icon_copy id={"#{@id}-share"} text={@paper.url} icon={:share}>Share</.icon_copy>
+        </div>
         <div
           id={"#{@id}-opening"}
           class="rg-blog__prose paper-daily__text"
@@ -345,6 +331,24 @@ defmodule RegentsWeb.PaperProDailyLive do
         </button>
       </div>
     </article>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :text, :string, required: true
+  attr :icon, :atom, required: true
+  slot :inner_block, required: true
+
+  defp icon_copy(assigns) do
+    ~H"""
+    <Regent.Primitives.copy_button id={@id} text={@text}>
+      <span class="paper-daily__copy-label">
+        <span class="paper-daily__copy-icon"><RegentsWeb.Components.RegentLinks.source_icon kind={
+          @icon
+        } /></span>
+        {render_slot(@inner_block)}
+      </span>
+    </Regent.Primitives.copy_button>
     """
   end
 

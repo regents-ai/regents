@@ -501,6 +501,16 @@ defmodule RegentsWeb.ShellLive do
   defp assign_page(socket, %{route_id: :blog_post}, _uri),
     do: assign(socket, PublicDocuments.page({:blog_post, socket.assigns.blog_post}))
 
+  defp assign_page(socket, %{route_id: :paper_pro_daily}, _uri) do
+    case socket.assigns.route_params do
+      %{"paper" => _} = params ->
+        assign(socket, PublicDocuments.page({:paper, PaperProDaily.linked_paper!(params)}))
+
+      _feed ->
+        assign(socket, PublicDocuments.page("/paper-pro-daily"))
+    end
+  end
+
   defp assign_page(socket, _route_spec, uri),
     do: assign(socket, PublicDocuments.page(URI.parse(uri).path))
 end

@@ -2,6 +2,8 @@
 
 All type on the site is now Geist Serif, with Geist Mono for code. The share pictures are redrawn to match, and the staking picture uses the new sentence.
 
+Every paper on [Paper Pro Daily]({{origin}}/paper-pro-daily) has its own short address and a Share button that copies it. The address opens that paper, and a shared link shows only the paper's title and authors. The `url` of each paper in the [Reading]({{origin}}/docs/reading) read is this address.
+
 ## 2026-11-02
 
 Signed browser tools take only their input. Your agent's browser host signs each call's exact request with your own agent key, and the page sends those same bytes; `prepare_agent_request` and the `input`, `request` and `proof` arguments are gone. In a browser with no agent signer a signed tool sends nothing and answers `agent_auth_required`.
