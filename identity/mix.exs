@@ -15,7 +15,7 @@ defmodule RegentIdentity.MixProject do
         {:ash, "~> 3.34 and >= 3.34.3"},
         # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
         # repo's prefix that picks each site's schema on the shared database.
-        {:ash_postgres, "== 2.13.0"},
+        {:ash_postgres, "== 2.15.2"},
         {:simple_sat, "~> 0.1"},
         {:plug, "~> 1.19"},
         {:regent_privy, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy"}
