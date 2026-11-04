@@ -254,7 +254,7 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   def metadata(path, title, description) do
-    suffix = if path == "/", do: "", else: " · #{@site_name}"
+    suffix = if path in ["/", "/paper-pro-daily"], do: "", else: " · #{@site_name}"
 
     %{
       title: title <> suffix,

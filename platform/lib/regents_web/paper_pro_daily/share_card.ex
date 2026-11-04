@@ -15,14 +15,6 @@ defmodule RegentsWeb.PaperProDaily.ShareCard do
   @title_sizes [68, 56, 46, 38, 32]
   @title_height 340
 
-  @doc """
-  Points text drawing at the card's own font, the only one it needs. Fontconfig
-  reads this once, on the first text drawn, so the application sets it at start.
-  """
-  def use_own_font do
-    System.put_env("FONTCONFIG_FILE", Application.app_dir(:regents, "priv/share_card/fonts.conf"))
-  end
-
   @doc "The feed's picture: its heading alone."
   def page do
     picture = title(PublicDocuments.paper_share_heading())
@@ -72,6 +64,7 @@ defmodule RegentsWeb.PaperProDaily.ShareCard do
     {picture, _dpi} =
       Operation.text!(markup,
         font: "Geist Serif #{size}",
+        fontfile: Application.app_dir(:regents, "priv/share_card/GeistSerif-Regular.ttf"),
         width: @text_width,
         rgba: true,
         dpi: 72
