@@ -2,20 +2,26 @@ defmodule Regents.Staking.RevenueHistory do
   @moduledoc """
   A rolling public projection of the contract's deposits, not an accounting ledger.
 
-  Retains seven days of Base blocks and replaces the newest 30 recorded blocks
-  on each pass. Replacing that overlap removes orphaned deposits and accepts
-  late-indexed logs. Deeper reorganizations require rebuilding this projection.
+  Retains the blocks of the last seven days, by the timestamps the chain gives
+  them, and replaces the newest minute of recorded blocks on each pass (Base makes
+  five blocks a second). Replacing that overlap removes orphaned deposits and
+  accepts late-indexed logs. Deeper reorganizations require rebuilding this
+  projection.
   """
 
   alias Regents.WalletActions.{Abi, Rpc}
 
-  @window 302_400
-  @overlap 30
+  @window_seconds 604_800
+  # Base's fastest: five blocks in every second of the window. Older blocks are
+  # never asked for, since an endpoint may no longer keep them.
+  @most_blocks 5 * @window_seconds
+  @overlap 300
 
-  def read(previous, block, fetch) do
-    first = max(block.number - @window + 1, 0)
-
+  def read(previous, block, fetch, timestamp_at) do
     with :ok <- forward_head(previous, block),
+         since = block.timestamp - @window_seconds,
+         lowest = max(block.number - @most_blocks + 1, 0),
+         {:ok, first} <- first_after(lowest, block.number, since, timestamp_at),
          from = start(previous, first),
          {:ok, logs} <- fetch.(from, block.number),
          {:ok, events} <- events(logs, from, block) do
@@ -41,8 +47,23 @@ defmodule Regents.Staking.RevenueHistory do
 
   defp forward_head(_previous, _block), do: :ok
 
-  defp start(nil, first), do: first
-  defp start(%{"block_number" => head}, first), do: max(first, head - @overlap + 1)
+  # The first block stamped after `since`. Block times never go back and up to five
+  # blocks share a second, so this finds the lowest of them by halving the range.
+  defp first_after(low, low, _since, _timestamp_at), do: {:ok, low}
+
+  defp first_after(low, high, since, timestamp_at) do
+    middle = div(low + high, 2)
+
+    with {:ok, timestamp} <- timestamp_at.(middle) do
+      if timestamp > since,
+        do: first_after(low, middle, since, timestamp_at),
+        else: first_after(middle + 1, high, since, timestamp_at)
+    end
+  end
+
+  @doc "The block a pass reads from, given the history it extends and the window's first block."
+  def start(nil, first), do: first
+  def start(%{"block_number" => head}, first), do: max(first, head - @overlap + 1)
 
   defp retained(nil, _first, _from), do: []
 

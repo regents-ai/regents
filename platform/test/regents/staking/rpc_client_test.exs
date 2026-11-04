@@ -31,9 +31,9 @@ defmodule Regents.Staking.RpcClientTest do
   @vault_vested_by 1_857_052_867
   @vault_admin "0x0cb27e883e207905ad2a94f9b6ef0c7a99223c37"
 
-  # Seven days of Base blocks, and the largest range a public endpoint answers
-  # `eth_getLogs` over. Both are stated here rather than read from the reader, so
-  # a change to either has to be made twice on purpose.
+  # Seven days of this stubbed chain's two-second blocks, and the largest range a
+  # public endpoint answers `eth_getLogs` over. Both are stated here rather than
+  # read from the reader, so a change to either has to be made twice on purpose.
   @window_blocks 302_400
   @chunk_blocks 10_000
 
@@ -184,6 +184,21 @@ defmodule Regents.Staking.RpcClientTest do
     end
   end
 
+  # A block read nobody answered costs the seven-day figure and keeps the history,
+  # like a refused piece of the logs.
+  test "UNREAD_BLOCK_TIME: a refused block read costs that figure and nothing else" do
+    head(@head)
+    history = %{"block_number" => @head - 100, "block_hash" => Stub.latest_hash(), "events" => []}
+    # The search's first look is halfway through the most blocks seven days can hold.
+    Stub.put(%{blocks: %{hex_quantity(@head - div(5 * 604_800, 2)) => nil}})
+
+    capture_log(fn ->
+      assert {:ok, snapshot, ^history} = RpcClient.protocol_snapshot(history)
+      assert snapshot.usdc_received_7d == :unavailable
+      assert snapshot.total_staked_raw == "100"
+    end)
+  end
+
   test "SEVEN_DAY_SUM: every recorded deposit in the window is added up across the pieces" do
     head(@head)
 
@@ -219,8 +234,8 @@ defmodule Regents.Staking.RpcClientTest do
     head(@head)
     kept = @head - 5 * @chunk_blocks
     history = %{"block_number" => kept, "block_hash" => Stub.latest_hash(), "events" => []}
-    # The pass re-reads the newest 30 blocks the history holds, so it starts there.
-    catch_up = kept - 29
+    # The pass re-reads the newest 300 blocks the history holds, so it starts there.
+    catch_up = kept - 299
     Stub.put(%{refused_log_range: catch_up + 2 * @chunk_blocks})
 
     log =
@@ -253,8 +268,8 @@ defmodule Regents.Staking.RpcClientTest do
   test "HISTORY_WINDOW_FAILURE: refused logs keep the history and cost only the seven-day figure" do
     head(@head)
     history = %{"block_number" => @head - 100, "block_hash" => Stub.latest_hash(), "events" => []}
-    # The pass re-reads the newest 30 blocks the history holds, so it starts there.
-    Stub.put(%{refused_log_range: @head - 129})
+    # The pass re-reads the newest 300 blocks the history holds, so it starts there.
+    Stub.put(%{refused_log_range: @head - 399})
 
     log =
       capture_log(fn ->
@@ -367,7 +382,13 @@ defmodule Regents.Staking.RpcClientTest do
     for state <- [
           %{latest_block: :unavailable},
           %{latest_block: %{"number" => "0x20"}},
-          %{latest_block: %{"number" => "later", "hash" => Stub.latest_hash()}},
+          %{
+            latest_block: %{
+              "number" => "later",
+              "timestamp" => "0x1",
+              "hash" => Stub.latest_hash()
+            }
+          },
           %{chain_id: "0x1"}
         ] do
       Stub.put(state)
@@ -418,7 +439,13 @@ defmodule Regents.Staking.RpcClientTest do
 
   defp head(number),
     do:
-      Stub.put(%{latest_block: %{"number" => hex_quantity(number), "hash" => Stub.latest_hash()}})
+      Stub.put(%{
+        latest_block: %{
+          "number" => hex_quantity(number),
+          "hash" => Stub.latest_hash(),
+          "timestamp" => hex_quantity(Stub.block_time(number))
+        }
+      })
 
   defp selector(signature), do: signature |> Abi.topic0() |> String.slice(0, 10)
 
