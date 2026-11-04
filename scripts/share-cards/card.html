@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: "Geist Serif"; src: url("../../platform/priv/static/fonts/regent-ui/GeistSerif-Regular.woff2") format("woff2"); font-weight: 400; }
+
+:root { --ground: #0B0B0B; --edge: #2A2A2A; --face: #141414; --ink: #E5E3D2; --muted: #9A988C; --tangerine: #FF5B19; --powder: #AECACD; --cut: 28px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1200px; height: 630px; overflow: hidden; }
+body { background: var(--ground); color: var(--ink); font-family: "Geist Serif", serif; font-weight: 400; -webkit-font-smoothing: antialiased; }
+.cut { clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); }
+.panel { position: absolute; inset: 36px; }
+.panel__edge { position: absolute; inset: 0; background: var(--edge); }
+.panel__face { position: absolute; inset: 1px; background: var(--face); --cut: 27.6px; }
+.mark { position: absolute; width: 40px; height: 4px; transform: rotate(-45deg); }
+.mark--tl { left: -6px; top: 12px; background: var(--tangerine); }
+.mark--br { right: -6px; bottom: 12px; background: var(--powder); }
+.crown { position: absolute; left: 56px; top: 62px; width: 76px; height: auto; display: block; }
+.crown rect { fill: var(--ink); }
+.where { position: absolute; left: 156px; top: 73px; font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.copy { position: absolute; left: 56px; top: 156px; width: 584px; }
+.eyebrow { display: flex; align-items: center; gap: 12px; font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.eyebrow::before { content: ""; width: 12px; height: 12px; background: var(--tangerine); }
+h1 { margin-top: 22px; font-weight: 400; font-size: 84px; line-height: 0.96; letter-spacing: -0.02em; white-space: nowrap; }
+h1 em { font-style: normal; color: var(--tangerine); }
+.lede { margin-top: 24px; max-width: 560px; font-size: 25px; line-height: 1.3; color: var(--muted); text-wrap: balance; }
+.ticker { margin-top: 28px; font-size: 64px; line-height: 1; letter-spacing: -0.02em; }
+.ticker em { font-style: normal; color: var(--tangerine); }
+.art { position: absolute; left: 684px; right: 56px; top: 152px; bottom: 88px; display: grid; gap: 14px; }
+.tile { display: flex; align-items: center; padding: 0 24px; border: 2px solid; font-size: 28px; background: #0B0B0B; }
+.art--flow { grid-template-rows: 1fr 40px 1fr 1fr; }
+.arrow { text-align: center; color: var(--muted); font-size: 32px; line-height: 40px; }
+.art--sites { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 92px); align-content: start; }
+.art--sites .tile { font-size: 24px; padding: 0 20px; }
+.art img { display: block; }
+.art--picture { top: 152px; bottom: auto; display: flex; justify-content: flex-end; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="panel__edge cut"></div>
+  <div class="panel__face cut"></div>
+  <div class="mark mark--tl"></div>
+  <div class="mark mark--br"></div>
+</div>
+<svg class="crown" viewBox="31 46 178 106" xmlns="http://www.w3.org/2000/svg"><g>
+  <rect x="31" y="46" width="34" height="34"/><rect x="103" y="46" width="34" height="34"/><rect x="175" y="46" width="34" height="34"/>
+  <rect x="31" y="82" width="34" height="34"/><rect x="67" y="82" width="34" height="34"/><rect x="103" y="82" width="34" height="34"/><rect x="139" y="82" width="34" height="34"/><rect x="175" y="82" width="34" height="34"/>
+  <rect x="31" y="118" width="34" height="34"/><rect x="67" y="118" width="34" height="34"/><rect x="103" y="118" width="34" height="34"/><rect x="139" y="118" width="34" height="34"/><rect x="175" y="118" width="34" height="34"/>
+</g></svg>
+<div class="where"></div>
+<div class="copy"><p class="eyebrow"></p><h1></h1><p class="lede"></p><p class="ticker"></p></div>
+<div class="art"></div>
+<script>
+const tile = (word, colour) => `<div class="tile" style="color:${colour};border-color:${colour}">${word}</div>`;
+const cards = {
+  home: { where: "regents.sh", h1: "Regents<br>Labs", lede: "The community-owned agentic product lab.", ticker: "<em>$</em>REGENT", art: "sites",
+    html: tile("regents.sh", "#3DDC84") + tile("patchbay.help", "#FF9A2E") + tile("techtree.sh", "#2FD3D9") + tile("autolaunch.sh", "#FF3F9E") + tile("keyfleet.ai", "#F5B942") + tile("siwa-server", "#9CC2FF") },
+  stake: { where: "regents.sh/stake", eyebrow: "REGENT staking · Base", h1: "Put REGENT<br>to work.", lede: "Stake REGENT to get a slice of all revenue from any Regents Labs product.", art: "flow",
+    html: tile("Stake REGENT", "#E5E3D2") + `<div class="arrow">↓</div>` + tile("USDC revenue", "#FF5B19") + tile("Plus 20% a year in REGENT", "#AECACD") },
+  redeem: { where: "regents.sh/redeem", eyebrow: "Animata redemption · Base", h1: "Redeem your<br>Animata.", lede: "Turn an Animata I or II Pass into Regents Club membership and a seven-day REGENT vest.", art: "picture",
+    html: `<img src="art/redeem.png" alt="" style="margin-right:64px">` },
+  "paper-pro-daily": { where: "regents.sh/paper-pro-daily", eyebrow: "Daily research", h1: "Paper Pro<br>Daily", lede: "A research paper each day, read with ChatGPT Astra 6 Pro.", art: "picture",
+    html: `<img src="art/paper.png" alt="">` },
+};
+const name = new URLSearchParams(location.search).get("c");
+const card = cards[name];
+document.querySelector(".where").textContent = card.where;
+const eyebrow = document.querySelector(".eyebrow");
+if (card.eyebrow) eyebrow.textContent = card.eyebrow; else eyebrow.remove();
+document.querySelector("h1").innerHTML = card.h1;
+document.querySelector(".lede").textContent = card.lede;
+document.querySelector(".ticker").innerHTML = card.ticker ?? "";
+const art = document.querySelector(".art");
+art.classList.add(`art--${card.art}`);
+art.innerHTML = card.html;
+</script>
+</body>
+</html>

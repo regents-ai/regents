@@ -64,7 +64,6 @@
   background: color-mix(in srgb, var(--palette-tangerine-tango) 12%, var(--color-surface));
   color: color-mix(in srgb, var(--palette-tangerine-tango) 55%, var(--color-fg));
   font-size: 0.875rem;
-  font-weight: 600;
 }
 
 .stake-kicker,
@@ -221,7 +220,7 @@
 }
 
 .stake-benefit-supply dd {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.9rem;
   letter-spacing: 0;
 }
@@ -269,7 +268,7 @@
   padding: 0.4rem 0.65rem;
   border: 1px solid var(--ash-line-strong);
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
 }
 
@@ -320,7 +319,7 @@
   place-items: center;
   border: 1px solid var(--ash-line-strong);
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.74rem;
 }
 

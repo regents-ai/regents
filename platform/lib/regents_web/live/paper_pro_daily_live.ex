@@ -45,7 +45,7 @@ defmodule RegentsWeb.PaperProDailyLive do
               aria-controls="paper-daily-prompt-dialog"
               phx-click={JS.dispatch("regents:open", to: "#paper-daily-prompt-dialog")}
             >
-              View Prompt to ChatGPT Pro for Paper Analysis
+              View Prompt
             </Regent.Primitives.button>
           </div>
         </header>

@@ -88,7 +88,6 @@
 }
 
 .docs-brand__name {
-  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -180,7 +179,6 @@
 
 .docs-search__results strong {
   display: block;
-  font-weight: 600;
 }
 
 .docs-search__results span {
@@ -281,7 +279,6 @@
 .docs-tabs a[aria-current] {
   border-bottom-color: var(--color-fg);
   color: var(--color-fg);
-  font-weight: 600;
 }
 
 /* Sidebar, page and "On this page" */
@@ -320,7 +317,6 @@
   justify-content: space-between;
   min-height: 2.5rem;
   padding-inline: var(--space-1);
-  font-weight: 600;
   cursor: pointer;
   list-style: none;
 }
@@ -366,7 +362,6 @@
 .docs-nav li a[aria-current="page"] {
   border-inline-start-color: var(--color-fg);
   color: var(--color-fg);
-  font-weight: 600;
 }
 
 .docs-nav__foot {
@@ -460,7 +455,6 @@
 .docs-toc__title {
   margin: 0 0 var(--space-1);
   font-size: 0.6875rem;
-  font-weight: 600;
   letter-spacing: var(--tracking-microlabel, 0.16em);
   text-transform: uppercase;
 }
@@ -503,7 +497,6 @@
 .docs-prose h2,
 .docs-prose h3 {
   font-family: var(--font-family-ui);
-  font-weight: 600;
   scroll-margin-top: calc(var(--docs-stuck) + var(--space-2));
 }
 
@@ -598,7 +591,6 @@
 
 .docs-table th {
   background: var(--color-surface);
-  font-weight: 600;
 }
 
 .docs-table td:first-child {
@@ -619,7 +611,6 @@
   gap: 0.15rem;
   padding: var(--space-2);
   border: 1px solid var(--docs-rule);
-  font-weight: 600;
   text-decoration: none;
 }
 
@@ -662,7 +653,6 @@
     justify-content: space-between;
     min-height: 2.75rem;
     padding-inline: var(--space-2);
-    font-weight: 600;
     cursor: pointer;
     list-style: none;
   }

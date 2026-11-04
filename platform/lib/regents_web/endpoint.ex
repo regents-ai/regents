@@ -53,10 +53,12 @@ defmodule RegentsWeb.Endpoint do
   plug RegentsWeb.VisitLog
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
-  # Every answer, including the Markdown and refusals the next plugs give before
-  # the router, lets browser agents use the tools this site's pages register and
-  # carries the origin-trial token, so Chrome knows it before reading `tools`.
-  plug :allow_page_tools
+  # Every answer, including the Markdown, refusals and missing pages the next plugs
+  # give before the router, runs under the reading policy, lets browser agents use
+  # the tools this site's pages register and carries the origin-trial token, so
+  # Chrome knows it before reading `tools`. A route that sets a wider policy, as the
+  # sign-in pages do, replaces it.
+  plug :secure_every_answer
 
   # One budget per client address, shared by the health check, the browser's visit
   # reports and every /api path, answered or not; pairing counts against its own
@@ -88,10 +90,14 @@ defmodule RegentsWeb.Endpoint do
   plug RegentsWeb.Plugs.RuntimeSession
   plug RegentsWeb.Router
 
-  defp allow_page_tools(conn, _opts) do
-    conn
-    |> Plug.Conn.put_resp_header("permissions-policy", "tools=(self)")
-    |> Plug.Conn.put_resp_header("origin-trial", @webmcp_origin_trial)
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
+  defp secure_every_answer(conn, _opts) do
+    Phoenix.Controller.put_secure_browser_headers(conn, %{
+      "content-security-policy" => RegentsWeb.ContentSecurityPolicy.reading(),
+      "permissions-policy" => "tools=(self)",
+      "origin-trial" => @webmcp_origin_trial
+    })
   end
 
   defp limit_rate(%Plug.Conn{path_info: ["healthz"]} = conn, _opts),

@@ -1,3 +1,7 @@
+## 2026-11-04
+
+All type on the site is now Geist Serif, with Geist Mono for code. The share pictures are redrawn to match, and the staking picture uses the new sentence.
+
 ## 2026-11-02
 
 Signed browser tools take only their input. Your agent's browser host signs each call's exact request with your own agent key, and the page sends those same bytes; `prepare_agent_request` and the `input`, `request` and `proof` arguments are gone. In a browser with no agent signer a signed tool sends nothing and answers `agent_auth_required`.

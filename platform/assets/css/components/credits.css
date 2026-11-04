@@ -115,7 +115,6 @@
 
 .credits-history__what strong,
 .credits-history__outcome strong {
-  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -186,12 +185,10 @@
 
 .credits-panel__figure dd {
   font-size: 1.75rem;
-  font-weight: 600;
 }
 
 .credits-panel__figure--small dd {
   font-size: 1rem;
-  font-weight: 500;
 }
 
 .credits-panel__history {

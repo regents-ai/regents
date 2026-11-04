@@ -103,7 +103,7 @@ test("product headings use canonical Pixel Square", async ({page}) => {
     await page
       .locator("#staking-page-heading")
       .evaluate(element => getComputedStyle(element).fontFamily),
-  ).toContain("Geist Pixel Square")
+  ).toContain("Geist Serif")
 })
 
 test("all approved routes render within their page budget", async ({page, request}) => {
@@ -137,7 +137,7 @@ test("the public homepage presents the product hero", async ({page}) => {
       elements.map(element => element.querySelector("h3")!.textContent!.trim()),
     ),
   ).toEqual(["Autolaunch", "Techtree", "Patchbay", "Keyfleet", "Staking", "Regents on X"])
-  expect(await page.evaluate(() => document.fonts.check('16px "Geist Pixel Square"'))).toBe(true)
+  expect(await page.evaluate(() => document.fonts.check('16px "Geist Serif"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })

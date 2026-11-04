@@ -227,7 +227,7 @@
 
 .regent-ops-wallet {
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
 }
 
 .regent-ops-metric {
