@@ -1,6 +1,7 @@
 defmodule RegentsWeb.PaperProDailyLiveTest do
   use RegentsWeb.ConnCase, async: false
 
+  import ExUnit.CaptureIO
   import Regents.PaperProDailyFixtures
 
   alias RegentsWeb.PaperProDaily.Feed
@@ -24,6 +25,46 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     refute has_element?(view, "#days-#{future.date}")
     refute html =~ future.title
     refute html =~ future.answer
+  end
+
+  @tag :tmp_dir
+  test "put-paper saves inside the running site and the page shows the paper at once",
+       %{conn: conn, tmp_dir: tmp_dir} do
+    today = Date.utc_today()
+    paper_fixture!(today)
+    get(conn, "/paper-pro-daily")
+
+    files = Path.join(tmp_dir, "a paper's files")
+    File.mkdir_p!(files)
+    File.write!(Path.join(files, "cover.png"), picture())
+
+    File.write!(Path.join(files, "#{today}.md"), """
+    ---
+    title: Two Files Paper
+    arxiv_url: https://arxiv.org/abs/2610.04075
+    chatgpt_url: https://chatgpt.com/share/put-paper-two-files
+    author: Test author
+    picture_alt: Cover
+    ---
+    Two files answer.
+    """)
+
+    assert put_paper(tmp_dir, files, ["#{today}.md", "cover.png"]) =~ ~s("Two Files Paper" saved.)
+    assert conn |> get("/paper-pro-daily") |> html_response(200) =~ "Two Files Paper"
+
+    File.write!(Path.join(files, "paper.md"), """
+    ---
+    title: Folder Paper
+    date: #{Calendar.strftime(today, "%m-%d-%Y")}
+    paper_url: https://arxiv.org/abs/2610.04076
+    chatgpt_url: https://chatgpt.com/share/put-paper-folder
+    chatgpt_model: Test author
+    ---
+    Folder answer.
+    """)
+
+    assert put_paper(tmp_dir, tmp_dir, ["a paper's files"]) =~ ~s("Folder Paper" saved.)
+    assert conn |> get("/paper-pro-daily") |> html_response(200) =~ "Folder Paper"
   end
 
   test "midnight refresh updates an open feed and resets pagination coherently", %{conn: conn} do
@@ -211,5 +252,31 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
 
     on_exit(fn -> :telemetry.detach(id) end)
     fn -> reads |> Agent.get(& &1) |> Enum.reverse() end
+  end
+
+  # Runs the shipped command with a stand-in for `bin/regents` that records its
+  # arguments, then evaluates the recorded call here, from another folder, as the
+  # running site would.
+  defp put_paper(tmp_dir, folder, arguments) do
+    bin = Path.join(tmp_dir, "bin")
+    command = Path.join(bin, "put-paper")
+    stand_in = Path.join(bin, "regents")
+
+    File.mkdir_p!(bin)
+    File.cp!(Path.expand("../../rel/overlays/bin/put-paper", __DIR__), command)
+
+    File.write!(stand_in, """
+    #!/bin/sh
+    printf '%s\\n' "$@" > "$(dirname "$0")/called"
+    """)
+
+    File.chmod!(stand_in, 0o755)
+
+    assert {_, 0} = System.cmd(command, arguments, cd: folder)
+
+    assert ["rpc", call] =
+             bin |> Path.join("called") |> File.read!() |> String.split("\n", trim: true)
+
+    capture_io(fn -> Code.eval_string(call) end)
   end
 end

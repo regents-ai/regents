@@ -85,12 +85,11 @@ defmodule Regents.Release do
     save_paper(Regents.PaperProDaily.PaperFile.read!(paper_path, picture_path))
   end
 
+  # `put-paper` calls this inside the running site, so the save uses the site's own
+  # database connections and clears what the page keeps in one step.
   defp save_paper(attributes) do
-    paper =
-      with_release_repo([], fn _repo ->
-        attributes
-        |> Regents.PaperProDaily.put_paper!(actor: %Regents.Actors.System{})
-      end)
+    paper = Regents.PaperProDaily.put_paper!(attributes, actor: %Regents.Actors.System{})
+    RegentsWeb.PaperProDaily.Feed.delete_all!()
 
     IO.puts("Paper Pro Daily #{paper.date}: \"#{paper.title}\" saved.")
   end

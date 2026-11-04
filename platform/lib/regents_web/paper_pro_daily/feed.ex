@@ -4,7 +4,9 @@ defmodule RegentsWeb.PaperProDaily.Feed do
   every open of the page, so a crowd of readers costs the database one read a
   minute, and a reader's first load and live connection cost one between them.
 
-  `put-paper` clears what is kept once it has saved, so a new paper shows at once.
+  `Regents.Release.put_paper` clears what is kept as it saves, so a new paper shows at
+  once. What is kept lives on one machine: regents.sh runs one, and a second machine
+  would show a new paper up to a minute later.
   Each reading is kept under the UTC day, so a day's papers appear as soon as that
   day begins.
   """
