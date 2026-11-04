@@ -4283,3 +4283,48 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Checked live after release: capabilities.json commit `00f94d3c`; `/`, `/about` and `/stake`
   show the new words and none of the old; `/`, `/docs`, `/stake`, `/about`, `/account` and
   `/healthz` all 200.
+
+## 2026-11-04 — Released v267 (packages to the template's list, sign-in libraries included)
+
+- Commit `908621cd`, image `main-908621cd2d46`, release v267, created 2026-11-04T04:42:46Z,
+  rollback v266 `00f94d3c`. No migration.
+- Major moved: uuid override 11.1.1 → 14.0.3.
+- Sign-in libraries, on the template's versions after Sean's sign-in there (TEMPLATE-SIGN-IN a):
+  Privy 3.49.1 → 3.51.1, viem 2.57.7 → 2.57.16, @solana/kit 8.5.0 → 8.6.0,
+  @solana-program/system 0.15.0 → 0.16.0, @solana-program/token 0.17.0 → 0.18.0.
+- Other npm: @types/node 26.6.5 → 26.6.6, vitest 5.0.5 → 5.1.0, ws 8.22.0 → 8.22.1,
+  axios 1.20.0 → 1.21.0, decode-uri-component 0.5.0 → 0.5.1, @modelcontextprotocol/server and
+  core 2.3.1 → 2.4.0, follow-redirects to 1.16.2; esbuild 0.25.4 → 0.28.2.
+- Platform Hex: ash_double_entry 1.0.19 → 1.1.1, ash_money 0.2.6 → 0.2.7, ex_money 6.2.1 → 6.3.0,
+  ex_money_sql 2.1.0 → 2.2.0, fine 0.1.6 → 0.2.0, floki 0.38.4 → 0.38.5, igniter 0.8.4 → 0.8.5,
+  lazy_html 0.1.13 → 0.1.14, localize 1.3.0 → 1.6.1, localize_sql 1.0.1 → 1.1.0,
+  mdex 0.14.2 → 0.14.6, mdex_native 0.2.12 → 0.3.1, rustler_precompiled 0.10.0 → 0.10.1,
+  sobelow 0.16.0 → 0.18.1, usage_rules 1.2.8 → 1.3.1, websock_adapter 0.6.0 → 0.7.0, every
+  elixir-utils library 64475364 → c4a78d22.
+- Identity: ash 3.37.0 → 3.37.2, ash_postgres 2.13.0 → 2.15.2 (closes EEF-CVE-2026-115627 and
+  115635), ash_sql 0.8.3 → 0.8.7, crux 0.1.4 → 0.1.5, jose 1.11.12 → 1.11.13, spark 2.7.8 → 2.7.9,
+  splode 0.3.2 → 0.3.3, regent_privy 64475364 → c4a78d22.
+- `inline_code_attributes: false` at the three MDEx callers, with a regression test, because
+  mdex 0.14.6 otherwise drops brace text straight after inline code.
+- Stopped, with the newest beside it: design-system 7a853f85 (4c7bbaa5 comes in the Geist
+  Serif release). Contract libraries stay at their pins because they are the frozen on-chain
+  record: forge-std v1.9.7 (v1.17.0), OpenZeppelin 5.6.1 (v5.7.0), Safe v1.4.1 (v1.5.0),
+  uerc20-factory v1.0.0 (v2.0.0), solady v0.1.26+13 (v0.1.26), solmate v6+ (v6),
+  v4-core v4.0.0+12 (v4.0.0); v4-periphery and permit2 have no newer tag checked.
+- Alerts: regents/154 fixed 04:35:55Z by this commit reaching main. regents/137-153, which
+  include 137, 140 and 141, are dismissed as not used, because cli/packages/verify-runtime/uv.lock
+  left main in 5307bf21. Open list read at 18:06Z: 0, so the push did not raise them again.
+- `npm audit --omit=dev`: 20 high remain, mostly old zod under Privy's packages, under
+  ZOD-OVERRIDE b at the time of this release. One zod (ZOD-WHOLE-TREE a) comes with Ecto 3.14.3.
+- make check, every part exit 0: server tests 610 (604 tests, 6 properties, 1 excluded), script
+  tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac), required fixes
+  against ash-template edc91001, command list, identity 16, contracts 454 forge tests with build
+  and format.
+- Checked live after release: capabilities.json commit `908621cd`; `/`, `/docs`, `/stake`,
+  `/about`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
+  `/docs/changes`, `/healthz` and `/api/v1/site-tools/autolaunch` all 200. In a real browser
+  `/account` shows Sign in and `/stake` shows the new sentence and its figures, no console errors.
+  Signed agent reads at 18:05Z as the Claude Code test agent 0x5ff2..d164: account, Credits
+  balance, Points and staking position all 200.
+- Not proven: a real Privy sign-in on regents.sh, which no agent can do. The release record was
+  written at 18:10Z because the session waited on a prompt after the release.
