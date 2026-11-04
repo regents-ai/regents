@@ -4269,3 +4269,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   (23:50Z 3 Nov), before anything reached Fly's machine; the second finished at 02:27Z.
 - Checked live after release: capabilities.json commit `bfe8d087`; `/stake` shows the new
   sentence and not the old; `/`, `/docs`, `/stake`, `/account` and `/healthz` all 200.
+
+## 2026-11-04 — Released v266 (staking words, ash_sql 0.8.7)
+
+- Commit `00f94d3c`, image `main-00f94d3c0de2`, release v266, rollback v265 `bfe8d087`.
+- The home page, About page and page summaries use Sean's staking sentence and keep the 20%
+  reward (his answer "2 a"). Hex retired ash_sql 0.8.4 for a security problem, which stops the
+  audit in precommit, so the platform moves to 0.8.7. No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- Checked live after release: capabilities.json commit `00f94d3c`; `/`, `/about` and `/stake`
+  show the new words and none of the old; `/`, `/docs`, `/stake`, `/about`, `/account` and
+  `/healthz` all 200.
