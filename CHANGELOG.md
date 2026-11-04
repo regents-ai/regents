@@ -4328,3 +4328,28 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   balance, Points and staking position all 200.
 - Not proven: a real Privy sign-in on regents.sh, which no agent can do. The release record was
   written at 18:10Z because the session waited on a prompt after the release.
+
+## 2026-11-04 — Released v268 (Ecto 3.14.3, one zod, Geist Serif, strict headers on every answer)
+
+- Commit `255a6ea4`, image `main-255a6ea43e15`, release v268, created 2026-11-04T19:15:44Z,
+  rollback v267 `908621cd`. No migration.
+- Moved, on template list commit `5cd1f0b6`: no majors. ecto 3.14.2 → 3.14.3 in both the platform
+  and identity locks (ecto_sql 3.14.0 already there), zod to one 4.6.7 across the tree by override,
+  design-system 7a853f85 → 4c7bbaa5. npm audit 20 high → 0.
+- Exposure to the zod alert was read as a text search of our own code, not a run of the affected
+  path. Dependabot alert 136 reads `fixed` at 19:11:08Z, on the push to main; open alerts 0.
+- Also in it: Geist Serif everywhere with two font files, the Contact page folded into About
+  (/contact answers 404), the template's strict headers on every answer including JSON and missing
+  pages, "View Prompt" so that button fits, redrawn share pictures.
+- Full `make check` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 19:02Z to 19:10Z: server 612
+  (6 properties, 606 tests, 1 excluded), scripts 252, browser 151 (headless Chromium; WebKit is not
+  run on the Mac), required fixes, identity 16, contracts 454.
+- Live: Fly shows v268 complete, capabilities.json commit 255a6ea4. /contact 404 with no Location.
+  /api/v1/health and a missing page both carry nosniff, CSP, referrer policy, HSTS and permissions
+  policy. Signed agent reads of account, Credits balance, Points and staking position all 200.
+  Privy's window opened from /account at 1280, 390 and 320, whole and readable, no page errors.
+  /, /stake, /paper-pro-daily, /about and /account at 1280, 390 and 320: Geist Serif, no sideways
+  scroll, no page errors.
+- Found by the live look at 320: "Copy Entire Page as Markdown" on /paper-pro-daily is cut at the
+  button's edge. Fixed in the paper links release, not this one.
+- Not proven: a real Privy sign-in on regents.sh, which no agent can do.
