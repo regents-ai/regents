@@ -4421,3 +4421,30 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   release.
 - Not proven: how each social site shows the preview, since none of them was posted to; the tags
   and pictures they read are what was checked. Previews still carry the site name in `og:site_name`.
+
+## 2026-11-04 — Released v272 (runtimes to latest: Elixir 1.20.5, Node 26.13.0, Debian trixie)
+
+- Commit `551cca5e`, image `main-551cca5e84ee`, release v272, created 2026-11-04T22:53:21Z,
+  rollback v271 `d15bc48c`. No migration.
+- Elixir 1.20.4 to 1.20.5, Node 26.12.0 to 26.13.0, Hex 2.5.1 to 2.6.0, rebar3 3.25.1 to 3.28.0,
+  every base image from Debian bookworm to trixie-20261027, and gcc 15.2.0 to 16.2.0-trixie,
+  sha256:07280eb2e744f1b7a2d8d4a3894c089ea07266c109758afc388a634bd098e4eb. The image, Hex and
+  rebar3 lines match the template's v175 `ff1eb3c3` exactly. Erlang stays 29.1.2 and Postgres
+  stays 17.7.
+- Full `make check` on `551cca5e` exit 0 under `caffeinate -i -s`, Hex 2.6.0, Elixir 1.20.5,
+  Node 26.13.0, 22:38Z to 22:48Z: server 622 (7 properties, 615 tests, 1 excluded), scripts 252,
+  browser 151 (WebKit not run), required fixes ash-template `56e59b64`, identity 16, contracts 454.
+- First boot on trixie: machine started 22:53:38Z, the web server was listening at 22:53:43Z, and
+  the machine took traffic at 22:53:50Z, 12 seconds after starting. One failed health check at
+  22:53:39Z came before the server was up. No sctp or encoding warning on the boot log.
+- Live: Fly shows v272 complete, capabilities.json commit 551cca5e. `/contact` 404 with no
+  redirect. The five strict headers on `/api/v1/health` and on a missing page. Privy's window
+  opens from `/account` at 1280, 390 and 320, looked at. Signed agent reads answer 200: account,
+  credits balance, Points, staking position; seven-day USDC 605.522156 from block 53219227.
+- The picture library on trixie: two pictures fetched from their pages' own tags and looked at,
+  the paper `b879e39c` and the feed, both real Geist Serif at 1200 by 630.
+- Paper page: Copy Page fits, Share copies `https://regents.sh/paper-pro-daily/b879e39c`, the
+  short address opens the paper, the old long link lands at the top, an unknown address is 404, no
+  page errors at 1280, 390 and 320. Geist fonts and no sideways scroll on `/`, `/stake`,
+  `/account`, `/paper-pro-daily` and `/docs` at those widths.
+- Not proven: real Privy sign-in, how social sites draw a pasted link, WebKit.
