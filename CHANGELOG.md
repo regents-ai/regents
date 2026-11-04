@@ -4353,3 +4353,21 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Found by the live look at 320: "Copy Entire Page as Markdown" on /paper-pro-daily is cut at the
   button's edge. Fixed in the paper links release, not this one.
 - Not proven: a real Privy sign-in on regents.sh, which no agent can do.
+
+## 2026-11-04 — Released v269 (seven-day USDC figure by each block's own time)
+
+- Commit `068e7fc4` (the fix is `eb7db55e`, merged onto main), image `main-068e7fc4025a`, release
+  v269, created 2026-11-04T19:30:19Z, rollback v268 `255a6ea4`. No migration. No package moved.
+- Ships before Base Denim activates on 5 Nov 18:00Z, when blocks go to five a second. The window's
+  first block now comes from the chain's own timestamps, and the newest minute of recorded blocks
+  (300) is replaced on each pass.
+- Full `make check` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 19:19Z to 19:27Z: server 619
+  (7 properties, 612 tests, 1 excluded), scripts 252, browser 151 (headless Chromium; WebKit is not
+  run on the Mac), required fixes, identity 16, contracts 454.
+- Live: Fly shows v269 complete, capabilities.json commit 068e7fc4. /stake reads 605.522156 USDC
+  for the last seven days, the same as just before the release, as it should be while blocks are
+  still two seconds apart. Signed staking read: from-block 53213827, head 53516226, 302,400 blocks.
+  Read from mainnet.base.org: block 53213827 is stamped 1793217001, the block before it 1793216999,
+  and the cut-off is 1793216999, so the first block is the first one inside the seven days.
+- Not proven: the figure at five blocks a second on the real chain, which starts only at
+  activation. The tests cover that spacing. Read it again after 5 Nov 18:00Z.
