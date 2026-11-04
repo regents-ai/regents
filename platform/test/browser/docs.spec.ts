@@ -21,6 +21,15 @@ test("[DOCS] search finds a topic and opens it at its heading", async ({page}) =
   await expect(page.locator("#docs-search-results")).toBeHidden()
 })
 
+test("[DOCS] Copy Page on the papers page copies the whole page, fetched when pressed", async ({page, context}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.goto("/paper-pro-daily")
+
+  await page.getByRole("button", {name: "Copy Page"}).click()
+  await expect(page.locator("#paper-daily-copy-page")).toHaveAttribute("data-copy-state", "copied")
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^# Paper Pro Daily\n/)
+})
+
 test("[DOCS] Copy for LLM and View as Markdown give the page's Markdown", async ({page, context}) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
   await page.setViewportSize({width: 1280, height: 900})

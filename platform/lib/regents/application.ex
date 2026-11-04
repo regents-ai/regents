@@ -25,6 +25,8 @@ defmodule Regents.Application do
         # Each paired agent's reading from the sign-in service, kept five minutes
         # and shared by the account menu and the Agents page.
         Regents.Agents.ActivityReading,
+        # What the papers page shows, kept a minute and shared by every open of it.
+        RegentsWeb.PaperProDaily.Feed,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Agents.Reads},
         database_child(),

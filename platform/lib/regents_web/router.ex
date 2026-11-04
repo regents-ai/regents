@@ -127,6 +127,7 @@ defmodule RegentsWeb.Router do
     get "/skill.md", PublicPagesController, :skill
     get "/llms.txt", PublicPagesController, :llms
     get "/.well-known/security.txt", PublicPagesController, :security
+    get "/paper-pro-daily.md", PaperPageController, :show
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
     get "/paper-pro-daily/share.png", PaperPictureController, :page_share
     get "/paper-pro-daily/:paper/share.png", PaperPictureController, :paper_share

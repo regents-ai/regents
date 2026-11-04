@@ -3,6 +3,13 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
 
   import Regents.PaperProDailyFixtures
 
+  alias RegentsWeb.PaperProDaily.Feed
+
+  setup do
+    Feed.delete_all!()
+    :ok
+  end
+
   test "future content is absent from static HTML and the connected page", %{conn: conn} do
     today = paper_fixture!(Date.utc_today())
     future = paper_fixture!(Date.add(today.date, 1), %{title: "Unreleased secret title"})
@@ -31,6 +38,8 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     # Exercise the timer handler without sleeping or changing the host clock.
     # The exact clock boundary is covered by PaperProDailyTest.
     current = paper_fixture!(today)
+    # A real midnight starts a new day's readings.
+    Feed.delete_all!()
     send(view.pid, :publication_midnight)
 
     assert has_element?(view, "#days-#{current.date}")
@@ -45,6 +54,44 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
 
     refute has_element?(view, "#paper-daily-more")
     refute render(view) =~ future.answer
+  end
+
+  test "one open reads only what it shows, and a crowd of opens shares it", %{conn: conn} do
+    today = Date.utc_today()
+    shown = paper_fixture!(today)
+    Enum.each(1..5, &paper_fixture!(Date.add(today, -&1)))
+
+    later =
+      paper_fixture!(Date.add(today, -6), %{answer: "An answer from further down the page."})
+
+    Feed.delete_all!()
+
+    papers_reads = count_papers_reads()
+
+    {:ok, _view, html} = live(conn, "/paper-pro-daily")
+    assert html =~ shown.title
+    refute html =~ later.answer
+    assert length(papers_reads.()) == 2
+
+    refute conn |> get("/paper-pro-daily") |> html_response(200) =~ later.answer
+    assert [outline, days] = papers_reads.()
+    refute outline =~ "answer"
+    assert days =~ "answer"
+  end
+
+  test "the whole page is one Markdown address, without scheduled papers", %{conn: conn} do
+    today = Date.utc_today()
+
+    older =
+      paper_fixture!(Date.add(today, -6), %{answer: "An answer from further down the page."})
+
+    future = paper_fixture!(Date.add(today, 1), %{title: "Unreleased secret title"})
+
+    conn = get(conn, "/paper-pro-daily.md")
+
+    assert response_content_type(conn, :markdown) =~ "text/markdown"
+    assert conn.resp_body =~ older.answer
+    refute conn.resp_body =~ future.title
   end
 
   test "each paper shares a link that opens it, even on a later day behind another paper", %{
@@ -145,5 +192,24 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     response = get(conn, "/paper-pro-daily/pictures/#{current.id}")
     assert response(response, 200) == current.picture
     assert get_resp_header(response, "content-type") == ["image/png"]
+  end
+
+  # The queries that read the papers table from now on, whichever process ran them.
+  defp count_papers_reads do
+    {:ok, reads} = Agent.start_link(fn -> [] end)
+    id = {__MODULE__, make_ref()}
+
+    :telemetry.attach(
+      id,
+      [:regents, :repo, :query],
+      fn _event, _measurements, %{query: query}, _config ->
+        if query =~ ~s("paper_pro_daily_papers"),
+          do: Agent.update(reads, &[query | &1])
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(id) end)
+    fn -> reads |> Agent.get(& &1) |> Enum.reverse() end
   end
 end
