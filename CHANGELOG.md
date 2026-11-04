@@ -4255,3 +4255,17 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `site_unreachable` before; `/api/v1/site-tools` names no unreachable site; `/`, `/docs`,
   `/stake`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
   `/docs/changes` and `/healthz` all 200.
+
+## 2026-11-04 — Released v265 (stake page sentence)
+
+- Commit `bfe8d087`, image `main-bfe8d0878843`, release v265, rollback v264 `fe7bd1a0`.
+- The opening sentence on `/stake` is Sean's: "Stake REGENT to get a slice of all revenue
+  from any Regents Labs product." No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- The first release attempt was stopped from outside about a minute into its image build
+  (23:50Z 3 Nov), before anything reached Fly's machine; the second finished at 02:27Z.
+- Checked live after release: capabilities.json commit `bfe8d087`; `/stake` shows the new
+  sentence and not the old; `/`, `/docs`, `/stake`, `/account` and `/healthz` all 200.
