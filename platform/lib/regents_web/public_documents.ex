@@ -54,7 +54,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/stake" =>
       {"Stake REGENT",
-       "Stake REGENT on Base to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."},
+       "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now."},
     "/redeem" =>
       {"Redeem Animata",
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
@@ -272,7 +272,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/stake"),
     do:
-      "Put REGENT to work: stake REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT"
+      "Put REGENT to work: stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT"
 
   defp share_image_alt("/redeem"),
     do:
