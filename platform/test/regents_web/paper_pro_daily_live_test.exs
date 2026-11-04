@@ -93,11 +93,12 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
                "Daily Research Papers Reviewed by ChatGPT Pro · A. Writer, B. Reader, C. Author et al."
              ]
 
-    assert content.("og:image") == [
-             "#{RegentsWeb.Endpoint.url()}/paper-pro-daily/#{anchor}/share.png"
-           ]
+    build = Application.fetch_env!(:regents, :build).commit
 
-    card = get(conn, "/paper-pro-daily/#{anchor}/share.png")
+    assert [image] = content.("og:image")
+    assert image == "#{RegentsWeb.Endpoint.url()}/paper-pro-daily/#{anchor}/share.png?v=#{build}"
+
+    card = get(conn, image)
     assert <<0x89, "PNG", _::binary>> = response(card, 200)
     {:ok, picture} = Vix.Vips.Image.new_from_buffer(card.resp_body)
     assert {Vix.Vips.Image.width(picture), Vix.Vips.Image.height(picture)} == {1200, 630}

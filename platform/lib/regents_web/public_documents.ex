@@ -246,7 +246,7 @@ defmodule RegentsWeb.PublicDocuments do
       suffix: "",
       description: description,
       canonical: url(path),
-      image: url(path <> "/share.png"),
+      image: paper_share_image(path),
       image_size: {1200, 630},
       image_alt: title,
       markdown?: false
@@ -276,8 +276,13 @@ defmodule RegentsWeb.PublicDocuments do
     "/redeem" => "redeem"
   }
 
-  defp share_image("/paper-pro-daily"), do: url("/paper-pro-daily/share.png")
+  defp share_image("/paper-pro-daily" = path), do: paper_share_image(path)
   defp share_image(path), do: url(RegentsWeb.Endpoint.static_path(static_share_image(path)))
+
+  # The address names the build, so a new picture reaches anyone holding the last one.
+  defp paper_share_image(path) do
+    url("#{path}/share.png?v=#{Application.fetch_env!(:regents, :build).commit}")
+  end
 
   defp static_share_image("/literature"), do: "/images/literature/share.png"
 
