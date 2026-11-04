@@ -33,6 +33,7 @@ defmodule RegentsWeb.PublicDocuments do
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.PaperProDaily.Reading
 
+  @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
   @site_name "Regents Labs"
   @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
@@ -128,7 +129,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
     "/articles" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
-    "/paper-pro-daily" => {"Paper Pro Daily", Reading.share_heading()},
+    "/paper-pro-daily" => {"Paper Pro Daily", @paper_share_heading},
     "/literature" =>
       {"Literature",
        "Science-fiction books about artificial minds, placed by how hopeful each is for humanity and for the minds themselves."},
@@ -156,6 +157,9 @@ defmodule RegentsWeb.PublicDocuments do
   ]
 
   def url(path), do: RegentsWeb.Endpoint.url() <> path
+
+  @doc "The line above every shared paper."
+  def paper_share_heading, do: @paper_share_heading
 
   def document("/"), do: %{markdown: RegentsWeb.HomeLive.agent_markdown()}
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
@@ -189,7 +193,7 @@ defmodule RegentsWeb.PublicDocuments do
       page_title: paper.title,
       page_description:
         Enum.join(
-          Enum.reject([Reading.share_heading(), Reading.byline(paper)], &(&1 == "")),
+          Enum.reject([@paper_share_heading, Reading.byline(paper)], &(&1 == "")),
           " · "
         )
     ]
@@ -295,7 +299,7 @@ defmodule RegentsWeb.PublicDocuments do
     do:
       "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
 
-  defp share_image_alt("/paper-pro-daily"), do: Reading.share_heading()
+  defp share_image_alt("/paper-pro-daily"), do: @paper_share_heading
 
   defp share_image_alt("/stake"),
     do:

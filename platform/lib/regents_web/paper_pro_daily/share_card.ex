@@ -2,6 +2,7 @@ defmodule RegentsWeb.PaperProDaily.ShareCard do
   @moduledoc "The pictures shown when Paper Pro Daily or one of its papers is shared."
 
   alias RegentsWeb.PaperProDaily.Reading
+  alias RegentsWeb.PublicDocuments
   alias Vix.Vips.{Image, Operation}
 
   @width 1200
@@ -24,7 +25,7 @@ defmodule RegentsWeb.PaperProDaily.ShareCard do
 
   @doc "The feed's picture: its heading alone."
   def page do
-    picture = title(Reading.share_heading())
+    picture = title(PublicDocuments.paper_share_heading())
 
     ground()
     |> place(picture, div(@height - Image.height(picture), 2))
@@ -35,7 +36,7 @@ defmodule RegentsWeb.PaperProDaily.ShareCard do
   def paper(paper) do
     card =
       ground()
-      |> place(line(Reading.share_heading(), @muted), @margin)
+      |> place(line(PublicDocuments.paper_share_heading(), @muted), @margin)
       |> place(title(paper.title), 150)
 
     case Reading.byline(paper) do

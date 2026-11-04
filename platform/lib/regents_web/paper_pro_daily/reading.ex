@@ -10,9 +10,6 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   @doc "The full address that opens this paper on its page."
   def url(paper), do: RegentsWeb.PublicDocuments.url("/paper-pro-daily/#{anchor(paper)}")
 
-  @doc "The line above every shared paper."
-  def share_heading, do: "Daily Research Papers Reviewed by ChatGPT Pro"
-
   @doc "A paper's authors for a shared link: all of up to three, or the first three."
   def byline(%{authors: [first, second, third, _fourth | _rest]}),
     do: Enum.join([first, second, third], ", ") <> " et al."
