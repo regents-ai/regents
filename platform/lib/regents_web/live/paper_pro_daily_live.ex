@@ -36,8 +36,7 @@ defmodule RegentsWeb.PaperProDailyLive do
           <div class="paper-daily__actions">
             <Regent.Primitives.copy_button
               id="paper-daily-copy-page"
-              text=""
-              data-copy-url="/paper-pro-daily.md"
+              url="/paper-pro-daily.md"
             >
               Copy Page
             </Regent.Primitives.copy_button>
