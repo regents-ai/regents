@@ -1,3 +1,11 @@
+## 2026-11-05
+
+[Agents]({{origin}}/agents) has a page for each agent, with its setup, common questions and where to get help. Each page's skill is at `/agents/<agent>/skill.md`. These changes are also at [Changelog]({{origin}}/changelog).
+
+The documentation is also in JSON at `/api/v1/docs`, and `/.well-known/api-catalog` lists the API and its description. regents-cli 1.10.23 is current; install it with `uv tool install regents-cli==1.10.23`.
+
+A new paper on [Paper Pro Daily]({{origin}}/paper-pro-daily) shows as soon as it is saved.
+
 ## 2026-11-04
 
 All type on the site is now Geist Serif, with Geist Mono for code. The share pictures are redrawn to match, and the staking picture uses the new sentence.

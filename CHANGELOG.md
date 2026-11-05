@@ -4448,3 +4448,34 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   page errors at 1280, 390 and 320. Geist fonts and no sideways scroll on `/`, `/stake`,
   `/account`, `/paper-pro-daily` and `/docs` at those widths.
 - Not proven: real Privy sign-in, how social sites draw a pasted link, WebKit.
+
+## 2026-11-05 — Released v273 (papers page crash fix) and v274 (shared update)
+
+- v273: commit `8613a2ed`, image `main-8613a2ed07a4`, created 2026-11-05T03:26:08Z, rollback v272
+  `551cca5e`. No migration. The papers page reads only what it shows, kept for one minute; Copy
+  Page reads its text when pressed; a saved paper shows at once; `put-paper` is one step on the
+  running site. Design-system pin `46e68fab`, which this fix needs. Full `make check` on `8613a2ed`
+  exit 0, ended 00:20:30Z: server 625, scripts 252, browser 152 (WebKit not run), identity 16,
+  contracts 454.
+- Crash 114, under Sean's decision 2a for that crash only, on `regents-sh-web`: read at 03:27:19Z
+  (five occurrences, all at 12:22:30Z on 4 Nov, connection queue on the paper list, and no other
+  unresolved error in the last day) and marked resolved at 03:27:27Z. That is the one change to
+  production data. No other production command was run.
+- v274: commit `9bfaf7d0`, image `main-9bfaf7d0c391`, created 2026-11-05T03:46:31Z, rollback v273
+  `8613a2ed`; v272 `551cca5e` also drops the crash fix. No migration. Elixir-utils `4e527975` with
+  crash saving kept on through `RegentHttp.ErrorSaving`, the pages `/agents`, `/agents/:agent` and
+  `/changelog`, `/.well-known/api-catalog`, `/api/v1/docs`, a three-item menu, regents-cli 1.10.23.
+  Full `make check` on `9bfaf7d0` exit 0, 00:58:41Z to 01:06:36Z: server 632, scripts 252, browser
+  152 (WebKit not run), identity 16, contracts 454, command description check ok.
+- Authority: Sean, 03:20:11Z 5 Nov, "deploys are automatic"; the orchestrator read this as covering
+  the re-pin wave and told this lane to release `9bfaf7d0` right after `8613a2ed`.
+- Live on v274: Fly shows v274 complete, capabilities.json commit `9bfaf7d0`. `/agents`, the agent
+  pages, `/changelog`, `/about`, `/docs`, `/api/v1/docs`, `/.well-known/api-catalog`, `/llms.txt`,
+  `/agents.md`, `/sitemap.xml` and `/stake` answer 200; `/agents/nobody` 404. `/agents.md` and
+  `/llms.txt` name 1.10.23. At 375 wide the menu holds one row with no sideways scroll. On
+  `/paper-pro-daily` nothing reads the page text until Copy Page is pressed, then one read in 52 ms.
+  Signed agent reads answer 200: account, credits balance, Points, staking position. Privy's window
+  opens from `/account` at 1280, 390 and 320. Server listening 03:46:54Z; one failed health check
+  at 03:46:48Z came before it was up.
+- Not proven: a real sign-in, the clipboard write on Copy Page in Safari and Firefox, crash saving
+  after a real failed save, `put-paper` on the machine until the next real paper.
