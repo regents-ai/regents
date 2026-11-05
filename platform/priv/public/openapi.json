@@ -115,6 +115,37 @@
         }
       }
     },
+    "/api/v1/docs": {
+      "get": {
+        "operationId": "getDocs",
+        "summary": "Read the developer documentation",
+        "description": "The developer documentation's title and its Markdown, the text GET /docs serves as Markdown. Anyone may read it; no sign-in.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The developer documentation",
+            "headers": {
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimitPolicy"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDocument"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/api/v1/products": {
       "get": {
         "operationId": "listProducts",
@@ -4648,6 +4679,23 @@
           "profile"
         ],
         "additionalProperties": false
+      },
+      "PublicDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "markdown"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string",
+            "description": "The page, as its Markdown address serves it."
+          }
+        }
       }
     },
     "parameters": {
