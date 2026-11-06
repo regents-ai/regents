@@ -4621,3 +4621,20 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `test/regents/points`, `test/regents/accounts`, the identity and shared-reading tests: 400
   passed (394 tests, 6 properties). New: `test/regents_web/points_page_test.exs` (the template's
   six checks) and `test/regents/shared_reading_test.exs`. Full `make check` waits a Mac slot.
+
+## 2026-11-06 — Released v277 (Points: the new page, one shared board, no Credits rule)
+
+- v277: commit `00465677`, image `main-00465677d20f`, created 2026-11-06T18:13:39Z, rollback v276
+  `ffebd135` (image `main-ffebd1352bd5`). Released under POINTS-GO a (Sean, 16:02Z, relayed by the
+  orchestrator); `starts_at` stays nil, so nothing earns and the 00:15Z tally queues nothing
+  (`RegentPoints.Rules.ended_periods/1` is `[]` without a start).
+- No migration and no resource snapshot change.
+- Full check on `00465677`, make exit 0: server tests 650 (643 tests, 7 properties, 1 excluded),
+  script tests 252, browser walk 156 in headless Chromium (WebKit not run on the Mac), required
+  fixes against ash-template main, command list, identity 16, contracts 454 forge tests. The first
+  run on `6c1f5312` stopped at credo (two alias orders), fixed in `00465677`.
+- Live read: `/capabilities.json` build commit `00465677`; `/account/points`, `/openapi.json`
+  (5.0.0, `AccountPoints` with `earned_yesterday`, `rank`, `to_do`, `daily_limits`, `leaderboard`),
+  `/agents.md`, `/docs/changes`, `/healthz` 200; an unsigned `GET /api/v1/account/points` answers
+  401. One machine, check passing.
+- Not proven: a real signed-in Points page and a real paired agent's answer on production, WebKit.
