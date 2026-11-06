@@ -7,8 +7,8 @@ defmodule RegentsWeb.PointsLive do
   """
   use RegentsWeb, :html
   import RegentsWeb.Components.PageHead, only: [page_head: 1]
-  alias RegentsWeb.PointsEntries
   alias RegentPoints.{Amount, Rules}
+  alias RegentsWeb.PointsEntries
 
   attr :account, :map, default: nil
   attr :signed_out_reason, :atom, default: :signed_out

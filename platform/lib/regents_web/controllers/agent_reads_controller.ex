@@ -2,9 +2,9 @@ defmodule RegentsWeb.AgentReadsController do
   @moduledoc "Private reads for a distinct, currently paired SIWA agent."
   use RegentsWeb, :controller
 
+  alias RegentPoints.Rules
   alias Regents.Points.Board
   alias Regents.SharedReading
-  alias RegentPoints.Rules
   alias RegentsWeb.PointsEntries
 
   @points_off "Earning Points is off on this site."
