@@ -1,5 +1,7 @@
 ## 2026-11-06
 
+regents-cli 1.10.24 is current; install it with `uv tool install regents-cli==1.10.24`. The agent guide, the pairing guide and the agent start page ask for it.
+
 Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone.
 
 [Points]({{origin}}/account/points) shows your total, what you earned today and yesterday, your place, the actions still open and a leaderboard by name or wallet. `GET /api/v1/account/points` answers the same: `points`, `earned_today`, `earned_yesterday`, `rank`, `to_do` (`label`, `repeats`, `points`, `done`, `left`, `today`), `daily_limits` (`name`, `limit`, `remaining`) and `leaderboard` (`rank`, `name`, `wallet`, `ens_name`, `points`, `you`; `name` is null when the person shows by their wallet), beside `entries` and `period_bonuses`. Points are decimal text, such as "12.5", and whole Points have no trailing ".00". A `note` says when earning is off. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.0.0.
