@@ -4499,3 +4499,21 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   and "Once paired, it starts at https://regents.sh/stake".
 - Not proven: the world cube's leave cross (needs the GPU cube; same x icon), WebKit, a real
   sign-in.
+
+## 2026-11-06 — Released v276 (one product order)
+
+- v276: commit `ffebd135`, image `main-ffebd1352bd5`, created 2026-11-06T16:57:57Z, rollback v275
+  `09530e96`. No migration, no pin change. Every list of the products reads Patchbay, Autolaunch,
+  Techtree, Keyfleet: the homepage tabs and worlds, Overview, the sidebar, `GET /api/v1/products`
+  and its slug list, the `regents_products` tool, the list of every site's tools and the docs.
+  OpenAPI JSON 4.0.3; the YAML contract has no product list and stays 4.0.2.
+- Full `make check` on `ffebd135` exit 0, 16:46:42Z to 16:55:28Z: server 634 (1 excluded), scripts
+  252, browser 156 (WebKit not run), identity 16, contracts 454. Log: the session scratchpad
+  `check-order-ffebd135.log`, last line `make exit 0`.
+- Authority: Sean "1. a", 6 Nov; HQ 16:46Z "Mac yours".
+- Live on v276: Fly shows v276 complete, capabilities.json commit `ffebd135`. `/api/v1/products`
+  answers patchbay, autolaunch, techtree, keyfleet; `/api/v1/site-tools` answers regents.sh,
+  patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai; `/openapi.json` is 4.0.3. At 390 wide
+  the homepage tabs and the `/app` sidebar read the new order with no sideways scroll.
+- Not proven: WebKit. The CLI's own `regents products` description still names the old order; the
+  CLI chief has the notice.
