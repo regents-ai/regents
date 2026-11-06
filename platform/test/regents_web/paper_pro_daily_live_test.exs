@@ -1,7 +1,15 @@
 defmodule RegentsWeb.PaperProDailyLiveTest do
   use RegentsWeb.ConnCase, async: false
 
+  import ExUnit.CaptureIO
   import Regents.PaperProDailyFixtures
+
+  alias RegentsWeb.PaperProDaily.Feed
+
+  setup do
+    Feed.delete_all!()
+    :ok
+  end
 
   test "future content is absent from static HTML and the connected page", %{conn: conn} do
     today = paper_fixture!(Date.utc_today())
@@ -19,6 +27,46 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     refute html =~ future.answer
   end
 
+  @tag :tmp_dir
+  test "put-paper saves inside the running site and the page shows the paper at once",
+       %{conn: conn, tmp_dir: tmp_dir} do
+    today = Date.utc_today()
+    paper_fixture!(today)
+    get(conn, "/paper-pro-daily")
+
+    files = Path.join(tmp_dir, "a paper's files")
+    File.mkdir_p!(files)
+    File.write!(Path.join(files, "cover.png"), picture())
+
+    File.write!(Path.join(files, "#{today}.md"), """
+    ---
+    title: Two Files Paper
+    arxiv_url: https://arxiv.org/abs/2610.04075
+    chatgpt_url: https://chatgpt.com/share/put-paper-two-files
+    author: Test author
+    picture_alt: Cover
+    ---
+    Two files answer.
+    """)
+
+    assert put_paper(tmp_dir, files, ["#{today}.md", "cover.png"]) =~ ~s("Two Files Paper" saved.)
+    assert conn |> get("/paper-pro-daily") |> html_response(200) =~ "Two Files Paper"
+
+    File.write!(Path.join(files, "paper.md"), """
+    ---
+    title: Folder Paper
+    date: #{Calendar.strftime(today, "%m-%d-%Y")}
+    paper_url: https://arxiv.org/abs/2610.04076
+    chatgpt_url: https://chatgpt.com/share/put-paper-folder
+    chatgpt_model: Test author
+    ---
+    Folder answer.
+    """)
+
+    assert put_paper(tmp_dir, tmp_dir, ["a paper's files"]) =~ ~s("Folder Paper" saved.)
+    assert conn |> get("/paper-pro-daily") |> html_response(200) =~ "Folder Paper"
+  end
+
   test "midnight refresh updates an open feed and resets pagination coherently", %{conn: conn} do
     today = Date.utc_today()
     older = Enum.map(1..7, &paper_fixture!(Date.add(today, -&1)))
@@ -31,6 +79,8 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     # Exercise the timer handler without sleeping or changing the host clock.
     # The exact clock boundary is covered by PaperProDailyTest.
     current = paper_fixture!(today)
+    # A real midnight starts a new day's readings.
+    Feed.delete_all!()
     send(view.pid, :publication_midnight)
 
     assert has_element?(view, "#days-#{current.date}")
@@ -45,6 +95,44 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
 
     refute has_element?(view, "#paper-daily-more")
     refute render(view) =~ future.answer
+  end
+
+  test "one open reads only what it shows, and a crowd of opens shares it", %{conn: conn} do
+    today = Date.utc_today()
+    shown = paper_fixture!(today)
+    Enum.each(1..5, &paper_fixture!(Date.add(today, -&1)))
+
+    later =
+      paper_fixture!(Date.add(today, -6), %{answer: "An answer from further down the page."})
+
+    Feed.delete_all!()
+
+    papers_reads = count_papers_reads()
+
+    {:ok, _view, html} = live(conn, "/paper-pro-daily")
+    assert html =~ shown.title
+    refute html =~ later.answer
+    assert length(papers_reads.()) == 2
+
+    refute conn |> get("/paper-pro-daily") |> html_response(200) =~ later.answer
+    assert [outline, days] = papers_reads.()
+    refute outline =~ "answer"
+    assert days =~ "answer"
+  end
+
+  test "the whole page is one Markdown address, without scheduled papers", %{conn: conn} do
+    today = Date.utc_today()
+
+    older =
+      paper_fixture!(Date.add(today, -6), %{answer: "An answer from further down the page."})
+
+    future = paper_fixture!(Date.add(today, 1), %{title: "Unreleased secret title"})
+
+    conn = get(conn, "/paper-pro-daily.md")
+
+    assert response_content_type(conn, :markdown) =~ "text/markdown"
+    assert conn.resp_body =~ older.answer
+    refute conn.resp_body =~ future.title
   end
 
   test "each paper shares a link that opens it, even on a later day behind another paper", %{
@@ -145,5 +233,50 @@ defmodule RegentsWeb.PaperProDailyLiveTest do
     response = get(conn, "/paper-pro-daily/pictures/#{current.id}")
     assert response(response, 200) == current.picture
     assert get_resp_header(response, "content-type") == ["image/png"]
+  end
+
+  # The queries that read the papers table from now on, whichever process ran them.
+  defp count_papers_reads do
+    {:ok, reads} = Agent.start_link(fn -> [] end)
+    id = {__MODULE__, make_ref()}
+
+    :telemetry.attach(
+      id,
+      [:regents, :repo, :query],
+      fn _event, _measurements, %{query: query}, _config ->
+        if query =~ ~s("paper_pro_daily_papers"),
+          do: Agent.update(reads, &[query | &1])
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(id) end)
+    fn -> reads |> Agent.get(& &1) |> Enum.reverse() end
+  end
+
+  # Runs the shipped command with a stand-in for `bin/regents` that records its
+  # arguments, then evaluates the recorded call here, from another folder, as the
+  # running site would.
+  defp put_paper(tmp_dir, folder, arguments) do
+    bin = Path.join(tmp_dir, "bin")
+    command = Path.join(bin, "put-paper")
+    stand_in = Path.join(bin, "regents")
+
+    File.mkdir_p!(bin)
+    File.cp!(Path.expand("../../rel/overlays/bin/put-paper", __DIR__), command)
+
+    File.write!(stand_in, """
+    #!/bin/sh
+    printf '%s\\n' "$@" > "$(dirname "$0")/called"
+    """)
+
+    File.chmod!(stand_in, 0o755)
+
+    assert {_, 0} = System.cmd(command, arguments, cd: folder)
+
+    assert ["rpc", call] =
+             bin |> Path.join("called") |> File.read!() |> String.split("\n", trim: true)
+
+    capture_io(fn -> Code.eval_string(call) end)
   end
 end

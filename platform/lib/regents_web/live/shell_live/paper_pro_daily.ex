@@ -11,7 +11,7 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
 
   alias Regents.PaperProDaily
   alias Regents.PaperProDaily.Publication
-  alias RegentsWeb.PaperProDaily.Reading
+  alias RegentsWeb.PaperProDaily.{Feed, Reading}
 
   @page_size 6
   @events ~w(load_more toggle_research_list)
@@ -74,14 +74,13 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
       days: [],
       shown: 0,
       more?: false,
-      page_markdown: "",
       research_list: []
     )
     |> stream(:days, [], reset: true)
   end
 
   defp refresh_papers(socket) do
-    papers = PaperProDaily.export_papers!()
+    papers = Feed.outline()
 
     socket
     |> assign(
@@ -89,7 +88,6 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
       days: papers |> Enum.map(& &1.date) |> Enum.dedup(),
       shown: 0,
       more?: false,
-      page_markdown: Reading.page_markdown(papers),
       research_list:
         Enum.map(papers, &%{title: &1.title, date: &1.date, target: Reading.anchor(&1)})
     )
@@ -128,31 +126,8 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
     %{days: days, shown: shown} = socket.assigns
     dates = Enum.slice(days, shown, count)
 
-    shown_days =
-      dates
-      |> PaperProDaily.list_papers!()
-      |> Enum.chunk_by(& &1.date)
-      |> Enum.map(
-        &%{id: Date.to_iso8601(hd(&1).date), papers: Enum.map(&1, fn paper -> shown(paper) end)}
-      )
-
     socket
-    |> stream(:days, shown_days)
+    |> stream(:days, Feed.days(dates))
     |> assign(shown: shown + length(dates), more?: shown + length(dates) < length(days))
-  end
-
-  # The picture's address changes whenever the paper is saved again, so a browser
-  # may keep each one for good.
-  defp shown(paper) do
-    paper
-    |> Map.take([:id, :date, :title, :authors, :arxiv_url, :chatgpt_url, :author, :picture_alt])
-    |> Map.merge(Reading.render(paper.answer))
-    |> Map.merge(%{
-      picture:
-        "/paper-pro-daily/pictures/#{paper.id}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}",
-      markdown: Reading.details_markdown(paper),
-      anchor: Reading.anchor(paper),
-      url: Reading.url(paper)
-    })
   end
 end

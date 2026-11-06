@@ -18,7 +18,6 @@ defmodule RegentsWeb.PaperProDailyLive do
   Be honest in all responses.
   """
 
-  attr :page_markdown, :string, required: true
   attr :research_list, :list, required: true
   attr :research_list_expanded?, :boolean, required: true
   attr :streams, :map, required: true
@@ -35,7 +34,10 @@ defmodule RegentsWeb.PaperProDailyLive do
           <h1 id="paper-daily-title">Paper Pro Daily</h1>
           <p>A research paper each day, read with ChatGPT Astra 6 Pro.</p>
           <div class="paper-daily__actions">
-            <Regent.Primitives.copy_button id="paper-daily-copy-page" text={@page_markdown}>
+            <Regent.Primitives.copy_button
+              id="paper-daily-copy-page"
+              url="/paper-pro-daily.md"
+            >
               Copy Page
             </Regent.Primitives.copy_button>
             <Regent.Primitives.button

@@ -7,6 +7,7 @@ defmodule Regents.PaperProDaily do
       define :put_paper, action: :put
       define :list_papers, action: :list, args: [:dates]
       define :export_papers, action: :export
+      define :paper_outline, action: :outline
       define :paper_feed, action: :feed
       define :get_paper, action: :details, args: [:id], get?: true, not_found_error?: false
 

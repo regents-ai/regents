@@ -13,6 +13,7 @@ defmodule Regents.Application do
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
     :ok = Regents.Staking.SnapshotRefresh.attach_failure_notice()
+    :ok = RegentHttp.ErrorSaving.attach()
     :ok = RegentsWeb.VisitLog.Events.attach()
 
     children =
@@ -25,6 +26,8 @@ defmodule Regents.Application do
         # Each paired agent's reading from the sign-in service, kept five minutes
         # and shared by the account menu and the Agents page.
         Regents.Agents.ActivityReading,
+        # What the papers page shows, kept a minute and shared by every open of it.
+        RegentsWeb.PaperProDaily.Feed,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Agents.Reads},
         database_child(),

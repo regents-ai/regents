@@ -51,6 +51,10 @@ defmodule Regents.PaperProDaily.Paper do
               )
     end
 
+    read :outline do
+      prepare build(sort: [date: :desc, inserted_at: :asc], select: [:id, :date, :title])
+    end
+
     read :picture do
       argument :id, :uuid, allow_nil?: false
       get? true

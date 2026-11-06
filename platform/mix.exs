@@ -4,9 +4,9 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "c4a78d220033354ee447142a8a974c95e82298aa"
+  @elixir_utils_ref "4e5279759859f9e35e070789fe6b7fcdb78c47c3"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "4c7bbaa533f32363dfbf37a75669124ad404dc5c"
+  @design_system_ref "46e68fab1ca8242efd0c2bcd82c392f085afbc3f"
 
   def project do
     [
@@ -97,6 +97,8 @@ defmodule Regents.MixProject do
       {:regent_credits,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits", override: true},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
+      # The site's crash saving (RegentHttp.ErrorSaving).
+      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http", override: true},
       {:regent_sprites, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "sprites"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},

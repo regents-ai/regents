@@ -153,6 +153,11 @@ config :regents, Regents.Agents.ActivityReading,
   gc_interval: :timer.minutes(10),
   max_size: 10_000
 
+# What the papers page shows, kept one minute.
+config :regents, RegentsWeb.PaperProDaily.Feed,
+  gc_interval: :timer.minutes(10),
+  max_size: 1_000
+
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 config :regents, :credits_report_rate_limit, limit: 120, window_seconds: 60

@@ -29,8 +29,9 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /privacy /terms /start /cloak/guide /credits/refunds) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start /cloak/guide /credits/refunds) ++
                RegentsWeb.Docs.Pages.paths()
+  alias RegentsWeb.AgentGuides
   alias RegentsWeb.PaperProDaily.Reading
 
   @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
@@ -124,6 +125,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/about" =>
       {"About",
        "What Regents Labs does and how it differs, who uses it, the team, key facts, common questions about REGENT and its products, and how to reach us."},
+    "/changelog" => {"Changelog", "Changes to Regents Labs, newest first."},
     "/start" =>
       {"Connect your agent",
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
@@ -169,12 +171,20 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/credits/refunds"), do: %{markdown: RegentsWeb.CreditsRefundRules.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
+  def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
+  def document("/agents" = path), do: AgentGuides.document(path)
+  def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
 
   def document(path) do
     case RegentsWeb.Docs.Pages.page(path) do
       nil -> nil
-      page -> %{markdown: RegentsWeb.Docs.markdown(page)}
+      page -> docs_document(page)
     end
+  end
+
+  defp docs_document(page) do
+    {title, _description} = RegentsWeb.Docs.heading(page)
+    %{title: title, markdown: RegentsWeb.Docs.markdown(page)}
   end
 
   @doc """
@@ -208,7 +218,9 @@ defmodule RegentsWeb.PublicDocuments do
     do: [page_title: post.title, page_description: post.description]
 
   def page(key) do
-    {title, description} = Map.fetch!(@pages, key)
+    {title, description} =
+      if key in AgentGuides.paths(), do: AgentGuides.page(key), else: Map.fetch!(@pages, key)
+
     [page_title: title, page_description: description]
   end
 
@@ -264,9 +276,11 @@ defmodule RegentsWeb.PublicDocuments do
       image: share_image(path),
       image_size: share_image_size(path),
       image_alt: share_image_alt(path),
-      markdown?: path in @documents
+      markdown?: path in documents()
     }
   end
+
+  defp documents, do: @documents ++ AgentGuides.paths()
 
   # The picture shown when a page is shared. The home page, Paper Pro Daily, Stake,
   # Redeem and the literature chart each have their own; every other page shares the crown.
@@ -328,11 +342,24 @@ defmodule RegentsWeb.PublicDocuments do
     |> put_in(["info", "termsOfService"], url("/terms"))
   end
 
+  @doc "The RFC 9727 list of this site's APIs and their descriptions."
+  def api_catalog do
+    %{
+      "linkset" => [
+        %{
+          "anchor" => url("/api/v1"),
+          "service-desc" => [%{"href" => url("/openapi.json"), "type" => "application/json"}],
+          "service-doc" => [%{"href" => url("/docs"), "type" => "text/html"}]
+        }
+      ]
+    }
+  end
+
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
-          RegentsWeb.Docs.Pages.paths(),
+        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
+          RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()

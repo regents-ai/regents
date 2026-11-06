@@ -127,11 +127,14 @@ defmodule RegentsWeb.Router do
     get "/skill.md", PublicPagesController, :skill
     get "/llms.txt", PublicPagesController, :llms
     get "/.well-known/security.txt", PublicPagesController, :security
+    get "/.well-known/api-catalog", PublicPagesController, :api_catalog
+    get "/paper-pro-daily.md", PaperPageController, :show
     get "/paper-pro-daily/pictures/:id", PaperPictureController, :show
     get "/paper-pro-daily/share.png", PaperPictureController, :page_share
     get "/paper-pro-daily/:paper/share.png", PaperPictureController, :paper_share
     get "/articles/covers/:slug", BlogCoverController, :show
     get "/agents/:wallet/picture", AgentPictureController, :show
+    get "/agents/:agent/skill.md", PublicPagesController, :agent_skill
   end
 
   scope "/", RegentsWeb do
@@ -141,11 +144,15 @@ defmodule RegentsWeb.Router do
         do: get(path, DocsController, :show, private: %{docs_path: path})
 
     get "/about", PublicPagesController, :show
+    get "/changelog", PublicPagesController, :show
+    get "/agents", PublicPagesController, :show
+    get "/agents/:agent", PublicPagesController, :show
   end
 
   scope "/api/v1" do
     pipe_through :api
     get "/health", RegentsWeb.HealthController, :status
+    get "/docs", RegentsWeb.PublicPagesController, :document, assigns: %{document: "/docs"}
     get "/claims", RegentsWeb.OwnedClaimsController, :index
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show

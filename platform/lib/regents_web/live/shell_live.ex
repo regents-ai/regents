@@ -364,7 +364,6 @@ defmodule RegentsWeb.ShellLive do
         <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
         <PaperProDailyLive.page
           :if={@route_spec.route_id == :paper_pro_daily}
-          page_markdown={@page_markdown}
           research_list={@research_list}
           research_list_expanded?={@research_list_expanded?}
           streams={@streams}
