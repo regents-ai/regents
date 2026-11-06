@@ -1782,7 +1782,7 @@
     "/api/v1/account/points": {
       "get": {
         "operationId": "getAccountPoints",
-        "summary": "Read your person's Points, today's total, daily allowances, recent entries with who earned each and whether it counted, and period bonuses. note says when earning is off.",
+        "summary": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet, recent entries with who earned each and whether it counted, and period bonuses. note says when earning is off.",
         "description": "Requires fresh SIWA proof for audience regents. No query string or browser-session authority. Requires a current pairing with a person who has signed in on this site. Points are decimal text, such as \"12.5\". Changes nothing.",
         "security": [],
         "parameters": [
@@ -3704,6 +3704,167 @@
       "AccountPoints": {
         "type": "object",
         "properties": {
+          "points": {
+            "type": "string",
+            "description": "Points as decimal text"
+          },
+          "earned_today": {
+            "type": "string",
+            "description": "Points as decimal text"
+          },
+          "earned_yesterday": {
+            "type": "string",
+            "description": "Points as decimal text"
+          },
+          "rank": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Your person's place on the leaderboard; null with no points"
+          },
+          "activity_being_verified": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to_do": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "repeats": {
+                  "type": "string",
+                  "enum": [
+                    "once",
+                    "daily"
+                  ]
+                },
+                "points": {
+                  "type": [
+                    "string",
+                    "boolean"
+                  ],
+                  "description": "Whole points as text; false before earning opens"
+                },
+                "done": {
+                  "type": "boolean"
+                },
+                "left": {
+                  "type": "boolean",
+                  "description": "Whether this action can still earn, today for a daily one"
+                },
+                "today": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "done": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "of": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "required": [
+                    "done",
+                    "of"
+                  ],
+                  "additionalProperties": false,
+                  "description": "How many of a repeated daily action are done today; null otherwise"
+                }
+              },
+              "required": [
+                "label",
+                "repeats",
+                "points",
+                "done",
+                "left",
+                "today"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "daily_limits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "limit": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                },
+                "remaining": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                }
+              },
+              "required": [
+                "name",
+                "limit",
+                "remaining"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "leaderboard": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "rank": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "null when the person shows by their wallet"
+                },
+                "wallet": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ens_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "points": {
+                  "type": "string",
+                  "description": "Points as decimal text"
+                },
+                "you": {
+                  "type": "boolean",
+                  "description": "Whether this row is your person"
+                }
+              },
+              "required": [
+                "rank",
+                "name",
+                "wallet",
+                "ens_name",
+                "points",
+                "you"
+              ],
+              "additionalProperties": false
+            }
+          },
           "entries": {
             "type": "array",
             "maxItems": 50,
@@ -3760,38 +3921,6 @@
               "additionalProperties": false
             }
           },
-          "points": {
-            "type": "string",
-            "description": "Points as decimal text"
-          },
-          "earned_today": {
-            "type": "string",
-            "description": "Points as decimal text"
-          },
-          "activity_being_verified": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "daily_allowances": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "remaining": {
-                  "type": "string",
-                  "description": "Points as decimal text"
-                }
-              },
-              "required": [
-                "name",
-                "remaining"
-              ],
-              "additionalProperties": false
-            }
-          },
           "period_bonuses": {
             "type": "array",
             "items": {
@@ -3834,8 +3963,12 @@
         "required": [
           "points",
           "earned_today",
+          "earned_yesterday",
+          "rank",
           "activity_being_verified",
-          "daily_allowances",
+          "to_do",
+          "daily_limits",
+          "leaderboard",
           "entries",
           "period_bonuses",
           "more"

@@ -4586,3 +4586,38 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   the homepage tabs and the `/app` sidebar read the new order with no sideways scroll.
 - Not proven: WebKit. The CLI's own `regents products` description still names the old order; the
   CLI chief has the notice.
+
+## 2026-11-06 — Points: the new page, one shared board, no Credits rule (branch `regents/points-1102`)
+
+- Follows control `rollouts/2026-11-06-points-page.md`; model ash-template `8c33169b`, `872727d3`,
+  `3571cfc6` and `5068e389` (template live v180 `18973d86`).
+- Pins: elixir-utils `567f319a` to `faa538d4`, design-system `768719f3` to `871c3fe6` (pin lines
+  and lock only).
+- The Points page is the template's: total with today, yesterday and place, the actions still open
+  with where to do each (`/account/connections`, `/account/agents`), activity, the NFT bonus and
+  a leaderboard by name or wallet, each wallet drawn with its copy icon. The old page and its
+  styles (`points-earn`, `points-table`, `points-ways`) are gone.
+- One shared board: `Regents.Points.Board` reads `RegentPoints.leaderboard/1` once for every
+  reader into `Regents.SharedReading` (kind `points_board`, one key, 131,072 bytes), again at most
+  once a second after an award notice, and each minute from `Regents.SharedReading.Heal` on
+  Oban's cron. It runs only where the site serves pages. A reading over its limit is refused and
+  the last one stays, shown as behind. The size of each reading offered is
+  `health.shared_reading.size.percent`.
+- The board's people come from `Regents.Points.Accounts.people/1` through the system-only read
+  `HumanAccount.points_people`: name (null when the person shows by wallet), wallet, ENS name,
+  ENS picture and the generated squares (`Regents.PublicIdentity.listed_name/1`, `wallet/1`,
+  `picture/1`, `squares/1`).
+- The Credits rule is gone: `Regents.Points.CreditsPurchase`, its adapter line and
+  `Award.credits_purchase`. Only the 100-a-day limit stays. Credits itself is unchanged.
+- `GET /api/v1/account/points` answers the template's shape: `points`, `earned_today`,
+  `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`,
+  `entries`, `period_bonuses`, `more`, and `note` while earning is off; `daily_allowances` is
+  gone. While the board is not read the whole answer is 503 `unavailable`. The contract and
+  `openapi.json` stay at the branch's unreleased 5.0.0, with the new `AccountPoints` schema;
+  `tool_manifest.json`, `cli/commands.json`, `cli/COMMANDS.md`, `agents.md` and `/docs/changes`
+  say so. The CLI notice goes at release.
+- `starts_at` stays nil; nothing earns until POINTS-GO and the start.
+- Checks so far: compile with warnings as errors; `mix test` on `test/regents_web`,
+  `test/regents/points`, `test/regents/accounts`, the identity and shared-reading tests: 400
+  passed (394 tests, 6 properties). New: `test/regents_web/points_page_test.exs` (the template's
+  six checks) and `test/regents/shared_reading_test.exs`. Full `make check` waits a Mac slot.

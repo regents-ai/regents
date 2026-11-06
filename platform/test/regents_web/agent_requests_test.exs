@@ -186,8 +186,13 @@ defmodule RegentsWeb.AgentRequestsTest do
              "Your person can allow you to spend Credits on this site on their Regents account at regents.sh/account."
            ]
 
+    # The board every reader shares is read once, as its producer reads it on notice.
+    on_exit(fn -> Regents.SharedReading.delete(Regents.Points.Board.key()) end)
+    assert :ok = Regents.Points.Board.read()
+
     assert %{
              "points" => "0",
+             "rank" => nil,
              "entries" => [],
              "more" => false,
              "note" => "Earning Points is off on this site."

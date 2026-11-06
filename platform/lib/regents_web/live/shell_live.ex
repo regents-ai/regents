@@ -171,6 +171,10 @@ defmodule RegentsWeb.ShellLive do
   # A points award or correction landed for this account; the Points page follows.
   def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, Points.changed(socket)}
 
+  # The board every signed-in reader shares was read again; the Points page follows.
+  def handle_info({:shared_reading, {:points_board, _program}}, socket),
+    do: {:noreply, Points.board_changed(socket)}
+
   # The balance changed on this or any Regent site: a purchase, a gift, a spend.
   # The header, the Buy Credits panel, the Account page and the Credits history
   # follow. Every page change reads the balance again too.
@@ -298,6 +302,7 @@ defmodule RegentsWeb.ShellLive do
           signed_out_reason={@signed_out_reason}
           account={current_account(@access_context)}
           points={@points}
+          board={@points_board}
           bonus={@points_bonus}
           earning={@points_earning}
         />

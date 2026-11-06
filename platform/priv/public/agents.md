@@ -73,7 +73,7 @@ regents protocol --help
 | Account display and ENS name | `account show` | `GET /api/agent/v1/account` |
 | Verified owner-wallet name claims | `account claims` | `POST /api/agent/v1/claims` |
 | Owner primary-wallet staking position | `staking position` | `GET /api/agent/v1/staking/position` |
-| Points, daily allowances and recent entries | `account points` | `GET /api/v1/account/points` |
+| Points, your place, daily limits and the leaderboard | `account points` | `GET /api/v1/account/points` |
 | Credits and your spending allowance | `account balances` | `GET /api/v1/account/balances` |
 | Credits history | `account credits-history` | `POST /api/v1/account/credits/history` |
 

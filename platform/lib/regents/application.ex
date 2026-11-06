@@ -40,6 +40,10 @@ defmodule Regents.Application do
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
         Regents.Ens,
+        # After PubSub: the figures every reader they admit sees alike, and the
+        # Points board read once for all of them.
+        Regents.SharedReading,
+        points_board_child(),
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -84,6 +88,13 @@ defmodule Regents.Application do
 
   defp without_snapshot_refresh(entries),
     do: Enum.reject(entries, &match?({_, Regents.Staking.SnapshotRefresh}, &1))
+
+  # The Points board is read only where pages are served, so a task or a test
+  # never reads the database before it asks to.
+  defp points_board_child do
+    if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint),
+      do: Regents.Points.Board
+  end
 
   # Metrics are served beside the site, never by a process that only runs a task.
   defp metrics_child do

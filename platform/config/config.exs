@@ -81,7 +81,6 @@ config :regent_points,
   adapters: %{
     "account.activated" => Regents.Points.AccountActivated,
     "agent.activated" => Regents.Points.PairedAgent,
-    "credits.purchase_settled" => Regents.Points.CreditsPurchase,
     "social.farcaster" => Regents.Points.LinkedSocial,
     "social.github" => Regents.Points.LinkedSocial,
     "social.x" => Regents.Points.LinkedSocial
@@ -134,7 +133,9 @@ config :regents, Oban,
       {"*/5 * * * *", Regents.Staking.SnapshotRefresh},
       {"17 4 * * *", Regents.ErrorPruner},
       # From the Points start, the one-time points for what accounts already had.
-      {"@hourly", RegentPoints.StartAwards}
+      {"@hourly", RegentPoints.StartAwards},
+      # One line for each kind of shared reading a producer rereads on notice.
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}}
     ]
   ],
   pruner: [max_age: {7, :days}],

@@ -2,6 +2,8 @@ defmodule RegentsWeb.AgentReadsController do
   @moduledoc "Private reads for a distinct, currently paired SIWA agent."
   use RegentsWeb, :controller
 
+  alias Regents.Points.Board
+  alias Regents.SharedReading
   alias RegentPoints.Rules
   alias RegentsWeb.PointsEntries
 
@@ -75,14 +77,18 @@ defmodule RegentsWeb.AgentReadsController do
 
   defp cursor_error?(_error), do: false
 
-  # Points as decimal text, the same figures the Points page shows.
+  # Points as decimal text, the same figures the Points page shows. While the
+  # page would show the board as not read, the whole answer is unavailable.
   def points(conn, _params) do
-    case RegentPoints.summary(actor: conn.assigns.actor) do
-      {:ok, summary} ->
-        json(conn, with_note(PointsEntries.answer(summary), points_note(Rules.active())))
+    actor = conn.assigns.actor
 
-      {:error, _} ->
-        unavailable(conn)
+    with {:ok, summary} <- RegentPoints.summary(actor: actor),
+         {:ok, %{reading: %{} = board}} <- SharedReading.fetch(Board.key()) do
+      earning = Rules.active()
+      answer = PointsEntries.answer(summary, board, actor.human_account_id, earning != [])
+      json(conn, with_note(answer, points_note(earning)))
+    else
+      _not_read -> unavailable(conn)
     end
   end
 

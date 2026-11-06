@@ -42,6 +42,13 @@ defmodule Regents.Accounts.HumanAccount do
       filter expr(privy_user_id in ^arg(:privy_dids))
     end
 
+    # The accounts the Points board lists, with what shows of them to others.
+    read :points_people do
+      argument :ids, {:array, :integer}, allow_nil?: false
+      filter expr(id in ^arg(:ids))
+      prepare build(load: [:ens_name, :ens_avatar_url])
+    end
+
     read :public_profile_source do
       public? false
       get? true
@@ -93,7 +100,8 @@ defmodule Regents.Accounts.HumanAccount do
              :public_profile_source,
              :points_account,
              :created_before,
-             :by_privy_dids
+             :by_privy_dids,
+             :points_people
            ]) do
       authorize_if Regents.Checks.SystemActor
     end

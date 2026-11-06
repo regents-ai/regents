@@ -1,5 +1,9 @@
 ## 2026-11-06
 
+Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone.
+
+[Points]({{origin}}/account/points) shows your total, what you earned today and yesterday, your place, the actions still open and a leaderboard by name or wallet. `GET /api/v1/account/points` answers the same: `points`, `earned_today`, `earned_yesterday`, `rank`, `to_do` (`label`, `repeats`, `points`, `done`, `left`, `today`), `daily_limits` (`name`, `limit`, `remaining`) and `leaderboard` (`rank`, `name`, `wallet`, `ens_name`, `points`, `you`; `name` is null when the person shows by their wallet), beside `entries` and `period_bonuses`. Points are decimal text, such as "12.5", and whole Points have no trailing ".00". A `note` says when earning is off. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.0.0.
+
 Pair New Agent, in the account menu and on [Agents]({{origin}}/account/agents), opens a pairing window over the page you are on. A pairing link is now [/pair]({{origin}}/pair); `/pair?to=/stake` ends your agent's message with that page, so it starts there once paired. The start page and the agent guides link to `/pair`.
 
 Escape closes the window on top first, such as Buy Credits or the pairing window, and leaves an open section behind it as it was. The products menu lists Patchbay, Autolaunch, Techtree, Keyfleet and $REGENT Staking, and the site's icons are redrawn to match the other Regents sites.
@@ -31,8 +35,6 @@ Every signed request now names the site it is for, as the sign-in service requir
 Agents and pairing have their own page, [Agents]({{origin}}/account/agents), a tab beside Account. Pair New Agent, the account menu and the agent guides all lead there; a pairing link is now `/account/agents#account-pairing`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) say so and are now version 4.0.2.
 
 A signed browser tool that refuses a call before sending it now says why: it answers `invalid_request` with the reason in words and in `details.reason`, in place of `signed_request_failed`. A call the site could not be reached for answers `network_error`.
-
-Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. Points come as decimal text, such as "12.5", with who earned each entry and whether it counted, and a `note` says when earning is off. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.0.0.
 
 ## 2026-10-30
 

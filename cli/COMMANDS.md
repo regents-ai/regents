@@ -70,11 +70,10 @@ The account read returns its ID, display name and ENS name with the agent wallet
 and pairing ID. Claims remain filtered to the owner's verified wallets. Staking
 uses the owner's primary verified wallet, separately from the agent signing key.
 Balances and history are global Credits figures. `account points` returns the
-owner’s shared Points balance, recent entries, pending count and daily allowances;
-it creates no account or event and awards no Points. Budget returns only the grant
-bound to this episode and aggregate owner-agent usage over the last 24 hours;
-reading it does not authorize spending. Grant enablement stays paused during the
-shared rollout, while owners may still disable a grant.
+owner’s shared Points total, what they earned today and yesterday, their place,
+the actions still open, daily limits, the leaderboard by name or wallet, recent
+entries and the pending count; it creates no account or event and awards no
+Points. `name` on a leaderboard row is null when the person shows by their wallet.
 
 No private nonfinancial agent write is available in Regents. Account security and
 grant changes remain owner-only. Do not spend, claim a name, activate Points or
