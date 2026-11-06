@@ -79,17 +79,25 @@ export function press(event: MouseEvent) {
 
 // A dialog rises as a sheet and a header menu pops open. A page that redraws
 // an open one closes and reopens it within one moment, which reports it as
-// having been open all along, so it does not move again.
+// having been open all along, so it does not move again. Once it rests where it
+// opens, moved or not, it carries `data-settled`, so whatever measures it, such
+// as the browser walk, knows when.
 function toggle(event: Event) {
-  if (!(event instanceof ToggleEvent) || event.oldState !== "closed" || event.newState !== "open") return
+  if (!(event instanceof ToggleEvent) || !(event.target instanceof HTMLElement)) return
   const {target} = event
-  if (!(target instanceof HTMLElement) || !lastInputByPointer() || still(target)) return
+  if (event.newState === "closed") return target.removeAttribute("data-settled")
+  if (event.oldState !== "closed") return
 
-  if (target instanceof HTMLDialogElement) sheet(target)
-  if (target instanceof HTMLDetailsElement) {
-    const panel = target.querySelector(":scope > [data-panel='menu']")
-    if (panel) menu(panel)
-  }
+  const moves = lastInputByPointer() && !still(target)
+  Promise.resolve(moves ? open(target) : undefined).then(() => {
+    if (target.matches("[open], :popover-open")) target.dataset.settled = ""
+  })
+}
+
+function open(target: HTMLElement) {
+  if (target instanceof HTMLDialogElement) return sheet(target)
+  const panel = target instanceof HTMLDetailsElement && target.querySelector(":scope > [data-panel='menu']")
+  if (panel) return menu(panel)
 }
 
 // The words are joined back into plain text once they have risen.
