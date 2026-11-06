@@ -4542,3 +4542,9 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   boundary, launch gate, route catalog, release and Privy session tests 164 passed, warnings as
   errors. Full `make check` waits the orchestrator's slot and the final library pin.
 - No migrations.
+- 6 Nov 16:10Z: final library pin elixir-utils `567f319a` (from `7fde8cce`): `StartAwards` reads the
+  accounts already recorded once per rule; no contract change. Same focused tests, 164 passed.
+- Local showing, 6 Nov 16:05Z, local database only, with Points switched on by an uncommitted file
+  outside the repository (start 03:00Z, every catalog rule but the template note): the start
+  awards landed with nobody doing anything: account 3, 25 + X 10 + GitHub 10 + Farcaster 10;
+  account 1, 25. No agent award, as the local database has no pairing.
