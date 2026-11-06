@@ -28,7 +28,8 @@ defmodule Regents.Points.PairedAgent do
       |> Map.new(&{&1.privy_user_id, &1.id})
 
     for %{privy_user_id: did} = pairing <- pairings, Map.has_key?(accounts, did) do
-      {accounts[did], %{source_app: "regents", source_kind: "pairing", source_event_key: pairing.id}}
+      {accounts[did],
+       %{source_app: "regents", source_kind: "pairing", source_event_key: pairing.id}}
     end
   end
 
