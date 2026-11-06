@@ -2,7 +2,7 @@ import {expect, test, type Page} from "./support/offline"
 
 // The test server answers every site's tools from the fixed lists in
 // Regents.TestSiteTools: three tools for each site, named after its address.
-const sites = ["regents.sh", "patchbay.help", "techtree.sh", "autolaunch.sh", "keyfleet.ai"]
+const sites = ["regents.sh", "patchbay.help", "autolaunch.sh", "techtree.sh", "keyfleet.ai"]
 
 // Sean, 19 Oct: the "Agents see" window copies every Regent site's tools at
 // once, each site its own section, then how an agent signs in.
@@ -75,8 +75,8 @@ test("every page offers a list of each site's tools and the complete list", asyn
     expect.arrayContaining([
       "list_regents_webmcp_tools",
       "list_patchbay_webmcp_tools",
-      "list_techtree_webmcp_tools",
       "list_autolaunch_webmcp_tools",
+      "list_techtree_webmcp_tools",
       "list_keyfleet_webmcp_tools",
       "list_all_webmcp_tools",
       "get_siwa_connection_help",

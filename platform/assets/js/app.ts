@@ -226,8 +226,13 @@ const shellBehavior: Hook = {
       }
 
       // An open account or apps menu takes Escape itself, before any section behind it.
+      // Otherwise Escape closes the last open section a person can see, inside the open
+      // window when one is open; a window with none open inside closes itself.
       if (event.key === "Escape" && !shell.querySelector(":popover-open")) {
-        const openDetails = [...shell.querySelectorAll<HTMLDetailsElement>("details[open]")].at(-1)
+        const layer = [...shell.querySelectorAll<HTMLDialogElement>("dialog:modal")].at(-1) ?? shell
+        const openDetails = [...layer.querySelectorAll<HTMLDetailsElement>("details[open]")]
+          .filter(details => details.checkVisibility())
+          .at(-1)
 
         if (openDetails) {
           openDetails.removeAttribute("open")
@@ -243,9 +248,8 @@ const shellBehavior: Hook = {
       scroller()?.scrollTo({top: 0})
     }
 
-    // A link to another page's #fragment, such as the account menu's Pair New
-    // Agent from any page to the Agents page's pairing box: what the
-    // #fragment names is reached here, after the page has started at its top.
+    // A link to another page's #fragment: what the #fragment names is reached
+    // here, after the page has started at its top.
     const onNavigate = () => {
       const named = hashTarget()
       if (named) arriveAt(named)

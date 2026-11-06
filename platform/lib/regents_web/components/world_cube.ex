@@ -74,9 +74,7 @@ defmodule RegentsWeb.Components.WorldCube do
         </ul>
       </div>
       <button type="button" class="world-cube__leave" data-world-leave aria-label="Leave this room">
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.5" />
-        </svg>
+        <Regent.Icons.icon name="x" />
       </button>
     </section>
     """

@@ -2,7 +2,7 @@ defmodule RegentsWeb.AgentsPanel do
   @moduledoc """
   The agents a person has paired with their account (`RegentAgents`), on the
   Agents page, in the shared agents list (`Regent.Account.agents`), with Pair
-  New Agent leading to the pairing box below it (`RegentsWeb.PairingBox`),
+  New Agent opening the pairing window (`RegentsWeb.PairingBox`),
   and a larger view of one agent with where it has been active across the Regent
   sites, a line for each site and day (`Regents.Agents.ActivityReading`), its
   name, which the person may change, its picture, which every Regent site shows
@@ -193,9 +193,16 @@ defmodule RegentsWeb.AgentsPanel do
           </P.button>
         </:actions>
         <:footer>
-          <a href="#account-pairing" class="rg-button rg-button--secondary rg-button--no-arrow">
-            <span class="rg-button__label">Pair New Agent</span>
-          </a>
+          <P.button
+            type="button"
+            variant="secondary"
+            arrow={false}
+            aria-haspopup="dialog"
+            aria-controls="shell-pairing"
+            data-pair-open
+          >
+            Pair New Agent
+          </P.button>
 
           <Regent.Account.agent_detail
             :if={@detail}

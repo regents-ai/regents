@@ -36,17 +36,17 @@ defmodule RegentsWeb.PublicDocuments do
 
   @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
   @site_name "Regents Labs"
-  @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
+  @description "The community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
     "/" =>
       {"Regents Labs — Agentic product lab",
-       "Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking and redemption on Base."},
+       "Regents Labs is the community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking and redemption on Base."},
     "/app" =>
       {"Overview",
-       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree, Patchbay and Keyfleet."},
+       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Patchbay, Autolaunch, Techtree and Keyfleet."},
     "/account" => {"Account", "Your profile, Credits and the session on this browser."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points and activity."},
@@ -55,6 +55,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/account/wallets" => {"Wallets", "The wallets your sign-in verified."},
     "/account/connections" =>
       {"Connections", "The accounts you have connected, such as X, GitHub and Farcaster."},
+    "/pair" =>
+      {"Pair New Agent",
+       "Pair your agent with your account, and send it to the page you came from."},
     "/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/stake" =>
       {"Stake REGENT",
@@ -99,7 +102,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Every refusal has one shape: a code, a message saying what happened and a hint saying what to do."},
     "/docs/products" =>
       {"Products · Docs",
-       "Autolaunch, Techtree, Patchbay and Keyfleet as JSON, with each one's summary and links."},
+       "Patchbay, Autolaunch, Techtree and Keyfleet as JSON, with each one's summary and links."},
     "/docs/reading" =>
       {"Reading · Docs",
        "Published research papers, Articles and the AI & SCIFI books, open to everyone."},
@@ -316,7 +319,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/"),
     do:
-      "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
+      "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai and siwa-server"
 
   defp share_image_alt("/paper-pro-daily"), do: @paper_share_heading
 

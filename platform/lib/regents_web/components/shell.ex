@@ -5,7 +5,8 @@ defmodule RegentsWeb.Components.Shell do
   Signed in, the account's picture and name at the top right open the account menu
   (`Regent.Account.menu`), the same on every page: the person's picture, name and
   wallet, the agents paired with the account (the `agents` slot), Pair New Agent,
-  Manage Account and Sign out. The agents and pairing are on the Agents page, and
+  Manage Account and Sign out. Pair New Agent opens the pairing window (the
+  `pairing_panel` slot) over the page; the agents are on the Agents page, and
   everything else about the account is on the Account page. On a screen narrower than 22.5rem the header has no room
   for the Credits balance, so the menu shows it instead, under the wallet, and it
   opens the same Buy Credits panel. Signed out, the header has Sign in alone.
@@ -30,8 +31,8 @@ defmodule RegentsWeb.Components.Shell do
   @regents_apps [
     %{name: "Patchbay", href: "https://patchbay.help", tone: "patchbay", away?: true},
     %{name: "Autolaunch", href: "https://autolaunch.sh", tone: "autolaunch", away?: true},
-    %{name: "Keyfleet", href: "https://keyfleet.ai", tone: "keyfleet", away?: true},
     %{name: "Techtree", href: "https://techtree.sh", tone: "techtree", away?: true},
+    %{name: "Keyfleet", href: "https://keyfleet.ai", tone: "keyfleet", away?: true},
     %{name: "$REGENT Staking", href: "/stake", tone: "protocol", away?: false}
   ]
 
@@ -55,6 +56,11 @@ defmodule RegentsWeb.Components.Shell do
   )
 
   slot(:agents, required: true, doc: "The agents paired with the account, in the account menu.")
+
+  slot(:pairing_panel,
+    required: true,
+    doc: "The pairing window's box, opened by every Pair New Agent."
+  )
 
   def shell(assigns) do
     ~H"""
@@ -131,7 +137,7 @@ defmodule RegentsWeb.Components.Shell do
           wallet={@account_control.wallet}
           ens_name={@account_control.ens_name}
           manage_href="/account"
-          pair_href="/account/agents#account-pairing"
+          pair_window="shell-pairing"
         >
           <:picture>
             <img
@@ -171,13 +177,33 @@ defmodule RegentsWeb.Components.Shell do
             variant="quiet"
             type="submit"
             value="close"
-            class="shell-credits-dialog__close"
+            class="shell-dialog-close"
             aria-label="Close"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <Regent.Icons.icon name="x" />
           </Regent.Primitives.button>
         </form>
         {render_slot(@credits_panel)}
+      </Regent.Structure.dialog>
+
+      <Regent.Structure.dialog
+        :if={@pairing_panel != []}
+        id="shell-pairing"
+        class="shell-pairing-dialog"
+        aria-labelledby="shell-pairing-title"
+        phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open", "data-settled"])}
+      >
+        <Regent.Primitives.button
+          variant="quiet"
+          type="button"
+          class="shell-dialog-close"
+          aria-label="Close"
+          data-pair-close
+        >
+          <Regent.Icons.icon name="x" />
+        </Regent.Primitives.button>
+        <h2 id="shell-pairing-title">Pair New Agent</h2>
+        {render_slot(@pairing_panel)}
       </Regent.Structure.dialog>
 
       <nav
@@ -421,26 +447,6 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
-  attr(:name, :atom, required: true)
-
-  defp icon(assigns) do
-    ~H"""
-    <svg
-      class="shell-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.8"
-      stroke-linecap="square"
-      aria-hidden="true"
-    >
-      <g :if={@name == :apps} fill="currentColor" stroke="none">
-        <rect :for={{x, y} <- nine_dots()} x={x} y={y} width="4.5" height="4.5" />
-      </g>
-    </svg>
-    """
-  end
-
   # The browser opens and closes the panel itself (`popover`), so it closes on
   # Escape or a press anywhere else, and a page update never shuts it.
   defp apps_menu(assigns) do
@@ -454,7 +460,7 @@ defmodule RegentsWeb.Components.Shell do
       popovertarget="shell-apps"
       aria-label="Regents Products"
     >
-      <.icon name={:apps} />
+      <Regent.Icons.icon name="grip" class="shell-icon shell-icon--apps" />
     </button>
     <nav id="shell-apps" class="shell-apps" popover aria-labelledby="shell-apps-title">
       <h2 id="shell-apps-title">Regents Products</h2>
@@ -471,6 +477,4 @@ defmodule RegentsWeb.Components.Shell do
     </nav>
     """
   end
-
-  defp nine_dots, do: for(y <- [1.5, 9.75, 18], x <- [1.5, 9.75, 18], do: {x, y})
 end

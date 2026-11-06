@@ -136,9 +136,11 @@ defmodule RegentsWeb.ShellLiveTest do
 
     assert has_element?(
              view,
-             ~s(#account-menu a[href="/account/agents#account-pairing"]),
+             ~s(#account-menu button[data-pair-open][aria-controls="shell-pairing"]),
              "Pair New Agent"
            )
+
+    assert has_element?(view, "#shell-pairing #shell-pairing-box")
 
     assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
@@ -776,7 +778,8 @@ defmodule RegentsWeb.ShellLiveTest do
       shell_instance: 1,
       content: [%{inner_block: fn _, _ -> "Fixture content" end}],
       credits_panel: [],
-      agents: []
+      agents: [],
+      pairing_panel: []
     )
   end
 end

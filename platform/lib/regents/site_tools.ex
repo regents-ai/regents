@@ -38,7 +38,7 @@ defmodule Regents.SiteTools do
 
   @doc "The keys of the sites whose tools can be read, in the order they are listed."
   @spec sites() :: [String.t()]
-  def sites, do: ~w(regents patchbay techtree autolaunch keyfleet)
+  def sites, do: ~w(regents patchbay autolaunch techtree keyfleet)
 
   @doc "A site's address as people know it, such as patchbay.help."
   @spec name(String.t()) :: String.t()

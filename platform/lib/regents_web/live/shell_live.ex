@@ -28,6 +28,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.NamesLive
+  alias RegentsWeb.PairLive
   alias RegentsWeb.PaperProDailyLive
   alias RegentsWeb.PointsLive
   alias RegentsWeb.ProductLive
@@ -65,6 +66,7 @@ defmodule RegentsWeb.ShellLive do
        blog_posts: [],
        blog_post: nil,
        shell_instance: System.unique_integer([:positive, :monotonic]),
+       pair_start: nil,
        credits: %Read{}
      )
      |> follow_credits()
@@ -83,7 +85,7 @@ defmodule RegentsWeb.ShellLive do
 
     {:noreply,
      socket
-     |> assign(route_spec: route_spec, route_params: params)
+     |> assign(route_spec: route_spec, route_params: params, pair_start: PairLive.start(params))
      |> load_regent_route(route_spec, params)
      |> load_blog_route(route_spec, params)
      |> assign_page(route_spec, uri)
@@ -204,6 +206,14 @@ defmodule RegentsWeb.ShellLive do
           account={current_account(@access_context)}
         />
       </:agents>
+      <:pairing_panel :if={current_account(@access_context)}>
+        <.live_component
+          module={RegentsWeb.PairingBox}
+          id="shell-pairing-box"
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+      </:pairing_panel>
       <:content>
         <.link
           :if={@route_spec.route_id == :blog && Regents.Blog.admin?(current_account(@access_context))}
@@ -274,6 +284,13 @@ defmodule RegentsWeb.ShellLive do
           signed_out_reason={@signed_out_reason}
           lease={@session_lease}
           account={current_account(@access_context)}
+        />
+
+        <PairLive.page
+          :if={@route_spec.route_id == :pair}
+          lease={@session_lease}
+          account={current_account(@access_context)}
+          start={@pair_start}
         />
 
         <PointsLive.page

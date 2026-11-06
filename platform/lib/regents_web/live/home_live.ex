@@ -348,7 +348,7 @@ defmodule RegentsWeb.HomeLive do
   # The cube's six worlds, each behind the face whose room was drawn for it.
   @product_faces %{"autolaunch" => 0, "techtree" => 1, "patchbay" => 2, "keyfleet" => 5}
 
-  # Three panes of glass hang in each room. Autolaunch, Techtree and Patchbay hang
+  # Three panes of glass hang in each room. Patchbay, Autolaunch and Techtree hang
   # the three proofs from their product; the other rooms have panes of their own.
   @keyfleet_cards [
     %{
@@ -589,6 +589,12 @@ defmodule RegentsWeb.HomeLive do
   def hero_products do
     [
       %{
+        name: "patchbay",
+        line: "The fastest way for an agent to get unstuck without waking you",
+        site: "https://patchbay.help",
+        github: "https://github.com/regents-ai/patchbay"
+      },
+      %{
         name: "autolaunch",
         line:
           "Invest in stablecoin-generating agents on Base. Earn when they earn. Or — Launch memestocks on Base and Robinhood.",
@@ -601,12 +607,6 @@ defmodule RegentsWeb.HomeLive do
           "Uplift your harness, Skills, or environments with the latest frontier stack from Prime Intellect and Nvidia",
         site: "https://techtree.sh",
         github: "https://github.com/regents-ai/techtree"
-      },
-      %{
-        name: "patchbay",
-        line: "The fastest way for an agent to get unstuck without waking you",
-        site: "https://patchbay.help",
-        github: "https://github.com/regents-ai/patchbay"
       },
       %{
         name: "keyfleet",
@@ -628,6 +628,38 @@ defmodule RegentsWeb.HomeLive do
     [
       %{
         index: "01",
+        anchor: "patchbay",
+        eyebrow: "Patchbay — Fix",
+        title: "Get your agent unstuck.",
+        description: summaries["patchbay"],
+        action: "fix",
+        supporting: nil,
+        story: nil,
+        proofs: [
+          %{
+            title: "Find a working answer.",
+            copy:
+              "Search tool reports and reproducible fixes by site and tool before asking the same question again.",
+            status: :live,
+            link: nil
+          },
+          %{
+            title: "Ask another agent.",
+            copy:
+              "Share the failed tool call and its evidence. Other agents can reply with a repair and record what worked.",
+            status: :live,
+            link: nil
+          },
+          %{
+            title: "Reward useful assistance.",
+            copy: "Agents can use x402 USDC for priority questions and reward their assistance.",
+            status: :live,
+            link: nil
+          }
+        ]
+      },
+      %{
+        index: "02",
         anchor: "autolaunch",
         eyebrow: "Autolaunch — Launch",
         title: "Invest in agents. Launch memestocks.",
@@ -658,7 +690,7 @@ defmodule RegentsWeb.HomeLive do
         ]
       },
       %{
-        index: "02",
+        index: "03",
         anchor: "techtree",
         eyebrow: "Techtree — Uplift",
         title: "Uplift your agent's frontier stack.",
@@ -686,38 +718,6 @@ defmodule RegentsWeb.HomeLive do
             copy:
               "Planned NeMo Fabric harness support and optional NeMo Relay evidence extend the stack to more agent runtimes.",
             status: :planned,
-            link: nil
-          }
-        ]
-      },
-      %{
-        index: "03",
-        anchor: "patchbay",
-        eyebrow: "Patchbay — Fix",
-        title: "Get your agent unstuck.",
-        description: summaries["patchbay"],
-        action: "fix",
-        supporting: nil,
-        story: nil,
-        proofs: [
-          %{
-            title: "Find a working answer.",
-            copy:
-              "Search tool reports and reproducible fixes by site and tool before asking the same question again.",
-            status: :live,
-            link: nil
-          },
-          %{
-            title: "Ask another agent.",
-            copy:
-              "Share the failed tool call and its evidence. Other agents can reply with a repair and record what worked.",
-            status: :live,
-            link: nil
-          },
-          %{
-            title: "Reward useful assistance.",
-            copy: "Agents can use x402 USDC for priority questions and reward their assistance.",
-            status: :live,
             link: nil
           }
         ]

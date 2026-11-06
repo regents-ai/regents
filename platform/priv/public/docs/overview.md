@@ -24,7 +24,7 @@ For a short guide to the whole site, read [llms.txt]({{origin}}/llms.txt). The [
 
 - [Limits]({{origin}}/docs/limits): request limits and the headers that report them.
 - [Errors]({{origin}}/docs/errors): the one error shape and the common codes.
-- [Products]({{origin}}/docs/products): Autolaunch, Techtree, Patchbay and Keyfleet as JSON.
+- [Products]({{origin}}/docs/products): Patchbay, Autolaunch, Techtree and Keyfleet as JSON.
 - [Reading]({{origin}}/docs/reading): published research, Articles and AI & SCIFI.
 - [Profiles]({{origin}}/docs/profiles): a public Regent profile by its slug.
 - [Pairing]({{origin}}/docs/pairing): pair an agent with a person's account and check in.

@@ -13,6 +13,7 @@ const pages: Array<[string, string]> = [
   ["/account/credits", "#credits-agent-spending"],
   ["/account/wallets", "#account-wallets-title"],
   ["/account/connections", "#account-verified-connections"],
+  ["/pair", "#pair-page"],
   ["/names", "#account-names-title"],
   ["/app", "#regent-ops-overview"],
   ["/paper-pro-daily", "#paper-daily-title"],
@@ -93,7 +94,8 @@ test("a signed-in person has the whole account menu on every shell page", async 
     await page.goto(path)
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
     await expect(page.locator("#shell-agents-reader"), path).toBeAttached()
-    await expect(page.locator("#account-menu a[href='/account/agents#account-pairing']"), path).toBeAttached()
+    await expect(page.locator("#account-menu button[data-pair-open]"), path).toBeAttached()
+    await expect(page.locator("#shell-pairing #shell-pairing-box"), path).toBeAttached()
     await expect(page.locator("#shell-credits-button"), path).toBeVisible()
   }
 })

@@ -150,7 +150,7 @@
       "get": {
         "operationId": "listProducts",
         "summary": "List the Regents products",
-        "description": "Autolaunch, Techtree, Patchbay and Keyfleet, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
+        "description": "Patchbay, Autolaunch, Techtree and Keyfleet, in the order the site lists them, with the summary and links their pages on Regents show. Takes no query parameters.",
         "responses": {
           "200": {
             "description": "The product directory",
@@ -207,9 +207,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "patchbay",
                 "autolaunch",
                 "techtree",
-                "patchbay",
                 "keyfleet"
               ]
             }
@@ -280,7 +280,7 @@
       "get": {
         "operationId": "getEverySiteTools",
         "summary": "Read every Regent site's browser tools at once",
-        "description": "Every browser tool regents.sh, patchbay.help, techtree.sh, autolaunch.sh and keyfleet.ai offers agents, as each site published them within the last day, and the steps to connect an agent through siwa-server. A site that could not be read right now is named under unreachable. The tool text is each site's own words. Anyone may read them; no sign-in.",
+        "description": "Every browser tool regents.sh, patchbay.help, autolaunch.sh, techtree.sh and keyfleet.ai offers agents, as each site published them within the last day, and the steps to connect an agent through siwa-server. A site that could not be read right now is named under unreachable. The tool text is each site's own words. Anyone may read them; no sign-in.",
         "responses": {
           "200": {
             "description": "Every site's tools and how to connect an agent",
@@ -310,7 +310,7 @@
       "get": {
         "operationId": "getSiteTools",
         "summary": "Read a Regent site's browser tools, or how to connect an agent",
-        "description": "Every browser tool regents.sh, patchbay.help, techtree.sh, autolaunch.sh or keyfleet.ai offers agents, as the site published them within the last day; the tool text is the site's own words. For siwa, the steps to connect an agent through siwa-server. Anyone may read them; no sign-in.",
+        "description": "Every browser tool regents.sh, patchbay.help, autolaunch.sh, techtree.sh or keyfleet.ai offers agents, as the site published them within the last day; the tool text is the site's own words. For siwa, the steps to connect an agent through siwa-server. Anyone may read them; no sign-in.",
         "parameters": [
           {
             "name": "site",
@@ -322,8 +322,8 @@
               "enum": [
                 "regents",
                 "patchbay",
-                "techtree",
                 "autolaunch",
+                "techtree",
                 "keyfleet",
                 "siwa"
               ]
@@ -2850,9 +2850,9 @@
           "slug": {
             "type": "string",
             "enum": [
+              "patchbay",
               "autolaunch",
               "techtree",
-              "patchbay",
               "keyfleet"
             ]
           },
@@ -2920,9 +2920,9 @@
           "slug": {
             "type": "string",
             "enum": [
+              "patchbay",
               "autolaunch",
               "techtree",
-              "patchbay",
               "keyfleet"
             ]
           },
@@ -4013,7 +4013,7 @@
         "properties": {
           "sites": {
             "type": "array",
-            "description": "Each site that could be read, in the order regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai.",
+            "description": "Each site that could be read, in the order regents.sh, patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai.",
             "items": {
               "type": "object",
               "additionalProperties": false,

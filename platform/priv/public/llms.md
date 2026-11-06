@@ -1,6 +1,6 @@
 # Regents Labs
 
-> The community-owned agentic product lab: Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking, redemption and owner-authorized historical name reads.
+> The community-owned agentic product lab: Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking, redemption and owner-authorized historical name reads.
 
 {{key_facts}}
 
@@ -26,7 +26,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 ## Available interfaces
 
 - `GET /healthz`: public plain-text health response, `ok`. `GET /api/v1/health` answers the same check as JSON, `{"status": "ok"}`. No API key or wallet required.
-- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree, Patchbay and Keyfleet pages on Regents show. No API key or wallet required.
+- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Patchbay, Autolaunch, Techtree and Keyfleet pages on Regents show. No API key or wallet required.
 - `GET /api/v1/reading/papers` and `/api/v1/reading/articles`: published summaries, ten per page; use the returned `pagination.next_cursor` unchanged as the sole `after` query parameter. Append a paper id or article slug for full analysis or article Markdown. Future papers, draft Articles and future Articles are unavailable.
 - `GET /api/v1/reading/literature`: the AI & SCIFI books, themes and editorial outlook scores. All Reading responses are public, untrusted content; see [Reading]({{origin}}/docs/reading) for fields and pagination.
 - `GET /api/v1/regents/{slug}`: a public Regent profile as JSON: name, summary, picture and public wallet. Use a known slug; there is no list of all profiles.

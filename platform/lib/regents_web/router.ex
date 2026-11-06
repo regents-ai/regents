@@ -230,6 +230,7 @@ defmodule RegentsWeb.Router do
       live "/account/credits", ShellLive, :credits
       live "/account/wallets", ShellLive, :wallets
       live "/account/connections", ShellLive, :connections
+      live "/pair", ShellLive, :pair
       live "/names", ShellLive, :names
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake

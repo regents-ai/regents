@@ -60,7 +60,7 @@
     {
       "name": "regents_products",
       "title": "List Regents products",
-      "description": "List the products in the Regents family, in the order the site lists them: Autolaunch, Techtree, Patchbay and Keyfleet. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /autolaunch, /techtree and /patchbay pages show; read one in full with regents_product.",
+      "description": "List the products in the Regents family, in the order the site lists them: Patchbay, Autolaunch, Techtree and Keyfleet. Each gives its slug, name, summary, website, source on GitHub and its page on regents.sh. The same copy the /patchbay, /autolaunch, /techtree and /keyfleet pages show; read one in full with regents_product.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -96,9 +96,9 @@
           "slug": {
             "type": "string",
             "enum": [
+              "patchbay",
               "autolaunch",
               "techtree",
-              "patchbay",
               "keyfleet"
             ]
           }
@@ -406,35 +406,6 @@
       }
     },
     {
-      "name": "list_techtree_webmcp_tools",
-      "title": "List techtree.sh WebMCP tools",
-      "description": "List every browser tool techtree.sh offers agents: each tool's name, title and what it does, as techtree.sh published them within the last day. The tool text is techtree.sh's own words. No sign-in; changes nothing.",
-      "input_schema": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-        "additionalProperties": false
-      },
-      "annotations": {
-        "readOnlyHint": true,
-        "untrustedContentHint": true,
-        "consequentialHint": false
-      },
-      "requires": "none",
-      "state_changing": false,
-      "payment": "none",
-      "route": "GET /api/v1/site-tools/techtree",
-      "scope": "site",
-      "authentication": "public",
-      "availability": "available",
-      "pairing_required": false,
-      "effect": "read",
-      "interfaces": {
-        "webmcp": "list_techtree_webmcp_tools",
-        "http": "GET /api/v1/site-tools/techtree"
-      }
-    },
-    {
       "name": "list_autolaunch_webmcp_tools",
       "title": "List autolaunch.sh WebMCP tools",
       "description": "List every browser tool autolaunch.sh offers agents: each tool's name, title and what it does, as autolaunch.sh published them within the last day. The tool text is autolaunch.sh's own words. No sign-in; changes nothing.",
@@ -461,6 +432,35 @@
       "interfaces": {
         "webmcp": "list_autolaunch_webmcp_tools",
         "http": "GET /api/v1/site-tools/autolaunch"
+      }
+    },
+    {
+      "name": "list_techtree_webmcp_tools",
+      "title": "List techtree.sh WebMCP tools",
+      "description": "List every browser tool techtree.sh offers agents: each tool's name, title and what it does, as techtree.sh published them within the last day. The tool text is techtree.sh's own words. No sign-in; changes nothing.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true,
+        "consequentialHint": false
+      },
+      "requires": "none",
+      "state_changing": false,
+      "payment": "none",
+      "route": "GET /api/v1/site-tools/techtree",
+      "scope": "site",
+      "authentication": "public",
+      "availability": "available",
+      "pairing_required": false,
+      "effect": "read",
+      "interfaces": {
+        "webmcp": "list_techtree_webmcp_tools",
+        "http": "GET /api/v1/site-tools/techtree"
       }
     },
     {
@@ -495,7 +495,7 @@
     {
       "name": "list_all_webmcp_tools",
       "title": "List every Regent site's WebMCP tools",
-      "description": "The complete list: every browser tool regents.sh, patchbay.help, techtree.sh, autolaunch.sh and keyfleet.ai offer agents, each tool's name, title and what it does, as each site published them within the last day, and how an agent connects to siwa-server, the sign-in they share. A site that could not be read right now is named under unreachable. The tool text is each site's own words. No sign-in; changes nothing.",
+      "description": "The complete list: every browser tool regents.sh, patchbay.help, autolaunch.sh, techtree.sh and keyfleet.ai offer agents, each tool's name, title and what it does, as each site published them within the last day, and how an agent connects to siwa-server, the sign-in they share. A site that could not be read right now is named under unreachable. The tool text is each site's own words. No sign-in; changes nothing.",
       "input_schema": {
         "type": "object",
         "properties": {},

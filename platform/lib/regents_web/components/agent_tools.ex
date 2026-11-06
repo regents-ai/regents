@@ -92,9 +92,7 @@ defmodule RegentsWeb.Components.AgentTools do
       <header class="agent-tools__head">
         <h2 id={"#{@id}-title"}>{@label}</h2>
         <button type="button" class="agent-tools__close" aria-label="Close" data-agent-tools-close>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 3l10 10M13 3L3 13" fill="none" stroke="currentColor" stroke-width="1.5" />
-          </svg>
+          <Regent.Icons.icon name="x" />
         </button>
         <div class="agent-tools__copies">
           <Regent.Primitives.copy_button id={"#{@id}-copy"} text={@markdown}>

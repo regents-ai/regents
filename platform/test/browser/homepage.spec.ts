@@ -25,9 +25,9 @@ const waitForHomepage = async (page: import("@playwright/test").Page) => {
 
 // The six worlds in the order the hero lists them, each with the cube face its room is behind.
 const worlds = [
+  {face: "2", name: "Patchbay", site: "https://patchbay.help"},
   {face: "0", name: "Autolaunch", site: "https://autolaunch.sh"},
   {face: "1", name: "Techtree", site: "https://techtree.sh"},
-  {face: "2", name: "Patchbay", site: "https://patchbay.help"},
   {face: "5", name: "Keyfleet", site: "https://keyfleet.ai"},
   {face: "4", name: "Staking", site: /\/stake$/},
   {face: "3", name: "Regents on X", site: "https://x.com/regents_sh"},
@@ -93,9 +93,9 @@ for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
     await page.goto("/")
     const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
     await expect(tabs).toHaveText([
+      "Patchbay, opens in a new tab",
       "Autolaunch, opens in a new tab",
       "Techtree, opens in a new tab",
-      "Patchbay, opens in a new tab",
       "Keyfleet, opens in a new tab",
       "Protocol",
     ])
