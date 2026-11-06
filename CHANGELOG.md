@@ -4642,7 +4642,7 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 ## 2026-11-06 — regents-cli 1.10.24 (branch `regents/cli-1-10-24`)
 
 - Sean's 28 Oct rule: every site names the newest published command line. PyPI's newest is 1.10.24
-  (read 18:17Z 6 Nov; 1.10.25 not published). The Makefile pin moves from `8e8f2af4` (1.10.23) to
+  (read about 18:15Z 6 Nov; 1.10.25 not published). The Makefile pin moves from `8e8f2af4` (1.10.23) to
   `fd325437` (tag v1.10.24); the install lines in `agents.md`, `llms.md`, `docs/pairing.md` and the
   agent start page move with it, and so do the guide's source commit and wheel SHA256
   `6310687234c5b0b5b9304973232e6ef3b0d08853f84ec9e4c82304fef979dc01`, which matches PyPI. One line
