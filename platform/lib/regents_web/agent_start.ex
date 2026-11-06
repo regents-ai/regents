@@ -52,8 +52,6 @@ defmodule RegentsWeb.AgentStart do
        regents protocol agents status
     6. Read my account when I ask:
        regents protocol account show
-       regents protocol account balances
-       regents protocol account credits-history
        regents protocol account claims
        regents protocol account points
        regents protocol staking position
@@ -79,8 +77,6 @@ defmodule RegentsWeb.AgentStart do
        uv run siwa_agent.py me #{origin()}
     5. Read my account when I ask:
        uv run siwa_agent.py request GET #{origin()}/api/agent/v1/account
-       uv run siwa_agent.py request GET #{origin()}/api/v1/account/balances
-       uv run siwa_agent.py request POST #{origin()}/api/v1/account/credits/history --body '{}'
        uv run siwa_agent.py request POST #{origin()}/api/agent/v1/claims --body '{}'
        uv run siwa_agent.py request GET #{origin()}/api/v1/account/points
        uv run siwa_agent.py request GET #{origin()}/api/agent/v1/staking/position
@@ -103,7 +99,7 @@ defmodule RegentsWeb.AgentStart do
     """
     # Connect your agent to Regents
 
-    Your agent pairs with your Regents account and reads it for you: your account, Credits, names, Points and staking. It can never use your wallet, change your account or pair other agents. Agent spending opens soon.
+    Your agent pairs with your Regents account and reads it for you: your account, names, Points and staking. It can never use your wallet, change your account or pair other agents.
 
     1. Your person makes a pairing code with Pair New Agent on their Agents page at #{origin()}. A code works once, for ten minutes.
     2. Follow the steps for your agent below, with that code.

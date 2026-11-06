@@ -1,6 +1,6 @@
 // The account menu and the apps menu are popovers the browser opens and closes
 // itself, as the template's shell does; only following a link inside one, opening
-// Buy Credits or the pairing window, and Sign out, are ours.
+// the pairing window, and Sign out, are ours.
 
 /**
  * Brings `target`, what an address's #fragment names, into view. When it holds a
@@ -38,17 +38,9 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
     const target = event.target instanceof Element ? event.target : null
     if (!target) return
 
-    // The header's balance, the account menu's balance row and a page's own Buy
-    // Credits button open the one panel. The menu closes first, so focus goes back
-    // to the account button and returns there when the panel closes.
-    const creditsOpener = target.closest<HTMLElement>("[data-credits-open]")
-    if (creditsOpener) {
-      creditsOpener.closest<HTMLElement>("[popover]")?.hidePopover()
-      document.getElementById("shell-credits")?.dispatchEvent(new Event("regents:open"))
-      return
-    }
     // Pair New Agent, in the account menu and on the Agents page, opens the one
-    // pairing window. The menu closes first, as for Buy Credits.
+    // pairing window. The menu closes first, so focus goes back to the account
+    // button and returns there when the window closes.
     const pairOpener = target.closest<HTMLElement>("[data-pair-open]")
     if (pairOpener) {
       pairOpener.closest<HTMLElement>("[popover]")?.hidePopover()

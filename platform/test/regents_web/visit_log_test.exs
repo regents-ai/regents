@@ -35,7 +35,7 @@ defmodule RegentsWeb.VisitLogTest do
             client <-
               one_of([
                 string(:printable),
-                member_of(["webmcp/regents_products", "regents-cli/1.10.18 credits balance"])
+                member_of(["webmcp/regents_products", "regents-cli/1.10.18 account points"])
               ]),
             visit <- one_of([string(:printable), string(:alphanumeric, length: 22)])
           ) do

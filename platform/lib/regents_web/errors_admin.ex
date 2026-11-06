@@ -1,7 +1,7 @@
 defmodule RegentsWeb.ErrorsAdmin do
   @moduledoc """
-  Keeps the saved errors at /admin/errors for Credits admins: a signed-in
-  account the Credits `:admins` setting names (REGENT_CREDITS_ADMINS). Anyone
+  Keeps the saved errors at /admin/errors for the site's admins: a signed-in
+  account the site's `:admins` setting names (config/config.exs). Anyone
   else gets the site's ordinary not-found page, so the page's existence is not
   shown either.
 
@@ -62,7 +62,7 @@ defmodule RegentsWeb.ErrorsAdmin do
   defp admin(session) do
     case session |> SessionAuthority.claim() |> SessionAuthority.resolve() do
       {lineage, account} when is_binary(lineage) ->
-        if Regents.Credits.admin?(account), do: {lineage, account}
+        if Regents.admin?(account), do: {lineage, account}
 
       _signed_out ->
         nil
@@ -70,7 +70,7 @@ defmodule RegentsWeb.ErrorsAdmin do
   end
 
   defp recheck(socket, lineage, account_id) do
-    if lineage |> SessionAuthority.leased_account(account_id) |> Regents.Credits.admin?(),
+    if lineage |> SessionAuthority.leased_account(account_id) |> Regents.admin?(),
       do: {:cont, socket},
       else: {:halt, redirect(socket, to: "/")}
   end

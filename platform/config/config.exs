@@ -35,35 +35,16 @@ config :regent_agents,
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
       "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
       "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
-      "Read your person's Credits and Points, also with the account_balances, account_credits_history and account_points tools.",
-      "You can never use your person's wallet, change their account or pair other agents.",
-      # Changes together with RegentCredits.agent_grants_enabled?/0.
-      "Spending your person's Credits isn't open to agents yet; your person can do it themselves."
+      "Read your person's Points, also with the account_points tool.",
+      "You can never use your person's wallet, change their account or pair other agents."
     ]
   },
   ash_domains: [RegentAgents]
 
-# Regent Credits: one prepaid balance per Privy account, shared by every Regent
-# site. Credits are the private currency XRC, kept to the millionth. Admins come
-# from REGENT_CREDITS_ADMINS at runtime. Purchases are checked through the
-# site's own Base and Ethereum read endpoints; `rpc_url` is the public address a
-# wallet adds each chain with. Balance changes from every site reach this
-# site's PubSub.
-config :ex_money,
-  custom_currencies: [{:XRC, name: "Credits", digits: 6}],
-  auto_start_exchange_rate_service: false
-
-config :regent_credits,
-  repo: Regents.Repo,
-  pubsub: Regents.PubSub,
-  notifications: Regents.Notifications,
-  ash_domains: [RegentCredits],
-  admins: [],
-  chain_client: Regents.ChainClient,
-  chains: %{
-    base: %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"},
-    ethereum: %{chain_id: 1, name: "Ethereum", rpc_url: "https://ethereum-rpc.publicnode.com"}
-  }
+# The Privy accounts that run this site: they publish articles, see the saved
+# errors at /admin/errors and may remove an agent's picture
+# (`RegentAgents.Checks.Admin`). Set at runtime (config/runtime.exs).
+config :regents, :admins, []
 
 # Regent Points: one private Points ledger per account, shared by every Regent
 # site. Regents owns the `regent_points` schema's migrations and is the one site
@@ -116,14 +97,13 @@ config :regents, :build, %{commit: nil, release: nil}
 
 # Background jobs live in the site's own schema, beside its tables. Queues hear
 # about new jobs through Erlang process groups, across the site's machines.
-# `regent_credits` checks Credits purchases on chain; AshOban adds each
-# trigger's sweep to `cron`. `points` checks and awards Points; `points_chain`
+# AshOban adds each trigger's sweep to `cron`. `points` checks and awards Points; `points_chain`
 # reads NFT holdings for the period-end bonus, tallied daily only on this site.
 config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
-  queues: [default: 1, regent_credits: 3, points: 5, points_chain: 2, staking_reads: 1],
+  queues: [default: 1, points: 5, points_chain: 2, staking_reads: 1],
   cron: [
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
@@ -163,7 +143,6 @@ config :regents, RegentsWeb.PaperProDaily.Feed,
 
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
-config :regents, :credits_report_rate_limit, limit: 120, window_seconds: 60
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
@@ -238,7 +217,7 @@ config :logger, :default_formatter,
   metadata: [:request_id, :visit, :actor, :surface, :event]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
-# to Credits admins at /admin/errors. Only server faults, and only a job's last
+# to the site's admins at /admin/errors. Only server faults, and only a job's last
 # attempt, are saved (Regents.ErrorIgnorer), only where each one happened is kept
 # (Regents.ErrorFilter), and Regents.ErrorPruner clears each one a week after it
 # was last seen.

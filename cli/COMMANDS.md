@@ -42,34 +42,25 @@ and `other`; the existing server validates them. `--code`, `--name` and
 | `account show` | `GET /api/agent/v1/account` | Read only |
 | `account claims` | `POST /api/agent/v1/claims` | Read only |
 | `staking position` | `GET /api/agent/v1/staking/position` | Read only |
-| `account balances` | `GET /api/v1/account/balances` | Read only |
-| `account credits-history` | `POST /api/v1/account/credits/history` | Read only |
 | `account points` | `GET /api/v1/account/points` | Read only |
 
 `agents whoami` needs fresh proof but no pairing. It returns your SIWA identity,
 current pairing and effective access without a check-in or Points award. Every
 other read requires the current pairing with a person who has signed in on this site. Owners
-may revoke access; pairing again creates a new episode and does not restore the
-old spending grant.
+may revoke access; pairing again creates a new episode.
 
-For `account claims` and `account credits-history`, omit `--after` for the first
-page: the client signs the JSON body `{}`. On later pages use `--after CURSOR`: the
-client signs `{"after":"CURSOR"}`. For `account claims` the cursor is the exact
-returned `next` value; stop when `next` is null. `account credits-history` answers
-`{"entries": […], "pagination": {"has_more", "next_cursor"}}`; the cursor is the exact
-`pagination.next_cursor`; stop when `pagination.has_more` is false. Do not supply a
+For `account claims`, omit `--after` for the first page: the client signs the JSON
+body `{}`. On later pages use `--after CURSOR`: the client signs
+`{"after":"CURSOR"}`, where the cursor is the exact returned `next` value; stop when
+`next` is null. Do not supply a
 user ID, an owner wallet or a query string. Private
 responses are not cacheable; errors carry `code`, `message` and `hint`, and a 429
 includes `Retry-After`.
 
-Credits history pages with `--after`: pass the previous `pagination.next_cursor`
-unchanged (at most 2048 bytes), and leave the flag out for the first page or when
-the cursor is null. A cursor that is not valid answers 422 `invalid_cursor`.
-
 The account read returns its ID, display name and ENS name with the agent wallet
 and pairing ID. Claims remain filtered to the owner's verified wallets. Staking
 uses the owner's primary verified wallet, separately from the agent signing key.
-Balances and history are global Credits figures. `account points` returns the
+`account points` returns the
 owner’s shared Points total, what they earned today and yesterday, their place,
 the actions still open, daily limits, the leaderboard by name or wallet, recent
 entries and the pending count; it creates no account or event and awards no

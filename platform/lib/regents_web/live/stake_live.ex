@@ -384,7 +384,7 @@ defmodule RegentsWeb.StakeLive do
         </li>
         <li>The business keeps the share of REGENT that isn't staked.</li>
         <li>
-          Revenue comes from Credits bought on Base, 10% of Keyfleet Key sales and 10% of Patchbay paid posts.
+          Revenue comes from 10% of Keyfleet Key sales and 10% of Patchbay paid posts.
         </li>
         <li>Claim USDC at any time. There is no lock-up.</li>
         <li>

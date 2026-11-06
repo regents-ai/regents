@@ -674,18 +674,11 @@
   #shell-header .account-control:has(.account-chip) { margin-inline-end: 0; }
   #shell-header .mobile-menu-button { min-width: 2.75rem; padding-inline: 0.25rem; }
 }
-/* Narrower than 22.5rem the header has no room for the balance: the account
-   menu shows it instead, as its balance row, which opens the same panel. */
-@media (max-width: 22.49rem) {
-  #app-shell #shell-credits-button { display: none; }
-}
-
-/* The close button of the shell's windows, Buy Credits and Pair New Agent,
-   square in the window's top right corner, and kept there while the window
-   scrolls. Its margins give back the room it takes, so what is under it keeps
-   its place. It sits outside the product layer, so it wins over the shared
+/* The close button of the pairing window, square in its top right corner, and
+   kept there while the window scrolls. Its margins give back the room it takes,
+   so what is under it keeps its place. It sits outside the product layer, so it wins over the shared
    button's padding. The pad is the window frame's own. */
-:is(.shell-credits-dialog, .shell-pairing-dialog) {
+.shell-pairing-dialog {
   --shell-dialog-pad: clamp(var(--space-2), 4vw, var(--space-4));
 }
 

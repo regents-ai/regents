@@ -425,9 +425,8 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 })
 
 // Every address Stake and Redeem show opens and copies in full: the dashboard,
-// its supply window, both Verification lists, the wallet each panel acts for,
-// the notes that name a wallet and the Buy Credits window's paying wallet,
-// signed out and signed in, at both widths.
+// its supply window, both Verification lists, the wallet each panel acts for
+// and the notes that name a wallet, signed out and signed in, at both widths.
 test("Stake and Redeem draw every address with the address primitive", async ({page}) => {
   await installWallet(page)
 
@@ -454,16 +453,6 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
     expect(await addressesOutOfCase(page), `/stake ${at}`).toEqual([])
     await supply.getByRole("button", {name: "Done"}).click()
     await expect(supply).toBeHidden()
-    if (signedIn) {
-      // The Buy Credits window names the wallet it pays from.
-      const credits = page.locator("#shell-credits")
-      await page.locator("#shell-credits-button").click()
-      await expect(credits.locator(".credits-panel__wallet .rg-address")).toBeVisible()
-      expect(await bareAddresses(page), `Buy Credits ${at}`).toEqual([])
-      expect(await addressesOutOfCase(page), `Buy Credits ${at}`).toEqual([])
-      await credits.getByRole("button", {name: "Close"}).click()
-      await expect(credits).toBeHidden()
-    }
 
     await page.goto("/redeem")
     await expect(page.locator("#redemption-collections")).toBeVisible()

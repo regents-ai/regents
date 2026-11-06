@@ -403,9 +403,7 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#account-auth-status")).toBeHidden()
-  // Startup asks for one sync. The Credits panel asks for one more when it
-  // mounts, which joins startup's while that is still running and is its own
-  // after it finishes. Nothing else asks the bridge for anything.
+  // Startup asks for one sync. Nothing else asks the bridge for anything.
   await expect
     .poll(() =>
       page.evaluate(() => (window as Window & {__u3WalletSyncs?: number}).__u3WalletSyncs),

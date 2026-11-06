@@ -94,13 +94,6 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :points
     },
     %Entry{
-      path_pattern: "/account/credits",
-      live_action: :credits,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :credits
-    },
-    %Entry{
       path_pattern: "/account/wallets",
       live_action: :wallets,
       parameter_schema: %{},
@@ -199,25 +192,18 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :cloak_guide
     },
     %Entry{
-      path_pattern: "/credits/refunds",
-      live_action: :credits_refunds,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :credits_refunds
-    },
-    %Entry{
-      path_pattern: "/admin/credits",
-      live_action: :credits_admin,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :credits_admin
-    },
-    %Entry{
       path_pattern: "/admin/articles",
       live_action: :articles_admin,
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :articles_admin
+    },
+    %Entry{
+      path_pattern: "/admin/pictures",
+      live_action: :pictures_admin,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :pictures_admin
     }
   ]
 
@@ -225,6 +211,9 @@ defmodule RegentsWeb.RouteCatalog do
     articles_admin:
       {:articles_admin, :regent_ops, "Regents Labs", "New Article", "/articles",
        [:profile_actions], :regents_labs, %{}},
+    pictures_admin:
+      {:pictures_admin, :regent_ops, "Regents Labs", "Pictures", "/app", [:profile_actions],
+       :regents_labs, %{}},
     blog:
       {:blog, :regent_ops, "Regents Labs", "Articles", "/articles", [:profile_actions],
        :regents_labs, %{}},
@@ -256,9 +245,6 @@ defmodule RegentsWeb.RouteCatalog do
     points:
       {:points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions], :regents_labs,
        %{}},
-    credits:
-      {:credits, :regent_ops, "Regents Labs", "Credits", "/app", [:profile_actions],
-       :regents_labs, %{}},
     wallets:
       {:wallets, :regent_ops, "Regents Labs", "Wallets", "/app", [:profile_actions],
        :regents_labs, %{}},
@@ -297,12 +283,6 @@ defmodule RegentsWeb.RouteCatalog do
        %{}},
     cloak_guide:
       {:cloak_guide, :regent_ops, "Regents Labs", "Cloak guide", "/app", [:profile_actions],
-       :regents_labs, %{}},
-    credits_refunds:
-      {:credits_refunds, :regent_ops, "Regents Labs", "Credits refunds", "/app",
-       [:profile_actions], :regents_labs, %{}},
-    credits_admin:
-      {:credits_admin, :regent_ops, "Regents Labs", "Credits admin", "/app", [:profile_actions],
        :regents_labs, %{}}
   }
 
@@ -311,7 +291,6 @@ defmodule RegentsWeb.RouteCatalog do
     %RouteTarget{route_id: :account, label: "Account", path: "/account"},
     %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
     %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
-    %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
     %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
     %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"}
   ]

@@ -4649,3 +4649,24 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   in the public changelog. Older dated changelog notes keep the versions they named.
 - Checks so far: `make check-cli` exit 0 at the new pin; docs, public documents and agent
   documents tests 9 passed. The full check waits for the orchestrator's slot.
+
+## 2026-11-06 — Credits removed (branch `regents/credits-out-1106`)
+
+- CREDITS-OUT a (Sean, relayed by the orchestrator 23:20Z), built from
+  `control/rollouts/2026-11-06-credits-removal.md`. Pins elixir-utils `f8801d79` and design-system
+  `d3845c6d`; `regent_credits`, `ash_double_entry`, `ash_money`, `ex_money`, `ex_money_sql`,
+  `expo`, `gettext`, `localize` and `localize_sql` leave the lock. `regent_chain` keeps its
+  `override: true` pin.
+- Gone: Buy Credits and the balance in the account menu, the Account page's Credits tab, the
+  `/account/credits`, `/credits/refunds` and `/admin/credits` pages, `GET /api/v1/account/balances`
+  and `GET /api/v1/account/credits/history`, the tools `account_balances` and
+  `account_credits_history`, and the commands `account balances` and `account credits-history`.
+  OpenAPI JSON and the YAML contract are 6.0.0.
+- Kept: the Points tally and page, `Regents.Names.PaymentCredit` (a paid name claim), and removing
+  an agent's picture, which moves from the Credits admin page to `/admin/pictures` (the site's
+  admins only; anyone else gets the not-found page). `REGENT_CREDITS_ADMINS` still names the admins.
+- No migration, no table or column dropped, no production rows touched.
+- The agent guides for Dots, Grok Bot and Muse named `/api/agent/v1/credits/balance` and a wrong
+  `/api/agent/v1/points`; both now name `/api/agent/v1/account` and `/api/v1/account/points`.
+- Checks: waits the orchestrator's Mac slot (format, credo, targeted tests, route handoff, full
+  check). Release waits the orchestrator's word, last of the five sites.

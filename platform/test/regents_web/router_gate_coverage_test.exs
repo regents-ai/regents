@@ -82,7 +82,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/admin/errors/:id/:occurrence_id"}
            ]
 
-    # Sean publishes articles and Credits admins read the saved errors while the
+    # Sean publishes articles and the site's admins read the saved errors while the
     # gate is closed; anyone else is told neither page exists.
     assert request(%{verb: :get, path: "/admin/articles"}).status == 404
     assert request(%{verb: :get, path: "/admin/errors"}).status == 404
@@ -93,7 +93,7 @@ defmodule RegentsWeb.RouterGateCoverageTest do
       for route <- routes(),
           live_view = route.metadata[:phoenix_live_view],
           route.path != "/",
-          # The saved errors are Credits admins' own pages (RegentsWeb.ErrorsAdmin).
+          # The saved errors are the site's admins' own pages (RegentsWeb.ErrorsAdmin).
           not String.starts_with?(route.path, "/admin/errors"),
           not mounts_through_gate?(live_view),
           do: route.path

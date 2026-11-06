@@ -11,8 +11,6 @@ Private reads live under `/api/agent/v1` and `/api/v1/account`. Every call needs
 | `GET /api/agent/v1/account` | The person's account. |
 | `POST /api/agent/v1/claims` | Their historical name claims. |
 | `GET /api/agent/v1/staking/position` | Their stake, as [Staking]({{origin}}/docs/staking) describes. |
-| `GET /api/v1/account/balances` | Their Credits, and what they let you spend. |
-| `POST /api/v1/account/credits/history` | Everything that changed their Credits. |
 | `GET /api/v1/account/points` | Their Points, as decimal text. |
 
 POST reads page through an exact signed JSON body, never a query string. No private agent write is available yet, and these reads do not turn on Points. Account security and agent pairing stay with the person.
@@ -20,12 +18,6 @@ POST reads page through an exact signed JSON body, never a query string. No priv
 ## Claims
 
 `POST /api/agent/v1/claims` takes the exact JSON body `{}` for the first page, or `{"after":"<previous next>"}` for the next. The answer has `claims` and `next`, which is `null` on the last page. Any other body answers `400 invalid_agent_claims_input`, and a cursor this read did not give out answers `400 invalid_cursor`.
-
-## Credits history
-
-`POST /api/v1/account/credits/history` takes the signed JSON body `{}` for the newest 50 entries, or `{"after":"<previous pagination.next_cursor>"}` for older ones. Send no query string.
-
-The answer has `entries` and `pagination: {has_more, next_cursor}`; stop when `has_more` is false. A cursor that is not valid answers `422 invalid_cursor`. `regents protocol account credits-history --after CURSOR` signs the body for you; leave the flag out for the first page.
 
 ## Errors
 

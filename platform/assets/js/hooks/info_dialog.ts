@@ -13,19 +13,13 @@ interface InfoDialogHook {
 // something to show opens as it arrives (`data-open`) and tells whatever
 // rendered it, the page or a part of it, when the reader closes it
 // (`data-close-event`). One inside a form, where a `method="dialog"` form
-// cannot go, closes when something in it asks (`regents:close`). Opening one also asks each wallet panel inside it
-// (`data-refresh-funds`) to read its funds again, so a disabled button there
-// rests only on what the chain says now.
+// cannot go, closes when something in it asks (`regents:close`).
 export const InfoDialog: Hook = {
   mounted(this: InfoDialogHook) {
     this.js().ignoreAttributes(this.el, ["open", "style"])
 
     this.el.addEventListener("regents:open", () => {
-      if (this.el.open) return
-      this.el.showModal()
-      this.el
-        .querySelectorAll("[data-refresh-funds]")
-        .forEach(panel => panel.dispatchEvent(new CustomEvent("regents:refresh-funds")))
+      if (!this.el.open) this.el.showModal()
     })
 
     this.el.addEventListener("regents:close", () => this.el.close())

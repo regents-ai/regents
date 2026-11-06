@@ -251,17 +251,14 @@ defmodule RegentsWeb.Live.SessionAuthorityGateTest do
 
     {:ok, view, _html} = live(signed_in, "/stake")
     assert has_element?(view, @profile)
-    # The balance, which the Buy Credits panel shows, is read in the background.
-    render_async(view)
-    assert has_element?(view, "#credits-panel-amount[value='5']")
 
     assert SessionAuthority.revoke(claim(signed_in))
-    view |> form("#credits-panel-form", amount: "7") |> render_change()
+    view |> form("#shell-pairing-box", %{harness: "hermes"}) |> render_change()
 
     # Only the component's own check can have refused this: the page's event
-    # hook never hears a component's events.
+    # hook never hears a component's events. No pairing code was made.
     assert has_element?(view, @sign_in, "Sign in")
-    refute has_element?(view, "#credits-panel-amount[value='7']")
+    refute has_element?(view, "#shell-pairing-box pre")
   end
 
   test "MOUNTED_LEASE_POLICY_C: an invalid claim exposes no private dead render", %{conn: conn} do

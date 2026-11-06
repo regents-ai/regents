@@ -8,12 +8,13 @@ signed agents, the Claude connector (the `/mcp` a person adds to their Claude ac
 signed in with OAuth), and the regents CLI. This file has one row per action.
 
 Audited on regents main `4948e2d1` (29 Oct 2026), read from the committed tree only.
+Credits were removed on 6 Nov 2026: their rows are gone and R7 and R8 are closed.
 Sources: `platform/lib/regents_web/router.ex`, `platform/lib/regents_web/endpoint.ex`,
 every `handle_event` in `platform/lib/regents_web/live/` and
 `platform/lib/regents_web/components/`, the wallet step builders
-(`Regents.Staking.Steps`, `Regents.Redemption.Steps`, `RegentCredits.Chains.steps/3`
-behind `RegentsWeb.CreditsPanel`, all sent through `RegentsWeb.OnchainSteps`),
-`platform/priv/tool_manifest.json` (24 tools), `cli/commands.json` (18 commands),
+(`Regents.Staking.Steps` and `Regents.Redemption.Steps`, both sent through
+`RegentsWeb.OnchainSteps`), `platform/priv/tool_manifest.json` (21 tools),
+`cli/commands.json` (15 commands),
 the shared profile `identity/lib/regent_identity/http.ex` and the shared agents
 router from elixir-utils `14013e42` (`RegentAgents.HTTP`: pair, me, whoami). The
 local showcase, the Privy showcase and the motion lab (`/showcase`, `/animations`)
@@ -62,7 +63,6 @@ were skipped.
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
 | Open or unpair an agent, read its last actions | account menu Agents, `/account/agents` | — | — | — | — | no (owner only) | R5 |
 | Set or remove an agent's picture | `/account/agents` agent window (upload) | — | — | — | — | no | R6 |
-| Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
 
 ## Names
 
@@ -71,13 +71,10 @@ were skipped.
 | Read claimed Regent Names | `/names` (more on scroll) | `regents_claims` | — | — | `account claims` | no | R2, R3 |
 | Check a name, see free claims left, claim a free name | `/names` Claim | — | — | — | — | no | R12 |
 
-## Credits
+## Points
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Read Credits and the agent's spending allowance | header, `/account` | `account_balances` | — | — | `account balances` | no | R2, R3 |
-| Read Credits purchase history | `/account/credits` (more) | `account_credits_history` | — | — | `account credits-history` | no | R2, R3 |
-| Buy Credits with USDC on Base (approve, buy, then the purchase counts) | Buy Credits panel | — | — | — | — | money, wallet | R8 |
 | Read Points | `/account/points` | `account_points` | — | — | `account points` | no | R2, R3 |
 
 ## Stake
@@ -102,7 +99,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read about Regents and the docs | `/about`, `/docs` and each `/docs/<page>` | `regents_about` (`docs`, `docs-<page>`) | — | — | — (plain fetch) | no | R2, R3 |
-| Read other site pages (start, refund rules, privacy, terms) | `/start`, `/credits/refunds`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
+| Read other site pages (start, privacy, terms) | `/start`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
 | Read Regents Cloak and its setup guide | `/cloak`, `/cloak/guide` | `regents_about` (the guide) | — | — | — (plain fetch, `/cloak/guide` as Markdown) | no | R2, R3 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
@@ -116,9 +113,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Publish an Article (authors, cover picture) | `/admin/articles` | — | — | — | — | production data (public post) | R14 |
-| Give Credits | `/admin/credits` | — | — | — | — | money | R15 |
-| Find a person's purchases, start and close a refund | `/admin/credits` | — | — | — | — | money, personal data | R15 |
-| Remove an agent's picture | `/admin/credits` | — | — | — | — | production data | R15 |
+| Remove an agent's picture | `/admin/pictures` | — | — | — | — | production data | R15 |
 | Saved errors | `/admin/errors` | — | — | — | — | production data | R16 |
 
 ## Page check
@@ -166,15 +161,8 @@ were skipped.
   picture in its window on `/account`; the agent has no route to set its own (the shared agents
   router serves only pair, me and whoami). Plan: a signed picture route, tools and
   `agents picture set` and `agents picture remove` commands. Not protected.
-- **R7. Agent spending limits are page-only.** Turning an agent's spending on, its
-  limits and its sites are saved only for a person signed in on `/account/credits`. Plan: an
-  owner-only signed route, tool and command after R1. Protected (money).
-- **R8. Buying Credits has no agent path.** Only the Buy Credits panel builds the
-  approve and buy steps and reports the sent buy so it counts.
-  `RegentCredits.Chains.steps/3` names no sender, so the site already builds steps an
-  agent's own key could sign. Plan: a signed route that answers the steps and one that
-  takes the sent buy's hash, a `credits buy` command and a `regents_credits_buy` tool.
-  Protected (money, wallet).
+- **R7. Closed.** Credits are gone (6 Nov 2026), and agent spending limits with them.
+- **R8. Closed.** Credits are gone (6 Nov 2026); there is nothing to buy.
 - **R9. Staking is page-only.** Stake, unstake, claim USDC, claim REGENT and claim and
   restake run only from `/stake` with the browser's Privy wallet.
   `Regents.Staking.Steps.steps/3` already takes the signer's address, so the site can
@@ -196,14 +184,13 @@ were skipped.
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
 - **R13. Closed.** `regents_about` reads every page that has words to read, as
-  Markdown: `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/credits/refunds`, `/privacy`,
+  Markdown: `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/privacy`,
   `/terms` and `/cloak/guide`. `/cloak` itself shows the guide's facts beside the
   disabled download, so the guide stands for it.
 - **R14. Publishing Articles is page-only.** `/admin/articles` is for article admins in a
   browser. An admin agent needs the same through the five surfaces. Protected
   (production data, public post); after R1.
-- **R15. Credits admin is page-only.** Giving Credits, finding a person's purchases,
-  starting and closing refunds and removing an agent's picture run only on
-  `/admin/credits`. Protected (money, personal and production data); after R1.
-- **R16. Saved errors are page-only.** `/admin/errors` is for Credits admins in a
+- **R15. Removing an agent's picture is page-only.** It runs only on `/admin/pictures`,
+  for the site's admins. Protected (production data); after R1.
+- **R16. Saved errors are page-only.** `/admin/errors` is for the site's admins in a
   browser. An admin agent needs the same read. Protected (production data); after R1.

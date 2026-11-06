@@ -54,11 +54,7 @@ defmodule RegentsWeb.AgentStartLive do
           </li>
           <li>
             <h3>It reads for you</h3>
-            <p>Your balance, Credits, names, Points and staking.</p>
-          </li>
-          <li>
-            <h3>Spending</h3>
-            <p>Agent spending opens soon.</p>
+            <p>Your account, names, Points and staking.</p>
           </li>
         </ol>
       </section>

@@ -38,7 +38,7 @@
 
 /* Panels */
 
-/* Panels side by side when there is room: Notes, Points, Credits history. */
+/* Panels side by side when there is room. */
 .account-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
@@ -52,7 +52,7 @@
   padding: 1.5rem 0;
 }
 
-/* The same size as the shared sections beside them (Agents, Credits). */
+/* The same size as the shared sections beside them (Agents). */
 .account-panel h2 {
   font-size: 1.125rem;
   line-height: 1.35;
@@ -149,22 +149,8 @@
 
 }
 
-/* What Credits buy: one row per place, the site above a link to it. */
-.credits-uses ul {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.credits-uses li {
-  display: grid;
-  gap: 0.2rem;
-}
-
 /* regents.sh's own pages on the same ground: the agent start page, the article
-   editor and Credits admin open with a heading; Names lists and claims names;
+   editor opens with a heading; Names lists and claims names;
    each agent's picture is kept here for every Regent site. */
 @layer regents-product {
 /* Heading */
@@ -367,5 +353,33 @@
 }
 
 .pair-page #pair-start {
+  overflow-wrap: anywhere;
+}
+
+/* Pictures: the site's admins remove an agent's picture (RegentsWeb.PicturesAdmin). */
+.pictures-admin,
+.pictures-admin form,
+.pictures-admin__picture {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  justify-items: start;
+}
+
+.pictures-admin form {
+  justify-items: stretch;
+}
+
+.pictures-admin form > button {
+  justify-self: start;
+}
+
+.pictures-admin input {
+  width: 100%;
+  font: inherit;
+}
+
+.pictures-admin p {
+  margin: 0;
   overflow-wrap: anywhere;
 }
