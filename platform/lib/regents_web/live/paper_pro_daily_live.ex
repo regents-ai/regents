@@ -277,10 +277,10 @@ defmodule RegentsWeb.PaperProDailyLive do
           <a href={@paper.chatgpt_url} rel="noopener noreferrer">ChatGPT Thread</a>
         </p>
         <div class="paper-daily__actions paper-daily__paper-actions">
-          <.icon_copy id={"#{@id}-copy-details"} text={@paper.markdown} icon={:copy}>
+          <.icon_copy id={"#{@id}-copy-details"} text={@paper.markdown} icon="copy">
             Copy Details
           </.icon_copy>
-          <.icon_copy id={"#{@id}-share"} text={@paper.url} icon={:share}>Share</.icon_copy>
+          <.icon_copy id={"#{@id}-share"} text={@paper.url} icon="share">Share</.icon_copy>
         </div>
         <div
           id={"#{@id}-opening"}
@@ -338,16 +338,14 @@ defmodule RegentsWeb.PaperProDailyLive do
 
   attr :id, :string, required: true
   attr :text, :string, required: true
-  attr :icon, :atom, required: true
+  attr :icon, :string, required: true
   slot :inner_block, required: true
 
   defp icon_copy(assigns) do
     ~H"""
     <Regent.Primitives.copy_button id={@id} text={@text}>
       <span class="paper-daily__copy-label">
-        <span class="paper-daily__copy-icon"><RegentsWeb.Components.RegentLinks.source_icon kind={
-          @icon
-        } /></span>
+        <Regent.Icons.icon name={@icon} />
         {render_slot(@inner_block)}
       </span>
     </Regent.Primitives.copy_button>

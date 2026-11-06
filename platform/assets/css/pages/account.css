@@ -438,3 +438,25 @@
   color: var(--color-error);
 }
 }
+
+/* Pairing: the window every Pair New Agent opens, and the pairing link's page
+   (/pair), whose box keeps the window's width and whose start page wraps rather
+   than running off a narrow screen. Unlayered, like the shared pairing box. */
+.shell-pairing-dialog {
+  --rg-dialog-size: 30rem;
+}
+
+.shell-pairing-dialog h2 {
+  margin: 0 0 var(--space-3);
+  padding-inline-end: 3rem;
+  font-family: var(--font-family-ui);
+  font-size: var(--type-headline-size);
+}
+
+.pair-page .rg-account__pair {
+  max-inline-size: 27rem;
+}
+
+.pair-page #pair-start {
+  overflow-wrap: anywhere;
+}

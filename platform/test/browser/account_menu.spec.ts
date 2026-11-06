@@ -127,6 +127,26 @@ test("Escape closes the account menu before an open section behind it", async ({
   await problems.expect()
 })
 
+// 6 Nov 2026: with Buy Credits open over an open section, Escape closed the section
+// behind and left the window open. Escape is the window's, and the section stays.
+test("Escape closes Buy Credits before an open section behind it", async ({page}) => {
+  const problems = watch(page)
+  await signIn(page)
+  await page.locator("#route-content").evaluate(content => {
+    const details = document.createElement("details")
+    details.open = true
+    details.id = "walk-open-section"
+    details.innerHTML = "<summary>Section</summary><p>Inside</p>"
+    content.prepend(details)
+  })
+  await page.locator("#shell-credits-button").click()
+  await expect(page.locator("#shell-credits")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.locator("#shell-credits")).toBeHidden()
+  await expect(page.locator("#walk-open-section")).toHaveAttribute("open", "")
+  await problems.expect()
+})
+
 test("asked for less motion, the account menu appears at once", async ({page}) => {
   const problems = watch(page)
   await page.emulateMedia({reducedMotion: "reduce"})
@@ -151,26 +171,26 @@ for (const width of [1280, 390]) {
     await problems.expect()
   })
 
-  test(`Pair New Agent in the menu lands on the Agents page's pairing box at ${width}`, async ({page}) => {
+  test(`Pair New Agent in the menu opens the pairing window over the page at ${width}`, async ({page}) => {
     const problems = watch(page)
     await page.setViewportSize({width, height: 900})
     await signIn(page)
     await openMenu(page)
-    await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(page).toHaveURL(/\/account\/agents#account-pairing$/)
+    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
     await expect(menu(page)).toBeHidden()
-    await expect(page.locator("#account-pairing")).toBeInViewport()
-    // The keyboard starts on the agent choice.
-    await expect(page.locator("#account-pairing").getByRole("radio").first()).toBeFocused()
+    const pairing = page.locator("#shell-pairing")
+    await expect(pairing).toBeVisible()
+    await expect(page).toHaveURL(/\/stake$/)
+    // The keyboard starts in the window, on the agent dropdown.
+    await expect(pairing.locator("summary")).toBeFocused()
 
-    // Pressed again from the same address after scrolling away, it moves there again.
-    await page.locator("#app-shell-scroller").evaluate(scroller => scroller.scrollTo({top: 0}))
-    await expect(page.locator("#account-pairing").getByRole("heading", {name: "Pair New Agent"})).not.toBeInViewport()
+    // Closed, focus goes back to the account button; pressed again, it opens again.
+    await pairing.getByRole("button", {name: "Close"}).click()
+    await expect(pairing).toBeHidden()
+    await expect(page.locator("#account-chip")).toBeFocused()
     await openMenu(page)
-    await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(menu(page)).toBeHidden()
-    await expect(page.locator("#account-pairing")).toBeInViewport()
-    await expect(page.locator("#account-pairing").getByRole("radio").first()).toBeFocused()
+    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+    await expect(pairing).toBeVisible()
     await problems.expect()
   })
 }

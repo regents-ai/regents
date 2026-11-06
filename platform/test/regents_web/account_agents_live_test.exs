@@ -10,10 +10,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
   @listing "https://www.8004scan.io/agents/base/97609"
 
-  # The pairing box on the Account page, and the message it shows once an agent is
-  # chosen.
-  @pairing "#account-pairing-box"
-  @message "#account-pairing-box pre"
+  # The pairing box in the pairing window, on every signed-in page, and the message
+  # it shows once an agent is chosen.
+  @pairing "#shell-pairing-box"
+  @message "#shell-pairing-box pre"
 
   # The sign-in service knows of nothing the agent did, and of no registry
   # listing, unless a test says so. Readings kept by an earlier test are dropped.
@@ -61,9 +61,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     # keeps its code.
     assert has_element?(view, @message, "SIWA_BROKER")
     choose(view, "hermes")
-    assert has_element?(view, @pairing, "Sol paired with your account.")
+    assert has_element?(view, @pairing, "Sol paired")
     refute has_element?(view, @message)
-    assert has_element?(view, "#account-pairing-box-new:not([data-unused])")
+    assert has_element?(view, "#shell-pairing-box-new:not([data-unused])")
     assert has_element?(view, "#account-agents-agent-#{agent.id} span", "Hermes")
     assert has_element?(view, "#account-agents-agent-#{agent.id} time", "just now")
   end

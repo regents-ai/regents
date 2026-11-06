@@ -221,13 +221,6 @@
   gap: 8px;
 }
 
-.paper-daily__copy-icon,
-.paper-daily__copy-icon svg {
-  display: inline-block;
-  inline-size: 1rem;
-  block-size: 1rem;
-}
-
 .paper-daily__end {
   padding: 24px clamp(20px, 4vw, 48px);
   border-block-start: 1px solid var(--rg-page-rule);

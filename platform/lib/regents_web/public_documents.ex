@@ -55,6 +55,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/account/wallets" => {"Wallets", "The wallets your sign-in verified."},
     "/account/connections" =>
       {"Connections", "The accounts you have connected, such as X, GitHub and Farcaster."},
+    "/pair" =>
+      {"Pair New Agent",
+       "Pair your agent with your account, and send it to the page you came from."},
     "/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/stake" =>
       {"Stake REGENT",

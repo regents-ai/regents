@@ -115,6 +115,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :connections
     },
     %Entry{
+      path_pattern: "/pair",
+      live_action: :pair,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :pair
+    },
+    %Entry{
       path_pattern: "/names",
       live_action: :names,
       parameter_schema: %{},
@@ -242,6 +249,9 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     account_agents:
       {:account_agents, :regent_ops, "Regents Labs", "Agents", "/app", [:profile_actions],
+       :regents_labs, %{}},
+    pair:
+      {:pair, :regent_ops, "Regents Labs", "Pair New Agent", "/app", [:profile_actions],
        :regents_labs, %{}},
     points:
       {:points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions], :regents_labs,

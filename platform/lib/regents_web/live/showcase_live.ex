@@ -50,6 +50,7 @@ defmodule RegentsWeb.ShowcaseLive do
       <%!-- The preview's account is never signed in, so it has no account menu to fill. --%>
       <:credits_panel :if={@account.kind == :signed_in} />
       <:agents :if={@account.kind == :signed_in} />
+      <:pairing_panel :if={@account.kind == :signed_in} />
       <:content>
         <div style="padding: 32px">
           <h1>Shell preview</h1><p>Navigation, account control, theme, background.</p><a

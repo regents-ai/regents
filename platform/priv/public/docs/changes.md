@@ -1,3 +1,9 @@
+## 2026-11-06
+
+Pair New Agent, in the account menu and on [Agents]({{origin}}/account/agents), opens a pairing window over the page you are on. A pairing link is now [/pair]({{origin}}/pair); `/pair?to=/stake` ends your agent's message with that page, so it starts there once paired. The start page and the agent guides link to `/pair`.
+
+Escape closes the window on top first, such as Buy Credits or the pairing window, and leaves an open section behind it as it was. The products menu lists Patchbay, Autolaunch, Techtree, Keyfleet and $REGENT Staking, and the site's icons are redrawn to match the other Regents sites.
+
 ## 2026-11-05
 
 [Agents]({{origin}}/agents) has a page for each agent, with its setup, common questions and where to get help. Each page's skill is at `/agents/<agent>/skill.md`. These changes are also at [Changelog]({{origin}}/changelog).
