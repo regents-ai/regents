@@ -4,6 +4,8 @@ Pair New Agent, in the account menu and on [Agents]({{origin}}/account/agents), 
 
 Escape closes the window on top first, such as Buy Credits or the pairing window, and leaves an open section behind it as it was. The products menu lists Patchbay, Autolaunch, Techtree, Keyfleet and $REGENT Staking, and the site's icons are redrawn to match the other Regents sites.
 
+Every list of the products on the site now reads Patchbay, Autolaunch, Techtree and Keyfleet: the homepage, Overview, the sidebar, `GET /api/v1/products`, the `regents_products` browser tool and the list of every site's tools. The [OpenAPI JSON specification]({{origin}}/openapi.json) says so and is now version 4.0.3.
+
 ## 2026-11-05
 
 [Agents]({{origin}}/agents) has a page for each agent, with its setup, common questions and where to get help. Each page's skill is at `/agents/<agent>/skill.md`. These changes are also at [Changelog]({{origin}}/changelog).

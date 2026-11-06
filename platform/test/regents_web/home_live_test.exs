@@ -43,7 +43,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
     assert attribute(html, ".rl-product-tabs a", "href") ==
-             ~w(https://autolaunch.sh https://techtree.sh https://patchbay.help https://keyfleet.ai /stake)
+             ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake)
   end
 
   test "PLANNED_HAS_NO_LINK: a planned feature is never offered as something to try" do

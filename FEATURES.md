@@ -45,7 +45,7 @@ also runs alone with `cd platform && npx playwright test`.
 | Credits refunds and the credits admin page | `regents_web/route_catalog_test.exs` (route exists only), `regents/credits/credited_test.exs` | No page-level check |
 | Articles and the articles admin page | `browser/page_policy.spec.ts`, `regents_web/router_gate_coverage_test.exs` | No check of reading or editing an article |
 | Regent profile pages | `regents_web/regent_profile_live_test.exs` | |
-| Product pages (Autolaunch, Techtree, Patchbay, Keyfleet) and Overview | `browser/regent_overview_token.spec.ts`, `regents_web/product_live_test.exs` | |
+| Product pages (Patchbay, Autolaunch, Techtree, Keyfleet) and Overview | `browser/regent_overview_token.spec.ts`, `regents_web/product_live_test.exs` | |
 | Regents Cloak: Download for Mac stays off with "Coming soon" beside it, every protection reads Planned, and Set up with your agent opens the guide; the guide page and the Markdown agents read are the same text; both fit at 390 and 1280 | `browser/cloak.spec.ts`, `regents_web/cloak_live_test.exs`, `browser/page_policy.spec.ts` | |
 | Paper Pro Daily and Literature | `regents_web/paper_pro_daily_live_test.exs`, `regents_web/controllers/literature_controller_test.exs` | |
 | Signed in, every shell page carries the whole account menu, its agents and Pair New Agent, and the Credits button (Paper Pro Daily and AI & SCIFI included) | `browser/shell_walk.spec.ts` "a signed-in person has the whole account menu on every shell page" (1280) | 390 not walked |
