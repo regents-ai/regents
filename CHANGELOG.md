@@ -4479,3 +4479,23 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   at 03:46:48Z came before it was up.
 - Not proven: a real sign-in, the clipboard write on Copy Page in Safari and Firefox, crash saving
   after a real failed save, `put-paper` on the machine until the next real paper.
+
+## 2026-11-06 — Released v275 (Lucide icons and the pairing window)
+
+- v275: commit `09530e96`, image `main-09530e9682bb`, created 2026-11-06T16:41:04Z, rollback v274
+  `9bfaf7d0`. No migration. Design-system pin `768719f3` (Lucide icons). Pair New Agent opens one
+  window over the page, from the Agents page and the account menu; `/pair` and `/pair?to=<page>`
+  are new, and the agent guides and start page link there. Escape closes the window on top first.
+  The products menu reads Patchbay, Autolaunch, Techtree, Keyfleet, $REGENT Staking. Open windows
+  carry `data-settled` once they rest, as the template's do.
+- Full `make check` on `09530e96` exit 0, 16:24:18Z to 16:32:51Z: server 634 (1 excluded), scripts
+  252, browser 156 (WebKit not run), identity 16, contracts 454, required template fixes present.
+  Log: the session scratchpad `check-lucide-09530e96.log`, last line `make exit 0`.
+- Icons looked at zoomed in beside their neighbours before release: every changed icon matches.
+- Authority: Sean's sign-off on the Lucide and pairing round (HQ relay, 6 Nov), HQ 16:20Z "Mac
+  yours".
+- Live on v275: Fly shows v275 complete, capabilities.json commit `09530e96`. `/`, `/pair`,
+  `/pair?to=%2Fstake` and `/account/agents` answer 200; signed out, `/pair?to=%2Fstake` shows Sign in
+  and "Once paired, it starts at https://regents.sh/stake".
+- Not proven: the world cube's leave cross (needs the GPU cube; same x icon), WebKit, a real
+  sign-in.
