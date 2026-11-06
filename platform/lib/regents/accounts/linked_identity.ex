@@ -70,6 +70,13 @@ defmodule Regents.Accounts.LinkedIdentity do
       filter expr(provider == ^arg(:provider) and subject == ^arg(:subject))
     end
 
+    # Each account's link to one provider made before a moment, such as the Points start.
+    read :linked_before do
+      argument :provider, :atom, allow_nil?: false
+      argument :at, :utc_datetime_usec, allow_nil?: false
+      filter expr(provider == ^arg(:provider) and inserted_at < ^arg(:at))
+    end
+
     destroy :remove_verified do
       accept []
       require_atomic? false
@@ -82,6 +89,7 @@ defmodule Regents.Accounts.LinkedIdentity do
              :refresh_verified,
              :for_account,
              :by_provider_subject,
+             :linked_before,
              :remove_verified
            ]) do
       authorize_if Regents.Checks.SystemActor

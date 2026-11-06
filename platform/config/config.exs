@@ -132,7 +132,9 @@ config :regents, Oban,
       # Every five minutes, and early after a confirmed on-chain press or a press
       # of the read-again icon (Regents.ChainRefresh).
       {"*/5 * * * *", Regents.Staking.SnapshotRefresh},
-      {"17 4 * * *", Regents.ErrorPruner}
+      {"17 4 * * *", Regents.ErrorPruner},
+      # From the Points start, the one-time points for what accounts already had.
+      {"@hourly", RegentPoints.StartAwards}
     ]
   ],
   pruner: [max_age: {7, :days}],

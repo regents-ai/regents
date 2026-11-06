@@ -4514,3 +4514,31 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   at 03:46:48Z came before it was up.
 - Not proven: a real sign-in, the clipboard write on Copy Page in Safari and Firefox, crash saving
   after a real failed save, `put-paper` on the machine until the next real paper.
+
+## 2026-11-06 — Points: what people had before the start (branch `regents/points-1102`)
+
+- Sean's ruling, relayed by the orchestrator at 03:00Z 6 Nov: existing accounts, linked socials
+  and first pairings earn their one-time points at the start (at most 80); first report, first
+  reply and first launch leave the catalog; the approved list is the one switch. Model: ash-template
+  `46ba1be5`.
+- The branch carries main `6461136d` (merge `0660dc1e`; the one conflict was this file, both
+  sections kept).
+- elixir-utils `4e527975` to `7fde8cce` in `platform/` (pin line and lock only):
+  `RegentPoints.StartAwards`, versioned rules, `Rules.tracked/0` lists only approved rules with a
+  checker, the catalog without `patchbay.first_report`, `patchbay.first_reply` and
+  `autolaunch.first_launch` (250 in the catalog, 240 at launch), and
+  `RegentAgents.pairings_held_from_before/1`. `identity/` stays on its own pin.
+- `Regents.Points.AccountActivated`, `LinkedSocial` and `PairedAgent` gain `existing/2`: the
+  accounts made before the start, the links to the rule's provider made before it, and each
+  person's earliest pairing from before it still paired. New system-only reads: `HumanAccount`
+  `:created_before` and `:by_privy_dids`, `LinkedIdentity` `:linked_before`.
+- `{"@hourly", RegentPoints.StartAwards}` joins the Oban cron list. With `starts_at` still `nil`
+  the job stops at once, so nothing earns yet.
+- The Points page already lists `Rules.tracked/0` and keeps no list of its own; with
+  `approved_rules` still `[]` it says "Earning hasn’t opened yet."
+- New regression `platform/test/regents/points/start_awards_test.exs`: what an account had before
+  the start goes through the site's own checks to awards at the start time, once.
+- Focused tests: `test/regents/points` 4 passed; accounts, Points, agent reads, contract, shell,
+  boundary, launch gate, route catalog, release and Privy session tests 164 passed, warnings as
+  errors. Full `make check` waits the orchestrator's slot and the final library pin.
+- No migrations.
