@@ -20,6 +20,11 @@ router from elixir-utils `14013e42` (`RegentAgents.HTTP`: pair, me, whoami). The
 local showcase, the Privy showcase and the motion lab (`/showcase`, `/animations`)
 were skipped.
 
+The MCP and Connector columns were updated on branch `connector-mcp-1108` (8 Nov
+2026), which adds hosted `/mcp` and the Claude connector on top of the Credits
+removal. Its switch stays off until the Regents hosted signing key is added on
+siwa-server.
+
 ## Key
 
 - **Page**: an agent that owns the account can finish it in headless Chromium with its
@@ -30,10 +35,16 @@ were skipped.
 - **WebMCP**: the tool in `platform/priv/tool_manifest.json`. A signed tool takes only its
   input; the agent's browser host signs the exact request with the agent's own SIWA key, and
   it acts for the agent's paired person. There are no wallet tools.
-- **MCP**: hosted `/mcp` for signed agents. regents.sh has none: no route, no plug and
-  no MCP library in its dependencies (R2).
-- **Connector**: the Claude connector at `/mcp`, signed in with OAuth. regents.sh has
-  none: no OAuth routes and no connector code (R3).
+- **MCP**: hosted `/mcp` for signed agents (`platform/lib/regents_web/plugs/mcp_agent.ex`,
+  tools from `priv/capabilities.json` rows whose `hosted_mcp` is `true`). A paired
+  agent's own signature reads its person's account and Points, with the same answers
+  and refusals as the agent API. Everything else is a gap (R2).
+- **Connector**: the Claude connector at `/mcp`, signed in with OAuth. It serves the
+  shared identity tools (`get_identity`, `register_identity`, `pair_identity`,
+  `check_in`) and, once Claude is paired and allowed to work as the person's agent, the
+  same two reads. Each connected app has its own identity and pairs with its own code.
+  Its switch (`REGENTS_CLAUDE_CONNECTOR_ENABLED`) stays off until the Regents hosted
+  signing key is on siwa-server (R3).
 - **CLI**: the command in `cli/commands.json`, matched on route and operation id. All
   18 are in released regents-cli 1.10.20 and in regents-cli main
   (`platforms/protocol/commands.json`), so nothing here waits for the next release.
@@ -49,8 +60,8 @@ were skipped.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Sign in / make the account | Privy sign-in window (`POST /auth/privy/session`), untested for agents | — | — | — | — | sign-in | R1 |
 | Sign out | account menu Sign out (`DELETE /auth/privy/session`) | — | — | — | — | sign-in | R1 |
-| Agent's own identity (whoami, check in) | agents only | `regents_agent_whoami` | — | — | `agents whoami`, `agents status` | no | R2, R3, R4 |
-| Read display name and ENS name | `/account` | `regents_account` | — | — | `account show` | no | R2, R3 |
+| Agent's own identity (whoami, check in) | agents only | `regents_agent_whoami` | — | `get_identity`, `check_in` | `agents whoami`, `agents status` | no | R2, R4 |
+| Read display name and ENS name | `/account` | `regents_account` | `regents_account` | `regents_account` | `account show` | no | — |
 | Read wallets | `/account/wallets` | — | — | — | — | wallet | R11 |
 | Set display name | `/account` Public Display Name (`PATCH /api/v1/profile` with a Privy proof pair) | — | — | — | — | sign-in | R11 |
 | Verified connections (X, GitHub, Farcaster: start, refresh) | `/account/connections` | — | — | — | — | sign-in | R11 |
@@ -60,7 +71,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Make a pairing code, choose the agent | Pair New Agent (Agents page) | — | — | — | — | no (owner only) | R5 |
-| Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
+| Pair with a code | agents only | — | — | `register_identity`, `pair_identity` | `agents pair` | no | R2, R4 |
 | Open or unpair an agent, read its last actions | account menu Agents, `/account/agents` | — | — | — | — | no (owner only) | R5 |
 | Set or remove an agent's picture | `/account/agents` agent window (upload) | — | — | — | — | no | R6 |
 
@@ -75,7 +86,7 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Read Points | `/account/points` | `account_points` | — | — | `account points` | no | R2, R3 |
+| Read Points | `/account/points` | `account_points` | `account_points` | `account_points` | `account points` | no | — |
 
 ## Stake
 
@@ -142,13 +153,18 @@ were skipped.
   pairing"). Plan: the Privy account whose login wallet is the agent's SIWA wallet is
   the agent's own account, and a request signed by that wallet acts as its owner, as in
   ash-template's G1. Protected (sign-in): waits for Sean's go. Owner: agent-access lane.
-- **R2. No hosted MCP.** regents.sh has no `/mcp` route or plug, and none of the shared
-  MCP libraries is in `platform/mix.exs`. Plan: mount the shared `/mcp` that ash-template
-  and Keyfleet use and serve the manifest's 24 tools through it. Not protected for the
-  reads; any signed tool keeps its own rule. Owner: agent-access lane.
-- **R3. No Claude connector.** There are no OAuth routes and no connector tools. Plan:
-  the shared connector with OAuth sign-in from ash-template, serving the same tools as
-  R2. Protected (sign-in: OAuth approval). Owner: agent-access lane.
+- **R2. Hosted MCP serves two reads.** `/mcp` (branch `connector-mcp-1108`) serves a
+  paired agent's account and Points, each an Ash action the agent API calls too. The
+  other tools (claims, stake, public reads, pairing and check-in for a signed agent)
+  are not hosted yet: each becomes an Ash action first, then its
+  `priv/capabilities.json` row turns `hosted_mcp` on. Not protected for the reads; any
+  signed tool keeps its own rule. Owner: agent-access lane.
+- **R3. Claude connector built, switch off.** OAuth sign-in, connected apps and the
+  connector's identity tools come from ash-template and elixir-utils (branch
+  `connector-mcp-1108`), serving the same two reads as R2 once Claude is paired and
+  allowed. Each connected app keeps its own identity and pairs with its own code. It
+  turns on after the Regents hosted signing key is added on siwa-server. Protected
+  (sign-in: OAuth approval; the key is a secret). Owner: agent-access lane.
 - **R4. Pairing and check-in have no WebMCP tool.** `agents pair` and `agents status`
   exist in the CLI; the page tools offer only `regents_agent_whoami`. Plan: signed
   `regents_agent_pair` and `regents_agent_status` tools on the existing

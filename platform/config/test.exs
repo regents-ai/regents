@@ -38,6 +38,8 @@ config :regent_agents,
   activity_read_token: "test-activity-read-token",
   req_options: [plug: {Req.Test, RegentAgents.Broker}]
 
+config :regent_mcp_agents, :config, hosted_signer: [base_url: "https://siwa.test"]
+
 config :regents, :database_startup_enabled, true
 
 # Jobs are queued, never run, unless a test runs one itself.

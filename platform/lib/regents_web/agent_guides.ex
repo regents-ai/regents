@@ -15,6 +15,11 @@ defmodule RegentsWeb.AgentGuides do
       for it (IronClaw).
 
   Adding an agent is adding its file. Nothing here reads the database.
+
+  Claude pairs only through the Claude connector, so its page, its skill and its
+  line on `/agents` and in the sitemap exist only while the connector is switched
+  on (`Regents.OAuth.enabled?/0`), read on each call; switched off,
+  `/agents/claude` is not found like any other unknown agent.
   """
 
   alias RegentsWeb.PublicDocuments
@@ -40,10 +45,17 @@ defmodule RegentsWeb.AgentGuides do
            &(&1 |> to_string() |> String.replace("_", "-"))
          )
 
+  # The agents that pair only through the Claude connector, shown while it is on.
+  @connector_only ["claude"]
+
   # Every agent the pairing box offers has a page, and every page is one it offers.
-  @unmatched (@slugs -- Map.keys(@guides)) ++ (Map.keys(@guides) -- @slugs)
+  @offered @slugs ++ @connector_only
+  @unmatched (@offered -- Map.keys(@guides)) ++ (Map.keys(@guides) -- @offered)
   if @unmatched != [],
-    do: raise("priv/public/agents and Harness.featured/0 differ: #{inspect(@unmatched)}")
+    do:
+      raise(
+        "priv/public/agents and Harness.featured/0 with Claude differ: #{inspect(@unmatched)}"
+      )
 
   # A new agent's file recompiles this module, as an edited one does.
   def __mix_recompile__?,
@@ -52,8 +64,8 @@ defmodule RegentsWeb.AgentGuides do
   @doc "The page of the agent on `harness`."
   def path(harness), do: "/agents/" <> String.replace(to_string(harness), "_", "-")
 
-  @doc "The list of agents, then every agent's page."
-  def paths, do: ["/agents" | Enum.map(@slugs, &("/agents/" <> &1))]
+  @doc "The list of agents, then every shown agent's page."
+  def paths, do: ["/agents" | Enum.map(shown(), &("/agents/" <> &1))]
 
   @doc "The page at `path` as Markdown, or nil when it names no agent."
   def document("/agents"), do: %{title: "Agents", markdown: fill(index())}
@@ -88,11 +100,15 @@ defmodule RegentsWeb.AgentGuides do
     end
   end
 
-  defp guide(slug), do: if(slug in @slugs, do: Map.fetch!(@guides, slug))
+  # The agents shown now: Claude only while its connector is on.
+  defp shown,
+    do: if(Regents.OAuth.enabled?(), do: @offered, else: @slugs)
+
+  defp guide(slug), do: if(slug in shown(), do: Map.fetch!(@guides, slug))
 
   defp index do
     lines =
-      Enum.map_join(@slugs, "\n", fn slug ->
+      Enum.map_join(shown(), "\n", fn slug ->
         guide = @guides[slug]
         "- [#{guide.name}]({{origin}}/agents/#{slug}): #{guide.summary}"
       end)

@@ -30,7 +30,10 @@ defmodule RegentsWeb.PicturesAdmin do
   # The account as the page gave it, or as it reads now before each event
   # (`RegentsWeb.Live.Session.check_component_lease/2`).
   defp take_account(socket, account),
-    do: assign(socket, team: %RegentAgents.Person{privy_user_id: account.privy_user_id, role: :admin})
+    do:
+      assign(socket,
+        team: %RegentAgents.Person{privy_user_id: account.privy_user_id, role: :admin}
+      )
 
   @impl true
   def handle_event("find_picture", %{"wallet" => wallet}, socket) do
@@ -52,7 +55,10 @@ defmodule RegentsWeb.PicturesAdmin do
          ) do
       :ok ->
         {:noreply,
-         assign(socket, picture: :none, note: {:ok, "Picture removed. Its owner may choose another."})}
+         assign(socket,
+           picture: :none,
+           note: {:ok, "Picture removed. Its owner may choose another."}
+         )}
 
       {:error, %Ash.Error.Forbidden{}} ->
         {:noreply, assign(socket, note: {:error, "Only the site's admins can remove a picture."})}

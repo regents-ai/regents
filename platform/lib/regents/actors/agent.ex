@@ -1,5 +1,12 @@
 defmodule Regents.Actors.Agent do
-  @moduledoc "A SIWA agent acting for its current paired owner, never as a human."
+  @moduledoc """
+  A SIWA agent acting for its current paired owner, never as a human.
+
+  `connection` is set when the agent is a connected app's own identity, acting
+  through the hosted MCP server with the token its person approved: what
+  `RegentOAuth.verify/3` answered for that token. The same app may then also run
+  its identity tools (`Regents.Agents.Connection`).
+  """
   @enforce_keys [:wallet_address, :pairing_id, :privy_user_id, :human_account_id]
   defstruct [
     :wallet_address,
@@ -7,9 +14,12 @@ defmodule Regents.Actors.Agent do
     :privy_user_id,
     :human_account_id,
     :beneficiary_wallet_address,
+    :connection,
     wallet_addresses: [],
     role: :agent
   ]
+
+  @type t :: %__MODULE__{}
 
   def paired(wallet, pairing, account) do
     wallets = [account.wallet_address | account.wallet_addresses || []]

@@ -19,6 +19,12 @@ POST reads page through an exact signed JSON body, never a query string. No priv
 
 `POST /api/agent/v1/claims` takes the exact JSON body `{}` for the first page, or `{"after":"<previous next>"}` for the next. The answer has `claims` and `next`, which is `null` on the last page. Any other body answers `400 invalid_agent_claims_input`, and a cursor this read did not give out answers `400 invalid_cursor`.
 
+## Hosted MCP
+
+`{{origin}}/mcp` serves `regents_account` and `account_points` to an MCP client, with the same answers and refusals as `GET /api/agent/v1/account` and `GET /api/v1/account/points`. An agent signs each request with its own key, with the same headers as a signed request, and needs a current pairing; a connected app sends its token instead. A connected app also has `register_identity`, `get_identity`, `pair_identity` and `check_in`: it registers a Regents identity of its own, reads whether that identity is paired, pairs it with the one-use code its person makes with Pair New Agent, and checks in so its person sees it is active. Each app a person connects has its own identity and pairs with its own code. Once paired, it makes the two reads as that agent. A request with neither a signature nor a connected app's token answers 401: `connection_required`, with the `WWW-Authenticate` sign-in challenge, while Claude can connect this site, otherwise `agent_auth_required`. A signature beside a Bearer token answers 401 with `ambiguous_credentials`.
+
+Each request is one JSON-RPC call, POSTed to `{{origin}}/mcp` itself with `Content-Type: application/json`. A query string, a batch of calls, another method or address, another body type and a page on another site are refused in the same [error shape]({{origin}}/docs/errors). An agent's address may send 120 requests a minute, and a connected app has its own 120 a minute. Neither read takes input: call it with empty `arguments`; any input answers `invalid_input`. A tool's refusal is its error, whose text is the same error shape, with the codes the API uses, such as `unavailable`. Nothing is kept between calls, and every answer is `cache-control: private, no-store`.
+
 ## Errors
 
 Errors share the [one shape]({{origin}}/docs/errors).

@@ -50,9 +50,59 @@ if config_env() != :test do
     url: System.get_env("SIWA_SERVER_URL"),
     audience: System.get_env("SIWA_AUDIENCE")
 
+  config :regent_mcp_agents, :config, hosted_signer: [base_url: System.get_env("SIWA_SERVER_URL")]
+
   # The reader key for each paired agent's activity across the Regent sites.
   config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
 end
+
+# The Claude connector, behind one switch (Regents.OAuth.enabled?/0): its
+# sign-in under /oauth and /.well-known/oauth-*, its identity tools at /mcp
+# (Regents.Agents.Connection), Claude in the pairing box and the Claude guide at
+# /agents/claude, which the sitemap, /llms.txt and /agents.md then name.
+# Anything but "true" leaves all of it off. Switch it on only after the
+# migrations have run. The connector's identities are held by the same sign-in
+# service, asked with this site's own key there.
+claude_connector? = System.get_env("REGENTS_CLAUDE_CONNECTOR_ENABLED") == "true"
+hosted_signing_key = System.get_env("SIWA_HOSTED_SIGNING_KEY")
+
+if claude_connector? and
+     not (is_binary(hosted_signing_key) and
+            Regex.match?(~r/\A[A-Za-z0-9_-]{32,}\z/, hosted_signing_key)) do
+  raise "REGENTS_CLAUDE_CONNECTOR_ENABLED is true, so SIWA_HOSTED_SIGNING_KEY must be " <>
+          "this site's hosted signing key from the sign-in service: 32 or more letters, " <>
+          "digits, - or _"
+end
+
+# The connector's sign-in answers at the site's own address and its MCP address
+# is under it: https://PHX_HOST in production, the endpoint's own address
+# elsewhere. Each code and token has these written on it as it is issued, and one
+# whose values differ from the running site's is refused (docs/oauth-reference.md).
+site_url =
+  if config_env() == :prod do
+    case String.trim(System.get_env("PHX_HOST", "")) do
+      "" -> nil
+      host -> "https://" <> host
+    end
+  else
+    url = Application.fetch_env!(:regents, RegentsWeb.Endpoint)[:url]
+    URI.to_string(%URI{scheme: url[:scheme] || "http", host: url[:host], port: url[:port]})
+  end
+
+config :regents, Regents.OAuth,
+  enabled?: claude_connector?,
+  issuer: site_url,
+  resource: site_url && site_url <> "/mcp"
+
+# Asked at the same sign-in service that checks agents' signed requests,
+# SIWA_SERVER_URL above (config/test.exs names the test service).
+config :regent_mcp_agents, :config,
+  enabled?: claude_connector?,
+  hosted_signer: [key: hosted_signing_key]
+
+# Claude is offered in the pairing box, and accepted by the pair request, only
+# while its connector is on.
+config :regent_agents, hosted_pairing: if(claude_connector?, do: [:claude], else: [])
 
 # Production must say out loud whether the product surfaces are open. Anything
 # but "on" keeps them closed, so a typo closes rather than opens.

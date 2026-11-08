@@ -62,15 +62,16 @@ defmodule RegentsWeb.Endpoint do
 
   # One budget per client address, shared by the health check, the browser's visit
   # reports and every /api path, answered or not; pairing counts against its own
-  # budget too. Every answer says what is left of each; past one, 429 with
-  # Retry-After.
+  # budget too, and the MCP address has its own. Every answer says what is left of
+  # each; past one, 429 with Retry-After.
   plug :limit_rate
 
-  # Before the parsers, so a body they reject on an /api path is answered in
-  # JSON like every other API error.
+  # Before the parsers, so a body they reject on an /api path or the MCP address
+  # is answered in JSON like every other API error.
   plug RegentAgentAccess.Plug,
     documents: &RegentsWeb.PublicDocuments.document/1,
-    guide: "/llms.txt"
+    guide: "/llms.txt",
+    json_prefixes: ["api", "mcp"]
 
   # After the error format is chosen, so a slash address is answered as any
   # address that names nothing.
@@ -116,6 +117,9 @@ defmodule RegentsWeb.Endpoint do
 
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
+
+  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts),
+    do: RegentsWeb.Plugs.McpAgent.limit_address(conn)
 
   defp limit_rate(conn, _opts), do: conn
 

@@ -403,12 +403,8 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#account-auth-status")).toBeHidden()
-  // Startup asks for one sync. Nothing else asks the bridge for anything.
-  await expect
-    .poll(() =>
-      page.evaluate(() => (window as Window & {__u3WalletSyncs?: number}).__u3WalletSyncs),
-    )
-    .toBe(1)
+  // Startup asks the bridge for one sync itself. Nothing on the page asks for
+  // another, and nothing else asks the bridge for anything.
   await expect
     .poll(() =>
       page.evaluate(
@@ -419,9 +415,10 @@ test("ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: a same-account load writes no sessio
   const calls = await page.evaluate(
     () => (window as Window & {__u3BridgeCalls?: string[]}).__u3BridgeCalls ?? [],
   )
-  expect(calls).toContain("sync")
-  expect(calls.every(call => call === "sync")).toBe(true)
-  expect(calls.length).toBeLessThanOrEqual(2)
+  expect(calls).toEqual(["sync"])
+  expect(
+    await page.evaluate(() => (window as Window & {__u3WalletSyncs?: number}).__u3WalletSyncs),
+  ).toBe(0)
 
   expect(bridgeRequests).toBe(1)
   expect(sessionDeletes).toBe(0)

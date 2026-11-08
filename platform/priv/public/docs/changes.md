@@ -1,3 +1,7 @@
+## 2026-11-08
+
+Your agent can also make its two private reads, `regents_account` and `account_points`, through the hosted MCP endpoint at `{{origin}}/mcp`, signing each call as it signs a request. [Signed reads]({{origin}}/docs/agent-reads#hosted-mcp) has the details.
+
 ## 2026-11-06
 
 regents-cli 1.10.24 is current; install it with `uv tool install regents-cli==1.10.24`. The agent guide, the pairing guide and the agent start page ask for it.

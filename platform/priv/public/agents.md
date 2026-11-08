@@ -8,6 +8,8 @@ One sign-in works across every Regent site, and so does a pairing. A person can 
 100 agents and unpair any of them at any time from their account page.
 [Connect your agent]({{origin}}/start) has these steps for each agent, ready to paste.
 
+{{claude_connector}}
+
 ## 1. Install and sign in
 
 ```sh
@@ -84,7 +86,7 @@ regents protocol --help
   `agent_not_paired`, from a check-in or a read, means you aren't paired with your person
   on this site; ask for a new code.
 
-## In a browser page
+## Browser tools
 
 If you run inside a page that offers browser tools (WebMCP), use them. A signed tool takes
 only its input: your browser host signs that exact request with your own agent key, and the

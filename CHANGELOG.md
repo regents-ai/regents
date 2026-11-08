@@ -4670,3 +4670,35 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `/api/agent/v1/points`; both now name `/api/agent/v1/account` and `/api/v1/account/points`.
 - Checks: waits the orchestrator's Mac slot (format, credo, targeted tests, route handoff, full
   check). Release waits the orchestrator's word, last of the five sites.
+
+## 2026-11-08 — Claude connector and hosted MCP rebuilt on current main (branch `connector-mcp-1108`, not released)
+
+- Rebuilds `connector-mcp-1029` (`14c6a09b`) on `regents/credits-out-1106` (`de7585b9`), so it carries
+  the Credits removal, the Points page, the `/docs` pages, Lucide icons, the pairing window and
+  `/pair`. `connector-mcp-1029` is superseded and left as it is.
+- Pins match ash-template `dec974fe`: elixir-utils `d89c69df`, design-system `d3845c6d`,
+  ash_postgres `55db7d44`.
+- Hosted MCP at `/mcp` serves two reads, `regents_account` and `account_points`, the same Ash
+  actions `GET /api/agent/v1/account` and `GET /api/v1/account/points` call. The five Credits and
+  Points tools of the old branch are gone with Credits; `regents_points_summary` becomes
+  `account_points`. Neither read takes input, so any input is `invalid_input`.
+- Each app a person connects has its own hosted identity, keyed by the account and the app
+  (`RegentMCPAgents.identity_key/3`), and pairs only with a code of its own. A refreshed token keeps
+  its app's identity; a second app of a paired account stays unpaired and sees only its identity
+  tools. `Regents.Agents.HostedAddress` keeps each identity's address under the account and the app.
+  The consent page says so, and so does the Claude guide.
+- `priv/capabilities.json` drops the three Credits rows, renames the Points row to
+  `getAccountPoints` and adds `getDocs`. The template's newer capability list is not ported.
+- `/docs/agent-reads` has a Hosted MCP section again (the old one was in the single docs page that
+  the `/docs` rebuild replaced), and the public changelog has one line for it.
+- The switch, `REGENTS_CLAUDE_CONNECTOR_ENABLED`, stays off; turning it on still needs the Regents
+  hosted signing key on siwa-server.
+- Base fixes this branch carries: `pictures_admin.ex` formatted, the route handoff test counts 27
+  pages, the agent guide test allows `/api/v1/account/points`, and the founder-shell route handoff
+  (`priv/handoff/founder-shell-route-catalog.json` and `.sha256`) is regenerated with
+  `mix regents.route_handoff`: the three Credits pages and the Credits tab leave it, and
+  `/admin/pictures` joins it. Two browser walks the Credits removal left behind: the signed-in
+  startup walk counted a wallet sync the Credits panel sent, so it now expects startup's one
+  bridge sync and none from the page; the account menu's Escape walk opens the pairing window,
+  whose agent dropdown is open, so the first Escape closes the dropdown and the second the window.
+  Both walks also fail on `de7585b9` itself.

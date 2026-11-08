@@ -405,7 +405,17 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
-  defp source(name), do: fill(@sources[name])
+  # The `{{claude_connector}}` line and its blank line become the Claude
+  # connector's paragraph only while it is on, and `{{hosted_mcp}}` says what the
+  # hosted MCP address serves, both read on each call; `fill/1` then does the rest.
+  defp source(name) do
+    connector? = Regents.OAuth.enabled?()
+
+    @sources[name]
+    |> String.replace("{{claude_connector}}\n\n", claude_connector(connector?))
+    |> String.replace("{{hosted_mcp}}", hosted_mcp(connector?))
+    |> fill()
+  end
 
   @doc """
   Committed Markdown with its placeholders filled: `{{key_facts}}` is the About
@@ -418,6 +428,32 @@ defmodule RegentsWeb.PublicDocuments do
     |> String.replace("{{tools}}", @tool_table)
     |> String.replace("{{origin}}", url(""))
   end
+
+  defp claude_connector(false), do: ""
+
+  defp claude_connector(true),
+    do:
+      "Claude doesn't use these steps: it pairs through this site's connector, with no " <>
+        "command line or key of its own. [Claude]({{origin}}/agents/claude) has the setup.\n\n"
+
+  defp hosted_mcp(connector?) do
+    "Regents' hosted MCP endpoint is {{origin}}/mcp. Your agent signs each call there with " <>
+      "its own key, as for a signed request: `regents_account` and `account_points` read " <>
+      "your person's account and Points. Their answers and refusals are the same as the " <>
+      "API's. Reading without signing in is the browser tools and the API." <>
+      connector(connector?)
+  end
+
+  defp connector(false), do: ""
+
+  defp connector(true),
+    do:
+      " It is also Claude's connector: the person adds it in Claude's settings, then signs " <>
+        "in here when Claude asks and allows it. Claude's tools there (`get_identity`, " <>
+        "`register_identity`, `pair_identity` and `check_in`) only keep an identity for the " <>
+        "connection, pair it with the person's account and check in. Allowing it also " <>
+        "lets Claude work here as the person's agent, so once paired it reads the same two. " <>
+        "[Claude]({{origin}}/agents/claude) has the setup."
 
   def recovery_links do
     [
