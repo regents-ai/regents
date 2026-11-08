@@ -1,12 +1,12 @@
 defmodule RegentsWeb.ShellLive.Account do
   @moduledoc """
-  The Account pages, as ash-template has them: Account (the shared layout, whose
-  agents list and pairing box are their own components), Credits (the account's
+  The Account pages, as ash-template has them: Account (the shared layout),
+  Agents (the agents list, whose Pair New Agent opens the pairing window), Credits (the account's
   Credits history and what each paired agent may spend of them), Wallets (read from the sign-in) and Connections (the accounts
   connected to it). Every read here is the account's own, made with what its
   sign-in verified, so nothing the browser sends can widen it. Agent changes from
-  other tabs and sites reach the account menu's agents on every page, and the
-  Account page's list and pairing box while it is open.
+  other tabs and sites reach the account menu's agents and the pairing window on
+  every page, the Agents page's list while it is open, and the pairing link's page.
   """
 
   import Phoenix.Component, only: [assign: 2]
@@ -110,16 +110,19 @@ defmodule RegentsWeb.ShellLive.Account do
 
   @doc """
   An agent paired, checked in or was unpaired, here or on another Regent site.
-  The account menu's agents are on every page; the Account page also lists the
-  agents and holds the pairing box, and the Credits page lists what each may spend.
+  The account menu's agents and the pairing window are on every page; the Agents
+  page also lists the agents, the pairing link's page holds a pairing box, and the
+  Credits page lists what each may spend.
   """
   def agents_changed(socket) do
     send_update(MenuAgents, id: "shell-agents", agents_changed: true)
+    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
 
-    if socket.assigns.route_spec.route_id == :account do
-      send_update(AgentsPanel, id: "account-agents", agents_changed: true)
-      send_update(PairingBox, id: "account-pairing-box", agents_changed: true)
-    end
+    if socket.assigns.route_spec.route_id == :account_agents,
+      do: send_update(AgentsPanel, id: "account-agents", agents_changed: true)
+
+    if socket.assigns.route_spec.route_id == :pair,
+      do: send_update(PairingBox, id: "pair-pairing-box", agents_changed: true)
 
     load_spending_agents(socket, socket.assigns.route_spec)
   end

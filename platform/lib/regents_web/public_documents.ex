@@ -29,31 +29,39 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /privacy /terms /start /cloak/guide /credits/refunds) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start /cloak/guide /credits/refunds) ++
                RegentsWeb.Docs.Pages.paths()
+  alias RegentsWeb.AgentGuides
+  alias RegentsWeb.PaperProDaily.Reading
+
+  @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
   @site_name "Regents Labs"
-  @description "The community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet. Explore REGENT staking, redemption and developer documentation."
+  @description "The community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet. Explore REGENT staking, redemption and developer documentation."
 
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
     "/" =>
       {"Regents Labs — Agentic product lab",
-       "Regents Labs is the community-owned agentic product lab behind Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking and redemption on Base."},
+       "Regents Labs is the community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking and redemption on Base."},
     "/app" =>
       {"Overview",
-       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Autolaunch, Techtree, Patchbay and Keyfleet."},
-    "/account" => {"Account", "Your profile, agents, Credits and the session on this browser."},
+       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Patchbay, Autolaunch, Techtree and Keyfleet."},
+    "/account" => {"Account", "Your profile, Credits and the session on this browser."},
+    "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points and activity."},
     "/account/credits" =>
       {"Credits history", "Everything that changed your Credits, on every Regent site."},
     "/account/wallets" => {"Wallets", "The wallets your sign-in verified."},
     "/account/connections" =>
       {"Connections", "The accounts you have connected, such as X, GitHub and Farcaster."},
+    "/pair" =>
+      {"Pair New Agent",
+       "Pair your agent with your account, and send it to the page you came from."},
     "/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/stake" =>
       {"Stake REGENT",
-       "Stake REGENT on Base to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now."},
+       "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now."},
     "/redeem" =>
       {"Redeem Animata",
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
@@ -94,7 +102,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Every refusal has one shape: a code, a message saying what happened and a hint saying what to do."},
     "/docs/products" =>
       {"Products · Docs",
-       "Autolaunch, Techtree, Patchbay and Keyfleet as JSON, with each one's summary and links."},
+       "Patchbay, Autolaunch, Techtree and Keyfleet as JSON, with each one's summary and links."},
     "/docs/reading" =>
       {"Reading · Docs",
        "Published research papers, Articles and the AI & SCIFI books, open to everyone."},
@@ -120,13 +128,13 @@ defmodule RegentsWeb.PublicDocuments do
     "/about" =>
       {"About",
        "What Regents Labs does and how it differs, who uses it, the team, key facts, common questions about REGENT and its products, and how to reach us."},
+    "/changelog" => {"Changelog", "Changes to Regents Labs, newest first."},
     "/start" =>
       {"Connect your agent",
        "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
     "/articles" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
-    "/paper-pro-daily" =>
-      {"Paper Pro Daily", "A research paper each day, read with ChatGPT Astra 6 Pro."},
+    "/paper-pro-daily" => {"Paper Pro Daily", @paper_share_heading},
     "/literature" =>
       {"Literature",
        "Science-fiction books about artificial minds, placed by how hopeful each is for humanity and for the minds themselves."},
@@ -155,6 +163,9 @@ defmodule RegentsWeb.PublicDocuments do
 
   def url(path), do: RegentsWeb.Endpoint.url() <> path
 
+  @doc "The line above every shared paper."
+  def paper_share_heading, do: @paper_share_heading
+
   def document("/"), do: %{markdown: RegentsWeb.HomeLive.agent_markdown()}
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
@@ -163,12 +174,20 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/credits/refunds"), do: %{markdown: RegentsWeb.CreditsRefundRules.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
+  def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
+  def document("/agents" = path), do: AgentGuides.document(path)
+  def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
 
   def document(path) do
     case RegentsWeb.Docs.Pages.page(path) do
       nil -> nil
-      page -> %{markdown: RegentsWeb.Docs.markdown(page)}
+      page -> docs_document(page)
     end
+  end
+
+  defp docs_document(page) do
+    {title, _description} = RegentsWeb.Docs.heading(page)
+    %{title: title, markdown: RegentsWeb.Docs.markdown(page)}
   end
 
   @doc """
@@ -182,6 +201,16 @@ defmodule RegentsWeb.PublicDocuments do
       page_description: "#{regent.display_name}'s public Regent profile on #{@site_name}."
     ]
 
+  def page({:paper, paper}),
+    do: [
+      page_title: paper.title,
+      page_description:
+        Enum.join(
+          Enum.reject([@paper_share_heading, Reading.byline(paper)], &(&1 == "")),
+          " · "
+        )
+    ]
+
   def page({:blog_post, %{description: ""} = post}),
     do: [
       page_title: post.title,
@@ -192,7 +221,9 @@ defmodule RegentsWeb.PublicDocuments do
     do: [page_title: post.title, page_description: post.description]
 
   def page(key) do
-    {title, description} = Map.fetch!(@pages, key)
+    {title, description} =
+      if key in AgentGuides.paths(), do: AgentGuides.page(key), else: Map.fetch!(@pages, key)
+
     [page_title: title, page_description: description]
   end
 
@@ -219,41 +250,66 @@ defmodule RegentsWeb.PublicDocuments do
   # The HTML is MDEx-sanitized from the committed public markdown.
   # sobelow_skip ["XSS.Raw"]
   def html(markdown) do
-    markdown |> MDEx.to_html!(extension: [table: true], sanitize: @sanitize) |> Phoenix.HTML.raw()
+    markdown
+    |> MDEx.to_html!(extension: [table: true, inline_code_attributes: false], sanitize: @sanitize)
+    |> Phoenix.HTML.raw()
+  end
+
+  def metadata("/paper-pro-daily" <> rest = path, title, description) when rest != "" do
+    %{
+      title: title,
+      suffix: "",
+      description: description,
+      canonical: url(path),
+      image: paper_share_image(path),
+      image_size: {1200, 630},
+      image_alt: title,
+      markdown?: false
+    }
   end
 
   def metadata(path, title, description) do
-    suffix = if path == "/", do: "", else: " · #{@site_name}"
+    suffix = if path in ["/", "/paper-pro-daily"], do: "", else: " · #{@site_name}"
 
     %{
       title: title <> suffix,
       suffix: suffix,
       description: description,
       canonical: url(path),
-      image: url(RegentsWeb.Endpoint.static_path(share_image(path))),
+      image: share_image(path),
       image_size: share_image_size(path),
       image_alt: share_image_alt(path),
-      markdown?: path in @documents
+      markdown?: path in documents()
     }
   end
+
+  defp documents, do: @documents ++ AgentGuides.paths()
 
   # The picture shown when a page is shared. The home page, Paper Pro Daily, Stake,
   # Redeem and the literature chart each have their own; every other page shares the crown.
   @share_cards %{
     "/" => "home",
-    "/paper-pro-daily" => "paper-pro-daily",
     "/stake" => "stake",
     "/redeem" => "redeem"
   }
 
-  defp share_image("/literature"), do: "/images/literature/share.png"
+  defp share_image("/paper-pro-daily" = path), do: paper_share_image(path)
+  defp share_image(path), do: url(RegentsWeb.Endpoint.static_path(static_share_image(path)))
 
-  defp share_image(path) when is_map_key(@share_cards, path),
+  # The address names the build, so a new picture reaches anyone holding the last one.
+  defp paper_share_image(path) do
+    url("#{path}/share.png?v=#{Application.fetch_env!(:regents, :build).commit}")
+  end
+
+  defp static_share_image("/literature"), do: "/images/literature/share.png"
+
+  defp static_share_image(path) when is_map_key(@share_cards, path),
     do: "/images/share/#{@share_cards[path]}.png"
 
-  defp share_image(_path), do: "/mark.png"
+  defp static_share_image(_path), do: "/mark.png"
 
   defp share_image_size("/literature"), do: {2048, 1024}
+  defp share_image_size("/paper-pro-daily"), do: {1200, 630}
   defp share_image_size(path) when is_map_key(@share_cards, path), do: {1200, 630}
   defp share_image_size(_path), do: {1024, 512}
 
@@ -263,15 +319,13 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/"),
     do:
-      "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, techtree.sh, autolaunch.sh, keyfleet.ai and siwa-server"
+      "The Regents crown above Regents Labs, the community-owned agentic product lab, and $REGENT, beside its six sites: regents.sh, patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai and siwa-server"
 
-  defp share_image_alt("/paper-pro-daily"),
-    do:
-      "Paper Pro Daily: a research paper each day, read with ChatGPT Astra 6 Pro, beside three paper first pages"
+  defp share_image_alt("/paper-pro-daily"), do: @paper_share_heading
 
   defp share_image_alt("/stake"),
     do:
-      "Put REGENT to work: stake REGENT to share in Regents Labs' USDC revenue, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT"
+      "Put REGENT to work: stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT"
 
   defp share_image_alt("/redeem"),
     do:
@@ -291,11 +345,24 @@ defmodule RegentsWeb.PublicDocuments do
     |> put_in(["info", "termsOfService"], url("/terms"))
   end
 
+  @doc "The RFC 9727 list of this site's APIs and their descriptions."
+  def api_catalog do
+    %{
+      "linkset" => [
+        %{
+          "anchor" => url("/api/v1"),
+          "service-desc" => [%{"href" => url("/openapi.json"), "type" => "application/json"}],
+          "service-doc" => [%{"href" => url("/docs"), "type" => "text/html"}]
+        }
+      ]
+    }
+  end
+
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
-          RegentsWeb.Docs.Pages.paths(),
+        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
+          RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
         fn path ->
           location = url(path) |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()

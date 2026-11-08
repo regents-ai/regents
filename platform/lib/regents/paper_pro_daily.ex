@@ -9,8 +9,16 @@ defmodule Regents.PaperProDaily do
       define :tag_papers, action: :tag_papers, args: [:tags]
       define :list_papers, action: :list, args: [:dates]
       define :export_papers, action: :export
+      define :paper_outline, action: :outline
       define :paper_feed, action: :feed
       define :get_paper, action: :details, args: [:id], get?: true, not_found_error?: false
+
+      define :get_paper_by_anchor,
+        action: :by_anchor,
+        args: [:anchor],
+        get?: true,
+        not_found_error?: false
+
       define :get_picture, action: :picture, args: [:id], get?: true, not_found_error?: false
     end
   end

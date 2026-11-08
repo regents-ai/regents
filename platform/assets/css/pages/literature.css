@@ -66,7 +66,7 @@
   display: flex;
   justify-content: space-between;
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
 }
@@ -98,7 +98,6 @@
 
 .lit-axis strong {
   color: var(--color-fg);
-  font-weight: 600;
 }
 
 .lit-axis span:first-child::before {
@@ -218,7 +217,6 @@
 
 .lit-label__title {
   display: block;
-  font-weight: 600;
   text-wrap: balance;
 }
 
@@ -333,7 +331,7 @@
 
 .lit-pop__scores dd {
   margin: 0;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-variant-numeric: tabular-nums;
 }
 
@@ -351,7 +349,6 @@
   margin-top: 0.25rem;
   color: var(--ash-accent);
   font-size: 0.8rem;
-  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   text-underline-offset: 0.3em;

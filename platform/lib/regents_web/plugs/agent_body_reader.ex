@@ -1,14 +1,23 @@
 defmodule RegentsWeb.Plugs.AgentBodyReader do
   @moduledoc """
-  Keeps the exact bytes of an agent's request to `/api/agents` or `/api/agent`, since its SIWA
-  signature covers them and the parsed body cannot be turned back into them.
+  Keeps the exact bytes of every body the API takes, so the sign-in service can
+  check them against the request's signature (`RegentsWeb.Plugs.PairedAgent`,
+  `RegentAgents.HTTP`): any of them may come from an agent. The pages' own form
+  bodies are read as before.
   """
 
-  @maximum_bytes 4096
+  # The largest body the API takes is a private profile, which
+  # `RegentIdentity.BodyReader` caps at the same size.
+  @limit 8192
 
-  def read_body(%{path_info: ["api", prefix | _]} = conn, options)
-      when prefix in ["agents", "agent"],
-      do: Siwa.AgentAuthPlug.read_body(conn, options, @maximum_bytes)
+  def read_body(conn, opts) do
+    if signed?(conn),
+      do: Siwa.AgentAuthPlug.read_body(conn, opts, @limit),
+      else: RegentIdentity.BodyReader.read_body(conn, opts)
+  end
 
-  def read_body(conn, options), do: RegentIdentity.BodyReader.read_body(conn, options)
+  defp signed?(%{method: method, path_info: ["api" | _rest]}) when method in ["POST", "PATCH"],
+    do: true
+
+  defp signed?(_conn), do: false
 end

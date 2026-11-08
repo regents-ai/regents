@@ -26,9 +26,9 @@ were skipped.
   (`REGENTS_APP_SURFACES=off`) only the home page, signing out, the legal pages,
   Articles, Paper Pro Daily and `/start` stay open; the code does not say which way
   production is set.
-- **WebMCP**: the tool in `platform/priv/tool_manifest.json`. Signed tools are prepared
-  with `prepare_agent_request`, signed by the agent's own SIWA key, and act for the
-  agent's paired person. There are no wallet tools.
+- **WebMCP**: the tool in `platform/priv/tool_manifest.json`. A signed tool takes only its
+  input; the agent's browser host signs the exact request with the agent's own SIWA key, and
+  it acts for the agent's paired person. There are no wallet tools.
 - **MCP**: hosted `/mcp` for signed agents. regents.sh has none: no route, no plug and
   no MCP library in its dependencies (R2).
 - **Connector**: the Claude connector at `/mcp`, signed in with OAuth. regents.sh has
@@ -58,12 +58,11 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Make a pairing code, choose the agent | Pair New Agent (Account page) | — | — | — | — | no (owner only) | R5 |
+| Make a pairing code, choose the agent | Pair New Agent (Agents page) | — | — | — | — | no (owner only) | R5 |
 | Pair with a code | agents only | — | — | — | `agents pair` | no | R2, R3, R4 |
-| Open or unpair an agent, read its last actions | account menu Agents, `/account` | — | — | — | — | no (owner only) | R5 |
-| Set or remove an agent's picture | `/account` agent window (upload) | — | — | — | — | no | R6 |
+| Open or unpair an agent, read its last actions | account menu Agents, `/account/agents` | — | — | — | — | no (owner only) | R5 |
+| Set or remove an agent's picture | `/account/agents` agent window (upload) | — | — | — | — | no | R6 |
 | Set what each agent may spend (on or off, per spend, daily, sites) | `/account/credits` Agent spending | — | — | — | — | money | R7 |
-| Read the agent's own spending budget | agents only | `regents_credits_budget` | — | — | `account budget` | no | R2, R3 |
 
 ## Names
 
@@ -76,10 +75,10 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Read Credits balance | header, `/account` | `regents_credits_balance` | — | — | `account balances` | no | R2, R3 |
-| Read Credits purchase history | `/account/credits` (more) | `regents_credits_history` | — | — | `account credits-history` | no | R2, R3 |
+| Read Credits and the agent's spending allowance | header, `/account` | `account_balances` | — | — | `account balances` | no | R2, R3 |
+| Read Credits purchase history | `/account/credits` (more) | `account_credits_history` | — | — | `account credits-history` | no | R2, R3 |
 | Buy Credits with USDC on Base (approve, buy, then the purchase counts) | Buy Credits panel | — | — | — | — | money, wallet | R8 |
-| Read Points | `/account/points` | `regents_points_summary` | — | — | `account points` | no | R2, R3 |
+| Read Points | `/account/points` | `account_points` | — | — | `account points` | no | R2, R3 |
 
 ## Stake
 
@@ -103,7 +102,7 @@ were skipped.
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read about Regents and the docs | `/about`, `/docs` and each `/docs/<page>` | `regents_about` (`docs`, `docs-<page>`) | — | — | — (plain fetch) | no | R2, R3 |
-| Read other site pages (start, contact, refund rules, privacy, terms) | `/start`, `/contact`, `/credits/refunds`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
+| Read other site pages (start, refund rules, privacy, terms) | `/start`, `/credits/refunds`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
 | Read Regents Cloak and its setup guide | `/cloak`, `/cloak/guide` | `regents_about` (the guide) | — | — | — (plain fetch, `/cloak/guide` as Markdown) | no | R2, R3 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
@@ -198,7 +197,7 @@ were skipped.
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
 - **R13. Closed.** `regents_about` reads every page that has words to read, as
-  Markdown: `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/contact`, `/credits/refunds`, `/privacy`,
+  Markdown: `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/credits/refunds`, `/privacy`,
   `/terms` and `/cloak/guide`. `/cloak` itself shows the guide's facts beside the
   disabled download, so the guide stands for it.
 - **R14. Publishing Articles is page-only.** `/admin/articles` is for article admins in a

@@ -4,9 +4,9 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "9539469f3afbfcdb6925f1916723887d36bee700"
+  @elixir_utils_ref "faa538d4028732a6b187165ebc0187cb9c573193"
   @design_system "https://github.com/regents-ai/design-system.git"
-  @design_system_ref "3134bab0a23452fb82d3248072327e1d0199cc9a"
+  @design_system_ref "871c3fe69f2501e9deb5de5626c7c9e7a5941d5e"
 
   def project do
     [
@@ -67,10 +67,10 @@ defmodule Regents.MixProject do
       {:nebulex_local, "~> 3.0"},
       {:ash_oban, "~> 0.10.3"},
       {:ash_phoenix, "~> 2.3.26"},
-      {:igniter, "== 0.8.4", only: [:dev, :test], runtime: false},
-      {:usage_rules, "~> 1.2.8", only: [:dev, :test], runtime: false},
-      {:mdex, "== 0.14.2"},
-      {:floki, "== 0.38.4"},
+      {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
+      {:usage_rules, "~> 1.3", only: [:dev, :test], runtime: false},
+      {:mdex, "== 0.14.6"},
+      {:floki, "== 0.38.5"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
       {:siwa,
@@ -93,8 +93,12 @@ defmodule Regents.MixProject do
       # regent_credits names regent_chain by a sibling path; this pin replaces it.
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
-      {:regent_credits, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits"},
+      # regent_payments names regent_credits by a sibling path; this pin replaces it.
+      {:regent_credits,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits", override: true},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
+      # The site's crash saving (RegentHttp.ErrorSaving).
+      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http", override: true},
       {:regent_sprites, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "sprites"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},

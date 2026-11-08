@@ -1,9 +1,9 @@
-import {expect, test, type Page} from "./support/offline"
+import {expect, test, type Locator, type Page} from "./support/offline"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
-// Pairing an agent, the way a person does it: from the Account page, the account
-// menu or the start page's link, to the Account page's pairing box, then choosing
-// their agent. Ported from ash-template's pairing.spec.ts.
+// Pairing an agent, the way a person does it: Pair New Agent on the Agents page
+// opens the pairing window, where they choose their agent from the dropdown and
+// copy its message. Ported from ash-template's pairing.spec.ts.
 async function signIn(page: Page, path: string) {
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
@@ -18,85 +18,116 @@ function watch(page: Page) {
   return {expect: async () => expect(errors).toEqual([])}
 }
 
-const pairing = (page: Page) => page.locator("#account-pairing")
-const message = (page: Page) => page.locator("#account-pairing-box pre")
-
-// A person presses the agent's picture: the radio's label, whose name only
-// screen readers hear.
-async function choose(page: Page, agent: string) {
-  const radio = pairing(page).getByRole("radio", {name: agent, exact: true})
-  await radio.locator("xpath=ancestor::label").click()
-  await expect(radio).toBeChecked()
-}
+const pairingWindow = (page: Page) => page.locator("#shell-pairing")
+const box = (page: Page) => page.locator("form#shell-pairing-box")
+const message = (page: Page) => page.locator("#shell-pairing-box pre")
+const dropdown = (page: Page) => box(page).locator("details")
 
 const pairButton = (page: Page) =>
-  page.locator("#account-agents").getByRole("link", {name: "Pair New Agent"})
+  page.locator("#account-agents").getByRole("button", {name: "Pair New Agent"})
 
-const scrollToTop = (page: Page) =>
-  page.locator("#app-shell-scroller").evaluate(scroller => scroller.scrollTo({top: 0}))
+async function openWindow(page: Page) {
+  await pairButton(page).click()
+  await expect(pairingWindow(page)).toBeVisible()
+  await expect(pairingWindow(page)).toHaveAttribute("data-settled", "")
+}
 
-// Keyfleet, 27 Oct 2026: pressed a second time, after scrolling away from the
-// pairing box, Pair New Agent did nothing a person could see.
+// A person opens the dropdown, unless it is already open, and presses the agent's
+// name; the radio's label carries it.
+async function choose(page: Page, agent: string) {
+  const radio = box(page).getByRole("radio", {name: agent, exact: true})
+  if (!(await dropdown(page).evaluate(details => (details as HTMLDetailsElement).open))) {
+    await dropdown(page).locator("summary").click()
+  }
+  await radio.locator("xpath=ancestor::label").click()
+  await expect(radio).toBeChecked()
+  await expect(dropdown(page).locator("summary")).toContainText(agent)
+}
+
+const height = (locator: Locator) => locator.evaluate(element => element.getBoundingClientRect().height)
+
+// Keyfleet, 27 Oct 2026: pressed a second time, Pair New Agent did nothing a person
+// could see. Every press opens the window.
 for (const width of [1280, 390, 320]) {
-  test(`Pair New Agent on the Account page moves to the pairing box, every press, at ${width}`, async ({page}) => {
+  test(`Pair New Agent on the Agents page opens the pairing window, every press, at ${width}`, async ({page}) => {
     const problems = watch(page)
-    await page.setViewportSize({width, height: 500})
-    await signIn(page, "/account")
-    await pairButton(page).click()
-    await expect(pairing(page)).toBeInViewport()
+    await page.setViewportSize({width, height: 700})
+    await signIn(page, "/account/agents")
+    await openWindow(page)
+    await pairingWindow(page).getByRole("button", {name: "Close"}).click()
+    await expect(pairingWindow(page)).toBeHidden()
+    await expect(pairButton(page)).toBeFocused()
 
-    await scrollToTop(page)
-    await expect(pairing(page).getByRole("heading", {name: "Pair New Agent"})).not.toBeInViewport()
-    await pairButton(page).click()
-    await expect(pairing(page)).toBeInViewport()
+    // With the agents listed, the first Escape closes the list and the next the window.
+    await openWindow(page)
+    await page.keyboard.press("Escape")
+    await expect(dropdown(page)).not.toHaveAttribute("open", "")
+    await expect(pairingWindow(page)).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(pairingWindow(page)).toBeHidden()
     await problems.expect()
   })
 }
 
-// Keyfleet, 27 Oct 2026: the keyboard starts on the agent choice, the chosen agent
-// once there is one.
-test("Pair New Agent gives focus to the chosen agent, or the first", async ({page}) => {
+// The window opens on the list of agents; a choice closes the list, and the
+// keyboard goes back to the dropdown, so arrowing to another agent chooses it.
+test("the window opens on the agents, and a choice closes the list", async ({page}) => {
   const problems = watch(page)
-  await signIn(page, "/account")
-  await pairButton(page).click()
-  await expect(pairing(page).getByRole("radio").first()).toBeFocused()
+  await signIn(page, "/account/agents")
+  await openWindow(page)
+  await expect(dropdown(page)).toHaveAttribute("open", "")
+  await expect(box(page).getByRole("radio", {name: "Dots", exact: true})).toBeVisible()
 
   await choose(page, "Dots")
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-  await scrollToTop(page)
-  await pairButton(page).click()
-  await expect(pairing(page).getByRole("radio", {name: "Dots", exact: true})).toBeFocused()
+  await expect(dropdown(page)).not.toHaveAttribute("open", "")
+  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
+  await expect(box(page)).toContainText("Paste it to Dots")
+
+  // By keyboard: the summary opens the list, an arrow chooses the next agent, and
+  // focus comes back to the summary once the list closes.
+  await dropdown(page).locator("summary").focus()
+  await page.keyboard.press("Enter")
+  await expect(dropdown(page)).toHaveAttribute("open", "")
+  await box(page).getByRole("radio", {name: "Dots", exact: true}).focus()
+  await page.keyboard.press("ArrowRight")
+  await expect(dropdown(page)).not.toHaveAttribute("open", "")
+  await expect(dropdown(page).locator("summary")).toBeFocused()
+  await expect(dropdown(page).locator("summary")).not.toContainText("Dots")
   await problems.expect()
 })
 
-// The page starts at the box the link names, and stays there once it is ready.
-test("an agent guide's link lands on the pairing box", async ({page}) => {
+// Choosing never changes the window's height (founder, 2026-10-07).
+test("the window keeps one height whatever is chosen", async ({page}) => {
   const problems = watch(page)
-  await page.setViewportSize({width: 1280, height: 500})
-  await signIn(page, "/account#account-pairing")
-  await expect(pairing(page)).toBeInViewport()
-  await expect(page.locator("#account-identity")).not.toBeInViewport()
-  await expect(pairing(page).getByRole("radio").first()).toBeFocused()
+  await signIn(page, "/account/agents")
+  await openWindow(page)
+  const before = await height(box(page))
+  await choose(page, "Dots")
+  await expect(message(page)).toContainText(/Pairing code/)
+  expect(await height(box(page))).toBe(before)
+  await choose(page, "Any agent")
+  await expect(message(page)).toContainText(/Pairing code/)
+  expect(await height(box(page))).toBe(before)
   await problems.expect()
 })
 
-// The start page's Pair New Agent leads to the same box on the Account page.
+// The start page's Pair New Agent leads to the pairing link's page.
 for (const width of [1280, 390]) {
-  test(`Pair New Agent on the start page lands on the pairing box at ${width}`, async ({page}) => {
+  test(`Pair New Agent on the start page opens pairing at ${width}`, async ({page}) => {
     const problems = watch(page)
-    await page.setViewportSize({width, height: 500})
+    await page.setViewportSize({width, height: 700})
     await signIn(page, "/start")
     await page.locator("#agent-start-page").getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(page).toHaveURL(/\/account#account-pairing$/)
-    await expect(pairing(page)).toBeInViewport()
-    await expect(pairing(page).getByRole("radio").first()).toBeFocused()
+    await expect(page).toHaveURL(/\/pair$/)
+    await expect(page.locator("#pair-pairing-box details")).toBeVisible()
     await problems.expect()
   })
 }
 
 test("each agent keeps its own code until a new one is asked for", async ({page}) => {
   const problems = watch(page)
-  await signIn(page, "/account")
+  await signIn(page, "/account/agents")
+  await openWindow(page)
   await expect(message(page)).toHaveCount(0)
 
   await choose(page, "Dots")
@@ -111,7 +142,7 @@ test("each agent keeps its own code until a new one is asked for", async ({page}
   await choose(page, "Dots")
   await expect(message(page)).toHaveText(first)
 
-  await pairing(page).getByRole("button", {name: "Make a new code"}).click()
+  await box(page).getByRole("button", {name: "Make a new code"}).click()
   await expect(message(page)).not.toHaveText(first)
   await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
   await problems.expect()
@@ -128,12 +159,12 @@ test("the pairing form with nothing chosen leaves the box as it is", async ({pag
       if (String(frame.payload).includes('"phx_error"')) crashes.push(String(frame.payload).slice(0, 120))
     }),
   )
-  await signIn(page, "/account")
-  const form = page.locator("form#account-pairing-box")
-  await expect(form.getByRole("radio", {checked: true})).toHaveCount(0)
+  await signIn(page, "/account/agents")
+  await openWindow(page)
+  await expect(box(page).getByRole("radio", {checked: true})).toHaveCount(0)
 
-  await form.getByRole("radio").first().dispatchEvent("input")
-  await form.evaluate(element => (element as HTMLFormElement).requestSubmit())
+  await box(page).getByRole("radio").first().dispatchEvent("input")
+  await box(page).evaluate(element => (element as HTMLFormElement).requestSubmit())
 
   // The box still answers: choosing an agent shows its code.
   await choose(page, "Dots")

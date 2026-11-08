@@ -6,7 +6,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
   alias Regents.Actors.{Agent, System}
 
   @not_paired_message "This agent has no current pairing."
-  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Account page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
+  @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
 
   def init(opts), do: opts
 
@@ -27,17 +27,7 @@ defmodule RegentsWeb.Plugs.PairedAgent do
 
     case conn.assigns do
       %{regent_agent: %RegentAgents.Agent{wallet: wallet}} ->
-        if conn.method == "GET" and is_binary(conn.assigns[:raw_body]) do
-          refuse(
-            conn,
-            400,
-            "invalid_input",
-            "This read accepts no request body.",
-            "Sign the GET request without a body or query string."
-          )
-        else
-          resolve(conn, wallet)
-        end
+        resolve(conn, wallet)
 
       %{regent_agent_refusal: refusal} ->
         refuse_proof(conn, refusal)

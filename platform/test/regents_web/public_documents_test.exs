@@ -3,6 +3,13 @@ defmodule RegentsWeb.PublicDocumentsTest do
 
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
+  test "text in braces straight after inline code stays on the page" do
+    {:safe, html} = PublicDocuments.html("Send `body`{.cls} now")
+
+    assert IO.iodata_to_binary(html) =~ "{.cls}"
+    assert RegentsWeb.PaperProDaily.Reading.render("Send `body`{.cls} now").html =~ "{.cls}"
+  end
+
   test "every page without a slug has its own title and description" do
     for %{path_pattern: path} <- RouteCatalog.entries(), not String.contains?(path, ":") do
       assert [page_title: title, page_description: description] = PublicDocuments.page(path)

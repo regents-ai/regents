@@ -44,7 +44,7 @@
   text-transform: uppercase;
 }
 
-.redeem-signer { font-family: var(--font-family-mono); }
+.redeem-signer { font-family: var(--font-family-ui); }
 
 /* Intro */
 
@@ -339,7 +339,7 @@
   place-items: center;
   border: 1px solid var(--ash-line-strong);
   color: var(--color-fg-muted);
-  font-family: var(--font-family-mono);
+  font-family: var(--font-family-ui);
   font-size: 0.72rem;
 }
 

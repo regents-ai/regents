@@ -8,7 +8,7 @@
 
 The Regents platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API.
-Autolaunch, Techtree, Patchbay and Keyfleet remain named products on the public site; each lives in its own
+Patchbay, Autolaunch, Techtree and Keyfleet remain named products on the public site; each lives in its own
 monorepo, not in this app.
 
 > [!IMPORTANT]
@@ -77,7 +77,7 @@ development and from the deployment's secret store in production.
 | `PRIVY_VERIFICATION_KEY` | For sign-in | Privy's PEM-encoded ES256 verification **public** key — not the app secret. The value is the PEM with real line breaks, for example `fly secrets set PRIVY_VERIFICATION_KEY="$(cat privy-verification-key.pem)"`. |
 | `SIWA_SERVER_URL` | For signed agent requests | Base URL of the `siwa-server` verification service. |
 | `SIWA_AUDIENCE` | For signed agent requests | Audience value required for agent request verification. |
-| `SIWA_ACTIVITY_READ_TOKEN` | No | The reader key for the sign-in service's agent activity, which gives the account menu each agent's last active site and the Account page each agent's sites by day. `Regents.Agents.ActivityReading` keeps each agent's reading for five minutes. Unset means neither shows activity. |
+| `SIWA_ACTIVITY_READ_TOKEN` | No | The reader key for the sign-in service's agent activity, which gives the account menu each agent's last active site and the Agents page each agent's sites by day. `Regents.Agents.ActivityReading` keeps each agent's reading for five minutes. Unset means neither shows activity. |
 | `SPRITES_TOKEN` | For Formation | Server-only token used to provision and inspect Formation runtimes. |
 | `BASE_READ_RPC_URL` | Yes in production | Base mainnet JSON-RPC endpoint the Stake and Redeem pages read. Development falls back to a public endpoint. |
 | `REGENTS_APP_SURFACES` | Yes in production | `on` opens the product surfaces. Anything else keeps them closed, so a typo closes rather than opens. Boot fails in production if unset. |

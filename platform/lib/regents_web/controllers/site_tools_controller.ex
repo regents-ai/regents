@@ -12,7 +12,7 @@ defmodule RegentsWeb.SiteToolsController do
   @errors %{
     "site_not_found" =>
       {404, "There is no site with that name.",
-       "Use regents, patchbay, techtree, autolaunch, keyfleet or siwa."},
+       "Use regents, patchbay, autolaunch, techtree, keyfleet or siwa."},
     "site_unreachable" =>
       {503, "That site's tools could not be read right now.", "Try again in a minute."}
   }

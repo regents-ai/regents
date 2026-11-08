@@ -4141,7 +4141,505 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   rate_limited` past the Base reading budget of 30 a minute. Signed reads now list
   their claims paging and every refusal.
 
-## 2026-10-30 — Paper Pro Daily tags
+## 2026-10-30 — Regents v258 failed, v259 and v260 released
+
+- v258 (`3a397286`, the docs rebuild) failed at 17:51Z at Fly's release step, after the
+  migration step finished cleanly. Live stayed on v257. The same image went out again as
+  v259 at 22:11Z without a fault. Its rollback is v257 (`630474ba`).
+- Live on v259: all 13 docs pages answer 200, with no console error, at 375 and 1280.
+- v260 (`71ef1ab2`) went live at 22:20Z: on a phone the docs page buttons wrap instead of
+  running 16px past the margin. The rollback is v259 (`3a397286`). No database, secret or
+  library changes.
+- Live on v260 at 360, 390, 414 and 1280, light and dark: the buttons end inside the text
+  column, there is no sideways scroll and no console error.
+
+## 2026-11-01 — Regents v261 released
+
+- v261 (`8e9729d3`) went live at 00:14Z: phoenix_html 4.3.0 to 4.4.0 (EEF-CVE-2026-117645),
+  lock only. `make check-platform` exit 0 (609 server tests, 252 script tests, 147 browser
+  walks, Chromium only); `make check-required-fixes` exit 0. No database, secret or other
+  library changes. The rollback is v260 (`71ef1ab2`).
+- Live on v261: `/capabilities.json` reports commit `8e9729d3` and image
+  `main-8e9729d3754d`; `/`, `/docs`, `/stake`, `/account`, `/agents.md` and `/healthz`
+  answer 200.
+
+## 2026-11-02 — Regents SIWA v2 window row (branch `regents/siwa-v2-1102`)
+
+- Built on main `9e7ea0ef` (= live v261, `8e9729d3` image) for the SIWA v2 window; it ships
+  in the window, not before. The rollback is v261 (`8e9729d3`).
+- `platform/mix.exs`, `platform/mix.lock`, `identity/mix.exs` and `identity/mix.lock`: every
+  elixir-utils package moves to `64475364` (SIWA contract v2: every signed request names the
+  site it is for), from `9539469f` (platform) and `a8b83589` (identity). Only the pin lines
+  change in the locks. `regent_credits` is marked `override: true`, as in ash-template,
+  because `regent_payments` at that commit names it by a sibling path.
+- regents-cli 1.10.22 (source `0b08d4a2`, wheel SHA256
+  `89b661d2378e49750bf9538fb144a8d20797e7ea0fcc9e6c33a95753e8beda7a`), straight from
+  1.10.20: the Makefile's `REGENTS_CLI_REV`, and the install lines in the agent start page,
+  `agents.md`, `docs/pairing.md` and `llms.md`.
+- Signed browser tools take only their input (agent_access at this pin: eu `5d6ccf6`,
+  `6d0d40e`), ported from ash-template `d60c47cc` and `2269d897` as a hard cutover. In
+  `platform/priv/tool_manifest.json` each signed tool's `input_schema` is its own input,
+  `operation_input_schema` and `prepare_agent_request` are gone, and the descriptions say the
+  browser host signs. `platform/assets/js/public_tools.ts` calls `execute(name, input)` and
+  answers a `Refused` as the tool's answer. `agents.md`, `skill.md`, `docs/agent-parity.md`
+  and the public `/docs/changes` page say so. New walk `platform/test/browser/page_tools.spec.ts`
+  covers: input-only schema, no signer, a signer's refusal, and the exact signed bytes sent
+  with no cookie.
+- No regents code or test calls `sign_request` or `sign_authenticated_request`, so no
+  helper changes. No database, secret or other library changes.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template e8936e78, command list, identity 16, contracts 454
+  forge tests with build and format. The contracts are main's, byte for byte; their
+  submodule-record step needs a git checkout, so forge build, test and format ran
+  directly.
+
+## 2026-11-02 — Regents Agents page (/account/agents)
+
+- SIWA v2 window, step 3: v262 (`9350ffa8`) went live 16:54Z from the template chief's row;
+  the rollback was v261 (`8e9729d3`). `/account/agents` still answered 404, which this
+  release closes (window rule 3).
+- Agents and pairing move from `/account` to their own Agents tab at `/account/agents`,
+  ported from ash-template `6fd34696` and `a0564ce2`, with the template's words and tips as
+  they are today. New route, catalog entry and tab; `RegentsWeb.AccountSite`; the live
+  update now follows `:account_agents`; `Regent.Account.agents_layout`. Pair New Agent, the
+  account menu, `/start` and the guides lead there (`/account/agents#account-pairing`).
+- Design-system `3134bab0` to `7a853f85` (agents_layout, the list's Paired heading, and
+  `a5fe5c4`, `84642bc`, `a0affdc`), before Geist.
+- "Account page" to "Agents page" wherever a line means pairing or agents: guides, agent
+  start text, refusal hints, API contract (4.0.2, both copies), `cli/commands.json`,
+  `cli/COMMANDS.md`, `docs/agent-parity.md`, `FEATURES.md`. Lines about the account's own
+  name keep "Account page". Route handoff regenerated.
+- A signed browser tool's refusal before sending now answers as the template does:
+  `invalid_request`, the reason in words and in `details.reason`, a hint, and
+  `network_error` when the site could not be reached. It replaces one catch-all
+  `signed_request_failed`, which told an agent to check its input even on a network failure.
+- No database, secret or elixir-utils changes. The rollback is v262 (`9350ffa8`).
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template `0b65960c`, command list ok, identity 16, contracts
+  454 forge tests. Identity and contracts ran after the rest on the same tree: the first
+  run stopped at identity on packages left installed from an earlier copy of this work;
+  `mix deps.get` changed no tracked file.
+
+## 2026-11-02 — Regents v263 released
+
+- v263 (`502abe72`, image `main-502abe729f97`) went live about 17:25Z: the Agents page at
+  `/account/agents`. The rollback is v262 (`9350ffa8`). No database, secret or elixir-utils
+  changes.
+- make check on this commit, every part exit 0: server tests 609 (603 tests, 6 properties,
+  1 excluded), script tests 252, browser walk 151 in headless Chromium (WebKit not run on
+  the Mac), required fixes against ash-template `0b65960c`, command list ok, identity 16,
+  contracts 454 forge tests.
+- Live on v263: `/capabilities.json` reports commit `502abe72`; `/openapi.json` reports
+  4.0.2; `/`, `/docs`, `/stake`, `/account`, `/account/agents`, `/account/points`,
+  `/account/credits`, `/account/wallets`, `/account/connections`, `/start`, `/agents.md`,
+  `/llms.txt`, `/skill.md`, `/docs/changes` and `/healthz` answer 200. In a real browser,
+  signed out, `/account/agents` shows the Agents tab selected and the sign-in line, with
+  no console error.
+- Not proven on the live site: `/account/agents` signed in, since no agent signs in to
+  production. The browser walk proves it on this commit (list, pairing box and its link,
+  account menu, at 1280, 390 and 320).
+
+## 2026-11-02 — Released v264 (Autolaunch tool list address)
+
+- Commit `fe7bd1a0`, image `main-fe7bd1a07060`, release v264, rollback v263 `502abe72`.
+- regents.sh reads Autolaunch's tool list from `https://autolaunch.sh/capabilities.json`,
+  after Autolaunch's v233 moved it there as a hard cutover. No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- Checked live after release: capabilities.json commit `fe7bd1a0`;
+  `/api/v1/site-tools/autolaunch` lists Autolaunch's tools, where it answered
+  `site_unreachable` before; `/api/v1/site-tools` names no unreachable site; `/`, `/docs`,
+  `/stake`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
+  `/docs/changes` and `/healthz` all 200.
+
+## 2026-11-04 — Released v265 (stake page sentence)
+
+- Commit `bfe8d087`, image `main-bfe8d0878843`, release v265, rollback v264 `fe7bd1a0`.
+- The opening sentence on `/stake` is Sean's: "Stake REGENT to get a slice of all revenue
+  from any Regents Labs product." No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- The first release attempt was stopped from outside about a minute into its image build
+  (23:50Z 3 Nov), before anything reached Fly's machine; the second finished at 02:27Z.
+- Checked live after release: capabilities.json commit `bfe8d087`; `/stake` shows the new
+  sentence and not the old; `/`, `/docs`, `/stake`, `/account` and `/healthz` all 200.
+
+## 2026-11-04 — Released v266 (staking words, ash_sql 0.8.7)
+
+- Commit `00f94d3c`, image `main-00f94d3c0de2`, release v266, rollback v265 `bfe8d087`.
+- The home page, About page and page summaries use Sean's staking sentence and keep the 20%
+  reward (his answer "2 a"). Hex retired ash_sql 0.8.4 for a security problem, which stops the
+  audit in precommit, so the platform moves to 0.8.7. No migration; API stays 4.0.2.
+- make check, every part exit 0: server tests 609 (603 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template ac0138d7, command list, identity 16, contracts 454
+  forge tests with build and format.
+- Checked live after release: capabilities.json commit `00f94d3c`; `/`, `/about` and `/stake`
+  show the new words and none of the old; `/`, `/docs`, `/stake`, `/about`, `/account` and
+  `/healthz` all 200.
+
+## 2026-11-04 — Released v267 (packages to the template's list, sign-in libraries included)
+
+- Commit `908621cd`, image `main-908621cd2d46`, release v267, created 2026-11-04T04:42:46Z,
+  rollback v266 `00f94d3c`. No migration.
+- Major moved: uuid override 11.1.1 → 14.0.3.
+- Sign-in libraries, on the template's versions after Sean's sign-in there (TEMPLATE-SIGN-IN a):
+  Privy 3.49.1 → 3.51.1, viem 2.57.7 → 2.57.16, @solana/kit 8.5.0 → 8.6.0,
+  @solana-program/system 0.15.0 → 0.16.0, @solana-program/token 0.17.0 → 0.18.0.
+- Other npm: @types/node 26.6.5 → 26.6.6, vitest 5.0.5 → 5.1.0, ws 8.22.0 → 8.22.1,
+  axios 1.20.0 → 1.21.0, decode-uri-component 0.5.0 → 0.5.1, @modelcontextprotocol/server and
+  core 2.3.1 → 2.4.0, follow-redirects to 1.16.2; esbuild 0.25.4 → 0.28.2.
+- Platform Hex: ash_double_entry 1.0.19 → 1.1.1, ash_money 0.2.6 → 0.2.7, ex_money 6.2.1 → 6.3.0,
+  ex_money_sql 2.1.0 → 2.2.0, fine 0.1.6 → 0.2.0, floki 0.38.4 → 0.38.5, igniter 0.8.4 → 0.8.5,
+  lazy_html 0.1.13 → 0.1.14, localize 1.3.0 → 1.6.1, localize_sql 1.0.1 → 1.1.0,
+  mdex 0.14.2 → 0.14.6, mdex_native 0.2.12 → 0.3.1, rustler_precompiled 0.10.0 → 0.10.1,
+  sobelow 0.16.0 → 0.18.1, usage_rules 1.2.8 → 1.3.1, websock_adapter 0.6.0 → 0.7.0, every
+  elixir-utils library 64475364 → c4a78d22.
+- Identity: ash 3.37.0 → 3.37.2, ash_postgres 2.13.0 → 2.15.2 (closes EEF-CVE-2026-115627 and
+  115635), ash_sql 0.8.3 → 0.8.7, crux 0.1.4 → 0.1.5, jose 1.11.12 → 1.11.13, spark 2.7.8 → 2.7.9,
+  splode 0.3.2 → 0.3.3, regent_privy 64475364 → c4a78d22.
+- `inline_code_attributes: false` at the three MDEx callers, with a regression test, because
+  mdex 0.14.6 otherwise drops brace text straight after inline code.
+- Stopped, with the newest beside it: design-system 7a853f85 (4c7bbaa5 comes in the Geist
+  Serif release). Contract libraries stay at their pins because they are the frozen on-chain
+  record: forge-std v1.9.7 (v1.17.0), OpenZeppelin 5.6.1 (v5.7.0), Safe v1.4.1 (v1.5.0),
+  uerc20-factory v1.0.0 (v2.0.0), solady v0.1.26+13 (v0.1.26), solmate v6+ (v6),
+  v4-core v4.0.0+12 (v4.0.0); v4-periphery and permit2 have no newer tag checked.
+- Alerts: regents/154 fixed 04:35:55Z by this commit reaching main. regents/137-153, which
+  include 137, 140 and 141, are dismissed as not used, because cli/packages/verify-runtime/uv.lock
+  left main in 5307bf21. Open list read at 18:06Z: 0, so the push did not raise them again.
+- `npm audit --omit=dev`: 20 high remain, mostly old zod under Privy's packages, under
+  ZOD-OVERRIDE b at the time of this release. One zod (ZOD-WHOLE-TREE a) comes with Ecto 3.14.3.
+- make check, every part exit 0: server tests 610 (604 tests, 6 properties, 1 excluded), script
+  tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac), required fixes
+  against ash-template edc91001, command list, identity 16, contracts 454 forge tests with build
+  and format.
+- Checked live after release: capabilities.json commit `908621cd`; `/`, `/docs`, `/stake`,
+  `/about`, `/account`, `/account/agents`, `/start`, `/agents.md`, `/llms.txt`, `/skill.md`,
+  `/docs/changes`, `/healthz` and `/api/v1/site-tools/autolaunch` all 200. In a real browser
+  `/account` shows Sign in and `/stake` shows the new sentence and its figures, no console errors.
+  Signed agent reads at 18:05Z as the Claude Code test agent 0x5ff2..d164: account, Credits
+  balance, Points and staking position all 200.
+- Not proven: a real Privy sign-in on regents.sh, which no agent can do. The release record was
+  written at 18:10Z because the session waited on a prompt after the release.
+
+## 2026-11-04 — Released v268 (Ecto 3.14.3, one zod, Geist Serif, strict headers on every answer)
+
+- Commit `255a6ea4`, image `main-255a6ea43e15`, release v268, created 2026-11-04T19:15:44Z,
+  rollback v267 `908621cd`. No migration.
+- Moved, on template list commit `5cd1f0b6`: no majors. ecto 3.14.2 → 3.14.3 in both the platform
+  and identity locks (ecto_sql 3.14.0 already there), zod to one 4.6.7 across the tree by override,
+  design-system 7a853f85 → 4c7bbaa5. npm audit 20 high → 0.
+- Exposure to the zod alert was read as a text search of our own code, not a run of the affected
+  path. Dependabot alert 136 reads `fixed` at 19:11:08Z, on the push to main; open alerts 0.
+- Also in it: Geist Serif everywhere with two font files, the Contact page folded into About
+  (/contact answers 404), the template's strict headers on every answer including JSON and missing
+  pages, "View Prompt" so that button fits, redrawn share pictures.
+- Full `make check` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 19:02Z to 19:10Z: server 612
+  (6 properties, 606 tests, 1 excluded), scripts 252, browser 151 (headless Chromium; WebKit is not
+  run on the Mac), required fixes, identity 16, contracts 454.
+- Live: Fly shows v268 complete, capabilities.json commit 255a6ea4. /contact 404 with no Location.
+  /api/v1/health and a missing page both carry nosniff, CSP, referrer policy, HSTS and permissions
+  policy. Signed agent reads of account, Credits balance, Points and staking position all 200.
+  Privy's window opened from /account at 1280, 390 and 320, whole and readable, no page errors.
+  /, /stake, /paper-pro-daily, /about and /account at 1280, 390 and 320: Geist Serif, no sideways
+  scroll, no page errors.
+- Found by the live look at 320: "Copy Entire Page as Markdown" on /paper-pro-daily is cut at the
+  button's edge. Fixed in the paper links release, not this one.
+- Not proven: a real Privy sign-in on regents.sh, which no agent can do.
+
+## 2026-11-04 — Released v269 (seven-day USDC figure by each block's own time)
+
+- Commit `068e7fc4` (the fix is `eb7db55e`, merged onto main), image `main-068e7fc4025a`, release
+  v269, created 2026-11-04T19:30:19Z, rollback v268 `255a6ea4`. No migration. No package moved.
+- Ships before Base Denim activates on 5 Nov 18:00Z, when blocks go to five a second. The window's
+  first block now comes from the chain's own timestamps, and the newest minute of recorded blocks
+  (300) is replaced on each pass.
+- Full `make check` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 19:19Z to 19:27Z: server 619
+  (7 properties, 612 tests, 1 excluded), scripts 252, browser 151 (headless Chromium; WebKit is not
+  run on the Mac), required fixes, identity 16, contracts 454.
+- Live: Fly shows v269 complete, capabilities.json commit 068e7fc4. /stake reads 605.522156 USDC
+  for the last seven days, the same as just before the release, as it should be while blocks are
+  still two seconds apart. Signed staking read: from-block 53213827, head 53516226, 302,400 blocks.
+  Read from mainnet.base.org: block 53213827 is stamped 1793217001, the block before it 1793216999,
+  and the cut-off is 1793216999, so the first block is the first one inside the seven days.
+- Not proven: the figure at five blocks a second on the real chain, which starts only at
+  activation. The tests cover that spacing. Read it again after 5 Nov 18:00Z.
+
+## 2026-11-04 — Released v270 (paper short addresses, Share, paper-only previews)
+
+- Commit `259f4e4d`, image `main-259f4e4d2770`, release v270, created 2026-11-04T20:16:31Z,
+  rollback v269 `068e7fc4`. No migration. Sean's order: a Share icon on every paper, a shorter
+  link, and previews carrying only "Daily Research Papers Reviewed by ChatGPT Pro", the title and
+  the authors.
+- `0ca107f6` is on main unchecked, superseded by `259f4e4d`. It was never released. A command that
+  read the check's log also pushed, so it reached main at 19:56Z with make exit 2 (a Credo finding,
+  which stopped the platform part before its tests). Main was checked only up to `e3d277ea` until
+  `259f4e4d`. Two more full checks stopped before the clean one: one compile reference over the
+  limit, and the open-routes list missing the new addresses. From then on, the push is a separate
+  command after reading the log's last line.
+- Full `make check` on `259f4e4d` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 20:05Z to 20:13Z:
+  server 622 (7 properties, 615 tests, 1 excluded), scripts 252, browser 151 (headless Chromium;
+  WebKit is not run on the Mac), required fixes, identity 16, contracts 454.
+- Defect in this release: every preview picture drew empty boxes. The server's text library found
+  no fonts and ignored the fontconfig settings file. Window: 20:16Z to v271 at 20:33Z. The one case
+  it affects: a preview fetched in that window showed boxes.
+- Production reads, ssh + rpc on regents-sh-web: one font measure and one picture rendered in
+  memory. No state changed. Separately, a name filter ran `/app/bin/bootstrap-staging` once at about
+  20:19Z. It raised at its role check, which runs before any connection opens, so nothing changed.
+  Commands against this app now name the script in full.
+
+## 2026-11-04 — Released v271 (preview pictures in Geist Serif, address names the build)
+
+- Commit `d15bc48c`, image `main-d15bc48c9fef`, release v271, created 2026-11-04T20:33:17Z,
+  rollback v270 `259f4e4d`, whose pictures draw boxes, so a rollback for any reason goes to v269
+  `068e7fc4` and takes the paper links with it. No migration.
+- Each text draw is given the font file itself; the fontconfig file and its start-up setting are
+  gone. The picture address carries the build commit (`share.png?v=<commit>`), so a scraper or
+  browser holding an older picture fetches the new one after each release. The one-day cache stays.
+  A post already shared keeps whatever its platform stored. The feed's title drops the site name.
+- Full `make check` on `d15bc48c` exit 0 under `caffeinate -i -s`, Hex 2.6.0, 20:22Z to 20:30Z:
+  server 622 (7 properties, 615 tests, 1 excluded), scripts 252, browser 151 (WebKit not run),
+  required fixes, identity 16, contracts 454.
+- Live: Fly shows v271 complete, capabilities.json commit d15bc48c. Pictures fetched from each
+  page's own tag and looked at: feed, a paper with one author, a paper with eight authors
+  ("et al."), all real Geist Serif at 1200 by 630. Unknown address and its picture answer 404.
+  At 1280, 390 and 320: Share copies https://regents.sh/paper-pro-daily/b879e39c, that address opens
+  its paper with the whole article in view, no sideways scroll, no page errors.
+- Old link: /paper-pro-daily#paper-b879e39c-0f67-4459-8667-1c7a69fcde64-title opens at the top of
+  the page (scroll position 0) at all three widths.
+- Copy button at 320, named in the v268 record. Before: the label read "Copy Entire Page as Mar",
+  cut at the button's edge. After: "Copy Page", its text from 71 to 172 inside a button from 54 to
+  189, whole.
+- Agent read: the `url` field keeps its name; its value is the new address. CLI notice sent at this
+  release.
+- Not proven: how each social site shows the preview, since none of them was posted to; the tags
+  and pictures they read are what was checked. Previews still carry the site name in `og:site_name`.
+
+## 2026-11-04 — Released v272 (runtimes to latest: Elixir 1.20.5, Node 26.13.0, Debian trixie)
+
+- Commit `551cca5e`, image `main-551cca5e84ee`, release v272, created 2026-11-04T22:53:21Z,
+  rollback v271 `d15bc48c`. No migration.
+- Elixir 1.20.4 to 1.20.5, Node 26.12.0 to 26.13.0, Hex 2.5.1 to 2.6.0, rebar3 3.25.1 to 3.28.0,
+  every base image from Debian bookworm to trixie-20261027, and gcc 15.2.0 to 16.2.0-trixie,
+  sha256:07280eb2e744f1b7a2d8d4a3894c089ea07266c109758afc388a634bd098e4eb. The image, Hex and
+  rebar3 lines match the template's v175 `ff1eb3c3` exactly. Erlang stays 29.1.2 and Postgres
+  stays 17.7.
+- Full `make check` on `551cca5e` exit 0 under `caffeinate -i -s`, Hex 2.6.0, Elixir 1.20.5,
+  Node 26.13.0, 22:38Z to 22:48Z: server 622 (7 properties, 615 tests, 1 excluded), scripts 252,
+  browser 151 (WebKit not run), required fixes ash-template `56e59b64`, identity 16, contracts 454.
+- First boot on trixie: machine started 22:53:38Z, the web server was listening at 22:53:43Z, and
+  the machine took traffic at 22:53:50Z, 12 seconds after starting. One failed health check at
+  22:53:39Z came before the server was up. No sctp or encoding warning on the boot log.
+- Live: Fly shows v272 complete, capabilities.json commit 551cca5e. `/contact` 404 with no
+  redirect. The five strict headers on `/api/v1/health` and on a missing page. Privy's window
+  opens from `/account` at 1280, 390 and 320, looked at. Signed agent reads answer 200: account,
+  credits balance, Points, staking position; seven-day USDC 605.522156 from block 53219227.
+- The picture library on trixie: two pictures fetched from their pages' own tags and looked at,
+  the paper `b879e39c` and the feed, both real Geist Serif at 1200 by 630.
+- Paper page: Copy Page fits, Share copies `https://regents.sh/paper-pro-daily/b879e39c`, the
+  short address opens the paper, the old long link lands at the top, an unknown address is 404, no
+  page errors at 1280, 390 and 320. Geist fonts and no sideways scroll on `/`, `/stake`,
+  `/account`, `/paper-pro-daily` and `/docs` at those widths.
+- Not proven: real Privy sign-in, how social sites draw a pasted link, WebKit.
+
+## 2026-11-02 — Regents Points row (branch `regents/points-1102`)
+
+- Built on the SIWA v2 window row `9350ffa8`; it ships after the window, with Sean's
+  sign-off on the Points rules. The rollback is the window row's release.
+- elixir-utils `64475364` to `e37cb01d` in `platform/` and `identity/` (pin lines only):
+  `RegentAgents.Signals` `:agent_paired`, `RegentAgents.pairing_history/1` and
+  `pairing_histories/1`, and the Points tally's `[:regent_points, :tally_periods, :finished]`.
+- The template's account rules (ash-template `f942d3b4`): `account.activated` when a
+  sign-in creates the account, `social.x`, `social.github` and `social.farcaster` when a
+  sign-in links a social account new to the account, and `agent.activated` when an agent
+  pairs, each offered to Points inside the save that earns it (`Regents.Accounts.Signals`,
+  `Regents.Points.Award`) and checked by `Regents.Points.AccountActivated`, `LinkedSocial`
+  and `PairedAgent`. A paired agent's award names its wallet, and the Points page names the
+  agent from the library's pairing reads. A sign-in with a social account already linked
+  refreshes it (`refresh_verified`) and offers nothing. Credits is unchanged. The rule list
+  stays empty and `starts_at` nil, so nothing earns yet.
+- A paired agent's Credits and Points reads move to the template's paths as a hard
+  cutover: `GET /api/v1/account/balances` (Credits with the whole spending grant and a
+  `note`, replacing `credits/balance` and `credits/budget`), `POST
+  /api/v1/account/credits/history` and `GET /api/v1/account/points` (decimal text, with a
+  `note` while earning is off). The browser tools are `account_balances`,
+  `account_credits_history` and `account_points`; `cli/commands.json` drops `account
+  budget`. The contract and `openapi.json` are 5.0.0, and the guides, agent start page,
+  parity table and public `/docs/changes` say so.
+- Every POST or PATCH under `/api` keeps its exact body bytes for the signature check
+  (`RegentsWeb.Plugs.AgentBodyReader`, the template's rule, at most 8,192 bytes, the profile
+  cap). A GET body is never kept, so the paired-agent plug's GET-with-body refusal is gone.
+- New gauge `health_points_tally_finished_seconds` on the metrics listener: the Unix time
+  the Points tally last ran to its end.
+- make check, every part exit 0: server tests 614 (608 tests, 6 properties, 1 excluded),
+  script tests 252, browser walk 151 in headless Chromium (WebKit not run on the Mac),
+  required fixes against ash-template e8936e78, command list, identity 16, contracts 454
+  forge tests with build and format (unchanged from `9350ffa8`; run directly, as the
+  submodule-record step needs a git checkout).
+
+## 2026-11-05 — Released v273 (papers page crash fix) and v274 (shared update)
+
+- v273: commit `8613a2ed`, image `main-8613a2ed07a4`, created 2026-11-05T03:26:08Z, rollback v272
+  `551cca5e`. No migration. The papers page reads only what it shows, kept for one minute; Copy
+  Page reads its text when pressed; a saved paper shows at once; `put-paper` is one step on the
+  running site. Design-system pin `46e68fab`, which this fix needs. Full `make check` on `8613a2ed`
+  exit 0, ended 00:20:30Z: server 625, scripts 252, browser 152 (WebKit not run), identity 16,
+  contracts 454.
+- Crash 114, under Sean's decision 2a for that crash only, on `regents-sh-web`: read at 03:27:19Z
+  (five occurrences, all at 12:22:30Z on 4 Nov, connection queue on the paper list, and no other
+  unresolved error in the last day) and marked resolved at 03:27:27Z. That is the one change to
+  production data. No other production command was run.
+- v274: commit `9bfaf7d0`, image `main-9bfaf7d0c391`, created 2026-11-05T03:46:31Z, rollback v273
+  `8613a2ed`; v272 `551cca5e` also drops the crash fix. No migration. Elixir-utils `4e527975` with
+  crash saving kept on through `RegentHttp.ErrorSaving`, the pages `/agents`, `/agents/:agent` and
+  `/changelog`, `/.well-known/api-catalog`, `/api/v1/docs`, a three-item menu, regents-cli 1.10.23.
+  Full `make check` on `9bfaf7d0` exit 0, 00:58:41Z to 01:06:36Z: server 632, scripts 252, browser
+  152 (WebKit not run), identity 16, contracts 454, command description check ok.
+- Authority: Sean, 03:20:11Z 5 Nov, "deploys are automatic"; the orchestrator read this as covering
+  the re-pin wave and told this lane to release `9bfaf7d0` right after `8613a2ed`.
+- Live on v274: Fly shows v274 complete, capabilities.json commit `9bfaf7d0`. `/agents`, the agent
+  pages, `/changelog`, `/about`, `/docs`, `/api/v1/docs`, `/.well-known/api-catalog`, `/llms.txt`,
+  `/agents.md`, `/sitemap.xml` and `/stake` answer 200; `/agents/nobody` 404. `/agents.md` and
+  `/llms.txt` name 1.10.23. At 375 wide the menu holds one row with no sideways scroll. On
+  `/paper-pro-daily` nothing reads the page text until Copy Page is pressed, then one read in 52 ms.
+  Signed agent reads answer 200: account, credits balance, Points, staking position. Privy's window
+  opens from `/account` at 1280, 390 and 320. Server listening 03:46:54Z; one failed health check
+  at 03:46:48Z came before it was up.
+- Not proven: a real sign-in, the clipboard write on Copy Page in Safari and Firefox, crash saving
+  after a real failed save, `put-paper` on the machine until the next real paper.
+
+## 2026-11-06 — Points: what people had before the start (branch `regents/points-1102`)
+
+- Sean's ruling, relayed by the orchestrator at 03:00Z 6 Nov: existing accounts, linked socials
+  and first pairings earn their one-time points at the start (at most 80); first report, first
+  reply and first launch leave the catalog; the approved list is the one switch. Model: ash-template
+  `46ba1be5`.
+- The branch carries main `6461136d` (merge `0660dc1e`; the one conflict was this file, both
+  sections kept).
+- elixir-utils `4e527975` to `7fde8cce` in `platform/` (pin line and lock only):
+  `RegentPoints.StartAwards`, versioned rules, `Rules.tracked/0` lists only approved rules with a
+  checker, the catalog without `patchbay.first_report`, `patchbay.first_reply` and
+  `autolaunch.first_launch` (250 in the catalog, 240 at launch), and
+  `RegentAgents.pairings_held_from_before/1`. `identity/` stays on its own pin.
+- `Regents.Points.AccountActivated`, `LinkedSocial` and `PairedAgent` gain `existing/2`: the
+  accounts made before the start, the links to the rule's provider made before it, and each
+  person's earliest pairing from before it still paired. New system-only reads: `HumanAccount`
+  `:created_before` and `:by_privy_dids`, `LinkedIdentity` `:linked_before`.
+- `{"@hourly", RegentPoints.StartAwards}` joins the Oban cron list. With `starts_at` still `nil`
+  the job stops at once, so nothing earns yet.
+- The Points page already lists `Rules.tracked/0` and keeps no list of its own; with
+  `approved_rules` still `[]` it says "Earning hasn’t opened yet."
+- New regression `platform/test/regents/points/start_awards_test.exs`: what an account had before
+  the start goes through the site's own checks to awards at the start time, once.
+- Focused tests: `test/regents/points` 4 passed; accounts, Points, agent reads, contract, shell,
+  boundary, launch gate, route catalog, release and Privy session tests 164 passed, warnings as
+  errors. Full `make check` waits the orchestrator's slot and the final library pin.
+- No migrations.
+- 6 Nov 16:10Z: final library pin elixir-utils `567f319a` (from `7fde8cce`): `StartAwards` reads the
+  accounts already recorded once per rule; no contract change. Same focused tests, 164 passed.
+- Local showing, 6 Nov 16:05Z, local database only, with Points switched on by an uncommitted file
+  outside the repository (start 03:00Z, every catalog rule but the template note): the start
+  awards landed with nobody doing anything: account 3, 25 + X 10 + GitHub 10 + Farcaster 10;
+  account 1, 25. No agent award, as the local database has no pairing.
+
+## 2026-11-06 — Released v275 (Lucide icons and the pairing window)
+
+- v275: commit `09530e96`, image `main-09530e9682bb`, created 2026-11-06T16:41:04Z, rollback v274
+  `9bfaf7d0`. No migration. Design-system pin `768719f3` (Lucide icons). Pair New Agent opens one
+  window over the page, from the Agents page and the account menu; `/pair` and `/pair?to=<page>`
+  are new, and the agent guides and start page link there. Escape closes the window on top first.
+  The products menu reads Patchbay, Autolaunch, Techtree, Keyfleet, $REGENT Staking. Open windows
+  carry `data-settled` once they rest, as the template's do.
+- Full `make check` on `09530e96` exit 0, 16:24:18Z to 16:32:51Z: server 634 (1 excluded), scripts
+  252, browser 156 (WebKit not run), identity 16, contracts 454, required template fixes present.
+  Log: the session scratchpad `check-lucide-09530e96.log`, last line `make exit 0`.
+- Icons looked at zoomed in beside their neighbours before release: every changed icon matches.
+- Authority: Sean's sign-off on the Lucide and pairing round (HQ relay, 6 Nov), HQ 16:20Z "Mac
+  yours".
+- Live on v275: Fly shows v275 complete, capabilities.json commit `09530e96`. `/`, `/pair`,
+  `/pair?to=%2Fstake` and `/account/agents` answer 200; signed out, `/pair?to=%2Fstake` shows Sign in
+  and "Once paired, it starts at https://regents.sh/stake".
+- Not proven: the world cube's leave cross (needs the GPU cube; same x icon), WebKit, a real
+  sign-in.
+
+## 2026-11-06 — Released v276 (one product order)
+
+- v276: commit `ffebd135`, image `main-ffebd1352bd5`, created 2026-11-06T16:57:57Z, rollback v275
+  `09530e96`. No migration, no pin change. Every list of the products reads Patchbay, Autolaunch,
+  Techtree, Keyfleet: the homepage tabs and worlds, Overview, the sidebar, `GET /api/v1/products`
+  and its slug list, the `regents_products` tool, the list of every site's tools and the docs.
+  OpenAPI JSON 4.0.3; the YAML contract has no product list and stays 4.0.2.
+- Full `make check` on `ffebd135` exit 0, 16:46:42Z to 16:55:28Z: server 634 (1 excluded), scripts
+  252, browser 156 (WebKit not run), identity 16, contracts 454. Log: the session scratchpad
+  `check-order-ffebd135.log`, last line `make exit 0`.
+- Authority: Sean "1. a", 6 Nov; HQ 16:46Z "Mac yours".
+- Live on v276: Fly shows v276 complete, capabilities.json commit `ffebd135`. `/api/v1/products`
+  answers patchbay, autolaunch, techtree, keyfleet; `/api/v1/site-tools` answers regents.sh,
+  patchbay.help, autolaunch.sh, techtree.sh, keyfleet.ai; `/openapi.json` is 4.0.3. At 390 wide
+  the homepage tabs and the `/app` sidebar read the new order with no sideways scroll.
+- Not proven: WebKit. The CLI's own `regents products` description still names the old order; the
+  CLI chief has the notice.
+
+## 2026-11-06 — Points: the new page, one shared board, no Credits rule (branch `regents/points-1102`)
+
+- Follows control `rollouts/2026-11-06-points-page.md`; model ash-template `8c33169b`, `872727d3`,
+  `3571cfc6` and `5068e389` (template live v180 `18973d86`).
+- Pins: elixir-utils `567f319a` to `faa538d4`, design-system `768719f3` to `871c3fe6` (pin lines
+  and lock only).
+- The Points page is the template's: total with today, yesterday and place, the actions still open
+  with where to do each (`/account/connections`, `/account/agents`), activity, the NFT bonus and
+  a leaderboard by name or wallet, each wallet drawn with its copy icon. The old page and its
+  styles (`points-earn`, `points-table`, `points-ways`) are gone.
+- One shared board: `Regents.Points.Board` reads `RegentPoints.leaderboard/1` once for every
+  reader into `Regents.SharedReading` (kind `points_board`, one key, 131,072 bytes), again at most
+  once a second after an award notice, and each minute from `Regents.SharedReading.Heal` on
+  Oban's cron. It runs only where the site serves pages. A reading over its limit is refused and
+  the last one stays, shown as behind. The size of each reading offered is
+  `health.shared_reading.size.percent`.
+- The board's people come from `Regents.Points.Accounts.people/1` through the system-only read
+  `HumanAccount.points_people`: name (null when the person shows by wallet), wallet, ENS name,
+  ENS picture and the generated squares (`Regents.PublicIdentity.listed_name/1`, `wallet/1`,
+  `picture/1`, `squares/1`).
+- The Credits rule is gone: `Regents.Points.CreditsPurchase`, its adapter line and
+  `Award.credits_purchase`. Only the 100-a-day limit stays. Credits itself is unchanged.
+- `GET /api/v1/account/points` answers the template's shape: `points`, `earned_today`,
+  `earned_yesterday`, `rank`, `activity_being_verified`, `to_do`, `daily_limits`, `leaderboard`,
+  `entries`, `period_bonuses`, `more`, and `note` while earning is off; `daily_allowances` is
+  gone. While the board is not read the whole answer is 503 `unavailable`. The contract and
+  `openapi.json` stay at the branch's unreleased 5.0.0, with the new `AccountPoints` schema;
+  `tool_manifest.json`, `cli/commands.json`, `cli/COMMANDS.md`, `agents.md` and `/docs/changes`
+  say so. The CLI notice goes at release.
+- `starts_at` stays nil; nothing earns until POINTS-GO and the start.
+- Checks so far: compile with warnings as errors; `mix test` on `test/regents_web`,
+  `test/regents/points`, `test/regents/accounts`, the identity and shared-reading tests: 400
+  passed (394 tests, 6 properties). New: `test/regents_web/points_page_test.exs` (the template's
+  six checks) and `test/regents/shared_reading_test.exs`. Full `make check` waits a Mac slot.
+
+## 2026-11-06 — Released v277 (Points: the new page, one shared board, no Credits rule)
+
+- v277: commit `00465677`, image `main-00465677d20f`, created 2026-11-06T18:13:39Z, rollback v276
+  `ffebd135` (image `main-ffebd1352bd5`). Released under POINTS-GO a (Sean, 16:02Z, relayed by the
+  orchestrator); `starts_at` stays nil, so nothing earns and the 00:15Z tally queues nothing
+  (`RegentPoints.Rules.ended_periods/1` is `[]` without a start).
+- No migration and no resource snapshot change.
+- Full check on `00465677`, make exit 0: server tests 650 (643 tests, 7 properties, 1 excluded),
+  script tests 252, browser walk 156 in headless Chromium (WebKit not run on the Mac), required
+  fixes against ash-template main, command list, identity 16, contracts 454 forge tests. The first
+  run on `6c1f5312` stopped at credo (two alias orders), fixed in `00465677`.
+- Live read: `/capabilities.json` build commit `00465677`; `/account/points`, `/openapi.json`
+  (5.0.0, `AccountPoints` with `earned_yesterday`, `rank`, `to_do`, `daily_limits`, `leaderboard`),
+  `/agents.md`, `/docs/changes`, `/healthz` 200; an unsigned `GET /api/v1/account/points` answers
+  401. One machine, check passing.
+- Not proven: a real signed-in Points page and a real paired agent's answer on production, WebKit.
+
+## 2026-11-08 — Paper Pro Daily tags
 
 - Every paper on /paper-pro-daily is filed under one to three of ten tags:
   Autoresearch, Swarms, Self-Improvement, Harnesses, Training, Memory, Evaluation,

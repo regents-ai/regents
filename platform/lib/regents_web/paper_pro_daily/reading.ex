@@ -2,7 +2,19 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   @moduledoc "Turns a paper's Markdown answer into the page's HTML: the whole answer, and its opening words."
 
   @excerpt_words 100
-  @extension [table: true, strikethrough: true, math_dollars: true]
+  @extension [table: true, strikethrough: true, math_dollars: true, inline_code_attributes: false]
+
+  @doc "The short name that ends a paper's address."
+  def anchor(paper), do: String.slice(paper.id, 0, 8)
+
+  @doc "The full address that opens this paper on its page."
+  def url(paper), do: RegentsWeb.PublicDocuments.url("/paper-pro-daily/#{anchor(paper)}")
+
+  @doc "A paper's authors for a shared link: all of up to three, or the first three."
+  def byline(%{authors: [first, second, third, _fourth | _rest]}),
+    do: Enum.join([first, second, third], ", ") <> " et al."
+
+  def byline(%{authors: authors}), do: Enum.join(authors, ", ")
 
   @doc "A paper's details and complete, original analysis as Markdown."
   def details_markdown(paper) do
@@ -30,6 +42,24 @@ defmodule RegentsWeb.PaperProDaily.Reading do
   end
 
   defp papers_markdown(papers), do: Enum.map_join(papers, "\n\n---\n\n", &details_markdown/1)
+
+  @doc "The tags an address names (`?tags=A,B`), in the page's order; unknown names are left out."
+  def chosen_tags(%{"tags" => tags}) when is_binary(tags) do
+    names = String.split(tags, ",")
+    Enum.filter(Regents.PaperProDaily.Tag.values(), &(&1 in names))
+  end
+
+  def chosen_tags(_params), do: []
+
+  @doc "The address query that keeps the chosen tags, or nothing when none is chosen."
+  def tags_query([]), do: ""
+  def tags_query(tags), do: "?" <> URI.encode_query(tags: Enum.join(tags, ","))
+
+  @doc "The papers filed under any of the chosen tags; all of them when none is chosen."
+  def filed_under(papers, []), do: papers
+
+  def filed_under(papers, tags),
+    do: Enum.filter(papers, &Enum.any?(&1.tags, fn tag -> tag in tags end))
 
   @doc "The opening paper information, analysis HTML, excerpt, and whether there is more to read."
   def render(answer) do

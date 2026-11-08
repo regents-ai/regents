@@ -85,12 +85,11 @@ defmodule Regents.Release do
     save_paper(Regents.PaperProDaily.PaperFile.read!(paper_path, picture_path))
   end
 
+  # `put-paper` calls this inside the running site, so the save uses the site's own
+  # database connections and clears what the page keeps in one step.
   defp save_paper(attributes) do
-    paper =
-      with_release_repo([], fn _repo ->
-        attributes
-        |> Regents.PaperProDaily.put_paper!(actor: %Regents.Actors.System{})
-      end)
+    paper = Regents.PaperProDaily.put_paper!(attributes, actor: %Regents.Actors.System{})
+    RegentsWeb.PaperProDaily.Feed.delete_all!()
 
     IO.puts("Paper Pro Daily #{paper.date}: \"#{paper.title}\" saved.")
   end
@@ -101,17 +100,18 @@ defmodule Regents.Release do
   `6ff56eaa-…: [Safety]`. Every paper in the file is tagged, or none is.
   Run as `/app/bin/tag-papers <file>`.
   """
-  # The path is the operator's own argument on the machine they are signed in to.
+  # `tag-papers` calls this inside the running site, like `put-paper`, so the page
+  # shows the new tags at once. The path is the operator's own argument on the
+  # machine they are signed in to.
   # sobelow_skip ["Traversal.FileModule"]
   def tag_papers(path) do
     count =
-      with_release_repo([], fn _repo ->
-        path
-        |> YamlElixir.read_from_file!()
-        |> Regents.PaperProDaily.tag_papers!(actor: %Regents.Actors.System{})
-      end)
+      path
+      |> YamlElixir.read_from_file!()
+      |> Regents.PaperProDaily.tag_papers!(actor: %Regents.Actors.System{})
 
-    IO.puts("Paper Pro Daily: #{count} papers tagged.")
+    RegentsWeb.PaperProDaily.Feed.delete_all!()
+    IO.puts("Paper Pro Daily: #{count} tagged.")
   end
 
   @doc "Saves post.md and its cover using /app/bin/put-post <folder>. The slug identifies the post."

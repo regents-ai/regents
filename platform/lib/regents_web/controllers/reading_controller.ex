@@ -4,6 +4,7 @@ defmodule RegentsWeb.ReadingController do
 
   alias Regents.{Blog, PaperProDaily}
   alias RegentsWeb.{Literature, PublicDocuments}
+  alias RegentsWeb.PaperProDaily.Reading
 
   def papers(conn, params),
     do: collection(conn, params, :papers, &PaperProDaily.paper_feed/1, &paper_summary/1)
@@ -128,7 +129,7 @@ defmodule RegentsWeb.ReadingController do
           "/paper-pro-daily/pictures/#{paper.id}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}"
         ),
       cover_alt: paper.picture_alt,
-      url: PublicDocuments.url("/paper-pro-daily#paper-#{paper.id}-title")
+      url: Reading.url(paper)
     }
   end
 

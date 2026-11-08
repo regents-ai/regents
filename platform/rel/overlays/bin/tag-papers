@@ -1,12 +1,11 @@
 #!/bin/sh
 set -eu
 
+# The tagging runs inside the running site, which has its own environment and its
+# own folder, so the path travels inside the call as a whole absolute path.
 case "$#" in
-  1)
-    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER_TAGS="$1" exec "$(dirname "$0")/regents" eval 'Regents.Release.tag_papers(System.fetch_env!("REGENTS_PAPER_TAGS"))'
-    ;;
-  *)
-    echo 'usage: tag-papers <tags.yaml>' >&2
-    exit 1
-    ;;
+  1) path="$(printf %s "$(realpath "$1")" | base64 | tr -d '\n')" ;;
+  *) echo 'usage: tag-papers <tags.yaml>' >&2; exit 1 ;;
 esac
+
+exec "$(dirname "$0")/regents" rpc "Regents.Release.tag_papers(Base.decode64!(\"$path\"))"

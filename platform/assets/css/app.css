@@ -112,9 +112,14 @@ h6 {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-[tabindex]:focus-visible {
+[tabindex]:not([tabindex="-1"]):focus-visible {
   outline: 2px solid var(--color-focus-ring, Highlight);
   outline-offset: 2px;
+}
+
+/* A place the page moves focus to, not a control anyone tabs to. */
+[tabindex="-1"]:focus-visible {
+  outline: 0;
 }
 
 .shell-status[aria-busy="true"]::after {

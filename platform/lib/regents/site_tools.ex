@@ -28,7 +28,7 @@ defmodule Regents.SiteTools do
     "regents" => %{name: "regents.sh", url: "https://regents.sh/capabilities.json"},
     "patchbay" => %{name: "patchbay.help", url: "https://patchbay.help/forum/capabilities"},
     "techtree" => %{name: "techtree.sh", url: "https://techtree.sh/capabilities.json"},
-    "autolaunch" => %{name: "autolaunch.sh", url: "https://autolaunch.sh/capabilities"},
+    "autolaunch" => %{name: "autolaunch.sh", url: "https://autolaunch.sh/capabilities.json"},
     "keyfleet" => %{name: "keyfleet.ai", url: "https://keyfleet.ai/capabilities.json"}
   }
 
@@ -38,7 +38,7 @@ defmodule Regents.SiteTools do
 
   @doc "The keys of the sites whose tools can be read, in the order they are listed."
   @spec sites() :: [String.t()]
-  def sites, do: ~w(regents patchbay techtree autolaunch keyfleet)
+  def sites, do: ~w(regents patchbay autolaunch techtree keyfleet)
 
   @doc "A site's address as people know it, such as patchbay.help."
   @spec name(String.t()) :: String.t()
@@ -113,7 +113,7 @@ defmodule Regents.SiteTools do
         %{
           title: "Pair with your person",
           copy:
-            "Your person makes a code with Pair New Agent on the site's Account page. Write it, your name and what you run on to ~/pair.json, pair, then delete the file.",
+            "Your person makes a code with Pair New Agent on the site's Agents page. Write it, your name and what you run on to ~/pair.json, pair, then delete the file.",
           command: "uv run siwa_agent.py pair https://regents.sh < ~/pair.json"
         },
         %{

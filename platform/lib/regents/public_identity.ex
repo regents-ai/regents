@@ -22,6 +22,38 @@ defmodule Regents.PublicIdentity do
 
   def label(_identity), do: "Account"
 
+  @doc """
+  The name a list other people read prints for an account: its display name when
+  that is the name it shows, else `nil` when it shows by its wallet, its ENS name
+  or short address, which a page draws with `Regent.Primitives.address`. An account
+  with neither a chosen name nor a wallet prints its `label/1`.
+  """
+  def listed_name(identity) when is_map(identity) do
+    case Enum.find(chosen_names(identity), &present/1) do
+      nil -> if !wallet(identity), do: label(identity)
+      name -> present(name)
+    end
+  end
+
+  @doc "The account's wallet address, when it has one."
+  def wallet(identity) when is_map(identity) do
+    case Map.get(identity, :wallet_address) do
+      wallet when is_binary(wallet) ->
+        wallet = String.trim(wallet)
+        if Regex.match?(@wallet, wallet), do: wallet
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc "The picture the account's ENS name carries, when it has one."
+  def picture(identity) when is_map(identity), do: present(Map.get(identity, :ens_avatar_url))
+
+  @doc "The picture generated from the account's wallet address."
+  def squares(identity) when is_map(identity),
+    do: generated_avatar(Map.get(identity, :wallet_address))
+
   @doc "The ENS name the wallet publishes, if any."
   def ens_name(identity) when is_map(identity), do: present(Map.get(identity, :ens_name))
 
@@ -41,13 +73,11 @@ defmodule Regents.PublicIdentity do
     end
   end
 
-  defp preferred_labels(identity) do
-    [
-      Map.get(identity, :display_name),
-      Map.get(identity, :regent_nameclaim),
-      Map.get(identity, :ens_name)
-    ]
-  end
+  defp preferred_labels(identity), do: chosen_names(identity) ++ [Map.get(identity, :ens_name)]
+
+  # The names an account chose for itself, before its wallet's ENS name.
+  defp chosen_names(identity),
+    do: [Map.get(identity, :display_name), Map.get(identity, :regent_nameclaim)]
 
   defp present(value) when is_binary(value) do
     case String.trim(value) do

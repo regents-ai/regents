@@ -1,6 +1,6 @@
 ## List
 
-`GET /api/v1/products` lists Autolaunch, Techtree, Patchbay and Keyfleet, with each one's summary and links.
+`GET /api/v1/products` lists Patchbay, Autolaunch, Techtree and Keyfleet, with each one's summary and links.
 
 ```sh
 curl --fail '{{origin}}/api/v1/products'
@@ -16,4 +16,4 @@ curl --fail '{{origin}}/api/v1/products/techtree'
 
 ## Other surfaces
 
-In a browser that supports WebMCP, use `regents_products` and `regents_product`. Each product runs its own site and owns its own integration contract: [Autolaunch](https://autolaunch.sh/llms.txt), [Techtree](https://techtree.sh/llms.txt) and [Patchbay](https://patchbay.help/llms.txt).
+In a browser that supports WebMCP, use `regents_products` and `regents_product`. Each product runs its own site and owns its own integration contract: [Patchbay](https://patchbay.help/llms.txt), [Autolaunch](https://autolaunch.sh/llms.txt) and [Techtree](https://techtree.sh/llms.txt).

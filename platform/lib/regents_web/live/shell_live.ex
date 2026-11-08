@@ -28,6 +28,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.CreditsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.NamesLive
+  alias RegentsWeb.PairLive
   alias RegentsWeb.PaperProDailyLive
   alias RegentsWeb.PointsLive
   alias RegentsWeb.ProductLive
@@ -65,6 +66,7 @@ defmodule RegentsWeb.ShellLive do
        blog_posts: [],
        blog_post: nil,
        shell_instance: System.unique_integer([:positive, :monotonic]),
+       pair_start: nil,
        credits: %Read{}
      )
      |> follow_credits()
@@ -83,7 +85,7 @@ defmodule RegentsWeb.ShellLive do
 
     {:noreply,
      socket
-     |> assign(route_spec: route_spec, route_params: params)
+     |> assign(route_spec: route_spec, route_params: params, pair_start: PairLive.start(params))
      |> load_regent_route(route_spec, params)
      |> load_blog_route(route_spec, params)
      |> assign_page(route_spec, uri)
@@ -169,6 +171,10 @@ defmodule RegentsWeb.ShellLive do
   # A points award or correction landed for this account; the Points page follows.
   def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, Points.changed(socket)}
 
+  # The board every signed-in reader shares was read again; the Points page follows.
+  def handle_info({:shared_reading, {:points_board, _program}}, socket),
+    do: {:noreply, Points.board_changed(socket)}
+
   # The balance changed on this or any Regent site: a purchase, a gift, a spend.
   # The header, the Buy Credits panel, the Account page and the Credits history
   # follow. Every page change reads the balance again too.
@@ -204,6 +210,14 @@ defmodule RegentsWeb.ShellLive do
           account={current_account(@access_context)}
         />
       </:agents>
+      <:pairing_panel :if={current_account(@access_context)}>
+        <.live_component
+          module={RegentsWeb.PairingBox}
+          id="shell-pairing-box"
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+      </:pairing_panel>
       <:content>
         <.link
           :if={@route_spec.route_id == :blog && Regents.Blog.admin?(current_account(@access_context))}
@@ -264,10 +278,23 @@ defmodule RegentsWeb.ShellLive do
         <AccountLive.profile
           :if={@route_spec.route_id == :account}
           signed_out_reason={@signed_out_reason}
-          lease={@session_lease}
           account={current_account(@access_context)}
           account_control={@account_control}
           credits_read={@credits}
+        />
+
+        <AccountLive.agents
+          :if={@route_spec.route_id == :account_agents}
+          signed_out_reason={@signed_out_reason}
+          lease={@session_lease}
+          account={current_account(@access_context)}
+        />
+
+        <PairLive.page
+          :if={@route_spec.route_id == :pair}
+          lease={@session_lease}
+          account={current_account(@access_context)}
+          start={@pair_start}
         />
 
         <PointsLive.page
@@ -275,6 +302,7 @@ defmodule RegentsWeb.ShellLive do
           signed_out_reason={@signed_out_reason}
           account={current_account(@access_context)}
           points={@points}
+          board={@points_board}
           bonus={@points_bonus}
           earning={@points_earning}
         />
@@ -358,9 +386,7 @@ defmodule RegentsWeb.ShellLive do
         <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
         <PaperProDailyLive.page
           :if={@route_spec.route_id == :paper_pro_daily}
-          page_markdown={@page_markdown}
           paper_tags={@paper_tags}
-          filtered_markdown={@filtered_markdown}
           research_list={@research_list}
           research_list_expanded?={@research_list_expanded?}
           streams={@streams}
@@ -496,6 +522,16 @@ defmodule RegentsWeb.ShellLive do
 
   defp assign_page(socket, %{route_id: :blog_post}, _uri),
     do: assign(socket, PublicDocuments.page({:blog_post, socket.assigns.blog_post}))
+
+  defp assign_page(socket, %{route_id: :paper_pro_daily}, _uri) do
+    case socket.assigns.route_params do
+      %{"paper" => _} = params ->
+        assign(socket, PublicDocuments.page({:paper, PaperProDaily.linked_paper!(params)}))
+
+      _feed ->
+        assign(socket, PublicDocuments.page("/paper-pro-daily"))
+    end
+  end
 
   defp assign_page(socket, _route_spec, uri),
     do: assign(socket, PublicDocuments.page(URI.parse(uri).path))

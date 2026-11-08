@@ -3,7 +3,7 @@ import {expect, test, type Page} from "./support/offline"
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 
 // A visit can be told again from its lines alone (RegentsWeb.VisitLog). The
-// walk's person opens Account and chooses an agent to pair, and the lines the
+// walk's person opens the pairing window on Agents and chooses an agent to pair, and the lines the
 // server wrote for that visit (config/runtime.exs) say so in order: the request,
 // the page, the pairing code the site made and the press that asked for it.
 // Every line carries the same visit and the same one-way code for the person,
@@ -50,13 +50,14 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({width, height: 900})
     const auth = await installAuthenticatedPrivy(page, "valid")
     await auth.establishLocalSession()
-    await page.goto("/account")
+    await page.goto("/account/agents")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-    await page.locator("#account-agents").getByRole("link", {name: "Pair New Agent"}).click()
-    const radio = page.locator("#account-pairing").getByRole("radio", {name: "Dots", exact: true})
+    await page.locator("#account-agents").getByRole("button", {name: "Pair New Agent"}).click()
+    await expect(page.locator("#shell-pairing")).toBeVisible()
+    const radio = page.locator("#shell-pairing").getByRole("radio", {name: "Dots", exact: true})
     await radio.locator("xpath=ancestor::label").click()
-    const message = page.locator("#account-pairing-box pre")
+    const message = page.locator("#shell-pairing-box pre")
     await expect(message).toContainText(/Pairing code:\s*\S{12,}/)
     const code = (await message.innerText()).match(/Pairing code:\s*(\S+)/)![1]
 
@@ -65,10 +66,10 @@ for (const width of [1280, 390]) {
     const told = lines(visit)
     const steps = told.map(step)
 
-    expect(steps[0]).toBe("request /account")
+    expect(steps[0]).toBe("request /account/agents")
     const order = [
-      "request /account",
-      "page /account",
+      "request /account/agents",
+      "page /account/agents",
       "action pairing_code.issue",
       "press PairingBox:choose_agent",
     ].map(wanted => steps.indexOf(wanted))

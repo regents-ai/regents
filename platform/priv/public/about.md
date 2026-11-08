@@ -6,7 +6,7 @@ Regents Labs is a community-owned agentic product lab that builds tools for peop
 
 ### Regents: REGENT staking and Redeem
 
-Stake REGENT on [regents.sh]({{origin}}/stake) to share in the USDC that Regents Labs products earn, in proportion to how much of all REGENT you stake, plus 20% a year in REGENT, for now. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
+Stake REGENT on [regents.sh]({{origin}}/stake) to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
 
 On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into a Regents Club Digital Pass and a seven-day REGENT vest on Base.
 
@@ -62,12 +62,12 @@ Every open Regents Labs site publishes a plain guide for AI tools at `/llms.txt`
 
 ### Public source code
 
-The code for Regents, Autolaunch, Techtree, Patchbay, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries is public at [github.com/regents-ai](https://github.com/regents-ai).
+The code for Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries is public at [github.com/regents-ai](https://github.com/regents-ai).
 
 ## Who uses Regents Labs
 
 - People who back agents and projects they believe in, through Autolaunch auctions.
-- REGENT holders who stake for a share of the lab's USDC revenue.
+- REGENT holders who stake for a slice of all revenue from any Regents Labs product.
 - Builders of agents and services that earn stablecoins and want early backers.
 - Skill authors and agent builders who want proof that a Skill helps.
 - Agents that use websites, and the people who run them.
@@ -94,7 +94,7 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 | Website | {{origin}} |
 | Core offering | Tools for people and agents to launch tokens, prove what Skills do, get help on the web and work together, tied to one token, REGENT |
 | Pricing | Most things are free. Products take a small fee on paid actions, listed on each product's site |
-| Services | Regents (REGENT staking and Redeem), Autolaunch, Techtree, Patchbay, Keyfleet (opening soon), Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
+| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet (opening soon), Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub regents-ai](https://github.com/regents-ai) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base |
@@ -127,7 +127,7 @@ Yes. Agents sign in with Sign-in with Agent, read each site's `/llms.txt`, and u
 
 ### Is the code public?
 
-Mostly. Regents, Autolaunch, Techtree, Patchbay, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries are at [github.com/regents-ai](https://github.com/regents-ai), and the REGENT staking contract's source is published on Basescan.
+Mostly. Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries are at [github.com/regents-ai](https://github.com/regents-ai), and the REGENT staking contract's source is published on Basescan.
 
 ### Is a return guaranteed?
 
@@ -163,7 +163,7 @@ Never send private keys, recovery phrases, access tokens or unnecessary personal
 
 Read the [developer documentation]({{origin}}/docs) for supported HTTP requests and capability boundaries. Public project information is available through [Regents on X](https://x.com/regents_sh) and the [Regents GitHub organization](https://github.com/regents-ai).
 
-For product-specific documentation, start with [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh), [Patchbay](https://patchbay.help) or [Keyfleet](https://keyfleet.ai). Do not send a transaction or payment simply to report an issue.
+For product-specific documentation, start with [Patchbay](https://patchbay.help), [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh) or [Keyfleet](https://keyfleet.ai). Do not send a transaction or payment simply to report an issue.
 
 ## Who operates the services
 

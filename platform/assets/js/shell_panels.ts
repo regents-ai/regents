@@ -1,6 +1,6 @@
 // The account menu and the apps menu are popovers the browser opens and closes
 // itself, as the template's shell does; only following a link inside one, opening
-// Buy Credits, and Sign out, are ours.
+// Buy Credits or the pairing window, and Sign out, are ours.
 
 /**
  * Brings `target`, what an address's #fragment names, into view. When it holds a
@@ -18,6 +18,22 @@ export function arriveAt(target: HTMLElement) {
 
 /** Wires the menus inside `scope`. Returns `cleanup`. */
 export function installShellPanels(scope: Document | HTMLElement = document) {
+  const pairing = () => document.getElementById("shell-pairing") as HTMLDialogElement | null
+
+  // The window opens on the list of agents while none is chosen, with the keyboard
+  // on the dropdown.
+  const openPairing = () => {
+    const dialog = pairing()
+    if (!dialog || dialog.open) return
+    dialog.showModal()
+    const pick = dialog.querySelector<HTMLDetailsElement>("details.rg-pill-select")
+    if (!pick) return
+    if (!pick.querySelector("input:checked")) pick.open = true
+    pick.querySelector<HTMLElement>(":scope > summary")?.focus()
+  }
+
+  const closePairing = () => pairing()?.close()
+
   const onClick = (event: MouseEvent) => {
     const target = event.target instanceof Element ? event.target : null
     if (!target) return
@@ -31,6 +47,16 @@ export function installShellPanels(scope: Document | HTMLElement = document) {
       document.getElementById("shell-credits")?.dispatchEvent(new Event("regents:open"))
       return
     }
+    // Pair New Agent, in the account menu and on the Agents page, opens the one
+    // pairing window. The menu closes first, as for Buy Credits.
+    const pairOpener = target.closest<HTMLElement>("[data-pair-open]")
+    if (pairOpener) {
+      pairOpener.closest<HTMLElement>("[popover]")?.hidePopover()
+      return openPairing()
+    }
+    if (target.closest("[data-pair-close]")) return closePairing()
+    // A press on the window's own backdrop lands on the window itself.
+    if (target === pairing()) return closePairing()
     // Sign out closes the account menu, so a note it leaves, such as one saying it
     // couldn't finish, shows under the account button rather than behind the menu.
     const signOut = target.closest<HTMLElement>("[data-account-target='sign-out']")

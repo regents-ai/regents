@@ -13,7 +13,7 @@ defmodule Regents.Staking.SnapshotRefresh do
 
   alias Regents.Actors.System
   alias Regents.Staking
-  alias Regents.Staking.{ChainClient, PriceClient, SnapshotCache}
+  alias Regents.Staking.{ChainClient, PriceClient, RevenueHistory, SnapshotCache}
 
   @impl Oban.Worker
   def timeout(_job), do: 70_000
@@ -140,5 +140,5 @@ defmodule Regents.Staking.SnapshotRefresh do
   defp history_start(nil, protocol), do: protocol.usdc_received_from_block
 
   defp history_start(previous, protocol),
-    do: max(protocol.usdc_received_from_block, previous.history["block_number"] - 29)
+    do: RevenueHistory.start(previous.history, protocol.usdc_received_from_block)
 end

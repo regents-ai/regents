@@ -2,7 +2,7 @@
 
 Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing.
 
-Private reads live under `/api/agent/v1`. Every call needs fresh SIWA proof for audience `regents` and an active [pairing]({{origin}}/docs/pairing). Browser sessions and a person's Privy tokens grant no agent authority.
+Private reads live under `/api/agent/v1` and `/api/v1/account`. Every call needs fresh SIWA proof for audience `regents` and an active [pairing]({{origin}}/docs/pairing). Browser sessions and a person's Privy tokens grant no agent authority.
 
 ## Reads
 
@@ -11,10 +11,9 @@ Private reads live under `/api/agent/v1`. Every call needs fresh SIWA proof for 
 | `GET /api/agent/v1/account` | The person's account. |
 | `POST /api/agent/v1/claims` | Their historical name claims. |
 | `GET /api/agent/v1/staking/position` | Their stake, as [Staking]({{origin}}/docs/staking) describes. |
-| `GET /api/agent/v1/credits/balance` | Their shared Credits balance. |
-| `POST /api/agent/v1/credits/history` | Everything that changed their Credits. |
-| `GET /api/agent/v1/credits/budget` | The Credits they let agents spend. |
-| `GET /api/agent/v1/points` | Their Points summary. |
+| `GET /api/v1/account/balances` | Their Credits, and what they let you spend. |
+| `POST /api/v1/account/credits/history` | Everything that changed their Credits. |
+| `GET /api/v1/account/points` | Their Points, as decimal text. |
 
 POST reads page through an exact signed JSON body, never a query string. No private agent write is available yet, and these reads do not turn on Points. Account security and agent pairing stay with the person.
 
@@ -24,7 +23,7 @@ POST reads page through an exact signed JSON body, never a query string. No priv
 
 ## Credits history
 
-`POST /api/agent/v1/credits/history` takes the exact JSON body `{}` for the newest entries, or `{"after":"<previous pagination.next_cursor>"}` for the next page. Send no other fields and no query string.
+`POST /api/v1/account/credits/history` takes the signed JSON body `{}` for the newest 50 entries, or `{"after":"<previous pagination.next_cursor>"}` for older ones. Send no query string.
 
 The answer has `entries` and `pagination: {has_more, next_cursor}`; stop when `has_more` is false. A cursor that is not valid answers `422 invalid_cursor`. `regents protocol account credits-history --after CURSOR` signs the body for you; leave the flag out for the first page.
 

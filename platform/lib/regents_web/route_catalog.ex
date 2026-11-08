@@ -59,6 +59,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :paper_pro_daily
     },
     %Entry{
+      path_pattern: "/paper-pro-daily/:paper",
+      live_action: :paper_pro_daily_paper,
+      parameter_schema: %{paper: :paper_anchor},
+      reserved_values: %{},
+      route_spec_id: :paper_pro_daily
+    },
+    %Entry{
       path_pattern: "/literature",
       live_action: :literature,
       parameter_schema: %{},
@@ -71,6 +78,13 @@ defmodule RegentsWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :account
+    },
+    %Entry{
+      path_pattern: "/account/agents",
+      live_action: :account_agents,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :account_agents
     },
     %Entry{
       path_pattern: "/account/points",
@@ -99,6 +113,13 @@ defmodule RegentsWeb.RouteCatalog do
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :connections
+    },
+    %Entry{
+      path_pattern: "/pair",
+      live_action: :pair,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :pair
     },
     %Entry{
       path_pattern: "/names",
@@ -226,6 +247,12 @@ defmodule RegentsWeb.RouteCatalog do
     account:
       {:account, :regent_ops, "Regents Labs", "Account", "/app", [:profile_actions],
        :regents_labs, %{}},
+    account_agents:
+      {:account_agents, :regent_ops, "Regents Labs", "Agents", "/app", [:profile_actions],
+       :regents_labs, %{}},
+    pair:
+      {:pair, :regent_ops, "Regents Labs", "Pair New Agent", "/app", [:profile_actions],
+       :regents_labs, %{}},
     points:
       {:points, :regent_ops, "Regents Labs", "Points", "/app", [:profile_actions], :regents_labs,
        %{}},
@@ -282,6 +309,7 @@ defmodule RegentsWeb.RouteCatalog do
   # The Account pages are tabs of one another.
   @account_tabs [
     %RouteTarget{route_id: :account, label: "Account", path: "/account"},
+    %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
     %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
     %RouteTarget{route_id: :credits, label: "Credits", path: "/account/credits"},
     %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
@@ -318,6 +346,9 @@ defmodule RegentsWeb.RouteCatalog do
 
   defp valid_parameter?(:slug, value), do: is_binary(value) and Regex.match?(@slug, value)
 
+  defp valid_parameter?(:paper_anchor, value),
+    do: is_binary(value) and Regex.match?(~r/\A[0-9a-f]{8}\z/, value)
+
   defp build_spec(action, params) do
     {route_id, app_id, app_label, page_label, root, controls, background, local_state} =
       Map.fetch!(@specs, action)
@@ -351,9 +382,9 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :names, label: "Names", path: "/names"},
         %ViewerProfileTarget{label: "Profile"},
         %SidebarHeading{label: "Products"},
+        %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
         %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
         %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
-        %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
         %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
         %RouteTarget{route_id: :cloak, label: "Cloak", path: "/cloak"},
         %SidebarHeading{label: "Reading"},
@@ -428,10 +459,12 @@ defmodule RegentsWeb.RouteCatalog do
 
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
   defp handoff_params(:blog_post), do: %{"slug" => "example-post"}
+  defp handoff_params(:paper_pro_daily_paper), do: %{"paper" => "00000000"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
   defp destination(:blog_post, %{"slug" => slug}), do: "/articles/#{slug}"
+  defp destination(:paper_pro_daily, %{"paper" => paper}), do: "/paper-pro-daily/#{paper}"
 
   defp destination(action, _params) do
     @entries

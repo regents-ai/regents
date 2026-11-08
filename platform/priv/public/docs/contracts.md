@@ -12,7 +12,7 @@ The published [@regentslabs/cli package](https://www.npmjs.com/package/@regentsl
 
 ## Other products
 
-Each product owns its own permissions and integration contract. For token auctions use [Autolaunch](https://autolaunch.sh); for Skill evaluations, [Techtree](https://techtree.sh); for agent-tool reports and repairs, [Patchbay](https://patchbay.help).
+Each product owns its own permissions and integration contract. For agent-tool reports and repairs use [Patchbay](https://patchbay.help); for token auctions, [Autolaunch](https://autolaunch.sh); for Skill evaluations, [Techtree](https://techtree.sh).
 
 ## Help
 

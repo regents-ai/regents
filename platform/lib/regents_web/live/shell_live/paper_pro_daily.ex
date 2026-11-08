@@ -14,21 +14,23 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
 
   alias Regents.PaperProDaily
   alias Regents.PaperProDaily.{Publication, Tag}
-  alias RegentsWeb.PaperProDaily.Reading
+  alias RegentsWeb.PaperProDaily.{Feed, Reading}
 
   @page_size 6
-  @events ~w(load_more toggle_research_list go_to_paper filter_papers)
+  @events ~w(load_more toggle_research_list filter_papers)
 
   def handles?(event), do: event in @events
 
   def init(socket),
     do: socket |> assign(paper_midnight: nil) |> cleared()
 
+  # A link to one paper goes to it within the feed; moving between papers keeps the
+  # feed as it is, so the reader's place and open papers stay.
   def route(socket, %{route_id: :paper_pro_daily}) do
     socket
-    |> assign(paper_tags: chosen_tags(socket.assigns.route_params))
-    |> refresh_papers()
+    |> read_feed(Reading.chosen_tags(socket.assigns.route_params))
     |> follow_midnight()
+    |> go_to_paper(socket.assigns.route_params["paper"])
   end
 
   def route(socket, _route_spec), do: socket |> forget_midnight() |> cleared()
@@ -50,19 +52,21 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
   def handle_event("filter_papers", %{"tag" => tag}, socket) do
     chosen = socket.assigns.paper_tags
     tags = Enum.filter(Tag.values(), &(&1 == tag != &1 in chosen))
-
-    path =
-      if tags == [],
-        do: "/paper-pro-daily",
-        else: "/paper-pro-daily?" <> URI.encode_query(tags: Enum.join(tags, ","))
-
-    push_patch(socket, to: path)
+    push_patch(socket, to: "/paper-pro-daily" <> Reading.tags_query(tags))
   end
 
   def handle_event("toggle_research_list", _params, socket),
     do: assign(socket, research_list_expanded?: !socket.assigns.research_list_expanded?)
 
-  def handle_event("go_to_paper", %{"target" => target}, socket) do
+  @doc "The paper a link names, or a 404 when it names none that is published."
+  def linked_paper!(%{"paper" => anchor}) do
+    PaperProDaily.get_paper_by_anchor!(anchor) || raise RegentsWeb.NotFoundError
+  end
+
+  defp go_to_paper(socket, nil), do: socket
+
+  # A paper outside the chosen tags is not in the list, so the page stays where it is.
+  defp go_to_paper(socket, target) do
     case Enum.find(socket.assigns.research_list, &(&1.target == target)) do
       nil ->
         socket
@@ -76,37 +80,34 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
     end
   end
 
+  defp read_feed(%{assigns: %{days: [_ | _], paper_tags: tags}} = socket, tags), do: socket
+  defp read_feed(socket, tags), do: socket |> assign(paper_tags: tags) |> refresh_papers()
+
   defp cleared(socket) do
     socket
     |> assign(
       research_list_expanded?: false,
       paper_tags: [],
-      filtered_markdown: "",
       publication_date: nil,
       days: [],
       shown: 0,
       more?: false,
-      page_markdown: "",
       research_list: []
     )
     |> stream(:days, [], reset: true)
   end
 
   defp refresh_papers(socket) do
-    tags = socket.assigns.paper_tags
-    papers = PaperProDaily.export_papers!()
-    shown = filed_under(papers, tags)
+    papers = Reading.filed_under(Feed.outline(), socket.assigns.paper_tags)
 
     socket
     |> assign(
       publication_date: Date.utc_today(),
-      days: shown |> Enum.map(& &1.date) |> Enum.dedup(),
+      days: papers |> Enum.map(& &1.date) |> Enum.dedup(),
       shown: 0,
       more?: false,
-      page_markdown: Reading.page_markdown(papers),
-      filtered_markdown: if(tags == [], do: "", else: Reading.filtered_markdown(shown, tags)),
       research_list:
-        Enum.map(shown, &%{title: &1.title, date: &1.date, target: "paper-#{&1.id}-title"})
+        Enum.map(papers, &%{title: &1.title, date: &1.date, target: Reading.anchor(&1)})
     )
     |> stream(:days, [], reset: true)
     |> show_more()
@@ -138,58 +139,16 @@ defmodule RegentsWeb.ShellLive.PaperProDaily do
     assign(socket, paper_midnight: nil)
   end
 
-  # The next days in the feed, each with all of its papers.
+  # The next days in the feed, each with its papers under the chosen tags.
   defp show_more(socket, count \\ @page_size) do
-    %{days: days, shown: shown} = socket.assigns
+    %{days: days, shown: shown, paper_tags: tags} = socket.assigns
     dates = Enum.slice(days, shown, count)
 
-    shown_days =
-      dates
-      |> PaperProDaily.list_papers!()
-      |> filed_under(socket.assigns.paper_tags)
-      |> Enum.chunk_by(& &1.date)
-      |> Enum.map(
-        &%{id: Date.to_iso8601(hd(&1).date), papers: Enum.map(&1, fn paper -> shown(paper) end)}
-      )
-
     socket
-    |> stream(:days, shown_days)
+    |> stream(
+      :days,
+      Enum.map(Feed.days(dates), &%{&1 | papers: Reading.filed_under(&1.papers, tags)})
+    )
     |> assign(shown: shown + length(dates), more?: shown + length(dates) < length(days))
-  end
-
-  # Unknown names in a shared address are left out; the page's own order wins.
-  defp chosen_tags(%{"tags" => tags}) when is_binary(tags) do
-    names = String.split(tags, ",")
-    Enum.filter(Tag.values(), &(&1 in names))
-  end
-
-  defp chosen_tags(_params), do: []
-
-  defp filed_under(papers, []), do: papers
-
-  defp filed_under(papers, tags),
-    do: Enum.filter(papers, &Enum.any?(&1.tags, fn tag -> tag in tags end))
-
-  # The picture's address changes whenever the paper is saved again, so a browser
-  # may keep each one for good.
-  defp shown(paper) do
-    paper
-    |> Map.take([
-      :id,
-      :date,
-      :title,
-      :authors,
-      :arxiv_url,
-      :chatgpt_url,
-      :author,
-      :picture_alt,
-      :tags
-    ])
-    |> Map.merge(Reading.render(paper.answer))
-    |> Map.merge(%{
-      picture:
-        "/paper-pro-daily/pictures/#{paper.id}?v=#{DateTime.to_unix(paper.updated_at, :microsecond)}",
-      markdown: Reading.details_markdown(paper)
-    })
   end
 end

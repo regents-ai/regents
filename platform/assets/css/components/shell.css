@@ -87,7 +87,7 @@
 
 /* One ring on both grounds: outside the control where there is room for it,
    inside the header and sidebar cells, which run edge to edge. */
-#app-shell :focus-visible {
+#app-shell :focus-visible:not([tabindex="-1"]) {
   outline: 2px solid var(--ash-accent);
   outline-offset: 2px;
 }
@@ -635,7 +635,7 @@
 
 /* The frame itself owns the ruled edges; there is no decorative page mat. */
 #shell-sidebar ul { padding: var(--space-1); }
-#shell-sidebar [aria-current="page"] { border-inline-start: 3px solid currentColor; font-weight: 600; }
+#shell-sidebar [aria-current="page"] { border-inline-start: 3px solid currentColor; }
 .shell-brand__name { font-family: var(--font-family-title); font-weight: 400; }
 #shell-header { flex-wrap: wrap; }
 #shell-header > a:not(.shell-brand) { align-self: center; padding: var(--space-1); font-size: .75rem; }
@@ -678,4 +678,34 @@
    menu shows it instead, as its balance row, which opens the same panel. */
 @media (max-width: 22.49rem) {
   #app-shell #shell-credits-button { display: none; }
+}
+
+/* The close button of the shell's windows, Buy Credits and Pair New Agent,
+   square in the window's top right corner, and kept there while the window
+   scrolls. Its margins give back the room it takes, so what is under it keeps
+   its place. It sits outside the product layer, so it wins over the shared
+   button's padding. The pad is the window frame's own. */
+:is(.shell-credits-dialog, .shell-pairing-dialog) {
+  --shell-dialog-pad: clamp(var(--space-2), 4vw, var(--space-4));
+}
+
+.shell-dialog-close {
+  position: sticky;
+  inset-block-start: calc(-1 * var(--shell-dialog-pad));
+  z-index: var(--rg-layer-card);
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 0;
+  margin-block: calc(-1 * var(--shell-dialog-pad)) calc(var(--shell-dialog-pad) - 2.75rem);
+  margin-inline: auto calc(-1 * var(--shell-dialog-pad));
+  padding: 0;
+  border: 0;
+  border-radius: 0 calc(1.25rem - 1px) 0 0.75rem;
+}
+
+.shell-dialog-close svg {
+  width: 1.5rem;
+  height: 1.5rem;
 }

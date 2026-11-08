@@ -1,7 +1,7 @@
 defmodule RegentsWeb.Capabilities do
   @moduledoc """
   What a paired agent may do on this site, in its person's words, which the
-  Account page shows. Each browser tool an agent signs for in
+  Agents page shows. Each browser tool an agent signs for in
   `priv/tool_manifest.json` has its words here, or `nil` for a tool about the
   agent itself; the two are checked against each other when this module
   compiles, so a new signed tool cannot reach agents without saying what it lets
@@ -16,10 +16,9 @@ defmodule RegentsWeb.Capabilities do
     "regents_claims" => "Read your name claims",
     "regents_agent_whoami" => nil,
     "regents_account" => "Read your display name and ENS name",
-    "regents_credits_balance" => "Read your Credits balance",
-    "regents_credits_history" => "Read your Credits history",
-    "regents_credits_budget" => "Read what it may spend of your Credits",
-    "regents_points_summary" => "Read your Points"
+    "account_balances" => "Read your Credits and what it may spend of them",
+    "account_credits_history" => "Read your Credits history",
+    "account_points" => "Read your Points"
   }
 
   signed =

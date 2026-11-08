@@ -4,7 +4,7 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 // The account menu, opened by the account's button at the top right of every page.
 // The walk's person has four agents (Regents.BrowserAgents) and none has been
 // active, so the menu shows the three paired last and leaves out Spare Agent, paired
-// first. Manage beside the heading opens the agents on the Account page; with a
+// first. Manage beside the heading opens the Agents page; with a
 // mouse it shows while the pointer is over the list or a key has moved into it, and
 // the rows never move when it does. Ported from ash-template's account_menu.spec.ts.
 async function signIn(page: Page, path = "/stake") {
@@ -41,7 +41,7 @@ test("the account menu shows three agents and Manage", async ({page}) => {
 
   const manage = agents.getByRole("link", {name: "Manage your agents"})
   await expect(manage).toHaveText("Manage")
-  await expect(manage).toHaveAttribute("href", "/account#account-agents")
+  await expect(manage).toHaveAttribute("href", "/account/agents")
   const opacity = () => manage.evaluate(link => getComputedStyle(link).opacity)
 
   // Where the rows sit inside the menu.
@@ -62,7 +62,7 @@ test("the account menu shows three agents and Manage", async ({page}) => {
   await expect.poll(opacity).toBe("1")
 
   await manage.click()
-  await expect(page).toHaveURL(/\/account#account-agents$/)
+  await expect(page).toHaveURL(/\/account\/agents$/)
   await problems.expect()
 })
 
@@ -127,6 +127,26 @@ test("Escape closes the account menu before an open section behind it", async ({
   await problems.expect()
 })
 
+// 6 Nov 2026: with Buy Credits open over an open section, Escape closed the section
+// behind and left the window open. Escape is the window's, and the section stays.
+test("Escape closes Buy Credits before an open section behind it", async ({page}) => {
+  const problems = watch(page)
+  await signIn(page)
+  await page.locator("#route-content").evaluate(content => {
+    const details = document.createElement("details")
+    details.open = true
+    details.id = "walk-open-section"
+    details.innerHTML = "<summary>Section</summary><p>Inside</p>"
+    content.prepend(details)
+  })
+  await page.locator("#shell-credits-button").click()
+  await expect(page.locator("#shell-credits")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.locator("#shell-credits")).toBeHidden()
+  await expect(page.locator("#walk-open-section")).toHaveAttribute("open", "")
+  await problems.expect()
+})
+
 test("asked for less motion, the account menu appears at once", async ({page}) => {
   const problems = watch(page)
   await page.emulateMedia({reducedMotion: "reduce"})
@@ -146,31 +166,31 @@ for (const width of [1280, 390]) {
     await expect(menu(page).getByRole("button", {name: "Sign out"})).toBeVisible()
     await menu(page).getByRole("link", {name: "Manage Account"}).click()
     await expect(page).toHaveURL(/\/account$/)
-    await expect(page.locator("#account-agents")).toBeVisible()
+    await expect(page.locator("#account-identity")).toBeVisible()
     await expect(menu(page)).toBeHidden()
     await problems.expect()
   })
 
-  test(`Pair New Agent in the menu lands on the Account page's pairing box at ${width}`, async ({page}) => {
+  test(`Pair New Agent in the menu opens the pairing window over the page at ${width}`, async ({page}) => {
     const problems = watch(page)
     await page.setViewportSize({width, height: 900})
     await signIn(page)
     await openMenu(page)
-    await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(page).toHaveURL(/\/account#account-pairing$/)
+    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
     await expect(menu(page)).toBeHidden()
-    await expect(page.locator("#account-pairing")).toBeInViewport()
-    // The keyboard starts on the agent choice.
-    await expect(page.locator("#account-pairing").getByRole("radio").first()).toBeFocused()
+    const pairing = page.locator("#shell-pairing")
+    await expect(pairing).toBeVisible()
+    await expect(page).toHaveURL(/\/stake$/)
+    // The keyboard starts in the window, on the agent dropdown.
+    await expect(pairing.locator("summary")).toBeFocused()
 
-    // Pressed again from the same address after scrolling away, it moves there again.
-    await page.locator("#app-shell-scroller").evaluate(scroller => scroller.scrollTo({top: 0}))
-    await expect(page.locator("#account-pairing").getByRole("heading", {name: "Pair New Agent"})).not.toBeInViewport()
+    // Closed, focus goes back to the account button; pressed again, it opens again.
+    await pairing.getByRole("button", {name: "Close"}).click()
+    await expect(pairing).toBeHidden()
+    await expect(page.locator("#account-chip")).toBeFocused()
     await openMenu(page)
-    await menu(page).getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(menu(page)).toBeHidden()
-    await expect(page.locator("#account-pairing")).toBeInViewport()
-    await expect(page.locator("#account-pairing").getByRole("radio").first()).toBeFocused()
+    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+    await expect(pairing).toBeVisible()
     await problems.expect()
   })
 }

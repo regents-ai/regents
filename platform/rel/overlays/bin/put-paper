@@ -1,15 +1,16 @@
 #!/bin/sh
 set -eu
 
+# The save runs inside the running site, which has its own environment and its
+# own folder, so each path travels inside the call as a whole absolute path.
+path_in_call() {
+  printf 'Base.decode64!("%s")' "$(printf %s "$(realpath "$1")" | base64 | tr -d '\n')"
+}
+
 case "$#" in
-  1)
-    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$1" exec "$(dirname "$0")/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"))'
-    ;;
-  2)
-    REGENTS_RELEASE_COMMAND=migrate REGENTS_PAPER="$1" REGENTS_PAPER_PICTURE="$2" exec "$(dirname "$0")/regents" eval 'Regents.Release.put_paper(System.fetch_env!("REGENTS_PAPER"), System.fetch_env!("REGENTS_PAPER_PICTURE"))'
-    ;;
-  *)
-    echo 'usage: put-paper <folder> OR put-paper <YYYY-MM-DD>.md <picture>' >&2
-    exit 1
-    ;;
+  1) call="Regents.Release.put_paper($(path_in_call "$1"))" ;;
+  2) call="Regents.Release.put_paper($(path_in_call "$1"), $(path_in_call "$2"))" ;;
+  *) echo 'usage: put-paper <folder> OR put-paper <YYYY-MM-DD>.md <picture>' >&2; exit 1 ;;
 esac
+
+exec "$(dirname "$0")/regents" rpc "$call"

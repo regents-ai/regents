@@ -10,6 +10,9 @@ defmodule Regents.Accounts do
 
       define :get_human_account, action: :read_self, args: [:id]
       define :points_account, action: :points_account, args: [:id]
+      define :accounts_created_before, action: :created_before, args: [:at]
+      define :accounts_by_privy_dids, action: :by_privy_dids, args: [:privy_dids]
+      define :points_people, action: :points_people, args: [:ids]
 
       define :get_public_profile_source,
         action: :public_profile_source,
@@ -46,6 +49,8 @@ defmodule Regents.Accounts do
           :human_account_id
         ]
 
+      define :refresh_linked_identity, action: :refresh_verified
+
       define :list_my_linked_identities, action: :read_mine
 
       define :list_linked_identities_for_account,
@@ -57,6 +62,7 @@ defmodule Regents.Accounts do
         args: [:provider, :subject],
         not_found_error?: false
 
+      define :linked_identities_before, action: :linked_before, args: [:provider, :at]
       define :remove_linked_identity, action: :remove_verified
     end
   end

@@ -33,7 +33,7 @@
   text-transform: uppercase;
 }
 
-.regent-profile-slug { font-family: var(--font-family-mono); }
+.regent-profile-slug { font-family: var(--font-family-ui); }
 
 .regent-profile-slug,
 .regent-profile-record dt {

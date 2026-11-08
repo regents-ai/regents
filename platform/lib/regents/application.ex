@@ -13,6 +13,7 @@ defmodule Regents.Application do
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
     :ok = Regents.Staking.SnapshotRefresh.attach_failure_notice()
+    :ok = RegentHttp.ErrorSaving.attach()
     :ok = RegentsWeb.VisitLog.Events.attach()
 
     children =
@@ -23,8 +24,10 @@ defmodule Regents.Application do
         {Task.Supervisor, name: Regents.SiteTools.Reads},
         Regents.SiteTools,
         # Each paired agent's reading from the sign-in service, kept five minutes
-        # and shared by the account menu and the Account page.
+        # and shared by the account menu and the Agents page.
         Regents.Agents.ActivityReading,
+        # What the papers page shows, kept a minute and shared by every open of it.
+        RegentsWeb.PaperProDaily.Feed,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Agents.Reads},
         database_child(),
@@ -37,6 +40,10 @@ defmodule Regents.Application do
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
         Regents.Ens,
+        # After PubSub: the figures every reader they admit sees alike, and the
+        # Points board read once for all of them.
+        Regents.SharedReading,
+        points_board_child(),
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -81,6 +88,13 @@ defmodule Regents.Application do
 
   defp without_snapshot_refresh(entries),
     do: Enum.reject(entries, &match?({_, Regents.Staking.SnapshotRefresh}, &1))
+
+  # The Points board is read only where pages are served, so a task or a test
+  # never reads the database before it asks to.
+  defp points_board_child do
+    if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint),
+      do: Regents.Points.Board
+  end
 
   # Metrics are served beside the site, never by a process that only runs a task.
   defp metrics_child do

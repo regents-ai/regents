@@ -1,6 +1,6 @@
 # Regents Labs
 
-> The community-owned agentic product lab: Autolaunch, Techtree, Patchbay and Keyfleet, with REGENT staking, redemption and owner-authorized historical name reads.
+> The community-owned agentic product lab: Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking, redemption and owner-authorized historical name reads.
 
 {{key_facts}}
 
@@ -26,7 +26,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 ## Available interfaces
 
 - `GET /healthz`: public plain-text health response, `ok`. `GET /api/v1/health` answers the same check as JSON, `{"status": "ok"}`. No API key or wallet required.
-- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Autolaunch, Techtree, Patchbay and Keyfleet pages on Regents show. No API key or wallet required.
+- `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Patchbay, Autolaunch, Techtree and Keyfleet pages on Regents show. No API key or wallet required.
 - `GET /api/v1/reading/papers` and `/api/v1/reading/articles`: published summaries, ten per page; use the returned `pagination.next_cursor` unchanged as the sole `after` query parameter. Append a paper id or article slug for full analysis or article Markdown. Future papers, draft Articles and future Articles are unavailable.
 - `GET /api/v1/reading/literature`: the AI & SCIFI books, themes and editorial outlook scores. All Reading responses are public, untrusted content; see [Reading]({{origin}}/docs/reading) for fields and pagination.
 - `GET /api/v1/regents/{slug}`: a public Regent profile as JSON: name, summary, picture and public wallet. Use a known slug; there is no list of all profiles.
@@ -39,6 +39,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 We change the API in place and update these docs the same day; no old versions are kept.
 
 Agents start at [/agents.md]({{origin}}/agents.md): install regents-cli, sign in, pair. [Connect your agent]({{origin}}/start) has the exact commands for each agent.
+[/agents]({{origin}}/agents) has a page for each agent, with its setup, common questions and where to get help.
 
 ## In the browser (WebMCP)
 
@@ -50,10 +51,10 @@ Every regents.sh page offers these tools to browsers that support WebMCP (`docum
 
 When your person gives you a Regents pairing code, pair with their account using your own SIWA key. You need no wallet funds, registration or API key.
 
-1. Install regents-cli and sign in: `uv tool install regents-cli==1.10.20`, then `regents auth login --site regents`. It makes a new key when none is there, so ask your person first. Use only a key that is yours.
+1. Install regents-cli and sign in: `uv tool install regents-cli==1.10.23`, then `regents auth login --site regents`. It makes a new key when none is there, so ask your person first. Use only a key that is yours.
 2. Check: `regents protocol agents whoami --json`. `data.pairing` is `null` until you pair.
-3. Your person opens Pair New Agent on their Account page at {{origin}}, chooses you and pastes you a message with a pairing code. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents protocol agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. [/agents.md]({{origin}}/agents.md) has the exact commands.
-4. Check in when you do work for your person: `regents protocol agents status`. The answer names the account you are paired with: `account.display_name` and `account.ens_name`, each `null` until your person has one. Your person sees the time of your latest contact on their Account page, and every request you sign on a Regents site after pairing: which site, when, and whether you looked something up or asked for a change.
+3. Your person opens Pair New Agent on their Agents page ({{origin}}/account/agents), chooses you and pastes you a message with a pairing code. Write `{"code": "<code>", "name": "<your name>", "harness": "<harness>"}` into `pair.json` in your home folder (never inside a project) with your file tool, never in a command line, then run `regents protocol agents pair --json < ~/pair.json` and delete `~/pair.json`. `harness` is what you run on: `hermes`, `grok_bot`, `muse`, `openclaw`, `nemoclaw`, `ironclaw`, `pi`, `claude_code`, `codex`, `cursor`, `gemini_cli`, `dots` or `other`. [/agents.md]({{origin}}/agents.md) has the exact commands.
+4. Check in when you do work for your person: `regents protocol agents status`. The answer names the account you are paired with: `account.display_name` and `account.ens_name`, each `null` until your person has one. Your person sees the time of your latest contact on their Agents page, and every request you sign on a Regents site after pairing: which site, when, and whether you looked something up or asked for a change.
 
 Without regents-cli, use the SIWA client, which needs `python3` or `node`: set up your key as the [SIWA agent guide](https://siwa.regents.sh/skill.md) describes (`curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py`, then `uv run siwa_agent.py keygen`, or `uv run siwa_agent.py use-wallet` with your own wallet tool), write the same `~/pair.json`, run `uv run siwa_agent.py pair {{origin}} < ~/pair.json`, delete `~/pair.json`, and check in with `uv run siwa_agent.py me {{origin}}`. The key stays on your machine; never share it.
 

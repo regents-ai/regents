@@ -1,9 +1,10 @@
 defmodule RegentsWeb.ShellLive.Points do
   @moduledoc """
   The Points page: the signed-in account's own points summary, read with the
-  account as actor, and the catalog rules earning now. Awards and corrections
-  from any site are heard only while this page is open, and each one reads the
-  summary again. The NFT tier the account's wallets hold now is read from Base
+  account as actor, the board every signed-in reader shares
+  (`Regents.Points.Board`) and the catalog rules earning now. Awards and
+  corrections from any site, and each new reading of the board, are heard only
+  while this page is open, and each one reads its part again. The NFT tier the account's wallets hold now is read from Base
   once per page open, never on each award notice, and not at all while nothing
   earns. That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it,
   the page says the NFTs could not be checked.
@@ -13,6 +14,8 @@ defmodule RegentsWeb.ShellLive.Points do
   import Phoenix.LiveView, only: [connected?: 1]
 
   alias Regents.Actors.Human
+  alias Regents.Points.Board
+  alias Regents.SharedReading
   alias RegentsWeb.{ChainReadBudget, Read}
   alias RegentsWeb.ShellLive.Identity
 
@@ -21,6 +24,7 @@ defmodule RegentsWeb.ShellLive.Points do
       assign(socket,
         points_topic: nil,
         points: %Read{},
+        points_board: %Read{},
         points_bonus: %Read{},
         points_earning: []
       )
@@ -30,14 +34,23 @@ defmodule RegentsWeb.ShellLive.Points do
     |> follow()
     |> assign(points_earning: RegentPoints.Rules.active())
     |> read()
+    |> read_board()
     |> read_bonus()
   end
 
-  def route(socket, _route_spec),
-    do: socket |> unfollow() |> Read.clear(:points) |> Read.clear(:points_bonus)
+  def route(socket, _route_spec) do
+    socket
+    |> unfollow()
+    |> Read.clear(:points)
+    |> Read.clear(:points_board)
+    |> Read.clear(:points_bonus)
+  end
 
   @doc "An award or correction landed for this account."
   def changed(socket), do: read(socket)
+
+  @doc "The board every signed-in reader shares was read again."
+  def board_changed(socket), do: read_board(socket)
 
   defp read(socket) do
     case Identity.human_actor(socket) do
@@ -50,6 +63,26 @@ defmodule RegentsWeb.ShellLive.Points do
         Read.clear(socket, :points)
     end
   end
+
+  # The reader's own row and place are found from the board, and their own
+  # total, as the page renders.
+  defp read_board(socket) do
+    case Identity.human_actor(socket) do
+      %Human{} -> assign(socket, points_board: board_read(SharedReading.fetch(Board.key())))
+      nil -> Read.clear(socket, :points_board)
+    end
+  end
+
+  # Loading until the board is first read, an error when that first read failed,
+  # and behind while the last read failed.
+  defp board_read(:error), do: %Read{state: :loading}
+  defp board_read({:ok, %{reading: nil}}), do: %Read{state: :error, error: :not_read}
+
+  defp board_read({:ok, %{reading: board, at: at, degraded?: true}}),
+    do: %Read{state: :stale, value: board, read_at: at, error: :not_read}
+
+  defp board_read({:ok, %{reading: board, at: at}}),
+    do: %Read{state: :ready, value: board, read_at: at}
 
   defp read_bonus(%{assigns: %{points_earning: []}} = socket),
     do: Read.clear(socket, :points_bonus)
@@ -77,6 +110,7 @@ defmodule RegentsWeb.ShellLive.Points do
          %{id: id} <- Identity.current_account(socket.assigns.access_context) do
       topic = "points:#{id}"
       Phoenix.PubSub.subscribe(Regents.PubSub, topic)
+      SharedReading.subscribe(Board.key())
       assign(socket, points_topic: topic)
     else
       _not_followed -> socket
@@ -89,6 +123,7 @@ defmodule RegentsWeb.ShellLive.Points do
 
   defp unfollow(socket) do
     Phoenix.PubSub.unsubscribe(Regents.PubSub, socket.assigns.points_topic)
+    SharedReading.unsubscribe(Board.key())
     assign(socket, points_topic: nil)
   end
 end

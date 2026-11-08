@@ -10,10 +10,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
 
   @listing "https://www.8004scan.io/agents/base/97609"
 
-  # The pairing box on the Account page, and the message it shows once an agent is
-  # chosen.
-  @pairing "#account-pairing-box"
-  @message "#account-pairing-box pre"
+  # The pairing box in the pairing window, on every signed-in page, and the message
+  # it shows once an agent is chosen.
+  @pairing "#shell-pairing-box"
+  @message "#shell-pairing-box pre"
 
   # The sign-in service knows of nothing the agent did, and of no registry
   # listing, unless a test says so. Readings kept by an earlier test are dropped.
@@ -31,7 +31,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   test "a person chooses their agent and gets its message; each choice or press makes a new code and earlier codes still pair",
        %{conn: conn} do
     account = register_account("agents-code")
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
 
     assert has_element?(view, "#account-agents p", "No agents paired yet.")
     refute has_element?(view, @message)
@@ -61,9 +61,9 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     # keeps its code.
     assert has_element?(view, @message, "SIWA_BROKER")
     choose(view, "hermes")
-    assert has_element?(view, @pairing, "Sol paired with your account.")
+    assert has_element?(view, @pairing, "Sol paired")
     refute has_element?(view, @message)
-    assert has_element?(view, "#account-pairing-box-new:not([data-unused])")
+    assert has_element?(view, "#shell-pairing-box-new:not([data-unused])")
     assert has_element?(view, "#account-agents-agent-#{agent.id} span", "Hermes")
     assert has_element?(view, "#account-agents-agent-#{agent.id} time", "just now")
   end
@@ -81,7 +81,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
         | wallet: "0x3333333333333333333333333333333333333333"
       })
 
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
 
     # Each row names its own agent's wallet, the full address one press away.
     assert has_element?(view, "#account-agents-agent-#{agent.id}-wallet-full", @agent_wallet)
@@ -190,7 +190,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   test "activity that can't be read says so", %{conn: conn} do
     account = register_account("agents-unread")
     agent = pair!(account, "Quiet", :hermes)
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
 
     Req.Test.stub(RegentAgents.Broker, fn conn ->
       conn |> Plug.Conn.put_status(503) |> Req.Test.json(%{})
@@ -212,7 +212,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   test "closing the details leaves only the list", %{conn: conn} do
     account = register_account("agents-close")
     agent = pair!(account, "Grok", :grok_bot)
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
 
     view
     |> element("#account-agents-agent-#{agent.id} button", "See Actions")
@@ -234,7 +234,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     owner = register_account("agents-owner")
     agent = pair!(owner, "Private", :hermes)
     other = register_account("agents-other")
-    view = open_account(conn, other)
+    view = open_agents(conn, other)
 
     render_hook(agents(view), "open_agent", %{"id" => agent.id})
     refute has_element?(view, "#account-agent-dialog")
@@ -254,7 +254,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   test "an agent unpaired elsewhere leaves the page, and a late press says so", %{conn: conn} do
     account = register_account("agents-stale")
     agent = pair!(account, "Echo", :hermes)
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
 
     view
     |> element("#account-agents-agent-#{agent.id} button", "See Actions")
@@ -281,7 +281,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   test "an agent that isn't one changes nothing", %{conn: conn} do
     account = register_account("agents-invalid")
     agent = pair!(account, "Nova", :hermes)
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
 
     view
     |> element("#account-agents-agent-#{agent.id} button", "See Actions")
@@ -299,7 +299,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   test "AGENTS_FOLLOWED_ON_EVERY_PAGE: agent changes are heard on every signed-in page, once",
        %{conn: conn} do
     account = register_account("agents-follow")
-    view = open_account(conn, account)
+    view = open_agents(conn, account)
     topic = RegentAgents.topic(account.privy_user_id)
 
     assert following?(view, topic)
@@ -308,10 +308,10 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert following?(view, topic)
     agent = pair!(account, "Away", :hermes)
 
-    render_patch(view, "/account")
+    render_patch(view, "/account/agents")
     assert has_element?(view, "#account-agents-agent-#{agent.id}")
 
-    render_patch(view, "/account?again=1")
+    render_patch(view, "/account/agents?again=1")
     # The account menu reads Away's last action; no read outlives the test's stub.
     render_async(view)
 
@@ -354,11 +354,11 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
   end
 
   # A primary name read today keeps the page from asking Ethereum again.
-  defp open_account(conn, account) do
+  defp open_agents(conn, account) do
     {:ok, view, _html} =
       conn
       |> init_test_session(%{human_account_id: account.id})
-      |> live("/account")
+      |> live("/account/agents")
 
     view
   end

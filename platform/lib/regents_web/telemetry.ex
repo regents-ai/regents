@@ -10,7 +10,13 @@ defmodule RegentsWeb.Telemetry do
   Oban's own events. Each staking chain read (`Regents.WalletActions.Rpc`) is
   counted by its purpose and method, and every chain request that got no answer
   by its method, class, chain and the caller's fixed scope
-  (`[:regents, :chain, :failure]`, a `health.*` series).
+  (`[:regents, :chain, :failure]`, a `health.*` series). Each time the Points
+  tally of finished periods runs to its end (`[:regent_points, :tally_periods,
+  :finished]`), the clock time it finished is kept as a `health.*` gauge, so a
+  stalled tally shows as a time that stops moving.
+  The size of each reading offered to `Regents.SharedReading` is kept as a
+  percent of its kind's limit (`health.shared_reading.size.percent`), so the
+  Points board shows nearing its limit before it is refused.
   The engine's memory, run queues and process counts come from telemetry_poller's
   default poller.
 
@@ -113,10 +119,24 @@ defmodule RegentsWeb.Telemetry do
         tags: [:method, :class, :chain_id, :scope],
         description: "Chain requests that got no answer"
       ),
+      last_value("health.points_tally_finished.seconds",
+        event_name: [:regent_points, :tally_periods, :finished],
+        measurement: fn _measurements -> System.system_time(:second) end,
+        description:
+          "When the Points tally of finished periods last ran to its end, in Unix seconds"
+      ),
       counter("regents.staking.rpc_requests.total",
         event_name: [:regents, :staking, :rpc],
         tags: [:purpose, :method, :chain_id, :environment],
         description: "Staking chain reads sent, by purpose and method"
+      ),
+      last_value("health.shared_reading.size.percent",
+        event_name: [:regents, :shared_reading, :size],
+        measurement: &div(&1.bytes * 100, &1.limit),
+        tags: [:kind],
+        description:
+          "Size of the last reading each kind was offered, as a percent of the kind's limit; " <>
+            "past 100 it is refused and the last one held stays"
       ),
       last_value("vm.memory.total.bytes", event_name: [:vm, :memory], measurement: :total),
       last_value("vm.memory.processes.bytes",

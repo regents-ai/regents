@@ -33,10 +33,10 @@ defmodule RegentsWeb.AgentStart do
   @doc "What a person gives their agent: the steps for its client, ready to paste."
   def instruction(%{client: :cli} = agent) do
     """
-    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent on my Account page at #{origin()}.
+    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent on my Agents page at #{origin()}.
 
-    1. Install the Regents command line and check it. Expect 1.10.20.
-       uv tool install regents-cli==1.10.20
+    1. Install the Regents command line and check it. Expect 1.10.23.
+       uv tool install regents-cli==1.10.23
        regents --version
     2. Sign in to Regents, then check. Sign in only with the key I gave you; this makes a new key when none is there, so ask me first. Never show the key.
        regents auth login --site regents
@@ -53,7 +53,6 @@ defmodule RegentsWeb.AgentStart do
     6. Read my account when I ask:
        regents protocol account show
        regents protocol account balances
-       regents protocol account budget
        regents protocol account credits-history
        regents protocol account claims
        regents protocol account points
@@ -65,7 +64,7 @@ defmodule RegentsWeb.AgentStart do
 
   def instruction(%{client: :siwa} = agent) do
     """
-    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent on my Account page at #{origin()}.
+    Connect to my Regents account. I'll paste you a message with a pairing code; I make it with Pair New Agent on my Agents page at #{origin()}.
 
     1. Get the Regent sign-in client:
        curl -fsSO https://siwa.regents.sh/agent/siwa_agent.py
@@ -80,11 +79,10 @@ defmodule RegentsWeb.AgentStart do
        uv run siwa_agent.py me #{origin()}
     5. Read my account when I ask:
        uv run siwa_agent.py request GET #{origin()}/api/agent/v1/account
-       uv run siwa_agent.py request GET #{origin()}/api/agent/v1/credits/balance
-       uv run siwa_agent.py request GET #{origin()}/api/agent/v1/credits/budget
-       uv run siwa_agent.py request POST #{origin()}/api/agent/v1/credits/history --body '{}'
+       uv run siwa_agent.py request GET #{origin()}/api/v1/account/balances
+       uv run siwa_agent.py request POST #{origin()}/api/v1/account/credits/history --body '{}'
        uv run siwa_agent.py request POST #{origin()}/api/agent/v1/claims --body '{}'
-       uv run siwa_agent.py request GET #{origin()}/api/agent/v1/points
+       uv run siwa_agent.py request GET #{origin()}/api/v1/account/points
        uv run siwa_agent.py request GET #{origin()}/api/agent/v1/staking/position
     #{broker_note(agent)}
     These steps only read. Never spend, sign a transaction or run register-agent.\
@@ -107,9 +105,9 @@ defmodule RegentsWeb.AgentStart do
 
     Your agent pairs with your Regents account and reads it for you: your account, Credits, names, Points and staking. It can never use your wallet, change your account or pair other agents. Agent spending opens soon.
 
-    1. Your person makes a pairing code with Pair New Agent on their Account page at #{origin()}. A code works once, for ten minutes.
+    1. Your person makes a pairing code with Pair New Agent on their Agents page at #{origin()}. A code works once, for ten minutes.
     2. Follow the steps for your agent below, with that code.
-    3. Your agent then shows under its name in their account menu and on their Account page.
+    3. Your agent then shows under its name in their account menu and on their Agents page.
 
     A refusal names what went wrong: `pairing_failed` means the code is used, expired or mistyped, so ask for a new one; `agent_not_paired` means you aren't paired with your person on this site.
 

@@ -3,6 +3,7 @@ defmodule RegentsWeb.PaperPictureController do
   use RegentsWeb, :controller
 
   alias Regents.PaperProDaily
+  alias RegentsWeb.PaperProDaily.ShareCard
 
   # The page asks for each picture at an address that changes whenever its paper is
   # saved again, so a browser may keep what it got for good. The type is one of the
@@ -24,5 +25,21 @@ defmodule RegentsWeb.PaperPictureController do
         |> put_resp_content_type("text/plain")
         |> send_resp(:not_found, "Not found")
     end
+  end
+
+  def page_share(conn, _params), do: share_picture(conn, ShareCard.page())
+
+  def paper_share(conn, %{"paper" => anchor}) do
+    case PaperProDaily.get_paper_by_anchor(anchor) do
+      {:ok, %{} = paper} -> share_picture(conn, ShareCard.paper(paper))
+      _missing -> send_resp(conn, :not_found, "Not found")
+    end
+  end
+
+  defp share_picture(conn, png) do
+    conn
+    |> put_resp_content_type("image/png", nil)
+    |> put_resp_header("cache-control", "public, max-age=86400")
+    |> send_resp(200, png)
   end
 end

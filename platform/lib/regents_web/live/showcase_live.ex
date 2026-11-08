@@ -50,6 +50,7 @@ defmodule RegentsWeb.ShowcaseLive do
       <%!-- The preview's account is never signed in, so it has no account menu to fill. --%>
       <:credits_panel :if={@account.kind == :signed_in} />
       <:agents :if={@account.kind == :signed_in} />
+      <:pairing_panel :if={@account.kind == :signed_in} />
       <:content>
         <div style="padding: 32px">
           <h1>Shell preview</h1><p>Navigation, account control, theme, background.</p><a
@@ -202,17 +203,17 @@ defmodule RegentsWeb.ShowcaseLive do
                 <S.panel class="sc-card">
                   <h3>Typography</h3><S.technical_figure class="rg-support-figure">
                     <p class="sc-type-display">Aa / 0123</p><:caption>
-                      Pixel Square / regular 400
+                      Geist Serif / regular 400
                     </:caption>
                   </S.technical_figure><p>
-                    Geist Sans · body copy and interface.
+                    Geist Serif · titles, body copy and interface.
                   </p><code>0x71C7…976F</code><P.disclosure
                     phx-mounted={JS.ignore_attributes("open")}
                     id="type-tokens"
                     summary="Type & spacing tokens"
                   >
                     <p>
-                      Titles & subtitles: Geist Pixel Square, weight 400. Body & interface: Geist Sans. Code & technical identifiers: Geist Mono. Space: 8 / 16 / 24 / 32 / 40 / 48 / 64 px.
+                      Titles, body text, controls and addresses: Geist Serif, weight 400. Code: Geist Mono. Space: 8 / 16 / 24 / 32 / 40 / 48 / 64 px.
                     </p>
                   </P.disclosure>
                 </S.panel>

@@ -24,7 +24,7 @@ config :regent_agents,
     "not_paired" => [
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
       "Check your status here at any time, also with the regents_agent_whoami tool.",
-      "Pair with the code your person makes with Pair New Agent on their Account page."
+      "Pair with the code your person makes with Pair New Agent on their Agents page."
     ],
     "person_not_here" => [
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
@@ -35,7 +35,7 @@ config :regent_agents,
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
       "Check your status here at any time, also with the regents_agent_whoami tool, and check in for your person.",
       "Read your person's account, verified name claims and staking position, also with the regents_account, regents_claims and regents_stake_position tools.",
-      "Read your person's Credits and Points, also with the regents_credits_balance, regents_credits_history, regents_credits_budget and regents_points_summary tools.",
+      "Read your person's Credits and Points, also with the account_balances, account_credits_history and account_points tools.",
       "You can never use your person's wallet, change their account or pair other agents.",
       # Changes together with RegentCredits.agent_grants_enabled?/0.
       "Spending your person's Credits isn't open to agents yet; your person can do it themselves."
@@ -78,7 +78,13 @@ config :regent_points,
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
-  adapters: %{"credits.purchase_settled" => Regents.Points.CreditsPurchase}
+  adapters: %{
+    "account.activated" => Regents.Points.AccountActivated,
+    "agent.activated" => Regents.Points.PairedAgent,
+    "social.farcaster" => Regents.Points.LinkedSocial,
+    "social.github" => Regents.Points.LinkedSocial,
+    "social.x" => Regents.Points.LinkedSocial
+  }
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
 # PostgreSQL counts `length()`, so `max_length` bounds stored size; graphemes
@@ -125,7 +131,11 @@ config :regents, Oban,
       # Every five minutes, and early after a confirmed on-chain press or a press
       # of the read-again icon (Regents.ChainRefresh).
       {"*/5 * * * *", Regents.Staking.SnapshotRefresh},
-      {"17 4 * * *", Regents.ErrorPruner}
+      {"17 4 * * *", Regents.ErrorPruner},
+      # From the Points start, the one-time points for what accounts already had.
+      {"@hourly", RegentPoints.StartAwards},
+      # One line for each kind of shared reading a producer rereads on notice.
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}}
     ]
   ],
   pruner: [max_age: {7, :days}],
@@ -145,6 +155,11 @@ config :regents, :sprite_provider, RegentSprites
 config :regents, Regents.Agents.ActivityReading,
   gc_interval: :timer.minutes(10),
   max_size: 10_000
+
+# What the papers page shows, kept one minute.
+config :regents, RegentsWeb.PaperProDaily.Feed,
+  gc_interval: :timer.minutes(10),
+  max_size: 1_000
 
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
@@ -209,7 +224,7 @@ config :regents, RegentsWeb.Endpoint,
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.25.4",
+  version: "0.28.2",
   regents: [
     args:
       ~w(js/app.ts js/privy_bridge.tsx --bundle --splitting --format=esm --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --loader:.woff2=file --loader:.woff=file --loader:.ttf=file),

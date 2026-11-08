@@ -136,9 +136,11 @@ defmodule RegentsWeb.ShellLiveTest do
 
     assert has_element?(
              view,
-             ~s(#account-menu a[href="/account#account-pairing"]),
+             ~s(#account-menu button[data-pair-open][aria-controls="shell-pairing"]),
              "Pair New Agent"
            )
+
+    assert has_element?(view, "#shell-pairing #shell-pairing-box")
 
     assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
     refute has_element?(view, "#account-control [phx-click]")
@@ -282,8 +284,6 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#account-identity h2", "0x6666..6666")
     assert has_element?(view, "#account-identity-picture[src^='data:image/svg+xml;base64,']")
     assert has_element?(view, "#account-credits")
-    assert has_element?(view, "#account-agents")
-    assert has_element?(view, "#account-pairing-box")
     assert has_element?(view, "#account-public-name")
     # Sign out is in the account menu, on this page as on every other.
     refute has_element?(view, "#account-page [data-account-target=sign-out]")
@@ -291,6 +291,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     # Each tab is the same page, a press away.
     for {label, path} <- [
+          {"Agents", "/account/agents"},
           {"Points", "/account/points"},
           {"Credits", "/account/credits"},
           {"Wallets", "/account/wallets"},
@@ -777,7 +778,8 @@ defmodule RegentsWeb.ShellLiveTest do
       shell_instance: 1,
       content: [%{inner_block: fn _, _ -> "Fixture content" end}],
       credits_panel: [],
-      agents: []
+      agents: [],
+      pairing_panel: []
     )
   end
 end

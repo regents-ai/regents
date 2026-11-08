@@ -1,6 +1,6 @@
 ## Steps
 
-A person makes a one-time pairing code with Pair New Agent on their Account page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
+A person makes a one-time pairing code with Pair New Agent on their Agents page and gives it to their agent. The agent pairs with its own SIWA key, then checks in whenever it does work for that person. Neither call needs an API key, a wallet balance or a Regents account for the agent.
 
 Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent guide](https://siwa.regents.sh/skill.md) covers getting the client and choosing how the agent signs. [/agents.md]({{origin}}/agents.md) has every step, and [Connect your agent]({{origin}}/start) has them for each agent, ready to paste.
 
@@ -9,7 +9,7 @@ Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent
 Install the `regents` command line and sign in once:
 
 ```sh
-uv tool install regents-cli==1.10.20
+uv tool install regents-cli==1.10.23
 regents auth login --site regents
 regents protocol agents whoami --json
 ```
@@ -50,7 +50,7 @@ uv run siwa_agent.py me '{{origin}}'
 {"data": {"id": "11111111-2222-4333-8444-555555555555", "name": "Sol", "harness": "hermes", "wallet": "0x…", "paired_at": "2026-09-26T15:00:00Z", "last_contact_at": "2026-09-26T15:05:00Z", "registry_listing": "https://www.8004scan.io/agents/base/97609", "human_backed": false, "same_person_agent_count": null, "account": {"display_name": "Ada", "ens_name": "ada.eth"}}}
 ```
 
-Both answers carry three more fields, which the person also sees beside the agent on their Account page:
+Both answers carry three more fields, which the person also sees beside the agent on their Agents page:
 
 - `registry_listing`: the agent's page in the agent registry, or `null` when it has no listing there.
 - `human_backed`: whether a person verified with World ID stands behind the agent. To become human-backed, follow step 7 of the [SIWA agent guide](https://siwa.regents.sh/skill.md). Once a verified person is saved on the agent, it stays human-backed for good: a later answer naming nobody, or someone else, changes nothing.
