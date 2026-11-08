@@ -70,10 +70,20 @@ defmodule Regents.Staking.Actions do
     end
   end
 
+  # The contract pays a USDC claim from what it has credited to stakers and not
+  # yet paid, then covers any rounding overage from the treasury's residual. A
+  # claim larger than both together reverts, so the reading says so first.
   def limit_refusal(staking, "claim_usdc", _) do
-    case atomic(staking.wallet_claimable_usdc_raw) do
-      {:ok, value} when value > 0 -> nil
-      {:ok, _} -> :no_claimable_usdc
+    with {:ok, claimable} <- atomic(staking.wallet_claimable_usdc_raw),
+         {:ok, credited} <- atomic(staking.wallet_usdc_credited_raw),
+         {:ok, claimed} <- atomic(staking.wallet_usdc_claimed_raw),
+         {:ok, residual} <- atomic(staking.wallet_usdc_residual_raw) do
+      cond do
+        claimable == 0 -> :no_claimable_usdc
+        claimable > credited - claimed + residual -> :usdc_rewards_short
+        true -> nil
+      end
+    else
       :error -> :chain_unavailable
     end
   end

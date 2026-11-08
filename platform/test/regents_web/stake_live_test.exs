@@ -1122,6 +1122,40 @@ defmodule RegentsWeb.StakeLiveTest do
            )
   end
 
+  # Everything credited is already paid and the treasury holds no residual, so
+  # the 1.5 USDC waiting is a claim the contract cannot pay yet. The claim is
+  # still offered and still reaches the wallet, and the page and a refused claim
+  # give the same reason.
+  test "USDC_REWARDS_SHORT: a USDC claim the contract cannot pay says why and stays pressable",
+       %{conn: conn} do
+    Application.put_env(:regents, :test_staking_balances, %{
+      @wallet => %{usdc_credited: "100000000", usdc_claimed: "100000000", usdc_residual: "0"}
+    })
+
+    view = stake_as_signer(conn, "usdc-short")
+
+    assert has_element?(view, "#staking-claim-note")
+    assert has_element?(view, ~s(#staking-claim_usdc[data-onchain-step="claim_usdc"]))
+    refute has_element?(view, "#staking-claim_usdc.stake-claim-ready")
+    assert [_claim] = step(view, "claim_usdc")
+
+    send_landed(view, "claim_usdc", hash("36"), "0x0")
+
+    note = view |> element("#staking-claim-note") |> render() |> Floki.parse_fragment!()
+    line = view |> element("#staking-activity-#{hash("36")}") |> render()
+    assert line =~ String.trim(Floki.text(note))
+
+    # Once the treasury is topped up, the next reading lights the claim again.
+    Application.delete_env(:regents, :test_staking_balances)
+    SharedStakingReading.age()
+    view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
+    SharedStakingReading.run()
+    render_async(view)
+
+    refute has_element?(view, "#staking-claim-note")
+    assert has_element?(view, "#staking-claim_usdc.stake-claim-ready")
+  end
+
   test "STAKE_FOR_SOMEONE: the step to another wallet exists only for the address acknowledged",
        %{conn: conn} do
     other = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe"

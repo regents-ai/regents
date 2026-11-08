@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "5.0.0",
+    "version": "5.1.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -3166,7 +3166,8 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "position"
+          "position",
+          "claims"
         ],
         "properties": {
           "position": {
@@ -3226,7 +3227,41 @@
               "wallet_claimable_regent_raw": {},
               "wallet_claimable_regent": {},
               "wallet_funded_claimable_regent_raw": {},
-              "wallet_funded_claimable_regent": {}
+              "wallet_funded_claimable_regent": {},
+              "wallet_usdc_credited_raw": {},
+              "wallet_usdc_claimed_raw": {},
+              "wallet_usdc_residual_raw": {}
+            }
+          },
+          "claims": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "For each claim, the reason the reading gives against it, or null when nothing stands against it. Every claim can still be sent from the wallet; Base decides the outcome. usdc_rewards_short: USDC rewards wait on a treasury top-up.",
+            "required": [
+              "claim_usdc",
+              "claim_regent",
+              "claim_and_restake_regent"
+            ],
+            "properties": {
+              "claim_usdc": {
+                "type": ["string", "null"],
+                "enum": ["no_claimable_usdc", "usdc_rewards_short", "chain_unavailable", null]
+              },
+              "claim_regent": {
+                "type": ["string", "null"],
+                "enum": ["no_regent_rewards", "regent_rewards_not_funded", "chain_unavailable", null]
+              },
+              "claim_and_restake_regent": {
+                "type": ["string", "null"],
+                "enum": [
+                  "no_regent_rewards",
+                  "regent_rewards_not_funded",
+                  "staking_paused",
+                  "amount_above_capacity",
+                  "chain_unavailable",
+                  null
+                ]
+              }
             }
           }
         }

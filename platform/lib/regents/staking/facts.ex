@@ -16,6 +16,10 @@ defmodule Regents.Staking.Facts do
   treasury is the Safe that owns the contract, and the reading names how many
   of its signers must agree out of how many there are.
 
+  The wallet reading also carries, at its own block, the contract's USDC
+  credited to stakers, what of it has been claimed and the treasury's USDC
+  residual: the three figures a USDC claim is paid from.
+
   A figure the reading asked for and could not get holds the atom
   `:unavailable` in place of its value. Every figure has that one shape, whether
   it was read alone, like the seven-day window, or with the rest of a wallet
@@ -84,7 +88,10 @@ defmodule Regents.Staking.Facts do
     :wallet_claimable_regent_raw,
     :wallet_claimable_regent,
     :wallet_funded_claimable_regent_raw,
-    :wallet_funded_claimable_regent
+    :wallet_funded_claimable_regent,
+    :wallet_usdc_credited_raw,
+    :wallet_usdc_claimed_raw,
+    :wallet_usdc_residual_raw
   ]
 
   def protocol_keys, do: @protocol_keys

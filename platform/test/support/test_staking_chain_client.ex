@@ -7,7 +7,10 @@ defmodule Regents.TestStakingChainClient do
     usdc_wallet: "4250000",
     usdc_claimable: "1500000",
     regent_claimable: "2000000000000000000",
-    regent_funded: "2000000000000000000"
+    regent_funded: "2000000000000000000",
+    usdc_credited: "353240000",
+    usdc_claimed: "100000000",
+    usdc_residual: "1000000"
   }
 
   # The deployed cap, so a proof can name an amount the contract could not take.
@@ -161,7 +164,10 @@ defmodule Regents.TestStakingChainClient do
       wallet_claimable_regent_raw: raw(wallet, :regent_claimable),
       wallet_claimable_regent: regent(wallet, :regent_claimable),
       wallet_funded_claimable_regent_raw: raw(wallet, :regent_funded),
-      wallet_funded_claimable_regent: regent(wallet, :regent_funded)
+      wallet_funded_claimable_regent: regent(wallet, :regent_funded),
+      wallet_usdc_credited_raw: raw(wallet, :usdc_credited),
+      wallet_usdc_claimed_raw: raw(wallet, :usdc_claimed),
+      wallet_usdc_residual_raw: raw(wallet, :usdc_residual)
     }
   end
 

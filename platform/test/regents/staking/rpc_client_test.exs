@@ -136,6 +136,8 @@ defmodule Regents.Staking.RpcClientTest do
     assert Abi.treasury_recipient_signature() == "treasuryRecipient()"
     assert Abi.reward_inventory_signature() == "availableRegentRewardInventory()"
     assert Abi.total_usdc_credited_signature() == "totalUsdcCreditedToStakers()"
+    assert Abi.total_claimed_usdc_signature() == "totalClaimedUsdc()"
+    assert Abi.treasury_residual_usdc_signature() == "treasuryResidualUsdc()"
     assert Abi.vault_allocation_signature() == "allocation(address)"
     assert Abi.safe_threshold_signature() == "getThreshold()"
     assert Abi.safe_owners_signature() == "getOwners()"
@@ -145,6 +147,8 @@ defmodule Regents.Staking.RpcClientTest do
     assert selector(Abi.treasury_recipient_signature()) == Abi.encode_treasury_recipient()
     assert selector(Abi.reward_inventory_signature()) == Abi.encode_reward_inventory()
     assert selector(Abi.total_usdc_credited_signature()) == Abi.encode_total_usdc_credited()
+    assert selector(Abi.total_claimed_usdc_signature()) == Abi.encode_total_claimed_usdc()
+    assert selector(Abi.treasury_residual_usdc_signature()) == Abi.encode_treasury_residual_usdc()
     assert selector(Abi.safe_threshold_signature()) == Abi.encode_safe_threshold()
     assert selector(Abi.safe_owners_signature()) == Abi.encode_safe_owners()
 
@@ -300,7 +304,7 @@ defmodule Regents.Staking.RpcClientTest do
     end)
   end
 
-  test "ONE_WALLET_CALL: seven wallet reads arrive as one aggregate on a fresh block" do
+  test "ONE_WALLET_CALL: ten wallet reads arrive as one aggregate on a fresh block" do
     assert {:ok, wallet} = RpcClient.wallet_snapshot(@wallet)
 
     assert wallet.wallet_block_number == 0x20
@@ -313,6 +317,9 @@ defmodule Regents.Staking.RpcClientTest do
     assert wallet.wallet_claimable_usdc_raw == "15"
     assert wallet.wallet_claimable_regent_raw == "16"
     assert wallet.wallet_funded_claimable_regent_raw == "17"
+    assert wallet.wallet_usdc_credited_raw == "18"
+    assert wallet.wallet_usdc_claimed_raw == "19"
+    assert wallet.wallet_usdc_residual_raw == "20"
     assert wallet.wallet_token_balance == "0.000000000000000011"
     assert wallet.wallet_usdc_balance == "0.000012"
     assert Enum.sort(Map.keys(wallet)) == Enum.sort(Facts.wallet_keys())
@@ -322,13 +329,21 @@ defmodule Regents.Staking.RpcClientTest do
 
   # Under the aggregator every sub-call is made by Multicall3, so a read about
   # an account that leaned on `msg.sender` would answer about the aggregator.
+  # The contract's three USDC totals beside them are about no account.
   test "EXPLICIT_ARGUMENTS: every wallet sub-call names the wallet in its own calldata" do
     assert {:ok, _wallet} = RpcClient.wallet_snapshot(@wallet)
     wallet_word = String.trim_leading(@wallet, "0x")
+    {account_calls, usdc_totals} = Enum.split(expected_wallet_calls(), 7)
 
-    for {_target, data} <- expected_wallet_calls() do
+    for {_target, data} <- account_calls do
       assert String.contains?(data, wallet_word)
     end
+
+    assert Enum.map(usdc_totals, &elem(&1, 1)) == [
+             Abi.encode_total_usdc_credited(),
+             Abi.encode_total_claimed_usdc(),
+             Abi.encode_treasury_residual_usdc()
+           ]
 
     assert [data] = aggregates([Abi.encode_aggregate3(expected_wallet_calls())])
     assert data =~ wallet_word
@@ -496,7 +511,10 @@ defmodule Regents.Staking.RpcClientTest do
       {staking, Abi.encode_read("staked_balance", [@wallet])},
       {staking, Abi.encode_read("claimable_usdc", [@wallet])},
       {staking, Abi.encode_read("claimable_regent", [@wallet])},
-      {staking, Abi.encode_read("funded_claimable_regent", [@wallet])}
+      {staking, Abi.encode_read("funded_claimable_regent", [@wallet])},
+      {staking, Abi.encode_total_usdc_credited()},
+      {staking, Abi.encode_total_claimed_usdc()},
+      {staking, Abi.encode_treasury_residual_usdc()}
     ]
   end
 
@@ -585,7 +603,7 @@ defmodule Regents.Staking.RpcClientTest do
     ]
   end
 
-  defp wallet_words(_state), do: Enum.map(11..17, &Stub.uint/1)
+  defp wallet_words(_state), do: Enum.map(11..20, &Stub.uint/1)
 
   defp word(address), do: String.to_integer(String.trim_leading(address, "0x"), 16)
 end

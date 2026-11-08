@@ -2,7 +2,7 @@ defmodule RegentsWeb.StakingPositionController do
   @moduledoc """
   What the Stake page shows for the signed-in person's wallet: the shared
   contract reading beside a fresh reading of their own wallet, merged the way
-  the page merges them.
+  the page merges them, and the reason the reading gives against each claim.
   """
   use RegentsWeb, :controller
 
@@ -69,7 +69,8 @@ defmodule RegentsWeb.StakingPositionController do
             {:error, _reason} -> Facts.unavailable_wallet(wallet)
           end
 
-        json(conn, %{position: Facts.merge(protocol, wallet_facts)})
+        position = Facts.merge(protocol, wallet_facts)
+        json(conn, %{position: position, claims: Staking.available_claims(position)})
     end
   end
 

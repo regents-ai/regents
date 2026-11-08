@@ -32,6 +32,10 @@ defmodule Regents.WalletActions.Abi do
   @reward_inventory_selector "0xe2cfe6b9"
   @total_usdc_credited_signature "totalUsdcCreditedToStakers()"
   @total_usdc_credited_selector "0x98460766"
+  @total_claimed_usdc_signature "totalClaimedUsdc()"
+  @total_claimed_usdc_selector "0x910baf75"
+  @treasury_residual_usdc_signature "treasuryResidualUsdc()"
+  @treasury_residual_usdc_selector "0x966ed108"
 
   # `totalSupply()` belongs to the REGENT token, not to this contract, so it is
   # not proved against the staking ABI below.
@@ -89,7 +93,9 @@ defmodule Regents.WalletActions.Abi do
     {"function", @emission_apr_signature},
     {"function", @treasury_recipient_signature},
     {"function", @reward_inventory_signature},
-    {"function", @total_usdc_credited_signature}
+    {"function", @total_usdc_credited_signature},
+    {"function", @total_claimed_usdc_signature},
+    {"function", @treasury_residual_usdc_signature}
     | for({_id, signature} <- @event_signatures, do: {"event", signature})
   ]
 
@@ -129,6 +135,8 @@ defmodule Regents.WalletActions.Abi do
   def encode_treasury_recipient, do: @treasury_recipient_selector
   def encode_reward_inventory, do: @reward_inventory_selector
   def encode_total_usdc_credited, do: @total_usdc_credited_selector
+  def encode_total_claimed_usdc, do: @total_claimed_usdc_selector
+  def encode_treasury_residual_usdc, do: @treasury_residual_usdc_selector
   def encode_safe_threshold, do: @safe_threshold_selector
   def encode_safe_owners, do: @safe_owners_selector
   def encode_erc20_total_supply, do: @erc20_total_supply_selector
@@ -141,6 +149,8 @@ defmodule Regents.WalletActions.Abi do
   def treasury_recipient_signature, do: @treasury_recipient_signature
   def reward_inventory_signature, do: @reward_inventory_signature
   def total_usdc_credited_signature, do: @total_usdc_credited_signature
+  def total_claimed_usdc_signature, do: @total_claimed_usdc_signature
+  def treasury_residual_usdc_signature, do: @treasury_residual_usdc_signature
   def safe_threshold_signature, do: @safe_threshold_signature
   def safe_owners_signature, do: @safe_owners_signature
   def erc20_total_supply_signature, do: @erc20_total_supply_signature

@@ -90,7 +90,7 @@
     },
     {
       "command": "staking position",
-      "description": "Read the paired owner primary-wallet staking position and shared staking totals.",
+      "description": "Read the paired owner primary-wallet staking position, shared staking totals and the reason against each claim.",
       "operation_id": "agentStakingPosition",
       "method": "GET",
       "path": "/api/agent/v1/staking/position",

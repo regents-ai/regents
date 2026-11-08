@@ -1,3 +1,7 @@
+## 2026-11-09
+
+[Stake]({{origin}}/stake) now says "USDC rewards wait on a treasury top-up." beside Claim USDC if the staking contract holds too little USDC to pay your USDC rewards. The button still sends the claim from your wallet. `GET /api/v1/staking/position`, the agent's staking read and the `regents_stake_position` browser tool answer `claims` beside `position`: for each claim, the reason against it, such as `usdc_rewards_short`, or null; [Staking]({{origin}}/docs/staking) lists every reason. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 5.1.0.
+
 ## 2026-11-06
 
 Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone.

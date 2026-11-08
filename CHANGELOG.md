@@ -4638,3 +4638,31 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   `/agents.md`, `/docs/changes`, `/healthz` 200; an unsigned `GET /api/v1/account/points` answers
   401. One machine, check passing.
 - Not proven: a real signed-in Points page and a real paired agent's answer on production, WebKit.
+
+## 2026-11-09 — Stake says when USDC rewards wait on the treasury (branch `regents/usdc-notice-1109`)
+
+- `claimUSDC` reverts when a wallet's claimable USDC is more than the contract's
+  outstanding credit (`totalUsdcCreditedToStakers - totalClaimedUsdc`) plus
+  `treasuryResidualUsdc`: `_recordUsdcClaim` takes the overage from the residual with a
+  checked subtraction.
+- The wallet reading now asks for `totalUsdcCreditedToStakers()`, `totalClaimedUsdc()`
+  (0x910baf75) and `treasuryResidualUsdc()` (0x966ed108) in the same aggregate, at the
+  same block, as the claimable amount. The two new selectors are module constants proved
+  against the pinned ABI at compile time. The reading carries them as
+  `wallet_usdc_credited_raw`, `wallet_usdc_claimed_raw` and `wallet_usdc_residual_raw`.
+- `limit_refusal(_, "claim_usdc", _)` gives the new reason `:usdc_rewards_short` when the
+  claim is more than the contract can pay, and `:chain_unavailable` when any of the four
+  figures could not be read. Claim USDC stays pressable and still reaches the wallet.
+- Stake shows "USDC rewards wait on a treasury top-up." beside the claim buttons, the
+  button's hidden state says it waits on a top-up, and a reverted USDC claim gives the
+  same reason. `GET /api/v1/staking/position` and `/api/agent/v1/staking/position` (the
+  `regents_stake_position` tool and `regents protocol staking position`) answer `claims`
+  beside `position`. `/docs/staking` lists every claim reason. `openapi.json` is 5.1.0.
+- `contracts/README.md` gains "Treasury steps": never withdraw the whole USDC residual
+  (leave at least 1 USDC), and keep the REGENT reward pool funded ahead of emissions.
+  Documentation only; no Safe transaction.
+- Tests: a StreamData property proves the reason holds exactly when the contract's claim
+  would underflow, and that an unread figure gives `:chain_unavailable`; the claim reading
+  test covers the short case; `USDC_REWARDS_SHORT` on the Stake page proves the note, a
+  pressable button, the same reason on a refused claim, and the note leaving once the
+  treasury is topped up. The RPC client tests pin the three new reads and selectors.

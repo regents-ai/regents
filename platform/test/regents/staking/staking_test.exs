@@ -73,7 +73,10 @@ defmodule Regents.StakingTest do
         wallet_claimable_regent: positioned(wallet, :claimable_regent, "2"),
         wallet_funded_claimable_regent_raw:
           positioned(wallet, :funded_regent_raw, "2000000000000000000"),
-        wallet_funded_claimable_regent: positioned(wallet, :funded_regent, "2")
+        wallet_funded_claimable_regent: positioned(wallet, :funded_regent, "2"),
+        wallet_usdc_credited_raw: positioned(wallet, :usdc_credited_raw, "353240000"),
+        wallet_usdc_claimed_raw: positioned(wallet, :usdc_claimed_raw, "100000000"),
+        wallet_usdc_residual_raw: positioned(wallet, :usdc_residual_raw, "1000000")
       }
     end
 
@@ -162,6 +165,14 @@ defmodule Regents.StakingTest do
              "claim_and_restake_regent" => :regent_rewards_not_funded
            } = Staking.available_claims(short)
 
+    # 1.5 USDC waiting, with 1 USDC credited and not yet paid and no residual
+    # to cover the rest, is a claim the contract cannot pay.
+    Process.put(:claimable_usdc_raw, "1500000")
+    Process.put(:usdc_credited_raw, "101000000")
+    Process.put(:usdc_residual_raw, "0")
+    assert {:ok, usdc_short} = page_reading(@wallet)
+    assert %{"claim_usdc" => :usdc_rewards_short} = Staking.available_claims(usdc_short)
+
     assert Staking.available_claims(nil) == %{
              "claim_usdc" => :chain_unavailable,
              "claim_regent" => :chain_unavailable,
@@ -169,7 +180,7 @@ defmodule Regents.StakingTest do
            }
 
     # What the reading says lights a claim or not; every claim is still a step.
-    for reading <- [funded, empty, short, nil] do
+    for reading <- [funded, empty, short, usdc_short, nil] do
       assert step_names(reading) ==
                ~w(approve stake claim_usdc claim_regent claim_and_restake_regent)
     end

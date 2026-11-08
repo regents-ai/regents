@@ -225,7 +225,10 @@ defmodule Regents.Staking.RpcClient do
             staked,
             claimable_usdc,
             claimable_regent,
-            funded_regent
+            funded_regent,
+            usdc_credited,
+            usdc_claimed,
+            usdc_residual
           ]} <-
            Rpc.aggregate3(aggregator(), wallet_calls(wallet), block, opts) do
       {:ok,
@@ -245,7 +248,10 @@ defmodule Regents.Staking.RpcClient do
          wallet_claimable_regent_raw: Integer.to_string(claimable_regent),
          wallet_claimable_regent: Rpc.format_units(claimable_regent, 18),
          wallet_funded_claimable_regent_raw: Integer.to_string(funded_regent),
-         wallet_funded_claimable_regent: Rpc.format_units(funded_regent, 18)
+         wallet_funded_claimable_regent: Rpc.format_units(funded_regent, 18),
+         wallet_usdc_credited_raw: Integer.to_string(usdc_credited),
+         wallet_usdc_claimed_raw: Integer.to_string(usdc_claimed),
+         wallet_usdc_residual_raw: Integer.to_string(usdc_residual)
        }}
     end
   end
@@ -304,6 +310,9 @@ defmodule Regents.Staking.RpcClient do
     end
   end
 
+  # The contract pays a USDC claim out of what it has credited and not yet paid,
+  # plus the treasury's residual. Those three figures are read at the same block
+  # as the claimable amount, so the page can tell when a claim is certain to fail.
   defp wallet_calls(wallet) do
     staking = Abi.staking_address()
     stake_token = Abi.stake_token_address()
@@ -315,7 +324,10 @@ defmodule Regents.Staking.RpcClient do
       {staking, Abi.encode_read("staked_balance", [wallet]), :uint},
       {staking, Abi.encode_read("claimable_usdc", [wallet]), :uint},
       {staking, Abi.encode_read("claimable_regent", [wallet]), :uint},
-      {staking, Abi.encode_read("funded_claimable_regent", [wallet]), :uint}
+      {staking, Abi.encode_read("funded_claimable_regent", [wallet]), :uint},
+      {staking, Abi.encode_total_usdc_credited(), :uint},
+      {staking, Abi.encode_total_claimed_usdc(), :uint},
+      {staking, Abi.encode_treasury_residual_usdc(), :uint}
     ]
   end
 

@@ -130,7 +130,7 @@
     {
       "name": "regents_stake_position",
       "title": "Read the paired owner stake",
-      "description": "Read the paired owner primary wallet position and current shared staking totals. Never opens or signs a wallet. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
+      "description": "Read the paired owner primary wallet position, current shared staking totals and the reason the reading gives against each claim. Never opens or signs a wallet. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing. Browser cookies and human Privy tokens grant no agent authority.",
       "input_schema": {
         "type": "object",
         "properties": {},

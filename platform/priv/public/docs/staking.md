@@ -6,6 +6,20 @@
 
 Every figure is a Base reading with the block it was read at. Amounts are exact decimal strings, and a figure that could not be read is `"unavailable"`.
 
+## Claims
+
+`claims` gives each claim the reason the reading has against it, or `null` when there is none. A claim can still be sent from the wallet either way, and Base decides.
+
+| Reason | Meaning |
+| --- | --- |
+| `no_claimable_usdc` | No USDC is waiting for this wallet. |
+| `usdc_rewards_short` | USDC rewards wait on a treasury top-up. |
+| `no_regent_rewards` | No REGENT rewards are waiting for this wallet. |
+| `regent_rewards_not_funded` | The reward pool holds too little REGENT right now. |
+| `staking_paused` | Staking is paused on Base, so a claim that restakes cannot go through. |
+| `amount_above_capacity` | Restaking the rewards would take the contract past what it can hold. |
+| `chain_unavailable` | A figure the reason is worked out from could not be read. |
+
 ## Errors
 
 Errors share the [one shape]({{origin}}/docs/errors).

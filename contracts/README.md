@@ -92,6 +92,18 @@ the Safe `0x9fa152B0EAdbFe9A7c5C0a8e1D11784f22669a3e`, which is also its treasur
   push the revenue owed in each of them first**: a paused contract refuses their deposits,
   and they can never point at a new one. Any new staking contract needs new escrows with it.
 
+## Treasury steps
+
+Two rules for the Safe when it moves money in or out of the staking contract:
+
+1. **Never withdraw the whole USDC treasury residual.** Leave at least 1 USDC (1,000,000
+   units) in `treasuryResidualUsdc`. A USDC claim's rounding overage is paid from it, and
+   `claimUSDC` reverts when the residual cannot cover that overage.
+2. **Keep the REGENT reward pool funded ahead of emissions.** Check that
+   `regentRewardShortfall()` is 0. When it is not, fund the pool with `fundRegentRewards`
+   or lower the rate with `setEmissionAprBps`. Claims pay all or nothing, so early claimers
+   drain a short pool and later claimers are left waiting.
+
 ## Boundaries
 
 This repository owns Solidity source, Foundry tests, deployment scripts, verified deployment

@@ -50,6 +50,7 @@ defmodule RegentsWeb.StakeActions do
     {"claim_and_restake_regent", "Claim and restake"}
   ]
   @claim_steps Enum.map(@claims, &elem(&1, 0))
+  @usdc_rewards_short "USDC rewards wait on a treasury top-up."
 
   @impl true
   def mount(socket) do
@@ -496,7 +497,11 @@ defmodule RegentsWeb.StakeActions do
   defp step_words(_state, _entry, _refusals), do: nil
 
   # Only a stake, or a claim that restakes, is refused while staking is paused
-  # or would take the contract past what it can hold.
+  # or would take the contract past what it can hold. A USDC claim is refused
+  # when the contract holds too little USDC to pay it.
+  defp contract_limit(%{name: "claim_usdc"}, %{} = staking),
+    do: Staking.limit_refusal(staking, "claim_usdc", nil)
+
   defp contract_limit(%{name: "claim_and_restake_regent"}, %{} = staking),
     do: Staking.limit_refusal(staking, "claim_and_restake_regent", nil)
 
@@ -513,6 +518,8 @@ defmodule RegentsWeb.StakeActions do
   defp turned_down(:amount_above_capacity),
     do:
       "The staking contract cannot take that much more REGENT, so this did not go through and nothing moved."
+
+  defp turned_down(:usdc_rewards_short), do: "#{@usdc_rewards_short} Nothing moved."
 
   defp turned_down(_limit), do: nil
 
@@ -575,12 +582,15 @@ defmodule RegentsWeb.StakeActions do
 
   @impl true
   def render(assigns) do
+    available = Staking.available_claims(assigns.staking)
+
     assigns =
       assign(assigns,
         signed_in: is_list(assigns.linked),
         wallet_ready: wallet_ready?(assigns.staking, assigns.wallet),
         preview: position_preview(assigns),
-        claims: claims(Staking.available_claims(assigns.staking)),
+        claims: claims(available),
+        claim_note: claim_note(available),
         receiver: receiver(assigns.form),
         receiver_invalid: receiver_invalid?(assigns.form),
         spendable: Staking.spendable(assigns.staking, assigns.action),
@@ -972,16 +982,19 @@ defmodule RegentsWeb.StakeActions do
               :for={claim <- @claims}
               id={"staking-#{claim.action}"}
               type="button"
-              class={if claim.claimable, do: "stake-claim-ready"}
+              class={if is_nil(claim.reason), do: "stake-claim-ready"}
               data-claim={claim.action}
               data-onchain-step={@signed_in && claim.action}
               data-account-target={!@signed_in && "sign-in"}
               data-confirming={OnchainSteps.confirming?(@presses, [claim.action])}
               phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
             ><OnchainButton.label label={claim.label} /><span class="visually-hidden">{claim_state(
-              claim.claimable
+              claim.reason
             )}</span></Regent.Primitives.button>
           </div>
+          <p :if={@claim_note} id="staking-claim-note" class="stake-approval-note" role="note">
+            {@claim_note}
+          </p>
           <.mismatch :if={@signed_in} id="staking-claims-mismatch" note={@mismatch_note} />
         </section>
 
@@ -1162,14 +1175,20 @@ defmodule RegentsWeb.StakeActions do
   # contract answers for itself.
   defp claims(available) do
     for {action, label} <- @claims do
-      %{action: action, label: label, claimable: is_nil(Map.get(available, action))}
+      %{action: action, label: label, reason: Map.get(available, action)}
     end
   end
 
+  # A USDC claim the contract cannot pay yet is still offered and still reaches
+  # the wallet; the reading says why it would come back.
+  defp claim_note(%{"claim_usdc" => :usdc_rewards_short}), do: @usdc_rewards_short
+  defp claim_note(_available), do: nil
+
   # The glow is a colour, so the same news is carried in the control's name for
   # anyone who does not see it.
-  defp claim_state(true), do: "(available)"
-  defp claim_state(false), do: "(nothing to claim)"
+  defp claim_state(nil), do: "(available)"
+  defp claim_state(:usdc_rewards_short), do: "(waiting on a treasury top-up)"
+  defp claim_state(_reason), do: "(nothing to claim)"
 
   # What the amount controls may fill in, or nothing at all when the figure they
   # would count from could not be read. Filling a box is not a wallet request,
