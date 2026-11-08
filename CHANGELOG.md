@@ -4676,8 +4676,8 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
 - Rebuilds `connector-mcp-1029` (`14c6a09b`) on `regents/credits-out-1106` (`de7585b9`), so it carries
   the Credits removal, the Points page, the `/docs` pages, Lucide icons, the pairing window and
   `/pair`. `connector-mcp-1029` is superseded and left as it is.
-- Pins match ash-template `dec974fe`: elixir-utils `d89c69df`, design-system `d3845c6d`,
-  ash_postgres `55db7d44`.
+- Pins match ash-template v182 `e0b6ca83`: elixir-utils `d89c69df`, design-system `d3845c6d`,
+  ash_postgres `55db7d44`, ash_ai 1.5.0.
 - Hosted MCP at `/mcp` serves two reads, `regents_account` and `account_points`, the same Ash
   actions `GET /api/agent/v1/account` and `GET /api/v1/account/points` call. The five Credits and
   Points tools of the old branch are gone with Credits; `regents_points_summary` becomes
