@@ -143,6 +143,13 @@ test("Escape closes a window before an open section behind it", async ({page}) =
   await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
   const pairing = page.locator("#shell-pairing")
   await expect(pairing).toBeVisible()
+  // The window opens on its dropdown of agents, the window's own open section,
+  // so the first Escape closes that and the next closes the window.
+  const pick = pairing.locator("details.rg-pill-select")
+  await expect(pick).toHaveAttribute("open", "")
+  await page.keyboard.press("Escape")
+  await expect(pick).not.toHaveAttribute("open", "")
+  await expect(pairing).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(pairing).toBeHidden()
   await expect(page.locator("#walk-open-section")).toHaveAttribute("open", "")
