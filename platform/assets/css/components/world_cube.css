@@ -407,6 +407,19 @@
   }
 }
 
+/* A stage too narrow for the longest name beside its link sets the link under
+   the line, so no name runs under it. */
+@container (max-width: 17rem) {
+  .world-cube__world {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .world-cube__world a {
+    grid-area: auto;
+    justify-self: start;
+  }
+}
+
 /* Without scripts, or with less motion asked for, the cube is never drawn and
    that is known before the first paint, so the stage simply grows to its list. */
 @media (scripting: none), (prefers-reduced-motion: reduce) {

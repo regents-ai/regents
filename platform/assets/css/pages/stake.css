@@ -9,7 +9,6 @@
 }
 
 .stake-heading,
-.stake-overview,
 .stake-actions,
 .stake-contract-details {
   min-width: 0;
@@ -29,8 +28,7 @@
 
 .stake-heading-copy > *,
 .stake-actions h2,
-.stake-actions h3,
-.stake-overview h2 {
+.stake-actions h3 {
   margin: 0;
 }
 
@@ -67,10 +65,6 @@
 }
 
 .stake-kicker,
-.stake-section-kicker,
-.stake-benefit-card dt,
-.stake-earned-label,
-.stake-supply-facts dt,
 .stake-contract-facts dt,
 .stake-dialog-kicker {
   color: var(--color-fg-muted);
@@ -106,114 +100,17 @@
   justify-self: start;
 }
 
-/* Hairline grid: the container draws two edges and each cell draws the rest. */
-.stake-benefit-grid {
-  display: grid;
-  margin: 0;
-  border-block-start: 1px solid var(--color-border);
-  border-inline-start: 1px solid var(--color-border);
-  container: stake-benefits / inline-size;
-}
-
-.stake-benefit-card {
-  display: grid;
-  gap: 0.45rem;
-  align-content: start;
-  padding: 1rem;
-  border-block-end: 1px solid var(--color-border);
-  border-inline-end: 1px solid var(--color-border);
-  background: var(--ash-panel-strong);
-}
-
-.stake-benefit-card-primary {
-  padding-block: 1.3rem;
-}
-
-.stake-benefit-card dd {
-  margin: 0;
-  color: var(--ash-accent-warm);
-  font-family: var(--font-family-title);
-  font-size: clamp(1.2rem, 3vw, 2rem);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
-}
-
-/* The three labels share one row and the three figures the next, so a label
-   that wraps never pushes its figure below the others. */
-.stake-earned-split {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: auto auto;
-  gap: 0.25rem 0.75rem;
-}
-
-.stake-earned-part {
-  display: grid;
-  grid-row: span 2;
-  grid-template-rows: subgrid;
-  min-width: 0;
-}
-
-.stake-earned-label {
-  align-self: end;
-}
-
-.stake-earned-part + .stake-earned-part {
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--color-border);
-}
-
-/* A figure and its unit stay on one line. */
-.stake-earned-figure {
-  font-size: clamp(1.05rem, 2.4vw, 1.6rem);
-  overflow-wrap: normal;
-  white-space: nowrap;
-}
-
-/* The three figures sit side by side only where each has room for itself;
-   in a narrower card each is a row, its label on the left and its figure on
-   the right, and a figure too wide for that row drops whole below its label. */
-@container stake-benefits (inline-size < 44rem) {
-  .stake-earned-split {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-    gap: 0;
-  }
-
-  .stake-earned-part {
-    display: flex;
-    flex-wrap: wrap;
-    grid-row: auto;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.25rem 0.75rem;
-    padding-block: 0.6rem;
-  }
-
-  .stake-earned-part:first-child {
-    padding-block-start: 0;
-  }
-
-  .stake-earned-part:last-child {
-    padding-block-end: 0;
-  }
-
-  .stake-earned-part + .stake-earned-part {
-    padding-left: 0;
-    border-left: 0;
-    border-block-start: 1px solid var(--color-border);
-  }
-}
-
 .stake-how {
   display: grid;
   gap: 0.75rem;
 }
 
+/* The figures and Payouts each take a short heading in the voice of the trade
+   card's Rewards. */
+.stake-figures h2,
 .stake-how h2 {
   margin: 0;
+  font-size: 1.15rem;
 }
 
 .stake-how ol {
@@ -225,45 +122,86 @@
   text-wrap: pretty;
 }
 
-/* The two supply lines are context for the figures above them rather than
-   headline figures of their own, so they read as one small line each. */
-.stake-benefit-supply {
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.5rem;
-  align-items: baseline;
-  padding-block: 0.6rem;
-}
-
-.stake-benefit-supply dt::after {
-  content: ":";
-}
-
-.stake-benefit-supply dd {
-  font-family: var(--font-family-ui);
-  font-size: 0.9rem;
-  letter-spacing: 0;
-}
-
+/* The trade card and the two sheets share two equal columns. A short card
+   (no wallet open) leaves room for Payouts under it, beside the figures; a tall
+   one takes its column, and Payouts goes under the figures. Below 64rem they
+   stack in reading order. */
 .stake-layout {
   display: grid;
-  grid-template-columns: minmax(21rem, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(21rem, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "trade figures"
+    "payouts figures";
   gap: clamp(1rem, 2.4vw, 1.5rem);
   align-items: start;
   min-width: 0;
 }
 
-.stake-actions,
-.stake-overview {
+.stake-layout[data-trade="open"] {
+  grid-template-areas:
+    "trade figures"
+    "trade payouts";
+}
+
+.stake-layout > .stake-actions { grid-area: trade; }
+.stake-layout > .stake-figures { grid-area: figures; }
+.stake-layout > .stake-how { grid-area: payouts; }
+
+.stake-actions {
   padding: var(--rg-panel-padding);
 }
 
-/* Each column stacks its panels: the actions on the left, the REGENT supply
-   on the right. */
-.stake-column {
+/* One sheet of figures: each group a heading over a short list, the name at
+   the start of its row and the figure at the end, ruled like the position in
+   the trade card. A figure too wide for its row drops whole below its name. */
+.stake-figures {
   display: grid;
-  gap: clamp(1rem, 2.4vw, 1.5rem);
-  align-content: start;
+  gap: 1.5rem;
   min-width: 0;
+}
+
+.stake-figure-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.stake-figure-list {
+  display: grid;
+  margin: 0;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.stake-figure-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  min-height: 2.75rem;
+  padding-block: 0.35rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.stake-figure-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-fg-muted);
+}
+
+.stake-figure-list dd {
+  display: grid;
+  justify-items: end;
+  margin: 0 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.stake-figure-note {
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
 }
 
 /* The signed-in panel is one small trade card: the switch, the amount and the
@@ -274,7 +212,6 @@
   container: stake-card / inline-size;
 }
 
-.stake-supply-facts,
 .stake-contract-facts {
   margin: 0;
 }
@@ -657,35 +594,6 @@
   cursor: not-allowed;
 }
 
-.stake-overview {
-  display: grid;
-  gap: clamp(1.25rem, 3vw, 2.2rem);
-}
-
-/* One track holds both proportions: its full width is the total supply, the
-   band inside it is the circulating supply, and the fill inside that band is
-   what is staked. */
-
-
-
-/* The list takes the card footer's whole width rather than its widest tile's. */
-.stake-supply-facts {
-  display: grid;
-  flex: 1 1 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.stake-supply-facts dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-/* The card's header already shows the staked share as its headline figure. */
-.stake-overview .rg-ratio-card__header-badge {
-  display: none;
-}
-
 .stake-snapshot-note {
   min-height: 1.3rem;
   margin: 0;
@@ -838,16 +746,20 @@
 }
 
 @media (max-width: 64rem) {
-  .stake-layout { grid-template-columns: minmax(0, 1fr); }
+  .stake-layout,
+  .stake-layout[data-trade="open"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas: "trade" "figures" "payouts";
+  }
 }
 
 @media (max-width: 30rem) {
   .stake-heading,
   .stake-actions,
-  .stake-overview { padding: 1rem; }
+  .stake-figures { padding: 1rem; }
   /* Buy and Chart side by side, so the Stake box stays near the top. */
   .stake-token-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-  .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
   .stake-contract-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }
 
@@ -948,8 +860,8 @@
 
 }
 
-/* The small mark beside a circulating figure that opens the account of what
-   is held back. It sits in the figure's own line and takes its colour. */
+/* The small mark beside a figure's name that opens the account behind it:
+   what is held back, or how the market cap is worked out. */
 .stake-page .stake-info {
   display: inline-flex;
   align-items: center;
@@ -982,46 +894,18 @@
   outline-offset: 2px;
 }
 
-/* Each tile is one line: the label at the start, the figure at the end, and
-   neither of them broken mid-word. */
-.stake-supply-facts .rg-ratio-card__tile {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  text-align: start;
-  overflow-wrap: normal;
-}
-
-.stake-supply-facts .rg-ratio-card__tile dd {
-  white-space: nowrap;
-}
-
-/* Below the card's width for three side by side, the tiles stack. */
-@container rg-ratio (max-width: 40rem) {
-  .stake-supply-facts { grid-template-columns: minmax(0, 1fr); }
-}
-
-@container rg-ratio (max-width: 20rem) {
-  .stake-supply-facts .rg-ratio-card__tile {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-  }
-
-  .stake-supply-facts .rg-ratio-card__tile dd {
-    max-inline-size: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-}
-
 @media (max-width: 40rem) {
   .stake-page .stake-info {
     width: 44px;
     height: 44px;
     border: 0;
+  }
+
+  /* In a figure's row the mark keeps its 44 px for a finger but takes only
+     the room its circle needs, so the figure stays on the name's line. */
+  .stake-figure-list .stake-info {
+    margin-block: -0.5rem;
+    margin-inline: -0.4rem -0.8rem;
   }
 
   .stake-page .stake-info > span {

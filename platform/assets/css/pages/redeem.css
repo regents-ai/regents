@@ -152,6 +152,7 @@
 .redeem-position,
 .redeem-owned {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   align-content: start;
   padding: var(--rg-panel-padding);
@@ -835,4 +836,10 @@
   .redeem-contract-details summary > span:last-child { transition: none; }
 }
 
+}
+
+/* Outside the layer, so it wins over the shared button's one-line label: on a
+   narrow phone the button's name wraps inside its panel. */
+.redeem-connect-panel .rg-button {
+  white-space: normal;
 }

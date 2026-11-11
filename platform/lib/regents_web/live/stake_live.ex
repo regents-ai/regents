@@ -95,7 +95,7 @@ defmodule RegentsWeb.StakeLive do
         aria-labelledby="staking-value-heading"
         phx-hook="InfoDialog"
       >
-        <p class="stake-dialog-kicker">Circulating MCAP</p>
+        <p class="stake-dialog-kicker">Market cap</p>
         <h2 id="staking-value-heading">Valuation</h2>
         <p class="stake-dialog-summary">
           Circulating REGENT times the price of one REGENT, in US dollars: {@dashboard.market_cap} USD.
@@ -140,180 +140,29 @@ defmodule RegentsWeb.StakeLive do
         </p>
       </div>
 
-      <div class="stake-layout">
-        <div class="stake-column">
-          <.live_component
-            module={RegentsWeb.StakeActions}
-            id="staking-actions"
-            lease={@lease}
-            staking={@staking}
-            status={@status}
-            wallet={@wallet}
-            account={@account}
-            notice={@notice}
-            reading={@reading}
-          />
-        </div>
+      <div class="stake-layout" data-trade={if @wallet, do: "open", else: "connect"}>
+        <.live_component
+          module={RegentsWeb.StakeActions}
+          id="staking-actions"
+          lease={@lease}
+          staking={@staking}
+          status={@status}
+          wallet={@wallet}
+          account={@account}
+          notice={@notice}
+          reading={@reading}
+        />
 
-        <div class="stake-column">
-          <dl
-            :if={@dashboard}
-            id="staking-benefits"
-            class="stake-benefit-grid"
-            aria-label="Current staking benefits"
-            phx-hook="MotionCount"
-            data-variant={RegentsWeb.Motion.standard("count")}
-          >
-            <div class="stake-benefit-card stake-benefit-card-primary">
-              <dt>USDC revenue</dt>
-              <dd class="stake-earned-split">
-                <span class="stake-earned-part">
-                  <span class="stake-earned-label">7 days</span>
-                  <span class="stake-earned-figure">
-                    <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
-                  </span>
-                </span>
-                <span class="stake-earned-part">
-                  <span class="stake-earned-label">Lifetime</span>
-                  <span class="stake-earned-figure">
-                    <TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" />
-                  </span>
-                </span>
-                <span class="stake-earned-part">
-                  <span class="stake-earned-label">To stakers</span>
-                  <span class="stake-earned-figure">
-                    <TokenDisplay.amount amount={@staking.usdc_credited_to_stakers} unit="USDC" />
-                  </span>
-                </span>
-              </dd>
-            </div>
-            <div class="stake-benefit-card">
-              <dt>REGENT Staked</dt>
-              <dd><TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" /></dd>
-            </div>
-            <div class="stake-benefit-card stake-benefit-supply">
-              <dt>Circulating REGENT</dt>
-              <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} /> <.supply_info /></dd>
-            </div>
-            <div class="stake-benefit-card stake-benefit-supply">
-              <dt>Circulating MCAP</dt>
-              <dd :if={@dashboard.market_cap}>{@dashboard.market_cap} USD <.value_info /></dd>
-              <dd :if={!@dashboard.market_cap}><TokenDisplay.amount amount={:unavailable} /></dd>
-            </div>
-            <div class="stake-benefit-card stake-benefit-supply">
-              <dt>Total REGENT</dt>
-              <dd><TokenDisplay.amount amount={@staking.regent_total_supply} /></dd>
-            </div>
-          </dl>
-          <dl
-            :if={!@dashboard}
-            id={
-              if @status == :loading,
-                do: "staking-benefits-skeleton",
-                else: "staking-benefits-unavailable"
-            }
-            class="stake-benefit-grid"
-            aria-label="Current staking benefits"
-            aria-busy={to_string(@status == :loading)}
-          >
-            <div class="stake-benefit-card stake-benefit-card-primary">
-              <dt>USDC revenue</dt>
-              <dd class="stake-earned-split">
-                <span
-                  :for={label <- ["7 days", "Lifetime", "To stakers"]}
-                  class="stake-earned-part"
-                >
-                  <span class="stake-earned-label">{label}</span>
-                  <span class="stake-earned-figure"><.unread loading={@status == :loading} /></span>
-                </span>
-              </dd>
-            </div>
-            <div class="stake-benefit-card">
-              <dt>REGENT Staked</dt>
-              <dd><.unread loading={@status == :loading} kind="metric" /></dd>
-            </div>
-            <div
-              :for={label <- ["Circulating REGENT", "Circulating MCAP", "Total REGENT"]}
-              class="stake-benefit-card stake-benefit-supply"
-            >
-              <dt>{label}</dt>
-              <dd><.unread loading={@status == :loading} /></dd>
-            </div>
-          </dl>
+        <.figures
+          staking={@staking}
+          dashboard={@dashboard}
+          status={@status}
+          wallet={@wallet}
+          notice={@notice}
+          reading={@reading || @shared_reading}
+        />
 
-          <.how_it_pays staking={@staking} loading={@status == :loading} />
-
-          <Regent.Structure.section_bar class="rg-support-band">
-            <h2 class="rg-section-bar__label">Supply &amp; revenue</h2>
-          </Regent.Structure.section_bar>
-
-          <section
-            :if={@staking}
-            id="staking-contract-overview"
-            class="stake-overview rg-panel rg-panel--surface rg-panel__body"
-            aria-label="REGENT supply"
-          >
-            <Regent.Structure.ratio_card
-              id="staking-supply-bar"
-              title="REGENT supply"
-              eyebrow="Base snapshot"
-              value_bps={@dashboard.supply_bps}
-              label="Staked"
-              remainder_label="Unstaked"
-              footer_label="Supply facts · REGENT"
-            >
-              <:footer>
-                <dl class="stake-supply-facts">
-                  <div class="rg-ratio-card__tile">
-                    <dt>Total staked</dt><dd>
-                      <TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" />
-                    </dd>
-                  </div>
-                  <div class="rg-ratio-card__tile">
-                    <dt>Circulating supply</dt><dd>
-                      <TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" />
-                      <.supply_info />
-                    </dd>
-                  </div>
-                  <div class="rg-ratio-card__tile">
-                    <dt>Total supply</dt><dd>
-                      <TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" />
-                    </dd>
-                  </div>
-                </dl>
-              </:footer>
-            </Regent.Structure.ratio_card>
-            <p class="stake-fine-print">
-              Share of circulating supply, not total supply or reward entitlement. Circulating supply is the total less the Clanker vault, the treasury, the Animata redeemer and the reward pool, all read at the same Base block.
-            </p>
-
-            <p class="stake-snapshot-note">
-              <span>
-                Confirmed at Base block #{TokenDisplay.count(@staking.block_number)}, read {RegentFormat.relative_time(
-                  @staking.read_at,
-                  DateTime.utc_now()
-                )}.
-              </span>
-              <span :if={@reading || @shared_reading} class="stake-inline-loading">
-                Updating from Base…
-              </span>
-            </p>
-
-            <.notice :if={!@wallet && @notice} notice={@notice} />
-          </section>
-          <Loading.panel
-            :if={!@staking}
-            id={
-              if @status == :loading,
-                do: "staking-contract-skeleton",
-                else: "staking-contract-unavailable"
-            }
-            class="stake-overview rg-panel rg-panel--surface rg-panel__body"
-            label="REGENT supply"
-            labels={["Total staked", "Circulating supply", "Total supply"]}
-            loading={@status == :loading}
-          />
-        </div>
+        <.how_it_pays staking={@staking} loading={@status == :loading} />
       </div>
 
       <Regent.Primitives.disclosure
@@ -335,6 +184,14 @@ defmodule RegentsWeb.StakeLive do
                 <Regent.Primitives.address
                   id="stake-details-contract"
                   address={@staking.contract_address}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Regent Safe</dt><dd>
+                <Regent.Primitives.address
+                  id="stake-details-safe"
+                  address={@staking.treasury_address}
                 />
               </dd>
             </div>
@@ -364,11 +221,116 @@ defmodule RegentsWeb.StakeLive do
   end
 
   attr :staking, :map, default: nil
+  attr :dashboard, :map, default: nil
+  attr :status, :atom, required: true
+  attr :wallet, :string, default: nil
+  attr :notice, :map, default: nil
+  attr :reading, :boolean, required: true
+
+  # The contract's figures, each written once: the USDC it has taken in, then
+  # the REGENT supply. Each row has its name at the start and its figure at the
+  # end, ruled like the position in the trade card beside it.
+  defp figures(%{dashboard: nil} = assigns) do
+    ~H"""
+    <Regent.Structure.panel
+      id={if @status == :loading, do: "staking-figures-skeleton", else: "staking-figures-unavailable"}
+      class="stake-figures rg-panel__body"
+      aria-busy={to_string(@status == :loading)}
+    >
+      <section
+        :for={
+          {key, title, labels} <- [
+            {"revenue", "Revenue", ["7 days", "Lifetime", "To stakers"]},
+            {"supply", "Supply", ["Staked", "Circulating", "Market cap", "Total"]}
+          ]
+        }
+        class="stake-figure-group"
+        aria-labelledby={"staking-#{key}-title"}
+      >
+        <h2 id={"staking-#{key}-title"}>{title}</h2>
+        <dl class="stake-figure-list">
+          <div :for={label <- labels}>
+            <dt>{label}</dt>
+            <dd><.unread loading={@status == :loading} /></dd>
+          </div>
+        </dl>
+      </section>
+    </Regent.Structure.panel>
+    """
+  end
+
+  defp figures(assigns) do
+    ~H"""
+    <Regent.Structure.panel
+      id="staking-figures"
+      class="stake-figures rg-panel__body"
+      phx-hook="MotionCount"
+      data-variant={RegentsWeb.Motion.standard("count")}
+    >
+      <section class="stake-figure-group" aria-labelledby="staking-revenue-title">
+        <h2 id="staking-revenue-title">Revenue</h2>
+        <dl class="stake-figure-list">
+          <div>
+            <dt>7 days</dt>
+            <dd><TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" /></dd>
+          </div>
+          <div>
+            <dt>Lifetime</dt>
+            <dd><TokenDisplay.amount amount={@staking.usdc_received_lifetime} unit="USDC" /></dd>
+          </div>
+          <div>
+            <dt>To stakers</dt>
+            <dd><TokenDisplay.amount amount={@staking.usdc_credited_to_stakers} unit="USDC" /></dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="stake-figure-group" aria-labelledby="staking-supply-title">
+        <h2 id="staking-supply-title">Supply</h2>
+        <dl class="stake-figure-list">
+          <div>
+            <dt>Staked</dt>
+            <dd>
+              <TokenDisplay.amount amount={@staking.total_staked} unit="REGENT" />
+              <span :if={@dashboard.staked_share} id="staking-share" class="stake-figure-note">
+                {@dashboard.staked_share}% of circulating
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Circulating <.supply_info /></dt>
+            <dd><TokenDisplay.amount amount={@dashboard.circulating_supply} unit="REGENT" /></dd>
+          </div>
+          <div>
+            <dt>Market cap <.value_info :if={@dashboard.market_cap} /></dt>
+            <dd :if={@dashboard.market_cap} id="staking-market-cap">{@dashboard.market_cap} USD</dd>
+            <dd :if={!@dashboard.market_cap} id="staking-market-cap">
+              <TokenDisplay.amount amount={:unavailable} />
+            </dd>
+          </div>
+          <div>
+            <dt>Total</dt>
+            <dd><TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" /></dd>
+          </div>
+        </dl>
+      </section>
+
+      <p class="stake-snapshot-note">
+        <span>Read {RegentFormat.relative_time(@staking.read_at, DateTime.utc_now())}.</span>
+        <span :if={@reading} class="stake-inline-loading">Updating from Base…</span>
+      </p>
+
+      <.notice :if={!@wallet && @notice} notice={@notice} />
+    </Regent.Structure.panel>
+    """
+  end
+
+  attr :staking, :map, default: nil
   attr :loading, :boolean, required: true
 
   # What the contract does with each USDC that reaches it, in the words a
-  # stranger needs. The divisor, the reward pool, the Safe's signers and both
-  # addresses come from the same Base reading as every other figure here.
+  # stranger needs. The divisor, the reward pool and the Safe's signers come
+  # from the same Base reading as every other figure here.
   defp how_it_pays(assigns) do
     ~H"""
     <section
@@ -376,7 +338,7 @@ defmodule RegentsWeb.StakeLive do
       class="stake-how rg-panel rg-panel--surface rg-panel__body"
       aria-labelledby="staking-how-heading"
     >
-      <h2 id="staking-how-heading" class="stake-section-kicker">Payouts</h2>
+      <h2 id="staking-how-heading">Payouts</h2>
       <ol>
         <li>
           Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷
@@ -392,13 +354,6 @@ defmodule RegentsWeb.StakeLive do
           <.read staking={@staking} key={:reward_inventory} loading={@loading} /> today. The
           Regent Safe (<.signers staking={@staking} loading={@loading} />) sets the rate.
         </li>
-        <li :if={@staking}>
-          Contracts: staking
-          <Regent.Primitives.address id="staking-how-contract" address={@staking.contract_address} />,
-          Regent Safe
-          <Regent.Primitives.address id="staking-how-safe" address={@staking.treasury_address} />.
-        </li>
-        <li :if={!@staking}>Contracts: <.unread loading={@loading} /></li>
       </ol>
     </section>
     """
@@ -455,7 +410,7 @@ defmodule RegentsWeb.StakeLive do
     """
   end
 
-  # The small mark beside a circulating figure. It opens the account of what is
+  # The small mark beside the Circulating name. It opens the account of what is
   # held back, which every visitor may read; nothing about it touches a wallet.
   defp supply_info(assigns) do
     ~H"""
@@ -504,7 +459,7 @@ defmodule RegentsWeb.StakeLive do
       emission_apr: emission_apr,
       market_cap: market_cap(staking),
       price: price(staking),
-      supply_bps: supply_basis_points(staking)
+      staked_share: staked_share(supply_basis_points(staking))
     }
   end
 
@@ -570,6 +525,18 @@ defmodule RegentsWeb.StakeLive do
 
   defp price(%{regent_price_usd: price}) when is_binary(price), do: TokenDisplay.price(price)
   defp price(_staking), do: nil
+
+  # The staked share of the circulating supply, as a percentage to at most two
+  # decimals with trailing zeros dropped: 0, 20, 3.12, 0.5.
+  defp staked_share(nil), do: nil
+
+  defp staked_share(bps) do
+    bps
+    |> Decimal.new()
+    |> Decimal.div(100)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
 
   # The circulating supply moves with every claim and unlock, so the page writes
   # it to the two decimals a person can read out rather than to the eighteen the

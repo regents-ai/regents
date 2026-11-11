@@ -42,7 +42,7 @@
   .rl-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); }
   .rl-column { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2); min-width: 0; }
   .rl-panel { display: grid; align-content: start; gap: var(--space-3); padding: var(--rg-panel-padding); }
-  .rl-panel:is(.rl-panel--how, .rl-panel--products, .rl-panel--staking) { container-type: inline-size; }
+  .rl-panel:is(.rl-panel--how, .rl-panel--staking) { container-type: inline-size; }
   /* A panel's links are its own ink, outlined, so they read on every fill. */
   .rl-panel-link {
     --rg-p-surface: transparent; --rg-p-text: var(--rg-panel-ink); --rg-p-control-border: currentColor;
@@ -61,21 +61,6 @@
   .rl-statement__name { font: 400 clamp(2.5rem, 4.4vw, 3.5rem)/1 var(--font-family-title); }
   .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-ui); text-wrap: pretty; }
 
-  /* Four product cards on the Products sheet, two by two, ruled off above like the
-     rows of How it works. Each card's drawing stands on a flat tile of its colour. */
-  .rl-product-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-  .rl-product-card { display: grid; grid-template-rows: auto auto auto 1fr auto; gap: var(--space-1); min-width: 0; padding-block-start: var(--space-3); border-block-start: 1px solid var(--rg-local-rule); }
-  /* The drawing fills its shapes with --rg-panel-fill, so the tile names its own. */
-  .rl-product-card__tile { --rg-panel-fill: var(--rl-tile); display: grid; place-items: center; width: 6rem; aspect-ratio: 1; margin-block-end: var(--space-2); background: var(--rl-tile); color: var(--rl-tile-ink); }
-  .rl-product-card[data-product="autolaunch"] { --rl-tile: var(--support-band-surface); --rl-tile-ink: var(--support-band-ink); }
-  .rl-product-card[data-product="techtree"] { --rl-tile: var(--support-figure-surface); --rl-tile-ink: var(--support-figure-ink); }
-  .rl-product-card[data-product="patchbay"] { --rl-tile: var(--support-panel-surface); --rl-tile-ink: var(--support-panel-ink); }
-  .rl-product-card[data-product="keyfleet"] { --rl-tile: var(--palette-charcoal); --rl-tile-ink: var(--palette-platinum); }
-  .rl-product-card[data-product="keyfleet"] .rl-product-card__tile { outline: 1px solid var(--rg-local-rule); outline-offset: -1px; }
-  .rl-product-card .rl-card-diagram { width: 4.5rem; height: 4.5rem; }
-  .rl-product-card__name { font: 400 1.75rem/1.1 var(--font-family-title); }
-  .rl-product-card .rl-mono { align-self: start; }
-  .rl-product-card .rl-panel-link { margin-block-start: var(--space-2); }
   /* The drawings are the Overview's, made line icons at this size. */
   .rl-panels .rl-card-diagram :is(path, rect) { vector-effect: non-scaling-stroke; }
 
@@ -84,14 +69,13 @@
   .rl-how__step { display: grid; grid-template-rows: auto auto 1fr auto; gap: var(--space-2); min-width: 0; padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
   .rl-how .rl-card-diagram { width: 3.5rem; height: 3.5rem; }
 
-  /* Staking: the coin on a dark tile, one line, the terms, and the way in. */
+  /* Staking: the coin on a dark tile, one line, and the way in. */
   .rl-staking { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); }
   /* The crown carries its own black ground, so the tile is the crown itself. */
   .rl-staking__tile { display: block; width: 6rem; }
   .rl-staking__tile img { display: block; width: 100%; height: auto; }
   .rl-staking__line { font: 400 clamp(1.5rem, 2.6vw, 2rem)/1.15 var(--font-family-title); text-wrap: pretty; }
-  .rl-staking > .rl-mono, .rl-staking__link { grid-column: 1 / -1; }
-  .rl-staking__link { justify-self: start; }
+  .rl-staking__link { grid-column: 1 / -1; justify-self: start; }
   .rl-how__title { font: var(--font-weight-regular) .8125rem/1.4 var(--font-family-ui); letter-spacing: var(--tracking-microlabel); text-transform: uppercase; }
 
   /* The hero is the right column's panel: its words, then the cube's stage
@@ -155,22 +139,24 @@
     .rl-column[data-home-column="hero"] { grid-area: 1 / 2 / span 2; }
     .rl-column[data-home-column="sheets"] { grid-area: 2 / 1; }
   }
-  /* Where the window is tall enough and the cube is drawn, the hero fills the
-     window's height and stays in view while the sheets scroll past it. The words
+  /* Where the window is tall enough and the cube is drawn, the hero is as tall as
+     the name and sheets beside it, never taller than the window, and stays in view
+     while they scroll past it; both columns end together. It takes no part in
+     sizing the rows, so a tall window never opens a gap under the name. The words
      keep their height and the cube's stage takes the rest. Without scripts or with
      less motion the cube is never drawn, so the hero stays in the page's flow and
      grows to its list of worlds. */
   @media (min-width: 60rem) and (min-height: 40rem) and (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .rl-column[data-home-column="hero"] { position: sticky; inset-block-start: var(--space-3); }
-    .rl-panel--hero { block-size: calc(100svh - 2 * var(--space-3)); grid-template-rows: minmax(0, 1fr); align-content: stretch; }
+    .rl-column[data-home-column="hero"] { position: sticky; inset-block-start: var(--space-3); align-self: stretch; contain: size; max-block-size: calc(100svh - 2 * var(--space-3)); grid-template-rows: minmax(0, 1fr); }
+    .rl-panel--hero { grid-template-rows: minmax(0, 1fr); align-content: stretch; }
     .rl-hero--home { grid-template-rows: auto minmax(0, 1fr); }
     .rl-hero--home .world-cube { block-size: auto; min-block-size: 0; }
     .rl-hero--home .world-cube__worlds { min-block-size: 0; overflow-y: auto; }
     .rl-hero--home .world-cube[data-world-ready="true"] .world-cube__worlds { overflow: visible; }
   }
-  /* A narrow panel stacks its cards, steps and staking one under another. */
+  /* A narrow panel stacks its steps and staking one under another. */
   @container (max-width: 30rem) {
-    :is(.rl-how, .rl-product-cards, .rl-staking) { grid-template-columns: minmax(0, 1fr); }
+    :is(.rl-how, .rl-staking) { grid-template-columns: minmax(0, 1fr); }
   }
 }
 
@@ -276,6 +262,8 @@
 }
 @media (max-width: 23.99rem) {
   .rg-button.rl-product-tab { font-size: .75rem; }
+  /* At 320 the brand and the links share one row only with this narrower gap. */
+  .rl-header-bar { column-gap: .75rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rl-product-tab__foil { display: none; }

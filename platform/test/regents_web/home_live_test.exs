@@ -75,10 +75,10 @@ defmodule RegentsWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     assert attribute(html, "[data-home-panel]", "data-home-panel") ==
-             ~w(mission hero products staking how)
+             ~w(mission hero staking how)
 
     page_headings =
-      for panel <- ~w(products staking how),
+      for panel <- ~w(staking how),
           do: [text(html, ~s([data-home-panel="#{panel}"] h2))]
 
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==

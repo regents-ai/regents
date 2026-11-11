@@ -9,9 +9,6 @@ defmodule RegentsWeb.HomeLive do
   # The lab's one plain line under its name, on the page and in the agent copy.
   @mission "We build tools for people and their agents. REGENT stakers share in the revenue."
 
-  # Each product's card carries the drawing the product Overview shows for it.
-  @product_diagrams %{"autolaunch" => 3, "techtree" => 2, "patchbay" => 7, "keyfleet" => 9}
-
   @how_it_works [
     %{
       id: "agents",
@@ -24,8 +21,8 @@ defmodule RegentsWeb.HomeLive do
     %{
       id: "tools",
       variant: 0,
-      title: "Open tools",
-      copy: "WebMCP Tools in the browser. regents-cli on the command line.",
+      title: "Tools",
+      copy: "Your agent can use every page, in the browser or from the command line.",
       link: "Developer docs",
       href: "/docs"
     }
@@ -33,12 +30,6 @@ defmodule RegentsWeb.HomeLive do
 
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
-    products =
-      Enum.map_join(product_cards(), "\n", fn card ->
-        planned = if card.planned?, do: " · Planned", else: ""
-        "- [#{card.label}](#{card.site}) · #{card.action}#{planned}: #{card.line}"
-      end)
-
     steps =
       Enum.map_join(@how_it_works, "\n", fn step ->
         "- **#{step.title}:** #{step.copy} [#{step.link}](#{PublicDocuments.url(step.href)})"
@@ -55,17 +46,13 @@ defmodule RegentsWeb.HomeLive do
 
     #{@mission}
 
-    [Enter App](#{PublicDocuments.url("/stake")}) · [WebMCP Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
+    [Enter App](#{PublicDocuments.url("/stake")}) · [Agent Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
 
     #{worlds}
 
-    ## Products
-
-    #{products}
-
     ## Staking
 
-    Stake $REGENT. Share the lab's revenue. #{@staking_summary} [Stake](#{PublicDocuments.url("/stake")})
+    Stake $REGENT. Share the lab's revenue. [Stake](#{PublicDocuments.url("/stake")})
 
     ## Guides
 
@@ -121,7 +108,6 @@ defmodule RegentsWeb.HomeLive do
               </Regent.Structure.panel>
             </div>
             <div class="rl-column" data-home-column="sheets">
-              <.product_panel />
               <.staking />
               <.how_it_works />
             </div>
@@ -200,48 +186,7 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  defp product_panel(assigns) do
-    assigns = assign(assigns, cards: product_cards())
-
-    ~H"""
-    <Regent.Structure.panel
-      class="rl-panel rl-panel--products"
-      id="home-products"
-      data-home-panel="products"
-      phx-hook="MotionCascade"
-      data-variant={RegentsWeb.Motion.standard("grid")}
-      aria-labelledby="home-products-title"
-    >
-      <h2 id="home-products-title" class="rl-eyebrow">Products</h2>
-      <ul class="rl-product-cards">
-        <li :for={card <- @cards} class="rl-product-card" data-product={card.name}>
-          <span class="rl-product-card__tile">
-            <.card_diagram id={"home-product-#{card.name}"} variant={card.variant} />
-          </span>
-          <p class="rl-eyebrow">
-            {card.action}<span :if={card.planned?}> · Planned</span>
-          </p>
-          <h3 class="rl-product-card__name">{card.label}</h3>
-          <p class="rl-mono">{card.line}</p>
-          <a
-            href={card.site}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rg-button rg-button--secondary rl-panel-link"
-          >
-            <span class="rg-button__label">
-              {card.host}<span class="visually-hidden">, {card.label}, opens in a new tab</span>
-            </span>
-          </a>
-        </li>
-      </ul>
-    </Regent.Structure.panel>
-    """
-  end
-
   defp staking(assigns) do
-    assigns = assign(assigns, summary: @staking_summary)
-
     ~H"""
     <Regent.Structure.panel
       class="rl-panel rl-panel--staking"
@@ -257,7 +202,6 @@ defmodule RegentsWeb.HomeLive do
           <img src={~p"/images/brand/regents-crown-flat-dark.svg"} width="252" height="186" alt="" />
         </span>
         <p class="rl-staking__line">Stake $REGENT. Share the lab's revenue.</p>
-        <p class="rl-mono">{@summary}</p>
         <a href={~p"/stake"} class="rg-button rl-staking__link">
           <span class="rg-button__label">Stake</span>
         </a>
@@ -293,25 +237,6 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  defp product_cards do
-    sites = Map.new(hero_products(), &{&1.name, &1.site})
-
-    for product <- products() do
-      site = Map.fetch!(sites, product.anchor)
-
-      %{
-        name: product.anchor,
-        label: String.capitalize(product.anchor),
-        action: String.capitalize(product.action),
-        line: product.title,
-        site: site,
-        host: URI.parse(site).host,
-        planned?: Enum.all?(product.proofs, &(&1.status == :planned)),
-        variant: Map.fetch!(@product_diagrams, product.anchor)
-      }
-    end
-  end
-
   defp hero(assigns) do
     ~H"""
     <section
@@ -329,7 +254,7 @@ defmodule RegentsWeb.HomeLive do
             dialog="home-agent-tools"
             class="rg-button rg-button--secondary rg-button--no-arrow"
           >
-            <span class="rg-button__label">WebMCP Tools</span>
+            <span class="rg-button__label">Agent Tools</span>
           </AgentTools.button>
         </div>
         <p class="rl-hero-agents">

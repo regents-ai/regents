@@ -4870,3 +4870,48 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Sentinel crash notices (Mac console, reads completing after the release): nothing new for
   regents.sh. The one regents.sh notice is still notice 5 of 8 Nov, fixed in v279.
 - Not proven: WebKit; signed-in pages walked live; the 320 fixes on a real phone.
+
+## 2026-11-11 — Home, Stake and small fixes from the second blind walk of v280
+
+- Home: each product shows once, among the hero's worlds. The Products sheet that repeated them is
+  gone, and so is the line under Staking that repeated the Staking world's. The two columns end
+  together: where the cube is drawn, the hero is as tall as the name and sheets beside it, never
+  taller than the window, and still held in view while a taller left column scrolls past it. A
+  tall window opens no gap under the name (with the shorter left column it would have at
+  1920x1080 and 2560x1440).
+- Home words: the hero's button reads "Agent Tools", and the Tools step says what an agent can do
+  in plain words; the agent copy of the page matches. The shared tools window keeps its
+  "WebMCP Tools" title until ash-template renames it (template first).
+- Home at 320: the brand and the links share one row; the product tabs set a size smaller. On a
+  narrow cube stage a world's name sits above its Visit link instead of running under it.
+- Stake reads as a plain dashboard: one figures sheet with Revenue (7 days, Lifetime, To stakers)
+  and Supply (Staked with its share of circulating, Circulating, Market cap, Total), each figure
+  once; the trade card, the figures and Payouts stand in two columns that end together; the
+  Regent Safe has its row in Verification. The trade card, transaction building, claims, button
+  states and the on-chain steps hook are unchanged.
+- Paper Pro Daily: each pick card has a control's edge (`--ash-line-strong`, drawn at 3:1).
+- /redeem on a 320 phone: no sideways slack; the connect panel's button name wraps inside it.
+- Keyfleet's page and its public description say fleet, not crew.
+- Gallery: the pass number field's label reads "Pass", in normal case.
+- Gallery first load (3.0 s on live v280) is not changed here. The cause is the thumbnails: 48
+  full-size animated GIFs (768x1024, 1.3 to 2.3 MB each, about 78 MB) drawn at about 10rem. The
+  fix is small thumbnails for the 1,998 passes on media.regents.sh.
+- Tests: `platform/test/browser/homepage.spec.ts` "each product shows once and the columns end
+  together" (1280x900, 1920x1080 and 2560x1440, and with reduced motion: one link per product,
+  columns end together, no gap under the name, the hero fits the window); "the hero stays top
+  right while the sheets scroll" now runs where the left column is taller than the window
+  (1280x640, 1280x720, 1440x800); "homepage fits" checks no world's name runs under its Visit link
+  and the brand and links share a row. `platform/test/browser/stake.spec.ts` and
+  `platform/test/regents_web/stake_live_test.exs` check the figures sheet (SUPPLY_FIGURES,
+  SUPPLY_SHARES) without fixed words.
+- Not touched: anything Credits, sign-in, wallets, every on-chain button, transaction building
+  and claims.
+- Full check under the shared check lock (`MIX_TEST_PARTITION=_hx2`, Elixir 1.20.5 and Node
+  26.13.0 from `platform/.tool-versions`), make exit 0 at 13:25Z: precommit with Credo (no issues)
+  and Sobelow (no findings), server tests 656 (647 tests, 9 properties, 1 excluded), script tests
+  252, browser walk 161 in headless Chromium (WebKit not run on the Mac), required fixes against
+  ash-template `8ae64187`, the command list, identity 16, contracts 454 forge tests.
+- A test merge with `regents/credits-out-1106` conflicts in the same seven files as main does
+  today, with the same number of conflicts in each; nothing new.
+- Not proven: WebKit; real phones; the drawn cube was looked at in headless Chromium on the Mac's
+  GPU (1440x900, 1920x1080, 2560x1440), not in other browsers.

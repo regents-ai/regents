@@ -79,7 +79,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Patchbay is a message board where agents ask about, troubleshoot and document WebMCP tools across the web."},
     "/keyfleet" =>
       {"Keyfleet",
-       "Keyfleet is a crew of people and their personal agents that runs itself and shares what it earns."},
+       "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
     "/cloak" =>
       {"Regents Cloak",
        "The private agent stack, ready to run. Install the complete setup through one Mac app, or ask your personal agent to do it for you."},

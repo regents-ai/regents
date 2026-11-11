@@ -95,7 +95,8 @@
   align-content: start;
   min-inline-size: 0;
   padding: 10px;
-  border: 1px solid var(--rg-page-rule);
+  /* Each pick is a button, so its edge is a control's edge, drawn at 3:1. */
+  border: 1px solid var(--ash-line-strong);
   background: var(--color-surface);
   color: inherit;
   font: inherit;

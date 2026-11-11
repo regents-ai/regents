@@ -82,7 +82,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   // The wallet position carries its own block, which is not the block the
   // shared contract reading was taken at.
   await expect(page.locator("#staking-wallet-block")).toContainText("Base block #1,240")
-  await expect(page.locator(".stake-snapshot-note")).toContainText("Base block #1,234")
+  await expect(page.locator("#stake-contract-details")).toContainText("#1,234")
 
   const primary = page.locator("#staking-primary")
   const activity = page.locator("#staking-activity")
@@ -308,59 +308,72 @@ async function signIn(page: Page, bearer = stakingBearer): Promise<void> {
   expect(response.status()).toBe(200)
 }
 
+// The bottoms of the trade card, the figures and Payouts, measured per column:
+// how far the shorter column stops above the taller one.
+async function columnGap(page: Page) {
+  return page.locator(".stake-layout").evaluate(layout => {
+    const bottoms = new Map<number, number>()
+    for (const child of layout.children) {
+      const box = child.getBoundingClientRect()
+      const left = Math.round(box.left)
+      bottoms.set(left, Math.max(bottoms.get(left) ?? 0, box.bottom))
+    }
+    const columns = [...bottoms.values()]
+    return {columns: columns.length, gap: Math.max(...columns) - Math.min(...columns)}
+  })
+}
+
 test("Anonymous Stake dashboard is public and fits desktop and mobile widths", async ({page}) => {
   const contract = "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
   const regent = "0x6f89bca4ea5931edfcb09786267b251dee752b07"
   const usdc = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+  const safe = "0x9fa152b0eadbfe9a7c5c0a8e1d11784f22669a3e"
 
   for (const width of [1280, 390]) {
     await page.setViewportSize({width, height: 900})
     await page.goto("/stake")
 
     await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
-    await expect(page.locator("#staking-contract-overview")).toContainText("REGENT supply")
-    // The contract reading every visitor is shown, with the block it came from
-    // and how old it is. An anonymous visitor is offered no way to replace it.
-    await expect(page.locator(".stake-snapshot-note")).toContainText(
-      /Confirmed at Base block #1,234, read (just now|\d+ \w+ ago)\./,
-    )
+    // The contract reading every visitor is shown and how old it is. An
+    // anonymous visitor is offered no way to replace it.
+    await expect(page.locator(".stake-snapshot-note")).toContainText(/(just now|\d+ \w+ ago)\./)
     await expect(page.locator("button.stake-shared-refresh")).toHaveCount(0)
 
-    // The hero is the two cards the contract answers for.
-    const earned = page.locator(".stake-benefit-card-primary")
-    await expect(earned).toContainText("USDC revenue")
-    await expect(earned).toContainText("1,250.50 USDC")
-    await expect(earned).toContainText("Lifetime")
-    await expect(earned).toContainText("5,074.87 USDC")
-    await expect(earned).toContainText("353.24 USDC")
+    // Every figure the contract answers for is in the figures sheet, and the
+    // page shows each of them once.
+    const figures = page.locator("#staking-figures")
+    for (const figure of [
+      "1,250.50 USDC",
+      "5,074.87 USDC",
+      "353.24 USDC",
+      "100 REGENT",
+      "35 billion REGENT",
+      "100 billion REGENT",
+    ]) {
+      await expect(figures).toContainText(figure)
+    }
+    await expect(page.locator("#staking-share")).toContainText("0%")
+    const shown = await page
+      .locator("#regent-staking [data-count]")
+      .evaluateAll(counts =>
+        counts.filter(count => count.checkVisibility()).map(count => count.textContent!.trim()),
+      )
+    expect(shown.length, `Stake figures shown at ${width}`).toBe(6)
+    expect(new Set(shown).size, `Stake figures shown once at ${width}`).toBe(shown.length)
 
     // How it pays names the contract's own divisor, reward pool and Safe, each
-    // read at the same block, and both addresses can be copied in full.
+    // read at the same block.
     const pays = page.locator("#staking-how-it-pays")
     await expect(pays).toContainText("÷ 1k.")
     await expect(pays).toContainText("a reward pool, 5 billion today")
     await expect(pays).toContainText("Regent Safe (2 of 3 signers)")
-    await expect(pays.locator("#staking-how-safe")).toBeVisible()
-    await expect(page.locator(".stake-benefit-grid")).toContainText("REGENT Staked")
-    await expect(page.locator(".stake-benefit-grid")).toContainText("100 REGENT")
-
-    // The supply block: three figures and one bar carrying both proportions.
-    const supply = page.locator(".stake-supply-facts")
-    await expect(supply).toContainText("Circulating supply")
-    await expect(supply).toContainText("35 billion REGENT")
-    await expect(supply).toContainText("Total supply")
-    await expect(supply).toContainText("100 billion REGENT")
-    await expect(page.locator("#staking-supply-bar")).toContainText("Staked")
 
     await page.locator(".stake-contract-details summary").click()
     const details = page.locator("#stake-contract-details")
     await expect(details.locator("#stake-details-contract-full")).toHaveText(contract)
+    await expect(details.locator("#stake-details-safe-full")).toHaveText(safe)
     await expect(details.locator("#stake-details-regent-full")).toHaveText(regent)
     await expect(details.locator("#stake-details-usdc-full")).toHaveText(usdc)
-
-    const bar = page.locator("#staking-supply-bar").getByRole("meter")
-    await expect(bar).toHaveAttribute("aria-valuenow", "0")
-    await expect(bar).toHaveAttribute("aria-valuetext", "Staked: 0%; Unstaked: 100%")
 
     const contractLink = page.getByRole("link", {
       name: "View verified staking contract on BaseScan",
@@ -390,39 +403,22 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     }, width)
 
     expect(fit, `Stake dashboard at ${width}`).toEqual({
-      addresses: [0, 0, 0, 0],
+      addresses: [0, 0, 0, 0, 0],
       document: 0,
     })
 
-    // Each USDC revenue figure keeps its number and unit on one line, whether
-    // the three stand side by side or one under another.
-    const figureLines = await page
-      .locator(".stake-earned-figure [data-count]")
-      .evaluateAll(figures => figures.map(figure => figure.getClientRects().length))
-    expect(figureLines, `USDC revenue figures at ${width}`).toEqual([1, 1, 1])
+    // Each figure keeps its number and unit on one line.
+    const figureLines = await figures
+      .locator("[data-count]")
+      .evaluateAll(counts => counts.map(count => count.getClientRects().length))
+    expect(figureLines, `Stake figures at ${width}`).toEqual([1, 1, 1, 1, 1, 1])
 
-    const columns = await page
-      .locator(".stake-layout")
-      .evaluate(element => getComputedStyle(element).gridTemplateColumns.split(" ").length)
-    expect(columns, `Stake dashboard columns at ${width}`).toBe(width > 768 ? 2 : 1)
+    // Two columns on a wide screen, neither ending far above the other; one on a phone.
+    const columns = await columnGap(page)
+    expect(columns.columns, `Stake dashboard columns at ${width}`).toBe(width > 768 ? 2 : 1)
+    expect(columns.gap, `Stake columns end together at ${width}`).toBeLessThan(width > 768 ? 160 : 1)
 
-    const presentation = await page.evaluate(() => {
-      const staked = document.querySelector<HTMLElement>(
-        ".stake-benefit-card:not(.stake-benefit-card-primary) dd",
-      )!
-      const supply = document.querySelector<HTMLElement>(".stake-supply-facts dd")!
-      const contractLink = document.querySelector<HTMLElement>(".stake-contract-link")!
-      return {
-        contractLinkHeight: contractLink.getBoundingClientRect().height,
-        supplyFont: Number.parseFloat(getComputedStyle(supply).fontSize),
-        stakedFont: Number.parseFloat(getComputedStyle(staked).fontSize),
-      }
-    })
-
-    // The staked figure leads in the hero card and is repeated at reading size
-    // in the supply block, so the hero has to be the larger of the two.
-    expect(presentation.stakedFont).toBeGreaterThan(presentation.supplyFont)
-    expect(presentation.contractLinkHeight).toBeGreaterThanOrEqual(44)
+    expect((await contractLink.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   }
 })
 
@@ -1365,8 +1361,15 @@ test("Stake shows when Base was last read and reads it again on the icon", async
     await expect(again).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
 
+    // The tall trade card takes its column; the figures and Payouts end near it.
+    const columns = await columnGap(page)
+    expect(columns.columns, `Stake columns signed in at ${width}`).toBe(width > 768 ? 2 : 1)
+    expect(columns.gap, `Stake columns end together signed in at ${width}`).toBeLessThan(
+      width > 768 ? 160 : 1,
+    )
+
     await again.click()
-    await expect(page.locator(".stake-supply-facts")).toBeVisible()
+    await expect(page.locator("#staking-figures")).toBeVisible()
     await expect(page.getByText("Couldn’t update just now.")).toHaveCount(0)
     await page.screenshot({path: `${process.env.REGENTS_SHOT_DIR ?? "test-results"}/stake-read-${width}.png`})
   }

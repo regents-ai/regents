@@ -60,7 +60,7 @@ defmodule RegentsWeb.RedeemGalleryLive do
           </p>
         </div>
         <form id="gallery-jump" class="gallery-jump" phx-hook=".PassJump" hidden={@mine}>
-          <label for="gallery-jump-number">Go to pass</label>
+          <label for="gallery-jump-number">Pass</label>
           <input
             id="gallery-jump-number"
             name="pass"

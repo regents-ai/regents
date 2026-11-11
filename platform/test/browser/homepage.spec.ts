@@ -277,6 +277,27 @@ for (const viewport of [
     )
     expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
 
+    // No world's name runs under its Visit link.
+    const covered = await listed.evaluateAll(elements =>
+      elements.filter(element => {
+        const range = document.createRange()
+        range.selectNodeContents(element.querySelector("h3")!)
+        const name = range.getBoundingClientRect()
+        const link = element.querySelector("a")!.getBoundingClientRect()
+        return name.right > link.left && name.left < link.right && name.top < link.bottom && name.bottom > link.top
+      }).length,
+    )
+    expect(covered, `${viewport.name} names under a link`).toBe(0)
+
+    // The brand and the header links share the header's first row.
+    const middles = await page.evaluate(() =>
+      [".rl-brand", ".rl-header-links"].map(selector => {
+        const box = document.querySelector(selector)!.getBoundingClientRect()
+        return box.top + box.height / 2
+      }),
+    )
+    expect(Math.abs(middles[0] - middles[1]), `${viewport.name} header rows`).toBeLessThan(8)
+
     // Three across where the frame is wide enough, one column below that.
     expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(await worldRowsIn(page))
 
@@ -401,13 +422,13 @@ const homeEdges = (page: import("@playwright/test").Page) =>
     }
   })
 
-// The hero stands top right and stays in view while the name and sheets on the left scroll past it.
+// Where the name and sheets on the left are taller than the window, the hero stands top
+// right and stays in view while they scroll past it.
 test("[U1][U2] the hero stays top right while the sheets scroll on desktop", async ({page}) => {
   for (const viewport of [
     {name: "1280x640", width: 1280, height: 640},
     {name: "1280x720", width: 1280, height: 720},
-    {name: "1440x900", width: 1440, height: 900},
-    {name: "1920x1080", width: 1920, height: 1080},
+    {name: "1440x800", width: 1440, height: 800},
   ]) {
     await test.step(viewport.name, async () => {
       await page.setViewportSize({width: viewport.width, height: viewport.height})
@@ -444,6 +465,50 @@ test("[U1][U2] with reduced motion the hero scrolls with the page", async ({page
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(240)
   const scrolled = await homeEdges(page)
   expect(scrolled.hero.top, "the hero moves with the sheets").toBeCloseTo(first.hero.top - 240, 0)
+})
+
+// Each product shows once on the page. On a wide screen the two columns end together
+// and a tall window opens no gap under the name. Where the hero follows the scroll it
+// is as tall as the sheets beside it and never taller than the window; with less
+// motion it grows to its list of worlds.
+test("[U1][U2] each product shows once and the columns end together", async ({page}) => {
+  for (const {reducedMotion, width, height, apart} of [
+    {reducedMotion: "no-preference", width: 1280, height: 900, apart: 1},
+    {reducedMotion: "no-preference", width: 1920, height: 1080, apart: 1},
+    {reducedMotion: "no-preference", width: 2560, height: 1440, apart: 1},
+    {reducedMotion: "reduce", width: 1280, height: 900, apart: 160},
+    {reducedMotion: "reduce", width: 2560, height: 1440, apart: 160},
+  ] as const) {
+    await test.step(`${width}x${height} motion ${reducedMotion}`, async () => {
+      await page.emulateMedia({reducedMotion})
+      await page.setViewportSize({width, height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await assertNoOverflow(page)
+
+      for (const {site} of worlds.slice(0, 4)) {
+        await expect(page.locator(`#home-content a[href="${site}"]`)).toHaveCount(1)
+      }
+
+      const end = await page.evaluate(() => document.scrollingElement!.scrollHeight - window.innerHeight)
+      await page.evaluate(y => window.scrollTo(0, y), end)
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(end)
+      const edges = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON()
+        return {
+          hero: box('[data-home-panel="hero"]'),
+          sheets: box('[data-home-column="sheets"]'),
+          mission: box("#home-mission"),
+          gap: parseFloat(getComputedStyle(document.querySelector(".rl-panels")!).rowGap),
+        }
+      })
+      expect(Math.abs(edges.hero.bottom - edges.sheets.bottom), "the columns end together").toBeLessThan(apart)
+      expect(edges.sheets.top - edges.mission.bottom, "no gap opens under the name").toBeCloseTo(edges.gap, 0)
+      if (reducedMotion === "no-preference") {
+        expect(edges.hero.height, "the hero fits the window").toBeLessThanOrEqual(height)
+      }
+    })
+  }
 })
 
 // A phone reads the lab's name first, then the hero, then the sheets.

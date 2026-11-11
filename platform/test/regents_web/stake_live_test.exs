@@ -99,9 +99,9 @@ defmodule RegentsWeb.StakeLiveTest do
     html = render(view)
 
     first_render = conn |> get("/stake") |> html_response(200)
-    assert first_render =~ ~s(id="staking-supply-bar")
+    assert first_render =~ ~s(id="staking-figures")
     refute first_render =~ "Loading staking contract data"
-    assert has_element?(view, "#staking-supply-bar")
+    assert has_element?(view, "#staking-figures")
     assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
 
     for private_fact <- [
@@ -117,15 +117,13 @@ defmodule RegentsWeb.StakeLiveTest do
     refute has_element?(view, "#route-content button[data-onchain-step]")
   end
 
-  test "HERO_SUPPLY: the hero carries circulating and total REGENT", %{conn: conn} do
+  test "SUPPLY_FIGURES: the figures carry circulating and total REGENT", %{conn: conn} do
     view = mount_stake(conn)
 
-    assert has_element?(view, ".stake-benefit-supply dt", "Circulating REGENT")
-    assert has_element?(view, ".stake-benefit-supply dt", "Total REGENT")
-    assert has_element?(view, ".stake-benefit-supply", "35 billion")
-    assert has_element?(view, ".stake-benefit-supply", "100 billion")
-    assert has_element?(view, ~s(.stake-benefit-supply [title="35,000,000,000.00"]))
-    assert has_element?(view, ~s(.stake-benefit-supply [title="100,000,000,000"]))
+    assert has_element?(view, "#staking-figures dd", "35 billion REGENT")
+    assert has_element?(view, "#staking-figures dd", "100 billion REGENT")
+    assert has_element?(view, ~s(#staking-figures [title="35,000,000,000.00 REGENT"]))
+    assert has_element?(view, ~s(#staking-figures [title="100,000,000,000 REGENT"]))
   end
 
   test "MARKET_CAP: the supply figures carry the circulating market cap", %{conn: conn} do
@@ -140,12 +138,11 @@ defmodule RegentsWeb.StakeLiveTest do
     Application.put_env(:regents, :test_staking_read_at, ~U[2026-09-27 08:00:00Z])
 
     view = mount_stake(conn)
-    assert has_element?(view, ".stake-benefit-supply", "Circulating MCAP")
-    assert has_element?(view, ".stake-benefit-supply dd", "700k USD")
+    assert has_element?(view, "#staking-market-cap", "700k USD")
 
     assert has_element?(
              view,
-             ~s(.stake-benefit-supply button[phx-click*="staking-value-dialog"])
+             ~s(#staking-figures button[phx-click*="staking-value-dialog"])
            )
 
     # The supply and the price each carry their own time, and the page never
@@ -168,14 +165,10 @@ defmodule RegentsWeb.StakeLiveTest do
   } do
     view = mount_stake(conn)
 
-    assert has_element?(
-             view,
-             ".stake-benefit-supply dd .figure-unavailable",
-             "Unavailable right now"
-           )
+    assert has_element?(view, "#staking-market-cap .figure-unavailable", "Unavailable right now")
 
     refute has_element?(view, "#staking-value-dialog")
-    refute has_element?(view, ".stake-benefit-supply dd", "USD")
+    refute has_element?(view, "#staking-market-cap", "USD")
   end
 
   test "NO_READ_FOR_A_VISITOR: an anonymous visit with no wallet reads Base not at all", %{
@@ -186,7 +179,7 @@ defmodule RegentsWeb.StakeLiveTest do
     on_exit(fn -> Application.delete_env(:regents, :test_staking_read_watcher) end)
 
     {:ok, view, _html} = live(conn, "/stake")
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, "#staking-figures", "100 REGENT")
 
     refute_receive {:staking_read, _scope, _reader}, 200
   end
@@ -196,8 +189,9 @@ defmodule RegentsWeb.StakeLiveTest do
 
     view = mount_stake(conn)
 
-    assert has_element?(view, ".stake-benefit-card-primary", "0.00 USDC")
-    refute has_element?(view, ".stake-benefit-card-primary .figure-unavailable")
+    revenue = ~s(#staking-figures section[aria-labelledby="staking-revenue-title"])
+    assert has_element?(view, revenue, "0.00 USDC")
+    refute has_element?(view, "#{revenue} .figure-unavailable")
     refute render(view) =~ "yet"
   end
 
@@ -211,25 +205,19 @@ defmodule RegentsWeb.StakeLiveTest do
     assert staking_assigns(view).staking_status == :error
     assert has_element?(view, ~s(p[role="alert"]), "Staking details are unavailable right now.")
     assert has_element?(view, ".stake-layout")
-    refute has_element?(view, "#staking-contract-skeleton")
-    refute has_element?(view, "#staking-benefits-skeleton")
+    refute has_element?(view, "#staking-figures-skeleton")
     refute has_element?(view, ".loading-skeleton")
-    refute has_element?(view, "#staking-supply-bar")
+    refute has_element?(view, "#staking-share")
     refute has_element?(view, "#route-content button[data-onchain-step]")
 
     # The same figures, in the same places, each saying it could not be read,
     # and never a zero in its place.
-    for label <- ["REGENT Staked", "Circulating REGENT", "Circulating MCAP", "Total REGENT"] do
-      assert has_element?(view, "#staking-benefits-unavailable .stake-benefit-card", label)
-    end
-
     assert has_element?(
              view,
-             "#staking-benefits-unavailable[aria-busy=false] .figure-unavailable",
+             "#staking-figures-unavailable[aria-busy=false] dd .figure-unavailable",
              "Unavailable right now"
            )
 
-    assert has_element?(view, "#staking-contract-unavailable .figure-unavailable")
     refute render(view) =~ "0 REGENT"
 
     assert has_element?(view, "button.stake-shared-refresh", "Read the contract")
@@ -239,23 +227,28 @@ defmodule RegentsWeb.StakeLiveTest do
     render_async(view)
 
     assert staking_assigns(view).staking_status == :ready
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, "#staking-figures", "100 REGENT")
     refute render(view) =~ "Staking details are unavailable right now."
-    assert has_element?(view, "#staking-benefits")
-    refute has_element?(view, "#staking-benefits-unavailable")
-    refute has_element?(view, ".stake-benefit-card-primary .figure-unavailable")
+    assert has_element?(view, "#staking-figures")
+    refute has_element?(view, "#staking-figures-unavailable")
+
+    refute has_element?(
+             view,
+             ~s(#staking-figures section[aria-labelledby="staking-revenue-title"] .figure-unavailable)
+           )
   end
 
-  test "SUPPLY_SHARES: the bar and its label follow the three supply figures", %{conn: conn} do
+  test "SUPPLY_SHARES: the staked share follows the staked and circulating figures", %{
+    conn: conn
+  } do
     view = mount_stake(conn)
 
-    assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="0"]))
+    assert has_element?(view, "#staking-share", "0%")
 
     put_circulating("500000000000000000000")
     view = mount_stake(conn)
 
-    assert has_element?(view, "#staking-supply-bar", "Staked")
-    assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="20"]))
+    assert has_element?(view, "#staking-share", "20%")
   end
 
   test "SUPPLY_SHARE_TRUNCATES: a share landing halfway is cut rather than rounded up", %{
@@ -266,8 +259,7 @@ defmodule RegentsWeb.StakeLiveTest do
     view = mount_stake(conn)
     html = render(view)
 
-    assert has_element?(view, "#staking-supply-bar", "3.12%")
-    assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="3.12"]))
+    assert has_element?(view, "#staking-share", "3.12%")
     refute html =~ "3.13"
   end
 
@@ -291,8 +283,9 @@ defmodule RegentsWeb.StakeLiveTest do
 
     view |> element("button.stake-shared-refresh") |> render_click()
     SharedStakingReading.run()
-    assert render_async(view) =~ "Base block #1,234"
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    render_async(view)
+    assert has_element?(view, "#stake-contract-details", "#1,234")
+    assert has_element?(view, "#staking-figures", "100 REGENT")
   end
 
   test "SHARED_REFRESH_IS_SIGNED_IN_ONLY: an anonymous socket is refused server-side", %{
@@ -311,7 +304,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
     refute_receive {:staking_read, _scope, _reader}, 200
     refute_enqueued(worker: SnapshotRefresh)
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, "#staking-figures", "100 REGENT")
   end
 
   test "REFRESH_SOON_AFTER_A_READING: presses wait for the gap and cost one read", %{
@@ -327,7 +320,7 @@ defmodule RegentsWeb.StakeLiveTest do
     assert [_one] = all_enqueued(worker: SnapshotRefresh)
     assert_enqueued(worker: SnapshotRefresh, scheduled_at: {DateTime.utc_now(), delta: 10})
     refute render_async(view) =~ @refresh_failure
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, "#staking-figures", "100 REGENT")
   end
 
   test "REFRESH_WHILE_A_PASS_RUNS: an ask during a running pass still gets one more" do
@@ -348,7 +341,7 @@ defmodule RegentsWeb.StakeLiveTest do
     view = conn |> signed_in_stake("refresh-data") |> activate(@wallet)
 
     assert has_element?(view, "#staking-wallet-block", "Base block #1,240")
-    assert has_element?(view, ".stake-snapshot-note", "Base block #1,234")
+    assert has_element?(view, "#stake-contract-details", "#1,234")
 
     Application.put_env(:regents, :test_staking_wallet_block, @receipt_block)
     Application.put_env(:regents, :test_staking_protocol_block, 9_876)
@@ -366,7 +359,7 @@ defmodule RegentsWeb.StakeLiveTest do
     render_async(view)
 
     assert has_element?(view, "#staking-wallet-block", "Base block #1,249")
-    assert has_element?(view, ".stake-snapshot-note", "Base block #9,876")
+    assert has_element?(view, "#stake-contract-details", "#9,876")
   end
 
   test "SHARED_FAN_OUT: one visitor's reading reaches another page without touching its wallet",
@@ -828,7 +821,7 @@ defmodule RegentsWeb.StakeLiveTest do
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
-    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
+    assert has_element?(view, "#staking-figures")
     assert render(view) =~ @refresh_failure
 
     Application.delete_env(:regents, :test_staking_wallet_error)
@@ -836,14 +829,14 @@ defmodule RegentsWeb.StakeLiveTest do
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
-    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
+    assert has_element?(view, "#staking-figures")
     assert render(view) =~ @refresh_failure
 
     Application.put_env(:regents, :staking_chain_client, previous_client)
     view |> element(~s(.stake-footer button[phx-click="refresh_data"])) |> render_click()
     render_async(view)
 
-    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
+    assert has_element?(view, "#staking-figures")
     refute render(view) =~ @refresh_failure
   end
 
@@ -855,8 +848,8 @@ defmodule RegentsWeb.StakeLiveTest do
     render_async(view)
 
     assert staking_assigns(view).staking_status == :ready
-    assert has_element?(view, "#staking-contract-overview", "REGENT supply")
-    assert has_element?(view, ".stake-supply-facts", "100 REGENT")
+    assert has_element?(view, "#staking-figures")
+    assert has_element?(view, "#staking-figures", "100 REGENT")
 
     assert has_element?(
              view,
@@ -937,8 +930,7 @@ defmodule RegentsWeb.StakeLiveTest do
     conn: conn
   } do
     first_render = conn |> get("/stake") |> html_response(200)
-    assert first_render =~ ~s(id="staking-benefits-skeleton")
-    assert first_render =~ ~s(id="staking-contract-skeleton")
+    assert first_render =~ ~s(id="staking-figures-skeleton")
     refute first_render =~ "Loading staking contract data"
     Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
     Application.put_env(:regents, :test_staking_read_watcher, self())

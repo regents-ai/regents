@@ -29,7 +29,6 @@
 }
 
 .gallery-kicker,
-.gallery-jump label,
 .gallery-pass span {
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
@@ -58,9 +57,10 @@
   align-items: center;
 }
 
-/* A long button name wraps inside its panel on a narrow phone. */
-.gallery-actions .rg-button {
-  white-space: normal;
+.gallery-jump label {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.875rem;
 }
 
 .gallery-jump input {
@@ -195,4 +195,10 @@
   .gallery-jump input { width: 6.5rem; }
   .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+}
+
+/* Outside the layer, so it wins over the shared button's one-line label: a long
+   button name wraps inside its panel on a narrow phone. */
+.gallery-actions .rg-button {
+  white-space: normal;
 }

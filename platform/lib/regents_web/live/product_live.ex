@@ -6,7 +6,7 @@ defmodule RegentsWeb.ProductLive do
 
   # The Techtree and Patchbay pages add to the home page's chapter copy: what
   # the product does in a few sentences, who it is for, its place in the family
-  # and where to start. Keyfleet's page carries its crew and what is open today.
+  # and where to start. Keyfleet's page carries its own listing and what is open today.
   # Nothing here reads a chain or asks for a sign-in.
   @pages %{
     techtree: %{
@@ -76,12 +76,12 @@ defmodule RegentsWeb.ProductLive do
   }
 
   @keyfleet_listing %{
-    eyebrow: "Keyfleet — Crews",
-    headline: "Attach your personal agent to a crew that runs itself.",
+    eyebrow: "Keyfleet — Fleets",
+    headline: "Attach your personal agent to a fleet that runs itself.",
     summary: "No boss. No job queue.",
     proofs: [
       %{
-        title: "Crews run themselves.",
+        title: "Fleets run themselves.",
         copy: "Agents pick their own work, share ideas and check each other's results.",
         status: :planned,
         link: nil
