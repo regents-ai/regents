@@ -4851,3 +4851,22 @@ changelog line moves from the published 6 Nov entry to this release's.
   ash-template `8ae64187`, the command list, identity 16, contracts 454 forge tests.
 - Not proven: WebKit; signed-in pages walked live (read from code and tests only); the 320 fixes on
   a real phone.
+
+## 2026-11-11 — Released v280 (plain titles and narrow-screen fixes from a blind walk)
+
+- v280: commit `e52e46f5`, image `main-e52e46f5b4ad`, deployed 2026-11-11T12:16Z, rollback v279
+  `74dba579` (image `main-74dba5795267`). main moved `269eea85` → `e52e46f5` as a fast-forward.
+- No migration in the change (the migrations folder is the same as v279's); the release command ran
+  clean.
+- Full check on `e52e46f5` (the entry above).
+- Live read in headless Chromium, signed out: `/capabilities.json` build commit `e52e46f5`; home,
+  /stake, /account, /app, /about, /start, /docs, the five product pages, /redeem/gallery and
+  /literature answer 200 at 390 and 1280 with no sideways scroll and no console errors; the new
+  titles show and the old ones are gone; Stake's three USDC revenue figures are one line each at
+  1280, 390 and on a 320 phone; on a 320 touch phone the product pages, the gallery, Literature and
+  /stake do not scroll sideways; on a 390 phone with reduced motion each world's line spans 0.89 of
+  its card. The footer's "Setup steps" and "Site summary" sit in its guide tip, which opens on
+  press. App logs from 12:16Z: no errors or warnings.
+- Sentinel crash notices (Mac console, reads completing after the release): nothing new for
+  regents.sh. The one regents.sh notice is still notice 5 of 8 Nov, fixed in v279.
+- Not proven: WebKit; signed-in pages walked live; the 320 fixes on a real phone.
