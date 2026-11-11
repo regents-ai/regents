@@ -4787,3 +4787,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   `platform/test/regents_web/controllers/legal_controller_test.exs` (`/%70rivacy`) fail with the
   KeyError without the fix.
 - The feature map and the public changes page say so.
+- Full check on `20334061` under the shared check lock (`MIX_TEST_PARTITION=_stk1111`), make exit 0
+  at 06:44Z: precommit with Credo (no issues) and Sobelow (no findings), server tests 656 (647
+  tests, 9 properties, 1 excluded), script tests 252, browser walk 159 in headless Chromium (WebKit
+  not run on the Mac), required fixes against ash-template `8ae64187`, the command list, identity
+  16, contracts 454 forge tests. Process sizes were not recorded on this run.
+- Not proven: WebKit, a real Privy sign-in and a real extension wallet; the Redeem buttons keep the
+  mark through the same island code, but no browser walk holds a Redeem press through a page update.
