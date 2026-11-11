@@ -4915,3 +4915,24 @@ changelog line moves from the published 6 Nov entry to this release's.
   today, with the same number of conflicts in each; nothing new.
 - Not proven: WebKit; real phones; the drawn cube was looked at in headless Chromium on the Mac's
   GPU (1440x900, 1920x1080, 2560x1440), not in other browsers.
+
+## 2026-11-11 — Released v281 (home, Stake and small fixes from the second blind walk of v280)
+
+- v281: commit `d504e6a9`, image `main-d504e6a913bf`, deployed 2026-11-11T13:31Z, rollback v280
+  `e52e46f5` (image `main-e52e46f5b4ad`). main moved `54b4c211` → `d504e6a9` as a fast-forward.
+- No migration in the change (the migrations folder is the same as v280's); the release command ran
+  clean.
+- Full check on `d504e6a9` (the entry above).
+- Live read in headless Chromium, signed out: `/capabilities.json` build commit `d504e6a9`; home,
+  /stake, /redeem, /redeem/gallery, /paper-pro-daily, the five product pages, /account, /app,
+  /about, /start, /docs and /literature answer 200 at 390 and 1280 with no sideways scroll and no
+  console errors. Home with the cube drawn: one link per product, no Products sheet, the hero's
+  button reads "Agent Tools", and the two columns end on the same line at 1280x900 and 1920x1080
+  with the usual 24 px under the name. On a 320 phone the brand and links share one row and home
+  and /redeem do not scroll sideways. /stake shows the Revenue and Supply sheet with each figure
+  once and the Regent Safe row; Keyfleet's page says no "crew"; the gallery's label reads "Pass"
+  in normal case; a Paper Pro Daily pick has its 1 px control edge. App logs 13:31Z–13:32Z (the
+  buffer Fly keeps): 100 lines, all info.
+- Sentinel crash notices (Mac console; its crash read completed at 13:33Z, after the release):
+  nothing new for regents.sh. The one regents.sh notice is still notice 5 of 8 Nov, fixed in v279.
+- Not proven: WebKit; signed-in pages walked live (local and tests only); real phones.
