@@ -251,6 +251,9 @@ function mount(form: Record<string, string>) {
   const view = page(form)
   const hook = {
     el: view.el,
+    // LiveView's page updates are not part of these tests; the browser walk keeps
+    // the mark through them.
+    js: () => ({ignoreAttributes: () => {}}),
     handleEvent: (event: string, callback: (payload: unknown) => void) => { events[event] = callback },
     pushEventTo: (_target: HTMLElement, event: string, payload: unknown) => {
       push(event, payload)

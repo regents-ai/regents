@@ -25,7 +25,6 @@ defmodule RegentsWeb.RedeemLive do
     TransactionReceipt
   }
 
-  alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
   alias RegentsWeb.{EventInput, OnchainSteps, TokenDisplay}
   alias RegentsWeb.ShellLive.Identity
@@ -804,7 +803,6 @@ defmodule RegentsWeb.RedeemLive do
               data-onchain-step={@signed_in && control.action}
               data-account-target={!@signed_in && "sign-in"}
               data-confirming={control.confirming?}
-              phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
               aria-describedby="redemption-step-hint"
             ><OnchainButton.label label={control.label} /></Regent.Primitives.button>
           </div>
@@ -845,7 +843,6 @@ defmodule RegentsWeb.RedeemLive do
       data-onchain-step={@signed_in && "claim"}
       data-account-target={!@signed_in && "sign-in"}
       data-confirming={@confirming}
-      phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
     ><OnchainButton.label label="Claim unlocked REGENT" /></Regent.Primitives.button>
     <.mismatch id="redemption-claim-mismatch" note={@note || nil} />
     <.activity id="redemption-claim-activity" sent={@sent} press={@press} myself={@myself} />

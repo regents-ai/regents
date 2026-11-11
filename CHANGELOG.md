@@ -4738,3 +4738,43 @@ changelog line moves from the published 6 Nov entry to this release's.
   check-contracts` exited 0: identity 16 passed, contracts 454 forge tests passed. Largest single
   process 579 MB.
 - Not proven: WebKit, a real Privy sign-in and a real extension wallet on the new card.
+
+## 2026-11-11 — Released v278 (Stake trade card, USDC top-up notice, regents-cli 1.10.24)
+
+- v278: commit `109c7a03`, image `main-109c7a03efbc`, created 2026-11-11T06:05:44Z, rollback v277
+  `00465677` (image `main-00465677d20f`). main moved `f03687a0` → `109c7a03` as a fast-forward.
+- No migration ("Migrations already up").
+- Full check on `446f2d30` (the entry above); `109c7a03` adds only its record.
+- Live read in headless Chromium, signed out: `/capabilities.json` build commit `109c7a03`; `/stake`
+  200 at 390 and 1280 with no sideways scroll and no console errors; `/agents.md` names
+  `regents-cli==1.10.24`; `/openapi.json` 5.1.0; `/healthz` and `/api/v1/health` ok. Logs from
+  06:05Z: a clean start and every request answered.
+- Sentinel crash notices: nothing new. The one regents.sh notice is still the 8 Nov KeyError in
+  `RegentsWeb.PublicDocuments.page/1` for an encoded path (`/%61pp`).
+- Not proven: WebKit, a real Privy sign-in and a real extension wallet on the new card.
+
+## 2026-11-11 — Stake: the wallet mark through page updates, and each claim's own words (branch `regents/usdc-notice-1109`)
+
+- The button pressed lost "Confirm in your wallet" on any page update while the wallet still had
+  the press: switching to Unstake and back, a new amount, or Approve becoming Stake. The
+  `phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}` on the Stake, Approve, claim and
+  Redeem buttons never took hold, because those buttons arrive in a page update once a wallet is
+  chosen, and LiveView 1.2.13 marks such an element mounted without running its command. The
+  OnchainSteps island now keeps its own mark itself: each press calls
+  `this.js().ignoreAttributes(button, ["data-awaiting-wallet"])` before marking, the same way the
+  tabs island keeps its fill (`f417ca09`). The five markers are gone from
+  `platform/lib/regents_web/live/stake_actions.ex` and `platform/lib/regents_web/live/redeem_live.ex`,
+  with the `JS` alias Redeem no longer uses. Every press still reaches the wallet; the mark is a
+  data attribute and CSS only, and nothing waits on it.
+- A claim that is not lit carries why in its name, the words a screen reader reads where others
+  see the glow. It said "(nothing to claim)" for every reason but a short treasury, an unreadable
+  Base and an empty REGENT reward pool included. Each reason now has its own words:
+  "(nothing to claim)", "(waiting on a treasury top-up)", "(waiting on a reward pool top-up)",
+  "(staking paused)", "(staking full)" and "(couldn’t read Base)". The catch-all is gone: every
+  reason the three claims can give (`Regents.Staking.Actions`) has its own clause.
+- Tests: the Stake browser walk "Stake keeps Confirm in your wallet through page updates while the
+  wallet has the press" holds the wallet's answer open, switches to Unstake and back, types a new
+  amount, presses again, then lets go; it fails without the island's keep (the mark is gone after
+  the switch). `platform/test/regents_web/stake_live_test.exs` "REGENT_POOL_SHORT" fails on the old
+  words. The island's unit tests give the fake hook a `js()` that does nothing.
+- The feature map and the public changes page say so.

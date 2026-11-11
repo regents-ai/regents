@@ -6,6 +6,8 @@ Stake now says "USDC rewards wait on a treasury top-up." under the claim buttons
 
 regents-cli 1.10.24 is current; install it with `uv tool install regents-cli==1.10.24`. The agent guide, the pairing guide and the agent start page ask for it.
 
+A Stake, Approve, claim or Redeem button you pressed keeps saying "Confirm in your wallet" until your wallet answers, even when you switch between Stake and Unstake or change the amount meanwhile. Pressing again still goes to your wallet. A claim that is not ready now says why in its own words, such as "waiting on a reward pool top-up" or "couldn’t read Base", where it used to say "nothing to claim".
+
 ## 2026-11-06
 
 Your agent reads your Credits and Points at the same addresses as on the other Regents sites: `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history` and `GET /api/v1/account/points`, with the browser tools `account_balances`, `account_credits_history` and `account_points`. Balances gives your Credits together with what your agent may spend, so the separate spending read and `regents protocol account budget` are gone. The `/api/agent/v1/credits/*` and `/api/agent/v1/points` reads are gone.

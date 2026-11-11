@@ -805,7 +805,6 @@ defmodule RegentsWeb.StakeActions do
                   data-approved={@approved}
                   data-onchain-step="approve"
                   data-confirming={OnchainSteps.confirming?(@presses, ~w(approve))}
-                  phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
                 ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
                 <Regent.Primitives.button
                   id="staking-primary"
@@ -814,7 +813,6 @@ defmodule RegentsWeb.StakeActions do
                   data-onchain-step={@signed_in && @next_step}
                   data-account-target={!@signed_in && "sign-in"}
                   data-confirming={OnchainSteps.confirming?(@presses, [@next_step])}
-                  phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
                 ><OnchainButton.label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
               </div>
 
@@ -933,7 +931,6 @@ defmodule RegentsWeb.StakeActions do
               data-onchain-step={@signed_in && claim.action}
               data-account-target={!@signed_in && "sign-in"}
               data-confirming={OnchainSteps.confirming?(@presses, [claim.action])}
-              phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
             ><OnchainButton.label label={claim.label} /><span class="visually-hidden">{claim_state(
               claim.reason
             )}</span></Regent.Primitives.button>
@@ -1119,8 +1116,13 @@ defmodule RegentsWeb.StakeActions do
   # The glow is a colour, so the same news is carried in the control's name for
   # anyone who does not see it.
   defp claim_state(nil), do: "(available)"
+  defp claim_state(:no_claimable_usdc), do: "(nothing to claim)"
+  defp claim_state(:no_regent_rewards), do: "(nothing to claim)"
   defp claim_state(:usdc_rewards_short), do: "(waiting on a treasury top-up)"
-  defp claim_state(_reason), do: "(nothing to claim)"
+  defp claim_state(:regent_rewards_not_funded), do: "(waiting on a reward pool top-up)"
+  defp claim_state(:staking_paused), do: "(staking paused)"
+  defp claim_state(:amount_above_capacity), do: "(staking full)"
+  defp claim_state(:chain_unavailable), do: "(couldn’t read Base)"
 
   # What the amount controls may fill in, or nothing at all when the figure they
   # would count from could not be read. Filling a box is not a wallet request,

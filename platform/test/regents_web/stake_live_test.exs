@@ -1160,6 +1160,23 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, "#staking-claim_usdc.stake-claim-ready")
   end
 
+  # Nothing earned and a reward pool too small to pay what was earned are
+  # different facts, so the two claims never say the same thing about themselves.
+  test "REGENT_POOL_SHORT: an empty REGENT reward pool does not read as nothing to claim",
+       %{conn: conn} do
+    Application.put_env(:regents, :test_staking_balances, %{
+      @wallet => %{usdc_claimable: "0", regent_funded: "0"}
+    })
+
+    view = stake_as_signer(conn, "regent-pool-short")
+    state = &(view |> element("##{&1} .visually-hidden") |> render() |> Floki.parse_fragment!() |> Floki.text())
+
+    refute has_element?(view, "#staking-claim_usdc.stake-claim-ready")
+    refute has_element?(view, "#staking-claim_regent.stake-claim-ready")
+    assert has_element?(view, ~s(#staking-claim_regent[data-onchain-step="claim_regent"]))
+    refute state.("staking-claim_regent") == state.("staking-claim_usdc")
+  end
+
   test "STAKE_FOR_SOMEONE: the step to another wallet exists only for the address acknowledged",
        %{conn: conn} do
     other = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe"

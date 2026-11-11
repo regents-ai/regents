@@ -690,6 +690,51 @@ test("Stake says the wallet declined when the approval is rejected", async ({pag
   await expect(page.locator("#staking-press-notice")).toHaveCount(0)
 })
 
+// A person reading the request in their wallet can still change the page. The
+// button they pressed keeps saying so until the wallet answers, and a press made
+// meanwhile reaches the wallet too.
+test("Stake keeps Confirm in your wallet through page updates while the wallet has the press", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+
+  const card = page.locator("#staking-actions")
+  const primary = page.locator("#staking-primary")
+  const waiting = primary.locator("[data-wallet-wait]")
+  await expect(primary).toHaveText(/Approve REGENT/)
+
+  const letGo = await holdWallet(page)
+  await primary.click()
+  await expect(primary).toHaveAttribute("data-awaiting-wallet", "true")
+  await expect(waiting).toBeVisible()
+
+  // Each switch, and the amount typed again, redraws the button's own step and
+  // words.
+  await page.getByRole("tab", {name: "Unstake", exact: true}).click()
+  await expect(card).toHaveAttribute("data-staking-mode", "unstake")
+  await expect(primary).toHaveAttribute("data-onchain-step", "unstake")
+  await expect(primary).toHaveAttribute("data-awaiting-wallet", "true")
+  await expect(waiting).toBeVisible()
+
+  await page.getByRole("tab", {name: "Stake", exact: true}).click()
+  await expect(card).toHaveAttribute("data-staking-mode", "stake")
+  await expect(primary).toHaveAttribute("data-awaiting-wallet", "true")
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await expect(primary).toHaveAttribute("data-onchain-step", "approve")
+  await expect(primary).toHaveAttribute("data-awaiting-wallet", "true")
+  await expect(waiting).toBeVisible()
+
+  await primary.click()
+  expect(await sendCount(page)).toBe(0)
+  await letGo()
+  await expect.poll(() => sendCount(page)).toBe(2)
+  await expect(primary).not.toHaveAttribute("data-awaiting-wallet")
+  await expect(waiting).toBeHidden()
+  await expect(primary).toHaveText(/Stake REGENT/)
+})
+
 test("Alternate stake requires fresh address consent and credits that address", async ({page}) => {
   await installWallet(page)
   await signIn(page)
@@ -1218,6 +1263,9 @@ async function installWallet(page: Page): Promise<void> {
               case "eth_call":
                 return `0x${"00".repeat(32)}`
               case "eth_sendTransaction": {
+                // A test may keep the request open, as a person reading it in
+                // their wallet does, until it lets go (`holdWallet`).
+                await (window as Window & {__ashStakingHeld?: Promise<void>}).__ashStakingHeld
                 const next = Number(sessionStorage.getItem(sendsKey) ?? "0") + 1
                 sessionStorage.setItem(sendsKey, String(next))
                 if (
@@ -1246,6 +1294,21 @@ async function installWallet(page: Page): Promise<void> {
     },
     {wallet, sendsKey},
   )
+}
+
+// Keeps the wallet's next requests open until the returned function lets them go.
+async function holdWallet(page: Page): Promise<() => Promise<void>> {
+  await page.evaluate(() => {
+    const seam = window as Window & {__ashStakingHeld?: Promise<void>; __ashStakingLetGo?: () => void}
+    seam.__ashStakingHeld = new Promise(resolve => (seam.__ashStakingLetGo = resolve))
+  })
+
+  return () =>
+    page.evaluate(() => {
+      const seam = window as Window & {__ashStakingHeld?: Promise<void>; __ashStakingLetGo?: () => void}
+      delete seam.__ashStakingHeld
+      seam.__ashStakingLetGo?.()
+    })
 }
 
 // The `index`th transaction the wallet sent: where it went and the call it made.
