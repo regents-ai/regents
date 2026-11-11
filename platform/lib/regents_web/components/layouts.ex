@@ -22,10 +22,6 @@ defmodule RegentsWeb.Layouts do
     """
   end
 
-  attr :theme_toggle, :boolean,
-    default: true,
-    doc: "false on the home page, which is always dark"
-
   attr :agent_tools, :boolean,
     default: false,
     doc: "true in the app, which has no bottom bar to hold the tools button"
@@ -41,7 +37,7 @@ defmodule RegentsWeb.Layouts do
     <footer class="regent-footer">
       <div class="regent-footer__social">
         <RegentsWeb.Components.RegentLinks.social_links />
-        <RegentsWeb.Components.Shell.theme_toggle :if={@theme_toggle} id="footer-theme-control" />
+        <RegentsWeb.Components.Shell.theme_toggle id="footer-theme-control" />
         <RegentsWeb.Components.AgentTools.button
           :if={@agent_tools}
           id="shell-agent-tools-button"

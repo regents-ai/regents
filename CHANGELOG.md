@@ -4959,7 +4959,7 @@ changelog line moves from the published 6 Nov entry to this release's.
   GitHub stay in the app pages' footer. "© 2026 Regents Labs" stands on its own at the window's
   bottom right on every width, outside the panel. `RegentsWeb.Layouts.document_links` holds the
   four document links that the panel's foot and every app page's footer share; the footer's
-  `social` option is removed. The header crown is
+  `social` and `theme_toggle` options are removed, since the home no longer uses that footer. The header crown is
   `platform/priv/static/images/brand/regents-crown-flat-dark-clear.svg`, the dark crown without
   its own ground, which showed as a square on the glass.
 - Shared pieces, kept generic for ash-template: the field's calm zone (`calm`, `calmAround`, `REST`)
