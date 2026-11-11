@@ -1,7 +1,7 @@
 import {animate, createScope, createTimer, utils, type Scope, type Timer} from "animejs"
 
 import {createCanvasIsland, type CanvasIslandController, type LoadRenderer} from "../canvas_island"
-import {REST, calmAround, type Cell, type Panel} from "../datascape/field"
+import {REST, calmAround, type Cell, type Panel, type Tube} from "../datascape/field"
 import type {DatascapeRenderer} from "../datascape/renderer"
 import {play, still} from "./motion/shared"
 
@@ -10,7 +10,7 @@ const OPENING = 750
 const ASSEMBLY = 2400
 /** How white a panel is as it opens, from 0 to 1. */
 const FLASH = 0.55
-/** How far a panel's opening may be held back, so a cell's panels do not all open at once, in milliseconds. */
+/** How far a panel's opening may be held back in the first picture, so its panels do not all open at once, in milliseconds. */
 const STAGGER = 500
 /** The first picture fills outward from its middle over this long, in milliseconds. */
 const FIRST_WAVE = 900
@@ -67,9 +67,9 @@ type DatascapeHook = {
  * visitor who asked for less motion, or whose browser cannot draw it, keeps
  * the still picture the server rendered.
  *
- * The field decides what is near enough to show and what the pointer rests on;
- * Anime.js brings each panel in, draws each tube, and grows the panel under
- * the pointer. It only ever changes numbers on the field's panels and tubes,
+ * The field decides what is near enough to show, says when each panel and tube
+ * comes into sight, and what the pointer rests on; Anime.js opens each panel and
+ * draws each tube as it comes into sight, and grows the panel under the pointer. It only ever changes numbers on the field's panels and tubes,
  * which the renderer reads when it draws.
  *
  * A root may hold a glass panel (`[data-datascape-glass]`) centred over the
@@ -92,28 +92,32 @@ export const Datascape = {
 
     const scope = createScope({root})
     this.scope = scope
-    /** Opens a cell's panels and draws its tube. */
-    scope.add("arrive", (cell: Cell) => {
-      // Everything in the first picture arrives before the field's clock has moved.
-      const wait = scape!.field.time === 0 ? cell.distance * FIRST_WAVE : 0
-      for (const panel of cell.panels) {
-        const large = panel.w > LARGE
-        animate(panel, {
-          grow: {to: 1, duration: large ? OPENING : OPENING / 2, ease: large ? "outBack(1.6)" : "outExpo"},
-          flash: {from: large ? FLASH : 0, to: 0, duration: OPENING, ease: "outQuad"},
-          assemble: {to: 1, duration: ASSEMBLY, ease: "outCubic"},
-          delay: wait + panel.seed * STAGGER,
-          onBegin: () => {
-            if (large) scape?.field.burst(panel, OPENING_SPARKS)
-          },
-        })
-      }
-      const tube = cell.tube
-      if (!tube) return
+    /**
+     * How long something this far from the picture's middle waits. The first picture, all in sight
+     * before the field's clock has moved, fills outward from its middle; whatever flying brings
+     * into sight later starts at once, so it is seen opening.
+     */
+    const wait = (distance: number, seed: number) =>
+      scape!.field.time === 0 ? distance * FIRST_WAVE + seed * STAGGER : 0
+    /** Opens a panel that has come into sight. */
+    scope.add("open", (panel: Panel, distance: number) => {
+      const large = panel.w > LARGE
+      animate(panel, {
+        grow: {to: 1, duration: large ? OPENING : OPENING / 2, ease: large ? "outBack(1.6)" : "outExpo"},
+        flash: {from: large ? FLASH : 0, to: 0, duration: OPENING, ease: "outQuad"},
+        assemble: {to: 1, duration: ASSEMBLY, ease: "outCubic"},
+        delay: wait(distance, panel.seed),
+        onBegin: () => {
+          if (large) scape?.field.burst(panel, OPENING_SPARKS)
+        },
+      })
+    })
+    /** Draws a tube whose cell has come into sight. */
+    scope.add("draw", (tube: Tube, distance: number) => {
       animate(tube, {
         drawn: tube.length,
         duration: (tube.length / TUBE_SPEED) * 1000,
-        delay: wait + tube.seed * STAGGER,
+        delay: wait(distance, tube.seed),
         ease: "inOutQuad",
       })
     })
@@ -219,7 +223,8 @@ export const Datascape = {
     const load: LoadRenderer<DatascapeRenderer> = async (canvas, size, onDeviceLost) => {
       const {createDatascapeRenderer} = await import("../datascape/renderer")
       return createDatascapeRenderer(canvas, size, onDeviceLost, {
-        arrive: cell => scope.methods.arrive!(cell),
+        open: (panel, distance) => scope.methods.open!(panel, distance),
+        draw: (tube, distance) => scope.methods.draw!(tube, distance),
         leave: cell => scope.methods.leave!(cell),
         rest: panel => scope.methods.rest!(panel),
         steer: next => {

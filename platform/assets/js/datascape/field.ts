@@ -13,7 +13,7 @@ import {CELL, KIND, LAYERS, cellContents, type Colour, type PanelSeed, type Tube
 export const SPEED = 2200
 /** A smaller picture flies slower: its longer side this many times a second, so panels still have time to open. */
 const PACE = 1.4
-/** How far ahead of the camera cells are brought in, in seconds of travel, so panels are opening as they come into view. */
+/** How far ahead of the camera cells are brought in, in seconds of travel, so each is ready before it comes into sight. */
 const LEAD = 0.45
 /** How long the camera takes to answer the pointer, in seconds. */
 const LAG = 0.55
@@ -53,11 +53,15 @@ export type Panel = PanelSeed & {
   hover: number
   /** The panel's own clock, in seconds. It runs faster under the pointer. */
   clock: number
+  /** Whether the picture has shown where the panel is, and so whoever watches was told to open it. */
+  seen: boolean
 }
 
 export type Tube = TubeSeed & {
   /** How much of the tube's length has been drawn, in world units. */
   drawn: number
+  /** Whether the picture has shown the tube's cell, and so whoever watches was told to draw it. */
+  seen: boolean
 }
 
 export type Cell = {
@@ -67,8 +71,6 @@ export type Cell = {
   readonly row: number
   readonly panels: Panel[]
   readonly tube: Tube | null
-  /** How far the cell's middle was from the camera when it arrived, as a share of the picture. */
-  readonly distance: number
 }
 
 export type Spark = {
@@ -84,9 +86,12 @@ export type Spark = {
   readonly colour: Colour
 }
 
-/** Whoever brings cells in, lets them go, and answers the pointer coming to rest on a panel. */
+/** Whoever opens panels and draws tubes as they come into sight, lets cells go, and answers the pointer coming to rest on a panel. */
 export type Watcher = {
-  arrive(cell: Cell): void
+  /** A panel has come into sight, this far from the picture's middle as a share of the picture. */
+  open(panel: Panel, distance: number): void
+  /** A tube's cell has come into sight, likewise. */
+  draw(tube: Tube, distance: number): void
   leave(cell: Cell): void
   /** The panel now under the pointer, or null once it is over none. */
   rest(panel: Panel | null): void
@@ -148,11 +153,16 @@ export function createField(watcher: Watcher): Field {
     return scatter / 4294967296
   }
 
-  const reach = (layer: number, width: number, height: number, margin: number) => {
+  /** Half of what a layer shows of the world, across and down. The picture leans, so its corners reach a little further than its sides. */
+  const shown = (layer: number, width: number, height: number) => {
     const scale = LAYERS[layer]!.depth * camera.zoom
-    // The picture leans, so its corners reach a little further than its sides.
-    const halfWidth = (width / 2 / scale) * 1.06 + CELL * margin
-    const halfHeight = (height / 2 / scale) * 1.06 + CELL * margin
+    return {scale, halfWidth: (width / 2 / scale) * 1.06, halfHeight: (height / 2 / scale) * 1.06}
+  }
+
+  const reach = (layer: number, width: number, height: number, margin: number) => {
+    const view = shown(layer, width, height)
+    const halfWidth = view.halfWidth + CELL * margin
+    const halfHeight = view.halfHeight + CELL * margin
     // It reaches further the way the camera is going, by as far as it will fly in the lead time.
     const aheadX = camera.vx * LEAD
     const aheadY = camera.vy * LEAD
@@ -173,7 +183,6 @@ export function createField(watcher: Watcher): Field {
     }
     for (let layer = 0; layer < LAYERS.length; layer++) {
       const near = reach(layer, width, height, MARGIN)
-      const scale = LAYERS[layer]!.depth * camera.zoom
       for (let row = near.top; row <= near.bottom; row++) {
         for (let column = near.left; column <= near.right; column++) {
           const key = `${layer}:${column}:${row}`
@@ -184,15 +193,34 @@ export function createField(watcher: Watcher): Field {
             layer,
             column,
             row,
-            panels: contents.panels.map(seed => ({...seed, layer, grow: 0, flash: 0, assemble: 0, hover: 0, clock: seed.seed * 40})),
-            tube: contents.tube && {...contents.tube, drawn: 0},
-            distance:
-              Math.hypot((column + 0.5) * CELL - camera.x, (row + 0.5) * CELL - camera.y) * scale / Math.max(width, height),
+            panels: contents.panels.map(seed => ({...seed, layer, grow: 0, flash: 0, assemble: 0, hover: 0, clock: seed.seed * 40, seen: false})),
+            tube: contents.tube && {...contents.tube, drawn: 0, seen: false},
           }
           cells.set(key, cell)
-          watcher.arrive(cell)
         }
       }
+    }
+  }
+
+  /** Tells whoever watches of each panel and tube the picture has just come to show, so it opens in sight and not before. */
+  const sight = (width: number, height: number) => {
+    const longest = Math.max(width, height)
+    for (const cell of cells.values()) {
+      const {scale, halfWidth, halfHeight} = shown(cell.layer, width, height)
+      const shows = (x: number, y: number, w: number, h: number) =>
+        Math.abs(x - camera.x) <= halfWidth + w && Math.abs(y - camera.y) <= halfHeight + h
+      const distance = (x: number, y: number) => (Math.hypot(x - camera.x, y - camera.y) * scale) / longest
+      for (const panel of cell.panels) {
+        if (panel.seen || !shows(panel.x, panel.y, panel.w, panel.h)) continue
+        panel.seen = true
+        watcher.open(panel, distance(panel.x, panel.y))
+      }
+      const tube = cell.tube
+      if (!tube || tube.seen) continue
+      const [x, y] = [(cell.column + 0.5) * CELL, (cell.row + 0.5) * CELL]
+      if (!shows(x, y, CELL / 2, CELL / 2)) continue
+      tube.seen = true
+      watcher.draw(tube, distance(x, y))
     }
   }
 
@@ -226,6 +254,7 @@ export function createField(watcher: Watcher): Field {
       camera.lean += ((-camera.vx / top) * LEAN - camera.lean) * answer
       camera.zoom += (1 - PULL * pace - camera.zoom) * answer
       sync(width, height)
+      sight(width, height)
       for (const cell of cells.values()) {
         for (const panel of cell.panels) panel.clock += dt * (1 + panel.hover * HURRY)
       }

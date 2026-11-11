@@ -3,7 +3,7 @@
 // the middle and never outruns its top speed, and the cells kept are the cells
 // in reach.
 import {describe, expect, it} from "vitest"
-import {REST, SPEED, calmAround, createField, steerSpeed, topSpeed, type Cell} from "../js/datascape/field"
+import {REST, SPEED, calmAround, createField, steerSpeed, topSpeed, type Field, type Panel} from "../js/datascape/field"
 import {CELL, LAYERS, cellContents, random, type TubePiece} from "../js/datascape/world"
 import {LEAVING} from "../js/hooks/datascape"
 
@@ -114,7 +114,7 @@ describe("telling whoever watches about steering", () => {
   const [width, height] = [1440, 900]
   const steered = (calm?: [number, number]) => {
     const told: boolean[] = []
-    const field = createField({arrive: () => {}, leave: () => {}, rest: () => {}, steer: steering => void told.push(steering)})
+    const field = createField({open: () => {}, draw: () => {}, leave: () => {}, rest: () => {}, steer: steering => void told.push(steering)})
     if (calm) field.calm = calm
     const at = (pointer: [number, number] | null) => {
       field.pointer = pointer
@@ -156,7 +156,7 @@ describe("telling whoever watches about steering", () => {
   it("steers nothing within LEAVING of an open glass panel's edges, and everywhere past the field's own zone once it is away", () => {
     const box: [number, number] = [704, 600]
     const told: boolean[] = []
-    const field = createField({arrive: () => {}, leave: () => {}, rest: () => {}, steer: steering => void told.push(steering)})
+    const field = createField({open: () => {}, draw: () => {}, leave: () => {}, rest: () => {}, steer: steering => void told.push(steering)})
     const at = (x: number) => {
       field.pointer = [x, 0]
       for (let step = 0; step < 3; step++) field.advance(1 / 60, width, height)
@@ -179,28 +179,42 @@ describe("telling whoever watches about steering", () => {
 })
 
 describe("the field", () => {
+  const [width, height] = [1280, 720]
+  /** Whether the picture shows where a panel is: the field's own rule, with its allowance for the lean. */
+  const inSight = (field: Field, panel: Panel) => {
+    const scale = LAYERS[panel.layer]!.depth * field.camera.zoom
+    return (
+      Math.abs(panel.x - field.camera.x) <= (width / 2 / scale) * 1.06 + panel.w &&
+      Math.abs(panel.y - field.camera.y) <= (height / 2 / scale) * 1.06 + panel.h
+    )
+  }
   const watched = () => {
-    const here = new Map<string, Cell>()
-    const field = createField({
-      arrive: cell => {
-        expect(here.has(cell.key)).toBe(false)
-        here.set(cell.key, cell)
+    const opened = new Set<Panel>()
+    const field: Field = createField({
+      open: panel => {
+        // Told once, and only once the picture shows it.
+        expect(opened.has(panel)).toBe(false)
+        expect(inSight(field, panel)).toBe(true)
+        opened.add(panel)
+      },
+      draw: tube => {
+        expect(tube.seen).toBe(true)
       },
       leave: cell => {
-        expect(here.delete(cell.key)).toBe(true)
+        for (const panel of cell.panels) opened.delete(panel)
       },
       rest: () => {},
       steer: () => {},
     })
-    return {field, here}
+    return {field, opened}
   }
 
   it("flies towards the edge the pointer is at, bringing cells in and letting them go", () => {
-    const {field, here} = watched()
-    const [width, height] = [1280, 720]
+    const {field, opened} = watched()
     field.advance(0, width, height)
-    const first = new Set(here.keys())
+    const first = new Set(field.cells.keys())
     expect(first.size).toBeGreaterThan(0)
+    expect(opened.size).toBeGreaterThan(0)
 
     field.pointer = [width / 2, 0]
     for (let step = 0; step < 600; step++) field.advance(1 / 60, width, height)
@@ -208,9 +222,10 @@ describe("the field", () => {
     expect(Math.abs(field.camera.y)).toBeLessThan(1)
     expect(Math.hypot(field.camera.vx, field.camera.vy)).toBeLessThanOrEqual(topSpeed(width, height))
 
-    // Whoever watches was told of exactly the cells the field still holds, and the first ones are long gone.
-    expect(new Set(here.keys())).toEqual(new Set(field.cells.keys()))
-    for (const key of first) expect(here.has(key)).toBe(false)
+    // The first cells are long gone, and whoever watches was told when each went: every panel still open is in a cell the field holds.
+    for (const key of first) expect(field.cells.has(key)).toBe(false)
+    const held = new Set([...field.cells.values()].flatMap(cell => cell.panels))
+    for (const panel of opened) expect(held.has(panel)).toBe(true)
     // Every cell the picture shows is there.
     for (const [layer, {depth}] of LAYERS.entries()) {
       const scale = depth * field.camera.zoom
@@ -220,10 +235,32 @@ describe("the field", () => {
     }
   })
 
+  it("opens each panel as the picture comes to show it, never before", () => {
+    const {field, opened} = watched()
+    field.advance(0, width, height)
+    field.pointer = [width / 2, 0]
+    let ahead = 0
+    for (let step = 0; step < 300; step++) {
+      field.advance(1 / 60, width, height)
+      for (const cell of field.cells.values()) {
+        for (const panel of cell.panels) {
+          // Whatever the picture shows has been told to open; a panel brought in ahead of it waits, unopened.
+          if (inSight(field, panel)) expect(opened.has(panel)).toBe(true)
+          if (!opened.has(panel)) {
+            expect(panel.seen).toBe(false)
+            ahead += 1
+          }
+        }
+      }
+    }
+    expect(ahead).toBeGreaterThan(0)
+  })
+
   it("finds the panel under the pointer once it has opened, and tells whoever watches", () => {
     const rested: (string | null)[] = []
     const field = createField({
-      arrive: () => {},
+      open: () => {},
+      draw: () => {},
       leave: () => {},
       rest: panel => void rested.push(panel && `${panel.x}:${panel.y}`),
       steer: () => {},

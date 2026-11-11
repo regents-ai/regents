@@ -5024,3 +5024,16 @@ changelog line moves from the published 6 Nov entry to this release's.
   footers keep them with Privacy policy and Terms of use. Home, /stake, /app, /about,
   /redeem and /docs 200.
 - Not run: WebKit and Firefox; real phones; signed-in pages walked live.
+
+## 2026-11-11 — Datascape: panels open as they come into sight (Sean, 11 Nov)
+
+- Sean: flying, new panels "are already loaded when seen". The field brought each cell in
+  ahead of the camera and its panels began opening at once, out of sight. Now the field
+  tells whoever watches when each panel, and each tube's cell, comes into the picture
+  (`Watcher.open`, `Watcher.draw`, in place of `arrive`), and the hook opens it then, so
+  it is seen opening at any speed. The first picture still fills outward from its middle.
+  Built in ash-template first; the three files are the template's, byte for byte.
+- A flat one-second wait was tried first: at full speed the camera crosses the window in
+  under a second, so the leading third of the picture stayed empty.
+- Check: `platform/assets/test/datascape.test.ts` ("opens each panel as the picture comes
+  to show it, never before").

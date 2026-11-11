@@ -1,6 +1,6 @@
 ## 2026-11-11
 
-The [homepage]({{origin}}/) is a field of moving panels you fly over by pointing towards an edge. Press any panel to bring up the menu in the middle, with Enter App, Agent Tools and the products. A couple of seconds later, flying again shrinks it away until your next press. About, the developer docs, the agent guide, Privacy policy and Terms of use are in the footer of the other pages, and the copyright sits at the bottom right.
+The [homepage]({{origin}}/) is a field of moving panels you fly over by pointing towards an edge; panels open as they come into view. Press any panel to bring up the menu in the middle, with Enter App, Agent Tools and the products. A couple of seconds later, flying again shrinks it away until your next press. About, the developer docs, the agent guide, Privacy policy and Terms of use are in the footer of the other pages, and the copyright sits at the bottom right.
 
 [Stake]({{origin}}/stake) is one card: a Stake and Unstake switch, the amount with 50% and Max, one button, then your position and rewards. Staking for someone else is the small "For a different address" choice under the amount.
 
