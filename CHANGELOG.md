@@ -5010,3 +5010,17 @@ changelog line moves from the published 6 Nov entry to this release's.
 - `RegentsWeb.Layouts.document_links` is folded back into `RegentsWeb.Layouts.product_links`,
   its one remaining caller. The agent copy of the home ends with the products and the copyright.
 - Check: `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`.
+
+## 2026-11-11 — Released v283 (the home's products move to the panel's foot)
+
+- Live: v283 at 22:33Z, image registry.fly.io/regents-sh-web:main-34bb3712ef21;
+  /capabilities.json build.commit 34bb3712. Rollback: v282, image
+  registry.fly.io/regents-sh-web:main-9105c534ae5b (9105c534). No migrations.
+- Full check on 34bb3712: exit 0 (657 server, 267 script and 155 browser tests, required
+  fixes, command list, identity 16, contracts 454).
+- Live read in headless Chromium with WebGPU, signed out: 37 checks held at 1440, 390 and
+  320. The menu's foot is the title "Products" over Autolaunch, Techtree, Patchbay,
+  Keyfleet and Protocol, and nothing else; no document links in the menu; /stake and /app
+  footers keep them with Privacy policy and Terms of use. Home, /stake, /app, /about,
+  /redeem and /docs 200.
+- Not run: WebKit and Firefox; real phones; signed-in pages walked live.
