@@ -5182,3 +5182,25 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Live read in headless Chromium with WebGPU at 1440, 390 and 320: five tiles in Patchbay,
   Autolaunch, Techtree, Keyfleet and Protocol colours; the tiles' canvas draws at its laid-out
   size once the panel opens and the row is on screen; no sideways scroll; no console errors.
+
+## 2026-11-12 — Gallery draws each pass as a small still
+
+- /redeem/gallery drew every pass with its full animated GIF (360x480, about 40 frames, 1.3 to
+  2.3 MB each) at about 10rem. Each pass is now drawn with its still: the GIF's first frame as a
+  360x480 WebP that keeps the card's rounded corners, read from
+  `https://media.regents.sh/images/regents-club-pass/<number>.webp`, beside the GIF. Pressing a
+  pass still opens its OpenSea page, where it plays. "My passes" uses the same stills. No pass
+  falls back to its GIF.
+- The words under the heading, and the page's description, now say a pass plays on OpenSea once
+  opened, since the grid no longer moves.
+- The 1,998 stills total 22.5 MB (median 9.4 KB, largest 38 KB), against 3.5 GB of GIFs.
+- First load, live v281 in headless Chromium, until the network is quiet: at 1280x900, 65 passes
+  and 121.6 MB of pictures in 3.7 s; at 1280x720, 60 passes and 111.9 MB in 3.6 s; at 390x844,
+  28 passes and 51.0 MB in 1.9 s. The same live page with each pass answered by its still from
+  this Mac: 0.69 MB, 0.63 MB and 0.30 MB. The time after release is not measured yet: these
+  answers came from disk, not the network.
+- Test: `platform/test/regents_web/redeem_gallery_live_test.exs` "PASS_STILLS" checks both grids
+  draw every pass's still and link its OpenSea page, without fixed words; it fails on the old GIF
+  links.
+- The stills are served by media.regents.sh from its v14 release (12 Nov), which this release
+  follows. No database migrations.

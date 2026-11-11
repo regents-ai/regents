@@ -67,7 +67,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
     "/redeem/gallery" =>
       {"Regents Club passes",
-       "All 1,998 Regents Club Digital Passes, animated as they appear on OpenSea."},
+       "All 1,998 Regents Club Digital Passes. Open one to see it animated on OpenSea."},
     "/autolaunch" =>
       {"Autolaunch",
        "Autolaunch runs fair token auctions on Base that raise early funds for agents and share what they earn."},
