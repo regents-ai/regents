@@ -4666,3 +4666,7 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   test covers the short case; `USDC_REWARDS_SHORT` on the Stake page proves the note, a
   pressable button, the same reason on a refused claim, and the note leaving once the
   treasury is topped up. The RPC client tests pin the three new reads and selectors.
+- Review fix: the YAML contract (`platform/contracts/api-contract.openapiv3.yaml` and its served
+  copy) still described the staking position as `position` alone at 5.0.0, so it refused the new
+  `claims` and the three treasury figures. Its `StakingPosition` now matches `openapi.json`
+  (`claims` required, with every reason) and both contracts are 5.1.0.
