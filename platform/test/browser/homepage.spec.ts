@@ -35,7 +35,7 @@ const assertNoOverflow = async (page: Page) => {
 const boxOf = (page: Page, selector: string) =>
   page.locator(selector).first().evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
 
-test("[U2] homepage is server-readable: name, line, actions, products and footer", async ({browser}) => {
+test("[U2] homepage is server-readable: name, line, actions and products", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
@@ -63,7 +63,7 @@ test("[U2] homepage is server-readable: name, line, actions, products and footer
   await expect(tabs.nth(4)).toHaveText("Protocol")
   await expect(tabs.nth(4)).toHaveAttribute("href", "/stake")
 
-  await expect(glass.getByRole("navigation", {name: "About Regents Labs"})).toBeVisible()
+  await expect(glass.getByRole("heading", {level: 2, name: "Products"})).toBeVisible()
   // The copyright stands outside the panel, at the window's bottom right.
   await expect(page.locator("#public-home > .home__copyright")).toHaveText("© 2026 Regents Labs")
   // Without scripts the picture is the server's still one, behind the panel.
@@ -226,7 +226,7 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
 })
 
 // The panel stands in the middle of the window and holds the whole page: its header, the
-// name and actions, the product tabs, then the footer, each inside its edges at every
+// name and actions, then the products at its foot, each inside its edges at every
 // width. A panel taller than the window scrolls the page while the picture stays put.
 for (const viewport of [
   {name: "mobile-320", width: 320, height: 568},
@@ -250,7 +250,7 @@ for (const viewport of [
     }
 
     const parts = await Promise.all(
-      [".rl-header", "#home-title", ".rl-hero-actions", ".rl-product-tabs", ".regent-footer"].map(selector =>
+      [".rl-header", "#home-title", ".rl-hero-actions", "#home-products-title", ".rl-product-tabs"].map(selector =>
         boxOf(page, selector),
       ),
     )
@@ -259,7 +259,7 @@ for (const viewport of [
       expect(box.right, `${viewport.name} part ${index} inside the panel`).toBeLessThanOrEqual(glass.right)
       if (index > 0) expect(box.top, `${viewport.name} part ${index} in order`).toBeGreaterThanOrEqual(parts[index - 1]!.top)
     }
-    for (const selector of [".rl-product-tab", ".regent-footer__links > a, .regent-footer__guide", ".rl-header-links > *"]) {
+    for (const selector of [".rl-product-tab", ".rl-header-links > *"]) {
       const boxes = await page.locator(selector).evaluateAll(elements =>
         elements.map(element => element.getBoundingClientRect().toJSON() as DOMRect),
       )
@@ -277,7 +277,7 @@ for (const viewport of [
     expect(copyright.bottom, `${viewport.name} copyright inside the window`).toBeLessThanOrEqual(viewport.height)
     expect(copyright.right, `${viewport.name} copyright inside the window`).toBeLessThanOrEqual(viewport.width)
     if (!fits) {
-      const foot = await boxOf(page, ".regent-footer")
+      const foot = await boxOf(page, ".home__foot")
       expect(foot.bottom, `${viewport.name} panel's foot ends above the copyright`).toBeLessThanOrEqual(copyright.top)
     }
     const still = await boxOf(page, ".home__still")
@@ -385,7 +385,7 @@ test("[U1] every panel control retains visible paired keyboard focus", async ({p
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
   expect([...reached]).toEqual(
-    expect.arrayContaining(["Enter App", "Techtree, opens in a new tab", "About", "Agent guide"]),
+    expect.arrayContaining(["Enter App", "Techtree, opens in a new tab", "Protocol"]),
   )
 })
 

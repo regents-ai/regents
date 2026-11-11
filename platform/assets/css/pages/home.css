@@ -98,6 +98,14 @@
     padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
   }
   .home__main :is(.rl-hero-actions, .rl-hero-agents) { margin-block-start: 0; }
+  /* The panel's foot, past a hairline: the product sites under their small title. */
+  .home__foot {
+    container-type: inline-size;
+    display: grid; gap: var(--space-2); min-width: 0;
+    padding: var(--rg-panel-padding);
+    border-block-start: 1px solid var(--rl-line);
+  }
+  .home__foot .rl-overline { color: var(--rl-muted); }
 
   /* The lab's name in the title face, then one plain line in body weight. */
   .rl-statement { display: grid; gap: var(--space-2); }

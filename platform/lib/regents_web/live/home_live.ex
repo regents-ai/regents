@@ -25,10 +25,6 @@ defmodule RegentsWeb.HomeLive do
 
     #{products}
 
-    ---
-
-    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")})
-
     © 2026 Regents Labs
     """
   end
@@ -102,15 +98,9 @@ defmodule RegentsWeb.HomeLive do
           <p class="rl-hero-agents">
             <.link navigate={~p"/start"}>Connect your agent from the command line</.link>
           </p>
-
-          <.product_tabs />
         </main>
 
-        <footer class="regent-footer">
-          <nav class="regent-footer__links" aria-label="About Regents Labs">
-            <RegentsWeb.Layouts.document_links />
-          </nav>
-        </footer>
+        <.products />
       </section>
 
       <AgentTools.dialog id="home-agent-tools" />
@@ -141,25 +131,29 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  defp product_tabs(assigns) do
+  # The panel's foot: the product sites and the staking page, under their small title.
+  defp products(assigns) do
     ~H"""
-    <nav class="rl-product-tabs" aria-label="Products">
-      <a
-        :for={{label, id, href, new_tab?} <- nav_links()}
-        id={"home-nav-#{id}"}
-        href={href}
-        target={new_tab? && "_blank"}
-        rel={new_tab? && "noopener noreferrer"}
-        class="rg-button rl-product-tab"
-        phx-hook="HolographicCard"
-        data-holo-crown="false"
-        data-holo-shine="0.65"
-      >
-        <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />
-        <span class="rg-button__label">
-          {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
-        </span>
-      </a>
+    <nav class="home__foot" aria-labelledby="home-products-title">
+      <h2 id="home-products-title" class="rl-overline">Products</h2>
+      <div class="rl-product-tabs">
+        <a
+          :for={{label, id, href, new_tab?} <- nav_links()}
+          id={"home-nav-#{id}"}
+          href={href}
+          target={new_tab? && "_blank"}
+          rel={new_tab? && "noopener noreferrer"}
+          class="rg-button rl-product-tab"
+          phx-hook="HolographicCard"
+          data-holo-crown="false"
+          data-holo-shine="0.65"
+        >
+          <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />
+          <span class="rg-button__label">
+            {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
+          </span>
+        </a>
+      </div>
     </nav>
     """
   end

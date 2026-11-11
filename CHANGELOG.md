@@ -5000,3 +5000,13 @@ changelog line moves from the published 6 Nov entry to this release's.
   (the buffer Fly keeps): no error lines.
 - Not proven: WebKit and Firefox; real phones; the drawn picture outside headless Chromium on the
   Mac's GPU and Sean's own Chrome; signed-in pages walked live.
+
+## 2026-11-11 — Home: the products move to the panel's foot (Sean, 11 Nov)
+
+- The four document links (Buy $REGENT, About, Developer docs, Agent guide) leave the home
+  panel. Its foot now holds the product tabs under a small title, "Products"; the name, its
+  line, Enter App, Agent Tools and the command-line link stay above the hairline. Every other
+  page's footer keeps the document links, Privacy policy and Terms of use.
+- `RegentsWeb.Layouts.document_links` is folded back into `RegentsWeb.Layouts.product_links`,
+  its one remaining caller. The agent copy of the home ends with the products and the copyright.
+- Check: `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`.

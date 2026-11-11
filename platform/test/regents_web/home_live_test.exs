@@ -44,7 +44,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
     assert attribute(html, "#home-content a.rl-hero-cta", "href") == ["/stake"]
 
-    assert attribute(html, ~s(nav[aria-label="Products"] a), "href") ==
+    assert attribute(html, "#home-glass nav.home__foot a", "href") ==
              ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake)
   end
 
@@ -66,23 +66,28 @@ defmodule RegentsWeb.HomeLiveTest do
     order =
       ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
         ["Agent Tools", "Connect your agent from the command line"] ++
-        ~w(Patchbay Autolaunch Techtree Keyfleet Protocol) ++
-        ["Buy $REGENT", "About", "Developer docs", "Agent guide"]
+        ["Products"] ++ ~w(Patchbay Autolaunch Techtree Keyfleet Protocol)
 
     assert in_order?(text(html, "#home-glass"), order)
     assert in_order?(HomeLive.agent_markdown(), order ++ ["© 2026 Regents Labs"])
 
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
-             [[attribute(html, "#home-content nav", "aria-label") |> hd()]]
+             [[text(html, "#home-glass .home__foot h2")]]
   end
 
-  test "the panel's foot lists the documents, and the copyright stands outside it", %{
+  test "the panel's foot is the products alone, and the copyright stands outside it", %{
     conn: conn
   } do
     {:ok, _view, html} = live(conn, "/")
 
-    assert attribute(html, "#home-glass .regent-footer a", "href") ==
-             [RegentsWeb.TokenLinks.buy(), "/about", "/docs", "/agents.md", "/llms.txt"]
+    assert attribute(html, "#home-glass .home__foot", "aria-labelledby") == [
+             "home-products-title"
+           ]
+
+    assert text(html, "#home-products-title") == "Products"
+
+    assert attribute(html, "#home-glass .home__foot a", "id") ==
+             Enum.map(~w(patchbay autolaunch techtree keyfleet protocol), &"home-nav-#{&1}")
 
     assert text(html, "#public-home > .home__copyright") == "© 2026 Regents Labs"
   end

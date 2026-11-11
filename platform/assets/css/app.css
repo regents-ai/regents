@@ -157,7 +157,7 @@ input:focus-visible,
   }
 }
 
-/* The footer of the home page and every public page (`Layouts.product_links/1`). */
+/* The footer of every public page and the app's pages (`Layouts.product_links/1`). */
 .regent-footer {
   display: flex;
   flex-wrap: wrap;

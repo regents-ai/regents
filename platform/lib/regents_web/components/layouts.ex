@@ -28,9 +28,10 @@ defmodule RegentsWeb.Layouts do
 
   @doc """
   The footer of every public page and the app's pages, the same on every Regent
-  site: the social links, the document links, the two legal documents and the
-  copyright. Below a public page it sits at the foot of the screen however short
-  the page is.
+  site: the social links, Buy $REGENT, the site's documents and its two plain-text
+  guides for agents, which open in the browser's popover from "Agent guide", the two
+  legal documents and the copyright. Below a public page it sits at the foot of the
+  screen however short the page is.
   """
   def product_links(assigns) do
     ~H"""
@@ -45,7 +46,21 @@ defmodule RegentsWeb.Layouts do
         />
       </div>
       <nav class="regent-footer__links" aria-label="About Regents Labs">
-        <.document_links />
+        <a href={RegentsWeb.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
+          Buy $REGENT
+        </a>
+        <a href={~p"/about"}>About</a>
+        <a href={~p"/docs"}>Developer docs</a>
+        <span class="rg-tip">
+          <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
+            Agent guide
+          </button>
+          <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
+            <p>Give your agent one of these.</p>
+            <a href={~p"/agents.md"}>Setup steps</a>
+            <a href={~p"/llms.txt"}>Site summary</a>
+          </div>
+        </span>
         <span class="regent-footer__legal">
           <a href={~p"/privacy"}>Privacy policy</a>
           <a href={~p"/terms"}>Terms of use</a>
@@ -53,31 +68,6 @@ defmodule RegentsWeb.Layouts do
       </nav>
       <p>© 2026 Regents Labs</p>
     </footer>
-    """
-  end
-
-  @doc """
-  Buy $REGENT, the site's documents and its two plain-text guides for agents,
-  which open in the browser's popover from "Agent guide". The footer and the home
-  page's panel both list them.
-  """
-  def document_links(assigns) do
-    ~H"""
-    <a href={RegentsWeb.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
-      Buy $REGENT
-    </a>
-    <a href={~p"/about"}>About</a>
-    <a href={~p"/docs"}>Developer docs</a>
-    <span class="rg-tip">
-      <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
-        Agent guide
-      </button>
-      <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
-        <p>Give your agent one of these.</p>
-        <a href={~p"/agents.md"}>Setup steps</a>
-        <a href={~p"/llms.txt"}>Site summary</a>
-      </div>
-    </span>
     """
   end
 end
