@@ -4977,3 +4977,26 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Tests: `platform/assets/test/datascape.test.ts` (calm zone, steering messages, the open and away
   zones), `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`
   and two home checks in `platform/test/browser/founder_shell.spec.ts` rewritten for the page.
+
+## 2026-11-11 — Released v282 (home becomes the datascape)
+
+- v282: commit `9105c534`, image `main-9105c534ae5b`, deployed 2026-11-11T22:01Z, rollback v281
+  `d504e6a9` (image `main-d504e6a913bf`). main moved `d47f47e8` → `9105c534` as a fast-forward
+  (branch `wt/home-datascape-1111`, kept).
+- No migration in the change (the migrations folder is the same as v281's); the release command ran
+  clean.
+- Full check on `9105c534`: 657 server, 267 script and 155 browser tests, required fixes against
+  ash-template `a66b51de`, command list, identity 16, contracts 454.
+- Live read in headless Chromium with WebGPU, signed out, 37 checks: `/capabilities.json` build
+  commit `9105c534`; home opens on the picture alone with the copyright at the window's bottom
+  right; a press on a panel in the picture brings the menu in; with the pointer at the edge it is
+  still up 1.5 s after the press and away by 3 s; it stays away with the pointer back in the
+  middle; Tab brings it up and focus inside holds it; the header has no App button; Enter App is
+  the larger button with its ring; the foot is the four document links; with reduced motion and
+  without JavaScript the menu stands open; with the page's script blocked the menu is away at 2 s
+  and there by 5 s; /stake and /app footers show Privacy policy and Terms of use; at 390 and 320 a
+  tap opens the menu, nothing scrolls sideways and the foot ends above the copyright; no console
+  errors. Home, /stake, /app, /about, /redeem and /docs answer 200. App logs after the release
+  (the buffer Fly keeps): no error lines.
+- Not proven: WebKit and Firefox; real phones; the drawn picture outside headless Chromium on the
+  Mac's GPU and Sean's own Chrome; signed-in pages walked live.
