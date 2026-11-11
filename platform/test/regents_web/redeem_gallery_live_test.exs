@@ -25,6 +25,30 @@ defmodule RegentsWeb.RedeemGalleryLiveTest do
     on_exit(fn -> Application.delete_env(:regents, :test_open_sea_handler) end)
   end
 
+  test "PASS_STILLS: both grids draw each pass's still and open its OpenSea page", %{conn: conn} do
+    {view, _session} = open_gallery(conn, "gallery-stills")
+
+    view |> element("#gallery-mine") |> render_click()
+    release_lookups()
+    render_async(view)
+
+    passes = view |> render() |> LazyHTML.from_fragment() |> LazyHTML.query(".gallery-pass")
+
+    ids =
+      Enum.map(passes, fn pass ->
+        [src] = pass |> LazyHTML.query("img") |> LazyHTML.attribute("src")
+        [href] = pass |> LazyHTML.query("a") |> LazyHTML.attribute("href")
+
+        [_, id] =
+          Regex.run(~r{^https://media\.regents\.sh/images/regents-club-pass/(\d+)\.webp$}, src)
+
+        assert String.ends_with?(href, "/" <> id)
+        id
+      end)
+
+    assert ids == Enum.map(Enum.concat([1123], 1..1998), &Integer.to_string/1)
+  end
+
   test "MY_PASSES: the account's own passes are found and shown", %{conn: conn} do
     {view, _session} = open_gallery(conn, "gallery-mine")
 

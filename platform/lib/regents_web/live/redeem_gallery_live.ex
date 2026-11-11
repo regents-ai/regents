@@ -10,8 +10,9 @@ defmodule RegentsWeb.RedeemGalleryLive do
   attr :mine, :boolean, required: true
   attr :owned, :map, required: true
 
-  # Every pass is drawn from the same media the collection's metadata names,
-  # and each one opens its own OpenSea page. The full grid stays in the page
+  # Every pass is drawn as its still: the first frame of the GIF the
+  # collection's metadata names, kept beside it on media.regents.sh. Each one
+  # opens its own OpenSea page, where it plays. The full grid stays in the page
   # while "My passes" is on, hidden, so switching back sends nothing again.
   # Hiding it also stops every pass still downloading there, so only the
   # visitor's own passes load; switching back resumes them.
@@ -24,7 +25,7 @@ defmodule RegentsWeb.RedeemGalleryLive do
         <p class="gallery-kicker">Regents Club</p>
         <h1 id="gallery-heading" tabindex="-1">All 1,998 passes</h1>
         <p class="gallery-lede">
-          Every Regents Club Digital Pass, animated as it appears on OpenSea. Redeem an Animata I or II Pass to receive one.
+          Every Regents Club Digital Pass. Open one to see it animated on OpenSea. Redeem an Animata I or II Pass to receive one.
         </p>
         <nav class="gallery-actions" aria-label="Regents Club">
           <.link navigate="/redeem" class="rg-button">
@@ -148,10 +149,10 @@ defmodule RegentsWeb.RedeemGalleryLive do
     <li id={@dom_id} class="gallery-pass">
       <a href={"#{@opensea}/#{@id}"} target="_blank" rel="noopener noreferrer">
         <img
-          src={"#{@media}/#{@id}.gif"}
+          src={"#{@media}/#{@id}.webp"}
           alt={"Regents Club ##{@id}"}
-          width="768"
-          height="1024"
+          width="360"
+          height="480"
           loading="lazy"
           decoding="async"
         />
