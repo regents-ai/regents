@@ -1,44 +1,17 @@
 defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Components.{AgentTools, RegentLinks, WorldCube}
+  alias RegentsWeb.Components.{AgentTools, RegentLinks}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
-
-  @staking_summary "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now."
 
   # The lab's one plain line under its name, on the page and in the agent copy.
   @mission "We build tools for people and their agents. REGENT stakers share in the revenue."
 
-  @how_it_works [
-    %{
-      id: "agents",
-      variant: 6,
-      title: "Agents",
-      copy: "One sign-in for your agent on every Regent site.",
-      link: "Agent guide",
-      href: "/agents.md"
-    },
-    %{
-      id: "tools",
-      variant: 0,
-      title: "Tools",
-      copy: "Your agent can use every page, in the browser or from the command line.",
-      link: "Developer docs",
-      href: "/docs"
-    }
-  ]
-
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
-    steps =
-      Enum.map_join(@how_it_works, "\n", fn step ->
-        "- **#{step.title}:** #{step.copy} [#{step.link}](#{PublicDocuments.url(step.href)})"
-      end)
-
-    worlds =
-      Enum.map_join(worlds(), "\n\n", fn world ->
-        cards = Enum.map_join(world.cards, "\n", &card_markdown/1)
-        "### #{world.name}\n\n#{world.line}\n\n#{cards}\n\n[Visit #{world.name}](#{world.href})"
+    products =
+      Enum.map_join(nav_links(), " · ", fn {label, _id, href, _new_tab?} ->
+        "[#{label}](#{absolute(href)})"
       end)
 
     """
@@ -48,15 +21,9 @@ defmodule RegentsWeb.HomeLive do
 
     [Enter App](#{PublicDocuments.url("/stake")}) · [Agent Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
 
-    #{worlds}
+    ## Products
 
-    ## Staking
-
-    Stake $REGENT. Share the lab's revenue. [Stake](#{PublicDocuments.url("/stake")})
-
-    ## Guides
-
-    #{steps}
+    #{products}
 
     ---
 
@@ -64,22 +31,9 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  # A room's pane in the agent copy. A product's panes are its proofs, so they say
-  # what each offers today, as its product page does.
-  defp card_markdown(%{status: status, link: nil} = card),
-    do: "- **#{card.title}** #{card.copy} (#{status_label(status)})"
-
-  defp card_markdown(%{status: status, link: link} = card),
-    do:
-      "- **#{card.title}** #{card.copy} (#{status_label(status)}: [#{link.label}](#{link.href}))"
-
-  defp card_markdown(%{label: label, title: title, copy: copy}),
-    do: "- **#{label} · #{title}** #{copy}"
-
-  defp card_markdown(%{label: label, copy: copy}),
-    do: "- #{label}: #{String.replace(copy, "\n", " ")}"
-
-  defp card_markdown(%{title: title, copy: copy}), do: "- **#{title}** #{copy}"
+  # The product sites are already full addresses; the staking page is this site's own.
+  defp absolute("/" <> _ = path), do: PublicDocuments.url(path)
+  defp absolute(url), do: url
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -88,72 +42,87 @@ defmodule RegentsWeb.HomeLive do
      |> assign(RegentsWeb.PublicDocuments.page("/"))}
   end
 
+  # The datascape fills the window behind one glass panel that holds the whole page.
+  # The picture flies when the pointer moves out past the panel, and the panel shrinks
+  # out of the way until the pointer comes back. Without WebGPU, or with less motion
+  # asked for, the server's still picture stays and the panel stays open.
   def render(assigns) do
+    assigns = assign(assigns, mission: @mission)
+
     ~H"""
-    <Regent.Structure.frame id="public-home" class="rl-root">
+    <div
+      id="public-home"
+      class="rl-root home"
+      phx-hook="Datascape"
+      phx-mounted={JS.ignore_attributes(["data-datascape-ready", "data-datascape-glass-state"])}
+    >
       <a class="shell-skip" href="#home-content">Skip to content</a>
-      <Regent.Structure.row rail={false}><.landing_header /></Regent.Structure.row>
+      <img
+        class="home__still"
+        src={~p"/images/animations/datascape.webp"}
+        width="1600"
+        height="900"
+        alt=""
+        aria-hidden="true"
+      />
+      <div id="home-stage" class="home__stage" phx-update="ignore">
+        <canvas id="home-canvas" data-datascape-canvas aria-hidden="true"></canvas>
+      </div>
 
-      <%!-- Two columns of panels. The lab's name stands top left and the hero top
-           right, staying in view while the sheets below the name scroll past it; a
-           phone reads the name, then the hero, then the sheets. A sheet below the
-           fold settles in the first time it is seen. --%>
-      <main id="home-content">
-        <Regent.Structure.row rail={false}>
-          <div class="rl-panels">
-            <.mission />
-            <div class="rl-column" data-home-column="hero">
-              <Regent.Structure.panel class="rl-panel rl-panel--hero" data-home-panel="hero">
-                <.hero />
-              </Regent.Structure.panel>
-            </div>
-            <div class="rl-column" data-home-column="sheets">
-              <.staking />
-              <.how_it_works />
-            </div>
+      <section
+        id="home-glass"
+        class="home__glass"
+        data-datascape-glass
+        phx-mounted={JS.ignore_attributes(["style"])}
+      >
+        <.landing_header />
+
+        <main id="home-content" class="home__main">
+          <div class="rl-statement">
+            <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
+            <p class="rl-statement__line">{@mission}</p>
           </div>
-        </Regent.Structure.row>
-      </main>
+          <div class="rl-hero-actions">
+            <a href={~p"/stake"} class="rg-button rl-hero-cta">
+              <span class="rg-button__label">Enter App</span>
+            </a>
+            <AgentTools.button
+              id="home-agent-tools-button"
+              dialog="home-agent-tools"
+              class="rg-button rg-button--secondary rg-button--no-arrow"
+            >
+              <span class="rg-button__label">Agent Tools</span>
+            </AgentTools.button>
+          </div>
+          <p class="rl-hero-agents">
+            <.link navigate={~p"/start"}>Connect your agent from the command line</.link>
+          </p>
 
-      <Regent.Structure.row rail={false}>
-        <RegentsWeb.Layouts.product_links theme_toggle={false} />
-      </Regent.Structure.row>
-    </Regent.Structure.frame>
+          <.product_tabs />
+        </main>
+
+        <RegentsWeb.Layouts.product_links theme_toggle={false} social={false} />
+      </section>
+
+      <AgentTools.dialog id="home-agent-tools" />
+    </div>
     """
   end
 
-  # The homepage is always dark, so its header always carries the dark crown.
+  # The homepage is always dark, so its header always carries the dark crown, here
+  # without the crown's own ground, which would show as a square on the glass.
   defp landing_header(assigns) do
     ~H"""
     <header class="rl-header" data-home-header>
       <div class="rl-header-bar">
         <.link navigate={~p"/"} class="rl-brand" aria-label="Regents Labs home">
           <img
-            src={~p"/images/brand/regents-crown-flat-dark.svg"}
+            src={~p"/images/brand/regents-crown-flat-dark-clear.svg"}
             width="252"
             height="186"
             alt=""
           />
         </.link>
-
-        <nav class="rl-product-tabs" aria-label="Products and staking">
-          <a
-            :for={{label, id, href, new_tab?} <- nav_links()}
-            id={"home-nav-#{id}"}
-            href={href}
-            target={new_tab? && "_blank"}
-            rel={new_tab? && "noopener noreferrer"}
-            class="rg-button rl-product-tab"
-            phx-hook="HolographicCard"
-            data-holo-crown="false"
-            data-holo-shine="0.65"
-          >
-            <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />
-            <span class="rg-button__label">
-              {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
-            </span>
-          </a>
-        </nav>
 
         <div class="rl-header-links">
           <RegentLinks.header_links id="home-token-menu" />
@@ -165,205 +134,27 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  defp mission(assigns) do
-    assigns = assign(assigns, line: @mission)
-
+  defp product_tabs(assigns) do
     ~H"""
-    <Regent.Structure.panel
-      class="rl-panel rl-panel--mission rg-support-panel"
-      id="home-mission"
-      data-home-panel="mission"
-      phx-hook="MotionCascade"
-      data-variant={RegentsWeb.Motion.standard("grid")}
-      aria-labelledby="home-title"
-    >
-      <p class="rl-eyebrow">Mission</p>
-      <div class="rl-statement">
-        <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
-        <p class="rl-statement__line">{@line}</p>
-      </div>
-    </Regent.Structure.panel>
-    """
-  end
-
-  defp staking(assigns) do
-    ~H"""
-    <Regent.Structure.panel
-      class="rl-panel rl-panel--staking"
-      id="home-staking"
-      data-home-panel="staking"
-      phx-hook="MotionCascade"
-      data-variant={RegentsWeb.Motion.standard("grid")}
-      aria-labelledby="home-staking-title"
-    >
-      <h2 id="home-staking-title" class="rl-eyebrow">Staking</h2>
-      <div class="rl-staking">
-        <span class="rl-staking__tile">
-          <img src={~p"/images/brand/regents-crown-flat-dark.svg"} width="252" height="186" alt="" />
+    <nav class="rl-product-tabs" aria-label="Products">
+      <a
+        :for={{label, id, href, new_tab?} <- nav_links()}
+        id={"home-nav-#{id}"}
+        href={href}
+        target={new_tab? && "_blank"}
+        rel={new_tab? && "noopener noreferrer"}
+        class="rg-button rl-product-tab"
+        phx-hook="HolographicCard"
+        data-holo-crown="false"
+        data-holo-shine="0.65"
+      >
+        <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />
+        <span class="rg-button__label">
+          {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
         </span>
-        <p class="rl-staking__line">Stake $REGENT. Share the lab's revenue.</p>
-        <a href={~p"/stake"} class="rg-button rl-staking__link">
-          <span class="rg-button__label">Stake</span>
-        </a>
-      </div>
-    </Regent.Structure.panel>
+      </a>
+    </nav>
     """
-  end
-
-  defp how_it_works(assigns) do
-    assigns = assign(assigns, steps: @how_it_works)
-
-    ~H"""
-    <Regent.Structure.panel
-      class="rl-panel rl-panel--how"
-      id="home-how"
-      data-home-panel="how"
-      phx-hook="MotionCascade"
-      data-variant={RegentsWeb.Motion.standard("grid")}
-      aria-labelledby="home-how-title"
-    >
-      <h2 id="home-how-title" class="rl-eyebrow">Guides</h2>
-      <ul class="rl-how">
-        <li :for={step <- @steps} class="rl-how__step">
-          <.card_diagram id={"home-how-#{step.id}"} variant={step.variant} />
-          <h3 class="rl-how__title">{step.title}</h3>
-          <p class="rl-mono">{step.copy}</p>
-          <a href={step.href} class="rg-button rg-button--secondary rl-panel-link">
-            <span class="rg-button__label">{step.link}</span>
-          </a>
-        </li>
-      </ul>
-    </Regent.Structure.panel>
-    """
-  end
-
-  defp hero(assigns) do
-    ~H"""
-    <section
-      id="home-hero"
-      class="rl-hero rl-hero--home"
-      phx-hook="CubeLabel"
-    >
-      <div class="rl-hero-copy">
-        <div class="rl-hero-actions">
-          <a href={~p"/stake"} class="rg-button rl-hero-cta">
-            <span class="rg-button__label">Enter App</span>
-          </a>
-          <AgentTools.button
-            id="home-agent-tools-button"
-            dialog="home-agent-tools"
-            class="rg-button rg-button--secondary rg-button--no-arrow"
-          >
-            <span class="rg-button__label">Agent Tools</span>
-          </AgentTools.button>
-        </div>
-        <p class="rl-hero-agents">
-          <.link navigate={~p"/start"}>Connect your agent from the command line</.link>
-        </p>
-      </div>
-      <AgentTools.dialog id="home-agent-tools" />
-      <p id="home-cube-label" class="rl-cube-label" phx-update="ignore" aria-hidden="true">
-        Human Browsing
-      </p>
-      <WorldCube.cube id="home-worlds" label="Regents Labs products" worlds={worlds()} />
-    </section>
-    """
-  end
-
-  # The cube's six worlds, each behind the face whose room was drawn for it.
-  @product_faces %{"autolaunch" => 0, "techtree" => 1, "patchbay" => 2, "keyfleet" => 5}
-
-  # Three panes of glass hang in each room. Patchbay, Autolaunch and Techtree hang
-  # the three proofs from their product; the other rooms have panes of their own.
-  @keyfleet_cards [
-    %{
-      title: "A Key is a seat.",
-      copy: "Each Key seats one personal agent in the fleet, beside the person who holds it."
-    },
-    %{
-      title: "Rooms for the work.",
-      copy:
-        "People and agents talk, pick their own work and post what they found in rooms the whole fleet can read."
-    },
-    %{
-      title: "Notebooks the fleet keeps.",
-      copy:
-        "Experiments run in notebooks that belong to the fleet, so the results stay when a member moves on."
-    }
-  ]
-
-  @staking_cards [
-    %{label: "$REGENT", title: "Stake in the work.", copy: @staking_summary},
-    %{
-      label: "USDC",
-      title: "Shared by stake.",
-      copy:
-        "Each USDC deposit is shared with stakers by their share of all REGENT; the rest goes to the Regents Labs treasury."
-    },
-    %{
-      label: "Your wallet",
-      title: "Signed by you.",
-      copy:
-        "Stake, unstake, claim and compound require your wallet signature. No return is guaranteed."
-    }
-  ]
-
-  @x_posts [
-    %{
-      label: "@regents_sh · 7 Oct 2026",
-      copy: "join a fleet or back a fleet.\ndon't get sidelined on 2027 discoveries"
-    },
-    %{
-      label: "@regents_sh · 29 Sep 2026",
-      copy:
-        "the meta is going outside blockchain to empower the new always-on personal agents\n+ bringing them back to crypto with shared treasuries and participation in agent fleets/swarms"
-    },
-    %{
-      label: "@regents_sh · 26 Sep 2026",
-      copy:
-        "Hermes? Muse? Grok Bot?\nall of them can ask other agents for help with any task at patchbay.help\nstack overflow for personal agents"
-    }
-  ]
-
-  defp worlds do
-    proofs = Map.new(products(), &{&1.anchor, &1.proofs})
-
-    products =
-      for product <- hero_products() do
-        %{
-          face: Map.fetch!(@product_faces, product.name),
-          name: String.capitalize(product.name),
-          line: product.line,
-          href: product.site,
-          cards: room_cards(product.name, proofs)
-        }
-      end
-
-    products ++
-      [
-        %{
-          face: 4,
-          name: "Staking",
-          line: @staking_summary,
-          href: PublicDocuments.url("/stake"),
-          cards: @staking_cards
-        },
-        %{
-          face: 3,
-          name: "Regents on X",
-          line: "News from the lab, as it happens.",
-          href: "https://x.com/regents_sh",
-          cards: @x_posts
-        }
-      ]
-  end
-
-  defp room_cards("keyfleet", _proofs), do: @keyfleet_cards
-
-  defp room_cards(name, proofs) do
-    for proof <- Map.fetch!(proofs, name) do
-      Map.take(proof, [:title, :copy, :status, :link])
-    end
   end
 
   # What a proof's product offers today, in the product's own words, and where to

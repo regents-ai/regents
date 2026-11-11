@@ -248,10 +248,13 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
 
   /**
    * A retreat the island does not come back from: the GPU is not going to draw this,
-   * and the flag says so, so the page can show what the server rendered.
+   * so everything the island watches with, and whatever steers the picture, lets go
+   * now, and the flag says so, so the page can show what the server rendered.
    */
   const retire = () => {
     retired = true
+    release?.()
+    release = undefined
     retreat()
     root.dataset[kind.readyFlag] = "false"
   }

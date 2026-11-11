@@ -1,15 +1,8 @@
 import {expect, test} from "./support/offline"
 
-const focusViewports = [
-  {name: "desktop", width: 1440, height: 900},
-  {name: "review-1024x768", width: 1024, height: 768},
-  {name: "mobile-320", width: 320, height: 720},
-  {name: "mobile-390", width: 390, height: 844},
-  {name: "short-landscape", width: 844, height: 390},
-  {name: "zoom-200", width: 640, height: 900},
-]
+type Page = import("@playwright/test").Page
 
-const waitForHomepage = async (page: import("@playwright/test").Page) => {
+const waitForHomepage = async (page: Page) => {
   const home = page.locator("#public-home")
   await expect(home).toBeVisible()
   await page.evaluate(async () => {
@@ -23,75 +16,70 @@ const waitForHomepage = async (page: import("@playwright/test").Page) => {
   return home
 }
 
-// The six worlds in the order the hero lists them, each with the cube face its room is behind.
-const worlds = [
-  {face: "2", name: "Patchbay", site: "https://patchbay.help"},
-  {face: "0", name: "Autolaunch", site: "https://autolaunch.sh"},
-  {face: "1", name: "Techtree", site: "https://techtree.sh"},
-  {face: "5", name: "Keyfleet", site: "https://keyfleet.ai"},
-  {face: "4", name: "Staking", site: /\/stake$/},
-  {face: "3", name: "Regents on X", site: "https://x.com/regents_sh"},
+// The four product sites, in the order the panel's tabs list them before Protocol.
+const products = [
+  {name: "Patchbay", site: "https://patchbay.help"},
+  {name: "Autolaunch", site: "https://autolaunch.sh"},
+  {name: "Techtree", site: "https://techtree.sh"},
+  {name: "Keyfleet", site: "https://keyfleet.ai"},
 ]
 
-// Where the hero's panel is at least this wide, the list of worlds stands three across,
-// in two rows; in a narrower panel the worlds read as one column.
-const WORLD_GRID_MIN_WIDTH = 768
-const worldRowsIn = async (page: import("@playwright/test").Page) =>
-  (await page.locator(".rl-hero--home").evaluate(element => element.clientWidth)) >=
-  WORLD_GRID_MIN_WIDTH
-    ? 2
-    : 6
-
-// The list of worlds is the hero wherever the cube is not drawn. A visitor who asks for
-// less motion always gets it, so a test that reads the list asks for that first.
-const keepTheListOfWorlds = (page: import("@playwright/test").Page) =>
-  page.emulateMedia({reducedMotion: "reduce"})
-
-const assertNoOverflow = async (page: import("@playwright/test").Page) => {
+const assertNoOverflow = async (page: Page) => {
   expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true)
+    await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+  ).toBe(0)
 }
 
-test("[U2] homepage is server-readable and lists all six worlds", async ({browser}) => {
+const boxOf = (page: Page, selector: string) =>
+  page.locator(selector).first().evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
+
+test("[U2] homepage is server-readable: name, line, actions, products and footer", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
 
-  // The lab's name stands once, in its own panel; the cube's panel opens on its buttons.
+  const glass = page.locator("#home-glass")
   await expect(page.getByRole("heading", {level: 1})).toHaveText("Regents Labs")
-  await expect(page.locator("#home-mission").getByRole("heading", {level: 1})).toBeVisible()
-  await expect(page.locator(".rl-hero-copy")).not.toContainText("Regents Labs")
+  await expect(glass.locator(".rl-statement__line")).toHaveText(
+    "We build tools for people and their agents. REGENT stakers share in the revenue.",
+  )
+  await expect(glass.getByRole("link", {name: "Enter App"})).toHaveAttribute("href", "/stake")
+  await expect(glass.getByRole("button", {name: "Agent Tools"}).first()).toBeVisible()
+  await expect(glass.getByRole("link", {name: "Connect your agent from the command line"})).toHaveAttribute(
+    "href",
+    "/start",
+  )
 
-  const listed = page.locator("#home-worlds .world-cube__world")
-  await expect(listed).toHaveCount(6)
-  expect(
-    await listed.evaluateAll(elements =>
-      elements.map(element => (element as HTMLElement).dataset.world),
-    ),
-  ).toEqual(worlds.map(world => world.face))
-
-  // Every world is open, so every one carries a live new-tab link.
-  for (const {face, name, site} of worlds) {
-    const world = page.locator(`#home-worlds [data-world="${face}"]`)
-    await expect(world.getByRole("heading", {level: 3})).toHaveText(name)
-    const link = world.locator("a")
-    await expect(link).toHaveText(`Visit ${name}, opens in a new tab`)
-    await expect(link).toHaveAttribute("href", site)
-    await expect(link).toHaveAttribute("target", "_blank")
-    await expect(link).toHaveAttribute("rel", "noopener noreferrer")
+  const tabs = glass.getByRole("navigation", {name: "Products"}).getByRole("link")
+  await expect(tabs).toHaveCount(5)
+  for (const [index, {name, site}] of products.entries()) {
+    await expect(tabs.nth(index)).toHaveText(`${name}, opens in a new tab`)
+    await expect(tabs.nth(index)).toHaveAttribute("href", site)
+    await expect(tabs.nth(index)).toHaveAttribute("target", "_blank")
+    await expect(tabs.nth(index)).toHaveAttribute("rel", "noopener noreferrer")
   }
+  await expect(tabs.nth(4)).toHaveText("Protocol")
+  await expect(tabs.nth(4)).toHaveAttribute("href", "/stake")
+
+  await expect(glass.getByRole("navigation", {name: "About Regents Labs"})).toBeVisible()
+  // Without scripts the picture is the server's still one, behind the panel.
+  await expect(page.locator(".home__still")).toBeVisible()
+  await expect(page.locator("#home-canvas")).toBeHidden()
 
   await context.close()
 })
 
-// Each homepage header control leads to its place, by keyboard and at phone width.
-for (const {name, width, height} of [focusViewports[0], focusViewports[3]]) {
-  test(`[R12] homepage header tabs and App lead to their places at ${name}`, async ({page}) => {
+// The panel's product tabs and its App button lead to their places, by keyboard and at
+// phone width.
+for (const {name, width, height} of [
+  {name: "desktop", width: 1440, height: 900},
+  {name: "mobile-390", width: 390, height: 844},
+]) {
+  test(`[R12] homepage product tabs and App lead to their places at ${name}`, async ({page}) => {
     await page.setViewportSize({width, height})
 
     await page.goto("/")
-    const tabs = page.getByRole("navigation", {name: "Products and staking"}).getByRole("link")
+    const tabs = page.getByRole("navigation", {name: "Products"}).getByRole("link")
     await expect(tabs).toHaveText([
       "Patchbay, opens in a new tab",
       "Autolaunch, opens in a new tab",
@@ -124,20 +112,25 @@ test("[U1][U2] the mission line retains its sentence case", async ({page}) => {
   await page.goto("/")
   await waitForHomepage(page)
 
-  const line = page.locator("#home-mission .rl-statement__line")
+  const line = page.locator("#home-content .rl-statement__line")
   await expect(line).toHaveText(
     "We build tools for people and their agents. REGENT stakers share in the revenue.",
   )
   expect(await line.evaluate(element => getComputedStyle(element).textTransform)).toBe("none")
 })
 
-test("[U2] homepage settles immediately for reduced motion", async ({browser}) => {
+// With less motion asked for, the picture stays the server's still one and the panel
+// stays open at its full size.
+test("[U2] homepage keeps the still picture and an open panel for reduced motion", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce"})
   const page = await context.newPage()
   await page.goto("/")
   await waitForHomepage(page)
-  await expect(page.locator(".rl-hero-copy")).toBeVisible()
-  await expect(page.locator("#home-worlds .world-cube__world")).toHaveCount(6)
+  await expect(page.locator(".phx-connected").first()).toBeAttached()
+  await expect(page.locator(".home__still")).toBeVisible()
+  await expect(page.locator("#public-home")).toHaveAttribute("data-datascape-glass-state", "open")
+  await expect(page.locator("#public-home")).not.toHaveAttribute("data-datascape-ready", "true")
+  expect(await page.locator("#home-glass").evaluate(element => getComputedStyle(element).transform)).toBe("none")
   await context.close()
 })
 
@@ -167,7 +160,8 @@ test("[U3] the public landing renders the same dark page for every saved palette
 
   const [none, light, dark] = await Promise.all([landing(), landing("light"), landing("dark")])
 
-  const main = (html: string) => stableRender(html).match(/<main>[\s\S]*?<\/main>/)?.[0]
+  const main = (html: string) => stableRender(html).match(/<main[\s\S]*?<\/main>/)?.[0]
+  expect(main(dark)).toContain('id="home-content"')
   expect(main(light)).toBe(main(dark))
   expect(main(none)).toBe(main(dark))
 
@@ -211,103 +205,56 @@ test("the landing keeps its opted-in display face for headings", async ({page}) 
   ).toContain("Geist Serif")
 })
 
-// The founder's hero, a panel of the page: the words stand above the cube's stage at every
-// width, and the worlds come under the words.
-test("[U1][U2] the hero sets its words above the cube's stage", async ({page}) => {
-  const boxOf = (selector: string) =>
-    page.locator(selector).evaluate(element => {
-      const box = element.getBoundingClientRect()
-      return {
-        bottom: box.bottom,
-        left: box.left,
-        right: box.right,
-        top: box.top,
-        width: box.width,
-      }
-    })
-
-  for (const {width, height} of [
-    {width: 1440, height: 900},
-    {width: 1024, height: 900},
-    {width: 390, height: 844},
-    {width: 375, height: 844},
-  ]) {
-    await test.step(`${width} wide`, async () => {
-      await page.setViewportSize({width, height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      const hero = await boxOf(".rl-hero")
-      const words = await boxOf(".rl-hero-copy")
-      const stage = await boxOf("#home-worlds")
-      const listed = await boxOf("#home-worlds .world-cube__worlds")
-
-      expect(words.left).toBeGreaterThanOrEqual(hero.left)
-      expect(stage.left, "the stage lines up with the words").toBeLessThanOrEqual(words.left)
-      expect(stage.top, "the stage stands under the words").toBeGreaterThanOrEqual(words.bottom)
-      expect(stage.right, "and crosses the midline").toBeGreaterThan(hero.left + hero.width / 2)
-      expect(stage.right).toBeLessThanOrEqual(hero.right)
-      expect(listed.top, "the worlds come under the words").toBeGreaterThanOrEqual(words.bottom)
-      expect(listed.bottom, "and stay on the stage").toBeLessThanOrEqual(stage.bottom)
-    })
-  }
-})
-
+// The panel stands in the middle of the window and holds the whole page: its header, the
+// name and actions, the product tabs, then the footer, each inside its edges at every
+// width. A panel taller than the window scrolls the page while the picture stays put.
 for (const viewport of [
-  {name: "mobile-320", width: 320, height: 720},
+  {name: "mobile-320", width: 320, height: 568},
   {name: "mobile-390", width: 390, height: 844},
   {name: "tablet-768", width: 768, height: 1024},
-  {name: "desktop", width: 1440, height: 1000},
+  {name: "desktop", width: 1440, height: 900},
 ]) {
   test(`[U1][U2][U3] homepage fits ${viewport.name} with usable focus targets`, async ({page}, testInfo) => {
     await page.setViewportSize({width: viewport.width, height: viewport.height})
-    await keepTheListOfWorlds(page)
     await page.goto("/")
     await waitForHomepage(page)
     await assertNoOverflow(page)
 
-    const listed = page.locator("#home-worlds .world-cube__world")
-    await expect(listed).toHaveCount(6)
-    const boxes = await listed.evaluateAll(elements =>
-      elements.map(element => {
-        const box = element.getBoundingClientRect()
-        return {height: box.height, left: box.left, right: box.right, top: box.top}
-      }),
-    )
-    expect(boxes.every(box => box.height >= 44 && box.left >= 0 && box.right <= viewport.width)).toBe(true)
-
-    // No world's name runs under its Visit link.
-    const covered = await listed.evaluateAll(elements =>
-      elements.filter(element => {
-        const range = document.createRange()
-        range.selectNodeContents(element.querySelector("h3")!)
-        const name = range.getBoundingClientRect()
-        const link = element.querySelector("a")!.getBoundingClientRect()
-        return name.right > link.left && name.left < link.right && name.top < link.bottom && name.bottom > link.top
-      }).length,
-    )
-    expect(covered, `${viewport.name} names under a link`).toBe(0)
-
-    // The brand and the header links share the header's first row.
-    const middles = await page.evaluate(() =>
-      [".rl-brand", ".rl-header-links"].map(selector => {
-        const box = document.querySelector(selector)!.getBoundingClientRect()
-        return box.top + box.height / 2
-      }),
-    )
-    expect(Math.abs(middles[0] - middles[1]), `${viewport.name} header rows`).toBeLessThan(8)
-
-    // Three across where the frame is wide enough, one column below that.
-    expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(await worldRowsIn(page))
-
-    // In one column each world's line runs under its name and link, across the card.
-    if ((await worldRowsIn(page)) === 6) {
-      const lineShares = await listed.evaluateAll(elements =>
-        elements.map(element => element.querySelector("p")!.getBoundingClientRect().width / element.clientWidth),
-      )
-      expect(lineShares.every(share => share > 0.8), `${viewport.name} world lines ${lineShares}`).toBe(true)
+    const glass = await boxOf(page, "#home-glass")
+    expect(Math.abs(glass.left - (viewport.width - glass.right)), "centred across").toBeLessThan(2)
+    expect(glass.width).toBeLessThanOrEqual(Math.min(704, viewport.width - 32) + 1)
+    if (glass.height < viewport.height) {
+      expect(Math.abs(glass.top - (viewport.height - glass.bottom)), "centred down").toBeLessThan(2)
     }
+
+    const parts = await Promise.all(
+      [".rl-header", "#home-title", ".rl-hero-actions", ".rl-product-tabs", ".regent-footer"].map(selector =>
+        boxOf(page, selector),
+      ),
+    )
+    for (const [index, box] of parts.entries()) {
+      expect(box.left, `${viewport.name} part ${index} inside the panel`).toBeGreaterThanOrEqual(glass.left)
+      expect(box.right, `${viewport.name} part ${index} inside the panel`).toBeLessThanOrEqual(glass.right)
+      if (index > 0) expect(box.top, `${viewport.name} part ${index} in order`).toBeGreaterThanOrEqual(parts[index - 1]!.top)
+    }
+    for (const selector of [".rl-product-tab", ".regent-footer a", ".rl-header-links > *"]) {
+      const boxes = await page.locator(selector).evaluateAll(elements =>
+        elements.map(element => element.getBoundingClientRect().toJSON() as DOMRect),
+      )
+      expect(
+        boxes.every(box => box.left >= glass.left - 0.5 && box.right <= glass.right + 0.5),
+        `${viewport.name} ${selector} inside the panel`,
+      ).toBe(true)
+    }
+
+    // The whole panel can be scrolled into view, and the picture stays put behind it.
+    await page.evaluate(() => window.scrollTo(0, document.scrollingElement!.scrollHeight))
+    const scrolled = await boxOf(page, "#home-glass")
+    expect(scrolled.bottom, `${viewport.name} panel's foot reachable`).toBeLessThanOrEqual(viewport.height + 1)
+    const still = await boxOf(page, ".home__still")
+    expect(still.top).toBe(0)
+    expect(still.height).toBe(viewport.height)
+    await page.evaluate(() => window.scrollTo(0, 0))
 
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
@@ -323,209 +270,35 @@ for (const viewport of [
 
 // Under the buttons, one line sends a person whose agent works from the command line
 // to the steps for connecting it.
-test("[U2] the hero points agents to the command line", async ({page}) => {
+test("[U2] the panel points agents to the command line", async ({page}) => {
   for (const {width, height} of [
     {width: 1280, height: 800},
     {width: 390, height: 844},
   ]) {
     await test.step(`${width} wide`, async () => {
       await page.setViewportSize({width, height})
-      await keepTheListOfWorlds(page)
       await page.goto("/")
       await waitForHomepage(page)
       await assertNoOverflow(page)
 
-      const link = page.locator(".rl-hero-copy").getByRole("link", {
+      const link = page.locator("#home-content").getByRole("link", {
         name: "Connect your agent from the command line",
       })
-      // The hero comes under the lab's name on a phone and stands top right on a wide screen.
+      await link.scrollIntoViewIfNeeded()
       await expect(link).toBeInViewport()
-      const [line, actions, worlds] = await Promise.all(
-        [link, page.locator(".rl-hero-actions"), page.locator("#home-worlds .world-cube__worlds")].map(
+      const [line, actions, tabs] = await Promise.all(
+        [link, page.locator(".rl-hero-actions"), page.locator(".rl-product-tabs")].map(
           locator => locator.evaluate(element => element.getBoundingClientRect().toJSON()),
         ),
       )
       expect(line.top, "the line sits under the buttons").toBeGreaterThanOrEqual(actions.bottom)
-      expect(line.bottom, "and above the worlds").toBeLessThanOrEqual(worlds.top)
+      expect(line.bottom, "and above the product tabs").toBeLessThanOrEqual(tabs.top)
       expect(line.right).toBeLessThanOrEqual(width)
       expect(line.height, "a full tap target").toBeGreaterThanOrEqual(44)
 
       await link.click()
       await expect(page).toHaveURL(/\/start$/)
       await expect(page.getByRole("heading", {name: "Connect your agent", level: 1})).toBeVisible()
-    })
-  }
-})
-
-test("[U1][U2] the worlds read in the founder's order at every viewport", async ({page}) => {
-  await keepTheListOfWorlds(page)
-  for (const viewport of focusViewports) {
-    await test.step(viewport.name, async () => {
-      await page.setViewportSize({width: viewport.width, height: viewport.height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      const listed = await page.locator("#home-worlds .world-cube__world").evaluateAll(elements =>
-        elements.map(element => {
-          const box = element.getBoundingClientRect()
-          return {
-            left: box.left,
-            name: element.querySelector("h3")!.textContent!.trim(),
-            top: box.top,
-          }
-        }),
-      )
-
-      expect(listed.map(world => world.name)).toEqual(worlds.map(world => world.name))
-
-      // The worlds read in the founder's order, row by row: each starts a new row on the first
-      // world's left edge or follows the one before it on the same row.
-      expect(new Set(listed.map(world => Math.round(world.top))).size).toBe(
-        await worldRowsIn(page),
-      )
-      for (const [index, world] of listed.entries()) {
-        if (index === 0) continue
-        const before = listed[index - 1]
-        if (Math.round(world.top) === Math.round(before.top)) {
-          expect(world.left).toBeGreaterThan(before.left)
-        } else {
-          expect(world.top).toBeGreaterThan(before.top)
-          expect(world.left).toBeCloseTo(listed[0].left, 0)
-        }
-      }
-    })
-  }
-})
-
-// Pointing at a world never recolours its heading.
-test("[U2] world hover leaves the heading ink alone", async ({page}) => {
-  await page.setViewportSize({width: 1440, height: 900})
-  await keepTheListOfWorlds(page)
-  await page.goto("/")
-  await waitForHomepage(page)
-  for (const {face} of worlds.slice(0, 3)) {
-    const heading = page.locator(`#home-worlds [data-world="${face}"] h3`)
-    const ink = await heading.evaluate(e => getComputedStyle(e).color)
-    await heading.hover()
-    expect(await heading.evaluate(e => getComputedStyle(e).color)).toBe(ink)
-  }
-})
-const homeEdges = (page: import("@playwright/test").Page) =>
-  page.evaluate(() => {
-    const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON()
-    return {
-      hero: box('[data-home-panel="hero"]'),
-      worlds: box("#home-worlds"),
-      mission: box("#home-mission"),
-      how: box("#home-how"),
-    }
-  })
-
-// Where the name and sheets on the left are taller than the window, the hero stands top
-// right and stays in view while they scroll past it.
-test("[U1][U2] the hero stays top right while the sheets scroll on desktop", async ({page}) => {
-  for (const viewport of [
-    {name: "1280x640", width: 1280, height: 640},
-    {name: "1280x720", width: 1280, height: 720},
-    {name: "1440x800", width: 1440, height: 800},
-  ]) {
-    await test.step(viewport.name, async () => {
-      await page.setViewportSize({width: viewport.width, height: viewport.height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      const first = await homeEdges(page)
-      expect(first.hero.left, "the hero is the right column").toBeGreaterThanOrEqual(first.mission.right)
-      expect(first.hero.top, "and starts level with Mission").toBeCloseTo(first.mission.top, 0)
-
-      await page.evaluate(() => window.scrollTo(0, 240))
-      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(240)
-      const scrolled = await homeEdges(page)
-      expect(scrolled.mission.top, "the sheets scroll").toBeCloseTo(first.mission.top - 240, 0)
-      expect(scrolled.hero.top, "the hero holds near the top").toBeGreaterThanOrEqual(0)
-      expect(scrolled.hero.top).toBeLessThan(first.hero.top)
-      expect(scrolled.hero.bottom, "the whole hero is in view").toBeLessThanOrEqual(viewport.height)
-      expect(scrolled.worlds.bottom, "the worlds too").toBeLessThanOrEqual(viewport.height)
-    })
-  }
-})
-
-// With less motion asked for, the hero stays in the page and grows to everything it holds.
-test("[U1][U2] with reduced motion the hero scrolls with the page", async ({page}) => {
-  await page.emulateMedia({reducedMotion: "reduce"})
-  await page.setViewportSize({width: 1440, height: 900})
-  await page.goto("/")
-  await waitForHomepage(page)
-  await assertNoOverflow(page)
-
-  const first = await homeEdges(page)
-  await page.evaluate(() => window.scrollTo(0, 240))
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(240)
-  const scrolled = await homeEdges(page)
-  expect(scrolled.hero.top, "the hero moves with the sheets").toBeCloseTo(first.hero.top - 240, 0)
-})
-
-// Each product shows once on the page. On a wide screen the two columns end together
-// and a tall window opens no gap under the name. Where the hero follows the scroll it
-// is as tall as the sheets beside it and never taller than the window; with less
-// motion it grows to its list of worlds.
-test("[U1][U2] each product shows once and the columns end together", async ({page}) => {
-  for (const {reducedMotion, width, height, apart} of [
-    {reducedMotion: "no-preference", width: 1280, height: 900, apart: 1},
-    {reducedMotion: "no-preference", width: 1920, height: 1080, apart: 1},
-    {reducedMotion: "no-preference", width: 2560, height: 1440, apart: 1},
-    {reducedMotion: "reduce", width: 1280, height: 900, apart: 160},
-    {reducedMotion: "reduce", width: 2560, height: 1440, apart: 160},
-  ] as const) {
-    await test.step(`${width}x${height} motion ${reducedMotion}`, async () => {
-      await page.emulateMedia({reducedMotion})
-      await page.setViewportSize({width, height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      for (const {site} of worlds.slice(0, 4)) {
-        await expect(page.locator(`#home-content a[href="${site}"]`)).toHaveCount(1)
-      }
-
-      const end = await page.evaluate(() => document.scrollingElement!.scrollHeight - window.innerHeight)
-      await page.evaluate(y => window.scrollTo(0, y), end)
-      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(end)
-      const edges = await page.evaluate(() => {
-        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON()
-        return {
-          hero: box('[data-home-panel="hero"]'),
-          sheets: box('[data-home-column="sheets"]'),
-          mission: box("#home-mission"),
-          gap: parseFloat(getComputedStyle(document.querySelector(".rl-panels")!).rowGap),
-        }
-      })
-      expect(Math.abs(edges.hero.bottom - edges.sheets.bottom), "the columns end together").toBeLessThan(apart)
-      expect(edges.sheets.top - edges.mission.bottom, "no gap opens under the name").toBeCloseTo(edges.gap, 0)
-      if (reducedMotion === "no-preference") {
-        expect(edges.hero.height, "the hero fits the window").toBeLessThanOrEqual(height)
-      }
-    })
-  }
-})
-
-// A phone reads the lab's name first, then the hero, then the sheets.
-test("[U1][U2] a phone reads the name, the hero, then the sheets", async ({page}) => {
-  for (const {width, height} of [
-    {width: 320, height: 640},
-    {width: 390, height: 844},
-  ]) {
-    await test.step(`${width} wide`, async () => {
-      await page.setViewportSize({width, height})
-      await page.goto("/")
-      await waitForHomepage(page)
-      await assertNoOverflow(page)
-
-      const edges = await homeEdges(page)
-      expect(edges.mission.bottom, "the name comes first").toBeLessThanOrEqual(edges.hero.top)
-      expect(edges.hero.bottom, "then the hero, then the sheets").toBeLessThanOrEqual(edges.how.top)
     })
   }
 })
@@ -560,10 +333,9 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 })
 
 // The focus ring belongs to the whole page: it is set in Text and stays that same mark on
-// every control in the hero.
-test("[U1] every hero control retains visible paired keyboard focus", async ({page}) => {
+// every control in the panel.
+test("[U1] every panel control retains visible paired keyboard focus", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
-  await keepTheListOfWorlds(page)
   await page.goto("/")
   await waitForHomepage(page)
   const count = await page.locator("a, button").count()
@@ -571,10 +343,10 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
   for (let tab = 0; tab <= count; tab += 1) {
     await page.keyboard.press("Tab")
     const result = await page.evaluate(() => {
-      const e = document.activeElement as HTMLElement
-      if (!e?.closest(".rl-hero") || !e.matches(":focus-visible")) return null
-      const style = getComputedStyle(e)
-      const name = e.getAttribute("aria-label") ?? e.textContent?.trim().replace(/\s+/g, " ") ?? ""
+      const element = document.activeElement as HTMLElement | null
+      if (!element?.closest("#home-glass") || !element.matches(":focus-visible")) return null
+      const style = getComputedStyle(element)
+      const name = element.getAttribute("aria-label") ?? element.textContent?.trim().replace(/\s+/g, " ") ?? ""
       return {name, width: parseFloat(style.outlineWidth), outline: style.outlineStyle, opacity: style.opacity}
     })
     if (!result) continue
@@ -584,9 +356,10 @@ test("[U1] every hero control retains visible paired keyboard focus", async ({pa
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
   expect([...reached]).toEqual(
-    expect.arrayContaining(["Visit Techtree, opens in a new tab"]),
+    expect.arrayContaining(["Enter App", "Techtree, opens in a new tab", "Privacy policy"]),
   )
 })
+
 // COPY_BUTTON: the $REGENT menu copies the contract address with the shared
 // copy button, which answers "Copied" in place of its label.
 test("[R14] the $REGENT menu copies the contract address", async ({browser}) => {

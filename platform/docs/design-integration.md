@@ -22,7 +22,7 @@ Regents consumes the current `design-system/STYLE.md` and top-level contract in
   HTML links have `rg-button__label`; secondary/quiet controls do not shimmer.
 - Product background components/mounts are retired. Existing SVG assets and dormant
   background hook implementations remain available; the homepage's one drawn picture
-  is the world cube, on its own stage in the hero. No page canvas is mounted.
+  is the datascape, filling the window behind the glass panel that holds the page.
 - The approved local showcase remains intact.
 
 ## Staking ratio data

@@ -14,7 +14,7 @@
   .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
   .rl-brand { display: flex; gap: var(--space-1); align-items: center; font-family: var(--font-family-title); text-decoration: none; }
   .rl-brand img { width: 2rem; height: 2rem; object-fit: contain; }
-  .rl-product-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .625rem; order: 3; width: 100%; max-width: 52rem; margin-inline: auto; }
+  .rl-product-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .625rem; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
   .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
@@ -35,58 +35,47 @@
   .rl-token-copy__icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
   .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
-  /* Two columns of flat panels, like a printed sheet laid out in blocks: the hero
-     on the right, the lab's name and the sheets on the left. A phone stacks the
-     name, then the hero, then the sheets.
-     Each panel keeps the design system's cut corners and its own flat fill. */
-  .rl-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); }
-  .rl-column { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-2); min-width: 0; }
-  .rl-panel { display: grid; align-content: start; gap: var(--space-3); padding: var(--rg-panel-padding); }
-  .rl-panel:is(.rl-panel--how, .rl-panel--staking) { container-type: inline-size; }
-  /* A panel's links are its own ink, outlined, so they read on every fill. */
-  .rl-panel-link {
-    --rg-p-surface: transparent; --rg-p-text: var(--rg-panel-ink); --rg-p-control-border: currentColor;
-    justify-self: start;
+  /* The page is the datascape, fixed to the window, with one glass panel in the
+     middle holding everything. A panel taller than the window scrolls the page while
+     the picture stays put. The picture's ground is the scene's own. */
+  .home {
+    position: relative; display: grid; place-items: center; min-height: 100dvh;
+    padding: var(--space-4) 1rem; background: #020307;
   }
-  /* A small mono label over a panel's words, ruled off above like a printed sheet. */
-  .rl-eyebrow {
-    font: var(--font-weight-regular) .75rem/1.4 var(--font-family-ui);
-    letter-spacing: var(--tracking-microlabel); text-transform: uppercase;
+  .home__still, .home__stage { position: fixed; inset: 0; width: 100%; height: 100%; }
+  .home__still { object-fit: cover; }
+  /* A finger held on the picture steers it, so it does not scroll the page from there. */
+  .home__stage canvas { display: block; width: 100%; height: 100%; visibility: hidden; touch-action: none; }
+  .home[data-datascape-ready="true"] .home__stage canvas { visibility: visible; }
+  .home[data-datascape-ready="true"] .home__still { display: none; }
+
+  /* The glass: a dark, see-through fill that blurs the picture behind it, edged by a
+     light hairline that is lighter along the top. It stands over the picture by
+     coming later in the page, so it needs no stacking number. While the picture
+     flies, the hook moves it between the two poses here. */
+  .home__glass {
+    --rg-panel-padding: var(--space-4);
+    position: relative; display: grid; width: min(44rem, 100%); min-width: 0;
+    background: color-mix(in srgb, #070b14 56%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid color-mix(in srgb, var(--rl-ink) 18%, transparent);
+    border-block-start-color: color-mix(in srgb, var(--rl-ink) 34%, transparent);
   }
-  .rl-panel > .rl-eyebrow:first-child { padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
-  .rl-mono { font: .875rem/1.55 var(--font-family-ui); }
+  .home[data-datascape-glass-state="small"] .home__glass { transform: scale(.3); opacity: .75; }
+  .home__main {
+    container-type: inline-size;
+    display: grid; gap: var(--space-3); min-width: 0;
+    padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
+  }
+  .home__main :is(.rl-hero-actions, .rl-hero-agents) { margin-block-start: 0; }
 
   /* The lab's name in the title face, then one plain line in body weight. */
-  .rl-statement { display: grid; gap: var(--space-2); padding-block-end: var(--space-4); border-block-end: 1px solid var(--rg-local-rule); }
+  .rl-statement { display: grid; gap: var(--space-2); }
   .rl-statement__name { font: 400 clamp(2.5rem, 4.4vw, 3.5rem)/1 var(--font-family-title); }
   .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-ui); text-wrap: pretty; }
 
-  /* The drawings are the Overview's, made line icons at this size. */
-  .rl-panels .rl-card-diagram :is(path, rect) { vector-effect: non-scaling-stroke; }
-
-  /* How it works: two ruled columns, each a drawing, a label, a line and a link. */
-  .rl-how { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-  .rl-how__step { display: grid; grid-template-rows: auto auto 1fr auto; gap: var(--space-2); min-width: 0; padding-block-start: var(--space-2); border-block-start: 1px solid var(--rg-local-rule); }
-  .rl-how .rl-card-diagram { width: 3.5rem; height: 3.5rem; }
-
-  /* Staking: the coin on a dark tile, one line, and the way in. */
-  .rl-staking { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); }
-  /* The crown carries its own black ground, so the tile is the crown itself. */
-  .rl-staking__tile { display: block; width: 6rem; }
-  .rl-staking__tile img { display: block; width: 100%; height: auto; }
-  .rl-staking__line { font: 400 clamp(1.5rem, 2.6vw, 2rem)/1.15 var(--font-family-title); text-wrap: pretty; }
-  .rl-staking__link { grid-column: 1 / -1; justify-self: start; }
-  .rl-how__title { font: var(--font-weight-regular) .8125rem/1.4 var(--font-family-ui); letter-spacing: var(--tracking-microlabel); text-transform: uppercase; }
-
-  /* The hero is the right column's panel: its words, then the cube's stage
-     below them, the cube drawn in the middle. The stage is the hero's width, so
-     the cube's own layout answers to the hero, not the window. */
-  .rl-panel--hero { padding: var(--space-3); }
   .rl-hero { min-width: 0; }
-  .rl-hero--home {
-    container-type: inline-size;
-    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto;
-  }
   .rl-hero-copy { width: fit-content; max-width: 100%; align-self: start; padding: var(--space-2) 0 var(--space-4); }
   .rl-hero-copy h1 { font-size: clamp(2.25rem, 11cqi, 4.5rem); line-height: 1.05; letter-spacing: -.035em; overflow-wrap: anywhere; }
   .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); }
@@ -94,69 +83,15 @@
      the link is a full 44px tall so it is easy to tap on a phone. */
   .rl-hero-agents { margin-block-start: var(--space-1); font-size: .875rem; line-height: 1.5; }
   .rl-hero-agents a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
-  /* The home hero opens on its buttons; the lab's name stands in its own panel. */
-  .rl-hero--home .rl-hero-copy { grid-area: 1 / 1; padding-block-start: 0; }
-  .rl-hero--home .rl-hero-actions { margin-block-start: 0; }
-  .rl-hero--home .world-cube { grid-area: 2 / 1; grid-template-rows: minmax(0, 1fr); min-height: 0; }
-  .rl-hero--home .world-cube__worlds { align-self: stretch; }
-  /* "Human Browsing" centred over the cube, while the pointer is on it; where
-     nothing hovers, it stays shown. */
-  .rl-cube-label {
-    position: relative; z-index: 2; grid-area: 2 / 1; align-self: start; justify-self: center;
-    margin: 0; padding-top: var(--space-3);
-    color: color-mix(in srgb, var(--rl-ink) 74%, transparent);
-    font: .75rem/1.4 var(--font-family-ui); letter-spacing: var(--tracking-microlabel); text-transform: uppercase;
-    opacity: 0; pointer-events: none;
-  }
-  .rl-hero--home:has(.world-cube:is([data-world-state="entering"], [data-world-state="inside"], [data-world-state="leaving"])) .rl-cube-label { visibility: hidden; }
-  @media (hover: none) {
-    .rl-cube-label { opacity: 1; }
-  }
   .rl-overline { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; }
-  .rl-card-diagram { pointer-events: none; }
 
-  @media (max-width: 63.99rem) {
-    .rl-header-links { margin-inline-start: auto; }
-  }
-  /* Just under 1280 the bar packs tighter, so the tabs keep their one row between the brand and links. */
-  @media (min-width: 77rem) and (max-width: 79.99rem) {
-    .rl-header-bar { gap: .75rem; }
-    .rl-header-links { gap: .5rem; }
-  }
   @media (max-width: 47.99rem) {
     .rl-header-links { position: relative; gap: .25rem; }
     /* Phone tap targets are 44px square; the icons keep their size. */
     .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
     .rl-brand { font-size: .875rem; }
-  }
-  /* From here the panels stand in two columns: the name above the sheets on the
-     left, the hero beside both on the right. */
-  @media (min-width: 60rem) {
-    .rl-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-3); padding: var(--space-3); }
-    .rl-column { gap: var(--space-3); }
-    .rl-panel--mission { grid-area: 1 / 1; }
-    .rl-column[data-home-column="hero"] { grid-area: 1 / 2 / span 2; }
-    .rl-column[data-home-column="sheets"] { grid-area: 2 / 1; }
-  }
-  /* Where the window is tall enough and the cube is drawn, the hero is as tall as
-     the name and sheets beside it, never taller than the window, and stays in view
-     while they scroll past it; both columns end together. It takes no part in
-     sizing the rows, so a tall window never opens a gap under the name. The words
-     keep their height and the cube's stage takes the rest. Without scripts or with
-     less motion the cube is never drawn, so the hero stays in the page's flow and
-     grows to its list of worlds. */
-  @media (min-width: 60rem) and (min-height: 40rem) and (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .rl-column[data-home-column="hero"] { position: sticky; inset-block-start: var(--space-3); align-self: stretch; contain: size; max-block-size: calc(100svh - 2 * var(--space-3)); grid-template-rows: minmax(0, 1fr); }
-    .rl-panel--hero { grid-template-rows: minmax(0, 1fr); align-content: stretch; }
-    .rl-hero--home { grid-template-rows: auto minmax(0, 1fr); }
-    .rl-hero--home .world-cube { block-size: auto; min-block-size: 0; }
-    .rl-hero--home .world-cube__worlds { min-block-size: 0; overflow-y: auto; }
-    .rl-hero--home .world-cube[data-world-ready="true"] .world-cube__worlds { overflow: visible; }
-  }
-  /* A narrow panel stacks its steps and staking one under another. */
-  @container (max-width: 30rem) {
-    :is(.rl-how, .rl-staking) { grid-template-columns: minmax(0, 1fr); }
+    .home__glass { --rg-panel-padding: var(--space-2); }
   }
 }
 
@@ -173,11 +108,6 @@
   .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
   .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
 }
-
-/* The How it works sheet takes the figure colour and Staking the band colour.
-   They sit outside the layer so they win over the shared panel's own surface fill. */
-.rg-panel.rl-panel--how { --rg-panel-fill: var(--support-figure-surface); --rg-panel-ink: var(--support-figure-ink); }
-.rg-panel.rl-panel--staking { --rg-panel-fill: var(--support-band-surface); --rg-panel-ink: var(--support-band-ink); }
 
 .rg-button.rl-token-link {
   --rg-cut-control: 0px;
@@ -199,7 +129,7 @@
   --rg-p-accent: color-mix(in srgb, var(--rl-ink) 7%, var(--rl-bg));
   --rg-p-on-accent: var(--rl-ink);
   --rg-button-border-color: color-mix(in srgb, var(--rl-ink) 30%, transparent);
-  min-width: 0; min-height: 3.25rem; padding: .875rem .75rem;
+  min-width: 0; min-height: 3.25rem; padding: .875rem .375rem;
   border-radius: 0; font-size: .8125rem; line-height: 1.25;
   font-weight: 400; letter-spacing: .06em; text-transform: uppercase;
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
@@ -207,9 +137,9 @@
 .rg-button.rl-product-tab::after, .rg-button.rl-action::after, .rg-button.rl-hero-cta::after { content: none; }
 /* The hero's Enter App rests with the marks a main button shows on hover in
    dark: Powder Blue at the square corners, Tangerine along the cuts. Hover runs
-   the Powder Blue on into two full L-edges and keeps the cuts. The hero's id
+   the Powder Blue on into two full L-edges and keeps the cuts. The panel's id
    lifts these over the shared hover rule. */
-#home-hero .rg-button.rl-hero-cta::before {
+#home-glass .rg-button.rl-hero-cta::before {
   --rg-button-edge-ink: var(--rg-button-mark-color, var(--palette-powder-blue, #aecacd));
   --rg-button-cut-ink: var(--rg-button-mark-color, var(--palette-tangerine-tango, #ff5b19));
   background-size:
@@ -217,7 +147,7 @@
     var(--rg-cut-control) 1px, 1px var(--rg-cut-control),
     var(--rg-cut-control) 1px, 1px var(--rg-cut-control);
 }
-#home-hero .rg-button.rl-hero-cta:is(:hover, :focus-visible)::before {
+#home-glass .rg-button.rl-hero-cta:is(:hover, :focus-visible)::before {
   background-size:
     var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
     calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
@@ -251,12 +181,8 @@
   --rg-p-accent: color-mix(in srgb, var(--rl-ink) 17%, var(--rl-bg));
   --rg-button-border-color: var(--palette-powder-blue);
 }
-@media (min-width: 77rem) {
-  .rl-header-bar { display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, 44rem) minmax(max-content, 1fr); }
-  .rl-product-tabs { order: 0; max-width: none; }
-  .rl-header-bar > .rl-header-links { justify-self: end; margin-inline-start: 0; }
-}
-@media (max-width: 49.99rem) {
+/* A narrow panel lays the tabs out two to a row, Protocol across the last. */
+@container (max-width: 36rem) {
   .rl-product-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .rl-product-tabs > :last-child { grid-column: 1 / -1; }
 }

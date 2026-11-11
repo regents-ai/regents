@@ -26,6 +26,7 @@ import {
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
+import {Datascape} from "./hooks/datascape"
 import {HolographicCard} from "./hooks/holographic_card"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
@@ -44,8 +45,6 @@ import {installLiteratureChart} from "./literature_chart"
 import {installPublicTools} from "./public_tools"
 import {arriveAt, installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
-import {WorldCube} from "./hooks/world_cube"
-import {CubeLabel} from "./hooks/cube_label"
 import {installVisitLog} from "./visit_log"
 
 // First, so an error anywhere below is reported too.
@@ -313,7 +312,7 @@ const hooks = {
   ...showcaseHooks,
   ...labHooks,
   ...colocatedHooks,
-  CubeLabel,
+  Datascape,
   HolographicCard,
   HomeTokenMenu,
   InfiniteScroll,
@@ -329,7 +328,6 @@ const hooks = {
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   VerifiedConnections,
-  WorldCube,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

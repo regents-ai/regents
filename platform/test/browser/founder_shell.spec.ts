@@ -124,60 +124,48 @@ test("all approved routes render within their page budget", async ({page, reques
   await expect(page.locator("#app-shell")).toBeVisible()
 })
 
-test("the public homepage presents the product hero", async ({page}) => {
+test("the public homepage presents the panel over its picture", async ({page}) => {
   await page.goto("/")
 
   await expect(page.locator("#public-home")).toBeVisible()
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The hero names the six worlds.
-  const worlds = page.locator("#home-worlds .world-cube__world")
-  await expect(worlds).toHaveCount(6)
-  expect(
-    await worlds.evaluateAll(elements =>
-      elements.map(element => element.querySelector("h3")!.textContent!.trim()),
-    ),
-  ).toEqual(["Patchbay", "Autolaunch", "Techtree", "Keyfleet", "Staking", "Regents on X"])
+  // The panel's product tabs name the four products and the protocol.
+  await expect(page.locator("#home-glass .rl-product-tab")).toHaveText([
+    "Patchbay, opens in a new tab",
+    "Autolaunch, opens in a new tab",
+    "Techtree, opens in a new tab",
+    "Keyfleet, opens in a new tab",
+    "Protocol",
+  ])
   expect(await page.evaluate(() => document.fonts.check('16px "Geist Serif"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
 
-// The cube's stage is a picture the browser draws inside the hero: hidden from assistive
-// technology, below the words rather than under them, and showing exactly one layer at a
-// time, the list of worlds until the cube is drawn, then the cube alone. Whether headless
-// Chromium brings a GPU decides which layer shows, never whether the heading and actions
-// stay reachable.
-test("the hero's cube never blocks the action", async ({page}) => {
-  const expectOneHeroLayer = () =>
-    expect
-      .poll(() =>
-        page.locator("#home-worlds").evaluate(element => {
-          const drawn = element.getAttribute("data-world-ready") === "true"
-          const listed = getComputedStyle(element.querySelector(".world-cube__world")!).visibility
-          return listed === (drawn ? "hidden" : "visible")
-        }),
-      )
-      .toBe(true)
-
+// The picture behind the panel is drawn by the browser: hidden from assistive technology
+// and behind the panel, so the heading and every action stay on top and reachable whether
+// headless Chromium brings a GPU or not, and with less motion asked for.
+test("the picture behind the panel never blocks the action", async ({page}) => {
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
     await page.goto("/")
-    // The cube only starts once its stage is on screen.
-    await page.locator("#home-worlds").scrollIntoViewIfNeeded()
-    await expect(page.locator("#home-worlds-stage")).toHaveAttribute("aria-hidden", "true")
-    const [words, stage] = await Promise.all(
-      [".rl-hero-copy", "#home-worlds"].map(selector =>
-        page.locator(selector).evaluate(element => element.getBoundingClientRect().toJSON()),
-      ),
-    )
-    expect(words.bottom, "the stage starts below the words").toBeLessThanOrEqual(stage.top)
-    await expectOneHeroLayer()
-    await expect(page.locator("#home-title")).toBeVisible()
-    await page.locator(".rl-header-links a.rl-action").click({trial: true})
-    await page.emulateMedia({reducedMotion: "reduce"})
-    await expect(page.locator("#home-worlds")).not.toHaveAttribute("data-world-ready", "true")
-    await expectOneHeroLayer()
-    await page.locator('#home-worlds [data-world="1"]').getByRole("link").click({trial: true})
+    await expect(page.locator(".home__still")).toHaveAttribute("aria-hidden", "true")
+    await expect(page.locator("#home-canvas")).toHaveAttribute("aria-hidden", "true")
+    for (const reducedMotion of ["no-preference", "reduce"] as const) {
+      await page.emulateMedia({reducedMotion})
+      await expect(page.locator("#home-title")).toBeVisible()
+      const action = page.locator(".rl-hero-actions a").first()
+      await action.scrollIntoViewIfNeeded()
+      // The panel, not the picture, is what a press at the action lands on.
+      expect(
+        await action.evaluate(element => {
+          const box = element.getBoundingClientRect()
+          return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+        }),
+      ).toBe(true)
+      await page.locator(".rl-header-links a.rl-action").click({trial: true})
+      await page.locator("#home-nav-techtree").click({trial: true})
+    }
     await page.emulateMedia({reducedMotion: "no-preference"})
   }
 })

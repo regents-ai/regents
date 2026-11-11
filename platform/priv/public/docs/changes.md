@@ -1,5 +1,7 @@
 ## 2026-11-11
 
+The [homepage]({{origin}}/) is a field of moving panels you fly over by pointing towards an edge. Everything on the page sits in one glass panel in the middle, which shrinks out of the way while you fly and comes back when you point at it again.
+
 [Stake]({{origin}}/stake) is one card: a Stake and Unstake switch, the amount with 50% and Max, one button, then your position and rewards. Staking for someone else is the small "For a different address" choice under the amount.
 
 Stake now says "USDC rewards wait on a treasury top-up." under the claim buttons if the staking contract holds too little USDC to pay your USDC rewards. The button still sends the claim from your wallet. `GET /api/v1/staking/position`, the agent's staking read and the `regents_stake_position` browser tool answer `claims` beside `position`: for each claim, the reason against it, such as `usdc_rewards_short`, or null; [Staking]({{origin}}/docs/staking) lists every reason. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.1.0.

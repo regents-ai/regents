@@ -26,6 +26,10 @@ defmodule RegentsWeb.Layouts do
     default: true,
     doc: "false on the home page, which is always dark"
 
+  attr :social, :boolean,
+    default: true,
+    doc: "false on the home page, whose header already holds the social links"
+
   attr :agent_tools, :boolean,
     default: false,
     doc: "true in the app, which has no bottom bar to hold the tools button"
@@ -40,8 +44,8 @@ defmodule RegentsWeb.Layouts do
   def product_links(assigns) do
     ~H"""
     <footer class="regent-footer">
-      <div class="regent-footer__social">
-        <RegentsWeb.Components.RegentLinks.social_links />
+      <div :if={@social or @theme_toggle or @agent_tools} class="regent-footer__social">
+        <RegentsWeb.Components.RegentLinks.social_links :if={@social} />
         <RegentsWeb.Components.Shell.theme_toggle :if={@theme_toggle} id="footer-theme-control" />
         <RegentsWeb.Components.AgentTools.button
           :if={@agent_tools}

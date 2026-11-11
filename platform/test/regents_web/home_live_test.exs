@@ -42,7 +42,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
     assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
 
-    assert attribute(html, ".rl-product-tabs a", "href") ==
+    assert attribute(html, ~s(nav[aria-label="Products"] a), "href") ==
              ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake)
   end
 
@@ -58,42 +58,46 @@ defmodule RegentsWeb.HomeLiveTest do
     assert Enum.all?(planned, &is_nil(&1.link))
   end
 
-  test "the homepage and agent guide claim only what Techtree offers", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/")
-    guide = HomeLive.agent_markdown()
-
-    for promise <- ["Buy and sell", "leaderboards", "and earn", "x402 service"] do
-      refute html =~ promise
-      refute guide =~ promise
-    end
-
-    assert guide =~ "(Planned)"
-    assert guide =~ "(Experimental: [Explore Techtree](https://techtree.sh/start))"
-  end
-
   test "the page and the agent guide read in the same order", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
-    assert attribute(html, "[data-home-panel]", "data-home-panel") ==
-             ~w(mission hero staking how)
+    order =
+      ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
+        ["Agent Tools", "Connect your agent from the command line"] ++
+        ~w(Patchbay Autolaunch Techtree Keyfleet Protocol) ++
+        [
+          "Buy $REGENT",
+          "About",
+          "Developer docs",
+          "Agent guide",
+          "Privacy policy",
+          "Terms of use"
+        ]
 
-    page_headings =
-      for panel <- ~w(staking how),
-          do: [text(html, ~s([data-home-panel="#{panel}"] h2))]
+    assert in_order?(text(html, "#public-home"), order)
+    assert in_order?(HomeLive.agent_markdown(), order)
 
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
-             page_headings
+             [[attribute(html, "#home-content nav", "aria-label") |> hd()]]
   end
 
-  test "the lab's name stands once, top left, then says one plain line", %{conn: conn} do
+  test "the lab's name stands once, then says one plain line", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
     line = "We build tools for people and their agents. REGENT stakers share in the revenue."
 
     assert text(html, "h1") == "Regents Labs"
-    assert text(html, "#home-mission h1") == "Regents Labs"
-    assert text(html, "#home-mission .rl-statement__line") == line
-    refute text(html, ".rl-hero-copy") =~ "Regents Labs"
+    assert text(html, "#home-content .rl-statement__line") == line
     assert HomeLive.agent_markdown() =~ ~r/\A# Regents Labs\n\n#{Regex.escape(line)}\n/
+  end
+
+  test "the picture behind the panel is decoration, hidden from assistive technology", %{
+    conn: conn
+  } do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "#public-home img.home__still", "alt") == [""]
+    assert attribute(html, "#public-home img.home__still", "aria-hidden") == ["true"]
+    assert attribute(html, "#public-home canvas", "aria-hidden") == ["true"]
   end
 
   # Founder decision (2026-10-30): the home page never sets words in bold inside a sentence.
@@ -113,6 +117,16 @@ defmodule RegentsWeb.HomeLiveTest do
       |> LazyHTML.query(selector)
       |> LazyHTML.text()
       |> String.trim()
+
+  defp in_order?(text, words) do
+    Enum.reduce_while(words, 0, fn word, from ->
+      case :binary.match(text, word, scope: {from, byte_size(text) - from}) do
+        {at, length} -> {:cont, at + length}
+        :nomatch -> {:halt, false}
+      end
+    end)
+    |> is_integer()
+  end
 
   defp attribute(html, selector, name),
     do: html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> LazyHTML.attribute(name)
