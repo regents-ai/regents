@@ -608,7 +608,6 @@ defmodule RegentsWeb.StakeActions do
               class="stake-switch__ink"
               data-ink
               aria-hidden="true"
-              phx-mounted={JS.ignore_attributes(["style"])}
             ></span>
             <Regent.Primitives.button
               :for={mode <- modes()}
@@ -629,7 +628,7 @@ defmodule RegentsWeb.StakeActions do
             <form id="staking-amount-form" phx-change="change" phx-target={@myself}>
               <input type="hidden" name="action" value={@action} data-onchain-input="action" />
               <div class="stake-amount">
-                <label for="staking-amount" class="visually-hidden">Amount (REGENT)</label>
+                <label for="staking-amount" class="visually-hidden">Amount</label>
                 <div class="stake-amount__entry">
                   <input
                     id="staking-amount"
@@ -810,7 +809,7 @@ defmodule RegentsWeb.StakeActions do
                 ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
                 <Regent.Primitives.button
                   id="staking-primary"
-                  class={"stake-submit" <> armed_class(@amount)}
+                  class="stake-submit"
                   type="button"
                   data-onchain-step={@signed_in && @next_step}
                   data-account-target={!@signed_in && "sign-in"}
@@ -1128,15 +1127,6 @@ defmodule RegentsWeb.StakeActions do
   # so these two are the only controls on this page a reading ever quiets.
   defp spendable_figure(:unavailable), do: :unavailable
   defp spendable_figure(spendable), do: StakeLive.token_amount(spendable)
-
-  # An entered amount lights the action the way a pointer resting on it would.
-  # It is appearance only; the press reaches the wallet either way.
-  defp armed_class(amount) do
-    case Staking.parse_amount(amount) do
-      {:ok, _requested} -> " is-armed"
-      _invalid -> ""
-    end
-  end
 
   defp fillable?(:unavailable, _portion), do: false
   defp fillable?(spendable, "half"), do: div(spendable, 2) > 0

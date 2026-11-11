@@ -10,6 +10,10 @@ const sendsKey = "regent:test:staking-wallet-sends"
 const disconnectedKey = "regent:wallet-disconnected:v1"
 // The sign-in this page's staking bearer names is the wallet above.
 const stakingBearer = "valid-staking"
+// This bearer signs in with the wallet below, whose USDC rewards wait on a
+// treasury top-up (Regents.BrowserStakingReading).
+const usdcShortBearer = "valid-staking-usdc-short"
+const usdcShortWallet = "0x4444444444444444444444444444444444444444"
 const stakingContract = "0xb027dc261636e30cbc0fe25b2f8e1ed273354ab5"
 const stakingAbi = parseAbi([
   "function approve(address spender,uint256 amount)",
@@ -51,18 +55,14 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   const documentStarted = await page.evaluate(() => performance.timeOrigin)
 
   // A signed-in page opens on the account's own position, with no wallet open yet.
-  await expect(page.locator(".stake-connect-flow")).toHaveCount(0)
+  await expect(page.locator(".stake-connect")).toHaveCount(0)
   await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
-  await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "stake-wallet-enter")
-  await page.emulateMedia({reducedMotion: "reduce"})
-  await expect(page.locator("#staking-wallet-controls")).toHaveCSS("animation-name", "none")
-  await page.emulateMedia({reducedMotion: "no-preference"})
 
   // A press with no wallet open sends nothing, names the account's wallet to
   // open, and never opens the wallet app's connect step.
   await page.getByLabel("Amount", {exact: true}).fill("1")
-  await page.locator("button.stake-primary").click()
+  await page.locator("#staking-primary").click()
   await expect(page.locator("#staking-press-notice")).toContainText(
     "You're signed in with 0x1111..1111",
   )
@@ -81,7 +81,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
 
   // The wallet position carries its own block, which is not the block the
   // shared contract reading was taken at.
-  await expect(page.locator(".stake-wallet-block")).toContainText("Base block #1,240")
+  await expect(page.locator("#staking-wallet-block")).toContainText("Base block #1,240")
   await expect(page.locator(".stake-snapshot-note")).toContainText("Base block #1,234")
 
   const primary = page.locator("#staking-primary")
@@ -90,7 +90,7 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   // The test wallet reports zero allowance, so the button asks for the unlimited
   // approval first, and the stake once the approval is sent.
   await expect(primary).toHaveText(/Approve REGENT/)
-  await expect(page.locator(".stake-approval-note")).toContainText("one-time REGENT approval first")
+  await expect(page.locator("#staking-approval-note")).not.toBeEmpty()
   await primary.click()
   await expect.poll(() => sendCount(page)).toBe(1)
   expect(await sent(page, 1)).toEqual({
@@ -156,15 +156,15 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await selectWallet(page, wallet)
 
   // The position is read and shown; every control asks for the sign-in instead.
-  await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
+  await expect(page.locator("#staking-position")).toBeVisible()
   await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
-  await expect(page.locator("button.stake-submit")).toHaveAttribute(
+  await expect(page.locator("#staking-primary")).toHaveAttribute(
     "data-account-target",
     "sign-in",
   )
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
-  await page.locator("button.stake-submit").click()
+  await page.locator("#staking-primary").click()
 
   // The click asks Privy for the sign-in, and this page never asks Privy for the
   // connect-only path at all.
@@ -198,7 +198,7 @@ test("After sign-out Stake asks for the sign-in again and sends nothing", async 
   await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
-  await page.locator("button.stake-submit").click()
+  await page.locator("#staking-primary").click()
 
   await expect.poll(() => privyRequests(page)).toContain("sign-in")
   expect(await sendCount(page)).toBe(0)
@@ -222,7 +222,7 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
   await expect(note).toContainText("0x1111..1111")
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
-  await page.locator("button.stake-primary").click()
+  await page.locator("#staking-primary").click()
   await expect(page.locator("#staking-press-notice")).toContainText(
     "which isn't linked to this account",
   )
@@ -230,7 +230,7 @@ test("Stake sends nothing from a wallet that is not the account's", async ({page
 
   await selectWallet(page, wallet)
   await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
-  await page.locator("button.stake-primary").click()
+  await page.locator("#staking-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
   const transactions = await page.evaluate(() => (window as Window & {
     __ashStakingTransactions?: Record<string, {from: string}>
@@ -247,7 +247,7 @@ test("Sign out leaves Stake unconnected, and a reload keeps it that way", async 
 
   await page.goto("/stake")
   await selectWallet(page, wallet)
-  await expect(page.locator(".stake-wallet-summary")).toContainText("Currently staked")
+  await expect(page.locator("#staking-position")).toBeVisible()
 
   const sibling = await page.context().newPage()
   await installWallet(sibling)
@@ -282,14 +282,14 @@ test("Sign out leaves Stake unconnected, and a reload keeps it that way", async 
 async function expectDisconnected(page: Page): Promise<void> {
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await expect(page.getByRole("button", {name: "Connect wallet", exact: true})).toBeVisible()
-  await expect(page.locator(".stake-wallet-summary")).toHaveCount(0)
+  await expect(page.locator("#staking-position")).toHaveCount(0)
   await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 }
 
 // A signed-in document asks for the Privy bridge on load. These acceptance
 // runs answer with a bridge that does nothing, so the wallet under test stays
 // the deterministic one this file installs.
-async function signIn(page: Page): Promise<void> {
+async function signIn(page: Page, bearer = stakingBearer): Promise<void> {
   await page.route(bridgePattern, route =>
     route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
   )
@@ -298,8 +298,8 @@ async function signIn(page: Page): Promise<void> {
   const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
   const response = await page.request.post("/auth/privy/session", {
     headers: {
-      authorization: `Bearer ${stakingBearer}`,
-      "privy-id-token": identityTokenFor(stakingBearer),
+      authorization: `Bearer ${bearer}`,
+      "privy-id-token": identityTokenFor(bearer),
       "x-csrf-token": csrfToken,
     },
     data: {},
@@ -380,8 +380,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(connect).toBeVisible()
     // Connecting a wallet here is the Privy sign-in, the same one the header runs.
     await expect(connect).toHaveAttribute("data-account-target", "sign-in")
-    await expect(page.getByText("Available REGENT", {exact: true})).toHaveCount(0)
-    await expect(page.getByText("Currently staked", {exact: true})).toHaveCount(0)
+    await expect(page.locator("#staking-position")).toHaveCount(0)
     await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
 
     const fit = await page.evaluate(viewport => {
@@ -437,12 +436,12 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
     await page.goto("/stake")
     await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
     await selectWallet(page, signedIn ? otherWallet : wallet)
-    await expect(page.locator(".stake-signer")).toBeVisible()
+    await expect(page.locator("#staking-signer-wallet")).toBeVisible()
     if (signedIn) {
       // A wallet the account does not link: the notes name both wallets.
       await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
       await page.getByLabel("Amount", {exact: true}).fill("1")
-      await page.locator("button.stake-primary").click()
+      await page.locator("#staking-primary").click()
       await expect(page.locator("#staking-press-notice")).toContainText("isn't linked to this account")
     }
     await page.locator(".stake-contract-details summary").click()
@@ -490,14 +489,14 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
 
 // The other address a stake goes to shows in two forms. The warning in its window
 // shows every character, wrapping, for the person to check, with the copy icon
-// and Basescan arrow after it. Under "Rewards go to" the compact form holds the
+// and Basescan arrow after it. On the toggle's line the compact form holds the
 // short form and the copy icon, beside Change. Both copy the whole address, and
 // a copy press neither ticks the warning nor unticks the choice. No label on the
 // page holds a button or link: the warning's words tick its box, and the box is
 // named by the sentence alone. Nothing on the page names the address outside
 // the primitive or scrolls sideways, signed out and signed in, at every width,
 // light and dark.
-test("Stake shows the other address in full in the warning and compact under Rewards go to", async ({page}) => {
+test("Stake shows the other address in full in the warning and compact on the toggle's line", async ({page}) => {
   // Twelve walks (signed out and in, light and dark, three widths) take about 25 seconds alone.
   test.setTimeout(120_000)
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
@@ -520,7 +519,7 @@ test("Stake shows the other address in full in the warning and compact under Rew
     await page.getByLabel("Amount", {exact: true}).fill("1")
     await toggle.check()
     await expect(dialog).toBeVisible()
-    await page.getByLabel("Receiving Ethereum address", {exact: true}).fill(otherWallet)
+    await page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true}).fill(otherWallet)
 
     await expect(full, at).toHaveClass(/\brg-address--full\b/)
     await expect(full.locator(".rg-address__words"), at).toHaveText(otherWallet)
@@ -562,7 +561,7 @@ test("Stake shows the other address in full in the warning and compact under Rew
     await dialog.getByRole("button", {name: "Done", exact: true}).click()
     await expect(dialog).toBeHidden()
 
-    await expectRewardsGoTo(page)
+    await expectForOther(page)
     await expect(compact, at).toHaveClass(/\brg-address--compact\b/)
     await expect(compact.locator(".rg-address__explorer"), at).toHaveCount(0)
     // The short form shows whole, and the row stays inside the form.
@@ -651,14 +650,14 @@ test("Stake says to check the wallet when an approval returns no usable hash", a
       .__ashStakingMalformedApproval = true
   })
 
-  await page.locator("button.stake-primary").click()
+  await page.locator("#staking-primary").click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(page.locator("#staking-press-notice")).toHaveText(
     "Your wallet may have sent this. Check your wallet activity.",
   )
   await expect(page.locator("#staking-activity li")).toHaveCount(0)
-  await expect(page.locator("button.stake-submit")).toBeEnabled()
-  await expect(page.locator("button.stake-submit")).toHaveText(/Approve REGENT/)
+  await expect(page.locator("#staking-primary")).toBeEnabled()
+  await expect(page.locator("#staking-primary")).toHaveText(/Approve REGENT/)
   await expect(page.getByLabel("Amount", {exact: true})).toHaveValue("1")
   expect(await sendCount(page)).toBe(1)
 })
@@ -676,7 +675,7 @@ test("Stake says the wallet declined when the approval is rejected", async ({pag
       .__ashStakingRejectedApproval = true
   })
 
-  const primary = page.locator("button.stake-primary")
+  const primary = page.locator("#staking-primary")
   await primary.click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(page.locator("#staking-press-notice")).toHaveText(
@@ -702,11 +701,11 @@ test("Alternate stake requires fresh address consent and credits that address", 
   const change = page.locator("#staking-recipient-change")
   const dialog = page.locator("#staking-recipient-dialog")
   const done = dialog.getByRole("button", {name: "Done", exact: true})
-  const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
+  const receiver = page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true})
   const acknowledgment = page.locator("#staking-recipient-acknowledged")
   const warning = page.locator("#staking-recipient-warning")
   const notice = page.locator("#staking-press-notice")
-  const submit = page.locator("button.stake-submit")
+  const submit = page.locator("#staking-primary")
 
   // Ticking the box opens the window with the address field ready to type in.
   await expect(dialog).toBeHidden()
@@ -750,10 +749,11 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(acknowledgment).not.toBeChecked()
   await acknowledgment.check()
   await done.click()
-  await expectRewardsGoTo(page)
+  await expectForOther(page)
   await toggle.uncheck()
   await expect(dialog).toBeHidden()
-  await expect(row).toHaveText("Stake for a different address")
+  await expect(row.locator("#staking-for-other-address")).toHaveCount(0)
+  await expect(change).toHaveCount(0)
   await toggle.check()
   await expect(dialog).toBeVisible()
   await expect(acknowledgment).not.toBeChecked()
@@ -765,7 +765,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   // The chosen mode's fill glides to the tab that was pressed.
   await expect
     .poll(async () => {
-      const ink = await page.locator(".stake-mode__ink").boundingBox()
+      const ink = await page.locator(".stake-switch__ink").boundingBox()
       const tab = await unstakeTab.boundingBox()
       return ink && tab && Math.abs(ink.x - tab.x)
     })
@@ -787,7 +787,7 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await page.getByLabel("Amount", {exact: true}).fill("2")
   await expect(page.locator(".stake-preview")).toBeHidden()
   await expect(acknowledgment).toBeChecked()
-  await expectRewardsGoTo(page)
+  await expectForOther(page)
 
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({width, height: 900})
@@ -828,7 +828,8 @@ test("Alternate stake requires fresh address consent and credits that address", 
   })
   await toggle.uncheck()
   await expect(dialog).toBeHidden()
-  await expect(row).toHaveText("Stake for a different address")
+  await expect(row.locator("#staking-for-other-address")).toHaveCount(0)
+  await expect(change).toHaveCount(0)
   await expect(page.locator(".stake-preview")).toBeVisible()
 })
 
@@ -849,7 +850,7 @@ test("Stake keeps one height whatever the different-address box shows", async ({
     const toggle = page.locator("#staking-for-other")
     const row = page.locator(".stake-for-other")
     const dialog = page.locator("#staking-recipient-dialog")
-    const receiver = page.getByLabel("Receiving Ethereum address", {exact: true})
+    const receiver = page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true})
     const height = async () => (await panel.boundingBox())!.height
     // The room between the form's last shown row and its foot.
     const band = () =>
@@ -861,9 +862,9 @@ test("Stake keeps one height whatever the different-address box shows", async ({
         const last = Math.max(...shown.map(child => child.getBoundingClientRect().bottom))
         return form.getBoundingClientRect().bottom - last
       })
-    // The choice's words and its box share the first line. Once an address is
-    // set, it sits under the words with Change beside it; until then Add sits
-    // beside the words. All of it stays inside the form and clear of "Amount".
+    // The choice's box, its words, the address once it is set and Change (or
+    // Add) share one line. All of it stays inside the form and clear of the
+    // amount box.
     const rows = async () => {
       const fit = await page.evaluate(() => {
         const words = (el: Element) => {
@@ -876,7 +877,7 @@ test("Stake keeps one height whatever the different-address box shows", async ({
         const middle = (rect: DOMRect) => rect.top + rect.height / 2
         const row = document.querySelector(".stake-for-other")!
         const form = document.querySelector("#staking-amount-form")!.getBoundingClientRect()
-        const label = document.querySelector("label[for='staking-amount']")!.getBoundingClientRect()
+        const amount = document.querySelector(".stake-amount")!.getBoundingClientRect()
         const box = document.querySelector("#staking-for-other")!.getBoundingClientRect()
         const text = document.querySelector("#staking-for-other-text")!.getBoundingClientRect()
         const button = document.querySelector("#staking-recipient-change")
@@ -891,18 +892,18 @@ test("Stake keeps one height whatever the different-address box shows", async ({
         return {
           boxBesideWords: Math.abs(middle(box) - middle(text)),
           changeLine: change ? Math.abs(middle(change) - middle(address ?? text)) : 0,
-          addressUnderWords: address ? address.top - text.bottom : 0,
-          addressFromWords: address ? Math.abs(address.left - text.left) : 0,
+          addressLine: address ? Math.abs(middle(address) - middle(text)) : 0,
+          addressAfterWords: address ? address.left - text.right : 0,
           past: Math.max(0, ...parts.map(part => Math.max(form.left - part.left, part.right - form.right))),
-          clear: parts.every(part => !overlaps(part, label)),
+          clear: parts.every(part => !overlaps(part, amount)),
         }
       })
       expect(fit.clear).toBe(true)
       expect(fit.past).toBeLessThan(0.5)
       expect(fit.boxBesideWords).toBeLessThan(4)
       expect(fit.changeLine).toBeLessThan(4)
-      expect(fit.addressUnderWords).toBeGreaterThanOrEqual(-0.5)
-      expect(fit.addressFromWords).toBeLessThan(1)
+      expect(fit.addressLine).toBeLessThan(4)
+      expect(fit.addressAfterWords).toBeGreaterThanOrEqual(0)
     }
     await expect(page.locator(".stake-preview")).toBeVisible()
     const unticked = await height()
@@ -915,13 +916,11 @@ test("Stake keeps one height whatever the different-address box shows", async ({
       const words = document.createRange()
       words.selectNodeContents(line)
       const text = words.getBoundingClientRect()
-      const shortcuts = document.querySelector(".stake-amount-shortcuts")!.getBoundingClientRect()
+      const fills = [...document.querySelectorAll(".stake-amount .stake-chip")].map(chip => chip.getBoundingClientRect())
       return {
-        under:
-          text.left < shortcuts.right &&
-          shortcuts.left < text.right &&
-          text.top < shortcuts.bottom &&
-          shortcuts.top < text.bottom,
+        under: fills.some(
+          fill => text.left < fill.right && fill.left < text.right && text.top < fill.bottom && fill.top < text.bottom,
+        ),
         lines: Math.round(text.height / Number.parseFloat(getComputedStyle(line).lineHeight)),
       }
     })
@@ -947,7 +946,7 @@ test("Stake keeps one height whatever the different-address box shows", async ({
 
     await page.locator("#staking-recipient-acknowledged").check()
     await dialog.getByRole("button", {name: "Done", exact: true}).click()
-    await expectRewardsGoTo(page)
+    await expectForOther(page)
     expect(await height()).toBeCloseTo(unticked, 0)
     expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
     await rows()
@@ -1003,6 +1002,124 @@ test("Stake keeps one height whatever the different-address box shows", async ({
   }
 })
 
+// The signed-in card is one small trade card: the switch, the amount, the button,
+// the position and the rewards. Whatever the switch, the amount and the quiet
+// lines under them show, it keeps one height and nothing in it runs past its
+// edge, at a phone's width and a desktop's. Signed out it holds one line and the
+// connect button. Each state's picture is saved for review.
+test("Stake trade card keeps one height whatever it shows", async ({page}) => {
+  await page.emulateMedia({reducedMotion: "reduce"})
+  const card = page.locator("#staking-actions")
+  const height = async () => (await card.boundingBox())!.height
+  // What runs past the card's edges, and whether the page scrolls sideways.
+  const spill = () =>
+    card.evaluate(card => {
+      const edge = card.getBoundingClientRect()
+      const past = [...card.querySelectorAll("*")].filter(element => {
+        if (element.closest("dialog, .visually-hidden")) return false
+        if (!element.checkVisibility({visibilityProperty: true})) return false
+        const box = element.getBoundingClientRect()
+        return box.width > 1 && (box.left < edge.left - 0.5 || box.right > edge.right + 0.5)
+      })
+      return {
+        past: past.map(element => element.id || element.className),
+        sideways: document.documentElement.scrollWidth > innerWidth,
+      }
+    })
+  const clean = {past: [], sideways: false}
+
+  // Each screen is taller than the card, so every picture of it is whole.
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({width, height: 1400})
+    await page.goto("/stake")
+    await expect(card.locator(".stake-connect")).toBeVisible()
+    await expect(card.locator("#staking-wallet-controls")).toHaveCount(0)
+    expect(await spill(), `signed out at ${width}`).toEqual(clean)
+    await card.screenshot({path: picture(`stake-signed-out-${width}`)})
+  }
+
+  await installWallet(page)
+  await signIn(page)
+  const amount = page.getByLabel("Amount", {exact: true})
+  const stakeTab = page.getByRole("tab", {name: "Stake", exact: true})
+  const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({width, height: 1400})
+    await page.goto("/stake")
+    await selectWallet(page, wallet)
+    await expect(amount).toBeVisible()
+    const idle = await height()
+    expect(await spill(), `idle at ${width}`).toEqual(clean)
+    await card.screenshot({path: picture(`stake-idle-${width}`)})
+
+    await amount.fill("1")
+    await expect(page.locator(".stake-preview")).toBeVisible()
+    await expect(page.locator("#staking-approval-note")).not.toBeEmpty()
+    expect(await height(), `amount at ${width}`).toBeCloseTo(idle, 0)
+    expect(await spill(), `amount at ${width}`).toEqual(clean)
+    await card.screenshot({path: picture(`stake-amount-${width}`)})
+
+    // The switch marks its tab at once; the card's mode says the page has
+    // switched, and cleared the amount, before a new one goes in.
+    await unstakeTab.click()
+    await expect(card).toHaveAttribute("data-staking-mode", "unstake")
+    await amount.fill("1")
+    await expect(page.locator(".stake-preview:not([data-room-only])")).toBeVisible()
+    // The switch's fill stays under Unstake through the page's update for the amount.
+    const [ink, tab] = await Promise.all([page.locator(".stake-switch__ink").boundingBox(), unstakeTab.boundingBox()])
+    expect(Math.abs(ink!.x - tab!.x), `fill under Unstake at ${width}`).toBeLessThan(1)
+    expect(await height(), `unstake at ${width}`).toBeCloseTo(idle, 0)
+    expect(await spill(), `unstake at ${width}`).toEqual(clean)
+    await card.screenshot({path: picture(`stake-unstake-${width}`)})
+    await stakeTab.click()
+    await expect(card).toHaveAttribute("data-staking-mode", "stake")
+  }
+
+  // Once the approval is sent, Approve stays offered beside the stake it
+  // unlocks, at its size: side by side on a desktop, one above the other on a
+  // phone.
+  await amount.fill("1")
+  await page.locator("#staking-primary").click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+  await expect(page.locator("#staking-approve")).toBeVisible()
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width, height: 1400})
+    const [approve, next] = await Promise.all(
+      ["#staking-approve", "#staking-primary"].map(async id => (await page.locator(id).boundingBox())!),
+    )
+    expect(approve.width, `Approve width at ${width}`).toBeCloseTo(next.width, 0)
+    expect(approve.height, `Approve height at ${width}`).toBeCloseTo(next.height, 0)
+    expect(approve.y === next.y, `Approve beside the stake at ${width}`).toBe(width > 768)
+    expect(await spill(), `approval sent at ${width}`).toEqual(clean)
+  }
+})
+
+// While the treasury has not yet paid in the USDC a wallet has earned, Rewards
+// says so under the claims, and Claim USDC still sends to the wallet.
+test("Claim USDC still reaches the wallet while USDC rewards wait on a top-up", async ({page}) => {
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await installWallet(page)
+  await signIn(page, usdcShortBearer)
+  const note = page.locator("#staking-claim-note")
+
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({width, height: 1400})
+    await page.goto("/stake")
+    await selectWallet(page, usdcShortWallet)
+    await expect(note).not.toBeEmpty()
+    await page.locator("#staking-actions").screenshot({path: picture(`stake-rewards-${width}`)})
+  }
+
+  const claim = page.locator("#staking-claim_usdc")
+  await expect(claim).toBeEnabled()
+  await claim.click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+  expect(await sent(page, 1, usdcShortWallet)).toEqual({
+    to: stakingContract,
+    call: {functionName: "claimUSDC", args: [usdcShortWallet]},
+  })
+})
+
 // The choice and Change each take a press 44 px tall, and Change 44 px wide, at
 // every edge of that area, on a touch phone.
 test.describe("on a touch phone", () => {
@@ -1018,10 +1135,10 @@ test.describe("on a touch phone", () => {
       await selectWallet(page, wallet)
       await page.getByLabel("Amount", {exact: true}).fill("1")
       await page.locator("#staking-for-other").check()
-      await page.getByLabel("Receiving Ethereum address", {exact: true}).fill(otherWallet)
+      await page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true}).fill(otherWallet)
       await page.locator("#staking-recipient-acknowledged").check()
       await page.locator("#staking-recipient-dialog").getByRole("button", {name: "Done", exact: true}).click()
-      await expectRewardsGoTo(page)
+      await expectForOther(page)
       await page.locator(".stake-for-other").scrollIntoViewIfNeeded()
 
       const areas = await pressAreas(page)
@@ -1034,10 +1151,10 @@ test.describe("on a touch phone", () => {
   })
 })
 
-// The choice names the other address under "Rewards go to", in its compact
-// form, with Change beside it.
-async function expectRewardsGoTo(page: Page): Promise<void> {
-  await expect(page.locator("#staking-for-other-text")).toHaveText("Rewards go to")
+// The choice names the other address after "For", in its compact form, with
+// Change beside it.
+async function expectForOther(page: Page): Promise<void> {
+  await expect(page.locator("#staking-for-other-text")).toHaveText("For")
   await expect(page.locator("#staking-for-other-address .rg-address__label")).toHaveText("0x2222..2222")
   await expect(page.locator("#staking-for-other-address .rg-address__full")).toHaveText(otherWallet)
   await expect(page.locator("#staking-recipient-change")).toHaveText("Change")
@@ -1065,6 +1182,12 @@ function pressAreas(page: Page) {
       }
     }),
   )
+}
+
+// Where a walk saves a picture for review: REGENTS_SHOT_DIR when it is set, else
+// the test's own output folder.
+function picture(name: string): string {
+  return `${process.env.REGENTS_SHOT_DIR ?? test.info().outputPath()}/${name}.png`
 }
 
 async function signOut(page: Page): Promise<void> {
@@ -1126,11 +1249,11 @@ async function installWallet(page: Page): Promise<void> {
 }
 
 // The `index`th transaction the wallet sent: where it went and the call it made.
-async function sent(page: Page, index: number): Promise<{to: string; call: unknown}> {
+async function sent(page: Page, index: number, from = wallet): Promise<{to: string; call: unknown}> {
   const transaction = await page.evaluate(hash => (window as Window & {
     __ashStakingTransactions?: Record<string, {from: string; to: string; data: Hex}>
   }).__ashStakingTransactions![hash]!, expectedHash(index))
-  expect(transaction.from.toLowerCase()).toBe(wallet)
+  expect(transaction.from.toLowerCase()).toBe(from)
   const {functionName, args} = decodeFunctionData({abi: stakingAbi, data: transaction.data})
   return {
     to: transaction.to.toLowerCase(),

@@ -48,7 +48,7 @@ A confirmed step reads the wallet's position and the shared totals again.
 - Claim all available REGENT rewards.
 - Manually claim and restake available REGENT rewards.
 
-Selecting **Stake for a different address** reveals a plain Ethereum address input. The warning must be checked for that exact address. Editing the address, switching modes, or changing the connected wallet clears that acknowledgment. The payer supplies REGENT and signs the approval and stake; the receiving address owns the stake and future rewards. Only transactions from that receiving address can withdraw its stake or claim its rewards. A contract wallet must be able to call those functions.
+Ticking **For a different address** opens a window with a plain Ethereum address input. The warning must be checked for that exact address. Editing the address, switching modes, or changing the connected wallet clears that acknowledgment. The payer supplies REGENT and signs the approval and stake; the receiving address owns the stake and future rewards. Only transactions from that receiving address can withdraw its stake or claim its rewards. A contract wallet must be able to call those functions.
 
 No automatic restaking, operator treasury action or ENS recipient resolution is included.
 

@@ -72,9 +72,7 @@
 .stake-earned-label,
 .stake-supply-facts dt,
 .stake-contract-facts dt,
-.stake-metric dt,
-.stake-dialog-kicker,
-.stake-preview dt {
+.stake-dialog-kicker {
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.7rem;
@@ -84,19 +82,8 @@
 }
 
 .stake-fine-print,
-.stake-snapshot-note,
-.stake-wallet-block {
+.stake-snapshot-note {
   color: var(--color-fg-muted);
-}
-
-.stake-footer,
-.stake-mode,
-.stake-amount-tools,
-.stake-amount-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
 }
 
 .stake-contract-link {
@@ -117,13 +104,6 @@
    new one sits with the contract data rather than with a wallet position. */
 .stake-shared-refresh {
   justify-self: start;
-}
-
-/* Wallet figures carry their own block, which is not the contract reading's. */
-.stake-wallet-block {
-  margin: 0;
-  font-size: 0.82rem;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Hairline grid: the container draws two edges and each cell draws the rest. */
@@ -247,348 +227,332 @@
   min-width: 0;
 }
 
+/* The signed-in panel is one small trade card: the switch, the amount and the
+   button, then the position and the rewards, each block ruled from the next. */
 .stake-actions {
   display: grid;
   gap: 1.25rem;
+  container: stake-card / inline-size;
 }
 
-.stake-section-heading,
-.stake-section-heading h2 {
-  margin-top: 0.3rem;
-  font-size: clamp(1.3rem, 2.4vw, 1.85rem);
-  letter-spacing: -0.02em;
-}
-
-/* A wallet address keeps its own case: it is an identifier, not a label. */
-.stake-signer {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex: 0 0 auto;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--ash-line-strong);
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.72rem;
-}
-
-.stake-signer > span[aria-hidden="true"] {
-  width: 0.45rem;
-  height: 0.45rem;
-  background: var(--ash-accent);
-}
-
-.stake-connect-flow,
-.stake-wallet-controls {
-  display: grid;
-  gap: 1rem;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .stake-wallet-controls {
-    animation: stake-wallet-enter 180ms ease-out;
-  }
-}
-
-@keyframes stake-wallet-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.stake-connect-flow ol {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-block-start: 1px solid var(--color-border);
-}
-
-.stake-connect-flow li {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: 0.7rem;
-  align-items: center;
-  padding-block: 0.8rem;
-  border-block-end: 1px solid var(--color-border);
-}
-
-.stake-connect-flow li > span {
-  display: grid;
-  width: 1.8rem;
-  height: 1.8rem;
-  place-items: center;
-  border: 1px solid var(--ash-line-strong);
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.74rem;
-}
-
-.stake-connect-flow li p {
-  margin: 0;
-}
-
-.stake-wallet-summary,
 .stake-supply-facts,
-.stake-preview,
 .stake-contract-facts {
   margin: 0;
 }
 
-.stake-wallet-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-block-start: 1px solid var(--color-border);
-  border-inline-start: 1px solid var(--color-border);
-}
-
-.stake-metric {
-  display: grid;
-  gap: 0.35rem;
-  min-width: 0;
-  padding: 0.9rem;
-  border-block-end: 1px solid var(--color-border);
-  border-inline-end: 1px solid var(--color-border);
-  background: var(--ash-panel-strong);
-}
-
-.stake-metric dd {
-  min-width: 0;
-  margin: 0;
-  font-size: 1.05rem;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-/* The tabs and their panel share one motion island, spaced as the actions
-   panel's own rows are. It keeps a box of its own, so the fill under the
-   chosen tab follows the tabs whenever their size changes. */
-.stake-modes {
+.stake-connect,
+.stake-widget,
+.stake-trade {
   display: grid;
   gap: 1rem;
 }
 
-.stake-mode {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-}
-
-.stake-mode button {
-  position: relative;
-  z-index: 1;
-  border: 0;
+.stake-connect p {
+  margin: 0;
   color: var(--color-fg-muted);
 }
 
-/* The chosen mode's fill, which glides to the other tab when it is chosen. */
-.stake-mode__ink {
+/* Stake | Unstake: a rounded track with the chosen side's fill gliding under the
+   two words. The fill comes first in the track, so the words paint over it. */
+.stake-switch {
+  --radius: 999px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  border: 1px solid var(--ash-line-strong);
+  border-radius: var(--radius);
+  background: var(--ash-panel-strong);
+}
+
+.stake-switch__ink {
   position: absolute;
-  inset-block: 0;
+  inset-block: 3px;
   left: 0;
-  width: 50%;
+  width: calc((100% - 6px) / 2);
+  border-radius: var(--radius);
   background: var(--color-fg);
   transform-origin: 0 50%;
   pointer-events: none;
 }
 
-.stake-mode button + button {
-  border-inline-start: 1px solid var(--ash-line-strong);
+.stake-switch [role="tab"] {
+  --rg-local-ink: var(--color-fg-muted);
 }
 
-.stake-actions form {
-  display: grid;
-  gap: 0.65rem;
+.stake-switch [role="tab"][aria-selected="true"] {
+  --rg-local-ink: var(--color-bg);
 }
 
-.stake-actions label {
-  color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-/* "Amount" and the small choice to stake for someone else share one row above
-   the box. Where the form is too narrow for both, the choice takes its own row
-   in every state (below), so ticking it never changes the height. */
+/* The form's rows. One a choice leaves unused keeps its room, unseen, after the
+   rows in use, so the button never moves. */
 #staking-amount-form {
-  container-type: inline-size;
+  display: grid;
+  gap: 0.75rem;
 }
 
-.stake-amount-field {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  column-gap: 1rem;
-}
-
-.stake-amount-field > .stake-amount {
-  grid-column: 1 / -1;
-}
-
-/* Small words, each with a press area a finger can take. Every state keeps a
-   second line, where the address the rewards go to sits under its words, with
-   Change beside it; Add sits beside "No address yet". */
-.stake-for-other {
-  display: inline-grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto 1.75rem;
-  align-items: center;
-  justify-content: start;
-  column-gap: 0.6rem;
-  min-width: 0;
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
-/* Under the words, past the box. */
-.stake-for-other__address {
-  grid-area: 2 / 1;
-  margin-inline-start: 1.25rem;
-}
-
-.stake-for-other__address + .stake-for-other__change {
-  grid-area: 2 / 2;
-}
-
-.stake-actions .stake-for-other label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: inherit;
-  font-size: inherit;
-  letter-spacing: normal;
-  text-transform: none;
-  cursor: pointer;
-}
-
-@container (max-width: 22rem) {
-  .stake-amount-field {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 0.5rem;
-  }
-
-  .stake-for-other {
-    column-gap: 0.4rem;
-    font-size: 0.7rem;
-  }
-}
-
-.stake-for-other input {
-  width: 0.85rem;
-  height: 0.85rem;
-  margin: 0;
-  accent-color: var(--ash-accent);
-}
-
-.stake-for-other[data-room-only] {
+/* A stake for someone else leaves your own position as it is, so its preview
+   keeps its room the same way. */
+#staking-amount-form > [data-room-only],
+.stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
+  order: 1;
   visibility: hidden;
 }
 
+/* One box: the figure large, REGENT beside it, Available and the two fills
+   under it. */
 .stake-amount {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
   border: 1px solid var(--ash-line-strong);
   background: var(--ash-panel-strong);
 }
 
 .stake-amount:focus-within {
-  border-color: var(--ash-accent);
+  border-color: var(--color-fg);
 }
 
-.stake-amount input {
+/* The field takes its type from this row. */
+.stake-amount__entry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: clamp(1.75rem, 6cqi, 2.5rem);
+  line-height: 1.2;
+}
+
+/* A field's own width is twenty letters of this size; it takes the room left
+   beside REGENT instead. */
+.stake-amount__entry input {
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
-  min-height: 3.5rem;
-  padding: 0.65rem 0.85rem;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--color-fg);
-  font-size: clamp(1.25rem, 3vw, 1.65rem);
   font-variant-numeric: tabular-nums;
 }
 
-.stake-amount input:focus {
-  outline: 0;
-}
-
-.stake-amount > span {
-  padding-inline: 0.9rem;
+.stake-amount__entry input::placeholder {
   color: var(--color-fg-muted);
-  font-family: var(--font-family-ui);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
 }
 
-.stake-amount-tools {
-  justify-content: space-between;
-  align-items: flex-start;
+.stake-amount__entry span {
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
 }
 
-#staking-tabpanel {
-  container: stake-panel / inline-size;
-}
-
-.stake-amount-action {
-  display: grid;
+.stake-amount__tools {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
-  flex: 1 1 10rem;
+}
+
+#staking-available {
+  flex: 1 1 auto;
   min-width: 0;
-}
-
-.stake-amount-shortcuts {
-  flex-wrap: nowrap;
-  margin-inline-start: auto;
-}
-
-.stake-amount-tools p {
   margin: 0;
   color: var(--color-fg-muted);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
 
-.stake-amount-shortcuts button {
+/* For a different address: a small toggle, then the address and Change. */
+.stake-for-other {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
   min-height: 2rem;
-  padding-inline: 0.65rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
-.stake-amount-notice {
-  min-height: 1.25rem;
+.stake-for-other label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+
+.stake-for-other input {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+  accent-color: var(--color-fg);
+}
+
+.stake-for-other__change {
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-fg);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+/* A line that says something only in some states keeps its room in all of them:
+   one line on a wide card, two on a narrow one, where its longest words wrap. */
+.stake-line {
+  min-block-size: 1lh;
   margin: 0;
   color: var(--color-fg-muted);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
-.stake-amount-notice[data-visible="false"] {
-  visibility: hidden;
+/* On a narrow card Available takes its own line and 50% and Max sit under it. */
+@container stake-card (inline-size < 24rem) {
+  .stake-line {
+    min-block-size: 2lh;
+  }
+
+  .stake-amount__tools {
+    flex-wrap: wrap;
+  }
+
+  #staking-available {
+    flex-basis: 100%;
+  }
+
+  /* For, the other address and Change still fit one line at 320 px. */
+  .stake-for-other {
+    gap: 0.35rem;
+  }
+
+  /* Approve and the step it unlocks keep their whole words, one above the other. */
+  .stake-submit-row {
+    flex-direction: column;
+  }
+}
+
+/* Approve, when offered, shares the row and the size of the step it unlocks. */
+.stake-submit-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.stake-submit-row > .stake-submit {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .stake-preview {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding: 0.85rem;
-  border: 1px solid var(--color-border);
-}
-
-.stake-preview div {
-  display: grid;
   gap: 0.25rem;
+  margin: 0;
 }
 
-.stake-preview dd {
+/* A short list: the name at the start, the figure at the end. */
+.stake-preview > div,
+.stake-position > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.stake-preview dt,
+.stake-position dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-fg-muted);
+}
+
+.stake-preview dd,
+.stake-position dd,
+#staking-rewards-figures dd {
+  min-width: 0;
   margin: 0;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  text-align: end;
 }
 
-.stake-approval-note {
+.stake-preview {
+  font-size: 0.85rem;
+}
+
+.stake-position {
+  display: grid;
   margin: 0;
-  color: var(--color-fg-muted);
-  font-size: 0.82rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.stake-position > div {
+  min-height: 2.75rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.stake-rewards {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.stake-rewards__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.stake-rewards h3 {
+  font-size: 1.15rem;
+}
+
+#staking-rewards-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+/* The claims fill each row as far as their words fit, in equal widths, and
+   stack on a phone. */
+.stake-claims {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stake-claims > .stake-claim {
+  flex: 1 1 0;
+}
+
+/* A claim the last reading found nothing for reads quieter; it still presses. */
+.stake-claim:not(.stake-claim-ready) {
+  --rg-local-ink: var(--color-fg-muted);
+}
+
+.stake-footer {
+  display: flex;
+  justify-content: flex-end;
+  font-size: 0.85rem;
+}
+
+/* On a touch screen the toggle and Change each take the 44 px a finger needs. */
+@media (hover: none), (pointer: coarse) {
+  .stake-for-other,
+  .stake-for-other label {
+    min-height: 2.75rem;
+  }
+
+  .stake-for-other__change {
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }
 
 /* Each press the wallet sent, newest first, with what Base says about it. */
@@ -602,10 +566,7 @@
   display: none;
 }
 
-/* Every control is a square cell in the Sans UI voice; only the primary action
-   fills, as the marketing page's strong action does. */
-.stake-actions button,
-.stake-heading button,
+/* The contract reading's refresh is a square cell in the Sans UI voice. */
 .stake-shared-refresh {
   min-height: 2.8rem;
   padding-inline: 1rem;
@@ -652,76 +613,9 @@
 
 .stake-buy { text-decoration: none; }
 
-.stake-actions button.stake-primary,
-.stake-heading button.stake-primary {
-  border-color: var(--color-fg);
-  background: var(--color-fg);
-  color: var(--color-bg);
-}
-
-.stake-actions button.stake-submit {
-  width: 100%;
-  min-height: 3.25rem;
-}
-
-.stake-actions button.stake-primary:disabled,
-.stake-heading button.stake-primary:disabled {
-  border-color: var(--ash-line-strong);
-  background: transparent;
-  color: var(--color-fg-muted);
-}
-
-.stake-actions button:disabled,
 .stake-shared-refresh:disabled {
   color: var(--color-fg-muted);
   cursor: not-allowed;
-}
-
-.stake-rewards {
-  display: grid;
-  gap: 0.6rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.stake-rewards h3 {
-  font-size: 1.15rem;
-}
-
-/* The three reward actions share one row, each as wide as its own label so
-   none of them wraps; a row too narrow for all three drops one to the next line
-   whole rather than breaking its label. */
-.stake-button-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.stake-button-row button {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  justify-content: center;
-  min-height: 3.6rem;
-  padding: 0.75rem;
-  white-space: nowrap;
-}
-
-/* A reward the last reading from Base actually found is lit in its own colour: the
-   palette's Accent Blue for the revenue share, the page ink for REGENT, and its Accent
-   Orange where the reward goes straight back to work. */
-.stake-button-row button.stake-claim-ready[data-claim="claim_usdc"] {
-}
-
-.stake-button-row button.stake-claim-ready[data-claim="claim_regent"] {
-}
-
-.stake-button-row button.stake-claim-ready[data-claim="claim_and_restake_regent"] {
-}
-
-.stake-footer {
-  justify-content: flex-end;
-  padding-top: 0.25rem;
 }
 
 .stake-overview {
@@ -827,7 +721,6 @@
   word-break: break-all;
 }
 
-.stake-amount-notice[data-visible="true"],
 .stake-notice,
 .stake-status {
   padding: 0.75rem;
@@ -899,18 +792,9 @@
 .stake-dialog-summary { font-size: 1.05rem; }
 
 @media (hover: hover) and (pointer: fine) {
-  .stake-actions button:not(:disabled):hover,
-  .stake-heading button:not(:disabled):hover,
   .stake-shared-refresh:not(:disabled):hover {
     border-color: var(--ash-accent);
     color: var(--ash-accent);
-  }
-
-  .stake-actions button.stake-primary:not(:disabled):hover,
-  .stake-heading button.stake-primary:not(:disabled):hover {
-    border-color: var(--color-fg);
-    background: var(--color-fg);
-    color: var(--color-bg);
   }
 }
 
@@ -918,19 +802,12 @@
   .stake-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 46rem) {
-  .stake-wallet-summary { grid-template-columns: minmax(0, 1fr); }
-  .stake-section-heading { flex-direction: column; }
-}
-
 @media (max-width: 30rem) {
-  .stake-button-row button { flex-basis: 100%; }
   .stake-heading,
   .stake-actions,
   .stake-overview { padding: 1rem; }
   /* Buy and Chart side by side, so the Stake box stays near the top. */
   .stake-token-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-  .stake-preview { grid-template-columns: minmax(0, 1fr); }
   .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
   .stake-earned-split { grid-template-columns: minmax(0, 1fr); }
   .stake-earned-split { row-gap: 0.75rem; }
@@ -939,37 +816,10 @@
   .stake-contract-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }
 
-/* When the panel is too narrow for the button beside 50% and Max (phones, and
-   the two-column page just under 1280 wide): the button across the whole row,
-   then Available with the shortcuts beside it, or under it where both do not
-   fit. */
-@container stake-panel (max-width: 27rem) {
-  .stake-amount-tools { align-items: center; }
-  .stake-amount-action { display: contents; }
-  .stake-amount-action .stake-submit { flex-basis: 100%; }
-  #staking-available { flex: 1 1 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .stake-inline-loading::before { animation: none; }
-  .stake-actions button,
-  .stake-heading button,
   .stake-shared-refresh,
   .stake-contract-details summary > span:last-child { transition: none; }
-}
-
-/* Rows a choice leaves unused keep their room, unseen, at the foot of the
-   form, so no gap opens between Amount and the button: the position preview
-   and the lines a stake of your own shows while the box is ticked. */
-.stake-steps-room,
-.stake-actions[data-staking-mode="stake"]:has(#staking-for-other:checked) .stake-preview {
-  order: 1;
-  visibility: hidden;
-}
-
-.stake-steps-room {
-  display: grid;
-  gap: inherit;
 }
 
 /* The error and the warning take turns in one slot sized to the warning. */
@@ -1063,24 +913,6 @@
 
 }
 
-/* The vendored controls paint their own surface and edge, and the native
-   button keeps its own size, so the chosen mode, the supply tiles and the
-   info mark are skinned outside the page layer to beat them. The mode
-   buttons paint no surface of their own: the row carries it, and the chosen
-   mode's fill is the ink gliding beneath them. */
-.stake-mode button::before {
-  content: none;
-}
-
-/* 50% and Max fill the box in place; they lead nowhere, so they carry no arrow. */
-.stake-amount-shortcuts .rg-button::after {
-  content: none;
-}
-
-.stake-mode button[aria-selected="true"] {
-  color: var(--color-bg);
-}
-
 /* The small mark beside a circulating figure that opens the account of what
    is held back. It sits in the figure's own line and takes its colour. */
 .stake-page .stake-info {
@@ -1168,46 +1000,6 @@
   }
 }
 
-/* A repeated mode selection points to the action; it never activates it.
- * An entered amount holds the same lit edges for as long as it stands; the
- * sweep itself is the shared button's, only while hovered or keyboard-focused.
- * Match the unlayered button skin. LiveView removes this transient class,
- * restoring the normal 150ms edges without changing focus or wallet state. */
-@media (forced-colors: none) {
-  .stake-actions button.stake-submit:is(.is-mode-hinted, .is-armed)::after {
-    --rg-button-edge-ink: var(--rg-button-active-border);
-    --rg-button-cut-ink: var(--rg-button-active-border);
-    --rg-button-cut-gap: 0px;
-    background-size:
-      var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
-      calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
-      calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
-  .stake-actions button.stake-submit.is-mode-hinted::before {
-    background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, color-mix(in srgb, var(--rg-shimmer-color, var(--palette-tangerine-tango, #ff5b19)) 75%, var(--palette-platinum, #e5e3d2)) 24%, transparent) 50%, transparent 70%);
-    background-size: 300% 100%;
-    background-repeat: no-repeat;
-    animation: rg-shimmer 650ms var(--ease-out) 1;
-  }
-}
-
-/* In forced colours the lit edges show as a second system-colour line inside
- * the shared button's own border, never as an outline that could pass for
- * focus. The shared button rules sit outside this layer and own the border
- * itself, so the extra line is drawn on the edge layer they leave unused here. */
-@media (forced-colors: active) {
-  .stake-actions button.stake-submit:is(.is-mode-hinted, .is-armed)::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border: 1px solid ButtonText;
-    pointer-events: none;
-  }
-}
-
 /* On a phone the two token links share a row. The shared button's padding and
  * type size sit outside this layer, so the narrower fit is set here. */
 @media (max-width: 30rem) {
@@ -1223,54 +1015,41 @@
   @media (max-width: 22.5rem) {
     .stake-token-links { grid-template-columns: minmax(0, 1fr); }
   }
-
-  /* Stake and Unstake each keep one line, so the switch stays one row tall;
-     so does Connect wallet. */
-  .stake-mode button,
-  .stake-connect-flow .stake-primary {
-    padding-inline: 0.5rem;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-  }
 }
 
-/* "Unstake REGENT" keeps one line, so the panel is the same height in both modes. */
+/* The shared button and field rules sit outside the page layer, so the trade
+   card's sizes, its amount box's focus ring and the landed approval are set here. */
+
+/* The main step, and Approve beside it, are taller than an ordinary button. */
 .stake-actions .rg-button.stake-submit {
+  min-height: 3rem;
   padding-inline: 0.75rem;
-  white-space: nowrap;
 }
 
-/* Add and Change read as links beside the choice. The shared button rules sit
-   outside this layer, so the link look is set here. */
-.stake-actions button.stake-for-other__change {
-  display: inline-flex;
-  align-items: center;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ash-accent);
-  font-size: inherit;
-  letter-spacing: normal;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  text-transform: none;
+/* The amount box shows the shell's focus ring, not the bare field inside it. The
+   shell draws its ring from #app-shell, so the field's own is put out there. */
+#app-shell .stake-amount__entry input:focus-visible {
+  outline: none;
 }
 
-/* On a touch screen the choice and Change each take the 44 px a finger needs,
-   and the row keeps all of it, so the Amount box below never covers part of
-   the press. A mouse keeps the words at their own size. */
-@media (hover: none), (pointer: coarse) {
-  .stake-for-other {
-    grid-template-rows: auto 2.75rem;
-  }
+.stake-amount:has(input:focus-visible) {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 2px;
+}
 
-  .stake-actions .stake-for-other label {
-    min-height: 2.75rem;
+/* 50% and Max sit small inside the box under a mouse; a finger keeps 44 px. */
+@media (hover: hover) and (pointer: fine) {
+  .stake-amount .rg-button.stake-chip {
+    min-height: 2rem;
+    padding-block: 0;
+    padding-inline: 0.6rem;
+    font-size: 0.85rem;
   }
+}
 
-  .stake-actions button.stake-for-other__change {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
+/* Approve turns grey with a green edge once its approval landed, and still
+   takes presses. */
+#staking-approve[data-approved]::before {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-fg) 12%, var(--color-surface));
 }

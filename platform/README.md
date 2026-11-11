@@ -149,6 +149,7 @@ Other relevant checks are available for browser behavior, asset budgets, and ext
 | Command | What it does |
 | --- | --- |
 | `npm run test:browser` | Builds assets and runs the Playwright browser suite. |
+| `REGENTS_SHOT_DIR=<folder> npx playwright test test/browser/stake.spec.ts` | Runs the Stake walk and saves its pictures of the Stake card (signed out, idle, an amount, Unstake, rewards waiting on a top-up, and when Base was last read, at 390 and 1280 wide) to that folder for review. Without it they go to `test-results`. |
 | `npm run test:budgets` | Enforces the asset size budgets. |
 | `mix test.external` | Runs one Docker build-context test. Excluded from `mix precommit` because it requires tools outside the hermetic test suite. |
 

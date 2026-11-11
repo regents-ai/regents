@@ -4687,3 +4687,45 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Checks on the branch: `make check-cli` exit 0 at the new pin; docs, public documents and agent
   documents tests 9 passed. PyPI read again at 04:18Z 11 Nov: 1.10.24 is still the newest, and its
   wheel's SHA256 is the one above. The full check runs with this release.
+
+### Trade widget
+
+- The signed-in Stake panel is one small trade card, top to bottom: a Stake | Unstake switch
+  (a rounded segmented control whose dark fill glides to the chosen side), one amount box with
+  the figure large, REGENT inside it, Available, and 50% and Max; a quiet "For a different
+  address" toggle with the address and Change on the same line once it is set; one full-width
+  main button (Approve, once sent, keeps its place beside it at its size, one above the other on
+  a phone); the position preview; the wallet's position as a short list (Wallet, Staked,
+  Available); Rewards with its figures, the three claims and the top-up notice under them; and a
+  quiet "Updated …" line with the read-again icon. Signed out it is one line and Connect wallet.
+  Hard cutover: the earlier layout, its shimmer, its CSS entrance animation and the "armed" look
+  (which never showed) are gone, and nothing replaces the entrance.
+- Every secondary control but the switch is square, as the design guide draws them: 50%, Max,
+  the claims and Approve. The approved look on Approve is page-level, from Layers tokens.
+- The card keeps one height whatever the switch, the amount and the quiet lines under them show.
+  A line that speaks only in some states keeps its room in all of them (two lines on a narrow
+  card, where the longest messages wrap); a row a choice leaves unused keeps its room, unseen,
+  after the rows in use. A stake for someone else leaves your own position as it is, so its
+  preview keeps its room the same way (the rule the old layout had, carried over).
+- Narrow cards (under 24rem) put Available on its own line above 50% and Max, stack Approve
+  above the step it unlocks, and close up the toggle's row so For, the address and Change fit at
+  320 px. The amount field takes the room left beside REGENT instead of its own twenty-letter
+  width, which had pushed the card 100 px past a phone's edge.
+- The amount box shows the shell's focus ring around the whole box; the bare field's own ring
+  is put out under `#app-shell`, where the shell draws it.
+- The words: the dialog for another address is "Receiving address" with an "Address" field; the
+  toggle reads "For a different address", then "For" with the address once it is set, or "No
+  address yet" and Add.
+- Motion fix: the switch's fill jumped back under Stake on any page update after the switch
+  (an amount typed in Unstake put the fill under Stake while Unstake was chosen). The
+  `phx-mounted={JS.ignore_attributes(["style"])}` on the fill never took hold, because the fill
+  arrives in a page update once a wallet is chosen, and LiveView 1.2.13 marks such an element
+  mounted without running its command. The tabs island now keeps its own fill's style itself
+  (`this.js().ignoreAttributes(ink, ["style"])` in `tabsHook`), and the marker is gone from the
+  Stake card and the motion lab. The same kit in ash-template has the same marker pattern.
+- Tests: the Stake browser walk follows the new card ("Stake trade card keeps one height
+  whatever it shows" at 390 and 1280, signed out and signed in, idle, an amount, Unstake, and
+  Approve once sent; "Claim USDC still reaches the wallet while USDC rewards wait on a top-up"
+  with a short-USDC wallet). The trade-card walk fails at 137 px off without the fill fix. It
+  saves its pictures to `REGENTS_SHOT_DIR` when set (`platform/README.md`). The feature map,
+  `platform/docs/local-staking.md` and the public changes page follow the new words.

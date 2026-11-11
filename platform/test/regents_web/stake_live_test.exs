@@ -105,8 +105,6 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
 
     for private_fact <- [
-          "Available REGENT",
-          "Currently staked",
           "Claimable USDC",
           "Claimable REGENT",
           @wallet
@@ -115,6 +113,7 @@ defmodule RegentsWeb.StakeLiveTest do
     end
 
     refute has_element?(view, "#staking-amount")
+    refute has_element?(view, "#staking-position")
     refute has_element?(view, "#route-content button[data-onchain-step]")
   end
 
@@ -348,7 +347,7 @@ defmodule RegentsWeb.StakeLiveTest do
     seed_snapshot()
     view = conn |> signed_in_stake("refresh-data") |> activate(@wallet)
 
-    assert has_element?(view, ".stake-wallet-block", "Base block #1,240")
+    assert has_element?(view, "#staking-wallet-block", "Base block #1,240")
     assert has_element?(view, ".stake-snapshot-note", "Base block #1,234")
 
     Application.put_env(:regents, :test_staking_wallet_block, @receipt_block)
@@ -366,7 +365,7 @@ defmodule RegentsWeb.StakeLiveTest do
     SharedStakingReading.run()
     render_async(view)
 
-    assert has_element?(view, ".stake-wallet-block", "Base block #1,249")
+    assert has_element?(view, "#staking-wallet-block", "Base block #1,249")
     assert has_element?(view, ".stake-snapshot-note", "Base block #9,876")
   end
 
@@ -375,7 +374,7 @@ defmodule RegentsWeb.StakeLiveTest do
          conn: conn
        } do
     view = conn |> mount_stake() |> activate(@wallet)
-    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert has_element?(view, "#staking-position", "Staked")
 
     Application.put_env(:regents, :test_staking_protocol_block, 9_876)
     on_exit(fn -> Application.delete_env(:regents, :test_staking_protocol_block) end)
@@ -383,7 +382,7 @@ defmodule RegentsWeb.StakeLiveTest do
     share_new_snapshot()
     assert render_async(view) =~ "Base block #9,876"
 
-    assert has_element?(view, ".stake-wallet-block", "Base block #1,240")
+    assert has_element?(view, "#staking-wallet-block", "Base block #1,240")
     assert render(view) =~ "5 REGENT"
   end
 
@@ -515,7 +514,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
     activate(view, @wallet)
     assert has_element?(view, "#staking-amount")
-    assert has_element?(view, ".stake-wallet-summary")
+    assert has_element?(view, "#staking-position")
     assert render(view) =~ "5 REGENT"
     assert has_element?(view, ~s(#account-control button[data-account-target="sign-in"]))
   end
@@ -525,7 +524,7 @@ defmodule RegentsWeb.StakeLiveTest do
   } do
     view = conn |> mount_stake() |> activate(@wallet)
 
-    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert has_element?(view, "#staking-position", "Staked")
 
     assert_offers_sign_in(view)
   end
@@ -627,7 +626,7 @@ defmodule RegentsWeb.StakeLiveTest do
     view = signed_in_stake(conn, "account-position")
 
     assert staking_assigns(view).staking_wallet == @wallet
-    refute has_element?(view, ".stake-connect-flow")
+    refute has_element?(view, ".stake-connect")
     refute has_element?(view, ".shell-sending-wallet")
   end
 
@@ -650,7 +649,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
     assert has_element?(view, ~s|button[data-account-target="sign-in"]|)
     refute has_element?(view, "#staking-amount")
-    refute render(view) =~ "Currently staked"
+    refute has_element?(view, "#staking-position")
   end
 
   test "SERVER_BUILT_STEPS: the page is handed every wallet step before anyone presses", %{
@@ -677,13 +676,18 @@ defmodule RegentsWeb.StakeLiveTest do
     })
 
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|, "Approve REGENT")
-    assert has_element?(view, ".stake-approval-note", "needs a one-time REGENT approval first")
+
+    assert has_element?(
+             view,
+             "#staking-approval-note",
+             "One approval covers any amount you stake."
+           )
 
     # An approval on its way moves the button on to the stake itself, and one
     # Base turned down brings the approval back.
     send_step(view, "approve", @hash)
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|, "Stake REGENT")
-    assert has_element?(view, ".stake-approval-note", "Approval sent.")
+    assert has_element?(view, "#staking-approval-note", "Approval sent.")
 
     # Asked again straight away, Base's answer comes back without the wait.
     land(view, "approve", @hash, "0x0")
@@ -698,11 +702,11 @@ defmodule RegentsWeb.StakeLiveTest do
     assert has_element?(view, ~s(#staking-activity-#{hash("0a")}[data-outcome="confirmed"]))
     assert actions_assigns(view).review.steps |> Enum.any?(&(&1.step == "approve"))
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|, "Stake REGENT")
-    assert has_element?(view, ".stake-approval-note", "Approved. You can stake now.")
+    assert has_element?(view, "#staking-approval-note", "Approved. You can stake now.")
 
     view |> element(~s(button[phx-value-mode="unstake"])) |> render_click()
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="unstake"]|, "Unstake REGENT")
-    refute has_element?(view, ".stake-approval-note")
+    refute has_element?(view, "#staking-approval-note", ~r/\S/)
   end
 
   test "FOLLOWS_BASE_AFTER_SENDING: a sent step re-reads the wallet every five seconds for a minute, quietly",
@@ -803,7 +807,7 @@ defmodule RegentsWeb.StakeLiveTest do
     set_amount(view, "500000000")
     html = render(view)
 
-    assert html =~ "Your share of revenue"
+    assert html =~ "Revenue share"
     refute html =~ "Pool share"
     assert html =~ "2.0000%"
 
@@ -856,7 +860,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
     assert has_element?(
              view,
-             ".stake-wallet-summary .figure-unavailable",
+             "#staking-position .figure-unavailable",
              "Unavailable right now"
            )
 
@@ -868,7 +872,7 @@ defmodule RegentsWeb.StakeLiveTest do
     set_amount(view, "3")
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]:not([disabled])|)
     assert has_element?(view, ~s|#staking-approve[data-onchain-step="approve"]:not([disabled])|)
-    assert has_element?(view, ".stake-approval-note", "approval couldn't be read")
+    assert has_element?(view, "#staking-approval-note", "Could not read your approval.")
   end
 
   test "WALLET_DURING_FIRST_READ: replacing the open wallet read never reports Base unavailable",
@@ -894,7 +898,7 @@ defmodule RegentsWeb.StakeLiveTest do
     render_async(view)
 
     assert staking_assigns(view).staking_status == :ready
-    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert has_element?(view, "#staking-position", "Staked")
 
     # The replaced read is never stopped mid-read; it finishes, and its answer
     # for the other wallet is dropped.
@@ -945,12 +949,12 @@ defmodule RegentsWeb.StakeLiveTest do
 
     refute_receive {:staking_read, _scope, _reader}, 200
     assert staking_assigns(view).staking_status == :error
-    refute has_element?(view, ".stake-wallet-summary")
+    refute has_element?(view, "#staking-position")
 
     share_new_snapshot()
     render_async(view)
 
-    assert has_element?(view, ".stake-wallet-summary", "Currently staked")
+    assert has_element?(view, "#staking-position", "Staked")
   end
 
   test "STEP_OUTCOMES: the server reads each sent step on Base and says what happened", %{
@@ -1047,7 +1051,7 @@ defmodule RegentsWeb.StakeLiveTest do
           {"wallet_unavailable", "Your wallet changed during the press"},
           {"insufficient_funds", "enough on Base to pay the network fee"},
           {"send_unconfirmed", "Your wallet may have sent this."},
-          {"step_unknown", "Enter an amount in REGENT above zero."}
+          {"step_unknown", "Enter an amount above zero."}
         ] do
       view |> actions() |> render_hook("step_failed", %{"step" => "stake", "reason" => reason})
       assert has_element?(view, "#staking-press-notice", words)
@@ -1134,7 +1138,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
     view = stake_as_signer(conn, "usdc-short")
 
-    assert has_element?(view, "#staking-claim-note")
+    assert has_element?(view, "#staking-claim-note", ~r/\S/)
     assert has_element?(view, ~s(#staking-claim_usdc[data-onchain-step="claim_usdc"]))
     refute has_element?(view, "#staking-claim_usdc.stake-claim-ready")
     assert [_claim] = step(view, "claim_usdc")
@@ -1152,7 +1156,7 @@ defmodule RegentsWeb.StakeLiveTest do
     SharedStakingReading.run()
     render_async(view)
 
-    refute has_element?(view, "#staking-claim-note")
+    refute has_element?(view, "#staking-claim-note", ~r/\S/)
     assert has_element?(view, "#staking-claim_usdc.stake-claim-ready")
   end
 
@@ -1177,8 +1181,8 @@ defmodule RegentsWeb.StakeLiveTest do
     assert step(view, "stake") == []
 
     acknowledge(view, other)
-    # "Rewards go to" names it in the compact form, which copies it whole.
-    assert has_element?(view, "#staking-for-other-text", "Rewards go to")
+    # "For" names it in the compact form, which copies it whole.
+    assert has_element?(view, "#staking-for-other-text", "For")
 
     assert has_element?(
              view,
@@ -1380,9 +1384,9 @@ defmodule RegentsWeb.StakeLiveTest do
       assert has_element?(view, sign_in_control(), label)
     end
 
-    view |> element(~s|.stake-mode button[phx-value-mode="unstake"]|) |> render_click()
+    view |> element(~s|#staking-tab-unstake|) |> render_click()
     assert has_element?(view, sign_in_control(), "Unstake REGENT")
-    view |> element(~s|.stake-mode button[phx-value-mode="stake"]|) |> render_click()
+    view |> element(~s|#staking-tab-stake|) |> render_click()
   end
 
   defp sign_in_control,

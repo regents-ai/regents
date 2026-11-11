@@ -83,6 +83,16 @@ defmodule Regents.TestPrivyVerifier do
      }}
   end
 
+  defp access_evidence("valid-staking-usdc-short") do
+    {:ok,
+     %{
+       session_id: "staking-usdc-short-browser-session",
+       privy_user_id: "did:privy:staking-usdc-short-browser",
+       wallet_address: "0x4444444444444444444444444444444444444444",
+       wallet_addresses: ["0x4444444444444444444444444444444444444444"]
+     }}
+  end
+
   defp access_evidence("valid-redemption") do
     {:ok,
      %{
