@@ -372,16 +372,16 @@ defmodule RegentsWeb.StakeActions do
         nil
 
       next_step(assigns) == "approve" ->
-        "Staking needs a one-time REGENT approval first. Approve it, then stake."
+        "One approval covers any amount you stake."
 
       approval_landed?(presses, review) ->
         "Approved. You can stake now."
 
       not Presses.on_its_way?(presses, review, "approve") ->
-        "Your REGENT approval couldn't be read. If the stake doesn't go through, approve first."
+        "Could not read your approval. Approve if a stake fails."
 
       true ->
-        "Approval sent. You can stake now; if the approval has not landed yet, the stake will not go through."
+        "Approval sent. A stake fails until it lands."
     end
   end
 
@@ -392,55 +392,10 @@ defmodule RegentsWeb.StakeActions do
   defp approval_offered?(%{review: review} = assigns),
     do: Review.find(review, "approve") != nil and next_step(assigns) != "approve"
 
-  # What the primary button sends, read from the review itself, so a press sends
-  # what the page shows.
-  defp review_line(%{review: nil}), do: nil
-
-  defp review_line(%{review: review} = assigns) do
-    case {Review.find(review, assigns.action), next_step(assigns)} do
-      {nil, _step} ->
-        nil
-
-      {_step, "approve"} ->
-        "Approve REGENT lets the staking contract take any amount of your REGENT when you stake, so you only approve once. Stake REGENT sends it next."
-
-      {_step, "stake"} ->
-        nil
-
-      {_step, "unstake"} ->
-        "You unstake #{amount(review)} REGENT. You get #{amount(review)} REGENT back in your wallet."
-    end
-  end
-
-  # A stake for another address has no steps until that address is valid and
-  # acknowledged. Until then, the lines a stake of your own would show below the
-  # button keep their room, so ticking the box never changes the panel's height.
-  # Only the room is drawn from this: the steps on the page stay the form's own.
-  defp steps_room(%{action: "stake", form: %{for_other: true} = form} = assigns) do
-    own = %{assigns | form: %{form | for_other: false}}
-
-    with {:error, _unready} <- Steps.receiver(form),
-         signer when is_binary(signer) <- OnchainSteps.signer(assigns.linked, assigns.active) do
-      steps = Steps.steps(signer, assigns.staking, staking_form(own))
-
-      own = %{
-        own
-        | review: Review.new(assigns.id, signer, ChainClient.base(), steps, inputs(own))
-      }
-
-      room = %{
-        review_line: review_line(own),
-        approval_note: approval_note(own),
-        approval_offered: approval_offered?(own)
-      }
-
-      if room.review_line || room.approval_note || room.approval_offered, do: room
-    else
-      _ready_or_signed_out -> nil
-    end
-  end
-
-  defp steps_room(_assigns), do: nil
+  # Approve turns grey with a green edge once its approval landed; it stays
+  # pressable.
+  defp approved?(%{review: nil}), do: false
+  defp approved?(%{review: review, presses: presses}), do: approval_landed?(presses, review)
 
   defp amount(%{inputs: %{"amount" => amount}}), do: String.trim(amount)
 
@@ -460,7 +415,7 @@ defmodule RegentsWeb.StakeActions do
   defp missing(name, form) do
     cond do
       match?({:error, _}, Staking.parse_amount(form.amount)) ->
-        ["Enter an amount in REGENT above zero. Nothing was sent."]
+        ["Enter an amount above zero. Nothing was sent."]
 
       name != "unstake" and Steps.receiver(form) == {:error, :receiver_invalid} ->
         ["Enter a valid receiving address. Nothing was sent."]
@@ -598,8 +553,7 @@ defmodule RegentsWeb.StakeActions do
         next_step: next_step(assigns),
         approval_note: approval_note(assigns),
         approval_offered: approval_offered?(assigns),
-        review_line: review_line(assigns),
-        steps_room: steps_room(assigns),
+        approved: approved?(assigns),
         mismatch_note: OnchainSteps.mismatch_note(assigns.linked, assigns.active),
         sent: shown(assigns.presses, assigns.refusals)
       )
@@ -612,43 +566,17 @@ defmodule RegentsWeb.StakeActions do
       aria-labelledby="staking-actions-heading"
       data-staking-mode={@action}
     >
-      <div class="stake-section-heading">
-        <div>
-          <p class="stake-section-kicker">Your next move</p>
-          <h2 id="staking-actions-heading">
-            {if @wallet, do: "Manage your stake", else: "Stake in three steps"}
-          </h2>
-        </div>
-        <span :if={@wallet} class="stake-signer">
-          <span aria-hidden="true"></span><Regent.Primitives.address
-            id="staking-signer-wallet"
-            address={@wallet}
-          />
-        </span>
-      </div>
+      <h2 id="staking-actions-heading" class={@wallet && "visually-hidden"}>Stake</h2>
 
-      <div :if={!@wallet} class="stake-connect-flow">
-        <ol>
-          <li>
-            <span>1</span><p><strong>Connect</strong> an Ethereum wallet.</p>
-          </li>
-          <li>
-            <span>2</span><p><strong>Choose</strong> how much REGENT to stake.</p>
-          </li>
-          <li>
-            <span>3</span><p><strong>Confirm</strong> each Base transaction in your wallet.</p>
-          </li>
-        </ol>
+      <div :if={!@wallet} class="stake-connect">
+        <p>Connect a wallet to stake REGENT.</p>
         <Regent.Primitives.button
           type="button"
-          class="stake-primary"
+          class="stake-submit"
           data-account-target={if @signed_in, do: "connect-wallet", else: "sign-in"}
         >
           Connect wallet
         </Regent.Primitives.button>
-        <p class="stake-fine-print">
-          Signing in connects your wallet. Nothing is sent until you confirm it in your wallet.
-        </p>
       </div>
 
       <StakeLive.notice :if={@wallet && @notice} notice={@notice} />
@@ -660,57 +588,33 @@ defmodule RegentsWeb.StakeActions do
             do: "staking-wallet-skeleton",
             else: "staking-wallet-unavailable"
         }
-        label="Your wallet position"
-        labels={["Available REGENT", "Currently staked", "Claimable USDC", "Claimable REGENT"]}
+        label="Position"
+        labels={["Staked", "Available", "Claimable USDC", "Claimable REGENT"]}
         loading={@reading || @status == :loading}
       />
 
-      <div :if={@wallet_ready} id="staking-wallet-controls" class="stake-wallet-controls">
-        <p :if={is_integer(@staking.wallet_block_number)} class="stake-wallet-block">
-          Your position at Base block #{TokenDisplay.count(@staking.wallet_block_number)}.
-        </p>
-        <p :if={@staking.wallet_block_number == :unavailable} class="stake-wallet-block">
-          Your position could not be read just now. Everything else here is current, and every
-          action below still goes to your wallet.
-        </p>
-        <dl
-          id="staking-wallet-summary"
-          class="stake-wallet-summary"
-          phx-hook="MotionCount"
-          data-variant={RegentsWeb.Motion.standard("count")}
-        >
-          <.metric label="Available REGENT" amount={@staking.wallet_token_balance} unit="REGENT" />
-          <.metric label="Currently staked" amount={@staking.wallet_stake_balance} unit="REGENT" />
-          <.metric label="Claimable USDC" amount={@staking.wallet_claimable_usdc} unit="USDC" />
-          <.metric
-            label="Claimable REGENT"
-            amount={@staking.wallet_claimable_regent}
-            unit="REGENT"
-          />
-        </dl>
-
+      <div :if={@wallet_ready} id="staking-wallet-controls" class="stake-widget">
         <div
           id="staking-modes"
-          class="stake-modes"
+          class="stake-trade"
           phx-hook="MotionTabs"
           data-active={@action}
           data-variant={RegentsWeb.Motion.standard("tabs")}
         >
-          <div class="stake-mode" role="tablist" aria-label="Stake or unstake">
+          <%!-- The chosen mode's fill comes first, so the two words paint over it
+               without a stacking number. --%>
+          <div class="stake-switch" role="tablist" aria-label="Stake or unstake">
+            <span
+              class="stake-switch__ink"
+              data-ink
+              aria-hidden="true"
+              phx-mounted={JS.ignore_attributes(["style"])}
+            ></span>
             <Regent.Primitives.button
               :for={mode <- modes()}
-              variant="secondary"
+              variant="quiet"
               type="button"
-              phx-click={
-                if @action == mode,
-                  do:
-                    JS.transition("is-mode-hinted",
-                      to: "#staking-amount-form .stake-submit",
-                      time: 650,
-                      blocking: false
-                    ),
-                  else: "select_staking_action"
-              }
+              phx-click="select_staking_action"
               phx-target={@myself}
               phx-value-mode={mode}
               role="tab"
@@ -719,57 +623,14 @@ defmodule RegentsWeb.StakeActions do
               aria-selected={to_string(@action == mode)}
               aria-controls="staking-tabpanel"
             >{mode_label(mode)}</Regent.Primitives.button>
-            <span
-              class="stake-mode__ink"
-              data-ink
-              aria-hidden="true"
-              phx-mounted={JS.ignore_attributes(["style"])}
-            ></span>
           </div>
 
           <div id="staking-tabpanel" role="tabpanel" aria-labelledby={"staking-tab-#{@action}"}>
             <form id="staking-amount-form" phx-change="change" phx-target={@myself}>
               <input type="hidden" name="action" value={@action} data-onchain-input="action" />
-              <Regent.Primitives.field id="staking-amount" label="Amount" class="stake-amount-field">
-                <%!-- Unstake keeps this choice's room, unseen, so the Amount row never moves.
-                     Once the other address is set, "Rewards go to" sits above it, in
-                     the line every state keeps for it. --%>
-                <div
-                  class="stake-for-other"
-                  data-room-only={@action != "stake"}
-                  inert={@action != "stake"}
-                >
-                  <label for="staking-for-other">
-                    <input
-                      id="staking-for-other"
-                      name="for_other"
-                      type="checkbox"
-                      value="true"
-                      checked={@form.for_other}
-                      data-onchain-input="for_other"
-                      aria-controls="staking-recipient-dialog"
-                      phx-click={!@form.for_other && open_recipient()}
-                    />
-                    <span id="staking-for-other-text">{for_other_text(@form)}</span>
-                  </label>
-                  <Regent.Primitives.address
-                    :if={ready_receiver(@form)}
-                    id="staking-for-other-address"
-                    class="stake-for-other__address"
-                    address={ready_receiver(@form)}
-                    variant="compact"
-                  />
-                  <button
-                    :if={@form.for_other}
-                    id="staking-recipient-change"
-                    type="button"
-                    class="stake-for-other__change"
-                    phx-click={open_recipient()}
-                  >
-                    {if ready_receiver(@form), do: "Change", else: "Add"}
-                  </button>
-                </div>
-                <div class="stake-amount">
+              <div class="stake-amount">
+                <label for="staking-amount" class="visually-hidden">Amount (REGENT)</label>
+                <div class="stake-amount__entry">
                   <input
                     id="staking-amount"
                     name="amount"
@@ -777,14 +638,77 @@ defmodule RegentsWeb.StakeActions do
                     maxlength="64"
                     inputmode="decimal"
                     autocomplete="off"
-                    placeholder="0.0"
+                    placeholder="0"
                     phx-debounce="200"
                     data-onchain-input="amount"
                     aria-describedby="staking-available staking-amount-feedback"
                   />
-                  <span>REGENT</span>
+                  <span aria-hidden="true">REGENT</span>
                 </div>
-              </Regent.Primitives.field>
+                <div class="stake-amount__tools">
+                  <p id="staking-available">
+                    Available
+                    <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
+                  </p>
+                  <Regent.Primitives.button
+                    variant="secondary"
+                    type="button"
+                    class="stake-chip"
+                    arrow={false}
+                    phx-click="fill_staking_amount"
+                    phx-target={@myself}
+                    phx-value-portion="half"
+                    disabled={not fillable?(@spendable, "half")}
+                  >50%</Regent.Primitives.button>
+                  <Regent.Primitives.button
+                    variant="secondary"
+                    type="button"
+                    class="stake-chip"
+                    arrow={false}
+                    phx-click="fill_staking_amount"
+                    phx-target={@myself}
+                    phx-value-portion="max"
+                    disabled={not fillable?(@spendable, "max")}
+                  >Max</Regent.Primitives.button>
+                </div>
+              </div>
+
+              <%!-- Unstake keeps this choice's row, unseen, at the end of the form,
+                   so the button keeps its place in both modes. --%>
+              <div
+                class="stake-for-other"
+                data-room-only={@action != "stake"}
+                inert={@action != "stake"}
+              >
+                <label for="staking-for-other">
+                  <input
+                    id="staking-for-other"
+                    name="for_other"
+                    type="checkbox"
+                    value="true"
+                    checked={@form.for_other}
+                    data-onchain-input="for_other"
+                    aria-controls="staking-recipient-dialog"
+                    phx-click={!@form.for_other && open_recipient()}
+                  />
+                  <span id="staking-for-other-text">{for_other_text(@form)}</span>
+                </label>
+                <Regent.Primitives.address
+                  :if={ready_receiver(@form)}
+                  id="staking-for-other-address"
+                  address={ready_receiver(@form)}
+                  variant="compact"
+                />
+                <button
+                  :if={@form.for_other}
+                  id="staking-recipient-change"
+                  type="button"
+                  class="stake-for-other__change"
+                  phx-click={open_recipient()}
+                >
+                  {if ready_receiver(@form), do: "Change", else: "Add"}
+                </button>
+              </div>
 
               <%!-- The address and its warning, in a window the box opens. It stays in
                    the form, so the steps are built from what it holds. --%>
@@ -794,8 +718,8 @@ defmodule RegentsWeb.StakeActions do
                 aria-labelledby="staking-recipient-heading"
                 phx-hook="InfoDialog"
               >
-                <h2 id="staking-recipient-heading">Stake for a different address</h2>
-                <Regent.Primitives.field id="staking-recipient" label="Receiving Ethereum address">
+                <h2 id="staking-recipient-heading">Receiving address</h2>
+                <Regent.Primitives.field id="staking-recipient" label="Address">
                   <input
                     id="staking-recipient"
                     name="receiver"
@@ -865,97 +789,56 @@ defmodule RegentsWeb.StakeActions do
                 </div>
               </Regent.Structure.dialog>
 
-              <div class="stake-amount-tools">
-                <div class="stake-amount-action">
-                  <Regent.Primitives.button
-                    id="staking-primary"
-                    class={"stake-primary stake-submit" <> armed_class(@amount)}
-                    type="button"
-                    data-onchain-step={@signed_in && @next_step}
-                    data-account-target={!@signed_in && "sign-in"}
-                    data-confirming={OnchainSteps.confirming?(@presses, [@next_step])}
-                    phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-                  ><OnchainButton.label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
-                  <p id="staking-available">
-                    Available
-                    <TokenDisplay.amount amount={spendable_figure(@spendable)} unit="REGENT" />
-                  </p>
-                </div>
-                <div class="stake-amount-shortcuts">
-                  <Regent.Primitives.button
-                    variant="secondary"
-                    type="button"
-                    phx-click="fill_staking_amount"
-                    phx-target={@myself}
-                    phx-value-portion="half"
-                    disabled={not fillable?(@spendable, "half")}
-                  >50%</Regent.Primitives.button>
-                  <Regent.Primitives.button
-                    variant="secondary"
-                    type="button"
-                    phx-click="fill_staking_amount"
-                    phx-target={@myself}
-                    phx-value-portion="max"
-                    disabled={not fillable?(@spendable, "max")}
-                  >Max</Regent.Primitives.button>
-                </div>
-              </div>
-              <%!-- Always on the page, so the fields after it keep their focus while it fills. --%>
-              <p
-                id="staking-review"
-                class="stake-review"
-                aria-live="polite"
-                hidden={!(@signed_in && @review_line)}
-              >
-                {@signed_in && @review_line}
-              </p>
-              <.mismatch :if={@signed_in} id="staking-form-mismatch" note={@mismatch_note} />
-              <p
-                id="staking-amount-feedback"
-                class="stake-amount-notice"
-                role="status"
-                data-visible={to_string(not is_nil(@amount_notice))}
-              >
+              <%!-- Each line below keeps its room while it has nothing to say. --%>
+              <p id="staking-amount-feedback" class="stake-line" role="status">
                 {@amount_notice}
               </p>
 
-              <dl :if={@preview} class="stake-preview" aria-label="Estimated position after action">
+              <%!-- Approve, when it is offered beside the next step, shares its row and
+                   its size. --%>
+              <div class="stake-submit-row">
+                <Regent.Primitives.button
+                  :if={@signed_in && @approval_offered}
+                  id="staking-approve"
+                  variant="secondary"
+                  class="stake-submit"
+                  type="button"
+                  data-approved={@approved}
+                  data-onchain-step="approve"
+                  data-confirming={OnchainSteps.confirming?(@presses, ~w(approve))}
+                  phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+                ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
+                <Regent.Primitives.button
+                  id="staking-primary"
+                  class={"stake-submit" <> armed_class(@amount)}
+                  type="button"
+                  data-onchain-step={@signed_in && @next_step}
+                  data-account-target={!@signed_in && "sign-in"}
+                  data-confirming={OnchainSteps.confirming?(@presses, [@next_step])}
+                  phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+                ><OnchainButton.label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
+              </div>
+
+              <p id="staking-approval-note" class="stake-line stake-approval-note">
+                {@signed_in && @approval_note}
+              </p>
+              <.mismatch :if={@signed_in} id="staking-form-mismatch" note={@mismatch_note} />
+
+              <dl
+                class="stake-preview"
+                aria-label="Estimated position after action"
+                data-room-only={is_nil(@preview)}
+                inert={is_nil(@preview)}
+              >
                 <div>
                   <dt>Position after</dt><dd>
-                    <TokenDisplay.amount amount={@preview.position} unit="REGENT" />
+                    <TokenDisplay.amount amount={@preview && @preview.position} unit="REGENT" />
                   </dd>
                 </div>
                 <div>
-                  <dt>Your share of revenue</dt><dd>{@preview.revenue_share}</dd>
+                  <dt>Revenue share</dt><dd>{@preview && @preview.revenue_share}</dd>
                 </div>
               </dl>
-
-              <p :if={@signed_in && @approval_note} class="stake-approval-note">
-                {@approval_note}
-              </p>
-              <Regent.Primitives.button
-                :if={@signed_in && @approval_offered}
-                id="staking-approve"
-                variant="secondary"
-                type="button"
-                data-onchain-step="approve"
-                data-confirming={OnchainSteps.confirming?(@presses, ~w(approve))}
-                phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
-              ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
-
-              <%!-- Until the other address is ready, the lines a stake of your own
-                   shows here keep their room, unseen, after the rows in use. --%>
-              <div :if={@steps_room} class="stake-steps-room" aria-hidden="true" inert>
-                <p :if={@steps_room.review_line} class="stake-review">{@steps_room.review_line}</p>
-                <p :if={@steps_room.approval_note} class="stake-approval-note">
-                  {@steps_room.approval_note}
-                </p>
-                <Regent.Primitives.button
-                  :if={@steps_room.approval_offered}
-                  variant="secondary"
-                  type="button"
-                ><OnchainButton.label label="Approve REGENT" /></Regent.Primitives.button>
-              </div>
             </form>
           </div>
         </div>
@@ -975,14 +858,78 @@ defmodule RegentsWeb.StakeActions do
           ]}
         />
 
+        <dl
+          id="staking-position"
+          class="stake-position"
+          phx-hook="MotionCount"
+          data-variant={RegentsWeb.Motion.standard("count")}
+        >
+          <div>
+            <dt>
+              Wallet
+              <Regent.Primitives.tip
+                :if={is_integer(@staking.wallet_block_number)}
+                id="staking-wallet-block"
+                label="Base block"
+              >
+                Read at Base block #{TokenDisplay.count(@staking.wallet_block_number)}.
+              </Regent.Primitives.tip>
+            </dt>
+            <dd>
+              <Regent.Primitives.address
+                id="staking-signer-wallet"
+                address={@wallet}
+                variant="compact"
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Staked</dt><dd>
+              <TokenDisplay.amount amount={@staking.wallet_stake_balance} unit="REGENT" />
+            </dd>
+          </div>
+          <div>
+            <dt>Available</dt><dd>
+              <TokenDisplay.amount amount={@staking.wallet_token_balance} unit="REGENT" />
+            </dd>
+          </div>
+        </dl>
+        <p
+          :if={@staking.wallet_block_number == :unavailable}
+          id="staking-wallet-unread"
+          class="stake-notice"
+          role="status"
+        >
+          Your position could not be read. Every action still goes to your wallet.
+        </p>
+
         <section class="stake-rewards" aria-labelledby="staking-rewards-heading">
-          <h3 id="staking-rewards-heading">Claim or compound rewards</h3>
-          <div class="stake-button-row">
+          <div class="stake-rewards__head">
+            <h3 id="staking-rewards-heading">Rewards</h3>
+            <dl
+              id="staking-rewards-figures"
+              phx-hook="MotionCount"
+              data-variant={RegentsWeb.Motion.standard("count")}
+            >
+              <div>
+                <dt class="visually-hidden">Claimable USDC</dt><dd>
+                  <TokenDisplay.amount amount={@staking.wallet_claimable_usdc} unit="USDC" />
+                </dd>
+              </div>
+              <div>
+                <dt class="visually-hidden">Claimable REGENT</dt><dd>
+                  <TokenDisplay.amount amount={@staking.wallet_claimable_regent} unit="REGENT" />
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div class="stake-claims">
             <Regent.Primitives.button
               :for={claim <- @claims}
               id={"staking-#{claim.action}"}
+              variant="secondary"
               type="button"
-              class={if is_nil(claim.reason), do: "stake-claim-ready"}
+              class={["stake-claim", is_nil(claim.reason) && "stake-claim-ready"]}
               data-claim={claim.action}
               data-onchain-step={@signed_in && claim.action}
               data-account-target={!@signed_in && "sign-in"}
@@ -992,9 +939,7 @@ defmodule RegentsWeb.StakeActions do
               claim.reason
             )}</span></Regent.Primitives.button>
           </div>
-          <p :if={@claim_note} id="staking-claim-note" class="stake-approval-note" role="note">
-            {@claim_note}
-          </p>
+          <p id="staking-claim-note" class="stake-line" role="note">{@claim_note}</p>
           <.mismatch :if={@signed_in} id="staking-claims-mismatch" note={@mismatch_note} />
         </section>
 
@@ -1008,18 +953,6 @@ defmodule RegentsWeb.StakeActions do
         </div>
       </div>
     </section>
-    """
-  end
-
-  attr :label, :string, required: true
-  attr :amount, :any, default: nil
-  attr :unit, :string, required: true
-
-  defp metric(assigns) do
-    ~H"""
-    <div class="stake-metric">
-      <dt>{@label}</dt><dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
-    </div>
     """
   end
 
@@ -1106,22 +1039,22 @@ defmodule RegentsWeb.StakeActions do
   end
 
   defp blank_or_invalid(amount),
-    do: if(String.trim(amount) == "", do: nil, else: "Enter an amount in REGENT above zero.")
+    do: if(String.trim(amount) == "", do: nil, else: "Enter an amount above zero.")
 
   defp limit_copy(nil), do: nil
 
   # Nothing here refuses the amount: the figure it would be checked against is
   # missing, and the wallet still decides.
   defp limit_copy(:chain_unavailable),
-    do: "Your position is unavailable right now, so this amount is not checked against it."
+    do: "Not checked: your position could not be read."
 
   defp limit_copy(:staking_paused), do: "Staking is paused on Base right now."
-  defp limit_copy(:amount_above_balance), do: "That is more REGENT than this wallet holds."
+  defp limit_copy(:amount_above_balance), do: "More REGENT than this wallet holds."
 
   defp limit_copy(:amount_above_capacity),
-    do: "That is more REGENT than the staking contract can still take."
+    do: "More than the staking contract can still take."
 
-  defp limit_copy(:amount_above_stake), do: "That is more REGENT than this wallet has staked."
+  defp limit_copy(:amount_above_stake), do: "More REGENT than this wallet has staked."
 
   defp position_preview(%{staking: nil}), do: nil
 
@@ -1233,10 +1166,10 @@ defmodule RegentsWeb.StakeActions do
     end
   end
 
-  defp for_other_text(%{for_other: false}), do: "Stake for a different address"
+  defp for_other_text(%{for_other: false}), do: "For a different address"
 
   defp for_other_text(form) do
-    if ready_receiver(form), do: "Rewards go to", else: "No address yet"
+    if ready_receiver(form), do: "For", else: "No address yet"
   end
 
   defp open_recipient, do: JS.dispatch("regents:open", to: "#staking-recipient-dialog")
