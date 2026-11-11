@@ -26,7 +26,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
       assert has_element?(view, ~s(#{products} a[href="#{site}"][rel="noopener noreferrer"]))
     end
 
-    assert has_element?(view, "details.regent-ops-fit summary", "How the products fit together")
+    assert has_element?(view, "details.regent-ops-fit summary")
 
     # Account details are a closed secondary disclosure for a visitor.
     assert has_element?(view, "details#regent-ops-account")

@@ -128,7 +128,7 @@ defmodule RegentsWeb.AutolaunchLive do
       </figure>
 
       <Regent.Structure.section_bar class="rg-support-band">
-        <h2 class="rg-section-bar__label">Two ways to launch</h2>
+        <h2 class="rg-section-bar__label">Launches</h2>
       </Regent.Structure.section_bar>
       <div class="product-columns">
         <Regent.Structure.panel
@@ -148,9 +148,9 @@ defmodule RegentsWeb.AutolaunchLive do
       </div>
 
       <Regent.Structure.section_bar class="rg-support-band">
-        <h2 class="rg-section-bar__label">Why the auction is fair</h2>
+        <h2 class="rg-section-bar__label">Fair auction</h2>
       </Regent.Structure.section_bar>
-      <ul class="product-proofs" aria-label="Why the Autolaunch auction is fair">
+      <ul class="product-proofs" aria-label="Fair auction">
         <li :for={proof <- @content.why_fair}>
           <Regent.Structure.panel class="product-proof rg-panel__body">
             <h3>{proof.title}</h3>
@@ -161,22 +161,22 @@ defmodule RegentsWeb.AutolaunchLive do
 
       <div class="product-columns">
         <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Who it is for</h2>
+          <h2 class="product-kicker">Audience</h2>
           <ul class="product-audience">
             <li :for={line <- @content.audience}>{line}</li>
           </ul>
         </Regent.Structure.panel>
         <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Before you bid</h2>
+          <h2 class="product-kicker">Risks</h2>
           <p :for={paragraph <- @content.before_you_bid}>{paragraph}</p>
         </Regent.Structure.panel>
       </div>
 
       <Regent.Structure.panel class="product-family rg-panel__body">
-        <h2 class="product-kicker">In the Regents family</h2>
+        <h2 class="product-kicker">Regents family</h2>
         <p>{@content.family}</p>
         <p class="product-agent-line">
-          <span class="product-kicker">Give this to your agent</span>
+          <span class="product-kicker">Agent prompt</span>
           <code>{@content.agent_line}</code>
         </p>
         <nav class="product-family__links" aria-label="Autolaunch links">

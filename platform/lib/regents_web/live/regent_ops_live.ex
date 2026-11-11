@@ -164,7 +164,7 @@ defmodule RegentsWeb.RegentOpsLive do
 
       <Regent.Primitives.disclosure
         id="regent-ops-fit"
-        summary="How the products fit together"
+        summary="About"
         class="regent-ops-fit"
       >
         <div class="regent-ops-details-body">
@@ -197,7 +197,11 @@ defmodule RegentsWeb.RegentOpsLive do
         id="regent-ops-account"
         class="regent-ops-account"
         open={@account_control.kind == :signed_in}
-        summary={"Your account · #{if @account_control.kind == :signed_in, do: @account_control.label, else: "Network and sign-in"}"}
+        summary={
+          if @account_control.kind == :signed_in,
+            do: "Account · #{@account_control.label}",
+            else: "Account"
+        }
       >
         <div class="regent-ops-details-body">
           <Loading.panel

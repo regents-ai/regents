@@ -67,13 +67,13 @@ defmodule RegentsWeb.HomeLive do
 
     Stake $REGENT. Share the lab's revenue. #{@staking_summary} [Stake](#{PublicDocuments.url("/stake")})
 
-    ## How it works
+    ## Guides
 
     #{steps}
 
     ---
 
-    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [What agents can do here](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
+    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
     """
   end
 
@@ -278,7 +278,7 @@ defmodule RegentsWeb.HomeLive do
       data-variant={RegentsWeb.Motion.standard("grid")}
       aria-labelledby="home-how-title"
     >
-      <h2 id="home-how-title" class="rl-eyebrow">How it works</h2>
+      <h2 id="home-how-title" class="rl-eyebrow">Guides</h2>
       <ul class="rl-how">
         <li :for={step <- @steps} class="rl-how__step">
           <.card_diagram id={"home-how-#{step.id}"} variant={step.variant} />
@@ -597,7 +597,7 @@ defmodule RegentsWeb.HomeLive do
       %{
         name: "autolaunch",
         line:
-          "Invest in stablecoin-generating agents on Base. Earn when they earn. Or — Launch memestocks on Base and Robinhood.",
+          "Invest in stablecoin-generating agents on Base. Earn when they earn. Or launch memestocks on Base and Robinhood.",
         site: "https://autolaunch.sh",
         github: "https://github.com/regents-ai/autolaunch"
       },

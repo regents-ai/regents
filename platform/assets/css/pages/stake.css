@@ -112,6 +112,7 @@
   margin: 0;
   border-block-start: 1px solid var(--color-border);
   border-inline-start: 1px solid var(--color-border);
+  container: stake-benefits / inline-size;
 }
 
 .stake-benefit-card {
@@ -164,8 +165,46 @@
   border-left: 1px solid var(--color-border);
 }
 
+/* A figure and its unit stay on one line. */
 .stake-earned-figure {
   font-size: clamp(1.05rem, 2.4vw, 1.6rem);
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+/* The three figures sit side by side only where each has room for itself;
+   in a narrower card each is a row, its label on the left and its figure on
+   the right, and a figure too wide for that row drops whole below its label. */
+@container stake-benefits (inline-size < 44rem) {
+  .stake-earned-split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    gap: 0;
+  }
+
+  .stake-earned-part {
+    display: flex;
+    flex-wrap: wrap;
+    grid-row: auto;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+    padding-block: 0.6rem;
+  }
+
+  .stake-earned-part:first-child {
+    padding-block-start: 0;
+  }
+
+  .stake-earned-part:last-child {
+    padding-block-end: 0;
+  }
+
+  .stake-earned-part + .stake-earned-part {
+    padding-left: 0;
+    border-left: 0;
+    border-block-start: 1px solid var(--color-border);
+  }
 }
 
 .stake-how {
@@ -809,10 +848,6 @@
   /* Buy and Chart side by side, so the Stake box stays near the top. */
   .stake-token-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
   .stake-benefit-supply { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
-  .stake-earned-split { grid-template-columns: minmax(0, 1fr); }
-  .stake-earned-split { row-gap: 0.75rem; }
-  .stake-earned-part { grid-row: auto; grid-template-rows: none; gap: 0.25rem; }
-  .stake-earned-part + .stake-earned-part { padding-left: 0; border-left: 0; }
   .stake-contract-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 }
 

@@ -4811,3 +4811,43 @@ changelog line moves from the published 6 Nov entry to this release's.
   live read.
 - Not proven: WebKit, a real Privy sign-in and a real extension wallet; the claim words on live (the
   signed-out card shows no claims).
+
+## 2026-11-11 — Plain titles and narrow-screen fixes from a blind walk (branch `regents/hx-audit-1111`)
+
+- A blind walk of live v279, signed out, in headless Chromium at 390, 1280 and 320 wide, light and
+  dark (/stake, home, /account and every page one click from them), found what follows.
+- Stake: at 1280 the three USDC revenue figures broke in the middle, the number on one line and
+  "USDC" on the next. A figure and its unit now stay on one line, and where the card is narrower
+  than 44rem (a container query on the benefit grid) the three stand one under another, name left
+  and figure right. The old 30rem rule for them is gone.
+- Stake titles: "Held back", "Valuation", "Payouts", "Verification", "7 days", "To stakers",
+  "Staked" and "Unstaked". The holding listed as "Staking reward inventory" is "Reward pool", the
+  name the fine print already used.
+- Home: "How it works" is "Guides" on the page and in its agent copy; "Or — Launch memestocks" reads
+  "Or launch memestocks". Where the cube is not drawn, each world on a phone has one row, its name
+  with Visit beside it and then its line across the card; the line was squeezed into a thin column
+  and cut off. The footer's guide links read "Setup steps" and "Site summary" and the agent copy's
+  "Agent guide", as on ash-template.
+- Product pages, Autolaunch, Cloak, /start, /app, /about and the docs tools table: phrase and
+  W-word titles are one or two words ("Features", "Audience", "Regents family", "Agent prompt",
+  "Launches", "Fair auction", "Risks", "Agents", "Steps", "About", "Account", "Purpose" and the About
+  page's headings). /start's heading and step titles wait for `regents/credits-out-1106`, which
+  changes the lines beside them.
+- 320 phones: the product pages' and the gallery's long button names wrap inside their panel, and
+  their heading column no longer grows past the screen; Literature's bottom axis name wraps. None
+  of these pages scrolls sideways.
+- Tests: `platform/test/browser/stake.spec.ts` checks each revenue figure is one line at 1280 and
+  390 (the same probe reads `[1, 2, 2]` on live v279 at 1280); `platform/test/browser/shell_walk.spec.ts`
+  "on a 320 touch phone" walks the product pages, the gallery and Literature for sideways scroll;
+  `platform/test/browser/homepage.spec.ts` checks each world's line spans the card where the list
+  stands as six rows. `home_live_test.exs` and `regent_ops_live_test.exs` compare with the page
+  instead of fixed words.
+- Not touched: anything Credits, every on-chain button, transaction building and sign-in.
+- The feature map says so.
+- Full check under the shared check lock (`MIX_TEST_PARTITION=_hx1111`, Elixir 1.20.5 and Node
+  26.13.0 from `platform/.tool-versions`), make exit 0 at 12:10Z: precommit with Credo (no issues)
+  and Sobelow (no findings), server tests 656 (647 tests, 9 properties, 1 excluded), script tests
+  252, browser walk 160 in headless Chromium (WebKit not run on the Mac), required fixes against
+  ash-template `8ae64187`, the command list, identity 16, contracts 454 forge tests.
+- Not proven: WebKit; signed-in pages walked live (read from code and tests only); the 320 fixes on
+  a real phone.

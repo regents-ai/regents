@@ -61,8 +61,8 @@ defmodule RegentsWeb.Layouts do
           </button>
           <div id="footer-agent-guide" class="rg-tip-body regent-footer__guide-body" popover>
             <p>Give your agent one of these.</p>
-            <a href={~p"/agents.md"}>What agents can do here</a>
-            <a href={~p"/llms.txt"}>The whole site in brief</a>
+            <a href={~p"/agents.md"}>Setup steps</a>
+            <a href={~p"/llms.txt"}>Site summary</a>
           </div>
         </span>
         <span class="regent-footer__legal">

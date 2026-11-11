@@ -385,7 +385,8 @@
   .lit-ticks--y { padding-block: calc(1.25rem - 0.5lh); }
   .lit-ticks--x { padding-inline: calc(1.25rem - 1ch); }
   .lit-axis--x { gap: 0.5rem; padding-inline: 0; font-size: 0.6rem; letter-spacing: 0.05em; }
-  .lit-axis--x > * { white-space: nowrap; }
+  .lit-axis--x > span { white-space: nowrap; }
+  .lit-axis--x strong { text-align: center; }
   .lit-grid--x { left: -1.25rem; right: -1.25rem; }
   .lit-grid--y { top: -1.25rem; bottom: -1.25rem; }
   .lit-quadrant { max-width: calc(50% - 0.5rem); font-size: 0.66rem; }

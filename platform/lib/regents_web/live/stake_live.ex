@@ -62,7 +62,7 @@ defmodule RegentsWeb.StakeLive do
         phx-hook="InfoDialog"
       >
         <p class="stake-dialog-kicker">Circulating REGENT</p>
-        <h2 id="staking-supply-heading">What is not circulating</h2>
+        <h2 id="staking-supply-heading">Held back</h2>
         <p class="stake-dialog-summary">
           Of the <TokenDisplay.amount amount={@staking.regent_total_supply} unit="REGENT" />
           in existence, <TokenDisplay.amount amount={@dashboard.held_back} unit="REGENT" />
@@ -96,7 +96,7 @@ defmodule RegentsWeb.StakeLive do
         phx-hook="InfoDialog"
       >
         <p class="stake-dialog-kicker">Circulating MCAP</p>
-        <h2 id="staking-value-heading">How the market cap is valued</h2>
+        <h2 id="staking-value-heading">Valuation</h2>
         <p class="stake-dialog-summary">
           Circulating REGENT times the price of one REGENT, in US dollars: {@dashboard.market_cap} USD.
         </p>
@@ -168,7 +168,7 @@ defmodule RegentsWeb.StakeLive do
               <dt>USDC revenue</dt>
               <dd class="stake-earned-split">
                 <span class="stake-earned-part">
-                  <span class="stake-earned-label">Last 7 days</span>
+                  <span class="stake-earned-label">7 days</span>
                   <span class="stake-earned-figure">
                     <TokenDisplay.amount amount={@staking.usdc_received_7d} unit="USDC" />
                   </span>
@@ -180,7 +180,7 @@ defmodule RegentsWeb.StakeLive do
                   </span>
                 </span>
                 <span class="stake-earned-part">
-                  <span class="stake-earned-label">Paid to stakers (lifetime)</span>
+                  <span class="stake-earned-label">To stakers</span>
                   <span class="stake-earned-figure">
                     <TokenDisplay.amount amount={@staking.usdc_credited_to_stakers} unit="USDC" />
                   </span>
@@ -220,7 +220,7 @@ defmodule RegentsWeb.StakeLive do
               <dt>USDC revenue</dt>
               <dd class="stake-earned-split">
                 <span
-                  :for={label <- ["Last 7 days", "Lifetime", "Paid to stakers (lifetime)"]}
+                  :for={label <- ["7 days", "Lifetime", "To stakers"]}
                   class="stake-earned-part"
                 >
                   <span class="stake-earned-label">{label}</span>
@@ -258,8 +258,8 @@ defmodule RegentsWeb.StakeLive do
               title="REGENT supply"
               eyebrow="Base snapshot"
               value_bps={@dashboard.supply_bps}
-              label="Circulating supply staked"
-              remainder_label="Circulating supply unstaked"
+              label="Staked"
+              remainder_label="Unstaked"
               footer_label="Supply facts · REGENT"
             >
               <:footer>
@@ -284,7 +284,7 @@ defmodule RegentsWeb.StakeLive do
               </:footer>
             </Regent.Structure.ratio_card>
             <p class="stake-fine-print">
-              Share of circulating supply, not total supply or reward entitlement. Circulating supply is the total less the Clanker vault, the treasury, the Animata redeemer and the staking reward inventory, all read at the same Base block.
+              Share of circulating supply, not total supply or reward entitlement. Circulating supply is the total less the Clanker vault, the treasury, the Animata redeemer and the reward pool, all read at the same Base block.
             </p>
 
             <p class="stake-snapshot-note">
@@ -319,7 +319,7 @@ defmodule RegentsWeb.StakeLive do
       <Regent.Primitives.disclosure
         :if={@status == :ready && @staking}
         id="stake-contract-details"
-        summary="Verification · Contract and snapshot details"
+        summary="Verification"
         class="stake-contract-details"
       >
         <div class="stake-contract-details-body">
@@ -376,7 +376,7 @@ defmodule RegentsWeb.StakeLive do
       class="stake-how rg-panel rg-panel--surface rg-panel__body"
       aria-labelledby="staking-how-heading"
     >
-      <h2 id="staking-how-heading" class="stake-section-kicker">How staking pays</h2>
+      <h2 id="staking-how-heading" class="stake-section-kicker">Payouts</h2>
       <ol>
         <li>
           Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷
@@ -462,7 +462,7 @@ defmodule RegentsWeb.StakeLive do
     <button
       type="button"
       class="stake-info"
-      aria-label="What is not circulating"
+      aria-label="Held back REGENT"
       phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#staking-supply-dialog")}
     ><span aria-hidden="true">i</span></button>
     """
@@ -473,7 +473,7 @@ defmodule RegentsWeb.StakeLive do
     <button
       type="button"
       class="stake-info"
-      aria-label="How the market cap is valued"
+      aria-label="Market cap valuation"
       phx-click={Phoenix.LiveView.JS.dispatch("regents:open", to: "#staking-value-dialog")}
     ><span aria-hidden="true">i</span></button>
     """
@@ -537,7 +537,7 @@ defmodule RegentsWeb.StakeLive do
       },
       %{
         key: "reward-inventory",
-        name: "Staking reward inventory",
+        name: "Reward pool",
         address: staking.contract_address,
         amount: staking.reward_inventory,
         release:

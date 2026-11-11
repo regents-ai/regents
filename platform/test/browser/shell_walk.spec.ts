@@ -124,3 +124,28 @@ test("the Account tabs and Names fit a phone and a desktop, light and dark", asy
     }
   }
 })
+
+// On the narrowest phone a product page's buttons, the gallery's and the chart's
+// axis names stay inside their panels, so nothing pushes the page sideways.
+test.describe("on a 320 touch phone", () => {
+  test.use({hasTouch: true, isMobile: true, viewport: {width: 320, height: 800}})
+
+  test("product pages, the gallery and Literature fit without sideways scroll", async ({page}) => {
+    const fits: Array<[string, string]> = [
+      ["/patchbay", "#product-heading"],
+      ["/autolaunch", "#product-heading"],
+      ["/techtree", "#product-heading"],
+      ["/keyfleet", "#product-heading"],
+      ["/cloak", "#product-heading"],
+      ["/redeem/gallery", "#gallery-heading"],
+      ["/literature", "#literature-chart"],
+    ]
+
+    for (const [path, marker] of fits) {
+      await page.goto(path)
+      await expect(page.locator(marker), path).toBeVisible()
+      const sideways = await page.locator("#app-shell-scroller").evaluate(scroller => scroller.scrollWidth - scroller.clientWidth)
+      expect(sideways, `${path} at 320`).toBeLessThanOrEqual(0)
+    }
+  })
+})

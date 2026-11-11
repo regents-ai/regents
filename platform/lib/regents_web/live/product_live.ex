@@ -207,9 +207,9 @@ defmodule RegentsWeb.ProductLive do
       </figure>
 
       <Regent.Structure.section_bar class="rg-support-band">
-        <h2 class="rg-section-bar__label">What it does</h2>
+        <h2 class="rg-section-bar__label">Features</h2>
       </Regent.Structure.section_bar>
-      <ul class="product-proofs" aria-label={"What #{@content.name} does"}>
+      <ul class="product-proofs" aria-label={"#{@content.name} features"}>
         <li :for={proof <- @content.what_it_does}>
           <Regent.Structure.panel class="product-proof rg-panel__body">
             <h3>{proof.title}</h3>
@@ -225,7 +225,7 @@ defmodule RegentsWeb.ProductLive do
           <p :for={paragraph <- @content.about}>{paragraph}</p>
         </Regent.Structure.panel>
         <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Who it is for</h2>
+          <h2 class="product-kicker">Audience</h2>
           <ul class="product-audience">
             <li :for={line <- @content.audience}>{line}</li>
           </ul>
@@ -233,10 +233,10 @@ defmodule RegentsWeb.ProductLive do
       </div>
 
       <Regent.Structure.panel class="product-family rg-panel__body">
-        <h2 class="product-kicker">In the Regents family</h2>
+        <h2 class="product-kicker">Regents family</h2>
         <p>{@content.family}</p>
         <p :if={@content.agent_line} class="product-agent-line">
-          <span class="product-kicker">Give this to your agent</span>
+          <span class="product-kicker">Agent prompt</span>
           <code>{@content.agent_line}</code>
         </p>
         <nav class="product-family__links" aria-label={"#{@content.name} links"}>

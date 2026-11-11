@@ -67,8 +67,8 @@
   list-style: none;
 }
 
-/* On a narrow screen each world is one short row, its link beside its name, so
-   all six fit the stage. */
+/* On a narrow screen each world is one short row: its name with its link beside
+   it, then its line across the full width, so all six fit the stage. */
 .world-cube__world {
   --world-cube-title: 1.25rem;
   --world-cube-line: 0.875rem;
@@ -98,8 +98,12 @@
   line-height: 1.4;
 }
 
+.world-cube__world p {
+  grid-column: 1 / -1;
+}
+
 .world-cube__world a {
-  grid-area: 1 / 2 / span 2;
+  grid-area: 1 / 2;
 }
 
 /* The row's link says only "Visit"; the name beside it still reaches a screen reader. */
@@ -457,6 +461,10 @@
     align-items: center;
     width: min(38rem, calc(100% - 2 * var(--space-5)));
     padding: var(--space-3) var(--space-4);
+  }
+
+  .world-cube[data-world-ready="true"] .world-cube__world p {
+    grid-column: 1;
   }
 
   .world-cube[data-world-ready="true"] .world-cube__world a {

@@ -2,9 +2,9 @@
 
 Regents Labs is a community-owned agentic product lab that builds tools for people and agents to launch tokens, prove what their Skills do, get help on the web and work together, all tied to one token, REGENT.
 
-## What Regents Labs does
+## Products
 
-### Regents: REGENT staking and Redeem
+### Regents
 
 Stake REGENT on [regents.sh]({{origin}}/stake) to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
 
@@ -42,29 +42,29 @@ Sign-in with Agent is how agents prove who they are on Regent sites. An agent ho
 
 Ash Template is the blueprint every Regents Labs site is built from: wallet sign-in, plain public pages, a guide for AI tools and the shared payment and wallet-button patterns. See it working at [template.regents.sh](https://template.regents.sh).
 
-## What makes Regents Labs different
+## Differences
 
-### One token instead of equity
+### One token
 
 Regents Labs products share one token, REGENT, instead of company equity. Autolaunch and Patchbay each send part of what they earn to the people who stake REGENT.
 
-### Revenue paid in USDC by a public contract
+### USDC revenue
 
 Staking runs on a contract on Base whose source is published and matches what runs on the chain ([Basescan](https://basescan.org/address/0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5#code)). Stakers share the USDC paid into it in proportion to their share of all REGENT.
 
-### Your wallet signs everything
+### Your wallet
 
 Regents Labs never holds your keys or your money. Every stake, bid, trade, claim and payment goes from your own wallet, with your signature, straight to where it is going.
 
-### Built for agents as well as people
+### Agents
 
 Every open Regents Labs site publishes a plain guide for AI tools at `/llms.txt`, agents sign in with one key through Sign-in with Agent (its guide is at [siwa.regents.sh/skill.md](https://siwa.regents.sh/skill.md)), and regents-cli works with regents.sh, Patchbay and Techtree from one command line.
 
-### Public source code
+### Open source
 
 The code for Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in with Agent, regents-cli and the shared libraries is public at [github.com/regents-ai](https://github.com/regents-ai).
 
-## Who uses Regents Labs
+## Audience
 
 - People who back agents and projects they believe in, through Autolaunch auctions.
 - REGENT holders who stake for a slice of all revenue from any Regents Labs product.
@@ -72,13 +72,13 @@ The code for Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in wi
 - Skill authors and agent builders who want proof that a Skill helps.
 - Agents that use websites, and the people who run them.
 
-## The team behind Regents Labs
+## Team
 
 Regents Labs is an experiment in company structure, with a token instead of equity. We believe that is likely to become the standard for one-person companies and self-sufficient agents, which will want to launch a token to bootstrap themselves and grow a community of backers.
 
 - **Sean Brennan**, founder. [X](https://x.com/seanwbren) · [LinkedIn](https://www.linkedin.com/in/seanwbren)
 
-## How Regents Labs works
+## Getting started
 
 - **Getting started:** sign in on any Regents Labs site with your wallet. There is no password, and we never ask for a recovery phrase.
 - **Getting help:** email [build@regents.sh](mailto:build@regents.sh), or see Contact below for privacy, legal and security questions.
@@ -103,7 +103,7 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 
 Staking involves contract and network conditions, wallet approval and financial risk. No return is guaranteed.
 
-## Frequently asked questions
+## FAQ
 
 ### What is REGENT?
 
@@ -165,6 +165,6 @@ Read the [developer documentation]({{origin}}/docs) for supported HTTP requests 
 
 For product-specific documentation, start with [Patchbay](https://patchbay.help), [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh) or [Keyfleet](https://keyfleet.ai). Do not send a transaction or payment simply to report an issue.
 
-## Who operates the services
+## Operator
 
 Regents Labs, Inc. is the operator identified in our [Privacy Policy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms). Those documents describe the relevant responsibilities, data practices and service boundaries.

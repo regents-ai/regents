@@ -70,7 +70,7 @@ defmodule RegentsWeb.CloakLive do
 
       <Regent.Structure.panel class="product-family rg-panel__body">
         <p class="product-agent-line">
-          <span class="product-kicker">Give this to your agent</span>
+          <span class="product-kicker">Agent prompt</span>
           <code>{@agent_line}</code>
         </p>
         <nav class="product-family__links" aria-label="Guide">

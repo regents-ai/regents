@@ -280,6 +280,14 @@ for (const viewport of [
     // Three across where the frame is wide enough, one column below that.
     expect(new Set(boxes.map(box => Math.round(box.top))).size).toBe(await worldRowsIn(page))
 
+    // In one column each world's line runs under its name and link, across the card.
+    if ((await worldRowsIn(page)) === 6) {
+      const lineShares = await listed.evaluateAll(elements =>
+        elements.map(element => element.querySelector("p")!.getBoundingClientRect().width / element.clientWidth),
+      )
+      expect(lineShares.every(share => share > 0.8), `${viewport.name} world lines ${lineShares}`).toBe(true)
+    }
+
     await page.keyboard.press("Tab")
     await expect(page.locator(":focus-visible")).toBeVisible()
 

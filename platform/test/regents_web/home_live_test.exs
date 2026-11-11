@@ -77,8 +77,12 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, "[data-home-panel]", "data-home-panel") ==
              ~w(mission hero products staking how)
 
+    page_headings =
+      for panel <- ~w(products staking how),
+          do: [text(html, ~s([data-home-panel="#{panel}"] h2))]
+
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
-             [["Products"], ["Staking"], ["How it works"]]
+             page_headings
   end
 
   test "the lab's name stands once, top left, then says one plain line", %{conn: conn} do

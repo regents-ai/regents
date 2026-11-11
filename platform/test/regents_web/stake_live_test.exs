@@ -145,7 +145,7 @@ defmodule RegentsWeb.StakeLiveTest do
 
     assert has_element?(
              view,
-             ~s(.stake-benefit-supply button[aria-label="How the market cap is valued"])
+             ~s(.stake-benefit-supply button[phx-click*="staking-value-dialog"])
            )
 
     # The supply and the price each carry their own time, and the page never
@@ -254,7 +254,7 @@ defmodule RegentsWeb.StakeLiveTest do
     put_circulating("500000000000000000000")
     view = mount_stake(conn)
 
-    assert has_element?(view, "#staking-supply-bar", "Circulating supply staked")
+    assert has_element?(view, "#staking-supply-bar", "Staked")
     assert has_element?(view, ~s(#staking-supply-bar [role="meter"][aria-valuenow="20"]))
   end
 

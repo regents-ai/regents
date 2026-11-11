@@ -329,11 +329,9 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     // The hero is the two cards the contract answers for.
     const earned = page.locator(".stake-benefit-card-primary")
     await expect(earned).toContainText("USDC revenue")
-    await expect(earned).toContainText("Last 7 days")
     await expect(earned).toContainText("1,250.50 USDC")
     await expect(earned).toContainText("Lifetime")
     await expect(earned).toContainText("5,074.87 USDC")
-    await expect(earned).toContainText("Paid to stakers (lifetime)")
     await expect(earned).toContainText("353.24 USDC")
 
     // How it pays names the contract's own divisor, reward pool and Safe, each
@@ -352,9 +350,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
     await expect(supply).toContainText("35 billion REGENT")
     await expect(supply).toContainText("Total supply")
     await expect(supply).toContainText("100 billion REGENT")
-    await expect(page.locator("#staking-supply-bar")).toContainText(
-      "Circulating supply staked",
-    )
+    await expect(page.locator("#staking-supply-bar")).toContainText("Staked")
 
     await page.locator(".stake-contract-details summary").click()
     const details = page.locator("#stake-contract-details")
@@ -364,7 +360,7 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
     const bar = page.locator("#staking-supply-bar").getByRole("meter")
     await expect(bar).toHaveAttribute("aria-valuenow", "0")
-    await expect(bar).toHaveAttribute("aria-valuetext", "Circulating supply staked: 0%; Circulating supply unstaked: 100%")
+    await expect(bar).toHaveAttribute("aria-valuetext", "Staked: 0%; Unstaked: 100%")
 
     const contractLink = page.getByRole("link", {
       name: "View verified staking contract on BaseScan",
@@ -397,6 +393,13 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
       addresses: [0, 0, 0, 0],
       document: 0,
     })
+
+    // Each USDC revenue figure keeps its number and unit on one line, whether
+    // the three stand side by side or one under another.
+    const figureLines = await page
+      .locator(".stake-earned-figure [data-count]")
+      .evaluateAll(figures => figures.map(figure => figure.getClientRects().length))
+    expect(figureLines, `USDC revenue figures at ${width}`).toEqual([1, 1, 1])
 
     const columns = await page
       .locator(".stake-layout")
@@ -446,7 +449,7 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
     }
     await page.locator(".stake-contract-details summary").click()
     await expect(page.locator(".stake-contract-facts")).toBeVisible()
-    await page.getByRole("button", {name: "What is not circulating"}).first().click()
+    await page.locator('button[phx-click*="staking-supply-dialog"]').first().click()
     const supply = page.locator("#staking-supply-dialog")
     await expect(supply.locator(".stake-holdings")).toBeVisible()
     expect(await bareAddresses(page), `/stake ${at}`).toEqual([])

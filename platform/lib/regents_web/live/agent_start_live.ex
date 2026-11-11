@@ -20,7 +20,7 @@ defmodule RegentsWeb.AgentStartLive do
       </header>
 
       <section class="account-panel agent-start__handoff" aria-labelledby="agent-start-give">
-        <nav class="agent-start__tabs" aria-label="Which agent?">
+        <nav class="agent-start__tabs" aria-label="Agents">
           <.link
             :for={agent <- @agents}
             patch={~p"/start?#{[agent: agent.id]}"}
@@ -28,7 +28,7 @@ defmodule RegentsWeb.AgentStartLive do
           >{agent.label}</.link>
         </nav>
         <div class="agent-start__head">
-          <label id="agent-start-give" for="agent-start-text">Give this to your agent</label>
+          <label id="agent-start-give" for="agent-start-text">Agent prompt</label>
           <Regent.Primitives.copy_button
             id="agent-start-copy"
             target="agent-start-text"
@@ -39,7 +39,7 @@ defmodule RegentsWeb.AgentStartLive do
       </section>
 
       <section class="account-panel" aria-labelledby="agent-start-steps-title">
-        <h2 id="agent-start-steps-title">What happens</h2>
+        <h2 id="agent-start-steps-title">Steps</h2>
         <ol class="agent-start__steps">
           <li>
             <h3>Make a code</h3>

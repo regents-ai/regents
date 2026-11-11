@@ -25,7 +25,7 @@ defmodule RegentsWeb.PublicDocuments do
     "siwa_and_pairing" => "Fresh SIWA proof and current pairing"
   }
   @tool_table """
-  | Tool | Needs | What it does |
+  | Tool | Needs | Purpose |
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
