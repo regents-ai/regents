@@ -5037,3 +5037,18 @@ changelog line moves from the published 6 Nov entry to this release's.
   under a second, so the leading third of the picture stayed empty.
 - Check: `platform/assets/test/datascape.test.ts` ("opens each panel as the picture comes
   to show it, never before").
+
+## 2026-11-11 — Released v284 (the datascape's panels open on sight)
+
+- Live: v284 at 23:17Z, image registry.fly.io/regents-sh-web:main-ffc767a1b812;
+  /capabilities.json build.commit ffc767a1. Rollback: v283, image
+  registry.fly.io/regents-sh-web:main-34bb3712ef21 (34bb3712). No migrations.
+- Carries "Datascape: panels open as they come into sight" (Sean, 11 Nov: "the new items
+  load in too quickly (they are already loaded when seen)"), released on
+  template.regents.sh first (v187).
+- Full check on ffc767a1: exit 0 (657 server, 268 script and 155 browser tests, required
+  fixes, command list, identity 16, contracts 454).
+- Live read in headless Chromium with WebGPU, signed out: 37 checks held at 1440, 390 and
+  320; a filmed flight at full speed shows a full picture with the panels at its leading
+  edge still assembling; home, /stake, /app, /about, /redeem and /docs 200; no error
+  lines in the app log after the release.
