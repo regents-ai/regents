@@ -37,10 +37,11 @@
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
   /* The page is the datascape, fixed to the window, with one glass panel in the
      middle holding everything. A panel taller than the window scrolls the page while
-     the picture stays put. The picture's ground is the scene's own. */
+     the picture stays put, and ends above the copyright at the window's foot. The
+     picture's ground is the scene's own. */
   .home {
     position: relative; display: grid; place-items: center; min-height: 100dvh;
-    padding: var(--space-4) 1rem; background: #020307;
+    padding: var(--space-4) 1rem calc(var(--space-6) + env(safe-area-inset-bottom)); background: #020307;
   }
   .home__still, .home__stage { position: fixed; inset: 0; width: 100%; height: 100%; }
   .home__still { object-fit: cover; }
@@ -49,10 +50,21 @@
   .home[data-datascape-ready="true"] .home__stage canvas { visibility: visible; }
   .home[data-datascape-ready="true"] .home__still { display: none; }
 
+  /* The copyright stays at the window's foot over the picture, on a dark fill so a
+     bright panel passing behind it does not wash it out. It comes before the glass,
+     which covers it where the two meet, and never takes the pointer. */
+  .home__copyright {
+    position: fixed;
+    inset-inline-end: max(1rem, env(safe-area-inset-right));
+    inset-block-end: max(.75rem, env(safe-area-inset-bottom));
+    padding: .125rem .5rem; pointer-events: none;
+    background: color-mix(in srgb, #020307 72%, transparent);
+    color: var(--rl-ink); font-size: .75rem; line-height: 1.5;
+  }
+
   /* The glass: a dark, see-through fill that blurs the picture behind it, edged by a
      light hairline that is lighter along the top. It stands over the picture by
-     coming later in the page, so it needs no stacking number. While the picture
-     flies, the hook moves it between the two poses here. */
+     coming later in the page, so it needs no stacking number. */
   .home__glass {
     --rg-panel-padding: var(--space-4);
     position: relative; display: grid; width: min(44rem, 100%); min-width: 0;
@@ -62,7 +74,17 @@
     border: 1px solid color-mix(in srgb, var(--rl-ink) 18%, transparent);
     border-block-start-color: color-mix(in srgb, var(--rl-ink) 34%, transparent);
   }
-  .home[data-datascape-glass-state="small"] .home__glass { transform: scale(.3); opacity: .75; }
+  /* While the picture can be drawn the glass starts away, out of sight and out of
+     the pointer's way, until a press on the picture opens it; the hook moves it
+     between this pose and the open one. Focus inside it always shows it. Without
+     scripts, with less motion asked for, or once the picture will not be drawn,
+     there is nothing to press, so it simply stays open. It stays in the page for
+     assistive technology and the keyboard. */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .home:not([data-datascape-ready="false"]):not([data-datascape-glass-state="open"]) .home__glass:not(:focus-within) {
+      transform: scale(.3); opacity: 0; pointer-events: none;
+    }
+  }
   .home__main {
     container-type: inline-size;
     display: grid; gap: var(--space-3); min-width: 0;
@@ -134,26 +156,32 @@
   font-weight: 400; letter-spacing: .06em; text-transform: uppercase;
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
-.rg-button.rl-product-tab::after, .rg-button.rl-action::after, .rg-button.rl-hero-cta::after { content: none; }
-/* The hero's Enter App rests with the marks a main button shows on hover in
-   dark: Powder Blue at the square corners, Tangerine along the cuts. Hover runs
-   the Powder Blue on into two full L-edges and keeps the cuts. The panel's id
-   lifts these over the shared hover rule. */
-#home-glass .rg-button.rl-hero-cta::before {
-  --rg-button-edge-ink: var(--rg-button-mark-color, var(--palette-powder-blue, #aecacd));
-  --rg-button-cut-ink: var(--rg-button-mark-color, var(--palette-tangerine-tango, #ff5b19));
-  background-size:
-    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
-    var(--rg-cut-control) 1px, 1px var(--rg-cut-control),
-    var(--rg-cut-control) 1px, 1px var(--rg-cut-control);
+.rg-button.rl-product-tab::after { content: none; }
+/* Enter App is the page's one main action: taller and larger than the button beside
+   it, and ringed in the palette's colours, Tangerine through Powder Blue to Platinum,
+   along its cut corners. The ring lies just outside the fill, so the shared marks
+   that hover and focus bring in still show inside it, and its colours turn on hover
+   and focus. Agent Tools beside it is the shared bordered square at the same height. */
+.rg-button.rl-hero-cta, .rg-button.rl-hero-secondary { min-height: 3.25rem; padding: .75rem 1.5rem; line-height: 1.5rem; }
+.rg-button.rl-hero-cta { --rl-cta-ring: 3px; font-size: 1.125rem; }
+.rg-button.rl-hero-cta::after {
+  --rl-cta-cut: calc(var(--rg-cut-control) + .586 * var(--rl-cta-ring));
+  content: ""; position: absolute; inset: calc(-1px - var(--rl-cta-ring)); pointer-events: none;
+  background: linear-gradient(110deg,
+      var(--palette-tangerine-tango), var(--palette-powder-blue) 25%, var(--palette-platinum) 50%,
+      var(--palette-powder-blue) 75%, var(--palette-tangerine-tango)) 0 50% / 200% 100%;
+  /* The outer cut shape, then the fill's own, so only the ring between them paints. */
+  clip-path: polygon(evenodd,
+    var(--rl-cta-cut) 0, 100% 0, 100% calc(100% - var(--rl-cta-cut)), calc(100% - var(--rl-cta-cut)) 100%, 0 100%, 0 var(--rl-cta-cut), var(--rl-cta-cut) 0,
+    calc(var(--rl-cta-ring) + var(--rg-cut-control)) var(--rl-cta-ring), calc(100% - var(--rl-cta-ring)) var(--rl-cta-ring),
+    calc(100% - var(--rl-cta-ring)) calc(100% - var(--rl-cta-ring) - var(--rg-cut-control)),
+    calc(100% - var(--rl-cta-ring) - var(--rg-cut-control)) calc(100% - var(--rl-cta-ring)),
+    var(--rl-cta-ring) calc(100% - var(--rl-cta-ring)), var(--rl-cta-ring) calc(var(--rl-cta-ring) + var(--rg-cut-control)),
+    calc(var(--rl-cta-ring) + var(--rg-cut-control)) var(--rl-cta-ring));
+  transform: scale(var(--rg-press-scale, 1));
+  transition: background-position 400ms ease;
 }
-#home-glass .rg-button.rl-hero-cta:is(:hover, :focus-visible)::before {
-  background-size:
-    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
-    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
-    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
-}
-.rg-button.rl-action { white-space: nowrap; }
+.rg-button.rl-hero-cta:is(:hover, :focus-visible)::after { background-position: 100% 50%; }
 .rg-button.rl-product-tab::before {
   border: 1px solid var(--rg-button-border-color);
   transition: background-color 140ms ease, border-color 140ms ease;

@@ -3,9 +3,9 @@
 // the middle and never outruns its top speed, and the cells kept are the cells
 // in reach.
 import {describe, expect, it} from "vitest"
-import {SPEED, calmAround, createField, steerSpeed, topSpeed, type Cell} from "../js/datascape/field"
+import {REST, SPEED, calmAround, createField, steerSpeed, topSpeed, type Cell} from "../js/datascape/field"
 import {CELL, LAYERS, cellContents, random, type TubePiece} from "../js/datascape/world"
-import {LEAVING, RETURNING} from "../js/hooks/datascape"
+import {LEAVING} from "../js/hooks/datascape"
 
 /** A few hundred cells scattered far and wide, the same ones every run. */
 const cells = (() => {
@@ -153,37 +153,28 @@ describe("telling whoever watches about steering", () => {
     expect(told).toEqual([true, false])
   })
 
-  it("keeps a glass panel's answer while the pointer sits between the edge it opens at and the edge it shrinks at", () => {
+  it("steers nothing within LEAVING of an open glass panel's edges, and everywhere past the field's own zone once it is away", () => {
     const box: [number, number] = [704, 600]
     const told: boolean[] = []
-    const field = createField({
-      arrive: () => {},
-      leave: () => {},
-      rest: () => {},
-      // As the hook does: once the panel is small, the zone shrinks to the panel's own edges.
-      steer: steering => {
-        told.push(steering)
-        field.calm = calmAround(box, steering ? RETURNING : LEAVING, [width, height])
-      },
-    })
-    field.calm = calmAround(box, LEAVING, [width, height])
+    const field = createField({arrive: () => {}, leave: () => {}, rest: () => {}, steer: steering => void told.push(steering)})
     const at = (x: number) => {
       field.pointer = [x, 0]
       for (let step = 0; step < 3; step++) field.advance(1 / 60, width, height)
     }
-    const between = box[0] / 2 + (LEAVING + RETURNING) / 2
 
-    at(between)
+    // As the hook does while the panel is open.
+    field.calm = calmAround(box, LEAVING, [width, height])
+    at(box[0] / 2 + LEAVING - 1)
     expect(told).toEqual([])
     at(box[0] / 2 + LEAVING + 1)
     expect(told).toEqual([true])
-    at(between)
-    at(box[0] / 2 + RETURNING + 1)
-    expect(told).toEqual([true])
-    at(box[0] / 2 + RETURNING - 1)
+
+    // And once it is away: the panel's place steers like the rest of the picture.
+    field.calm = [REST, REST]
+    at(0)
     expect(told).toEqual([true, false])
-    at(between)
-    expect(told).toEqual([true, false])
+    at(box[0] / 2 - 1)
+    expect(told).toEqual([true, false, true])
   })
 })
 

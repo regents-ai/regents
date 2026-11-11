@@ -62,6 +62,8 @@ test("[U2] homepage is server-readable: name, line, actions, products and footer
   await expect(tabs.nth(4)).toHaveAttribute("href", "/stake")
 
   await expect(glass.getByRole("navigation", {name: "About Regents Labs"})).toBeVisible()
+  // The copyright stands outside the panel, at the window's bottom right.
+  await expect(page.locator("#public-home > .home__copyright")).toHaveText("© 2026 Regents Labs")
   // Without scripts the picture is the server's still one, behind the panel.
   await expect(page.locator(".home__still")).toBeVisible()
   await expect(page.locator("#home-canvas")).toBeHidden()
@@ -69,13 +71,13 @@ test("[U2] homepage is server-readable: name, line, actions, products and footer
   await context.close()
 })
 
-// The panel's product tabs and its App button lead to their places, by keyboard and at
-// phone width.
+// The panel's product tabs and its Enter App button lead to their places, by keyboard and
+// at phone width.
 for (const {name, width, height} of [
   {name: "desktop", width: 1440, height: 900},
   {name: "mobile-390", width: 390, height: 844},
 ]) {
-  test(`[R12] homepage product tabs and App lead to their places at ${name}`, async ({page}) => {
+  test(`[R12] homepage product tabs and Enter App lead to their places at ${name}`, async ({page}) => {
     await page.setViewportSize({width, height})
 
     await page.goto("/")
@@ -87,7 +89,7 @@ for (const {name, width, height} of [
       "Keyfleet, opens in a new tab",
       "Protocol",
     ])
-    await expect(page.locator(".rl-header-links a.rl-action")).toHaveAttribute("href", "/stake")
+    await expect(page.locator("#home-content a.rl-hero-cta")).toHaveAttribute("href", "/stake")
     await assertNoOverflow(page)
 
     const patchbay = page.locator("#home-nav-patchbay")
@@ -100,7 +102,7 @@ for (const {name, width, height} of [
     await expect(page.locator("#regent-staking")).toBeVisible()
 
     await page.goto("/")
-    await page.locator(".rl-header-links a.rl-action").click()
+    await page.locator("#home-content a.rl-hero-cta").click()
     await expect(page).toHaveURL(/\/stake$/)
     await expect(page.locator("#regent-staking")).toBeVisible()
   })
@@ -120,7 +122,7 @@ test("[U1][U2] the mission line retains its sentence case", async ({page}) => {
 })
 
 // With less motion asked for, the picture stays the server's still one and the panel
-// stays open at its full size.
+// stands open at its full size from the start.
 test("[U2] homepage keeps the still picture and an open panel for reduced motion", async ({browser}) => {
   const context = await browser.newContext({reducedMotion: "reduce"})
   const page = await context.newPage()
@@ -128,9 +130,11 @@ test("[U2] homepage keeps the still picture and an open panel for reduced motion
   await waitForHomepage(page)
   await expect(page.locator(".phx-connected").first()).toBeAttached()
   await expect(page.locator(".home__still")).toBeVisible()
-  await expect(page.locator("#public-home")).toHaveAttribute("data-datascape-glass-state", "open")
   await expect(page.locator("#public-home")).not.toHaveAttribute("data-datascape-ready", "true")
-  expect(await page.locator("#home-glass").evaluate(element => getComputedStyle(element).transform)).toBe("none")
+  const glass = page.locator("#home-glass")
+  await expect(glass).toHaveCSS("opacity", "1")
+  await expect(glass).toHaveCSS("transform", "none")
+  await expect(glass).toHaveCSS("pointer-events", "auto")
   await context.close()
 })
 
@@ -237,7 +241,7 @@ for (const viewport of [
       expect(box.right, `${viewport.name} part ${index} inside the panel`).toBeLessThanOrEqual(glass.right)
       if (index > 0) expect(box.top, `${viewport.name} part ${index} in order`).toBeGreaterThanOrEqual(parts[index - 1]!.top)
     }
-    for (const selector of [".rl-product-tab", ".regent-footer a", ".rl-header-links > *"]) {
+    for (const selector of [".rl-product-tab", ".regent-footer__links > a, .regent-footer__guide", ".rl-header-links > *"]) {
       const boxes = await page.locator(selector).evaluateAll(elements =>
         elements.map(element => element.getBoundingClientRect().toJSON() as DOMRect),
       )
@@ -251,6 +255,13 @@ for (const viewport of [
     await page.evaluate(() => window.scrollTo(0, document.scrollingElement!.scrollHeight))
     const scrolled = await boxOf(page, "#home-glass")
     expect(scrolled.bottom, `${viewport.name} panel's foot reachable`).toBeLessThanOrEqual(viewport.height + 1)
+    const copyright = await boxOf(page, ".home__copyright")
+    expect(copyright.bottom, `${viewport.name} copyright inside the window`).toBeLessThanOrEqual(viewport.height)
+    expect(copyright.right, `${viewport.name} copyright inside the window`).toBeLessThanOrEqual(viewport.width)
+    if (glass.height >= viewport.height) {
+      const foot = await boxOf(page, ".regent-footer")
+      expect(foot.bottom, `${viewport.name} panel's foot ends above the copyright`).toBeLessThanOrEqual(copyright.top)
+    }
     const still = await boxOf(page, ".home__still")
     expect(still.top).toBe(0)
     expect(still.height).toBe(viewport.height)
@@ -356,7 +367,7 @@ test("[U1] every panel control retains visible paired keyboard focus", async ({p
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
   expect([...reached]).toEqual(
-    expect.arrayContaining(["Enter App", "Techtree, opens in a new tab", "Privacy policy"]),
+    expect.arrayContaining(["Enter App", "Techtree, opens in a new tab", "About", "Agent guide"]),
   )
 })
 

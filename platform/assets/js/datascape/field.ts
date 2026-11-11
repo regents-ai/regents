@@ -18,7 +18,7 @@ const LEAD = 0.45
 /** How long the camera takes to answer the pointer, in seconds. */
 const LAG = 0.55
 /** The share of the picture round its middle where the pointer steers nothing, unless the field is told otherwise. */
-const REST = 0.1
+export const REST = 0.1
 /** The most of the picture a calm zone may take, so there is always room left to steer. */
 const MOST_CALM = 0.9
 /** How sharply speed rises towards an edge. */

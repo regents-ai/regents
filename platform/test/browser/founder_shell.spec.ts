@@ -163,7 +163,7 @@ test("the picture behind the panel never blocks the action", async ({page}) => {
           return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
         }),
       ).toBe(true)
-      await page.locator(".rl-header-links a.rl-action").click({trial: true})
+      await page.locator("#home-content .rl-hero-secondary").click({trial: true})
       await page.locator("#home-nav-techtree").click({trial: true})
     }
     await page.emulateMedia({reducedMotion: "no-preference"})

@@ -4940,28 +4940,37 @@ changelog line moves from the published 6 Nov entry to this release's.
 ## 2026-11-11 — Home becomes the datascape (branch `wt/home-datascape-1111`)
 
 - Home: the datascape from ash-template fills the window, a dark plane of panels, tubes and specks
-  flown over by moving the pointer towards an edge (or holding a finger there). One glass panel in
-  the middle holds the whole page: the header, the name with its line, Enter App, Agent Tools and
-  the command-line link, the product tabs (named "Products" for assistive technology) and the
-  footer in small type. The cube, its worlds and the Mission, Staking and Guides sheets are gone.
-- The pointer steers nothing round the panel. Once it steers anywhere else the panel squashes
-  briefly, then shrinks to 0.3 and 0.75 opacity; back round the panel, it opens again with a small
-  overshoot. It opens past its own edges plus 28 px and shrinks only inside its edges, so a pointer
-  on the edge does not flicker it. Focus moving into the panel opens it at once, with no move, and
-  so does asking for less motion while it is small. With reduced motion, without WebGPU or without
-  scripts, the server's still picture shows and the panel stays open.
-- The panel's footer leaves out X and GitHub, which its header already shows
-  (`RegentsWeb.Layouts.product_links` takes `social={false}`), and its crown is
+  flown over by moving the pointer towards an edge (or holding a finger there). The page opens on
+  the picture alone. Pressing a panel in the picture brings up one glass panel in the middle that
+  holds the whole page: the header, the name with its line, Enter App, Agent Tools and the
+  command-line link, the product tabs (named "Products" for assistive technology) and the foot.
+  The cube, its worlds and the Mission, Staking and Guides sheets are gone.
+- The glass panel grows in from a third of its size. Two seconds after the last press, steering
+  the picture again (the pointer anywhere past the panel's edges plus 28 px) shrinks it away to a
+  third of its size and nothing; it stays away until the next press. A press on empty picture does
+  nothing. Focus moving into the panel brings it up at once and keeps it up while focus stays
+  inside, so a keyboard reaches every control. The stylesheet alone shows the panel whenever there
+  is no moving picture: with reduced motion, without WebGPU and without scripts. The away panel
+  stays focusable and readable by assistive technology.
+- Header: the App button is gone. Enter App is the larger primary button with a Tangerine, Powder
+  Blue and Platinum ring that follows its cut corners and shifts on hover and focus; Agent Tools
+  is the design system's quieter secondary button at the same height.
+- Foot: Buy $REGENT, About, Developer docs and the Agent guide. Privacy policy, Terms of use, X and
+  GitHub stay in the app pages' footer. "© 2026 Regents Labs" stands on its own at the window's
+  bottom right on every width, outside the panel. `RegentsWeb.Layouts.document_links` holds the
+  four document links that the panel's foot and every app page's footer share; the footer's
+  `social` option is removed. The header crown is
   `platform/priv/static/images/brand/regents-crown-flat-dark-clear.svg`, the dark crown without
   its own ground, which showed as a square on the glass.
-- Shared pieces, kept generic for ash-template: the field's calm zone (`calm`, `calmAround`) and
-  its `steer` message to whoever watches; the `Datascape` hook's glass panel
-  (`[data-datascape-glass]`, `data-datascape-glass-state`). The canvas island now lets go of its
-  listeners when it retires, as the template's does.
+- Shared pieces, kept generic for ash-template: the field's calm zone (`calm`, `calmAround`, `REST`)
+  and its `steer` message to whoever watches; the `Datascape` hook's glass panel
+  (`[data-datascape-glass]`, `data-datascape-glass-state` of `away` or `open`, and the two-second
+  `GRACE` timed with Anime.js). The canvas island now lets go of its listeners when it retires, as
+  the template's does.
 - Removed: the world cube's hook, renderer and styles, the cube label hook, the
   `RegentsWeb.Components.WorldCube` component and the home's sheet styles.
 - The agent copy of the page reads in the page's order: name, line, the three actions, Products,
-  then the footer.
-- Tests: `platform/assets/test/datascape.test.ts` (calm zone, steering messages, the open and
-  small edges), `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`
-  and two home checks in `platform/test/browser/founder_shell.spec.ts` rewritten for the panel.
+  the four document links, then the copyright.
+- Tests: `platform/assets/test/datascape.test.ts` (calm zone, steering messages, the open and away
+  zones), `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`
+  and two home checks in `platform/test/browser/founder_shell.spec.ts` rewritten for the page.

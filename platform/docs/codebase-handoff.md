@@ -111,8 +111,9 @@ lib/regents_web/
   token_links.ex     the Uniswap and DexScreener links, built from the pinned
                      token address so a link can never name another token
 assets/css/pages/    one stylesheet per surface
-assets/js/hooks/     LiveView hooks; datascape flies the homepage's picture and
-                     shrinks its glass panel while the pointer steers
+assets/js/hooks/     LiveView hooks; datascape flies the homepage's picture,
+                     brings up its glass panel on a press and puts it away
+                     when the pointer steers again
 assets/js/datascape/ the homepage's datascape (from ash-template)
 contracts/           the pinned manifest, its digest, and the ABIs
 test/browser/        Playwright specs (real browser, port 4002)

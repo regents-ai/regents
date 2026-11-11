@@ -27,7 +27,9 @@ defmodule RegentsWeb.HomeLive do
 
     ---
 
-    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")}) · [Privacy policy](#{PublicDocuments.url("/privacy")}) · [Terms of use](#{PublicDocuments.url("/terms")})
+    [Buy $REGENT](#{RegentsWeb.TokenLinks.buy()}) · [About](#{PublicDocuments.url("/about")}) · [Developer docs](#{PublicDocuments.url("/docs")}) · [Agent guide](#{PublicDocuments.url("/agents.md")}) · [The whole site in brief](#{PublicDocuments.url("/llms.txt")})
+
+    © 2026 Regents Labs
     """
   end
 
@@ -42,10 +44,12 @@ defmodule RegentsWeb.HomeLive do
      |> assign(RegentsWeb.PublicDocuments.page("/"))}
   end
 
-  # The datascape fills the window behind one glass panel that holds the whole page.
-  # The picture flies when the pointer moves out past the panel, and the panel shrinks
-  # out of the way until the pointer comes back. Without WebGPU, or with less motion
-  # asked for, the server's still picture stays and the panel stays open.
+  # The datascape fills the window, with one glass panel over it that holds the page.
+  # While the picture is drawn the panel starts away: pressing a panel in the picture
+  # brings it in, and once it has stood for a moment, flying the picture sends it away
+  # again. Without scripts, without WebGPU, or with less motion asked for, the
+  # server's still picture stays and the panel stays open. The copyright stands at
+  # the window's foot throughout, under the panel where the two meet.
   def render(assigns) do
     assigns = assign(assigns, mission: @mission)
 
@@ -68,6 +72,7 @@ defmodule RegentsWeb.HomeLive do
       <div id="home-stage" class="home__stage" phx-update="ignore">
         <canvas id="home-canvas" data-datascape-canvas aria-hidden="true"></canvas>
       </div>
+      <p class="home__copyright">© 2026 Regents Labs</p>
 
       <section
         id="home-glass"
@@ -83,13 +88,13 @@ defmodule RegentsWeb.HomeLive do
             <p class="rl-statement__line">{@mission}</p>
           </div>
           <div class="rl-hero-actions">
-            <a href={~p"/stake"} class="rg-button rl-hero-cta">
+            <a href={~p"/stake"} class="rg-button rg-button--no-arrow rl-hero-cta">
               <span class="rg-button__label">Enter App</span>
             </a>
             <AgentTools.button
               id="home-agent-tools-button"
               dialog="home-agent-tools"
-              class="rg-button rg-button--secondary rg-button--no-arrow"
+              class="rg-button rg-button--secondary rg-button--no-arrow rl-hero-secondary"
             >
               <span class="rg-button__label">Agent Tools</span>
             </AgentTools.button>
@@ -101,7 +106,11 @@ defmodule RegentsWeb.HomeLive do
           <.product_tabs />
         </main>
 
-        <RegentsWeb.Layouts.product_links theme_toggle={false} social={false} />
+        <footer class="regent-footer">
+          <nav class="regent-footer__links" aria-label="About Regents Labs">
+            <RegentsWeb.Layouts.document_links />
+          </nav>
+        </footer>
       </section>
 
       <AgentTools.dialog id="home-agent-tools" />
@@ -126,8 +135,6 @@ defmodule RegentsWeb.HomeLive do
 
         <div class="rl-header-links">
           <RegentLinks.header_links id="home-token-menu" />
-          <%!-- Founder decision (2026-09-28): App opens Stake, like the Protocol tab. Keep it. --%>
-          <a href={~p"/stake"} class="rg-button rl-action"><span class="rg-button__label">App</span></a>
         </div>
       </div>
     </header>

@@ -17,7 +17,7 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Stake is the one product page the homepage sends visitors to; every other
   # internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/app /stake /start /agents.md /llms.txt /docs /about /privacy /terms)
+  @open_paths ~w(/stake /start /agents.md /llms.txt /docs /about)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -34,13 +34,15 @@ defmodule RegentsWeb.HomeLiveTest do
     end
   end
 
-  test "NAV_MEANINGS: product tabs open their sites; Protocol and App open staking", %{conn: conn} do
+  test "NAV_MEANINGS: product tabs open their sites; Protocol and Enter App open staking", %{
+    conn: conn
+  } do
     {:ok, _view, html} = live(conn, "/")
 
-    # Founder decision (2026-09-28): the tab is named Protocol, and it and App open Stake.
+    # Founder decision (2026-09-28): the tab is named Protocol, and it opens Stake.
     assert html =~ ~r/id="home-nav-protocol".*?<span class="rg-button__label">\s*Protocol\s*</s
     assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
-    assert attribute(html, ".rl-header-links a.rl-action", "href") == ["/stake"]
+    assert attribute(html, "#home-content a.rl-hero-cta", "href") == ["/stake"]
 
     assert attribute(html, ~s(nav[aria-label="Products"] a), "href") ==
              ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake)
@@ -65,20 +67,24 @@ defmodule RegentsWeb.HomeLiveTest do
       ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
         ["Agent Tools", "Connect your agent from the command line"] ++
         ~w(Patchbay Autolaunch Techtree Keyfleet Protocol) ++
-        [
-          "Buy $REGENT",
-          "About",
-          "Developer docs",
-          "Agent guide",
-          "Privacy policy",
-          "Terms of use"
-        ]
+        ["Buy $REGENT", "About", "Developer docs", "Agent guide"]
 
-    assert in_order?(text(html, "#public-home"), order)
-    assert in_order?(HomeLive.agent_markdown(), order)
+    assert in_order?(text(html, "#home-glass"), order)
+    assert in_order?(HomeLive.agent_markdown(), order ++ ["© 2026 Regents Labs"])
 
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
              [[attribute(html, "#home-content nav", "aria-label") |> hd()]]
+  end
+
+  test "the panel's foot lists the documents, and the copyright stands outside it", %{
+    conn: conn
+  } do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "#home-glass .regent-footer a", "href") ==
+             [RegentsWeb.TokenLinks.buy(), "/about", "/docs", "/agents.md", "/llms.txt"]
+
+    assert text(html, "#public-home > .home__copyright") == "© 2026 Regents Labs"
   end
 
   test "the lab's name stands once, then says one plain line", %{conn: conn} do
