@@ -4753,7 +4753,7 @@ changelog line moves from the published 6 Nov entry to this release's.
   `RegentsWeb.PublicDocuments.page/1` for an encoded path (`/%61pp`).
 - Not proven: WebKit, a real Privy sign-in and a real extension wallet on the new card.
 
-## 2026-11-11 — Stake: the wallet mark through page updates, and each claim's own words (branch `regents/usdc-notice-1109`)
+## 2026-11-11 — Stake: the wallet mark through page updates, each claim's own words, and odd addresses (branch `regents/usdc-notice-1109`)
 
 - The button pressed lost "Confirm in your wallet" on any page update while the wallet still had
   the press: switching to Unstake and back, a new amount, or Approve becoming Stake. The
@@ -4772,9 +4772,18 @@ changelog line moves from the published 6 Nov entry to this release's.
   "(nothing to claim)", "(waiting on a treasury top-up)", "(waiting on a reward pool top-up)",
   "(staking paused)", "(staking full)" and "(couldn’t read Base)". The catch-all is gone: every
   reason the three claims can give (`Regents.Staking.Actions`) has its own clause.
+- Crash fix (Sentinel, 8 Nov 15:29Z): `/%61pp` answered 500 with a KeyError in
+  `RegentsWeb.PublicDocuments.page/1`. The router reads a percent-escaped address as the page it
+  spells (`/%61pp` as /app, `/%70rivacy` as /privacy), and the shell and the legal pages then
+  looked the page's title up by the address as sent, which no page is filed under. `page/1` now
+  answers the ordinary not-found page for any address no page is filed under; there is one lookup
+  and nothing special for escaped addresses.
 - Tests: the Stake browser walk "Stake keeps Confirm in your wallet through page updates while the
   wallet has the press" holds the wallet's answer open, switches to Unstake and back, types a new
   amount, presses again, then lets go; it fails without the island's keep (the mark is gone after
   the switch). `platform/test/regents_web/stake_live_test.exs` "REGENT_POOL_SHORT" fails on the old
   words. The island's unit tests give the fake hook a `js()` that does nothing.
+  "ODD_ADDRESS" in `platform/test/regents_web/shell_live_test.exs` (`/%61pp`, `/st%61ke`) and
+  `platform/test/regents_web/controllers/legal_controller_test.exs` (`/%70rivacy`) fail with the
+  KeyError without the fix.
 - The feature map and the public changes page say so.

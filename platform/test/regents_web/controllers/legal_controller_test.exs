@@ -22,6 +22,11 @@ defmodule RegentsWeb.LegalControllerTest do
     refute body =~ "INSERT"
   end
 
+  test "ODD_ADDRESS: the policy under another spelling of its address answers not found" do
+    {404, _headers, body} = assert_error_sent 404, fn -> get(build_conn(), "/%70rivacy") end
+    assert body =~ "We can’t find that page"
+  end
+
   test "until a theme is chosen the device decides; the homepage is always dark" do
     for path <- ["/privacy", "/"] do
       document = build_conn() |> get(path) |> html_response(200) |> LazyHTML.from_document()

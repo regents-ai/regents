@@ -1169,7 +1169,13 @@ defmodule RegentsWeb.StakeLiveTest do
     })
 
     view = stake_as_signer(conn, "regent-pool-short")
-    state = &(view |> element("##{&1} .visually-hidden") |> render() |> Floki.parse_fragment!() |> Floki.text())
+
+    state =
+      &(view
+        |> element("##{&1} .visually-hidden")
+        |> render()
+        |> Floki.parse_fragment!()
+        |> Floki.text())
 
     refute has_element?(view, "#staking-claim_usdc.stake-claim-ready")
     refute has_element?(view, "#staking-claim_regent.stake-claim-ready")

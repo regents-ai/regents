@@ -735,6 +735,16 @@ defmodule RegentsWeb.ShellLiveTest do
     end
   end
 
+  # The router reads "/%61pp" as /app, but a page is filed under the address it
+  # is served at, so another spelling of that address is the ordinary missing page.
+  test "ODD_ADDRESS: a page under another spelling of its address answers not found",
+       %{conn: conn} do
+    for path <- ["/%61pp", "/st%61ke"] do
+      {404, _headers, body} = assert_error_sent 404, fn -> get(conn, path) end
+      assert body =~ "We can’t find that page"
+    end
+  end
+
   defp seed_shared_snapshot, do: SharedStakingReading.share()
 
   # Opening Account asks Ethereum about a wallet it has not read; the page is

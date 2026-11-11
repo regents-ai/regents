@@ -220,9 +220,13 @@ defmodule RegentsWeb.PublicDocuments do
   def page({:blog_post, post}),
     do: [page_title: post.title, page_description: post.description]
 
+  # A page is filed under the address it is served at. Any other address, such as
+  # one the router reads as a page's but spelled differently, is a missing page.
   def page(key) do
     {title, description} =
-      if key in AgentGuides.paths(), do: AgentGuides.page(key), else: Map.fetch!(@pages, key)
+      if key in AgentGuides.paths(),
+        do: AgentGuides.page(key),
+        else: Map.get(@pages, key) || raise(RegentsWeb.NotFoundError)
 
     [page_title: title, page_description: description]
   end
