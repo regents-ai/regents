@@ -6,6 +6,7 @@ import {expect, test} from "./support/offline"
 test("[DOCS] search finds a topic and opens it at its heading", async ({page}) => {
   await page.setViewportSize({width: 1280, height: 900})
   await page.goto("/docs/pairing")
+  await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
 
   await page.keyboard.press("/")
   await expect(page.locator("#docs-search-input")).toBeFocused()
@@ -55,7 +56,7 @@ for (const width of [360, 1280]) {
     expect(paths.length).toBeGreaterThan(10)
 
     for (const path of paths.slice(1)) {
-      if (width === 360) await page.getByRole("button", {name: "Menu"}).click()
+      if (width === 360) await page.getByRole("button", {name: "Contents"}).click()
       const link = page.locator(`#docs-nav a[href="${path}"]`)
       if (!(await link.isVisible())) await link.locator("xpath=ancestor::details[1]/summary").click()
       await link.click()

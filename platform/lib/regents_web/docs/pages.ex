@@ -1,8 +1,8 @@
 defmodule RegentsWeb.Docs.Pages do
   @moduledoc """
   The docs pages, one per topic under `/docs`, in five sections. Each page's
-  words live in `priv/public/docs/<key>.md`. The router and the sitemap read the
-  addresses while compiling, so this module depends on nothing else in the site.
+  words live in `priv/public/docs/<key>.md`. The public documents and the sitemap
+  read the addresses while compiling, so this module depends on nothing else in the site.
   """
 
   # Each section's pages in reading order; the first page of a section is where

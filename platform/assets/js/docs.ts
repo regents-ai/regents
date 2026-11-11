@@ -4,23 +4,31 @@ type Hit = {href: string; title: string; context: string; score: number}
 
 const MAX_HITS = 8
 
+type DocsHook = {el: HTMLElement; controller?: AbortController; observer?: IntersectionObserver}
+
 /**
  * The docs pages: the search box, the "On this page" list that follows the
  * reader, View as Markdown, and the phone menu closing once a page is chosen.
- * Everything it needs is on the page already, so it runs only where the docs
- * shell is.
+ * Everything it needs is on the page already. Each docs page mounts it afresh,
+ * and leaving the page takes every listener with it.
  */
-export function installDocs() {
-  const root = document.querySelector<HTMLElement>("[data-docs]")
-  if (!root) return
+export const Docs = {
+  mounted(this: DocsHook) {
+    this.controller = new AbortController()
+    const {signal} = this.controller
+    installSearch(this.el, signal)
+    this.observer = installSpy(this.el)
+    installMarkdown(this.el, signal)
+    installMenu(this.el, signal)
+  },
 
-  installSearch(root)
-  installSpy(root)
-  installMarkdown(root)
-  installMenu(root)
+  destroyed(this: DocsHook) {
+    this.controller?.abort()
+    this.observer?.disconnect()
+  },
 }
 
-function installSearch(root: HTMLElement) {
+function installSearch(root: HTMLElement, signal: AbortSignal) {
   const input = root.querySelector<HTMLInputElement>("#docs-search-input")
   const list = root.querySelector<HTMLUListElement>("#docs-search-results")
   const source = root.querySelector<HTMLScriptElement>("#docs-search-index")
@@ -59,8 +67,8 @@ function installSearch(root: HTMLElement) {
     select(hits.length ? 0 : -1)
   }
 
-  input.addEventListener("input", show)
-  input.addEventListener("focus", show)
+  input.addEventListener("input", show, {signal})
+  input.addEventListener("focus", show, {signal})
   input.addEventListener("keydown", event => {
     if (event.key === "ArrowDown" && hits.length) {
       event.preventDefault()
@@ -70,17 +78,17 @@ function installSearch(root: HTMLElement) {
       select((active - 1 + hits.length) % hits.length)
     } else if (event.key === "Enter" && hits[active]) {
       event.preventDefault()
-      window.location.assign(hits[active].href)
+      list.querySelector<HTMLAnchorElement>(`#docs-search-result-${active} a`)?.click()
     } else if (event.key === "Escape") {
       if (list.hidden) input.blur()
       close()
     }
-  })
+  }, {signal})
 
   root.addEventListener("focusout", event => {
     const next = event.relatedTarget
     if (!(next instanceof Node) || !input.parentElement?.contains(next)) close()
-  })
+  }, {signal})
 
   // "/" or ⌘K / Ctrl+K moves to the search box from anywhere on the page.
   document.addEventListener("keydown", event => {
@@ -91,7 +99,7 @@ function installSearch(root: HTMLElement) {
     event.preventDefault()
     input.focus()
     input.select()
-  })
+  }, {signal})
 }
 
 // Every word of the query has to appear; a title match counts most, then the
@@ -137,6 +145,9 @@ function result(hit: Hit, index: number): HTMLLIElement {
 
   const link = document.createElement("a")
   link.href = hit.href
+  // LiveView follows these links inside the site, as it does the sidebar's.
+  link.dataset.phxLink = "redirect"
+  link.dataset.phxLinkState = "push"
   link.tabIndex = -1
   const title = document.createElement("strong")
   title.textContent = hit.title
@@ -155,7 +166,8 @@ function none(): HTMLLIElement {
 }
 
 // The heading the reader is in, marked in the "On this page" list beside the page.
-function installSpy(root: HTMLElement) {
+// The reading band starts under the docs bar, which stays in view as the page scrolls.
+function installSpy(root: HTMLElement): IntersectionObserver | undefined {
   const list = root.querySelector<HTMLElement>("[data-docs-spy]")
   if (!list) return
 
@@ -168,9 +180,10 @@ function installSpy(root: HTMLElement) {
     .filter((heading): heading is HTMLElement => heading !== null)
   if (!headings.length) return
 
+  const band = Math.round(root.querySelector(".docs-bar")?.getBoundingClientRect().bottom ?? 120)
   const visible = new Set<Element>()
   const mark = () => {
-    const current = headings.find(heading => visible.has(heading)) ?? above(headings)
+    const current = headings.find(heading => visible.has(heading)) ?? above(headings, band)
     links.forEach((link, id) => {
       if (current && id === current.id) link.setAttribute("aria-current", "true")
       else link.removeAttribute("aria-current")
@@ -182,18 +195,19 @@ function installSpy(root: HTMLElement) {
       entries.forEach(entry => (entry.isIntersecting ? visible.add(entry.target) : visible.delete(entry.target)))
       mark()
     },
-    {rootMargin: "-120px 0px -60% 0px"},
+    {rootMargin: `-${band}px 0px -60% 0px`},
   )
   headings.forEach(heading => observer.observe(heading))
+  return observer
 }
 
 // With no heading in the reading band, the last one scrolled past.
-function above(headings: HTMLElement[]): HTMLElement | undefined {
-  return headings.filter(heading => heading.getBoundingClientRect().top < 120).at(-1)
+function above(headings: HTMLElement[], band: number): HTMLElement | undefined {
+  return headings.filter(heading => heading.getBoundingClientRect().top < band).at(-1)
 }
 
 // The page's Markdown, the same text Copy for LLM copies, in a new tab.
-function installMarkdown(root: HTMLElement) {
+function installMarkdown(root: HTMLElement, signal: AbortSignal) {
   const button = root.querySelector<HTMLButtonElement>("[data-docs-markdown]")
   const copy = root.querySelector<HTMLButtonElement>("#docs-copy")
   if (!button || !copy) return
@@ -203,15 +217,15 @@ function installMarkdown(root: HTMLElement) {
     const url = URL.createObjectURL(blob)
     window.open(url, "_blank", "noopener")
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-  })
+  }, {signal})
 }
 
 // On a phone the sidebar is a panel; choosing a page or heading closes it.
-function installMenu(root: HTMLElement) {
+function installMenu(root: HTMLElement, signal: AbortSignal) {
   const nav = root.querySelector<HTMLElement>("#docs-nav")
   if (!nav) return
 
   nav.addEventListener("click", event => {
     if (event.target instanceof Element && event.target.closest("a") && nav.matches(":popover-open")) nav.hidePopover()
-  })
+  }, {signal})
 }

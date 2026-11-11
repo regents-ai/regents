@@ -1,37 +1,31 @@
-/* The developer docs: a top bar with search, the section tabs, then the sidebar,
-   the page and its "On this page" list. The top bar and tabs stay in view while
-   the page scrolls; so do the sidebar and the list beside the page. */
+/* The developer docs inside the site's content column: a bar with search and the
+   section tabs, then the docs sidebar, the page and its "On this page" list. The
+   bar stays in view while the page scrolls; so do the sidebar and the list beside
+   the page. The layout follows the width of the column, not of the window. */
 
 .docs {
   --docs-top: 3.5rem;
   --docs-tabs: 2.75rem;
   --docs-stuck: calc(var(--docs-top) + var(--docs-tabs));
   --docs-rule: var(--rg-page-rule);
+  /* The room left under the site's header and the docs bar. */
+  --docs-room: calc(100dvh - var(--shell-header-end, 0px) - var(--docs-stuck));
+  container: docs / inline-size;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
 }
 
-.docs-skip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: var(--rg-layer-skip);
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-bg);
-  transform: translateY(-120%);
-}
+/* Top bar and tabs, one card stuck to the top of the page. */
 
-.docs-skip:focus-visible {
-  transform: none;
-}
-
-/* Top bar */
-
-.docs-top {
+.docs-bar {
   position: sticky;
   top: 0;
-  z-index: var(--rg-layer-header);
+  z-index: var(--rg-layer-card);
+  background: var(--color-bg);
+}
+
+.docs-top {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -39,70 +33,6 @@
   padding-inline: var(--space-3);
   border-bottom: 1px solid var(--docs-rule);
   background: var(--color-bg);
-}
-
-.docs-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 2.75rem;
-  text-decoration: none;
-}
-
-.docs-brand__mark {
-  position: relative;
-  display: block;
-  width: 1.6rem;
-  height: 1.3rem;
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-
-.docs-brand__mark img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Dark is the default; light shows once chosen, or before any choice on a
-   device that asks for light. */
-.docs-brand__light,
-:root[data-theme="light"] .docs-brand__dark {
-  display: none;
-}
-
-:root[data-theme="light"] .docs-brand__light {
-  display: block;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) .docs-brand__light {
-    display: block;
-  }
-
-  :root:not([data-theme]) .docs-brand__dark {
-    display: none;
-  }
-}
-
-.docs-brand__name {
-  white-space: nowrap;
-}
-
-.docs-brand__docs {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding-inline-start: var(--space-2);
-  border-inline-start: 1px solid var(--docs-rule);
-  color: var(--color-fg-muted);
-  text-decoration: none;
-}
-
-.docs-brand__docs:hover {
-  color: var(--color-fg);
 }
 
 /* Search */
@@ -249,9 +179,6 @@
 /* Tabs */
 
 .docs-tabs {
-  position: sticky;
-  top: var(--docs-top);
-  z-index: calc(var(--rg-layer-header) - 1);
   display: flex;
   gap: var(--space-3);
   min-height: var(--docs-tabs);
@@ -285,7 +212,7 @@
 
 .docs-body {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) 14rem;
+  grid-template-columns: 13rem minmax(0, 1fr) 12rem;
   flex: 1 0 auto;
 }
 
@@ -297,7 +224,7 @@
   flex-direction: column;
   width: auto;
   height: auto;
-  max-height: calc(100dvh - var(--docs-stuck));
+  max-height: var(--docs-room);
   margin: 0;
   padding: var(--space-2) var(--space-2) 0;
   overflow-y: auto;
@@ -445,7 +372,7 @@
 .docs-toc {
   position: sticky;
   top: var(--docs-stuck);
-  max-height: calc(100dvh - var(--docs-stuck));
+  max-height: var(--docs-room);
   padding: var(--space-4) var(--space-2);
   overflow-y: auto;
   align-self: start;
@@ -631,10 +558,10 @@
   text-align: end;
 }
 
-/* Below a wide screen the "On this page" list folds into the top of the page. */
-@media (max-width: 74.99rem) {
+/* Below a wide column the "On this page" list folds into the top of the page. */
+@container docs (max-width: 55.99rem) {
   .docs-body {
-    grid-template-columns: 14rem minmax(0, 1fr);
+    grid-template-columns: 13rem minmax(0, 1fr);
   }
 
   .docs-toc {
@@ -685,19 +612,15 @@
 }
 
 /* A phone: the search takes its own row and the sidebar slides in from the left. */
-@media (max-width: 47.99rem) {
-  .docs {
-    --docs-top: 6.5rem;
+@container docs (max-width: 39.99rem) {
+  .docs-body {
+    --docs-stuck: calc(6.5rem + var(--docs-tabs));
   }
 
   .docs-top {
     flex-wrap: wrap;
     row-gap: 0;
     padding-inline: var(--space-2);
-  }
-
-  .docs-brand__name {
-    display: none;
   }
 
   .docs-ask {

@@ -19,6 +19,9 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/paper-pro-daily",
     "/paper-pro-daily/:paper",
     "/literature",
+    "/about",
+    "/docs",
+    "/docs/:page",
     "/account",
     "/account/agents",
     "/account/points",
@@ -75,6 +78,23 @@ defmodule RegentsWeb.RouteCatalogTest do
     app_entry = Enum.find(RouteCatalog.entries(), &(&1.path_pattern == "/app"))
     assert app_entry.route_spec_id == :app
     assert RouteCatalog.fetch!(:app).route_id == :app
+  end
+
+  test "every docs page is one Docs page in the shared navigation" do
+    for {action, params} <- [{:docs, %{}}, {:docs_page, %{"page" => "limits"}}] do
+      spec = RouteCatalog.fetch!(action, params)
+
+      assert spec.route_id == :docs
+      assert spec.destination == "/docs"
+      assert spec.page_display_label == "Docs"
+      assert spec.app_id == :regent_ops
+      assert spec.background_slot == :regents_labs
+    end
+
+    about = RouteCatalog.fetch!(:about)
+
+    assert {about.route_id, about.destination, about.page_display_label} ==
+             {:about, "/about", "About"}
   end
 
   test "account is the canonical Regents Labs detail route" do
@@ -137,7 +157,9 @@ defmodule RegentsWeb.RouteCatalogTest do
   test "rejects empty and malformed dynamic identifiers before content loading" do
     for {action, params} <- [
           {:regent_profile, %{"slug" => ""}},
-          {:regent_profile, %{"slug" => "not valid"}}
+          {:regent_profile, %{"slug" => "not valid"}},
+          {:docs_page, %{"page" => "not-a-page"}},
+          {:docs_page, %{"page" => ""}}
         ] do
       assert_raise NotFoundError, fn -> RouteCatalog.fetch!(action, params) end
     end
@@ -173,7 +195,7 @@ defmodule RegentsWeb.RouteCatalogTest do
 
     assert first == second
     assert {:ok, decoded} = Jason.decode(first.json)
-    assert length(decoded["routes"]) == 29
+    assert length(decoded["routes"]) == 32
     assert decoded["schema_version"] == 1
     assert first.digest == Base.encode16(:crypto.hash(:sha256, first.json), case: :lower)
 
@@ -206,5 +228,6 @@ defmodule RegentsWeb.RouteCatalogTest do
   defp sample_params(:regent_profile), do: %{"slug" => "regent"}
   defp sample_params(:blog_post), do: %{"slug" => "article"}
   defp sample_params(:paper_pro_daily_paper), do: %{"paper" => "b879e39c"}
+  defp sample_params(:docs_page), do: %{"page" => "limits"}
   defp sample_params(_), do: %{}
 end

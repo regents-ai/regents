@@ -18,6 +18,8 @@ const pages: Array<[string, string]> = [
   ["/app", "#regent-ops-overview"],
   ["/paper-pro-daily", "#paper-daily-title"],
   ["/literature", "#literature-chart"],
+  ["/docs/limits", "#docs-article"],
+  ["/about", "#about-page"],
   ["/stake", "#staking-actions"],
   ["/redeem", "#redemption-collections"],
   ["/account/agents", "#account-agents"],
@@ -130,7 +132,7 @@ test("the Account tabs and Names fit a phone and a desktop, light and dark", asy
 test.describe("on a 320 touch phone", () => {
   test.use({hasTouch: true, isMobile: true, viewport: {width: 320, height: 800}})
 
-  test("product pages, the gallery and Literature fit without sideways scroll", async ({page}) => {
+  test("product pages, the gallery, Literature, Docs and About fit without sideways scroll", async ({page}) => {
     const fits: Array<[string, string]> = [
       ["/patchbay", "#product-heading"],
       ["/autolaunch", "#product-heading"],
@@ -139,6 +141,8 @@ test.describe("on a 320 touch phone", () => {
       ["/cloak", "#product-heading"],
       ["/redeem/gallery", "#gallery-heading"],
       ["/literature", "#literature-chart"],
+      ["/docs/limits", "#docs-article"],
+      ["/about", "#about-page"],
     ]
 
     for (const [path, marker] of fits) {

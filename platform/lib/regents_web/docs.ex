@@ -12,8 +12,10 @@ defmodule RegentsWeb.Docs do
   alias RegentsWeb.PublicDocuments
 
   # The page's own element ids, so no heading takes one.
-  @shell_ids ~w(docs-article docs-ask-menu docs-copy docs-nav docs-search-index
-                docs-search-input docs-search-results docs-toc-title)
+  @shell_ids ~w(docs-article docs-ask-menu docs-copy docs-nav docs-nav-start docs-nav-api
+                docs-nav-agents docs-nav-account docs-nav-reference docs-search
+                docs-search-index docs-search-input docs-search-results docs-toc-phone
+                docs-toc-phone-list docs-toc-spy docs-toc-title)
 
   @doc "The page's title and description, as the browser tab and search results show them."
   def heading(page) do

@@ -20,12 +20,14 @@ defmodule RegentsWeb.ShellLive do
   import RegentsWeb.StakeLive
 
   alias Regents.Formation
+  alias RegentsWeb.AboutLive
   alias RegentsWeb.AccountLive
   alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.CloakLive
   alias RegentsWeb.CreditsHistoryLive
   alias RegentsWeb.CreditsLive
+  alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.NamesLive
   alias RegentsWeb.PairLive
@@ -65,6 +67,7 @@ defmodule RegentsWeb.ShellLive do
        browser_wallet: nil,
        blog_posts: [],
        blog_post: nil,
+       docs: nil,
        shell_instance: System.unique_integer([:positive, :monotonic]),
        pair_start: nil,
        credits: %Read{}
@@ -88,6 +91,7 @@ defmodule RegentsWeb.ShellLive do
      |> assign(route_spec: route_spec, route_params: params, pair_start: PairLive.start(params))
      |> load_regent_route(route_spec, params)
      |> load_blog_route(route_spec, params)
+     |> load_docs_route(route_spec, params)
      |> assign_page(route_spec, uri)
      |> Account.route(route_spec)
      |> Points.route(route_spec)
@@ -396,6 +400,8 @@ defmodule RegentsWeb.ShellLive do
           :if={@route_spec.route_id == :literature}
           books={RegentsWeb.Literature.books()}
         />
+        <AboutLive.page :if={@route_spec.route_id == :about} />
+        <DocsLive.page :if={@route_spec.route_id == :docs} docs={@docs} />
 
         <AgentStartLive.page
           :if={@route_spec.route_id == :agent_start}
@@ -512,6 +518,15 @@ defmodule RegentsWeb.ShellLive do
 
   defp load_blog_route(socket, _spec, _params), do: assign(socket, blog_posts: [], blog_post: nil)
 
+  # The catalog has already refused a page name that is not a docs page.
+  defp load_docs_route(socket, %{route_id: :docs}, %{"page" => page}),
+    do: assign(socket, docs: DocsLive.read("/docs/" <> page))
+
+  defp load_docs_route(socket, %{route_id: :docs}, _params),
+    do: assign(socket, docs: DocsLive.read("/docs"))
+
+  defp load_docs_route(socket, _spec, _params), do: assign(socket, docs: nil)
+
   defp assign_page(socket, %{route_id: :regent_profile}, _uri) do
     case socket.assigns.regent_status do
       :ready -> assign(socket, PublicDocuments.page({:regent, socket.assigns.regent}))
@@ -521,6 +536,9 @@ defmodule RegentsWeb.ShellLive do
 
   defp assign_page(socket, %{route_id: :blog_post}, _uri),
     do: assign(socket, PublicDocuments.page({:blog_post, socket.assigns.blog_post}))
+
+  defp assign_page(socket, %{route_id: :docs}, _uri),
+    do: assign(socket, PublicDocuments.page(socket.assigns.docs.page.path))
 
   defp assign_page(socket, %{route_id: :paper_pro_daily}, _uri) do
     case socket.assigns.route_params do

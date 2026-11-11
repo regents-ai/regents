@@ -5052,3 +5052,21 @@ changelog line moves from the published 6 Nov entry to this release's.
   320; a filmed flight at full speed shows a full picture with the panels at its leading
   edge still assembling; home, /stake, /app, /about, /redeem and /docs 200; no error
   lines in the app log after the release.
+
+## 2026-11-11 — About and Docs open inside the site (Sean, 11 Nov)
+
+- About and Docs now open inside the site with the sidebar, like the reading pages: /about,
+  /docs and every /docs page are pages of the product shell, and the sidebar marks Docs on
+  every docs page. Search, Ask AI, the section tabs, the docs sidebar, the page and its "On
+  this page" list stay; the docs' own brand bar goes, since the site's header is above it.
+  Moving between docs pages, and to About, stays inside the site. On a phone the docs list
+  opens from Contents, beside the site's own Menu.
+- The docs and About pages now carry the site's sign-in page policy, as the reading pages do.
+  /changelog and /agents keep the reading policy and their own header.
+- `RegentsWeb.DocsController` and `RegentsWeb.DocsHTML` are gone; `RegentsWeb.DocsLive` and
+  `RegentsWeb.AboutLive` draw the pages, and the docs script runs as the `Docs` hook. The docs
+  layout follows the width of the content column, not the window.
+- Check: `platform/test/regents_web/docs_test.exs`, `platform/test/regents_web/route_catalog_test.exs`,
+  `platform/test/regents_web/router_gate_coverage_test.exs`,
+  `platform/test/regents_web/content_security_policy_test.exs`, `platform/test/browser/docs.spec.ts`,
+  `platform/test/browser/shell_walk.spec.ts`.

@@ -4,7 +4,7 @@ defmodule RegentsWeb.ContentSecurityPolicyTest do
   alias RegentsWeb.ContentSecurityPolicy
 
   test "PAGE_POLICY: pages that can sign someone in carry the sign-in policy", %{conn: conn} do
-    for path <- ~w(/ /stake /articles /privacy) do
+    for path <- ~w(/ /stake /articles /privacy /docs /docs/limits /about) do
       response = get(conn, path)
 
       assert get_resp_header(response, "content-security-policy") == [
@@ -16,7 +16,7 @@ defmodule RegentsWeb.ContentSecurityPolicyTest do
   end
 
   test "PAGE_POLICY: reading pages carry the strict policy and send no referrer", %{conn: conn} do
-    for path <- ~w(/docs /about) do
+    for path <- ~w(/changelog /agents) do
       response = get(conn, path)
 
       assert get_resp_header(response, "content-security-policy") == [

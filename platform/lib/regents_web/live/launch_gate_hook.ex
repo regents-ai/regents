@@ -16,7 +16,16 @@ defmodule RegentsWeb.Live.LaunchGateHook do
   alias RegentsWeb.Plugs.LaunchGate
 
   # Pages anyone may read while the gate is closed, and use as they read them.
-  @public_pages [:blog, :blog_post, :agent_start, :paper_pro_daily, :literature]
+  @public_pages [
+    :blog,
+    :blog_post,
+    :agent_start,
+    :paper_pro_daily,
+    :literature,
+    :about,
+    :docs,
+    :docs_page
+  ]
 
   def on_mount(:default, _params, _session, socket) do
     with {:cont, socket} <- app_gate(socket) do

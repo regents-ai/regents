@@ -73,6 +73,27 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :literature
     },
     %Entry{
+      path_pattern: "/about",
+      live_action: :about,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :about
+    },
+    %Entry{
+      path_pattern: "/docs",
+      live_action: :docs,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :docs
+    },
+    %Entry{
+      path_pattern: "/docs/:page",
+      live_action: :docs_page,
+      parameter_schema: %{page: :docs_page},
+      reserved_values: %{},
+      route_spec_id: :docs
+    },
+    %Entry{
       path_pattern: "/account",
       live_action: :account,
       parameter_schema: %{},
@@ -241,6 +262,8 @@ defmodule RegentsWeb.RouteCatalog do
     literature:
       {:literature, :regent_ops, "Regents Labs", "AI & SCIFI", "/literature", [], :regents_labs,
        %{}},
+    about: {:about, :regent_ops, "Regents Labs", "About", "/about", [], :regents_labs, %{}},
+    docs: {:docs, :regent_ops, "Regents Labs", "Docs", "/docs", [], :regents_labs, %{}},
     app:
       {:app, :regent_ops, "Regents Labs", "Overview", "/app",
        [:wallet_status, :network_status, :profile_actions], :regents_labs, %{}},
@@ -348,6 +371,9 @@ defmodule RegentsWeb.RouteCatalog do
 
   defp valid_parameter?(:paper_anchor, value),
     do: is_binary(value) and Regex.match?(~r/\A[0-9a-f]{8}\z/, value)
+
+  defp valid_parameter?(:docs_page, value),
+    do: is_binary(value) and RegentsWeb.Docs.Pages.page("/docs/" <> value) != nil
 
   defp build_spec(action, params) do
     {route_id, app_id, app_label, page_label, root, controls, background, local_state} =
@@ -460,6 +486,7 @@ defmodule RegentsWeb.RouteCatalog do
   defp handoff_params(:regent_profile), do: %{"slug" => "regent"}
   defp handoff_params(:blog_post), do: %{"slug" => "example-post"}
   defp handoff_params(:paper_pro_daily_paper), do: %{"paper" => "00000000"}
+  defp handoff_params(:docs_page), do: %{"page" => "limits"}
   defp handoff_params(_), do: %{}
 
   defp destination(:regent_profile, %{"slug" => slug}), do: "/regents/#{slug}"
