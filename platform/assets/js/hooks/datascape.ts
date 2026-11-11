@@ -73,7 +73,8 @@ type DatascapeHook = {
  * which the renderer reads when it draws.
  *
  * A root may hold a glass panel (`[data-datascape-glass]`) centred over the
- * picture. It starts away; pressing a panel in the picture opens it, and focus
+ * picture. It starts as the stylesheet shows it, which is away while there is a
+ * picture to press; pressing a panel in the picture opens it, and focus
  * moving into it opens it at once and holds it open. Once it has been open for
  * `GRACE` after the last press, and focus is elsewhere, steering squashes it and
  * sends it away again, until the next press. While it is open the pointer steers
@@ -166,12 +167,16 @@ export const Datascape = {
     })
 
     const glass = root.querySelector<HTMLElement>("[data-datascape-glass]")
-    /** What the field last said about the pointer steering, whether focus is in the glass, whether a press still holds it open, and whether it is open. */
+    /**
+     * What the field last said about the pointer steering, whether focus is in the glass,
+     * whether a press still holds it open, and whether it is open. The hook takes over from
+     * whatever the stylesheet shows as it mounts: away, or already there.
+     */
     let steering = false
-    let focused = false
+    let focused = !!glass?.contains(document.activeElement)
     let held = false
-    let open = false
-    if (glass) root.dataset.datascapeGlassState = "away"
+    let open = !!glass && poseOf(glass).opacity === 1
+    if (glass) root.dataset.datascapeGlassState = open ? "open" : "away"
 
     /** The field's calm zone: round the glass while it is open, the field's own while it is away. */
     const calm = () => {

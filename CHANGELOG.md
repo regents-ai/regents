@@ -4951,7 +4951,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   nothing. Focus moving into the panel brings it up at once and keeps it up while focus stays
   inside, so a keyboard reaches every control. The stylesheet alone shows the panel whenever there
   is no moving picture: with reduced motion, without WebGPU and without scripts. The away panel
-  stays focusable and readable by assistive technology.
+  stays focusable and readable by assistive technology. Until the page's script answers, the
+  panel waits in the away pose; if it has not answered four seconds after the page loads, the
+  stylesheet brings the panel in by itself (Sean, 11 Nov, "1. a"), and the hook then starts from
+  the open panel.
 - Header: the App button is gone. Enter App is the larger primary button with a Tangerine, Powder
   Blue and Platinum ring that follows its cut corners and shifts on hover and focus; Agent Tools
   is the design system's quieter secondary button at the same height.

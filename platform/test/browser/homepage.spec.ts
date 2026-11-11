@@ -140,6 +140,20 @@ test("[U2] homepage keeps the still picture and an open panel for reduced motion
   await context.close()
 })
 
+// A page whose script never arrives keeps the panel out of sight for four seconds, like a
+// page still starting, then brings it in by itself, so its links are never lost.
+test("[U2] homepage brings the panel in by itself when its script never arrives", async ({page}) => {
+  await page.route("**/assets/js/app.js*", route => route.abort())
+  await page.goto("/")
+  const glass = page.locator("#home-glass")
+  await expect(glass).toHaveCSS("opacity", "0")
+  await expect(glass).toHaveCSS("pointer-events", "none")
+  await expect(glass).toHaveCSS("opacity", "1", {timeout: 6000})
+  await expect(glass).toHaveCSS("transform", "none")
+  await expect(glass).toHaveCSS("pointer-events", "auto")
+  await expect(page.locator("#public-home")).not.toHaveAttribute("data-datascape-glass-state")
+})
+
 // Everything a landing render is allowed to differ by: the CSRF token and the
 // LiveView handshake, all minted per request.
 const stableRender = (html: string) =>

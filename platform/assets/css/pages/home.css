@@ -80,11 +80,17 @@
      between this pose and the open one. Focus inside it always shows it. Without
      scripts, with less motion asked for, or once the picture will not be drawn,
      there is nothing to press, so it simply stays open. It stays in the page for
-     assistive technology and the keyboard. */
+     assistive technology and the keyboard. Until the page's script says which it
+     is, the glass waits in the same away pose; if the script has not answered in
+     four seconds, the glass comes in by itself. */
   @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .home:not([data-datascape-ready="false"]):not([data-datascape-glass-state="open"]) .home__glass:not(:focus-within) {
+    .home[data-datascape-glass-state="away"]:not([data-datascape-ready="false"]) .home__glass:not(:focus-within) {
       transform: scale(.3); opacity: 0; pointer-events: none;
     }
+    .home:not([data-datascape-glass-state]) .home__glass:not(:focus-within) { animation: home-glass-wait 4s step-end; }
+  }
+  @keyframes home-glass-wait {
+    from { transform: scale(.3); opacity: 0; pointer-events: none; }
   }
   .home__main {
     container-type: inline-size;
