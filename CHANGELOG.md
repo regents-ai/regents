@@ -4729,3 +4729,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   with a short-USDC wallet). The trade-card walk fails at 137 px off without the fill fix. It
   saves its pictures to `REGENTS_SHOT_DIR` when set (`platform/README.md`). The feature map,
   `platform/docs/local-staking.md` and the public changes page follow the new words.
+- Full check on `446f2d30` under the shared check lock (`MIX_TEST_PARTITION=_stk1110`): platform
+  (precommit with Credo and Sobelow clean, server tests 653 passed: 644 tests and 9 properties, 1
+  excluded; script tests 252; browser walk 158 passed in headless Chromium, WebKit not run on the
+  Mac), required fixes against ash-template `8ae64187`, and the command list all passed. make then
+  stopped at the identity check (exit 2) because this working tree had never fetched the identity
+  app's dependencies; after `mix deps.get` there (no lock change), `make check-identity
+  check-contracts` exited 0: identity 16 passed, contracts 454 forge tests passed. Largest single
+  process 579 MB.
+- Not proven: WebKit, a real Privy sign-in and a real extension wallet on the new card.
