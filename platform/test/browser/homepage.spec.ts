@@ -227,7 +227,9 @@ for (const viewport of [
     const glass = await boxOf(page, "#home-glass")
     expect(Math.abs(glass.left - (viewport.width - glass.right)), "centred across").toBeLessThan(2)
     expect(glass.width).toBeLessThanOrEqual(Math.min(704, viewport.width - 32) + 1)
-    if (glass.height < viewport.height) {
+    // A page that fits the window holds the panel in its middle; a taller one scrolls.
+    const fits = await page.evaluate(() => document.scrollingElement!.scrollHeight <= innerHeight)
+    if (fits) {
       expect(Math.abs(glass.top - (viewport.height - glass.bottom)), "centred down").toBeLessThan(2)
     }
 
@@ -258,7 +260,7 @@ for (const viewport of [
     const copyright = await boxOf(page, ".home__copyright")
     expect(copyright.bottom, `${viewport.name} copyright inside the window`).toBeLessThanOrEqual(viewport.height)
     expect(copyright.right, `${viewport.name} copyright inside the window`).toBeLessThanOrEqual(viewport.width)
-    if (glass.height >= viewport.height) {
+    if (!fits) {
       const foot = await boxOf(page, ".regent-footer")
       expect(foot.bottom, `${viewport.name} panel's foot ends above the copyright`).toBeLessThanOrEqual(copyright.top)
     }

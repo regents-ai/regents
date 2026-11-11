@@ -37,11 +37,12 @@
   .rl-token-copy__icon svg { width: .95em; height: .95em; }
   /* The page is the datascape, fixed to the window, with one glass panel in the
      middle holding everything. A panel taller than the window scrolls the page while
-     the picture stays put, and ends above the copyright at the window's foot. The
+     the picture stays put, and ends above the copyright at the window's foot; the
+     same room stands above it, so a panel that fits sits in the window's middle. The
      picture's ground is the scene's own. */
   .home {
     position: relative; display: grid; place-items: center; min-height: 100dvh;
-    padding: var(--space-4) 1rem calc(var(--space-6) + env(safe-area-inset-bottom)); background: #020307;
+    padding: calc(var(--space-6) + env(safe-area-inset-bottom)) 1rem; background: #020307;
   }
   .home__still, .home__stage { position: fixed; inset: 0; width: 100%; height: 100%; }
   .home__still { object-fit: cover; }
