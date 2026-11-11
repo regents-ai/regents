@@ -142,9 +142,9 @@ test("the public homepage presents the panel over its picture", async ({page}) =
   await expect(page.getByText("Public chatbox")).toHaveCount(0)
 })
 
-// The picture behind the panel is drawn by the browser: hidden from assistive technology
-// and behind the panel, so the heading and every action stay on top and reachable whether
-// headless Chromium brings a GPU or not, and with less motion asked for.
+// The picture behind the panel is hidden from assistive technology and behind the panel.
+// The suite's browser draws no picture, so the panel stands open once the page knows that,
+// and the heading and every action stay on top and reachable, with less motion asked for too.
 test("the picture behind the panel never blocks the action", async ({page}) => {
   for (const viewport of [{width: 1280, height: 800}, {width: 390, height: 844}]) {
     await page.setViewportSize(viewport)
@@ -154,6 +154,7 @@ test("the picture behind the panel never blocks the action", async ({page}) => {
     for (const reducedMotion of ["no-preference", "reduce"] as const) {
       await page.emulateMedia({reducedMotion})
       await expect(page.locator("#home-title")).toBeVisible()
+      await expect(page.locator("#home-glass")).toHaveCSS("opacity", "1")
       const action = page.locator(".rl-hero-actions a").first()
       await action.scrollIntoViewIfNeeded()
       // The panel, not the picture, is what a press at the action lands on.

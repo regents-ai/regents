@@ -5,6 +5,8 @@ type Page = import("@playwright/test").Page
 const waitForHomepage = async (page: Page) => {
   const home = page.locator("#public-home")
   await expect(home).toBeVisible()
+  // The suite's browser draws no picture, so the panel stands open once the page knows that.
+  await expect(page.locator("#home-glass")).toHaveCSS("opacity", "1")
   await page.evaluate(async () => {
     await document.fonts.ready
     await Promise.all(
