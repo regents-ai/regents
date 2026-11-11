@@ -4639,7 +4639,12 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   401. One machine, check passing.
 - Not proven: a real signed-in Points page and a real paired agent's answer on production, WebKit.
 
-## 2026-11-09 — Stake says when USDC rewards wait on the treasury (branch `regents/usdc-notice-1109`)
+## 2026-11-11 — Stake: USDC top-up notice and regents-cli 1.10.24 (branch `regents/usdc-notice-1109`)
+
+One release. `regents/cli-1-10-24` (84fd14cb, 6d4f22b5) is merged in as it stands; its public
+changelog line moves from the published 6 Nov entry to this release's.
+
+### USDC notice
 
 - `claimUSDC` reverts when a wallet's claimable USDC is more than the contract's
   outstanding credit (`totalUsdcCreditedToStakers - totalClaimedUsdc`) plus
@@ -4670,3 +4675,15 @@ ash-template 8e07e8c, 7896c0c, ec39cb2, 70e4a82, cde8310 and f79a3149.
   copy) still described the staking position as `position` alone at 5.0.0, so it refused the new
   `claims` and the three treasury figures. Its `StakingPosition` now matches `openapi.json`
   (`claims` required, with every reason) and both contracts are 5.1.0.
+
+### Command line
+
+- Sean's 28 Oct rule: every site names the newest published command line. PyPI's newest is 1.10.24
+  (read about 18:15Z 6 Nov; 1.10.25 not published). The Makefile pin moves from `8e8f2af4` (1.10.23) to
+  `fd325437` (tag v1.10.24); the install lines in `agents.md`, `llms.md`, `docs/pairing.md` and the
+  agent start page move with it, and so do the guide's source commit and wheel SHA256
+  `6310687234c5b0b5b9304973232e6ef3b0d08853f84ec9e4c82304fef979dc01`, which matches PyPI. One line
+  in the public changelog. Older dated changelog notes keep the versions they named.
+- Checks on the branch: `make check-cli` exit 0 at the new pin; docs, public documents and agent
+  documents tests 9 passed. PyPI read again at 04:18Z 11 Nov: 1.10.24 is still the newest, and its
+  wheel's SHA256 is the one above. The full check runs with this release.

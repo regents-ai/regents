@@ -1,6 +1,8 @@
-## 2026-11-09
+## 2026-11-11
 
 [Stake]({{origin}}/stake) now says "USDC rewards wait on a treasury top-up." beside Claim USDC if the staking contract holds too little USDC to pay your USDC rewards. The button still sends the claim from your wallet. `GET /api/v1/staking/position`, the agent's staking read and the `regents_stake_position` browser tool answer `claims` beside `position`: for each claim, the reason against it, such as `usdc_rewards_short`, or null; [Staking]({{origin}}/docs/staking) lists every reason. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 5.1.0.
+
+regents-cli 1.10.24 is current; install it with `uv tool install regents-cli==1.10.24`. The agent guide, the pairing guide and the agent start page ask for it.
 
 ## 2026-11-06
 
