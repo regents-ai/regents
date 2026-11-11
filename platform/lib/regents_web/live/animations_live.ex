@@ -374,7 +374,6 @@ defmodule RegentsWeb.AnimationsLive do
               class="motion-lab__ink"
               data-ink
               aria-hidden="true"
-              phx-mounted={JS.ignore_attributes(["style"])}
             ></span>
           </div>
           <div

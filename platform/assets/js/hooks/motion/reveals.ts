@@ -86,7 +86,13 @@ export const ShellViews: Hook = {
   },
 }
 
-type TabsHook = {el: HTMLElement; scope?: Scope; active?: string; pointer: boolean}
+type TabsHook = {
+  el: HTMLElement
+  scope?: Scope
+  active?: string
+  pointer: boolean
+  js(): {ignoreAttributes(el: HTMLElement, attrs: string[]): void}
+}
 
 /**
  * Tabs the server switches, built from a table of versions. The island names
@@ -99,11 +105,14 @@ type TabsHook = {el: HTMLElement; scope?: Scope; active?: string; pointer: boole
 export const tabsHook = (moves: Record<string, TabMove>): Hook => ({
   mounted(this: TabsHook) {
     const scope = createScope({root: this.el})
+    const ink = this.el.querySelector<HTMLElement>("[data-ink]")
     this.active = this.el.dataset.active
     this.pointer = false
+    // The underline's place is this island's own, so a page update leaves it
+    // where the island put it.
+    if (ink) this.js().ignoreAttributes(ink, ["style"])
 
     this.scope = scope.add(() => {
-      const ink = this.el.querySelector<HTMLElement>("[data-ink]")
       const tabs = [...this.el.querySelectorAll<HTMLElement>("[data-tab]")]
       const tab = (name: string) => tabs.find(el => el.dataset.tab === name)
       const spot = (name: string, base: number): Spot => ({
