@@ -4794,3 +4794,20 @@ changelog line moves from the published 6 Nov entry to this release's.
   16, contracts 454 forge tests. Process sizes were not recorded on this run.
 - Not proven: WebKit, a real Privy sign-in and a real extension wallet; the Redeem buttons keep the
   mark through the same island code, but no browser walk holds a Redeem press through a page update.
+
+## 2026-11-11 — Released v279 (the wallet mark, each claim's own words, odd addresses)
+
+- v279: commit `74dba579`, image `main-74dba5795267`, created 2026-11-11T06:48:10Z, rollback v278
+  `109c7a03` (image `main-109c7a03efbc`). main moved `109c7a03` → `74dba579` as a fast-forward.
+- No migration ("Migrations already up").
+- Full check on `20334061` (the entry above); `74dba579` adds only its record.
+- Live read in headless Chromium, signed out: `/capabilities.json` build commit `74dba579`; `/stake`
+  200 at 390 and 1280 with no sideways scroll and no console errors; `/%61pp` and `/%70rivacy`
+  answer 404 with the not-found page, `/app` and `/privacy` 200; `/agents.md` names
+  `regents-cli==1.10.24`; `/openapi.json` 5.1.0; `/docs/changes` carries the new lines; `/healthz`
+  and `/api/v1/health` ok. Logs from 06:48Z: a few seconds of failing health check while the new
+  machine booted (as on v278), then passing; every request answered.
+- Sentinel crash notices: nothing new; notice 5 (the `/%61pp` KeyError) has not come back after the
+  live read.
+- Not proven: WebKit, a real Privy sign-in and a real extension wallet; the claim words on live (the
+  signed-out card shows no claims).
