@@ -43,6 +43,7 @@ RUN mix deps.compile
 
 COPY platform/lib lib
 COPY blog /workspace/blog
+COPY cli /workspace/cli
 COPY platform/priv priv
 COPY platform/rel rel
 COPY platform/assets assets
