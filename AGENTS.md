@@ -13,8 +13,9 @@ the separate regents-cli repository.
   one commit in `platform/mix.exs`.
 - `make check` runs every component gate side by side, each logging to
   `platform/_build/check/<gate>.log`, and prints the log of any that failed;
-  `make check-platform`, `check-required-fixes`, `check-cli`, `check-identity` and
-  `check-contracts` run one. `MIX_TEST_PARTITION` (an underscore and
+  `make check-platform`, `check-required-fixes`, `check-cli`, `check-siwa-latest`,
+  `check-identity` and `check-contracts` run one. `check-siwa-latest` fails until the
+  site is on the newest regents-cli release and the newest SIWA library change. `MIX_TEST_PARTITION` (an underscore and
   a short id, unique to your working tree) is required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.

@@ -137,7 +137,12 @@ rel/                    Release overlays, including the migrate command
 
 The full platform gate is `make check-platform`, run from the repository root with
 `MIX_TEST_PARTITION` set. `make check-required-fixes` confirms every shared library is
-pinned and carries each required fix. For focused changes, run the checks that
+pinned and carries each required fix. `make check-siwa-latest`
+(`scripts/check-siwa-latest.sh`) fails until the site is on the newest SIWA: the Makefile's
+`REGENTS_CLI_REV` is the newest regents-cli release's tag commit, the agent guide names
+that release, its commit and its wheel's SHA256, every install line names it, the tool
+manifest's `cli.release` is it, and the elixir-utils commit `platform/mix.exs` pins
+contains the newest change to `siwa/siwa-elixir/apps/siwa`. For focused changes, run the checks that
 exercise the changed behavior; retain the full gate for protected changes.
 
 It runs `mix precommit`, builds the assets, then runs the TypeScript typecheck and the Vitest unit suite. `mix precommit`

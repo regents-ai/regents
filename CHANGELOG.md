@@ -5563,3 +5563,27 @@ changelog line moves from the published 6 Nov entry to this release's.
   menu link reads "About". /api/v1/health answers ok with migrations_applied true.
 - Not read live: a browser without WebGPU, reduced motion and no scripts (the browser tests
   cover them).
+
+## 2026-11-12 — On the newest SIWA: the check-siwa-latest gate and elixir-utils 240e9385
+
+- `make check-siwa-latest` (`scripts/check-siwa-latest.sh`), ash-template's gate with this
+  site's places set, now runs in `make check`. It fails until `REGENTS_CLI_REV` is the newest
+  regents-cli release's tag commit, the agent guide names that release, its commit and its
+  wheel's SHA256, every install line names it (the agent guide, `llms.md`, the pairing
+  guide, the agent start page and `cli/`; the dated entries in `docs/changes.md` keep the
+  release of their day), the tool manifest's `cli.release` is it, and the elixir-utils
+  commit `platform/mix.exs` pins contains the newest SIWA library change.
+- elixir-utils moves to `240e9385`, the template's pin, in `platform/mix.exs` (from
+  `faa538d4`) and `identity/mix.exs` (from `c4a78d22`), so the two are on one commit again
+  as `identity/mix.exs` says. Moved with `mix deps.update`; only the elixir-utils lines of
+  the two locks change.
+- Sign-in in that range: one SIWA library change (`dd2d3c6e`, carried again by `a12f71b6`).
+  A signed request whose expiry is further from its creation than the signature tolerance
+  (300 seconds) is now refused as `request_lifetime_too_long` (401
+  `http_signature_invalid`), and a request's single-use mark is kept until the request
+  expires. Nothing a signer sends changes; the contract stays version 2. No change to the
+  Privy or agent-access packages. The rest of the range is payments (USDC on Base only,
+  Credits no longer pay), MCP agents, the published-identity sign-in for RegentOAuth and
+  outbound-request fixes; this site takes no RegentOAuth and no connector.
+- Checks: the gate, the identity check (16 tests) and the platform suite (680) on the new
+  pins. No migrations.
