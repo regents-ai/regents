@@ -39,4 +39,22 @@ defmodule RegentsWeb.ProductLiveTest do
       if proof["status"] == "planned", do: assert(proof["link"] == nil)
     end
   end
+
+  test "PRODUCT_API: every product answers only the fields the API description declares", %{
+    conn: conn
+  } do
+    schema =
+      get(conn, "/openapi.json")
+      |> json_response(200)
+      |> get_in(["components", "schemas", "Product"])
+
+    declared = Map.keys(schema["properties"])
+
+    for slug <- RegentsWeb.ProductDirectory.slugs() do
+      product = json_response(get(conn, "/api/v1/products/#{slug}"), 200)["product"]
+
+      assert Map.keys(product) -- declared == [], slug
+      assert schema["required"] -- Map.keys(product) == [], slug
+    end
+  end
 end

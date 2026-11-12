@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "5.1.0",
+    "version": "5.2.0",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and shared balances, history and budgets.",
     "contact": {
       "name": "Regents Labs"
@@ -2900,7 +2900,7 @@
       "Product": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Everything the product's page on Regents shows. Techtree, Patchbay and Keyfleet carry what_it_does and about; Autolaunch carries launches, why_fair and before_you_bid.",
+        "description": "Everything the product's page on Regents shows. Techtree, Patchbay and Keyfleet carry what_it_does, about, launch_notice and tech_stack; Autolaunch carries launches, why_fair and before_you_bid.",
         "required": [
           "slug",
           "name",
@@ -3013,6 +3013,20 @@
             "items": {
               "type": "string"
             }
+          },
+          "launch_notice": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A short notice about when the product opens; null when there is none."
+          },
+          "tech_stack": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the product is built with and works alongside; empty when the page lists none."
           },
           "launches": {
             "type": "array",

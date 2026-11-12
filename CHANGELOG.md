@@ -5128,3 +5128,22 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Check: three full runs in a row exit 0 at 192, 191 and 195 s on a quiet Mac, and the
   final tree at 250 s with other lanes loading the machine; a deliberately failing unit
   test made the check exit non-zero and print that gate's log.
+
+## 2026-11-12 — Released v286 (home: Enter App leads, agent prompt to copy)
+
+- Live: v286, image registry.fly.io/regents-sh-web:main-a596fa82a877; /capabilities.json
+  build.commit a596fa82. Rollback: v285, image registry.fly.io/regents-sh-web:main-ceab994dc55b
+  (ceab994d). No migrations.
+- Full check on 523d4dbf: exit 0 (662 server, 268 script and 155 browser tests).
+- Live read in headless Chromium at 1440, 390 and 320, signed out: Enter App right of the name
+  on a wide screen and full width on a phone; no sideways scroll; Copy puts the agent prompt on
+  the clipboard; Agent Tools opens its window; no console errors.
+
+## 2026-11-12 — Product answers match the API description (regents-cli chief, 12 Nov)
+
+- `GET /api/v1/products/{slug}` for Techtree, Patchbay and Keyfleet answers `launch_notice` and
+  `tech_stack`, which the Product schema in `platform/priv/public/openapi.json` did not declare
+  while refusing undeclared fields. The schema now declares both (`launch_notice` text or null,
+  `tech_stack` a list of lines); OpenAPI JSON 5.2.0. The answers themselves are unchanged.
+- Check: `platform/test/regents_web/product_live_test.exs` reads every product and compares its
+  fields with the published schema.
