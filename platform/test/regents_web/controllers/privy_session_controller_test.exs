@@ -511,7 +511,7 @@ defmodule RegentsWeb.PrivySessionControllerTest do
     assert Process.alive?(view.pid)
 
     assert render_click(view, "refresh_verified_connections", %{}) =~
-             "Raise early funds for an agent."
+             "Onchain stock offerings."
   end
 
   test "ORDINARY_SIGNED_IN_STARTUP_IS_STABLE: reads and mounts change no authority" do

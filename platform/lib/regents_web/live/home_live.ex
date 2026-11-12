@@ -296,7 +296,7 @@ defmodule RegentsWeb.HomeLive do
       %{
         name: "autolaunch",
         line:
-          "Invest in stablecoin-generating agents on Base. Earn when they earn. Or launch memestocks on Base and Robinhood.",
+          "Launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns.",
         site: "https://autolaunch.sh",
         github: "https://github.com/regents-ai/autolaunch"
       },
@@ -361,7 +361,7 @@ defmodule RegentsWeb.HomeLive do
         index: "02",
         anchor: "autolaunch",
         eyebrow: "Autolaunch — Launch",
-        title: "Invest in agents. Launch memestocks.",
+        title: "Onchain stock offerings.",
         description: summaries["autolaunch"],
         action: "launch",
         supporting: nil,

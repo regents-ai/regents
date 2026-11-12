@@ -5787,3 +5787,49 @@ changelog line moves from the published 6 Nov entry to this release's.
   by Escape and by X; tiles and /app cards in the new order; no sideways scroll, no errors.
 - Rollback: v300's image main-1ac1834f7f2e.
 - Not proven live: Safari, a real finger on a phone, and the signed-in page.
+
+## 2026-11-12 — Product pages carry their products' cards; Autolaunch leads with onchain stocks
+
+- Sean's ask: on /patchbay, /autolaunch, /techtree and /keyfleet, the cards each product's
+  own site shows; and an Autolaunch heading and line about onchain stock offerings rather
+  than only backing an agent's Revstake token.
+- Each page shows its product's six value cards under a "Highlights" bar, right after its
+  heading: the words, colours and panels of each product's own home page row, from
+  patchbay 9ca4b09d (`BoardHTML.home_cards/0`), autolaunch 11a5c8ba ("Principles"),
+  techtree 902387d3 ("Products") and keyfleet 8c473fa58 ("Overview"). Every card opens the
+  page of the product's site it names, in a new tab, with its own action label. One shared
+  row, `ProductLive.cards/1`, draws them on all four pages through the /app row's
+  `ValueCards.value_cards/1`. No card names Credits, Proximal, after-hours or guest seats,
+  so none is left out.
+- Panels: each product's own panels sit in `assets/js/value_cards/panels/<product>/` with
+  an `index.ts` in its order, and their stills in `priv/static/images/value-cards/<product>/`,
+  copied byte for byte (only the import of `panel.ts` moved up a folder). A card names a
+  product panel by its path, `patchbay/ask`; Keyfleet's first card uses this site's own
+  `fleet`, which is the same file. `panelCalled/1` keeps this site's six in the renderer and
+  imports a product's six together the first time its page shows one, so /app loads no
+  product panel: its renderer chunk grew 253 bytes gzipped (5,497 to 5,750) and app.js did
+  not grow. The value cards component reads a still at the panel's path and names its ids
+  by the panel's last part, so /app's ids are unchanged. `stills.mjs` draws product
+  panels into their folders too.
+- Autolaunch: the heading is "Onchain stock offerings." and the line "Launch a memecoin
+  paired with a tokenized stock on Base, sell calls on your stock, or raise early backing
+  for an agent that earns."; Memestock now comes before Revstake under Launches. The page
+  reads its heading and line from the home page's Autolaunch chapter, which carries both,
+  and the same line is the directory summary. Covered calls are named because autolaunch.sh
+  shows them today (its `fly.toml` switches them on). The same description replaces the
+  old one in the page description, `about.md`, `llms.md` and `skill.md`.
+- `GET /api/v1/products/{slug}` gives each page's `cards` (name, headline, line, action and
+  link); `priv/public/openapi.json` declares them and is 6.0.2; the `regents_product` tool
+  description says so. `cli/commands.json` is unchanged and still passes its check.
+- Tests: ExUnit "PRODUCT_CARDS" (each page's six cards, absolute links on the product's own
+  site in a new tab, the same cards in the product data, the stills on disk); browser
+  `product_cards.spec.ts` (six cards, stills, columns and no sideways scroll at 1280, 390
+  and 320 on each page; in headless Chromium with WebGPU, /app's six and each page's six
+  panels draw and each page fetches only its own product's panels); the value cards script
+  test now finds every panel by its card name and checks its still.
+- Checks: strict compile; format; `npm run typecheck`; `npm test` (359); budgets;
+  `mix regents.route_handoff --check`; ExUnit for product pages, /app, home, public
+  documents, the API contract and the other readers (142); the browser walks
+  `product_cards.spec.ts`, `value_cards.spec.ts`, `shell_walk.spec.ts` and
+  `founder_shell.spec.ts` (35); the command description check. No migration, no new
+  dependency.

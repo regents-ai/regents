@@ -1,9 +1,10 @@
 // Draws every value card's still frame into priv/static/images/value-cards/:
-// each panel at its still moment, as <name>.webp. The colours and shaders are
-// the site's own, read from panel.ts and panels/ beside this file.
+// each panel at its still moment, as <name>.webp, where a product's own panel
+// is named by its folder too (patchbay/ask.webp). The colours and shaders are
+// read from panel.ts and panels/ beside this file.
 //
-//   npm run stills:value-cards            (from platform/, after changing a panel)
-//   npm run stills:value-cards -- level   (only the panels named)
+//   npm run stills:value-cards                           (from platform/, after changing a panel)
+//   npm run stills:value-cards -- level patchbay/ask     (only the panels named)
 //
 // vgpu draws each frame on this machine's GPU; a headless browser only packs
 // the pixels as WebP. Needs Node 22.18 or newer, which reads the .ts files as they are.
@@ -22,18 +23,17 @@ const out = join(here, "../../../priv/static/images/value-cards")
 const SIZE = 600
 const only = process.argv.slice(2)
 
-const names = readdirSync(join(here, "panels"))
-  .filter(file => file.endsWith(".ts"))
-  .map(file => basename(file, ".ts"))
+const names = readdirSync(join(here, "panels"), {recursive: true})
+  .filter(file => file.endsWith(".ts") && basename(file) !== "index.ts")
+  .map(file => file.slice(0, -".ts".length))
   .filter(name => only.length === 0 || only.includes(name))
 
-mkdirSync(out, {recursive: true})
 const gpu = await init()
 const browser = await chromium.launch()
 const page = await browser.newPage()
 
 for (const name of names) {
-  const panel = (await import(join(here, "panels", `${name}.ts`)))[name]
+  const panel = (await import(join(here, "panels", `${name}.ts`)))[basename(name)]
   const still = target(gpu, {size: [SIZE, SIZE], format: "rgba8unorm"})
   const shader = effect(gpu, prepareShader(shaderFor(panel), `value_card_${name}.wgsl`), {
     set: uniforms(panel, SIZE, SIZE, panel.stillAt),
@@ -51,6 +51,7 @@ for (const name of names) {
     },
     [Buffer.from(pixels.buffer, pixels.byteOffset, SIZE * SIZE * 4).toString("base64"), SIZE],
   )
+  mkdirSync(dirname(join(out, name)), {recursive: true})
   writeFileSync(join(out, `${name}.webp`), Buffer.from(webp, "base64"))
   console.log(`${name}.webp`)
 }

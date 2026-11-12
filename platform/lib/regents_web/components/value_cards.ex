@@ -1,7 +1,9 @@
 defmodule RegentsWeb.Components.ValueCards do
   @moduledoc """
-  Value cards: a row of cards, one for each product, taken from the template's
-  value cards (`skills/vgpu-island/references/value-cards.md` in ash-template).
+  Value cards: a row of cards taken from the template's value cards
+  (`skills/vgpu-island/references/value-cards.md` in ash-template). The
+  Overview's row has one card for each product; a product's page has that
+  product's own six, as its site shows them.
 
   A card is dark in both themes. From the top: a square panel of small coloured
   glyphs that moves and follows a mouse, drawn on the GPU by the `ValueCard`
@@ -16,7 +18,9 @@ defmodule RegentsWeb.Components.ValueCards do
 
   Each card is a map:
 
-    * `:id` - the panel's name, a file in `assets/js/value_cards/panels/`
+    * `:id` - the panel's path in `assets/js/value_cards/panels/` without its
+      `.ts`: `"blob"` for one of this site's own, `"patchbay/ask"` for one in a
+      product's folder. The last part names the card in the row's ids
     * `:name` - the product's name, one or two words
     * `:headline` - one line, ending with a full stop
     * `:line` - one sentence
@@ -42,7 +46,7 @@ defmodule RegentsWeb.Components.ValueCards do
     <ul id={@id} class="value-cards" aria-label={@label}>
       <li
         :for={{card, number} <- Enum.with_index(@cards, 1)}
-        id={"#{@id}-#{card.id}"}
+        id={"#{@id}-#{Path.basename(card.id)}"}
         class="value-card"
         style={"--value-card-tint: #{card.tint}"}
         phx-hook="ValueCard"
@@ -56,10 +60,15 @@ defmodule RegentsWeb.Components.ValueCards do
           rel="noopener noreferrer"
           class="value-card__face"
         >
-          <.face id={"#{@id}-#{card.id}"} card={card} place={place(number, @count)} away />
+          <.face
+            id={"#{@id}-#{Path.basename(card.id)}"}
+            card={card}
+            place={place(number, @count)}
+            away
+          />
         </a>
         <.link :if={!away?(card.href)} patch={card.href} class="value-card__face">
-          <.face id={"#{@id}-#{card.id}"} card={card} place={place(number, @count)} />
+          <.face id={"#{@id}-#{Path.basename(card.id)}"} card={card} place={place(number, @count)} />
         </.link>
       </li>
     </ul>
@@ -76,7 +85,7 @@ defmodule RegentsWeb.Components.ValueCards do
     <div class="value-card__panel" aria-hidden="true">
       <img
         class="value-card__still"
-        src={~p"/images/value-cards/#{@card.id <> ".webp"}"}
+        src={~p"/images/value-cards/#{Path.split(@card.id <> ".webp")}"}
         alt=""
         width="600"
         height="600"

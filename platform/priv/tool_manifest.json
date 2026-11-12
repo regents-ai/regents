@@ -93,7 +93,7 @@
     {
       "name": "regents_product",
       "title": "Read a product",
-      "description": "Read everything one product's page on regents.sh shows: its heading, summary, what it does, who it is for, its place in the Regents family, a line to give an agent and where to start. Autolaunch also gives its two launch kinds with their figures, why its auction is fair and what to know before bidding.",
+      "description": "Read everything one product's page on regents.sh shows: its heading, summary, the six cards from the product's own site with the page each opens, what it does, who it is for, its place in the Regents family, a line to give an agent and where to start. Autolaunch also gives its two launch kinds with their figures, why its auction is fair and what to know before bidding.",
       "input_schema": {
         "type": "object",
         "properties": {

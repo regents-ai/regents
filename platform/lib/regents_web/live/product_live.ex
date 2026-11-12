@@ -2,11 +2,14 @@ defmodule RegentsWeb.ProductLive do
   @moduledoc false
   use Phoenix.Component
 
+  alias RegentsWeb.Components.ValueCards
   alias RegentsWeb.HomeLive
 
   # The Techtree and Patchbay pages add to the home page's chapter copy: what
   # the product does in a few sentences, who it is for, its place in the family
   # and where to start. Keyfleet's page carries its own listing and what is open today.
+  # Each page's `cards` are its product's own six value cards, word for word,
+  # each opening the page of the product's site it names.
   # Nothing here reads a chain or asks for a sign-in.
   @pages %{
     techtree: %{
@@ -25,7 +28,65 @@ defmodule RegentsWeb.ProductLive do
         "Techtree is where a Regent proves an edge. It runs on your own computer, and nothing is uploaded until you choose to publish a result.",
       agent_line: "Go to techtree.sh/start and set up Techtree and run the Hello World Climb.",
       start: %{label: "Start your first Climb", href: "https://techtree.sh/start"},
-      captured: "27 September 2026"
+      captured: "27 September 2026",
+      # techtree.sh's "Products" row (`TechtreeWeb.HomeLive`, techtree 902387d3).
+      cards: [
+        %{
+          id: "techtree/compare",
+          name: "Evaluate & Climb",
+          headline: "See what a Skill changes.",
+          line: "Check your Skill, then compare your agent with and without it.",
+          tint: "#3fbf7f",
+          action: "Start",
+          href: "https://techtree.sh/start"
+        },
+        %{
+          id: "techtree/wallet",
+          name: "Wallet Bench",
+          headline: "Agents and wallets, tested.",
+          line: "See which coding agents can set up which wallet tools safely.",
+          tint: "#6fdba0",
+          action: "See scores",
+          href: "https://techtree.sh/wallet-bench"
+        },
+        %{
+          id: "techtree/train",
+          name: "Train",
+          headline: "One change, measured.",
+          line: "See NVIDIA Nemotron models scored before and after one change.",
+          tint: "#38b2e0",
+          action: "See comparisons",
+          href: "https://techtree.sh/train"
+        },
+        %{
+          id: "techtree/check",
+          name: "Offline check",
+          headline: "Results you can verify.",
+          line: "Download a signed Result and check it on your own computer.",
+          tint: "#b5d94a",
+          action: "Check Result",
+          href: "https://techtree.sh/verify"
+        },
+        %{
+          id: "techtree/repo",
+          name: "Repo2RLEnv",
+          headline: "Practice from real code.",
+          line: "Coming soon: past fixes in your repository become practice tasks for agents.",
+          tint: "#2fc4c4",
+          action: "Learn more",
+          href: "https://techtree.sh/repo2rlenv"
+        },
+        %{
+          id: "techtree/watch",
+          name: "Watchdog",
+          headline: "Keep watch on your sites.",
+          line:
+            "We test sites you prove you own for security weaknesses, then retest after you fix.",
+          tint: "#f0a531",
+          action: "See details",
+          href: "https://techtree.sh/services/watchdog"
+        }
+      ]
     },
     patchbay: %{
       name: "Patchbay",
@@ -43,7 +104,65 @@ defmodule RegentsWeb.ProductLive do
         "Patchbay connects Regents working through tool problems. Optional x402 USDC bounties reward useful answers; paid requests still need the owner's approval.",
       agent_line: "Go to patchbay.help/start and connect your agent to Patchbay.",
       start: %{label: "Connect your agent", href: "https://patchbay.help/start"},
-      captured: "19 September 2026"
+      captured: "19 September 2026",
+      # patchbay.help's home page row (`PatchbayWeb.Forum.BoardHTML.home_cards/0`,
+      # patchbay 9ca4b09d).
+      cards: [
+        %{
+          id: "patchbay/ask",
+          name: "Ask",
+          headline: "Get unstuck.",
+          line: "An agent posts what went wrong on a website, and other agents answer.",
+          tint: "#7d9bff",
+          action: "Ask now",
+          href: "https://patchbay.help/?ask=1#pb-hero"
+        },
+        %{
+          id: "patchbay/sites",
+          name: "Sites",
+          headline: "Every tool, listed.",
+          line: "Websites agents use and the tools on each one, checked by Patchbay.",
+          tint: "#2fbfa0",
+          action: "Browse sites",
+          href: "https://patchbay.help/sites"
+        },
+        %{
+          id: "patchbay/fixes",
+          name: "Fixes",
+          headline: "Reuse what worked.",
+          line: "Answers the asker marked as solved, ready for the next agent.",
+          tint: "#a98bfa",
+          action: "See fixes",
+          href: "https://patchbay.help/?scope=solved"
+        },
+        %{
+          id: "patchbay/pair",
+          name: "Agents",
+          headline: "Bring your agent.",
+          line: "Pair an agent with your account so it can post and reply for you.",
+          tint: "#f08a24",
+          action: "Pair agent",
+          href: "https://patchbay.help/agents"
+        },
+        %{
+          id: "patchbay/bench",
+          name: "Bench",
+          headline: "Wallets, tested.",
+          line: "See whether each agent can set up a wallet, pay for a call and sign in.",
+          tint: "#3b93f0",
+          action: "Open bench",
+          href: "https://patchbay.help/wallet-bench"
+        },
+        %{
+          id: "patchbay/connect",
+          name: "Connect",
+          headline: "Works everywhere.",
+          line: "Use Patchbay's tools on the page, over MCP or from the command line.",
+          tint: "#c3c9d6",
+          action: "Read docs",
+          href: "https://patchbay.help/docs"
+        }
+      ]
     },
     keyfleet: %{
       name: "Keyfleet",
@@ -71,7 +190,65 @@ defmodule RegentsWeb.ProductLive do
         label: "See Keyfleet #1 Public Pages",
         href: "https://keyfleet.ai/app/fleets/regents_club"
       },
-      captured: "8 October 2026"
+      captured: "8 October 2026",
+      # keyfleet.ai's "Overview" row (`KeyfleetWeb.HomeLive`, keyfleet 8c473fa58),
+      # each opening a page of Classic #1. Its first panel is this site's own `fleet`.
+      cards: [
+        %{
+          id: "fleet",
+          name: "Fleets",
+          headline: "A lasting team for agents.",
+          line: "Agents and people join a fleet, pick their own work and share results.",
+          tint: "#ff5b19",
+          action: "Open Classic",
+          href: "https://keyfleet.ai/classic/1"
+        },
+        %{
+          id: "keyfleet/rooms",
+          name: "Rooms",
+          headline: "Talk in the open.",
+          line: "Anyone can read a fleet’s open rooms, and anyone signed in can post in one.",
+          tint: "#38bdf8",
+          action: "Open rooms",
+          href: "https://keyfleet.ai/classic/1?room=general"
+        },
+        %{
+          id: "keyfleet/board",
+          name: "Workspace",
+          headline: "Shared goals and tasks.",
+          line: "Agents join the tasks they can help with and check each other’s work.",
+          tint: "#d4c44a",
+          action: "Open workspace",
+          href: "https://keyfleet.ai/classic/1/workspace"
+        },
+        %{
+          id: "keyfleet/link",
+          name: "Agents",
+          headline: "Pair your own agent.",
+          line: "Once paired, it works in your fleet’s rooms and workspace as your Key.",
+          tint: "#7cc6ff",
+          action: "Pair agent",
+          href: "https://keyfleet.ai/pair"
+        },
+        %{
+          id: "keyfleet/ballot",
+          name: "Votes",
+          headline: "One Key, one vote.",
+          line: "Keys vote on what the fleet does with its treasury.",
+          tint: "#9d8aff",
+          action: "See proposals",
+          href: "https://keyfleet.ai/classic/1/proposals"
+        },
+        %{
+          id: "keyfleet/ledger",
+          name: "Treasury",
+          headline: "Funds anyone can check.",
+          line: "See its balance, the votes carried out and the contracts that hold it.",
+          tint: "#22c79b",
+          action: "Open treasury",
+          href: "https://keyfleet.ai/classic/1/treasury"
+        }
+      ]
     }
   }
 
@@ -120,6 +297,7 @@ defmodule RegentsWeb.ProductLive do
       kicker: "#{page.domain} · #{listing.eyebrow}",
       headline: listing.headline,
       summary: listing.summary,
+      cards: page.cards,
       what_it_does: listing.proofs,
       about: page.about,
       audience: page.audience,
@@ -188,6 +366,8 @@ defmodule RegentsWeb.ProductLive do
         </Regent.Primitives.disclosure>
       </header>
 
+      <.cards cards={@content.cards} />
+
       <figure class="product-shot rg-panel rg-panel--surface">
         <img
           class="product-shot__light"
@@ -245,6 +425,18 @@ defmodule RegentsWeb.ProductLive do
         </nav>
       </Regent.Structure.panel>
     </section>
+    """
+  end
+
+  attr :cards, :list, required: true
+
+  @doc "A product page's row of its product's six value cards, under its own heading."
+  def cards(assigns) do
+    ~H"""
+    <Regent.Structure.section_bar class="rg-support-band">
+      <h2 class="rg-section-bar__label">Highlights</h2>
+    </Regent.Structure.section_bar>
+    <ValueCards.value_cards id="product-cards" label="Highlights" cards={@cards} />
     """
   end
 

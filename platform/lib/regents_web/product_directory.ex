@@ -8,6 +8,8 @@ defmodule RegentsWeb.ProductDirectory do
 
   @slugs ~w(keyfleet autolaunch patchbay techtree)
   @listed [:slug, :name, :summary, :site, :page, :github]
+  # A card's words and where it goes; its picture and colour are the page's own.
+  @card_words [:name, :headline, :line, :action, :href]
 
   def slugs, do: @slugs
 
@@ -23,6 +25,11 @@ defmodule RegentsWeb.ProductDirectory do
   defp product("patchbay"), do: with_page(ProductLive.content(:patchbay), "patchbay")
   defp product("keyfleet"), do: with_page(ProductLive.content(:keyfleet), "keyfleet")
 
-  defp with_page(content, slug),
-    do: Map.merge(content, %{slug: slug, page: PublicDocuments.url("/" <> slug)})
+  defp with_page(content, slug) do
+    Map.merge(content, %{
+      slug: slug,
+      page: PublicDocuments.url("/" <> slug),
+      cards: Enum.map(content.cards, &Map.take(&1, @card_words))
+    })
+  end
 end

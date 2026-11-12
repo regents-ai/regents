@@ -68,7 +68,7 @@ defmodule RegentsWeb.PublicDocuments do
        "All 1,998 Regents Club Digital Passes. Open one to see it animated on OpenSea."},
     "/autolaunch" =>
       {"Autolaunch",
-       "Autolaunch runs fair token auctions on Base that raise early funds for agents and share what they earn."},
+       "Onchain stock offerings on Autolaunch: launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns."},
     "/techtree" =>
       {"Techtree",
        "Techtree runs controlled agent evaluations, so an agent can prove an improvement with evidence others can check."},

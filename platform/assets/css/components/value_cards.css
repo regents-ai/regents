@@ -1,6 +1,7 @@
 @layer regents-product {
-/* Value cards (`RegentsWeb.Components.ValueCards`), on the Overview at /app: one
-   card for each product, taken from the template's value cards. A card is dark
+/* Value cards (`RegentsWeb.Components.ValueCards`), on the Overview at /app (one
+   card for each product) and on each product's page (that product's own six),
+   taken from the template's value cards. A card is dark
    in both themes, like an instrument: a square panel of small coloured glyphs
    that move (the `ValueCard` hook), in its product's colours; then the
    product's name in its colour beside its place in the row, one line saying

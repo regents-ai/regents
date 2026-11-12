@@ -8,7 +8,7 @@ import {prepareShader} from "@vgpu/wgsl/prepare"
 import {effect, frame, surface} from "vgpu"
 
 import type {IslandRenderer} from "../canvas_island"
-import {panels} from "./index"
+import {panelCalled} from "./index"
 import {pageDevice as device} from "./page_device"
 import {shaderFor, uniforms} from "./panel"
 
@@ -26,7 +26,7 @@ export async function createValueCardRenderer(
   onDeviceLost: () => void,
   name: string,
 ): Promise<ValueCardRenderer> {
-  const panel = panels[name]
+  const panel = await panelCalled(name)
   if (!panel) throw new Error(`No value card panel is called ${name}.`)
   const shared = await device.join(onDeviceLost)
   const {gpu} = shared

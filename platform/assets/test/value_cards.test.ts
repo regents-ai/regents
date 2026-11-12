@@ -1,11 +1,12 @@
 // The value cards' rules that hold whatever the panels show: every panel on a
 // page draws on one device, the last to go gives it back, a lost device is told
-// to everyone on it and never handed out again, and every panel a card can ask
-// for has a still frame to stand in for it.
-import {existsSync} from "node:fs"
+// to everyone on it and never handed out again, and every panel is found by the
+// name a card gives it and has a still frame to stand in for it.
+import {existsSync, readdirSync} from "node:fs"
+import {basename} from "node:path"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it, vi} from "vitest"
-import {panels} from "../js/value_cards"
+import {panelCalled} from "../js/value_cards"
 import {shareDevice} from "../js/value_cards/shared_device"
 
 /** A device that can be lost on demand, and counts being given back. */
@@ -107,8 +108,17 @@ describe("the shared device", () => {
   })
 })
 
+/** Every panel file, named the way a card names it: `level`, or `patchbay/ask` for a product's own. */
+const panelNames = readdirSync(fileURLToPath(new URL("../js/value_cards/panels", import.meta.url)), {
+  recursive: true,
+  encoding: "utf8",
+})
+  .filter(file => file.endsWith(".ts") && basename(file) !== "index.ts")
+  .map(file => file.slice(0, -".ts".length))
+
 describe("every panel", () => {
-  it.each(Object.keys(panels))("%s has a still frame", name => {
+  it.each(panelNames)("%s is found by its name and has a still frame", async name => {
+    expect(await panelCalled(name)).toBeDefined()
     const still = fileURLToPath(new URL(`../../priv/static/images/value-cards/${name}.webp`, import.meta.url))
     expect(existsSync(still)).toBe(true)
   })

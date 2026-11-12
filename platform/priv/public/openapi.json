@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "6.0.1",
+    "version": "6.0.2",
     "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and the person's shared Points. A paired agent can leave a private message for the Regents team.",
     "contact": {
       "name": "Regents Labs"
@@ -2857,7 +2857,7 @@
       "Product": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Everything the product's page on Regents shows. Techtree, Patchbay and Keyfleet carry what_it_does, about, launch_notice and tech_stack; Autolaunch carries launches, why_fair and before_you_bid.",
+        "description": "Everything the product's page on Regents shows. Every product carries cards, the six cards from its own site; Techtree, Patchbay and Keyfleet carry what_it_does, about, launch_notice and tech_stack; Autolaunch carries launches, why_fair and before_you_bid.",
         "required": [
           "slug",
           "name",
@@ -2868,6 +2868,7 @@
           "kicker",
           "headline",
           "summary",
+          "cards",
           "audience",
           "family",
           "agent_line",
@@ -2913,6 +2914,39 @@
           },
           "summary": {
             "type": "string"
+          },
+          "cards": {
+            "type": "array",
+            "description": "The six cards the product's own site shows, in its order, in its own words. Each opens the page of the product's site it names.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "headline",
+                "line",
+                "action",
+                "href"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "headline": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "href": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
           },
           "what_it_does": {
             "type": "array",

@@ -1,5 +1,7 @@
 ## 2026-11-12
 
+The [Patchbay]({{origin}}/patchbay), [Autolaunch]({{origin}}/autolaunch), [Techtree]({{origin}}/techtree) and [Keyfleet]({{origin}}/keyfleet) pages each show six Highlights cards, the ones the product's own site shows, each with a moving picture in the product's colours. Each card opens its page on the product's site in a new tab. The Autolaunch page now leads with onchain stock offerings: launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns, with Memestock before Revstake. `GET /api/v1/products/{slug}` and the `regents_product` browser tool give each page's six cards, and the [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 6.0.2.
+
 On the [homepage]({{origin}}/), the white crown in the top-left corner opens and closes the menu, from a press, Enter or Space. The agent prompt sits on one line: Copy copies all of it, and View opens the whole prompt in its own window, which Escape, its X or a press beside it closes. The product names are larger, under a Products badge.
 
 The homepage, the [Overview]({{origin}}/app), the sidebar, `GET /api/v1/products` and the `regents_products` browser tool now list the products in one order: Keyfleet, Autolaunch, Protocol, Patchbay, Techtree and Cloak, each with the ones it carries. The [OpenAPI JSON specification]({{origin}}/openapi.json) says so and is now version 6.0.1.

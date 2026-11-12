@@ -5,24 +5,10 @@ defmodule RegentsWeb.AutolaunchLive do
   alias RegentsWeb.{HomeLive, ProductLive}
 
   # The Autolaunch page carries its own copy: the two launch kinds and their
-  # figures, taken from autolaunch.sh's own guide. Nothing here reads a chain.
-  # The product directory serves the same copy through `content/0`.
+  # figures, taken from autolaunch.sh's own guide, onchain stocks first.
+  # Nothing here reads a chain. The product directory serves the same copy
+  # through `content/0`.
   @launches [
-    %{
-      kicker: "Revstake · on Base",
-      title: "Back an agent's stablecoin revenue.",
-      copy: [
-        "A Revstake token stands for an agent or x402 service that earns stablecoins. The launcher promises to pass all future revenue through the Revstake contract, and everyone who stakes the token receives a share in line with their stake.",
-        "Most of the supply stays with the launcher, the way founders keep most of a company after a preseed round."
-      ],
-      facts: [
-        %{label: "Auction", value: "48 hours, priced in REGENT"},
-        %{label: "Supply", value: "100 billion tokens"},
-        %{label: "Sold in the auction", value: "Up to 10%"},
-        %{label: "Locked with REGENT for trading", value: "Up to 5%"},
-        %{label: "To the launch's treasury", value: "85%, released over one year"}
-      ]
-    },
     %{
       kicker: "Memestock · on Base, Robinhood Chain soon",
       title: "Pair a memecoin with a real stock.",
@@ -37,6 +23,79 @@ defmodule RegentsWeb.AutolaunchLive do
         %{label: "Locked with the stock for trading", value: "Up to 20%"},
         %{label: "To the creator", value: "None"}
       ]
+    },
+    %{
+      kicker: "Revstake · on Base",
+      title: "Back an agent's stablecoin revenue.",
+      copy: [
+        "A Revstake token stands for an agent or x402 service that earns stablecoins. The launcher promises to pass all future revenue through the Revstake contract, and everyone who stakes the token receives a share in line with their stake.",
+        "Most of the supply stays with the launcher, the way founders keep most of a company after a preseed round."
+      ],
+      facts: [
+        %{label: "Auction", value: "48 hours, priced in REGENT"},
+        %{label: "Supply", value: "100 billion tokens"},
+        %{label: "Sold in the auction", value: "Up to 10%"},
+        %{label: "Locked with REGENT for trading", value: "Up to 5%"},
+        %{label: "To the launch's treasury", value: "85%, released over one year"}
+      ]
+    }
+  ]
+
+  # autolaunch.sh's "Principles" row (`AutolaunchWeb.HomeLive`, autolaunch 11a5c8ba).
+  @cards [
+    %{
+      id: "autolaunch/clearing",
+      name: "Fair price",
+      headline: "One price for every bidder.",
+      line: "Bids above the clearing price all pay that price, not their own limit.",
+      tint: "#ff5b19",
+      action: "Read rules",
+      href: "https://autolaunch.sh/how-it-works#how-it-works-auction"
+    },
+    %{
+      id: "autolaunch/vault",
+      name: "Locked liquidity",
+      headline: "Liquidity no one can pull.",
+      line: "It sits in a contract that can only collect trading fees.",
+      tint: "#4fd3ec",
+      action: "See fees",
+      href: "https://autolaunch.sh/how-it-works#how-it-works-fees"
+    },
+    %{
+      id: "autolaunch/address",
+      name: "Stock tokens",
+      headline: "Every stock named exactly.",
+      line: "Each stock shows its issuer and chain, and its exact address before you sign.",
+      tint: "#00c805",
+      action: "See stocks",
+      href: "https://autolaunch.sh/stocks"
+    },
+    %{
+      id: "autolaunch/signature",
+      name: "Your wallet",
+      headline: "Your wallet signs everything.",
+      line: "Autolaunch never holds your keys or your money.",
+      tint: "#e5e3d2",
+      action: "See portfolio",
+      href: "https://autolaunch.sh/portfolio"
+    },
+    %{
+      id: "autolaunch/handoff",
+      name: "Agents",
+      headline: "Agents prepare, you sign.",
+      line: "A paired agent can fill in your launch for you to check and sign.",
+      tint: "#f5c16c",
+      action: "Pair agent",
+      href: "https://autolaunch.sh/account/agents"
+    },
+    %{
+      id: "autolaunch/blocks",
+      name: "Onchain",
+      headline: "Figures from the chain.",
+      line: "Auction prices, bids and amounts raised come from the auction contracts.",
+      tint: "#aecacd",
+      action: "See auctions",
+      href: "https://autolaunch.sh/auctions"
     }
   ]
 
@@ -66,9 +125,11 @@ defmodule RegentsWeb.AutolaunchLive do
 
   @doc """
   What the Autolaunch page shows, as the product directory also serves it. The
-  home page's directory entry supplies the site and source links.
+  home page's chapter supplies the heading and summary, and its directory entry
+  the site and source links, so that copy still lives once.
   """
   def content do
+    chapter = Enum.find(HomeLive.products(), &(&1.anchor == "autolaunch"))
     site = Enum.find(HomeLive.hero_products(), &(&1.name == "autolaunch"))
 
     %{
@@ -77,9 +138,9 @@ defmodule RegentsWeb.AutolaunchLive do
       site: site.site,
       github: site.github,
       kicker: "autolaunch.sh · Auctions opened 24 September 2026",
-      headline: "Raise early funds for an agent. Share what it earns.",
-      summary:
-        "Autolaunch runs fair token auctions on Base. Revstake tokens share an agent's stablecoin revenue with the people who stake them. Memestock tokens pair a memecoin with a real onchain stock.",
+      headline: chapter.title,
+      summary: chapter.description,
+      cards: @cards,
       launches: @launches,
       why_fair: @proofs,
       audience: @audience,
@@ -117,6 +178,8 @@ defmodule RegentsWeb.AutolaunchLive do
           </a>
         </nav>
       </header>
+
+      <ProductLive.cards cards={@content.cards} />
 
       <figure class="product-shot rg-panel rg-panel--surface">
         <img
