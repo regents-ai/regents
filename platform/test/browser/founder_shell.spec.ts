@@ -303,10 +303,6 @@ test("the Overview maps the six products, keeps account details secondary, and r
     "href",
     "/redeem",
   )
-  await expect(overview.getByRole("link", {name: "Hermes"})).toHaveAttribute(
-    "href",
-    "https://hermes-agent.nousresearch.com/",
-  )
   await expect(page.getByRole("link", {name: "Profile", exact: true})).toHaveCount(0)
 })
 

@@ -47,12 +47,19 @@
   text-transform: uppercase;
 }
 
-/* Heading */
+/* Heading: the words, then the lab map; side by side once there is room for both. */
 
 .regent-ops-heading {
   display: grid;
-  gap: 1rem;
+  gap: 2rem;
   padding: var(--rg-panel-padding);
+}
+
+.regent-ops-intro {
+  display: grid;
+  gap: 1rem;
+  align-content: center;
+  min-width: 0;
 }
 
 .regent-ops-heading h1 {
@@ -61,6 +68,17 @@
   line-height: 1;
   letter-spacing: -0.03em;
   text-wrap: balance;
+}
+
+@media (min-width: 64rem) {
+  .regent-ops-heading {
+    grid-template-columns: minmax(15rem, 5fr) minmax(0, 7fr);
+    column-gap: 2.5rem;
+  }
+
+  .regent-ops-heading h1 {
+    font-size: clamp(2.25rem, 3.6vw, 3.25rem);
+  }
 }
 
 .regent-ops-heading h1:focus {

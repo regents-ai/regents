@@ -5673,3 +5673,43 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Rollback for v299: v298's image, only while the shared Credits tables still exist; v298
   and earlier write to Credits at sign-in.
 - Not proven live: any signed-in page, and /admin/pictures as an admin.
+
+## 2026-11-12 — Overview hero: an agent-native product lab and a map of the products
+
+- Sean's ask: redo the /app summary ("Improve. Prove. Earn.", Hermes and Prime Agent) to
+  describe an agent-native product lab whose output $REGENT gives the community ownership
+  of, with an interactive web of the six products and Sign-in with Agent at the bottom right,
+  where pointing at a line shows how two products are used together.
+- The hero now reads: kicker "Regents Labs", heading "Agent-native", and "A product lab that
+  builds what agents use themselves. $REGENT stands in for company equity, giving the
+  community ownership of what the lab makes." Hermes and Prime Agent are gone from it; the
+  "fit" details below are unchanged. /app's search description says the same.
+- Beside it (under it on a phone), `RegentsWeb.Components.LabMap` draws the six products in
+  their card colours and Sign-in with Agent, joined by twelve lines, each from the products'
+  own guides: Techtree and Patchbay (a Result's thread), Patchbay, Autolaunch and Keyfleet
+  into $REGENT staking, Keyfleet launching on Autolaunch, Keyfleet's and Autolaunch's help on
+  Patchbay, and Sign-in with Agent into the five products that sign agents in with it. Cloak
+  has none. Each product's dot opens what its card opens; Sign-in with Agent opens its guide.
+- A line under the mouse, focused or tapped lifts it and its two ends, dims the rest and
+  puts its sentence in the caption, which keeps the height of the longest; a dot under the
+  mouse or focused lifts all its lines. Lines are Tab stops named "A and B: sentence" with a
+  ring drawn along the line (the site's box ring stays off them); a wide unseen band makes
+  each easy to hit, and the shortest lines are drawn last so every line keeps at least 44px
+  to tap at 320.
+- Motion (anime.js): on arrival the dots come up, the lines draw out and the names follow,
+  done in 860ms; changes of pick fade in 140ms. With less motion asked for, everything simply
+  shows and still answers. A slow glow in the products' colours sits behind the map on the
+  GPU (vgpu), on the same device as the product cards (`value_cards/page_device.ts`), fades
+  in once drawn, thins out before its edges, follows the pick, and stops off screen or in a
+  hidden tab; without WebGPU the map stands without it.
+- Layout: copy left and map right from 64rem, the map under the copy below that.
+- Removed: the hero's Hermes link and the browser check for it. No migration, no contract or
+  API change, no new dependency.
+- Checks: strict compile; format; `npm run typecheck`; `npm test` (336);
+  `test/regents_web/regent_ops_live_test.exs` (7, with the new map test),
+  `public_documents_test.exs` and `home_live_test.exs`; the walks `test/browser/lab_map.spec.ts`
+  (4), `founder_shell.spec.ts`, `value_cards.spec.ts` and `regent_overview_token.spec.ts`
+  (23). By hand in headless Chromium with WebGPU: the glow drew at 1280 (light and dark),
+  1024, 900, 390 and 320 with no console errors; 60 frames a second in view and none
+  scrolled away; about 13 MB of memory after mouse sweeps over every line and dot; no names
+  outside the map or over each other, no sideways scroll, five line crossings at every width.

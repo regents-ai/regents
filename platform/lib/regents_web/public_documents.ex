@@ -46,7 +46,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Regents Labs is the community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking and redemption on Base."},
     "/app" =>
       {"Overview",
-       "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Patchbay, Autolaunch, Techtree, Keyfleet, REGENT staking and Cloak."},
+       "An agent-native product lab: Patchbay, Autolaunch, Techtree, Keyfleet, REGENT staking and Cloak, with REGENT giving the community ownership of what the lab makes."},
     "/account" => {"Account", "Your profile and the session on this browser."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points and activity."},

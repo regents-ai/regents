@@ -15,6 +15,7 @@
 @import "./components/agent_tools.css";
 @import "./components/agent_message.css";
 @import "./components/value_cards.css";
+@import "./components/lab_map.css";
 @import "./pages/home.css";
 @import "./pages/legal.css";
 @import "./pages/admin_pictures.css";

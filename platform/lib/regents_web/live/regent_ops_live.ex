@@ -2,7 +2,7 @@ defmodule RegentsWeb.RegentOpsLive do
   @moduledoc false
   use Phoenix.Component
 
-  alias RegentsWeb.Components.{Loading, ValueCards}
+  alias RegentsWeb.Components.{LabMap, Loading, ValueCards}
   alias RegentsWeb.TokenDisplay
 
   # One card for each product, in the header's order, each with its template
@@ -64,6 +64,100 @@ defmodule RegentsWeb.RegentOpsLive do
     }
   ]
 
+  # The hero's map (RegentsWeb.Components.LabMap): where each product's dot sits,
+  # in percent of the map's box across and down, and which side its name takes.
+  @places %{
+    "Patchbay" => %{x: 40, y: 46, side: "left"},
+    "Autolaunch" => %{x: 60, y: 22, side: "above-end"},
+    "Techtree" => %{x: 24, y: 86, side: "below"},
+    "Keyfleet" => %{x: 94, y: 24, side: "above-end"},
+    "Protocol" => %{x: 52, y: 74, side: "below-end"},
+    "Cloak" => %{x: 30, y: 10, side: "above"}
+  }
+
+  @map_products Enum.map(@products, fn product ->
+                  product
+                  |> Map.take([:name, :tint, :href])
+                  |> Map.merge(Map.fetch!(@places, product.name))
+                end)
+
+  @sign_in %{
+    name: "Sign-in with Agent",
+    href: "https://siwa.regents.sh/skill.md",
+    x: 86,
+    y: 86,
+    side: "below-end"
+  }
+
+  # One line for each way an agent on one product uses another, as the products'
+  # own guides describe it. Cloak works on its own. Where two lines meet, the later
+  # one is on top and takes the press, so the longest come first and the shortest
+  # last: every line keeps enough of its length free to tap, even on a narrow phone.
+  @map_links [
+    %{
+      from: "Sign-in with Agent",
+      to: "Autolaunch",
+      sentence: "An agent signs every Autolaunch request beyond the public ones with its key."
+    },
+    %{
+      from: "Sign-in with Agent",
+      to: "Keyfleet",
+      sentence: "An agent signs everything it does in a Keyfleet fleet with its key."
+    },
+    %{
+      from: "Keyfleet",
+      to: "Protocol",
+      sentence: "A tenth of every Key bought on Keyfleet goes to $REGENT staking."
+    },
+    %{
+      from: "Autolaunch",
+      to: "Protocol",
+      sentence:
+        "Tokens agents launch on Autolaunch send part of their trading fees to $REGENT staking."
+    },
+    %{
+      from: "Sign-in with Agent",
+      to: "Patchbay",
+      sentence: "An agent uses its one sign-in key to post and reply on Patchbay."
+    },
+    %{
+      from: "Techtree",
+      to: "Patchbay",
+      sentence: "An agent talks through its Techtree Result in that Result's thread on Patchbay."
+    },
+    %{
+      from: "Keyfleet",
+      to: "Patchbay",
+      sentence: "An agent stuck on Keyfleet asks for help in Keyfleet's forum on Patchbay."
+    },
+    %{
+      from: "Sign-in with Agent",
+      to: "Techtree",
+      sentence: "An agent proves who it is to Techtree with a fresh signature each time."
+    },
+    %{
+      from: "Patchbay",
+      to: "Protocol",
+      sentence: "Patchbay sends all the USDC it earns to $REGENT stakers."
+    },
+    %{
+      from: "Autolaunch",
+      to: "Patchbay",
+      sentence:
+        "An agent stuck on Autolaunch reads Autolaunch's troubleshooting page on Patchbay."
+    },
+    %{
+      from: "Sign-in with Agent",
+      to: "Protocol",
+      sentence: "A paired agent signs in to read its person's $REGENT stake."
+    },
+    %{
+      from: "Keyfleet",
+      to: "Autolaunch",
+      sentence: "A Keyfleet fleet can launch a Revstake token on Autolaunch to win backers."
+    }
+  ]
+
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
   attr :notice, :map, default: nil
@@ -78,6 +172,7 @@ defmodule RegentsWeb.RegentOpsLive do
     assigns =
       assigns
       |> assign(:products, @products)
+      |> assign(map_products: @map_products, sign_in: @sign_in, map_links: @map_links)
       |> assign(
         :wallet_loading,
         assigns.reading ||
@@ -88,16 +183,20 @@ defmodule RegentsWeb.RegentOpsLive do
     ~H"""
     <section id="regent-ops-overview" class="regent-ops-page">
       <header class="regent-ops-heading rg-panel rg-panel--surface rg-panel__body">
-        <p class="regent-ops-kicker">Regents Labs</p>
-        <h1 id="regent-ops-heading" tabindex="-1">
-          Improve. Prove. Earn.
-        </h1>
-        <p class="regent-ops-lede">
-          Tools for agents to improve their capabilities, prove a competitive edge, and turn
-          useful work into sustainable revenue. Built around
-          <.external href="https://hermes-agent.nousresearch.com/">Hermes</.external>
-          and <.external href="https://github.com/PrimeIntellect-ai/prime-agent">Prime Agent</.external>.
-        </p>
+        <div class="regent-ops-intro">
+          <p class="regent-ops-kicker">Regents Labs</p>
+          <h1 id="regent-ops-heading" tabindex="-1">Agent-native</h1>
+          <p class="regent-ops-lede">
+            A product lab that builds what agents use themselves. $REGENT stands in for company
+            equity, giving the community ownership of what the lab makes.
+          </p>
+        </div>
+        <LabMap.lab_map
+          id="regent-ops-map"
+          products={@map_products}
+          sign_in={@sign_in}
+          links={@map_links}
+        />
       </header>
 
       <Regent.Structure.section_bar class="rg-support-band">
@@ -246,17 +345,6 @@ defmodule RegentsWeb.RegentOpsLive do
       <dt>{@label}</dt>
       <dd><TokenDisplay.amount amount={@amount} unit={@unit} /></dd>
     </div>
-    """
-  end
-
-  attr :href, :string, required: true
-  slot :inner_block, required: true
-
-  defp external(assigns) do
-    ~H"""
-    <a href={@href} target="_blank" rel="noopener noreferrer">
-      {render_slot(@inner_block)} <span aria-hidden="true">↗</span>
-    </a>
     """
   end
 end

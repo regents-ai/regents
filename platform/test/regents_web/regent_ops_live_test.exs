@@ -57,6 +57,71 @@ defmodule RegentsWeb.RegentOpsLiveTest do
     refute html =~ "0x1111..1111"
   end
 
+  # The hero's map: a dot for every product that opens what the product's card
+  # opens, Sign-in with Agent beside them, and one named line, reachable from the
+  # keyboard and with its sentence ready in the caption, for each way the products'
+  # guides say they work together. Cloak works on its own.
+  test "the hero map joins the products the way their guides describe", %{conn: conn} do
+    seed_shared_reading()
+    {:ok, _view, html} = live(conn, "/app")
+    page = Floki.parse_document!(html)
+    map = Floki.find(page, ~s(#regent-ops-map[role="group"][aria-label="Product map"]))
+
+    dots = Floki.find(map, "a.lab-map__node")
+    assert length(dots) == 7
+
+    for dot <- dots, Floki.attribute(dot, "data-node") != ["Sign-in with Agent"] do
+      [href] = Floki.attribute(dot, "href")
+      card = Floki.find(page, ~s(ul[aria-label="Products"] a[href="#{href}"]))
+      assert length(card) == 1
+      assert Floki.attribute(card, "target") == Floki.attribute(dot, "target")
+    end
+
+    assert map
+           |> Floki.find(~s(a.lab-map__node[data-node="Sign-in with Agent"][target="_blank"]))
+           |> length() == 1
+
+    lines =
+      for line <- Floki.find(map, "g.lab-map__link") do
+        [from] = Floki.attribute(line, "data-from")
+        [to] = Floki.attribute(line, "data-to")
+        [index] = Floki.attribute(line, "data-link")
+        [name] = Floki.attribute(line, "aria-label")
+        assert Floki.attribute(line, "tabindex") == ["0"]
+        assert Floki.attribute(line, "role") == ["img"]
+
+        # The caption holds the same sentence the line is named with.
+        sentence = String.replace_prefix(name, "#{from} and #{to}: ", "")
+        assert sentence != name
+        said = Floki.find(map, ~s(.lab-map__say[data-say="#{index}"]))
+        assert Floki.text(said) =~ sentence
+
+        MapSet.new([from, to])
+      end
+
+    assert length(lines) == 12
+
+    assert MapSet.new(lines) ==
+             MapSet.new(
+               Enum.map(
+                 [
+                   ~w(Techtree Patchbay),
+                   ~w(Patchbay Protocol),
+                   ~w(Autolaunch Protocol),
+                   ~w(Keyfleet Protocol),
+                   ~w(Keyfleet Autolaunch),
+                   ~w(Keyfleet Patchbay),
+                   ~w(Autolaunch Patchbay)
+                 ] ++
+                   for(
+                     product <- ~w(Patchbay Techtree Autolaunch Keyfleet Protocol),
+                     do: ["Sign-in with Agent", product]
+                   ),
+                 &MapSet.new/1
+               )
+             )
+  end
+
   # Each metric is a term and its value inside a definition list, so the pairing
   # is exposed as a pairing rather than as loose terms in a generic container.
   test "the account summary is a definition list", %{conn: conn} do
