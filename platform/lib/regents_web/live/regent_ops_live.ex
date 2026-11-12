@@ -187,8 +187,8 @@ defmodule RegentsWeb.RegentOpsLive do
           <p class="regent-ops-kicker">Regents Labs</p>
           <h1 id="regent-ops-heading" tabindex="-1">Agent-native</h1>
           <p class="regent-ops-lede">
-            A product lab that builds what agents use themselves. $REGENT stands in for company
-            equity, giving the community ownership of what the lab makes.
+            A product lab that builds what agents use themselves. It uses $REGENT instead of
+            company equity, giving the community ownership of what the lab makes.
           </p>
         </div>
         <LabMap.lab_map

@@ -5681,7 +5681,7 @@ changelog line moves from the published 6 Nov entry to this release's.
   of, with an interactive web of the six products and Sign-in with Agent at the bottom right,
   where pointing at a line shows how two products are used together.
 - The hero now reads: kicker "Regents Labs", heading "Agent-native", and "A product lab that
-  builds what agents use themselves. $REGENT stands in for company equity, giving the
+  builds what agents use themselves. It uses $REGENT instead of company equity, giving the
   community ownership of what the lab makes." Hermes and Prime Agent are gone from it; the
   "fit" details below are unchanged. /app's search description says the same.
 - Beside it (under it on a phone), `RegentsWeb.Components.LabMap` draws the six products in
