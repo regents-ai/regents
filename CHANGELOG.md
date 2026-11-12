@@ -5204,3 +5204,18 @@ changelog line moves from the published 6 Nov entry to this release's.
   links.
 - The stills are served by media.regents.sh from its v14 release (12 Nov), which this release
   follows. No database migrations.
+
+## 2026-11-12 — Released v289 (an unused secret removed) and v290 (gallery stills)
+
+- v289: SIWA_SITE_VERIFY_KEY removed from regents-sh-web on Sean's letter; no code read it. Same
+  image as v288, one restart, no migrations. The value was not kept and cannot be put back.
+- v290 live: image registry.fly.io/regents-sh-web:main-47f47a2eb1fe; /capabilities.json
+  build.commit 47f47a2e. Rollback: v289, image registry.fly.io/regents-sh-web:main-8f8a74bfd0e2
+  (8f8a74bf). No migrations.
+- Before it, media-web v14 (57bc5c5e, image registry.fly.io/media-web:main-57bc5c5e2182) put the
+  1,998 stills live at https://media.regents.sh/images/regents-club-pass/<number>.webp; its
+  rollback is media-web:deployment-01M53MMXYHVN5E3QQEYBWRK8NR (v13).
+- Full check on 47f47a2e: exit 0, all six gates.
+- Live read of /redeem/gallery in headless Chromium at 390, 1280 and 320: 28, 65 and 32 stills
+  loaded, every one 200, no GIF requested, 1,999 OpenSea links, no sideways scroll, no console
+  errors, page quiet in under a second. /, /stake and /app answer 200.
