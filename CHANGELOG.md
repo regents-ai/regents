@@ -5245,3 +5245,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   their dots in the listed colours, one row at 1440 and two columns of three on a phone, every
   name shown whole, the canvas drawn at its laid-out size, Cloak opens /cloak, no sideways
   scroll, no console errors.
+
+## 2026-11-12 — Terms of Use: Patchbay no longer described as having a repair room
+
+- Section 7 of the Terms of Use dropped the words "and includes a demonstration repair room"
+  (Sean, 12 Nov, decision 114 a). Patchbay retired its rooms on 29 October. No other word, and
+  neither the effective date nor the version, changed. Patchbay serves a word-for-word copy and
+  follows. No database migrations.
