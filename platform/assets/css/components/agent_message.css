@@ -34,8 +34,20 @@
   overflow-wrap: anywhere;
 }
 
-/* The person's own message, under the texts. */
+/* The person's own message, under the texts. The dialog is night in either
+   theme, so its fields, hints and receipt take the dark theme's colour roles. */
 .agent-message__form {
+  color-scheme: dark;
+  --color-bg: #0B0B0B;
+  --color-surface: #141414;
+  --color-border: #2A2A2A;
+  --color-fg: var(--agent-tools-ink);
+  --color-fg-muted: color-mix(in srgb, var(--color-fg) 65%, var(--color-bg));
+  --color-accent: #161616;
+  --color-fg-on-accent: var(--agent-tools-ink);
+  --color-success: #7ED8A9;
+  --color-error: #FF9B8F;
+  --color-focus: #AECACD;
   display: grid;
   gap: var(--space-2);
   width: 100%;
@@ -59,18 +71,13 @@
   width: 100%;
 }
 
-/* The fields keep the page's inputs; their labels and hints wear the dialog's ink. */
-.agent-message__fields .rg-field__label label,
-.agent-message__fields .rg-muted {
-  color: color-mix(in srgb, var(--agent-tools-ink) 82%, transparent);
-}
-
 .agent-message__form .rg-notice code {
   overflow-wrap: anywhere;
 }
 
-/* The team's inbox (`AdminMessagesLive`). */
-.admin-messages__list {
+/* The team's inbox (`AdminMessagesLive`), on the reading page's frame: its list
+   and paragraphs drop that page's indent and spacing. */
+.admin-messages .admin-messages__list {
   display: grid;
   gap: var(--space-3);
   margin: 0;
@@ -101,7 +108,7 @@
   margin: 0;
 }
 
-.admin-messages__body {
+.admin-messages .admin-messages__body {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
