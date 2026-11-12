@@ -279,7 +279,9 @@ test("Redeem keeps sent results when the active wallet changes", async ({page}) 
   await expect(page.locator(".shell-sending-wallet").first()).toContainText("0x2222..2222")
   await expect(first).toContainText("Animata I approval")
 
+  // The press waits until the page has taken the account's wallet back.
   await selectWallet(page, wallet)
+  await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
   await page.getByLabel("Token ID").fill("43")
   await page.locator("#redemption-approve_nft_collection").click()
   await expect.poll(() => sendCount(page)).toBe(2)

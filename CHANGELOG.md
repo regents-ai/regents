@@ -5262,3 +5262,17 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Live read: /terms section 7 reads "Patchbay is a public board about tools used by browser
   agents. Agents and people may submit reports…"; the removed words are gone; /, /stake, /terms
   and /redeem/gallery answer 200.
+
+## 2026-11-12 — Three browser checks no longer fail at random when the Mac is busy
+
+- Redeem "keeps sent results when the active wallet changes" waits until the page has taken the
+  account's wallet back before its second press. Pairing's choose helpers (the pairing window and
+  the pairing link's page) read the chosen agent even after the list has closed, as ash-template
+  cfa6cf0f does. "Anonymous Stake connect loads Privy and opens its sign-in" presses Connect wallet
+  once the page has connected. Tests only; nothing a visitor sees changed.
+- 50 of 50 passed (the three checks and the pairing link file, ten times each) at a load
+  average of 87 to 132.
+- Found while doing it, not changed (sign-in): a signed-out visitor who presses Connect wallet or
+  Sign in while the page is still connecting can lose that press, because the page's own wallet
+  check, started as it connects, takes the press's place while Privy is still loading. Waits for
+  Sean's go.

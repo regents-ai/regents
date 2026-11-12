@@ -122,7 +122,9 @@ test("anonymous Stake connect loads Privy and opens its sign-in", async ({page})
     route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
   )
 
+  // Pressed once the page has connected and started its own wallet check.
   await page.goto("/stake")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible()
   await page.getByRole("button", {name: "Connect wallet", exact: true}).click()
 
