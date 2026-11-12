@@ -48,27 +48,26 @@ test("[DOCS] Copy for LLM and View as Markdown give the page's Markdown", async 
   await markdown.close()
 })
 
-for (const width of [360, 1280]) {
-  test(`[DOCS] every docs page is reached from the sidebar and fits at ${width} wide`, async ({page}) => {
-    await page.setViewportSize({width, height: 900})
-    await page.goto("/docs")
-    const paths = await page.locator(".docs-nav__group a").evaluateAll(links => links.map(link => link.getAttribute("href")))
-    expect(paths.length).toBeGreaterThan(10)
+test("[DOCS] every docs page is reached from the sidebar and fits at 360 wide", async ({page}) => {
+  await page.setViewportSize({width: 360, height: 900})
+  await page.goto("/docs")
+  const paths = await page.locator(".docs-nav__group a").evaluateAll(links => links.map(link => link.getAttribute("href")))
+  expect(paths.length).toBeGreaterThan(10)
 
-    for (const path of paths.slice(1)) {
-      if (width === 360) await page.getByRole("button", {name: "Contents"}).click()
-      const link = page.locator(`#docs-nav a[href="${path}"]`)
-      if (!(await link.isVisible())) await link.locator("xpath=ancestor::details[1]/summary").click()
-      await link.click()
-      await expect(page).toHaveURL(new RegExp(`${path}$`))
-      await expect(page.locator("h1.docs-title")).toBeVisible()
-      await expect(page.locator("#docs-nav")).toBeVisible({visible: width !== 360})
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-      const overhang = await page.evaluate(() => {
-        const column = document.querySelector("h1.docs-title")!.getBoundingClientRect().right
-        return Math.max(...[...document.querySelectorAll(".docs-actions > .rg-button")].map(button => button.getBoundingClientRect().right - column))
-      })
-      expect(overhang).toBeLessThanOrEqual(0)
-    }
-  })
-}
+  for (const path of paths.slice(1)) {
+    await page.getByRole("button", {name: "Contents"}).click()
+    const link = page.locator(`#docs-nav a[href="${path}"]`)
+    if (!(await link.isVisible())) await link.locator("xpath=ancestor::details[1]/summary").click()
+    await link.click()
+    await expect(page).toHaveURL(new RegExp(`${path}$`))
+    await expect(page.locator("h1.docs-title")).toBeVisible()
+    await expect(page.locator("#docs-nav")).toBeHidden()
+    // Read once the page has settled at the phone's width.
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+    const overhang = await page.evaluate(() => {
+      const column = document.querySelector("h1.docs-title")!.getBoundingClientRect().right
+      return Math.max(...[...document.querySelectorAll(".docs-actions > .rg-button")].map(button => button.getBoundingClientRect().right - column))
+    })
+    expect(overhang).toBeLessThanOrEqual(0)
+  }
+})

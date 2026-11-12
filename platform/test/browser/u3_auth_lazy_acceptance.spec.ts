@@ -56,45 +56,6 @@ export async function startPrivyBridge() {
 }
 `
 
-const productionSignOutBridgeStub = `
-import {startPrivyBridge as startProductionPrivyBridge} from "/assets/js/privy_bridge.js?u3_original=1"
-
-export async function startPrivyBridge(options) {
-  window.__u3StartModes = [...(window.__u3StartModes || []), options?.mode || "ordinary"]
-  if (options?.mode !== "sign-out-only") {
-    return {async request() { await new Promise(() => {}) }}
-  }
-  const handle = await startProductionPrivyBridge(options, {
-    appId: "clp0000000000000000000000",
-    authenticated: true,
-    async getAccessToken() {
-      window.__u3TokenReads = (window.__u3TokenReads || 0) + 1
-      return "unexpected-token"
-    },
-    async logout() {
-      window.__u3ProviderLogouts = (window.__u3ProviderLogouts || 0) + 1
-      await window.__u3ProviderLogout()
-    },
-    ready: true,
-    wallets: [{
-      address: "0x1111111111111111111111111111111111111111",
-      async getEthereumProvider() {
-        window.__u3WalletReads = (window.__u3WalletReads || 0) + 1
-        return {request: async () => null}
-      }
-    }]
-  })
-  window.__u3ProductionHandle = handle
-  return handle
-}
-`
-
-const neverReadyBridgeStub = `
-export function startPrivyBridge() {
-  return new Promise(() => {})
-}
-`
-
 const rejectedSyncBridgeStub = `
 export async function startPrivyBridge() {
   return {
@@ -121,26 +82,6 @@ export async function startPrivyBridge() {
         reload: () => { window.__u3ReloadAttempted = true }
       })
       window.__u3Reconciled = await reconcile()
-    }
-  }
-}
-`
-
-// A pair the server refuses only ever reaches it through an explicit
-// establishment; startup reconciliation offers none. Like the bridge's own
-// sign-in, this reloads only when the establishment succeeds.
-const rejectedBearerBridgeStub = `
-import {createLocalSession} from "/assets/js/privy_bridge.js?u3_original=1"
-
-export async function startPrivyBridge() {
-  return {
-    async request(request) {
-      if (request !== "sync") return
-      await createLocalSession({
-        accessToken: "invalid",
-        identityToken: "invalid-identity"
-      })
-      window.location.reload()
     }
   }
 }
@@ -620,138 +561,6 @@ test("a held pre-logout session response cannot restore browser or LiveView acce
   expect(documentRequests).toEqual([pageUrl(page, "/stake")])
 })
 
-test("sign out replaces pending sync and runs once after the bridge is ready", async ({page}) => {
-  let sessionDeletes = 0
-  let failProviderLogout: (() => void) | undefined
-  const documentRequests: string[] = []
-  const eventOrder: string[] = []
-  await page.exposeFunction(
-    "__u3ProviderLogout",
-    () =>
-      new Promise<void>((_resolve, reject) => {
-        failProviderLogout = () => reject(new Error("provider logout unavailable"))
-      }),
-  )
-  let localSessionPostsAfterDelete = 0
-  page.on("request", request => {
-    if (request.method() === "DELETE" && request.url().endsWith("/auth/privy/session")) {
-      sessionDeletes += 1
-    }
-    if (
-      sessionDeletes > 0 &&
-      request.method() === "POST" &&
-      request.url().endsWith("/auth/privy/session")
-    ) {
-      localSessionPostsAfterDelete += 1
-    }
-    if (request.isNavigationRequest() && request.resourceType() === "document") {
-      documentRequests.push(request.url())
-      eventOrder.push(`document-${documentRequests.length}`)
-    }
-  })
-  page.on("response", response => {
-    if (
-      response.request().method() === "DELETE" &&
-      response.url().endsWith("/auth/privy/session")
-    ) {
-      eventOrder.push("delete-response")
-    }
-  })
-  await page.route(bridgePattern, route =>
-    route.fulfill({body: productionSignOutBridgeStub, contentType: "application/javascript"}),
-  )
-  // The production bridge's Privy client asks Privy and WalletConnect about the
-  // stub's made-up app; neither answers, as for an app that does not exist.
-  await page.route(/^https:\/\/(auth\.privy\.io|explorer-api\.walletconnect\.com)\//, route =>
-    route.fulfill({status: 204}),
-  )
-
-  await establishLocalSession(page)
-
-  await page.goto("/app")
-  await expect(page.locator("#account-chip [data-account-target='profile']")).toBeVisible()
-  await page.locator("#account-chip").click()
-  await page.getByRole("button", {name: "Sign out"}).click()
-  await expect.poll(() => sessionDeletes).toBe(1)
-
-  // Privy's logout is held open here, so the page's own reload waits on it; the
-  // server's disconnect reloads the page first, 5 to 10 seconds after it closes
-  // the live connection.
-  await expect.poll(() => documentRequests.length, {timeout: 15_000}).toBe(2)
-  await expect(
-    page.locator("#account-control [data-account-target='sign-in']"),
-  ).toBeAttached()
-  // The retired logout-epoch cookie is gone; revocation is the only authority.
-  expect(
-    (await page.context().cookies()).map(cookie => cookie.name),
-  ).not.toContain("_regents_logout_epoch")
-  expect(eventOrder.indexOf("delete-response")).toBeLessThan(
-    eventOrder.indexOf("document-2"),
-  )
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => (window as Window & {__u3StartModes?: string[]}).__u3StartModes ?? [],
-      ),
-    )
-    .toContain("sign-out-only")
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => (window as Window & {__u3ProviderLogouts?: number}).__u3ProviderLogouts ?? 0,
-      ),
-    )
-    .toBe(1)
-  const blockedProductionRequests = await page.evaluate(async () => {
-    const handle = (
-      window as Window & {
-        __u3ProductionHandle?: {
-          request: (request: "sign-in" | "sign-out" | "sync") => Promise<void>
-          identity?: (request: {action: "link"; provider: "x"}) => Promise<void>
-        }
-      }
-    ).__u3ProductionHandle
-    if (!handle?.identity) return []
-    return Promise.all([
-      handle.request("sync").then(
-        () => "resolved",
-        () => "rejected",
-      ),
-      handle.request("sign-in").then(
-        () => "resolved",
-        () => "rejected",
-      ),
-      handle.identity({action: "link", provider: "x"}).then(
-        () => "resolved",
-        () => "rejected",
-      ),
-    ])
-  })
-  expect(blockedProductionRequests).toEqual(["rejected", "rejected", "rejected"])
-  expect(
-    await page.evaluate(
-      () => (window as Window & {__u3TokenReads?: number}).__u3TokenReads ?? 0,
-    ),
-  ).toBe(0)
-  expect(
-    await page.evaluate(
-      () => (window as Window & {__u3WalletReads?: number}).__u3WalletReads ?? 0,
-    ),
-  ).toBe(0)
-  expect(localSessionPostsAfterDelete).toBe(0)
-  failProviderLogout?.()
-  await page.waitForTimeout(100)
-  expect(
-    await page.evaluate(
-      () => (window as Window & {__u3ProviderLogouts?: number}).__u3ProviderLogouts ?? 0,
-    ),
-  ).toBe(1)
-  await expect(page.locator("#account-auth-status")).toBeHidden()
-  await expect(page.locator("#account-auth-status")).toHaveText("")
-  expect(documentRequests).toHaveLength(2)
-  expect(sessionDeletes).toBe(1)
-})
-
 test("a valid handoff uses the real session resource and refuses authenticated truth", async ({
   page,
 }) => {
@@ -839,18 +648,9 @@ export async function startPrivyBridge(options) {
 })
 
 for (const failure of [
-  {name: "the public app ID is absent", bridgeBody: null, settleMs: 100},
-  {name: "the bridge import fails", bridgeBody: "failure", settleMs: 100},
-  {
-    name: "provider readiness never settles",
-    bridgeBody: neverReadyBridgeStub,
-    settleMs: 5_100,
-  },
-  {
-    name: "provider synchronization rejects",
-    bridgeBody: rejectedSyncBridgeStub,
-    settleMs: 100,
-  },
+  {name: "the public app ID is absent", bridgeBody: null},
+  {name: "the bridge import fails", bridgeBody: "failure"},
+  {name: "provider synchronization rejects", bridgeBody: rejectedSyncBridgeStub},
 ] as const) {
   test(`signed-in startup preserves the local session when ${failure.name}`, async ({page}) => {
     let sessionDeletes = 0
@@ -876,7 +676,7 @@ for (const failure of [
     await establishLocalSession(page)
     await page.goto("/app")
 
-    await page.waitForTimeout(failure.settleMs)
+    await page.waitForTimeout(100)
     await expect(page.locator("#account-auth-status")).toBeHidden()
     await expect(page.locator("#account-auth-status")).toHaveText("")
     await expect(
@@ -1167,103 +967,6 @@ test("a refresh in one tab leaves another tab mounted and its next reconnect use
   // A deploy-style reconnect carries the adopted token, so nothing reloads.
   expect(documents).toHaveLength(1)
   await expect(mountedTab.locator("#account-chip [data-account-target='profile']")).toBeVisible()
-})
-
-test("a tab holding a stale token still signs out, and the revoked lineage cannot reconnect", async ({
-  context,
-}) => {
-  const refreshingTab = await context.newPage()
-  const signingOutTab = await context.newPage()
-  await stubBridge(refreshingTab)
-  await stubBridge(signingOutTab)
-  await establishLocalSession(refreshingTab)
-
-  // Barrier: the signing-out tab never adopts the notice, so it reaches logout
-  // holding the token its own render carried.
-  await signingOutTab.addInitScript(() => {
-    Object.defineProperty(window, "BroadcastChannel", {value: undefined})
-  })
-  await signingOutTab.goto("/app")
-  await expect(signingOutTab.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-  const staleToken = await metaCsrfToken(signingOutTab)
-
-  await refreshInPage(refreshingTab)
-  expect(await metaCsrfToken(signingOutTab)).toBe(staleToken)
-
-  // Sign out reloads the refreshing tab as well. Only documents that arrive
-  // count, because a second navigation started under it would cancel it.
-  const reloads: string[] = []
-  refreshingTab.on("response", response => {
-    if (response.request().resourceType() === "document") reloads.push(response.url())
-  })
-  const deletes: number[] = []
-  signingOutTab.on("response", response => {
-    if (response.request().method() === "DELETE") deletes.push(response.status())
-  })
-
-  await signingOutTab.evaluate(async () => {
-    const source = "/assets/js/privy_bridge.js"
-    const bridge = (await import(source)) as {clearLocalSession: () => Promise<void>}
-    await bridge.clearLocalSession()
-  })
-
-  // The page token is refused, the current one is adopted, and the retry revokes.
-  expect(deletes).toEqual([403, 200])
-
-  const session = await signingOutTab.request.get("/auth/session")
-  expect((await session.json()).authenticated).toBe(false)
-
-  // The refreshing tab reloads itself once, signed out, and its live connection
-  // runs signed out rather than on the revoked lineage. A reload of its own
-  // finds it signed out too. LiveView reloads the tab 5 to 10 seconds after the
-  // server closes its live connection.
-  const signIn = refreshingTab.locator("#account-control [data-account-target='sign-in']")
-  await expect.poll(() => reloads.length, {timeout: 15_000}).toBe(1)
-  await expect(signIn).toBeVisible()
-  await expect
-    .poll(() =>
-      refreshingTab.evaluate(() =>
-        Boolean((window.liveSocket as unknown as {isConnected(): boolean}).isConnected()),
-      ),
-    )
-    .toBe(true)
-  await refreshingTab.reload()
-  await expect(signIn).toBeVisible()
-  expect(reloads).toHaveLength(2)
-})
-
-test("a rejected bearer leaves the browser anonymous without a duplicate delete or a reload loop", async ({
-  page,
-}) => {
-  const deletes: string[] = []
-  const documents: string[] = []
-  page.on("request", request => {
-    if (request.method() === "DELETE") deletes.push(request.url())
-    if (request.isNavigationRequest() && request.resourceType() === "document") {
-      documents.push(new URL(request.url()).pathname)
-    }
-  })
-  await page.route(bridgePattern, route =>
-    route.fulfill({body: rejectedBearerBridgeStub, contentType: "application/javascript"}),
-  )
-
-  await establishLocalSession(page)
-  await page.goto("/app")
-
-  // The server already revoked and dropped the authority with its 401, so the
-  // bridge adds no delete and no reload of its own. The server also closes this
-  // page's live connection, and that one reload, which LiveView makes 5 to 10
-  // seconds later, lands anonymous.
-  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible({
-    timeout: 15_000,
-  })
-  await page.waitForLoadState("networkidle")
-
-  expect(deletes).toEqual([])
-  expect(documents).toEqual(["/app", "/app"])
-
-  const session = await page.request.get("/auth/session")
-  expect((await session.json()).authenticated).toBe(false)
 })
 
 // A browser can end up holding a cookie the server refuses: one it signed out

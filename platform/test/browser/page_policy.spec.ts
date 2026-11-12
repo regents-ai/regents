@@ -1,9 +1,11 @@
 import {expect, test} from "./support/offline"
 
-// PAGE_POLICY: every page works inside its content security policy. A refusal
-// means a picture, video, script or connection the page needs is blocked.
+// PAGE_POLICY: every kind of page works inside its content security policy. A
+// refusal means a picture, video, script or connection the page needs is
+// blocked. One page stands for each kind: the docs and About, the legal pages,
+// the account pages with Pair and Names, the Redeem pages, the product pages and
+// the Cloak pages each share one layout.
 test("[R14] no page is refused anything by its security policy", async ({page}) => {
-  test.setTimeout(120_000)
   await page.addInitScript(() => {
     const refused: string[] = []
     ;(window as unknown as {refused: string[]}).refused = refused
@@ -18,10 +20,8 @@ test("[R14] no page is refused anything by its security policy", async ({page}) 
     refusals.push(...found.map(refusal => `${label}: ${refusal}`))
   }
 
-  for (const path of ["/", "/articles", "/docs", "/docs/pairing", "/docs/errors", "/about", "/privacy", "/terms",
-    "/app", "/stake", "/redeem", "/redeem/gallery", "/account", "/account/agents",
-    "/account/points", "/account/credits", "/account/wallets", "/account/connections", "/pair", "/names",
-    "/autolaunch", "/techtree", "/patchbay", "/cloak", "/cloak/guide", "/no-such-page"]) {
+  for (const path of ["/", "/articles", "/docs", "/privacy", "/app", "/stake", "/redeem/gallery", "/account",
+    "/autolaunch", "/cloak", "/no-such-page"]) {
     await page.goto(path)
     await page.waitForLoadState("networkidle")
     await collect(path)

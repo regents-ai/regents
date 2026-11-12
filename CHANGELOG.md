@@ -5095,3 +5095,36 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Live read in headless Chromium at 1280 and 390, signed out: /docs, /docs/limits and /about
   open in the site with the sidebar and Docs or About marked; no sideways scroll; search and
   sidebar links stay in the site; /docs/not-a-page 404; /docs/limits still answers Markdown.
+
+## 2026-11-11 — The full check runs in under five minutes (Sean, 11 Nov)
+
+- Sean: "you need to find a way to get these checks down to 5 minutes, for both. That
+  will mean getting rid of a lot of tests". `make check` took about nine and a half
+  minutes; it now takes 3 min 12 s to 3 min 15 s on a quiet Mac (three runs in a row)
+  and 4 min 10 s measured while other work loaded the machine.
+- `make check` runs its six gates side by side (platform-precommit, platform-web,
+  check-required-fixes, check-cli, check-identity, check-contracts), each writing to
+  `platform/_build/check/<gate>.log`; it prints one line per gate with its time, then
+  the whole log of any gate that failed. `make check-platform` is the two platform
+  gates one after the other, printed as before. The contracts gate runs at a lower
+  priority so the Solidity compiler gives way to the platform gates.
+- Browser tests: 155 to 134, 5.2 minutes to about 3. Deleted, each still proven by a
+  unit or server test or another browser test: Stake's sign-out re-ask, four sign-out
+  and refused-sign-in walks and the never-ready provider start in
+  `u3_auth_lazy_acceptance.spec.ts`, two developer showcase walks, the phone drawer's
+  focus walk, the pairing window's return to an agent, and the docs sidebar walk at
+  1280. Kept but walked at one or two widths instead of up to four: Stake's address,
+  warning, height and touch tests, Claim USDC, the account menu, pairing, the tools
+  window, visits, arrivals, Cloak and the shell walk. The page policy check visits one
+  page of each kind (11) instead of 26.
+- Three kept tests no longer fail now and then: Stake's trade card and the docs walk
+  wait for the page to settle before measuring, and two Redeem tests wait for the
+  page's connection before pressing.
+- `founder_shell.spec.ts` "a signed-in account without a Regent shows its available
+  account menu" failed about one run in fifteen: it demanded exactly one wallet sync for
+  each page load, while the Credits panel on /app asks for one as it mounts, which is a
+  second request once the page's own has been answered. The test now counts by that
+  rule (one for each load, at most one more from the panel); forty runs in a row hold.
+- Check: three full runs in a row exit 0 at 192, 191 and 195 s on a quiet Mac, and the
+  final tree at 250 s with other lanes loading the machine; a deliberately failing unit
+  test made the check exit non-zero and print that gate's log.

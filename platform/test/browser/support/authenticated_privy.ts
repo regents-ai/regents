@@ -19,7 +19,6 @@ export function matchesAuthenticatedPrivyBridgeUrl(url: string, ashOrigin: strin
 type ExpectedCounts = {
   documents: number
   sessionChecks: number
-  syncs: number
 }
 
 type SessionCheck = {
@@ -103,15 +102,14 @@ export async function installAuthenticatedPrivy(
       expect(authenticated).toBe(true)
     },
 
+    // Each document loads the bridge once and syncs as it starts. A wallet panel on the
+    // page asks for a sync as it mounts: the same request while the document's own is
+    // still in flight, and one more once that has been answered.
     async expectCounts(expected) {
-      await expect.poll(() => syncCalls).toEqual(
-        Array.from({length: expected.syncs}, () => ({
-          bearer,
-          reconciled: true,
-          request: "sync",
-        })),
-      )
-      expect(bridgeRequests).toHaveLength(expected.syncs)
+      await expect.poll(() => syncCalls.length).toBeGreaterThanOrEqual(expected.documents)
+      expect(syncCalls.length).toBeLessThanOrEqual(expected.documents * 2)
+      for (const call of syncCalls) expect(call).toEqual({bearer, reconciled: true, request: "sync"})
+      expect(bridgeRequests).toHaveLength(expected.documents)
       expect(documentRequests).toHaveLength(expected.documents)
       expect(sessionChecks).toHaveLength(expected.sessionChecks)
       expect(sessionChecks.every(check => check.status === 200 && check.authenticated)).toBe(true)

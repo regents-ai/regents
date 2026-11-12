@@ -1,18 +1,39 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform check-required-fixes check-cli check-identity check-contracts release deploy
+.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-cli check-identity check-contracts release deploy
 
 # Every test run on a machine uses its own databases, named from MIX_TEST_PARTITION.
 REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
 
 help:
-	@echo "make check runs every component gate. Run check-platform, check-required-fixes,"
-	@echo "check-cli, check-identity or check-contracts for one component; check-platform includes the"
+	@echo "make check runs every component gate side by side, each writing its output to"
+	@echo "platform/_build/check/<gate>.log, then prints one line per gate and the log of"
+	@echo "any that failed. Run check-platform, check-required-fixes, check-cli,"
+	@echo "check-identity or check-contracts for one component; check-platform includes the"
 	@echo "headless browser checks in platform/test/browser. Set MIX_TEST_PARTITION"
 	@echo "(an underscore and a short id) first. make release checks, then builds and"
 	@echo "smoke-checks the committed tree. make deploy puts the committed HEAD on regents.sh."
-check: check-platform check-required-fixes check-cli check-identity check-contracts
-check-platform:
-	cd platform && mix precommit && mix assets.build && npm run typecheck && npm test && npx playwright test
+# The gates share nothing they write, so they run at once. The two platform gates
+# both compile for the test environment, and Mix's build lock makes the later one wait.
+CHECK_GATES := platform-precommit platform-web check-required-fixes check-cli check-identity check-contracts
+CHECK_LOGS := platform/_build/check
+check:
+	@mkdir -p $(CHECK_LOGS)
+	@for gate in $(CHECK_GATES); do \
+	  ( start=$$(date +%s); $(MAKE) --no-print-directory $$gate > $(CHECK_LOGS)/$$gate.log 2>&1; \
+	    echo "$$? $$(( $$(date +%s) - start ))" > $(CHECK_LOGS)/$$gate.result ) & \
+	done; wait
+	@failed=; for gate in $(CHECK_GATES); do \
+	  read code seconds < $(CHECK_LOGS)/$$gate.result; \
+	  if [ "$$code" = 0 ]; then echo "$$gate: ok in $$seconds s"; \
+	  else echo "$$gate: FAILED after $$seconds s"; failed="$$failed $$gate"; fi; \
+	done; \
+	for gate in $$failed; do echo; echo "== $$gate ($(CHECK_LOGS)/$$gate.log)"; cat $(CHECK_LOGS)/$$gate.log; done; \
+	test -z "$$failed"
+check-platform: platform-precommit platform-web
+platform-precommit:
+	cd platform && mix precommit
+platform-web:
+	cd platform && mix assets.build && npm run typecheck && npm test && npx playwright test
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template
@@ -30,8 +51,10 @@ check-cli:
 check-identity:
 	psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(REGENT_IDENTITY_TEST_DATABASE)'" | grep -q 1 || createdb $(REGENT_IDENTITY_TEST_DATABASE)
 	cd identity && REGENT_IDENTITY_TEST_DATABASE=$(REGENT_IDENTITY_TEST_DATABASE) mix check
+# The Solidity compiler takes every core it can, so it runs at a lower priority:
+# beside the platform gates in make check, it gives way to them.
 check-contracts:
-	cd contracts && mise exec -- bin/gate.sh
+	cd contracts && nice mise exec -- bin/gate.sh
 # The release checks and builds exactly the committed tree, so every change must
 # be committed first. A failing gate stops it before anything is built.
 release:

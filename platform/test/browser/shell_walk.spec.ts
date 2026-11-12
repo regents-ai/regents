@@ -102,28 +102,21 @@ test("a signed-in person has the whole account menu on every shell page", async 
   }
 })
 
-// The Account tabs and Names fit a phone and a desktop, in light and dark, with
-// nothing pushing the page sideways.
-test("the Account tabs and Names fit a phone and a desktop, light and dark", async ({page}, testInfo) => {
+// The Account tabs and Names fit a phone, with nothing pushing the page sideways.
+test("the Account tabs and Names fit a phone", async ({page}, testInfo) => {
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
+  await page.setViewportSize({width: 390, height: 900})
 
-  for (const width of [390, 1280]) {
-    for (const colorScheme of ["light", "dark"] as const) {
-      await page.setViewportSize({width, height: 900})
-      await page.emulateMedia({colorScheme})
-
-      for (const [path, marker] of pages.filter(([path]) => path.startsWith("/account") || path === "/names")) {
-        await page.goto(path)
-        await expect(page.locator(marker), path).toBeVisible()
-        const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-        expect(sideways, `${path} at ${width} ${colorScheme}`).toBeLessThanOrEqual(0)
-        await page.screenshot({
-          path: testInfo.outputPath(`${path.slice(1).replaceAll("/", "-")}-${width}-${colorScheme}.png`),
-          fullPage: true,
-        })
-      }
-    }
+  for (const [path, marker] of pages.filter(([path]) => path.startsWith("/account") || path === "/names")) {
+    await page.goto(path)
+    await expect(page.locator(marker), path).toBeVisible()
+    const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(sideways, path).toBeLessThanOrEqual(0)
+    await page.screenshot({
+      path: testInfo.outputPath(`${path.slice(1).replaceAll("/", "-")}-390.png`),
+      fullPage: true,
+    })
   }
 })
 

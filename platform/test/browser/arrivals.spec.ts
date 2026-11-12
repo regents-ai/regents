@@ -30,34 +30,32 @@ function lines(visit: string): Line[] {
 const told = (line: Line) =>
   [line.metadata.event!.name, line.metadata.event!.where, line.metadata.event!.outcome].filter(Boolean).join(" ")
 
-for (const width of [1280, 390]) {
-  test(`a visit from an AI answer arrives once, then presses Sign in at ${width}`, async ({page, context}) => {
-    await page.setViewportSize({width, height: 900})
-    await page.route(bridgePattern, route =>
-      route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
-    )
-    await page.goto("/articles", {referer: "https://chatgpt.com/c/a-private-chat"})
-    await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
-    const visit = (await context.cookies()).find(cookie => cookie.name === "_visit")!.value
+test("a visit from an AI answer arrives once, then presses Sign in", async ({page, context}) => {
+  await page.setViewportSize({width: 390, height: 900})
+  await page.route(bridgePattern, route =>
+    route.fulfill({body: bridgeStub, contentType: "application/javascript"}),
+  )
+  await page.goto("/articles", {referer: "https://chatgpt.com/c/a-private-chat"})
+  await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
+  const visit = (await context.cookies()).find(cookie => cookie.name === "_visit")!.value
 
-    await expect.poll(() => lines(visit).map(told)).toContain("page /articles")
-    const first = lines(visit).map(told)
-    expect(first.filter(line => line.startsWith("arrival"))).toEqual(["arrival /articles chatgpt"])
-    expect(first.indexOf("arrival /articles chatgpt")).toBeLessThan(first.indexOf("page /articles"))
+  await expect.poll(() => lines(visit).map(told)).toContain("page /articles")
+  const first = lines(visit).map(told)
+  expect(first.filter(line => line.startsWith("arrival"))).toEqual(["arrival /articles chatgpt"])
+  expect(first.indexOf("arrival /articles chatgpt")).toBeLessThan(first.indexOf("page /articles"))
 
-    await page.locator("#account-control [data-account-target='sign-in']").click()
-    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")))
-    await expect.poll(() => lines(visit).map(told)).toContain("step sign_in_opened")
+  await page.locator("#account-control [data-account-target='sign-in']").click()
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")))
+  await expect.poll(() => lines(visit).map(told)).toContain("step sign_in_opened")
 
-    await page.goto("/", {referer: "https://www.google.com/"})
-    await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
-    await expect.poll(() => lines(visit).map(told)).toContain("page /")
+  await page.goto("/", {referer: "https://www.google.com/"})
+  await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
+  await expect.poll(() => lines(visit).map(told)).toContain("page /")
 
-    const all = lines(visit).map(told)
-    expect(all.filter(line => line.startsWith("arrival"))).toHaveLength(1)
-    expect(JSON.stringify(lines(visit))).not.toContain("a-private-chat")
-  })
-}
+  const all = lines(visit).map(told)
+  expect(all.filter(line => line.startsWith("arrival"))).toHaveLength(1)
+  expect(JSON.stringify(lines(visit))).not.toContain("a-private-chat")
+})
 
 // A browser that sends Global Privacy Control starts no visit: no `_visit`
 // cookie and no visit on the page, so none of its lines can be grouped into a

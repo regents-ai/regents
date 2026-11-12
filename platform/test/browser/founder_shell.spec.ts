@@ -227,7 +227,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
   await expect(page.locator("#theme-control [data-theme-toggle]")).toBeVisible()
   await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 1, sessionChecks: 1, syncs: 1})
+  await auth.expectCounts({documents: 1, sessionChecks: 1})
 
   const account = page.locator("#account-chip")
   await expect(account.locator("img.account-avatar")).toHaveAttribute(
@@ -257,7 +257,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await page.reload()
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light")
   await auth.expectAuthenticatedSession()
-  await auth.expectCounts({documents: 2, sessionChecks: 2, syncs: 2})
+  await auth.expectCounts({documents: 2, sessionChecks: 2})
 })
 
 test("the Overview maps the four products, keeps account details secondary, and reaches Formation", async ({page}) => {
@@ -415,58 +415,6 @@ test("before any choice a device that asks for light gets light", async ({browse
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
   await context.close()
 })
-
-for (const width of [320, 390]) {
-  test(`${width}px drawer contains focus and cleans up every close path`, async ({page}) => {
-    await page.setViewportSize({width, height: 720})
-    await page.goto("/app")
-    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-
-    const menu = page.getByRole("button", {name: "Menu"})
-    const sidebar = page.getByRole("navigation", {name: "Context navigation"})
-    const scrim = page.locator("[data-shell-menu-scrim]")
-    const scroller = page.locator("#app-shell-scroller")
-
-    await menu.click()
-    await expect(menu).toHaveAttribute("aria-expanded", "true")
-    await expect(sidebar).toBeVisible()
-    await expect(scrim).toBeVisible()
-    await expect(scroller).toHaveAttribute("inert", "")
-    expect(await sidebar.evaluate(element => element.contains(document.activeElement))).toBe(true)
-
-    await page.keyboard.press("Shift+Tab")
-    expect(await sidebar.evaluate(element => element.contains(document.activeElement))).toBe(true)
-    await page.keyboard.press("Tab")
-    expect(await sidebar.evaluate(element => element.contains(document.activeElement))).toBe(true)
-
-    await page.keyboard.press("Escape")
-    await expect(menu).toHaveAttribute("aria-expanded", "false")
-    await expect(menu).toBeFocused()
-    await expect(scrim).toBeHidden()
-    await expect(scroller).not.toHaveAttribute("inert", "")
-
-    await menu.click()
-    await scrim.click({position: {x: width - 2, y: 10}})
-    await expect(menu).toHaveAttribute("aria-expanded", "false")
-    await expect(menu).toBeFocused()
-
-    await menu.click()
-    await sidebar.getByRole("button", {name: "Close navigation"}).click()
-    await expect(menu).toHaveAttribute("aria-expanded", "false")
-    await expect(menu).toBeFocused()
-
-    await menu.click()
-    const destination = sidebar.locator('a[href]:not([href="/app"])').first()
-    await destination.click()
-    await expect(menu).toHaveAttribute("aria-expanded", "false")
-    await expect(scrim).toBeHidden()
-    await expect(scroller).not.toHaveAttribute("inert", "")
-
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-    await expect(page.getByRole("banner")).toHaveCount(1)
-    await expect(page.getByRole("main")).toHaveCount(1)
-  })
-}
 
 test("tablet, desktop, and effective 200 percent zoom have no horizontal overflow", async ({page}) => {
   for (const viewport of [

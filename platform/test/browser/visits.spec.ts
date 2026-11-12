@@ -43,56 +43,54 @@ async function visitOf(page: Page): Promise<string> {
   return (await page.context().cookies()).find(cookie => cookie.name === "_visit")!.value
 }
 
-for (const width of [1280, 390]) {
-  test(`choosing an agent to pair replays in order from the visit's lines at ${width}`, async ({page}) => {
-    const errors: string[] = []
-    page.on("pageerror", error => errors.push(error.message))
-    await page.setViewportSize({width, height: 900})
-    const auth = await installAuthenticatedPrivy(page, "valid")
-    await auth.establishLocalSession()
-    await page.goto("/account/agents")
-    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+test("choosing an agent to pair replays in order from the visit's lines", async ({page}) => {
+  const errors: string[] = []
+  page.on("pageerror", error => errors.push(error.message))
+  await page.setViewportSize({width: 390, height: 900})
+  const auth = await installAuthenticatedPrivy(page, "valid")
+  await auth.establishLocalSession()
+  await page.goto("/account/agents")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
-    await page.locator("#account-agents").getByRole("button", {name: "Pair New Agent"}).click()
-    await expect(page.locator("#shell-pairing")).toBeVisible()
-    const radio = page.locator("#shell-pairing").getByRole("radio", {name: "Dots", exact: true})
-    await radio.locator("xpath=ancestor::label").click()
-    const message = page.locator("#shell-pairing-box pre")
-    await expect(message).toContainText(/Pairing code:\s*\S{12,}/)
-    const code = (await message.innerText()).match(/Pairing code:\s*(\S+)/)![1]
+  await page.locator("#account-agents").getByRole("button", {name: "Pair New Agent"}).click()
+  await expect(page.locator("#shell-pairing")).toBeVisible()
+  const radio = page.locator("#shell-pairing").getByRole("radio", {name: "Dots", exact: true})
+  await radio.locator("xpath=ancestor::label").click()
+  const message = page.locator("#shell-pairing-box pre")
+  await expect(message).toContainText(/Pairing code:\s*\S{12,}/)
+  const code = (await message.innerText()).match(/Pairing code:\s*(\S+)/)![1]
 
-    const visit = await visitOf(page)
-    await expect.poll(() => lines(visit).map(step)).toContain("press PairingBox:choose_agent")
-    const told = lines(visit)
-    const steps = told.map(step)
+  const visit = await visitOf(page)
+  await expect.poll(() => lines(visit).map(step)).toContain("press PairingBox:choose_agent")
+  const told = lines(visit)
+  const steps = told.map(step)
 
-    expect(steps[0]).toBe("request /account/agents")
-    const order = [
-      "request /account/agents",
-      "page /account/agents",
-      "action pairing_code.issue",
-      "press PairingBox:choose_agent",
-    ].map(wanted => steps.indexOf(wanted))
-    expect(order.every(index => index >= 0)).toBe(true)
-    expect([...order].sort((a, b) => a - b)).toEqual(order)
-    expect(told.find(line => step(line) === "press PairingBox:choose_agent")!.metadata.event!.outcome).toBe("ok")
+  expect(steps[0]).toBe("request /account/agents")
+  const order = [
+    "request /account/agents",
+    "page /account/agents",
+    "action pairing_code.issue",
+    "press PairingBox:choose_agent",
+  ].map(wanted => steps.indexOf(wanted))
+  expect(order.every(index => index >= 0)).toBe(true)
+  expect([...order].sort((a, b) => a - b)).toEqual(order)
+  expect(told.find(line => step(line) === "press PairingBox:choose_agent")!.metadata.event!.outcome).toBe("ok")
 
-    const actors = [...new Set(told.map(line => line.metadata.actor))]
-    expect(actors).toHaveLength(1)
-    expect(actors[0]).toMatch(/^person:[0-9a-f]{16}$/)
+  const actors = [...new Set(told.map(line => line.metadata.actor))]
+  expect(actors).toHaveLength(1)
+  expect(actors[0]).toMatch(/^person:[0-9a-f]{16}$/)
 
-    for (const line of told) {
-      expect(Object.keys(line).sort()).toEqual(["message", "metadata", "severity", "time"])
-      expect(Object.keys(line.metadata).every(key => fields.includes(key))).toBe(true)
-      expect(
-        Object.keys(line.metadata.event!).every(key => ["name", "where", "outcome", "ms", "client"].includes(key)),
-      ).toBe(true)
-      const text = JSON.stringify(line)
-      for (const written of [code, wallet, "did:privy"]) expect(text).not.toContain(written)
-    }
-    expect(errors).toEqual([])
-  })
-}
+  for (const line of told) {
+    expect(Object.keys(line).sort()).toEqual(["message", "metadata", "severity", "time"])
+    expect(Object.keys(line.metadata).every(key => fields.includes(key))).toBe(true)
+    expect(
+      Object.keys(line.metadata.event!).every(key => ["name", "where", "outcome", "ms", "client"].includes(key)),
+    ).toBe(true)
+    const text = JSON.stringify(line)
+    for (const written of [code, wallet, "did:privy"]) expect(text).not.toContain(written)
+  }
+  expect(errors).toEqual([])
+})
 
 // A page's own script reading the API joins its visit: the agent tools list on the
 // home page reads every site's tools without cookies, and the read is the visit's.

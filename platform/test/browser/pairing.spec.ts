@@ -48,26 +48,24 @@ const height = (locator: Locator) => locator.evaluate(element => element.getBoun
 
 // Keyfleet, 27 Oct 2026: pressed a second time, Pair New Agent did nothing a person
 // could see. Every press opens the window.
-for (const width of [1280, 390, 320]) {
-  test(`Pair New Agent on the Agents page opens the pairing window, every press, at ${width}`, async ({page}) => {
-    const problems = watch(page)
-    await page.setViewportSize({width, height: 700})
-    await signIn(page, "/account/agents")
-    await openWindow(page)
-    await pairingWindow(page).getByRole("button", {name: "Close"}).click()
-    await expect(pairingWindow(page)).toBeHidden()
-    await expect(pairButton(page)).toBeFocused()
+test("Pair New Agent on the Agents page opens the pairing window, every press", async ({page}) => {
+  const problems = watch(page)
+  await page.setViewportSize({width: 320, height: 700})
+  await signIn(page, "/account/agents")
+  await openWindow(page)
+  await pairingWindow(page).getByRole("button", {name: "Close"}).click()
+  await expect(pairingWindow(page)).toBeHidden()
+  await expect(pairButton(page)).toBeFocused()
 
-    // With the agents listed, the first Escape closes the list and the next the window.
-    await openWindow(page)
-    await page.keyboard.press("Escape")
-    await expect(dropdown(page)).not.toHaveAttribute("open", "")
-    await expect(pairingWindow(page)).toBeVisible()
-    await page.keyboard.press("Escape")
-    await expect(pairingWindow(page)).toBeHidden()
-    await problems.expect()
-  })
-}
+  // With the agents listed, the first Escape closes the list and the next the window.
+  await openWindow(page)
+  await page.keyboard.press("Escape")
+  await expect(dropdown(page)).not.toHaveAttribute("open", "")
+  await expect(pairingWindow(page)).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(pairingWindow(page)).toBeHidden()
+  await problems.expect()
+})
 
 // The window opens on the list of agents; a choice closes the list, and the
 // keyboard goes back to the dropdown, so arrowing to another agent chooses it.
@@ -112,39 +110,13 @@ test("the window keeps one height whatever is chosen", async ({page}) => {
 })
 
 // The start page's Pair New Agent leads to the pairing link's page.
-for (const width of [1280, 390]) {
-  test(`Pair New Agent on the start page opens pairing at ${width}`, async ({page}) => {
-    const problems = watch(page)
-    await page.setViewportSize({width, height: 700})
-    await signIn(page, "/start")
-    await page.locator("#agent-start-page").getByRole("link", {name: "Pair New Agent"}).click()
-    await expect(page).toHaveURL(/\/pair$/)
-    await expect(page.locator("#pair-pairing-box details")).toBeVisible()
-    await problems.expect()
-  })
-}
-
-test("each agent keeps its own code until a new one is asked for", async ({page}) => {
+test("Pair New Agent on the start page opens pairing", async ({page}) => {
   const problems = watch(page)
-  await signIn(page, "/account/agents")
-  await openWindow(page)
-  await expect(message(page)).toHaveCount(0)
-
-  await choose(page, "Dots")
-  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
-  const first = await message(page).innerText()
-
-  await choose(page, "Hermes")
-  await expect(message(page)).not.toHaveText(first)
-  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
-
-  // Coming back shows the same code, so a message already pasted still works.
-  await choose(page, "Dots")
-  await expect(message(page)).toHaveText(first)
-
-  await box(page).getByRole("button", {name: "Make a new code"}).click()
-  await expect(message(page)).not.toHaveText(first)
-  await expect(message(page)).toContainText(/Pairing code:\s*\S{12,}/)
+  await page.setViewportSize({width: 390, height: 700})
+  await signIn(page, "/start")
+  await page.locator("#agent-start-page").getByRole("link", {name: "Pair New Agent"}).click()
+  await expect(page).toHaveURL(/\/pair$/)
+  await expect(page.locator("#pair-pairing-box details")).toBeVisible()
   await problems.expect()
 })
 

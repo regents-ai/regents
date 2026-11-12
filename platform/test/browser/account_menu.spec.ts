@@ -69,7 +69,7 @@ test("the account menu shows three agents and Manage", async ({page}) => {
 test("the account menu hangs under its button and closes on Escape, focus back on the button", async ({page}) => {
   const problems = watch(page)
   await signIn(page)
-  for (const width of [2000, 1280, 390, 320]) {
+  for (const width of [1280, 320]) {
     await page.setViewportSize({width, height: 900})
     await page.goto("/stake")
     await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
@@ -157,59 +157,55 @@ test("asked for less motion, the account menu appears at once", async ({page}) =
   await problems.expect()
 })
 
-for (const width of [1280, 390]) {
-  test(`Manage Account opens the Account page and the menu closes at ${width}`, async ({page}) => {
-    const problems = watch(page)
-    await page.setViewportSize({width, height: 900})
-    await signIn(page)
-    await openMenu(page)
-    await expect(menu(page).getByRole("button", {name: "Sign out"})).toBeVisible()
-    await menu(page).getByRole("link", {name: "Manage Account"}).click()
-    await expect(page).toHaveURL(/\/account$/)
-    await expect(page.locator("#account-identity")).toBeVisible()
-    await expect(menu(page)).toBeHidden()
-    await problems.expect()
-  })
+test("Manage Account opens the Account page and the menu closes", async ({page}) => {
+  const problems = watch(page)
+  await page.setViewportSize({width: 390, height: 900})
+  await signIn(page)
+  await openMenu(page)
+  await expect(menu(page).getByRole("button", {name: "Sign out"})).toBeVisible()
+  await menu(page).getByRole("link", {name: "Manage Account"}).click()
+  await expect(page).toHaveURL(/\/account$/)
+  await expect(page.locator("#account-identity")).toBeVisible()
+  await expect(menu(page)).toBeHidden()
+  await problems.expect()
+})
 
-  test(`Pair New Agent in the menu opens the pairing window over the page at ${width}`, async ({page}) => {
-    const problems = watch(page)
-    await page.setViewportSize({width, height: 900})
-    await signIn(page)
-    await openMenu(page)
-    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
-    await expect(menu(page)).toBeHidden()
-    const pairing = page.locator("#shell-pairing")
-    await expect(pairing).toBeVisible()
-    await expect(page).toHaveURL(/\/stake$/)
-    // The keyboard starts in the window, on the agent dropdown.
-    await expect(pairing.locator("summary")).toBeFocused()
+test("Pair New Agent in the menu opens the pairing window over the page", async ({page}) => {
+  const problems = watch(page)
+  await page.setViewportSize({width: 390, height: 900})
+  await signIn(page)
+  await openMenu(page)
+  await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+  await expect(menu(page)).toBeHidden()
+  const pairing = page.locator("#shell-pairing")
+  await expect(pairing).toBeVisible()
+  await expect(page).toHaveURL(/\/stake$/)
+  // The keyboard starts in the window, on the agent dropdown.
+  await expect(pairing.locator("summary")).toBeFocused()
 
-    // Closed, focus goes back to the account button; pressed again, it opens again.
-    await pairing.getByRole("button", {name: "Close"}).click()
-    await expect(pairing).toBeHidden()
-    await expect(page.locator("#account-chip")).toBeFocused()
-    await openMenu(page)
-    await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
-    await expect(pairing).toBeVisible()
-    await problems.expect()
-  })
-}
+  // Closed, focus goes back to the account button; pressed again, it opens again.
+  await pairing.getByRole("button", {name: "Close"}).click()
+  await expect(pairing).toBeHidden()
+  await expect(page.locator("#account-chip")).toBeFocused()
+  await openMenu(page)
+  await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+  await expect(pairing).toBeVisible()
+  await problems.expect()
+})
 
 // On a short phone screen the open menu ends inside the screen and scrolls to
 // Sign out.
 test("on a short phone screen, the account menu reaches Sign out", async ({page}) => {
   await signIn(page)
-  for (const width of [390, 320]) {
-    await page.setViewportSize({width, height: 360})
-    await page.goto("/stake")
-    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
-    await openMenu(page)
-    const box = (await menu(page).boundingBox())!
-    expect(box.y + box.height, `at ${width}`).toBeLessThanOrEqual(360)
-    const signOut = menu(page).getByRole("button", {name: "Sign out"})
-    await signOut.scrollIntoViewIfNeeded()
-    await expect(signOut).toBeInViewport()
-  }
+  await page.setViewportSize({width: 320, height: 360})
+  await page.goto("/stake")
+  await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
+  await openMenu(page)
+  const box = (await menu(page).boundingBox())!
+  expect(box.y + box.height).toBeLessThanOrEqual(360)
+  const signOut = menu(page).getByRole("button", {name: "Sign out"})
+  await signOut.scrollIntoViewIfNeeded()
+  await expect(signOut).toBeInViewport()
 })
 
 // Narrower than 22.5rem the header has no room for the balance, so the account menu
@@ -237,17 +233,15 @@ test("on the narrowest phones the balance is in the account menu and opens Buy C
   await problems.expect()
 })
 
-for (const width of [390, 1280]) {
-  test(`wider than the narrowest phones the balance stays in the header, not the menu, at ${width}`, async ({page}) => {
-    const problems = watch(page)
-    await page.setViewportSize({width, height: 900})
-    await signIn(page)
-    await expect(page.locator("#shell-credits-button")).toBeVisible()
-    await openMenu(page)
-    await expect(page.locator("#account-menu-credits")).toBeHidden()
-    await page.keyboard.press("Escape")
-    await page.locator("#shell-credits-button").click()
-    await expect(page.locator("#shell-credits")).toBeVisible()
-    await problems.expect()
-  })
-}
+test("wider than the narrowest phones the balance stays in the header, not the menu", async ({page}) => {
+  const problems = watch(page)
+  await page.setViewportSize({width: 390, height: 900})
+  await signIn(page)
+  await expect(page.locator("#shell-credits-button")).toBeVisible()
+  await openMenu(page)
+  await expect(page.locator("#account-menu-credits")).toBeHidden()
+  await page.keyboard.press("Escape")
+  await page.locator("#shell-credits-button").click()
+  await expect(page.locator("#shell-credits")).toBeVisible()
+  await problems.expect()
+})

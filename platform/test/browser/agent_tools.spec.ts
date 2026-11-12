@@ -6,46 +6,44 @@ const sites = ["regents.sh", "patchbay.help", "autolaunch.sh", "techtree.sh", "k
 
 // Sean, 19 Oct: the "Agents see" window copies every Regent site's tools at
 // once, each site its own section, then how an agent signs in.
-for (const width of [1280, 390]) {
-  test(`the tools window copies every site's tools at ${width}`, async ({page, context}) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"])
-    await page.setViewportSize({width, height: 900})
-    // The page's live connection waits until the window is open, so it is
-    // opened before the page connects, as an early press would, and must stay
-    // open through the connection.
-    let opened = () => {}
-    const open = new Promise<void>(resolve => (opened = resolve))
-    await page.routeWebSocket(/\/live\/websocket/, async socket => {
-      await open
-      socket.connectToServer()
-    })
-    await page.goto("/")
-
-    await page.locator("#home-agent-tools-button").click()
-    const dialog = page.getByRole("dialog", {name: /^Agents see \d+ WebMCP Tools$/})
-    await expect(dialog).toBeVisible()
-    opened()
-    await page.locator(".phx-connected").first().waitFor()
-    await expect(dialog).toBeVisible()
-    const copyAll = dialog.locator("#home-agent-tools-copy-all")
-    await expect(copyAll).toHaveAccessibleName("Copy all Regents WebMCP tools")
-    await expect(copyAll).toBeEnabled()
-    await expect(dialog.locator("[data-agent-tools-note]")).toHaveText("15 tools from 5 sites")
-
-    await copyAll.click()
-    // The button answers "Copied" in place of its words.
-    await expect(copyAll).toHaveAccessibleName("Copied")
-    const text = await page.evaluate(() => navigator.clipboard.readText())
-    expect(text.startsWith("# WebMCP tools on every Regent site\n\n## regents.sh\n\n3 WebMCP tools\n")).toBe(true)
-    const headings = [...text.matchAll(/^## (.+)$/gm)].map(match => match[1])
-    expect(headings).toEqual([...sites, "siwa-server"])
-    for (const site of sites) expect(text).toContain(`\`post_${site.replace(".", "_")}\``)
-    expect(text).toContain("### Get the client")
-
-    // The copy of the window's own list stays beside it.
-    await expect(dialog.getByRole("button", {name: "Copy as Markdown"})).toBeVisible()
+test("the tools window copies every site's tools", async ({page, context}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.setViewportSize({width: 390, height: 900})
+  // The page's live connection waits until the window is open, so it is
+  // opened before the page connects, as an early press would, and must stay
+  // open through the connection.
+  let opened = () => {}
+  const open = new Promise<void>(resolve => (opened = resolve))
+  await page.routeWebSocket(/\/live\/websocket/, async socket => {
+    await open
+    socket.connectToServer()
   })
-}
+  await page.goto("/")
+
+  await page.locator("#home-agent-tools-button").click()
+  const dialog = page.getByRole("dialog", {name: /^Agents see \d+ WebMCP Tools$/})
+  await expect(dialog).toBeVisible()
+  opened()
+  await page.locator(".phx-connected").first().waitFor()
+  await expect(dialog).toBeVisible()
+  const copyAll = dialog.locator("#home-agent-tools-copy-all")
+  await expect(copyAll).toHaveAccessibleName("Copy all Regents WebMCP tools")
+  await expect(copyAll).toBeEnabled()
+  await expect(dialog.locator("[data-agent-tools-note]")).toHaveText("15 tools from 5 sites")
+
+  await copyAll.click()
+  // The button answers "Copied" in place of its words.
+  await expect(copyAll).toHaveAccessibleName("Copied")
+  const text = await page.evaluate(() => navigator.clipboard.readText())
+  expect(text.startsWith("# WebMCP tools on every Regent site\n\n## regents.sh\n\n3 WebMCP tools\n")).toBe(true)
+  const headings = [...text.matchAll(/^## (.+)$/gm)].map(match => match[1])
+  expect(headings).toEqual([...sites, "siwa-server"])
+  for (const site of sites) expect(text).toContain(`\`post_${site.replace(".", "_")}\``)
+  expect(text).toContain("### Get the client")
+
+  // The copy of the window's own list stays beside it.
+  await expect(dialog.getByRole("button", {name: "Copy as Markdown"})).toBeVisible()
+})
 
 type Registered = {name: string; execute(input: unknown): Promise<unknown>}
 

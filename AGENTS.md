@@ -11,8 +11,10 @@ the separate regents-cli repository.
   OpenClaw, MCP and bundled-skill integrations are CLI code in regents-cli.
 - Shared UI and Elixir libraries other than `identity/` come from GitHub, each pinned to
   one commit in `platform/mix.exs`.
-- `make check` runs every component gate; `make check-platform`, `check-required-fixes`,
-  `check-identity` and `check-contracts` run one. `MIX_TEST_PARTITION` (an underscore and
+- `make check` runs every component gate side by side, each logging to
+  `platform/_build/check/<gate>.log`, and prints the log of any that failed;
+  `make check-platform`, `check-required-fixes`, `check-cli`, `check-identity` and
+  `check-contracts` run one. `MIX_TEST_PARTITION` (an underscore and
   a short id, unique to your working tree) is required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
   Scope verification to observable acceptance and preserve useful regression coverage.

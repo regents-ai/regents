@@ -174,36 +174,6 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await expect(page.locator(".stake-notice:visible")).toHaveCount(0)
 })
 
-// Signing out ends what the page may send. The same control that sent a
-// transaction a moment ago asks for the sign-in again, and nothing reaches the
-// wallet until the visitor has signed back in.
-test("After sign-out Stake asks for the sign-in again and sends nothing", async ({page}) => {
-  await installWallet(page)
-  await signIn(page)
-  await page.route(bridgePattern, route =>
-    route.fulfill({body: bridgeRecorder, contentType: "application/javascript"}),
-  )
-
-  await page.goto("/stake")
-  await expect(page.locator("#account-chip")).toBeVisible()
-  await expect(page.locator("#staking-claim_usdc[data-onchain-step]")).toBeEnabled()
-
-  await signOut(page)
-  // A sign-out from elsewhere closes the page's connection, and LiveView reloads
-  // the page 5 to 10 seconds later.
-  await expect(page.locator("#account-control [data-account-target='sign-in']")).toBeVisible({
-    timeout: 15_000,
-  })
-  await expect(page).toHaveURL(/\/stake$/)
-  await expect(page.locator("#route-content button[data-onchain-step]")).toHaveCount(0)
-
-  await page.getByLabel("Amount", {exact: true}).fill("1")
-  await page.locator("#staking-primary").click()
-
-  await expect.poll(() => privyRequests(page)).toContain("sign-in")
-  expect(await sendCount(page)).toBe(0)
-})
-
 // Privy's active wallet is the only one that acts. When it is not one of the
 // account's wallets, the figures stay the account's, a press sends nothing and
 // says what to do, and a note names both wallets.
@@ -424,66 +394,49 @@ test("Anonymous Stake dashboard is public and fits desktop and mobile widths", a
 
 // Every address Stake and Redeem show opens and copies in full: the dashboard,
 // its supply window, both Verification lists, the wallet each panel acts for,
-// the notes that name a wallet and the Buy Credits window's paying wallet,
-// signed out and signed in, at both widths.
+// the notes that name a wallet and the Buy Credits window's paying wallet, signed
+// in at a phone's width.
 test("Stake and Redeem draw every address with the address primitive", async ({page}) => {
   await installWallet(page)
-
-  const walk = async (signedIn: boolean, width: number) => {
-    const at = `${signedIn ? "signed in" : "signed out"} at ${width}`
-
-    await page.goto("/stake")
-    await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
-    await selectWallet(page, signedIn ? otherWallet : wallet)
-    await expect(page.locator("#staking-signer-wallet")).toBeVisible()
-    if (signedIn) {
-      // A wallet the account does not link: the notes name both wallets.
-      await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
-      await page.getByLabel("Amount", {exact: true}).fill("1")
-      await page.locator("#staking-primary").click()
-      await expect(page.locator("#staking-press-notice")).toContainText("isn't linked to this account")
-    }
-    await page.locator(".stake-contract-details summary").click()
-    await expect(page.locator(".stake-contract-facts")).toBeVisible()
-    await page.locator('button[phx-click*="staking-supply-dialog"]').first().click()
-    const supply = page.locator("#staking-supply-dialog")
-    await expect(supply.locator(".stake-holdings")).toBeVisible()
-    expect(await bareAddresses(page), `/stake ${at}`).toEqual([])
-    expect(await addressesOutOfCase(page), `/stake ${at}`).toEqual([])
-    await supply.getByRole("button", {name: "Done"}).click()
-    await expect(supply).toBeHidden()
-    if (signedIn) {
-      // The Buy Credits window names the wallet it pays from.
-      const credits = page.locator("#shell-credits")
-      await page.locator("#shell-credits-button").click()
-      await expect(credits.locator(".credits-panel__wallet .rg-address")).toBeVisible()
-      expect(await bareAddresses(page), `Buy Credits ${at}`).toEqual([])
-      expect(await addressesOutOfCase(page), `Buy Credits ${at}`).toEqual([])
-      await credits.getByRole("button", {name: "Close"}).click()
-      await expect(credits).toBeHidden()
-    }
-
-    await page.goto("/redeem")
-    await expect(page.locator("#redemption-collections")).toBeVisible()
-    await selectWallet(page, signedIn ? otherWallet : wallet)
-    await expect(page.locator(".redeem-signer")).toBeVisible()
-    if (signedIn) await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
-    await page.locator(".redeem-contract-details summary").click()
-    await expect(page.locator(".redeem-contract-details dl")).toBeVisible()
-    expect(await bareAddresses(page), `/redeem ${at}`).toEqual([])
-    expect(await addressesOutOfCase(page), `/redeem ${at}`).toEqual([])
-  }
-
-  for (const width of [1280, 390]) {
-    await page.setViewportSize({width, height: 900})
-    await walk(false, width)
-  }
-
   await signIn(page)
-  for (const width of [1280, 390]) {
-    await page.setViewportSize({width, height: 900})
-    await walk(true, width)
-  }
+  await page.setViewportSize({width: 390, height: 900})
+
+  await page.goto("/stake")
+  await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
+  await selectWallet(page, otherWallet)
+  await expect(page.locator("#staking-signer-wallet")).toBeVisible()
+  // A wallet the account does not link: the notes name both wallets.
+  await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await page.locator("#staking-primary").click()
+  await expect(page.locator("#staking-press-notice")).toContainText("isn't linked to this account")
+  await page.locator(".stake-contract-details summary").click()
+  await expect(page.locator(".stake-contract-facts")).toBeVisible()
+  await page.locator('button[phx-click*="staking-supply-dialog"]').first().click()
+  const supply = page.locator("#staking-supply-dialog")
+  await expect(supply.locator(".stake-holdings")).toBeVisible()
+  expect(await bareAddresses(page), "/stake").toEqual([])
+  expect(await addressesOutOfCase(page), "/stake").toEqual([])
+  await supply.getByRole("button", {name: "Done"}).click()
+  await expect(supply).toBeHidden()
+  // The Buy Credits window names the wallet it pays from.
+  const credits = page.locator("#shell-credits")
+  await page.locator("#shell-credits-button").click()
+  await expect(credits.locator(".credits-panel__wallet .rg-address")).toBeVisible()
+  expect(await bareAddresses(page), "Buy Credits").toEqual([])
+  expect(await addressesOutOfCase(page), "Buy Credits").toEqual([])
+  await credits.getByRole("button", {name: "Close"}).click()
+  await expect(credits).toBeHidden()
+
+  await page.goto("/redeem")
+  await expect(page.locator("#redemption-collections")).toBeVisible()
+  await selectWallet(page, otherWallet)
+  await expect(page.locator(".redeem-signer")).toBeVisible()
+  await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
+  await page.locator(".redeem-contract-details summary").click()
+  await expect(page.locator(".redeem-contract-details dl")).toBeVisible()
+  expect(await bareAddresses(page), "/redeem").toEqual([])
+  expect(await addressesOutOfCase(page), "/redeem").toEqual([])
 })
 
 // The other address a stake goes to shows in two forms. The warning in its window
@@ -493,13 +446,13 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
 // a copy press neither ticks the warning nor unticks the choice. No label on the
 // page holds a button or link: the warning's words tick its box, and the box is
 // named by the sentence alone. Nothing on the page names the address outside
-// the primitive or scrolls sideways, signed out and signed in, at every width,
-// light and dark.
+// the primitive or scrolls sideways, signed in at the narrowest phone width.
 test("Stake shows the other address in full in the warning and compact on the toggle's line", async ({page}) => {
-  // Twelve walks (signed out and in, light and dark, three widths) take about 25 seconds alone.
-  test.setTimeout(120_000)
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
   await installWallet(page)
+  await signIn(page)
+  await page.setViewportSize({width: 320, height: 900})
+  const at = "signed in at 320"
   const toggle = page.locator("#staking-for-other")
   const dialog = page.locator("#staking-recipient-dialog")
   const acknowledgment = page.locator("#staking-recipient-acknowledged")
@@ -512,88 +465,73 @@ test("Stake shows the other address in full in the warning and compact on the to
   }
   const sideways = () => page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
 
-  const walk = async (at: string) => {
-    await page.goto("/stake")
-    await selectWallet(page, wallet)
-    await page.getByLabel("Amount", {exact: true}).fill("1")
-    await toggle.check()
-    await expect(dialog).toBeVisible()
-    await page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true}).fill(otherWallet)
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await toggle.check()
+  await expect(dialog).toBeVisible()
+  await page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true}).fill(otherWallet)
 
-    await expect(full, at).toHaveClass(/\brg-address--full\b/)
-    await expect(full.locator(".rg-address__words"), at).toHaveText(otherWallet)
-    await expect(full.locator(".rg-address__explorer"), at).toBeVisible()
-    // Every character sits inside the window: none cut off or hidden past its edge.
-    const inside = await full.evaluate(address => {
-      const window = address.closest("dialog")!.getBoundingClientRect()
-      const words = document.createRange()
-      words.selectNodeContents(address.querySelector(".rg-address__words")!)
-      const icons = [...address.querySelectorAll(".rg-copy--icon, .rg-address__explorer")].map(icon =>
-        icon.getBoundingClientRect(),
-      )
-      return [...words.getClientRects(), ...icons].every(
-        line => line.left >= window.left && line.right <= window.right && line.width > 0,
-      )
-    })
-    expect(inside, at).toBe(true)
-    expect(await sideways(), at).toBe(false)
-    expect(await bareAddresses(page), `warning ${at}`).toEqual([])
-    expect(await addressesOutOfCase(page), `warning ${at}`).toEqual([])
-    expect(await copied(full.locator(".rg-copy--icon")), at).toBe(otherWallet)
-    await expect(acknowledgment, at).not.toBeChecked()
-    // No press inside a label anywhere on the page, and the box is named by the
-    // warning's sentence with the address read once, never by its icons.
-    await expect(page.locator("label :is(button, a)"), at).toHaveCount(0)
-    await expect(acknowledgment, at).toHaveAccessibleName(
-      `Warning: the wallet ${otherWallet} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.`,
+  await expect(full, at).toHaveClass(/\brg-address--full\b/)
+  await expect(full.locator(".rg-address__words"), at).toHaveText(otherWallet)
+  await expect(full.locator(".rg-address__explorer"), at).toBeVisible()
+  // Every character sits inside the window: none cut off or hidden past its edge.
+  const inside = await full.evaluate(address => {
+    const window = address.closest("dialog")!.getBoundingClientRect()
+    const words = document.createRange()
+    words.selectNodeContents(address.querySelector(".rg-address__words")!)
+    const icons = [...address.querySelectorAll(".rg-copy--icon, .rg-address__explorer")].map(icon =>
+      icon.getBoundingClientRect(),
     )
-    // The hidden copy that holds the warning's room is exactly as tall, so the
-    // window keeps one height whichever of the two shows.
-    const [room, shown] = await page
-      .locator(".stake-recipient-note > .stake-check")
-      .evaluateAll(checks => checks.map(check => check.getBoundingClientRect().height))
-    expect(Math.abs(room - shown), at).toBeLessThan(0.5)
-    await dialog.screenshot({path: test.info().outputPath(`warning-${at.replaceAll(" ", "-")}.png`)})
-    // The warning's words tick the box.
-    await page.locator("#staking-recipient-warning-text").getByText("will accrue the USDC revenue").click()
-    await expect(acknowledgment, at).toBeChecked()
-    await dialog.getByRole("button", {name: "Done", exact: true}).click()
-    await expect(dialog).toBeHidden()
+    return [...words.getClientRects(), ...icons].every(
+      line => line.left >= window.left && line.right <= window.right && line.width > 0,
+    )
+  })
+  expect(inside, at).toBe(true)
+  expect(await sideways(), at).toBe(false)
+  expect(await bareAddresses(page), `warning ${at}`).toEqual([])
+  expect(await addressesOutOfCase(page), `warning ${at}`).toEqual([])
+  expect(await copied(full.locator(".rg-copy--icon")), at).toBe(otherWallet)
+  await expect(acknowledgment, at).not.toBeChecked()
+  // No press inside a label anywhere on the page, and the box is named by the
+  // warning's sentence with the address read once, never by its icons.
+  await expect(page.locator("label :is(button, a)"), at).toHaveCount(0)
+  await expect(acknowledgment, at).toHaveAccessibleName(
+    `Warning: the wallet ${otherWallet} will accrue the USDC revenue and REGENT rewards, and only that wallet may withdraw the tokens.`,
+  )
+  // The hidden copy that holds the warning's room is exactly as tall, so the
+  // window keeps one height whichever of the two shows.
+  const [room, shown] = await page
+    .locator(".stake-recipient-note > .stake-check")
+    .evaluateAll(checks => checks.map(check => check.getBoundingClientRect().height))
+  expect(Math.abs(room - shown), at).toBeLessThan(0.5)
+  await dialog.screenshot({path: test.info().outputPath(`warning-${at.replaceAll(" ", "-")}.png`)})
+  // The warning's words tick the box.
+  await page.locator("#staking-recipient-warning-text").getByText("will accrue the USDC revenue").click()
+  await expect(acknowledgment, at).toBeChecked()
+  await dialog.getByRole("button", {name: "Done", exact: true}).click()
+  await expect(dialog).toBeHidden()
 
-    await expectForOther(page)
-    await expect(compact, at).toHaveClass(/\brg-address--compact\b/)
-    await expect(compact.locator(".rg-address__explorer"), at).toHaveCount(0)
-    // The short form shows whole, and the row stays inside the form.
-    const fits = await compact.evaluate(address => {
-      const label = address.querySelector(".rg-address__label")!
-      const form = document.querySelector("#staking-amount-form")!.getBoundingClientRect()
-      const row = address.closest(".stake-for-other")!.getBoundingClientRect()
-      return label.scrollWidth <= label.clientWidth && row.left >= form.left && row.right <= form.right
-    })
-    expect(fits, at).toBe(true)
-    expect(await sideways(), at).toBe(false)
-    expect(await bareAddresses(page), `row ${at}`).toEqual([])
-    expect(await addressesOutOfCase(page), `row ${at}`).toEqual([])
-    expect(await copied(compact.locator(".rg-copy--icon")), at).toBe(otherWallet)
-    await expect(toggle, at).toBeChecked()
-    await expect(page.locator("label :is(button, a)"), `row ${at}`).toHaveCount(0)
-    await page
-      .locator("#staking-amount-form")
-      .screenshot({path: test.info().outputPath(`rewards-go-to-${at.replaceAll(" ", "-")}.png`)})
-  }
-
-  for (const signedIn of [false, true]) {
-    if (signedIn) await signIn(page)
-    for (const theme of ["light", "dark"]) {
-      await page.context().addCookies([
-        {name: "regent_theme", value: theme, url: test.info().project.use.baseURL as string},
-      ])
-      for (const width of [1280, 390, 320]) {
-        await page.setViewportSize({width, height: 900})
-        await walk(`${signedIn ? "signed in" : "signed out"} ${theme} ${width}`)
-      }
-    }
-  }
+  await expectForOther(page)
+  await expect(compact, at).toHaveClass(/\brg-address--compact\b/)
+  await expect(compact.locator(".rg-address__explorer"), at).toHaveCount(0)
+  // The short form shows whole, and the row stays inside the form.
+  const fits = await compact.evaluate(address => {
+    const label = address.querySelector(".rg-address__label")!
+    const form = document.querySelector("#staking-amount-form")!.getBoundingClientRect()
+    const row = address.closest(".stake-for-other")!.getBoundingClientRect()
+    return label.scrollWidth <= label.clientWidth && row.left >= form.left && row.right <= form.right
+  })
+  expect(fits, at).toBe(true)
+  expect(await sideways(), at).toBe(false)
+  expect(await bareAddresses(page), `row ${at}`).toEqual([])
+  expect(await addressesOutOfCase(page), `row ${at}`).toEqual([])
+  expect(await copied(compact.locator(".rg-copy--icon")), at).toBe(otherWallet)
+  await expect(toggle, at).toBeChecked()
+  await expect(page.locator("label :is(button, a)"), `row ${at}`).toHaveCount(0)
+  await page
+    .locator("#staking-amount-form")
+    .screenshot({path: test.info().outputPath(`rewards-go-to-${at.replaceAll(" ", "-")}.png`)})
 })
 
 test("Public Redeem collection cards fit desktop, tablet and mobile widths", async ({page}) => {
@@ -758,18 +696,16 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(dialog).toBeVisible()
   await expect(receiver).toBeFocused()
   await expect(page.locator(".stake-preview")).toBeHidden()
-  for (const invalid of ["alice.eth", "0x1234", "0x" + "0".repeat(40)]) {
-    if (!(await dialog.isVisible())) await change.click()
-    await receiver.fill(invalid)
-    await expect(receiver).toHaveAttribute("aria-invalid", "true")
-    await expect(warning).toBeHidden()
-    await done.click()
-    await expect(dialog).toBeHidden()
-    await expect(row).toHaveText(/No address yet\s*Add/)
-    await submit.click()
-    await expect(notice).toHaveText("Enter a valid receiving address. Nothing was sent.")
-    expect(await sendCount(page)).toBe(0)
-  }
+  // Which addresses are refused is proven in Regents.Staking.StepsTest.
+  await receiver.fill("0x1234")
+  await expect(receiver).toHaveAttribute("aria-invalid", "true")
+  await expect(warning).toBeHidden()
+  await done.click()
+  await expect(dialog).toBeHidden()
+  await expect(row).toHaveText(/No address yet\s*Add/)
+  await submit.click()
+  await expect(notice).toHaveText("Enter a valid receiving address. Nothing was sent.")
+  expect(await sendCount(page)).toBe(0)
 
   await change.click()
   await receiver.fill(otherWallet)
@@ -806,14 +742,6 @@ test("Alternate stake requires fresh address consent and credits that address", 
   const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
   await unstakeTab.click()
   await expect(toggle).toBeHidden()
-  // The chosen mode's fill glides to the tab that was pressed.
-  await expect
-    .poll(async () => {
-      const ink = await page.locator(".stake-switch__ink").boundingBox()
-      const tab = await unstakeTab.boundingBox()
-      return ink && tab && Math.abs(ink.x - tab.x)
-    })
-    .toBeLessThan(1)
   await page.getByRole("tab", {name: "Stake", exact: true}).click()
   await expect(acknowledgment).not.toBeChecked()
   await expect(row).toHaveText(/No address yet\s*Add/)
@@ -833,24 +761,19 @@ test("Alternate stake requires fresh address consent and credits that address", 
   await expect(acknowledgment).toBeChecked()
   await expectForOther(page)
 
-  for (const width of [1280, 390, 320]) {
-    await page.setViewportSize({width, height: 900})
-    await change.click()
-    await expect(warning).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    const box = (await dialog.boundingBox())!
-    expect(box.x).toBeGreaterThanOrEqual(0)
-    expect(box.x + box.width).toBeLessThanOrEqual(width)
-    if (width === 390) {
-      await page.emulateMedia({reducedMotion: "reduce"})
-      await acknowledgment.focus()
-      await expect(acknowledgment).toBeFocused()
-      await dialog.screenshot({path: test.info().outputPath("stake-recipient-mobile.png")})
-    }
-    await done.click()
-    await expect(dialog).toBeHidden()
-  }
   await page.setViewportSize({width: 390, height: 900})
+  await change.click()
+  await expect(warning).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  const box = (await dialog.boundingBox())!
+  expect(box.x).toBeGreaterThanOrEqual(0)
+  expect(box.x + box.width).toBeLessThanOrEqual(390)
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await acknowledgment.focus()
+  await expect(acknowledgment).toBeFocused()
+  await dialog.screenshot({path: test.info().outputPath("stake-recipient-mobile.png")})
+  await done.click()
+  await expect(dialog).toBeHidden()
   await submit.click()
   await expect.poll(() => sendCount(page)).toBe(1)
   await expect(submit).toHaveText(/Stake REGENT/)
@@ -885,165 +808,164 @@ test("Stake keeps one height whatever the different-address box shows", async ({
   await installWallet(page)
   await signIn(page)
 
-  for (const width of [1280, 390, 320]) {
-    await page.setViewportSize({width, height: 900})
-    await page.goto("/stake")
-    await selectWallet(page, wallet)
-    await page.getByLabel("Amount", {exact: true}).fill("1")
-    const panel = page.locator(".stake-actions")
-    const toggle = page.locator("#staking-for-other")
-    const row = page.locator(".stake-for-other")
-    const dialog = page.locator("#staking-recipient-dialog")
-    const receiver = page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true})
-    const height = async () => (await panel.boundingBox())!.height
-    // The room between the form's last shown row and its foot.
-    const band = () =>
-      page.evaluate(() => {
-        const form = document.querySelector("#staking-amount-form")!
-        const shown = [...form.children].filter(
-          child => child.tagName !== "DIALOG" && child.checkVisibility({visibilityProperty: true}),
-        )
-        const last = Math.max(...shown.map(child => child.getBoundingClientRect().bottom))
-        return form.getBoundingClientRect().bottom - last
-      })
-    // The choice's box, its words, the address once it is set and Change (or
-    // Add) share one line. All of it stays inside the form and clear of the
-    // amount box.
-    const rows = async () => {
-      const fit = await page.evaluate(() => {
-        const words = (el: Element) => {
-          if (el.tagName !== "BUTTON") return el.getBoundingClientRect()
-          // Add or Change's own words, not the taller press area around them.
-          const range = document.createRange()
-          range.selectNodeContents(el)
-          return range.getBoundingClientRect()
-        }
-        const middle = (rect: DOMRect) => rect.top + rect.height / 2
-        const row = document.querySelector(".stake-for-other")!
-        const form = document.querySelector("#staking-amount-form")!.getBoundingClientRect()
-        const amount = document.querySelector(".stake-amount")!.getBoundingClientRect()
-        const box = document.querySelector("#staking-for-other")!.getBoundingClientRect()
-        const text = document.querySelector("#staking-for-other-text")!.getBoundingClientRect()
-        const button = document.querySelector("#staking-recipient-change")
-        const change = button && words(button)
-        const named = document.querySelector("#staking-for-other-address")
-        const address = named?.getBoundingClientRect()
-        const parts = [box, text, change, address, ...[...row.querySelectorAll(".rg-address__label, .rg-copy--icon")].map(words)].filter(
-          (part): part is DOMRect => !!part,
-        )
-        const overlaps = (a: DOMRect, b: DOMRect) =>
-          a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-        return {
-          boxBesideWords: Math.abs(middle(box) - middle(text)),
-          changeLine: change ? Math.abs(middle(change) - middle(address ?? text)) : 0,
-          addressLine: address ? Math.abs(middle(address) - middle(text)) : 0,
-          addressAfterWords: address ? address.left - text.right : 0,
-          past: Math.max(0, ...parts.map(part => Math.max(form.left - part.left, part.right - form.right))),
-          clear: parts.every(part => !overlaps(part, amount)),
-        }
-      })
-      expect(fit.clear).toBe(true)
-      expect(fit.past).toBeLessThan(0.5)
-      expect(fit.boxBesideWords).toBeLessThan(4)
-      expect(fit.changeLine).toBeLessThan(4)
-      expect(fit.addressLine).toBeLessThan(4)
-      expect(fit.addressAfterWords).toBeGreaterThanOrEqual(0)
-    }
-    await expect(page.locator(".stake-preview")).toBeVisible()
-    const unticked = await height()
-    const previewRoom = (await page.locator(".stake-preview").boundingBox())!.height
-    expect(await band()).toBeLessThan(1)
-    await rows()
-    // What is available stays readable beside or above 50% and Max, never under them.
-    const available = await page.evaluate(() => {
-      const line = document.querySelector("#staking-available")!
-      const words = document.createRange()
-      words.selectNodeContents(line)
-      const text = words.getBoundingClientRect()
-      const fills = [...document.querySelectorAll(".stake-amount .stake-chip")].map(chip => chip.getBoundingClientRect())
+  const width = 320
+  await page.setViewportSize({width, height: 900})
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  const panel = page.locator(".stake-actions")
+  const toggle = page.locator("#staking-for-other")
+  const row = page.locator(".stake-for-other")
+  const dialog = page.locator("#staking-recipient-dialog")
+  const receiver = page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true})
+  const height = async () => (await panel.boundingBox())!.height
+  // The room between the form's last shown row and its foot.
+  const band = () =>
+    page.evaluate(() => {
+      const form = document.querySelector("#staking-amount-form")!
+      const shown = [...form.children].filter(
+        child => child.tagName !== "DIALOG" && child.checkVisibility({visibilityProperty: true}),
+      )
+      const last = Math.max(...shown.map(child => child.getBoundingClientRect().bottom))
+      return form.getBoundingClientRect().bottom - last
+    })
+  // The choice's box, its words, the address once it is set and Change (or
+  // Add) share one line. All of it stays inside the form and clear of the
+  // amount box.
+  const rows = async () => {
+    const fit = await page.evaluate(() => {
+      const words = (el: Element) => {
+        if (el.tagName !== "BUTTON") return el.getBoundingClientRect()
+        // Add or Change's own words, not the taller press area around them.
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        return range.getBoundingClientRect()
+      }
+      const middle = (rect: DOMRect) => rect.top + rect.height / 2
+      const row = document.querySelector(".stake-for-other")!
+      const form = document.querySelector("#staking-amount-form")!.getBoundingClientRect()
+      const amount = document.querySelector(".stake-amount")!.getBoundingClientRect()
+      const box = document.querySelector("#staking-for-other")!.getBoundingClientRect()
+      const text = document.querySelector("#staking-for-other-text")!.getBoundingClientRect()
+      const button = document.querySelector("#staking-recipient-change")
+      const change = button && words(button)
+      const named = document.querySelector("#staking-for-other-address")
+      const address = named?.getBoundingClientRect()
+      const parts = [box, text, change, address, ...[...row.querySelectorAll(".rg-address__label, .rg-copy--icon")].map(words)].filter(
+        (part): part is DOMRect => !!part,
+      )
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
       return {
-        under: fills.some(
-          fill => text.left < fill.right && fill.left < text.right && text.top < fill.bottom && fill.top < text.bottom,
-        ),
-        lines: Math.round(text.height / Number.parseFloat(getComputedStyle(line).lineHeight)),
+        boxBesideWords: Math.abs(middle(box) - middle(text)),
+        changeLine: change ? Math.abs(middle(change) - middle(address ?? text)) : 0,
+        addressLine: address ? Math.abs(middle(address) - middle(text)) : 0,
+        addressAfterWords: address ? address.left - text.right : 0,
+        past: Math.max(0, ...parts.map(part => Math.max(form.left - part.left, part.right - form.right))),
+        clear: parts.every(part => !overlaps(part, amount)),
       }
     })
-    expect(available.under, `Available at ${width}`).toBe(false)
-    expect(available.lines, `Available at ${width}`).toBeLessThanOrEqual(2)
-
-    await toggle.check()
-    await expect(dialog).toBeVisible()
-    expect(await height()).toBeCloseTo(unticked, 0)
-
-    await receiver.fill("0x1234")
-    await expect(receiver).toHaveAttribute("aria-invalid", "true")
-    expect(await height()).toBeCloseTo(unticked, 0)
-
-    await receiver.fill(otherWallet)
-    await expect(page.locator("#staking-recipient-warning")).toBeVisible()
-    expect(await height()).toBeCloseTo(unticked, 0)
-    await page.keyboard.press("Escape")
-    await expect(row).toHaveText(/No address yet\s*Add/)
-    expect(await height()).toBeCloseTo(unticked, 0)
-    await rows()
-    await page.locator("#staking-recipient-change").click()
-
-    await page.locator("#staking-recipient-acknowledged").check()
-    await dialog.getByRole("button", {name: "Done", exact: true}).click()
-    await expectForOther(page)
-    expect(await height()).toBeCloseTo(unticked, 0)
-    expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
-    await rows()
-    // A mouse keeps the choice and Change at the size of their words.
-    for (const area of await pressAreas(page)) {
-      expect(area.height, `${area.selector} at ${width}`).toBeLessThan(30)
-    }
-    // The form alone fits the screen at every width, so its picture is whole.
-    await page
-      .locator("#staking-amount-form")
-      .screenshot({path: test.info().outputPath(`stake-other-address-${width}.png`)})
-
-    // Tab from Amount to the Stake button only lands on rows a person can see,
-    // ticked here and unticked below.
-    const tabToStake = async () => {
-      await page.getByLabel("Amount", {exact: true}).focus()
-      let reachedSubmit = false
-      for (let press = 0; press < 8 && !reachedSubmit; press++) {
-        await page.keyboard.press("Tab")
-        const focused = await page.evaluate(() => {
-          const el = document.activeElement as HTMLElement
-          return {
-            seen: el.checkVisibility({visibilityProperty: true}) && !el.closest("[inert]"),
-            submit: el.matches("button.stake-submit"),
-          }
-        })
-        expect(focused.seen).toBe(true)
-        reachedSubmit = focused.submit
-      }
-      expect(reachedSubmit).toBe(true)
-    }
-    await tabToStake()
-
-    await toggle.uncheck()
-    await expect(dialog).toBeHidden()
-    expect(await height()).toBeCloseTo(unticked, 0)
-    expect(await band()).toBeLessThan(1)
-    await tabToStake()
-
-    // Unstake has its own height, whichever way the box was left on Stake.
-    const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
-    const stakeTab = page.getByRole("tab", {name: "Stake", exact: true})
-    await unstakeTab.click()
-    await expect(toggle).toBeHidden()
-    const unstake = await height()
-    await stakeTab.click()
-    await toggle.check()
-    await page.keyboard.press("Escape")
-    await expect(dialog).toBeHidden()
-    await unstakeTab.click()
-    await expect(toggle).toBeHidden()
-    expect(await height()).toBeCloseTo(unstake, 0)
+    expect(fit.clear).toBe(true)
+    expect(fit.past).toBeLessThan(0.5)
+    expect(fit.boxBesideWords).toBeLessThan(4)
+    expect(fit.changeLine).toBeLessThan(4)
+    expect(fit.addressLine).toBeLessThan(4)
+    expect(fit.addressAfterWords).toBeGreaterThanOrEqual(0)
   }
+  await expect(page.locator(".stake-preview")).toBeVisible()
+  const unticked = await height()
+  const previewRoom = (await page.locator(".stake-preview").boundingBox())!.height
+  expect(await band()).toBeLessThan(1)
+  await rows()
+  // What is available stays readable beside or above 50% and Max, never under them.
+  const available = await page.evaluate(() => {
+    const line = document.querySelector("#staking-available")!
+    const words = document.createRange()
+    words.selectNodeContents(line)
+    const text = words.getBoundingClientRect()
+    const fills = [...document.querySelectorAll(".stake-amount .stake-chip")].map(chip => chip.getBoundingClientRect())
+    return {
+      under: fills.some(
+        fill => text.left < fill.right && fill.left < text.right && text.top < fill.bottom && fill.top < text.bottom,
+      ),
+      lines: Math.round(text.height / Number.parseFloat(getComputedStyle(line).lineHeight)),
+    }
+  })
+  expect(available.under, `Available at ${width}`).toBe(false)
+  expect(available.lines, `Available at ${width}`).toBeLessThanOrEqual(2)
+
+  await toggle.check()
+  await expect(dialog).toBeVisible()
+  expect(await height()).toBeCloseTo(unticked, 0)
+
+  await receiver.fill("0x1234")
+  await expect(receiver).toHaveAttribute("aria-invalid", "true")
+  expect(await height()).toBeCloseTo(unticked, 0)
+
+  await receiver.fill(otherWallet)
+  await expect(page.locator("#staking-recipient-warning")).toBeVisible()
+  expect(await height()).toBeCloseTo(unticked, 0)
+  await page.keyboard.press("Escape")
+  await expect(row).toHaveText(/No address yet\s*Add/)
+  expect(await height()).toBeCloseTo(unticked, 0)
+  await rows()
+  await page.locator("#staking-recipient-change").click()
+
+  await page.locator("#staking-recipient-acknowledged").check()
+  await dialog.getByRole("button", {name: "Done", exact: true}).click()
+  await expectForOther(page)
+  expect(await height()).toBeCloseTo(unticked, 0)
+  expect(await band()).toBeLessThanOrEqual(previewRoom + 12)
+  await rows()
+  // A mouse keeps the choice and Change at the size of their words.
+  for (const area of await pressAreas(page)) {
+    expect(area.height, `${area.selector} at ${width}`).toBeLessThan(30)
+  }
+  // The form alone fits the screen at every width, so its picture is whole.
+  await page
+    .locator("#staking-amount-form")
+    .screenshot({path: test.info().outputPath(`stake-other-address-${width}.png`)})
+
+  // Tab from Amount to the Stake button only lands on rows a person can see,
+  // ticked here and unticked below.
+  const tabToStake = async () => {
+    await page.getByLabel("Amount", {exact: true}).focus()
+    let reachedSubmit = false
+    for (let press = 0; press < 8 && !reachedSubmit; press++) {
+      await page.keyboard.press("Tab")
+      const focused = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement
+        return {
+          seen: el.checkVisibility({visibilityProperty: true}) && !el.closest("[inert]"),
+          submit: el.matches("button.stake-submit"),
+        }
+      })
+      expect(focused.seen).toBe(true)
+      reachedSubmit = focused.submit
+    }
+    expect(reachedSubmit).toBe(true)
+  }
+  await tabToStake()
+
+  await toggle.uncheck()
+  await expect(dialog).toBeHidden()
+  expect(await height()).toBeCloseTo(unticked, 0)
+  expect(await band()).toBeLessThan(1)
+  await tabToStake()
+
+  // Unstake has its own height, whichever way the box was left on Stake.
+  const unstakeTab = page.getByRole("tab", {name: "Unstake", exact: true})
+  const stakeTab = page.getByRole("tab", {name: "Stake", exact: true})
+  await unstakeTab.click()
+  await expect(toggle).toBeHidden()
+  const unstake = await height()
+  await stakeTab.click()
+  await toggle.check()
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+  await unstakeTab.click()
+  await expect(toggle).toBeHidden()
+  expect(await height()).toBeCloseTo(unstake, 0)
 })
 
 // The signed-in card is one small trade card: the switch, the amount, the button,
@@ -1128,12 +1050,20 @@ test("Stake trade card keeps one height whatever it shows", async ({page}) => {
   await expect(page.locator("#staking-approve")).toBeVisible()
   for (const width of [1280, 390]) {
     await page.setViewportSize({width, height: 1400})
-    const [approve, next] = await Promise.all(
-      ["#staking-approve", "#staking-primary"].map(async id => (await page.locator(id).boundingBox())!),
-    )
-    expect(approve.width, `Approve width at ${width}`).toBeCloseTo(next.width, 0)
-    expect(approve.height, `Approve height at ${width}`).toBeCloseTo(next.height, 0)
-    expect(approve.y === next.y, `Approve beside the stake at ${width}`).toBe(width > 768)
+    // Read once the card has settled at the new width.
+    const pair = async () => {
+      const [approve, next] = await Promise.all(
+        ["#staking-approve", "#staking-primary"].map(async id => (await page.locator(id).boundingBox())!),
+      )
+      return {
+        sameWidth: Math.abs(approve.width - next.width) < 0.5,
+        sameHeight: Math.abs(approve.height - next.height) < 0.5,
+        beside: approve.y === next.y,
+      }
+    }
+    await expect
+      .poll(pair, {message: `Approve beside the stake, at its size, at ${width}`})
+      .toEqual({sameWidth: true, sameHeight: true, beside: width > 768})
     expect(await spill(), `approval sent at ${width}`).toEqual(clean)
   }
 })
@@ -1146,13 +1076,11 @@ test("Claim USDC still reaches the wallet while USDC rewards wait on a top-up", 
   await signIn(page, usdcShortBearer)
   const note = page.locator("#staking-claim-note")
 
-  for (const width of [390, 1280]) {
-    await page.setViewportSize({width, height: 1400})
-    await page.goto("/stake")
-    await selectWallet(page, usdcShortWallet)
-    await expect(note).not.toBeEmpty()
-    await page.locator("#staking-actions").screenshot({path: picture(`stake-rewards-${width}`)})
-  }
+  await page.setViewportSize({width: 390, height: 1400})
+  await page.goto("/stake")
+  await selectWallet(page, usdcShortWallet)
+  await expect(note).not.toBeEmpty()
+  await page.locator("#staking-actions").screenshot({path: picture("stake-rewards-390")})
 
   const claim = page.locator("#staking-claim_usdc")
   await expect(claim).toBeEnabled()
@@ -1173,25 +1101,24 @@ test.describe("on a touch phone", () => {
     await installWallet(page)
     await signIn(page)
 
-    for (const width of [390, 320]) {
-      await page.setViewportSize({width, height: 900})
-      await page.goto("/stake")
-      await selectWallet(page, wallet)
-      await page.getByLabel("Amount", {exact: true}).fill("1")
-      await page.locator("#staking-for-other").check()
-      await page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true}).fill(otherWallet)
-      await page.locator("#staking-recipient-acknowledged").check()
-      await page.locator("#staking-recipient-dialog").getByRole("button", {name: "Done", exact: true}).click()
-      await expectForOther(page)
-      await page.locator(".stake-for-other").scrollIntoViewIfNeeded()
+    const width = 320
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/stake")
+    await selectWallet(page, wallet)
+    await page.getByLabel("Amount", {exact: true}).fill("1")
+    await page.locator("#staking-for-other").check()
+    await page.locator("#staking-recipient-dialog").getByLabel("Address", {exact: true}).fill(otherWallet)
+    await page.locator("#staking-recipient-acknowledged").check()
+    await page.locator("#staking-recipient-dialog").getByRole("button", {name: "Done", exact: true}).click()
+    await expectForOther(page)
+    await page.locator(".stake-for-other").scrollIntoViewIfNeeded()
 
-      const areas = await pressAreas(page)
-      for (const area of areas) {
-        expect(area.height, `${area.selector} at ${width}`).toBeGreaterThanOrEqual(44)
-        expect(area.pressed, `${area.selector} at ${width}`).toBe(true)
-      }
-      expect(areas[1].width, `Change at ${width}`).toBeGreaterThanOrEqual(44)
+    const areas = await pressAreas(page)
+    for (const area of areas) {
+      expect(area.height, `${area.selector} at ${width}`).toBeGreaterThanOrEqual(44)
+      expect(area.pressed, `${area.selector} at ${width}`).toBe(true)
     }
+    expect(areas[1].width, `Change at ${width}`).toBeGreaterThanOrEqual(44)
   })
 })
 
@@ -1234,15 +1161,6 @@ function picture(name: string): string {
   return `${process.env.REGENTS_SHOT_DIR ?? test.info().outputPath()}/${name}.png`
 }
 
-async function signOut(page: Page): Promise<void> {
-  const csrfResponse = await page.request.get("/auth/csrf")
-  const {csrf_token: csrfToken} = (await csrfResponse.json()) as {csrf_token: string}
-  const response = await page.request.delete("/auth/privy/session", {
-    headers: {"x-csrf-token": csrfToken},
-  })
-
-  expect(response.status()).toBe(200)
-}
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(
     ({wallet, sendsKey}) => {
