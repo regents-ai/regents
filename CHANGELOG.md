@@ -5774,3 +5774,16 @@ changelog line moves from the published 6 Nov entry to this release's.
   home, /app, route catalog, public read errors, product pages, API contract and the other
   product-order readers; the browser walks `homepage.spec.ts`, `founder_shell.spec.ts`,
   `agent_tools.spec.ts` and `lab_map.spec.ts` (43). No migration, no new dependency.
+
+## 2026-11-12 — Released v301 (home page crown, prompt line, product order)
+
+- v301 at 20:48Z, image registry.fly.io/regents-sh-web:main-c1d2dee245b4, commit c1d2dee2.
+  Full check exit 0 on c1d2dee2, seven gates in one run. Two runs before it stopped: one on
+  the route handoff, stale after the side menu's order changed, and one on the new
+  crown-and-picture browser test, which pressed the picture before its panels had opened;
+  the test now repeats its sweep until a panel is there. No migration.
+- Live read, signed out, headless Chromium with WebGPU at 1280, 390 and 320: the crown opens
+  and closes the panel; the prompt line copies the whole prompt; its window opens and closes
+  by Escape and by X; tiles and /app cards in the new order; no sideways scroll, no errors.
+- Rollback: v300's image main-1ac1834f7f2e.
+- Not proven live: Safari, a real finger on a phone, and the signed-in page.
