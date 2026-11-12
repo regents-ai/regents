@@ -5414,3 +5414,19 @@ changelog line moves from the published 6 Nov entry to this release's.
   knob, the light, the morph, the blocks and the shader. Style check: 22 breaks, unchanged. No
   migrations.
 - Not done: forced colours and WebKit are not walked.
+
+## 2026-11-12 — Released v294 (template rollouts: design system, forms, confirm window, theme switch)
+
+- Live: v294, image registry.fly.io/regents-sh-web:main-847ece1d61b5; /capabilities.json
+  build.commit 847ece1d. Rollback: v293, image registry.fly.io/regents-sh-web:main-abb614365041
+  (abb61436). No migrations.
+- Contents: design-system c4244b38; the site's own confirm window; the Pair New Agent list's
+  motion; `migrations_applied` on /api/v1/health (API description 5.3.0); forms checked on
+  leaving a field; five colour roles; 44px presses on touch; docs tables as cards under 768;
+  the light and dark switch.
+- Full check on 847ece1d: exit 0, all six gates.
+- Live read in headless Chromium at 1280, 390 and 320: fourteen pages answer 200 with no
+  sideways scroll and no console errors; the theme switch turns on /app and /privacy and its
+  choice survives a reload; /api/v1/health answers {"status":"ok","migrations_applied":true}.
+- Not seen live: the signed-in account menu's switch (no one signs in to production from a
+  check) and the switch's drawn version (the check browser has no GPU).
