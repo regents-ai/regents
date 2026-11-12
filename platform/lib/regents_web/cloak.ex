@@ -40,7 +40,7 @@ defmodule RegentsWeb.Cloak do
       name: "Rewriting",
       headline: "Rewritten before it leaves.",
       line: "A local model rewrites each prompt on your Mac before it is sent.",
-      tint: "#9fb4d8"
+      tint: "#a97bf0"
     },
     %{
       id: "cloak/circuit",

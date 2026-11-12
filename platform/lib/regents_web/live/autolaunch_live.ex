@@ -120,7 +120,7 @@ defmodule RegentsWeb.AutolaunchLive do
     %{
       title: "Fees reach stakers.",
       copy:
-        "Revstake trades pay 3%: 2% to the token's stakers and 1% to Regent. Memestock trades pay 4.3% on the stock amount of every trade: 3% to the token's stakers, 1% to REGENT stakers and 0.3% to the creator. Both pools also charge the standard 0.3%, and what the locked liquidity earns goes to the token's staking. The rates are fixed in the contracts."
+        "Revstake trades pay 3%: 2% to the token's stakers and 1% to Regent. Memestock trades pay 4.3% on the stock amount of every trade: 3% to the token's stakers, 1% to Regent and 0.3% to the creator. Both pools also charge the standard 0.3%, and what the locked liquidity earns goes to the token's staking. The rates are fixed in the contracts."
     }
   ]
 
