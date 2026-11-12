@@ -52,7 +52,7 @@ test("[U2] homepage is server-readable: name, line, actions, agent prompt and pr
   await expect(glass.getByRole("button", {name: "Agent Tools"})).toBeVisible()
 
   const tabs = glass.getByRole("navigation", {name: "Products"}).getByRole("link")
-  await expect(tabs).toHaveCount(5)
+  await expect(tabs).toHaveCount(6)
   for (const [index, {name, site}] of products.entries()) {
     await expect(tabs.nth(index)).toHaveText(`${name}, opens in a new tab`)
     await expect(tabs.nth(index)).toHaveAttribute("href", site)
@@ -61,6 +61,8 @@ test("[U2] homepage is server-readable: name, line, actions, agent prompt and pr
   }
   await expect(tabs.nth(4)).toHaveText("Protocol")
   await expect(tabs.nth(4)).toHaveAttribute("href", "/stake")
+  await expect(tabs.nth(5)).toHaveText("Cloak")
+  await expect(tabs.nth(5)).toHaveAttribute("href", "/cloak")
 
   await expect(glass.getByRole("heading", {level: 2, name: "Products"})).toBeVisible()
   // The copyright stands outside the panel, at the window's bottom right.
@@ -89,6 +91,7 @@ for (const {name, width, height} of [
       "Techtree, opens in a new tab",
       "Keyfleet, opens in a new tab",
       "Protocol",
+      "Cloak",
     ])
     await expect(page.locator("#home-content a.rl-hero-cta")).toHaveAttribute("href", "/stake")
     await assertNoOverflow(page)

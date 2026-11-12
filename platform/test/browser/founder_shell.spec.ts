@@ -129,13 +129,14 @@ test("the public homepage presents the panel over its picture", async ({page}) =
 
   await expect(page.locator("#public-home")).toBeVisible()
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
-  // The panel's product tabs name the four products and the protocol.
+  // The panel's product tabs name the four products, the protocol and Cloak.
   await expect(page.locator("#home-glass .rl-product-tab")).toHaveText([
     "Patchbay, opens in a new tab",
     "Autolaunch, opens in a new tab",
     "Techtree, opens in a new tab",
     "Keyfleet, opens in a new tab",
     "Protocol",
+    "Cloak",
   ])
   expect(await page.evaluate(() => document.fonts.check('16px "Geist Serif"'))).toBe(true)
   await expect(page.locator("#app-shell")).toHaveCount(0)

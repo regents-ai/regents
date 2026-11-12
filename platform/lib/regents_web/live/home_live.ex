@@ -324,13 +324,14 @@ defmodule RegentsWeb.HomeLive do
   end
 
   # Each product tab opens that product's site in a new tab; Protocol opens the
-  # staking page. Founder decision (2026-09-28): the tab is named Protocol.
+  # staking page and Cloak its page here. Founder decision (2026-09-28): the tab
+  # is named Protocol.
   defp nav_links do
     sites =
       for product <- hero_products(),
           do: {String.capitalize(product.name), product.name, product.site, true}
 
-    sites ++ [{"Protocol", "protocol", ~p"/stake", false}]
+    sites ++ [{"Protocol", "protocol", ~p"/stake", false}, {"Cloak", "cloak", ~p"/cloak", false}]
   end
 
   # The four products and their public website destinations. The product pages

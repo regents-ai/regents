@@ -5219,3 +5219,18 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Live read of /redeem/gallery in headless Chromium at 390, 1280 and 320: 28, 65 and 32 stills
   loaded, every one 200, no GIF requested, 1,999 OpenSea links, no sideways scroll, no console
   errors, page quiet in under a second. /, /stake and /app answer 200.
+
+## 2026-11-12 — Home: six charcoal product tabs, each with its product's dot (Sean, 12 Nov)
+
+- Sean picked the dot style ("implement it with the dot") over the tabs filled with each
+  product's colours, which read as a rainbow. The row is now six charcoal tabs flowing in one
+  quiet charcoal: Patchbay, Autolaunch, Techtree, Keyfleet, Protocol and Cloak, new, which
+  opens /cloak here. Each carries a small dot in its product's colour in its top corner:
+  Patchbay #9bb4ff, Autolaunch #ffb188, Techtree #2fa866, Keyfleet #ff5b19, Protocol #e5e3d2
+  and Cloak #a97bf0 (Cloak has no palette of its own yet; Sean can name another).
+- A wide panel holds the six in one row with names at 12px; a narrow one lays them out two
+  columns of three. A press scales tab, dot and flow together.
+- The home page's agent copy lists Cloak after Protocol, as it reads the same list.
+- Built by the product tiles lane (handoffs/regents-product-tiles-2026-11-11/dot-2026-11-12).
+- Check: `platform/assets/test/product_tiles.test.ts`, `platform/test/regents_web/home_live_test.exs`,
+  `platform/test/browser/homepage.spec.ts`, `platform/test/browser/founder_shell.spec.ts`.

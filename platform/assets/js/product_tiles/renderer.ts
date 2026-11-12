@@ -9,7 +9,9 @@ export type Box = readonly [number, number, number, number]
 
 /** The row the canvas sits behind. */
 export type TileRow = {
-  readonly looks: readonly TileLook[]
+  readonly look: TileLook
+  /** Tiles in the row. */
+  readonly count: number
   /** Where each tile stands this frame, press included. */
   measure(): readonly Box[]
   /** CSS pixels across the canvas's own box, whatever transform stands round it. */
@@ -29,7 +31,7 @@ const LONGEST_STEP = 1 / 20
 const GLOW_EASE = 0.12
 
 const zero = [0, 0, 0, 0] as const
-const EMPTY = {box: zero, deep: zero, mid: zero, light: zero, sheen: zero, calm: zero, pointer: zero}
+const EMPTY = {box: zero, pointer: zero}
 
 export async function createProductTilesRenderer(
   canvas: HTMLCanvasElement,
@@ -37,15 +39,17 @@ export async function createProductTilesRenderer(
   onDeviceLost: () => void,
   row: TileRow,
 ): Promise<ProductTilesRenderer> {
-  const {looks} = row
-  if (looks.length > TILE_SLOTS) throw new Error(`the product row draws at most ${TILE_SLOTS} tiles`)
-  const ranges = looks.map(labelRange)
-  const colors = looks.map(look => ({
+  const {look, count} = row
+  if (count > TILE_SLOTS) throw new Error(`the product row draws at most ${TILE_SLOTS} tiles`)
+  const [low, high] = labelRange(look)
+  const colors = {
     deep: [...look.deep, 1],
     mid: [...look.mid, 1],
     light: [...look.light, 1],
     sheen: [...look.sheen, 1],
-  }))
+    calm: [low, high, 0, 0],
+  }
+  const slots = Array.from({length: count}, (_, tile) => tile)
 
   const gpu = await init()
   try {
@@ -63,9 +67,9 @@ export async function createProductTilesRenderer(
 
     let time = 0
     let last = performance.now()
-    const glow = looks.map(() => 0)
-    const wanted = looks.map(() => 0)
-    const pointer = looks.map((): readonly [number, number] => [0, 0])
+    const glow = slots.map(() => 0)
+    const wanted = slots.map(() => 0)
+    const pointer = slots.map((): readonly [number, number] => [0, 0])
 
     return {
       point(tile, at) {
@@ -96,19 +100,13 @@ export async function createProductTilesRenderer(
         const px = ([left, top, right, bottom]: Box) =>
           [left * width, top * height, right * width, bottom * height] as const
         const tiles = Array.from({length: TILE_SLOTS}, (_, tile) => {
-          // The row measures one box for each look, so the slots past it stay empty.
+          // The row measures one box for each tile, so the slots past them stay empty.
           const placed = boxes[tile]
           if (!placed) return EMPTY
-          const [low, high] = ranges[tile]!
           const [x, y] = pointer[tile]!
-          return {
-            box: px(placed),
-            ...colors[tile]!,
-            calm: [low, high, glow[tile]!, 0],
-            pointer: [x * width, y * height, 0, 0],
-          }
+          return {box: px(placed), pointer: [x * width, y * height, glow[tile]!, 0]}
         })
-        shader.set({params: {tiles, view: [width / row.width(), time, looks.length, 0]}})
+        shader.set({params: {tiles, ...colors, view: [width / row.width(), time, count, 0]}})
         frame(gpu, current => current.pass(stage, shader))
       },
       settled() {

@@ -14,7 +14,7 @@
   .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
   .rl-brand { display: flex; gap: var(--space-1); align-items: center; font-family: var(--font-family-title); text-decoration: none; }
   .rl-brand img { width: 2rem; height: 2rem; object-fit: contain; }
-  .rl-product-tabs { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .625rem; }
+  .rl-product-tabs { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
   .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
@@ -171,62 +171,48 @@
 }
 .rg-button.rl-token-link::after { content: none; }
 
-/* Each product tile wears its product's own colours, taken from that product's
-   site: a ramp from deep through mid to light that the flow runs along, the light
-   that drifts across it, and the ink of its words. They are registered so the
-   canvas reads them back as plain rgb(). */
+/* The product tiles are one charcoal set: a ramp from deep through mid to light
+   that the flow runs along, the light that drifts across it, and the platinum ink
+   of the words. They are registered so the canvas reads them back as plain rgb().
+   Each tile's only colour of its own is a small dot from its product's palette. */
 @property --tile-deep { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
-@property --tile-mid { syntax: "<color>"; inherits: true; initial-value: #161616; }
-@property --tile-light { syntax: "<color>"; inherits: true; initial-value: #2e2e2c; }
-@property --tile-sheen { syntax: "<color>"; inherits: true; initial-value: #484844; }
+@property --tile-mid { syntax: "<color>"; inherits: true; initial-value: #141414; }
+@property --tile-light { syntax: "<color>"; inherits: true; initial-value: #222220; }
+@property --tile-sheen { syntax: "<color>"; inherits: true; initial-value: #3a3a36; }
 @property --tile-ink { syntax: "<color>"; inherits: true; initial-value: #e5e3d2; }
-/* Patchbay's blues: the accent of its light theme, then the accent and primary
-   shade of its dark theme; its foreground drifts across them, and its navy
-   on-accent is the words. */
-.rl-product-tab[data-product-tile="patchbay"] {
-  --tile-deep: #294ec3; --tile-mid: #9bb4ff; --tile-light: #b3c6ff;
-  --tile-sheen: #eef2ff; --tile-ink: #142247;
+.rl-product-tabs {
+  --tile-deep: #0b0b0b; --tile-mid: #141414; --tile-light: #222220;
+  --tile-sheen: #3a3a36; --tile-ink: #e5e3d2;
 }
-/* Autolaunch's soft orange: its primary shade, softened toward its light surface;
-   that surface drifts across it, and its charcoal on-accent is the words. */
-.rl-product-tab[data-product-tile="autolaunch"] {
-  --tile-deep: #ff8a4d; --tile-mid: #ffb188; --tile-light: #fecbae;
-  --tile-sheen: #f6f4ea; --tile-ink: #161616;
-}
-/* Techtree's greens: its band and secondary greens up to its lime, its dark ground
-   for the words. */
-.rl-product-tab[data-product-tile="techtree"] {
-  --tile-deep: #238450; --tile-mid: #2fa866; --tile-light: #c8f25c;
-  --tile-sheen: #e4eee6; --tile-ink: #0d1611;
-}
-/* Keyfleet's tangerine: its darker warm accent (tangerine into charcoal), the
-   tangerine of its main button, and tangerine lifted toward platinum, each a mix of
-   two of its swatches as its palette asks. */
-.rl-product-tab[data-product-tile="keyfleet"] {
-  --tile-deep: #ae4723; --tile-mid: #ff5b19; --tile-light: #ff7442;
-  --tile-sheen: #fa9f79; --tile-ink: #161616;
-}
-/* The protocol's charcoal: the platform's ground and accent, lifted toward
-   platinum, with platinum words. */
-.rl-product-tab[data-product-tile="protocol"] {
-  --tile-deep: #0b0b0b; --tile-mid: #161616; --tile-light: #2e2e2c;
-  --tile-sheen: #484844; --tile-ink: #e5e3d2;
-}
+/* Patchbay's dark-theme accent, Autolaunch's soft orange, Techtree's green,
+   Keyfleet's tangerine, the platform's platinum, and a violet for Cloak. */
+.rl-product-tab[data-product-tile="patchbay"] { --tile-dot: #9bb4ff; }
+.rl-product-tab[data-product-tile="autolaunch"] { --tile-dot: #ffb188; }
+.rl-product-tab[data-product-tile="techtree"] { --tile-dot: #2fa866; }
+.rl-product-tab[data-product-tile="keyfleet"] { --tile-dot: #ff5b19; }
+.rl-product-tab[data-product-tile="protocol"] { --tile-dot: #e5e3d2; }
+.rl-product-tab[data-product-tile="cloak"] { --tile-dot: #a97bf0; }
 
-/* Quiet, equally padded keys over their product's colours. One canvas behind the
-   row draws them flowing; until it has, each key shows its still gradient. The
+/* Quiet, equally padded charcoal keys. One canvas behind the row draws them
+   flowing; until it has, each key shows its still gradient. The
    shared Anime.js press scales the paint and label, never the hit target. */
 .rg-button.rl-product-tab {
   --rg-cut-control: 0px;
   --rg-p-accent: transparent;
   --rg-p-on-accent: var(--tile-ink);
   --rg-button-border-color: color-mix(in srgb, var(--tile-ink) 28%, transparent);
-  min-width: 0; min-height: 3.25rem; padding: .875rem .375rem;
-  border-radius: 0; font-size: .8125rem; line-height: 1.25;
-  font-weight: 400; letter-spacing: .06em; text-transform: uppercase;
+  min-width: 0; min-height: 3.25rem; padding: .875rem .25rem;
+  border-radius: 0; font-size: .75rem; line-height: 1.25;
+  font-weight: 400; letter-spacing: .04em; text-transform: uppercase;
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
-.rg-button.rl-product-tab::after { content: none; }
+/* The product's dot, in the key's top corner. It is painted on a layer the size of
+   the key, so the shared press scales it with the key. */
+.rg-button.rl-product-tab::after {
+  all: unset; content: ""; position: absolute; inset: -1px; pointer-events: none;
+  background: radial-gradient(circle at .625rem .625rem, var(--tile-dot) 0 .1875rem, transparent calc(.1875rem + .5px));
+  transform: scale(var(--rg-press-scale, 1));
+}
 /* The prompt's copy button is a full 44px tall, and its words line up with the box's
    inner edge. */
 .rg-button.rl-hero-prompt__copy { min-height: 2.75rem; margin-inline-end: -.5rem; padding-inline: .5rem; font-size: .875rem; }
@@ -286,13 +272,11 @@
   }
 }
 .rg-button.rl-product-tab:active { --rg-button-border-color: var(--tile-ink); }
-/* A narrow panel lays the tabs out two to a row, Protocol across the last. */
+/* A narrow panel lays the tabs out two to a row. */
 @container (max-width: 36rem) {
   .rl-product-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rl-product-tabs > :last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 23.99rem) {
-  .rg-button.rl-product-tab { font-size: .75rem; }
   /* At 320 the brand and the links share one row only with this narrower gap. */
   .rl-header-bar { column-gap: .75rem; }
 }
@@ -301,9 +285,10 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rg-button.rl-product-tab::before { transition: none; }
+  .rg-button.rl-product-tab::after { transform: none; }
 }
 @media (forced-colors: active) {
-  .rl-product-tab__still, .rl-product-tabs__stage { display: none; }
+  .rl-product-tab__still, .rl-product-tabs__stage, .rg-button.rl-product-tab::after { display: none; }
   .rg-button.rl-product-tab { border-color: ButtonText; color: LinkText; }
   .rg-button.rl-product-tab:focus-visible { outline-color: Highlight; }
 }

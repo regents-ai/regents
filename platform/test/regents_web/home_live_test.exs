@@ -5,8 +5,8 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Invariants covered:
   # - smoke: 200 mount and the public-home landmark, outside the signed-in shell
-  # - launch-gate: in-app links stay on /stake, the public agent guide, the agent
-  #   start page, or in-page anchors the document owns
+  # - launch-gate: in-app links stay on /stake, /cloak, the public agent guide, the
+  #   agent start page, or in-page anchors the document owns
 
   test "SMOKE: the homepage mounts and keeps its landmark", %{conn: conn} do
     assert conn |> get("/") |> html_response(200)
@@ -15,9 +15,9 @@ defmodule RegentsWeb.HomeLiveTest do
     refute has_element?(view, "#app-shell")
   end
 
-  # Stake is the one product page the homepage sends visitors to; every other
-  # internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/stake /start /agents.md /llms.txt /docs /about)
+  # Stake and Cloak are the product pages the homepage sends visitors to; every
+  # other internal link is a public page that stays open while the gate is closed.
+  @open_paths ~w(/stake /cloak /start /agents.md /llms.txt /docs /about)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -45,7 +45,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, "#home-content a.rl-hero-cta", "href") == ["/stake"]
 
     assert attribute(html, "#home-glass nav.home__foot a", "href") ==
-             ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake)
+             ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake /cloak)
   end
 
   test "PLANNED_HAS_NO_LINK: a planned feature is never offered as something to try" do
@@ -66,7 +66,7 @@ defmodule RegentsWeb.HomeLiveTest do
     order =
       ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
         ["Agent prompt", HomeLive.agent_prompt(), "Agent Tools"] ++
-        ["Products"] ++ ~w(Patchbay Autolaunch Techtree Keyfleet Protocol)
+        ["Products"] ++ ~w(Patchbay Autolaunch Techtree Keyfleet Protocol Cloak)
 
     assert in_order?(text(html, "#home-glass"), order)
     assert in_order?(HomeLive.agent_markdown(), order ++ ["© 2026 Regents Labs"])
@@ -101,7 +101,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert text(html, "#home-products-title") == "Products"
 
     assert attribute(html, "#home-glass .home__foot a", "id") ==
-             Enum.map(~w(patchbay autolaunch techtree keyfleet protocol), &"home-nav-#{&1}")
+             Enum.map(~w(patchbay autolaunch techtree keyfleet protocol cloak), &"home-nav-#{&1}")
 
     assert text(html, "#public-home > .home__copyright") == "© 2026 Regents Labs"
   end

@@ -1,5 +1,5 @@
 /**
- * Each product tile's colours, and the part of its ramp its label stays readable on.
+ * The product row's colours, and the part of their ramp a tile's label stays readable on.
  *
  * Everything here works in sRGB, the space the tile's canvas and stylesheet both
  * paint in, so a mix computed here is the mix the visitor sees.
@@ -9,8 +9,8 @@
 export type Rgb = readonly [number, number, number]
 
 /**
- * A tile's colours, from its product's own site: the ramp the flow runs along
- * (deep, mid, light), the light that drifts across it, and the label's ink.
+ * The colours every tile shares: the charcoal ramp the flow runs along (deep, mid,
+ * light), the light that drifts across it, and the label's ink.
  */
 export type TileLook = {
   readonly deep: Rgb

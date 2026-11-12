@@ -14,9 +14,9 @@ export type ProductTilesOptions = CanvasIslandOptions<ProductTilesRenderer> & {
 
 const TILE = "[data-product-tile]"
 
-/** A tile's colours, as its product's rule in the stylesheet sets them. */
-const lookOf = (tile: HTMLElement): TileLook => {
-  const style = getComputedStyle(tile)
+/** The row's colours, as the stylesheet sets them. */
+const lookOf = (row: HTMLElement): TileLook => {
+  const style = getComputedStyle(row)
   const color = (name: string) => channels(style.getPropertyValue(name))
   return {
     deep: color("--tile-deep"),
@@ -51,7 +51,8 @@ const within = (box: DOMRect, canvas: DOMRect, scale: number): Box => {
 const rowOf = (root: HTMLElement, canvas: HTMLCanvasElement): TileRow => {
   const tiles = [...root.querySelectorAll<HTMLElement>(TILE)]
   return {
-    looks: tiles.map(lookOf),
+    look: lookOf(root),
+    count: tiles.length,
     measure() {
       const frame = canvas.getBoundingClientRect()
       return tiles.map(tile => within(tile.getBoundingClientRect(), frame, pressOf(tile)))
@@ -68,9 +69,10 @@ const browserLoadTiles =
   }
 
 /**
- * The product row's tiles, each in its own product's colours, drawn as one flow on
- * one canvas behind the whole row. The flow moves by itself, so it is never drawn
- * for a visitor who asked for less motion; the stylesheet's still gradient stays.
+ * The product row's charcoal tiles, drawn as one flow on one canvas behind the
+ * whole row; each tile's dot in its product's colour is the stylesheet's. The flow
+ * moves by itself, so it is never drawn for a visitor who asked for less motion;
+ * the stylesheet's still gradient stays.
  * A pointer that can hover lights the tile under it.
  */
 export const createProductTilesController = (
