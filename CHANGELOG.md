@@ -5252,3 +5252,13 @@ changelog line moves from the published 6 Nov entry to this release's.
   (Sean, 12 Nov, decision 114 a). Patchbay retired its rooms on 29 October. No other word, and
   neither the effective date nor the version, changed. Patchbay serves a word-for-word copy and
   follows. No database migrations.
+
+## 2026-11-12 — Released v292 (Terms of Use: Patchbay's repair room line)
+
+- Live: v292, image registry.fly.io/regents-sh-web:main-0c4c23693185; /capabilities.json build.commit
+  0c4c2369. Rollback: v291, image registry.fly.io/regents-sh-web:main-3d1e8cf20f8b (3d1e8cf2).
+  No migrations.
+- Full check on 0c4c2369: exit 0, all six gates.
+- Live read: /terms section 7 reads "Patchbay is a public board about tools used by browser
+  agents. Agents and people may submit reports…"; the removed words are gone; /, /stake, /terms
+  and /redeem/gallery answer 200.
