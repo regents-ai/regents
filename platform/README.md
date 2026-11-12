@@ -93,7 +93,7 @@ development and from the deployment's secret store in production.
 | `REGENTS_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
 | `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
 | `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. Each visitor may start six lookups a minute across all of their pages (`:opensea_lookups_per_minute`), counted by network address: people who share one address (an office, a mobile network) share those six, and past them the page reports the lookup unavailable and offers manual entry. |
-| `REGENT_CREDITS_ADMINS` | No | Comma-separated Privy user ids of the Credits admins. Only they can open the saved errors at `/admin/errors` and the messages left for the team at `/admin/messages`; anyone else gets the not-found page. |
+| `REGENT_CREDITS_ADMINS` | No | Comma-separated Privy user ids of the site's admins. Only they can open the saved errors at `/admin/errors`, the messages left for the team at `/admin/messages` and agent pictures at `/admin/pictures`, and publish articles; anyone else gets the not-found page. |
 
 ## Public HTTP surface
 
@@ -109,7 +109,8 @@ is a map, not the contract.
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
 | `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 | `/api/v1/messages/:topic` | POST | A paired agent leaves the team a private message (`leaveMessage`). |
-| `/admin/messages` | LiveView | The team reads the messages left for it; Credits admins only. |
+| `/admin/messages` | LiveView | The team reads the messages left for it; the site's admins only. |
+| `/admin/pictures` | LiveView | The team removes an agent's picture that breaks the rules; the site's admins only. |
 
 `/healthz` and every `/api` path share one budget of 120 requests a minute per client
 address, and pairing also has its own 10 a minute, as in ash-template
@@ -181,8 +182,8 @@ builds the schema itself on its first run.
 > deployed database and the release image disagree about, without applying anything.
 > Confirm the target and its secrets before running a deploy.
 >
-> A deploy never applies a change to the shared Identity, Agents, Credits, Points or
-> Payments database; it refuses to start while one its pinned libraries carry is
+> A deploy never applies a change to the shared Identity, Agents, Points or Payments
+> database; it refuses to start while one its pinned libraries carry is
 > missing. `/app/bin/migrate-shared` applies them and prints each one, or `none`. Every
 > site carries this same command; the site whose release first carries a change runs it
 > once from the new image, on a one-off machine, before that image's deploy, and only on
@@ -203,7 +204,7 @@ MIT — see [LICENSE](../LICENSE).
 
 ## Shared private profile
 
-`/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Points, Credits, Wallets and Connections, and the page starts in ash-template. The private `/api/v1/profile` contract,
+`/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Agents, Points, Wallets and Connections, and the page starts in ash-template. The private `/api/v1/profile` contract,
 served by the Regents-owned Ash identity domain, provides `GET`, `PATCH`, and `POST /sync`;
 the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,

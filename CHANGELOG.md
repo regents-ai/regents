@@ -5604,3 +5604,45 @@ changelog line moves from the published 6 Nov entry to this release's.
   project and GitHub lists no open alerts.
 - Checks: the required-fixes check from `identity/` and from `platform/`, `mix hex.audit`,
   `mix deps.unlock --check-unused`, and the identity check (16 tests). No migrations.
+
+## 2026-11-12 — Credits removed
+
+- Credits are gone from regents.sh: the balance and Buy Credits button in the header,
+  Credits in the account menu, the Credits tab in Account, and the pages /account/credits,
+  /credits/refunds and /admin/credits, which now answer the not-found page with no redirect.
+  Agent spending, the refund rules and the Credits admin page go with them, and so do their
+  styles (`platform/assets/css/components/credits.css`), scripts, visit-log events and
+  route catalog entries.
+- Agents: `GET /api/v1/account/balances` and `POST /api/v1/account/credits/history`, the
+  browser tools `account_balances` and `account_credits_history`, the matching
+  capabilities text, and the commands `regents protocol account balances` and
+  `account credits-history` in `cli/commands.json` and `cli/COMMANDS.md` are gone. Points
+  stay at `GET /api/v1/account/points`. The OpenAPI JSON and the YAML contract are version
+  6.0.0, as removals always take a major version here.
+- Nothing here was paid for with Credits; USDC balances are unchanged.
+- Admins: the site's admins are the same accounts as before, still read from the
+  production setting `REGENT_CREDITS_ADMINS`, now into `config :regents, :admins` and
+  `config :regent_agents, admins` (`Regents.admin?/1`). They publish articles and read
+  /admin/errors and /admin/messages. Removing an agent's picture moves from
+  /admin/credits to the new /admin/pictures, which anyone else sees as not found.
+- Shared libraries: elixir-utils moves from `faa538d4` to `f8801d79`, whose changes touch
+  only `payments/` and `agents/README.md`. `regent_credits` and the packages only it
+  needed (ash_money, ash_double_entry, ex_money, ex_money_sql, localize, localize_sql,
+  gettext, expo) leave `platform/mix.exs` and `platform/mix.lock` (114 entries to 105).
+  The release no longer runs the Credits migrator or checks the pairing grants table.
+  Nothing on the site reads or writes the Credits tables; dropping them from the shared
+  database is the template's job once every site has removed Credits. No migration here.
+- Public docs drop every Credits section, and the Dots, Grok Bot and Muse guides now name
+  reads that exist (`/api/agent/v1/account`, `/api/v1/account/points`,
+  `/api/agent/v1/staking/position`). `docs/changes.md` records the removal. The founder-shell
+  route handoff is regenerated with `mix regents.route_handoff`.
+- `blog/regents-labs-today/post.md` no longer mentions Credits; the article saved on
+  production changes only when it is put again.
+- Checks: strict compile; format; credo strict (386 files, no issues); `ash.codegen
+  --check`; `usage_rules.sync --check`; `deps.unlock --check-unused`; route handoff
+  current; xref compile-connected still 42; `mix test --warnings-as-errors` 676 passed
+  (8 properties, 668 tests, 1 excluded); `make check-cli` ok; typecheck; 336 script
+  tests; 165 browser checks. A signed-out headless Chromium read at 1280 and 390: no
+  Credits in the /app header; /account/credits, /credits/refunds, /admin/credits and
+  /admin/pictures show the not-found page; /, /app, /account, /stake, /agents and /docs
+  answer 200.
