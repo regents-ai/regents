@@ -31,7 +31,44 @@ defmodule RegentsWeb.Cloak do
     "Each protection must pass its tests before release."
   ]
 
+  # The template's four Cloak cards (`AshTemplateWeb.ValueCardsLive`, ash-template
+  # 4d972bbc^). Cloak has no site of its own, so each opens the Protections on
+  # its page.
+  @cards [
+    %{
+      id: "cloak/rewrite",
+      name: "Rewriting",
+      headline: "Rewritten before it leaves.",
+      line: "A local model rewrites each prompt on your Mac before it is sent.",
+      tint: "#9fb4d8"
+    },
+    %{
+      id: "cloak/circuit",
+      name: "Tor circuits",
+      headline: "A circuit per conversation.",
+      line: "Each conversation travels over its own Tor circuit.",
+      tint: "#b488f0"
+    },
+    %{
+      id: "cloak/cover",
+      name: "Cover traffic",
+      headline: "Quiet looks like busy.",
+      line: "Cover traffic runs alongside your real requests.",
+      tint: "#5fa8a0"
+    },
+    %{
+      id: "cloak/sandbox",
+      name: "Sandbox",
+      headline: "The agent stays in its box.",
+      line: "The whole agent runs inside a sandbox, with its network sent through Tor.",
+      tint: "#8aa0b8"
+    }
+  ]
+
   @post "https://x.com/VitalikButerin/status/2111046730959433793"
+
+  def cards,
+    do: Enum.map(@cards, &Map.merge(&1, %{action: "See protections", href: "/cloak#protections"}))
 
   def protections, do: @protections
   def limits, do: @limits

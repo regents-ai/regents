@@ -1,4 +1,4 @@
-import type {ValuePanel} from "../panel"
+import type {ValuePanel} from "../../panel"
 
 /** Cloak, Rewriting: the redact panel, in Cloak's violet. */
 export const rewrite: ValuePanel = {

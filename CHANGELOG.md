@@ -5869,3 +5869,15 @@ changelog line moves from the published 6 Nov entry to this release's.
   Classic #1 are open and Classic #1 sells its 1,024 Keys in USDC.
 - `GET /api/v1/products/{slug}` gives the same words; `openapi.json` is 6.0.3.
   `cli/commands.json` is unchanged.
+
+## 2026-11-12 — Cloak's page shows its four cards
+
+- /cloak shows a Highlights row under its heading with the template's four Cloak cards
+  (ash-template `AshTemplateWeb.ValueCardsLive` at 4d972bbc^), in their names, headlines,
+  lines and colours: Rewriting, Tor circuits, Cover traffic and Sandbox. Cloak has no site
+  of its own, so each card opens the page's Protections.
+- The Rewriting picture moves to `panels/cloak/` and its still to
+  `images/value-cards/cloak/`; the Overview's Cloak card and /cloak show that one copy.
+  Tor circuits, Cover traffic and Sandbox come from the template as they are.
+- Cloak is not in `GET /api/v1/products`, so the product data and `openapi.json` are
+  unchanged by this.

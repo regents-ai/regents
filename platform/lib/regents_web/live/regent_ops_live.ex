@@ -54,7 +54,7 @@ defmodule RegentsWeb.RegentOpsLive do
       href: "https://techtree.sh"
     },
     %{
-      id: "rewrite",
+      id: "cloak/rewrite",
       name: "Cloak",
       headline: "Rewritten before it leaves.",
       line: "A local model rewrites each prompt on your Mac before it is sent.",

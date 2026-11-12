@@ -428,7 +428,7 @@ defmodule RegentsWeb.ProductLive do
 
   attr :cards, :list, required: true
 
-  @doc "A product page's row of its product's six value cards, under its own heading."
+  @doc "A product page's row of its product's value cards, under its own heading."
   def cards(assigns) do
     ~H"""
     <Regent.Structure.section_bar class="rg-support-band">

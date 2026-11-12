@@ -12,6 +12,7 @@ defmodule RegentsWeb.CloakLive do
   def page(assigns) do
     assigns =
       assign(assigns,
+        cards: Cloak.cards(),
         protections:
           Enum.map(Cloak.protections(), &Map.merge(&1, %{status: :planned, link: nil})),
         limits: Cloak.limits(),
@@ -39,8 +40,10 @@ defmodule RegentsWeb.CloakLive do
         </nav>
       </header>
 
+      <ProductLive.cards cards={@cards} />
+
       <Regent.Structure.section_bar class="rg-support-band">
-        <h2 class="rg-section-bar__label">Protections</h2>
+        <h2 id="protections" class="rg-section-bar__label">Protections</h2>
       </Regent.Structure.section_bar>
       <ul class="product-proofs" aria-label="Protections">
         <li :for={protection <- @protections}>
