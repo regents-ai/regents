@@ -5308,3 +5308,19 @@ changelog line moves from the published 6 Nov entry to this release's.
   page uses: unseen until the first Tab, then on top of the page, and Enter leads into the panel.
   Nothing checked it; `platform/test/browser/homepage.spec.ts` now does, at 1440 and 390. Nothing a
   visitor sees changed.
+
+## 2026-11-12 — Released v293 (backlog batch)
+
+- Live: v293, image registry.fly.io/regents-sh-web:main-abb614365041; /capabilities.json
+  build.commit abb61436. Rollback: v292, image registry.fly.io/regents-sh-web:main-0c4c23693185
+  (0c4c2369). No migrations.
+- Contents: three browser walks wait on what the page shows; a shared Paper Pro Daily paper
+  stays open behind the launch gate and the unused Literature controller is gone;
+  /capabilities.json gives `cli`; the About heading is "About"; a browser check for the home
+  page's Skip to content link.
+- Full check on abb61436: exit 0, all six gates.
+- Live read in headless Chromium: /, /about, /stake, /app, /redeem/gallery, /paper-pro-daily,
+  /literature and /agents.md answer 200 with no console errors; /capabilities.json gives
+  cli {package regents-cli, release 1.10.24, namespace protocol}; the About heading reads "About".
+- Left from the batch, not done: the check-siwa-latest gate and the identity project's
+  lockfile advisories.
