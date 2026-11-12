@@ -5713,3 +5713,14 @@ changelog line moves from the published 6 Nov entry to this release's.
   1024, 900, 390 and 320 with no console errors; 60 frames a second in view and none
   scrolled away; about 13 MB of memory after mouse sweeps over every line and dot; no names
   outside the map or over each other, no sideways scroll, five line crossings at every width.
+
+## 2026-11-12 — Released v300 (Overview hero)
+
+- v300 at 17:57Z, image registry.fly.io/regents-sh-web:main-1ac1834f7f2e, commit 1ac1834f:
+  the Overview hero and its product map. Full check exit 0 on 1ac1834f, seven gates in one
+  run. No migration.
+- Live read, signed out, headless Chromium with WebGPU at 1280, 390 and 320: the heading and
+  sentence, seven dots and twelve lines, a line picked by keyboard and by mouse shows its
+  sentence, the glow is drawn, the six value cards follow, no sideways scroll and no errors.
+- Rollback: v299's image main-c40563c8c339.
+- Not proven live: the signed-in page, and a real finger on a phone.
