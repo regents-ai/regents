@@ -346,7 +346,8 @@ defmodule RegentsWeb.StakeLive do
         </li>
         <li>The business keeps the share of REGENT that isn't staked.</li>
         <li>
-          Revenue comes from 10% of Keyfleet Key sales and 10% of Patchbay paid posts.
+          Revenue comes from every Regents Labs product: Keyfleet, Autolaunch, Patchbay and
+          Techtree. The 80 USDC from each Animata redemption goes to the staking contract too.
         </li>
         <li>Claim USDC at any time. There is no lock-up.</li>
         <li>

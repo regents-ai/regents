@@ -5892,3 +5892,9 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Rollback: v302's image main-8ed2fd1af383.
 - Not proven live: Safari, a real phone, the signed-in pages.
 - Known and next: the article "Regents Labs today" still calls Keyfleet "opening soon".
+
+## 2026-11-12 — Stake and About name the same revenue sources
+
+- The Stake page's Payouts box and the About page both say every Regents Labs product
+  (Keyfleet, Autolaunch, Patchbay and Techtree) pays into REGENT staking, and that the
+  80 USDC from each Animata redemption goes to the staking contract. Sean's facts, 12 Nov.

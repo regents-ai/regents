@@ -46,7 +46,7 @@ Ash Template is the blueprint every Regents Labs site is built from: wallet sign
 
 ### One token
 
-Regents Labs products share one token, REGENT, instead of company equity. Autolaunch and Patchbay each send part of what they earn to the people who stake REGENT.
+Regents Labs products share one token, REGENT, instead of company equity. Every product (Keyfleet, Autolaunch, Patchbay and Techtree) sends part of what it earns to REGENT staking.
 
 ### USDC revenue
 
@@ -115,7 +115,7 @@ Stakers share the USDC paid into the staking contract, each in proportion to the
 
 ### Where does the USDC come from?
 
-From the products: Regents Labs' share of Autolaunch trading fees and staking rewards on Base, and all the USDC Patchbay earns (paid assist fees and its share of priority reports).
+From every Regents Labs product: Keyfleet, Autolaunch, Patchbay and Techtree each send part of what they earn. The 80 USDC from each Animata redemption goes to the staking contract too. The treasury keeps the share that belongs to REGENT that is not staked.
 
 ### Does Regents Labs hold my money or my keys?
 
