@@ -1,12 +1,12 @@
 defmodule RegentsWeb.ProductDirectory do
   @moduledoc """
-  The Regents product directory: what the /patchbay, /autolaunch, /techtree and
-  /keyfleet pages show, read from the same content those pages render.
+  The Regents product directory: what the /keyfleet, /autolaunch, /patchbay and
+  /techtree pages show, read from the same content those pages render.
   """
 
   alias RegentsWeb.{AutolaunchLive, ProductLive, PublicDocuments}
 
-  @slugs ~w(patchbay autolaunch techtree keyfleet)
+  @slugs ~w(keyfleet autolaunch patchbay techtree)
   @listed [:slug, :name, :summary, :site, :page, :github]
 
   def slugs, do: @slugs

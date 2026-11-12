@@ -59,8 +59,10 @@ defmodule RegentsWeb.HomeLive do
   # open out of it, and the glass panel starts away: pressing a panel in the picture
   # brings it in, and once it has stood for a moment, flying the picture sends it away
   # again. Without scripts, without WebGPU, or with less motion asked for, the
-  # server's still picture shows instead and the panel stays open. The copyright
-  # stands at the window's foot throughout, under the panel where the two meet.
+  # server's still picture shows instead and the panel starts open. The crown in the
+  # window's corner opens and closes the panel whenever the page's script runs; without
+  # it, the panel simply stays open. The copyright stands at the window's foot
+  # throughout, under the panel where the two meet.
   def render(assigns) do
     assigns = assign(assigns, mission: @mission, agent_prompt: agent_prompt())
 
@@ -72,6 +74,25 @@ defmodule RegentsWeb.HomeLive do
       phx-mounted={JS.ignore_attributes(["data-datascape-ready", "data-datascape-glass-state"])}
     >
       <a class="shell-skip" href="#home-content">Skip to content</a>
+      <%!-- The homepage is always dark, so the crown is the white one, without the
+           crown's own ground, which would show as a square on the picture. --%>
+      <button
+        id="home-crown"
+        type="button"
+        class="home__crown"
+        aria-label="Menu"
+        aria-controls="home-glass"
+        aria-expanded="true"
+        data-datascape-crown
+        phx-mounted={JS.ignore_attributes(["aria-expanded"])}
+      >
+        <img
+          src={~p"/images/brand/regents-crown-flat-dark-clear.svg"}
+          width="252"
+          height="186"
+          alt=""
+        />
+      </button>
       <img
         class="home__still"
         src={~p"/images/animations/datascape.webp"}
@@ -103,19 +124,24 @@ defmodule RegentsWeb.HomeLive do
               <span class="rg-button__label">Enter App</span>
             </a>
           </div>
-          <section class="rl-hero-prompt" aria-labelledby="home-prompt-title">
-            <div class="rl-hero-prompt__head">
-              <h2 id="home-prompt-title" class="rl-overline">Agent prompt</h2>
-              <Regent.Primitives.copy_button
-                id="home-prompt-copy"
-                class="rl-hero-prompt__copy"
-                target="home-prompt-text"
-                variant="quiet"
-              >
-                Copy
-              </Regent.Primitives.copy_button>
-            </div>
-            <p id="home-prompt-text" class="rl-hero-prompt__text">{@agent_prompt}</p>
+          <%!-- The words a person pastes to their agent, on one line that ends where
+               the box does; the whole prompt is copied, or shown in its own window. --%>
+          <section class="rl-prompt" aria-labelledby="home-prompt-title">
+            <h2 id="home-prompt-title" class="visually-hidden">Agent prompt</h2>
+            <p id="home-prompt-text" class="rl-prompt__text">{@agent_prompt}</p>
+            <Regent.Primitives.copy_icon id="home-prompt-copy" target="home-prompt-text" label="Copy" />
+            <button
+              id="home-prompt-view"
+              type="button"
+              class="rl-prompt__view"
+              aria-label="View"
+              title="View"
+              aria-haspopup="dialog"
+              aria-controls="home-prompt-dialog"
+              phx-click={JS.dispatch("regents:open", to: "#home-prompt-dialog")}
+            >
+              <Regent.Icons.icon name="maximize-2" />
+            </button>
           </section>
           <AgentTools.button
             id="home-agent-tools-button"
@@ -130,25 +156,46 @@ defmodule RegentsWeb.HomeLive do
       </section>
 
       <AgentTools.dialog id="home-agent-tools" />
+      <.prompt_dialog agent_prompt={@agent_prompt} />
     </div>
     """
   end
 
-  # The homepage is always dark, so its header always carries the dark crown, here
-  # without the crown's own ground, which would show as a square on the glass.
+  # The whole agent prompt in a window of its own, in the Agent Tools window's
+  # colours, closed with its X, Escape or a press beside it.
+  defp prompt_dialog(assigns) do
+    ~H"""
+    <Regent.Structure.dialog
+      id="home-prompt-dialog"
+      class="agent-tools rl-prompt-dialog"
+      aria-labelledby="home-prompt-dialog-title"
+      phx-hook="InfoDialog"
+      {%{"closedby" => "any"}}
+    >
+      <header class="agent-tools__head">
+        <h2 id="home-prompt-dialog-title">Agent prompt</h2>
+        <form method="dialog">
+          <button class="agent-tools__close" aria-label="Close">
+            <Regent.Icons.icon name="x" />
+          </button>
+        </form>
+        <div class="agent-tools__copies">
+          <Regent.Primitives.copy_button id="home-prompt-dialog-copy" target="home-prompt-full">
+            Copy
+          </Regent.Primitives.copy_button>
+        </div>
+      </header>
+      <div class="agent-tools__body">
+        <p id="home-prompt-full" class="rl-prompt-dialog__text">{@agent_prompt}</p>
+      </div>
+    </Regent.Structure.dialog>
+    """
+  end
+
   defp landing_header(assigns) do
     ~H"""
     <header class="rl-header" data-home-header>
       <div class="rl-header-bar">
-        <.link navigate={~p"/"} class="rl-brand" aria-label="Regents Labs home">
-          <img
-            src={~p"/images/brand/regents-crown-flat-dark-clear.svg"}
-            width="252"
-            height="186"
-            alt=""
-          />
-        </.link>
-
         <div class="rl-header-links">
           <RegentLinks.header_links id="home-token-menu" />
         </div>
@@ -157,13 +204,16 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  # The panel's foot: the product sites and the staking page, under their small title.
-  # Each tile wears its product's own colours. The server draws them as a still
-  # gradient; one canvas behind the row sets them flowing once it has drawn.
+  # The panel's foot: the product sites and the staking page, under their title, a
+  # badge on the line across the panel. Each tile wears its product's own colours.
+  # The server draws them as a still gradient; one canvas behind the row sets them
+  # flowing once it has drawn.
   defp products(assigns) do
     ~H"""
     <nav class="home__foot" aria-labelledby="home-products-title">
-      <h2 id="home-products-title" class="rl-overline">Products</h2>
+      <h2 id="home-products-title" class="home__rule">
+        <span class="rl-overline home__badge">Products</span>
+      </h2>
       <div
         id="home-product-tabs"
         class="rl-product-tabs"
@@ -217,15 +267,19 @@ defmodule RegentsWeb.HomeLive do
   defp status_label(:experimental), do: "Experimental"
   defp status_label(:planned), do: "Planned"
 
-  # Each product tab opens that product's site in a new tab; Protocol opens the
-  # staking page and Cloak its page here. Founder decision (2026-09-28): the tab
-  # is named Protocol.
+  # The products in the site's order (founder, 2026-11-12). Each product tab opens
+  # that product's site in a new tab; Protocol opens the staking page and Cloak its
+  # page here. Founder decision (2026-09-28): the tab is named Protocol.
   defp nav_links do
-    sites =
-      for product <- hero_products(),
-          do: {String.capitalize(product.name), product.name, product.site, true}
+    for name <- ~w(keyfleet autolaunch protocol patchbay techtree cloak), do: nav_link(name)
+  end
 
-    sites ++ [{"Protocol", "protocol", ~p"/stake", false}, {"Cloak", "cloak", ~p"/cloak", false}]
+  defp nav_link("protocol"), do: {"Protocol", "protocol", ~p"/stake", false}
+  defp nav_link("cloak"), do: {"Cloak", "cloak", ~p"/cloak", false}
+
+  defp nav_link(name) do
+    product = Enum.find(hero_products(), &(&1.name == name))
+    {String.capitalize(name), name, product.site, true}
   end
 
   # The four products and their public website destinations. The product pages
@@ -263,7 +317,7 @@ defmodule RegentsWeb.HomeLive do
     ]
   end
 
-  # Product order matches the header navigation. Every proof says what
+  # Each product page reads its own chapter. Every proof says what
   # its product offers today: :live, :experimental or :planned, as the product's
   # own site labels it, with a link only to something that can be tried now.
   @doc false

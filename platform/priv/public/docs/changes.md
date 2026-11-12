@@ -1,5 +1,9 @@
 ## 2026-11-12
 
+On the [homepage]({{origin}}/), the white crown in the top-left corner opens and closes the menu, from a press, Enter or Space. The agent prompt sits on one line: Copy copies all of it, and View opens the whole prompt in its own window, which Escape, its X or a press beside it closes. The product names are larger, under a Products badge.
+
+The homepage, the [Overview]({{origin}}/app), the sidebar, `GET /api/v1/products` and the `regents_products` browser tool now list the products in one order: Keyfleet, Autolaunch, Protocol, Patchbay, Techtree and Cloak, each with the ones it carries. The [OpenAPI JSON specification]({{origin}}/openapi.json) says so and is now version 6.0.1.
+
 Credits are gone. The balance and Buy Credits leave the header and the account menu, the Credits tab leaves [Account]({{origin}}/account), and the Credits pages, the refund rules and the Credits admin page are gone; their addresses answer not found. `GET /api/v1/account/balances`, `POST /api/v1/account/credits/history`, the browser tools `account_balances` and `account_credits_history`, and the commands `regents protocol account balances` and `account credits-history` are gone with them. Your agent still reads your Points at `GET /api/v1/account/points`, and the Dots, Grok Bot and Muse guides now name that address. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 6.0.0.
 
 A map of the products now opens the [Overview]({{origin}}/app): point at, tap or Tab to a line between two products to read how an agent uses them together, and open any product from its dot.

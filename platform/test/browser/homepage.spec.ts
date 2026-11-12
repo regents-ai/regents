@@ -1,3 +1,4 @@
+import {chromium} from "@playwright/test"
 import {expect, test} from "./support/offline"
 
 type Page = import("@playwright/test").Page
@@ -18,13 +19,17 @@ const waitForHomepage = async (page: Page) => {
   return home
 }
 
-// The four product sites, in the order the panel's tabs list them before Protocol.
-const products = [
-  {name: "Patchbay", site: "https://patchbay.help"},
-  {name: "Autolaunch", site: "https://autolaunch.sh"},
-  {name: "Techtree", site: "https://techtree.sh"},
-  {name: "Keyfleet", site: "https://keyfleet.ai"},
+// The panel's tabs in the site's order (founder, 2026-11-12): the four product sites open
+// in a new tab, Protocol and Cloak stay on this site.
+const tabs = [
+  {name: "Keyfleet", href: "https://keyfleet.ai", newTab: true},
+  {name: "Autolaunch", href: "https://autolaunch.sh", newTab: true},
+  {name: "Protocol", href: "/stake", newTab: false},
+  {name: "Patchbay", href: "https://patchbay.help", newTab: true},
+  {name: "Techtree", href: "https://techtree.sh", newTab: true},
+  {name: "Cloak", href: "/cloak", newTab: false},
 ]
+const tabNames = tabs.map(({name, newTab}) => (newTab ? `${name}, opens in a new tab` : name))
 
 const assertNoOverflow = async (page: Page) => {
   expect(
@@ -46,23 +51,26 @@ test("[U2] homepage is server-readable: name, line, actions, agent prompt and pr
     "We build tools for people and their agents. REGENT stakers share in the revenue.",
   )
   await expect(glass.getByRole("link", {name: "Enter App"})).toHaveAttribute("href", "/app")
-  await expect(glass.getByRole("heading", {level: 2, name: "Agent prompt"})).toBeVisible()
+  await expect(glass.getByRole("heading", {level: 2, name: "Agent prompt"})).toHaveCount(1)
   await expect(glass.locator("#home-prompt-text")).toContainText("Help me get started")
   await expect(glass.getByRole("button", {name: "Copy"})).toBeVisible()
+  await expect(glass.getByRole("button", {name: "View"})).toBeVisible()
   await expect(glass.getByRole("button", {name: "Agent Tools"})).toBeVisible()
+  // The crown shows without scripts too, and says the panel is open, as it stays.
+  await expect(page.getByRole("button", {name: "Menu"})).toBeVisible()
+  await expect(page.getByRole("button", {name: "Menu"})).toHaveAttribute("aria-expanded", "true")
 
-  const tabs = glass.getByRole("navigation", {name: "Products"}).getByRole("link")
-  await expect(tabs).toHaveCount(6)
-  for (const [index, {name, site}] of products.entries()) {
-    await expect(tabs.nth(index)).toHaveText(`${name}, opens in a new tab`)
-    await expect(tabs.nth(index)).toHaveAttribute("href", site)
-    await expect(tabs.nth(index)).toHaveAttribute("target", "_blank")
-    await expect(tabs.nth(index)).toHaveAttribute("rel", "noopener noreferrer")
+  const links = glass.getByRole("navigation", {name: "Products"}).getByRole("link")
+  await expect(links).toHaveText(tabNames)
+  for (const [index, {href, newTab}] of tabs.entries()) {
+    await expect(links.nth(index)).toHaveAttribute("href", href)
+    if (newTab) {
+      await expect(links.nth(index)).toHaveAttribute("target", "_blank")
+      await expect(links.nth(index)).toHaveAttribute("rel", "noopener noreferrer")
+    } else {
+      await expect(links.nth(index)).not.toHaveAttribute("target")
+    }
   }
-  await expect(tabs.nth(4)).toHaveText("Protocol")
-  await expect(tabs.nth(4)).toHaveAttribute("href", "/stake")
-  await expect(tabs.nth(5)).toHaveText("Cloak")
-  await expect(tabs.nth(5)).toHaveAttribute("href", "/cloak")
 
   await expect(glass.getByRole("heading", {level: 2, name: "Products"})).toBeVisible()
   // The copyright stands outside the panel, at the window's bottom right.
@@ -84,15 +92,7 @@ for (const {name, width, height} of [
     await page.setViewportSize({width, height})
 
     await page.goto("/")
-    const tabs = page.getByRole("navigation", {name: "Products"}).getByRole("link")
-    await expect(tabs).toHaveText([
-      "Patchbay, opens in a new tab",
-      "Autolaunch, opens in a new tab",
-      "Techtree, opens in a new tab",
-      "Keyfleet, opens in a new tab",
-      "Protocol",
-      "Cloak",
-    ])
+    await expect(page.getByRole("navigation", {name: "Products"}).getByRole("link")).toHaveText(tabNames)
     await expect(page.locator("#home-content a.rl-hero-cta")).toHaveAttribute("href", "/app")
     await assertNoOverflow(page)
 
@@ -139,6 +139,15 @@ test("[U2] homepage keeps the still picture and an open panel for reduced motion
   await expect(glass).toHaveCSS("opacity", "1")
   await expect(glass).toHaveCSS("transform", "none")
   await expect(glass).toHaveCSS("pointer-events", "auto")
+
+  // The crown still sends it away and brings it back, with no move.
+  const crown = page.getByRole("button", {name: "Menu"})
+  await crown.click()
+  await expect(crown).toHaveAttribute("aria-expanded", "false")
+  await expect(glass).toHaveCSS("opacity", "0")
+  await crown.click()
+  await expect(crown).toHaveAttribute("aria-expanded", "true")
+  await expect(glass).toHaveCSS("opacity", "1")
   await context.close()
 })
 
@@ -279,7 +288,7 @@ for (const viewport of [
         ".rl-header",
         "#home-title",
         ".rl-hero-cta",
-        ".rl-hero-prompt",
+        ".rl-prompt",
         ".rl-hero-tools",
         "#home-products-title",
         ".rl-product-tabs",
@@ -331,11 +340,12 @@ for (const viewport of [
 }
 
 // Enter App is the one large action: beside the name and its line in a wide panel, full
-// width under them on a phone. Under it, the agent prompt copies with its button, and the
-// quiet Agent Tools link opens the tools window.
+// width under them on a phone. Under it, the agent prompt stands on one line that ends in
+// an ellipsis, with its copy and view icons, and the quiet Agent Tools link opens the
+// tools window.
 test("[U2] Enter App leads, then the agent prompt and Agent Tools", async ({browser}) => {
   for (const {width, height} of [
-    {width: 1440, height: 900},
+    {width: 1280, height: 800},
     {width: 390, height: 844},
     {width: 320, height: 700},
   ]) {
@@ -349,7 +359,7 @@ test("[U2] Enter App leads, then the agent prompt and Agent Tools", async ({brow
       await assertNoOverflow(page)
 
       const [statement, cta, prompt, tools, main] = await Promise.all(
-        [".rl-statement", ".rl-hero-cta", ".rl-hero-prompt", ".rl-hero-tools", "#home-content"].map(selector =>
+        [".rl-statement", ".rl-hero-cta", ".rl-prompt", ".rl-hero-tools", "#home-content"].map(selector =>
           boxOf(page, selector),
         ),
       )
@@ -365,22 +375,219 @@ test("[U2] Enter App leads, then the agent prompt and Agent Tools", async ({brow
       expect(tools.top, "Agent Tools under the prompt").toBeGreaterThanOrEqual(prompt.bottom)
       expect(tools.height, "a full tap target").toBeGreaterThanOrEqual(44)
 
-      const copy = page.locator("#home-prompt-copy")
-      expect((await copy.boundingBox())!.height, "a full tap target").toBeGreaterThanOrEqual(44)
-      // The answer takes the label's place without moving the words under it.
+      // One line, cut short with an ellipsis where the box ends.
+      const text = page.locator("#home-prompt-text")
+      const line = await text.evaluate(element => {
+        const style = getComputedStyle(element)
+        return {
+          cut: element.scrollWidth > element.clientWidth,
+          ellipsis: style.textOverflow,
+          lines: Math.round(element.getBoundingClientRect().height / parseFloat(style.lineHeight)),
+        }
+      })
+      expect(line).toEqual({cut: true, ellipsis: "ellipsis", lines: 1})
+
+      const copy = page.getByRole("button", {name: "Copy"})
+      const view = page.getByRole("button", {name: "View"})
+      for (const icon of [copy, view]) {
+        const box = (await icon.boundingBox())!
+        expect(box.height, "a full tap target").toBeGreaterThanOrEqual(44)
+        expect(box.x + box.width, "inside the box").toBeLessThanOrEqual(prompt.right)
+      }
+
+      // Copy puts the whole prompt on the clipboard, and says so for a moment, on screen
+      // and to screen readers, without moving the line.
       const before = await boxOf(page, "#home-prompt-text")
       await copy.click()
-      await expect(copy).toHaveAccessibleName("Copied")
+      const answer = page.locator("#home-prompt-copy-status")
+      await expect(answer).toHaveText("Copied")
+      await expect(answer).toHaveAttribute("role", "status")
+      await expect(answer).toBeVisible()
+      expect((await answer.boundingBox())!.width, "the answer reads on screen").toBeGreaterThan(20)
       expect(await boxOf(page, "#home-prompt-text")).toEqual(before)
       const copied = await page.evaluate(() => navigator.clipboard.readText())
-      expect(copied).toBe((await page.locator("#home-prompt-text").textContent())!.trim())
+      expect(copied).toBe((await text.textContent())!.trim())
       expect(copied).toMatch(/^Read https?:\/\/[^ ]+\/llms\.txt\. /)
-      expect(copied).toContain("/start shows how")
+      expect(copied).toContain("Patchbay, Autolaunch or Keyfleet.")
+      await expect(answer).toHaveText("", {timeout: 4000})
 
       await page.getByRole("button", {name: "Agent Tools"}).click()
       await expect(page.getByRole("dialog", {name: /^Agents see \d+ WebMCP Tools$/})).toBeVisible()
       await context.close()
     })
+  }
+})
+
+// View opens the whole prompt in its own window, over the panel and the crown. Escape,
+// its X and a press beside it each close it, and focus goes back to View.
+test("[U2] View shows the whole agent prompt in its own window", async ({browser}) => {
+  for (const {width, height} of [
+    {width: 1280, height: 800},
+    {width: 390, height: 844},
+  ]) {
+    await test.step(`${width} wide`, async () => {
+      const context = await browser.newContext({viewport: {width, height}})
+      await context.grantPermissions(["clipboard-read", "clipboard-write"])
+      const page = await context.newPage()
+      await page.goto("/")
+      await waitForHomepage(page)
+      await expect(page.locator(".phx-connected").first()).toBeAttached()
+
+      const view = page.getByRole("button", {name: "View"})
+      const promptWindow = page.getByRole("dialog", {name: "Agent prompt"})
+      const prompt = (await page.locator("#home-prompt-text").textContent())!.trim()
+
+      await view.click()
+      await expect(promptWindow).toBeVisible()
+      await expect(promptWindow.locator("#home-prompt-full")).toHaveText(prompt)
+      expect(await promptWindow.evaluate(dialog => dialog.contains(document.activeElement))).toBe(true)
+      const crown = await boxOf(page, "#home-crown")
+      expect(
+        await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, [
+          crown.left + crown.width / 2,
+          crown.top + crown.height / 2,
+        ] as const),
+        "the window's backdrop covers the crown",
+      ).toBe("home-prompt-dialog")
+      await assertNoOverflow(page)
+
+      await promptWindow.getByRole("button", {name: "Copy"}).click()
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(prompt)
+
+      await page.keyboard.press("Escape")
+      await expect(promptWindow).toBeHidden()
+      await expect(view).toBeFocused()
+
+      await page.keyboard.press("Enter")
+      await expect(promptWindow).toBeVisible()
+      await promptWindow.getByRole("button", {name: "Close"}).click()
+      await expect(promptWindow).toBeHidden()
+      await expect(view).toBeFocused()
+
+      await view.click()
+      await expect(promptWindow).toBeVisible()
+      await page.mouse.click(4, height - 4)
+      await expect(promptWindow).toBeHidden()
+      await expect(view).toBeFocused()
+      await context.close()
+    })
+  }
+})
+
+// The crown in the window's corner opens and closes the panel, by a press and by the
+// keyboard, and its state follows the panel however it moves: focus moving into a panel
+// sent away brings it back, and the crown says so. The suite's browser draws no picture,
+// so the panel starts open here.
+test("[U2] the crown opens and closes the panel", async ({page}) => {
+  for (const [width, height] of [[1280, 800], [390, 844], [320, 568]] as const) {
+    await test.step(`${width} wide`, async () => {
+      await page.setViewportSize({width, height})
+      await page.goto("/")
+      await waitForHomepage(page)
+      await expect(page.locator(".phx-connected").first()).toBeAttached()
+
+      const home = page.locator("#public-home")
+      const glass = page.locator("#home-glass")
+      const crown = page.getByRole("button", {name: "Menu"})
+      await expect(crown).toHaveAttribute("aria-controls", "home-glass")
+      await expect(crown).toHaveAttribute("aria-expanded", "true")
+
+      // In the window's top-left corner, over everything, a full press tall.
+      const box = await boxOf(page, "#home-crown")
+      expect(box.left).toBeLessThan(24)
+      expect(box.top).toBeLessThan(24)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(
+        await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest("#home-crown") !== null, [
+          box.left + box.width / 2,
+          box.top + box.height / 2,
+        ] as const),
+      ).toBe(true)
+
+      await crown.click()
+      await expect(crown).toHaveAttribute("aria-expanded", "false")
+      await expect(home).toHaveAttribute("data-datascape-glass-state", "away")
+      await expect(glass).toHaveCSS("opacity", "0")
+      await expect(glass).toHaveCSS("pointer-events", "none")
+      await assertNoOverflow(page)
+
+      await crown.click()
+      await expect(crown).toHaveAttribute("aria-expanded", "true")
+      await expect(glass).toHaveCSS("opacity", "1")
+      await expect(glass).toHaveCSS("pointer-events", "auto")
+      await assertNoOverflow(page)
+
+      // The keyboard sends it either way at once, with Enter and with Space.
+      await crown.focus()
+      await page.keyboard.press("Enter")
+      await expect(crown).toHaveAttribute("aria-expanded", "false")
+      expect(await glass.evaluate(element => getComputedStyle(element).opacity)).toBe("0")
+      await page.keyboard.press("Space")
+      await expect(crown).toHaveAttribute("aria-expanded", "true")
+      expect(await glass.evaluate(element => getComputedStyle(element).opacity)).toBe("1")
+
+      // Focus moving into a panel sent away brings it back, and the crown follows.
+      await page.keyboard.press("Enter")
+      await expect(crown).toHaveAttribute("aria-expanded", "false")
+      await page.keyboard.press("Tab")
+      await expect(page.locator("#home-glass :focus")).toBeVisible()
+      await expect(crown).toHaveAttribute("aria-expanded", "true")
+      await expect(home).toHaveAttribute("data-datascape-glass-state", "open")
+    })
+  }
+})
+
+// A browser that can draw the picture opens and closes the panel itself: a press on a
+// panel in the picture brings it in, and flying the picture sends it away once that press
+// stops holding it. The crown says the same as the panel throughout, and still sends it
+// either way. The suite's own browser draws no picture, so this one asks for WebGPU, and
+// the test stands aside on a machine whose browser still cannot draw it.
+test("[U2] the crown agrees with the picture's own opening and closing", async ({}, testInfo) => {
+  const drawing = await chromium.launch({
+    args: ["--enable-unsafe-webgpu", "--enable-features=Vulkan", "--use-angle=metal"],
+  })
+  try {
+    const context = await drawing.newContext({
+      baseURL: testInfo.project.use.baseURL,
+      viewport: {width: 1280, height: 800},
+    })
+    const outside: string[] = []
+    await context.route(url => !["127.0.0.1", "localhost"].includes(url.hostname), route => {
+      outside.push(route.request().url())
+      return route.fulfill({status: 204})
+    })
+    const page = await context.newPage()
+    await page.goto("/")
+    const home = page.locator("#public-home")
+    await expect(home).toHaveAttribute("data-datascape-ready", /^(true|false)$/, {timeout: 20_000})
+    test.skip((await home.getAttribute("data-datascape-ready")) === "false", "this machine's browser cannot draw the picture")
+
+    const crown = page.getByRole("button", {name: "Menu"})
+    await expect(home).toHaveAttribute("data-datascape-glass-state", "away")
+    await expect(crown).toHaveAttribute("aria-expanded", "false")
+
+    // Panels fill the picture; a press on the first one met opens the panel.
+    const away = async () => (await home.getAttribute("data-datascape-glass-state")) === "away"
+    for (let y = 120; y < 760 && (await away()); y += 80) {
+      for (let x = 140; x < 1240 && (await away()); x += 110) await page.mouse.click(x, y)
+    }
+    await expect(home).toHaveAttribute("data-datascape-glass-state", "open")
+    await expect(crown).toHaveAttribute("aria-expanded", "true")
+
+    await page.mouse.move(6, 400, {steps: 4})
+    await expect(home).toHaveAttribute("data-datascape-glass-state", "away", {timeout: 6_000})
+    await expect(crown).toHaveAttribute("aria-expanded", "false")
+
+    await crown.click()
+    await expect(home).toHaveAttribute("data-datascape-glass-state", "open")
+    await expect(crown).toHaveAttribute("aria-expanded", "true")
+    await expect(page.locator("#home-glass")).toHaveCSS("opacity", "1")
+    await crown.click()
+    await expect(home).toHaveAttribute("data-datascape-glass-state", "away")
+    await expect(crown).toHaveAttribute("aria-expanded", "false")
+    expect(outside, "requests that left the test machine").toEqual([])
+  } finally {
+    await drawing.close()
   }
 })
 

@@ -5724,3 +5724,53 @@ changelog line moves from the published 6 Nov entry to this release's.
   sentence, the glow is drawn, the six value cards follow, no sideways scroll and no errors.
 - Rollback: v299's image main-c40563c8c339.
 - Not proven live: the signed-in page, and a real finger on a phone.
+
+## 2026-11-12 — Home page: the crown, a one-line agent prompt and one product order
+
+- Sean's ask: a medium white crown in the top-left that reacts to hover and press and opens
+  and closes the menu; the agent prompt as a one-line code box cut with an ellipsis, with
+  Copy, a "Copied" notice and View, which opens the whole prompt in a window that Escape and
+  an X close; larger product names under a "Products" badge on the section's line; and the
+  products in the order Keyfleet, Autolaunch, Protocol, Patchbay, Techtree, Cloak.
+- The crown (`#home-crown`) is a button with the white artwork
+  (`regents-crown-flat-dark-clear.svg`), fixed in the top-left over the picture and the
+  glass: the drawn crown is 48px wide in a 68 by 50px press area. It names the glass in
+  `aria-controls` and says open or closed in `aria-expanded`. The Datascape hook opens and
+  closes the glass from it: a pointer press gets the panel's own squash and grow and holds
+  it open as a press on the picture does; Enter, Space and less motion change it at once.
+  Hover-capable pointers get a platinum glow and, without less motion, a 2px lift; the
+  site's press squish (motion.ts) covers the click. The panel header's crown link is gone;
+  its links stay where they were.
+- The hook now sets up the crown, focus into the glass and the "picture stopped" watch as
+  it mounts, not only once the picture can draw, so the crown works without WebGPU and with
+  less motion; with no picture to press the glass opens at once, as before. The stylesheet's
+  away pose now applies whenever scripts run, whatever the motion setting, so the crown can
+  send the glass away there too. Without scripts the crown shows, says the panel is open
+  and does nothing, like Copy and Agent Tools.
+- The agent prompt (`HomeLive.agent_prompt/0`, unchanged) sits on one dark line with a thin
+  violet edge, cut with an ellipsis, with the shared copy icon (its "Copied" status shows as
+  a pill beside the icons for a moment and screen readers hear it) and View, which opens
+  `#home-prompt-dialog`: the shared dialog with the InfoDialog hook, the whole prompt, Copy
+  and an X. Escape and the X close it, and so does a press beside it (`closedby="any"`), and
+  focus returns to View. The page's text copy still has "## Agent prompt" and the prompt.
+  The old prompt box and its styles are gone.
+- Products: tile names at the label size (14px, from 12px), three across on a wide panel
+  (six across no longer fit "Autolaunch"), two across on a narrow one as before; the title
+  is a pill badge on a line across the panel, which replaces the foot's top border.
+- One order: the home tabs and the page's text copy, the /app cards, the sidebar's Products
+  group (no Protocol), `ProductDirectory` (`GET /api/v1/products` and the
+  `regents_products` tool) and the descriptions in `priv/tool_manifest.json`,
+  `priv/public/openapi.json` (6.0.1) and `cli/commands.json`. The product map's positions
+  are unchanged. Left as they were: the apps menu and the every-site tools list, which the
+  template shares, the page descriptions, docs, About and llms prose, and the prompt's own
+  words.
+- Tests: home and /app ExUnit (order, prompt, dialog, crown); browser checks for the crown
+  by press and keyboard at 1280, 390 and 320, the crown agreeing with the picture's own
+  opening and closing (its own headless Chromium with WebGPU; it stands aside where that
+  browser cannot draw), Copy and the notice, View with Escape, X and a press beside it, the
+  one line with its ellipsis and no sideways scroll at 1280, 390 and 320, the less-motion and
+  no-script crown, and the tile and card order.
+- Checks: strict compile; format; `npm run typecheck`; `npm test` (336); budgets; ExUnit for
+  home, /app, route catalog, public read errors, product pages, API contract and the other
+  product-order readers; the browser walks `homepage.spec.ts`, `founder_shell.spec.ts`,
+  `agent_tools.spec.ts` and `lab_map.spec.ts` (43). No migration, no new dependency.

@@ -12,9 +12,7 @@
   .rl-root :is(h1, h2, h3, p) { margin-block: 0; }
   .rl-root [id] { scroll-margin-block-start: 2rem; }
   .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
-  .rl-brand { display: flex; gap: var(--space-1); align-items: center; font-family: var(--font-family-title); text-decoration: none; }
-  .rl-brand img { width: 2rem; height: 2rem; object-fit: contain; }
-  .rl-product-tabs { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .5rem; }
+  .rl-product-tabs { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
   .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
@@ -39,11 +37,25 @@
      middle holding everything. A panel taller than the window scrolls the page while
      the picture stays put, and ends above the copyright at the window's foot; the
      same room stands above it, so a panel that fits sits in the window's middle. The
-     picture's ground is the scene's own. */
+     picture's ground is the scene's own. The room above and below is a little more
+     than the crown's height, so a panel that starts at the top starts under it. */
   .home {
     position: relative; display: grid; place-items: center; min-height: 100dvh;
-    padding: calc(var(--space-6) + env(safe-area-inset-bottom)) 1rem; background: #020307;
+    padding: calc(var(--space-8) + env(safe-area-inset-bottom)) 1rem; background: #020307;
   }
+  /* The crown: the lab's mark in the window's top-left corner, over the picture and
+     the glass, which opens and closes the glass. Its picture keeps the room the
+     artwork draws round the crown, so the crown shows about 3rem wide in a box a
+     full press tall. */
+  .home__crown {
+    position: fixed; z-index: var(--rg-layer-header);
+    inset-block-start: calc(var(--space-1) + env(safe-area-inset-top));
+    inset-inline-start: calc(var(--space-1) + env(safe-area-inset-left));
+    display: grid; place-items: center; min-height: 2.75rem; padding: 0;
+    background: none; border: 0; color: var(--rl-ink); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .home__crown img { display: block; width: 4.25rem; height: auto; }
   .home__still, .home__stage { position: fixed; inset: 0; width: 100%; height: 100%; }
   .home__still { object-fit: cover; }
   /* A finger held on the picture steers it, so it does not scroll the page from there. */
@@ -82,16 +94,19 @@
   }
   /* While the picture can be drawn the glass starts away, out of sight and out of
      the pointer's way, until a press on the picture opens it; the hook moves it
-     between this pose and the open one. Focus inside it always shows it. Without
-     scripts, with less motion asked for, or once the picture will not be drawn,
-     there is nothing to press, so it simply stays open. It stays in the page for
-     assistive technology and the keyboard. Until the page's script says which it
-     is, the glass waits in the same away pose; if the script has not answered in
-     four seconds, the glass comes in by itself. */
-  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .home[data-datascape-glass-state="away"]:not([data-datascape-ready="false"]) .home__glass:not(:focus-within) {
+     between this pose and the open one, and the crown sends it either way. Focus
+     inside it always shows it. Without scripts, with less motion asked for, or once
+     the picture will not be drawn, there is nothing to press, so it starts open and
+     goes only when the crown sends it. It stays in the page for assistive technology
+     and the keyboard. Until the page's script says which it is, a glass over a
+     picture that may be drawn waits in the same away pose; if the script has not
+     answered in four seconds, the glass comes in by itself. */
+  @media (scripting: enabled) {
+    .home[data-datascape-glass-state="away"] .home__glass:not(:focus-within) {
       transform: scale(.3); opacity: 0; pointer-events: none;
     }
+  }
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
     .home:not([data-datascape-glass-state]) .home__glass:not(:focus-within) { animation: home-glass-wait 4s step-end; }
   }
   @keyframes home-glass-wait {
@@ -109,24 +124,26 @@
     .home__hero { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-4); }
     .home__hero .rl-hero-cta { justify-self: end; }
   }
-  /* The words a person copies to their agent, in a quiet box under its small title,
-     with the copy button at the title's end. */
-  .rl-hero-prompt {
-    display: grid; gap: var(--space-1); min-width: 0; padding: var(--space-2);
-    background: color-mix(in srgb, var(--rl-ink) 4%, transparent);
-    border: 1px solid var(--rl-line);
-  }
-  .rl-hero-prompt__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 2.75rem; }
-  .rl-hero-prompt__head .rl-overline { color: var(--rl-muted); white-space: nowrap; }
-  .rl-hero-prompt__text { font-size: .875rem; line-height: 1.5; color: var(--rl-muted); overflow-wrap: anywhere; text-wrap: pretty; }
-  /* The panel's foot, past a hairline: the product sites under their small title. */
+  /* The panel's foot: the product sites under their title, a badge on the line
+     across the panel that parts the foot from what is above it. */
   .home__foot {
     container-type: inline-size;
     display: grid; gap: var(--space-2); min-width: 0;
-    padding: var(--rg-panel-padding);
-    border-block-start: 1px solid var(--rl-line);
+    padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
   }
-  .home__foot .rl-overline { color: var(--rl-muted); }
+  .home__rule { display: flex; align-items: center; margin-inline: calc(-1 * var(--rg-panel-padding)); }
+  .home__rule::before, .home__rule::after { content: ""; flex: 1; border-block-start: 1px solid var(--rl-line); }
+  /* The spacing after the last letter is taken off its end, so the word sits in the middle. */
+  .home__badge {
+    padding: .25rem calc(.75rem - .16em) .25rem .75rem;
+    border: 1px solid var(--rl-line); border-radius: 999px; color: var(--rl-muted);
+  }
+  /* The whole agent prompt, in its own window. */
+  .rl-prompt-dialog { --rg-dialog-size: 36rem; }
+  .rl-prompt-dialog__text {
+    font: var(--type-code-size)/1.6 var(--font-family-mono);
+    color: color-mix(in srgb, var(--agent-tools-ink) 88%, transparent); overflow-wrap: anywhere;
+  }
 
   /* The lab's name in the title face, then one plain line in body weight. */
   .rl-statement { display: grid; gap: var(--space-2); }
@@ -144,23 +161,79 @@
     /* Phone tap targets are 44px square; the icons keep their size. */
     .rl-header-links > a:not(.rg-button), .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
     .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
-    .rl-brand { font-size: .875rem; }
     .home__glass { --rg-panel-padding: var(--space-2); }
   }
 }
 
-/* Everything the home page lets a pointer press answers it: the brand dims, the
-   icons and plain links take the pointing blue, and outlined and menu buttons
-   take a faint wash of their own ink. Outside the layer, so they win over the
-   links' and buttons' own unlayered colours. */
-.rl-brand, .rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools { transition: color 140ms ease, opacity 140ms ease; }
+/* Everything the home page lets a pointer press answers it: the crown lifts and
+   glows, the icons and plain links take the pointing blue, and outlined and menu
+   buttons take a faint wash of their own ink. Outside the layer, so they win over
+   the links' and buttons' own unlayered colours. A press squishes the crown with
+   every other button (motion.ts). */
+.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools { transition: color 140ms ease, opacity 140ms ease; }
+.home__crown img { transition: filter 140ms ease; }
 .rl-root .rg-button--secondary::before { transition: box-shadow 140ms ease; }
 .rg-button.rl-token-link::before { transition: background-color 140ms ease; }
+@media (prefers-reduced-motion: no-preference) {
+  .home__crown img { transition: filter 140ms ease, translate 140ms var(--ease-out); }
+}
 @media (hover: hover) {
-  .rl-brand:hover { opacity: .72; }
+  .home__crown:hover img { filter: drop-shadow(0 0 .5rem color-mix(in srgb, var(--palette-platinum) 45%, transparent)); }
   :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools, .rl-token-copy):hover { color: var(--ash-signal); }
   .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
   .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .home__crown:hover img { translate: 0 -2px; }
+}
+
+/* The agent prompt as one line of code on the picture's own black, in a thin ring
+   of Cloak's violet: the words stop in an ellipsis where the box does, then the
+   copy and view icons, each a full press square. Outside the layer, so they win
+   over the copy icon's own unlayered rules. */
+.rl-prompt {
+  --rl-prompt-ring: #a97bf0;
+  position: relative; display: flex; align-items: center; gap: .25rem; min-width: 0;
+  padding: .25rem .25rem .25rem var(--space-2);
+  background: #020307; border: 1px solid color-mix(in srgb, var(--rl-prompt-ring) 70%, transparent);
+  border-radius: .75rem;
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--rl-prompt-ring) 22%, transparent);
+}
+.rl-prompt__text {
+  flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font: var(--type-code-size)/var(--type-code-line) var(--font-family-mono); color: var(--rl-ink);
+}
+.rl-prompt :is(.rg-copy--icon, .rl-prompt__view) {
+  inline-size: 2.75rem; block-size: 2.75rem; min-block-size: 2.75rem;
+  border-radius: .5rem; background: none;
+}
+.rl-prompt__view {
+  display: inline-grid; place-items: center; flex: none; padding: 0;
+  border: 1px solid transparent; color: var(--rl-muted); cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.rl-prompt__view svg { inline-size: 1.125rem; block-size: 1.125rem; }
+.rl-prompt__view:focus-visible { color: var(--rl-ink); }
+@media (hover: hover) and (pointer: fine) {
+  .rl-prompt :is(.rg-copy--icon, .rl-prompt__view):hover { border-color: color-mix(in srgb, var(--rl-prompt-ring) 55%, transparent); }
+  .rl-prompt__view:hover { color: var(--rl-ink); }
+}
+/* A copy's answer, which the copy icon's status says for screen readers, shows for
+   the same moment as a small pill before the icons, over the line's end. It comes
+   in quickly and goes at once. */
+.rl-prompt .rg-copy__status { inset-block-start: 50%; inset-inline-end: 6.25rem; opacity: 0; pointer-events: none; }
+.rl-prompt .rg-copy__status:not(:empty) {
+  width: auto; height: auto; margin: 0; overflow: visible; clip-path: none;
+  padding: .125rem .625rem; translate: 0 -50%; opacity: 1;
+  background: #020307; border: 1px solid color-mix(in srgb, currentColor 45%, transparent); border-radius: 999px;
+  color: var(--rl-ink); font: .75rem/1.5 var(--font-family-ui);
+  transition: opacity 200ms var(--ease-out);
+}
+.rl-prompt .rg-copy--icon[data-copy-state="copied"] + .rg-copy__status { color: var(--color-success); }
+.rl-prompt .rg-copy--icon[data-copy-state="failed"] + .rg-copy__status { color: var(--color-error); }
+@media (prefers-reduced-motion: no-preference) {
+  .rl-prompt .rg-copy__status { translate: 0 calc(-50% + 4px); }
+  .rl-prompt .rg-copy__status:not(:empty) { transition: opacity 200ms var(--ease-out), translate 200ms var(--ease-out); }
 }
 
 .rg-button.rl-token-link {
@@ -207,7 +280,7 @@
   --rg-p-on-accent: var(--tile-ink);
   --rg-button-border-color: color-mix(in srgb, var(--tile-ink) 28%, transparent);
   min-width: 0; min-height: 3.25rem; padding: .875rem .25rem;
-  border-radius: 0; font-size: .75rem; line-height: 1.25;
+  border-radius: 0; font-size: var(--type-label-size); line-height: 1.25;
   font-weight: 400; letter-spacing: .04em; text-transform: uppercase;
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
@@ -218,9 +291,6 @@
   background: radial-gradient(circle at .625rem .625rem, var(--tile-dot) 0 .1875rem, transparent calc(.1875rem + .5px));
   transform: scale(var(--rg-press-scale, 1));
 }
-/* The prompt's copy button is a full 44px tall, and its words line up with the box's
-   inner edge. */
-.rg-button.rl-hero-prompt__copy { min-height: 2.75rem; margin-inline-end: -.5rem; padding-inline: .5rem; font-size: .875rem; }
 /* Agent Tools is a quiet text link under the agent prompt, a full 44px tall to tap,
    that opens the tools window. */
 .rl-hero-tools {
@@ -280,10 +350,6 @@
 /* A narrow panel lays the tabs out two to a row. */
 @container (max-width: 36rem) {
   .rl-product-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 23.99rem) {
-  /* At 320 the brand and the links share one row only with this narrower gap. */
-  .rl-header-bar { column-gap: .75rem; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .rl-product-tab__still { transition: opacity 240ms ease; }

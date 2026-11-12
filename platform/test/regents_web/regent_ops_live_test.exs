@@ -20,6 +20,10 @@ defmodule RegentsWeb.RegentOpsLiveTest do
     page = Floki.parse_document!(html)
     assert page |> Floki.find("#{products} > li") |> length() == 6
 
+    # Founder decision (2026-11-12): the site's order of its products.
+    assert page |> Floki.find("#{products} .value-card__name") |> Enum.map(&Floki.text/1) ==
+             ~w(Keyfleet Autolaunch Protocol Patchbay Techtree Cloak)
+
     for site <- [
           "https://patchbay.help",
           "https://autolaunch.sh",

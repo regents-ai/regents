@@ -3,7 +3,7 @@ import {animate, createScope, createTimer, utils, type Scope, type Timer} from "
 import {createCanvasIsland, type CanvasIslandController, type LoadRenderer} from "../canvas_island"
 import {REST, calmAround, type Cell, type Panel, type Tube} from "../datascape/field"
 import type {DatascapeRenderer} from "../datascape/renderer"
-import {play, still} from "./motion/shared"
+import {byPointer, play, rest, still} from "./motion/shared"
 
 /** How long a panel takes to open, and to put together what it shows, in milliseconds. */
 const OPENING = 750
@@ -56,6 +56,7 @@ type DatascapeHook = {
   el: HTMLElement
   island?: CanvasIslandController
   scope?: Scope
+  stopped?: MutationObserver
 }
 
 /**
@@ -78,10 +79,12 @@ type DatascapeHook = {
  * moving into it opens it at once and holds it open. Once it has been open for
  * `GRACE` after the last press, and focus is elsewhere, steering squashes it and
  * sends it away again, until the next press. While it is open the pointer steers
- * nothing round it. The root's `data-datascape-glass-state` says `away` or
- * `open`, and the stylesheet holds both poses and decides when there is no
- * picture to press, so the panel simply stays: each move starts from wherever the
- * panel is and hands it back to the stylesheet when it ends.
+ * nothing round it. With no picture to press, because the browser cannot draw
+ * it or the visitor asked for less motion, the glass opens at once and stays.
+ * A crown (`[data-datascape-crown]`) opens and closes it in every case, and its
+ * `aria-expanded` says which. The root's `data-datascape-glass-state` says `away`
+ * or `open`, and the stylesheet holds both poses: each move starts from wherever
+ * the panel is and hands it back to the stylesheet when it ends.
  */
 export const Datascape = {
   mounted(this: DatascapeHook) {
@@ -141,20 +144,21 @@ export const Datascape = {
       })
       scape?.field.burst(panel, PRESS_SPARKS)
     })
-    /** The glass panel squashes a little, then shrinks and fades to the stylesheet's away pose. */
-    scope.add("compress", (el: HTMLElement) => {
+    /** The glass panel squashes a little, then shrinks and fades to the stylesheet's away pose, or is simply away when asked to be at once. */
+    scope.add("compress", (el: HTMLElement, atOnce: boolean) => {
+      if (atOnce) return rest(el)
       const from = poseOf(el)
-      const rest = restingPose(el)
+      const away = restingPose(el)
       play(el, {
         scaleX: [
           {from: from.scaleX, to: from.scaleX * WIDER, duration: SQUASH, ease: "outQuad"},
-          {to: () => rest().scaleX, duration: SHRINK - SQUASH, ease: "inOutCubic"},
+          {to: () => away().scaleX, duration: SHRINK - SQUASH, ease: "inOutCubic"},
         ],
         scaleY: [
           {from: from.scaleY, to: from.scaleY * FLATTER, duration: SQUASH, ease: "outQuad"},
-          {to: () => rest().scaleY, duration: SHRINK - SQUASH, ease: "inOutCubic"},
+          {to: () => away().scaleY, duration: SHRINK - SQUASH, ease: "inOutCubic"},
         ],
-        opacity: {from: from.opacity, to: () => rest().opacity, duration: SHRINK, ease: "outQuad"},
+        opacity: {from: from.opacity, to: () => away().opacity, duration: SHRINK, ease: "outQuad"},
       })
     })
     /** The glass panel grows back to the stylesheet's open pose, just past it and back, or is simply there when asked to be at once. */
@@ -171,6 +175,7 @@ export const Datascape = {
     })
 
     const glass = root.querySelector<HTMLElement>("[data-datascape-glass]")
+    const crown = root.querySelector<HTMLElement>("[data-datascape-crown]")
     /**
      * What the field last said about the pointer steering, whether focus is in the glass,
      * whether a press still holds it open, and whether it is open. The hook takes over from
@@ -180,7 +185,12 @@ export const Datascape = {
     let focused = !!glass?.contains(document.activeElement)
     let held = false
     let open = !!glass && poseOf(glass).opacity === 1
-    if (glass) root.dataset.datascapeGlassState = open ? "open" : "away"
+    /** Tells the stylesheet and the crown whether the glass is open. */
+    const say = () => {
+      root.dataset.datascapeGlassState = open ? "open" : "away"
+      crown?.setAttribute("aria-expanded", String(open))
+    }
+    if (glass) say()
 
     /** The field's calm zone: round the glass while it is open, the field's own while it is away. */
     const calm = () => {
@@ -192,7 +202,7 @@ export const Datascape = {
     /** Opens the glass or sends it away, with its move, or at once for the keyboard and for less motion. */
     const show = (next: boolean, atOnce = false) => {
       open = next
-      root.dataset.datascapeGlassState = open ? "open" : "away"
+      say()
       calm()
       scope.methods[open ? "expand" : "compress"]!(glass, atOnce || still(glass!))
     }
@@ -268,12 +278,38 @@ export const Datascape = {
       focused = glass!.contains(event.relatedTarget as Node | null)
       settle()
     }
+    /**
+     * The crown opens the glass, which a press then holds open as one on the picture
+     * does, or sends it away: with its move for a pointer, at once for the keyboard.
+     * It takes focus as it is pressed, as most browsers give it, so focus left in the
+     * glass does not keep a glass sent away on screen.
+     */
+    const onCrown = (event: MouseEvent) => {
+      crown!.focus()
+      if (open) return show(false, !byPointer(event))
+      scope.methods.hold!()
+      show(true, !byPointer(event))
+    }
     // The glass is measured by its layout size, which a running move does not change.
     const resized = new ResizeObserver(calm)
-    // A picture that stops drawing, as when the visitor asks for less motion, steers nothing.
+    /**
+     * A picture that stops drawing, as when the visitor asks for less motion, steers
+     * nothing. With no picture left to press, because the browser cannot draw it or the
+     * visitor asked for less motion, the glass opens at once. The island says the
+     * browser cannot draw it as it mounts, so this answers that first time too.
+     */
     const stopped = new MutationObserver(() => {
-      if (root.dataset.datascapeReady !== "true") steering = false
+      if (root.dataset.datascapeReady === "true") return
+      steering = false
+      if (glass && !open && (root.dataset.datascapeReady === "false" || still(glass))) show(true, true)
     })
+    this.stopped = stopped
+    stopped.observe(root, {attributes: true, attributeFilter: ["data-datascape-ready"]})
+    if (glass) {
+      glass.addEventListener("focusin", onFocusIn)
+      glass.addEventListener("focusout", onFocusOut)
+      crown?.addEventListener("click", onCrown)
+    }
 
     this.island = createCanvasIsland<DatascapeRenderer>(root, {}, {
       canvasSelector: "[data-datascape-canvas]",
@@ -292,9 +328,6 @@ export const Datascape = {
         if (glass) {
           resized.observe(root)
           resized.observe(glass)
-          stopped.observe(root, {attributes: true, attributeFilter: ["data-datascape-ready"]})
-          glass.addEventListener("focusin", onFocusIn)
-          glass.addEventListener("focusout", onFocusOut)
         }
         canvas.addEventListener("pointermove", onPointerMove)
         canvas.addEventListener("pointerdown", onPointerDown)
@@ -313,9 +346,6 @@ export const Datascape = {
           canvas.removeEventListener("pointerleave", onPointerAway)
           canvas.removeEventListener("click", onClick)
           resized.disconnect()
-          stopped.disconnect()
-          glass?.removeEventListener("focusin", onFocusIn)
-          glass?.removeEventListener("focusout", onFocusOut)
           // A picture that has stopped steers nothing.
           steering = false
         }
@@ -330,6 +360,7 @@ export const Datascape = {
     this.island?.resume()
   },
   destroyed(this: DatascapeHook) {
+    this.stopped?.disconnect()
     this.island?.destroy()
     this.scope?.revert()
   },

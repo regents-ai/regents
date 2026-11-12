@@ -131,11 +131,11 @@ test("the public homepage presents the panel over its picture", async ({page}) =
   await expect(page.locator("#home-title")).toHaveText("Regents Labs")
   // The panel's product tabs name the four products, the protocol and Cloak.
   await expect(page.locator("#home-glass .rl-product-tab")).toHaveText([
-    "Patchbay, opens in a new tab",
-    "Autolaunch, opens in a new tab",
-    "Techtree, opens in a new tab",
     "Keyfleet, opens in a new tab",
+    "Autolaunch, opens in a new tab",
     "Protocol",
+    "Patchbay, opens in a new tab",
+    "Techtree, opens in a new tab",
     "Cloak",
   ])
   expect(await page.evaluate(() => document.fonts.check('16px "Geist Serif"'))).toBe(true)
@@ -272,11 +272,11 @@ test("the Overview maps the six products, keeps account details secondary, and r
 
   const products = overview.getByRole("list", {name: "Products"})
   await expect(products.locator(".value-card__name")).toHaveText([
-    "Patchbay",
-    "Autolaunch",
-    "Techtree",
     "Keyfleet",
+    "Autolaunch",
     "Protocol",
+    "Patchbay",
+    "Techtree",
     "Cloak",
   ])
   await expect(products.getByRole("link", {name: "Open Autolaunch"})).toHaveAttribute(

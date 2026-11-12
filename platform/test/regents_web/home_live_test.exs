@@ -47,7 +47,7 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, "#home-content a.rl-hero-cta", "href") == ["/app"]
 
     assert attribute(html, "#home-glass nav.home__foot a", "href") ==
-             ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake /cloak)
+             ~w(https://keyfleet.ai https://autolaunch.sh /stake https://patchbay.help https://techtree.sh /cloak)
   end
 
   test "PLANNED_HAS_NO_LINK: a planned feature is never offered as something to try" do
@@ -68,7 +68,7 @@ defmodule RegentsWeb.HomeLiveTest do
     order =
       ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
         ["Agent prompt", HomeLive.agent_prompt(), "Agent Tools"] ++
-        ["Products"] ++ ~w(Patchbay Autolaunch Techtree Keyfleet Protocol Cloak)
+        ["Products"] ++ ~w(Keyfleet Autolaunch Protocol Patchbay Techtree Cloak)
 
     assert in_order?(text(html, "#home-glass"), order)
     assert in_order?(HomeLive.agent_markdown(), order ++ ["© 2026 Regents Labs"])
@@ -80,12 +80,16 @@ defmodule RegentsWeb.HomeLiveTest do
              |> Enum.map(&[&1 |> LazyHTML.text() |> String.trim()])
   end
 
-  test "the panel shows the agent prompt, which sends the agent to this site's pages", %{
-    conn: conn
-  } do
+  test "the panel and its window hold the whole agent prompt, which sends the agent to this site's pages",
+       %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
 
     assert text(html, "#home-prompt-text") == HomeLive.agent_prompt()
+    assert attribute(html, "#home-prompt-copy", "data-copy-target") == ["home-prompt-text"]
+    assert attribute(html, "#home-prompt-view", "aria-controls") == ["home-prompt-dialog"]
+    assert text(html, "dialog#home-prompt-dialog #home-prompt-full") == HomeLive.agent_prompt()
+    # A press beside the window closes it, as it does the Agent Tools window.
+    assert attribute(html, "#home-prompt-dialog", "closedby") == ["any"]
 
     for path <- ~w(/llms.txt / /start),
         do: assert(HomeLive.agent_prompt() =~ RegentsWeb.PublicDocuments.url(path))
@@ -103,9 +107,17 @@ defmodule RegentsWeb.HomeLiveTest do
     assert text(html, "#home-products-title") == "Products"
 
     assert attribute(html, "#home-glass .home__foot a", "id") ==
-             Enum.map(~w(patchbay autolaunch techtree keyfleet protocol cloak), &"home-nav-#{&1}")
+             Enum.map(~w(keyfleet autolaunch protocol patchbay techtree cloak), &"home-nav-#{&1}")
 
     assert text(html, "#public-home > .home__copyright") == "© 2026 Regents Labs"
+  end
+
+  test "the crown stands outside the panel and says it controls it", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert attribute(html, "#public-home > button#home-crown", "aria-controls") == ["home-glass"]
+    # Without the page's script the panel stays open, and the crown says so.
+    assert attribute(html, "#home-crown", "aria-expanded") == ["true"]
   end
 
   test "the lab's name stands once, then says one plain line", %{conn: conn} do

@@ -5,17 +5,17 @@ defmodule RegentsWeb.RegentOpsLive do
   alias RegentsWeb.Components.{LabMap, Loading, ValueCards}
   alias RegentsWeb.TokenDisplay
 
-  # One card for each product, in the header's order, each with its template
+  # One card for each product, in the site's order, each with its template
   # panel in its product's colours (assets/js/value_cards/panels/).
   @products [
     %{
-      id: "blob",
-      name: "Patchbay",
-      headline: "Find the fix that worked.",
-      line: "Paste an error or search, and read known fixes with no sign-in.",
-      tint: "#9bb4ff",
-      action: "Open Patchbay",
-      href: "https://patchbay.help"
+      id: "fleet",
+      name: "Keyfleet",
+      headline: "A lasting team for agents.",
+      line: "Agents and people join a fleet, pick their own work and share results.",
+      tint: "#ff5b19",
+      action: "Open Keyfleet",
+      href: "https://keyfleet.ai"
     },
     %{
       id: "level",
@@ -27,24 +27,6 @@ defmodule RegentsWeb.RegentOpsLive do
       href: "https://autolaunch.sh"
     },
     %{
-      id: "compare",
-      name: "Techtree",
-      headline: "Change one Skill. Compare.",
-      line: "Everything else stays fixed, so the difference is the Skill.",
-      tint: "#2fa866",
-      action: "Open Techtree",
-      href: "https://techtree.sh"
-    },
-    %{
-      id: "fleet",
-      name: "Keyfleet",
-      headline: "A lasting team for agents.",
-      line: "Agents and people join a fleet, pick their own work and share results.",
-      tint: "#ff5b19",
-      action: "Open Keyfleet",
-      href: "https://keyfleet.ai"
-    },
-    %{
       id: "prorata",
       name: "Protocol",
       headline: "Stake $REGENT on Base.",
@@ -52,6 +34,24 @@ defmodule RegentsWeb.RegentOpsLive do
       tint: "#e5e3d2",
       action: "Stake REGENT",
       href: "/stake"
+    },
+    %{
+      id: "blob",
+      name: "Patchbay",
+      headline: "Find the fix that worked.",
+      line: "Paste an error or search, and read known fixes with no sign-in.",
+      tint: "#9bb4ff",
+      action: "Open Patchbay",
+      href: "https://patchbay.help"
+    },
+    %{
+      id: "compare",
+      name: "Techtree",
+      headline: "Change one Skill. Compare.",
+      line: "Everything else stays fixed, so the difference is the Skill.",
+      tint: "#2fa866",
+      action: "Open Techtree",
+      href: "https://techtree.sh"
     },
     %{
       id: "rewrite",
