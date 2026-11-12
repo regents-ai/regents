@@ -5521,3 +5521,11 @@ changelog line moves from the published 6 Nov entry to this release's.
   and Cloak stay on the site; no sideways scroll, no console errors, the page alive after
   mouse sweeps. /api/v1/health answers {"status":"ok","migrations_applied":true}; the Fly
   health check passes and the logs since the switch show only answered requests.
+
+## 2026-11-12 — Side menu link reads "About"
+
+- The side menu's link to /about read "About Regents Labs"; it now reads "About", as menu
+  names here are one or two words and the page itself is already titled "About". The
+  founder-shell route handoff (`platform/priv/handoff/founder-shell-route-catalog.json` and
+  its digest) is regenerated with `mix regents.route_handoff`. The footer's link list keeps
+  its own accessible name. No migrations.
