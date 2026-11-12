@@ -5084,3 +5084,14 @@ changelog line moves from the published 6 Nov entry to this release's.
   under its own heading, Agent Tools, then the products.
 - Check: `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`,
   `platform/test/browser/founder_shell.spec.ts`.
+
+## 2026-11-12 — Released v285 (About and Docs inside the site)
+
+- Live: v285, image registry.fly.io/regents-sh-web:main-ceab994dc55b; /capabilities.json
+  build.commit ceab994d. Rollback: v284, image registry.fly.io/regents-sh-web:main-ffc767a1b812
+  (ffc767a1). No migrations.
+- Full check on ceab994d: exit 0 (661 server, 268 script and 155 browser tests, required fixes,
+  command list, identity, contracts 454).
+- Live read in headless Chromium at 1280 and 390, signed out: /docs, /docs/limits and /about
+  open in the site with the sidebar and Docs or About marked; no sideways scroll; search and
+  sidebar links stay in the site; /docs/not-a-page 404; /docs/limits still answers Markdown.
