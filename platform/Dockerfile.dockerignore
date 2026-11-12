@@ -10,6 +10,7 @@
 !platform/package.json
 !platform/package-lock.json
 !blog/**
+!cli/commands.json
 !identity/**
 identity/_build/
 identity/deps/
