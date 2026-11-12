@@ -391,7 +391,8 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
 })
 
 // The focus ring belongs to the whole page: it is set in Text and stays that same mark on
-// every control in the panel.
+// every control in the panel. A filled button (Enter App) draws the shared cut ring
+// around its corners instead of an outline.
 test("[U1] every panel control retains visible paired keyboard focus", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await page.goto("/")
@@ -404,13 +405,15 @@ test("[U1] every panel control retains visible paired keyboard focus", async ({p
       const element = document.activeElement as HTMLElement | null
       if (!element?.closest("#home-glass") || !element.matches(":focus-visible")) return null
       const style = getComputedStyle(element)
+      const ring = getComputedStyle(element, "::before")
       const name = element.getAttribute("aria-label") ?? element.textContent?.trim().replace(/\s+/g, " ") ?? ""
-      return {name, width: parseFloat(style.outlineWidth), outline: style.outlineStyle, opacity: style.opacity}
+      const outlined = style.outlineStyle === "solid" && parseFloat(style.outlineWidth) >= 2
+      const ringed = ring.borderTopStyle === "solid" && parseFloat(ring.borderTopWidth) >= 2
+      return {name, marked: outlined || ringed, opacity: style.opacity}
     })
     if (!result) continue
     reached.add(result.name)
-    expect(result.width).toBeGreaterThanOrEqual(2)
-    expect(result.outline).toBe("solid")
+    expect(result.marked, result.name).toBe(true)
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
   expect([...reached]).toEqual(
