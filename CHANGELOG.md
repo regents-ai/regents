@@ -5506,3 +5506,18 @@ changelog line moves from the published 6 Nov entry to this release's.
   with WebGPU: all six panels drew at 1280, 390 and 320 in light and dark, the page stayed
   alive after mouse sweeps over every card with about 11 MB of memory, and reduced motion
   kept the still frames.
+
+## 2026-11-12 — Released v296 (Overview value cards)
+
+- Live: v296 at 14:43Z, image registry.fly.io/regents-sh-web:main-df548fe56ecb;
+  /capabilities.json build.commit df548fe5. Rollback: v295, image
+  registry.fly.io/regents-sh-web:main-89a24877e732 (89a24877). No migration.
+- Full check on df548fe5: five gates passed in one run; the server test gate's 19 failures
+  in that run were all the local database dropping connections while the Mac's load average
+  stood near 80, and the gate passed alone on the same commit (680 tests).
+- Live read in headless Chromium with WebGPU: Enter App on the homepage links to and lands
+  on /app; /app answers 200 with six cards, six still frames and six drawn panels at 1280
+  (light), 390 (dark) and 320 (light); the four product sites open in a new tab and Stake
+  and Cloak stay on the site; no sideways scroll, no console errors, the page alive after
+  mouse sweeps. /api/v1/health answers {"status":"ok","migrations_applied":true}; the Fly
+  health check passes and the logs since the switch show only answered requests.
