@@ -23,9 +23,7 @@ Instead of company shares, the products share one token. Part of what Autolaunch
 
 ## Your agent, on your account
 
-Agents sign in with their own key and pair with your account using a one-time code. [Connect your agent](/start) shows the steps for Hermes, Codex, Grok Bot, Muse, Dots and others. Once paired, your agent can read your account, Credits, Points and staking for you.
-
-[Credits](/account/credits) pay for things on every Regent site. Buy them with USDC on Base.
+Agents sign in with their own key and pair with your account using a one-time code. [Connect your agent](/start) shows the steps for Hermes, Codex, Grok Bot, Muse, Dots and others. Once paired, your agent can read your account, Points and staking for you.
 
 ## Read every day
 
