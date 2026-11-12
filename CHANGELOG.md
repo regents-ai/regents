@@ -5162,3 +5162,23 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Built by the product tiles lane (handoffs/regents-product-tiles-2026-11-11).
 - Check: `platform/assets/test/product_tiles.test.ts`, `platform/assets/test/canvas_island.test.ts`,
   `platform/test/browser/homepage.spec.ts`.
+
+## 2026-11-12 — Released v287 (product answers match the API description)
+
+- Live: v287, image registry.fly.io/regents-sh-web:main-7289262b3fd3; /capabilities.json
+  build.commit 7289262b. Rollback: v286, image registry.fly.io/regents-sh-web:main-a596fa82a877
+  (a596fa82). No migrations.
+- Full check on 7289262b: exit 0, all six gates.
+- Live read: /openapi.json 5.2.0; GET /api/v1/products/{patchbay,autolaunch,techtree,keyfleet}
+  answer no undeclared field and every required one.
+
+## 2026-11-12 — Released v288 (home: each product link in its own colours)
+
+- Live: v288, image registry.fly.io/regents-sh-web:main-8f8a74bfd0e2; /capabilities.json
+  build.commit 8f8a74bf. Rollback: v287, image registry.fly.io/regents-sh-web:main-7289262b3fd3
+  (7289262b). No migrations.
+- Full check on 8f8a74bf: exit 0, all six gates. The first run caught the home decoration test
+  reading both canvases; it now names the backdrop and the tiles' canvas each.
+- Live read in headless Chromium with WebGPU at 1440, 390 and 320: five tiles in Patchbay,
+  Autolaunch, Techtree, Keyfleet and Protocol colours; the tiles' canvas draws at its laid-out
+  size once the panel opens and the row is on screen; no sideways scroll; no console errors.
