@@ -5301,3 +5301,10 @@ changelog line moves from the published 6 Nov entry to this release's.
 - The About page's heading read "About Regents Labs"; it now reads "About", as headings here are one
   or two words. The page's words below it, its title and the sidebar's "About Regents Labs" link are
   unchanged. Agents reading /about.md see the same heading. No migrations.
+
+## 2026-11-12 — Home page's Skip to content now has a check
+
+- The home page has had a Skip to content link since 28 October (b8127ac3), the same one every other
+  page uses: unseen until the first Tab, then on top of the page, and Enter leads into the panel.
+  Nothing checked it; `platform/test/browser/homepage.spec.ts` now does, at 1440 and 390. Nothing a
+  visitor sees changed.

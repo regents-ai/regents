@@ -418,6 +418,33 @@ test("[U1] every panel control retains visible paired keyboard focus", async ({p
   )
 })
 
+// The first Tab shows "Skip to content" on top of the page, and Enter moves the
+// keyboard on to the panel's own controls, as on every other page.
+test("the first Tab on the homepage shows Skip to content", async ({page}) => {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({width, height: 844})
+    await page.goto("/")
+    await waitForHomepage(page)
+    const skip = page.getByRole("link", {name: "Skip to content"})
+    await expect(skip).toHaveCSS("clip-path", "inset(50%)")
+    await page.keyboard.press("Tab")
+    await expect(skip).toBeFocused()
+    await expect(skip).toHaveCSS("clip-path", "none")
+    const box = (await skip.boundingBox())!
+    expect(
+      await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest(".shell-skip") !== null, [
+        box.x + box.width / 2,
+        box.y + box.height / 2,
+      ] as const),
+      `at ${width} wide`,
+    ).toBe(true)
+    await page.keyboard.press("Enter")
+    await expect(page).toHaveURL(/#home-content$/)
+    await page.keyboard.press("Tab")
+    await expect(page.locator("#home-content :focus")).toBeVisible()
+  }
+})
+
 // COPY_BUTTON: the $REGENT menu copies the contract address with the shared
 // copy button, which answers "Copied" in place of its label.
 test("[R14] the $REGENT menu copies the contract address", async ({browser}) => {
