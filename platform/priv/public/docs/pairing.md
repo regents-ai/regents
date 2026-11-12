@@ -9,7 +9,7 @@ Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent
 Install the `regents` command line and sign in once:
 
 ```sh
-uv tool install regents-cli==1.10.24
+uv tool install regents-cli==1.10.25
 regents auth login --site regents
 regents protocol agents whoami --json
 ```

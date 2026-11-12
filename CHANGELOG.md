@@ -5646,3 +5646,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   Credits in the /app header; /account/credits, /credits/refunds, /admin/credits and
   /admin/pictures show the not-found page; /, /app, /account, /stake, /agents and /docs
   answer 200.
+
+## 2026-11-12 — On regents-cli 1.10.25
+
+- regents-cli 1.10.25 was published while the Credits removal was being checked, and the
+  check-siwa-latest gate stops a release until the site names it. The Makefile's pin, the
+  agent guide (release, source commit, wheel SHA256), the install lines and
+  /capabilities.json's cli.release now name 1.10.25 (8b3240b6). No migrations.
