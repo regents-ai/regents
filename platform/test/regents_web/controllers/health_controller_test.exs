@@ -13,7 +13,7 @@ defmodule RegentsWeb.HealthControllerTest do
   test "/api/v1/health answers the same check in JSON", %{conn: conn} do
     response = get(conn, "/api/v1/health")
 
-    assert json_response(response, 200) == %{"status" => "ok"}
+    assert json_response(response, 200) == %{"status" => "ok", "migrations_applied" => true}
     assert get_resp_header(response, "cache-control") == ["no-store"]
   end
 end

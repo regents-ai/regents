@@ -12,7 +12,7 @@ curl --fail '{{origin}}/openapi.json'
 
 ## Health
 
-`GET /healthz` answers `ok`. `GET /api/v1/health` answers `{"status": "ok"}`, or `503` with `unavailable`. Both say the site and its database are up, not that every wallet or outside service is.
+`GET /healthz` answers `ok`. `GET /api/v1/health` answers `{"status": "ok", "migrations_applied": true}`, or `503` with `unavailable`; `migrations_applied` is false while the running release waits on a database change. Both say the site and its database are up, not that every wallet or outside service is.
 
 ## Markdown
 

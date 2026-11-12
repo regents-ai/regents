@@ -5355,3 +5355,19 @@ changelog line moves from the published 6 Nov entry to this release's.
   the site posts from a link.
 - New walk `platform/test/browser/confirm.spec.ts` (1280, 390 and 320): Cancel, Escape and Unpair,
   and no browser box ever opens. No migrations.
+
+## 2026-11-12 — Pair New Agent's moving list; the health answer names pending migrations
+
+- In the Pair New Agent window, and on the pairing page, the list of agents now drops in and
+  leaves with a short move, and a press during the move always counts. With less motion asked
+  for it opens and closes at once. The agent's picture sits in a low band (it came with the
+  design-system pin), and choosing an agent moves nothing under it. Pairing itself is unchanged.
+- `GET /api/v1/health` also answers `migrations_applied`: true when the database has every change
+  the running release carries, false while it waits on one; the answer stays 200 either way and
+  `/healthz` is unchanged. The OpenAPI JSON specification is version 5.3.0; the agent guides and
+  developer docs say so.
+- The page's outer grid has one column the screen's width, so a row that scrolls sideways on its
+  own can't widen the page.
+- New checks: `platform/test/regents/health_test.exs`; the pairing walk's picture band (1280, 390
+  and 320), a press during the list's move and reduced motion; the `/pair` page's band. No
+  migrations.

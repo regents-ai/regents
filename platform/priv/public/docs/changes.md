@@ -1,5 +1,7 @@
 ## 2026-11-12
 
+`GET /api/v1/health` also answers `migrations_applied`: `true` when the database has every change the running release carries, `false` while it waits on one. The answer stays 200 either way, and `/healthz` is unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 5.3.0.
+
 [/capabilities.json]({{origin}}/capabilities.json) now gives `cli`: the `package` (`regents-cli`), the `release` the [agent guide]({{origin}}/agents.md) installs and the command `namespace` for this site (`protocol`). The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) describe it.
 
 ## 2026-11-11

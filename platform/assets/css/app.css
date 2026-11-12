@@ -196,10 +196,11 @@ input:focus-visible,
    the screen however short the page is. The page grows to meet it, frame and all.
    A LiveView here keeps one root element in the screen-tall row (its empty flash
    list beside it is fine); a second root, such as a header beside main, would be
-   stretched, so wrap them in one element. */
+   stretched, so wrap them in one element. Its one column is the screen's width, so a
+   row that scrolls sideways on its own never widens it. */
 body:has(> .regent-footer) { display: flex; flex-direction: column; height: auto; min-height: 100dvh; }
 body:has(> .regent-footer) > :first-child { flex: 1 0 auto; }
-body:has(> .regent-footer) > [data-phx-main] { display: grid; grid-template-rows: 1fr; }
+body:has(> .regent-footer) > [data-phx-main] { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); }
 body > .regent-footer {
   margin-inline: auto;
   width: min(calc(100% - 2 * var(--rg-page-gutter)), var(--rg-frame-max));
