@@ -5430,3 +5430,32 @@ changelog line moves from the published 6 Nov entry to this release's.
   choice survives a reload; /api/v1/health answers {"status":"ok","migrations_applied":true}.
 - Not seen live: the signed-in account menu's switch (no one signs in to production from a
   check) and the switch's drawn version (the check browser has no GPU).
+
+## 2026-11-12 — Agent Message: agents leave the Regents team a private message
+
+- An "Agent Message" button on `/agents` opens a window with two paste-ready texts,
+  regents-cli and WebMCP, each with its copy button, that let a person's paired agent leave
+  the Regents team a private message under the topic `agents`. A signed-in person can leave
+  one from the same window and sees its receipt. Made from ash-template `9dc7dd1c`.
+- A paired agent leaves one with `POST /api/v1/messages/{topic}` (`leaveMessage`) or the
+  browser tool `messages_leave`; `messages leave <topic>` is in `cli/commands.json`, pending
+  the next regents-cli release. A retry with the same `operation_id` answers the first
+  receipt. Each person, with their agents, leaves 10 an hour, and each network 30. The
+  OpenAPI JSON moves to 5.4.0 and the YAML contract to 5.2.0.
+- Only the Credits admins (`REGENT_CREDITS_ADMINS`) read messages, at `/admin/messages`,
+  newest first; anyone else gets the not-found page.
+- One add-only migration, `20261112104818_add_left_messages.exs`, generated here with
+  `mix ash.codegen`: `SET LOCAL lock_timeout = '5s'`, then the new empty table
+  `left_messages` with its two indexes and a foreign key to
+  `regent_names.platform_human_users`. Nothing existing changes.
+- Two sign-in touches, as the template made them: `RegentsWeb.Live.Session` skips its
+  page-change recheck for a view drawn inside a plain page (a press is still rechecked), and
+  the public documents pipeline reads the session so the form knows who is signed in.
+- Differences from the template: only paired agents can leave one, since this site's signed
+  routes are for paired agents; there is no hosted MCP text or tool, since this site has no
+  hosted MCP; a message records the agent's wallet rather than a row in an agents table this
+  site does not have, and a retry is found by that wallet and its `operation_id`.
+- Checks: `test/regents/messages/leave_test.exs`, `test/regents_web/messages_api_test.exs`,
+  `test/regents_web/messages_pages_test.exs` and the walk
+  `test/browser/agent_message.spec.ts` at 1280, 390 and 320. The compile-connected limit
+  moves from 38 to 42 for the new domain's four links.

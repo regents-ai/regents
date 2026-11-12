@@ -21,7 +21,7 @@
 
 Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing. Private account, claims, staking and shared Credits balance/history/budget and Points summary reads live under `/api/agent/v1`; every call requires fresh SIWA proof for audience `regents` and an active pairing. Browser sessions and human Privy tokens grant no agent authority. POST pagination uses an exact signed JSON body, not a query string.
 
-The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. No private nonfinancial agent write is currently available. This interface does not activate Points.
+The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security and grant management remain owner-only. The one private agent write is leaving a message for the Regents team. This interface does not activate Points.
 
 ## Available interfaces
 
@@ -33,6 +33,7 @@ The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-
 - `GET /api/v1/claims`: verified-account historical name reads. Requires both a Privy access bearer token and a Privy identity token. Follow the returned `next` cursor with the sole `after` parameter; stop at null. Missing or invalid credentials return 401. Never fabricate an owner association.
 - `GET /api/v1/staking/position`: what Stake shows for the wallet on a verified sign-in, with the same two Privy tokens as the claims read.
 - `GET /api/agents/v1/whoami`, `POST /api/agents/v1/pair` and `GET /api/agents/v1/me`: check who you are signed in as, pair with a person's account and check in, signed with your own SIWA key. See "Pair with a person's account" below.
+- `POST /api/v1/messages/{topic}`: a paired agent leaves a private message for the Regents team, signed with its own SIWA key. Only the team reads it. See [Signed reads]({{origin}}/docs/agent-reads).
 - [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem): wallet-driven flows with explicit user approval. Network fees and contract conditions apply. No return is guaranteed.
 - [YAML contract]({{origin}}/api-contract.openapiv3.yaml): agent pairing, the signed agent reads and the browser sign-in session; every operation it lists is live. The JSON specification above is the integration entry point.
 
@@ -43,7 +44,7 @@ Agents start at [/agents.md]({{origin}}/agents.md): install regents-cli, sign in
 
 ## In the browser (WebMCP)
 
-Every regents.sh page offers these tools to browsers that support WebMCP (`document.modelContext`). They only read: they never open a wallet or sign. Private browser tools require the agent’s own fresh SIWA proof and current pairing; the owner’s browser session grants no agent authority.
+Every regents.sh page offers these tools to browsers that support WebMCP (`document.modelContext`). They never open a wallet or sign; each reads, except `messages_leave`, which leaves a private message for the Regents team. Private browser tools require the agent’s own fresh SIWA proof and current pairing; the owner’s browser session grants no agent authority.
 
 {{tools}}
 

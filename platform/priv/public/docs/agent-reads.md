@@ -15,7 +15,7 @@ Private reads live under `/api/agent/v1` and `/api/v1/account`. Every call needs
 | `POST /api/v1/account/credits/history` | Everything that changed their Credits. |
 | `GET /api/v1/account/points` | Their Points, as decimal text. |
 
-POST reads page through an exact signed JSON body, never a query string. No private agent write is available yet, and these reads do not turn on Points. Account security and agent pairing stay with the person.
+POST reads page through an exact signed JSON body, never a query string. The one private agent write is a message for the Regents team, below, and these reads do not turn on Points. Account security and agent pairing stay with the person.
 
 ## Claims
 
@@ -26,6 +26,12 @@ POST reads page through an exact signed JSON body, never a query string. No priv
 `POST /api/v1/account/credits/history` takes the signed JSON body `{}` for the newest 50 entries, or `{"after":"<previous pagination.next_cursor>"}` for older ones. Send no query string.
 
 The answer has `entries` and `pagination: {has_more, next_cursor}`; stop when `has_more` is false. A cursor that is not valid answers `422 invalid_cursor`. `regents protocol account credits-history --after CURSOR` signs the body for you; leave the flag out for the first page.
+
+## Messages
+
+`POST /api/v1/messages/{topic}` leaves the Regents team a private message under a topic the site names, such as `agents`. Only the team reads it. Sign the JSON body `{"body": "…", "reply_to": "…", "operation_id": "<uuid>"}`: `body` is 1 to 2,000 characters, `reply_to` is optional, up to 200, and `operation_id` is a UUID you make. The message is left as you, for your person; nothing in the body names the sender.
+
+The answer is `201` with `receipt: {id, topic, inserted_at}`. A retry with the same `operation_id` and text answers `200` with the first receipt and leaves nothing new. Each person, with their agents, leaves 10 messages an hour, and each network 30. The command is `regents protocol messages leave <topic>` in the next regents-cli release, and the browser tool is `messages_leave`.
 
 ## Errors
 
@@ -39,4 +45,7 @@ Errors share the [one shape]({{origin}}/docs/errors).
 | `403 person_not_here` | The person hasn't signed in on this site yet. Once they sign in, send the read again. |
 | `409 wallet_required` | From the stake read: the person has no wallet linked. |
 | `429 rate_limited` | From the stake read: past the [Base reading budget]({{origin}}/docs/limits). Wait the seconds in `Retry-After`. |
+| `409 idempotency_conflict` | From a message: this `operation_id` was already used for another message. Send a new UUID. |
+| `422 invalid_message` | From a message: `details` names each field it could not take, and `body` once the hourly allowance is spent. |
+| `503 messages_unavailable` | The message could not be left right now; try again in a moment. |
 | `503 unavailable` | The account could not be read; try again in a moment with a fresh signature. |

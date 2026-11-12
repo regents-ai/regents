@@ -93,7 +93,7 @@ development and from the deployment's secret store in production.
 | `REGENTS_RELEASE_COMMAND` | Set by the release | `migrate` switches the boot into migration mode. |
 | `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
 | `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. Each visitor may start six lookups a minute across all of their pages (`:opensea_lookups_per_minute`), counted by network address: people who share one address (an office, a mobile network) share those six, and past them the page reports the lookup unavailable and offers manual entry. |
-| `REGENT_CREDITS_ADMINS` | No | Comma-separated Privy user ids of the Credits admins. Only they can open the saved errors at `/admin/errors`; anyone else gets the not-found page. |
+| `REGENT_CREDITS_ADMINS` | No | Comma-separated Privy user ids of the Credits admins. Only they can open the saved errors at `/admin/errors` and the messages left for the team at `/admin/messages`; anyone else gets the not-found page. |
 
 ## Public HTTP surface
 
@@ -108,6 +108,8 @@ is a map, not the contract.
 | `/api/formation/v1/regents/:regent_id/agent-links/claim` | POST | Claim an agent link. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
 | `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
+| `/api/v1/messages/:topic` | POST | A paired agent leaves the team a private message (`leaveMessage`). |
+| `/admin/messages` | LiveView | The team reads the messages left for it; Credits admins only. |
 
 `/healthz` and every `/api` path share one budget of 120 requests a minute per client
 address, and pairing also has its own 10 a minute, as in ash-template
