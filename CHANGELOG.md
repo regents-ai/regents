@@ -5833,3 +5833,15 @@ changelog line moves from the published 6 Nov entry to this release's.
   `product_cards.spec.ts`, `value_cards.spec.ts`, `shell_walk.spec.ts` and
   `founder_shell.spec.ts` (35); the command description check. No migration, no new
   dependency.
+
+## 2026-11-12 — Released v302 (product pages' cards, Autolaunch leads with onchain stocks)
+
+- v302 at 21:32Z, image registry.fly.io/regents-sh-web:main-8ed2fd1af383, commit 8ed2fd1a.
+  Full check exit 0 on 8ed2fd1a, seven gates in one run. No migration.
+- Live read, signed out, headless Chromium with WebGPU at 1280, 390 and 320: six cards on
+  /patchbay, /autolaunch, /techtree and /keyfleet; /app's six and /cloak unchanged; each of
+  the 24 card links answers 200 on its product's site; no sideways scroll and no errors.
+  Autolaunch's own site shows covered calls live, which the new line names.
+- Rollback: v301's image main-c1d2dee245b4.
+- Not proven live: Safari, a real phone, the signed-in pages.
+- Known and next: the Launches figures on /autolaunch are the first version's terms.
