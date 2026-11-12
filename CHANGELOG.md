@@ -5324,3 +5324,23 @@ changelog line moves from the published 6 Nov entry to this release's.
   cli {package regents-cli, release 1.10.24, namespace protocol}; the About heading reads "About".
 - Left from the batch, not done: the check-siwa-latest gate and the identity project's
   lockfile advisories.
+
+## 2026-11-12 — Design-system c4244b38: the shared Credits parts leave the account pages
+
+- regents.sh now pins design-system `c4244b38`, the version the template runs (the forms and
+  design-system rollout `33d5aa96` and the confirm, pairing and health rollout `dfd18f87`, plus
+  the style check's test-file fix). The `elixir-utils` pin did not move.
+- The shared account parts no longer carry Credits (Sean dropped Credits on 6 November), so with
+  this version: the Account page shows the profile without the Credits box and its "Manage Credits"
+  link; the account menu has no balance row (on phones under 360 px the balance is not shown, since
+  the header has no room for it); an agent's window no longer says what it spent. The header's
+  Credits button, the Buy Credits window and the Credits tab are unchanged; taking Credits out of
+  regents.sh entirely is its own rollout (2026-11-06), which this site takes last.
+- The dropped attributes are gone from every caller: the blog list's site line, the staking ratio
+  card's eyebrow in the showcase, and the captions under two figures (the type sample in the
+  showcase and the Animata picture on Redeem).
+- Fields now keep an empty error line under them and show their focus, disabled, loading and error
+  states; the primary button's focus ring follows its cut corner.
+- Style check (`sh assets/vendor/regent_ui/style-check.sh` from `platform/`): 23 breaks, the same
+  before and after this change; not wired into `make check` until it reports none.
+- No migrations.

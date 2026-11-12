@@ -364,7 +364,6 @@ defmodule RegentsWeb.RedeemLive do
             src="/images/redeem/animata1and2-poster.jpg"
             alt="Animata I and II artwork"
           />
-          <:caption>FIG. 02 — Animata I and II artwork</:caption>
         </Regent.Structure.technical_figure>
       </section>
 

@@ -32,33 +32,6 @@
   padding-inline-end: 3rem;
 }
 
-/* The panel. */
-
-.account-credits h3 {
-  margin: 0;
-  font-family: var(--font-family-title);
-  font-size: 1.15rem;
-  font-weight: 400;
-}
-
-/* The lines and links under the figures in the shared Credits box. */
-.account-credits__more {
-  display: grid;
-  gap: 1rem;
-  margin-block-start: 1rem;
-}
-
-.account-credits__more p {
-  margin: 0;
-}
-
-.account-credits__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1.25rem;
-}
-
 /* Purchase History: one row a purchase, what was paid on the left and what
    came of it on the right. */
 

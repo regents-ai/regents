@@ -202,9 +202,7 @@ defmodule RegentsWeb.ShowcaseLive do
               <div class="sc-example rg-feature">
                 <S.panel class="sc-card">
                   <h3>Typography</h3><S.technical_figure class="rg-support-figure">
-                    <p class="sc-type-display">Aa / 0123</p><:caption>
-                      Geist Serif / regular 400
-                    </:caption>
+                    <p class="sc-type-display">Aa / 0123</p>
                   </S.technical_figure><p>
                     Geist Serif · titles, body copy and interface.
                   </p><code>0x71C7…976F</code><P.disclosure
@@ -460,7 +458,6 @@ defmodule RegentsWeb.ShowcaseLive do
             </form>
             <S.ratio_card
               id="staking-ratio"
-              eyebrow="Regent"
               title="Staking"
               value_bps={@ratio_bps}
               label="Staked supply"

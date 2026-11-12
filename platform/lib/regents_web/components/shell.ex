@@ -149,18 +149,6 @@ defmodule RegentsWeb.Components.Shell do
               alt=""
             />
           </:picture>
-          <:balance :if={@credits}>
-            <button
-              type="button"
-              id="account-menu-credits"
-              aria-haspopup="dialog"
-              aria-controls="shell-credits"
-              aria-label={credits_label(@credits)}
-              data-credits-open
-            >
-              <.credits_amount amount={@credits} />
-            </button>
-          </:balance>
           <:agents>{render_slot(@agents)}</:agents>
         </Regent.Account.menu>
       </header>

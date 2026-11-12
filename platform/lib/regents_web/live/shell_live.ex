@@ -231,7 +231,6 @@ defmodule RegentsWeb.ShellLive do
         <Regent.Blog.gallery
           :if={@route_spec.route_id == :blog and @blog_posts != []}
           posts={@blog_posts}
-          site="Regents Labs"
           name="Articles"
           path="/articles"
         />
@@ -284,7 +283,6 @@ defmodule RegentsWeb.ShellLive do
           signed_out_reason={@signed_out_reason}
           account={current_account(@access_context)}
           account_control={@account_control}
-          credits_read={@credits}
         />
 
         <AccountLive.agents

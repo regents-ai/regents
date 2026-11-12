@@ -127,7 +127,6 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert has_element?(view, log, "Patchbay")
     assert has_element?(view, log, "09:05 to 17:40 UTC")
     assert has_element?(view, ~s(#{log} time[datetime="2026-10-16"]), "16 October 2026")
-    assert has_element?(view, "#{dialog} [role=status]", "0 Credits spent for you")
 
     assert has_element?(
              view,

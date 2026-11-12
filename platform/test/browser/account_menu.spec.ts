@@ -208,39 +208,11 @@ test("on a short phone screen, the account menu reaches Sign out", async ({page}
   await expect(signOut).toBeInViewport()
 })
 
-// Narrower than 22.5rem the header has no room for the balance, so the account menu
-// shows it, in the header's words, and the row opens the same Buy Credits panel.
-test("on the narrowest phones the balance is in the account menu and opens Buy Credits", async ({page}) => {
-  const problems = watch(page)
-  await page.setViewportSize({width: 320, height: 900})
-  await signIn(page)
-  await expect(page.locator("#shell-credits-button")).toBeHidden()
-  await openMenu(page)
-
-  const row = page.locator("#account-menu-credits")
-  await expect(row).toBeVisible()
-  await expect(row).toContainText("Credits")
-  await expect(row).toHaveAccessibleName(/\S/)
-  expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
-
-  await row.click()
-  await expect(menu(page)).toBeHidden()
-  await expect(page.locator("#shell-credits")).toBeVisible()
-  await page.keyboard.press("Escape")
-  await expect(page.locator("#shell-credits")).toBeHidden()
-  await expect(page.locator("#account-chip")).toBeFocused()
-  await problems.expect()
-})
-
-test("wider than the narrowest phones the balance stays in the header, not the menu", async ({page}) => {
+test("the balance in the header opens Buy Credits", async ({page}) => {
   const problems = watch(page)
   await page.setViewportSize({width: 390, height: 900})
   await signIn(page)
   await expect(page.locator("#shell-credits-button")).toBeVisible()
-  await openMenu(page)
-  await expect(page.locator("#account-menu-credits")).toBeHidden()
-  await page.keyboard.press("Escape")
   await page.locator("#shell-credits-button").click()
   await expect(page.locator("#shell-credits")).toBeVisible()
   await problems.expect()

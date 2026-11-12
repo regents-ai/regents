@@ -283,7 +283,6 @@ defmodule RegentsWeb.ShellLiveTest do
     refute html =~ "Sign in to see your account"
     assert has_element?(view, "#account-identity h2", "0x6666..6666")
     assert has_element?(view, "#account-identity-picture[src^='data:image/svg+xml;base64,']")
-    assert has_element?(view, "#account-credits")
     assert has_element?(view, "#account-public-name")
     # Sign out is in the account menu, on this page as on every other.
     refute has_element?(view, "#account-page [data-account-target=sign-out]")
@@ -679,7 +678,7 @@ defmodule RegentsWeb.ShellLiveTest do
     view = open_tab(conn, account, "/names")
 
     render_change(element(view, "#account-claim-form"), %{"name" => "ab"})
-    assert has_element?(view, "#account-claim-name-errors li", "Use at least 3 characters.")
+    assert has_element?(view, "#account-claim-name-errors p", "Use at least 3 characters.")
     assert has_element?(view, "#account-claim-form input[aria-invalid=true][value=ab]")
     assert has_element?(view, "#account-claim-availability[hidden]")
 
@@ -691,7 +690,7 @@ defmodule RegentsWeb.ShellLiveTest do
     refute html =~ "Use at least 3 characters."
 
     render_change(element(view, "#account-claim-form"), %{"name" => "taken"})
-    refute has_element?(view, "#account-claim-name-errors")
+    refute has_element?(view, "#account-claim-name-errors p")
     assert has_element?(view, "#account-claim-availability", "taken is already claimed.")
 
     render_change(element(view, "#account-claim-form"), %{"name" => "fresh-name-1"})
@@ -704,7 +703,7 @@ defmodule RegentsWeb.ShellLiveTest do
 
     render_change(element(view, "#account-claim-form"), %{"name" => ""})
     assert has_element?(view, "#account-claim-availability[hidden]")
-    refute has_element?(view, "#account-claim-name-errors")
+    refute has_element?(view, "#account-claim-name-errors p")
     refute render(view) =~ "0x9e9e"
   end
 

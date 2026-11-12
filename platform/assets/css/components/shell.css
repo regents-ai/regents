@@ -674,8 +674,7 @@
   #shell-header .account-control:has(.account-chip) { margin-inline-end: 0; }
   #shell-header .mobile-menu-button { min-width: 2.75rem; padding-inline: 0.25rem; }
 }
-/* Narrower than 22.5rem the header has no room for the balance: the account
-   menu shows it instead, as its balance row, which opens the same panel. */
+/* Narrower than 22.5rem the header has no room for the balance. */
 @media (max-width: 22.49rem) {
   #app-shell #shell-credits-button { display: none; }
 }
