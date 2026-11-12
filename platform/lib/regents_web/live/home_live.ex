@@ -19,7 +19,13 @@ defmodule RegentsWeb.HomeLive do
 
     #{@mission}
 
-    [Enter App](#{PublicDocuments.url("/stake")}) · [Agent Tools](#{PublicDocuments.url("/llms.txt")}) · [Connect your agent from the command line](#{PublicDocuments.url("/start")})
+    [Enter App](#{PublicDocuments.url("/stake")})
+
+    ## Agent prompt
+
+    #{agent_prompt()}
+
+    [Agent Tools](#{PublicDocuments.url("/llms.txt")})
 
     ## Products
 
@@ -27,6 +33,14 @@ defmodule RegentsWeb.HomeLive do
 
     © 2026 Regents Labs
     """
+  end
+
+  @doc "The words a person copies from the panel and pastes to their agent to get started."
+  def agent_prompt do
+    "Read #{PublicDocuments.url("/llms.txt")}. Regents Labs builds tools for people and their agents. " <>
+      "Help me get started: I sign in at #{PublicDocuments.url("/")}, then we pair you to my account " <>
+      "(#{PublicDocuments.url("/start")} shows how, from the command line too). " <>
+      "After that, help me use one of the apps: Patchbay, Autolaunch or Keyfleet."
   end
 
   # The product sites are already full addresses; the staking page is this site's own.
@@ -47,7 +61,7 @@ defmodule RegentsWeb.HomeLive do
   # server's still picture stays and the panel stays open. The copyright stands at
   # the window's foot throughout, under the panel where the two meet.
   def render(assigns) do
-    assigns = assign(assigns, mission: @mission)
+    assigns = assign(assigns, mission: @mission, agent_prompt: agent_prompt())
 
     ~H"""
     <div
@@ -79,25 +93,36 @@ defmodule RegentsWeb.HomeLive do
         <.landing_header />
 
         <main id="home-content" class="home__main">
-          <div class="rl-statement">
-            <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
-            <p class="rl-statement__line">{@mission}</p>
-          </div>
-          <div class="rl-hero-actions">
+          <div class="home__hero">
+            <div class="rl-statement">
+              <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
+              <p class="rl-statement__line">{@mission}</p>
+            </div>
             <a href={~p"/stake"} class="rg-button rg-button--no-arrow rl-hero-cta">
               <span class="rg-button__label">Enter App</span>
             </a>
-            <AgentTools.button
-              id="home-agent-tools-button"
-              dialog="home-agent-tools"
-              class="rg-button rg-button--secondary rg-button--no-arrow rl-hero-secondary"
-            >
-              <span class="rg-button__label">Agent Tools</span>
-            </AgentTools.button>
           </div>
-          <p class="rl-hero-agents">
-            <.link navigate={~p"/start"}>Connect your agent from the command line</.link>
-          </p>
+          <section class="rl-hero-prompt" aria-labelledby="home-prompt-title">
+            <div class="rl-hero-prompt__head">
+              <h2 id="home-prompt-title" class="rl-overline">Agent prompt</h2>
+              <Regent.Primitives.copy_button
+                id="home-prompt-copy"
+                class="rl-hero-prompt__copy"
+                target="home-prompt-text"
+                variant="quiet"
+              >
+                Copy
+              </Regent.Primitives.copy_button>
+            </div>
+            <p id="home-prompt-text" class="rl-hero-prompt__text">{@agent_prompt}</p>
+          </section>
+          <AgentTools.button
+            id="home-agent-tools-button"
+            dialog="home-agent-tools"
+            class="rl-hero-tools"
+          >
+            Agent Tools
+          </AgentTools.button>
         </main>
 
         <.products />

@@ -65,14 +65,28 @@ defmodule RegentsWeb.HomeLiveTest do
 
     order =
       ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
-        ["Agent Tools", "Connect your agent from the command line"] ++
+        ["Agent prompt", HomeLive.agent_prompt(), "Agent Tools"] ++
         ["Products"] ++ ~w(Patchbay Autolaunch Techtree Keyfleet Protocol)
 
     assert in_order?(text(html, "#home-glass"), order)
     assert in_order?(HomeLive.agent_markdown(), order ++ ["© 2026 Regents Labs"])
 
     assert Regex.scan(~r/^## (.+)$/m, HomeLive.agent_markdown(), capture: :all_but_first) ==
-             [[text(html, "#home-glass .home__foot h2")]]
+             html
+             |> LazyHTML.from_document()
+             |> LazyHTML.query("#home-glass h2")
+             |> Enum.map(&[&1 |> LazyHTML.text() |> String.trim()])
+  end
+
+  test "the panel shows the agent prompt, which sends the agent to this site's pages", %{
+    conn: conn
+  } do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert text(html, "#home-prompt-text") == HomeLive.agent_prompt()
+
+    for path <- ~w(/llms.txt / /start),
+        do: assert(HomeLive.agent_prompt() =~ RegentsWeb.PublicDocuments.url(path))
   end
 
   test "the panel's foot is the products alone, and the copyright stands outside it", %{

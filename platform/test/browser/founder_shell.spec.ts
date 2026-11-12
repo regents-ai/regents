@@ -155,7 +155,7 @@ test("the picture behind the panel never blocks the action", async ({page}) => {
       await page.emulateMedia({reducedMotion})
       await expect(page.locator("#home-title")).toBeVisible()
       await expect(page.locator("#home-glass")).toHaveCSS("opacity", "1")
-      const action = page.locator(".rl-hero-actions a").first()
+      const action = page.locator("#home-content a.rl-hero-cta")
       await action.scrollIntoViewIfNeeded()
       // The panel, not the picture, is what a press at the action lands on.
       expect(
@@ -164,7 +164,7 @@ test("the picture behind the panel never blocks the action", async ({page}) => {
           return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
         }),
       ).toBe(true)
-      await page.locator("#home-content .rl-hero-secondary").click({trial: true})
+      await page.locator("#home-agent-tools-button").click({trial: true})
       await page.locator("#home-nav-techtree").click({trial: true})
     }
     await page.emulateMedia({reducedMotion: "no-preference"})

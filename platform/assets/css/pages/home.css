@@ -97,7 +97,23 @@
     display: grid; gap: var(--space-3); min-width: 0;
     padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
   }
-  .home__main :is(.rl-hero-actions, .rl-hero-agents) { margin-block-start: 0; }
+  /* The name and its line, then Enter App: stacked in a narrow panel, side by side in
+     a wide one, with Enter App standing large in the middle-right. */
+  .home__hero { display: grid; gap: var(--space-3); min-width: 0; }
+  @container (min-width: 34rem) {
+    .home__hero { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-4); }
+    .home__hero .rl-hero-cta { justify-self: end; }
+  }
+  /* The words a person copies to their agent, in a quiet box under its small title,
+     with the copy button at the title's end. */
+  .rl-hero-prompt {
+    display: grid; gap: var(--space-1); min-width: 0; padding: var(--space-2);
+    background: color-mix(in srgb, var(--rl-ink) 4%, transparent);
+    border: 1px solid var(--rl-line);
+  }
+  .rl-hero-prompt__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 2.75rem; }
+  .rl-hero-prompt__head .rl-overline { color: var(--rl-muted); white-space: nowrap; }
+  .rl-hero-prompt__text { font-size: .875rem; line-height: 1.5; color: var(--rl-muted); overflow-wrap: anywhere; text-wrap: pretty; }
   /* The panel's foot, past a hairline: the product sites under their small title. */
   .home__foot {
     container-type: inline-size;
@@ -116,10 +132,6 @@
   .rl-hero-copy { width: fit-content; max-width: 100%; align-self: start; padding: var(--space-2) 0 var(--space-4); }
   .rl-hero-copy h1 { font-size: clamp(2.25rem, 11cqi, 4.5rem); line-height: 1.05; letter-spacing: -.035em; overflow-wrap: anywhere; }
   .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); }
-  /* One line under the buttons for people whose agent works from the command line;
-     the link is a full 44px tall so it is easy to tap on a phone. */
-  .rl-hero-agents { margin-block-start: var(--space-1); font-size: .875rem; line-height: 1.5; }
-  .rl-hero-agents a { display: inline-flex; align-items: center; min-height: 2.75rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
   .rl-overline { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; }
 
   @media (max-width: 47.99rem) {
@@ -136,12 +148,12 @@
    icons and plain links take the pointing blue, and outlined and menu buttons
    take a faint wash of their own ink. Outside the layer, so they win over the
    links' and buttons' own unlayered colours. */
-.rl-brand, .rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-agents a { transition: color 140ms ease, opacity 140ms ease; }
+.rl-brand, .rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools { transition: color 140ms ease, opacity 140ms ease; }
 .rl-root .rg-button--secondary::before { transition: box-shadow 140ms ease; }
 .rg-button.rl-token-link::before { transition: background-color 140ms ease; }
 @media (hover: hover) {
   .rl-brand:hover { opacity: .72; }
-  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-agents a, .rl-token-copy):hover { color: var(--ash-accent); }
+  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools, .rl-token-copy):hover { color: var(--ash-accent); }
   .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
   .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
 }
@@ -172,13 +184,22 @@
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
 .rg-button.rl-product-tab::after { content: none; }
-/* Enter App is the page's one main action: taller and larger than the button beside
-   it, and ringed in the palette's colours, Tangerine through Powder Blue to Platinum,
-   along its cut corners. The ring lies just outside the fill, so the shared marks
-   that hover and focus bring in still show inside it, and its colours turn on hover
-   and focus. Agent Tools beside it is the shared bordered square at the same height. */
-.rg-button.rl-hero-cta, .rg-button.rl-hero-secondary { min-height: 3.25rem; padding: .75rem 1.5rem; line-height: 1.5rem; }
-.rg-button.rl-hero-cta { --rl-cta-ring: 3px; font-size: 1.125rem; }
+/* The prompt's copy button is a full 44px tall, and its words line up with the box's
+   inner edge. */
+.rg-button.rl-hero-prompt__copy { min-height: 2.75rem; margin-inline-end: -.5rem; padding-inline: .5rem; font-size: .875rem; }
+/* Agent Tools is a quiet text link under the agent prompt, a full 44px tall to tap,
+   that opens the tools window. */
+.rl-hero-tools {
+  justify-self: start; display: inline-flex; align-items: center; min-height: 2.75rem;
+  padding: 0; background: none; border: 0; color: var(--rl-muted); cursor: pointer;
+  font: inherit; font-size: .875rem; line-height: 1.5;
+  text-decoration: underline; text-underline-offset: .2em;
+}
+/* Enter App is the page's one main action: large, and ringed in the palette's colours,
+   Tangerine through Powder Blue to Platinum, along its cut corners. The ring lies just
+   outside the fill, so the shared marks that hover and focus bring in still show
+   inside it, and its colours turn on hover and focus. */
+.rg-button.rl-hero-cta { --rl-cta-ring: 3px; min-height: 4rem; padding: 1rem 2.5rem; font-size: 1.375rem; line-height: 1.5rem; }
 .rg-button.rl-hero-cta::after {
   --rl-cta-cut: calc(var(--rg-cut-control) + .586 * var(--rl-cta-ring));
   content: ""; position: absolute; inset: calc(-1px - var(--rl-cta-ring)); pointer-events: none;

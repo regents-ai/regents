@@ -5070,3 +5070,17 @@ changelog line moves from the published 6 Nov entry to this release's.
   `platform/test/regents_web/router_gate_coverage_test.exs`,
   `platform/test/regents_web/content_security_policy_test.exs`, `platform/test/browser/docs.spec.ts`,
   `platform/test/browser/shell_walk.spec.ts`.
+
+## 2026-11-11 — Home: Enter App leads, with an agent prompt to copy (Sean, 11 Nov)
+
+- Enter App is larger and stands to the right of the name and its line in a wide panel; on a
+  phone it runs the panel's full width under them. It is the panel's one main action.
+- Under it, a small box titled "Agent prompt" holds a few lines a person copies with its Copy
+  button and pastes to their agent: read llms.txt, sign in, pair the agent (the start page
+  shows how, from the command line too), then use Patchbay, Autolaunch or Keyfleet. It replaces
+  the "Connect your agent from the command line" link.
+- Agent Tools becomes a quiet underlined link under the box; it still opens the tools window.
+- The agent copy of the home says the same, in the same order: Enter App, the agent prompt
+  under its own heading, Agent Tools, then the products.
+- Check: `platform/test/regents_web/home_live_test.exs`, `platform/test/browser/homepage.spec.ts`,
+  `platform/test/browser/founder_shell.spec.ts`.

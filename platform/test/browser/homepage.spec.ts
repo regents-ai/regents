@@ -35,7 +35,7 @@ const assertNoOverflow = async (page: Page) => {
 const boxOf = (page: Page, selector: string) =>
   page.locator(selector).first().evaluate(element => element.getBoundingClientRect().toJSON() as DOMRect)
 
-test("[U2] homepage is server-readable: name, line, actions and products", async ({browser}) => {
+test("[U2] homepage is server-readable: name, line, actions, agent prompt and products", async ({browser}) => {
   const context = await browser.newContext({javaScriptEnabled: false})
   const page = await context.newPage()
   await page.goto("/")
@@ -46,11 +46,10 @@ test("[U2] homepage is server-readable: name, line, actions and products", async
     "We build tools for people and their agents. REGENT stakers share in the revenue.",
   )
   await expect(glass.getByRole("link", {name: "Enter App"})).toHaveAttribute("href", "/stake")
-  await expect(glass.getByRole("button", {name: "Agent Tools"}).first()).toBeVisible()
-  await expect(glass.getByRole("link", {name: "Connect your agent from the command line"})).toHaveAttribute(
-    "href",
-    "/start",
-  )
+  await expect(glass.getByRole("heading", {level: 2, name: "Agent prompt"})).toBeVisible()
+  await expect(glass.locator("#home-prompt-text")).toContainText("Help me get started")
+  await expect(glass.getByRole("button", {name: "Copy"})).toBeVisible()
+  await expect(glass.getByRole("button", {name: "Agent Tools"})).toBeVisible()
 
   const tabs = glass.getByRole("navigation", {name: "Products"}).getByRole("link")
   await expect(tabs).toHaveCount(5)
@@ -250,7 +249,15 @@ for (const viewport of [
     }
 
     const parts = await Promise.all(
-      [".rl-header", "#home-title", ".rl-hero-actions", "#home-products-title", ".rl-product-tabs"].map(selector =>
+      [
+        ".rl-header",
+        "#home-title",
+        ".rl-hero-cta",
+        ".rl-hero-prompt",
+        ".rl-hero-tools",
+        "#home-products-title",
+        ".rl-product-tabs",
+      ].map(selector =>
         boxOf(page, selector),
       ),
     )
@@ -297,37 +304,56 @@ for (const viewport of [
   })
 }
 
-// Under the buttons, one line sends a person whose agent works from the command line
-// to the steps for connecting it.
-test("[U2] the panel points agents to the command line", async ({page}) => {
+// Enter App is the one large action: beside the name and its line in a wide panel, full
+// width under them on a phone. Under it, the agent prompt copies with its button, and the
+// quiet Agent Tools link opens the tools window.
+test("[U2] Enter App leads, then the agent prompt and Agent Tools", async ({browser}) => {
   for (const {width, height} of [
-    {width: 1280, height: 800},
+    {width: 1440, height: 900},
     {width: 390, height: 844},
+    {width: 320, height: 700},
   ]) {
     await test.step(`${width} wide`, async () => {
-      await page.setViewportSize({width, height})
+      const context = await browser.newContext({viewport: {width, height}})
+      await context.grantPermissions(["clipboard-read", "clipboard-write"])
+      const page = await context.newPage()
       await page.goto("/")
       await waitForHomepage(page)
+      await expect(page.locator(".phx-connected").first()).toBeAttached()
       await assertNoOverflow(page)
 
-      const link = page.locator("#home-content").getByRole("link", {
-        name: "Connect your agent from the command line",
-      })
-      await link.scrollIntoViewIfNeeded()
-      await expect(link).toBeInViewport()
-      const [line, actions, tabs] = await Promise.all(
-        [link, page.locator(".rl-hero-actions"), page.locator(".rl-product-tabs")].map(
-          locator => locator.evaluate(element => element.getBoundingClientRect().toJSON()),
+      const [statement, cta, prompt, tools, main] = await Promise.all(
+        [".rl-statement", ".rl-hero-cta", ".rl-hero-prompt", ".rl-hero-tools", "#home-content"].map(selector =>
+          boxOf(page, selector),
         ),
       )
-      expect(line.top, "the line sits under the buttons").toBeGreaterThanOrEqual(actions.bottom)
-      expect(line.bottom, "and above the product tabs").toBeLessThanOrEqual(tabs.top)
-      expect(line.right).toBeLessThanOrEqual(width)
-      expect(line.height, "a full tap target").toBeGreaterThanOrEqual(44)
+      if (width >= 1024) {
+        expect(cta.left, "Enter App stands right of the name").toBeGreaterThan(statement.right)
+        expect(cta.top, "level with the name and its line").toBeLessThan(statement.bottom)
+      } else {
+        expect(cta.top, "Enter App under the line").toBeGreaterThanOrEqual(statement.bottom)
+        expect(cta.width, "across the panel").toBeGreaterThan(main.width - 80)
+      }
+      expect(cta.height).toBeGreaterThanOrEqual(56)
+      expect(prompt.top, "the prompt under Enter App").toBeGreaterThanOrEqual(cta.bottom)
+      expect(tools.top, "Agent Tools under the prompt").toBeGreaterThanOrEqual(prompt.bottom)
+      expect(tools.height, "a full tap target").toBeGreaterThanOrEqual(44)
 
-      await link.click()
-      await expect(page).toHaveURL(/\/start$/)
-      await expect(page.getByRole("heading", {name: "Connect your agent", level: 1})).toBeVisible()
+      const copy = page.locator("#home-prompt-copy")
+      expect((await copy.boundingBox())!.height, "a full tap target").toBeGreaterThanOrEqual(44)
+      // The answer takes the label's place without moving the words under it.
+      const before = await boxOf(page, "#home-prompt-text")
+      await copy.click()
+      await expect(copy).toHaveAccessibleName("Copied")
+      expect(await boxOf(page, "#home-prompt-text")).toEqual(before)
+      const copied = await page.evaluate(() => navigator.clipboard.readText())
+      expect(copied).toBe((await page.locator("#home-prompt-text").textContent())!.trim())
+      expect(copied).toMatch(/^Read https?:\/\/[^ ]+\/llms\.txt\. /)
+      expect(copied).toContain("/start shows how")
+
+      await page.getByRole("button", {name: "Agent Tools"}).click()
+      await expect(page.getByRole("dialog", {name: /^Agents see \d+ WebMCP Tools$/})).toBeVisible()
+      await context.close()
     })
   }
 })
