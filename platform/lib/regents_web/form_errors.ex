@@ -8,6 +8,17 @@ defmodule RegentsWeb.FormErrors do
     if used_input?(field), do: Enum.map(field.errors, &message/1), else: []
   end
 
+  @doc "Each field an action refused and why, in the same words, for an API's `details`."
+  @spec details(Ash.Error.Invalid.t()) :: [%{field: atom(), message: String.t()}]
+  def details(%Ash.Error.Invalid{errors: errors}) do
+    errors
+    |> Enum.filter(&AshPhoenix.FormData.Error.impl_for/1)
+    |> Enum.flat_map(&List.wrap(AshPhoenix.FormData.Error.to_form_error(&1)))
+    |> Enum.map(fn {field, message, values} ->
+      %{field: field, message: message({message, values})}
+    end)
+  end
+
   # Ash's own words for a missing value, a list too short or text of the wrong
   # length name the rule a value broke; these say what to do about it.
   defp message({"is required", _values}), do: "Fill this in."

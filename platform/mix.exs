@@ -191,7 +191,9 @@ defmodule Regents.MixProject do
         "cmd env SOBELOW_HOME=_build/sobelow mix sobelow --exit",
         # The measured compile-connected baseline; lower it whenever references are removed.
         # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
-        "xref graph --label compile-connected --fail-above 38",
+        # Messages adds four, as every Ash domain does: the domain reads its resource, and the
+        # resource its two policy checks and its `run` module.
+        "xref graph --label compile-connected --fail-above 42",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",

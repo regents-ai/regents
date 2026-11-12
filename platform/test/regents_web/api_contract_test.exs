@@ -17,6 +17,7 @@ defmodule RegentsWeb.ApiContractTest do
              "/api/v1/account/balances",
              "/api/v1/account/credits/history",
              "/api/v1/account/points",
+             "/api/v1/messages/{topic}",
              "/auth/csrf",
              "/auth/privy/failure",
              "/auth/privy/session",

@@ -105,7 +105,8 @@ config :regents,
     Regents.Staking,
     Regents.PaperProDaily,
     Regents.Points,
-    Regents.Blog
+    Regents.Blog,
+    Regents.Messages
   ],
   generators: [timestamp_type: :utc_datetime]
 
@@ -164,6 +165,10 @@ config :regents, RegentsWeb.PaperProDaily.Feed,
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 config :regents, :credits_report_rate_limit, limit: 120, window_seconds: 60
+# Messages left for the team (`Regents.Messages`): each person, with their paired
+# agents, and each network leaves a few an hour.
+config :regents, :message_rate_limit, limit: 10, window_seconds: 3600
+config :regents, :message_address_rate_limit, limit: 30, window_seconds: 3600
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false

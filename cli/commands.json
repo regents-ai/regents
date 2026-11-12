@@ -144,6 +144,45 @@
       "effect": "read"
     },
     {
+      "command": "messages leave <topic>",
+      "description": "Leave a private message for the Regents team under a topic, such as agents; only the team reads it. Pipe body, an optional reply_to and a stable operation_id UUID on stdin; keep the UUID when retrying. Needs a pairing. Refuses a used operation_id with other text (409 idempotency_conflict).",
+      "operation_id": "leaveMessage",
+      "webmcp": "messages_leave",
+      "method": "POST",
+      "path": "/api/v1/messages/{topic}",
+      "authority": "paired_agent",
+      "effect": "write",
+      "arguments": [
+        {
+          "name": "topic",
+          "type": "string",
+          "in": "path",
+          "field": "topic",
+          "description": "The topic the site gives, such as agents: lowercase letters, numbers and single hyphens, at most 40."
+        }
+      ],
+      "stdin_fields": [
+        {
+          "field": "body",
+          "type": "string",
+          "required": true,
+          "description": "The message, 1 to 2,000 characters."
+        },
+        {
+          "field": "reply_to",
+          "type": "string",
+          "required": false,
+          "description": "Where the team can answer you, at most 200 characters."
+        },
+        {
+          "field": "operation_id",
+          "type": "uuid",
+          "required": true,
+          "description": "Stable UUID for this message; keep it when you retry. A 200 answers the first message; a UUID already used for another message is refused."
+        }
+      ]
+    },
+    {
       "command": "products list",
       "description": "List the Regents products in the order the site lists them: Autolaunch, Techtree, Patchbay and Keyfleet, each with its summary, website, source and page on regents.sh.",
       "operation_id": "listProducts",

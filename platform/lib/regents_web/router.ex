@@ -37,6 +37,8 @@ defmodule RegentsWeb.Router do
   pipeline :public_documents do
     plug :accepts, ["html"]
     plug :fetch_session
+    # Read only, for the Agent Message form a page may hold (`AgentMessage`).
+    plug :enforce_session_authority
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
     plug :protect_from_forgery
@@ -65,6 +67,13 @@ defmodule RegentsWeb.Router do
     }
 
     plug RegentsWeb.ErrorsAdmin
+  end
+
+  # The team's own pages after the admin check above: the site's page frame.
+  pipeline :admin_page do
+    plug :fetch_live_flash
+    plug RegentsWeb.Plugs.Theme
+    plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
   end
 
   def enforce_session_authority(conn, _opts) do
@@ -175,6 +184,12 @@ defmodule RegentsWeb.Router do
     get "/staking/position", StakingPositionController, :agent_show
   end
 
+  # A paired agent's private message for the site's team.
+  scope "/api/v1", RegentsWeb do
+    pipe_through [:api, :paired_agent]
+    post "/messages/:topic", MessagesController, :leave
+  end
+
   # A paired agent's reads of its person's Credits and Points, at the same
   # paths on every site.
   scope "/api/v1/account", RegentsWeb do
@@ -254,5 +269,15 @@ defmodule RegentsWeb.Router do
       on_mount: [RegentsWeb.ErrorsAdmin],
       csp_nonce_assign_key: %{script: :csp_nonce, style: :csp_nonce}
     )
+  end
+
+  scope "/admin", RegentsWeb do
+    pipe_through [:errors_admin, :admin_page]
+
+    live_session :admin,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      on_mount: [RegentsWeb.ErrorsAdmin] do
+      live "/messages", AdminMessagesLive, :index
+    end
   end
 end

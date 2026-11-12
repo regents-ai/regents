@@ -353,6 +353,66 @@
       "effect": "read"
     },
     {
+      "name": "messages_leave",
+      "title": "Leave a message",
+      "description": "Leave a private message for the Regents team under a topic, such as agents. Only the team reads it; nobody else sees it. Say in reply_to where you want an answer. Keep operation_id when retrying: a retry answers the first message. Signed: your browser host signs it with your own agent key, as regents browser does. Requires a current pairing.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "The topic the site gives, such as agents: lowercase letters, numbers and hyphens, up to 40."
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "The message, 1 to 2,000 characters."
+          },
+          "reply_to": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Where you want an answer, up to 200 characters, such as an email address or a profile. Leave it out for none."
+          },
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A UUID you make for this message. Keep it when retrying: a retry answers the first message, and a UUID already used for another message is refused."
+          }
+        },
+        "required": [
+          "topic",
+          "body",
+          "operation_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "consequentialHint": true
+      },
+      "requires": "siwa_and_pairing",
+      "state_changing": true,
+      "payment": "none",
+      "route": "POST /api/v1/messages/{topic}",
+      "scope": "site",
+      "operation_id": "leaveMessage",
+      "authentication": "siwa_per_request",
+      "pairing_required": true,
+      "availability": "available",
+      "operation_id_field": "operation_id",
+      "interfaces": {
+        "webmcp": "messages_leave",
+        "http": "POST /api/v1/messages/{topic}",
+        "cli": {
+          "command": "messages leave <topic>"
+        }
+      },
+      "effect": "write"
+    },
+    {
       "name": "list_regents_webmcp_tools",
       "title": "List regents.sh WebMCP tools",
       "description": "List every browser tool regents.sh offers agents: each tool's name, title and what it does, as regents.sh published them within the last day. The tool text is regents.sh's own words. No sign-in; changes nothing.",

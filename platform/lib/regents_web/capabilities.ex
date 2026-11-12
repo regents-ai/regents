@@ -18,7 +18,8 @@ defmodule RegentsWeb.Capabilities do
     "regents_account" => "Read your display name and ENS name",
     "account_balances" => "Read your Credits and what it may spend of them",
     "account_credits_history" => "Read your Credits history",
-    "account_points" => "Read your Points"
+    "account_points" => "Read your Points",
+    "messages_leave" => "Leave private messages for the Regents team"
   }
 
   signed =

@@ -39,6 +39,7 @@ import {MenuAgents} from "./hooks/menu_agents"
 import {ThemeSwitch} from "./hooks/theme_switch"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
+import {installAgentMessage} from "./agent_message"
 import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {Docs} from "./docs"
@@ -308,6 +309,7 @@ installAccountAuthLazyLoader()
 installPublicTools()
 installCrossTabCsrf()
 installCopyButtons()
+installAgentMessage()
 installAgentTools()
 installLiteratureChart()
 installShellPanels()

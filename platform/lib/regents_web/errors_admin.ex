@@ -1,7 +1,8 @@
 defmodule RegentsWeb.ErrorsAdmin do
   @moduledoc """
-  Keeps the saved errors at /admin/errors for Credits admins: a signed-in
-  account the Credits `:admins` setting names (REGENT_CREDITS_ADMINS). Anyone
+  Keeps the saved errors at /admin/errors, and the messages left for the team at
+  /admin/messages, for Credits admins: a signed-in account the Credits
+  `:admins` setting names (REGENT_CREDITS_ADMINS). Anyone
   else gets the site's ordinary not-found page, so the page's existence is not
   shown either.
 
@@ -9,7 +10,9 @@ defmodule RegentsWeb.ErrorsAdmin do
   policy, with a nonce for the one style and one script element the error
   dashboard writes into its page. As an `on_mount` hook it checks the socket the
   page connects with, then re-reads the sign-in on every navigation and press,
-  so a sign-in that ends or lapses cannot keep acting on the page.
+  so a sign-in that ends or lapses cannot keep acting on the page. The page acts
+  as `Regents.Actors.Admin`, which `Regents.Checks.Admin` checks again in each
+  policy.
   """
 
   @behaviour Plug
@@ -50,6 +53,9 @@ defmodule RegentsWeb.ErrorsAdmin do
 
         {:cont,
          socket
+         |> Phoenix.Component.assign(:admin, %Regents.Actors.Admin{
+           privy_user_id: account.privy_user_id
+         })
          |> attach_hook(:errors_admin_params, :handle_params, fn _params, _uri, socket ->
            recheck.(socket)
          end)

@@ -1,0 +1,122 @@
+/* The Agent Message button on /agents, and its dialog (`AgentMessage.dialog`),
+   which wears the night frame the tools list wears (`agent_tools.css`). Each
+   text keeps its title and copy press on one line and wraps its code, so
+   nothing scrolls sideways on a phone. */
+.agent-message-button {
+  margin-block-start: var(--space-4);
+}
+
+.agent-message-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+@layer regents-product {
+.agent-message__note {
+  grid-column: 1 / -1;
+}
+
+.agent-message__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.agent-message__text pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.agent-message__text pre code {
+  color: var(--agent-tools-ink);
+  font: 0.75rem/1.5 var(--font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+/* The person's own message, under the texts. */
+.agent-message__form {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.agent-message__form h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.0625rem;
+  font-weight: 400;
+}
+
+.agent-message__fields {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.agent-message__fields .rg-field,
+.agent-message__fields :is(textarea, input) {
+  width: 100%;
+}
+
+/* The fields keep the page's inputs; their labels and hints wear the dialog's ink. */
+.agent-message__fields .rg-field__label label,
+.agent-message__fields .rg-muted {
+  color: color-mix(in srgb, var(--agent-tools-ink) 82%, transparent);
+}
+
+.agent-message__form .rg-notice code {
+  overflow-wrap: anywhere;
+}
+
+/* The team's inbox (`AdminMessagesLive`). */
+.admin-messages__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-messages__list > li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+}
+
+.admin-messages__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.admin-messages__meta dt {
+  color: var(--color-fg-muted, var(--color-fg));
+  font-size: 0.8125rem;
+}
+
+.admin-messages__meta dd {
+  margin: 0;
+}
+
+.admin-messages__body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+}
+
+/* The copy buttons, in the dialog's colours in either theme. */
+.agent-message__head .rg-button {
+  --rg-local-fill: rgb(7 8 12 / 0.72);
+  --rg-local-ink: var(--agent-tools-ink);
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.agent-message__head .rg-button:is(:hover, :focus-visible) {
+  --rg-local-ink: var(--agent-tools-accent);
+}

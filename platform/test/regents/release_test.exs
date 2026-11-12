@@ -182,6 +182,7 @@ defmodule Regents.ReleaseTest do
              "error_tracker_errors",
              "error_tracker_meta",
              "error_tracker_occurrences",
+             "left_messages",
              "linked_identities",
              "oban_jobs",
              "oban_peers",
