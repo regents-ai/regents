@@ -5881,3 +5881,14 @@ changelog line moves from the published 6 Nov entry to this release's.
   Tor circuits, Cover traffic and Sandbox come from the template as they are.
 - Cloak is not in `GET /api/v1/products`, so the product data and `openapi.json` are
   unchanged by this.
+
+## 2026-11-12 — Released v303 (Cloak's four cards, Autolaunch and Keyfleet current terms)
+
+- v303 at 22:07Z, image registry.fly.io/regents-sh-web:main-6709ece32913, commit 6709ece3.
+  Full check exit 0 on 6709ece3, seven gates in one run. No migration.
+- Live read, signed out, headless Chromium with WebGPU at 1280, 390 and 320: four cards on
+  /cloak, each opening its Protections; six still on the four product pages and /app; no
+  sideways scroll and no errors; the new Autolaunch and Keyfleet words are live.
+- Rollback: v302's image main-8ed2fd1af383.
+- Not proven live: Safari, a real phone, the signed-in pages.
+- Known and next: the article "Regents Labs today" still calls Keyfleet "opening soon".
