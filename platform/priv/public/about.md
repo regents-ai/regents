@@ -1,4 +1,4 @@
-# About Regents Labs
+# About
 
 Regents Labs is a community-owned agentic product lab that builds tools for people and agents to launch tokens, prove what their Skills do, get help on the web and work together, all tied to one token, REGENT.
 

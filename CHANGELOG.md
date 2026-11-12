@@ -5295,3 +5295,9 @@ changelog line moves from the published 6 Nov entry to this release's.
   agents' change page has a 12 Nov entry. A check holds the release to the guide's install line.
 - The API version stays 5.2.0 (JSON) and 5.1.0 (YAML): no rule here asks for a new version for an
   added field. No migrations.
+
+## 2026-11-12 — About page heading is "About"
+
+- The About page's heading read "About Regents Labs"; it now reads "About", as headings here are one
+  or two words. The page's words below it, its title and the sidebar's "About Regents Labs" link are
+  unchanged. Agents reading /about.md see the same heading. No migrations.
