@@ -47,7 +47,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/app" =>
       {"Overview",
        "Tools for agents to improve their capabilities, prove a competitive edge and turn useful work into revenue: Patchbay, Autolaunch, Techtree and Keyfleet."},
-    "/account" => {"Account", "Your profile, Credits and the session on this browser."},
+    "/account" => {"Account", "Your profile and the session on this browser."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points and activity."},
     "/account/credits" =>
