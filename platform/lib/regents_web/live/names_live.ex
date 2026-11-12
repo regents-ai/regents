@@ -65,7 +65,7 @@ defmodule RegentsWeb.NamesLive do
                   autocapitalize="none"
                   spellcheck="false"
                   placeholder="yourname"
-                  phx-debounce="300"
+                  phx-debounce="blur"
                   aria-invalid={field.aria_invalid}
                   aria-describedby={field.described_by}
                 />

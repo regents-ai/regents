@@ -5371,3 +5371,27 @@ changelog line moves from the published 6 Nov entry to this release's.
 - New checks: `platform/test/regents/health_test.exs`; the pairing walk's picture band (1280, 390
   and 320), a press during the list's move and reduced motion; the `/pair` page's band. No
   migrations.
+
+## 2026-11-12 — Forms checked on leaving a field; five colours; 44px presses on touch
+
+- Forms check a field when the person leaves it and on submit, never while they type: Names'
+  claim, the article editor and agent spending. Ash's own error words now say what to do ("Fill
+  this in.", "Use 120 characters or fewer.", "Use at least 3 characters.", "Add at least 2."), and
+  each field's error line keeps its room. Stake, Redeem and Buy Credits still follow typing, so no
+  wallet press is held back. Field order and every request are unchanged.
+- The app pages draw from five colours in `platform/assets/css/tokens/root.css`: ground, raised,
+  ink, quiet and signal, from the same Regents light and dark sheets. The second accent (the blue
+  that marked links, focus and what was chosen) is gone: focus is ink, and what is chosen, current
+  or pointed at is signal, the Regents orange. The shared buttons, fields, notices and account
+  pages read the same five. The Regents Club card's picture is one flat colour.
+- The Account pages (Account, Agents, Wallets, Connections, Names, the agent start page) use the
+  design system's spacing and type scales; the agent picture's frame is square.
+- On touch screens every press on the app pages is at least 44px each way (the account tabs,
+  docs navigation and breadcrumbs, footer links and icons, Skip to content); a link inside a
+  sentence keeps the sentence's line.
+- Docs tables stand as cards under 768px wide, each cell after its column's name, and keep their
+  table roles for screen readers.
+- New walk `platform/test/browser/forms.spec.ts`. Style check: 22 breaks (one fewer: the agent
+  picture's rounded corner). No migrations.
+- Not done: Stake, Redeem, Literature and the animation pages keep their own spacing values and
+  some colour mixes; a page-by-page audit against the scales is still to do.

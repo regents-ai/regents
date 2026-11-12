@@ -142,7 +142,7 @@
   gap: 0.5rem;
   min-height: 2.5rem;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   border-radius: 0;
   color: inherit;
   font-family: var(--font-family-ui);
@@ -266,7 +266,7 @@
   padding: 1rem 1.5rem;
   border: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
 }
 
 @media (max-width: 48rem) {

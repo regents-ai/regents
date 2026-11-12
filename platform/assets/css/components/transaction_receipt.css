@@ -41,5 +41,5 @@
   font-variant-numeric: tabular-nums;
 }
 
-.transaction-receipt a { color: var(--ash-accent); }
+.transaction-receipt a { color: var(--ash-signal); }
 .transaction-receipt form { display: flex; justify-content: flex-end; }

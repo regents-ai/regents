@@ -73,7 +73,7 @@
 .shell-sending-wallet {
   margin: 0.75rem 0 0;
   padding: 0.6rem 0.85rem;
-  border: 1px solid var(--ash-accent-warm);
+  border: 1px solid var(--ash-signal);
   background: var(--color-surface);
   color: var(--color-fg);
   font-size: 0.9rem;
@@ -88,7 +88,7 @@
 /* One ring on both grounds: outside the control where there is room for it,
    inside the header and sidebar cells, which run edge to edge. */
 #app-shell :focus-visible:not([tabindex="-1"]) {
-  outline: 2px solid var(--ash-accent);
+  outline: 2px solid var(--ash-ink);
   outline-offset: 2px;
 }
 
@@ -234,7 +234,7 @@
   width: 1.75rem;
   height: 1.75rem;
   flex: 0 0 auto;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   image-rendering: pixelated;
 }
 
@@ -333,13 +333,13 @@
   #shell-sidebar li > button:hover,
   #shell-sidebar [data-tree] > a:hover {
     background: color-mix(in oklch, var(--color-fg) 6%, transparent);
-    color: var(--ash-accent-warm);
+    color: var(--ash-signal);
   }
 }
 
 #shell-sidebar [aria-current="page"],
 #shell-sidebar [aria-pressed="true"] {
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
   color: var(--color-fg);
 }
 
@@ -350,7 +350,7 @@
   min-height: 2.75rem;
   padding: 2.25rem 0.85rem 0.4rem;
   border-block-end: 1px solid var(--color-border);
-  color: var(--ash-accent);
+  color: var(--ash-signal);
   font-family: var(--font-family-ui);
   font-size: 0.62rem;
   letter-spacing: 0.14em;
@@ -380,8 +380,8 @@
 }
 
 #shell-sidebar [data-tree] > span a[aria-pressed="true"] {
-  border-color: var(--ash-line-strong);
-  background: var(--ash-panel-strong);
+  border-color: var(--ash-quiet);
+  background: var(--ash-raised);
   color: var(--color-fg);
 }
 
@@ -492,7 +492,7 @@
     z-index: var(--rg-layer-panel);
     display: none;
     width: min(20rem, calc(100% - 3rem));
-    border-inline-end: 1px solid var(--ash-line-strong);
+    border-inline-end: 1px solid var(--ash-quiet);
     background: var(--color-bg);
     box-shadow: var(--rg-layer-panel-shadow);
   }
@@ -556,7 +556,7 @@
   margin: 0.25rem 0 0;
   padding: 1rem;
   overflow: auto;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-surface);
   color: var(--color-fg);
   box-shadow: var(--rg-layer-tip-shadow);
@@ -600,7 +600,7 @@
   place-items: center;
   width: 3.25rem;
   height: 3.25rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
 }
 
 .shell-apps__tile svg {

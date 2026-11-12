@@ -124,7 +124,7 @@ defmodule RegentsWeb.Docs do
               {"tabindex", "0"},
               {"role", "region"},
               {"aria-label", "Table"}
-            ], [{"table", attrs, children}]}
+            ], [card_table(attrs, children)]}
          ], state}
 
       {tag, attrs, children}, state ->
@@ -135,6 +135,41 @@ defmodule RegentsWeb.Docs do
         {[node], state}
     end)
   end
+
+  # Under 768px a table stands as one card a row (docs.css), so it states its
+  # table roles itself and each cell names its column.
+  defp card_table(attrs, children) do
+    columns =
+      children
+      |> Floki.find("thead th")
+      |> Enum.map(&(&1 |> Floki.text() |> squeeze()))
+
+    {"table", [{"role", "table"} | attrs], Enum.map(children, &card_part(&1, columns))}
+  end
+
+  defp card_part({tag, attrs, rows}, columns) when tag in ["thead", "tbody"],
+    do: {tag, [{"role", "rowgroup"} | attrs], Enum.map(rows, &card_row(&1, columns))}
+
+  defp card_part(node, _columns), do: node
+
+  defp card_row({"tr", attrs, cells}, columns) do
+    cells =
+      cells
+      |> Enum.filter(&match?({_tag, _attrs, _children}, &1))
+      |> Enum.with_index()
+      |> Enum.map(fn
+        {{"th", attrs, children}, _index} ->
+          {"th", [{"role", "columnheader"} | attrs], children}
+
+        {{"td", attrs, children}, index} ->
+          {"td", [{"role", "cell"}, {"data-label", Enum.at(columns, index, "")} | attrs],
+           children}
+      end)
+
+    {"tr", [{"role", "row"} | attrs], cells}
+  end
+
+  defp card_row(node, _columns), do: node
 
   defp slug(title) do
     case title

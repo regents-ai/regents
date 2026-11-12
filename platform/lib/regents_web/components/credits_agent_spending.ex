@@ -152,7 +152,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
             value={figure(@forms[agent][:max_per_spend].value)}
             inputmode="decimal"
             autocomplete="off"
-            phx-debounce="300"
+            phx-debounce="blur"
             aria-invalid={field.aria_invalid}
             aria-describedby={field.described_by}
           />
@@ -169,7 +169,7 @@ defmodule RegentsWeb.CreditsAgentSpending do
             value={figure(@forms[agent][:daily_limit].value)}
             inputmode="decimal"
             autocomplete="off"
-            phx-debounce="300"
+            phx-debounce="blur"
             aria-invalid={field.aria_invalid}
             aria-describedby={field.described_by}
           />

@@ -153,7 +153,7 @@
 .rg-button.rl-token-link::before { transition: background-color 140ms ease; }
 @media (hover: hover) {
   .rl-brand:hover { opacity: .72; }
-  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools, .rl-token-copy):hover { color: var(--ash-accent); }
+  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools, .rl-token-copy):hover { color: var(--ash-signal); }
   .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
   .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
 }

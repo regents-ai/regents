@@ -246,6 +246,7 @@ defmodule RegentsWeb.ArticleEditor do
           errors={FormErrors.messages(@form[:title])}
         >
           <input
+            phx-debounce="blur"
             id={field.id}
             name={@form[:title].name}
             value={value(@form, :title)}
@@ -262,6 +263,7 @@ defmodule RegentsWeb.ArticleEditor do
           errors={FormErrors.messages(@form[:date])}
         >
           <input
+            phx-debounce="blur"
             id={field.id}
             type="date"
             name={@form[:date].name}
@@ -276,6 +278,7 @@ defmodule RegentsWeb.ArticleEditor do
           <div :for={{author, index} <- Enum.with_index(@authors)} class="article-editor__author">
             <P.field :let={field} id={"article-author-#{index}"} label={"Author #{index + 1}"}>
               <input
+                phx-debounce="blur"
                 id={field.id}
                 name={"article[authors][#{index}][name]"}
                 value={Map.get(author, "name", Map.get(author, :name, ""))}
@@ -285,6 +288,7 @@ defmodule RegentsWeb.ArticleEditor do
             </P.field>
             <P.field :let={field} id={"article-author-x-#{index}"} label="X account">
               <input
+                phx-debounce="blur"
                 id={field.id}
                 name={"article[authors][#{index}][x]"}
                 value={Map.get(author, "x", Map.get(author, :x, ""))}
@@ -321,6 +325,7 @@ defmodule RegentsWeb.ArticleEditor do
           errors={FormErrors.messages(@form[:markdown])}
         >
           <textarea
+            phx-debounce="blur"
             id={field.id}
             name={@form[:markdown].name}
             rows="20"
@@ -372,6 +377,7 @@ defmodule RegentsWeb.ArticleEditor do
           errors={FormErrors.messages(@form[:cover_alt])}
         >
           <input
+            phx-debounce="blur"
             id={field.id}
             name={@form[:cover_alt].name}
             value={value(@form, :cover_alt)}

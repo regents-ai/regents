@@ -182,7 +182,7 @@ input:focus-visible,
 .regent-footer__legal { display: flex; column-gap: var(--space-3); }
 .regent-footer :is(a, .regent-footer__guide) { transition: color 140ms ease; }
 @media (hover: hover) {
-  .regent-footer :is(a, .regent-footer__guide):hover { color: var(--ash-accent); }
+  .regent-footer :is(a, .regent-footer__guide):hover { color: var(--ash-signal); }
 }
 @media (min-width: 48rem) {
   .regent-footer__legal { padding-inline-start: var(--space-3); border-inline-start: 1px solid var(--hairline); }
@@ -191,6 +191,18 @@ input:focus-visible,
 .regent-footer__guide-body p { margin: 0; color: var(--rg-p-muted); }
 .regent-footer__guide-body a { min-height: 2.75rem; }
 .regent-footer__guide-body:popover-open { display: grid; }
+
+/* On touch screens every press is at least 44px each way; a link inside a sentence
+   keeps the sentence's line, and a box to tick keeps its label as its press. */
+@media (hover: none), (pointer: coarse) {
+  #app-shell :is(a:not(p a), button, summary, select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"])) { min-height: 2.75rem; }
+  #app-shell :is(a:not(p a), button, summary) { min-width: 2.75rem; }
+  #app-shell .shell-skip { display: inline-flex; align-items: center; }
+  .docs-crumbs a { display: inline-flex; align-items: center; }
+  .regent-footer__social { gap: 0; }
+  .regent-footer__social > a { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
+  .regent-footer__links a { min-width: 2.75rem; }
+}
 
 /* A public page fills the screen with its footer, so the footer sits at the foot of
    the screen however short the page is. The page grows to meet it, frame and all.

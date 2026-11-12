@@ -33,7 +33,7 @@
 
 .lit-switch {
   display: inline-flex;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
 }
 
 /* The plot with its tick numbers down the left and along the bottom, and an
@@ -122,7 +122,7 @@
 
 .lit-grid {
   position: absolute;
-  background: var(--ash-line-strong);
+  background: var(--ash-quiet);
 }
 
 .lit-grid--x {
@@ -165,7 +165,7 @@
 }
 
 .lit-leaders line {
-  stroke: var(--ash-line-strong);
+  stroke: var(--ash-quiet);
   stroke-width: 1;
 }
 
@@ -208,7 +208,7 @@
   display: none;
   max-width: 9.5em;
   padding: 0.3em 0.45em;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-bg);
   font-size: clamp(0.62rem, 1.15cqw, 0.8rem);
   line-height: 1.15;
@@ -247,7 +247,7 @@
 
 .lit-book:hover .lit-label,
 .lit-book[data-open] .lit-label {
-  border-color: var(--ash-accent);
+  border-color: var(--ash-signal);
 }
 
 /* The details sit beside the book, on the side with more room, and the gap
@@ -291,7 +291,7 @@
 
 .lit-pop__card {
   padding: 0.9rem 1rem 1rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-bg);
 }
 
@@ -347,7 +347,7 @@
   gap: 0.3rem;
   min-height: 44px;
   margin-top: 0.25rem;
-  color: var(--ash-accent);
+  color: var(--ash-signal);
   font-size: 0.8rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -441,7 +441,7 @@
 }
 
 .lit-chart .lit-switch button + button {
-  border-left: 1px solid var(--ash-line-strong);
+  border-left: 1px solid var(--ash-quiet);
 }
 
 .lit-chart .lit-switch button[aria-pressed="true"] {

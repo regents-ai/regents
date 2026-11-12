@@ -95,7 +95,7 @@
 
 .redeem-pill {
   padding: 0.4rem 0.6rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
 }
 
 /* What the redemption returns, held together by a hairline drawn across the palette's two
@@ -106,7 +106,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
 }
 
 .redeem-equation b {
@@ -124,7 +124,7 @@
   min-width: 0;
   margin: 0;
   overflow: visible;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
 }
 
 .redeem-intro-video,
@@ -186,7 +186,7 @@
   gap: 0.45rem;
   flex: 0 0 auto;
   padding: 0.4rem 0.65rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
 }
@@ -194,7 +194,7 @@
 .redeem-signer > span[aria-hidden="true"] {
   width: 0.45rem;
   height: 0.45rem;
-  background: var(--ash-accent);
+  background: var(--ash-signal);
 }
 
 /* Collections: the artwork keeps its photography, framed square. */
@@ -243,7 +243,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 2.8rem;
-  color: var(--ash-accent);
+  color: var(--ash-signal);
   font-size: 0.85rem;
   text-decoration: underline;
   text-underline-offset: 0.22em;
@@ -275,8 +275,8 @@
   display: grid;
   gap: 0.75rem;
   padding: 1rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel-strong);
+  border: 1px solid var(--ash-quiet);
+  background: var(--ash-raised);
 }
 
 .redeem-connect-panel p,
@@ -296,7 +296,7 @@
 
 .redeem-connect-panel li::before {
   margin-right: 0.5rem;
-  color: var(--ash-accent);
+  color: var(--ash-signal);
   content: "—";
 }
 
@@ -338,7 +338,7 @@
   width: 1.6rem;
   height: 1.6rem;
   place-items: center;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   color: var(--color-fg-muted);
   font-family: var(--font-family-ui);
   font-size: 0.72rem;
@@ -351,8 +351,8 @@
 }
 
 .redeem-stepper li[data-state="complete"] > span {
-  border-color: var(--ash-accent);
-  color: var(--ash-accent);
+  border-color: var(--ash-signal);
+  color: var(--ash-signal);
 }
 
 .redeem-stepper p {
@@ -393,9 +393,9 @@
   min-width: 0;
   min-height: 2.8rem;
   padding: 0.5rem 0.7rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   border-radius: 0;
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
   color: var(--color-fg);
   font-family: inherit;
   font-size: 1rem;
@@ -403,7 +403,7 @@
 
 #redemption-selection select:focus-visible,
 #redemption-selection input:focus-visible {
-  border-color: var(--ash-accent);
+  border-color: var(--ash-signal);
 }
 
 .redeem-next-step {
@@ -412,8 +412,8 @@
   gap: 1rem;
   align-items: center;
   padding: 1rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--ash-panel-strong);
+  border: 1px solid var(--ash-quiet);
+  background: var(--ash-raised);
 }
 
 .redeem-next-step > div:first-child {
@@ -463,7 +463,7 @@
   padding: 0.9rem;
   border-block-end: 1px solid var(--color-border);
   border-inline-end: 1px solid var(--color-border);
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
 }
 
 .redeem-metric-label,
@@ -499,22 +499,22 @@
 .redeem-vest progress {
   width: 100%;
   height: 0.75rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   border-radius: 0;
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
   appearance: none;
 }
 
 .redeem-vest progress::-webkit-progress-bar {
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
 }
 
 .redeem-vest progress::-webkit-progress-value {
-  background: var(--ash-accent);
+  background: var(--ash-signal);
 }
 
 .redeem-vest progress::-moz-progress-bar {
-  background: var(--ash-accent);
+  background: var(--ash-signal);
 }
 
 .redeem-vest dl {
@@ -592,7 +592,7 @@
   padding: 0;
   border: 1px solid var(--color-border);
   border-radius: 0;
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
   color: var(--color-fg);
   text-align: left;
   text-decoration: none;
@@ -613,9 +613,7 @@
 }
 
 .redeem-nft-card-club .redeem-nft-art {
-  background:
-    radial-gradient(circle at 25% 20%, color-mix(in oklch, var(--ash-accent) 48%, transparent), transparent 45%),
-    linear-gradient(145deg, var(--ash-panel-strong), color-mix(in oklch, var(--ash-accent) 20%, var(--ash-panel-strong)));
+  background: var(--ash-raised);
 }
 
 .redeem-nft-type,
@@ -701,7 +699,7 @@
 .redeem-page button {
   min-height: 2.8rem;
   padding-inline: 1rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   border-radius: 0;
   background: transparent;
   color: var(--color-fg);
@@ -727,7 +725,7 @@
 }
 
 .redeem-page button.redeem-primary:disabled {
-  border-color: var(--ash-line-strong);
+  border-color: var(--ash-quiet);
   background: transparent;
   color: var(--color-fg-muted);
 }
@@ -737,7 +735,7 @@
   min-height: 15rem;
   padding: 0;
   border-color: var(--color-border);
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
   font-family: inherit;
   font-size: inherit;
   letter-spacing: normal;
@@ -750,8 +748,8 @@
 .redeem-status {
   margin: 0;
   padding: 0.75rem;
-  border-left: 3px solid var(--ash-accent);
-  background: var(--ash-panel-strong);
+  border-left: 3px solid var(--ash-signal);
+  background: var(--ash-raised);
 }
 
 .redeem-status {
@@ -775,8 +773,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .redeem-page button:not(:disabled):hover {
-    border-color: var(--ash-accent);
-    color: var(--ash-accent);
+    border-color: var(--ash-signal);
+    color: var(--ash-signal);
   }
 
   .redeem-page button.redeem-primary:not(:disabled):hover {
@@ -786,7 +784,7 @@
   }
 
   .redeem-nft-card:hover {
-    border-color: var(--ash-accent);
+    border-color: var(--ash-signal);
     color: var(--color-fg);
     translate: 0 -0.2rem;
   }

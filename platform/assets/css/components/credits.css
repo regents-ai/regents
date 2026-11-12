@@ -298,7 +298,7 @@
   place-items: center;
   width: 1.75rem;
   height: 1.75rem;
-  border: 2px solid var(--ash-line-strong);
+  border: 2px solid var(--ash-quiet);
   border-radius: 0.5rem;
   color: transparent;
 }

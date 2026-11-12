@@ -81,7 +81,7 @@
   place-items: center;
   width: 1.8rem;
   height: 1.8rem;
-  background: var(--ash-accent-warm);
+  background: var(--ash-signal);
   color: var(--color-fg-on-accent);
   font: 1rem/1 var(--font-family-ui);
 }
@@ -116,7 +116,7 @@
   display: inline-flex;
   flex-wrap: wrap;
   justify-self: start;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
 }
 
 .motion-lab__picker button {
@@ -236,7 +236,7 @@
   z-index: var(--rg-layer-tip);
   display: grid;
   min-width: 13rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-surface);
   box-shadow: var(--rg-layer-tip-shadow);
   transform-origin: 1.5rem 0;
@@ -259,7 +259,7 @@
 
 .motion-lab__menu button:hover,
 .motion-lab__menu button:focus-visible {
-  background: var(--ash-panel-strong);
+  background: var(--ash-raised);
   outline: none;
 }
 
@@ -287,7 +287,7 @@
 .motion-lab__drawer {
   inset: 0 auto 0 0;
   width: min(24rem, 88vw);
-  border-inline-end: 1px solid var(--ash-line-strong);
+  border-inline-end: 1px solid var(--ash-quiet);
   transform-origin: 0 100%;
 }
 
@@ -297,7 +297,7 @@
   left: 0;
   width: min(36rem, 100%);
   margin-inline: auto;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   border-bottom: 0;
   padding-bottom: max(var(--rg-panel-padding), env(safe-area-inset-bottom));
 }
@@ -327,7 +327,7 @@
 .motion-lab__close {
   min-width: 2.5rem;
   min-height: 2.5rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-surface);
   color: var(--color-fg);
   font: inherit;
@@ -344,8 +344,8 @@
   gap: var(--space-1);
   width: min(15rem, calc(100vw - 2 * var(--space-3)));
   padding: var(--space-2);
-  border: 1px solid var(--ash-line-strong);
-  background: color-mix(in oklab, var(--ash-accent-warm) 22%, var(--color-surface));
+  border: 1px solid var(--ash-quiet);
+  background: color-mix(in oklab, var(--ash-signal) 22%, var(--color-surface));
   box-shadow: var(--rg-layer-tip-shadow);
   rotate: -2deg;
   transform-origin: 0 100%;
@@ -365,7 +365,7 @@
   position: relative;
   min-height: 17rem;
   padding: var(--space-2);
-  border: 1px dashed var(--ash-line-strong);
+  border: 1px dashed var(--ash-quiet);
   background: var(--color-bg);
   overflow: hidden;
 }
@@ -394,8 +394,8 @@
   justify-content: space-between;
   gap: var(--space-1);
   padding: 0.6rem 0.6rem 0.6rem 0.9rem;
-  border: 1px solid var(--ash-line-strong);
-  border-inline-start: 4px solid var(--ash-accent-warm);
+  border: 1px solid var(--ash-quiet);
+  border-inline-start: 4px solid var(--ash-signal);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   font-size: 0.85rem;
@@ -423,7 +423,7 @@
 
 .motion-lab__items li {
   padding: 0.45rem 0.8rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-bg);
   font: 0.8rem/1.2 var(--font-family-ui);
   white-space: nowrap;
@@ -451,7 +451,7 @@
   justify-items: start;
   gap: var(--space-1);
   padding: var(--space-2);
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-bg);
 }
 
@@ -493,7 +493,7 @@
   position: relative;
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--ash-line-strong);
+  border-bottom: 1px solid var(--ash-quiet);
 }
 
 .motion-lab__tablist [role="tab"] {
@@ -520,7 +520,7 @@
   left: 0;
   width: 100px;
   height: 3px;
-  background: var(--ash-accent-warm);
+  background: var(--ash-signal);
   transform-origin: 0 50%;
   pointer-events: none;
 }
@@ -571,7 +571,7 @@
   gap: 0.5rem;
   min-width: 0;
   padding: 0.6rem;
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-bg);
   font: 0.75rem/1.2 var(--font-family-ui);
   overflow-wrap: anywhere;
@@ -583,13 +583,13 @@
   place-items: center;
   width: 1.8rem;
   height: 1.8rem;
-  background: var(--ash-accent);
+  background: var(--ash-signal);
   color: var(--color-bg);
   font: 1rem/1 var(--font-family-title);
 }
 
 .motion-lab__cascade li:nth-child(even) span {
-  background: var(--ash-accent-warm);
+  background: var(--ash-signal);
 }
 
 @media (max-width: 40rem) {

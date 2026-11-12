@@ -1,7 +1,16 @@
-/* The one palette the shell, Stake and Redeem stand on: the founder's Regents light and
-   Regents dark sheets, swatch for swatch. Every colour on those surfaces is one of the
-   eight swatches or a mix of exactly two of them, and nothing else states a colour.
-   The marketing page uses the same saved light/dark choice and shared semantic roles. */
+/* regents.sh's colours: five roles drawn from the founder's Regents light and Regents
+   dark sheets, and no gradients on the app pages. The spacing (--space-0 to --space-8)
+   and type (--type-display to --type-caption) scales are the design system's.
+
+     ground  the page, panels, inputs and cards
+     raised  rules, the hovered or chosen row, buttons' and menus' fill
+     ink     text, icons and the focus ring
+     quiet   secondary text and the edge of every control
+     signal  errors, what is chosen or current, figures that carry value; ground is
+             its text
+
+   Each clears 4.5:1 for text wherever it meets another. The marketing page uses the
+   same saved light/dark choice and the same roles. */
 
 /* RegentUI states one colour scheme per product, at a weight that would
    otherwise decide the document's for it, so the shell's own statement is made
@@ -35,31 +44,59 @@
 }
 
 :root {
-  /* One step past the panel, for the row the visitor is standing on and for the
-     cells that carry a figure: Border folded into Surface, away from the page. */
-  --ash-panel-strong: light-dark(
-    color-mix(in oklab, var(--color-border) 55%, var(--color-surface)),
-    color-mix(in oklab, var(--color-border) 50%, var(--color-surface))
+  --ash-ground: light-dark(#F6F4EA, #0B0B0B);
+  --ash-raised: light-dark(#DAD8C7, #2A2A2A);
+  --ash-ink: light-dark(var(--palette-charcoal), var(--palette-platinum));
+  --ash-quiet: light-dark(
+    color-mix(in srgb, var(--palette-charcoal) 72%, #F6F4EA),
+    color-mix(in srgb, var(--palette-platinum) 65%, #0B0B0B)
   );
-
-  /* The edge of a control has to be found before the control can be used, so it
-     is drawn at 3:1 against both the fill inside it and the page outside it:
-     Text folded into Border, far enough to clear that on every surface. */
-  --ash-line-strong: light-dark(
-    color-mix(in oklab, var(--palette-charcoal) 40%, var(--color-border)),
-    color-mix(in oklab, var(--color-fg) 40%, var(--color-border))
+  --ash-signal: light-dark(
+    color-mix(in oklab, var(--palette-tangerine-tango) 58%, var(--palette-charcoal)),
+    var(--palette-tangerine-tango)
   );
-
-  /* The palette carries two accents and the shell reads them as two. Blue is what
-     the page points at: focus, links, the revenue share. Orange is what carries
-     value or risk: the REGENT figures, compounding, disconnecting, an error.
-     Dark takes both swatches raw. Light folds each into Primary only as far as
-     4.5:1 on the deepest light panel needs — blue reads 4.7:1 there and orange
-     4.6:1, and both clear 5:1 on Surface. */
-  --ash-accent: light-dark(color-mix(in oklab, var(--palette-powder-blue) 50%, var(--palette-charcoal)), var(--palette-powder-blue));
-  --ash-accent-warm: light-dark(color-mix(in oklab, var(--palette-tangerine-tango) 68%, var(--palette-charcoal)), var(--palette-tangerine-tango));
 
   /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
      in front of it reads the same whichever ground it was opened from. */
   --ash-scrim: color-mix(in oklab, var(--palette-charcoal) 72%, transparent);
+}
+
+/* The shared pieces (buttons, fields, notices, addresses, Points, the account
+   pages) read the design system's colour roles; on the app pages every role is
+   one of the five. */
+#app-shell,
+.legal-root {
+  --color-bg: var(--ash-ground);
+  --color-surface: var(--ash-ground);
+  --color-surface-elevated: var(--ash-ground);
+  --color-border: var(--ash-raised);
+  --color-fg: var(--ash-ink);
+  --color-fg-muted: var(--ash-quiet);
+  --color-muted: var(--ash-quiet);
+  --color-accent: var(--ash-raised);
+  --color-accent-secondary: var(--ash-signal);
+  --color-fg-on-accent: var(--ash-ink);
+  --color-primary-shade: var(--ash-raised);
+  --color-success: var(--ash-ink);
+  --color-info: var(--ash-ink);
+  --color-warning: var(--ash-signal);
+  --color-error: var(--ash-signal);
+  --color-focus: var(--ash-ink);
+  --color-link: var(--ash-ink);
+  --brand-accent: var(--ash-signal);
+  --support-figure-surface: var(--ash-raised);
+  --support-figure-ink: var(--ash-ink);
+  --support-band-surface: var(--ash-signal);
+  --support-band-ink: var(--ash-ground);
+  --support-panel-surface: var(--ash-raised);
+  --support-panel-ink: var(--ash-ink);
+  --rg-button-border-color: var(--ash-signal);
+  --rg-button-mark-color: var(--ash-signal);
+  --rg-shimmer-color: var(--ash-signal);
+  /* The account pages (`.rg-utility`) set the roles above from their own palette. */
+  --utility-bg: var(--ash-ground);
+  --utility-surface: var(--ash-ground);
+  --utility-ink: var(--ash-ink);
+  --utility-muted: var(--ash-quiet);
+  --utility-rule: var(--ash-raised);
 }

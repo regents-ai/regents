@@ -96,7 +96,7 @@
   min-inline-size: 0;
   padding: 10px;
   /* Each pick is a button, so its edge is a control's edge, drawn at 3:1. */
-  border: 1px solid var(--ash-line-strong);
+  border: 1px solid var(--ash-quiet);
   background: var(--color-surface);
   color: inherit;
   font: inherit;
