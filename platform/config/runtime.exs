@@ -87,11 +87,10 @@ if config_env() != :test do
   end
 end
 
-# The team's Privy accounts, comma separated: they may give Credits, handle
-# refunds and remove an agent's picture.
+# The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENT_CREDITS_ADMINS") do
   admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
-  config :regent_credits, admins: admins
+  config :regents, :admins, admins
   config :regent_agents, admins: admins
 end
 

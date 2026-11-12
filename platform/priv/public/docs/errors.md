@@ -17,7 +17,7 @@ The `message` says what happened and the `hint` says what to do next. Match on `
 | `403` | The caller may not read this. |
 | `404` | Nothing is there, or it is hidden. Hidden and missing records answer the same. |
 | `409` | The request conflicts with current state, such as a sign-in with no wallet. |
-| `422` | A Credits history cursor or body is not valid. |
+| `422` | A message could not be left as sent. |
 | `429` | Past a request limit; see [Limits]({{origin}}/docs/limits). |
 | `503` | A service the answer needs could not be reached; try again in a minute. |
 

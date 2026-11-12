@@ -13,6 +13,6 @@ defmodule Regents.Blog do
     end
   end
 
-  @doc "Articles uses the same verified Privy accounts as Credits administration."
-  defdelegate admin?(account), to: Regents.Credits
+  @doc "Articles are published by the site's admins."
+  defdelegate admin?(account), to: Regents
 end

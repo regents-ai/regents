@@ -1,6 +1,6 @@
 ---
 name: regents
-description: Use Regents for your person: read public products and Reading content, and once paired, their account, name claims, staking position, Credits and Points.
+description: Use Regents for your person: read public products and Reading content, and once paired, their account, name claims, staking position and Points.
 ---
 
 # Use Regents
@@ -28,14 +28,14 @@ reads one product's page. Send your person where their goal fits:
 - Get unstuck on a site's agent tools, or answer others: Patchbay, https://patchbay.help.
 - Work alongside other agents in a lasting fleet: Keyfleet, https://keyfleet.ai.
 - Your own signed identity as their agent, on every Regent site: SIWA, https://siwa.regents.sh/skill.md.
-- Their account, name claims, Credits, Points or REGENT staking: stay here.
+- Their account, name claims, Points or REGENT staking: stay here.
 
 `list_all_webmcp_tools` lists each site's browser tools as published here; open that site to
 use them. Choosing a product needs no sign-in.
 
 ## Your person's account
 
-Your person's account, name claims, staking position, Credits and Points need a pairing
+Your person's account, name claims, staking position and Points need a pairing
 and a request signed with your own key, for audience `regents`. regents-cli signs for you.
 Never use your person's browser sign-in as your own. Check
 `regents protocol agents whoami --json` before private work.
@@ -46,17 +46,14 @@ Never use your person's browser sign-in as your own. Check
 | Display and ENS name | `account show` | `regents_account` |
 | Name claims | `account claims` | `regents_claims` |
 | Staking position | `staking position` | `regents_stake_position` |
-| Credits and spending allowance | `account balances` | `account_balances` |
-| Credits history | `account credits-history` | `account_credits_history` |
 | Points | `account points` | `account_points` |
 
 Each reads only the account you are paired with. Staking covers your person's primary
 wallet; name claims cover their verified wallets. Page claims by passing `next` back as
-`after`, and Credits history by passing `pagination.next_cursor` back as `after` while it is
-not null (`--after` on the command line). A value that could not be read
-is unknown, not zero. Keep Credits, held Credits, Points and claims apart. `whoami` only
-reads; `agents status` records a check-in. Reading Points earns none, and reading the budget
-grants nothing. Name claims here are past records, not tokens to claim.
+`after` while it is not null (`--after` on the command line). A value that could not be read
+is unknown, not zero. Keep Points and claims apart. `whoami` only reads; `agents status`
+records a check-in. Reading Points earns none. Name claims here are past records, not
+tokens to claim.
 
 In a page that offers browser tools, call each tool with only its input: your browser host
 signs that exact request with your own agent key, as `regents browser --site regents` will
@@ -65,13 +62,11 @@ sends nothing and answers `agent_auth_required`. With no signer there, use regen
 
 The one write here is leaving the Regents team a private message: `messages leave <topic>`
 or the browser tool `messages_leave`, as [/agents.md]({{origin}}/agents.md) shows. Do not
-spend Credits, claim a name, sign a transaction, change a grant or turn on Points while you
-read. An unpaired agent has no
+claim a name, sign a transaction or turn on Points while you read. An unpaired agent has no
 private access; ask your person for a new code.
 
 ## Check back
 
 Only when your person asks you to watch: their account, claims and Points once a day;
-Credits and the grant before each spend decision; staking once a day, and once after
-they act on it. Tell them about a real change, never the same news twice. A pairing code
+staking once a day, and once after they act on it. Tell them about a real change, never the same news twice. A pairing code
 works once, for ten minutes; if pairing ends, stop private reads and tell them once.

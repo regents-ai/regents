@@ -1,10 +1,10 @@
 defmodule RegentsWeb.ErrorsAdmin do
   @moduledoc """
-  Keeps the saved errors at /admin/errors, and the messages left for the team at
-  /admin/messages, for Credits admins: a signed-in account the Credits
-  `:admins` setting names (REGENT_CREDITS_ADMINS). Anyone
-  else gets the site's ordinary not-found page, so the page's existence is not
-  shown either.
+  Keeps the saved errors at /admin/errors, the messages left for the team at
+  /admin/messages and the agent pictures at /admin/pictures for the site's
+  admins: a signed-in account the site's `:admins` setting names
+  (config/config.exs). Anyone else gets the site's ordinary not-found page, so
+  the page's existence is not shown either.
 
   As a plug it checks the request and sends the page's own content security
   policy, with a nonce for the one style and one script element the error
@@ -68,7 +68,7 @@ defmodule RegentsWeb.ErrorsAdmin do
   defp admin(session) do
     case session |> SessionAuthority.claim() |> SessionAuthority.resolve() do
       {lineage, account} when is_binary(lineage) ->
-        if Regents.Credits.admin?(account), do: {lineage, account}
+        if Regents.admin?(account), do: {lineage, account}
 
       _signed_out ->
         nil
@@ -76,7 +76,7 @@ defmodule RegentsWeb.ErrorsAdmin do
   end
 
   defp recheck(socket, lineage, account_id) do
-    if lineage |> SessionAuthority.leased_account(account_id) |> Regents.Credits.admin?(),
+    if lineage |> SessionAuthority.leased_account(account_id) |> Regents.admin?(),
       do: {:cont, socket},
       else: {:halt, redirect(socket, to: "/")}
   end

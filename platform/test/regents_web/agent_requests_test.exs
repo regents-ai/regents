@@ -7,6 +7,11 @@ defmodule RegentsWeb.AgentRequestsTest do
 
   @agent_wallet "0x2222222222222222222222222222222222222222"
 
+  # The signed body read below is the names claims read, whose tables tests make.
+  setup_all do
+    Regents.NamesFixtures.ensure_claims_table!()
+  end
+
   setup do
     Regents.RateLimiter.reset()
     on_exit(&Regents.RateLimiter.reset/0)
@@ -111,39 +116,9 @@ defmodule RegentsWeb.AgentRequestsTest do
              conn |> recycle() |> get("/api/agents/v1/me") |> json_response(200)
   end
 
-  # A Credits history cursor that is not valid gets the shared 422 refusal, not
-  # a "try again" answer.
-  test "a bad Credits history cursor is refused with the shared words", %{conn: conn} do
-    {person, _account_id} = person!()
-    issued = RegentAgents.issue_pairing_code!(actor: person)
-    siwa_verifies(@agent_wallet)
-    assert conn |> pair(issued.code) |> response(201)
-
-    history = fn body ->
-      conn
-      |> recycle()
-      |> put_req_header("content-type", "application/json")
-      |> post("/api/v1/account/credits/history", Jason.encode!(body))
-    end
-
-    assert %{"entries" => [], "pagination" => %{"has_more" => false}} =
-             history.(%{}) |> json_response(200)
-
-    for body <- [%{after: "not-a-cursor"}, %{after: 7}] do
-      assert history.(body) |> json_response(422) == %{
-               "error" => %{
-                 "code" => "invalid_cursor",
-                 "message" => "That cursor is invalid.",
-                 "hint" =>
-                   "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
-               }
-             }
-    end
-  end
-
   # Every body the API takes keeps its exact bytes for the sign-in server, so
   # spacing the agent signed but a parser would drop still matches.
-  test "a signed account read sends the digest of the exact body bytes", %{conn: conn} do
+  test "a signed claims read sends the digest of the exact body bytes", %{conn: conn} do
     {person, _account_id} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
@@ -156,35 +131,20 @@ defmodule RegentsWeb.AgentRequestsTest do
       conn
       |> recycle()
       |> put_req_header("content-type", "application/json")
-      |> post("/api/v1/account/credits/history", body)
+      |> post("/api/agent/v1/claims", body)
 
-    assert %{"entries" => []} = json_response(conn, 200)
+    assert %{"claims" => [], "next" => nil} = json_response(conn, 200)
 
-    assert_received {:verified, ["regents-test"],
-                     %{"path" => "/api/v1/account/credits/history"} = envelope}
+    assert_received {:verified, ["regents-test"], %{"path" => "/api/agent/v1/claims"} = envelope}
 
     assert envelope["body_digest"] == Siwa.content_digest_for_body(body)
   end
 
-  test "a paired agent reads its person's Credits and Points under /api/v1/account",
-       %{conn: conn} do
+  test "a paired agent reads its person's Points under /api/v1/account", %{conn: conn} do
     {person, _account_id} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
     assert conn |> pair(issued.code) |> response(201)
-
-    balances = conn |> recycle() |> get("/api/v1/account/balances") |> json_response(200)
-
-    assert %{
-             "credits" => %{"available" => _, "given" => _, "purchased" => _, "held" => _},
-             "spending_grant" => %{"site_allowed" => false, "remaining_24h" => _},
-             "note" => note
-           } = balances
-
-    assert note in [
-             "Agent spending isn't open yet. Your person can do this themselves.",
-             "Your person can allow you to spend Credits on this site on their Regents account at regents.sh/account."
-           ]
 
     # The board every reader shares is read once, as its producer reads it on notice.
     on_exit(fn -> Regents.SharedReading.delete(Regents.Points.Board.key()) end)

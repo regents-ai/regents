@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /changelog /privacy /terms /start /cloak/guide /credits/refunds) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start /cloak/guide) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.PaperProDaily.Reading
@@ -50,8 +50,6 @@ defmodule RegentsWeb.PublicDocuments do
     "/account" => {"Account", "Your profile and the session on this browser."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points and activity."},
-    "/account/credits" =>
-      {"Credits history", "Everything that changed your Credits, on every Regent site."},
     "/account/wallets" => {"Wallets", "The wallets your sign-in verified."},
     "/account/connections" =>
       {"Connections", "The accounts you have connected, such as X, GitHub and Farcaster."},
@@ -86,10 +84,6 @@ defmodule RegentsWeb.PublicDocuments do
     "/cloak/guide" =>
       {"Cloak setup",
        "Set up Regents Cloak on a Mac with your personal agent: the steps, what only you approve, and its limits."},
-    "/credits/refunds" =>
-      {"Credits refunds",
-       "Credits on Regents Labs are non-refundable. How to ask for an exception, and how agents may spend your Credits."},
-    "/admin/credits" => {"Credits admin", "Give Credits and handle refunds."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",
@@ -112,7 +106,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Pair an agent with a person's account using a one-time code, then check in."},
     "/docs/agent-reads" =>
       {"Signed reads · Docs",
-       "A paired agent reads its person's account, claims, stake, Credits and Points."},
+       "A paired agent reads its person's account, claims, stake and Points."},
     "/docs/webmcp" =>
       {"WebMCP · Docs", "Every page offers read tools to browsers that support WebMCP."},
     "/docs/claims" =>
@@ -131,7 +125,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/changelog" => {"Changelog", "Changes to Regents Labs, newest first."},
     "/start" =>
       {"Connect your agent",
-       "Pair your agent with your Regents account so it can read your balance, Credits, names, Points and staking for you."},
+       "Pair your agent with your Regents account so it can read your account, names, Points and staking for you."},
     "/articles" =>
       {"Articles", "Writing from Regents Labs about its products and the ideas behind them."},
     "/paper-pro-daily" => {"Paper Pro Daily", @paper_share_heading},
@@ -171,7 +165,6 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
   def document("/cloak/guide"), do: %{markdown: RegentsWeb.Cloak.guide_markdown()}
-  def document("/credits/refunds"), do: %{markdown: RegentsWeb.CreditsRefundRules.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))

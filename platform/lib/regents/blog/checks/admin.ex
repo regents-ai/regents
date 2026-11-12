@@ -3,7 +3,7 @@ defmodule Regents.Blog.Checks.Admin do
   use Ash.Policy.SimpleCheck
 
   @impl true
-  def describe(_opts), do: "actor's verified account is a Credits admin"
+  def describe(_opts), do: "actor's verified account is one of the site's admins"
 
   @impl true
   def match?(%Regents.Actors.Human{human_account_id: id} = actor, _context, _opts) do

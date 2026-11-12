@@ -63,7 +63,6 @@ const pages: Record<string, string> = {
   "docs-contracts": "/docs/contracts",
   "docs-changes": "/docs/changes",
   start: "/start",
-  refunds: "/credits/refunds",
   privacy: "/privacy",
   terms: "/terms",
   cloak: "/cloak/guide",

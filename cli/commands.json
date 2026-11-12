@@ -99,41 +99,6 @@
       "webmcp": "regents_stake_position"
     },
     {
-      "command": "account balances",
-      "description": "Read your person's Credits and your spending allowance.",
-      "operation_id": "getAccountBalances",
-      "webmcp": "account_balances",
-      "method": "GET",
-      "path": "/api/v1/account/balances",
-      "authority": "paired_agent",
-      "effect": "read"
-    },
-    {
-      "command": "account credits-history",
-      "description": "Read your person's Credits history, up to 50 transfers grouped into complete entries per page.",
-      "operation_id": "listCreditsHistory",
-      "webmcp": "account_credits_history",
-      "method": "POST",
-      "path": "/api/v1/account/credits/history",
-      "authority": "paired_agent",
-      "effect": "read",
-      "flags": [
-        {
-          "name": "after",
-          "type": "string",
-          "in": "body",
-          "field": "after",
-          "required": false,
-          "description": "The previous page's pagination.next_cursor unchanged, at most 2048 characters. Omit for the first page or when the cursor is null; do not send null."
-        }
-      ],
-      "pagination": {
-        "has_more": "pagination.has_more",
-        "cursor": "pagination.next_cursor",
-        "flag": "after"
-      }
-    },
-    {
       "command": "account points",
       "description": "Read your person's Points, what they earned today and yesterday, their place, the actions still open, daily limits, the leaderboard by name or wallet and recent entries, each saying who earned it and whether it counted.",
       "operation_id": "getAccountPoints",

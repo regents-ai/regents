@@ -14,8 +14,6 @@ defmodule RegentsWeb.ApiContractTest do
              "/api/agents/v1/me",
              "/api/agents/v1/pair",
              "/api/agents/v1/whoami",
-             "/api/v1/account/balances",
-             "/api/v1/account/credits/history",
              "/api/v1/account/points",
              "/api/v1/messages/{topic}",
              "/auth/csrf",

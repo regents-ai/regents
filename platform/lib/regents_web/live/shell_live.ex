@@ -25,8 +25,6 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.CloakLive
-  alias RegentsWeb.CreditsHistoryLive
-  alias RegentsWeb.CreditsLive
   alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.NamesLive
@@ -69,10 +67,8 @@ defmodule RegentsWeb.ShellLive do
        blog_post: nil,
        docs: nil,
        shell_instance: System.unique_integer([:positive, :monotonic]),
-       pair_start: nil,
-       credits: %Read{}
+       pair_start: nil
      )
-     |> follow_credits()
      |> Account.init()
      |> Points.init()
      |> Names.init()
@@ -98,8 +94,7 @@ defmodule RegentsWeb.ShellLive do
      |> Names.route(route_spec)
      |> Staking.route(route_spec)
      |> Redemption.route(route_spec)
-     |> PaperProDaily.route(route_spec)
-     |> read_credits()}
+     |> PaperProDaily.route(route_spec)}
   end
 
   @impl true
@@ -179,12 +174,6 @@ defmodule RegentsWeb.ShellLive do
   def handle_info({:shared_reading, {:points_board, _program}}, socket),
     do: {:noreply, Points.board_changed(socket)}
 
-  # The balance changed on this or any Regent site: a purchase, a gift, a spend.
-  # The header, the Buy Credits panel, the Account page and the Credits history
-  # follow. Every page change reads the balance again too.
-  def handle_info(:credits_changed, socket),
-    do: {:noreply, socket |> read_credits() |> Account.credits_changed()}
-
   def handle_info(:publication_midnight, socket), do: {:noreply, PaperProDaily.midnight(socket)}
 
   @impl true
@@ -194,18 +183,7 @@ defmodule RegentsWeb.ShellLive do
       route_spec={@route_spec}
       account_control={@account_control}
       shell_instance={@shell_instance}
-      credits={signed_in_credits(@access_context, @credits)}
     >
-      <:credits_panel :if={signed_in_credits(@access_context, @credits)}>
-        <.live_component
-          module={RegentsWeb.CreditsPanel}
-          id="credits-panel"
-          lease={@session_lease}
-          account={current_account(@access_context)}
-          credits={@credits}
-          client_tag={@client_tag}
-        />
-      </:credits_panel>
       <:agents :if={current_account(@access_context)}>
         <.live_component
           module={RegentsWeb.MenuAgents}
@@ -309,19 +287,6 @@ defmodule RegentsWeb.ShellLive do
           earning={@points_earning}
         />
 
-        <CreditsHistoryLive.page
-          :if={@route_spec.route_id == :credits}
-          signed_out_reason={@signed_out_reason}
-          account={current_account(@access_context)}
-          history={@credits_history}
-        />
-        <CreditsLive.agent_spending
-          :if={@route_spec.route_id == :credits && current_account(@access_context)}
-          lease={@session_lease}
-          account={current_account(@access_context)}
-          agents={@spending_agents}
-        />
-
         <AccountLive.wallets
           :if={@route_spec.route_id == :wallets}
           signed_out_reason={@signed_out_reason}
@@ -414,15 +379,6 @@ defmodule RegentsWeb.ShellLive do
         <CloakLive.page :if={@route_spec.route_id == :cloak} />
         <CloakLive.guide :if={@route_spec.route_id == :cloak_guide} />
 
-        <CreditsLive.refunds :if={@route_spec.route_id == :credits_refunds} />
-
-        <CreditsLive.admin
-          :if={@route_spec.route_id == :credits_admin}
-          lease={@session_lease}
-          account={current_account(@access_context)}
-          signed_out_reason={@signed_out_reason}
-        />
-
         <.live_component
           :if={
             @route_spec.route_id == :articles_admin &&
@@ -456,39 +412,6 @@ defmodule RegentsWeb.ShellLive do
       </:content>
     </.shell>
     """
-  end
-
-  # A session that ends while the page is open takes the balance and the panel
-  # with it at once; the balance read at mount is never shown to nobody. While
-  # signed in, the panel and its wallet buttons are there whatever the reading.
-  defp signed_in_credits(access_context, credits),
-    do:
-      if(authenticated?(access_context) and RegentsWeb.Plugs.LaunchGate.app_surfaces_enabled?(),
-        do: credits
-      )
-
-  # Signing in or out reloads the page, so the account followed here is the
-  # page's own for as long as it is open.
-  defp follow_credits(socket) do
-    with true <- connected?(socket),
-         %{privy_user_id: id} <- current_account(socket.assigns.access_context) do
-      Phoenix.PubSub.subscribe(Regents.PubSub, RegentCredits.topic(id))
-    end
-
-    socket
-  end
-
-  # A read that fails leaves the page standing and says so where the balance is
-  # shown: a failed refresh keeps the last balance as stale, and a first read
-  # that fails is an error, never zero.
-  defp read_credits(socket) do
-    case current_account(socket.assigns.access_context) do
-      nil ->
-        Read.clear(socket, :credits)
-
-      %{privy_user_id: id} ->
-        Read.now(socket, :credits, id, fn -> {:ok, RegentCredits.balance(id)} end)
-    end
   end
 
   defp load_regent_route(socket, %{route_id: :regent_profile}, %{"slug" => slug}) do

@@ -86,8 +86,8 @@ defmodule RegentsWeb.MessagesPagesTest do
   end
 
   defp put_admins(admins) do
-    old = Application.fetch_env!(:regent_credits, :admins)
-    Application.put_env(:regent_credits, :admins, admins)
-    on_exit(fn -> Application.put_env(:regent_credits, :admins, old) end)
+    old = Application.fetch_env!(:regents, :admins)
+    Application.put_env(:regents, :admins, admins)
+    on_exit(fn -> Application.put_env(:regents, :admins, old) end)
   end
 end

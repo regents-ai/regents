@@ -29,7 +29,6 @@ defmodule RegentsWeb.VisitLog.Events do
     :regents,
     :regent_identity,
     :regent_payments,
-    :regent_credits,
     :regent_agents,
     :regent_points
   ]

@@ -10,7 +10,6 @@ const pages: Array<[string, string]> = [
   ["/account", "#account-identity"],
   ["/account/agents", "#account-agents"],
   ["/account/points", "#points-page"],
-  ["/account/credits", "#credits-agent-spending"],
   ["/account/wallets", "#account-wallets-title"],
   ["/account/connections", "#account-verified-connections"],
   ["/pair", "#pair-page"],
@@ -87,7 +86,7 @@ test("[R04] a signed-in person walks every page, Account included, in one visit"
 })
 
 // Every shell page carries the whole account menu, its agents and Pair New Agent,
-// and the Credits button, opened straight from its own address.
+// opened straight from its own address.
 test("a signed-in person has the whole account menu on every shell page", async ({page}) => {
   const auth = await installAuthenticatedPrivy(page, "valid")
   await auth.establishLocalSession()
@@ -98,7 +97,6 @@ test("a signed-in person has the whole account menu on every shell page", async 
     await expect(page.locator("#shell-agents-reader"), path).toBeAttached()
     await expect(page.locator("#account-menu button[data-pair-open]"), path).toBeAttached()
     await expect(page.locator("#shell-pairing #shell-pairing-box"), path).toBeAttached()
-    await expect(page.locator("#shell-credits-button"), path).toBeVisible()
   }
 })
 

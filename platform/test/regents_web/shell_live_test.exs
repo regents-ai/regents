@@ -295,7 +295,6 @@ defmodule RegentsWeb.ShellLiveTest do
     for {label, path} <- [
           {"Agents", "/account/agents"},
           {"Points", "/account/points"},
-          {"Credits", "/account/credits"},
           {"Wallets", "/account/wallets"},
           {"Connections", "/account/connections"}
         ] do
@@ -353,31 +352,6 @@ defmodule RegentsWeb.ShellLiveTest do
              "#account-verified-connections [role=alert]",
              "already connected to another account here"
            )
-  end
-
-  # The Credits tab's spending section only invites a person to turn spending on when it can be.
-  test "Credits offers agent spending only while it can be turned on", %{conn: conn} do
-    enabled = Application.get_env(:regent_credits, :agent_grants_enabled)
-    on_exit(fn -> Application.put_env(:regent_credits, :agent_grants_enabled, enabled) end)
-    account = register_account("spending-copy", "0x6767676767676767676767676767676767676767")
-
-    Application.put_env(:regent_credits, :agent_grants_enabled, false)
-    view = open_tab(conn, account, "/account/credits")
-
-    assert has_element?(
-             view,
-             "#account-agent-spending [role=status]",
-             "Agent spending opens soon."
-           )
-
-    refute render(view) =~ "Turn it on for an agent"
-
-    Application.put_env(:regent_credits, :agent_grants_enabled, true)
-
-    view = open_tab(build_conn(), account, "/account/credits")
-
-    assert has_element?(view, "#account-agent-spending p", "Turn it on for an agent")
-    refute render(view) =~ "Agent spending opens soon."
   end
 
   test "a connection is only called connected once the account's own record says so", %{
@@ -789,7 +763,6 @@ defmodule RegentsWeb.ShellLiveTest do
       account_control: account_control,
       shell_instance: 1,
       content: [%{inner_block: fn _, _ -> "Fixture content" end}],
-      credits_panel: [],
       agents: [],
       pairing_panel: []
     )

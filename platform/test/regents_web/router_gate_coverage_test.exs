@@ -69,15 +69,17 @@ defmodule RegentsWeb.RouterGateCoverageTest do
              {:get, "/admin/errors"},
              {:get, "/admin/errors/:id"},
              {:get, "/admin/errors/:id/:occurrence_id"},
-             {:get, "/admin/messages"}
+             {:get, "/admin/messages"},
+             {:get, "/admin/pictures"}
            ]
 
-    # Sean publishes articles and Credits admins read the saved errors and the
-    # messages left for the team while the gate is closed; anyone else is told
-    # none of those pages exists.
+    # Sean publishes articles and the site's admins read the saved errors and the
+    # messages left for the team and remove agent pictures while the gate is
+    # closed; anyone else is told none of those pages exists.
     assert request(%{verb: :get, path: "/admin/articles"}).status == 404
     assert request(%{verb: :get, path: "/admin/errors"}).status == 404
     assert request(%{verb: :get, path: "/admin/messages"}).status == 404
+    assert request(%{verb: :get, path: "/admin/pictures"}).status == 404
   end
 
   test "[U2] every product LiveView mounts through the gate" do
@@ -85,9 +87,13 @@ defmodule RegentsWeb.RouterGateCoverageTest do
       for route <- routes(),
           live_view = route.metadata[:phoenix_live_view],
           route.path != "/",
-          # The saved errors and the team's messages are Credits admins' own
-          # pages (RegentsWeb.ErrorsAdmin).
-          not String.starts_with?(route.path, ["/admin/errors", "/admin/messages"]),
+          # The saved errors, the team's messages and the pictures page are the
+          # site's admins' own pages (RegentsWeb.ErrorsAdmin).
+          not String.starts_with?(route.path, [
+            "/admin/errors",
+            "/admin/messages",
+            "/admin/pictures"
+          ]),
           not mounts_through_gate?(live_view),
           do: route.path
 

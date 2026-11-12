@@ -1,0 +1,29 @@
+/* The team's page for agent pictures (`AdminPicturesLive`), on the reading
+   page's frame: the address field above its Find button, and the picture found
+   beside its Remove button. */
+@layer regents-product {
+.admin-pictures__form {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.admin-pictures__form .rg-field,
+.admin-pictures__form input {
+  width: 100%;
+}
+
+.admin-pictures__picture {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.admin-pictures__picture img {
+  width: 8rem;
+  height: 8rem;
+  border: 1px solid var(--color-border);
+  object-fit: cover;
+}
+}

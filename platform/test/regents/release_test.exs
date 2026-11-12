@@ -207,22 +207,6 @@ defmodule Regents.ReleaseTest do
              "schema_migrations"
            ]
 
-    assert table_names(config, "regent_credits") == [
-             "accounts",
-             "agent_permissions",
-             "balances",
-             "card_purchases",
-             "deposit_cursors",
-             "first_uses",
-             "gifts",
-             "holds",
-             "purchases",
-             "refunds",
-             "schema_migrations",
-             "transfers",
-             "wallets"
-           ]
-
     assert table_names(config, "regent_points") == [
              "accounts",
              "period_bonuses",
@@ -530,7 +514,7 @@ defmodule Regents.ReleaseTest do
 
   # Every shared ledger's newest applied change, one per shared schema.
   defp applied_shared(config) do
-    for schema <- ~w(regent_identity regent_agents regent_credits regent_points regent_payments),
+    for schema <- ~w(regent_identity regent_agents regent_points regent_payments),
         query!(config, "SELECT to_regclass($1) IS NOT NULL", ["#{schema}.schema_migrations"]).rows ==
           [[true]],
         %{rows: [[version]]} =
@@ -544,7 +528,6 @@ defmodule Regents.ReleaseTest do
     for app <- [
           :regent_identity,
           :regent_agents,
-          :regent_credits,
           :regent_points,
           :regent_payments
         ],

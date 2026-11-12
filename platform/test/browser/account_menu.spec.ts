@@ -127,9 +127,9 @@ test("Escape closes the account menu before an open section behind it", async ({
   await problems.expect()
 })
 
-// 6 Nov 2026: with Buy Credits open over an open section, Escape closed the section
+// 6 Nov 2026: with a window open over an open section, Escape closed the section
 // behind and left the window open. Escape is the window's, and the section stays.
-test("Escape closes Buy Credits before an open section behind it", async ({page}) => {
+test("Escape closes a window before an open section behind it", async ({page}) => {
   const problems = watch(page)
   await signIn(page)
   await page.locator("#route-content").evaluate(content => {
@@ -139,10 +139,19 @@ test("Escape closes Buy Credits before an open section behind it", async ({page}
     details.innerHTML = "<summary>Section</summary><p>Inside</p>"
     content.prepend(details)
   })
-  await page.locator("#shell-credits-button").click()
-  await expect(page.locator("#shell-credits")).toBeVisible()
+  await openMenu(page)
+  await menu(page).getByRole("button", {name: "Pair New Agent"}).click()
+  const pairing = page.locator("#shell-pairing")
+  await expect(pairing).toBeVisible()
+  // The window opens on its dropdown of agents, the window's own open section,
+  // so the first Escape closes that and the next closes the window.
+  const pick = pairing.locator("details.rg-pill-select")
+  await expect(pick).toHaveAttribute("open", "")
   await page.keyboard.press("Escape")
-  await expect(page.locator("#shell-credits")).toBeHidden()
+  await expect(pick).not.toHaveAttribute("open", "")
+  await expect(pairing).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(pairing).toBeHidden()
   await expect(page.locator("#walk-open-section")).toHaveAttribute("open", "")
   await problems.expect()
 })
@@ -206,14 +215,4 @@ test("on a short phone screen, the account menu reaches Sign out", async ({page}
   const signOut = menu(page).getByRole("button", {name: "Sign out"})
   await signOut.scrollIntoViewIfNeeded()
   await expect(signOut).toBeInViewport()
-})
-
-test("the balance in the header opens Buy Credits", async ({page}) => {
-  const problems = watch(page)
-  await page.setViewportSize({width: 390, height: 900})
-  await signIn(page)
-  await expect(page.locator("#shell-credits-button")).toBeVisible()
-  await page.locator("#shell-credits-button").click()
-  await expect(page.locator("#shell-credits")).toBeVisible()
-  await problems.expect()
 })

@@ -1,10 +1,10 @@
 defmodule RegentsWeb.ChainReadBudget do
   @moduledoc """
   One budget per client address for the readings of Base a visitor starts: the
-  wallet figures on Stake and the Overview, the Redeem page's figures, the Buy
-  Credits panel's wallet figures, the staking position read, and the NFT tier
-  on the Points page. Past it, a page keeps the last reading it has, and the
-  Points page says the NFTs could not be checked. A wallet press never draws on it.
+  wallet figures on Stake and the Overview, the Redeem page's figures, the
+  staking position read, and the NFT tier on the Points page. Past it, a page
+  keeps the last reading it has, and the Points page says the NFTs could not be
+  checked. A wallet press never draws on it.
   """
 
   alias Regents.RateLimiter

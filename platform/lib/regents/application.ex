@@ -32,10 +32,10 @@ defmodule Regents.Application do
         {Task.Supervisor, name: Regents.Agents.Reads},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
-        # After the repository and PubSub: a Credits balance, a pairing or the
-        # staking figures changed on any Regent site reach the pages showing them.
+        # After the repository and PubSub: a pairing or the staking figures
+        # changed on any Regent site reach the pages showing them.
         shared_changes_child(),
-        # After the repository: background jobs, including Credits purchase checks.
+        # After the repository: background jobs.
         oban_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
@@ -68,13 +68,12 @@ defmodule Regents.Application do
       do: Regents.SharedChanges
   end
 
-  # AshOban adds a queue and a sweep for every trigger in the site's domains and
-  # in Regent Credits, whose purchase checks run on this site's Oban.
+  # AshOban adds a queue and a sweep for every trigger in the site's domains.
   defp oban_child do
     if Application.get_env(:regents, :database_startup_enabled, false) do
       {Oban,
        AshOban.config(
-         Application.fetch_env!(:regents, :ash_domains) ++ [RegentCredits],
+         Application.fetch_env!(:regents, :ash_domains),
          staking_jobs(Application.fetch_env!(:regents, Oban))
        )}
     end

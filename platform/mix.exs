@@ -56,8 +56,7 @@ defmodule Regents.MixProject do
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.37"},
       # ash_postgres main with #910 until a Hex release carries it: upserts use the
-      # repo's prefix, which picks each site's schema on the shared database. It
-      # stands in for the Hex release that ash_money and ash_double_entry ask for.
+      # repo's prefix, which picks each site's schema on the shared database.
       {:ash_postgres,
        git: "https://github.com/ash-project/ash_postgres.git",
        ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
@@ -90,12 +89,9 @@ defmodule Regents.MixProject do
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
       {:regent_format,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
-      # regent_credits names regent_chain by a sibling path; this pin replaces it.
+      # regent_payments names regent_chain by a sibling path; this pin replaces it.
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
-      # regent_payments names regent_credits by a sibling path; this pin replaces it.
-      {:regent_credits,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credits", override: true},
       {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
       # The site's crash saving (RegentHttp.ErrorSaving).
       {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http", override: true},

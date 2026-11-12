@@ -28,7 +28,7 @@ defmodule RegentsWeb.AgentGuidesTest do
     for path <- AgentGuides.paths() do
       markdown = RegentsWeb.PublicDocuments.document(path).markdown
 
-      refute markdown =~ ~r/ash.template|\/api\/v1\/|pin a note|\{\{/i, path
+      refute markdown =~ ~r/ash.template|\/api\/v1\/(?!account\/points)|pin a note|\{\{/i, path
       assert conn |> get(path) |> html_response(200)
     end
   end

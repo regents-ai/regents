@@ -38,7 +38,6 @@ type OnchainStepsHook = Hook & {
   review?: Review
   clicked?: (event: Event) => void
   walletChanged?: () => void
-  refresh?: () => void
 }
 
 // How many of a button's presses the wallet still has. The mark comes off when
@@ -49,10 +48,6 @@ const presses = new WeakMap<HTMLElement, number>()
  * The wallet buttons of one server component. The component's root carries the
  * hook and a DOM id; each button names its step with `data-onchain-step`, and
  * each form field the review depends on is marked `data-onchain-input="name"`.
- * A root marked `data-refresh-funds` also asks the server to read its funds
- * again (`refresh_funds`) when the wallet changes, when the page comes back
- * into view, when the dialog holding it opens (`regents:refresh-funds` on the
- * root) and after each press.
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
@@ -77,12 +72,7 @@ export const OnchainSteps: Hook = {
       // The mark is this island's own, so a page update while the wallet has the
       // press leaves it on the button.
       this.js().ignoreAttributes(button, ["data-awaiting-wallet"])
-      const marked = mark(button)
-      // The press may have spent funds or changed what the wallet allows.
-      const release = () => {
-        marked()
-        this.refresh?.()
-      }
+      const release = mark(button)
       const form = formInputs(this.el)
       const asks = Object.keys(form).length > 0 && (!this.review || !sameInputs(this.review.inputs, form))
       lost(this.el, false)
@@ -115,26 +105,13 @@ export const OnchainSteps: Hook = {
     this.walletChanged = () => push("onchain_active_wallet", {address: activeEthereumWallet()?.address ?? null})
     window.addEventListener("ash:wallet-state", this.walletChanged)
 
-    if (this.el.hasAttribute("data-refresh-funds")) {
-      this.refresh = () => void push("refresh_funds", {})
-      window.addEventListener("ash:wallet-state", this.refresh)
-      window.addEventListener("focus", this.refresh)
-      this.el.addEventListener("regents:refresh-funds", this.refresh)
-    }
-
     this.walletChanged()
-    this.refresh?.()
     window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
   },
 
   destroyed(this: OnchainStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     if (this.walletChanged) window.removeEventListener("ash:wallet-state", this.walletChanged)
-    if (this.refresh) {
-      window.removeEventListener("ash:wallet-state", this.refresh)
-      window.removeEventListener("focus", this.refresh)
-      this.el.removeEventListener("regents:refresh-funds", this.refresh)
-    }
   },
 }
 

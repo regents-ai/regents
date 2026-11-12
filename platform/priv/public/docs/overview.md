@@ -16,7 +16,7 @@ curl --fail '{{origin}}/openapi.json'
 
 ## Markdown
 
-Every docs page answers `Accept: text/markdown` at its own address, and so do the homepage, About, Privacy, Terms, Connect your agent, the Cloak guide and the Credits refund rules. Browsers get HTML by default, and every answer carries `Vary: Accept`. An address that names no page answers `404`, never an empty document.
+Every docs page answers `Accept: text/markdown` at its own address, and so do the homepage, About, Privacy, Terms, Connect your agent and the Cloak guide. Browsers get HTML by default, and every answer carries `Vary: Accept`. An address that names no page answers `404`, never an empty document.
 
 For a short guide to the whole site, read [llms.txt]({{origin}}/llms.txt). The [sitemap]({{origin}}/sitemap.xml) lists every public page.
 
@@ -28,7 +28,7 @@ For a short guide to the whole site, read [llms.txt]({{origin}}/llms.txt). The [
 - [Reading]({{origin}}/docs/reading): published research, Articles and AI & SCIFI.
 - [Profiles]({{origin}}/docs/profiles): a public Regent profile by its slug.
 - [Pairing]({{origin}}/docs/pairing): pair an agent with a person's account and check in.
-- [Signed reads]({{origin}}/docs/agent-reads): a paired agent reads its person's account, claims, stake, Credits and Points.
+- [Signed reads]({{origin}}/docs/agent-reads): a paired agent reads its person's account, claims, stake and Points.
 - [WebMCP]({{origin}}/docs/webmcp): the read tools every page offers in the browser.
 - [Claims]({{origin}}/docs/claims): a signed-in person's historical name claims.
 - [Staking]({{origin}}/docs/staking): a signed-in person's stake, and the wallet pages.

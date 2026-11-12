@@ -169,23 +169,6 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
     assert sibling_id == sibling.id
   end
 
-  test "the Credits tab lists what each paired agent may spend, by its wallet", %{conn: conn} do
-    account = register_account("agents-spending")
-    pair!(account, "Muse helper", :muse)
-    pair!(account, "Pi helper", :pi, %Agent{wallet: "0x3333333333333333333333333333333333333333"})
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/account/credits")
-
-    render_async(view)
-
-    for wallet <- [@agent_wallet, "0x3333333333333333333333333333333333333333"] do
-      assert has_element?(view, "#account-agent-spending h4 .rg-address__full", wallet)
-    end
-  end
-
   test "activity that can't be read says so", %{conn: conn} do
     account = register_account("agents-unread")
     agent = pair!(account, "Quiet", :hermes)

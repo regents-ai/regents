@@ -50,7 +50,7 @@ defmodule RegentsWeb.Router do
     }
   end
 
-  # The saved errors: Credits admins only. Anyone else gets the not-found page under
+  # The saved errors: the site's admins only. Anyone else gets the not-found page under
   # the reading policy; an admin's page replaces it with one carrying this
   # request's nonce (RegentsWeb.ErrorsAdmin).
   # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
@@ -190,12 +190,9 @@ defmodule RegentsWeb.Router do
     post "/messages/:topic", MessagesController, :leave
   end
 
-  # A paired agent's reads of its person's Credits and Points, at the same
-  # paths on every site.
+  # A paired agent's read of its person's Points, at the same path on every site.
   scope "/api/v1/account", RegentsWeb do
     pipe_through [:api, :paired_agent]
-    get "/balances", AgentReadsController, :balances
-    post "/credits/history", AgentReadsController, :credits_history
     get "/points", AgentReadsController, :points
   end
 
@@ -241,7 +238,6 @@ defmodule RegentsWeb.Router do
       live "/account", ShellLive, :account
       live "/account/agents", ShellLive, :account_agents
       live "/account/points", ShellLive, :points
-      live "/account/credits", ShellLive, :credits
       live "/account/wallets", ShellLive, :wallets
       live "/account/connections", ShellLive, :connections
       live "/pair", ShellLive, :pair
@@ -256,8 +252,6 @@ defmodule RegentsWeb.Router do
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
       live "/cloak/guide", ShellLive, :cloak_guide
-      live "/credits/refunds", ShellLive, :credits_refunds
-      live "/admin/credits", ShellLive, :credits_admin
       live "/admin/articles", ShellLive, :articles_admin
     end
   end
@@ -278,6 +272,7 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       on_mount: [RegentsWeb.ErrorsAdmin] do
       live "/messages", AdminMessagesLive, :index
+      live "/pictures", AdminPicturesLive, :index
     end
   end
 end

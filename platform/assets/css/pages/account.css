@@ -39,7 +39,7 @@
 
 /* Panels */
 
-/* Panels side by side when there is room: Notes, Points, Credits history. */
+/* Panels side by side when there is room: Notes, Points. */
 .account-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
@@ -53,7 +53,7 @@
   padding: var(--space-3) 0;
 }
 
-/* The same size as the shared sections beside them (Agents, Credits). */
+/* The same size as the shared sections beside them (Agents). */
 .account-panel h2 {
   font-size: var(--type-headline-size);
   line-height: var(--type-headline-line);
@@ -150,22 +150,8 @@
 
 }
 
-/* What Credits buy: one row per place, the site above a link to it. */
-.credits-uses ul {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.credits-uses li {
-  display: grid;
-  gap: var(--space-1);
-}
-
-/* regents.sh's own pages on the same ground: the agent start page, the article
-   editor and Credits admin open with a heading; Names lists and claims names;
+/* regents.sh's own pages on the same ground: the agent start page and the
+   article editor open with a heading; Names lists and claims names;
    each agent's picture is kept here for every Regent site. */
 @layer regents-product {
 /* Heading */

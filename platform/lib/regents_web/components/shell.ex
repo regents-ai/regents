@@ -7,8 +7,7 @@ defmodule RegentsWeb.Components.Shell do
   wallet, the agents paired with the account (the `agents` slot), Pair New Agent,
   the theme switch, Manage Account and Sign out. Pair New Agent opens the pairing
   window (the `pairing_panel` slot) over the page; the agents are on the Agents
-  page, and everything else about the account is on the Account page. On a screen
-  narrower than 22.5rem the header has no room for the Credits balance. Signed
+  page, and everything else about the account is on the Account page. Signed
   out, with no account menu, the header has the theme switch and Sign in.
 
   The top bar's nine-dot button opens the Regents Products menu, and the
@@ -40,21 +39,11 @@ defmodule RegentsWeb.Components.Shell do
   attr(:account_control, Regents.AccessContext.AccountControl, required: true)
   attr(:shell_instance, :integer, required: true)
 
-  attr(:credits, :map,
-    default: nil,
-    doc: "The account's Credits reading (`state` and `value`); nil when signed out."
-  )
-
   slot(:content, required: true)
 
   # Required, so a page that draws the shell without one of these does not compile:
-  # signed in, it would show a menu without agents or a balance that opens nothing.
-  # A caller leaves one out for someone signed out with `:if`.
-  slot(:credits_panel,
-    required: true,
-    doc: "The Buy Credits panel, opened from the header's balance."
-  )
-
+  # signed in, it would show a menu without agents or a Pair New Agent that opens
+  # nothing. A caller leaves one out for someone signed out with `:if`.
   slot(:agents, required: true, doc: "The agents paired with the account, in the account menu.")
 
   slot(:pairing_panel,
@@ -113,21 +102,6 @@ defmodule RegentsWeb.Components.Shell do
 
         <.apps_menu />
 
-        <button
-          :if={@credits}
-          id="shell-credits-button"
-          class="shell-credits"
-          type="button"
-          aria-haspopup="dialog"
-          aria-controls="shell-credits"
-          aria-label={credits_label(@credits)}
-          phx-hook="MotionCount"
-          data-credits-open
-          data-variant="flash"
-        >
-          <.credits_amount amount={@credits} />
-        </button>
-
         <.account_control account_control={@account_control} />
 
         <Regent.Account.menu
@@ -156,27 +130,6 @@ defmodule RegentsWeb.Components.Shell do
           </:theme>
         </Regent.Account.menu>
       </header>
-
-      <Regent.Structure.dialog
-        :if={@credits_panel != []}
-        id="shell-credits"
-        class="shell-credits-dialog"
-        aria-label="Buy Credits"
-        phx-hook="InfoDialog"
-      >
-        <form method="dialog">
-          <Regent.Primitives.button
-            variant="quiet"
-            type="submit"
-            value="close"
-            class="shell-dialog-close"
-            aria-label="Close"
-          >
-            <Regent.Icons.icon name="x" />
-          </Regent.Primitives.button>
-        </form>
-        {render_slot(@credits_panel)}
-      </Regent.Structure.dialog>
 
       <Regent.Structure.dialog
         :if={@pairing_panel != []}
@@ -262,32 +215,6 @@ defmodule RegentsWeb.Components.Shell do
     </div>
     """
   end
-
-  defp credits_label(%{state: :ready, value: balance}),
-    do: RegentCredits.Amount.format(balance.available)
-
-  defp credits_label(%{state: state}) when state in [:error, :stale], do: "Credits unavailable"
-  defp credits_label(_credits), do: "Credits loading"
-
-  attr(:amount, :map, required: true)
-
-  # "12.40 Credits", whose unit a phone's header leaves out for room. Only a
-  # balance just read shows; while it is read again, or when it can't be, the
-  # figure is a dash. The button and the Buy Credits panel behind it are there
-  # either way.
-  defp credits_amount(%{amount: %{state: :ready, value: balance}} = assigns) do
-    [number, unit] = String.split(RegentCredits.Amount.format(balance.available), " ", parts: 2)
-    assigns = assign(assigns, number: number, unit: unit)
-
-    ~H"""
-    <span data-count>{@number}</span> <span class="shell-credits__unit">{@unit}</span>
-    """
-  end
-
-  defp credits_amount(assigns),
-    do: ~H"""
-    <span data-count>—</span> <span class="shell-credits__unit">Credits</span>
-    """
 
   attr :account_control, Regents.AccessContext.AccountControl, required: true
   attr :enabled, :boolean, default: true
