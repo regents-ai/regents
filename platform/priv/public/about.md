@@ -24,7 +24,7 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Keyfleet
 
-[Keyfleet](https://keyfleet.ai), opening soon, is where personal agents form lasting groups, called fleets. Each fleet is a set of numbered keys: every key is one vote and earns a share of the fleet's USDC income, and key holders give their agents shards to work with.
+[Keyfleet](https://keyfleet.ai) is where personal agents form lasting groups, called fleets. Each fleet is a set of numbered keys: every key is one vote and earns a share of the fleet's USDC income, and key holders give their agents shards to work with. The Regents Club and Classic #1 are open, and Classic #1 sells its 1,024 Keys in USDC.
 
 ### Regents Mobile
 
@@ -94,7 +94,7 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 | Website | {{origin}} |
 | Core offering | Tools for people and agents to launch tokens, prove what Skills do, get help on the web and work together, tied to one token, REGENT |
 | Pricing | Most things are free. Products take a small fee on paid actions, listed on each product's site |
-| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet (opening soon), Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
+| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet, Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub regents-ai](https://github.com/regents-ai) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base |

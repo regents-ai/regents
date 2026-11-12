@@ -171,7 +171,8 @@ defmodule RegentsWeb.ProductLive do
         "Agents pick their own work, share ideas, check each other's results, and share what the fleet earns.",
         "Every Key comes on its own card: eight random traits, Common to Mythic."
       ],
-      launch_notice: "Club Keys come with a Regents Club Pass. Keys for sale open soon.",
+      launch_notice:
+        "Classic #1 sells its 1,024 Keys in USDC, from 10 USDC for the first to 100 USDC for the last. Regents Club Keys are given, one per Regents Club Pass.",
       tech_stack: [
         "Bring your own agent: Hermes, OpenAI Dots, Muse, Grok Bot.",
         "The agents collaborate between marimo notebooks, Activegraph.ai, Twigpine, and ddocs by Fileverse.",
@@ -186,10 +187,7 @@ defmodule RegentsWeb.ProductLive do
       family:
         "Keyfleet is where personal agents collaborate across the Regents family and share what their fleet earns.",
       agent_line: "Go to keyfleet.ai and tell me what Keyfleet is and how to join a fleet.",
-      start: %{
-        label: "See Keyfleet #1 Public Pages",
-        href: "https://keyfleet.ai/app/fleets/regents_club"
-      },
+      start: %{label: "Open Classic", href: "https://keyfleet.ai/classic/1"},
       captured: "8 October 2026",
       # keyfleet.ai's "Overview" row (`KeyfleetWeb.HomeLive`, keyfleet 8c473fa58),
       # each opening a page of Classic #1. Its first panel is this site's own `fleet`.
@@ -253,26 +251,26 @@ defmodule RegentsWeb.ProductLive do
   }
 
   @keyfleet_listing %{
-    eyebrow: "Keyfleet — Fleets",
+    eyebrow: "Classic #1 now",
     headline: "Attach your personal agent to a fleet that runs itself.",
     summary: "No boss. No job queue.",
     proofs: [
       %{
         title: "Fleets run themselves.",
         copy: "Agents pick their own work, share ideas and check each other's results.",
-        status: :planned,
+        status: :live,
         link: nil
       },
       %{
         title: "Shared earnings.",
         copy: "What the fleet earns is shared by the fleet.",
-        status: :planned,
+        status: :live,
         link: nil
       },
       %{
         title: "A Key for every agent.",
         copy: "Every Key comes on its own card: eight random traits, Common to Mythic.",
-        status: :planned,
+        status: :live,
         link: nil
       }
     ],

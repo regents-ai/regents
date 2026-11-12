@@ -5,23 +5,30 @@ defmodule RegentsWeb.AutolaunchLive do
   alias RegentsWeb.{HomeLive, ProductLive}
 
   # The Autolaunch page carries its own copy: the two launch kinds and their
-  # figures, taken from autolaunch.sh's own guide, onchain stocks first.
+  # figures for new launches, taken from autolaunch.sh's How it works and its
+  # README (autolaunch 11a5c8ba), onchain stocks first.
   # Nothing here reads a chain. The product directory serves the same copy
   # through `content/0`.
   @launches [
     %{
-      kicker: "Memestock · on Base, Robinhood Chain soon",
+      kicker: "Memestock · on Base and Robinhood Chain",
       title: "Pair a memecoin with a real stock.",
       copy: [
         "A Memestock token is a memecoin paired with a tokenized stock. Bids are paid in the stock, and stakers earn the stock from trading fees.",
-        "There is no creator allocation. Unsold tokens are burned."
+        "The creator receives 0.5% of the supply and earns a share of trading fees. If the auction misses its minimum, every bidder takes back their full bid and every token is retired."
       ],
       facts: [
-        %{label: "Auction", value: "24 hours, priced in the paired stock"},
+        %{
+          label: "Auction",
+          value: "About 2 hours on Base or about 24 hours on Robinhood Chain, priced in the stock"
+        },
         %{label: "Supply", value: "1 billion tokens"},
-        %{label: "Sold in the auction", value: "Up to 80%"},
-        %{label: "Locked with the stock for trading", value: "Up to 20%"},
-        %{label: "To the creator", value: "None"}
+        %{label: "Sold", value: "49.75%"},
+        %{label: "Liquidity", value: "49.75%, locked with the stock for good"},
+        %{
+          label: "Creator",
+          value: "0.5%, released over about 3 days on Base or about 30 days on Robinhood Chain"
+        }
       ]
     },
     %{
@@ -32,11 +39,11 @@ defmodule RegentsWeb.AutolaunchLive do
         "Most of the supply stays with the launcher, the way founders keep most of a company after a preseed round."
       ],
       facts: [
-        %{label: "Auction", value: "48 hours, priced in REGENT"},
+        %{label: "Auction", value: "About 5 hours, priced in REGENT"},
         %{label: "Supply", value: "100 billion tokens"},
-        %{label: "Sold in the auction", value: "Up to 10%"},
-        %{label: "Locked with REGENT for trading", value: "Up to 5%"},
-        %{label: "To the launch's treasury", value: "85%, released over one year"}
+        %{label: "Sold", value: "20%"},
+        %{label: "Liquidity", value: "Up to 10%, locked with REGENT for good"},
+        %{label: "Treasury", value: "70%, released over one year"}
       ]
     }
   ]
@@ -113,14 +120,15 @@ defmodule RegentsWeb.AutolaunchLive do
     %{
       title: "Fees reach stakers.",
       copy:
-        "Each trade pays 1% to the token's own stakers and 1% to REGENT stakers. The pool also charges the standard 0.3%, and what the locked position earns from it is added to the token's staking rewards. These rates are fixed in the contracts."
+        "Revstake trades pay 3%: 2% to the token's stakers and 1% to Regent. Memestock trades pay 4.3% on the stock amount of every trade: 3% to the token's stakers, 1% to REGENT stakers and 0.3% to the creator. Both pools also charge the standard 0.3%, and what the locked liquidity earns goes to the token's staking. The rates are fixed in the contracts."
     }
   ]
 
   @audience [
     "Agents and x402 services with stablecoin revenue, raising early funds from backers.",
     "Backers who want a share of an agent's earnings, paid to their stake.",
-    "Traders who want a memecoin tied to a real onchain stock."
+    "Traders who want a memecoin tied to a real onchain stock.",
+    "Holders of a Base stock token who sell covered calls on it and keep the premium, and buyers who pay for calls in USDC."
   ]
 
   @doc """
@@ -149,7 +157,7 @@ defmodule RegentsWeb.AutolaunchLive do
         "Every bid, launch and stake happens in your own wallet, and each one asks for your signature."
       ],
       family:
-        "Revstake auctions are priced in REGENT. 1% of every Autolaunch trade and 2% of every token's staking rewards go to Regents Labs, and REGENT stakers share that revenue.",
+        "Revstake auctions are priced in REGENT, and part of what Autolaunch earns is paid into REGENT staking.",
       agent_line: "Read autolaunch.sh/llms.txt and explain how Autolaunch works.",
       start: %{label: "How it works", href: "https://autolaunch.sh/how-it-works"}
     }

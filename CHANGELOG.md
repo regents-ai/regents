@@ -5845,3 +5845,27 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Rollback: v301's image main-c1d2dee245b4.
 - Not proven live: Safari, a real phone, the signed-in pages.
 - Known and next: the Launches figures on /autolaunch are the first version's terms.
+
+## 2026-11-12 — Autolaunch and Keyfleet pages state their products' current terms
+
+- /autolaunch gave the first version's terms. Its figures now come from autolaunch.sh's
+  How it works and the Autolaunch README (autolaunch 11a5c8ba), for new launches:
+  Memestock on Base and Robinhood Chain, an auction of about 2 hours on Base or about
+  24 hours on Robinhood Chain priced in the stock, 1 billion tokens, 49.75% sold, 49.75%
+  locked as liquidity, 0.5% to the creator over about 3 days on Base or about 30 days on
+  Robinhood Chain; Revstake on Base, about 5 hours priced in REGENT, 100 billion tokens, 20%
+  sold, up to 10% locked with REGENT, 70% to the treasury over one year. The fee card gives
+  3% for Revstake (2% to the token's stakers, 1% to Regent) and 4.3% on the stock amount
+  for Memestock (3%, 1% to REGENT stakers, 0.3% to the creator), plus the pools' 0.3%. The
+  family line is Autolaunch's own sentence on REGENT. The fact labels are one word each.
+  Audience adds covered calls, in the words of Autolaunch's covered-call page.
+- /keyfleet said Keys for sale open soon. Its notice now gives keyfleet.ai's own terms:
+  Classic #1 sells its 1,024 Keys in USDC, from 10 USDC for the first to 100 USDC for the
+  last, and Regents Club Keys are given, one per Regents Club Pass. The top line reads
+  "keyfleet.ai · Classic #1 now", as Keyfleet's home page does; the three features read
+  Available now, as the home page's Keyfleet chapter already did; the second button is
+  "Open Classic" to keyfleet.ai/classic/1, where Keyfleet's About page sends newcomers.
+- `about.md` no longer calls Keyfleet "opening soon": it says the Regents Club and
+  Classic #1 are open and Classic #1 sells its 1,024 Keys in USDC.
+- `GET /api/v1/products/{slug}` gives the same words; `openapi.json` is 6.0.3.
+  `cli/commands.json` is unchanged.
