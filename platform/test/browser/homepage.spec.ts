@@ -142,6 +142,29 @@ test("[U2] homepage keeps the still picture and an open panel for reduced motion
   await context.close()
 })
 
+// While the picture may still be drawn the page starts on its black ground and the still
+// is never painted, so the picture's panels open out of black. The suite's browser cannot
+// draw the picture, so once the page's script knows that, the still shows.
+test("[U2] homepage starts black and shows the still only once the picture will not be drawn", async ({page}) => {
+  let release!: () => void
+  const held = new Promise<void>(resolve => (release = resolve))
+  await page.route("**/assets/js/app.js*", async route => {
+    await held
+    await route.continue()
+  })
+  await page.goto("/", {waitUntil: "commit"})
+
+  const home = page.locator("#public-home")
+  const still = page.locator(".home__still")
+  await expect(home).toHaveCSS("background-color", "rgb(2, 3, 7)")
+  await expect(still).toHaveCSS("display", "none")
+  await expect(home).not.toHaveAttribute("data-datascape-ready")
+
+  release()
+  await expect(home).toHaveAttribute("data-datascape-ready", "false")
+  await expect(still).toBeVisible()
+})
+
 // A page whose script never arrives keeps the panel out of sight for four seconds, like a
 // page still starting, then brings it in by itself, so its links are never lost.
 test("[U2] homepage brings the panel in by itself when its script never arrives", async ({page}) => {

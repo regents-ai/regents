@@ -55,11 +55,12 @@ defmodule RegentsWeb.HomeLive do
   end
 
   # The datascape fills the window, with one glass panel over it that holds the page.
-  # While the picture is drawn the panel starts away: pressing a panel in the picture
+  # While the picture can be drawn the page starts black and the picture's panels
+  # open out of it, and the glass panel starts away: pressing a panel in the picture
   # brings it in, and once it has stood for a moment, flying the picture sends it away
   # again. Without scripts, without WebGPU, or with less motion asked for, the
-  # server's still picture stays and the panel stays open. The copyright stands at
-  # the window's foot throughout, under the panel where the two meet.
+  # server's still picture shows instead and the panel stays open. The copyright
+  # stands at the window's foot throughout, under the panel where the two meet.
   def render(assigns) do
     assigns = assign(assigns, mission: @mission, agent_prompt: agent_prompt())
 

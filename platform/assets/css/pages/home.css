@@ -49,7 +49,12 @@
   /* A finger held on the picture steers it, so it does not scroll the page from there. */
   .home__stage canvas { display: block; width: 100%; height: 100%; visibility: hidden; touch-action: none; }
   .home[data-datascape-ready="true"] .home__stage canvas { visibility: visible; }
-  .home[data-datascape-ready="true"] .home__still { display: none; }
+  /* While the picture can be drawn the page starts on its black ground and the
+     picture's panels open out of it, so the still is never painted. It shows without
+     scripts, with less motion asked for, or once the picture will not be drawn. */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .home:not([data-datascape-ready="false"]) .home__still { display: none; }
+  }
 
   /* The copyright stays at the window's foot over the picture, on a dark fill so a
      bright panel passing behind it does not wash it out. It comes before the glass,

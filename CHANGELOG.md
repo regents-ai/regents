@@ -5529,3 +5529,23 @@ changelog line moves from the published 6 Nov entry to this release's.
   founder-shell route handoff (`platform/priv/handoff/founder-shell-route-catalog.json` and
   its digest) is regenerated with `mix regents.route_handoff`. The footer's link list keeps
   its own accessible name. No migrations.
+
+## 2026-11-12 — Home page starts black and its picture's panels open out of it
+
+- The home page used to paint the still picture of the datascape for an instant before
+  the moving picture took over, a flash of frozen panels. While the moving picture can
+  be drawn, the page now starts on its black ground and the picture's panels open out
+  of it; the still is never painted. The still shows, as before, without scripts, with
+  less motion asked for, and once the page knows the picture will not be drawn (no
+  WebGPU, or the picture gave up). A browser without WebGPU now sees the black ground
+  until the page connects, then the still.
+- `platform/assets/css/pages/home.css`: the still is hidden under
+  `@media (scripting: enabled) and (prefers-reduced-motion: no-preference)` unless
+  `data-datascape-ready="false"`, the same rule the glass panel already follows; the
+  rule that hid it once the picture had drawn is gone.
+- The product row's tiles are unchanged: their still is each tile's own colour
+  gradient, which the words read on, and it fades into the same colours flowing.
+- Check: `test/browser/homepage.spec.ts` "homepage starts black and shows the still only
+  once the picture will not be drawn" holds the page's script back, sees the black
+  ground with no still, then sees the still once the page knows its browser cannot draw
+  the picture. It fails on the old stylesheet. No migrations.
