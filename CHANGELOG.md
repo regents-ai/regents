@@ -5587,3 +5587,20 @@ changelog line moves from the published 6 Nov entry to this release's.
   outbound-request fixes; this site takes no RegentOAuth and no connector.
 - Checks: the gate, the identity check (16 tests) and the platform suite (680) on the new
   pins. No migrations.
+
+## 2026-11-12 — Identity on the fixed ash_postgres
+
+- The required-fixes check, run from `identity/`, found the one advisory the identity
+  project missed: `2026-10-26-ash-postgres-upsert-schema` (ash_postgres 2.10.0 through
+  2.15.2 write upserts and `update_many` to the public schema, ignoring the repo's prefix
+  that picks each site's schema on the shared database). The fix is ash_postgres #910,
+  which has no Hex release yet.
+- `identity/mix.exs` now takes ash_postgres from its repository at `55db7d44`, the commit
+  `platform/mix.exs` already pins, instead of Hex 2.15.2. Moved with `mix deps.update`;
+  Hex settled ash 3.37.2 → 3.37.4, ash_sql 0.8.7 → 0.8.8 and spark 2.7.9 → 2.7.10 in
+  `identity/mix.lock` alongside it. `platform/mix.lock` is unchanged, so the site ships the
+  same packages as before.
+- Every other advisory was already met: `mix hex.audit` reports nothing for either
+  project and GitHub lists no open alerts.
+- Checks: the required-fixes check from `identity/` and from `platform/`, `mix hex.audit`,
+  `mix deps.unlock --check-unused`, and the identity check (16 tests). No migrations.

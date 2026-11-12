@@ -13,9 +13,13 @@ defmodule RegentIdentity.MixProject do
       elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
       deps: [
         {:ash, "~> 3.34 and >= 3.34.3"},
-        # 2.13.1 through 2.14.5 send upserts to the public schema, ignoring the
-        # repo's prefix that picks each site's schema on the shared database.
-        {:ash_postgres, "== 2.15.2"},
+        # ash_postgres main with #910, the commit platform/mix.exs pins, until a Hex
+        # release carries it: 2.10.0 through 2.15.2 send upserts and update_many to the
+        # public schema, ignoring the repo's prefix that picks each site's schema on
+        # the shared database.
+        {:ash_postgres,
+         git: "https://github.com/ash-project/ash_postgres.git",
+         ref: "55db7d449aad351d200c5f300fca2a83e0a8734c"},
         {:simple_sat, "~> 0.1"},
         {:plug, "~> 1.19"},
         {:regent_privy, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy"}
