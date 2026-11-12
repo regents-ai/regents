@@ -5898,3 +5898,10 @@ changelog line moves from the published 6 Nov entry to this release's.
 - The Stake page's Payouts box and the About page both say every Regents Labs product
   (Keyfleet, Autolaunch, Patchbay and Techtree) pays into REGENT staking, and that the
   80 USDC from each Animata redemption goes to the staking contract. Sean's facts, 12 Nov.
+
+## 2026-11-12 — Released v304 (Stake and About name the same revenue sources)
+
+- v304 at 23:06Z, image registry.fly.io/regents-sh-web:main-9ed140a42364, commit 9ed140a4.
+  Full check exit 0 on 9ed140a4, seven gates in one run. Words only, no migration.
+- Live read, signed out: the Stake page's Payouts box and About carry the new sentences.
+- Rollback: v303's image main-6709ece32913.
