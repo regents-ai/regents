@@ -182,6 +182,7 @@ defmodule RegentsWeb.AgentPictureUpload do
                     phx-click="remove"
                     phx-target={@myself}
                     data-confirm={"Remove #{@agent.name}’s picture?"}
+                    data-confirm-action="Remove"
                   >
                     Remove picture
                   </P.button>

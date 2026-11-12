@@ -302,6 +302,7 @@ defmodule RegentsWeb.CreditsAdmin do
               phx-value-id={purchase.id}
               phx-target={@myself}
               data-confirm={"Lock #{exact(purchase.amount)} purchased Credits for a refund?"}
+              data-confirm-action="Refund"
             >
               Refund
             </P.button>
@@ -334,6 +335,7 @@ defmodule RegentsWeb.CreditsAdmin do
             phx-click="remove_picture"
             phx-target={@myself}
             data-confirm="Remove this agent's picture?"
+            data-confirm-action="Remove"
           >
             Remove picture
           </P.button>

@@ -5344,3 +5344,14 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Style check (`sh assets/vendor/regent_ui/style-check.sh` from `platform/`): 23 breaks, the same
   before and after this change; not wired into `make check` until it reports none.
 - No migrations.
+
+## 2026-11-12 — One window asks before an action that can't be undone
+
+- Unpair (in the agent list and in an agent's window), removing an agent's picture, and the
+  admin's Refund lock and picture removal now ask in the site's own window instead of the
+  browser's grey box. The window's button says the action (Unpair, Remove, Refund); Cancel or
+  Escape closes it and puts focus back on the button pressed. No wallet button asks first.
+- The browser-side `phoenix_html` script is gone: it only served these questions, and nothing on
+  the site posts from a link.
+- New walk `platform/test/browser/confirm.spec.ts` (1280, 390 and 320): Cancel, Escape and Unpair,
+  and no browser box ever opens. No migrations.
