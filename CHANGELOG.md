@@ -5234,3 +5234,14 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Built by the product tiles lane (handoffs/regents-product-tiles-2026-11-11/dot-2026-11-12).
 - Check: `platform/assets/test/product_tiles.test.ts`, `platform/test/regents_web/home_live_test.exs`,
   `platform/test/browser/homepage.spec.ts`, `platform/test/browser/founder_shell.spec.ts`.
+
+## 2026-11-12 — Released v291 (home: six charcoal product tabs with their dots)
+
+- Live: v291, image registry.fly.io/regents-sh-web:main-3d1e8cf20f8b; /capabilities.json
+  build.commit 3d1e8cf2. Rollback: v290 (47f47a2e). No migrations.
+- Full check on 3d1e8cf2: exit 0, all six gates. The first run caught the home page's
+  open-links test and the server-readable home walk still at five tabs; both now cover Cloak.
+- Live read in headless Chromium with WebGPU at 1440, 390 and 320: six charcoal tabs with
+  their dots in the listed colours, one row at 1440 and two columns of three on a phone, every
+  name shown whole, the canvas drawn at its laid-out size, Cloak opens /cloak, no sideways
+  scroll, no console errors.
