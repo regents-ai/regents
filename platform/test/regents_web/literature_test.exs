@@ -1,4 +1,4 @@
-defmodule RegentsWeb.LiteratureControllerTest do
+defmodule RegentsWeb.LiteratureTest do
   use RegentsWeb.ConnCase, async: true
 
   test "the chart places every book and shares its own picture" do

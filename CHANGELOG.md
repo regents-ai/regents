@@ -5276,3 +5276,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   Sign in while the page is still connecting can lose that press, because the page's own wallet
   check, started as it connects, takes the press's place while Privy is still loading. Waits for
   Sean's go.
+
+## 2026-11-12 — A shared Paper Pro Daily paper opens while the site is closed
+
+- With the launch gate closed, a link to one paper (/paper-pro-daily/<paper>) sent the reader to the
+  home page once the page connected. It now opens and stays open, as /paper-pro-daily itself does.
+  Proved by `platform/test/regents_web/launch_gate_test.exs`. No effect while the gate is open.
+- Removed the unused Literature controller; /literature has been drawn by the site's shell since
+  23 October. The chart's markup moved to `platform/lib/regents_web/components/literature_html.ex`
+  and its check to `platform/test/regents_web/literature_test.exs`. No migrations.

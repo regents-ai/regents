@@ -1,13 +1,3 @@
-defmodule RegentsWeb.LiteratureController do
-  @moduledoc "Serves the literature chart."
-
-  use RegentsWeb, :controller
-  alias RegentsWeb.{Literature, PublicDocuments}
-
-  def show(conn, _params),
-    do: render(conn, :show, [books: Literature.books()] ++ PublicDocuments.page("/literature"))
-end
-
 defmodule RegentsWeb.LiteratureHTML do
   @moduledoc false
 

@@ -160,6 +160,19 @@ defmodule RegentsWeb.LaunchGateTest do
     assert_redirect(view, "/")
   end
 
+  test "[U3] a shared Paper Pro Daily paper opens and stays open while the gate is closed", %{
+    conn: conn
+  } do
+    RegentsWeb.PaperProDaily.Feed.delete_all!()
+    paper = Regents.PaperProDailyFixtures.paper_fixture!(Date.utc_today())
+    close_surfaces()
+
+    {:ok, view, html} = live(conn, "/paper-pro-daily/#{String.slice(paper.id, 0, 8)}")
+
+    assert html =~ paper.title
+    assert has_element?(view, "#paper-#{paper.id}-share")
+  end
+
   # Reads the file a boot reads, returning its settings and the log it wrote.
   defp read_runtime_config(env) do
     level = Logger.level()

@@ -21,6 +21,7 @@ defmodule RegentsWeb.Live.LaunchGateHook do
     :blog_post,
     :agent_start,
     :paper_pro_daily,
+    :paper_pro_daily_paper,
     :literature,
     :about,
     :docs,
