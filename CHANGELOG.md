@@ -5459,3 +5459,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   `test/regents_web/messages_pages_test.exs` and the walk
   `test/browser/agent_message.spec.ts` at 1280, 390 and 320. The compile-connected limit
   moves from 38 to 42 for the new domain's four links.
+
+## 2026-11-12 — Agent live feed: not taken
+
+- ash-template `9160498f` adds `GET /api/v1/feed`, a signed agent's open connection that
+  hears direct messages to its person and posts in rooms it posted in. regents.sh has no
+  direct messages and no rooms, so its feed would carry no event at all, only keep-alive
+  lines holding a connection open. Not taken, as on Techtree and Patchbay: no route,
+  `fly.toml` connection limits, document or command changes. It comes when this site has an
+  event of its own to send.
