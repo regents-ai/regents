@@ -293,4 +293,4 @@
   .rg-button.rl-product-tab:focus-visible { outline-color: Highlight; }
 }
 
-html[data-home-theme-locked="true"] [data-theme-toggle] { display: none; }
+html[data-home-theme-locked="true"] [data-theme-switch] { display: none; }

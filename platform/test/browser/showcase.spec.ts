@@ -116,7 +116,7 @@ test("mobile, keyboard, reduced motion, retired backgrounds and the isolated she
   const shell = page.frameLocator("#shell-preview")
   await expect(shell.locator("#app-shell")).toBeVisible()
   await expect(shell.locator("[data-account-target=sign-in]")).toHaveCount(0)
-  await shell.locator("#theme-control [data-theme-toggle]").click()
+  await shell.locator("#theme-control [role=switch]").click()
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

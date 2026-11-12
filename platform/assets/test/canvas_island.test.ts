@@ -83,7 +83,10 @@ describe("letting go", () => {
   // An island on screen in a showing tab, its first frame handed out at once. Its
   // canvas is laid out at 300 by 200 inside a panel shrunk to 30% on screen. It
   // answers how often what steered the picture was let go, and the root's flag.
-  async function runIsland(load: LoadRenderer<IslandRenderer>) {
+  async function runIsland(
+    load: LoadRenderer<IslandRenderer>,
+    screen: {devicePixelRatio?: number; maxDevicePixelRatio?: number} = {},
+  ) {
     let released = 0
     const root = {dataset: {} as Record<string, string>, querySelector: () => ({
       clientWidth: 300,
@@ -94,7 +97,7 @@ describe("letting go", () => {
     createCanvasIsland(root, {
       requestFrame: callback => { queueMicrotask(() => callback(0)); return 1 },
       cancelFrame() {},
-      devicePixelRatio: () => 1,
+      devicePixelRatio: () => screen.devicePixelRatio ?? 1,
       motionQuery: () => ({matches: false, addEventListener() {}, removeEventListener() {}}),
       supportsWebGpu: () => true,
       loadRenderer: load,
@@ -104,6 +107,7 @@ describe("letting go", () => {
       browserLoad: load,
       motionSensitive: false,
       continuous: false,
+      maxDevicePixelRatio: screen.maxDevicePixelRatio,
       interact: () => () => void (released += 1),
     }).mount()
 
@@ -133,5 +137,19 @@ describe("letting go", () => {
     expect(ready).toBe("true")
     expect(released).toBe(0)
     expect(visibilityListeners).toBe(1)
+  })
+
+  // Invariant: a small island may ask for more of a sharp screen than the default
+  // ceiling; one that does not keeps to it.
+  it("draws past the default ceiling only when an island asks for it", async () => {
+    let size: readonly number[] = []
+    await runIsland(async (_, given) => ((size = given), drawing), {devicePixelRatio: 3, maxDevicePixelRatio: 3})
+    expect(size).toEqual([900, 600])
+  })
+
+  it("keeps to the default ceiling when an island does not ask for more", async () => {
+    let size: readonly number[] = []
+    await runIsland(async (_, given) => ((size = given), drawing), {devicePixelRatio: 3})
+    expect(size).toEqual([450, 300])
   })
 })

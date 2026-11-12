@@ -79,14 +79,14 @@ defmodule RegentsWeb.ShellLiveTest do
     assert byte_size(html) <= 100 * 1024
   end
 
-  test "the switch names the theme showing by itself, whatever the server served", %{conn: conn} do
+  test "the theme switch draws the moon and the sun, whatever the server served", %{conn: conn} do
     for cookie <- [nil, "light", "dark"] do
       conn = if cookie, do: Plug.Test.put_req_cookie(conn, "regent_theme", cookie), else: conn
       {:ok, view, _html} = live(conn, "/stake")
 
-      assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
-      assert has_element?(view, "#theme-control", "Dark theme on. Switch to light theme.")
-      assert has_element?(view, "#theme-control", "Light theme on. Switch to dark theme.")
+      assert has_element?(view, ~s(#theme-control button[role=switch][aria-label="Light theme"]))
+      assert has_element?(view, "#theme-control svg.theme-switch__moon rect")
+      assert has_element?(view, "#theme-control svg.theme-switch__sun rect")
     end
   end
 
@@ -97,7 +97,7 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-light")
     assert has_element?(view, "#shell-brand .shell-brand__mark img.shell-brand__mark-dark")
     refute has_element?(view, ~s(.shell-background[data-background-slot="regents_labs"]))
-    assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
+    assert has_element?(view, "#theme-control button[role=switch]")
     assert has_element?(view, "#account-control [data-account-target=sign-in]", "Sign in")
 
     assert has_element?(
@@ -142,7 +142,10 @@ defmodule RegentsWeb.ShellLiveTest do
 
     assert has_element?(view, "#shell-pairing #shell-pairing-box")
 
-    assert has_element?(view, "#theme-control button.rg-theme-toggle[data-theme-toggle]")
+    # Signed in, the theme switch is a row of the account menu and nowhere else.
+    assert has_element?(view, "#account-menu #account-menu-theme button[role=switch]")
+    refute has_element?(view, "#theme-control")
+    refute has_element?(view, "#footer-theme-control")
     refute has_element?(view, "#account-control [phx-click]")
   end
 

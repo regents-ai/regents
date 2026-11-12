@@ -18,7 +18,7 @@ async function chooseTheme(page: Page, choice: "light" | "dark") {
   // is the device's, so reaching one theme can take a second press.
   for (let press = 0; press < 2; press++) {
     if ((await page.locator("html").getAttribute("data-theme")) === choice) break
-    await page.locator("#theme-control [data-theme-toggle]").click()
+    await page.locator("#theme-control [role=switch]").click()
   }
   await expect(page.locator("html")).toHaveAttribute("data-theme", choice)
 }

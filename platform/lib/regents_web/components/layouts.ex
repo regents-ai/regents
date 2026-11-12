@@ -26,6 +26,10 @@ defmodule RegentsWeb.Layouts do
     default: false,
     doc: "true in the app, which has no bottom bar to hold the tools button"
 
+  attr :theme, :boolean,
+    default: true,
+    doc: "false in the app, whose header or account menu holds the theme switch"
+
   @doc """
   The footer of every public page and the app's pages, the same on every Regent
   site: the social links, Buy $REGENT, the site's documents and its two plain-text
@@ -38,7 +42,7 @@ defmodule RegentsWeb.Layouts do
     <footer class="regent-footer">
       <div class="regent-footer__social">
         <RegentsWeb.Components.RegentLinks.social_links />
-        <RegentsWeb.Components.Shell.theme_toggle id="footer-theme-control" />
+        <RegentsWeb.Components.Shell.theme_toggle :if={@theme} id="footer-theme-control" />
         <RegentsWeb.Components.AgentTools.button
           :if={@agent_tools}
           id="shell-agent-tools-button"

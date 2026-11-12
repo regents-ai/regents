@@ -210,7 +210,7 @@ test("[U3] the landing stays dark and preserves the visitor's saved theme", asyn
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
   await expect(page.locator("html")).toHaveAttribute("data-home-theme-locked", "true")
   await expect(page.locator("html")).toHaveAttribute("data-brand", "platform")
-  await expect(page.locator("[data-theme-toggle]:visible")).toHaveCount(0)
+  await expect(page.locator("[data-theme-switch]:visible")).toHaveCount(0)
   const saved = (await context.cookies()).find(cookie => cookie.name === "regent_theme")
   expect(saved?.value).toBe("light")
   await context.close()

@@ -6,7 +6,6 @@ defmodule RegentsWeb.Showcase.Catalog do
     {Regent.Structure,
      [:frame, :row, :section_bar, :panel, :technical_figure, :capability_card, :ratio_card]},
     {Regent.Blog, [:gallery, :article, :contents, :not_found]},
-    {Regent.ThemeToggle, [:button]},
     {RegentsWeb.Components.Shell, [:shell, :account_control, :theme_toggle]},
     {RegentsWeb.Components.VerifiedConnections, [:verified_connections]},
     {RegentsWeb.Layouts, [:app, :root]}

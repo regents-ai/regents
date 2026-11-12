@@ -5395,3 +5395,22 @@ changelog line moves from the published 6 Nov entry to this release's.
   picture's rounded corner). No migrations.
 - Not done: Stake, Redeem, Literature and the animation pages keep their own spacing values and
   some colour mixes; a page-by-page audit against the scales is still to do.
+
+## 2026-11-12 — The light and dark switch
+
+- One light and dark switch replaces the old theme button, from the template's theme switch
+  (ash-template `abe3fc40`). It is a real switch named "Light theme", on for light: a sliding
+  glass knob with a moon of tiny blocks at night and a sun by day, drawn by the GPU, and a flat
+  square switch that works the same when the GPU, motion or forced colours rule the glass out.
+- Signed in it is a row of the account menu. Signed out it sits in the app's header, where the
+  old button was, a size smaller on a phone so the header keeps one row; on the plain pages (the
+  legal pages and others the server draws) it stays in the footer. A page has one switch: the
+  app's footer no longer carries one. The home page stays dark and shows none.
+- How the choice is kept is unchanged: the same cookie, the device's setting until someone
+  chooses. The theme code moved out of `platform/assets/js/app.ts` into
+  `platform/assets/js/theme.ts`; LiveView mounts the switch on every page, a plain one too, so
+  nothing else mounts it. The old prism button (`Regent.ThemeToggle`) is gone from the site.
+- New walk `platform/test/browser/theme_switch.spec.ts` and the template's unit tests for the
+  knob, the light, the morph, the blocks and the shader. Style check: 22 breaks, unchanged. No
+  migrations.
+- Not done: forced colours and WebKit are not walked.

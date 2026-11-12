@@ -97,8 +97,7 @@
   outline-offset: -2px;
 }
 
-.account-control,
-.theme-control {
+.account-control {
   position: relative;
 }
 
@@ -165,17 +164,19 @@
   padding: 0;
 }
 
-/* The shared prism control draws its own box and hover; the header only centres it.
-   Its prism sits .5rem inside the press target, so this margin leaves the same space
-   before the X icon as between the icons themselves. */
-.theme-control {
-  display: flex;
-  align-items: center;
+/* Signed out, the theme switch sits in the header before the links. */
+#shell-header .theme-switch {
+  margin-inline-end: var(--space-1);
 }
 
-#shell-header .theme-control {
-  flex: 0 0 auto;
-  margin-inline-end: var(--space-1);
+/* The theme switch has a row of the account menu to itself, its words at the
+   start, so it can be larger than elsewhere and its blocks read. Its light
+   spills only above and below its own press, inside the row. */
+#account-menu .theme-switch {
+  --theme-switch-lens: var(--space-5);
+  --theme-switch-track: var(--space-4);
+  --theme-switch-travel: var(--space-4);
+  --theme-switch-press: var(--space-6);
 }
 
 @media (hover: hover) {
@@ -666,6 +667,13 @@
   #shell-header .account-control:has([data-account-target="sign-in"]) { flex: 0 0 auto; }
   #app-shell #shell-header .account-chip { min-width: 2.75rem; padding-inline: 0.5rem; }
   #shell-header .shell-tool { flex: 0 0 auto; }
+  /* On a phone the header's switch is its smallest, so the header keeps one row. */
+  #shell-header .theme-switch {
+    --theme-switch-lens: var(--space-3);
+    --theme-switch-track: var(--space-2);
+    --theme-switch-travel: var(--space-2);
+    margin-inline-end: 0;
+  }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }
 /* The narrowest phones: the account button is its picture alone. */
