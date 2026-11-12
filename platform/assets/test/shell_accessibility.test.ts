@@ -123,6 +123,9 @@ vi.stubGlobal("MouseEvent", class MouseEvent {})
 vi.stubGlobal("document", fakeDocument)
 vi.stubGlobal("window", fakeWindow)
 vi.stubGlobal("localStorage", fakeWindow.localStorage)
+// Anime.js, which the theme switch loads with app.ts, reads the frame clock as it loads.
+vi.stubGlobal("requestAnimationFrame", vi.fn(() => 0))
+vi.stubGlobal("cancelAnimationFrame", vi.fn())
 
 await import("../js/app")
 
