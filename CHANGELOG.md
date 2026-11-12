@@ -5468,3 +5468,19 @@ changelog line moves from the published 6 Nov entry to this release's.
   lines holding a connection open. Not taken, as on Techtree and Patchbay: no route,
   `fly.toml` connection limits, document or command changes. It comes when this site has an
   event of its own to send.
+
+## 2026-11-12 — Released v295 (Agent Message)
+
+- Live: v295, image registry.fly.io/regents-sh-web:main-89a24877e732; /capabilities.json
+  build.commit 89a24877. Rollback: v294, image registry.fly.io/regents-sh-web:main-847ece1d61b5
+  (847ece1d); the new table stays and v294 never reads it.
+- Migration 20261112104818_add_left_messages ran in the release command: one new empty table.
+- Two earlier tries built no image and deployed nothing: the build was not sent
+  cli/commands.json, which the Agent Message texts read when they compile. The build is now
+  sent that one file and copies it.
+- Full check on 89a24877: exit 0, all six gates.
+- Live read in headless Chromium, signed out, at 1280, 390 and 320: /agents has the Agent
+  Message button; its window opens with two texts and their Copy buttons and no form; no
+  sideways scroll, no console errors; /admin/messages is the not-found page; /, /app, /stake,
+  /privacy and /docs answer 200.
+- Not proven live: a signed-in person's message, the team inbox, a paired agent's message.
