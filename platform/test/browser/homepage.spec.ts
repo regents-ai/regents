@@ -566,11 +566,15 @@ test("[U2] the crown agrees with the picture's own opening and closing", async (
     await expect(home).toHaveAttribute("data-datascape-glass-state", "away")
     await expect(crown).toHaveAttribute("aria-expanded", "false")
 
-    // Panels fill the picture; a press on the first one met opens the panel.
+    // Panels fill the picture once they have opened out of the black it starts as; a
+    // press on the first one met opens the panel. The sweep repeats until one is there.
     const away = async () => (await home.getAttribute("data-datascape-glass-state")) === "away"
-    for (let y = 120; y < 760 && (await away()); y += 80) {
-      for (let x = 140; x < 1240 && (await away()); x += 110) await page.mouse.click(x, y)
-    }
+    await expect(async () => {
+      for (let y = 120; y < 760 && (await away()); y += 80) {
+        for (let x = 140; x < 1240 && (await away()); x += 110) await page.mouse.click(x, y)
+      }
+      expect(await away()).toBe(false)
+    }).toPass({timeout: 30_000})
     await expect(home).toHaveAttribute("data-datascape-glass-state", "open")
     await expect(crown).toHaveAttribute("aria-expanded", "true")
 
