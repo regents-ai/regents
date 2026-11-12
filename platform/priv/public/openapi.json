@@ -1719,11 +1719,11 @@
     "/capabilities.json": {
       "get": {
         "operationId": "getCapabilities",
-        "summary": "Read the manifest of browser and HTTP agent operations, and the commit this site runs",
+        "summary": "Read the manifest of browser and HTTP agent operations, the regents-cli release to install, and the commit this site runs",
         "security": [],
         "responses": {
           "200": {
-            "description": "Public operation manifest with authentication and availability metadata, and the running build",
+            "description": "Public operation manifest with authentication and availability metadata, the regents-cli release and command namespace for this site, and the running build",
             "content": {
               "application/json": {
                 "schema": {
@@ -1732,6 +1732,7 @@
                     "audience",
                     "proof_headers",
                     "tools",
+                    "cli",
                     "build"
                   ],
                   "properties": {
@@ -1748,6 +1749,25 @@
                       "type": "array",
                       "items": {
                         "type": "object"
+                      }
+                    },
+                    "cli": {
+                      "type": "object",
+                      "required": [
+                        "package",
+                        "release",
+                        "namespace"
+                      ],
+                      "properties": {
+                        "package": {
+                          "type": "string"
+                        },
+                        "release": {
+                          "type": "string"
+                        },
+                        "namespace": {
+                          "type": "string"
+                        }
                       }
                     },
                     "build": {

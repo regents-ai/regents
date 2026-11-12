@@ -5285,3 +5285,13 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Removed the unused Literature controller; /literature has been drawn by the site's shell since
   23 October. The chart's markup moved to `platform/lib/regents_web/components/literature_html.ex`
   and its check to `platform/test/regents_web/literature_test.exs`. No migrations.
+
+## 2026-11-12 — /capabilities.json names the regents-cli release
+
+- /capabilities.json gives `cli`, in ash-template's shape: `{"package": "regents-cli", "release":
+  "1.10.24", "namespace": "protocol"}`, the release the agent guide installs and the word this site's
+  commands start with. It is kept in `platform/priv/tool_manifest.json` beside the tools. The OpenAPI
+  JSON and the YAML contract describe it, the agent guide and the WebMCP docs page mention it, and the
+  agents' change page has a 12 Nov entry. A check holds the release to the guide's install line.
+- The API version stays 5.2.0 (JSON) and 5.1.0 (YAML): no rule here asks for a new version for an
+  added field. No migrations.

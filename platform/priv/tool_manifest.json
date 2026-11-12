@@ -1,4 +1,9 @@
 {
+  "cli": {
+    "package": "regents-cli",
+    "release": "1.10.24",
+    "namespace": "protocol"
+  },
   "tools": [
     {
       "name": "regents_about",

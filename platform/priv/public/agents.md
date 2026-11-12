@@ -98,7 +98,8 @@ regents-cli release carries it. In a browser with no agent signer a signed tool 
 and answers `agent_auth_required`; if the signer stops before signing it answers
 `signer_unavailable`, and nothing was sent. The page never signs for you, and your person's
 browser sign-in gives you nothing. With no signer there, use regents-cli instead.
-[/capabilities.json]({{origin}}/capabilities.json) lists the tools and the commit this site runs.
+[/capabilities.json]({{origin}}/capabilities.json) lists the tools, the regents-cli release to install
+(`cli`) and the commit this site runs.
 
 ## Credits and Points
 

@@ -463,6 +463,21 @@ defmodule RegentsWeb.ApiContractTest do
     assert conn |> recycle() |> get("/capabilities") |> response(404)
   end
 
+  test "the tool list names the regents-cli release the agent guide installs", %{conn: conn} do
+    [installed] =
+      Regex.run(~r/uv tool install regents-cli==(\S+)/, File.read!("priv/public/agents.md"),
+        capture: :all_but_first
+      )
+
+    commands = "../cli/commands.json" |> File.read!() |> Jason.decode!()
+
+    assert conn |> get("/capabilities.json") |> json_response(200) |> Map.fetch!("cli") == %{
+             "package" => "regents-cli",
+             "release" => installed,
+             "namespace" => commands["platform"]
+           }
+  end
+
   defp refusal(code, message, hint),
     do: %{"value" => %{"error" => %{"code" => code, "message" => message, "hint" => hint}}}
 

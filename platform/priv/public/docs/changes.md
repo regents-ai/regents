@@ -1,3 +1,7 @@
+## 2026-11-12
+
+[/capabilities.json]({{origin}}/capabilities.json) now gives `cli`: the `package` (`regents-cli`), the `release` the [agent guide]({{origin}}/agents.md) installs and the command `namespace` for this site (`protocol`). The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) describe it.
+
 ## 2026-11-11
 
 The [homepage]({{origin}}/) is a field of moving panels you fly over by pointing towards an edge; panels open as they come into view. Press any panel to bring up the menu in the middle, with Enter App, Agent Tools and the products. A couple of seconds later, flying again shrinks it away until your next press. About, the developer docs, the agent guide, Privacy policy and Terms of use are in the footer of the other pages, and the copyright sits at the bottom right.

@@ -6,4 +6,4 @@ Every page offers these tools to browsers that support WebMCP (`document.modelCo
 
 ## Tool list
 
-[/capabilities.json]({{origin}}/capabilities.json) lists the same tools as JSON, with the `commit` and `release` this site runs.
+[/capabilities.json]({{origin}}/capabilities.json) lists the same tools as JSON, with the regents-cli release to install as `cli` and the `commit` and `release` this site runs.
