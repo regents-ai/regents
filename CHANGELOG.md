@@ -5653,3 +5653,23 @@ changelog line moves from the published 6 Nov entry to this release's.
   check-siwa-latest gate stops a release until the site names it. The Makefile's pin, the
   agent guide (release, source commit, wheel SHA256), the install lines and
   /capabilities.json's cli.release now name 1.10.25 (8b3240b6). No migrations.
+
+## 2026-11-12 — Released v298 (sign-in library move) and v299 (Credits removed)
+
+- v298 at 16:02Z, image registry.fly.io/regents-sh-web:main-553c8414fe74, commit 553c8414:
+  elixir-utils 240e9385 and the check-siwa-latest gate. Full check exit 0, seven gates in one
+  run. Released from a throwaway copy of the commit because a worker held the working copy.
+  Signed out: /, /app, /account, /agents and /stake answer 200, unsigned agent calls 401.
+  Sean walks the signed-in steps. Rollback was v297, image main-178f08b3bf22.
+- v299 at 16:46Z, image registry.fly.io/regents-sh-web:main-c40563c8c339, commit c40563c8:
+  Credits removed and regents-cli 1.10.25. The Credits removal entry above names
+  elixir-utils f8801d79; joined with v298 the pin stayed at 240e9385, which contains it.
+  Full check exit 0 on c40563c8, seven gates in one run; the run before it had one browser
+  page-load timeout with the Mac's load average at 45. No migration.
+- Live read of v299, signed out, headless Chromium at 1280 and 390: no Credits word on
+  /app, /account, /stake, /agents, /docs or /; /account/credits, /credits/refunds,
+  /admin/credits and /admin/pictures answer 404; the balances and Credits history reads
+  answer 404; /openapi.json is 6.0.0; /api/v1/health ok with migrations_applied true.
+- Rollback for v299: v298's image, only while the shared Credits tables still exist; v298
+  and earlier write to Credits at sign-in.
+- Not proven live: any signed-in page, and /admin/pictures as an admin.
