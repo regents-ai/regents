@@ -24,6 +24,18 @@ trap 'rm -r "$context"' EXIT
 
 git archive --format=tar "$commit" | tar -x -C "$context"
 
+# The switch to the new image runs the migrations and briefly adds a second
+# machine's connections to the production database every site shares, which
+# fits two switches at once. It takes whichever of the two places is free, or
+# waits for the second.
+switch() {
+  local place=/tmp/regent-shared-db-release.lock
+  lockf -k -s -t 0 "$place" true || place=/tmp/regent-shared-db-release-2.lock
+  echo "==> Deploying registry.fly.io/$app:$tag (waits for $place if it is taken)"
+  lockf -k "$place" fly deploy --app "$app" --config platform/fly.toml \
+    --image "registry.fly.io/$app:$tag" --ha=false
+}
+
 release() {
   echo "==> Building registry.fly.io/$app:$tag from commit $commit"
   (cd "$context" && fly deploy . --app "$app" --config platform/fly.toml \
@@ -31,17 +43,12 @@ release() {
     --ignorefile platform/Dockerfile.dockerignore \
     --build-arg SOURCE_COMMIT="$commit" \
     --label "org.opencontainers.image.revision=$commit")
-
-  echo "==> Deploying registry.fly.io/$app:$tag"
-  fly deploy --app "$app" --config platform/fly.toml \
-    --image "registry.fly.io/$app:$tag" --ha=false
+  switch
 }
 
-# Every site shares one production database, and a release briefly doubles a
-# site's connections, so releases from this machine take turns: the build and
-# release run under one lock that every site's deploy takes, and wait for it.
-lock=/tmp/regent-shared-db-release.lock
-echo "==> Waiting for any other release holding $lock"
+# One regents.sh deploy at a time; other sites' deploys never wait on it.
+lock="/tmp/regent-release-$app.lock"
+echo "==> Waiting for any other regents.sh deploy holding $lock"
 export app commit tag context
-export -f release
+export -f release switch
 lockf -k "$lock" bash -euo pipefail -c release
