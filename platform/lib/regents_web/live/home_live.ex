@@ -157,11 +157,21 @@ defmodule RegentsWeb.HomeLive do
   end
 
   # The panel's foot: the product sites and the staking page, under their small title.
+  # Each tile wears its product's own colours. The server draws them as a still
+  # gradient; one canvas behind the row sets them flowing once it has drawn.
   defp products(assigns) do
     ~H"""
     <nav class="home__foot" aria-labelledby="home-products-title">
       <h2 id="home-products-title" class="rl-overline">Products</h2>
-      <div class="rl-product-tabs">
+      <div
+        id="home-product-tabs"
+        class="rl-product-tabs"
+        phx-hook="ProductTiles"
+        phx-mounted={JS.ignore_attributes(["data-product-tiles-ready"])}
+      >
+        <div id="home-product-tabs-stage" class="rl-product-tabs__stage" phx-update="ignore">
+          <canvas data-product-tiles-canvas aria-hidden="true"></canvas>
+        </div>
         <a
           :for={{label, id, href, new_tab?} <- nav_links()}
           id={"home-nav-#{id}"}
@@ -169,11 +179,9 @@ defmodule RegentsWeb.HomeLive do
           target={new_tab? && "_blank"}
           rel={new_tab? && "noopener noreferrer"}
           class="rg-button rl-product-tab"
-          phx-hook="HolographicCard"
-          data-holo-crown="false"
-          data-holo-shine="0.65"
+          data-product-tile={id}
         >
-          <Regent.HolographicCard.foil id={"home-nav-#{id}-foil"} class="rl-product-tab__foil" />
+          <span class="rl-product-tab__still" aria-hidden="true"></span>
           <span class="rg-button__label">
             {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
           </span>

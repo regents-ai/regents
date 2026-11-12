@@ -122,7 +122,8 @@ defmodule RegentsWeb.HomeLiveTest do
 
     assert attribute(html, "#public-home img.home__still", "alt") == [""]
     assert attribute(html, "#public-home img.home__still", "aria-hidden") == ["true"]
-    assert attribute(html, "#public-home canvas", "aria-hidden") == ["true"]
+    assert attribute(html, "#home-canvas", "aria-hidden") == ["true"]
+    assert attribute(html, "[data-product-tiles-canvas]", "aria-hidden") == ["true"]
   end
 
   # Founder decision (2026-10-30): the home page never sets words in bold inside a sentence.

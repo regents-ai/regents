@@ -5147,3 +5147,18 @@ changelog line moves from the published 6 Nov entry to this release's.
   `tech_stack` a list of lines); OpenAPI JSON 5.2.0. The answers themselves are unchanged.
 - Check: `platform/test/regents_web/product_live_test.exs` reads every product and compares its
   fields with the published schema.
+
+## 2026-11-12 — Home: each product link in its own colours (Sean, 11 Nov)
+
+- The five product links at the foot of the home panel each wear their product's palette
+  (Patchbay blue, Autolaunch soft orange, Techtree green, Keyfleet bright orange, Protocol
+  charcoal) and flow slowly in the vgpu.sh style. One canvas behind the row draws all five;
+  the server draws a still gradient first, which stays with less motion asked for or no
+  WebGPU. Words keep 4.5:1 contrast or better on every colour the flow puts under them. The
+  links' foil is gone from the home page; the HolographicCard hook stays for the operations page.
+- canvas_island.ts sizes the drawing from the canvas's laid-out size (clientWidth and
+  clientHeight), not its on-screen box, so an island that starts inside the glass panel's
+  shrunken pose is sharp once the panel opens. Identical to ash-template f70cfa1b, live there as v190.
+- Built by the product tiles lane (handoffs/regents-product-tiles-2026-11-11).
+- Check: `platform/assets/test/product_tiles.test.ts`, `platform/assets/test/canvas_island.test.ts`,
+  `platform/test/browser/homepage.spec.ts`.

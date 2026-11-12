@@ -34,6 +34,7 @@ import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {ProductTiles} from "./hooks/product_tiles"
 import {PublicName} from "./hooks/public_name"
 import {MenuAgents} from "./hooks/menu_agents"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
@@ -325,6 +326,7 @@ const hooks = {
   MotionTabs,
   MenuAgents,
   OnchainSteps,
+  ProductTiles,
   PublicName,
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),

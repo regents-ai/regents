@@ -167,9 +167,13 @@ export const createCanvasIsland = <Renderer extends IslandRenderer>(
 
   const motionPermits = () => !kind.motionSensitive || !motion.matches
 
+  /**
+   * The canvas's own box from layout. A transform round the island, such as a panel
+   * growing in, changes how big it looks for a moment, never how big it is drawn.
+   */
   const measure = (): readonly [number, number] => {
-    const {width, height} = canvas().getBoundingClientRect()
-    return drawingBufferSize(width, height, devicePixelRatio())
+    const view = canvas()
+    return drawingBufferSize(view.clientWidth, view.clientHeight, devicePixelRatio())
   }
 
   const stopFrame = () => {
