@@ -5549,3 +5549,17 @@ changelog line moves from the published 6 Nov entry to this release's.
   once the picture will not be drawn" holds the page's script back, sees the black
   ground with no still, then sees the still once the page knows its browser cannot draw
   the picture. It fails on the old stylesheet. No migrations.
+
+## 2026-11-12 — Released v297 (home page starts black; "About")
+
+- Live: v297, image registry.fly.io/regents-sh-web:main-178f08b3bf22; /capabilities.json
+  build.commit 178f08b3. Rollback: v296, image registry.fly.io/regents-sh-web:main-df548fe56ecb
+  (df548fe5). No migration.
+- Full check on 178f08b3: exit 0, all six gates in one run.
+- Live read in headless Chromium with WebGPU at 1280, 390 and 320: the first paint is the
+  black ground with the still not shown; the picture's panels are opening by 0.4 s and the
+  full picture stands by 1.2 s; the still is never painted; no sideways scroll, no console
+  errors; Enter App links to /app. /app, /about, /agents and /stake answer 200 and the side
+  menu link reads "About". /api/v1/health answers ok with migrations_applied true.
+- Not read live: a browser without WebGPU, reduced motion and no scripts (the browser tests
+  cover them).
