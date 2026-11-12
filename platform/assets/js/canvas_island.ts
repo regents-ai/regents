@@ -1,9 +1,9 @@
 /**
  * A decorative canvas the browser owns, and every reason not to draw on it.
  *
- * Each holographic card is one of these. What lives here is everything the card
- * does not draw itself: the canvas box, when a frame is worth drawing, and the
- * still face the visitor sees until one really lands.
+ * Each picture a page draws on the GPU is one of these. What lives here is
+ * everything the picture does not draw itself: the canvas box, when a frame is
+ * worth drawing, and the still face the visitor sees until one really lands.
  */
 
 type RequestFrame = (callback: FrameRequestCallback) => number

@@ -1,0 +1,225 @@
+@layer regents-product {
+/* Value cards (`RegentsWeb.Components.ValueCards`), on the Overview at /app: one
+   card for each product, taken from the template's value cards. A card is dark
+   in both themes, like an instrument: a square panel of small coloured glyphs
+   that move (the `ValueCard` hook), in its product's colours; then the
+   product's name in its colour beside its place in the row, one line saying
+   what it is for, a sentence, and under a dashed rule where the card goes. A
+   still frame of the panel is the picture until the panel has drawn, and
+   wherever it cannot be. A press gives a little; a hover firms the edge and
+   nudges the arrow. No rule here reads a card's own width: a part that hid by
+   the card's width kept a phone's layout from settling on the template. */
+
+.value-cards {
+  /* The panel's own ground (`ground` in assets/js/value_cards/panel.ts). */
+  --value-card-panel: #08080a;
+  --value-card-ground: #0b0b0c;
+  --value-card-ink: #f4f2ea;
+  --value-card-muted: color-mix(in srgb, var(--value-card-ink) 62%, var(--value-card-ground));
+  --value-card-faint: color-mix(in srgb, var(--value-card-ink) 54%, var(--value-card-ground));
+  --value-card-edge: color-mix(in srgb, var(--value-card-ink) 14%, var(--value-card-ground));
+  --value-card-ease: cubic-bezier(.23, 1, .32, 1);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.value-card {
+  display: grid;
+  min-width: 0;
+  border: 1px solid var(--value-card-edge);
+  background: var(--value-card-ground);
+  color: var(--value-card-ink);
+  transition: border-color 160ms ease;
+}
+
+.value-card .value-card__face {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The press gives inside the link, so the link itself never shrinks out from under the pointer. */
+.value-card .value-card__face > * {
+  transition: transform 160ms var(--value-card-ease);
+}
+
+/* The panel is square at every size, so its still frame always fits it. */
+.value-card .value-card__panel {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--value-card-panel);
+}
+
+.value-card .value-card__still,
+.value-card .value-card__stage,
+.value-card .value-card__stage canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.value-card .value-card__stage {
+  opacity: 0;
+  transition: opacity 420ms var(--value-card-ease);
+}
+
+.value-card[data-value-card-ready="true"] .value-card__stage {
+  opacity: 1;
+}
+
+/* The words: name and place, the line, its sentence, then the action held to the card's foot. */
+.value-card .value-card__words {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  align-content: start;
+  min-width: 0;
+  padding: 16px 18px 14px;
+}
+
+.value-card .value-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 12px;
+  min-width: 0;
+}
+
+.value-card :is(.value-card__name, .value-card__place, .value-card__action) {
+  font-family: var(--font-family-mono);
+  font-size: .6875rem;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: var(--tracking-microlabel);
+  text-transform: uppercase;
+}
+
+.value-card .value-card__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  color: var(--value-card-tint);
+  white-space: nowrap;
+}
+
+.value-card .value-card__name::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.value-card .value-card__place {
+  flex: none;
+  color: var(--value-card-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.value-card .value-card__headline {
+  margin: 12px 0 0;
+  font-family: var(--font-family-title);
+  font-size: 1.375rem;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.value-card .value-card__line {
+  margin: 8px 0 0;
+  color: var(--value-card-muted);
+  font-size: .875rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.value-card .value-card__action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--value-card-edge);
+  color: var(--value-card-faint);
+  transition: color 160ms ease;
+}
+
+.value-card .value-card__arrow {
+  width: 13px;
+  height: 13px;
+  transition: transform 200ms var(--value-card-ease);
+}
+
+.value-card a.value-card__face:active > * {
+  transform: scale(.985);
+}
+
+.value-card a.value-card__face:focus-visible .value-card__action {
+  color: var(--value-card-ink);
+}
+
+/* Several cards a row: each keeps room for two lines of headline, so the sentences start level. */
+.value-card .value-card__headline {
+  min-height: 2.4em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .value-card:has(a.value-card__face:hover) {
+    border-color: color-mix(in srgb, var(--value-card-ink) 34%, var(--value-card-ground));
+  }
+
+  .value-card a.value-card__face:hover .value-card__action {
+    color: var(--value-card-ink);
+  }
+
+  .value-card a.value-card__face:hover .value-card__arrow {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value-card,
+  .value-card .value-card__face > *,
+  .value-card .value-card__stage,
+  .value-card .value-card__action,
+  .value-card .value-card__arrow {
+    transition: none;
+  }
+
+  .value-card a.value-card__face:active > * {
+    transform: none;
+  }
+}
+
+/* Two cards a row on a small screen held sideways or a narrow window, one a row on a phone. */
+@media (max-width: 64rem) {
+  .value-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 42rem) {
+  .value-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .value-card .value-card__headline {
+    min-height: 0;
+    font-size: 1.1875rem;
+  }
+}
+}

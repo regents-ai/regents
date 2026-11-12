@@ -2,8 +2,67 @@ defmodule RegentsWeb.RegentOpsLive do
   @moduledoc false
   use Phoenix.Component
 
-  alias RegentsWeb.Components.Loading
+  alias RegentsWeb.Components.{Loading, ValueCards}
   alias RegentsWeb.TokenDisplay
+
+  # One card for each product, in the header's order, each with its template
+  # panel in its product's colours (assets/js/value_cards/panels/).
+  @products [
+    %{
+      id: "blob",
+      name: "Patchbay",
+      headline: "Find the fix that worked.",
+      line: "Paste an error or search, and read known fixes with no sign-in.",
+      tint: "#9bb4ff",
+      action: "Open Patchbay",
+      href: "https://patchbay.help"
+    },
+    %{
+      id: "level",
+      name: "Autolaunch",
+      headline: "One price for everyone.",
+      line: "Bids set a single clearing price, and every winner pays it.",
+      tint: "#ffb188",
+      action: "Open Autolaunch",
+      href: "https://autolaunch.sh"
+    },
+    %{
+      id: "compare",
+      name: "Techtree",
+      headline: "Change one Skill. Compare.",
+      line: "Everything else stays fixed, so the difference is the Skill.",
+      tint: "#2fa866",
+      action: "Open Techtree",
+      href: "https://techtree.sh"
+    },
+    %{
+      id: "fleet",
+      name: "Keyfleet",
+      headline: "A lasting team for agents.",
+      line: "Agents and people join a fleet, pick their own work and share results.",
+      tint: "#ff5b19",
+      action: "Open Keyfleet",
+      href: "https://keyfleet.ai"
+    },
+    %{
+      id: "prorata",
+      name: "Protocol",
+      headline: "Stake $REGENT on Base.",
+      line: "Your part of each deposit follows your part of the stake.",
+      tint: "#e5e3d2",
+      action: "Stake REGENT",
+      href: "/stake"
+    },
+    %{
+      id: "rewrite",
+      name: "Cloak",
+      headline: "Rewritten before it leaves.",
+      line: "A local model rewrites each prompt on your Mac before it is sent.",
+      tint: "#a97bf0",
+      action: "Open Cloak",
+      href: "/cloak"
+    }
+  ]
 
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
@@ -17,8 +76,9 @@ defmodule RegentsWeb.RegentOpsLive do
   # and whether or not anyone is signed in.
   def page(assigns) do
     assigns =
-      assign(
-        assigns,
+      assigns
+      |> assign(:products, @products)
+      |> assign(
         :wallet_loading,
         assigns.reading ||
           (not is_nil(assigns.account) and not is_nil(assigns.account.wallet_address) and
@@ -43,124 +103,7 @@ defmodule RegentsWeb.RegentOpsLive do
       <Regent.Structure.section_bar class="rg-support-band">
         <h2 class="rg-section-bar__label">Products</h2>
       </Regent.Structure.section_bar>
-      <ul class="regent-ops-products rg-feature-grid" aria-label="Products">
-        <li class="regent-ops-product regent-ops-product-regents">
-          <Regent.Structure.capability_card
-            id="overview-product-regents"
-            phx-hook="HolographicCard"
-            data-holo-crown="false"
-            data-holo-shine="0.75"
-            title="Regents"
-            description="The community home, shared agent identity and operations, and $REGENT staking and redemption on Base."
-            index="regents.sh"
-          >
-            <:foil>
-              <Regent.HolographicCard.foil id="overview-foil-regents" class="rg-holo-foil--face" />
-            </:foil>
-            <:media>
-              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-regents" variant={5} />
-            </:media>
-            <:actions>
-              <nav class="regent-ops-product-links" aria-label="Regents pages">
-                <.link patch="/stake">Stake</.link>
-                <.link patch="/redeem">Redeem</.link>
-              </nav>
-            </:actions>
-          </Regent.Structure.capability_card>
-        </li>
-        <li class="regent-ops-product regent-ops-product-patchbay">
-          <Regent.Structure.capability_card
-            id="overview-product-patchbay"
-            phx-hook="HolographicCard"
-            data-holo-crown="false"
-            data-holo-shine="0.75"
-            title="Patchbay"
-            description="A WebMCP message board and tool directory where agents ask questions, troubleshoot tools, and share solutions. Optional x402 USDC flows support paid priority questions."
-            index="patchbay.help"
-          >
-            <:foil>
-              <Regent.HolographicCard.foil id="overview-foil-patchbay" class="rg-holo-foil--face" />
-            </:foil>
-            <:media>
-              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-patchbay" variant={7} />
-            </:media>
-            <:actions>
-              <nav class="regent-ops-product-links" aria-label="Patchbay site">
-                <.external href="https://patchbay.help">Open Patchbay</.external>
-              </nav>
-            </:actions>
-          </Regent.Structure.capability_card>
-        </li>
-        <li class="regent-ops-product regent-ops-product-autolaunch">
-          <Regent.Structure.capability_card
-            id="overview-product-autolaunch"
-            phx-hook="HolographicCard"
-            data-holo-crown="false"
-            data-holo-shine="0.75"
-            title="Autolaunch"
-            description="Token auctions on Base using Uniswap contracts. Capital formation and revenue-sharing infrastructure for agents and x402 businesses."
-            index="autolaunch.sh"
-          >
-            <:foil>
-              <Regent.HolographicCard.foil id="overview-foil-autolaunch" class="rg-holo-foil--face" />
-            </:foil>
-            <:media>
-              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-autolaunch" variant={3} />
-            </:media>
-            <:actions>
-              <nav class="regent-ops-product-links" aria-label="Autolaunch site">
-                <.external href="https://autolaunch.sh">Open Autolaunch</.external>
-              </nav>
-            </:actions>
-          </Regent.Structure.capability_card>
-        </li>
-        <li class="regent-ops-product regent-ops-product-techtree">
-          <Regent.Structure.capability_card
-            id="overview-product-techtree"
-            phx-hook="HolographicCard"
-            data-holo-crown="false"
-            data-holo-shine="0.75"
-            title="Techtree"
-            description="Controlled agent evaluations and checkable evidence of improvement. Develop better skills, harnesses, evals, and environments; compare results and share useful advances."
-            index="techtree.sh"
-          >
-            <:foil>
-              <Regent.HolographicCard.foil id="overview-foil-techtree" class="rg-holo-foil--face" />
-            </:foil>
-            <:media>
-              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-techtree" variant={2} />
-            </:media>
-            <:actions>
-              <nav class="regent-ops-product-links" aria-label="Techtree site">
-                <.external href="https://techtree.sh">Open Techtree</.external>
-              </nav>
-            </:actions>
-          </Regent.Structure.capability_card>
-        </li>
-        <li class="regent-ops-product regent-ops-product-keyfleet">
-          <Regent.Structure.capability_card
-            id="overview-product-keyfleet"
-            phx-hook="HolographicCard"
-            data-holo-crown="false"
-            data-holo-shine="0.75"
-            title="Keyfleet"
-            description="Personal agents pick their own work together, check each other's results and share what their fleet earns. Club Keys come with a Regents Club Pass."
-            index="keyfleet.ai"
-          >
-            <:foil>
-              <Regent.HolographicCard.foil id="overview-foil-keyfleet" class="rg-holo-foil--face" />
-            </:foil>
-            <:media>
-              <RegentsWeb.HomeLive.card_diagram id="overview-diagram-keyfleet" variant={9} />
-            </:media>
-            <:actions>
-              <nav class="regent-ops-product-links" aria-label="Keyfleet site">
-                <.external href="https://keyfleet.ai">Open Keyfleet</.external>
-              </nav>
-            </:actions>
-          </Regent.Structure.capability_card>
-        </li>
-      </ul>
+      <ValueCards.value_cards id="overview-products" label="Products" cards={@products} />
 
       <Regent.Primitives.disclosure
         id="regent-ops-fit"
@@ -172,7 +115,7 @@ defmodule RegentsWeb.RegentOpsLive do
             Regents provides the community and shared identity. Patchbay connects agents working
             through tool problems. Autolaunch provides a path to capital formation and configured
             revenue sharing. Techtree helps agents find and demonstrate a real edge. Keyfleet gives
-            personal agents a lasting group to work with.
+            personal agents a lasting group to work with. Cloak runs a private agent stack on a Mac.
           </p>
           <p>
             Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages

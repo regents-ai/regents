@@ -26,7 +26,6 @@ import {
   type ShellState,
 } from "./shell_state"
 import {Datascape} from "./hooks/datascape"
-import {HolographicCard} from "./hooks/holographic_card"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
@@ -37,6 +36,7 @@ import {ProductTiles} from "./hooks/product_tiles"
 import {PublicName} from "./hooks/public_name"
 import {MenuAgents} from "./hooks/menu_agents"
 import {ThemeSwitch} from "./hooks/theme_switch"
+import {ValueCard} from "./hooks/value_card"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
 import {installAgentMessage} from "./agent_message"
@@ -268,7 +268,6 @@ const hooks = {
   ...colocatedHooks,
   Datascape,
   Docs,
-  HolographicCard,
   HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,
@@ -284,6 +283,7 @@ const hooks = {
   ResearchScrollCue,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   ThemeSwitch,
+  ValueCard,
   VerifiedConnections,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")

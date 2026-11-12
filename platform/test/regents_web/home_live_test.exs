@@ -5,7 +5,7 @@ defmodule RegentsWeb.HomeLiveTest do
 
   # Invariants covered:
   # - smoke: 200 mount and the public-home landmark, outside the signed-in shell
-  # - launch-gate: in-app links stay on /stake, /cloak, the public agent guide, the
+  # - launch-gate: in-app links stay on /app, /stake, /cloak, the public agent guide, the
   #   agent start page, or in-page anchors the document owns
 
   test "SMOKE: the homepage mounts and keeps its landmark", %{conn: conn} do
@@ -15,9 +15,10 @@ defmodule RegentsWeb.HomeLiveTest do
     refute has_element?(view, "#app-shell")
   end
 
-  # Stake and Cloak are the product pages the homepage sends visitors to; every
-  # other internal link is a public page that stays open while the gate is closed.
-  @open_paths ~w(/stake /cloak /start /agents.md /llms.txt /docs /about)
+  # The Overview, Stake and Cloak are the product pages the homepage sends visitors
+  # to; every other internal link is a public page that stays open while the gate is
+  # closed.
+  @open_paths ~w(/app /stake /cloak /start /agents.md /llms.txt /docs /about)
 
   test "the public homepage never links into a route the launch gate holds", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -34,7 +35,7 @@ defmodule RegentsWeb.HomeLiveTest do
     end
   end
 
-  test "NAV_MEANINGS: product tabs open their sites; Protocol and Enter App open staking", %{
+  test "NAV_MEANINGS: product tabs open their sites; Protocol staking; Enter App the app", %{
     conn: conn
   } do
     {:ok, _view, html} = live(conn, "/")
@@ -42,7 +43,8 @@ defmodule RegentsWeb.HomeLiveTest do
     # Founder decision (2026-09-28): the tab is named Protocol, and it opens Stake.
     assert html =~ ~r/id="home-nav-protocol".*?<span class="rg-button__label">\s*Protocol\s*</s
     assert attribute(html, "#home-nav-protocol", "href") == ["/stake"]
-    assert attribute(html, "#home-content a.rl-hero-cta", "href") == ["/stake"]
+    # Founder decision (2026-11-12): Enter App opens the app's Overview.
+    assert attribute(html, "#home-content a.rl-hero-cta", "href") == ["/app"]
 
     assert attribute(html, "#home-glass nav.home__foot a", "href") ==
              ~w(https://patchbay.help https://autolaunch.sh https://techtree.sh https://keyfleet.ai /stake /cloak)

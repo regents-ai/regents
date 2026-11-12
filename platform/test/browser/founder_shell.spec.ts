@@ -263,7 +263,7 @@ test("a signed-in account without a Regent shows its available account menu", as
   await auth.expectCounts({documents: 2, sessionChecks: 2})
 })
 
-test("the Overview maps the four products, keeps account details secondary, and reaches Formation", async ({page}) => {
+test("the Overview maps the six products, keeps account details secondary, and reaches Formation", async ({page}) => {
   await page.goto("/app")
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
 
@@ -271,9 +271,14 @@ test("the Overview maps the four products, keeps account details secondary, and 
   await expect(overview.getByRole("heading", {level: 1})).toBeVisible()
 
   const products = overview.getByRole("list", {name: "Products"})
-  for (const name of ["Regents", "Autolaunch", "Techtree", "Patchbay"]) {
-    await expect(products.getByRole("heading", {level: 3, name})).toBeVisible()
-  }
+  await expect(products.locator(".value-card__name")).toHaveText([
+    "Patchbay",
+    "Autolaunch",
+    "Techtree",
+    "Keyfleet",
+    "Protocol",
+    "Cloak",
+  ])
   await expect(products.getByRole("link", {name: "Open Autolaunch"})).toHaveAttribute(
     "href",
     "https://autolaunch.sh",

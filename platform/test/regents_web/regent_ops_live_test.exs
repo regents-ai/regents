@@ -14,16 +14,30 @@ defmodule RegentsWeb.RegentOpsLiveTest do
 
     assert has_element?(view, "#regent-ops-overview .regent-ops-heading h1")
 
+    # One card for each product: the four product sites open in a new tab, staking
+    # and Cloak stay on this site.
     products = ~s(ul[aria-label="Products"])
-    assert has_element?(view, "#{products} h3", "Regents")
-    assert has_element?(view, "#{products} h3", "Autolaunch")
-    assert has_element?(view, "#{products} h3", "Techtree")
-    assert has_element?(view, "#{products} h3", "Patchbay")
-    assert has_element?(view, ~s(#{products} a[href="/stake"]), "Stake")
-    assert has_element?(view, ~s(#{products} a[href="/redeem"]), "Redeem")
+    page = Floki.parse_document!(html)
+    assert page |> Floki.find("#{products} > li") |> length() == 6
 
-    for site <- ["https://autolaunch.sh", "https://techtree.sh", "https://patchbay.help"] do
-      assert has_element?(view, ~s(#{products} a[href="#{site}"][rel="noopener noreferrer"]))
+    for site <- [
+          "https://patchbay.help",
+          "https://autolaunch.sh",
+          "https://techtree.sh",
+          "https://keyfleet.ai"
+        ] do
+      assert has_element?(
+               view,
+               ~s(#{products} a[href="#{site}"][target="_blank"][rel="noopener noreferrer"])
+             )
+    end
+
+    assert has_element?(view, ~s'#{products} a[href="/stake"]:not([target])')
+    assert has_element?(view, ~s'#{products} a[href="/cloak"]:not([target])')
+
+    # Every card stands on its own still frame until its panel draws.
+    for still <- Floki.attribute(page, ".value-card__still", "src") do
+      assert File.exists?(Path.join(Application.app_dir(:regents, "priv/static"), still))
     end
 
     assert has_element?(view, "details.regent-ops-fit summary")
@@ -62,7 +76,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
   test "products and account actions outlive the network summary read", %{conn: conn} do
     {:ok, view, html} = live(conn, "/app")
 
-    assert has_element?(view, ~s(ul[aria-label="Products"] h3), "Techtree")
+    assert has_element?(view, ~s(ul[aria-label="Products"] a[href="https://techtree.sh"]))
     assert html =~ "Network details are unavailable right now."
     refute has_element?(view, "dl.regent-ops-summary")
 

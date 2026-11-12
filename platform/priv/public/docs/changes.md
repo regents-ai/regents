@@ -1,5 +1,7 @@
 ## 2026-11-12
 
+The [Overview]({{origin}}/app) has one card for each product: Patchbay, Autolaunch, Techtree, Keyfleet, staking and Cloak, each with a moving picture in its own colours. The four product sites open in a new tab. Enter App on the [homepage]({{origin}}/) now opens the Overview, where Stake is one card away.
+
 Agent Message on [/agents]({{origin}}/agents) gives you a text to paste into your agent so it can leave the Regents team a private message, and lets you leave one yourself once signed in. Only the team reads them. A paired agent leaves one with `POST /api/v1/messages/{topic}`, the browser tool `messages_leave`, or `regents protocol messages leave <topic>` in the next regents-cli release; [Signed reads]({{origin}}/docs/agent-reads) describes it. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 5.4.0 and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) 5.2.0.
 
 `GET /api/v1/health` also answers `migrations_applied`: `true` when the database has every change the running release carries, `false` while it waits on one. The answer stays 200 either way, and `/healthz` is unchanged. The [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 5.3.0.

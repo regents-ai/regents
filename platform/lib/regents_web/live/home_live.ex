@@ -19,7 +19,7 @@ defmodule RegentsWeb.HomeLive do
 
     #{@mission}
 
-    [Enter App](#{PublicDocuments.url("/stake")})
+    [Enter App](#{PublicDocuments.url("/app")})
 
     ## Agent prompt
 
@@ -98,7 +98,7 @@ defmodule RegentsWeb.HomeLive do
               <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
               <p class="rl-statement__line">{@mission}</p>
             </div>
-            <a href={~p"/stake"} class="rg-button rg-button--no-arrow rl-hero-cta">
+            <a href={~p"/app"} class="rg-button rg-button--no-arrow rl-hero-cta">
               <span class="rg-button__label">Enter App</span>
             </a>
           </div>
@@ -215,113 +215,6 @@ defmodule RegentsWeb.HomeLive do
   defp status_label(:live), do: "Available now"
   defp status_label(:experimental), do: "Experimental"
   defp status_label(:planned), do: "Planned"
-
-  attr :id, :string, required: true
-  attr :variant, :integer, required: true
-
-  # The product Overview's drawings, kept beside the product list they illustrate.
-  def card_diagram(assigns) do
-    ~H"""
-    <svg
-      id={@id}
-      class="rl-card-diagram"
-      data-diagram={@variant}
-      viewBox="0 0 320 320"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.2"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <defs>
-        <pattern id={"#{@id}-hatch"} width="7" height="7" patternUnits="userSpaceOnUse">
-          <path d="M-2 2L2-2M0 7L7 0M5 9L9 5" stroke-width=".65" />
-        </pattern>
-      </defs>
-      <path d="M8 28V8H28M292 8H312V28M312 292V312H292M28 312H8V292" />
-      <g :if={@variant == 0}>
-        <path d="M86 50H204L244 90V266H86Z" fill="var(--rg-panel-fill)" />
-        <path d="M204 50V90H244M66 72V282H220M108 116H218M108 134H186M108 212H218M108 230H174" />
-        <rect x="108" y="158" width="46" height="32" fill={"url(##{@id}-hatch)"} />
-        <path d="M176 160H218M176 176H204M176 190H218" />
-      </g>
-      <g :if={@variant == 1}>
-        <path d="M56 70V252M264 70V252M48 90H272M48 136H272M48 182H272M48 228H272" />
-        <rect x="82" y="77" width="46" height="26" fill="var(--rg-panel-fill)" />
-        <rect x="178" y="123" width="46" height="26" fill="var(--rg-panel-fill)" />
-        <rect x="122" y="169" width="46" height="26" fill={"url(##{@id}-hatch)"} />
-        <rect x="82" y="215" width="46" height="26" fill="var(--rg-panel-fill)" />
-        <path d="M145 158V144M138 151H152" />
-      </g>
-      <g :if={@variant == 2}>
-        <path d="M64 196L160 148L256 196V220L160 268L64 220Z" fill="var(--rg-panel-fill)" />
-        <path d="M64 196L160 244L256 196M160 244V268" />
-        <path d="M64 148L160 100L256 148V172L160 220L64 172Z" fill="var(--rg-panel-fill)" />
-        <path d="M64 148L160 196L256 148M160 196V220" />
-        <path d="M64 100L160 52L256 100V124L160 172L64 124Z" fill="var(--rg-panel-fill)" />
-        <path d="M64 100L160 148L256 100M160 148V172" />
-        <path d="M160 148L256 100V124L160 172Z" fill={"url(##{@id}-hatch)"} />
-      </g>
-      <g :if={@variant == 3}>
-        <rect x="60" y="104" width="156" height="144" fill="var(--rg-panel-fill)" />
-        <rect x="82" y="82" width="156" height="144" fill="var(--rg-panel-fill)" />
-        <rect x="104" y="60" width="156" height="144" fill="var(--rg-panel-fill)" />
-        <path d="M104 96H260M120 78H126M136 78H142M152 78H158M122 122H186M122 138H164" />
-        <rect x="202" y="122" width="38" height="60" fill={"url(##{@id}-hatch)"} />
-        <path d="M122 178H178V156H190" />
-      </g>
-      <g :if={@variant == 4}>
-        <path d="M60 76H132V244H60M188 76H260V244H188M132 160H188" />
-        <path d="M60 100H114M60 124H100M60 148H114M60 172H100M60 196H114M60 220H100M206 100H260M220 124H260M206 148H260M220 172H260M206 196H260M220 220H260" />
-        <path d="M160 128L192 160L160 192L128 160Z" fill="var(--rg-panel-fill)" />
-        <path d="M160 128L192 160L160 192Z" fill={"url(##{@id}-hatch)"} />
-      </g>
-      <g :if={@variant == 5}>
-        <path d="M160 80V132M80 160H132M188 160H240M160 188V240M90 90L132 132M188 188L230 230" />
-        <rect x="132" y="132" width="56" height="56" fill={"url(##{@id}-hatch)"} />
-        <rect x="144" y="48" width="32" height="32" /><rect x="48" y="144" width="32" height="32" />
-        <rect x="240" y="144" width="32" height="32" /><rect x="144" y="240" width="32" height="32" />
-        <path d="M70 70H90V90H70ZM230 230H250V250H230Z" />
-      </g>
-      <g :if={@variant == 6}>
-        <path d="M80 80H120V144H150M80 160H150M80 240H120V176H150M196 160H248" />
-        <rect x="48" y="64" width="32" height="32" /><rect x="48" y="144" width="32" height="32" />
-        <rect x="48" y="224" width="32" height="32" /><rect
-          x="150"
-          y="112"
-          width="46"
-          height="96"
-          fill={"url(##{@id}-hatch)"}
-        />
-        <rect x="248" y="132" width="24" height="56" /><path d="M254 146H266M254 160H266M254 174H266" />
-      </g>
-      <g :if={@variant == 7}>
-        <path d="M112 130H264V246H232V270L208 246H112Z" fill="var(--rg-panel-fill)" />
-        <path d="M56 56H224V180H110L80 210V180H56Z" fill="var(--rg-panel-fill)" />
-        <path d="M80 88H198M80 108H182M80 128H198M80 148H150M140 208H240M140 224H208" />
-        <rect x="236" y="146" width="12" height="36" fill={"url(##{@id}-hatch)"} />
-      </g>
-      <g :if={@variant == 9}>
-        <path
-          d="M44 92A36 36 0 1 0 116 92A36 36 0 1 0 44 92ZM68 92A12 12 0 1 0 92 92A12 12 0 1 0 68 92Z"
-          fill="var(--rg-panel-fill)"
-        />
-        <path d="M116 92H200V128M152 92V114M176 92V108" />
-        <rect x="164" y="128" width="72" height="72" fill={"url(##{@id}-hatch)"} />
-        <path d="M200 200V236M200 214H116V236M200 214H284V236" />
-        <rect x="94" y="236" width="44" height="44" fill="var(--rg-panel-fill)" />
-        <rect x="178" y="236" width="44" height="44" fill="var(--rg-panel-fill)" />
-        <rect x="262" y="236" width="44" height="44" fill="var(--rg-panel-fill)" />
-        <path d="M106 258H126M190 258H210M274 258H294" />
-      </g>
-      <g :if={@variant == 8}>
-        <path d="M126 70H194L242 118V202L194 250H126L78 202V118Z" fill="var(--rg-panel-fill)" />
-        <path d="M194 70L242 118V202L194 250V70Z" fill={"url(##{@id}-hatch)"} />
-        <path d="M174 114H136V156H174V198H136M155 98V214M48 120V72H96M272 200V248H224M40 80L48 72L56 80M264 240L272 248L280 240" />
-      </g>
-    </svg>
-    """
-  end
 
   # Each product tab opens that product's site in a new tab; Protocol opens the
   # staking page and Cloak its page here. Founder decision (2026-09-28): the tab

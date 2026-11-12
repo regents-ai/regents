@@ -58,9 +58,9 @@ test("the Overview links every product to its real home", async ({page}) => {
   await ready(page)
 
   const products = page.getByRole("list", {name: "Products"})
-  await expect(products.getByRole("listitem")).toHaveCount(5)
-  await expect(products.getByRole("link", {name: "Stake"})).toHaveAttribute("href", "/stake")
-  await expect(products.getByRole("link", {name: "Redeem"})).toHaveAttribute("href", "/redeem")
+  await expect(products.getByRole("listitem")).toHaveCount(6)
+  await expect(products.getByRole("link", {name: "Stake REGENT"})).toHaveAttribute("href", "/stake")
+  await expect(products.getByRole("link", {name: "Open Cloak"})).toHaveAttribute("href", "/cloak")
   for (const [name, href] of [
     ["Open Autolaunch", "https://autolaunch.sh"],
     ["Open Techtree", "https://techtree.sh"],
@@ -70,10 +70,11 @@ test("the Overview links every product to its real home", async ({page}) => {
     const link = products.getByRole("link", {name})
     await expect(link).toHaveAttribute("href", href)
     await expect(link).toHaveAttribute("rel", "noopener noreferrer")
+    await expect(link).toHaveAttribute("target", "_blank")
   }
 
   const instance = await page.locator("#app-shell").getAttribute("data-shell-instance")
-  await products.getByRole("link", {name: "Stake"}).click()
+  await products.getByRole("link", {name: "Stake REGENT"}).click()
   await expect(page).toHaveURL(/\/stake$/)
   await expect(page.locator("#app-shell")).toHaveAttribute("data-shell-instance", instance!)
 })

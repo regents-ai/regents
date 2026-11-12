@@ -5484,3 +5484,25 @@ changelog line moves from the published 6 Nov entry to this release's.
   sideways scroll, no console errors; /admin/messages is the not-found page; /, /app, /stake,
   /privacy and /docs answer 200.
 - Not proven live: a signed-in person's message, the team inbox, a paired agent's message.
+
+## 2026-11-12 — Overview value cards; Enter App opens the Overview
+
+- Sean's ask: Enter App on the homepage opens `/app` instead of `/stake`, and the Overview's
+  product cards are replaced by six of ash-template's value cards, one for each product.
+- `/app`'s Products row is six value cards copied from ash-template `d379d721`: blob
+  (Patchbay, blue), level (Autolaunch, soft orange), compare (Techtree, green), fleet
+  (Keyfleet, orange), prorata (Protocol staking, charcoal) and rewrite (Cloak, violet), each
+  panel recoloured to its product, with still frames redrawn by `npm run stills:value-cards`.
+  The four product sites open in a new tab; staking and Cloak stay here.
+- Differences from the template: no container queries (the template hid a card's place by
+  the card's own width, which kept phone layouts from settling), no lab styles, and only the
+  six panels this page uses.
+- Removed with the old cards: the holographic card hook and the homepage's card diagrams,
+  which only the old Overview used.
+- No migration, no contract or API change.
+- Checks: `test/regents_web/regent_ops_live_test.exs`, `test/regents_web/home_live_test.exs`,
+  `assets/test/value_cards.test.ts`, and the walks `test/browser/value_cards.spec.ts` (1280,
+  390, 320), `founder_shell.spec.ts` and `homepage.spec.ts`. By hand in headless Chromium
+  with WebGPU: all six panels drew at 1280, 390 and 320 in light and dark, the page stayed
+  alive after mouse sweeps over every card with about 11 MB of memory, and reduced motion
+  kept the still frames.

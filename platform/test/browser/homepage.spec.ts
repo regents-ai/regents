@@ -45,7 +45,7 @@ test("[U2] homepage is server-readable: name, line, actions, agent prompt and pr
   await expect(glass.locator(".rl-statement__line")).toHaveText(
     "We build tools for people and their agents. REGENT stakers share in the revenue.",
   )
-  await expect(glass.getByRole("link", {name: "Enter App"})).toHaveAttribute("href", "/stake")
+  await expect(glass.getByRole("link", {name: "Enter App"})).toHaveAttribute("href", "/app")
   await expect(glass.getByRole("heading", {level: 2, name: "Agent prompt"})).toBeVisible()
   await expect(glass.locator("#home-prompt-text")).toContainText("Help me get started")
   await expect(glass.getByRole("button", {name: "Copy"})).toBeVisible()
@@ -93,7 +93,7 @@ for (const {name, width, height} of [
       "Protocol",
       "Cloak",
     ])
-    await expect(page.locator("#home-content a.rl-hero-cta")).toHaveAttribute("href", "/stake")
+    await expect(page.locator("#home-content a.rl-hero-cta")).toHaveAttribute("href", "/app")
     await assertNoOverflow(page)
 
     const patchbay = page.locator("#home-nav-patchbay")
@@ -107,8 +107,8 @@ for (const {name, width, height} of [
 
     await page.goto("/")
     await page.locator("#home-content a.rl-hero-cta").click()
-    await expect(page).toHaveURL(/\/stake$/)
-    await expect(page.locator("#regent-staking")).toBeVisible()
+    await expect(page).toHaveURL(/\/app$/)
+    await expect(page.locator("#regent-ops-overview")).toBeVisible()
   })
 }
 

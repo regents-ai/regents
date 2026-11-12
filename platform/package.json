@@ -8,7 +8,8 @@
     "test": "vitest run",
     "test:browser": "npm run assets:build && playwright test",
     "test:budgets": "vitest run --config vitest.budgets.config.ts",
-    "test:showcase": "playwright test --config playwright.showcase.config.ts"
+    "test:showcase": "playwright test --config playwright.showcase.config.ts",
+    "stills:value-cards": "node assets/js/value_cards/stills.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "3.51.1",
