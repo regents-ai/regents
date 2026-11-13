@@ -109,8 +109,11 @@
   text-decoration: none;
 }
 
-.regent-ops-actions a:hover {
-  border-color: currentColor;
+/* Only a mouse marks the link it rests on; on a phone a tap would leave the mark. */
+@media (hover: hover) and (pointer: fine) {
+  .regent-ops-actions a:hover {
+    border-color: currentColor;
+  }
 }
 
 /* Disclosures */

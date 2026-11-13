@@ -108,8 +108,11 @@
   grid-template-columns: 3rem minmax(0, 1fr);
 }
 
-.paper-daily__pick:hover {
-  border-color: var(--color-fg);
+/* Only a mouse marks the pick it rests on; on a phone a tap would leave the mark. */
+@media (hover: hover) and (pointer: fine) {
+  .paper-daily__pick:hover {
+    border-color: var(--color-fg);
+  }
 }
 
 .paper-daily__pick[aria-pressed="true"] {

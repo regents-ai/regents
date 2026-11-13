@@ -6143,3 +6143,19 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out, at 1280 and 390: home, /about, /app, /cloak, /account/points and
   /agents.md load with no console errors; the agent's Points read with no sign-in is refused.
 - Not read signed in. Rollback: v310's image main-381af6504f5f.
+## 2026-11-13 — Hover looks no longer stick after a tap on a phone
+
+- Design review, 13 Nov: a phone treats a tap as a hover that stays until the next tap
+  somewhere else. On AI & SCIFI a book stayed raised and edged after it was closed;
+  Daily Research picks, Redeem gallery passes and the Overview account links kept their
+  hover edge. Those hover looks now show only with a mouse. Keyboard focus, a found
+  gallery pass and an open book look as before on every device.
+- Left as they are: hover rules that only change a colour or a background (the docs
+  menus, the agent start tabs, the Stake info mark and a few buttons), and the home
+  crown's lift, which already shows only on devices that can hover.
+- Proof, in a headless browser, light and dark: on a touch phone at 390 px a hover
+  leaves each of the four as it was, and a book opened and closed by two taps sits
+  flat again (before this change it stayed raised and edged); with a mouse at 1280 px
+  every hover look still shows. The Daily Research picks were checked on a pick added
+  to the page, as the test server has no day with several papers.
+- Checks: the full check runs on this exact commit before its release. No migration.
