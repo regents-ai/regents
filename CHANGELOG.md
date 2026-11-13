@@ -6046,3 +6046,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   guides and reads, docs, home, Overview), type check, 365 script tests, and the Cloak,
   page policy and product cards walks (23 with the screenshot pass) at 1280 and 390, light
   and dark, with no console errors. No migration.
+
+## 2026-11-13 — Released v309 (Cloak page offers one thing)
+
+- v309, commit 34a98ce6. Full check exit 0 on 34a98ce6, seven gates in one run. No migration.
+- Live read, signed out: /cloak shows one "Download for Mac" button, not pressable, with
+  "Coming soon"; /cloak/guide is not found.
+- Rollback: v308's image main-9db436184feb.
