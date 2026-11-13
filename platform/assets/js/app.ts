@@ -34,6 +34,7 @@ import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {LabMap} from "./hooks/lab_map"
 import {OnchainSteps} from "./hooks/onchain_steps"
+import {PaperPicks} from "./hooks/paper_picks"
 import {ProductTiles} from "./hooks/product_tiles"
 import {PublicName} from "./hooks/public_name"
 import {SentList} from "./hooks/sent_list"
@@ -284,6 +285,7 @@ const hooks = {
   MotionTick,
   MenuAgents,
   OnchainSteps,
+  PaperPicks,
   ProductTiles,
   PublicName,
   ResearchScrollCue,

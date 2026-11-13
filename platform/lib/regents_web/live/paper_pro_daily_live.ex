@@ -201,14 +201,18 @@ defmodule RegentsWeb.PaperProDailyLive do
   attr :papers, :list, required: true
 
   # A day with several papers opens with a choice of them above the first one;
-  # choosing another shows it in the first one's place.
+  # choosing another shows it in the first one's place, at once in the page and
+  # moving as the site's tabs do (`PaperPicks`).
   defp day(assigns) do
     ~H"""
     <div
       :if={length(@papers) > 1}
+      id={"#{@id}-picks"}
       class={["paper-daily__picks", "paper-daily__picks--#{min(length(@papers), 4)}"]}
       role="group"
       aria-label={"Papers for " <> Calendar.strftime(hd(@papers).date, "%B %-d, %Y")}
+      phx-hook="PaperPicks"
+      data-variant={RegentsWeb.Motion.standard("tabs")}
     >
       <button
         :for={{paper, index} <- Enum.with_index(@papers)}
@@ -230,6 +234,7 @@ defmodule RegentsWeb.PaperProDailyLive do
         <span :if={paper.authors != []} class="paper-daily__pick-authors">
           {Enum.join(paper.authors, ", ")}
         </span>
+        <span class="paper-daily__pick-mark" aria-hidden="true"></span>
       </button>
     </div>
     <div
