@@ -6143,3 +6143,16 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out, at 1280 and 390: home, /about, /app, /cloak, /account/points and
   /agents.md load with no console errors; the agent's Points read with no sign-in is refused.
 - Not read signed in. Rollback: v310's image main-381af6504f5f.
+
+## 2026-11-13 — Redeem: a done step draws its tick
+
+- Each done step on Redeem shows a drawn tick where the typed check mark was, the same
+  size, weight, colour and place; nothing around it moves. A step that becomes done while
+  the page is open draws its tick in once (280ms). One already done when the page opens,
+  after a reconnect, on a return to the page or on a redraw is simply there, and with
+  reduced motion the tick never moves. Screen readers still hear the check mark.
+- The tick is the motion kit's (`MotionTick`, `drawTick`), moved there from the
+  animations lab, whose "Work marked done" card now draws with it.
+- The transaction receipt had no typed check mark, so it is unchanged.
+- Tests: a newer reading that shows a step done draws its tick, and a first reading, a
+  new selection that was already done or a return to the page draws none.

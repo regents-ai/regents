@@ -29,7 +29,7 @@ import {Datascape} from "./hooks/datascape"
 import {EnterGradient} from "./hooks/enter_gradient"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
-import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
+import {MotionCount, MotionList, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
 import {LabMap} from "./hooks/lab_map"
@@ -280,6 +280,7 @@ const hooks = {
   MotionList,
   MotionRefusal,
   MotionTabs,
+  MotionTick,
   MenuAgents,
   OnchainSteps,
   ProductTiles,

@@ -333,7 +333,10 @@ defmodule RegentsWeb.AnimationsLive do
               <h4>Send the monthly report</h4>
               <p>2 comments · due Friday</p>
               <div :if={@done?} class="motion-lab__stamp" data-stamp>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path data-tick d="M4 12.5l5 5L20 6.5" /></svg>
+                <svg class="motion-tick" viewBox="0 0 24 24" aria-hidden="true"><path
+                  pathLength="1"
+                  d="M4 12.5l5 5L20 6.5"
+                /></svg>
                 Done
               </div>
               <P.button variant="secondary" phx-click={if @done?, do: "reopen", else: "finish"}>

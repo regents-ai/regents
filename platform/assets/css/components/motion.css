@@ -11,3 +11,8 @@
    it. Opened again, it takes presses at once. */
 details:not([open]):has(> [data-panel="list"][data-leaving])::details-content { content-visibility: visible; }
 details:not([open]) > [data-panel="list"][data-leaving] { pointer-events: none; }
+
+/* A tick the motion kit can draw in (`MotionTick`, `drawTick`): its path is one
+   unit long (`pathLength="1"`) and one dash as long covers it, so it shows whole
+   until the kit slides that dash in along it. */
+.motion-tick path { stroke-dasharray: 1; }

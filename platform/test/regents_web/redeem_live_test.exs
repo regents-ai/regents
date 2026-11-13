@@ -684,6 +684,41 @@ defmodule RegentsWeb.RedeemLiveTest do
     refute has_element?(view, "#redemption-activity-press")
   end
 
+  test "DONE_TICKS: a step a newer reading shows done draws its tick, and only then", %{
+    conn: conn
+  } do
+    view = redeem_as_signer(conn, "done-ticks")
+    select(view, "animata_i", "42")
+
+    for id <- ~w(redemption-step-1-tick redemption-step-2-tick redemption-step-3-tick),
+        do: assert_push_event(view, "motion:tick", %{id: ^id})
+
+    assert has_element?(view, ~s(#redemption-step-1-tick[phx-hook="MotionTick"]))
+
+    # Another Animata that is just as ready: its steps were done before it was read.
+    select(view, "animata_i", "43")
+    refute_push_event(view, "motion:tick", %{})
+
+    Application.put_env(:regents, :test_redemption_nft_approved, false)
+    view |> element(~s(button[phx-click="refresh_redemption"])) |> render_click()
+    render_async(view)
+    refute_push_event(view, "motion:tick", %{})
+
+    Application.put_env(:regents, :test_redemption_nft_approved, true)
+    view |> element(~s(button[phx-click="refresh_redemption"])) |> render_click()
+    render_async(view)
+    assert_push_event(view, "motion:tick", %{id: "redemption-step-2-tick"})
+    assert_push_event(view, "motion:tick", %{id: "redemption-step-3-tick"})
+    refute_push_event(view, "motion:tick", %{})
+
+    # Back on the page, the steps already done are simply shown done.
+    render_patch(view, "/stake")
+    render_patch(view, "/redeem")
+    render_async(view)
+    assert has_element?(view, "#redemption-step-1-tick")
+    refute_push_event(view, "motion:tick", %{})
+  end
+
   test "PRESS_BEFORE_REVIEW: a press ahead of the review is answered with one for the screen", %{
     conn: conn
   } do
