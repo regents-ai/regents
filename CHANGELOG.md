@@ -6019,3 +6019,11 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Sean asked for the grains switch to be reverted. Commit 12fb7696 is reverted in code: the
   old switch, its tests, styles and component are back exactly as they were at v306, and
   nothing of the grains switch is left.
+
+## 2026-11-13 — Released v308 (grains switch reverted)
+
+- v308, commit 9db43618. Full check exit 0 on 9db43618, seven gates in one run. No migration.
+  Every file but this changelog equals v306.
+- Live read, signed out, at 1280 and 390 on /about, /privacy and /app: one switch a page,
+  a press changes the theme, no console errors.
+- Rollback: v306's image main-b92a7018e159 (the same code).
