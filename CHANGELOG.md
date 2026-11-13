@@ -6199,3 +6199,13 @@ seasons), on the shared Points library regents.sh was already on.
   their height or grow; every press still reaches the wallet. Desktop is unchanged.
 - Tests: at 320, 360, 390 and 1280 wide, nothing in either wallet panel sits outside
   it, no button name there is cut, and the page has no sideways scroll.
+
+## 2026-11-13 — Released v312 (design batch)
+
+- v312, commit 66d8fd84: hover looks need a real mouse; a done Redeem step draws its tick;
+  a refused wallet press shakes its note; Redeem's wallet panels fit a phone. Full check
+  exit 0 on 66d8fd84, six gates in one run. No migration.
+- Live read, signed out, at 320, 390 and 1280: Redeem, Stake and Overview have no sideways
+  scroll and nothing past the screen's edge; no console errors. The tick and the shake need
+  a connected wallet and were not read on live.
+- Rollback: v311's image main-ec4230f009c6.
