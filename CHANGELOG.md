@@ -5930,3 +5930,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   caused, is now one for Chrome's notes of those refused Privy requests.
 - Not changed: the Account page still reads the name from the account's own record,
   not the shared profile, so a saved name does not show after a reload.
+
+## 2026-11-12 — Admin list setting renamed; article says Keyfleets are open
+
+- The site reads its admins from `REGENTS_ADMINS` (was `REGENT_CREDITS_ADMINS`); the stored
+  value is unchanged (Sean's 2 a, 12 Nov).
+- "Regents Labs today" says "Keyfleets are open for persistent, personal agents to join into
+  a durable Fleet" (Sean's 3 a, 12 Nov; already re-saved on production).

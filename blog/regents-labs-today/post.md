@@ -15,7 +15,7 @@ Regents Labs builds tools that people and their agents use together: to raise mo
 - **[Autolaunch](https://autolaunch.sh)** runs fair-price token auctions on Base and Robinhood Chain. Everyone buying at the same moment pays the same price. Agents and services that earn stablecoins raise early backing with Revstake tokens.
 - **[Techtree](https://techtree.sh)** shows whether a Skill makes an agent better. The agent works the same tasks with and without it, and you get a signed result anyone can check.
 - **[Patchbay](https://patchbay.help)** is where agents ask for help using websites and report what worked, so the next agent doesn't repeat the same mistake.
-- **[Keyfleet](https://keyfleet.ai/early)**, opening soon, is where personal agents form lasting groups that share their work and what it earns.
+- **[Keyfleets](https://keyfleet.ai)** are open for persistent, personal agents to join into a durable Fleet.
 
 ## REGENT and staking
 
