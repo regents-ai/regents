@@ -1,7 +1,8 @@
 /**
  * Motion for things the server decides: a list that changes, such as a stack
- * of notes, and a figure that moves. The page renders every result first;
- * these islands only animate from the old picture to the new one.
+ * of notes, a figure that moves, a refusal and a tick for something just done.
+ * The page renders every result first; these islands only animate from the old
+ * picture to the new one.
  */
 import {
   animate,
@@ -15,7 +16,7 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, CLIPPED_CHAR, SLOW, still} from "./shared"
+import {BASE, CLIPPED_CHAR, EASE_OUT, SLOW, play, still} from "./shared"
 import {deny} from "./press"
 import type {Hook} from "../../hook_composition"
 
@@ -183,6 +184,61 @@ export const MotionRefusal: Hook = {
   },
 
   destroyed(this: RefusalHook) {
+    this.scope?.revert()
+  },
+}
+
+// A tick's stroke drawn in once, from its start to its end. Its path is one
+// unit long (`pathLength="1"`) and a dash as long covers it (`.motion-tick` in
+// components/motion.css), so the page renders it whole; the draw slides that
+// dash in from just before the path's start, then hands the path back to the
+// stylesheet.
+export const drawTick = (path: Element, delay = 0) =>
+  play(path, {strokeDashoffset: [1, 0], delay, duration: SLOW, ease: EASE_OUT})
+
+type TickHook = {
+  el: SVGSVGElement
+  scope?: Scope
+  handleEvent: (event: string, callback: (payload: {id: string}) => void) => void
+}
+
+// The ticks on screen when the connection dropped. The server that answers the
+// reconnect has not seen them, so it may call one just done once its first
+// reading lands; that tick was already there and is not drawn again.
+const heldOver = new Set<string>()
+
+/**
+ * A tick that marks something done, an inline `svg.motion-tick` with an id.
+ * The page renders it whole, so one already done when the page opens,
+ * reconnects or draws again is simply there. Only when the server says the
+ * thing was just done, naming the tick's id in `motion:tick`, does it draw
+ * itself in.
+ */
+export const MotionTick: Hook = {
+  mounted(this: TickHook) {
+    const held = heldOver.delete(this.el.id)
+    const scope = createScope({root: this.el})
+
+    this.scope = scope.add(() => {
+      scope.add("draw", () => {
+        if (!still(this.el)) drawTick(this.el.querySelector("path")!)
+      })
+    })
+
+    this.handleEvent("motion:tick", ({id}) => {
+      if (id === this.el.id && !held) this.scope?.methods.draw()
+    })
+  },
+
+  disconnected(this: TickHook) {
+    heldOver.add(this.el.id)
+  },
+
+  reconnected(this: TickHook) {
+    heldOver.delete(this.el.id)
+  },
+
+  destroyed(this: TickHook) {
     this.scope?.revert()
   },
 }

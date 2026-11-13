@@ -6159,3 +6159,16 @@ seasons), on the shared Points library regents.sh was already on.
   every hover look still shows. The Daily Research picks were checked on a pick added
   to the page, as the test server has no day with several papers.
 - Checks: the full check runs on this exact commit before its release. No migration.
+
+## 2026-11-13 — Redeem: a done step draws its tick
+
+- Each done step on Redeem shows a drawn tick where the typed check mark was, the same
+  size, weight, colour and place; nothing around it moves. A step that becomes done while
+  the page is open draws its tick in once (280ms). One already done when the page opens,
+  after a reconnect, on a return to the page or on a redraw is simply there, and with
+  reduced motion the tick never moves. Screen readers still hear the check mark.
+- The tick is the motion kit's (`MotionTick`, `drawTick`), moved there from the
+  animations lab, whose "Work marked done" card now draws with it.
+- The transaction receipt had no typed check mark, so it is unchanged.
+- Tests: a newer reading that shows a step done draws its tick, and a first reading, a
+  new selection that was already done or a return to the page draws none.

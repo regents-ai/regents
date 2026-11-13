@@ -52,7 +52,8 @@ defmodule RegentsWeb.RedeemLive do
          active: nil,
          press_step: nil,
          selection: %{collection: "", token_id: ""},
-         receipt: nil
+         receipt: nil,
+         done_steps: nil
        )}
 
   @impl true
@@ -61,8 +62,32 @@ defmodule RegentsWeb.RedeemLive do
      socket
      |> assign(Map.delete(assigns, :account))
      |> assign(selection: %{collection: assigns.collection, token_id: assigns.token_id})
-     |> take_account(assigns.account)}
+     |> take_account(assigns.account)
+     |> draw_ticks()}
   end
+
+  # A step the latest reading shows done, where the reading before it for the
+  # same wallet did not, draws its tick in. Steps already done when the panel
+  # opens or the wallet changes are simply shown done, and so are steps that
+  # come back after a moment with no reading, while a new selection is read.
+  defp draw_ticks(%{assigns: %{step: nil}} = socket), do: socket
+
+  defp draw_ticks(%{assigns: %{step: step, wallet: wallet, done_steps: before}} = socket) do
+    now = for number <- 1..4, flow_state(number, step) == "complete", do: number
+
+    socket =
+      case before do
+        {^wallet, shown} ->
+          Enum.reduce(now -- shown, socket, &push_event(&2, "motion:tick", %{id: tick_id(&1)}))
+
+        _first_reading ->
+          socket
+      end
+
+    assign(socket, done_steps: {wallet, now})
+  end
+
+  defp tick_id(number), do: "redemption-step-#{number}-tick"
 
   # The account as the page gave it, or as it reads now before each event and
   # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
@@ -1027,10 +1052,18 @@ defmodule RegentsWeb.RedeemLive do
   attr :label, :string, required: true
   attr :state, :string, required: true
 
+  # A done step shows a drawn tick; screen readers still hear the check mark.
   defp flow_step(assigns) do
     ~H"""
     <li data-state={@state}>
-      <span>{if @state == "complete", do: "✓", else: @number}</span><p>{@label}</p>
+      <span :if={@state == "complete"}><svg
+        id={tick_id(@number)}
+        class="motion-tick"
+        phx-hook="MotionTick"
+        viewBox="0 0 12 12"
+        aria-hidden="true"
+      ><path pathLength="1" d="M3.1 6.6L5.6 10.1L9.5 2.5" /></svg><span class="visually-hidden">✓</span></span>
+      <span :if={@state != "complete"}>{@number}</span><p>{@label}</p>
     </li>
     """
   end
