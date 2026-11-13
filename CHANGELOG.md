@@ -6256,3 +6256,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Tests: the map's server test counts thirteen lines; the browser walk checks every
   line's free length at 320, 390 and 1280, and presses each line in the middle of its
   free stretch to see its own sentence.
+
+## 2026-11-13 — Names regents-cli 1.10.28
+
+- The agent guide, the start page, the pairing page, llms.md, the tool manifest and the
+  Makefile's pin name regents-cli 1.10.28, the newest release; the sign-in gate refuses
+  any other. No command the site lists changed.
