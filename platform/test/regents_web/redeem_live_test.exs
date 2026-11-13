@@ -171,6 +171,7 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert has_element?(view, control("redeem"))
     press_failed(view, "redeem", "wallet_unavailable")
     assert has_element?(view, "#redemption-activity-press", "isn't linked to this account")
+    refute has_element?(view, "#redemption-activity-press[data-refused]")
 
     activate(view, @wallet)
     refute has_element?(view, ".shell-sending-wallet")
@@ -666,21 +667,24 @@ defmodule RegentsWeb.RedeemLiveTest do
   } do
     view = redeem_as_signer(conn, "press-failures")
 
-    for {reason, words} <- [
-          {"wallet_declined", "Your wallet declined this. Nothing was sent."},
-          {"network_mismatch", "Switch it to Base"},
-          {"wallet_unavailable", "Your wallet changed during the press"},
-          {"insufficient_funds", "enough on Base to pay the network fee"},
-          {"send_unconfirmed", "Your wallet may have sent this."},
-          {"step_unknown", "Enter a token ID from 1 to 999."}
+    # Only a press the wallet turned down marks its note as a refusal, which shakes.
+    for {reason, words, refused} <- [
+          {"wallet_declined", "Your wallet declined this. Nothing was sent.", true},
+          {"network_mismatch", "Switch it to Base", true},
+          {"wallet_unavailable", "Your wallet changed during the press", false},
+          {"insufficient_funds", "enough on Base to pay the network fee", true},
+          {"send_unconfirmed", "Your wallet may have sent this.", false},
+          {"step_unknown", "Enter a token ID from 1 to 999.", false}
         ] do
       press_failed(view, "redeem", reason)
       assert has_element?(view, "#redemption-activity-press", words)
+      assert has_element?(view, "#redemption-activity-press[data-refused]") == refused
       refute has_element?(view, "#redemption-claim-activity-press")
     end
 
     press_failed(view, "claim", "wallet_declined")
     assert has_element?(view, "#redemption-claim-activity-press", "Your wallet declined this.")
+    assert has_element?(view, "#redemption-claim-activity-press[data-refused]")
     refute has_element?(view, "#redemption-activity-press")
   end
 

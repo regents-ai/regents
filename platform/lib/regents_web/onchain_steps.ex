@@ -24,6 +24,7 @@ defmodule RegentsWeb.OnchainSteps do
 
   @recheck_ms 250
   @no_wallet "Your account has no wallet yet. Sign in again to get one."
+  @refusals ~w(wallet_declined network_mismatch insufficient_funds)
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
   @doc "The assigns a wallet-button component starts with."
@@ -181,6 +182,13 @@ defmodule RegentsWeb.OnchainSteps do
 
   def failure_note("send_unconfirmed", _linked, _active, _chain_name),
     do: ["Your wallet may have sent this. Check your wallet activity."]
+
+  @doc """
+  Whether a note from `failure_note/4` says the wallet turned the press down:
+  it declined, would not move to `chain_name`, or could not pay the fee.
+  """
+  def refusal?(note, chain_name),
+    do: Enum.any?(@refusals, &(failure_note(&1, nil, nil, chain_name) == note))
 
   @doc """
   The note beside the buttons while the wallet app has open a wallet the

@@ -991,7 +991,14 @@ defmodule RegentsWeb.StakeActions do
   defp activity(assigns) do
     ~H"""
     <section id="staking-activity" class="stake-activity">
-      <p :if={@press} id="staking-press-notice" class="stake-notice" role="alert">
+      <p
+        :if={@press}
+        id="staking-press-notice"
+        class="stake-notice"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused={OnchainSteps.refusal?(@press, "Base")}
+      >
         <OnchainSteps.note id="staking-press-notice-words" parts={@press} />
       </p>
       <p class="stake-notice" role="status" data-onchain-lost hidden>

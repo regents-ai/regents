@@ -6156,3 +6156,13 @@ seasons), on the shared Points library regents.sh was already on.
 - The transaction receipt had no typed check mark, so it is unchanged.
 - Tests: a newer reading that shows a step done draws its tick, and a first reading, a
   new selection that was already done or a return to the page draws none.
+
+## 2026-11-13 — Stake and Redeem: a refused press shakes its note
+
+- The note beside the wallet buttons on Stake and Redeem shakes once, with the motion
+  kit's refusal shake, when it says the wallet declined, would not switch to Base, or
+  could not pay the network fee. It shakes when that note appears or its words change
+  to one of these, never on a reload. A note that the wallet may have sent it, a note
+  naming a wallet to switch to, the connection-lost line and the other "nothing was
+  sent" notes stay still. The wallet buttons take every press as before.
+- Tests: each reason a press sent nothing marks its note as a refusal or not.

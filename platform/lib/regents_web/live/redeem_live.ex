@@ -1107,7 +1107,14 @@ defmodule RegentsWeb.RedeemLive do
       class="redeem-activity"
       hidden={@sent == [] and is_nil(@press)}
     >
-      <p :if={@press} id={"#{@id}-press"} class="redeem-notice" role="alert">
+      <p
+        :if={@press}
+        id={"#{@id}-press"}
+        class="redeem-notice"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused={OnchainSteps.refusal?(@press, "Base")}
+      >
         <OnchainSteps.note id={"#{@id}-press-words"} parts={@press} />
       </p>
       <SubmittedTransactions.list id={@id} sent={@sent} myself={@myself} />
