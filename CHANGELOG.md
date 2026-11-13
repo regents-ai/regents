@@ -6171,3 +6171,20 @@ seasons), on the shared Points library regents.sh was already on.
   browser on Redeem, a declined press shakes the note once and a press made while it
   shakes still reaches the wallet, while a "may have sent" note and a wallet that is
   not the account's leave it still.
+
+## 2026-11-13 — Stake and Redeem: a sent transaction slides into the list
+
+- A transaction a wallet button sends on Stake or Redeem fades into the top of
+  Submitted Transactions while the boxes already there glide down, with the site's
+  list spring (420ms). The first one fades the list in with it, on Redeem too, where
+  the section is hidden until the first press. Past eight, the oldest box goes as the
+  new one arrives and the others glide into its place.
+- Nothing moves when the page opens, reconnects or reloads, while Base is read again
+  every quarter second, or for a reader who asked for less motion. A box caught
+  mid-glide or mid-fade by the next press carries on from where it was drawn, and the
+  page keeps its scroll.
+- Every wallet button stays as pressable while the list moves; presses during the
+  glide reach the wallet.
+- This list has its own small hook (`SentList`) built from the motion kit's spring and
+  helpers, not the kit's `MotionList`: the server sends the list again each time it
+  reads Base, which wipes the styles `MotionList` writes once.
