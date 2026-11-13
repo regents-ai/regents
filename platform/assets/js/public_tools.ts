@@ -65,7 +65,6 @@ const pages: Record<string, string> = {
   start: "/start",
   privacy: "/privacy",
   terms: "/terms",
-  cloak: "/cloak/guide",
 }
 const requests: Record<string, (input: Input) => Request> = {
   regents_about: input => ({path: pages[input.page], accept: "text/markdown"}),

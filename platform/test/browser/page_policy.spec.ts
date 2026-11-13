@@ -3,8 +3,8 @@ import {expect, test} from "./support/offline"
 // PAGE_POLICY: every kind of page works inside its content security policy. A
 // refusal means a picture, video, script or connection the page needs is
 // blocked. One page stands for each kind: the docs and About, the legal pages,
-// the account pages with Pair and Names, the Redeem pages, the product pages and
-// the Cloak pages each share one layout.
+// the account pages with Pair and Names, the Redeem pages and the product pages
+// each share one layout, and Cloak has its own.
 test("[R14] no page is refused anything by its security policy", async ({page}) => {
   await page.addInitScript(() => {
     const refused: string[] = []

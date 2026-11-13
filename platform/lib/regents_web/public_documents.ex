@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /changelog /privacy /terms /start /cloak/guide) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.PaperProDaily.Reading
@@ -80,10 +80,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
     "/cloak" =>
       {"Regents Cloak",
-       "The private agent stack, ready to run. Install the complete setup through one Mac app, or ask your personal agent to do it for you."},
-    "/cloak/guide" =>
-      {"Cloak setup",
-       "Set up Regents Cloak on a Mac with your personal agent: the steps, what only you approve, and its limits."},
+       "The private agent stack, ready to run. Install the complete setup through one Mac app."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",
@@ -164,7 +161,6 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
-  def document("/cloak/guide"), do: %{markdown: RegentsWeb.Cloak.guide_markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
@@ -358,7 +354,7 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/guide) ++
+        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
         fn path ->

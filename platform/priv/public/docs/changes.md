@@ -1,3 +1,7 @@
+## 2026-11-13
+
+The [Cloak]({{origin}}/cloak) page offers one way to set it up, the Mac app, whose download stays off until its first signed release. The setup guide at `/cloak/guide` is removed, and `regents_about` no longer takes `cloak`.
+
 ## 2026-11-12
 
 The [Cloak]({{origin}}/cloak) page shows four Highlights cards under its heading: Rewriting, Tor circuits, Cover traffic and Sandbox, each with a moving picture. Each card opens the page's Protections.

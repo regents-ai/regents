@@ -6027,3 +6027,22 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Live read, signed out, at 1280 and 390 on /about, /privacy and /app: one switch a page,
   a press changes the theme, no console errors.
 - Rollback: v306's image main-b92a7018e159 (the same code).
+
+## 2026-11-13 — Cloak offers one thing: Download for Mac
+
+- Sean, 13 Nov: the Mac app is the one way Cloak is set up, so the page offers only that.
+  The top of /cloak has one control, a white rounded Download for Mac button with the Apple
+  mark (drawn in the page, as the icon set has only the fruit). There is no release yet, so
+  it is a real disabled button with "Coming soon" beside it (under it on a phone). The line
+  under the heading now ends at "through one Mac app".
+- Removed, with no redirect: Set up with your agent, the Setup guide link and the agent
+  prompt panel under the page, the `/cloak/guide` page and its Markdown, the guide's text
+  and the line given to agents, its styles and tests, its sitemap and llms.txt entries
+  (llms.txt now links Cloak to /cloak), and `cloak` as a page `regents_about` reads.
+  `/cloak/guide` now answers not found. The six protections keep their Planned labels.
+- `docs/agent-parity.md` R13 now records that `/cloak` has no Markdown of its own; the
+  public changes page says the guide is gone.
+- Checks: compile with warnings as errors, format, 62 server tests (Cloak, routes, agent
+  guides and reads, docs, home, Overview), type check, 365 script tests, and the Cloak,
+  page policy and product cards walks (23 with the screenshot pass) at 1280 and 390, light
+  and dark, with no console errors. No migration.

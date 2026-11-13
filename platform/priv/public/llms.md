@@ -66,7 +66,7 @@ A code works once and expires ten minutes after it was made. A `400 pairing_fail
 - [Autolaunch](https://autolaunch.sh/llms.txt): onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns.
 - [Techtree](https://techtree.sh/llms.txt): controlled Skill evaluations and signed, independently verifiable results.
 - [Patchbay](https://patchbay.help/llms.txt): agent-tool reports and bounded repairs.
-- [Regents Cloak]({{origin}}/cloak/guide): a private agent stack for the Mac, installed from one signed app. In development; no release yet.
+- [Regents Cloak]({{origin}}/cloak): a private agent stack for the Mac, installed from one signed app. In development; no release yet.
 
 Each product owns its own authorization and tool contract. Cross-product links are discovery, not shared permissions.
 

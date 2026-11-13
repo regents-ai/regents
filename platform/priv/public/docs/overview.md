@@ -16,7 +16,7 @@ curl --fail '{{origin}}/openapi.json'
 
 ## Markdown
 
-Every docs page answers `Accept: text/markdown` at its own address, and so do the homepage, About, Privacy, Terms, Connect your agent and the Cloak guide. Browsers get HTML by default, and every answer carries `Vary: Accept`. An address that names no page answers `404`, never an empty document.
+Every docs page answers `Accept: text/markdown` at its own address, and so do the homepage, About, Privacy, Terms and Connect your agent. Browsers get HTML by default, and every answer carries `Vary: Accept`. An address that names no page answers `404`, never an empty document.
 
 For a short guide to the whole site, read [llms.txt]({{origin}}/llms.txt). The [sitemap]({{origin}}/sitemap.xml) lists every public page.
 

@@ -1,12 +1,35 @@
 @layer regents-product {
 /* Regents Cloak stands on the product page grammar (product.css). Only the
-   download's reason and the guide's text need their own rules. */
+   download and its reason need their own rules. */
 
 .cloak-download {
-  display: inline-flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+}
+
+/* The Mac app's download: a white pill with the Apple mark, in both themes. Off
+   until a signed release exists, so it neither lifts nor presses. */
+.cloak-download__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-block-size: 3rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  color: #0a0a0a;
+  font-family: var(--font-family-ui);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: not-allowed;
+}
+
+.cloak-download__logo {
+  flex: none;
+  inline-size: 1.15em;
+  block-size: 1.15em;
+  margin-block-start: -0.15em;
 }
 
 .cloak-download__soon {
@@ -15,41 +38,5 @@
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-}
-
-/* The guide is one Markdown document, the same one agents read. */
-
-.cloak-guide {
-  display: grid;
-  gap: 1rem;
-  max-width: 44rem;
-  padding: var(--rg-panel-padding);
-  overflow-wrap: anywhere;
-}
-
-.cloak-guide h1 {
-  font-size: clamp(2rem, 5vw, 3.75rem);
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.cloak-guide h2 {
-  padding-block-start: 1rem;
-  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
-  letter-spacing: -0.02em;
-}
-
-.cloak-guide p,
-.cloak-guide li {
-  max-width: 56ch;
-  line-height: 1.5;
-}
-
-.cloak-guide ol,
-.cloak-guide ul {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding-inline-start: 1.5rem;
 }
 }
