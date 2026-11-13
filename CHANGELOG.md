@@ -5937,3 +5937,10 @@ changelog line moves from the published 6 Nov entry to this release's.
   value is unchanged (Sean's 2 a, 12 Nov).
 - "Regents Labs today" says "Keyfleets are open for persistent, personal agents to join into
   a durable Fleet" (Sean's 3 a, 12 Nov; already re-saved on production).
+
+## 2026-11-12 — Names regents-cli 1.10.26
+
+- The Makefile pin, the agent guide (release, commit, wheel hash), every install line and the
+  tool manifest name regents-cli 1.10.26, the newest release.
+- The browser-test Privy key is read when present, so the showcase server in
+  platform/docs/showcase.md still starts without it.

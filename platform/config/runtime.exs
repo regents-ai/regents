@@ -25,7 +25,7 @@ end
 if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
   config :regents, :privy,
     app_id: "browser-test-privy-app-id",
-    verification_key: System.fetch_env!("REGENTS_BROWSER_PRIVY_KEY")
+    verification_key: System.get_env("REGENTS_BROWSER_PRIVY_KEY")
 
   config :regent_agents, activity_read_token: nil
 
