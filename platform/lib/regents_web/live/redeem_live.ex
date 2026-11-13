@@ -123,7 +123,7 @@ defmodule RegentsWeb.RedeemLive do
         |> prepare(name)
 
       :error ->
-        {:reply, %{}, assign(socket, press_note: [EventInput.unreadable()], press_step: nil)}
+        {:reply, %{}, assign(socket, press_note: OnchainSteps.unreadable_note(), press_step: nil)}
     end
   end
 
@@ -132,8 +132,8 @@ defmodule RegentsWeb.RedeemLive do
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
       when is_binary(name) and failure_reason(reason) do
-    {:noreply,
-     assign(socket, press_note: failure_note(reason, name, socket.assigns), press_step: name)}
+    note = OnchainSteps.press_note(reason, failure_note(reason, name, socket.assigns))
+    {:noreply, assign(socket, press_note: note, press_step: name)}
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
@@ -144,7 +144,7 @@ defmodule RegentsWeb.RedeemLive do
 
   # Anything else the page sent is not in a shape this panel takes.
   def handle_event(_event, _params, socket),
-    do: {:noreply, assign(socket, press_note: [EventInput.unreadable()], press_step: nil)}
+    do: {:noreply, assign(socket, press_note: OnchainSteps.unreadable_note(), press_step: nil)}
 
   # A step that landed moved this wallet's figures, so the page reads them again.
   @impl true
@@ -855,7 +855,7 @@ defmodule RegentsWeb.RedeemLive do
   attr :confirming, :boolean, required: true
   attr :note, :any, default: nil
   attr :sent, :list, required: true
-  attr :press, :list, default: nil
+  attr :press, :map, default: nil, doc: "an `OnchainSteps.press_note/2`"
   attr :myself, :any, required: true
 
   defp claim_control(assigns) do
@@ -1096,7 +1096,7 @@ defmodule RegentsWeb.RedeemLive do
 
   attr :id, :string, required: true
   attr :sent, :list, required: true
-  attr :press, :list, default: nil
+  attr :press, :map, default: nil, doc: "an `OnchainSteps.press_note/2`"
   attr :myself, :any, required: true
 
   # What happened to each press, newest first, read on Base by the server.
@@ -1107,8 +1107,15 @@ defmodule RegentsWeb.RedeemLive do
       class="redeem-activity"
       hidden={@sent == [] and is_nil(@press)}
     >
-      <p :if={@press} id={"#{@id}-press"} class="redeem-notice" role="alert">
-        <OnchainSteps.note id={"#{@id}-press-words"} parts={@press} />
+      <p
+        :if={@press}
+        id={"#{@id}-press"}
+        class="redeem-notice"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused={@press.refused}
+      >
+        <OnchainSteps.note id={"#{@id}-press-words"} parts={@press.parts} />
       </p>
       <SubmittedTransactions.list id={@id} sent={@sent} myself={@myself} />
     </section>
