@@ -103,13 +103,14 @@ defmodule RegentsWeb.RegentOpsLiveTest do
         MapSet.new([from, to])
       end
 
-    assert length(lines) == 12
+    assert length(lines) == 13
 
     assert MapSet.new(lines) ==
              MapSet.new(
                Enum.map(
                  [
                    ~w(Techtree Patchbay),
+                   ~w(Techtree Protocol),
                    ~w(Patchbay Protocol),
                    ~w(Autolaunch Protocol),
                    ~w(Keyfleet Protocol),

@@ -71,7 +71,7 @@ defmodule RegentsWeb.RegentOpsLive do
     "Autolaunch" => %{x: 60, y: 22, side: "above-end"},
     "Techtree" => %{x: 24, y: 86, side: "below"},
     "Keyfleet" => %{x: 94, y: 24, side: "above-end"},
-    "Protocol" => %{x: 52, y: 74, side: "below-end"},
+    "Protocol" => %{x: 52, y: 74, side: "left"},
     "Cloak" => %{x: 30, y: 10, side: "above"}
   }
 
@@ -155,6 +155,11 @@ defmodule RegentsWeb.RegentOpsLive do
       from: "Keyfleet",
       to: "Autolaunch",
       sentence: "A Keyfleet fleet can launch a Revstake token on Autolaunch to win backers."
+    },
+    %{
+      from: "Techtree",
+      to: "Protocol",
+      sentence: "Techtree sends all the USDC it earns to $REGENT stakers."
     }
   ]
 

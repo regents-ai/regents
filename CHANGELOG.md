@@ -6243,3 +6243,16 @@ seasons), on the shared Points library regents.sh was already on.
   (it fails on the old code). The Enter App test reads the three blues from the
   stylesheet, checks each equals the shader's and keeps white words at 4.5:1 on each,
   and on a window's main button.
+
+## 2026-11-13 — Overview map: a line between Techtree and Protocol
+
+- The map gains a thirteenth line, Techtree and Protocol, whose sentence is Sean's
+  (13 Nov): "Techtree sends all the USDC it earns to $REGENT stakers." It is the
+  shortest line on a phone, so it comes last and lies on top where it meets the others.
+- Protocol's name moves from under its dot to its left. Under the dot it covered the
+  new line, leaving 33px of it to tap at 320 wide; to the left, the tightest line on
+  the map keeps 52px at 320, 68 at 390 and 98 at 1280, and no name leaves the map or
+  meets another.
+- Tests: the map's server test counts thirteen lines; the browser walk checks every
+  line's free length at 320, 390 and 1280, and presses each line in the middle of its
+  free stretch to see its own sentence.

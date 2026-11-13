@@ -102,46 +102,67 @@ test("the map answers the same for a visitor who asked for less motion", async (
   await expect(line).toHaveAttribute("data-picked", "")
 })
 
-test("the map fits a 320px screen with every name whole and every line easy to tap", async ({page}) => {
-  await page.setViewportSize({width: 320, height: 900})
-  const map = await openMap(page)
-  await map.locator(".lab-map__stage").scrollIntoViewIfNeeded()
+for (const width of [320, 390, 1280]) {
+  test(`the map fits a ${width}px screen with every name whole and every line easy to tap`, async ({page}) => {
+    await page.setViewportSize({width, height: 900})
+    const map = await openMap(page)
+    await map.locator(".lab-map__stage").scrollIntoViewIfNeeded()
 
-  const fit = await map.evaluate(root => {
-    const stage = root.querySelector(".lab-map__stage")!.getBoundingClientRect()
-    const outside = [...root.querySelectorAll<HTMLElement>(".lab-map__node")]
-      .filter(node => {
-        const box = node.getBoundingClientRect()
-        return box.left < stage.left || box.right > stage.right || box.top < stage.top || box.bottom > stage.bottom
+    const fit = await map.evaluate(root => {
+      const stage = root.querySelector(".lab-map__stage")!.getBoundingClientRect()
+      const outside = [...root.querySelectorAll<HTMLElement>(".lab-map__node")]
+        .filter(node => {
+          const box = node.getBoundingClientRect()
+          return box.left < stage.left || box.right > stage.right || box.top < stage.top || box.bottom > stage.bottom
+        })
+        .map(node => node.dataset.node)
+
+      // How much of each line, along its middle, a finger lands on that line and nothing
+      // else, and the middle of its longest such stretch.
+      const lines = [...root.querySelectorAll<SVGGElement>(".lab-map__link")].map(line => {
+        const hit = line.querySelector<SVGLineElement>(".lab-map__hit")!
+        const [x1, y1, x2, y2] = [hit.x1, hit.y1, hit.x2, hit.y2].map(end => end.baseVal.value)
+        const length = Math.hypot(x2 - x1, y2 - y1)
+        const at = (step: number) => ({x: stage.left + x1 + ((x2 - x1) * step) / 200, y: stage.top + y1 + ((y2 - y1) * step) / 200})
+        let mine = 0
+        let run = {from: 0, steps: 0}
+        let best = run
+        for (let step = 0; step <= 200; step++) {
+          const {x, y} = at(step)
+          if (document.elementFromPoint(x, y)?.closest(".lab-map__link") === line) {
+            mine += length / 200
+            run = run.steps && run.from + run.steps === step ? {...run, steps: run.steps + 1} : {from: step, steps: 1}
+            if (run.steps > best.steps) best = run
+          }
+        }
+        return {
+          line: line.getAttribute("aria-label")!.split(":")[0],
+          index: line.dataset.link!,
+          free: Math.round(mine),
+          press: at(best.from + (best.steps - 1) / 2),
+        }
       })
-      .map(node => node.dataset.node)
-
-    // How much of each line, along its middle, a finger lands on that line and nothing else.
-    const free = [...root.querySelectorAll<SVGGElement>(".lab-map__link")].map(line => {
-      const hit = line.querySelector<SVGLineElement>(".lab-map__hit")!
-      const [x1, y1, x2, y2] = [hit.x1, hit.y1, hit.x2, hit.y2].map(end => end.baseVal.value)
-      const length = Math.hypot(x2 - x1, y2 - y1)
-      let mine = 0
-      for (let step = 0; step <= 200; step++) {
-        const x = stage.left + x1 + ((x2 - x1) * step) / 200
-        const y = stage.top + y1 + ((y2 - y1) * step) / 200
-        if (document.elementFromPoint(x, y)?.closest(".lab-map__link") === line) mine += length / 200
-      }
-      return {line: line.getAttribute("aria-label")!.split(":")[0], free: Math.round(mine)}
+      return {outside, short: lines.filter(line => line.free < 44).map(line => line.line), lines}
     })
-    return {outside, short: free.filter(line => line.free < 44)}
-  })
-  expect(fit).toEqual({outside: [], short: []})
+    expect({outside: fit.outside, short: fit.short}).toEqual({outside: [], short: []})
 
-  // The sign-in dot keeps the bottom right corner.
-  const corner = await map.evaluate(root => {
-    const stage = root.querySelector(".lab-map__stage")!.getBoundingClientRect()
-    const dot = root.querySelector('.lab-map__node--quiet .lab-map__dot')!.getBoundingClientRect()
-    return {right: dot.left + dot.width / 2 > stage.left + stage.width / 2, bottom: dot.top + dot.height / 2 > stage.top + stage.height / 2}
-  })
-  expect(corner).toEqual({right: true, bottom: true})
+    // A press in the middle of each line's free stretch picks that line and no other.
+    const said = map.locator(".lab-map__say[data-shown]")
+    for (const line of fit.lines) {
+      await page.mouse.click(line.press.x, line.press.y)
+      await expect(said, line.line).toHaveAttribute("data-say", line.index)
+    }
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
-  const scroller = page.locator("#app-shell-scroller")
-  expect(await scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0)
-})
+    // The sign-in dot keeps the bottom right corner.
+    const corner = await map.evaluate(root => {
+      const stage = root.querySelector(".lab-map__stage")!.getBoundingClientRect()
+      const dot = root.querySelector('.lab-map__node--quiet .lab-map__dot')!.getBoundingClientRect()
+      return {right: dot.left + dot.width / 2 > stage.left + stage.width / 2, bottom: dot.top + dot.height / 2 > stage.top + stage.height / 2}
+    })
+    expect(corner).toEqual({right: true, bottom: true})
+
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+    const scroller = page.locator("#app-shell-scroller")
+    expect(await scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0)
+  })
+}
