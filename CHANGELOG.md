@@ -6004,3 +6004,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   as errors, format, 53 server tests, and the shell, account menu, home, Overview and showcase
   walks (54). No migration.
 - Not proven: Safari, Firefox, a real phone; forced colours not walked.
+
+## 2026-11-13 — Released v307 (light and dark switch drawn in grains)
+
+- v307 at 03:02Z, image registry.fly.io/regents-sh-web:main-12fb76967e4f, commit 12fb7696.
+  Full check exit 0 on 12fb7696, seven gates in one run. No migration.
+- Live read, signed out, at 1280 and 390 on /about, /privacy and /app: one switch a page,
+  a press changes the theme, no console errors.
+- Not proven on live: the grains in flight, the account menu's switch, Safari, a real phone.
+- Rollback: v306's image main-b92a7018e159.
