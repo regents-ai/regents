@@ -6262,3 +6262,14 @@ seasons), on the shared Points library regents.sh was already on.
 - The agent guide, the start page, the pairing page, llms.md, the tool manifest and the
   Makefile's pin name regents-cli 1.10.28, the newest release; the sign-in gate refuses
   any other. No command the site lists changed.
+
+## 2026-11-13 — Released v313 (blue buttons, map line)
+
+- v313, commit 9a467a4a: the newer design system with this site's main buttons in the home
+  page's blue and white words; the Points Bonus card can say Points has ended; the Overview
+  map has a line between Techtree and Protocol; the site names regents-cli 1.10.28. Full
+  check exit 0 on 9a467a4a, six gates in one run. No migration.
+- Live read, signed out, light and dark, at 1280 and 390: Stake, Redeem, Overview and Cloak
+  show blue main buttons, the home page is unchanged, the new map line is there, with no
+  sideways scroll and no console errors. Signed-in buttons were not read on live.
+- Rollback: v312's image main-66d8fd84a8ac.
