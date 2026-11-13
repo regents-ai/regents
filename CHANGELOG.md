@@ -6188,3 +6188,14 @@ seasons), on the shared Points library regents.sh was already on.
 - This list has its own small hook (`SentList`) built from the motion kit's spring and
   helpers, not the kit's `MotionList`: the server sends the list again each time it
   reads Base, which wipes the styles `MotionList` writes once.
+
+## 2026-11-13 — Daily Research: switching papers glides
+
+- On a day with several papers, choosing another with a mouse or finger moves as the
+  site's tabs do: the chosen pick's bar slides over from the last pick (280ms), and
+  the paper fades in from that side, from the right going forward and from the left
+  going back. The paper itself switches at once, as before.
+- A pick made from the keyboard, from the Research List, or with less motion asked for
+  is simply there.
+- The chosen pick's bar is now its own line under the pick, drawn the same as before,
+  so it can travel.
