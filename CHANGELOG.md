@@ -5970,3 +5970,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   panel's ink, and the product dots keep their products' own colours.
 - The page and the agent guide both read Enter App, Agent Tools, the agent prompt, then
   the products.
+
+## 2026-11-13 — Released v306 (home menu in Signal Blue)
+
+- v306 at 02:42Z, image registry.fly.io/regents-sh-web:main-b92a7018e159, commit b92a7018.
+  Full check exit 0 on b92a7018, seven gates in one run. Home page only, no migration.
+- Live read, signed out, at 1280 and 390: new layout, no console errors. The old
+  `REGENT_CREDITS_ADMINS` secret is gone; `REGENTS_ADMINS` is present.
+- Not proven on live: the moving blue on the button, Safari, a real phone.
+- Rollback: v305's image main-cdeac5008152.
