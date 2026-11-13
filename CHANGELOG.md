@@ -6081,3 +6081,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   whole server suite (679 of 680; the one miss was the route-gate walk timing out while
   drawing the Paper Pro Daily share picture, and it passed alone), 365 script tests,
   the type check and the assets build. No browser walk.
+
+## 2026-11-13 — Released v310 (shared profile library)
+
+- v310, commit 381af650. Full check exit 0 on 381af650, six gates in one run (the identity
+  gate went with the folder). No migration. Independent review of the sign-in code: release.
+- Live read, signed out: health ok; home, /about, /privacy, /app and /cloak load with no
+  console errors at 1280 and 390; the profile read with no sign-in is still refused.
+- Not read signed in. A name held only in the old name column no longer shows.
+- Rollback: v309's image main-34a98ce6cc14.
