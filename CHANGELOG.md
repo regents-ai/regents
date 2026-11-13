@@ -6273,3 +6273,13 @@ seasons), on the shared Points library regents.sh was already on.
   show blue main buttons, the home page is unchanged, the new map line is there, with no
   sideways scroll and no console errors. Signed-in buttons were not read on live.
 - Rollback: v312's image main-66d8fd84a8ac.
+## 2026-11-13 — Redeem: the OpenSea link shows its whole name
+
+- "View collection on OpenSea" on Redeem's collection cards was cut off with "…" at
+  every width, desktop included, because the shared button keeps its name on one
+  line. It now wraps onto a second line inside the card, so each card is about 25px
+  taller. At 320 wide "See all 1,998 passes" also takes two lines, where before it
+  ran into the button's edge. The connect panel's "Connect wallet" still wraps at 320
+  wide: it sits in the redemption panel, which the wrap rule already covers.
+- Tests: the Redeem panels check now also covers the collections panel, and at 320,
+  360, 390 and 1280 wide each card's OpenSea name is whole.
