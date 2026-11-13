@@ -170,10 +170,12 @@
 }
 
 /* The theme switch has a row of the account menu to itself, its words at the
-   start, so it can be larger than elsewhere. */
+   start, so it can be larger than elsewhere and its blocks read. Its light
+   spills only above and below its own press, inside the row. */
 #account-menu .theme-switch {
   --theme-switch-lens: var(--space-5);
   --theme-switch-track: var(--space-4);
+  --theme-switch-travel: var(--space-4);
   --theme-switch-press: var(--space-6);
 }
 
@@ -669,6 +671,7 @@
   #shell-header .theme-switch {
     --theme-switch-lens: var(--space-3);
     --theme-switch-track: var(--space-2);
+    --theme-switch-travel: var(--space-2);
     margin-inline-end: 0;
   }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }

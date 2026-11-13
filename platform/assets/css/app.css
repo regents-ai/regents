@@ -6,7 +6,6 @@
 @import "./tokens/root.css";
 @import "./components/shell.css";
 @import "./components/theme_switch.css";
-@import "./components/particle_field.css";
 @import "./components/page_head.css";
 @import "./components/loading.css";
 @import "./components/transaction_receipt.css";

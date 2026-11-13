@@ -16,7 +16,7 @@ defmodule RegentsWeb.Components.Shell do
 
   use Phoenix.Component
 
-  alias RegentsWeb.Components.{AgentTools, ParticleField, RegentLinks}
+  alias RegentsWeb.Components.{AgentTools, RegentLinks}
 
   alias RegentsWeb.RouteCatalog.{
     PageTarget,
@@ -277,22 +277,78 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
+  # The theme switch's two pictures, row by row from the top: "#" is a block. Both
+  # have as many blocks, so every block of the moon flies to exactly one of the
+  # sun, and both keep their outer ring clear, where a block would sit under the
+  # glass's bevel and smear. The still face draws them, and the browser reads
+  # them from there.
+  @theme_moon [
+    ".............",
+    "....##.......",
+    "...##.....#..",
+    "..##.........",
+    ".###.........",
+    ".###.....#...",
+    ".###.........",
+    ".#####.......",
+    ".######......",
+    "..#########..",
+    "...#######...",
+    "....#####....",
+    "............."
+  ]
+
+  @theme_sun [
+    ".............",
+    ".#....#....#.",
+    "..#.......#..",
+    ".....###.....",
+    "....#####....",
+    "...#######...",
+    ".#.#######.#.",
+    "...#######...",
+    "....#####....",
+    ".....###.....",
+    "..#.......#..",
+    ".#....#....#.",
+    "............."
+  ]
+
+  block_count = fn rows ->
+    rows |> Enum.join() |> :binary.matches("#") |> length()
+  end
+
+  if block_count.(@theme_moon) != block_count.(@theme_sun) do
+    raise ArgumentError, "the theme switch's moon and sun need as many blocks"
+  end
+
+  for rows <- [@theme_moon, @theme_sun] do
+    if Enum.any?(rows, &(String.length(&1) != length(rows))) do
+      raise ArgumentError, "the theme switch's pictures are square"
+    end
+
+    ring = [hd(rows), List.last(rows) | Enum.map(rows, &(String.first(&1) <> String.last(&1)))]
+
+    if Enum.any?(ring, &String.contains?(&1, "#")) do
+      raise ArgumentError, "the theme switch's pictures keep their outer ring clear"
+    end
+  end
+
   attr(:id, :string, required: true)
 
   @doc """
   The light and dark theme switch: a button with the role of a switch, on for
-  the light theme, with a square knob that sits on the left at night with the
-  moon on it and on the right by day with the sun. A press, Enter or Space turns
-  it, and the page's theme with it, at once.
+  the light theme, with a knob that slides from night on the left to day on the
+  right. A press, Enter or Space turns it, and the knob can be dragged; it
+  settles on the nearer side when let go.
 
-  The server draws the whole switch, flat and square: the track, the knob, and
-  the moon and the sun, each drawn over the whole of the knob's way so it sits
-  where the knob rests, showing for the theme on screen. Once the browser has
-  drawn them in grains (the particle field, `ParticleField`, driven by
-  `assets/js/hooks/theme_switch.ts`), the grains take the drawings' place, and
-  a press flies them from the one to the other as the knob glides across.
-  Without WebGPU, with Less motion on or in forced colours the drawings stay,
-  and the switch is whole without them.
+  The server draws a still face: a flat square track and knob with the moon or
+  the sun, each a picture of tiny square blocks, placed for the theme showing. Once
+  the browser has drawn a first frame of the glass knob, with the same blocks
+  behind it and its light, on the canvas inside (`assets/js/hooks/theme_switch.ts`,
+  `assets/js/theme_switch/`), that picture takes over. Without WebGPU, with Less
+  motion on or in forced colours the still face stays, and it is a whole working
+  switch on its own.
 
   The browser owns the press: it writes the theme cookie the server reads on
   the next render, so the switch is left out of LiveView's patching, and the
@@ -300,13 +356,15 @@ defmodule RegentsWeb.Components.Shell do
   page, a plain one too, so nothing else mounts it.
   """
   def theme_toggle(assigns) do
+    assigns = assign(assigns, moon: @theme_moon, sun: @theme_sun)
+
     ~H"""
     <div
       id={@id}
       class="theme-switch"
       phx-hook="ThemeSwitch"
       phx-update="ignore"
-      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
+      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-theme-switch-ready", "style"])}
       data-theme-switch
     >
       <button
@@ -317,44 +375,46 @@ defmodule RegentsWeb.Components.Shell do
         aria-checked="false"
         aria-label="Light theme"
       >
-        <span class="theme-switch__track" aria-hidden="true">
-          <span class="theme-switch__knob"></span>
+        <span class="theme-switch__still" aria-hidden="true">
+          <span class="theme-switch__track" data-theme-switch-track>
+            <span class="theme-switch__knob" data-theme-switch-knob>
+              <.theme_blocks rows={@moon} class="theme-switch__moon" />
+              <.theme_blocks rows={@sun} class="theme-switch__sun" />
+            </span>
+          </span>
         </span>
+        <canvas class="theme-switch__canvas" data-theme-switch-canvas aria-hidden="true"></canvas>
       </button>
-      <ParticleField.particle_field id={"#{@id}-field"} shape="moon" driven>
-        <%!-- Lucide's moon, filled. --%>
-        <svg
-          class="theme-switch__moon"
-          viewBox="-4 -4 56 32"
-          data-particle-source="moon"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path
-            fill="currentColor"
-            d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
-          />
-        </svg>
-        <%!-- Lucide's sun: its disc filled and a little larger, its rays heavier. --%>
-        <svg
-          class="theme-switch__sun"
-          viewBox="-28 -4 56 32"
-          data-particle-source="sun"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <circle cx="12" cy="12" r="5" fill="currentColor" />
-          <path
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.4"
-            stroke-linecap="round"
-            d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
-          />
-        </svg>
-      </ParticleField.particle_field>
     </div>
     """
+  end
+
+  attr(:rows, :list, required: true)
+  attr(:class, :string, required: true)
+
+  # One of the switch's pictures, a block for each "#", one unit square apiece
+  # with a hairline between neighbours.
+  defp theme_blocks(assigns) do
+    assigns = assign(assigns, size: length(assigns.rows), blocks: blocks(assigns.rows))
+
+    ~H"""
+    <svg
+      class={@class}
+      viewBox={"0 0 #{@size} #{@size}"}
+      shape-rendering="crispEdges"
+      aria-hidden="true"
+    >
+      <g transform="translate(0.06 0.06)">
+        <rect :for={{x, y} <- @blocks} x={x} y={y} width="0.88" height="0.88" />
+      </g>
+    </svg>
+    """
+  end
+
+  defp blocks(rows) do
+    for {row, y} <- Enum.with_index(rows),
+        {"#", x} <- Enum.with_index(String.graphemes(row)),
+        do: {x, y}
   end
 
   attr(:target, :map, required: true)

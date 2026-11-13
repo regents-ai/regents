@@ -6013,3 +6013,9 @@ changelog line moves from the published 6 Nov entry to this release's.
   a press changes the theme, no console errors.
 - Not proven on live: the grains in flight, the account menu's switch, Safari, a real phone.
 - Rollback: v306's image main-b92a7018e159.
+
+## 2026-11-13 — Light and dark switch back to the one before v307
+
+- Sean asked for the grains switch to be reverted. Commit 12fb7696 is reverted in code: the
+  old switch, its tests, styles and component are back exactly as they were at v306, and
+  nothing of the grains switch is left.
