@@ -108,12 +108,15 @@ function profileService() {
   return {fetch, profiles, writes}
 }
 
-// The sign-in the browser holds, which the person may switch at any moment.
+// The sign-in the browser holds, which the person may switch at any moment. A
+// proof stays current only while its person is still the one signed in, as the
+// bridge's does.
 function browser(first: string) {
   let person = first
-  const proof = async () => ({
-    accessToken: person, identityToken: person, subject: person, isCurrent: () => true,
-  })
+  const proof = async () => {
+    const subject = person
+    return {accessToken: subject, identityToken: subject, subject, isCurrent: () => person === subject}
+  }
   return {switchTo: (next: string) => { person = next }, subject: () => person, proof}
 }
 

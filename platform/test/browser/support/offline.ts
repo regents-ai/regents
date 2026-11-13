@@ -35,11 +35,14 @@ function serverRefusedRequests(): string[] {
 // A one-pixel GIF, for the Club Pass pictures the gallery shows from media.regents.sh.
 const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64")
 
-// Every test's browser stays on this machine: the one outside service pages call,
-// media.regents.sh's pictures, is answered with a pixel, and a request anywhere
-// else is answered empty and recorded, and the test fails on it. The test also
-// fails once the server has refused a request to an outside address, or if it
-// held a connection outside when the test ended.
+// Every test's browser stays on this machine. The outside services pages call
+// are answered here: media.regents.sh's pictures with a pixel, WalletConnect's
+// wallet list as empty, and Privy's servers as unavailable, so the Privy
+// library on the page never starts unless the test answers Privy itself
+// (support/privy_service.ts). A request anywhere else is answered empty and
+// recorded, and the test fails on it. The test also fails once the server has
+// refused a request to an outside address, or if it held a connection outside
+// when the test ended.
 export const test = base.extend<{outside: string[]; serverOffline: void}>({
   outside: async ({context}, use) => {
     const outside: string[] = []
@@ -47,6 +50,10 @@ export const test = base.extend<{outside: string[]; serverOffline: void}>({
       const url = new URL(route.request().url())
       if (url.hostname === "media.regents.sh")
         return route.fulfill({body: pixel, contentType: "image/gif"})
+      if (url.hostname === "explorer-api.walletconnect.com")
+        return route.fulfill({json: {listings: {}}})
+      if (url.hostname === "auth.privy.io")
+        return route.fulfill({status: 503, json: {error: "Privy is not on this machine"}})
       outside.push(url.origin + url.pathname)
       return route.fulfill({status: 204})
     })

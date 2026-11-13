@@ -18,11 +18,15 @@ if config_env() == :dev and Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoi
   end
 end
 
-# The browser acceptance server names a test-only Privy app, and has no reader
-# key for agents' activity, since nothing there answers the SIWA service.
-# Production can never take this branch.
+# The browser acceptance server names a test-only Privy app, checked with the
+# public half of the key pair playwright.config.ts makes for each run, and has
+# no reader key for agents' activity, since nothing there answers the SIWA
+# service. Production can never take this branch.
 if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
-  config :regents, :privy, app_id: "browser-test-public-id", verification_key: nil
+  config :regents, :privy,
+    app_id: "browser-test-privy-app-id",
+    verification_key: System.fetch_env!("REGENTS_BROWSER_PRIVY_KEY")
+
   config :regent_agents, activity_read_token: nil
 
   # Every Req call to anywhere but this machine is refused and written to the

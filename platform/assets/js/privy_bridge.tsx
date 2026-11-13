@@ -627,14 +627,18 @@ type ProfileProof = {accessToken: string; identityToken: string; subject: string
 
 // One change to the shared profile belongs to the person signed in when it was
 // opened, at the press of Save: a proof for anyone else is never handed on, so a
-// switch of account before or part way through it sends nothing.
+// switch of account before or part way through it sends nothing. The change
+// reads its proof from Privy once and every call of it carries that proof, so
+// a save that has read the profile never fails to send the name because a
+// second read from Privy was refused.
 export function oneSignIn(
   subject: string | null,
   acquireProof: () => Promise<ProfileProof | null>,
 ): () => Promise<ProfileProof | null> {
-  return async () => {
-    const proof = await acquireProof()
-    return proof && proof.subject === subject ? proof : null
+  let proof: Promise<ProfileProof | null> | undefined
+  return () => {
+    proof ??= acquireProof().then(read => (read && read.subject === subject ? read : null))
+    return proof
   }
 }
 

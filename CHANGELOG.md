@@ -5905,3 +5905,28 @@ changelog line moves from the published 6 Nov entry to this release's.
   Full check exit 0 on 9ed140a4, seven gates in one run. Words only, no migration.
 - Live read, signed out: the Stake page's Payouts box and About carry the new sentences.
 - Rollback: v303's image main-6709ece32913.
+
+## 2026-11-12 — Saving the Public Display Name sends the name
+
+- Save on the Account page read the person's profile, then asked Privy for a second
+  proof of the sign-in before sending the change. Privy reads the sign-in from its
+  servers on every ask, and when that second ask failed the change was never sent and
+  the page said "Your name could not be saved. Try again." (Sean's save, 23:38Z). One
+  save now asks Privy once and every step of it carries that proof. The proof is still
+  checked against the person signed in before each step is sent and after each answer,
+  so a switch of account part way still sends nothing, and the server checks it as
+  before.
+- A new browser check, `platform/test/browser/public_name.spec.ts`, runs the real Privy
+  library on the Account page with Privy's servers answered on the test machine: the
+  sign-in bridge arrives only at the press of Save, and Privy refuses a second read
+  within a second. It failed on the old code (the profile read, no change sent) and
+  passes now. The browser test server checks Privy tokens with a key pair made for each
+  run (`platform/playwright.config.ts`, `platform/config/runtime.exs`, test only).
+- The test server's Privy app id now has the length Privy needs, so the Privy library
+  can start in every browser test. The suite's offline guard answers Privy's servers as
+  unavailable and WalletConnect's wallet list as empty unless a test answers them
+  itself, so every other test still runs with Privy that never starts. The walk check's
+  exception for Privy's "invalid Privy app ID" message, which the old placeholder id
+  caused, is now one for Chrome's notes of those refused Privy requests.
+- Not changed: the Account page still reads the name from the account's own record,
+  not the shared profile, so a saved name does not show after a reload.
