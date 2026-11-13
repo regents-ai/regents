@@ -36,6 +36,7 @@ import {LabMap} from "./hooks/lab_map"
 import {OnchainSteps} from "./hooks/onchain_steps"
 import {ProductTiles} from "./hooks/product_tiles"
 import {PublicName} from "./hooks/public_name"
+import {SentList} from "./hooks/sent_list"
 import {MenuAgents} from "./hooks/menu_agents"
 import {ThemeSwitch} from "./hooks/theme_switch"
 import {ValueCard} from "./hooks/value_card"
@@ -286,6 +287,7 @@ const hooks = {
   ProductTiles,
   PublicName,
   ResearchScrollCue,
+  SentList,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   ThemeSwitch,
   ValueCard,

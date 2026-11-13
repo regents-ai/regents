@@ -3,6 +3,10 @@ defmodule RegentsWeb.Components.SubmittedTransactions do
   The transactions a wallet button sent, newest first, each in its own box with
   what Base says about it and its link on BaseScan. Nothing shows until the
   wallet has sent one.
+
+  The list is on the page from the start, hidden while it is empty, so the first
+  press fades it in with its first box. After that a new box fades in at the top
+  while the others glide down (`SentList`).
   """
   use Phoenix.Component
   alias RegentsWeb.OnchainSteps
@@ -18,7 +22,13 @@ defmodule RegentsWeb.Components.SubmittedTransactions do
 
   def list(assigns) do
     ~H"""
-    <div :if={@sent != []} class="submitted-transactions">
+    <div
+      id={"#{@id}-sent"}
+      class="submitted-transactions"
+      hidden={@sent == []}
+      phx-hook="SentList"
+      data-variant={RegentsWeb.Motion.standard("list")}
+    >
       <h3 id={"#{@id}-heading"} class="submitted-transactions__title">Submitted Transactions</h3>
       <ol aria-labelledby={"#{@id}-heading"} aria-live="polite">
         <li :for={entry <- @sent} id={"#{@id}-#{entry.hash}"} data-outcome={entry.state}>
