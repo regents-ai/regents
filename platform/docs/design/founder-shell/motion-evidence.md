@@ -6,7 +6,7 @@ Regents moves the way Patchbay does (Patchbay `45a7c92`), with Anime.js 4.5.0. `
 
 | Part | Version | Where | Code |
 | --- | --- | --- | --- |
-| Press | squish | Every button, `.rg-button`, `[role=button]` and menu summary, except the theme switch, which turns its own cube | `assets/js/motion.ts`, `hooks/motion/press.ts` |
+| Press | squish | Every button, `.rg-button`, `[role=button]` and menu summary, except the theme switch, which moves its own knob | `assets/js/motion.ts`, `hooks/motion/press.ts` |
 | Drawer | spring | The phone menu (`#shell-sidebar`, `data-panel="drawer"`) and its shade (`data-backdrop`) | `motion.ts`, `hooks/motion/slides.ts` |
 | Sheet | spring | Every `<dialog>` as it opens: supply info, stake and redeem receipts | `motion.ts`, `slides.ts` |
 | Menu | pop | The account menu and the $REGENT menu (`data-panel="menu"`) | `motion.ts`, `slides.ts` |

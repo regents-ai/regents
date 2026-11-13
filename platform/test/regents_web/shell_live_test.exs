@@ -85,8 +85,8 @@ defmodule RegentsWeb.ShellLiveTest do
       {:ok, view, _html} = live(conn, "/stake")
 
       assert has_element?(view, ~s(#theme-control button[role=switch][aria-label="Light theme"]))
-      assert has_element?(view, "#theme-control svg.theme-switch__moon rect")
-      assert has_element?(view, "#theme-control svg.theme-switch__sun rect")
+      assert has_element?(view, ~s(#theme-control svg[data-particle-source="moon"]))
+      assert has_element?(view, ~s(#theme-control svg[data-particle-source="sun"]))
     end
   end
 

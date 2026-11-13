@@ -5979,3 +5979,28 @@ changelog line moves from the published 6 Nov entry to this release's.
   `REGENT_CREDITS_ADMINS` secret is gone; `REGENTS_ADMINS` is present.
 - Not proven on live: the moving blue on the button, Safari, a real phone.
 - Rollback: v305's image main-cdeac5008152.
+
+## 2026-11-13 — The light and dark switch in grains
+
+- The switch's sun and moon are drawn in grains, from the template's rollout (ash-template
+  `9baea786`, Sean's "1 a", 12 Nov: regents.sh takes it first). A flat, square track and knob
+  in the theme's ink: the moon on the left at night, a Tangerine sun on the right by day. A
+  press turns the theme at once while the grains fly from one picture to the other and the
+  knob glides; a second press mid-flight turns them round; Enter and Space turn it at once.
+  The server draws the same moon and sun in the same place, so nothing moves when the grains
+  take over, and they stay with less motion, forced colours or no WebGPU. Idle, nothing draws.
+- Kept from this site's own record: signed out the switch sits in the app's header (a size
+  smaller on a phone) and in the footer of plain pages; signed in it is a row of the account
+  menu; one switch a page; the home page stays dark and shows none.
+- Removed: the glass knob, its light, the square blocks, their renderer, shader and five unit
+  tests, and dragging the knob. Added from the template: the particle field
+  (`platform/assets/js/particle_field/`, `hooks/particle_field.ts`,
+  `RegentsWeb.Components.ParticleField`, `particle_field.css`), `token_colour.ts` and the
+  marks the component reads. The knob travels three quarters of its width, so the account
+  menu's switch is 2 px narrower and the phone header's 2 px wider than before.
+- Checks: the switch walk (11, now with the grains on /about: takeover in place, a press
+  mid-flight, ten idle seconds with no frame, less motion), 343 script tests with
+  `particle_shapes.test.ts`, budgets (app.js 108 KiB gzip), type check, compile with warnings
+  as errors, format, 53 server tests, and the shell, account menu, home, Overview and showcase
+  walks (54). No migration.
+- Not proven: Safari, Firefox, a real phone; forced colours not walked.
