@@ -6129,3 +6129,9 @@ seasons), on the shared Points library regents.sh was already on.
   points; after the last season the page and the agent list no action and keep the
   total. Tests that started Points in 2020 now start it a day ago, since a start that
   old has ended.
+
+## 2026-11-13 — Names regents-cli 1.10.27
+
+- The agent guide, the start page, the pairing page, llms.md, the tool manifest and the
+  Makefile's pin name regents-cli 1.10.27 (commit 2f7eee7e, with its wheel's SHA256), the
+  newest release; the sign-in gate refuses any other. No command the site lists changed.
