@@ -6135,3 +6135,20 @@ seasons), on the shared Points library regents.sh was already on.
 - The agent guide, the start page, the pairing page, llms.md, the tool manifest and the
   Makefile's pin name regents-cli 1.10.27 (commit 2f7eee7e, with its wheel's SHA256), the
   newest release; the sign-in gate refuses any other. No command the site lists changed.
+
+## 2026-11-13 — Hover looks no longer stick after a tap on a phone
+
+- Design review, 13 Nov: a phone treats a tap as a hover that stays until the next tap
+  somewhere else. On AI & SCIFI a book stayed raised and edged after it was closed;
+  Daily Research picks, Redeem gallery passes and the Overview account links kept their
+  hover edge. Those hover looks now show only with a mouse. Keyboard focus, a found
+  gallery pass and an open book look as before on every device.
+- Left as they are: hover rules that only change a colour or a background (the docs
+  menus, the agent start tabs, the Stake info mark and a few buttons), and the home
+  crown's lift, which already shows only on devices that can hover.
+- Proof, in a headless browser, light and dark: on a touch phone at 390 px a hover
+  leaves each of the four as it was, and a book opened and closed by two taps sits
+  flat again (before this change it stayed raised and edged); with a mouse at 1280 px
+  every hover look still shows. The Daily Research picks were checked on a pick added
+  to the page, as the test server has no day with several papers.
+- Checks: the full check runs on this exact commit before its release. No migration.

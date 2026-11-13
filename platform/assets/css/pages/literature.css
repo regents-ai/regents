@@ -235,17 +235,16 @@
   display: block;
 }
 
-.lit-book:hover,
+/* An open book, by a tap or a key, stands out on every screen. A mouse raises it
+   the same way further down. */
 .lit-book[data-open] {
   z-index: 3;
 }
 
-.lit-book:hover .lit-cover,
 .lit-book[data-open] .lit-cover {
   transform: scale(1.12);
 }
 
-.lit-book:hover .lit-label,
 .lit-book[data-open] .lit-label {
   border-color: var(--ash-signal);
 }
@@ -275,7 +274,21 @@
   bottom: 0;
 }
 
-@media (hover: hover) {
+/* Only a mouse raises a book it rests on. A phone treats a tap as a hover that
+   stays after the book is closed, which would leave it raised. */
+@media (hover: hover) and (pointer: fine) {
+  .lit-book:hover {
+    z-index: 3;
+  }
+
+  .lit-book:hover .lit-cover {
+    transform: scale(1.12);
+  }
+
+  .lit-book:hover .lit-label {
+    border-color: var(--ash-signal);
+  }
+
   .lit-book:hover .lit-pop {
     visibility: visible;
     opacity: 1;
