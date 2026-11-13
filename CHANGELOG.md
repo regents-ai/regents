@@ -5944,3 +5944,12 @@ changelog line moves from the published 6 Nov entry to this release's.
   tool manifest name regents-cli 1.10.26, the newest release.
 - The browser-test Privy key is read when present, so the showcase server in
   platform/docs/showcase.md still starts without it.
+
+## 2026-11-13 — Released v305 (name save, admin list setting, regents-cli 1.10.26)
+
+- v305 at 01:58Z, image registry.fly.io/regents-sh-web:main-cdeac5008152, commit cdeac500.
+  Full check exit 0 on cdeac500, seven gates in one run. No migration.
+- Live read, signed out: health ok, the agent guide names regents-cli 1.10.26, the admin page
+  is refused, `REGENTS_ADMINS` is present on the machine. The old `REGENT_CREDITS_ADMINS`
+  secret is staged for removal at the next release.
+- Rollback: v304's image main-9ed140a42364.
