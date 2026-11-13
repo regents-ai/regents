@@ -181,6 +181,54 @@ test("Redeem offers both approvals at once and Redeem once a token is selected",
   await expect(page.locator("#redemption-claim")).toBeEnabled()
 })
 
+// From a small phone to a desktop, everything in the redemption panel and the
+// account panel sits inside the panel, and each button shows its whole name.
+test("Redeem keeps each wallet panel's steps, fields and buttons inside it", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+
+  for (const width of [320, 360, 390, 1280]) {
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/redeem")
+    await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
+    await page.getByLabel("Token ID").fill("42")
+    await expect(page.locator("#redemption-redeem")).toBeVisible()
+    await expect(page.locator("#redemption-claim")).toBeVisible()
+
+    const fit = await page.evaluate(() => ({
+      document: document.documentElement.scrollWidth - window.innerWidth,
+      panels: [...document.querySelectorAll<HTMLElement>(".redeem-actions, .redeem-position")].map(
+        panel => {
+          const box = panel.getBoundingClientRect()
+          const style = getComputedStyle(panel)
+          const start = box.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft)
+          const end = box.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight)
+          const shown = [...panel.querySelectorAll<HTMLElement>("*")].filter(
+            node => !node.closest(".visually-hidden") && node.checkVisibility(),
+          )
+          return {
+            outside: shown
+              .map(node => node.getBoundingClientRect())
+              .filter(rect => rect.width > 0 && (rect.left < start - 0.5 || rect.right > end + 0.5))
+              .length,
+            cutNames: shown.filter(
+              node => node.matches(".rg-button__label") && node.scrollWidth > node.clientWidth,
+            ).length,
+          }
+        },
+      ),
+    }))
+
+    expect(fit, `/redeem at ${width}`).toEqual({
+      document: 0,
+      panels: [
+        {outside: 0, cutNames: 0},
+        {outside: 0, cutNames: 0},
+      ],
+    })
+  }
+})
+
 test("Redeem refresh retains the current snapshot and scroll position", async ({page}) => {
   await page.setViewportSize({width: 390, height: 600})
   await installWallet(page)
