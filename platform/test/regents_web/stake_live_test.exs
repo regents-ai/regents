@@ -1037,16 +1037,18 @@ defmodule RegentsWeb.StakeLiveTest do
   test "PRESS_FAILURES: a press the wallet did not send says why in plain words", %{conn: conn} do
     view = stake_as_signer(conn, "press-failures")
 
-    for {reason, words} <- [
-          {"wallet_declined", "Your wallet declined this. Nothing was sent."},
-          {"network_mismatch", "Switch it to Base"},
-          {"wallet_unavailable", "Your wallet changed during the press"},
-          {"insufficient_funds", "enough on Base to pay the network fee"},
-          {"send_unconfirmed", "Your wallet may have sent this."},
-          {"step_unknown", "Enter an amount above zero."}
+    # Only a press the wallet turned down marks its note as a refusal, which shakes.
+    for {reason, words, refused} <- [
+          {"wallet_declined", "Your wallet declined this. Nothing was sent.", true},
+          {"network_mismatch", "Switch it to Base", true},
+          {"wallet_unavailable", "Your wallet changed during the press", false},
+          {"insufficient_funds", "enough on Base to pay the network fee", true},
+          {"send_unconfirmed", "Your wallet may have sent this.", false},
+          {"step_unknown", "Enter an amount above zero.", false}
         ] do
       view |> actions() |> render_hook("step_failed", %{"step" => "stake", "reason" => reason})
       assert has_element?(view, "#staking-press-notice", words)
+      assert has_element?(view, "#staking-press-notice[data-refused]") == refused
     end
 
     set_amount(view, "1")

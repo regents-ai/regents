@@ -144,7 +144,7 @@ defmodule RegentsWeb.StakeActions do
          |> sync()}
 
       _unreadable ->
-        {:noreply, assign(socket, press_note: [EventInput.unreadable()])}
+        {:noreply, assign(socket, press_note: OnchainSteps.unreadable_note())}
     end
   end
 
@@ -155,7 +155,7 @@ defmodule RegentsWeb.StakeActions do
       when is_binary(name) do
     case EventInput.texts(form, @form_limits) do
       {:ok, fields} -> prepare(socket |> apply_form(fields) |> sync(), name)
-      :error -> {:reply, %{}, assign(socket, press_note: [EventInput.unreadable()])}
+      :error -> {:reply, %{}, assign(socket, press_note: OnchainSteps.unreadable_note())}
     end
   end
 
@@ -168,7 +168,8 @@ defmodule RegentsWeb.StakeActions do
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
       when is_binary(name) and failure_reason(reason) do
-    {:noreply, assign(socket, press_note: failure_note(reason, name, socket.assigns))}
+    note = OnchainSteps.press_note(reason, failure_note(reason, name, socket.assigns))
+    {:noreply, assign(socket, press_note: note)}
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
@@ -179,7 +180,7 @@ defmodule RegentsWeb.StakeActions do
 
   # Anything else the page sent is not in a shape this panel takes.
   def handle_event(_event, _params, socket),
-    do: {:noreply, assign(socket, press_note: [EventInput.unreadable()])}
+    do: {:noreply, assign(socket, press_note: OnchainSteps.unreadable_note())}
 
   # A step that landed moved this wallet's figures and the contract's, so the
   # page reads both again, and the steps follow what the new reading says. A
@@ -984,15 +985,22 @@ defmodule RegentsWeb.StakeActions do
   end
 
   attr :sent, :list, required: true
-  attr :press, :list, default: nil
+  attr :press, :map, default: nil, doc: "an `OnchainSteps.press_note/2`"
   attr :myself, :any, required: true
 
   # What happened to each press, newest first, read on Base by the server.
   defp activity(assigns) do
     ~H"""
     <section id="staking-activity" class="stake-activity">
-      <p :if={@press} id="staking-press-notice" class="stake-notice" role="alert">
-        <OnchainSteps.note id="staking-press-notice-words" parts={@press} />
+      <p
+        :if={@press}
+        id="staking-press-notice"
+        class="stake-notice"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused={@press.refused}
+      >
+        <OnchainSteps.note id="staking-press-notice-words" parts={@press.parts} />
       </p>
       <p class="stake-notice" role="status" data-onchain-lost hidden>
         Connection lost, so nothing was sent. Press again once it's back.

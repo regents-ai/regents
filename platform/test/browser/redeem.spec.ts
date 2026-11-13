@@ -326,6 +326,41 @@ test("Redeem says what the wallet did when a press is not sent", async ({page}) 
   await expect(press).toHaveCount(0)
 })
 
+// The note beside the buttons shakes once when the wallet turns a press down,
+// and stays still when the wallet may have sent it or is not the account's. The
+// button takes a press while the note is shaking.
+test("Redeem shakes the note when the wallet turns a press down", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  await page.goto("/redeem")
+  await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
+  await page.getByLabel("Token ID").fill("42")
+  const press = page.locator("#redemption-activity-press")
+  const approve = page.locator("#redemption-approve_nft_collection")
+  await watchShakes(page)
+
+  await setWalletAnswer(page, "malformed")
+  await approve.click()
+  await expect(press).toContainText("may have sent")
+  await page.waitForTimeout(600)
+  expect(await shakes(page)).toBe(0)
+  expect(await sendCount(page)).toBe(1)
+
+  // The third send is the press made on the shake's first frame.
+  await setWalletAnswer(page, "declined")
+  await approve.click()
+  await expect(press).toContainText("declined")
+  await expect.poll(() => shakes(page)).toBe(1)
+  await expect.poll(() => sendCount(page)).toBe(3)
+
+  await selectWallet(page, otherWallet)
+  await approve.click()
+  await expect(press).toContainText("isn't linked to this account")
+  await page.waitForTimeout(600)
+  expect(await shakes(page)).toBe(1)
+  expect(await sendCount(page)).toBe(3)
+})
+
 // Sign out ends the wallet connection, and it stays ended across reloads
 // while the browser wallet still reports the same account.
 test("Sign out leaves Redeem unconnected, and a reload keeps it that way", async ({page}) => {
@@ -468,6 +503,37 @@ async function selectWallet(page: Page, address: string): Promise<void> {
     if (seam) seam.address = next
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
   }, address)
+}
+
+// Counts each shake of the note beside the Redeem buttons, read every frame.
+// On the first frame of each shake the approval button is pressed, so the
+// press lands while the note is moving. A shake ends after ten still frames, so
+// a frame that passes through the resting place mid-shake does not count twice.
+async function watchShakes(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const testWindow = window as Window & {__redeemShakes?: number}
+    testWindow.__redeemShakes = 0
+    let stillFrames = Infinity
+    const frame = () => {
+      const note = document.querySelector("#redemption-activity-press")
+      const transform = note ? getComputedStyle(note).transform : "none"
+      if (transform === "none" || transform === "matrix(1, 0, 0, 1, 0, 0)") {
+        stillFrames += 1
+      } else {
+        if (stillFrames >= 10) {
+          testWindow.__redeemShakes! += 1
+          document.querySelector<HTMLElement>("#redemption-approve_nft_collection")!.click()
+        }
+        stillFrames = 0
+      }
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  })
+}
+
+async function shakes(page: Page): Promise<number> {
+  return page.evaluate(() => (window as Window & {__redeemShakes?: number}).__redeemShakes!)
 }
 
 async function signOutWallet(page: Page): Promise<void> {

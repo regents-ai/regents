@@ -21,9 +21,11 @@ defmodule RegentsWeb.OnchainSteps do
 
   alias RegentChain.{Outcome, Presses}
   alias Regents.{ChainClient, ChainRefresh}
+  alias RegentsWeb.EventInput
 
   @recheck_ms 250
   @no_wallet "Your account has no wallet yet. Sign in again to get one."
+  @refusals ~w(wallet_declined network_mismatch insufficient_funds)
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
   @doc "The assigns a wallet-button component starts with."
@@ -181,6 +183,17 @@ defmodule RegentsWeb.OnchainSteps do
 
   def failure_note("send_unconfirmed", _linked, _active, _chain_name),
     do: ["Your wallet may have sent this. Check your wallet activity."]
+
+  @doc """
+  The note beside the buttons for a press that failed for `reason`: its words,
+  as parts for `note/1`, and whether the wallet turned the press down (it
+  declined, would not move to the step's network, or could not pay the fee),
+  which the page answers with a shake.
+  """
+  def press_note(reason, parts), do: %{parts: parts, refused: reason in @refusals}
+
+  @doc "The note beside the buttons for an event the panel could not read."
+  def unreadable_note, do: %{parts: [EventInput.unreadable()], refused: false}
 
   @doc """
   The note beside the buttons while the wallet app has open a wallet the
