@@ -6135,3 +6135,11 @@ seasons), on the shared Points library regents.sh was already on.
 - The agent guide, the start page, the pairing page, llms.md, the tool manifest and the
   Makefile's pin name regents-cli 1.10.27 (commit 2f7eee7e, with its wheel's SHA256), the
   newest release; the sign-in gate refuses any other. No command the site lists changed.
+
+## 2026-11-13 — Released v311 (shared Points library; regents-cli 1.10.27)
+
+- v311, commit ec4230f0. Full check exit 0 on ec4230f0, six gates in one run. No migration
+  ran; both shared Points migrations were already applied.
+- Live read, signed out, at 1280 and 390: home, /about, /app, /cloak, /account/points and
+  /agents.md load with no console errors; the agent's Points read with no sign-in is refused.
+- Not read signed in. Rollback: v310's image main-381af6504f5f.
