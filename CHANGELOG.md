@@ -6187,3 +6187,15 @@ seasons), on the shared Points library regents.sh was already on.
   browser on Redeem, a declined press shakes the note once and a press made while it
   shakes still reaches the wallet, while a "may have sent" note and a wallet that is
   not the account's leave it still.
+
+## 2026-11-13 — Redeem: the wallet panels fit a phone
+
+- On a phone, the redemption panel's steps, Collection and Token ID fields and wallet
+  buttons ran past the panel's right edge, and the Claim button's name was cut off. Its
+  steps, fields and buttons sat in a column that grew to the widest button name, which
+  the shared button keeps on one line, so every child took that width. The column is
+  now as wide as the panel, and a button name in the redemption and account panels
+  wraps onto a second line (a third at 320 wide) instead of being cut. Buttons keep
+  their height or grow; every press still reaches the wallet. Desktop is unchanged.
+- Tests: at 320, 360, 390 and 1280 wide, nothing in either wallet panel sits outside
+  it, no button name there is cut, and the page has no sideways scroll.

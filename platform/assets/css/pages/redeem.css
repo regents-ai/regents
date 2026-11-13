@@ -305,8 +305,10 @@
   justify-self: start;
 }
 
+/* One column as wide as the panel: a child's widest line never widens it. */
 .redeem-wallet-flow {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   min-width: 0;
 }
@@ -848,7 +850,8 @@
 }
 
 /* Outside the layer, so it wins over the shared button's one-line label: on a
-   narrow phone the button's name wraps inside its panel. */
-.redeem-connect-panel .rg-button {
+   narrow phone a wallet panel's button names wrap inside the panel. */
+.redeem-actions .rg-button,
+.redeem-position .rg-button {
   white-space: normal;
 }
