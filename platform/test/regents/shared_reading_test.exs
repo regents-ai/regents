@@ -9,7 +9,7 @@ defmodule Regents.SharedReadingTest do
   alias Regents.Points.Board
   alias Regents.SharedReading
 
-  @limit 131_072
+  @limit 65_536
 
   setup do
     on_exit(fn -> SharedReading.delete(Board.key()) end)
@@ -17,13 +17,13 @@ defmodule Regents.SharedReadingTest do
 
   test "a refused reading keeps the one held" do
     key = Board.key()
-    assert :ok = SharedReading.put(key, %{top: [], totals: [41]})
+    assert :ok = SharedReading.put(key, %{top: [%{points_micro: 41}]})
     assert {:ok, %{at: at}} = SharedReading.fetch(key)
 
     assert {:error, :too_large} = SharedReading.put(key, String.duplicate("9", @limit + 1))
     assert {:error, :not_plain} = SharedReading.put(key, 1..2)
 
-    assert {:ok, %{reading: %{totals: [41]}, at: ^at, degraded?: false}} =
+    assert {:ok, %{reading: %{top: [%{points_micro: 41}]}, at: ^at, degraded?: false}} =
              SharedReading.fetch(key)
   end
 

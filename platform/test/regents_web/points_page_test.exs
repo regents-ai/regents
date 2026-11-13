@@ -20,7 +20,7 @@ defmodule RegentsWeb.PointsPageTest do
     previous =
       Map.new([:starts_at, :approved_rules], &{&1, Application.get_env(:regent_points, &1)})
 
-    Application.put_env(:regent_points, :starts_at, ~U[2020-01-01 00:00:00Z])
+    Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), -1, :day))
     Application.put_env(:regent_points, :approved_rules, ~w(account.activated social.x))
     Regents.RateLimiter.reset()
 
@@ -152,6 +152,22 @@ defmodule RegentsWeb.PointsPageTest do
 
     assert %{"name" => nil, "ens_name" => nil, "you" => false} =
              Enum.find(answer["leaderboard"], &(&1["wallet"] == @other))
+  end
+
+  # After the last season nothing earns: the page and the agent list no action to
+  # do, and the account's figures stay.
+  test "after the last season, no action is listed", %{conn: conn, person: person} do
+    days = RegentPoints.Rules.season_count() * 30 + 1
+    Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), -days, :day))
+
+    page = conn |> get("/account/points") |> html_response(200) |> LazyHTML.from_document()
+    answer = agent_answer(person)
+
+    assert Enum.empty?(LazyHTML.query(page, "#points-todo li"))
+    assert Enum.empty?(LazyHTML.query(page, "#points-todo .rg-points-todo__left"))
+    assert answer["to_do"] == []
+    assert answer["points"] == text(page, "#points-total .rg-points-total__figure")
+    assert answer["points"] == "25"
   end
 
   # While the board is held for signed-in readers, a signed-out visitor gets none of it.

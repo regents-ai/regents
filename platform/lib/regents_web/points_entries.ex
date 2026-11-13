@@ -6,7 +6,7 @@ defmodule RegentsWeb.PointsEntries do
   entry and place.
   """
 
-  alias RegentPoints.{Amount, Leaderboard, Rules}
+  alias RegentPoints.{Amount, Rules}
 
   @doc "What became of an entry: counted, cut to nothing by a daily limit, or a correction."
   def status(%{reversal_of_entry_id: id}) when not is_nil(id), do: :correction
@@ -25,10 +25,15 @@ defmodule RegentsWeb.PointsEntries do
 
   @doc """
   The actions this site lists, in two groups, with what the account has done of
-  each: `[%{title, limit, items}]`. `open?` is false until earning opens; an
-  action then carries no points and nothing is done or left.
+  each: `[%{title, limit, items}]`. `phase` is where Points stands
+  (`RegentPoints.Seasons.phase/1`). Before the first season an action carries no
+  points and nothing is done or left; after the last nothing earns, so none is
+  listed.
   """
-  def todo(summary, open?) do
+  def todo(_summary, :ended), do: []
+  def todo(summary, phase), do: groups(summary, phase == :running)
+
+  defp groups(summary, open?) do
     rules = Rules.tracked()
     room = Map.new(summary.allowances, &{&1.scope, &1})
 
@@ -52,16 +57,17 @@ defmodule RegentsWeb.PointsEntries do
 
   @doc """
   The shared board for one reader: `%{rows, you, rank}`. `reader` is the reader's
-  account id and `total` their own total from their summary, or `nil` while it is
-  not read. `you` is the reader's row when they sit below the listed rows; `rank`
-  is their place wherever they sit. The rows' account ids and the list of every
-  total stay here: neither reaches a page or an agent. A row's `name` is `nil` when
-  the person shows by their `wallet`, under its `ens_name` when it has one. A row's
-  `line` is its position in the list: names and places repeat, lines do not.
+  account id and `summary` their own summary (`RegentPoints.summary/1`), or `nil`
+  while it is not read. `you` is the reader's row when they sit below the listed
+  rows, with the place and total from their summary; `rank` is their place
+  wherever they sit. The rows' account ids stay here: none reaches a page or an
+  agent. A row's `name` is `nil` when the person shows by their `wallet`, under its
+  `ens_name` when it has one. A row's `line` is its position in the list: names and
+  places repeat, lines do not.
   """
-  def board(%{top: top, totals: totals}, reader, total) do
-    rank = Leaderboard.place(totals, total)
-    listed? = Enum.any?(top, &(&1.account_id == reader))
+  def board(%{top: top}, reader, summary) do
+    own = Enum.find(top, &(&1.account_id == reader))
+    you = below(own, summary)
 
     %{
       rows:
@@ -80,14 +86,20 @@ defmodule RegentsWeb.PointsEntries do
             you: row.account_id == reader
           }
         end),
-      you: if(rank && !listed?, do: %{rank: rank, points: Amount.format(total)}),
-      rank: rank
+      you: you,
+      rank: if(own, do: own.rank, else: you && you.rank)
     }
   end
 
+  # The reader's own row under the listed ones, while they have a place.
+  defp below(nil, %{place: place, balance_micro: total}) when is_integer(place),
+    do: %{rank: place, points: Amount.format(total)}
+
+  defp below(_own, _summary), do: nil
+
   @doc "The agent's Points answer: the same figures the Points page shows."
-  def answer(summary, board, reader, open?) do
-    board = board(board, reader, summary.balance_micro)
+  def answer(summary, board, reader, phase) do
+    board = board(board, reader, summary)
 
     %{
       points: Amount.format(summary.balance_micro),
@@ -96,7 +108,7 @@ defmodule RegentsWeb.PointsEntries do
       rank: board.rank,
       activity_being_verified: summary.pending,
       to_do:
-        for group <- todo(summary, open?), item <- group.items do
+        for group <- todo(summary, phase), item <- group.items do
           %{
             label: item.label,
             repeats: String.downcase(group.title),

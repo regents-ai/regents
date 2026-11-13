@@ -6090,3 +6090,42 @@ changelog line moves from the published 6 Nov entry to this release's.
   console errors at 1280 and 390; the profile read with no sign-in is still refused.
 - Not read signed in. A name held only in the old name column no longer shows.
 - Rollback: v309's image main-34a98ce6cc14.
+
+## 2026-11-13 — Points: the board reads ten stored totals, and Points runs in three seasons
+
+The template's two shared Points changes (Sean's 38 a, stored totals; 44 b, three
+seasons), on the shared Points library regents.sh was already on.
+
+- **Library.** elixir-utils pin `240e9385` to `6aaf3216` (`240e9385` plus only the two
+  Points commits). Each Points account now stores its total, and every award, correction
+  and period bonus moves it in the same write. The board reads the ten highest totals
+  from an index on it instead of adding up every account; a reader's own place is one
+  count of the accounts above them, read with their own Points. Points runs in three
+  30-day seasons from the start and stops by itself after the last: an action after the
+  end earns nothing, the start awards stop, and no fourth period is tallied.
+- **Why now.** The template applied the two shared database changes to production on
+  13 November. The older library records a point without moving the stored total, so
+  regents.sh moves before anything earns here.
+- **The page and the agent's answer.** The board's reading holds ten rows, and its limit
+  drops from 131,072 to 65,536 bytes. A reader listed in the ten takes their row's
+  place; below the ten, the place and total come from their own Points, so that place
+  moves when their own Points change or the page opens, not when others pass them.
+  The page and the shell now read where Points stands (before, running, ended) in
+  place of the rules earning now: before the first season the page says earning has
+  not opened, while a season runs it reads the NFTs, and after the last the to-do list
+  and the agent's `to_do` are empty. The agent's `note` still follows the rules earning
+  now. The answer's shape is unchanged.
+- **Not taken.** The template's ended Bonus card needs design-system `c9071e2c`, which
+  also recolours every main button, so the pin stays at `c4244b38` and the card stays
+  in its not-yet-open state after the last season. The template's season list on the
+  page and in the agent's answer (its earlier change of 12 November) is not on
+  regents.sh yet.
+- **Migrations.** None generated here. The two shared ones the pin carries
+  (`regent_points` 20261112234336 and 20261112234337) are the same files the template
+  applied; the deploy's migrate step refuses to start a release while any shared one
+  is unapplied, and applies none itself.
+- `starts_at` stays unset and `approved_rules` empty: nothing earns.
+- Tests: the board's place for a listed reader, a reader below the ten and one without
+  points; after the last season the page and the agent list no action and keep the
+  total. Tests that started Points in 2020 now start it a day ago, since a start that
+  old has ended.

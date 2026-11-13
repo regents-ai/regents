@@ -2,17 +2,19 @@ defmodule RegentsWeb.ShellLive.Points do
   @moduledoc """
   The Points page: the signed-in account's own points summary, read with the
   account as actor, the board every signed-in reader shares
-  (`Regents.Points.Board`) and the catalog rules earning now. Awards and
-  corrections from any site, and each new reading of the board, are heard only
-  while this page is open, and each one reads its part again. The NFT tier the account's wallets hold now is read from Base
-  once per page open, never on each award notice, and not at all while nothing
-  earns. That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it,
+  (`Regents.Points.Board`) and where Points stands
+  (`RegentPoints.Seasons.phase/1`). Awards and corrections from any site, and each
+  new reading of the board, are heard only while this page is open, and each one
+  reads its part again. The NFT tier the account's wallets hold now is read from
+  Base once per page open, never on each award notice, and only while a season
+  runs. That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it,
   the page says the NFTs could not be checked.
   """
 
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [connected?: 1]
 
+  alias RegentPoints.Seasons
   alias Regents.Actors.Human
   alias Regents.Points.Board
   alias Regents.SharedReading
@@ -26,13 +28,13 @@ defmodule RegentsWeb.ShellLive.Points do
         points: %Read{},
         points_board: %Read{},
         points_bonus: %Read{},
-        points_earning: []
+        points_phase: :before
       )
 
   def route(socket, %{route_id: :points}) do
     socket
     |> follow()
-    |> assign(points_earning: RegentPoints.Rules.active())
+    |> assign(points_phase: Seasons.phase(Seasons.at(DateTime.utc_now())))
     |> read()
     |> read_board()
     |> read_bonus()
@@ -64,8 +66,8 @@ defmodule RegentsWeb.ShellLive.Points do
     end
   end
 
-  # The reader's own row and place are found from the board, and their own
-  # total, as the page renders.
+  # The reader's own row is found in the board as the page renders; a place below
+  # it comes with their own summary.
   defp read_board(socket) do
     case Identity.human_actor(socket) do
       %Human{} -> assign(socket, points_board: board_read(SharedReading.fetch(Board.key())))
@@ -84,7 +86,7 @@ defmodule RegentsWeb.ShellLive.Points do
   defp board_read({:ok, %{reading: board, at: at}}),
     do: %Read{state: :ready, value: board, read_at: at}
 
-  defp read_bonus(%{assigns: %{points_earning: []}} = socket),
+  defp read_bonus(%{assigns: %{points_phase: phase}} = socket) when phase != :running,
     do: Read.clear(socket, :points_bonus)
 
   defp read_bonus(socket) do

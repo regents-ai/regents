@@ -2,7 +2,7 @@ defmodule RegentsWeb.AgentReadsController do
   @moduledoc "Private reads for a distinct, currently paired SIWA agent."
   use RegentsWeb, :controller
 
-  alias RegentPoints.Rules
+  alias RegentPoints.{Rules, Seasons}
   alias Regents.Points.Board
   alias Regents.SharedReading
   alias RegentsWeb.PointsEntries
@@ -32,9 +32,9 @@ defmodule RegentsWeb.AgentReadsController do
 
     with {:ok, summary} <- RegentPoints.summary(actor: actor),
          {:ok, %{reading: %{} = board}} <- SharedReading.fetch(Board.key()) do
-      earning = Rules.active()
-      answer = PointsEntries.answer(summary, board, actor.human_account_id, earning != [])
-      json(conn, with_note(answer, points_note(earning)))
+      phase = Seasons.phase(Seasons.at(DateTime.utc_now()))
+      answer = PointsEntries.answer(summary, board, actor.human_account_id, phase)
+      json(conn, with_note(answer, points_note(Rules.active())))
     else
       _not_read -> unavailable(conn)
     end

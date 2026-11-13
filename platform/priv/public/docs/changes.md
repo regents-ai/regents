@@ -1,5 +1,7 @@
 ## 2026-11-13
 
+Points runs in three seasons of 30 days, one after another from its start, and stops by itself after the last. From then nothing earns, and [Points]({{origin}}/account/points) and `GET /api/v1/account/points` list no action to do; your total, your place and the leaderboard stay. Points has no start date yet. Your place on the leaderboard, when you sit below the top ten, now moves when your own Points change or you open the page.
+
 A name you save on [Account]({{origin}}/account) now stays after a reload. It shows on Account, in your account menu, on the [Points]({{origin}}/account/points) board and in your agent's read of your account, and a message your agent leaves the Regents team is signed with it. It is the same name every Regent site shows for you. A name with hidden characters in it is refused when you save it.
 
 The [Cloak]({{origin}}/cloak) page offers one way to set it up, the Mac app, whose download stays off until its first signed release. The setup guide at `/cloak/guide` is removed, and `regents_about` no longer takes `cloak`.

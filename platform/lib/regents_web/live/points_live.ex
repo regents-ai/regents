@@ -22,27 +22,24 @@ defmodule RegentsWeb.PointsLive do
     required: true,
     doc: "the NFT tier the account's wallets hold now"
 
-  attr :earning, :list, required: true, doc: "the catalog rules earning now"
+  attr :phase, :atom,
+    required: true,
+    values: [:before, :running, :ended],
+    doc: "where Points stands now (`RegentPoints.Seasons.phase/1`)"
 
   def page(assigns) do
-    open? = assigns.earning != []
     summary = assigns.points.value
-    groups = if summary, do: PointsEntries.todo(summary, open?), else: []
+    groups = if summary, do: PointsEntries.todo(summary, assigns.phase), else: []
 
     board =
       assigns.board.value &&
-        PointsEntries.board(
-          assigns.board.value,
-          assigns.account.id,
-          summary && summary.balance_micro
-        )
+        PointsEntries.board(assigns.board.value, assigns.account.id, summary)
 
     assigns =
       assign(assigns,
-        open?: open?,
         summary: summary,
         groups: Enum.map(groups, &linked/1),
-        left: if(summary && open?, do: PointsEntries.left(groups)),
+        left: if(summary && assigns.phase == :running, do: PointsEntries.left(groups)),
         places: board,
         rows: if(summary, do: Enum.map(summary.entries, &row(&1, summary.agent_names)), else: [])
       )
@@ -77,7 +74,7 @@ defmodule RegentsWeb.PointsLive do
         </:total>
         <:main>
           <Regent.Points.todo :if={@summary} id="points-todo" left={@left} groups={@groups}>
-            <p :if={!@open?} role="status">Earning hasn’t opened yet.</p>
+            <p :if={@phase == :before} role="status">Earning hasn’t opened yet.</p>
           </Regent.Points.todo>
           <Regent.Points.activity
             :if={@summary}
@@ -114,7 +111,7 @@ defmodule RegentsWeb.PointsLive do
           </Regent.Points.board>
           <Regent.Points.bonus
             id="points-bonus"
-            state={bonus_state(@open?, @bonus)}
+            state={bonus_state(@phase, @bonus)}
             nfts={@bonus.value && @bonus.value.nft_count}
             percent={@bonus.value && @bonus.value.percent}
             message={"Your NFTs could not be checked. #{retry(@bonus.error)}"}
@@ -226,8 +223,10 @@ defmodule RegentsWeb.PointsLive do
   defp state(%{state: state}) when state in [:ready, :empty], do: :ready
   defp state(%{state: state}), do: state
 
-  defp bonus_state(false, _bonus), do: :closed
-  defp bonus_state(true, bonus), do: state(bonus)
+  # While a season runs the card shows the NFTs read now; outside the seasons it
+  # waits and reads none.
+  defp bonus_state(:running, bonus), do: state(bonus)
+  defp bonus_state(_phase, _bonus), do: :closed
 
   # Reading again at once while limited would only be refused again.
   defp retry(:limited), do: "Try again in a minute."

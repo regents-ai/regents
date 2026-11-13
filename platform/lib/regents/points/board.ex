@@ -13,10 +13,10 @@ defmodule Regents.Points.Board do
   here, and a notice can be lost, so each minute `Regents.SharedReading.Heal`
   asks for the board to be read again.
 
-  The reading holds the ten highest rows with their account ids and every
-  positive total, highest first. Pages and the agent's answer keep both on the
-  server: a reader gets the rows without ids, a mark on their own row and their
-  own place (`RegentsWeb.PointsEntries`). A board too large for its kind is
+  The reading holds the ten highest rows with their account ids, highest first.
+  Pages and the agent's answer keep the ids on the server: a reader gets the rows
+  without ids and a mark on their own row, and their own place comes with their
+  own summary (`RegentsWeb.PointsEntries`). A board too large for its kind is
   refused and marked degraded, and the last one stays shown as behind.
 
   The first read happens as it starts, so the key holds a reading or its

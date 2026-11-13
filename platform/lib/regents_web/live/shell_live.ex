@@ -284,7 +284,7 @@ defmodule RegentsWeb.ShellLive do
           points={@points}
           board={@points_board}
           bonus={@points_bonus}
-          earning={@points_earning}
+          phase={@points_phase}
         />
 
         <AccountLive.wallets
