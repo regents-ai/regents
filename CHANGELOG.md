@@ -6143,6 +6143,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out, at 1280 and 390: home, /about, /app, /cloak, /account/points and
   /agents.md load with no console errors; the agent's Points read with no sign-in is refused.
 - Not read signed in. Rollback: v310's image main-381af6504f5f.
+
 ## 2026-11-13 — Hover looks no longer stick after a tap on a phone
 
 - Design review, 13 Nov: a phone treats a tap as a hover that stays until the next tap
@@ -6209,3 +6210,36 @@ seasons), on the shared Points library regents.sh was already on.
   scroll and nothing past the screen's edge; no console errors. The tick and the shake need
   a connected wallet and were not read on live.
 - Rollback: v311's image main-ec4230f009c6.
+
+## 2026-11-13 — Design system c9071e2c: blue main buttons, Points can end
+
+- **Pin.** design-system `c4244b38` to `c9071e2c`, as the template took it. Only the
+  design-system line of the lock moves.
+- **Main buttons are Signal Blue.** Every main button fills with the home page's blue
+  under white words: `#3361FF` in light, the lighter `#3966FF` in dark, and the deeper
+  `#1E42DC` inside a window (drawn `#3555E0` once the window adds its tenth of white).
+  The three blues are site tokens in `assets/css/tokens/root.css`, which also set the
+  design system's button pair once for both themes; no button sets its own colour. The
+  Enter App shader keeps the same three numbers, and a test holds them equal.
+- **Contrast, measured signed out at 1280 and 390.** White words: 4.89 in light, 4.65 in
+  dark, 5.96 in a window. Button against the page: 4.44 in light, 4.24 in dark; against
+  Redeem's raised panel 3.41 in light and 3.09 in dark (`#3361FF` gave 2.94 there in
+  dark, so dark takes the lighter blue). Corner marks in dark are white; in light the
+  hover edges stay the dark Tangerine (white edges vanish on the light page). Focus
+  ring and disabled look are the design system's own.
+- **Home page unchanged.** Enter App, the panel, the product tabs and the token links
+  look as on live; the panel and Enter App set `--color-button-mark` (their ink and
+  white) in place of `--rg-button-mark-color`, so the dark theme's marks never turn
+  them orange. Enter App's flat blue now reads the same token.
+- **Agent Message.** Send drops its own colour pair and takes the window blue.
+- **Gradients.** The site's three own gradients (Agent Tools header, product tile dot
+  and still) blend `in oklch`, with each clear stop written as its own colour at no
+  opacity, as the template did. The design system's style check finds the same 30
+  older breaks as before and no new one.
+- **Points.** After the last season the Bonus card is in the shared card's ended state
+  ("Points has ended.") in place of its not-yet-open one, as in the template. Nothing
+  changes today: Points has not started here.
+- Tests: the after-the-last-season page test now checks the Bonus card's ended state
+  (it fails on the old code). The Enter App test reads the three blues from the
+  stylesheet, checks each equals the shader's and keeps white words at 4.5:1 on each,
+  and on a window's main button.

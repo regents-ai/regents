@@ -43,8 +43,6 @@
   --color-border: #2A2A2A;
   --color-fg: var(--agent-tools-ink);
   --color-fg-muted: color-mix(in srgb, var(--color-fg) 65%, var(--color-bg));
-  --color-accent: #161616;
-  --color-fg-on-accent: var(--agent-tools-ink);
   --color-success: #7ED8A9;
   --color-error: #FF9B8F;
   --color-focus: #AECACD;

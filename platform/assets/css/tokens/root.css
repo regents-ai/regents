@@ -1,13 +1,15 @@
-/* regents.sh's colours: five roles drawn from the founder's Regents light and Regents
+/* regents.sh's colours: six roles drawn from the founder's Regents light and Regents
    dark sheets, and no gradients on the app pages. The spacing (--space-0 to --space-8)
    and type (--type-display to --type-caption) scales are the design system's.
 
      ground  the page, panels, inputs and cards
-     raised  rules, the hovered or chosen row, buttons' and menus' fill
+     raised  rules, the hovered or chosen row, and menus' fill
      ink     text, icons and the focus ring
      quiet   secondary text and the edge of every control
      signal  errors, what is chosen or current, figures that carry value; ground is
              its text
+     action  every main button's fill: the home page's Signal Blue, a step lighter in
+             dark and a step deeper in a window; white is its text
 
    Each clears 4.5:1 for text wherever it meets another. The marketing page uses the
    same saved light/dark choice and the same roles. */
@@ -55,15 +57,38 @@
     color-mix(in oklab, var(--palette-tangerine-tango) 58%, var(--palette-charcoal)),
     var(--palette-tangerine-tango)
   );
+  /* Signal Blue and its two neighbours. Enter App's gradient drifts between the
+     three and bakes them into its shader as BLUE, LIGHT and DEEP
+     (assets/js/enter_gradient/shader.ts); its test keeps each pair equal. */
+  --ash-action: #3361FF;
+  --ash-action-light: #3966FF;
+  --ash-action-deep: #1E42DC;
 
   /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
      in front of it reads the same whichever ground it was opened from. */
   --ash-scrim: color-mix(in oklab, var(--palette-charcoal) 72%, transparent);
 }
 
+/* Every main button fills with the action blue under white words, and its corner
+   marks in dark are white, as on Enter App. Stated at the weight of the design
+   system's own theme pairs and after them, so these win in light and dark alike.
+   In dark the lighter neighbour keeps the button 3:1 against a raised panel; a
+   window lightens its main button with a tenth of the words' white, which would
+   leave white words under 4.5:1, so a window starts from the deeper one. */
+:root[data-brand="platform"][data-theme],
+:root[data-brand="platform"]:not([data-theme]) {
+  --color-button: light-dark(var(--ash-action), var(--ash-action-light));
+  --color-fg-on-button: #fff;
+  --color-button-mark: #fff;
+}
+
+.rg-dialog {
+  --color-button: var(--ash-action-deep);
+}
+
 /* The shared pieces (buttons, fields, notices, addresses, Points, the account
    pages) read the design system's colour roles; on the app pages every role is
-   one of the five. */
+   one of the six. */
 #app-shell,
 .legal-root {
   --color-bg: var(--ash-ground);

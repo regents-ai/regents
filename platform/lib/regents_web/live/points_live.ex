@@ -223,10 +223,11 @@ defmodule RegentsWeb.PointsLive do
   defp state(%{state: state}) when state in [:ready, :empty], do: :ready
   defp state(%{state: state}), do: state
 
-  # While a season runs the card shows the NFTs read now; outside the seasons it
-  # waits and reads none.
+  # Before the first season the card waits, after the last it has ended, and while a
+  # season runs it shows the NFTs read now.
+  defp bonus_state(:before, _bonus), do: :closed
+  defp bonus_state(:ended, _bonus), do: :ended
   defp bonus_state(:running, bonus), do: state(bonus)
-  defp bonus_state(_phase, _bonus), do: :closed
 
   # Reading again at once while limited would only be refused again.
   defp retry(:limited), do: "Try again in a minute."

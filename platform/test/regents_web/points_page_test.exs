@@ -156,7 +156,10 @@ defmodule RegentsWeb.PointsPageTest do
 
   # After the last season nothing earns: the page and the agent list no action to
   # do, and the account's figures stay.
-  test "after the last season, no action is listed", %{conn: conn, person: person} do
+  test "after the last season, no action is listed and the Bonus card has ended", %{
+    conn: conn,
+    person: person
+  } do
     days = RegentPoints.Rules.season_count() * 30 + 1
     Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), -days, :day))
 
@@ -168,6 +171,12 @@ defmodule RegentsWeb.PointsPageTest do
     assert answer["to_do"] == []
     assert answer["points"] == text(page, "#points-total .rg-points-total__figure")
     assert answer["points"] == "25"
+
+    # The Bonus card is in the shared card's ended state, which reads apart from its
+    # not-yet-open one, and marks no tier as held.
+    refute bonus_line(:ended) == bonus_line(:closed)
+    assert text(page, "#points-bonus .rg-points-bonus__held") == bonus_line(:ended)
+    assert Enum.empty?(LazyHTML.query(page, ~s(#points-bonus li[data-held="true"])))
   end
 
   # While the board is held for signed-in readers, a signed-out visitor gets none of it.
@@ -230,6 +239,14 @@ defmodule RegentsWeb.PointsPageTest do
     build_conn()
     |> put_req_header("x-siwa-signature", "fixture-proof")
     |> get("/api/v1/account/points")
+  end
+
+  defp bonus_line(state) do
+    assigns = [id: "bonus", state: state, tiers: [], periods: [], tip: []]
+
+    render_component(&Regent.Points.bonus/1, assigns)
+    |> LazyHTML.from_fragment()
+    |> text(".rg-points-bonus__held")
   end
 
   defp text(page, selector),

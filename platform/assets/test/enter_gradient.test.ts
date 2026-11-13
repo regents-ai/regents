@@ -43,11 +43,24 @@ it("keeps every colour of the gradient blue", () => {
   }
 })
 
-it("keeps white words readable on the flat blue shown before drawing and for less motion", () => {
-  const stylesheet = readFileSync(new URL("../css/pages/home.css", import.meta.url), "utf8")
-  const flat = stylesheet.match(/\.rl-hero-cta__stage\s*\{[^}]*background:\s*#([0-9a-f]{6})/i)![1]!
-  const value = parseInt(flat, 16)
-  const color: Rgb = [(value >> 16) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255]
-  expect(contrast(WHITE, color)).toBeGreaterThanOrEqual(4.5)
-  expect(color.map(channel => Math.round(channel * 255))).toEqual(BLUE.map(channel => Math.round(channel * 255)))
+// The stylesheet's blues: the flat blue Enter App shows before drawing and for less
+// motion, and the main buttons' fills (that blue, the lighter one in dark and the
+// deeper one windows start from).
+const tokens = readFileSync(new URL("../css/tokens/root.css", import.meta.url), "utf8")
+const token = (name: string): Rgb => {
+  const value = parseInt(tokens.match(new RegExp(`${name}:\\s*#([0-9a-f]{6});`, "i"))![1]!, 16)
+  return [(value >> 16) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255]
+}
+const bytes = (color: Rgb) => color.map(channel => Math.round(channel * 255))
+
+it("keeps white words readable on the stylesheet's blues, which are the shader's", () => {
+  const pairs = [["--ash-action", BLUE], ["--ash-action-light", LIGHT], ["--ash-action-deep", DEEP]] as const
+  for (const [name, shader] of pairs) {
+    expect(contrast(WHITE, token(name))).toBeGreaterThanOrEqual(4.5)
+    expect(bytes(token(name)), name).toEqual(bytes(shader))
+  }
+})
+
+it("keeps white words readable on a window's main button, which takes a tenth of its words' white", () => {
+  expect(contrast(WHITE, mix(token("--ash-action-deep"), WHITE, 0.1))).toBeGreaterThanOrEqual(4.5)
 })

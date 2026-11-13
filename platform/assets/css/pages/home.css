@@ -84,11 +84,11 @@
      light hairline that is lighter along the top. It stands over the picture by
      coming later in the page, so it needs no stacking number. Keyboard focus on
      everything in it is marked in the light Signal Blue, and its buttons' corner
-     marks are drawn in its ink. */
+     marks are drawn in its ink, in dark too. */
   .home__glass {
     --rg-panel-padding: var(--space-4);
     --color-focus: #8fb0ff; --color-focus-ring: #8fb0ff;
-    --rg-button-mark-color: var(--rl-ink);
+    --color-button-mark: var(--rl-ink);
     position: relative; display: grid; width: min(44rem, 100%); min-width: 0;
     background: color-mix(in srgb, #070b14 72%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
@@ -218,7 +218,7 @@
 .rl-prompt__view:focus-visible { color: var(--color-fg); }
 .rl-prompt .rg-copy--icon:focus-visible { outline-color: var(--color-focus); }
 @media (hover: hover) and (pointer: fine) {
-  .rl-prompt :is(.rg-copy--icon, .rl-prompt__view):hover { background: color-mix(in srgb, #3361ff 24%, transparent); }
+  .rl-prompt :is(.rg-copy--icon, .rl-prompt__view):hover { background: color-mix(in srgb, var(--ash-action) 24%, transparent); }
   .rl-prompt__view:hover { color: var(--color-fg); }
 }
 /* A copy's answer, which the copy icon's status says for screen readers, shows for
@@ -292,7 +292,7 @@
    the key, so the shared press scales it with the key. */
 .rg-button.rl-product-tab::after {
   all: unset; content: ""; position: absolute; inset: -1px; pointer-events: none;
-  background: radial-gradient(circle at .625rem .625rem, var(--tile-dot) 0 .1875rem, transparent calc(.1875rem + .5px));
+  background: radial-gradient(circle at .625rem .625rem in oklch, var(--tile-dot) 0 .1875rem, oklch(from var(--tile-dot) l c h / 0) calc(.1875rem + .5px));
   transform: scale(var(--rg-press-scale, 1));
 }
 /* Agent Tools is a quiet text link beside Enter App, a full 44px tall to tap, that
@@ -315,11 +315,11 @@
    a little more, under the shared squish, so the words only ever read more clearly. */
 .rg-button.rl-hero-cta {
   --rg-p-accent: transparent; --rg-p-on-accent: #fff;
-  --rg-button-border-color: #fff; --rg-button-mark-color: #fff;
+  --rg-button-border-color: #fff; --color-button-mark: #fff;
   min-height: 3.5rem; padding: 0 var(--space-4); font-size: 1.125rem; line-height: 1.5;
 }
 .rl-hero-cta__stage {
-  position: absolute; inset: -1px; z-index: -2; pointer-events: none; background: #3361ff;
+  position: absolute; inset: -1px; z-index: -2; pointer-events: none; background: var(--ash-action);
   clip-path: polygon(var(--rg-cut-control) 0, 100% 0, 100% calc(100% - var(--rg-cut-control)), calc(100% - var(--rg-cut-control)) 100%, 0 100%, 0 var(--rg-cut-control));
   transform: scale(var(--rg-press-scale, 1));
 }
@@ -344,7 +344,7 @@
    key's edge and gives way to the canvas once that has drawn. */
 .rl-product-tab__still {
   position: absolute; inset: -1px; z-index: -2; pointer-events: none;
-  background: linear-gradient(110deg, var(--tile-mid), var(--tile-light));
+  background: linear-gradient(110deg in oklch, var(--tile-mid), var(--tile-light));
   transform: scale(var(--rg-press-scale, 1));
 }
 .rl-product-tabs__stage { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; }

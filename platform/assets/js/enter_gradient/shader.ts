@@ -9,7 +9,10 @@ const rgb = (hex: string): Rgb => {
  * The blues Enter App moves between, in sRGB, the space its canvas and the stylesheet
  * both paint in: its own Signal Blue, a deeper blue, and a lighter one a little way
  * toward the prompt's edge blue. White words read at 4.5:1 or better on each, and so
- * on every mix of them.
+ * on every mix of them. The shader is compiled with these numbers, so they are written
+ * here as well as in the stylesheet, where the main buttons take them: BLUE is
+ * `--ash-action`, LIGHT `--ash-action-light` and DEEP `--ash-action-deep`
+ * (assets/css/tokens/root.css), and the test keeps each pair equal.
  */
 export const BLUE = rgb("#3361FF")
 export const DEEP = rgb("#1E42DC")
