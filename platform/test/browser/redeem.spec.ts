@@ -181,9 +181,10 @@ test("Redeem offers both approvals at once and Redeem once a token is selected",
   await expect(page.locator("#redemption-claim")).toBeEnabled()
 })
 
-// From a small phone to a desktop, everything in the redemption panel and the
-// account panel sits inside the panel, and each button shows its whole name.
-test("Redeem keeps each wallet panel's steps, fields and buttons inside it", async ({page}) => {
+// From a small phone to a desktop, everything in the collections, redemption and
+// account panels sits inside the panel, and each button shows its whole name,
+// "View collection on OpenSea" on every collection card included.
+test("Redeem keeps each panel's cards, steps, fields and buttons inside it", async ({page}) => {
   await installWallet(page)
   await signIn(page)
 
@@ -195,10 +196,14 @@ test("Redeem keeps each wallet panel's steps, fields and buttons inside it", asy
     await expect(page.locator("#redemption-redeem")).toBeVisible()
     await expect(page.locator("#redemption-claim")).toBeVisible()
 
-    const fit = await page.evaluate(() => ({
-      document: document.documentElement.scrollWidth - window.innerWidth,
-      panels: [...document.querySelectorAll<HTMLElement>(".redeem-actions, .redeem-position")].map(
-        panel => {
+    const fit = await page.evaluate(() => {
+      const panels = ".redeem-collections, .redeem-actions, .redeem-position"
+      return {
+        document: document.documentElement.scrollWidth - window.innerWidth,
+        openSeaNames: [...document.querySelectorAll(".redeem-collections .rg-button__label")].filter(
+          label => label.textContent!.startsWith("View collection on OpenSea"),
+        ).length,
+        panels: [...document.querySelectorAll<HTMLElement>(panels)].map(panel => {
           const box = panel.getBoundingClientRect()
           const style = getComputedStyle(panel)
           const start = box.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft)
@@ -215,13 +220,15 @@ test("Redeem keeps each wallet panel's steps, fields and buttons inside it", asy
               node => node.matches(".rg-button__label") && node.scrollWidth > node.clientWidth,
             ).length,
           }
-        },
-      ),
-    }))
+        }),
+      }
+    })
 
     expect(fit, `/redeem at ${width}`).toEqual({
       document: 0,
+      openSeaNames: 3,
       panels: [
+        {outside: 0, cutNames: 0},
         {outside: 0, cutNames: 0},
         {outside: 0, cutNames: 0},
       ],

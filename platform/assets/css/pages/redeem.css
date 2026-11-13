@@ -838,8 +838,9 @@
 
 }
 
-/* Outside the layer, so it wins over the shared button's one-line label: on a
-   narrow phone a wallet panel's button names wrap inside the panel. */
+/* Outside the layer, so it wins over the shared button's one-line label: a
+   button name in the wallet panels or on a collection card wraps inside it. */
+.redeem-collections .rg-button,
 .redeem-actions .rg-button,
 .redeem-position .rg-button {
   white-space: normal;

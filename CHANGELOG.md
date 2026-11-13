@@ -6155,3 +6155,14 @@ seasons), on the shared Points library regents.sh was already on.
   their height or grow; every press still reaches the wallet. Desktop is unchanged.
 - Tests: at 320, 360, 390 and 1280 wide, nothing in either wallet panel sits outside
   it, no button name there is cut, and the page has no sideways scroll.
+
+## 2026-11-13 — Redeem: the OpenSea link shows its whole name
+
+- "View collection on OpenSea" on Redeem's collection cards was cut off with "…" at
+  every width, desktop included, because the shared button keeps its name on one
+  line. It now wraps onto a second line inside the card, so each card is about 25px
+  taller. At 320 wide "See all 1,998 passes" also takes two lines, where before it
+  ran into the button's edge. The connect panel's "Connect wallet" still wraps at 320
+  wide: it sits in the redemption panel, which the wrap rule already covers.
+- Tests: the Redeem panels check now also covers the collections panel, and at 320,
+  360, 390 and 1280 wide each card's OpenSea name is whole.
