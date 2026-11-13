@@ -1,21 +1,18 @@
 .DEFAULT_GOAL := help
-.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-identity check-contracts release deploy
-
-# Every test run on a machine uses its own databases, named from MIX_TEST_PARTITION.
-REGENT_IDENTITY_TEST_DATABASE ?= regent_identity_test$(MIX_TEST_PARTITION)
+.PHONY: help check check-platform platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts release deploy
 
 help:
 	@echo "make check runs every component gate side by side, each writing its output to"
 	@echo "platform/_build/check/<gate>.log, then prints one line per gate and the log of"
 	@echo "any that failed. Run check-platform, check-required-fixes, check-cli,"
-	@echo "check-siwa-latest, check-identity or check-contracts for one component;"
+	@echo "check-siwa-latest or check-contracts for one component;"
 	@echo "check-platform includes the headless browser checks in platform/test/browser."
 	@echo "Set MIX_TEST_PARTITION (an underscore and a short id) first. make release checks,"
 	@echo "then builds and smoke-checks the committed tree. make deploy puts the committed"
 	@echo "HEAD on regents.sh."
 # The gates share nothing they write, so they run at once. The two platform gates
 # both compile for the test environment, and Mix's build lock makes the later one wait.
-CHECK_GATES := platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-identity check-contracts
+CHECK_GATES := platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts
 CHECK_LOGS := platform/_build/check
 check:
 	@mkdir -p $(CHECK_LOGS)
@@ -54,9 +51,6 @@ check-cli:
 # library in elixir-utils. Needs `gh auth login`.
 check-siwa-latest:
 	scripts/check-siwa-latest.sh $(REGENTS_CLI_REV)
-check-identity:
-	psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$(REGENT_IDENTITY_TEST_DATABASE)'" | grep -q 1 || createdb $(REGENT_IDENTITY_TEST_DATABASE)
-	cd identity && REGENT_IDENTITY_TEST_DATABASE=$(REGENT_IDENTITY_TEST_DATABASE) mix check
 # The Solidity compiler takes every core it can, so it runs at a lower priority:
 # beside the platform gates in make check, it gives way to them.
 check-contracts:

@@ -264,7 +264,12 @@ defmodule RegentsWeb.PrivySessionControllerTest do
     assert get_session(signed_in, :live_socket_id) ==
              SessionAuthority.topic(get_session(signed_in, :session_lineage))
 
-    assert {:ok, account} = Accounts.get_by_privy_did("did:privy:verified", actor: %System{})
+    assert {:ok, account} =
+             Accounts.get_by_privy_did("did:privy:verified",
+               actor: %System{},
+               load: [:display_name]
+             )
+
     assert account.wallet_address == "0x1111111111111111111111111111111111111111"
     assert account.display_name == nil
   end
@@ -1232,6 +1237,5 @@ defmodule RegentsWeb.PrivySessionControllerTest do
   defp account_evidence(nil), do: nil
 
   defp account_evidence(account),
-    do:
-      Map.take(account, [:id, :privy_user_id, :wallet_address, :wallet_addresses, :display_name])
+    do: Map.take(account, [:id, :privy_user_id, :wallet_address, :wallet_addresses])
 end

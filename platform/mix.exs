@@ -77,9 +77,11 @@ defmodule Regents.MixProject do
        ref: @elixir_utils_ref,
        sparse: "siwa/siwa-elixir/apps/siwa",
        override: true},
+      # regent_identity names regent_privy by a sibling path; this pin replaces it.
       {:regent_privy,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy", override: true},
-      {:regent_identity, path: "../identity"},
+      {:regent_identity,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/identity"},
       {:regent_payments,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/payments"},
       {:regent_agents,
@@ -87,6 +89,8 @@ defmodule Regents.MixProject do
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
       {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
+      # regent_identity, regent_agents and regent_points name regent_format by path;
+      # this pin replaces it.
       {:regent_format,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
       # regent_payments names regent_chain by a sibling path; this pin replaces it.

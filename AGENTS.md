@@ -5,16 +5,15 @@ the separate regents-cli repository.
 
 - `platform/`: Phoenix/Ash application. Read its instructions for web changes.
 - `contracts/`: Solidity, staking/distribution and retained historical evidence.
-- `identity/`: shared Ash identity domain and `regent_identity` schema consumed by every
-  product. Read its README before changing sync, actor or ownership rules.
 - `plugins/`: home for standalone runtime plugin packages; none exist yet. Hermes,
   OpenClaw, MCP and bundled-skill integrations are CLI code in regents-cli.
-- Shared UI and Elixir libraries other than `identity/` come from GitHub, each pinned to
-  one commit in `platform/mix.exs`.
+- Shared UI and Elixir libraries come from GitHub, each pinned to one commit in
+  `platform/mix.exs`. The shared profile (`regent_identity`) is elixir-utils'
+  `ash_components/identity`, as on every Regent site.
 - `make check` runs every component gate side by side, each logging to
   `platform/_build/check/<gate>.log`, and prints the log of any that failed;
-  `make check-platform`, `check-required-fixes`, `check-cli`, `check-siwa-latest`,
-  `check-identity` and `check-contracts` run one. `check-siwa-latest` fails until the
+  `make check-platform`, `check-required-fixes`, `check-cli`, `check-siwa-latest`
+  and `check-contracts` run one. `check-siwa-latest` fails until the
   site is on the newest regents-cli release and the newest SIWA library change. `MIX_TEST_PARTITION` (an underscore and
   a short id, unique to your working tree) is required.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.

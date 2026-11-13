@@ -50,11 +50,7 @@ defmodule RegentsWeb.AgentRequestsTest do
 
     assert account == %{"display_name" => nil, "ens_name" => nil}
 
-    Regents.Repo.query!(
-      "update regent_names.platform_human_users set display_name = 'Ada' where id = $1",
-      [account_id]
-    )
-
+    Regents.SharedProfiles.put_name!(person.privy_user_id, "Ada")
     Accounts.put_ens_identity(account_id, "ada.eth", nil, actor: %System{})
 
     assert %{"data" => %{"account" => %{"display_name" => "Ada", "ens_name" => "ada.eth"}}} =

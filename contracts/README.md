@@ -40,7 +40,6 @@ This directory is one component of the Regents monorepo:
 
 ```text
   platform/     regents.sh: Phoenix, LiveView and Ash web app and HTTP API
-  identity/     shared Ash identity domain consumed by every product
   contracts/    Solidity, ABIs, deployment records and the chain manifest   ◀ this directory
   blog/         the site's blog posts
   plugins/      home for standalone runtime plugin packages (none yet)
@@ -148,12 +147,11 @@ These must pass before a change is proposed:
 | Directory | What it is | What it deliberately does not do |
 | --- | --- | --- |
 | `platform/` | The Phoenix, LiveView, and Ash application behind regents.sh: public pages, the signed-in shell, the HTTP API, $REGENT staking and Animata pass redemption. | It does not hold Solidity source or user signing keys; wallet actions remain browser-signed. |
-| `identity/` | The shared Ash identity domain and `regent_identity` schema that every product reads. | It owns no product workflow, contract, or wallet action. |
 | `blog/` | The site's blog posts, rendered by `platform/`. | It holds content only. |
 | `plugins/` | The home for standalone runtime plugin packages; none exist yet. | Agent-runtime integrations live in the separate regents-cli repository until a package moves here. |
 
-The shared design system and the other Elixir libraries stay separate sibling repositories,
-and Autolaunch keeps its own repository.
+The shared design system and the Elixir libraries, the shared profile among them, stay
+separate sibling repositories, and Autolaunch keeps its own repository.
 
 ## License
 

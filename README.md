@@ -26,13 +26,12 @@ general informational directory for the varied apps and products made by Regents
 | --- | --- | --- |
 | Phoenix/LiveView/Ash website and API | [platform/](platform/README.md) | `make check-platform` |
 | Solidity, staking and contract history | [contracts/](contracts/README.md) | `make check-contracts` |
-| Shared identity domain used by every product | [identity/](identity/README.md) | `mix check` from `identity/`, see its README |
 | Agent runtime plugins | [plugins/](plugins/README.md) | None yet; runtime integrations ship with the [Regents CLI](https://github.com/regents-ai/regents-cli) |
 
-Run setup from the owning component. `identity/` is the one shared package that
-lives in this repository; the other shared libraries are independent repositories, and
-[platform setup](platform/README.md#quickstart) explains their paths. The platform's
-OTP application and release are both named `regents`.
+Run setup from the owning component. The shared libraries, the shared profile among them,
+are independent repositories, and [platform setup](platform/README.md#shared-dependencies)
+explains how they are pinned. The platform's OTP application and release are both named
+`regents`.
 
 ## Current boundaries
 

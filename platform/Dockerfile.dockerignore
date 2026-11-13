@@ -11,9 +11,6 @@
 !platform/package-lock.json
 !blog/**
 !cli/commands.json
-!identity/**
-identity/_build/
-identity/deps/
 
 # The copied source trees must never carry runtime environment files.
 **/.env

@@ -35,10 +35,9 @@ defmodule Regents.ReleasePackageTest do
     output = temporary_directory("release-context-out")
 
     # A miniature stand-in for the repository checkout the release builds from,
-    # holding one file for every rule: package sources, the blog content, the
-    # identity library, and the things that must never enter -- identity's own
-    # build output and dependencies, tests, docs, environment files and
-    # everything outside the declared allowlist.
+    # holding one file for every rule: package sources, the blog content, and the
+    # things that must never enter -- dependencies, tests, docs, environment files
+    # and everything outside the declared allowlist.
     write_files(context, [
       {"platform/lib/app.ex", "defmodule App do\nend\n"},
       {"platform/config/config.exs", "import Config\n"},
@@ -60,11 +59,6 @@ defmodule Regents.ReleasePackageTest do
       {"platform/.envrc", "export SECRET=nope\n"},
       {"platform/config/.env", "SECRET=nope\n"},
       {"blog/posts/first.md", "# first\n"},
-      {"identity/mix.exs", "defmodule RegentIdentity.MixProject do\nend\n"},
-      {"identity/lib/regent_identity.ex", "defmodule RegentIdentity do\nend\n"},
-      {"identity/.env", "SECRET=nope\n"},
-      {"identity/_build/dev/lib/app.beam", "host build output\n"},
-      {"identity/deps/dependency/lib/dependency.ex", "defmodule Dependency do\nend\n"},
       {"contracts/src/Token.sol", "contract Token {}\n"},
       {"stray.txt", "outside the allowlist\n"}
     ])
@@ -94,8 +88,6 @@ defmodule Regents.ReleasePackageTest do
 
     assert admitted_files(output) == [
              "blog/posts/first.md",
-             "identity/lib/regent_identity.ex",
-             "identity/mix.exs",
              "platform/assets/js/app.ts",
              "platform/config/config.exs",
              "platform/contracts/base-mainnet.json",

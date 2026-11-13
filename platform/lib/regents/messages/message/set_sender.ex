@@ -27,7 +27,8 @@ defmodule Regents.Messages.Message.SetSender do
       agent_wallet_address: wallet
     )
     |> Ash.Changeset.before_action(fn changeset ->
-      account = Accounts.points_account!(account_id, actor: %System{}, load: [:ens_name])
+      account =
+        Accounts.points_account!(account_id, actor: %System{}, load: [:display_name, :ens_name])
 
       Ash.Changeset.force_change_attribute(
         changeset,

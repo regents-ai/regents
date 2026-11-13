@@ -22,7 +22,7 @@ defmodule Regents.Accounts.HumanAccount do
       get? true
       argument :id, :integer, allow_nil?: false
       filter expr(id == ^arg(:id))
-      prepare build(load: [:ens_name, :ens_avatar_url, :ens_identity])
+      prepare build(load: [:display_name, :ens_name, :ens_avatar_url, :ens_identity])
     end
 
     read :points_account do
@@ -46,7 +46,7 @@ defmodule Regents.Accounts.HumanAccount do
     read :points_people do
       argument :ids, {:array, :integer}, allow_nil?: false
       filter expr(id in ^arg(:ids))
-      prepare build(load: [:ens_name, :ens_avatar_url])
+      prepare build(load: [:display_name, :ens_name, :ens_avatar_url])
     end
 
     read :public_profile_source do
@@ -78,12 +78,14 @@ defmodule Regents.Accounts.HumanAccount do
       change Regents.Accounts.HumanAccount.AnnounceRegistration
     end
 
+    # The sign-in answers with the account's menu, which shows its name.
     update :refresh_verified do
       accept []
       require_atomic? false
       argument :wallet_address, :string
       argument :wallet_addresses, {:array, :string}
       change Regents.Accounts.Changes.RefreshWalletEvidence
+      change load([:display_name])
     end
   end
 
@@ -123,7 +125,6 @@ defmodule Regents.Accounts.HumanAccount do
     attribute :wallet_addresses, {:array, :string}, default: [], sensitive?: true
     attribute :world_human_id, :string, sensitive?: true
     attribute :world_verified_at, :utc_datetime
-    attribute :display_name, :string, public?: true, constraints: [max_length: 80]
     attribute :avatar, :map
     create_timestamp :created_at
     update_timestamp :updated_at
@@ -135,9 +136,13 @@ defmodule Regents.Accounts.HumanAccount do
     end
   end
 
-  # What Ethereum mainnet says about this account's wallet, flattened onto the
-  # account so one display shape serves every identity a page renders.
   calculations do
+    # The name set in the person's shared Regent profile.
+    calculate :display_name, :string, {RegentIdentity.ProfileName, otp_app: :regents},
+      public?: true
+
+    # What Ethereum mainnet says about this account's wallet, flattened onto the
+    # account so one display shape serves every identity a page renders.
     calculate :ens_name, :string, expr(ens_identity.ens_name)
     calculate :ens_avatar_url, :string, expr(ens_identity.ens_avatar_url)
   end

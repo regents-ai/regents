@@ -15,7 +15,8 @@ every `handle_event` in `platform/lib/regents_web/live/` and
 (`Regents.Staking.Steps` and `Regents.Redemption.Steps`, both sent through
 `RegentsWeb.OnchainSteps`), `platform/priv/tool_manifest.json` (22 tools),
 `cli/commands.json` (16 commands),
-the shared profile `identity/lib/regent_identity/http.ex` and the shared agents
+the shared profile `RegentIdentity.HTTP` (then this repository's `identity/`, now
+elixir-utils' `ash_components/identity`) and the shared agents
 router from elixir-utils `14013e42` (`RegentAgents.HTTP`: pair, me, whoami). The
 local showcase, the Privy showcase and the motion lab (`/showcase`, `/animations`)
 were skipped.
@@ -177,8 +178,8 @@ were skipped.
 - **R11. Account settings are page-only.** Linked wallets are not in
   `regents_account`, verified connections need the Privy session, and the display name
   changes only on `/account`, through `/api/v1/profile` with a Privy proof pair. Plan: owner reads in `account show`, and a signed profile
-  change in this repository's `identity` library, after R1. Protected (sign-in,
-  wallet).
+  change in the shared `regent_identity` library (elixir-utils, built in ash-template
+  first), after R1. Protected (sign-in, wallet).
 - **R12. Name claims are page-only.** Checking a name, seeing free claims left and
   claiming a free Regent Name run only on `/names`; agents can only read the claims
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and

@@ -6053,3 +6053,31 @@ changelog line moves from the published 6 Nov entry to this release's.
 - Live read, signed out: /cloak shows one "Download for Mac" button, not pressable, with
   "Coming soon"; /cloak/guide is not found.
 - Rollback: v308's image main-9db436184feb.
+
+## 2026-11-13 — A saved name stays after a reload; the site uses the shared profile library
+
+- Sean, 13 Nov ("3 a"): regents.sh stops carrying its own older copy of the profile
+  library and uses the shared one from elixir-utils (`ash_components/identity`, at the
+  commit the site already pins), as ash-template does. The `identity/` folder is gone,
+  with its `make check-identity` gate (make check now runs six gates), its Dockerfile
+  and build-context lines, and its mentions in the guides. The browser code still gets
+  the profile client from the library at `mix assets.build`.
+- A name saved on Account was gone after a reload, because the pages read an old field
+  on the account that nothing writes any more. Every place that shows a person's name
+  (Account, the account menu, the Points board, an agent's account read and the sender
+  of a message an agent leaves) now reads it from the shared profile, in one read per
+  page or list.
+- What the shared library brings: a name with hidden characters (control, line-break,
+  text-direction or zero-width characters, apart from a joiner inside an emoji) is
+  refused on save with its own answer, `invalid_display_name`; and the site can read
+  people's names without their sign-in, server side only (names are public).
+- The old field stays in the database untouched: no migration, and the account record
+  no longer names it.
+- Tests: a name saved through the profile API shows on Account and in the account menu
+  at the next load and at the next sign-in; the Points board shows saved names. Tests
+  now sign in to one Privy app of their own (`test-app`), whatever the shell sets.
+- Checks: compile with warnings as errors (dev and test), format, credo, the reference
+  graph, sobelow, unused locks, usage rules, ash.codegen --check (no migration), the
+  whole server suite (679 of 680; the one miss was the route-gate walk timing out while
+  drawing the Paper Pro Daily share picture, and it passed alone), 365 script tests,
+  the type check and the assets build. No browser walk.

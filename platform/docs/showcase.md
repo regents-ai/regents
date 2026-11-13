@@ -30,8 +30,8 @@ then `mix assets.build` and `mix phx.server`. Do not use browser-test configurat
 as proof of real Privy sign-in. A detailed source map is also on the reference page.
 
 `design-system/regent_ui` is already the shared Phoenix component library,
-consumed as a path dependency rather than a Hex release. `regents/identity` and
-`elixir-utils/privy` are shared identity/verification libraries. This reference
+consumed as a path dependency rather than a Hex release. `elixir-utils/ash_components/identity`
+and `elixir-utils/privy` are shared identity/verification libraries. This reference
 documents Regents' application-owned browser coordination; it does not yet turn
 that coordination into a cross-product template or change the other sites.
 

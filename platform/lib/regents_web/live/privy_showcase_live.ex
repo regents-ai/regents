@@ -240,7 +240,7 @@ defmodule RegentsWeb.PrivyShowcaseLive do
             </ul>
           </details>
           <p>
-            Shared presentation lives in <code>design-system/regent_ui</code>. Shared identity lives in <code>regents/identity</code>; token verification lives in <code>elixir-utils/privy</code>. The browser integration shown here remains Regents-owned.
+            Shared presentation lives in <code>design-system/regent_ui</code>. Shared identity lives in <code>elixir-utils/ash_components/identity</code>; token verification lives in <code>elixir-utils/privy</code>. The browser integration shown here remains Regents-owned.
           </p>
           <a
             href="https://docs.privy.io/authentication/user-authentication/logout"

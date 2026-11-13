@@ -7,7 +7,7 @@ defmodule RegentsWeb.PointsPageTest do
   # Ported from ash-template's `AshTemplateWeb.PointsPageTest`.
   use RegentsWeb.ConnCase, async: false
 
-  alias Regents.{Accounts, Repo, SharedReading}
+  alias Regents.{Accounts, SharedProfiles, SharedReading}
   alias Regents.Actors.System
   alias Regents.Points.Board
 
@@ -81,17 +81,16 @@ defmodule RegentsWeb.PointsPageTest do
     refute text(page, "#points-page") =~ "Loading"
   end
 
-  # Names are not unique, and everyone who has only the first award is level on points:
-  # two people named alike at one place still get a picture each.
+  # The board shows the names people saved in their shared profiles. Names are not
+  # unique, and everyone who has only the first award is level on points: two people
+  # named alike at one place still get a picture each.
   test "two people with one name, level on points, each keep their own picture", %{
     conn: conn,
     other: other,
     person: person
   } do
-    Repo.query!(
-      "update regent_names.platform_human_users set display_name = 'Sam' where id = any($1)",
-      [[person.id, other.id]]
-    )
+    SharedProfiles.put_name!(person.privy_user_id, "Sam")
+    SharedProfiles.put_name!(other.privy_user_id, "Sam")
 
     assert :ok = Board.read()
     page = conn |> get("/account/points") |> html_response(200) |> LazyHTML.from_document()

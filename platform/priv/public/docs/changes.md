@@ -1,5 +1,7 @@
 ## 2026-11-13
 
+A name you save on [Account]({{origin}}/account) now stays after a reload. It shows on Account, in your account menu, on the [Points]({{origin}}/account/points) board and in your agent's read of your account, and a message your agent leaves the Regents team is signed with it. It is the same name every Regent site shows for you. A name with hidden characters in it is refused when you save it.
+
 The [Cloak]({{origin}}/cloak) page offers one way to set it up, the Mac app, whose download stays off until its first signed release. The setup guide at `/cloak/guide` is removed, and `regents_about` no longer takes `cloak`.
 
 ## 2026-11-12

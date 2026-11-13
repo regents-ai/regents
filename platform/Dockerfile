@@ -36,7 +36,6 @@ RUN mix local.hex 2.6.0 --force && \
 # Shared Regent libraries arrive here from GitHub at the commits mix.lock pins;
 # a mix.lock that no longer matches mix.exs stops the build.
 COPY platform/mix.exs platform/mix.lock ./
-COPY identity /workspace/identity
 RUN mix deps.get --only prod --check-locked
 COPY platform/config config
 RUN mix deps.compile

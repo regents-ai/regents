@@ -2,9 +2,12 @@ import Config
 
 require Logger
 
-config :regents, :privy,
-  app_id: System.get_env("PRIVY_APP_ID"),
-  verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
+# Tests sign in to their own app id (config/test.exs), whatever the shell sets.
+if config_env() != :test do
+  config :regents, :privy,
+    app_id: System.get_env("PRIVY_APP_ID"),
+    verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
+end
 
 # Without its Privy settings a local server answers every page while nobody can
 # sign in, so it refuses to start. A worktree holds no settings files of its own.

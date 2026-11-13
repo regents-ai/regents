@@ -21,7 +21,8 @@ monorepo, not in this app.
 The shared libraries from design-system and elixir-utils are git dependencies,
 each pinned to one commit at the top of `mix.exs`; `mix deps.get` fetches them.
 To move a pin, change its ref and run `mix deps.update <name>`.
-`regent_identity` comes from this repository's own `identity/` folder.
+The shared profile (`regent_identity`) is elixir-utils' `ash_components/identity`, as on
+every Regent site; a person's name on every page is the one saved there.
 Do not clone recursive Solidity submodules for a web-only change.
 
 ## Quickstart
@@ -205,7 +206,7 @@ MIT — see [LICENSE](../LICENSE).
 ## Shared private profile
 
 `/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Agents, Points, Wallets and Connections, and the page starts in ash-template. The private `/api/v1/profile` contract,
-served by the Regents-owned Ash identity domain, provides `GET`, `PATCH`, and `POST /sync`;
+served by the shared `regent_identity` library, provides `GET`, `PATCH`, and `POST /sync`;
 the product CLI and browser WebMCP use the same actions and response schema.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.

@@ -15,6 +15,11 @@ config :regents, RegentsWeb.Endpoint,
 config :regents, :metrics_listener, ip: {127, 0, 0, 1}, port: 0
 
 config :regents, :privy_verifier, Regents.TestPrivyVerifier
+
+# Every test signs in to this one Privy app, so shared profiles and sessions a
+# test writes match the app the site reads them for.
+config :regents, :privy, app_id: "test-app"
+
 config :regents, :staking_chain_client, Regents.TestStakingChainClient
 config :regents, :chain_client, Regents.TestChainClient
 # Base reads a test does not answer itself are refused, never sent to a public node.
