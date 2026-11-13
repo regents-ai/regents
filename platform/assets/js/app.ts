@@ -26,6 +26,7 @@ import {
   type ShellState,
 } from "./shell_state"
 import {Datascape} from "./hooks/datascape"
+import {EnterGradient} from "./hooks/enter_gradient"
 import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList, MotionRefusal} from "./hooks/motion/moments"
@@ -269,6 +270,7 @@ const hooks = {
   ...colocatedHooks,
   Datascape,
   Docs,
+  EnterGradient,
   HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,

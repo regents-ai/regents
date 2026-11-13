@@ -11,7 +11,7 @@
   }
   .rl-root :is(h1, h2, h3, p) { margin-block: 0; }
   .rl-root [id] { scroll-margin-block-start: 2rem; }
-  .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; min-height: 5rem; gap: 1rem; padding: var(--space-2) var(--rg-panel-padding); }
+  .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1.25rem var(--rg-panel-padding) .25rem; }
   .rl-product-tabs { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
   .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
   .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
@@ -82,11 +82,15 @@
 
   /* The glass: a dark, see-through fill that blurs the picture behind it, edged by a
      light hairline that is lighter along the top. It stands over the picture by
-     coming later in the page, so it needs no stacking number. */
+     coming later in the page, so it needs no stacking number. Keyboard focus on
+     everything in it is marked in the light Signal Blue, and its buttons' corner
+     marks are drawn in its ink. */
   .home__glass {
     --rg-panel-padding: var(--space-4);
+    --color-focus: #8fb0ff; --color-focus-ring: #8fb0ff;
+    --rg-button-mark-color: var(--rl-ink);
     position: relative; display: grid; width: min(44rem, 100%); min-width: 0;
-    background: color-mix(in srgb, #070b14 56%, transparent);
+    background: color-mix(in srgb, #070b14 72%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
     backdrop-filter: blur(20px) saturate(150%);
     border: 1px solid color-mix(in srgb, var(--rl-ink) 18%, transparent);
@@ -112,32 +116,27 @@
   @keyframes home-glass-wait {
     from { transform: scale(.3); opacity: 0; pointer-events: none; }
   }
+  /* The name and its line, then Enter App with Agent Tools beside it, then the agent
+     prompt. */
   .home__main {
     container-type: inline-size;
-    display: grid; gap: var(--space-3); min-width: 0;
+    display: grid; gap: var(--space-4); min-width: 0;
     padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
   }
-  /* The name and its line, then Enter App: stacked in a narrow panel, side by side in
-     a wide one, with Enter App standing large in the middle-right. */
-  .home__hero { display: grid; gap: var(--space-3); min-width: 0; }
-  @container (min-width: 34rem) {
-    .home__hero { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-4); }
-    .home__hero .rl-hero-cta { justify-self: end; }
+  /* In a narrow panel Enter App takes the whole width and Agent Tools sits under it. */
+  .home__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; }
+  @container (max-width: 34rem) {
+    .home__actions .rl-hero-cta { flex: 1 1 100%; }
   }
-  /* The panel's foot: the product sites under their title, a badge on the line
-     across the panel that parts the foot from what is above it. */
+  /* The panel's foot: the product sites under their title, which starts the line
+     that parts the foot from what is above it. */
   .home__foot {
     container-type: inline-size;
     display: grid; gap: var(--space-2); min-width: 0;
     padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
   }
-  .home__rule { display: flex; align-items: center; margin-inline: calc(-1 * var(--rg-panel-padding)); }
-  .home__rule::before, .home__rule::after { content: ""; flex: 1; border-block-start: 1px solid var(--rl-line); }
-  /* The spacing after the last letter is taken off its end, so the word sits in the middle. */
-  .home__badge {
-    padding: .25rem calc(.75rem - .16em) .25rem .75rem;
-    border: 1px solid var(--rl-line); border-radius: 999px; color: var(--rl-muted);
-  }
+  .home__rule { display: flex; align-items: center; gap: .75rem; font-size: .875rem; line-height: 1.5; }
+  .home__rule::after { content: ""; flex: 1; border-block-start: 1px solid var(--rl-line); }
   /* The whole agent prompt, in its own window. */
   .rl-prompt-dialog { --rg-dialog-size: 36rem; }
   .rl-prompt-dialog__text {
@@ -147,7 +146,7 @@
 
   /* The lab's name in the title face, then one plain line in body weight. */
   .rl-statement { display: grid; gap: var(--space-2); }
-  .rl-statement__name { font: 400 clamp(2.5rem, 4.4vw, 3.5rem)/1 var(--font-family-title); }
+  .rl-statement__name { font: 400 clamp(2.5rem, 5vw, 4rem)/1 var(--font-family-title); letter-spacing: -.015em; }
   .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-ui); text-wrap: pretty; }
 
   .rl-hero { min-width: 0; }
@@ -166,20 +165,24 @@
 }
 
 /* Everything the home page lets a pointer press answers it: the crown lifts and
-   glows, the icons and plain links take the pointing blue, and outlined and menu
-   buttons take a faint wash of their own ink. Outside the layer, so they win over
-   the links' and buttons' own unlayered colours. A press squishes the crown with
-   every other button (motion.ts). */
-.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools { transition: color 140ms ease, opacity 140ms ease; }
+   glows, the icons and plain links take the app's signal colour (on the home
+   page's own panel, white), and outlined and menu buttons take a faint wash of
+   their own ink. Outside the layer, so they win over the links' and buttons' own
+   unlayered colours. A press squishes the crown with every other button (motion.ts). */
+.rl-header-links > a:not(.rg-button), .rl-token-menu > summary { transition: color 140ms ease, opacity 140ms ease; }
 .home__crown img { transition: filter 140ms ease; }
 .rl-root .rg-button--secondary::before { transition: box-shadow 140ms ease; }
 .rg-button.rl-token-link::before { transition: background-color 140ms ease; }
 @media (prefers-reduced-motion: no-preference) {
   .home__crown img { transition: filter 140ms ease, translate 140ms var(--ease-out); }
 }
+/* On the home page's own panel the token menu marks keyboard focus in the panel's
+   light Signal Blue, as every other control there does. */
+.home .rl-token-menu :is(summary, a, button):focus-visible { outline-color: var(--color-focus); }
 @media (hover: hover) {
   .home__crown:hover img { filter: drop-shadow(0 0 .5rem color-mix(in srgb, var(--palette-platinum) 45%, transparent)); }
-  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-hero-tools, .rl-token-copy):hover { color: var(--ash-signal); }
+  :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-token-copy):hover { color: var(--ash-signal); }
+  .home :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-token-copy):hover { color: #fff; }
   .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
   .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
 }
@@ -187,36 +190,36 @@
   .home__crown:hover img { translate: 0 -2px; }
 }
 
-/* The agent prompt as one line of code on the picture's own black, in a thin ring
-   of Cloak's violet: the words stop in an ellipsis where the box does, then the
-   copy and view icons, each a full press square. Outside the layer, so they win
-   over the copy icon's own unlayered rules. */
+/* The agent prompt as one line of code on a deep blue-black, edged in the light
+   Signal Blue: the words stop in an ellipsis where the box does, then the copy and
+   view icons, each a full press square in the same blue, white with a blue wash
+   when pointed at. The copy icon is the shared one, so its own colour roles are set
+   here. Outside the layer, so they win over the copy icon's own unlayered rules. */
 .rl-prompt {
-  --rl-prompt-ring: #a97bf0;
+  --rl-prompt-edge: #8fb0ff;
+  --color-fg-muted: var(--rl-prompt-edge); --color-fg: #fff; --color-border: transparent;
   position: relative; display: flex; align-items: center; gap: .25rem; min-width: 0;
   padding: .25rem .25rem .25rem var(--space-2);
-  background: #020307; border: 1px solid color-mix(in srgb, var(--rl-prompt-ring) 70%, transparent);
-  border-radius: .75rem;
-  box-shadow: 0 0 1rem color-mix(in srgb, var(--rl-prompt-ring) 22%, transparent);
+  background: #050a1f; border: 1px solid var(--rl-prompt-edge);
 }
 .rl-prompt__text {
   flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font: var(--type-code-size)/var(--type-code-line) var(--font-family-mono); color: var(--rl-ink);
+  font: var(--type-code-size)/var(--type-code-line) var(--font-family-mono); color: #eef1ff;
 }
 .rl-prompt :is(.rg-copy--icon, .rl-prompt__view) {
   inline-size: 2.75rem; block-size: 2.75rem; min-block-size: 2.75rem;
-  border-radius: .5rem; background: none;
+  background: none; transition: color 120ms ease, background-color 120ms ease;
 }
 .rl-prompt__view {
   display: inline-grid; place-items: center; flex: none; padding: 0;
-  border: 1px solid transparent; color: var(--rl-muted); cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease;
+  border: 1px solid transparent; color: var(--color-fg-muted); cursor: pointer;
 }
 .rl-prompt__view svg { inline-size: 1.125rem; block-size: 1.125rem; }
-.rl-prompt__view:focus-visible { color: var(--rl-ink); }
+.rl-prompt__view:focus-visible { color: var(--color-fg); }
+.rl-prompt .rg-copy--icon:focus-visible { outline-color: var(--color-focus); }
 @media (hover: hover) and (pointer: fine) {
-  .rl-prompt :is(.rg-copy--icon, .rl-prompt__view):hover { border-color: color-mix(in srgb, var(--rl-prompt-ring) 55%, transparent); }
-  .rl-prompt__view:hover { color: var(--rl-ink); }
+  .rl-prompt :is(.rg-copy--icon, .rl-prompt__view):hover { background: color-mix(in srgb, #3361ff 24%, transparent); }
+  .rl-prompt__view:hover { color: var(--color-fg); }
 }
 /* A copy's answer, which the copy icon's status says for screen readers, shows for
    the same moment as a small pill before the icons, over the line's end. It comes
@@ -225,7 +228,7 @@
 .rl-prompt .rg-copy__status:not(:empty) {
   width: auto; height: auto; margin: 0; overflow: visible; clip-path: none;
   padding: .125rem .625rem; translate: 0 -50%; opacity: 1;
-  background: #020307; border: 1px solid color-mix(in srgb, currentColor 45%, transparent); border-radius: 999px;
+  background: #050a1f; border: 1px solid color-mix(in srgb, currentColor 45%, transparent); border-radius: 999px;
   color: var(--rl-ink); font: .75rem/1.5 var(--font-family-ui);
   transition: opacity 200ms var(--ease-out);
 }
@@ -248,6 +251,8 @@
   justify-content: flex-start; text-align: start;
 }
 .rg-button.rl-token-link::after { content: none; }
+/* On the home page's own panel the token menu's links keep its ivory. */
+.home .rg-button.rl-token-link { --rg-p-on-accent: var(--rl-ink); }
 
 /* The product tiles are one charcoal set: a ramp from deep through mid to light
    that the flow runs along, the light that drifts across it, and the platinum ink
@@ -280,8 +285,7 @@
   --rg-p-on-accent: var(--tile-ink);
   --rg-button-border-color: color-mix(in srgb, var(--tile-ink) 28%, transparent);
   min-width: 0; min-height: 3.25rem; padding: .875rem .25rem;
-  border-radius: 0; font-size: var(--type-label-size); line-height: 1.25;
-  font-weight: 400; letter-spacing: .04em; text-transform: uppercase;
+  border-radius: 0; font-size: 1rem; line-height: 1.25; font-weight: 400;
   text-align: center; justify-content: center; white-space: nowrap; user-select: none;
 }
 /* The product's dot, in the key's top corner. It is painted on a layer the size of
@@ -291,37 +295,47 @@
   background: radial-gradient(circle at .625rem .625rem, var(--tile-dot) 0 .1875rem, transparent calc(.1875rem + .5px));
   transform: scale(var(--rg-press-scale, 1));
 }
-/* Agent Tools is a quiet text link under the agent prompt, a full 44px tall to tap,
-   that opens the tools window. */
+/* Agent Tools is a quiet text link beside Enter App, a full 44px tall to tap, that
+   opens the tools window. */
 .rl-hero-tools {
-  justify-self: start; display: inline-flex; align-items: center; min-height: 2.75rem;
-  padding: 0; background: none; border: 0; color: var(--rl-muted); cursor: pointer;
-  font: inherit; font-size: .875rem; line-height: 1.5;
-  text-decoration: underline; text-underline-offset: .2em;
+  display: inline-flex; align-items: center; min-height: 2.75rem;
+  padding: 0; background: none; border: 0; color: var(--rl-ink); cursor: pointer;
+  font: inherit; font-size: 1rem; line-height: 1.5;
+  text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
+  text-underline-offset: .2em;
+  transition: color 140ms ease, text-decoration-color 140ms ease;
 }
-/* Enter App is the page's one main action: large, and ringed in the palette's colours,
-   Tangerine through Powder Blue to Platinum, along its cut corners. The ring lies just
-   outside the fill, so the shared marks that hover and focus bring in still show
-   inside it, and its colours turn on hover and focus. */
-.rg-button.rl-hero-cta { --rl-cta-ring: 3px; min-height: 4rem; padding: 1rem 2.5rem; font-size: 1.375rem; line-height: 1.5rem; }
-.rg-button.rl-hero-cta::after {
-  --rl-cta-cut: calc(var(--rg-cut-control) + .586 * var(--rl-cta-ring));
-  content: ""; position: absolute; inset: calc(-1px - var(--rl-cta-ring)); pointer-events: none;
-  background: linear-gradient(110deg,
-      var(--palette-tangerine-tango), var(--palette-powder-blue) 25%, var(--palette-platinum) 50%,
-      var(--palette-powder-blue) 75%, var(--palette-tangerine-tango)) 0 50% / 200% 100%;
-  /* The outer cut shape, then the fill's own, so only the ring between them paints. */
-  clip-path: polygon(evenodd,
-    var(--rl-cta-cut) 0, 100% 0, 100% calc(100% - var(--rl-cta-cut)), calc(100% - var(--rl-cta-cut)) 100%, 0 100%, 0 var(--rl-cta-cut), var(--rl-cta-cut) 0,
-    calc(var(--rl-cta-ring) + var(--rg-cut-control)) var(--rl-cta-ring), calc(100% - var(--rl-cta-ring)) var(--rl-cta-ring),
-    calc(100% - var(--rl-cta-ring)) calc(100% - var(--rl-cta-ring) - var(--rg-cut-control)),
-    calc(100% - var(--rl-cta-ring) - var(--rg-cut-control)) calc(100% - var(--rl-cta-ring)),
-    var(--rl-cta-ring) calc(100% - var(--rl-cta-ring)), var(--rl-cta-ring) calc(var(--rl-cta-ring) + var(--rg-cut-control)),
-    calc(var(--rl-cta-ring) + var(--rg-cut-control)) var(--rl-cta-ring));
+@media (hover: hover) {
+  .rl-hero-tools:hover { color: #fff; text-decoration-color: currentColor; }
+}
+/* Enter App is the page's one main action: white words on Signal Blue, with the
+   shared white marks at its corners on hover and focus. The blue is its stage,
+   under the marks and the words: flat until the gradient has drawn a first frame,
+   and flat for less motion. A pointer over it deepens the blue a little, and a press
+   a little more, under the shared squish, so the words only ever read more clearly. */
+.rg-button.rl-hero-cta {
+  --rg-p-accent: transparent; --rg-p-on-accent: #fff;
+  --rg-button-border-color: #fff; --rg-button-mark-color: #fff;
+  min-height: 3.5rem; padding: 0 var(--space-4); font-size: 1.125rem; line-height: 1.5;
+}
+.rl-hero-cta__stage {
+  position: absolute; inset: -1px; z-index: -2; pointer-events: none; background: #3361ff;
+  clip-path: polygon(var(--rg-cut-control) 0, 100% 0, 100% calc(100% - var(--rg-cut-control)), calc(100% - var(--rg-cut-control)) 100%, 0 100%, 0 var(--rg-cut-control));
   transform: scale(var(--rg-press-scale, 1));
-  transition: background-position 400ms ease;
 }
-.rg-button.rl-hero-cta:is(:hover, :focus-visible)::after { background-position: 100% 50%; }
+.rl-hero-cta__stage canvas { display: block; width: 100%; height: 100%; opacity: 0; }
+.rl-hero-cta[data-enter-gradient-ready="true"] .rl-hero-cta__stage canvas { opacity: 1; }
+.rl-hero-cta__stage::after {
+  content: ""; position: absolute; inset: 0; background: #0a1a6b; opacity: 0;
+  transition: opacity 150ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rg-button.rl-hero-cta:hover .rl-hero-cta__stage::after { opacity: .12; }
+}
+.rg-button.rl-hero-cta:active .rl-hero-cta__stage::after { opacity: .22; transition-duration: 60ms; }
+@media (prefers-reduced-motion: no-preference) {
+  .rl-hero-cta__stage canvas { transition: opacity 600ms ease; }
+}
 .rg-button.rl-product-tab::before {
   border: 1px solid var(--rg-button-border-color);
   transition: border-color 140ms ease;
@@ -338,7 +352,7 @@
 .rl-product-tabs[data-product-tiles-ready="true"] .rl-product-tabs__stage { opacity: 1; }
 .rl-product-tabs[data-product-tiles-ready="true"] .rl-product-tab__still { opacity: 0; }
 .rg-button.rl-product-tab:focus-visible {
-  outline: 2px solid var(--palette-powder-blue); outline-offset: 4px;
+  outline: 2px solid var(--color-focus); outline-offset: 4px;
   --rg-button-border-color: var(--tile-ink);
 }
 @media (hover: hover) and (pointer: fine) {
@@ -359,7 +373,7 @@
   .rg-button.rl-product-tab::after { transform: none; }
 }
 @media (forced-colors: active) {
-  .rl-product-tab__still, .rl-product-tabs__stage, .rg-button.rl-product-tab::after { display: none; }
+  .rl-product-tab__still, .rl-product-tabs__stage, .rg-button.rl-product-tab::after, .rl-hero-cta__stage { display: none; }
   .rg-button.rl-product-tab { border-color: ButtonText; color: LinkText; }
   .rg-button.rl-product-tab:focus-visible { outline-color: Highlight; }
 }

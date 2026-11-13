@@ -5953,3 +5953,20 @@ changelog line moves from the published 6 Nov entry to this release's.
   is refused, `REGENTS_ADMINS` is present on the machine. The old `REGENT_CREDITS_ADMINS`
   secret is staged for removal at the next release.
 - Rollback: v304's image main-9ed140a42364.
+
+## 2026-11-13 — Home menu in Signal Blue
+
+- The home page's menu follows mock 09, Signal Blue (Sean's pick): Enter App is a solid
+  blue button under the name and its line, Agent Tools sits beside it (under it on a
+  phone), and the agent prompt is below both, edged in light blue with no glow. The
+  glass is denser, the products heading reads "Products" in plain type, the product
+  names are in normal case, and the empty strip at the top of the panel is gone.
+- Enter App's blue drifts slowly between neighbouring blues, drawn with vgpu while the
+  panel is open and the tab is in view. It shows plain Signal Blue until its first frame
+  and for reduced motion. The white words keep at least 4.5:1 on every blue it reaches
+  (`platform/assets/test/enter_gradient.test.ts`).
+- No orange or violet in the menu at rest, on hover, on keyboard focus or pressed:
+  every control's focus ring is light Signal Blue, button corner marks are in the
+  panel's ink, and the product dots keep their products' own colours.
+- The page and the agent guide both read Enter App, Agent Tools, the agent prompt, then
+  the products.

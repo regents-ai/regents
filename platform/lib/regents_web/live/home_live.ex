@@ -21,11 +21,11 @@ defmodule RegentsWeb.HomeLive do
 
     [Enter App](#{PublicDocuments.url("/app")})
 
+    [Agent Tools](#{PublicDocuments.url("/llms.txt")})
+
     ## Agent prompt
 
     #{agent_prompt()}
-
-    [Agent Tools](#{PublicDocuments.url("/llms.txt")})
 
     ## Products
 
@@ -115,14 +115,32 @@ defmodule RegentsWeb.HomeLive do
         <.landing_header />
 
         <main id="home-content" class="home__main">
-          <div class="home__hero">
-            <div class="rl-statement">
-              <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
-              <p class="rl-statement__line">{@mission}</p>
-            </div>
-            <a href={~p"/app"} class="rg-button rg-button--no-arrow rl-hero-cta">
+          <div class="rl-statement">
+            <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
+            <p class="rl-statement__line">{@mission}</p>
+          </div>
+          <%!-- Enter App's blue, drawn moving once the browser can; until then, and for
+               less motion, the stage's own flat blue. --%>
+          <div class="home__actions">
+            <a
+              id="home-enter"
+              href={~p"/app"}
+              class="rg-button rg-button--no-arrow rl-hero-cta"
+              phx-hook="EnterGradient"
+              phx-mounted={JS.ignore_attributes(["data-enter-gradient-ready"])}
+            >
+              <span id="home-enter-stage" class="rl-hero-cta__stage" phx-update="ignore">
+                <canvas data-enter-gradient-canvas aria-hidden="true"></canvas>
+              </span>
               <span class="rg-button__label">Enter App</span>
             </a>
+            <AgentTools.button
+              id="home-agent-tools-button"
+              dialog="home-agent-tools"
+              class="rl-hero-tools"
+            >
+              Agent Tools
+            </AgentTools.button>
           </div>
           <%!-- The words a person pastes to their agent, on one line that ends where
                the box does; the whole prompt is copied, or shown in its own window. --%>
@@ -143,13 +161,6 @@ defmodule RegentsWeb.HomeLive do
               <Regent.Icons.icon name="maximize-2" />
             </button>
           </section>
-          <AgentTools.button
-            id="home-agent-tools-button"
-            dialog="home-agent-tools"
-            class="rl-hero-tools"
-          >
-            Agent Tools
-          </AgentTools.button>
         </main>
 
         <.products />
@@ -204,16 +215,14 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  # The panel's foot: the product sites and the staking page, under their title, a
-  # badge on the line across the panel. Each tile wears its product's own colours.
+  # The panel's foot: the product sites and the staking page, under their title at
+  # the start of a line across the panel. Each tile wears its product's own colours.
   # The server draws them as a still gradient; one canvas behind the row sets them
   # flowing once it has drawn.
   defp products(assigns) do
     ~H"""
     <nav class="home__foot" aria-labelledby="home-products-title">
-      <h2 id="home-products-title" class="home__rule">
-        <span class="rl-overline home__badge">Products</span>
-      </h2>
+      <h2 id="home-products-title" class="home__rule">Products</h2>
       <div
         id="home-product-tabs"
         class="rl-product-tabs"

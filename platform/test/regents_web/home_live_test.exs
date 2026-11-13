@@ -67,7 +67,7 @@ defmodule RegentsWeb.HomeLiveTest do
 
     order =
       ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
-        ["Agent prompt", HomeLive.agent_prompt(), "Agent Tools"] ++
+        ["Agent Tools", "Agent prompt", HomeLive.agent_prompt()] ++
         ["Products"] ++ ~w(Keyfleet Autolaunch Protocol Patchbay Techtree Cloak)
 
     assert in_order?(text(html, "#home-glass"), order)

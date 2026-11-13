@@ -288,8 +288,8 @@ for (const viewport of [
         ".rl-header",
         "#home-title",
         ".rl-hero-cta",
-        ".rl-prompt",
         ".rl-hero-tools",
+        ".rl-prompt",
         "#home-products-title",
         ".rl-product-tabs",
       ].map(selector =>
@@ -339,11 +339,11 @@ for (const viewport of [
   })
 }
 
-// Enter App is the one large action: beside the name and its line in a wide panel, full
-// width under them on a phone. Under it, the agent prompt stands on one line that ends in
-// an ellipsis, with its copy and view icons, and the quiet Agent Tools link opens the
-// tools window.
-test("[U2] Enter App leads, then the agent prompt and Agent Tools", async ({browser}) => {
+// Enter App is the one large action, under the name and its line, with the quiet Agent
+// Tools link beside it in a wide panel; on a phone it spans the panel and Agent Tools
+// sits under it. Under both, the agent prompt stands on one line that ends in an
+// ellipsis, with its copy and view icons, and Agent Tools opens the tools window.
+test("[U2] Enter App leads, with Agent Tools, then the agent prompt", async ({browser}) => {
   for (const {width, height} of [
     {width: 1280, height: 800},
     {width: 390, height: 844},
@@ -363,16 +363,18 @@ test("[U2] Enter App leads, then the agent prompt and Agent Tools", async ({brow
           boxOf(page, selector),
         ),
       )
+      expect(cta.top, "Enter App under the line").toBeGreaterThanOrEqual(statement.bottom)
+      expect(cta.left, "in line with the name").toBeCloseTo(statement.left, 0)
       if (width >= 1024) {
-        expect(cta.left, "Enter App stands right of the name").toBeGreaterThan(statement.right)
-        expect(cta.top, "level with the name and its line").toBeLessThan(statement.bottom)
+        expect(tools.left, "Agent Tools right of Enter App").toBeGreaterThan(cta.right)
+        expect(tools.top, "level with Enter App").toBeGreaterThanOrEqual(cta.top)
+        expect(tools.bottom, "level with Enter App").toBeLessThanOrEqual(cta.bottom)
       } else {
-        expect(cta.top, "Enter App under the line").toBeGreaterThanOrEqual(statement.bottom)
         expect(cta.width, "across the panel").toBeGreaterThan(main.width - 80)
+        expect(tools.top, "Agent Tools under Enter App").toBeGreaterThanOrEqual(cta.bottom)
       }
       expect(cta.height).toBeGreaterThanOrEqual(56)
-      expect(prompt.top, "the prompt under Enter App").toBeGreaterThanOrEqual(cta.bottom)
-      expect(tools.top, "Agent Tools under the prompt").toBeGreaterThanOrEqual(prompt.bottom)
+      expect(prompt.top, "the prompt under both").toBeGreaterThanOrEqual(Math.max(cta.bottom, tools.bottom))
       expect(tools.height, "a full tap target").toBeGreaterThanOrEqual(44)
 
       // One line, cut short with an ellipsis where the box ends.
@@ -624,9 +626,9 @@ test("[U2][U3] homepage captures the accepted mobile and tablet states", async (
   }
 })
 
-// The focus ring belongs to the whole page: it is set in Text and stays that same mark on
-// every control in the panel. A filled button (Enter App) draws the shared cut ring
-// around its corners instead of an outline.
+// The focus ring is the same mark on every control in the panel, in the light Signal
+// Blue. A filled button (Enter App) draws the shared cut ring around its corners
+// instead of an outline.
 test("[U1] every panel control retains visible paired keyboard focus", async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900})
   await page.goto("/")
@@ -643,11 +645,13 @@ test("[U1] every panel control retains visible paired keyboard focus", async ({p
       const name = element.getAttribute("aria-label") ?? element.textContent?.trim().replace(/\s+/g, " ") ?? ""
       const outlined = style.outlineStyle === "solid" && parseFloat(style.outlineWidth) >= 2
       const ringed = ring.borderTopStyle === "solid" && parseFloat(ring.borderTopWidth) >= 2
-      return {name, marked: outlined || ringed, opacity: style.opacity}
+      const color = outlined ? style.outlineColor : ring.borderTopColor
+      return {name, marked: outlined || ringed, color, opacity: style.opacity}
     })
     if (!result) continue
     reached.add(result.name)
     expect(result.marked, result.name).toBe(true)
+    expect(result.color, result.name).toBe("rgb(143, 176, 255)")
     expect(Number(result.opacity)).toBeGreaterThan(0)
   }
   expect([...reached]).toEqual(
