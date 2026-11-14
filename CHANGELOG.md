@@ -6469,3 +6469,13 @@ seasons), on the shared Points library regents.sh was already on.
   open what cards open, less motion, and fit at 320, 390 and 1280 with every beam
   pressed and saying its own sentence); `regent_ops_live_test.exs` reads the blocks.
   No migration, no new dependency.
+
+## 2026-11-14 — Released v319 (Overview hero)
+
+- v319, commit 96434fcc: the Overview hero shows the products as blocks in a deep tunnel
+  with the crown on the far wall; the old map is gone. Full check exit 0 on 96434fcc, six
+  gates in one run. No migration.
+- Live read, signed out, dark and light, at 320, 390 and 1280: seven places and thirteen
+  lines, the live picture drew, no sideways scroll and no console errors; a focused line
+  shows its sentence. Safari, Firefox and a real phone were not read.
+- Rollback: v318's image main-6ed3a3f73f21.
