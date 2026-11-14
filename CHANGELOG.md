@@ -6333,3 +6333,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Every wallet button works as before; only what the page draws changed.
 - Tests on Stake and Redeem check that a redraw with nothing new leaves the list alone
   and that Base's answer draws it.
+
+## 2026-11-14 — Released v315 (sent list only on change)
+
+- v315, commit 925e9824: Stake and Redeem draw and send the Submitted Transactions list
+  only when a transaction in it changes. Full check exit 0 on 925e9824, six gates in one
+  run. No migration.
+- Live read, signed out, at 320, 390 and 1280: Redeem, Stake, Daily Research, home and
+  Overview load with no sideways scroll and no console errors. The list needs a connected
+  wallet and was not read on live.
+- Rollback: v314's image main-69df4d39059b.
