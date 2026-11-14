@@ -6579,3 +6579,8 @@ seasons), on the shared Points library regents.sh was already on.
   Techtree's links; Keyfleet's Git; Cloak's Planned marks; About and llms.txt. The agent
   windows' edge was read before release, not on live.
 - Rollback: v320's image main-059f9ac85826.
+
+## 2026-11-14 — Homepage note reworded
+
+- The quieter line under the homepage's mission now reads "Agent-built and designed to be
+  agent-owned through the token."

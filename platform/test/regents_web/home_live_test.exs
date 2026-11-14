@@ -127,7 +127,7 @@ defmodule RegentsWeb.HomeLiveTest do
     line =
       "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers."
 
-    note = "Agent-built and designed to be agent-owned. The token is foremost, no equity value."
+    note = "Agent-built and designed to be agent-owned through the token."
 
     assert text(html, "h1") == "Regents Labs"
     assert text(html, "#home-content .rl-statement__line") == line

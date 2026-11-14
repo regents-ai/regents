@@ -7,7 +7,7 @@ defmodule RegentsWeb.HomeLive do
   # The lab's one plain line under its name, and the quieter line under that, on
   # the page and in the agent copy.
   @mission "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers."
-  @mission_note "Agent-built and designed to be agent-owned. The token is foremost, no equity value."
+  @mission_note "Agent-built and designed to be agent-owned through the token."
 
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
