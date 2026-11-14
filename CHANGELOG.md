@@ -6429,3 +6429,40 @@ seasons), on the shared Points library regents.sh was already on.
   screen, with no sideways scroll and no console errors on Redeem, Stake, home or Overview.
   The floating note needs a connected wallet and was not read on live.
 - Rollback: v317's image main-08f2f97ec49c.
+
+## 2026-11-14 — Overview hero: the products as blocks in a deep tunnel
+
+- The Overview's hero now shows the six products and Sign-in with Agent as blocks
+  floating at their own depths in a deep tunnel, with the Regents crown set into its far
+  wall in the house blue and a thin beam for each of the thirteen ways two products work
+  together. It replaces the flat map of dots and lines and its glow.
+- Picking works as before: a beam under the mouse, focused or tapped lights itself and
+  its two blocks within a fifth of a second and dims the rest, and its sentence shows
+  under the scene; a block lights all its beams; every beam is a Tab stop; each product's
+  block and name open what its card opens (Protocol's opens Stake).
+- The scene comes in once (crown, then blocks from far to near, then each beam drawn out
+  from its first end, then the names) in about a second, then stays still. A mouse over
+  it turns the view a few degrees; a finger leaves it where it is.
+- Without WebGPU the server's still picture of the same scene is the whole of it,
+  finished and pickable; with less motion asked for it shows straight away, with no
+  arrival.
+- Light has its own colours: a pale blue tunnel, a lighter crown, softer beams. In both
+  themes the tunnel starts in the panel's own colour and its seams fade in from the rim,
+  so the scene has no hard edge.
+- Wide and narrow arrangements are composed so every name is whole, inside the scene and
+  clear of the others, no beam crosses the crown on a wide screen, and Sign-in with Agent
+  keeps the bottom right. The shortest stretch of a beam a finger can press is now 71px
+  at 1280, 79px at 390 and 59px at 320 (it was 55px; the floor is 44px). On a narrow
+  screen three beams still pass in front of the crown.
+- Copy is unchanged.
+- Frames, measured in headless Chromium with WebGPU at 1280: none at rest, after a turn,
+  after a pick, scrolled away or in a hidden tab; 60 a second while turning; a pick draws
+  19 frames over 300ms, the first 15ms after the press.
+- Weight: first-load script 233.8 to 236.1 KB (gzipped 71.6 to 72.5 KB); styles 274.2 to
+  275.4 KB (46.7 to 47.0 KB); the GPU picture's own file, fetched after the page, 3.9 to
+  14.4 KB (2.0 to 5.6 KB). The Overview page itself grows by about 10.5 KB gzipped,
+  mostly the still picture for both arrangements.
+- Tests: `test/browser/lab_blocks.spec.ts` replaces `lab_map.spec.ts` (keyboard, blocks
+  open what cards open, less motion, and fit at 320, 390 and 1280 with every beam
+  pressed and saying its own sentence); `regent_ops_live_test.exs` reads the blocks.
+  No migration, no new dependency.
