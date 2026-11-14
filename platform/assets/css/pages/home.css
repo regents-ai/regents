@@ -144,10 +144,18 @@
     color: color-mix(in srgb, var(--agent-tools-ink) 88%, transparent); overflow-wrap: anywhere;
   }
 
-  /* The lab's name in the title face, then one plain line in body weight. */
+  /* The lab's name in the title face, then one plain line in body weight, then a
+     quieter note: smaller, dimmer, and closer to the line than the line is to the
+     name, so the two read as one statement. */
   .rl-statement { display: grid; gap: var(--space-2); }
   .rl-statement__name { font: 400 clamp(2.5rem, 5vw, 4rem)/1 var(--font-family-title); letter-spacing: -.015em; }
   .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-ui); text-wrap: pretty; }
+  .rl-statement__note {
+    max-width: 48ch;
+    color: color-mix(in srgb, var(--rl-ink) 66%, transparent);
+    font: var(--font-weight-regular) .875rem/1.5 var(--font-family-ui); text-wrap: pretty;
+  }
+  .rl-statement__line + .rl-statement__note { margin-block-start: calc(var(--space-1) - var(--space-2)); }
 
   .rl-hero { min-width: 0; }
   .rl-hero-copy { width: fit-content; max-width: 100%; align-self: start; padding: var(--space-2) 0 var(--space-4); }

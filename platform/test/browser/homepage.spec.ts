@@ -48,7 +48,7 @@ test("[U2] homepage is server-readable: name, line, actions, agent prompt and pr
   const glass = page.locator("#home-glass")
   await expect(page.getByRole("heading", {level: 1})).toHaveText("Regents Labs")
   await expect(glass.locator(".rl-statement__line")).toHaveText(
-    "We build tools for people and their agents. REGENT stakers share in the revenue.",
+    "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers.",
   )
   await expect(glass.getByRole("link", {name: "Enter App"})).toHaveAttribute("href", "/app")
   await expect(glass.getByRole("heading", {level: 2, name: "Agent prompt"})).toHaveCount(1)
@@ -120,7 +120,7 @@ test("[U1][U2] the mission line retains its sentence case", async ({page}) => {
 
   const line = page.locator("#home-content .rl-statement__line")
   await expect(line).toHaveText(
-    "We build tools for people and their agents. REGENT stakers share in the revenue.",
+    "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers.",
   )
   expect(await line.evaluate(element => getComputedStyle(element).textTransform)).toBe("none")
 })

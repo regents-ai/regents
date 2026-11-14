@@ -4,8 +4,10 @@ defmodule RegentsWeb.HomeLive do
   alias RegentsWeb.Components.{AgentTools, RegentLinks}
   alias RegentsWeb.{PublicDocuments, RouteCatalog}
 
-  # The lab's one plain line under its name, on the page and in the agent copy.
-  @mission "We build tools for people and their agents. REGENT stakers share in the revenue."
+  # The lab's one plain line under its name, and the quieter line under that, on
+  # the page and in the agent copy.
+  @mission "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers."
+  @mission_note "Agent-built and designed to be agent-owned. The token is foremost, no equity value."
 
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
@@ -18,6 +20,8 @@ defmodule RegentsWeb.HomeLive do
     # Regents Labs
 
     #{@mission}
+
+    #{@mission_note}
 
     [Enter App](#{PublicDocuments.url("/app")})
 
@@ -37,7 +41,7 @@ defmodule RegentsWeb.HomeLive do
 
   @doc "The words a person copies from the panel and pastes to their agent to get started."
   def agent_prompt do
-    "Read #{PublicDocuments.url("/llms.txt")}. Regents Labs builds tools for people and their agents. " <>
+    "Read #{PublicDocuments.url("/llms.txt")}. Regents Labs builds platforms for persistent agents. " <>
       "Help me get started: I sign in at #{PublicDocuments.url("/")}, then we pair you to my account " <>
       "(#{PublicDocuments.url("/start")} shows how, from the command line too). " <>
       "After that, help me use one of the apps: Patchbay, Autolaunch or Keyfleet."
@@ -64,7 +68,12 @@ defmodule RegentsWeb.HomeLive do
   # it, the panel simply stays open. The copyright stands at the window's foot
   # throughout, under the panel where the two meet.
   def render(assigns) do
-    assigns = assign(assigns, mission: @mission, agent_prompt: agent_prompt())
+    assigns =
+      assign(assigns,
+        mission: @mission,
+        mission_note: @mission_note,
+        agent_prompt: agent_prompt()
+      )
 
     ~H"""
     <div
@@ -118,6 +127,7 @@ defmodule RegentsWeb.HomeLive do
           <div class="rl-statement">
             <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
             <p class="rl-statement__line">{@mission}</p>
+            <p class="rl-statement__note">{@mission_note}</p>
           </div>
           <%!-- Enter App's blue, drawn moving once the browser can; until then, and for
                less motion, the stage's own flat blue. --%>

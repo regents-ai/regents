@@ -66,7 +66,8 @@ defmodule RegentsWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
 
     order =
-      ["Regents Labs", "We build tools for people and their agents.", "Enter App"] ++
+      ["Regents Labs", "We build platforms for persistent agents.", "Agent-built"] ++
+        ["Enter App"] ++
         ["Agent Tools", "Agent prompt", HomeLive.agent_prompt()] ++
         ["Products"] ++ ~w(Keyfleet Autolaunch Protocol Patchbay Techtree Cloak)
 
@@ -120,12 +121,17 @@ defmodule RegentsWeb.HomeLiveTest do
     assert attribute(html, "#home-crown", "aria-expanded") == ["true"]
   end
 
-  test "the lab's name stands once, then says one plain line", %{conn: conn} do
+  test "the lab's name stands once, then says one plain line and its note", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
-    line = "We build tools for people and their agents. REGENT stakers share in the revenue."
+
+    line =
+      "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers."
+
+    note = "Agent-built and designed to be agent-owned. The token is foremost, no equity value."
 
     assert text(html, "h1") == "Regents Labs"
     assert text(html, "#home-content .rl-statement__line") == line
+    assert text(html, "#home-content .rl-statement__note") == note
     assert HomeLive.agent_markdown() =~ ~r/\A# Regents Labs\n\n#{Regex.escape(line)}\n/
   end
 
