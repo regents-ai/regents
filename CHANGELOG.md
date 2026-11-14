@@ -6513,3 +6513,15 @@ seasons), on the shared Points library regents.sh was already on.
   when another profile holds the same X account), `public_name.test.ts`, and the browser
   check `public_name.spec.ts` (save on Account, then the name after a reload, at 1280 and
   390). No migration, no new dependency.
+
+## 2026-11-14 — Released v320 (name save on the site's sign-in)
+
+- v320, commit 059f9ac8: saving a name on Account uses the site's own sign-in; a paired
+  agent can read its person's profile and set their name; sign-in carries on when the
+  profile cannot be made. Independent security review read before release. Full check
+  exit 0 on 059f9ac8, six gates in one run, after two runs failed one Redeem layout test
+  that passes alone. No migration.
+- Live read, signed out: the profile address refuses a caller with no sign-in, from this
+  site or another; Account, Overview and the agent guide load. A signed-in save was not
+  read on live.
+- Rollback: v319's image main-96434fcc7095.
