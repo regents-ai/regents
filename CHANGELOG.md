@@ -6372,3 +6372,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The badge under the Stake page's heading says "Early adopter 20% APY" in place of
   "Plus 20% a year in REGENT, for now". Nothing else on the page changed.
+
+## 2026-11-14 — Released v317 (Stake badge)
+
+- v317, commit 08f2f97e: the Stake badge reads "Early adopter 20% APY". Full check exit 0
+  on 08f2f97e, six gates in one run. No migration. Read on live after release.
+- Rollback: v316's image main-bd13e81c4860.
