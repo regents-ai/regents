@@ -1,11 +1,44 @@
 defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
   use RegentsWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias Regents.Accounts
   alias Regents.Accounts.VerifiedSession
   alias Regents.Actors.{Human, System}
 
   setup {Regents.EnsLookups, :await_at_exit}
+
+  test "signing in gives the person their shared profile" do
+    verified = verified_identity("profile", [social(:x, "x-profile", "profiled")])
+
+    assert {:ok, _account, []} = VerifiedSession.establish(verified)
+    assert {:ok, %RegentIdentity.Profile{}} = shared_profile(verified)
+  end
+
+  test "sign-in goes on when the shared profile cannot be made, and its log names no one" do
+    # The X account moved to another person while the profile of the person who
+    # had it still holds it, so the newcomer's profile cannot be made.
+    holder = verified_identity("x-holder", [social(:x, "x-moved", "moved-name")])
+    assert {:ok, _holder, []} = VerifiedSession.establish(holder)
+    assert {:ok, %RegentIdentity.Profile{}} = shared_profile(holder)
+
+    newcomer = verified_identity("x-newcomer", [social(:x, "x-moved", "moved-name")])
+
+    {result, log} =
+      with_log([level: :error], fn -> VerifiedSession.establish(newcomer) end)
+
+    assert {:ok, account, [:x]} = result
+    assert {:ok, %{id: id}} = Accounts.get_by_privy_did(newcomer.privy_user_id, actor: %System{})
+    assert account.id == id
+    assert {:ok, nil} = shared_profile(newcomer)
+
+    assert log != ""
+
+    for personal <- [newcomer.privy_user_id, newcomer.wallet_address, "x-moved", "moved-name"] do
+      refute log =~ personal
+    end
+  end
 
   test "session refresh adds and removes verified social identities" do
     verified = verified_identity("reconcile", [social(:x, "x-42", "regent")])
@@ -166,6 +199,9 @@ defmodule Regents.Accounts.VerifiedSessionLinkedIdentityTest do
       linked_socials: linked_socials
     }
   end
+
+  defp shared_profile(verified),
+    do: RegentIdentity.get_my_profile(actor: RegentIdentity.Owner.of(verified))
 
   defp social(provider, subject, username) do
     %{provider: provider, subject: subject, username: username, display_name: nil}

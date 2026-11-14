@@ -3,6 +3,8 @@ defmodule Regents.Accounts.VerifiedSession do
   Exchanges verified Privy evidence for the canonical human account.
   """
 
+  require Logger
+
   alias Regents.Accounts
   alias Regents.Actors.System
   alias Regents.Ens
@@ -10,11 +12,14 @@ defmodule Regents.Accounts.VerifiedSession do
   @social_providers [:x, :github, :farcaster]
 
   @doc """
-  Registers or refreshes the account the verified session names, gives the
-  person their shared profile when they have none, reconciles its linked socials
-  and asks Ethereum for its wallet's ENS name again, returning the providers
-  another account already holds. Without a linked wallet the account's wallet
-  evidence is withdrawn instead.
+  Registers or refreshes the account the verified session names, reconciles its
+  linked socials, gives the person their shared profile when they have none and
+  asks Ethereum for its wallet's ENS name again, returning the providers another
+  account already holds. Without a linked wallet the account's wallet evidence is
+  withdrawn instead.
+
+  Unlike ash-template, a profile that cannot be made is logged and never refuses
+  the sign-in.
   """
   def establish(%RegentPrivy.Session{privy_user_id: did} = verified)
       when is_binary(did) and did != "" do
@@ -26,9 +31,9 @@ defmodule Regents.Accounts.VerifiedSession do
                Accounts.register_verified(did, primary, addresses, actor: actor),
              {:ok, account} <-
                Accounts.refresh_verified(account, primary, addresses, actor: actor),
-             {:ok, _profile} <- RegentIdentity.ensure(verified),
              {:ok, conflicts} <-
                reconcile_linked_identities(account, verified.linked_socials, actor) do
+          ensure_profile(verified)
           # Started, never awaited: the chain is slow and sign-in is not.
           Ens.refresh(account)
           {:ok, account, conflicts}
@@ -56,6 +61,24 @@ defmodule Regents.Accounts.VerifiedSession do
   end
 
   def current?(_account), do: false
+
+  # The log names only the kinds of the failure, never the person, their
+  # socials or their wallets.
+  defp ensure_profile(verified) do
+    case RegentIdentity.ensure(verified) do
+      {:ok, _profile} ->
+        :ok
+
+      {:error, error} ->
+        Logger.error(
+          "Shared profile not made at sign-in; the sign-in went on: #{inspect(failure_kinds(error))}"
+        )
+    end
+  end
+
+  defp failure_kinds(%{errors: [_ | _] = errors}), do: Enum.map(errors, & &1.__struct__)
+  defp failure_kinds(%{__struct__: module}), do: [module]
+  defp failure_kinds(reason) when is_atom(reason), do: [reason]
 
   defp reconcile_linked_identities(account, linked_socials, actor)
        when is_list(linked_socials) do

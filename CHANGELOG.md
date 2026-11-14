@@ -6490,7 +6490,11 @@ seasons), on the shared Points library regents.sh was already on.
   signing with its own key. Anything else gets 401 `authentication_required`. A change
   sent from another site's page carries no forms token and changes nothing.
 - A profile is made at sign-in, so `POST /api/v1/profile/sync` is gone. People who
-  already have a profile keep it and its name.
+  already have a profile keep it and its name. When the profile cannot be made (for
+  example, another person's profile still holds the same X account), sign-in carries on
+  and the failure is logged without naming the person; the next sign-in tries again.
+  Until it succeeds, saving a name on Account says "Your name could not be saved. Try
+  again." This differs from ash-template, where such a sign-in is refused.
 - The Account page's name form saves with the page's own session; the Privy sign-in bridge
   no longer opens the profile.
 - For agents: a paired agent may now read its person's shared profile and set their public
@@ -6501,8 +6505,11 @@ seasons), on the shared Points library regents.sh was already on.
   keeps the Points seasons work.
 - The browser check's Privy stand-in and its per-run key pair are removed; nothing else
   used them.
-- Tests: `public_name_test.exs` (a signed-in save with and without the forms token, no
-  sign-in, a paired agent whose name reads back for its person only, a paired agent whose
-  person has not signed in here), `public_name.test.ts`, and the browser check
-  `public_name.spec.ts` (save on Account, then the name after a reload, at 1280 and 390).
-  No migration, no new dependency.
+- Tests: `public_name_test.exs` (a signed-in save with and without the forms token, the
+  session still usable after a refused change, no sign-in, a signed-in session sent with
+  an agent's header but no valid signature changing nothing, a paired agent whose name
+  reads back for its person only, a paired agent whose person has not signed in here),
+  `verified_session_linked_identity_test.exs` (sign-in makes the profile; sign-in goes on
+  when another profile holds the same X account), `public_name.test.ts`, and the browser
+  check `public_name.spec.ts` (save on Account, then the name after a reload, at 1280 and
+  390). No migration, no new dependency.

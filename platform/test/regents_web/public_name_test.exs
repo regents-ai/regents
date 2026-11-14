@@ -57,10 +57,12 @@ defmodule RegentsWeb.PublicNameTest do
     # Signing in gave the person their shared profile, with no name yet.
     assert read(signed_in)["display_name"] == nil
 
-    # Without the forms token a change counts as signed out and changes nothing.
+    # Without the forms token a change counts as signed out and changes nothing,
+    # and the session the refused answer leaves still reads for the person, so
+    # another site's page cannot sign them out either.
     refused = send_json(signed_in, %{display_name: "Mallory"}, nil)
     assert json_response(refused, 401)["error"]["code"] == "authentication_required"
-    assert read(signed_in)["display_name"] == nil
+    assert read(refused)["display_name"] == nil
 
     saved = send_json(signed_in, %{display_name: @name}, token)
     assert json_response(saved, 200)["profile"]["display_name"] == @name
@@ -92,6 +94,36 @@ defmodule RegentsWeb.PublicNameTest do
 
       assert json_response(refused, 401)["error"]["code"] == "authentication_required"
     end
+  end
+
+  test "a signed-in session sent with an agent's header but no valid signature changes nothing",
+       %{key: key, app_id: app_id} do
+    {signed_in, token, _menu} = sign_in(key, app_id, @did, @wallet)
+
+    Req.Test.stub(RegentAgents.Broker, fn conn ->
+      conn
+      |> Plug.Conn.put_status(401)
+      |> Req.Test.json(%{
+        "error" => %{
+          "code" => "http_signature_invalid",
+          "message" => "The request signature does not match.",
+          "hint" => "Sign the exact request you send, then send it again."
+        }
+      })
+    end)
+
+    # The agent's path never falls back to the person's cookie and forms token.
+    forged =
+      signed_in
+      |> recycle()
+      |> put_private(:plug_skip_csrf_protection, false)
+      |> put_req_header("content-type", "application/json")
+      |> put_req_header("x-csrf-token", token)
+      |> put_req_header("x-siwa-signature", "forged")
+      |> dispatch(@endpoint, :patch, "/api/v1/profile", Jason.encode!(%{display_name: "Mallory"}))
+
+    assert forged.status == 401
+    assert read(signed_in)["display_name"] == nil
   end
 
   test "a paired agent reads and sets its person's name, which reads back for that person and nobody else",
