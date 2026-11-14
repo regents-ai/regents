@@ -1,14 +1,15 @@
 defmodule RegentsWeb.Cloak do
   @moduledoc """
-  Regents Cloak: one Mac app that installs and runs a private agent stack.
-  `/cloak` shows the product. The Mac app is the one way to set it up, and no
-  signed release exists yet, so the download stays off.
+  Regents Cloak: one Mac app to install and run a private agent stack. `/cloak`
+  shows it as Cloak's own README (14 Nov) does: in development, with no release
+  and no protection proven, so every protection and card reads as planned and
+  the download stays off.
   """
 
   @protections [
     %{
       title: "Private rewriting",
-      copy: "Personal details are rewritten on your Mac before a request leaves."
+      copy: "Each message you write is reworded on your Mac before it leaves."
     },
     %{title: "Private payments", copy: "Pay for each request without an account tied to you."},
     %{title: "Separate chats", copy: "Conversations are kept apart from each other."},
@@ -22,6 +23,7 @@ defmodule RegentsWeb.Cloak do
 
   @limits [
     "The model you use still reads what you send it, after rewriting.",
+    "Rewording covers the messages you write; system messages, tool results and files go as sent.",
     "Someone watching both ends of a connection may still match requests by their timing.",
     "Until every release passes its tests, some programs may connect without a private network.",
     "Cloak protects your agent's work, not the rest of your Mac.",
@@ -36,28 +38,29 @@ defmodule RegentsWeb.Cloak do
       id: "cloak/rewrite",
       name: "Rewriting",
       headline: "Rewritten before it leaves.",
-      line: "A local model rewrites each prompt on your Mac before it is sent.",
+      line:
+        "Planned: a local model on your Mac rewords each message you write before it is sent.",
       tint: "#a97bf0"
     },
     %{
       id: "cloak/circuit",
       name: "Tor circuits",
       headline: "A circuit per conversation.",
-      line: "Each conversation travels over its own Tor circuit.",
+      line: "Planned: each conversation travels over its own Tor circuit.",
       tint: "#b488f0"
     },
     %{
       id: "cloak/cover",
       name: "Cover traffic",
       headline: "Quiet looks like busy.",
-      line: "Cover traffic runs alongside your real requests.",
+      line: "Planned: cover traffic runs alongside your real requests.",
       tint: "#5fa8a0"
     },
     %{
       id: "cloak/sandbox",
       name: "Sandbox",
       headline: "The agent stays in its box.",
-      line: "The whole agent runs inside a sandbox, with its network sent through Tor.",
+      line: "Planned: the whole agent runs inside a sandbox, with its network sent through Tor.",
       tint: "#8aa0b8"
     }
   ]

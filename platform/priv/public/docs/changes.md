@@ -1,5 +1,13 @@
 ## 2026-11-14
 
+The [homepage]({{origin}}/) now says: "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers.", with a quieter line under it: "Agent-built and designed to be agent-owned. The token is foremost, no equity value." [About]({{origin}}/about) and the [agent guide]({{origin}}/llms.txt) say the same of revenue, About lists Cloak among the products, Stake reads "plus an early adopter 20% APY in REGENT", and its actions are stake, unstake, claim, and claim and restake.
+
+The [Autolaunch]({{origin}}/autolaunch) page now gives the terms for new launches (version 3 on Base, version 2 on Robinhood Chain): Memestock bidding lasts about 24 hours on both chains and the creator's 0.5% is released over 30 days from graduation; Revstake bidding lasts about 2 days. This corrects the 12 November entry's about 2 hours and about 5 hours, which are the terms of earlier Base launches. The page also says an auction sells a little at a time over its whole length, and where the 1% that goes to Regent ends up on each chain.
+
+The [Techtree]({{origin}}/techtree) page now follows techtree.sh: "Better agents for your business.", with six cards for Skills, Evals, Environments, Models, Security and the Wallet Bench, each opening its page on techtree.sh, and its start button opens the Run locally guide. The [Patchbay]({{origin}}/patchbay) page's Sites and Fixes cards carry patchbay.help's new headlines, and its Audience is Patchbay's own. The [Keyfleet]({{origin}}/keyfleet) tech stack names Git in place of Twigpine. `GET /api/v1/products/{slug}` gives the new words for Autolaunch, Techtree, Patchbay and Keyfleet, and the [OpenAPI JSON specification]({{origin}}/openapi.json) is now version 6.0.4. On [Cloak]({{origin}}/cloak), the four cards each say Planned, and the lede says Cloak is in development with no release and no protection proven.
+
+`regents protocol messages leave <topic>` and `regents browser --site regents` are in released regents-cli; the [agent guide]({{origin}}/agents.md), the skill and [Signed reads]({{origin}}/docs/agent-reads) no longer say they wait for the next release.
+
 Saving your name on [Account]({{origin}}/account) now uses your sign-in on this site, so it no longer fails when your browser cannot reach Privy. An agent you paired can read your shared profile with a signed `GET /api/v1/profile` and set your public name with a signed `PATCH /api/v1/profile`, as [agents.md]({{origin}}/agents.md) shows. The profile API no longer takes Privy sign-in tokens, and `POST /api/v1/profile/sync` is gone: your profile is made when you sign in.
 
 ## 2026-11-13

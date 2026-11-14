@@ -1,8 +1,10 @@
 # regents.sh platform
 
-Agent improvement, revenue, and independence. Staking of $REGENT on Base for a pro rata share of USDC from the products & platforms.
-Regents is also the starting point for the Regents Labs family: launch with
-Autolaunch, investigate agent tools with Patchbay, and evaluate Skills with Techtree.
+We build platforms for persistent agents. All revenue is converted to USDC and split with
+$REGENT stakers, who stake on Base for a pro rata share. Regents is also the starting point
+for the Regents Labs family: launch with Autolaunch, get agents unstuck with Patchbay, build
+better agents with Techtree, join a fleet with Keyfleet, and, once it is released, run a
+private agent stack with Cloak.
 
 The main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API, and
@@ -16,9 +18,8 @@ general informational directory for the varied apps and products made by Regents
 - **Explore the product:** visit [regents.sh](https://regents.sh). Product routes
   are enabled by deployment configuration; the homepage does not imply that every
   signed-in feature is open.
-- **Use an agent or terminal:** start with the [CLI guide](https://github.com/regents-ai/regents-cli#readme) and
-  [agent wallet guide](https://github.com/regents-ai/regents-cli/blob/main/docs/agent-wallets.md). Older cross-product commands are
-  documented separately from the independently owned product CLIs.
+- **Use an agent or terminal:** start with the [CLI guide](https://github.com/regents-ai/regents-cli#readme)
+  and its [site commands](https://github.com/regents-ai/regents-cli/blob/main/docs/site-commands.md).
 - **Contribute:** choose a component below. Web work does not require downloading
   recursive Solidity dependencies. Use [AGENTS.md](AGENTS.md) for repository boundaries.
 
@@ -35,9 +36,10 @@ explains how they are pinned. The platform's OTP application and release are bot
 
 ## Current boundaries
 
-The monorepo contains retained Formation routes while that product cutover is in
-progress. Autolaunch lives in its own monorepo and has no pages, endpoints or contract
-interfaces here. Techtree registry source belongs to `techtree/contracts`.
+The Formation code still backs public Regent profiles and has no routes of its own.
+Autolaunch lives in its own repository: this site shows its product page at `/autolaunch`,
+and `contracts/src/autolaunch` keeps the source of its first (V1) contracts. Techtree
+registry source belongs to `techtree/contracts`.
 
 Shared profile and historical-claim restoration work must pass its own migration and
 ownership checks before it is described as released. A CLI build, API schema or UI
@@ -48,9 +50,11 @@ preview is not evidence of a deployed capability.
 | Product | Use it for | Website | Source |
 | --- | --- | --- | --- |
 | Regents | Agent identity, operations, staking and redemption | [regents.sh](https://regents.sh) | [Regents](https://github.com/regents-ai/regents) |
-| Autolaunch | Token auctions and launch operations | [autolaunch.sh](https://autolaunch.sh) | [Autolaunch](https://github.com/regents-ai/autolaunch-contracts) |
+| Autolaunch | Token auctions and launch operations | [autolaunch.sh](https://autolaunch.sh) | [Autolaunch](https://github.com/regents-ai/autolaunch) |
 | Patchbay | Agent tool reports and bounded WebMCP repair | [patchbay.help](https://patchbay.help) | [Patchbay](https://github.com/regents-ai/patchbay) |
-| Techtree | Controlled Skill evaluations and verifiable results | [techtree.sh](https://techtree.sh) | [Techtree](https://github.com/regents-ai/techtree) |
+| Techtree | Custom Skills, evals, environments and models, with results you can measure | [techtree.sh](https://techtree.sh) | [Techtree](https://github.com/regents-ai/techtree) |
+| Keyfleet | A persistent team for your agent, owned by its Key holders | [keyfleet.ai](https://keyfleet.ai) | — |
+| Cloak | A private agent stack for the Mac, in development | [regents.sh/cloak](https://regents.sh/cloak) | — |
 
 Each product owns its API, CLI and authorization. A login, payment or published
 result on one product does not grant permissions on another. Shared presentation

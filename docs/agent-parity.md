@@ -26,8 +26,9 @@ were skipped.
 - **Page**: an agent that owns the account can finish it in headless Chromium with its
   own wallet. Every signed-in page row waits on R1. While the site is closed
   (`REGENTS_APP_SURFACES=off`) only the home page, signing out, the legal pages,
-  Articles, Paper Pro Daily and `/start` stay open; the code does not say which way
-  production is set.
+  Articles, the AI & SCIFI books, About, the docs, Paper Pro Daily, `/start`, the
+  health and docs reads and the Reading reads stay open; the code does not say which
+  way production is set.
 - **WebMCP**: the tool in `platform/priv/tool_manifest.json`. A signed tool takes only its
   input; the agent's browser host signs the exact request with the agent's own SIWA key, and
   it acts for the agent's paired person. There are no wallet tools.
@@ -36,7 +37,7 @@ were skipped.
 - **Connector**: the Claude connector at `/mcp`, signed in with OAuth. regents.sh has
   none: no OAuth routes and no connector code (R3).
 - **CLI**: the command in `cli/commands.json`, matched on route and operation id. All
-  18 are in released regents-cli 1.10.20 and in regents-cli main
+  16 are in released regents-cli 1.10.28 and in regents-cli main
   (`platforms/protocol/commands.json`), so nothing here waits for the next release.
   There are no wallet commands.
 - **Protected**: needs Sean's go (sign-in, wallets, money, secrets, personal or
@@ -127,14 +128,15 @@ were skipped.
   onto Base first.
 - Verified connections hand off to X, GitHub or Farcaster sign-in through Privy. Those
   are other companies' pages and may show their own human checks (R11).
-- The home page cube is a drawn picture turned by dragging, but nothing needs it: the
-  server renders the same worlds as a plain list of cards with links. The glass panes
-  inside each cube room (copy only, no action) show only when the cube is drawn.
+- The home page's datascape is a drawn picture flown by pointing, but nothing needs
+  it: the glass panel over it holds every link and action, and without scripts or
+  WebGPU the server's still picture shows with the panel open.
 - The pairing box chooses agents by their pictures, but each choice carries the agent's
   name. Redeem's Animata tiles hide the art from screen readers and carry the type and
   token number in words.
-- Unpairing an agent asks in the browser's own worded confirm box, which headless
-  Chromium can answer. Claiming a name and publishing are worded buttons.
+- Unpairing an agent asks in the site's own window, worded by the action, with
+  worded buttons headless Chromium can press. Claiming a name and publishing are
+  worded buttons.
 
 ## Gaps
 
@@ -145,7 +147,7 @@ were skipped.
   ash-template's G1. Protected (sign-in): waits for Sean's go. Owner: agent-access lane.
 - **R2. No hosted MCP.** regents.sh has no `/mcp` route or plug, and none of the shared
   MCP libraries is in `platform/mix.exs`. Plan: mount the shared `/mcp` that ash-template
-  and Keyfleet use and serve the manifest's 24 tools through it. Not protected for the
+  and Keyfleet use and serve the manifest's 22 tools through it. Not protected for the
   reads; any signed tool keeps its own rule. Owner: agent-access lane.
 - **R3. No Claude connector.** There are no OAuth routes and no connector tools. Plan:
   the shared connector with OAuth sign-in from ash-template, serving the same tools as

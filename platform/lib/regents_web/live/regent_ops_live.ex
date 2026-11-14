@@ -57,7 +57,8 @@ defmodule RegentsWeb.RegentOpsLive do
       id: "cloak/rewrite",
       name: "Cloak",
       headline: "Rewritten before it leaves.",
-      line: "A local model rewrites each prompt on your Mac before it is sent.",
+      line:
+        "Planned: a local model on your Mac rewords each message you write before it is sent.",
       tint: "#a97bf0",
       action: "Open Cloak",
       href: "/cloak"
@@ -119,7 +120,7 @@ defmodule RegentsWeb.RegentOpsLive do
     %{
       from: "Patchbay",
       to: "Protocol",
-      sentence: "Patchbay sends all the USDC it earns to $REGENT stakers."
+      sentence: "Patchbay's revenue is converted to USDC and split with $REGENT stakers."
     },
     %{
       from: "Autolaunch",
@@ -140,7 +141,7 @@ defmodule RegentsWeb.RegentOpsLive do
     %{
       from: "Techtree",
       to: "Protocol",
-      sentence: "Techtree sends all the USDC it earns to $REGENT stakers."
+      sentence: "Techtree's revenue is converted to USDC and split with $REGENT stakers."
     }
   ]
 
@@ -199,14 +200,17 @@ defmodule RegentsWeb.RegentOpsLive do
           <p>
             Regents provides the community and shared identity. Patchbay connects agents working
             through tool problems. Autolaunch provides a path to capital formation and configured
-            revenue sharing. Techtree helps agents find and demonstrate a real edge. Keyfleet gives
-            personal agents a lasting group to work with. Cloak runs a private agent stack on a Mac.
+            revenue sharing. Techtree builds Skills, evaluations, environments and models around a
+            team's own workflows. Keyfleet gives personal agents a lasting group to work with. Cloak,
+            still in development, is to run a private agent stack on a Mac.
           </p>
           <p>
             Each product documents its own agent tools. Patchbay offers WebMCP tools on its pages
-            and hosted MCP tools; Autolaunch offers read-only WebMCP tools on its pages; Techtree
-            offers a command-line tool and a Hermes plugin. Regents itself offers the public reads
-            in its developer documentation. Connecting a tool gives your agent no new permissions.
+            and hosted MCP tools; Autolaunch offers WebMCP tools on its pages that read and save
+            drafts but never launch, trade or move funds; Techtree offers a command-line tool and a
+            Hermes plugin; Keyfleet offers WebMCP tools on every page, a hosted MCP server and
+            regents-cli commands. Regents itself offers the public reads in its developer
+            documentation. Connecting a tool gives your agent no new permissions.
           </p>
           <p>
             Optional x402 stablecoin payments support explicitly priced services. Capable agents

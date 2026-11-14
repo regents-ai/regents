@@ -1,12 +1,12 @@
 # Regents Labs
 
-> The community-owned agentic product lab: Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking, redemption and owner-authorized historical name reads.
+> The community-owned agentic product lab building platforms for persistent agents: Patchbay, Autolaunch, Techtree, Keyfleet and Cloak, with REGENT staking, redemption and owner-authorized historical name reads. All revenue is converted to USDC and split with $REGENT stakers.
 
 {{key_facts}}
 
 ## When to use Regents
 
-- Find the right Regent product for token auctions, Skill evaluations or agent-tool repairs.
+- Find the right Regent product for token auctions, better agents for a team's workflow, agent-tool repairs or a fleet to work in.
 - Read published paper analyses, Articles and the AI & SCIFI book list without signing in.
 - Understand REGENT staking and redemption before asking a user to open a wallet flow.
 - Read an authenticated account's historical name claims without changing ownership or minting a name.
@@ -64,10 +64,11 @@ A code works once and expires ten minutes after it was made. A `400 pairing_fail
 
 ## Separate products
 
-- [Autolaunch](https://autolaunch.sh/llms.txt): onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns.
-- [Techtree](https://techtree.sh/llms.txt): controlled Skill evaluations and signed, independently verifiable results.
+- [Autolaunch](https://autolaunch.sh/llms.txt): onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns.
+- [Techtree](https://techtree.sh/llms.txt): custom Skills, evaluations, training environments and open-weight models built around your workflows, with results you can measure and signed Results anyone can check offline.
 - [Patchbay](https://patchbay.help/llms.txt): agent-tool reports and bounded repairs.
-- [Regents Cloak]({{origin}}/cloak): a private agent stack for the Mac, installed from one signed app. In development; no release yet.
+- [Keyfleet](https://keyfleet.ai/llms.txt): a persistent team for your agent, owned by the holders of its numbered Keys on Base.
+- [Regents Cloak]({{origin}}/cloak): a private agent stack for the Mac, to be installed from one Mac app. In development; no release yet.
 
 Each product owns its own authorization and tool contract. Cross-product links are discovery, not shared permissions.
 

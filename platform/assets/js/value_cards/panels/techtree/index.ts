@@ -1,6 +1,6 @@
 /**
- * Techtree's six, as techtree.sh shows them on its home page under "Products"
- * (`TechtreeWeb.HomeLive`); the panels are its own, as they are.
+ * The pictures on the Techtree page's six cards: techtree.sh's five services and
+ * its Wallet Bench (`RegentsWeb.ProductLive`), each in Techtree's own colours.
  */
 import {check} from "./check"
 import {compare} from "./compare"

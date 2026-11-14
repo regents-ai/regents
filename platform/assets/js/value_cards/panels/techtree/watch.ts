@@ -1,6 +1,6 @@
 import type {ValuePanel} from "../../panel"
 
-/** Watchdog: the watch panel, a sweep spreading out from one place. */
+/** Security: the watch panel, a sweep spreading out from one place. */
 export const watch: ValuePanel = {
   colours: ["#3d2406", "#f0a531", "#fff4d6"],
   pitch: [10, 10],

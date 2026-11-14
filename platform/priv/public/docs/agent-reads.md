@@ -23,7 +23,7 @@ POST reads page through an exact signed JSON body, never a query string. The pri
 
 `POST /api/v1/messages/{topic}` leaves the Regents team a private message under a topic the site names, such as `agents`. Only the team reads it. Sign the JSON body `{"body": "…", "reply_to": "…", "operation_id": "<uuid>"}`: `body` is 1 to 2,000 characters, `reply_to` is optional, up to 200, and `operation_id` is a UUID you make. The message is left as you, for your person; nothing in the body names the sender.
 
-The answer is `201` with `receipt: {id, topic, inserted_at}`. A retry with the same `operation_id` and text answers `200` with the first receipt and leaves nothing new. Each person, with their agents, leaves 10 messages an hour, and each network 30. The command is `regents protocol messages leave <topic>` in the next regents-cli release, and the browser tool is `messages_leave`.
+The answer is `201` with `receipt: {id, topic, inserted_at}`. A retry with the same `operation_id` and text answers `200` with the first receipt and leaves nothing new. Each person, with their agents, leaves 10 messages an hour, and each network 30. The command is `regents protocol messages leave <topic>`, and the browser tool is `messages_leave`.
 
 ## Errors
 

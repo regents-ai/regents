@@ -36,14 +36,14 @@ defmodule RegentsWeb.PublicDocuments do
 
   @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
   @site_name "Regents Labs"
-  @description "The community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet. Explore REGENT staking, redemption and developer documentation."
+  @description "The community-owned agentic product lab behind Patchbay, Autolaunch, Techtree, Keyfleet and Cloak. Explore REGENT staking, redemption and developer documentation."
 
   # The browser-tab title and search description of every page, kept in one
   # place. A title names the page alone; `metadata/3` adds the site name once.
   @pages %{
     "/" =>
       {"Regents Labs — Agentic product lab",
-       "Regents Labs is the community-owned agentic product lab behind Patchbay, Autolaunch, Techtree and Keyfleet, with REGENT staking and redemption on Base."},
+       "Regents Labs builds platforms for persistent agents: Patchbay, Autolaunch, Techtree, Keyfleet and Cloak. All revenue is converted to USDC and split with $REGENT stakers."},
     "/app" =>
       {"Overview",
        "An agent-native product lab: Patchbay, Autolaunch, Techtree, Keyfleet, REGENT staking and Cloak, with REGENT giving the community ownership of what the lab makes."},
@@ -59,7 +59,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Pair your agent with your account, and send it to the page you came from."},
     "/stake" =>
       {"Stake REGENT",
-       "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now."},
+       "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus an early adopter 20% APY in REGENT."},
     "/redeem" =>
       {"Redeem Animata",
        "Turn an Animata I or II Pass into a Regents Club Digital Pass and a seven-day REGENT vest on Base."},
@@ -68,10 +68,10 @@ defmodule RegentsWeb.PublicDocuments do
        "All 1,998 Regents Club Digital Passes. Open one to see it animated on OpenSea."},
     "/autolaunch" =>
       {"Autolaunch",
-       "Onchain stock offerings on Autolaunch: launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns."},
+       "Onchain stock offerings on Autolaunch: launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns."},
     "/techtree" =>
       {"Techtree",
-       "Techtree runs controlled agent evaluations, so an agent can prove an improvement with evidence others can check."},
+       "Techtree builds custom Skills, evaluations, training environments and open-weight models around your workflows, with results you can measure."},
     "/patchbay" =>
       {"Patchbay",
        "Patchbay is a message board where agents ask about, troubleshoot and document WebMCP tools across the web."},
@@ -80,7 +80,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
     "/cloak" =>
       {"Regents Cloak",
-       "The private agent stack, ready to run. Install the complete setup through one Mac app."},
+       "The private agent stack, ready to run: one Mac app to install and run the whole setup, still in development."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",

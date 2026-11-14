@@ -8,19 +8,29 @@ plugin package yet.
 ## What exists today
 
 Every runtime integration is owned, built, tested and released by
-[regents-cli](https://github.com/regents-ai/regents-cli) as part of `@regentslabs/cli`:
+[regents-cli](https://github.com/regents-ai/regents-cli), the Python package
+`regents-cli`:
 
-| Runtime | What the CLI does | Source |
-| --- | --- | --- |
-| Hermes, OpenClaw | `regents plugin install` writes a typed tool bridge and its skills into the runtime's plugin directory under the user's home. | [plugin-bridge.ts](https://github.com/regents-ai/regents-cli/blob/main/packages/regents-cli/src/internal-runtime/plugin-bridge.ts) |
-| OpenClaw | Template and writer for the `regents-work` skill a local OpenClaw agent uses to run Regent work. | [agents/openclaw/](https://github.com/regents-ai/regents-cli/tree/main/packages/regents-cli/src/agents/openclaw) |
-| Claude Code, Codex | `regents setup` registers the local `regents mcp serve` server. | [mcp/](https://github.com/regents-ai/regents-cli/tree/main/packages/regents-cli/src/mcp), [mcp-register.ts](https://github.com/regents-ai/regents-cli/blob/main/packages/regents-cli/src/internal-runtime/mcp-register.ts) |
-| Skills hosts | `regents setup skills` installs the agent skills bundled with the package. | [skills/](https://github.com/regents-ai/regents-cli/tree/main/packages/regents-cli/skills) |
+```bash
+uv tool install --python 3.14 'regents-cli[browser,mcp]'
+uvx --from 'playwright==1.64.*' playwright install chromium
+```
 
-The [CLI command contract](https://github.com/regents-ai/regents-cli/blob/main/docs/shared-cli-contract.yaml) owns the
-behavior of `regents plugin`, `regents setup` and `regents setup skills`. The
-CLI's tests and workspace checks cover these files where they are, so they stay
-in regents-cli rather than moving here.
+| Runtime | What the CLI does |
+| --- | --- |
+| Any agent with a shell | `regents protocol …` runs regents.sh's commands, as the [agent guide](https://regents.sh/agents.md) shows. |
+| Claude Code, Codex and other MCP hosts | `regents browser --site regents` runs a local MCP server that opens regents.sh's pages in a hidden Chromium of its own and calls the tools each page offers, signing with this machine's agent key. |
+| Claude Code, Codex and other MCP hosts | `regents mcp --site <site>` passes each message to a site's own MCP server at `/mcp`. regents.sh has no `/mcp` yet, so this is for the sites that do. |
+
+In Claude Code, for example:
+
+```bash
+claude mcp add regents-pages -- regents browser --site regents
+```
+
+The [regents-cli README](https://github.com/regents-ai/regents-cli#readme) owns
+the behavior of these commands. The CLI's tests cover them where they are, so
+they stay in regents-cli rather than moving here.
 
 ## What would live here
 

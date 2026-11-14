@@ -6,7 +6,7 @@ defmodule RegentsWeb.AutolaunchLive do
 
   # The Autolaunch page carries its own copy: the two launch kinds and their
   # figures for new launches, taken from autolaunch.sh's How it works and its
-  # README (autolaunch 11a5c8ba), onchain stocks first.
+  # README (autolaunch a45f7c95), onchain stocks first.
   # Nothing here reads a chain. The product directory serves the same copy
   # through `content/0`.
   @launches [
@@ -18,28 +18,22 @@ defmodule RegentsWeb.AutolaunchLive do
         "The creator receives 0.5% of the supply and earns a share of trading fees. If the auction misses its minimum, every bidder takes back their full bid and every token is retired."
       ],
       facts: [
-        %{
-          label: "Auction",
-          value: "About 2 hours on Base or about 24 hours on Robinhood Chain, priced in the stock"
-        },
+        %{label: "Auction", value: "About 24 hours, priced in the stock"},
         %{label: "Supply", value: "1 billion tokens"},
         %{label: "Sold", value: "49.75%"},
         %{label: "Liquidity", value: "49.75%, locked with the stock for good"},
-        %{
-          label: "Creator",
-          value: "0.5%, released over about 3 days on Base or about 30 days on Robinhood Chain"
-        }
+        %{label: "Creator", value: "0.5%, released over 30 days from graduation"}
       ]
     },
     %{
       kicker: "Revstake · on Base",
       title: "Back an agent's stablecoin revenue.",
       copy: [
-        "A Revstake token stands for an agent or x402 service that earns stablecoins. The launcher promises to pass all future revenue through the Revstake contract, and everyone who stakes the token receives a share in line with their stake.",
+        "A Revstake token stands for an agent or x402 service that earns stablecoins. The launcher promises to pass its revenue through the token's staking contract, and stakers share that revenue and the token's trading fees by how much of the whole supply they stake.",
         "Most of the supply stays with the launcher, the way founders keep most of a company after a preseed round."
       ],
       facts: [
-        %{label: "Auction", value: "About 5 hours, priced in REGENT"},
+        %{label: "Auction", value: "About 2 days, priced in REGENT"},
         %{label: "Supply", value: "100 billion tokens"},
         %{label: "Sold", value: "20%"},
         %{label: "Liquidity", value: "Up to 10%, locked with REGENT for good"},
@@ -110,7 +104,7 @@ defmodule RegentsWeb.AutolaunchLive do
     %{
       title: "No early snipers.",
       copy:
-        "Most tokens sell near the end, and each bid is spread across the blocks that follow it. Bidding your true price in full, as early as you like, never puts you behind. If you are in the auction, you are early."
+        "Tokens sell a little at a time over the whole auction, not all at once at the end. Bids above the clearing price buy at that price, not at their own limit, and your average price depends on when your bid was buying. If you are in the auction, you are early."
     },
     %{
       title: "Built on Uniswap.",
@@ -120,7 +114,7 @@ defmodule RegentsWeb.AutolaunchLive do
     %{
       title: "Fees reach stakers.",
       copy:
-        "Revstake trades pay 3%: 2% to the token's stakers and 1% to Regent. Memestock trades pay 4.3% on the stock amount of every trade: 3% to the token's stakers, 1% to Regent and 0.3% to the creator. Both pools also charge the standard 0.3%, and what the locked liquidity earns goes to the token's staking. The rates are fixed in the contracts."
+        "Revstake trades pay 3%: 2% to the token's staking pot and 1% to REGENT staking, or to the Regent Safe when it is collected in the token itself. Memestock trades pay 4.3% on the stock amount of every trade: 3% to the token's stakers, 1% to Regent and 0.3% to the creator. On Base that 1% becomes USDC for REGENT staking; on Robinhood Chain it is held as USDG until a bridge to Base is built. Both pools also charge the standard 0.3%, and what the locked liquidity earns goes to the token's staking. The rates are fixed in the contracts."
     }
   ]
 
@@ -157,7 +151,7 @@ defmodule RegentsWeb.AutolaunchLive do
         "Every bid, launch and stake happens in your own wallet, and each one asks for your signature."
       ],
       family:
-        "Revstake auctions are priced in REGENT, and part of what Autolaunch earns is paid into REGENT staking.",
+        "Revstake auctions are priced in REGENT, and what Autolaunch earns is converted to USDC and split with $REGENT stakers.",
       agent_line: "Read autolaunch.sh/llms.txt and explain how Autolaunch works.",
       start: %{label: "How it works", href: "https://autolaunch.sh/how-it-works"}
     }

@@ -210,9 +210,10 @@ on `/` and `/stake` stays — Techtree is still a business and still a revenue s
 pages, the `/api/autolaunch/v1/*` endpoints, the Base log indexer, comments and the
 retained Autolaunch contract interfaces are gone; autolaunch.sh is the product. The
 `autolaunch_app` tables belong to the Autolaunch site and were never migrated from
-here. The empty `regents_app.comments` table was dropped on 2026-09-19. Read-only
-`/autolaunch`, `/techtree` and `/patchbay` information pages are briefed in the
-workspace `docs/backlogs/regents.md`.
+here. The empty `regents_app.comments` table was dropped on 2026-09-19. The read-only
+`/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` and `/cloak` information pages now
+exist (`AutolaunchLive`, `ProductLive`, `CloakLive`); none reads a chain or asks for a
+sign-in.
 
 **Other open work:** a common-sense audit of every
 interaction; a stray "Missed 1 notifications" warning from

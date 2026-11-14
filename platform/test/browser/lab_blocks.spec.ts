@@ -187,7 +187,7 @@ for (const width of [320, 390, 1280]) {
       await expect(said, line.line).toHaveAttribute("data-say", line.index)
       await expect(said, line.line).toContainText(line.sentence)
     }
-    expect(lines.map(line => line.sentence)).toContain("Techtree sends all the USDC it earns to $REGENT stakers.")
+    expect(lines.map(line => line.sentence)).toContain("Techtree's revenue is converted to USDC and split with $REGENT stakers.")
 
     // Sign-in with Agent keeps the bottom right corner.
     const corner = await map.evaluate(root => {

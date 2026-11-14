@@ -1,6 +1,6 @@
 import type {ValuePanel} from "../../panel"
 
-/** Train: the train panel, steps that rise as a model improves. */
+/** Models: the train panel, steps that rise as a model improves. */
 export const train: ValuePanel = {
   colours: ["#0c3550", "#38b2e0", "#d8fbe8"],
   pitch: [12, 8],

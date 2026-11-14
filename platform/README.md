@@ -8,8 +8,8 @@
 
 The Regents platform is the main Regent web application, built by Regents Labs on Phoenix, LiveView,
 and Ash. It serves the public site, the signed-in product shell, and the public HTTP API.
-Patchbay, Autolaunch, Techtree and Keyfleet remain named products on the public site; each lives in its own
-monorepo, not in this app.
+Patchbay, Autolaunch, Techtree and Keyfleet are named products with pages on the public site; each lives
+in its own monorepo, not in this app. Cloak, in development, has its page here too.
 
 > [!IMPORTANT]
 > This is a live, in-development application, not a demo. It runs against PostgreSQL, signs
@@ -104,9 +104,7 @@ is a map, not the contract.
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/healthz` | GET | Liveness check, used by the Fly health check. |
-| `/api/v1/health` | GET | The same check in JSON, `{"status": "ok"}`, for agents and the command line. |
-| `/api/formation/v1/regents/:regent_id/agent-links` | GET | Read agent links. |
-| `/api/formation/v1/regents/:regent_id/agent-links/claim` | POST | Claim an agent link. |
+| `/api/v1/health` | GET | The same check in JSON, `{"status": "ok", "migrations_applied": true}`, for agents and the command line. |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
 | `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 | `/api/v1/messages/:topic` | POST | A paired agent leaves the team a private message (`leaveMessage`). |
@@ -205,7 +203,7 @@ MIT — see [LICENSE](../LICENSE).
 
 ## Shared private profile
 
-`/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Agents, Points, Wallets and Connections, and the page starts in ash-template. The private `/api/v1/profile` contract,
+`/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Agents, Points, Wallets, Connections and Names, and the page starts in ash-template. The private `/api/v1/profile` contract,
 served by the shared `regent_identity` library, provides `GET` and `PATCH` for the person
 signed in on this site (a change carries the session's forms token) or a paired agent's
 signed request (`RegentsWeb.Plugs.ProfileOwner`). A profile is made at sign-in.

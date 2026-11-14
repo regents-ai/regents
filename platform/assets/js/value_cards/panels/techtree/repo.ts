@@ -1,6 +1,6 @@
 import type {ValuePanel} from "../../panel"
 
-/** Repo2RLEnv: the repo panel, lines of code arriving from two sides. */
+/** Environments: the repo panel, lines of code arriving from two sides. */
 export const repo: ValuePanel = {
   colours: ["#0b2e33", "#2fc4c4", "#d6fff4"],
   pitch: [8, 10],

@@ -1,6 +1,6 @@
 # Articles
 
-Articles is the first tab under Reading at `/articles`. Each post starts as a folder,
+Articles are at `/articles`, a page of their own outside the sidebar. Each post starts as a folder,
 then is saved in the database. New posts need no site release after this feature
 is deployed. `/articles` is the only address; `/blog` no longer exists.
 

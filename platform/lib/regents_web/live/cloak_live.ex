@@ -23,7 +23,9 @@ defmodule RegentsWeb.CloakLive do
       <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="product-kicker">Regents Cloak</p>
         <h1 id="product-heading" tabindex="-1">The private agent stack, ready to run.</h1>
-        <p class="product-lede">Install the complete setup through one Mac app.</p>
+        <p class="product-lede">
+          One Mac app to install and run the whole setup. It is in development: nothing is released yet, and no protection is proven.
+        </p>
         <div class="product-actions cloak-download">
           <button
             type="button"

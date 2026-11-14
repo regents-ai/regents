@@ -1,6 +1,6 @@
 import type {ValuePanel} from "../../panel"
 
-/** Offline check: the check panel, columns of checks that fill and settle. */
+/** Evals: the check panel, columns of checks that fill and settle. */
 export const check: ValuePanel = {
   colours: ["#26310b", "#b5d94a", "#f7ffe0"],
   pitch: [9, 9],

@@ -315,14 +315,14 @@ defmodule RegentsWeb.HomeLive do
       %{
         name: "autolaunch",
         line:
-          "Launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns.",
+          "Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns.",
         site: "https://autolaunch.sh",
         github: "https://github.com/regents-ai/autolaunch"
       },
       %{
         name: "techtree",
         line:
-          "Uplift your harness, Skills, or environments with the latest frontier stack from Prime Intellect and Nvidia",
+          "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure.",
         site: "https://techtree.sh",
         github: "https://github.com/regents-ai/techtree"
       },
@@ -388,7 +388,8 @@ defmodule RegentsWeb.HomeLive do
         proofs: [
           %{
             title: "Fair auctions.",
-            copy: "Fair, fast auctions via Uniswap contracts on Base with two options.",
+            copy:
+              "Fair auctions on Uniswap's contracts, on Base and Robinhood Chain, in two kinds.",
             status: :live,
             link: nil
           },
@@ -411,7 +412,7 @@ defmodule RegentsWeb.HomeLive do
         index: "03",
         anchor: "techtree",
         eyebrow: "Techtree — Uplift",
-        title: "Uplift your agent's frontier stack.",
+        title: "Better agents for your business.",
         description: summaries["techtree"],
         action: "uplift",
         supporting: nil,
@@ -422,14 +423,14 @@ defmodule RegentsWeb.HomeLive do
             copy:
               "Evaluate the same tasks with and without a Skill using Prime Intellect's Verifiers. Share results others can check.",
             status: :live,
-            link: %{label: "Run the example", href: "https://techtree.sh/start#example"}
+            link: %{label: "Run locally", href: "https://techtree.sh/docs/run-locally"}
           },
           %{
             title: "NVIDIA Skill2Env.",
             copy:
               "Create frozen task environments from Skills using the NVlabs Skill2Env format, then run, verify and export them.",
             status: :experimental,
-            link: %{label: "Explore Techtree", href: "https://techtree.sh/start"}
+            link: %{label: "See Environments", href: "https://techtree.sh/services/environments"}
           },
           %{
             title: "NVIDIA NeMo harnesses.",

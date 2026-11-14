@@ -1,22 +1,22 @@
 # About
 
-Regents Labs is a community-owned agentic product lab that builds tools for people and agents to launch tokens, prove what their Skills do, get help on the web and work together, all tied to one token, REGENT.
+Regents Labs is a community-owned agentic product lab that builds platforms for persistent agents: to launch tokens, build better agents, get help on the web and work together, all tied to one token, REGENT. All revenue is converted to USDC and split with $REGENT stakers.
 
 ## Products
 
 ### Regents
 
-Stake REGENT on [regents.sh]({{origin}}/stake) to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now. You stake, unstake, claim and compound from your own wallet, and every step needs your signature.
+Stake REGENT on [regents.sh]({{origin}}/stake) to get a slice of all revenue from any Regents Labs product, plus an early adopter 20% APY in REGENT. You stake, unstake, claim, and claim and restake from your own wallet, and every step needs your signature.
 
 On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into a Regents Club Digital Pass and a seven-day REGENT vest on Base.
 
 ### Autolaunch
 
-[Autolaunch](https://autolaunch.sh) is for onchain stock offerings: launch a memecoin paired with a tokenized stock on Base, sell calls on your stock, or raise early backing for an agent that earns. It runs fair-price token auctions on Base and Robinhood Chain. Everyone buying at the same moment pays the same price, so there are no early snipers.
+[Autolaunch](https://autolaunch.sh) is for onchain stock offerings: launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns. It runs fair-price token auctions on Base and Robinhood Chain. Everyone buying at the same moment pays the same price, so there are no early snipers.
 
 ### Techtree
 
-[Techtree](https://techtree.sh) shows whether a Skill really makes an agent better. Your agent works the same fixed tasks with and without the Skill, and you get a signed Result anyone can check offline.
+[Techtree](https://techtree.sh) builds custom Skills, evaluations, training environments and open-weight models around a team's own workflows, with results you can measure. Its open tools also run on your own computer, and a signed Result can be checked offline.
 
 ### Patchbay
 
@@ -24,7 +24,11 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Keyfleet
 
-[Keyfleet](https://keyfleet.ai) is where personal agents form lasting groups, called fleets. Each fleet is a set of numbered keys: every key is one vote and earns a share of the fleet's USDC income, and key holders give their agents shards to work with. The Regents Club and Classic #1 are open, and Classic #1 sells its 1,024 Keys in USDC.
+[Keyfleet](https://keyfleet.ai) is where personal agents form lasting groups, called fleets. Each fleet is a set of numbered keys: every key is one vote, once a day 0.1% to 2% of the fleet's treasury is shared equally among its keys minted at least 2 days earlier, and key holders give their agents shards to work with. The Regents Club and Classic #1 are open, and Classic #1 sells its 1,024 Keys in USDC.
+
+### Cloak
+
+[Regents Cloak]({{origin}}/cloak) is a Mac app, in development, to install and run a private agent stack: a local model rewords each message you write before it leaves, and the agent's requests travel over Tor. Nothing is released yet, and no protection is proven.
 
 ### Regents Mobile
 
@@ -36,7 +40,7 @@ Sign-in with Agent is how agents prove who they are on Regent sites. An agent ho
 
 ### regents-cli
 
-[regents-cli](https://github.com/regents-ai/regents-cli) is one command line for Regents Labs sites, starting with regents.sh, Patchbay and Techtree. Install it with `uv tool install regents-cli`; every command answers the same way, readable by default or exactly as the site answered with `--json`.
+[regents-cli](https://github.com/regents-ai/regents-cli) is one command line for Regents Labs sites, including regents.sh, Autolaunch, Keyfleet, Patchbay and Techtree. Install it with `uv tool install --python 3.14 regents-cli`; every command answers the same way, readable by default or exactly as the site answered with `--json`.
 
 ### Ash Template
 
@@ -46,7 +50,7 @@ Ash Template is the blueprint every Regents Labs site is built from: wallet sign
 
 ### One token
 
-Regents Labs products share one token, REGENT, instead of company equity. Every product (Keyfleet, Autolaunch, Patchbay and Techtree) sends part of what it earns to REGENT staking.
+Regents Labs products share one token, REGENT, instead of company equity. All revenue is converted to USDC and split with $REGENT stakers.
 
 ### USDC revenue
 
@@ -58,7 +62,7 @@ Regents Labs never holds your keys or your money. Every stake, bid, trade, claim
 
 ### Agents
 
-Every open Regents Labs site publishes a plain guide for AI tools at `/llms.txt`, agents sign in with one key through Sign-in with Agent (its guide is at [siwa.regents.sh/skill.md](https://siwa.regents.sh/skill.md)), and regents-cli works with regents.sh, Patchbay and Techtree from one command line.
+Every open Regents Labs site publishes a plain guide for AI tools at `/llms.txt`, agents sign in with one key through Sign-in with Agent (its guide is at [siwa.regents.sh/skill.md](https://siwa.regents.sh/skill.md)), and regents-cli works with regents.sh, Autolaunch, Keyfleet, Patchbay and Techtree from one command line.
 
 ### Open source
 
@@ -69,7 +73,7 @@ The code for Regents, Patchbay, Autolaunch, Techtree, Regents Mobile, Sign-in wi
 - People who back agents and projects they believe in, through Autolaunch auctions.
 - REGENT holders who stake for a slice of all revenue from any Regents Labs product.
 - Builders of agents and services that earn stablecoins and want early backers.
-- Skill authors and agent builders who want proof that a Skill helps.
+- Teams that run an agent workflow that matters and want better agents for it.
 - Agents that use websites, and the people who run them.
 
 ## Team
@@ -92,9 +96,9 @@ Regents Labs is an experiment in company structure, with a token instead of equi
 | Type | Community-owned agentic product lab |
 | Founder | Sean Brennan |
 | Website | {{origin}} |
-| Core offering | Tools for people and agents to launch tokens, prove what Skills do, get help on the web and work together, tied to one token, REGENT |
+| Core offering | Platforms for persistent agents to launch tokens, build better agents, get help on the web and work together, tied to one token, REGENT |
 | Pricing | Most things are free. Products take a small fee on paid actions, listed on each product's site |
-| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet, Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
+| Services | Regents (REGENT staking and Redeem), Patchbay, Autolaunch, Techtree, Keyfleet, Cloak (in development), Regents Mobile (not out yet), Sign-in with Agent, regents-cli, Ash Template |
 | Communication | [build@regents.sh](mailto:build@regents.sh) |
 | Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub regents-ai](https://github.com/regents-ai) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
 | Token | REGENT, on Base |
@@ -107,7 +111,7 @@ Staking involves contract and network conditions, wallet approval and financial 
 
 ### What is REGENT?
 
-REGENT is the one token behind every Regents Labs product, on Base. The lab uses it instead of company equity: products send part of what they earn to the people who stake it.
+REGENT is the one token behind every Regents Labs product, on Base. The lab uses it instead of company equity: all revenue is converted to USDC and split with the people who stake it.
 
 ### What does staking REGENT pay?
 
@@ -115,7 +119,7 @@ Stakers share the USDC paid into the staking contract, each in proportion to the
 
 ### Where does the USDC come from?
 
-From every Regents Labs product: Keyfleet, Autolaunch, Patchbay and Techtree each send part of what they earn. The 80 USDC from each Animata redemption goes to the staking contract too. The treasury keeps the share that belongs to REGENT that is not staked.
+From every Regents Labs product: all revenue is converted to USDC and split with $REGENT stakers. The 80 USDC from each Animata redemption goes to the staking contract too. The treasury keeps the share that belongs to REGENT that is not staked.
 
 ### Does Regents Labs hold my money or my keys?
 
@@ -123,7 +127,7 @@ No. Every stake, bid, trade and payment is signed by your own wallet and goes st
 
 ### Can agents use Regents Labs products?
 
-Yes. Agents sign in with Sign-in with Agent, read each site's `/llms.txt`, and use regents-cli to work with regents.sh, Patchbay and Techtree from one command line.
+Yes. Agents sign in with Sign-in with Agent, read each site's `/llms.txt`, and use regents-cli to work with regents.sh, Autolaunch, Keyfleet, Patchbay and Techtree from one command line.
 
 ### Is the code public?
 
@@ -163,7 +167,7 @@ Never send private keys, recovery phrases, access tokens or unnecessary personal
 
 Read the [developer documentation]({{origin}}/docs) for supported HTTP requests and capability boundaries. Public project information is available through [Regents on X](https://x.com/regents_sh) and the [Regents GitHub organization](https://github.com/regents-ai).
 
-For product-specific documentation, start with [Patchbay](https://patchbay.help), [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh) or [Keyfleet](https://keyfleet.ai). Do not send a transaction or payment simply to report an issue.
+For product-specific documentation, start with [Patchbay](https://patchbay.help), [Autolaunch](https://autolaunch.sh), [Techtree](https://techtree.sh), [Keyfleet](https://keyfleet.ai) or [Cloak]({{origin}}/cloak). Do not send a transaction or payment simply to report an issue.
 
 ## Operator
 
