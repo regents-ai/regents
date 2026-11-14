@@ -3,7 +3,7 @@ import {expect, test, type Locator, type Page} from "./support/offline"
 
 import {addressesOutOfCase, bareAddresses} from "./support/addresses"
 import {identityTokenFor} from "./support/authenticated_privy"
-import {boxes, coveredControls} from "./support/wallet_notes"
+import {boxes, restingBoxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
@@ -639,7 +639,7 @@ test("Stake's note for a declined press moves nothing and covers no control", as
     await page.getByLabel("Amount", {exact: true}).fill("1")
     await expect(page.locator(".stake-preview")).toBeVisible()
     await primary.scrollIntoViewIfNeeded()
-    const before = await boxes(page, "#staking-actions")
+    const before = await restingBoxes(page, "#staking-actions")
 
     await primary.click()
     await expect(notice).toHaveText("Your wallet declined this. Nothing was sent.")

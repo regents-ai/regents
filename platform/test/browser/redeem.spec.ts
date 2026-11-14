@@ -2,7 +2,7 @@ import {decodeFunctionData, parseAbi, type Hex} from "viem"
 import {expect, test, type Locator, type Page} from "./support/offline"
 
 import {identityTokenFor} from "./support/authenticated_privy"
-import {boxes, coveredControls} from "./support/wallet_notes"
+import {boxes, restingBoxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
@@ -450,7 +450,7 @@ test("Redeem's note for a declined press moves nothing and covers no control", a
 
     for (const [button, note] of [[approve, flowNote], [claim, claimNote]] as const) {
       await button.scrollIntoViewIfNeeded()
-      const before = await boxes(page, ".redeem-page")
+      const before = await restingBoxes(page, ".redeem-page")
       await button.click()
       await expect(note).toHaveText("Your wallet declined this. Nothing was sent.")
       await expect(button).not.toHaveAttribute("data-awaiting-wallet")

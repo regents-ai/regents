@@ -23,6 +23,18 @@ export async function boxes(page: Page, root: string): Promise<Record<string, nu
   }, root)
 }
 
+// The boxes once the page has come to rest: read until two readings in a row
+// agree, so a button still easing into place is not taken for the page at rest.
+export async function restingBoxes(page: Page, root: string): Promise<Record<string, number[]>> {
+  let last = await boxes(page, root)
+  for (;;) {
+    await page.waitForTimeout(150)
+    const next = await boxes(page, root)
+    if (JSON.stringify(next) === JSON.stringify(last)) return next
+    last = next
+  }
+}
+
 // Every control on the page that a showing note's rectangle touches.
 export async function coveredControls(page: Page): Promise<string[]> {
   return page.evaluate(() => {
