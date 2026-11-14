@@ -127,6 +127,7 @@ for (const width of [390, 320]) {
     }
 
     await page.goto("/account")
+    await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
     await page.locator('#shell-tabs a[href="/account/names"]').click()
     await expect(page).toHaveURL(/\/account\/names$/)
     await expect(page.locator("#account-names-title")).toBeVisible()
