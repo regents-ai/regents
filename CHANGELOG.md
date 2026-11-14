@@ -6459,9 +6459,12 @@ seasons), on the shared Points library regents.sh was already on.
   after a pick, scrolled away or in a hidden tab; 60 a second while turning; a pick draws
   19 frames over 300ms, the first 15ms after the press.
 - Weight: first-load script 233.8 to 236.1 KB (gzipped 71.6 to 72.5 KB); styles 274.2 to
-  275.4 KB (46.7 to 47.0 KB); the GPU picture's own file, fetched after the page, 3.9 to
-  14.4 KB (2.0 to 5.6 KB). The Overview page itself grows by about 10.5 KB gzipped,
-  mostly the still picture for both arrangements.
+  276.1 KB (46.7 to 47.2 KB); the GPU picture's own file, fetched after the page, 3.9 to
+  14.4 KB (2.0 to 5.6 KB). The Overview page is 89.0 KB (17.0 KB gzipped), inside the
+  100 KB every shell page must meet, and about 4 KB gzipped heavier than before. The
+  still picture draws once what both arrangements share (the tunnel, the crown, which
+  the narrow one scales, and each beam and line, which each lays where it runs), and
+  only the floor and ceiling seams and the products' blocks for each.
 - Tests: `test/browser/lab_blocks.spec.ts` replaces `lab_map.spec.ts` (keyboard, blocks
   open what cards open, less motion, and fit at 320, 390 and 1280 with every beam
   pressed and saying its own sentence); `regent_ops_live_test.exs` reads the blocks.

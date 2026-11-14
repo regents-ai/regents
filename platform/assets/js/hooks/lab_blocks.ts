@@ -36,12 +36,12 @@ export const LabBlocks = {
     const root = this.el
     const scene = JSON.parse(root.dataset.scene!) as Scene
     const stage = root.querySelector<HTMLElement>(".lab-blocks__stage")!
-    const lines = [...root.querySelectorAll<SVGGElement>(".lab-blocks__link")]
+    const lines = [...root.querySelectorAll<SVGGElement>("[data-link]")]
     const places = [...root.querySelectorAll<HTMLElement>(".lab-blocks__place")]
-    const says = [...root.querySelectorAll<HTMLElement>(".lab-blocks__say")]
+    const says = [...root.querySelectorAll<HTMLElement>("[data-say]")]
     const art = [...root.querySelectorAll<SVGElement>("[data-art-node], [data-art-link]")]
     // The crown steps back while anything is picked.
-    const faders = [...root.querySelectorAll<Element>(".lab-blocks__name, .lab-blocks__solid--crown"), ...art]
+    const faders = [...root.querySelectorAll<Element>(".lab-blocks__name, .lab-blocks__crown"), ...art]
     const names = places.map(place => place.dataset.node!)
     const ends = lines.map(line => [line.dataset.from!, line.dataset.to!] as const)
 
@@ -54,7 +54,7 @@ export const LabBlocks = {
     let nudge = () => {}
 
     const lineOf = (target: EventTarget | null) => {
-      const line = target instanceof Element ? target.closest<SVGGElement>(".lab-blocks__link") : null
+      const line = target instanceof Element ? target.closest<SVGGElement>("[data-link]") : null
       return line ? lines.indexOf(line) : -1
     }
     const pickAt = (target: EventTarget | null): Pick => {
@@ -131,20 +131,28 @@ export const LabBlocks = {
         crownFoot: colour("--lab-blocks-crown-foot"),
         beamTone: colour("--lab-blocks-beam-tone"),
         litTone: colour("--lab-blocks-lit-tone"),
-        places: places.map(place => (place.dataset.tint ? channels(place.dataset.tint) : quiet)),
+        places: places.map(place => {
+          const tint = place.style.getPropertyValue("--tint")
+          return tint ? channels(tint) : quiet
+        }),
       }
     }
 
     // The names and lines on the page turn with the view. Each is placed by the
     // server for the view at rest; a turned view moves each place's block and
-    // name by how far its block has moved, and draws each line again. A place's
-    // block and name move, not the place: a moved place would stack as a whole,
-    // under the GPU picture.
-    const paths = lines.map(line => [...line.querySelectorAll<SVGPathElement>("path")])
-    const restingPaths = paths.map(parts => parts.map(part => part.getAttribute("d")!))
+    // name by how far its block has moved, and lays each line again on the
+    // stage showing, the other stage keeping its line at rest. A place's block
+    // and name move, not the place: a moved place would stack as a whole, under
+    // the GPU picture.
+    const laid = {wide: "--wm", narrow: "--nm"} as const
+    const restingLines = lines.map(line => ({
+      wide: line.style.getPropertyValue(laid.wide),
+      narrow: line.style.getPropertyValue(laid.narrow),
+    }))
     const movers = places.map(place => [...place.querySelectorAll<HTMLElement>(".lab-blocks__block, .lab-blocks__name")])
     const follow = (view: CameraJson) => {
       const which = layout()
+      const other = which === "wide" ? "narrow" : "wide"
       const resting = camera(scene[which].camera)
       const turned = camera(view)
       const {width, height} = stage.getBoundingClientRect()
@@ -154,10 +162,11 @@ export const LabBlocks = {
         const moved = `${(((x1 - x0) * width) / 100).toFixed(2)}px ${(((y1 - y0) * height) / 100).toFixed(2)}px`
         for (const each of movers[index]!) each.style.translate = moved
       })
-      paths.forEach((parts, line) => {
-        const [from, to] = scene[which].lines[line]!.map(end => project(turned, scene[which].blocks[end]!))
-        const d = `M${from![0].toFixed(2)} ${from![1].toFixed(2)}L${to![0].toFixed(2)} ${to![1].toFixed(2)}`
-        parts.forEach((part, at) => part.setAttribute("d", part.dataset.layout === which ? d : restingPaths[line]![at]!))
+      lines.forEach((line, index) => {
+        const [[x, y], [x1, y1]] = scene[which].lines[index]!.map(end => project(turned, scene[which].blocks[end]!))
+        const [dx, dy] = [x1! - x!, y1! - y!]
+        line.style.setProperty(laid[which], `matrix(${[dx, dy, -dy, dx, x!, y!].map(value => value.toFixed(3)).join(", ")})`)
+        line.style.setProperty(laid[other], restingLines[index]![other])
       })
     }
 
@@ -177,20 +186,20 @@ export const LabBlocks = {
        */
       scope.add("enter", () => {
         const shows = root.querySelector(`.lab-blocks__art [data-layout="${layout()}"]`)!
-        const crown = [...shows.querySelectorAll<SVGGElement>(".lab-blocks__solid--crown")]
+        const crown = [...root.querySelectorAll<SVGUseElement>(".lab-blocks__crown use")]
           .map(cell => ({cell, left: cell.getBoundingClientRect().left}))
           .sort((a, b) => a.left - b.left)
           .map(({cell}) => cell)
         // A beam's stroke is drawn on the screen, not stretched with the stage, so
         // its dash is as long as the beam is on the screen.
-        const beams = [...shows.querySelectorAll<SVGPathElement>(".lab-blocks__beam")]
+        const beams = [...root.querySelectorAll<SVGLineElement>("[data-art-link]")]
         const lengths = new Map(beams.map(beam => {
           const box = beam.getScreenCTM()!
           const from = beam.getPointAtLength(0).matrixTransform(box)
           const to = beam.getPointAtLength(beam.getTotalLength()).matrixTransform(box)
           return [beam, Math.hypot(to.x - from.x, to.y - from.y)]
         }))
-        const length = (beam: unknown) => lengths.get(beam as SVGPathElement)!
+        const length = (beam: unknown) => lengths.get(beam as SVGLineElement)!
         createTimeline({
           defaults: {ease: EASE_OUT},
           onComplete: self => {
@@ -199,7 +208,7 @@ export const LabBlocks = {
           },
         })
           .add(crown, {opacity: [0, 1], scale: [0.9, 1], duration: 520, delay: stagger(18)}, 0)
-          .add(shows.querySelectorAll(".lab-blocks__solid[data-art-node]"), {opacity: [0, 1], scale: [0.82, 1], duration: 560, delay: stagger(60)}, 140)
+          .add(shows.querySelectorAll("[data-art-node]"), {opacity: [0, 1], scale: [0.82, 1], duration: 560, delay: stagger(60)}, 140)
           .set(beams, {opacity: 1, strokeDasharray: (beam: unknown) => `${length(beam)} ${length(beam)}`, strokeDashoffset: length}, 0)
           .add(beams, {strokeDashoffset: 0, duration: 520, delay: stagger(28)}, 420)
           .add(root.querySelectorAll(".lab-blocks__name"), {opacity: [0, 1], duration: 300, delay: stagger(40)}, 640)

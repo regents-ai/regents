@@ -86,7 +86,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
            |> length() == 1
 
     lines =
-      for line <- Floki.find(map, "g.lab-blocks__link") do
+      for line <- Floki.find(map, "g[data-link]") do
         [from] = Floki.attribute(line, "data-from")
         [to] = Floki.attribute(line, "data-to")
         [index] = Floki.attribute(line, "data-link")
@@ -97,7 +97,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
         # The caption holds the same sentence the line is named with.
         sentence = String.replace_prefix(name, "#{from} and #{to}: ", "")
         assert sentence != name
-        said = Floki.find(map, ~s(.lab-blocks__say[data-say="#{index}"]))
+        said = Floki.find(map, ~s(p[data-say="#{index}"]))
         assert Floki.text(said) =~ sentence
 
         MapSet.new([from, to])

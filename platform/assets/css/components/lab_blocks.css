@@ -81,35 +81,60 @@
   transition: visibility 0s 480ms;
 }
 
-/* The still picture. Each face is edged in its own gradient, so no seam shows
-   between two faces of a block. */
+/* The still picture. A crown block takes its colour by its place along the
+   crown's gradient; the seams show in the seam colour, as strongly as their fade
+   says. The crown is drawn for the wide stage, and the narrow one scales it. A
+   beam and a line are each one short line that each stage lays where it runs
+   there (`--wm`, `--nm`). */
 
-.lab-blocks__solid {
+.lab-blocks__crown use {
+  fill: color-mix(in srgb, var(--lab-blocks-crown-foot) var(--crown), var(--lab-blocks-crown-top));
+}
+
+/* Each wall of a ring of the tunnel, `--k` bands in, takes the far colour by its
+   own `--step` a band (`LabBlocks.Scene.tunnel/1`). */
+.lab-blocks__ring path {
+  fill: color-mix(in srgb, var(--lab-blocks-far) calc(pow(min(1, var(--k) * var(--step)), 1.5) * 100%), var(--lab-blocks-near));
+}
+
+.lab-blocks__far {
+  fill: var(--lab-blocks-far);
+}
+
+.lab-blocks__crown {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+
+.lab-blocks [data-art-link],
+.lab-blocks [data-link] {
+  transform: var(--wm);
+}
+
+.lab-blocks__fade stop {
+  stop-color: var(--lab-blocks-seam);
+}
+
+.lab-blocks :is([data-art-node], .lab-blocks__crown use) {
   transform-box: fill-box;
   transform-origin: center;
 }
 
-.lab-blocks__face {
-  stroke-width: .75px;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.lab-blocks__beam,
-.lab-blocks__seam {
+.lab-blocks [data-art-link],
+.lab-blocks__seams path {
   fill: none;
   vector-effect: non-scaling-stroke;
 }
 
-.lab-blocks__beam {
+.lab-blocks [data-art-link] {
   stroke-width: var(--beam);
 }
 
-.lab-blocks__seam {
+.lab-blocks__seams path {
   stroke-width: 1px;
 }
 
-.lab-blocks .lab-blocks__beam[data-picked] {
+.lab-blocks [data-art-link][data-picked] {
   stroke-width: calc(var(--beam) * 1.7);
 }
 
@@ -117,11 +142,12 @@
   opacity: .3;
 }
 
-.lab-blocks[data-lab-blocks-pick] .lab-blocks__solid--crown {
+.lab-blocks[data-lab-blocks-pick] .lab-blocks__crown {
   opacity: .55;
 }
 
-/* Lines: each a wide band nobody sees, and the focus ring drawn along it. */
+/* Lines: each a wide band nobody sees, and the focus ring drawn along it, its
+   four lines told apart by their order (band, ring, gap, middle). */
 
 .lab-blocks__lines {
   z-index: 2;
@@ -129,7 +155,7 @@
   pointer-events: none;
 }
 
-.lab-blocks__lines path {
+.lab-blocks__lines line {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -137,32 +163,32 @@
   pointer-events: none;
 }
 
-.lab-blocks__lines .lab-blocks__hit {
+.lab-blocks__lines line:nth-child(1) {
   stroke: transparent;
   stroke-width: 24px;
   pointer-events: stroke;
 }
 
-.lab-blocks__ring {
+.lab-blocks__lines line:nth-child(2) {
   stroke: var(--color-focus);
   stroke-width: 7px;
   opacity: 0;
 }
 
-.lab-blocks__gap {
+.lab-blocks__lines line:nth-child(3) {
   stroke: var(--color-surface);
   stroke-width: 3.5px;
   opacity: 0;
 }
 
 /* The ring hides the line it rings, so it carries the line along its middle. */
-.lab-blocks__core {
+.lab-blocks__lines line:nth-child(4) {
   stroke: var(--color-focus);
   stroke-width: 1.5px;
   opacity: 0;
 }
 
-.lab-blocks__link:focus-visible :is(.lab-blocks__ring, .lab-blocks__gap, .lab-blocks__core) {
+.lab-blocks [data-link]:focus-visible line:not(:nth-child(1)) {
   opacity: 1;
 }
 
@@ -256,7 +282,7 @@
   min-width: 0;
 }
 
-.lab-blocks__say {
+.lab-blocks__caption p {
   grid-area: 1 / 1;
   margin: 0;
   color: var(--color-fg-muted);
@@ -266,11 +292,11 @@
   visibility: hidden;
 }
 
-.lab-blocks__say[data-shown] {
+.lab-blocks__caption [data-shown] {
   visibility: visible;
 }
 
-.lab-blocks__pair {
+.lab-blocks__caption span {
   display: block;
   margin-bottom: .25rem;
   color: var(--color-fg);
@@ -294,6 +320,15 @@
     display: inline;
   }
 
+  .lab-blocks__crown {
+    scale: var(--crown-narrow);
+  }
+
+  .lab-blocks [data-art-link],
+  .lab-blocks [data-link] {
+    transform: var(--nm);
+  }
+
   .lab-blocks__place {
     --x: var(--nx);
     --y: var(--ny);
@@ -311,9 +346,9 @@
    `entering` and hands them back with `rest`. If the script has not answered in
    four seconds, the scene simply shows. */
 @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-  .lab-blocks:not([data-lab-blocks-motion]) :is(.lab-blocks__solid, .lab-blocks__beam, .lab-blocks__name) { animation: lab-blocks-wait 4s step-end; }
+  .lab-blocks:not([data-lab-blocks-motion]) :is([data-art-node], .lab-blocks__crown use, [data-art-link], .lab-blocks__name) { animation: lab-blocks-wait 4s step-end; }
 
-  .lab-blocks[data-lab-blocks-motion="entering"] :is(.lab-blocks__solid, .lab-blocks__beam, .lab-blocks__name) { opacity: 0; }
+  .lab-blocks[data-lab-blocks-motion="entering"] :is([data-art-node], .lab-blocks__crown use, [data-art-link], .lab-blocks__name) { opacity: 0; }
 }
 
 @keyframes lab-blocks-wait { from { opacity: 0; } }
@@ -329,21 +364,21 @@
     background: CanvasText;
   }
 
-  .lab-blocks__core {
+  .lab-blocks__lines line:nth-child(4) {
     stroke: CanvasText;
     stroke-width: 1px;
     opacity: 1;
   }
 
-  .lab-blocks__ring {
+  .lab-blocks__lines line:nth-child(2) {
     stroke: Highlight;
   }
 
-  .lab-blocks__gap {
+  .lab-blocks__lines line:nth-child(3) {
     stroke: Canvas;
   }
 
-  .lab-blocks__link:focus-visible .lab-blocks__core {
+  .lab-blocks [data-link]:focus-visible line:nth-child(4) {
     stroke: Highlight;
     stroke-width: 1.5px;
   }
@@ -357,7 +392,7 @@
 /* A line draws its own ring along itself and a place rings its name, so the
    site's ring, which outlines a control's box, stays off both; this sits outside
    the layers, as the shell's ring does, and is more specific than it. */
-#app-shell .lab-blocks :is(.lab-blocks__link, .lab-blocks__place):focus-visible,
-.lab-blocks :is(.lab-blocks__link, .lab-blocks__place):focus-visible {
+#app-shell .lab-blocks :is([data-link], .lab-blocks__place):focus-visible,
+.lab-blocks :is([data-link], .lab-blocks__place):focus-visible {
   outline: none;
 }

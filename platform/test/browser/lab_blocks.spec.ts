@@ -15,20 +15,17 @@ async function openMap(page: Page) {
 
 type Line = {line: string; sentence: string; index: string; free: number; press: {x: number; y: number}}
 
-// How much of each line, along its middle, a finger lands on that line and
+// How much of each line, along the band that takes its press (its first line), a finger lands on that line and
 // nothing else, and the middle of its longest such stretch.
 function measureLines(map: Locator): Promise<Line[]> {
   return map.evaluate(root => {
-    const stage = root.querySelector(".lab-blocks__stage")!.getBoundingClientRect()
-    const layout = root.querySelector<SVGPathElement>('.lab-blocks__hit[data-layout="wide"]')!.getClientRects().length
-      ? "wide"
-      : "narrow"
-    return [...root.querySelectorAll<SVGGElement>(".lab-blocks__link")].map(line => {
-      const hit = line.querySelector<SVGPathElement>(`.lab-blocks__hit[data-layout="${layout}"]`)!
+    return [...root.querySelectorAll<SVGGElement>("[data-link]")].map(line => {
+      const hit = line.querySelector<SVGLineElement>("line")!
       const total = hit.getTotalLength()
+      const screen = hit.getScreenCTM()!
       const at = (step: number) => {
-        const point = hit.getPointAtLength((total * step) / 300)
-        return {x: stage.left + (point.x / 100) * stage.width, y: stage.top + (point.y / 100) * stage.height}
+        const {x, y} = hit.getPointAtLength((total * step) / 300).matrixTransform(screen)
+        return {x, y}
       }
       let mine = 0
       let run = {from: 0, steps: 0}
@@ -37,7 +34,7 @@ function measureLines(map: Locator): Promise<Line[]> {
       for (let step = 1; step <= 300; step++) {
         const point = at(step)
         const middle = {x: (point.x + previous.x) / 2, y: (point.y + previous.y) / 2}
-        if (document.elementFromPoint(middle.x, middle.y)?.closest(".lab-blocks__link") === line) {
+        if (document.elementFromPoint(middle.x, middle.y)?.closest("[data-link]") === line) {
           mine += Math.hypot(point.x - previous.x, point.y - previous.y)
           run = run.steps && run.from + run.steps === step ? {...run, steps: run.steps + 1} : {from: step, steps: 1}
           if (run.steps > best.steps) best = run
@@ -52,13 +49,13 @@ function measureLines(map: Locator): Promise<Line[]> {
 
 test("a line reached from the keyboard says how its two products work together", async ({page}) => {
   const map = await openMap(page)
-  const invitation = map.locator('.lab-blocks__say[data-say=""]')
+  const invitation = map.locator('[data-say=""]')
   await expect(invitation).toHaveAttribute("data-shown", "")
 
   // The lines come straight after the places.
   await map.getByRole("link", {name: /^Sign-in with Agent/}).focus()
   await page.keyboard.press("Tab")
-  const line = map.locator(".lab-blocks__link").first()
+  const line = map.locator("[data-link]").first()
   await expect(line).toBeFocused()
 
   const [from, to, index, name] = await line.evaluate(element => [
@@ -70,7 +67,7 @@ test("a line reached from the keyboard says how its two products work together",
   expect(name.startsWith(`${from} and ${to}: `)).toBe(true)
 
   // Its sentence takes the caption's place, and its two ends stay lifted.
-  const said = map.locator(".lab-blocks__say[data-shown]")
+  const said = map.locator("[data-say][data-shown]")
   await expect(said).toHaveCount(1)
   await expect(said).toHaveAttribute("data-say", index)
   await expect(said).toContainText(name.slice(`${from} and ${to}: `.length))
@@ -84,13 +81,13 @@ test("a line reached from the keyboard says how its two products work together",
 
   // The next line follows.
   await page.keyboard.press("Tab")
-  await expect(map.locator(".lab-blocks__link").nth(1)).toBeFocused()
+  await expect(map.locator("[data-link]").nth(1)).toBeFocused()
 
   // Leaving the map puts the invitation back.
   await page.getByRole("heading", {level: 1}).focus()
   await expect(invitation).toHaveAttribute("data-shown", "")
   await expect(map).not.toHaveAttribute("data-lab-blocks-pick")
-  await expect(map.locator(".lab-blocks__link[data-picked], .lab-blocks__place[data-picked]")).toHaveCount(0)
+  await expect(map.locator("[data-link][data-picked], .lab-blocks__place[data-picked]")).toHaveCount(0)
 })
 
 test("each product's block opens what its card opens", async ({page}) => {
@@ -119,7 +116,7 @@ test("the map answers the same for a visitor who asked for less motion", async (
 
   // Nothing waits to be drawn in.
   const waiting = await map.evaluate(root => ({
-    unseen: [...root.querySelectorAll(".lab-blocks__solid, .lab-blocks__beam, .lab-blocks__name")].filter(
+    unseen: [...root.querySelectorAll("[data-art-node], .lab-blocks__crown use, [data-art-link], .lab-blocks__name")].filter(
       el => getComputedStyle(el).opacity !== "1",
     ).length,
     moving: root.getAnimations({subtree: true}).length,
@@ -129,23 +126,23 @@ test("the map answers the same for a visitor who asked for less motion", async (
   // A line under the mouse is picked.
   const lines = await measureLines(map)
   const pair = lines.find(line => line.line === "Keyfleet and Autolaunch")!
-  const line = map.locator(`.lab-blocks__link[data-link="${pair.index}"]`)
+  const line = map.locator(`[data-link="${pair.index}"]`)
   await page.mouse.move(pair.press.x, pair.press.y)
   await expect(line).toHaveAttribute("data-picked", "")
-  await expect(map.locator(".lab-blocks__say[data-shown]")).toHaveAttribute("data-say", pair.index)
+  await expect(map.locator("[data-say][data-shown]")).toHaveAttribute("data-say", pair.index)
 
   // A block under the mouse lifts every line it has.
   await map.locator('.lab-blocks__place[data-node="Keyfleet"] .lab-blocks__block').hover()
   await expect(map).toHaveAttribute("data-lab-blocks-pick", "place")
-  const keyfleetLines = map.locator('.lab-blocks__link:is([data-from="Keyfleet"], [data-to="Keyfleet"])')
-  await expect(map.locator(".lab-blocks__link[data-picked]")).toHaveCount(await keyfleetLines.count())
+  const keyfleetLines = map.locator('[data-link]:is([data-from="Keyfleet"], [data-to="Keyfleet"])')
+  await expect(map.locator("[data-link][data-picked]")).toHaveCount(await keyfleetLines.count())
 
   // A pressed line keeps its sentence once the mouse has gone.
   await page.mouse.click(pair.press.x, pair.press.y)
   await page.mouse.move(1, 1)
   await expect(line).toBeFocused()
   await expect(line).toHaveAttribute("data-picked", "")
-  await expect(map.locator(".lab-blocks__say[data-shown]")).toHaveAttribute("data-say", pair.index)
+  await expect(map.locator("[data-say][data-shown]")).toHaveAttribute("data-say", pair.index)
 })
 
 for (const width of [320, 390, 1280]) {
@@ -184,7 +181,7 @@ for (const width of [320, 390, 1280]) {
     expect(lines.filter(line => line.free < 44).map(line => line.line)).toEqual([])
 
     // A press in the middle of each line's free stretch picks that line and says its own sentence.
-    const said = map.locator(".lab-blocks__say[data-shown]")
+    const said = map.locator("[data-say][data-shown]")
     for (const line of lines) {
       await page.mouse.click(line.press.x, line.press.y)
       await expect(said, line.line).toHaveAttribute("data-say", line.index)
