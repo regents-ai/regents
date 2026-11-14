@@ -182,8 +182,9 @@ test("Redeem offers both approvals at once and Redeem once a token is selected",
 })
 
 // From a small phone to a desktop, everything in the collections, redemption and
-// account panels sits inside the panel, and each button shows its whole name,
-// "View collection on OpenSea" on every collection card included.
+// account panels sits inside the panel and each button shows its whole name. Each
+// collection card's link sits whole on one line in its header, under the name, and
+// the three headers are one height.
 test("Redeem keeps each panel's cards, steps, fields and buttons inside it", async ({page}) => {
   await installWallet(page)
   await signIn(page)
@@ -198,11 +199,21 @@ test("Redeem keeps each panel's cards, steps, fields and buttons inside it", asy
 
     const fit = await page.evaluate(() => {
       const panels = ".redeem-collections, .redeem-actions, .redeem-position"
+      const headings = [...document.querySelectorAll<HTMLElement>(".redeem-collection-card .rg-panel__heading")]
       return {
         document: document.documentElement.scrollWidth - window.innerWidth,
-        openSeaNames: [...document.querySelectorAll(".redeem-collections .rg-button__label")].filter(
-          label => label.textContent!.startsWith("View collection on OpenSea"),
-        ).length,
+        collectionLinks: headings.map(heading => {
+          const box = heading.getBoundingClientRect()
+          const end = box.right - parseFloat(getComputedStyle(heading).paddingRight)
+          const title = heading.querySelector("h3")!.getBoundingClientRect()
+          const link = heading.querySelector<HTMLAnchorElement>("a[href^='https://opensea.io/collection/']")!
+          const words = link.getBoundingClientRect()
+          return {
+            underTitle: words.top >= title.bottom && Math.abs(words.left - title.left) < 0.5,
+            whole: link.getClientRects().length === 1 && words.right <= end && words.bottom <= box.bottom,
+          }
+        }),
+        headerHeights: new Set(headings.map(heading => Math.round(heading.getBoundingClientRect().height))).size,
         panels: [...document.querySelectorAll<HTMLElement>(panels)].map(panel => {
           const box = panel.getBoundingClientRect()
           const style = getComputedStyle(panel)
@@ -226,7 +237,8 @@ test("Redeem keeps each panel's cards, steps, fields and buttons inside it", asy
 
     expect(fit, `/redeem at ${width}`).toEqual({
       document: 0,
-      openSeaNames: 3,
+      collectionLinks: Array(3).fill({underTitle: true, whole: true}),
+      headerHeights: 1,
       panels: [
         {outside: 0, cutNames: 0},
         {outside: 0, cutNames: 0},

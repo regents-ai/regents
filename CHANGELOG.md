@@ -6378,3 +6378,23 @@ seasons), on the shared Points library regents.sh was already on.
 - v317, commit 08f2f97e: the Stake badge reads "Early adopter 20% APY". Full check exit 0
   on 08f2f97e, six gates in one run. No migration. Read on live after release.
 - Rollback: v316's image main-bd13e81c4860.
+
+## 2026-11-14 — Redeem: "View collection" sits under each collection's name
+
+- Each of Redeem's three collection cards (Animata I, Animata II, Regents Club) has a
+  small "View collection ↗" link in its header, straight under the name, in place of
+  the big "View collection on OpenSea" button lower in the card. It still opens the
+  collection on OpenSea in a new tab, and a screen reader still hears "View collection
+  on OpenSea, opens in a new tab".
+- The three headers are one height and the mark on the right (I, II, RC) stays where
+  it was, so the pictures below start on the same line on every card. On a touch
+  screen the link takes a press 44px tall, reaching into the header's own space,
+  without changing how the header looks.
+- The card is put together here from the design system's own card parts, because the
+  shared card has no place under its name.
+- The wrap rule for collection-card buttons stays: "See all 1,998 passes" still needs
+  it at 320 wide and at 801 to 1024 wide, where it would otherwise run into its
+  button's edge.
+- Tests: the Redeem panels check now finds each card's link in its header, under the
+  name and whole on one line, with the three headers one height, at 320, 360, 390 and
+  1280 wide.

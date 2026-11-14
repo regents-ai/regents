@@ -205,6 +205,37 @@
   gap: 0.8rem;
 }
 
+/* A collection's link sits under its name in the card's header, in small text so
+   the header keeps its look. On a touch screen its press reaches 44px tall, past
+   the text and into the header's own space. */
+.redeem-collection-title {
+  min-width: 0;
+}
+
+.redeem-collection-title p {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-family-ui);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.redeem-collection-title a {
+  position: relative;
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .redeem-collection-title a::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 50%;
+    block-size: 2.75rem;
+    translate: 0 -50%;
+  }
+}
+
 .redeem-collection-copy {
   display: grid;
   gap: 0.55rem;

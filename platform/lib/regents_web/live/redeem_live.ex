@@ -1073,46 +1073,57 @@ defmodule RegentsWeb.RedeemLive do
   attr :count_label, :string, required: true
   attr :href, :string, required: true
 
+  # The shared feature card, built from its shared parts so the collection's link can
+  # sit in the header under the name; the shared card has no place there.
   defp collection_card(assigns) do
     ~H"""
-    <Regent.Structure.capability_card
-      class="redeem-collection-card"
-      data-kind={@kind}
-      title={@title}
-      index={@index}
-      description={
-        if @kind == "source",
-          do: "Redemption source · Eligible IDs 1–999",
-          else: "Membership result · 1 membership NFT received on redeem"
-      }
-      image_src={
-        if @kind == "source",
-          do: "/images/redeem/animata1and2-poster.jpg",
-          else: "/images/brand/regents-crown-flat-light.svg"
-      }
-      image_alt=""
-    >
-      <:actions>
-        <dl class="redeem-collection-copy">
-          <div>
-            <dt>{@count_label}</dt><dd>{@count}</dd>
+    <article class="rg-feature redeem-collection-card" data-kind={@kind}>
+      <Regent.Structure.panel class="rg-feature__face">
+        <div class="rg-panel__heading">
+          <div class="redeem-collection-title">
+            <h3>{@title}</h3>
+            <p>
+              <a href={@href} target="_blank" rel="noopener noreferrer">
+                View collection<span class="visually-hidden"> on OpenSea, opens in a new tab</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </p>
           </div>
-        </dl>
-        <a
-          class="rg-button rg-button--secondary"
-          href={@href}
-          target="_blank"
-          rel="noopener noreferrer"
-        ><span class="rg-button__label">View collection on OpenSea<span class="visually-hidden">, opens in a new tab</span></span></a>
-        <.link
-          :if={@kind == "result"}
-          class="rg-button rg-button--secondary"
-          navigate="/redeem/gallery"
-        >
-          See all 1,998 passes
-        </.link>
-      </:actions>
-    </Regent.Structure.capability_card>
+          <span class="rg-panel__index">{@index}</span>
+        </div>
+        <Regent.Structure.technical_figure>
+          <img
+            src={
+              if @kind == "source",
+                do: "/images/redeem/animata1and2-poster.jpg",
+                else: "/images/brand/regents-crown-flat-light.svg"
+            }
+            alt=""
+          />
+        </Regent.Structure.technical_figure>
+      </Regent.Structure.panel>
+      <Regent.Structure.panel class="rg-feature__caption">
+        <p>
+          {if @kind == "source",
+            do: "Redemption source · Eligible IDs 1–999",
+            else: "Membership result · 1 membership NFT received on redeem"}
+        </p>
+        <div class="rg-feature__actions">
+          <dl class="redeem-collection-copy">
+            <div>
+              <dt>{@count_label}</dt><dd>{@count}</dd>
+            </div>
+          </dl>
+          <.link
+            :if={@kind == "result"}
+            class="rg-button rg-button--secondary"
+            navigate="/redeem/gallery"
+          >
+            See all 1,998 passes
+          </.link>
+        </div>
+      </Regent.Structure.panel>
+    </article>
     """
   end
 
