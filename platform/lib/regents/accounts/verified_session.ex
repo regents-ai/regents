@@ -76,9 +76,12 @@ defmodule Regents.Accounts.VerifiedSession do
     end
   end
 
-  defp failure_kinds(%{errors: [_ | _] = errors}), do: Enum.map(errors, & &1.__struct__)
-  defp failure_kinds(%{__struct__: module}), do: [module]
-  defp failure_kinds(reason) when is_atom(reason), do: [reason]
+  defp failure_kinds(%{errors: [_ | _] = errors}), do: Enum.map(errors, &failure_kind/1)
+  defp failure_kinds(error), do: [failure_kind(error)]
+
+  defp failure_kind(%{__struct__: module}), do: module
+  defp failure_kind(reason) when is_atom(reason), do: reason
+  defp failure_kind(_reason), do: :unknown
 
   defp reconcile_linked_identities(account, linked_socials, actor)
        when is_list(linked_socials) do
