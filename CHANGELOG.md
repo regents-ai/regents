@@ -6357,3 +6357,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Tests: the Account page lists six tabs; on Names its tab and the sidebar's Account are
   current; at 390 and 320 every Account tab opens with its own tab in view, and a press on
   Names moves to it.
+
+## 2026-11-14 — Released v316 (Names tab)
+
+- v316, commit bd13e81c: Names is the sixth Account tab at /account/names and is gone from
+  the sidebar; /names is removed. Full check exit 0 on bd13e81c, six gates in one run. No
+  migration.
+- Live read, signed out, at 320, 390 and 1280: the six tabs show with Names current and in
+  view, the sidebar marks Account, /names answers not found, with no sideways scroll and no
+  page errors. The page signed in was not read on live.
+- Rollback: v315's image main-925e98241e3e.
