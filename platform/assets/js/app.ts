@@ -32,7 +32,7 @@ import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
-import {LabMap} from "./hooks/lab_map"
+import {LabBlocks} from "./hooks/lab_blocks"
 import {OnchainSteps} from "./hooks/onchain_steps"
 import {PaperPicks} from "./hooks/paper_picks"
 import {ProductTiles} from "./hooks/product_tiles"
@@ -276,7 +276,7 @@ const hooks = {
   HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,
-  LabMap,
+  LabBlocks,
   MotionCascade,
   MotionCount,
   MotionList,

@@ -1,6 +1,6 @@
 /**
  * The page's one GPU device for its small pictures: every value card's panel,
- * and the glow behind the Overview hero's lab map, draw on it together.
+ * and the Overview hero's blocks, draw on it together.
  */
 import {init} from "vgpu"
 

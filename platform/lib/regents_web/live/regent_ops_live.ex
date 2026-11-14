@@ -2,7 +2,7 @@ defmodule RegentsWeb.RegentOpsLive do
   @moduledoc false
   use Phoenix.Component
 
-  alias RegentsWeb.Components.{LabMap, Loading, ValueCards}
+  alias RegentsWeb.Components.{LabBlocks, Loading, ValueCards}
   alias RegentsWeb.TokenDisplay
 
   # One card for each product, in the site's order, each with its template
@@ -64,30 +64,11 @@ defmodule RegentsWeb.RegentOpsLive do
     }
   ]
 
-  # The hero's map (RegentsWeb.Components.LabMap): where each product's dot sits,
-  # in percent of the map's box across and down, and which side its name takes.
-  @places %{
-    "Patchbay" => %{x: 40, y: 46, side: "left"},
-    "Autolaunch" => %{x: 60, y: 22, side: "above-end"},
-    "Techtree" => %{x: 24, y: 86, side: "below"},
-    "Keyfleet" => %{x: 94, y: 24, side: "above-end"},
-    "Protocol" => %{x: 52, y: 74, side: "left"},
-    "Cloak" => %{x: 30, y: 10, side: "above"}
-  }
+  # The hero (RegentsWeb.Components.LabBlocks) places each product and Sign-in
+  # with Agent in its scene itself.
+  @map_products Enum.map(@products, &Map.take(&1, [:name, :tint, :href]))
 
-  @map_products Enum.map(@products, fn product ->
-                  product
-                  |> Map.take([:name, :tint, :href])
-                  |> Map.merge(Map.fetch!(@places, product.name))
-                end)
-
-  @sign_in %{
-    name: "Sign-in with Agent",
-    href: "https://siwa.regents.sh/skill.md",
-    x: 86,
-    y: 86,
-    side: "below-end"
-  }
+  @sign_in %{name: "Sign-in with Agent", href: "https://siwa.regents.sh/skill.md"}
 
   # One line for each way an agent on one product uses another, as the products'
   # own guides describe it. Cloak works on its own. Where two lines meet, the later
@@ -196,7 +177,7 @@ defmodule RegentsWeb.RegentOpsLive do
             company equity, giving the community ownership of what the lab makes.
           </p>
         </div>
-        <LabMap.lab_map
+        <LabBlocks.hero
           id="regent-ops-map"
           products={@map_products}
           sign_in={@sign_in}

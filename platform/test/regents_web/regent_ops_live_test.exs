@@ -61,7 +61,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
     refute html =~ "0x1111..1111"
   end
 
-  # The hero's map: a dot for every product that opens what the product's card
+  # The hero's map: a block for every product that opens what the product's card
   # opens, Sign-in with Agent beside them, and one named line, reachable from the
   # keyboard and with its sentence ready in the caption, for each way the products'
   # guides say they work together. Cloak works on its own.
@@ -71,22 +71,22 @@ defmodule RegentsWeb.RegentOpsLiveTest do
     page = Floki.parse_document!(html)
     map = Floki.find(page, ~s(#regent-ops-map[role="group"][aria-label="Product map"]))
 
-    dots = Floki.find(map, "a.lab-map__node")
-    assert length(dots) == 7
+    blocks = Floki.find(map, "a.lab-blocks__place")
+    assert length(blocks) == 7
 
-    for dot <- dots, Floki.attribute(dot, "data-node") != ["Sign-in with Agent"] do
-      [href] = Floki.attribute(dot, "href")
+    for block <- blocks, Floki.attribute(block, "data-node") != ["Sign-in with Agent"] do
+      [href] = Floki.attribute(block, "href")
       card = Floki.find(page, ~s(ul[aria-label="Products"] a[href="#{href}"]))
       assert length(card) == 1
-      assert Floki.attribute(card, "target") == Floki.attribute(dot, "target")
+      assert Floki.attribute(card, "target") == Floki.attribute(block, "target")
     end
 
     assert map
-           |> Floki.find(~s(a.lab-map__node[data-node="Sign-in with Agent"][target="_blank"]))
+           |> Floki.find(~s(a.lab-blocks__place[data-node="Sign-in with Agent"][target="_blank"]))
            |> length() == 1
 
     lines =
-      for line <- Floki.find(map, "g.lab-map__link") do
+      for line <- Floki.find(map, "g.lab-blocks__link") do
         [from] = Floki.attribute(line, "data-from")
         [to] = Floki.attribute(line, "data-to")
         [index] = Floki.attribute(line, "data-link")
@@ -97,7 +97,7 @@ defmodule RegentsWeb.RegentOpsLiveTest do
         # The caption holds the same sentence the line is named with.
         sentence = String.replace_prefix(name, "#{from} and #{to}: ", "")
         assert sentence != name
-        said = Floki.find(map, ~s(.lab-map__say[data-say="#{index}"]))
+        said = Floki.find(map, ~s(.lab-blocks__say[data-say="#{index}"]))
         assert Floki.text(said) =~ sentence
 
         MapSet.new([from, to])

@@ -1,0 +1,363 @@
+/* The colours the Overview hero draws with, registered so the GPU picture reads
+   them back as plain rgb(). */
+@property --lab-blocks-near { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
+@property --lab-blocks-far { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
+@property --lab-blocks-seam { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
+@property --lab-blocks-crown-top { syntax: "<color>"; inherits: true; initial-value: #3966ff; }
+@property --lab-blocks-crown-foot { syntax: "<color>"; inherits: true; initial-value: #1e42dc; }
+@property --lab-blocks-quiet { syntax: "<color>"; inherits: true; initial-value: #77756d; }
+@property --lab-blocks-beam-tone { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
+@property --lab-blocks-lit-tone { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
+
+@layer regents-product {
+/* The Overview hero's product map (`RegentsWeb.Components.LabBlocks`): the
+   products as blocks in a deep tunnel with the crown on its far wall. The server
+   draws the whole scene as a still picture; the `LabBlocks` hook draws it on the
+   GPU over that picture once it has come in. Names and lines are page elements
+   above both, so they stay text and stay pickable whichever picture is showing.
+   The scene has a wide and a narrow composition of fixed proportions, and the
+   stage takes the one it fits.
+
+   The tunnel starts in the panel's own colour, so the stage has no edge: the
+   panel simply runs on into the tunnel. */
+
+.lab-blocks {
+  --lab-blocks-near: var(--color-surface);
+  --lab-blocks-far: light-dark(#d3d8e9, #0e1534);
+  --lab-blocks-seam: light-dark(#cbd0e1, #1b2450);
+  --lab-blocks-crown-top: light-dark(#7f98ff, var(--ash-action-light));
+  --lab-blocks-crown-foot: light-dark(#3a5ef0, var(--ash-action-deep));
+  --lab-blocks-quiet: light-dark(#8f8d82, #77756d);
+  --lab-blocks-beam-tone: light-dark(#a19f94, #0b0b0b);
+  --lab-blocks-lit-tone: light-dark(#161616, #ffffff);
+  container: lab-blocks / inline-size;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.lab-blocks__stage {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: var(--wide);
+  min-width: 0;
+}
+
+.lab-blocks [data-layout="narrow"] {
+  display: none;
+}
+
+.lab-blocks__art,
+.lab-blocks__canvas,
+.lab-blocks__lines {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lab-blocks__art {
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* The GPU picture stays out of sight until a frame of it has really drawn and
+   the scene has come in, then fades over the still one, which steps aside once
+   it is covered. */
+.lab-blocks__canvas {
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 480ms var(--ease-out);
+}
+
+.lab-blocks[data-lab-blocks-ready="true"][data-lab-blocks-motion="rest"] .lab-blocks__canvas {
+  opacity: 1;
+}
+
+.lab-blocks[data-lab-blocks-ready="true"][data-lab-blocks-motion="rest"] .lab-blocks__art {
+  visibility: hidden;
+  transition: visibility 0s 480ms;
+}
+
+/* The still picture. Each face is edged in its own gradient, so no seam shows
+   between two faces of a block. */
+
+.lab-blocks__solid {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.lab-blocks__face {
+  stroke-width: .75px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.lab-blocks__beam,
+.lab-blocks__seam {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.lab-blocks__beam {
+  stroke-width: var(--beam);
+}
+
+.lab-blocks__seam {
+  stroke-width: 1px;
+}
+
+.lab-blocks .lab-blocks__beam[data-picked] {
+  stroke-width: calc(var(--beam) * 1.7);
+}
+
+.lab-blocks[data-lab-blocks-pick] :is([data-art-node], [data-art-link]):not([data-picked]) {
+  opacity: .3;
+}
+
+.lab-blocks[data-lab-blocks-pick] .lab-blocks__solid--crown {
+  opacity: .55;
+}
+
+/* Lines: each a wide band nobody sees, and the focus ring drawn along it. */
+
+.lab-blocks__lines {
+  z-index: 2;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lab-blocks__lines path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.lab-blocks__lines .lab-blocks__hit {
+  stroke: transparent;
+  stroke-width: 24px;
+  pointer-events: stroke;
+}
+
+.lab-blocks__ring {
+  stroke: var(--color-focus);
+  stroke-width: 7px;
+  opacity: 0;
+}
+
+.lab-blocks__gap {
+  stroke: var(--color-surface);
+  stroke-width: 3.5px;
+  opacity: 0;
+}
+
+/* The ring hides the line it rings, so it carries the line along its middle. */
+.lab-blocks__core {
+  stroke: var(--color-focus);
+  stroke-width: 1.5px;
+  opacity: 0;
+}
+
+.lab-blocks__link:focus-visible :is(.lab-blocks__ring, .lab-blocks__gap, .lab-blocks__core) {
+  opacity: 1;
+}
+
+/* Places: a product's block and name, a link wherever the block is drawn. */
+
+.lab-blocks__place {
+  --x: var(--wx);
+  --y: var(--wy);
+  --t: var(--wt);
+  --l: var(--wl);
+  --u: var(--wu);
+  --w: var(--ww);
+  --h: var(--wh);
+  --c: var(--wc);
+  position: absolute;
+  inset: 0;
+  color: var(--color-fg);
+  text-decoration: none;
+  pointer-events: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lab-blocks__block {
+  position: absolute;
+  z-index: 3;
+  top: var(--u);
+  left: var(--l);
+  width: var(--w);
+  height: var(--h);
+  clip-path: var(--c);
+  pointer-events: auto;
+}
+
+.lab-blocks__name {
+  position: absolute;
+  z-index: 4;
+  top: var(--y);
+  left: var(--x);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px 3px 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: var(--font-family-ui);
+  font-size: .75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  transform: var(--t);
+  pointer-events: auto;
+}
+
+/* A small block of the product's colour leads each name. */
+.lab-blocks__name::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--tint, var(--lab-blocks-quiet));
+}
+
+.lab-blocks__place--quiet .lab-blocks__name {
+  color: var(--color-fg-muted);
+}
+
+.lab-blocks[data-lab-blocks-pick] .lab-blocks__place:not([data-picked]) .lab-blocks__name {
+  opacity: .4;
+}
+
+.lab-blocks__place[data-picked] .lab-blocks__name {
+  border-color: var(--color-fg-muted);
+}
+
+.lab-blocks__place:focus-visible .lab-blocks__name {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lab-blocks__place:hover .lab-blocks__name {
+    text-decoration: underline;
+    text-underline-offset: .2em;
+  }
+}
+
+/* Caption: every sentence shares one cell, so the cell is always as tall as the longest. */
+
+.lab-blocks__caption {
+  display: grid;
+  min-width: 0;
+}
+
+.lab-blocks__say {
+  grid-area: 1 / 1;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: .9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+  visibility: hidden;
+}
+
+.lab-blocks__say[data-shown] {
+  visibility: visible;
+}
+
+.lab-blocks__pair {
+  display: block;
+  margin-bottom: .25rem;
+  color: var(--color-fg);
+  font-family: var(--font-family-mono);
+  font-size: .6875rem;
+  letter-spacing: var(--tracking-microlabel);
+  text-transform: uppercase;
+}
+
+/* The narrow composition, for a stage under 30rem across. */
+@container lab-blocks (width < 30rem) {
+  .lab-blocks__stage {
+    aspect-ratio: var(--narrow);
+  }
+
+  .lab-blocks [data-layout="wide"] {
+    display: none;
+  }
+
+  .lab-blocks [data-layout="narrow"] {
+    display: inline;
+  }
+
+  .lab-blocks__place {
+    --x: var(--nx);
+    --y: var(--ny);
+    --t: var(--nt);
+    --l: var(--nl);
+    --u: var(--nu);
+    --w: var(--nw);
+    --h: var(--nh);
+    --c: var(--nc);
+  }
+}
+
+/* The one arrival. While the page's script can still bring the scene in, its
+   blocks, beams and names wait unseen; the hook says it is bringing them in with
+   `entering` and hands them back with `rest`. If the script has not answered in
+   four seconds, the scene simply shows. */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .lab-blocks:not([data-lab-blocks-motion]) :is(.lab-blocks__solid, .lab-blocks__beam, .lab-blocks__name) { animation: lab-blocks-wait 4s step-end; }
+
+  .lab-blocks[data-lab-blocks-motion="entering"] :is(.lab-blocks__solid, .lab-blocks__beam, .lab-blocks__name) { opacity: 0; }
+}
+
+@keyframes lab-blocks-wait { from { opacity: 0; } }
+
+/* With the system's own colours, the blocks are plain shapes and the lines show. */
+@media (forced-colors: active) {
+  .lab-blocks__art,
+  .lab-blocks__canvas {
+    display: none;
+  }
+
+  .lab-blocks__block {
+    background: CanvasText;
+  }
+
+  .lab-blocks__core {
+    stroke: CanvasText;
+    stroke-width: 1px;
+    opacity: 1;
+  }
+
+  .lab-blocks__ring {
+    stroke: Highlight;
+  }
+
+  .lab-blocks__gap {
+    stroke: Canvas;
+  }
+
+  .lab-blocks__link:focus-visible .lab-blocks__core {
+    stroke: Highlight;
+    stroke-width: 1.5px;
+  }
+
+  .lab-blocks__name::before {
+    background: CanvasText;
+  }
+}
+}
+
+/* A line draws its own ring along itself and a place rings its name, so the
+   site's ring, which outlines a control's box, stays off both; this sits outside
+   the layers, as the shell's ring does, and is more specific than it. */
+#app-shell .lab-blocks :is(.lab-blocks__link, .lab-blocks__place):focus-visible,
+.lab-blocks :is(.lab-blocks__link, .lab-blocks__place):focus-visible {
+  outline: none;
+}
