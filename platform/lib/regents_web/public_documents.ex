@@ -318,7 +318,7 @@ defmodule RegentsWeb.PublicDocuments do
 
   defp share_image_alt("/stake"),
     do:
-      "Put REGENT to work: stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT"
+      "Put REGENT to work: stake REGENT to get a slice of all revenue from any Regents Labs product, plus an early adopter 20% APY in REGENT"
 
   defp share_image_alt("/redeem"),
     do:
