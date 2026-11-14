@@ -845,6 +845,8 @@ defmodule RegentsWeb.PrivySessionControllerTest do
   test "verified registration is idempotent under concurrent attempts" do
     verified = %RegentPrivy.Session{
       app_id: "test-app",
+      issued_at: :erlang.system_time(:second),
+      expires_at: :erlang.system_time(:second) + 3600,
       privy_user_id: "did:privy:concurrent",
       session_id: "concurrent-session",
       wallet_address: "0x3333333333333333333333333333333333333333",

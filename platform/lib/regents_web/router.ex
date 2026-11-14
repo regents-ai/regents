@@ -32,6 +32,12 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.PairedAgent
   end
 
+  # The profile API's owner: the person signed in here, with the forms token on a
+  # change, or the person a paired agent acts for (RegentsWeb.Plugs.ProfileOwner).
+  pipeline :profile_owner do
+    plug RegentsWeb.Plugs.ProfileOwner
+  end
+
   # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
   # sobelow_skip ["Config.CSP"]
   pipeline :public_documents do
@@ -165,7 +171,12 @@ defmodule RegentsWeb.Router do
     get "/regents/:slug", RegentsWeb.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
     get "/staking/position", RegentsWeb.StakingPositionController, :show
-    forward "/profile", RegentIdentity.HTTP, otp_app: :regents
+  end
+
+  # The person's own shared profile (RegentIdentity.HTTP), for its owner.
+  scope "/api/v1" do
+    pipe_through [:api, :profile_owner]
+    forward "/profile", RegentIdentity.HTTP
   end
 
   scope "/api/v1/reading", RegentsWeb do

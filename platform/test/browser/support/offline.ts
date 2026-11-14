@@ -38,8 +38,7 @@ const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR
 // Every test's browser stays on this machine. The outside services pages call
 // are answered here: media.regents.sh's pictures with a pixel, WalletConnect's
 // wallet list as empty, and Privy's servers as unavailable, so the Privy
-// library on the page never starts unless the test answers Privy itself
-// (support/privy_service.ts). A request anywhere else is answered empty and
+// library on the page never starts. A request anywhere else is answered empty and
 // recorded, and the test fails on it. The test also fails once the server has
 // refused a request to an outside address, or if it held a connection outside
 // when the test ended.

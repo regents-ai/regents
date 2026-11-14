@@ -1,3 +1,7 @@
+## 2026-11-14
+
+Saving your name on [Account]({{origin}}/account) now uses your sign-in on this site, so it no longer fails when your browser cannot reach Privy. An agent you paired can read your shared profile with a signed `GET /api/v1/profile` and set your public name with a signed `PATCH /api/v1/profile`, as [agents.md]({{origin}}/agents.md) shows. The profile API no longer takes Privy sign-in tokens, and `POST /api/v1/profile/sync` is gone: your profile is made when you sign in.
+
 ## 2026-11-13
 
 Points runs in three seasons of 30 days, one after another from its start, and stops by itself after the last. From then nothing earns, and [Points]({{origin}}/account/points) and `GET /api/v1/account/points` list no action to do; your total, your place and the leaderboard stay. Points has no start date yet. Your place on the leaderboard, when you sit below the top ten, now moves when your own Points change or you open the page.

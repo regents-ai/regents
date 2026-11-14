@@ -53,7 +53,7 @@ were skipped.
 | Agent's own identity (whoami, check in) | agents only | `regents_agent_whoami` | — | — | `agents whoami`, `agents status` | no | R2, R3, R4 |
 | Read display name and ENS name | `/account` | `regents_account` | — | — | `account show` | no | R2, R3 |
 | Read wallets | `/account/wallets` | — | — | — | — | wallet | R11 |
-| Set display name | `/account` Public Display Name (`PATCH /api/v1/profile` with a Privy proof pair) | — | — | — | — | sign-in | R11 |
+| Read and set display name | `/account` Public Display Name; a paired agent's signed `GET` and `PATCH /api/v1/profile` | — | — | — | — | no | R11 |
 | Verified connections (X, GitHub, Farcaster: start, refresh) | `/account/connections` | — | — | — | — | sign-in | R11 |
 
 ## Agents
@@ -176,10 +176,11 @@ were skipped.
   can sign its steps. Plan: a signed read, a steps route, `redeem` commands and tools.
   Protected (money, wallet) for the steps; the read is not.
 - **R11. Account settings are page-only.** Linked wallets are not in
-  `regents_account`, verified connections need the Privy session, and the display name
-  changes only on `/account`, through `/api/v1/profile` with a Privy proof pair. Plan: owner reads in `account show`, and a signed profile
-  change in the shared `regent_identity` library (elixir-utils, built in ash-template
-  first), after R1. Protected (sign-in, wallet).
+  `regents_account` and verified connections need the Privy session. The display name is
+  saved on `/account` with the person's session, and a paired agent reads and sets it with a
+  signed request to `GET` and `PATCH /api/v1/profile` (14 Nov,
+  `RegentsWeb.Plugs.ProfileOwner`); no command or browser tool calls it yet. Plan: owner
+  reads in `account show`, after R1. Protected (sign-in, wallet).
 - **R12. Name claims are page-only.** Checking a name, seeing free claims left and
   claiming a free Regent Name run only on `/account/names`; agents can only read the claims
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and

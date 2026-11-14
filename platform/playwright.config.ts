@@ -1,4 +1,3 @@
-import {generateKeyPairSync} from "node:crypto"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {defineConfig, devices} from "@playwright/test"
@@ -10,19 +9,6 @@ const baseURL = `http://127.0.0.1:${port}`
 // machine. One file per run, named once here and inherited by the server and
 // the workers, which fail any test that finds it written.
 process.env.REGENTS_OUTSIDE_LOG ??= join(tmpdir(), `regents-outside-${port}-${Date.now()}.log`)
-
-// The Privy key pair of this run: the test server checks Privy tokens with the
-// public half, and test/browser/support/privy_service.ts signs them with the
-// private half. Made once here and inherited by the server and the workers.
-if (!process.env.REGENTS_BROWSER_PRIVY_KEY) {
-  const {publicKey, privateKey} = generateKeyPairSync("ec", {
-    namedCurve: "P-256",
-    publicKeyEncoding: {type: "spki", format: "pem"},
-    privateKeyEncoding: {type: "pkcs8", format: "pem"},
-  })
-  process.env.REGENTS_BROWSER_PRIVY_KEY = publicKey
-  process.env.REGENTS_BROWSER_PRIVY_SIGNING_KEY = privateKey
-}
 
 export default defineConfig({
   testDir: "./test/browser",

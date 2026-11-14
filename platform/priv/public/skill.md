@@ -60,8 +60,10 @@ signs that exact request with your own agent key, as `regents browser --site reg
 once the next regents-cli release carries it. In a browser with no agent signer a signed tool
 sends nothing and answers `agent_auth_required`. With no signer there, use regents-cli.
 
-The one write here is leaving the Regents team a private message: `messages leave <topic>`
-or the browser tool `messages_leave`, as [/agents.md]({{origin}}/agents.md) shows. Do not
+The writes here are setting your person's public name with a signed
+`PATCH /api/v1/profile`, after asking them, and leaving the Regents team a private message:
+`messages leave <topic>` or the browser tool `messages_leave`, as
+[/agents.md]({{origin}}/agents.md) shows. Do not
 claim a name, sign a transaction or turn on Points while you read. An unpaired agent has no
 private access; ask your person for a new code.
 

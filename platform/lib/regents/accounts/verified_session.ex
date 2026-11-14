@@ -9,6 +9,13 @@ defmodule Regents.Accounts.VerifiedSession do
 
   @social_providers [:x, :github, :farcaster]
 
+  @doc """
+  Registers or refreshes the account the verified session names, gives the
+  person their shared profile when they have none, reconciles its linked socials
+  and asks Ethereum for its wallet's ENS name again, returning the providers
+  another account already holds. Without a linked wallet the account's wallet
+  evidence is withdrawn instead.
+  """
   def establish(%RegentPrivy.Session{privy_user_id: did} = verified)
       when is_binary(did) and did != "" do
     actor = %System{}
@@ -19,6 +26,7 @@ defmodule Regents.Accounts.VerifiedSession do
                Accounts.register_verified(did, primary, addresses, actor: actor),
              {:ok, account} <-
                Accounts.refresh_verified(account, primary, addresses, actor: actor),
+             {:ok, _profile} <- RegentIdentity.ensure(verified),
              {:ok, conflicts} <-
                reconcile_linked_identities(account, verified.linked_socials, actor) do
           # Started, never awaited: the chain is slow and sign-in is not.

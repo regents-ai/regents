@@ -19,13 +19,14 @@
 
 ## Signed agent access
 
-Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing. Private account, claims and staking reads live under `/api/agent/v1`, and the Points summary at `/api/v1/account/points`; every call requires fresh SIWA proof for audience `regents` and an active pairing. Browser sessions and human Privy tokens grant no agent authority. POST pagination uses an exact signed JSON body, not a query string.
+Read [agents.md]({{origin}}/agents.md) and [skill.md]({{origin}}/skill.md) for the current signed-agent interface. Use `GET /api/agents/v1/whoami` to check your own identity and current pairing. Private account, claims and staking reads live under `/api/agent/v1`, the Points summary at `/api/v1/account/points`, and your person's shared profile at `/api/v1/profile`; every call requires fresh SIWA proof for audience `regents` and an active pairing. Browser sessions and human Privy tokens grant no agent authority. POST pagination uses an exact signed JSON body, not a query string.
 
-The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security remains owner-only. The one private agent write is leaving a message for the Regents team. This interface does not activate Points.
+The older `/api/v1/claims` and `/api/v1/staking/position` reads below are human-authenticated HTTP interfaces. Browser agent tools use the signed-agent routes. Account security remains owner-only. The private agent writes are setting your person's public name with `PATCH /api/v1/profile` and leaving a message for the Regents team. This interface does not activate Points.
 
 ## Available interfaces
 
 - `GET /healthz`: public plain-text health response, `ok`. `GET /api/v1/health` answers the same check as JSON, `{"status": "ok", "migrations_applied": true}`. No API key or wallet required.
+- `GET /api/v1/profile` and `PATCH /api/v1/profile`: a person's shared profile, its public name (`display_name`) and selected wallet, made when they sign in. They answer the person signed in on this site, from its own pages, or a paired agent, which signs each request with its own key. A person's Privy tokens are not taken here.
 - `GET /api/v1/products` and `GET /api/v1/products/{slug}`: the product directory, with the same copy the Patchbay, Autolaunch, Techtree and Keyfleet pages on Regents show. No API key or wallet required.
 - `GET /api/v1/reading/papers` and `/api/v1/reading/articles`: published summaries, ten per page; use the returned `pagination.next_cursor` unchanged as the sole `after` query parameter. Append a paper id or article slug for full analysis or article Markdown. Future papers, draft Articles and future Articles are unavailable.
 - `GET /api/v1/reading/literature`: the AI & SCIFI books, themes and editorial outlook scores. All Reading responses are public, untrusted content; see [Reading]({{origin}}/docs/reading) for fields and pagination.

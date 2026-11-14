@@ -27,8 +27,17 @@ defmodule Regents.TestPrivyVerifier do
     access |> access_evidence() |> paired(identity == identity_token(access), opts)
   end
 
-  defp paired({:ok, evidence}, true, opts),
-    do: {:ok, struct!(RegentPrivy.Session, Map.put(evidence, :app_id, opts[:app_id]))}
+  # A verified session holds when its tokens were issued and when they expire,
+  # as `RegentPrivy.Session.verify/2` reads them from the tokens.
+  defp paired({:ok, evidence}, true, opts) do
+    now = System.system_time(:second)
+
+    {:ok,
+     struct!(
+       RegentPrivy.Session,
+       Map.merge(evidence, %{app_id: opts[:app_id], issued_at: now - 1, expires_at: now + 600})
+     )}
+  end
 
   defp paired({:ok, _evidence}, false, _opts), do: {:error, {:pair_binding, :session_mismatch}}
   defp paired({:error, reason}, _matched, _opts), do: {:error, {:access_verification, reason}}

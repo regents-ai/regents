@@ -206,8 +206,9 @@ MIT — see [LICENSE](../LICENSE).
 ## Shared private profile
 
 `/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Agents, Points, Wallets and Connections, and the page starts in ash-template. The private `/api/v1/profile` contract,
-served by the shared `regent_identity` library, provides `GET`, `PATCH`, and `POST /sync`;
-the product CLI and browser WebMCP use the same actions and response schema.
+served by the shared `regent_identity` library, provides `GET` and `PATCH` for the person
+signed in on this site (a change carries the session's forms token) or a paired agent's
+signed request (`RegentsWeb.Plugs.ProfileOwner`). A profile is made at sign-in.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
 

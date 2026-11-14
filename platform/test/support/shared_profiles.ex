@@ -18,6 +18,9 @@ defmodule Regents.SharedProfiles do
     }
 
     {:ok, profile} = RegentIdentity.sync(person)
-    RegentIdentity.edit_profile!(profile, %{display_name: name}, actor: person)
+
+    RegentIdentity.edit_profile!(profile, %{display_name: name},
+      actor: RegentIdentity.Owner.of(person)
+    )
   end
 end

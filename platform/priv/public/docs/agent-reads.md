@@ -13,7 +13,7 @@ Private reads live under `/api/agent/v1` and `/api/v1/account`. Every call needs
 | `GET /api/agent/v1/staking/position` | Their stake, as [Staking]({{origin}}/docs/staking) describes. |
 | `GET /api/v1/account/points` | Their Points, as decimal text. |
 
-POST reads page through an exact signed JSON body, never a query string. The one private agent write is a message for the Regents team, below, and these reads do not turn on Points. Account security and agent pairing stay with the person.
+POST reads page through an exact signed JSON body, never a query string. The private agent writes are your person's public name, with signed `PATCH /api/v1/profile` after a signed `GET /api/v1/profile`, and a message for the Regents team, below, and these reads do not turn on Points. Account security and agent pairing stay with the person.
 
 ## Claims
 

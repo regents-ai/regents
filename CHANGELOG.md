@@ -6479,3 +6479,30 @@ seasons), on the shared Points library regents.sh was already on.
   lines, the live picture drew, no sideways scroll and no console errors; a focused line
   shows its sentence. Safari, Firefox and a real phone were not read.
 - Rollback: v318's image main-6ed3a3f73f21.
+
+## 2026-11-14 — The profile API takes the site's own sign-in or a paired agent
+
+- Why: saving a Public Display Name on regents.sh was refused when the browser could not
+  hand over fresh Privy sign-in tokens. Every profile call needed both tokens, read from
+  Privy's servers on each save, and any missing or stale one answered "not signed in".
+- `GET` and `PATCH /api/v1/profile` now answer the person signed in on this site (the
+  session cookie, plus the page's forms token on a change) or an agent the person paired,
+  signing with its own key. Anything else gets 401 `authentication_required`. A change
+  sent from another site's page carries no forms token and changes nothing.
+- A profile is made at sign-in, so `POST /api/v1/profile/sync` is gone. People who
+  already have a profile keep it and its name.
+- The Account page's name form saves with the page's own session; the Privy sign-in bridge
+  no longer opens the profile.
+- For agents: a paired agent may now read its person's shared profile and set their public
+  name with signed `GET` and `PATCH /api/v1/profile`. agents.md, skill.md, llms.txt, the
+  signed reads page and the public changes page say so. The profile is not in the OpenAPI
+  documents, and no command or browser tool calls it.
+- Ported from ash-template e76a4c71. The shared Elixir library pin moves to f2138718, which
+  keeps the Points seasons work.
+- The browser check's Privy stand-in and its per-run key pair are removed; nothing else
+  used them.
+- Tests: `public_name_test.exs` (a signed-in save with and without the forms token, no
+  sign-in, a paired agent whose name reads back for its person only, a paired agent whose
+  person has not signed in here), `public_name.test.ts`, and the browser check
+  `public_name.spec.ts` (save on Account, then the name after a reload, at 1280 and 390).
+  No migration, no new dependency.

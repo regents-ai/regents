@@ -169,6 +169,8 @@ defmodule Regents.EnsTest do
 
     %RegentPrivy.Session{
       app_id: "test-app",
+      issued_at: :erlang.system_time(:second),
+      expires_at: :erlang.system_time(:second) + 3600,
       privy_user_id: "did:privy:ens:#{story}",
       session_id: "session-#{story}",
       wallet_address: wallet,
