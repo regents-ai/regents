@@ -4,7 +4,8 @@ defmodule RegentsWeb.RedeemLiveTest do
   alias Regents.Accounts
   alias Regents.Actors.System
   alias Regents.OpenSea.HoldingsCache
-  alias RegentsWeb.ShellLive
+  alias RegentsWeb.Components.SubmittedTransactions
+  alias RegentsWeb.{RedeemLive, RenderCalls, ShellLive}
 
   # Invariants covered:
   # - smoke: 200 mount and the redeem heading landmark
@@ -23,6 +24,7 @@ defmodule RegentsWeb.RedeemLiveTest do
   @other "0x2222222222222222222222222222222222222222"
   @third "0x3333333333333333333333333333333333333333"
   @every_control ~w(approve_nft_collection approve_exact_usdc redeem)
+  @panel_and_list [{RedeemLive, :render}, {SubmittedTransactions, :list}]
   @redeem_42_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002a" <>
                     @code
   @redeem_43_data "0x1e9a695000000000000000000000000078402119ec6349a0d41f12b54938de7bf783c923000000000000000000000000000000000000000000000000000000000000002b" <>
@@ -396,6 +398,44 @@ defmodule RegentsWeb.RedeemLiveTest do
            )
 
     refute has_element?(view, "#redemption-activity-#{@hash}")
+  end
+
+  # A pending claim is read on Base four times a second. Those reads, and a new
+  # selection, redraw the panel without drawing its sent lists again, so the
+  # browser is sent none of them; the claim landing draws them.
+  test "SENT_LIST_ON_CHANGE: the sent list reaches the browser only when a step in it changed",
+       %{conn: conn} do
+    view = redeem_as_signer(conn, "sent-list-on-change")
+    waiting = hash("05")
+    send_step(view, "claim", waiting)
+    assert has_element?(view, ~s(#redemption-claim-activity-#{waiting}[data-outcome="pending"]))
+
+    redraws =
+      RenderCalls.count(view, @panel_and_list, fn ->
+        view
+        |> form("#redemption-selection", %{"collection" => "animata_i", "token_id" => "42"})
+        |> render_change()
+
+        render_async(view, 3_000)
+      end)
+
+    assert redraws[{RedeemLive, :render}] >= 2
+    assert redraws[{SubmittedTransactions, :list}] == 0
+
+    land(view, "claim", waiting, "0x1")
+
+    landed =
+      RenderCalls.count(view, @panel_and_list, fn ->
+        view |> redeem() |> render_hook("check_again", %{"hash" => waiting})
+        render_async(view, 3_000)
+      end)
+
+    assert landed[{SubmittedTransactions, :list}] >= 1
+
+    assert has_element?(
+             view,
+             ~s(#redemption-claim-activity-#{waiting}[data-outcome="confirmed"])
+           )
   end
 
   test "OPENSEA_FAILURE_IS_NON_BLOCKING: manual redemption stays usable", %{conn: conn} do
@@ -919,8 +959,8 @@ defmodule RegentsWeb.RedeemLiveTest do
     })
   end
 
-  # A step Base already answered for, as though it carried the page's own step.
-  defp send_landed(view, name, hash, status) do
+  # Base answers for `hash` as though it carried the page's own `name` step.
+  defp land(view, name, hash, status) do
     [%{to: to, data: data, value: value}] = step(view, name)
 
     put_chain(:test_chain_transactions, hash, %{
@@ -932,6 +972,11 @@ defmodule RegentsWeb.RedeemLiveTest do
     })
 
     put_chain(:test_chain_receipts, hash, %{"status" => status})
+  end
+
+  # A step Base already answered for, sent and read.
+  defp send_landed(view, name, hash, status) do
+    land(view, name, hash, status)
     send_step(view, name, hash)
     render_async(view)
   end

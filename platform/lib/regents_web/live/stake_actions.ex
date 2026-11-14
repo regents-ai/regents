@@ -65,6 +65,7 @@ defmodule RegentsWeb.StakeActions do
        form: @blank_form,
        wallet: nil,
        refusals: %{},
+       sent: [],
        receipt: nil
      )}
   end
@@ -163,7 +164,7 @@ defmodule RegentsWeb.StakeActions do
   # them on Base.
   def handle_event("step_sent", params, socket) do
     send(self(), :stake_step_sent)
-    {:noreply, OnchainSteps.sent(socket, params)}
+    {:noreply, socket |> OnchainSteps.sent(params) |> assign_sent()}
   end
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
@@ -173,7 +174,7 @@ defmodule RegentsWeb.StakeActions do
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
-    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+    do: {:noreply, socket |> OnchainSteps.check_again(hash) |> assign_sent()}
 
   def handle_event("close_receipt", _params, socket),
     do: {:noreply, assign(socket, receipt: nil)}
@@ -189,18 +190,21 @@ defmodule RegentsWeb.StakeActions do
   def handle_async({:onchain_step, hash}, result, socket) do
     socket = OnchainSteps.checked(socket, hash, result)
 
-    case entry(socket, hash) do
-      %{outcome: :confirmed} = entry ->
-        send(self(), :stake_step_landed)
-        {:noreply, open_receipt(socket, entry)}
+    socket =
+      case entry(socket, hash) do
+        %{outcome: :confirmed} = entry ->
+          send(self(), :stake_step_landed)
+          open_receipt(socket, entry)
 
-      %{outcome: :reverted} = entry ->
-        refusal = contract_limit(entry, socket.assigns.staking)
-        {:noreply, update(socket, :refusals, &Map.put(&1, hash, refusal))}
+        %{outcome: :reverted} = entry ->
+          refusal = contract_limit(entry, socket.assigns.staking)
+          update(socket, :refusals, &Map.put(&1, hash, refusal))
 
-      _entry ->
-        {:noreply, socket}
-    end
+        _entry ->
+          socket
+      end
+
+    {:noreply, assign_sent(socket)}
   end
 
   # Only the latest receipt's reading is shown; an earlier one's answer is dropped.
@@ -429,6 +433,11 @@ defmodule RegentsWeb.StakeActions do
     end
   end
 
+  # The sent list is kept beside the presses it shows, so the page is sent it
+  # again only when a step in it changed, not on every read of a pending step.
+  defp assign_sent(socket),
+    do: assign(socket, sent: shown(socket.assigns.presses, socket.assigns.refusals))
+
   # Each sent step as the page shows it, newest first. A stake Base turned down
   # says so when the reading at the time showed staking paused or full.
   defp shown(presses, refusals) do
@@ -555,8 +564,7 @@ defmodule RegentsWeb.StakeActions do
         approval_note: approval_note(assigns),
         approval_offered: approval_offered?(assigns),
         approved: approved?(assigns),
-        mismatch_note: OnchainSteps.mismatch_note(assigns.linked, assigns.active),
-        sent: shown(assigns.presses, assigns.refusals)
+        mismatch_note: OnchainSteps.mismatch_note(assigns.linked, assigns.active)
       )
 
     ~H"""

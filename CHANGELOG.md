@@ -6321,3 +6321,15 @@ seasons), on the shared Points library regents.sh was already on.
   pressed pick switches the paper. The sent list needs a connected wallet and was not read
   on live.
 - Rollback: v313's image main-9a467a4a0f25.
+
+## 2026-11-14 — Stake and Redeem: the sent list moves only when it changes
+
+- While a sent transaction waits for Base, the page asks Base about it four times a
+  second. Each answer used to draw the Submitted Transactions list again and send it to
+  the browser, even with nothing new in it. Now the list is drawn and sent only when a
+  transaction in it changes: a new one, Base's answer, or Check again.
+- On Redeem the steps panel was drawn whole on every change; it now redraws only the
+  parts whose figures changed, which is what lets its list stay put.
+- Every wallet button works as before; only what the page draws changed.
+- Tests on Stake and Redeem check that a redraw with nothing new leaves the list alone
+  and that Base's answer draws it.

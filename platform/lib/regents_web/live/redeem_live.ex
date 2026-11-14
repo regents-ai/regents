@@ -53,7 +53,9 @@ defmodule RegentsWeb.RedeemLive do
          press_step: nil,
          selection: %{collection: "", token_id: ""},
          receipt: nil,
-         done_steps: nil
+         done_steps: nil,
+         flow_sent: [],
+         claim_sent: []
        )}
 
   @impl true
@@ -128,7 +130,7 @@ defmodule RegentsWeb.RedeemLive do
   end
 
   def handle_event("step_sent", params, socket),
-    do: {:noreply, OnchainSteps.sent(socket, params)}
+    do: {:noreply, socket |> OnchainSteps.sent(params) |> assign_sent()}
 
   def handle_event("step_failed", %{"step" => name, "reason" => reason}, socket)
       when is_binary(name) and failure_reason(reason) do
@@ -137,7 +139,7 @@ defmodule RegentsWeb.RedeemLive do
   end
 
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
-    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+    do: {:noreply, socket |> OnchainSteps.check_again(hash) |> assign_sent()}
 
   def handle_event("close_receipt", _params, socket),
     do: {:noreply, assign(socket, receipt: nil)}
@@ -149,7 +151,7 @@ defmodule RegentsWeb.RedeemLive do
   # A step that landed moved this wallet's figures, so the page reads them again.
   @impl true
   def handle_async({:onchain_step, hash}, result, socket) do
-    socket = OnchainSteps.checked(socket, hash, result)
+    socket = socket |> OnchainSteps.checked(hash, result) |> assign_sent()
 
     case Enum.find(socket.assigns.presses.sent, &(&1.hash == hash)) do
       %{outcome: :confirmed, name: name} = entry ->
@@ -241,6 +243,15 @@ defmodule RegentsWeb.RedeemLive do
   defp failure_note(reason, _name, %{linked: linked, active: active}),
     do: OnchainSteps.failure_note(reason, linked, active, "Base")
 
+  # The sent lists are kept beside the presses they show, so the page is sent one
+  # again only when a step in it changed, not on every read of a pending step.
+  defp assign_sent(%{assigns: %{presses: presses}} = socket),
+    do:
+      assign(socket,
+        flow_sent: shown(presses, @every_control),
+        claim_sent: shown(presses, ["claim"])
+      )
+
   # Each sent step as the page shows it, newest first, beside the buttons that
   # send it: the redemption flow's steps, or the claim.
   defp shown(presses, names) do
@@ -304,8 +315,6 @@ defmodule RegentsWeb.RedeemLive do
       assigns
       |> assign(:signed_in, is_list(assigns.linked))
       |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.linked, assigns.active))
-      |> assign(:flow_sent, shown(assigns.presses, @every_control))
-      |> assign(:claim_sent, shown(assigns.presses, ["claim"]))
       |> assign(:claim_confirming, OnchainSteps.confirming?(assigns.presses, ["claim"]))
       |> assign(
         :flow_press,
@@ -406,7 +415,26 @@ defmodule RegentsWeb.RedeemLive do
           </div>
         </section>
         <div class="redeem-layout">
-          <.actions_panel {assigns} />
+          <.actions_panel
+            wallet={@wallet}
+            signed_in={@signed_in}
+            notice={@notice}
+            wallet_ready={@wallet_ready}
+            reading={@reading}
+            status={@status}
+            step={@step}
+            collection={@collection}
+            token_id={@token_id}
+            token_selected={@token_selected}
+            controls={@controls}
+            mismatch_note={@mismatch_note}
+            flow_sent={@flow_sent}
+            flow_press={@flow_press}
+            claim_confirming={@claim_confirming}
+            claim_sent={@claim_sent}
+            claim_press={@claim_press}
+            myself={@myself}
+          />
           <Loading.panel
             id="redemption-contract-skeleton"
             label="Contract details"
@@ -425,7 +453,26 @@ defmodule RegentsWeb.RedeemLive do
         >Refresh Data</Regent.Primitives.button>
       </div>
       <div :if={@status == :error && @wallet} class="redeem-layout">
-        <.actions_panel {assigns} />
+        <.actions_panel
+          wallet={@wallet}
+          signed_in={@signed_in}
+          notice={@notice}
+          wallet_ready={@wallet_ready}
+          reading={@reading}
+          status={@status}
+          step={@step}
+          collection={@collection}
+          token_id={@token_id}
+          token_selected={@token_selected}
+          controls={@controls}
+          mismatch_note={@mismatch_note}
+          flow_sent={@flow_sent}
+          flow_press={@flow_press}
+          claim_confirming={@claim_confirming}
+          claim_sent={@claim_sent}
+          claim_press={@claim_press}
+          myself={@myself}
+        />
       </div>
 
       <div :if={@status == :ready && @redemption} class="redeem-content">
@@ -485,7 +532,26 @@ defmodule RegentsWeb.RedeemLive do
         </p>
 
         <div class="redeem-layout">
-          <.actions_panel {assigns} />
+          <.actions_panel
+            wallet={@wallet}
+            signed_in={@signed_in}
+            notice={@notice}
+            wallet_ready={@wallet_ready}
+            reading={@reading}
+            status={@status}
+            step={@step}
+            collection={@collection}
+            token_id={@token_id}
+            token_selected={@token_selected}
+            controls={@controls}
+            mismatch_note={@mismatch_note}
+            flow_sent={@flow_sent}
+            flow_press={@flow_press}
+            claim_confirming={@claim_confirming}
+            claim_sent={@claim_sent}
+            claim_press={@claim_press}
+            myself={@myself}
+          />
 
           <section
             :if={@wallet_ready}
@@ -705,7 +771,9 @@ defmodule RegentsWeb.RedeemLive do
   # The redemption flow: the selection and every step whose calldata can be
   # built. It stays whenever a wallet is connected, whatever the last reading
   # from Base was, since only Base decides whether a step goes through. While the
-  # wallet's figures are not shown, the claim sits here too.
+  # wallet's figures are not shown, the claim sits here too. Its inputs are
+  # passed by name, never as `{assigns}`, so LiveView redraws only the parts
+  # whose inputs changed.
   defp actions_panel(assigns) do
     ~H"""
     <section

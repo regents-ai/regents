@@ -7,6 +7,8 @@ defmodule RegentsWeb.StakeLiveTest do
   alias Regents.SharedStakingReading
   alias Regents.Staking.{SnapshotCache, SnapshotRefresh}
   alias Regents.TestStakingChainClient
+  alias RegentsWeb.Components.SubmittedTransactions
+  alias RegentsWeb.{RenderCalls, StakeActions}
 
   # Invariants covered:
   # - smoke: 200 mount and the supply-bar landmark
@@ -28,6 +30,7 @@ defmodule RegentsWeb.StakeLiveTest do
   @receipt_block 1_249
   @refresh_failure "Couldn’t update just now. The figures shown are from the last successful reading."
   @claim_controls ["Claim USDC", "Claim REGENT", "Claim and restake"]
+  @panel_and_list [{StakeActions, :render}, {SubmittedTransactions, :list}]
 
   setup do
     Application.put_env(
@@ -977,6 +980,37 @@ defmodule RegentsWeb.StakeLiveTest do
 
     land(view, "claim_usdc", waiting, "0x1")
     render_async(view, 3_000)
+    assert has_element?(view, ~s(#staking-activity-#{waiting}[data-outcome="confirmed"]))
+  end
+
+  # A pending step is read on Base four times a second. Those reads, and an edit
+  # to the form, redraw the panel without drawing its sent list again, so the
+  # browser is sent none of it; the step landing draws it.
+  test "SENT_LIST_ON_CHANGE: the sent list reaches the browser only when a step in it changed",
+       %{conn: conn} do
+    view = stake_as_signer(conn, "sent-list-on-change")
+    waiting = hash("05")
+    send_step(view, "claim_usdc", waiting)
+    assert has_element?(view, ~s(#staking-activity-#{waiting}[data-outcome="pending"]))
+
+    redraws =
+      RenderCalls.count(view, @panel_and_list, fn ->
+        set_amount(view, "2")
+        render_async(view, 3_000)
+      end)
+
+    assert redraws[{StakeActions, :render}] >= 2
+    assert redraws[{SubmittedTransactions, :list}] == 0
+
+    land(view, "claim_usdc", waiting, "0x1")
+
+    landed =
+      RenderCalls.count(view, @panel_and_list, fn ->
+        view |> actions() |> render_hook("check_again", %{"hash" => waiting})
+        render_async(view, 3_000)
+      end)
+
+    assert landed[{SubmittedTransactions, :list}] == 1
     assert has_element?(view, ~s(#staking-activity-#{waiting}[data-outcome="confirmed"]))
   end
 
