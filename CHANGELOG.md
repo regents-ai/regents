@@ -6567,3 +6567,15 @@ seasons), on the shared Points library regents.sh was already on.
   `lab_blocks.spec.ts`, and a new `agent_tools.spec.ts` check that the edge turns only
   while the window is open and holds still with less motion. No migration, no new
   dependency. Not released.
+
+## 2026-11-14 — Released v321 (pages and documents in line; homepage line; agent windows)
+
+- v321, commit 7720b1fc: the product pages, About, the agent documents and this
+  repository's READMEs match each product's own README, changelog and code; the homepage
+  carries the new line and note; the agent windows wear a thin turning cool edge in place
+  of orange. Full check exit 0 on 7720b1fc, six gates in one run, after one run failed the
+  Account tabs phone test, which now waits for the page before pressing. No migration.
+- Live read, signed out: the new homepage words; Autolaunch's current auction terms;
+  Techtree's links; Keyfleet's Git; Cloak's Planned marks; About and llms.txt. The agent
+  windows' edge was read before release, not on live.
+- Rollback: v320's image main-059f9ac85826.
