@@ -427,7 +427,7 @@ defmodule RegentsWeb.Components.Shell do
     ~H"""
     <.link
       patch={@target.path}
-      aria-current={if @route_spec.destination == @target.path, do: "page"}
+      aria-current={if current?(@route_spec, @target.path), do: "page"}
     >
       {@target.label}
     </.link>
@@ -467,6 +467,11 @@ defmodule RegentsWeb.Components.Shell do
     do: is_binary(path) and path != ""
 
   defp visible_sidebar_target?(_target, _account_control), do: true
+
+  # A sidebar entry is current on its own page and on every tab of that page,
+  # so Account stays marked on Agents, Points, Wallets, Connections and Names.
+  defp current?(route_spec, path),
+    do: path in [route_spec.destination | Enum.map(route_spec.tabs, & &1.path)]
 
   attr :account_control, Regents.AccessContext.AccountControl, required: true
 

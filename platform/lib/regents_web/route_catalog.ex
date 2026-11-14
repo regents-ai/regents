@@ -129,18 +129,18 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :connections
     },
     %Entry{
+      path_pattern: "/account/names",
+      live_action: :names,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :names
+    },
+    %Entry{
       path_pattern: "/pair",
       live_action: :pair,
       parameter_schema: %{},
       reserved_values: %{},
       route_spec_id: :pair
-    },
-    %Entry{
-      path_pattern: "/names",
-      live_action: :names,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :names
     },
     %Entry{
       path_pattern: "/regents/:slug",
@@ -295,7 +295,8 @@ defmodule RegentsWeb.RouteCatalog do
     %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
     %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
     %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
-    %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"}
+    %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"},
+    %RouteTarget{route_id: :names, label: "Names", path: "/account/names"}
   ]
   @tabs Map.new(@account_tabs, &{&1.route_id, @account_tabs})
 
@@ -364,7 +365,6 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
-        %RouteTarget{route_id: :names, label: "Names", path: "/names"},
         %ViewerProfileTarget{label: "Profile"},
         %SidebarHeading{label: "Products"},
         %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},

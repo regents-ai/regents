@@ -240,8 +240,8 @@ defmodule RegentsWeb.Router do
       live "/account/points", ShellLive, :points
       live "/account/wallets", ShellLive, :wallets
       live "/account/connections", ShellLive, :connections
+      live "/account/names", ShellLive, :names
       live "/pair", ShellLive, :pair
-      live "/names", ShellLive, :names
       live "/regents/:slug", ShellLive, :regent_profile
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem

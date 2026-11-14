@@ -53,10 +53,10 @@ defmodule RegentsWeb.PublicDocuments do
     "/account/wallets" => {"Wallets", "The wallets your sign-in verified."},
     "/account/connections" =>
       {"Connections", "The accounts you have connected, such as X, GitHub and Farcaster."},
+    "/account/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/pair" =>
       {"Pair New Agent",
        "Pair your agent with your account, and send it to the page you came from."},
-    "/names" => {"Names", "Your .regent.eth names, and claiming a new one."},
     "/stake" =>
       {"Stake REGENT",
        "Stake REGENT to get a slice of all revenue from any Regents Labs product, plus 20% a year in REGENT, for now."},

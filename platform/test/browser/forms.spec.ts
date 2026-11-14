@@ -26,7 +26,7 @@ for (const width of [1280, 390, 320]) {
   test(`a name is checked when the person leaves the field, not while typing (${width})`, async ({page}) => {
     const problems = watch(page)
     await page.setViewportSize({width, height: 900})
-    await signIn(page, "/names")
+    await signIn(page, "/account/names")
     const input = page.locator("#account-claim-name")
     const errors = page.locator("#account-claim-name-errors")
     const below = await top(page, "#account-claim-submit")

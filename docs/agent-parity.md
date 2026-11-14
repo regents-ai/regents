@@ -69,8 +69,8 @@ were skipped.
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Read claimed Regent Names | `/names` (more on scroll) | `regents_claims` | — | — | `account claims` | no | R2, R3 |
-| Check a name, see free claims left, claim a free name | `/names` Claim | — | — | — | — | no | R12 |
+| Read claimed Regent Names | `/account/names` (more on scroll) | `regents_claims` | — | — | `account claims` | no | R2, R3 |
+| Check a name, see free claims left, claim a free name | `/account/names` Claim | — | — | — | — | no | R12 |
 
 ## Points
 
@@ -181,7 +181,7 @@ were skipped.
   change in the shared `regent_identity` library (elixir-utils, built in ash-template
   first), after R1. Protected (sign-in, wallet).
 - **R12. Name claims are page-only.** Checking a name, seeing free claims left and
-  claiming a free Regent Name run only on `/names`; agents can only read the claims
+  claiming a free Regent Name run only on `/account/names`; agents can only read the claims
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
 - **R13. Cloak has no Markdown.** `regents_about` reads, as Markdown: `/about`,

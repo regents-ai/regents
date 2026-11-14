@@ -27,8 +27,8 @@ defmodule RegentsWeb.RouteCatalogTest do
     "/account/points",
     "/account/wallets",
     "/account/connections",
+    "/account/names",
     "/pair",
-    "/names",
     "/regents/:slug",
     "/stake",
     "/redeem",
@@ -113,7 +113,6 @@ defmodule RegentsWeb.RouteCatalogTest do
              %RouteTarget{route_id: :stake, label: "Stake", path: "/stake"},
              %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
              %RouteTarget{route_id: :account, label: "Account", path: "/account"},
-             %RouteTarget{route_id: :names, label: "Names", path: "/names"},
              %ViewerProfileTarget{label: "Profile"},
              %SidebarHeading{label: "Products"},
              %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
@@ -139,7 +138,8 @@ defmodule RegentsWeb.RouteCatalogTest do
       %RouteTarget{route_id: :account_agents, label: "Agents", path: "/account/agents"},
       %RouteTarget{route_id: :points, label: "Points", path: "/account/points"},
       %RouteTarget{route_id: :wallets, label: "Wallets", path: "/account/wallets"},
-      %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"}
+      %RouteTarget{route_id: :connections, label: "Connections", path: "/account/connections"},
+      %RouteTarget{route_id: :names, label: "Names", path: "/account/names"}
     ]
 
     for entry <- RouteCatalog.entries() do

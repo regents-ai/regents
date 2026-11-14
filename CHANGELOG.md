@@ -6343,3 +6343,17 @@ seasons), on the shared Points library regents.sh was already on.
   Overview load with no sideways scroll and no console errors. The list needs a connected
   wallet and was not read on live.
 - Rollback: v314's image main-69df4d39059b.
+
+## 2026-11-14 — Names is an Account tab
+
+- Names leaves the sidebar and becomes the sixth Account tab, after Connections, at
+  `/account/names`. The old `/names` address is gone; nothing points to it.
+- On every Account tab, Names included, the sidebar now marks Account as the current
+  page. Before, only `/account` itself did.
+- Six tabs are wider than a phone, so the tab bar scrolls sideways within itself at 390
+  and 320, as it already did at 320. It now opens scrolled just far enough to show the
+  current tab, so a person who arrives on Names sees it marked. The page itself never
+  scrolls sideways.
+- Tests: the Account page lists six tabs; on Names its tab and the sidebar's Account are
+  current; at 390 and 320 every Account tab opens with its own tab in view, and a press on
+  Names moves to it.

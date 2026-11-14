@@ -62,7 +62,7 @@ defmodule RegentsWeb.ShellLiveTest do
       {:ok, view, _html} =
         conn
         |> init_test_session(%{human_account_id: account.id})
-        |> live("/names")
+        |> live("/account/names")
 
       render_hook(view, event, params)
       assert has_element?(view, "#flash-region", unreadable), event
@@ -296,7 +296,8 @@ defmodule RegentsWeb.ShellLiveTest do
           {"Agents", "/account/agents"},
           {"Points", "/account/points"},
           {"Wallets", "/account/wallets"},
-          {"Connections", "/account/connections"}
+          {"Connections", "/account/connections"},
+          {"Names", "/account/names"}
         ] do
       assert has_element?(view, ~s(#shell-tabs a[href="#{path}"]), label)
     end
@@ -308,7 +309,10 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#account-wallet-#{other}-full", other)
     assert has_element?(view, ".account-details dd", "Made for you at your next sign-in")
 
-    render_patch(view, "/names")
+    # Names is an Account tab: its tab is current, and the sidebar still marks Account.
+    render_patch(view, "/account/names")
+    assert has_element?(view, ~s(#shell-tabs a[aria-current=page][href="/account/names"]))
+    assert has_element?(view, ~s(#shell-sidebar a[aria-current=page][href="/account"]))
     assert has_element?(view, "#account-names-title", "Your names")
     assert has_element?(view, "#account-names strong", "first.regent.eth")
     assert has_element?(view, "#account-names strong", "name-2.regent.eth")
@@ -524,7 +528,7 @@ defmodule RegentsWeb.ShellLiveTest do
       insert_claim(id, wallet, %{created_at: DateTime.add(~U[2025-01-01 00:00:00Z], id, :day)})
     end
 
-    view = open_tab(conn, account, "/names")
+    view = open_tab(conn, account, "/account/names")
 
     assert has_element?(view, "#account-names li:first-child strong", "name-1.regent.eth")
 
@@ -610,7 +614,7 @@ defmodule RegentsWeb.ShellLiveTest do
     insert_payment_credit(2, wallet, %{consumed_at: DateTime.utc_now()})
     insert_payment_credit(3, stranger)
 
-    view = open_tab(conn, account, "/names")
+    view = open_tab(conn, account, "/account/names")
 
     assert has_element?(view, "#account-claim-title", "Claim")
     assert has_element?(view, "#account-claims-available", "You can claim 2 more names free.")
@@ -633,7 +637,7 @@ defmodule RegentsWeb.ShellLiveTest do
     account = register_account("account-no-claims", wallet)
     insert_allowance(wallet, 1, 1)
 
-    view = open_tab(conn, account, "/names")
+    view = open_tab(conn, account, "/account/names")
 
     assert has_element?(view, "#account-claims-available", "No free claims on your wallets.")
 
@@ -652,7 +656,7 @@ defmodule RegentsWeb.ShellLiveTest do
     account = register_account("account-claim-name", wallet)
     insert_claim(1, stranger, %{label: "taken", fqdn: "taken.agent.base.eth"})
 
-    view = open_tab(conn, account, "/names")
+    view = open_tab(conn, account, "/account/names")
 
     render_change(element(view, "#account-claim-form"), %{"name" => "ab"})
     assert has_element?(view, "#account-claim-name-errors p", "Use at least 3 characters.")

@@ -12,8 +12,8 @@ const pages: Array<[string, string]> = [
   ["/account/points", "#points-page"],
   ["/account/wallets", "#account-wallets-title"],
   ["/account/connections", "#account-verified-connections"],
+  ["/account/names", "#account-names-title"],
   ["/pair", "#pair-page"],
-  ["/names", "#account-names-title"],
   ["/app", "#regent-ops-overview"],
   ["/paper-pro-daily", "#paper-daily-title"],
   ["/literature", "#literature-chart"],
@@ -62,7 +62,7 @@ async function walk(page: Page, signedIn: boolean) {
   await page.evaluate(() => ((window as any).__r04Walk = true))
 
   for (const [path, marker] of pages) {
-    if ((path.startsWith("/account") || path === "/names") && !signedIn) continue
+    if (path.startsWith("/account") && !signedIn) continue
     await patchTo(page, path)
     await expect(page).toHaveURL(new RegExp(`${path.replace("/", "\\/")}$`))
     await expect(page.locator(marker)).toBeVisible()
@@ -100,23 +100,39 @@ test("a signed-in person has the whole account menu on every shell page", async 
   }
 })
 
-// The Account tabs and Names fit a phone, with nothing pushing the page sideways.
-test("the Account tabs and Names fit a phone", async ({page}, testInfo) => {
-  const auth = await installAuthenticatedPrivy(page, "valid")
-  await auth.establishLocalSession()
-  await page.setViewportSize({width: 390, height: 900})
+// The six Account tabs fit a phone, with nothing pushing the page sideways, and
+// every tab can be reached and pressed from the tab bar.
+for (const width of [390, 320]) {
+  test(`the Account tabs fit a phone (${width})`, async ({page}, testInfo) => {
+    const auth = await installAuthenticatedPrivy(page, "valid")
+    await auth.establishLocalSession()
+    await page.setViewportSize({width, height: 900})
 
-  for (const [path, marker] of pages.filter(([path]) => path.startsWith("/account") || path === "/names")) {
-    await page.goto(path)
-    await expect(page.locator(marker), path).toBeVisible()
-    const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-    expect(sideways, path).toBeLessThanOrEqual(0)
-    await page.screenshot({
-      path: testInfo.outputPath(`${path.slice(1).replaceAll("/", "-")}-390.png`),
-      fullPage: true,
-    })
-  }
-})
+    for (const [path, marker] of pages.filter(([path]) => path.startsWith("/account"))) {
+      await page.goto(path)
+      await expect(page.locator(marker), path).toBeVisible()
+      await expect(page.locator(`#shell-tabs a[aria-current="page"][href="${path}"]`), path).toBeVisible()
+      const shown = await page.locator("#shell-tabs").evaluate(bar => {
+        const box = bar.getBoundingClientRect()
+        const tab = bar.querySelector('[aria-current="page"]')!.getBoundingClientRect()
+        return tab.left >= box.left && tab.right <= box.right
+      })
+      expect(shown, `${path}: the current tab is in view`).toBe(true)
+      const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+      expect(sideways, path).toBeLessThanOrEqual(0)
+      await page.screenshot({
+        path: testInfo.outputPath(`${path.slice(1).replaceAll("/", "-")}-${width}.png`),
+        fullPage: true,
+      })
+    }
+
+    await page.goto("/account")
+    await page.locator('#shell-tabs a[href="/account/names"]').click()
+    await expect(page).toHaveURL(/\/account\/names$/)
+    await expect(page.locator("#account-names-title")).toBeVisible()
+    await expect(page.locator('#shell-sidebar a[aria-current="page"][href="/account"]')).toBeAttached()
+  })
+}
 
 // On the narrowest phone a product page's buttons, the gallery's and the chart's
 // axis names stay inside their panels, so nothing pushes the page sideways.
