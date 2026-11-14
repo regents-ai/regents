@@ -1178,26 +1178,14 @@ defmodule RegentsWeb.RedeemLive do
   attr :press, :map, default: nil, doc: "an `OnchainSteps.press_note/2`"
   attr :myself, :any, required: true
 
-  # What happened to each press, newest first, read on Base by the server.
+  # What happened to each press, newest first, read on Base by the server, and
+  # the note for a press that was not sent, which floats just under the panel.
   defp activity(assigns) do
     ~H"""
-    <section
-      id={@id}
-      class="redeem-activity"
-      hidden={@sent == [] and is_nil(@press)}
-    >
-      <p
-        :if={@press}
-        id={"#{@id}-press"}
-        class="redeem-notice"
-        role="alert"
-        phx-hook="MotionRefusal"
-        data-refused={@press.refused}
-      >
-        <OnchainSteps.note id={"#{@id}-press-words"} parts={@press.parts} />
-      </p>
+    <section id={@id} class="redeem-activity" hidden={@sent == []}>
       <SubmittedTransactions.list id={@id} sent={@sent} myself={@myself} />
     </section>
+    <OnchainSteps.notes id={"#{@id}-press"} press={@press} />
     """
   end
 

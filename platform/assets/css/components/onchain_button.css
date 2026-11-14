@@ -44,3 +44,52 @@
 }
 
 @keyframes onchain-edge { to { opacity: 0.3; } }
+
+/* The note for a press that was not sent, and the lost-connection line
+   (`OnchainSteps.notes/1`). They float, so coming and going moves nothing; each
+   page places `.onchain-notes` over words no one presses. Only a wallet a note
+   names takes a press; anywhere else a press reaches what is under the note. */
+.onchain-notes {
+  position: absolute;
+  z-index: var(--rg-layer-card);
+  display: grid;
+  pointer-events: none;
+}
+
+.onchain-notes > *,
+.onchain-notes__leaving > * { grid-area: 1 / 1; }
+
+.onchain-notes__leaving { display: grid; }
+
+.onchain-note {
+  margin: 0;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--ash-quiet);
+  border-inline-start: 3px solid var(--ash-signal);
+  border-radius: var(--radius-sm);
+  background: var(--ash-raised);
+  box-shadow: var(--rg-layer-tip-shadow);
+  color: var(--color-fg);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    translate var(--duration-base) var(--ease-out);
+}
+
+@starting-style {
+  .onchain-note { opacity: 0; translate: 0 4px; }
+}
+
+.onchain-note[hidden] { display: none; }
+
+/* A note on its way out is played from script (`leave` in motion/moments.ts). */
+.onchain-note[data-leaving] { transition: none; }
+
+.onchain-note:not([data-leaving]) :is(a, button) { pointer-events: auto; }
+
+/* While the connection is lost, its line takes the note's place. */
+.onchain-notes:has(> [data-onchain-lost]:not([hidden])) .onchain-note:not([data-onchain-lost]) {
+  visibility: hidden;
+}

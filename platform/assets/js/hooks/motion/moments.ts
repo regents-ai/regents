@@ -16,9 +16,9 @@ import {
   type Scope,
   type TextSplitter,
 } from "animejs"
-import {BASE, CLIPPED_CHAR, EASE_OUT, SLOW, play, still} from "./shared"
+import {BASE, CLIPPED_CHAR, EASE_OUT, FAST, SLOW, play, still} from "./shared"
 import {deny} from "./press"
-import type {Hook} from "../../hook_composition"
+import {composeHooks, type Hook} from "../../hook_composition"
 
 // How a list moves when the server adds, reorders or drops its items: `bounce`
 // for lists and `pop` for notes that come and go. A new item only fades in
@@ -187,6 +187,51 @@ export const MotionRefusal: Hook = {
     this.scope?.revert()
   },
 }
+
+/**
+ * A wallet note that goes (`OnchainSteps.notes/1`) fades out where it stood. A
+ * copy of its words, with no ids and out of reach of presses and readers, plays
+ * in the layer the server keeps beside the notes, so the page never waits for it.
+ */
+export function leave(note: HTMLElement, notes: HTMLElement | null | undefined) {
+  const layer = notes?.querySelector<HTMLElement>(":scope > .onchain-notes__leaving")
+  if (!layer?.isConnected || still(layer)) return
+
+  const copy = document.createElement(note.tagName)
+  copy.className = note.className
+  copy.append(...Array.from(note.childNodes, node => node.cloneNode(true)))
+  for (const named of copy.querySelectorAll("[id]")) named.removeAttribute("id")
+  copy.dataset.leaving = ""
+  copy.inert = true
+  copy.setAttribute("aria-hidden", "true")
+  layer.append(copy)
+  play(copy, {opacity: 0, y: 4, duration: FAST, ease: EASE_OUT}).then(() => copy.remove())
+}
+
+type NoteHook = {el: HTMLElement; notes?: HTMLElement | null; rejoining?: boolean}
+
+// The server draws its notes afresh when the page rejoins it, so a note that
+// goes then simply goes.
+const goes: Hook = {
+  mounted(this: NoteHook) {
+    this.notes = this.el.parentElement
+  },
+
+  disconnected(this: NoteHook) {
+    this.rejoining = true
+  },
+
+  reconnected(this: NoteHook) {
+    this.rejoining = false
+  },
+
+  destroyed(this: NoteHook) {
+    if (!this.rejoining) leave(this.el, this.notes)
+  },
+}
+
+/** A press's wallet note: it shakes as a refusal does and fades when it goes. */
+export const MotionNote = composeHooks(MotionRefusal, goes)
 
 // A tick's stroke drawn in once, from its start to its end. Its path is one
 // unit long (`pathLength="1"`) and a dash as long covers it (`.motion-tick` in

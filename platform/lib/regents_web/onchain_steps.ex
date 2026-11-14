@@ -234,6 +234,37 @@ defmodule RegentsWeb.OnchainSteps do
     """
   end
 
+  attr :id, :string, required: true, doc: "the press note's id"
+  attr :press, :map, default: nil, doc: "a `press_note/2`, or `nil` while there is none"
+  attr :lost, :boolean, default: false, doc: "whether the page's lost-connection line is here"
+
+  @doc """
+  The note for the last press that was not sent, and the lost-connection line
+  when the page has one. They float where the page places `.onchain-notes`, so
+  their coming and going moves nothing. A note the wallet turned down shakes, and
+  a note that goes fades out from the layer kept beside it (`MotionNote`).
+  """
+  def notes(assigns) do
+    ~H"""
+    <div class="onchain-notes">
+      <p
+        :if={@press}
+        id={@id}
+        class="onchain-note"
+        role="alert"
+        phx-hook="MotionNote"
+        data-refused={@press.refused}
+      >
+        <.note id={"#{@id}-words"} parts={@press.parts} />
+      </p>
+      <p :if={@lost} id={"#{@id}-lost"} class="onchain-note" role="status" data-onchain-lost hidden>
+        Connection lost, so nothing was sent. Press again once it's back.
+      </p>
+      <div id={"#{@id}-leaving"} class="onchain-notes__leaving" phx-update="ignore"></div>
+    </div>
+    """
+  end
+
   @doc """
   One sent step as the page shows it: its state and generic words. A component
   names its steps and may say more about them.

@@ -3,6 +3,7 @@ import {expect, test, type Locator, type Page} from "./support/offline"
 
 import {addressesOutOfCase, bareAddresses} from "./support/addresses"
 import {identityTokenFor} from "./support/authenticated_privy"
+import {boxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
@@ -171,7 +172,7 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await expect.poll(() => privyRequests(page)).toContain("sign-in")
   expect(await privyRequests(page)).not.toContain("connect-wallet")
   expect(await sendCount(page)).toBe(0)
-  await expect(page.locator(".stake-notice:visible")).toHaveCount(0)
+  await expect(page.locator(".stake-notice:visible, .onchain-note:visible")).toHaveCount(0)
 })
 
 // Privy's active wallet is the only one that acts. When it is not one of the
@@ -616,6 +617,42 @@ test("Stake says the wallet declined when the approval is rejected", async ({pag
   await expect.poll(() => sendCount(page)).toBe(2)
   await expect(page.locator(`#staking-activity-${expectedHash(2)}`)).toContainText("REGENT approval")
   await expect(page.locator("#staking-press-notice")).toHaveCount(0)
+})
+
+// The note for a press the wallet declined floats just under the buttons: it moves
+// nothing in the panel, covers no control, and goes when the next press is sent.
+test("Stake's note for a declined press moves nothing and covers no control", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  const notice = page.locator("#staking-press-notice")
+  const primary = page.locator("#staking-primary")
+
+  for (const width of [320, 1280]) {
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/stake")
+    await page.evaluate(key => sessionStorage.removeItem(key), sendsKey)
+    await page.evaluate(() => {
+      ;(window as Window & {__ashStakingRejectedApproval?: boolean})
+        .__ashStakingRejectedApproval = true
+    })
+    await selectWallet(page, wallet)
+    await page.getByLabel("Amount", {exact: true}).fill("1")
+    await expect(page.locator(".stake-preview")).toBeVisible()
+    await primary.scrollIntoViewIfNeeded()
+    const before = await boxes(page, "#staking-actions")
+
+    await primary.click()
+    await expect(notice).toHaveText("Your wallet declined this. Nothing was sent.")
+    await expect(primary).not.toHaveAttribute("data-awaiting-wallet")
+    // Read once the pressed button's own squeeze has played out.
+    await expect.poll(() => boxes(page, "#staking-actions"), `Stake at ${width}`).toEqual(before)
+    expect(await coveredControls(page), `Stake at ${width}`).toEqual([])
+
+    await primary.click()
+    await expect.poll(() => sendCount(page)).toBe(2)
+    await expect(notice).toHaveCount(0)
+    await expect(page.locator("[data-leaving]")).toHaveCount(0)
+  }
 })
 
 // A person reading the request in their wallet can still change the page. The

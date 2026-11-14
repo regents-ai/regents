@@ -6398,3 +6398,24 @@ seasons), on the shared Points library regents.sh was already on.
 - Tests: the Redeem panels check now finds each card's link in its header, under the
   name and whole on one line, with the three headers one height, at 320, 360, 390 and
   1280 wide.
+
+## 2026-11-14 — Stake and Redeem: a wallet note moves nothing
+
+- When a press is not sent (the wallet declined it, may have sent it, is not open, or
+  is not the account's), the note that says so now floats over the page instead of
+  pushing it down. On Stake it sits just under the buttons, over the approval line and
+  the preview; on Redeem it sits just under the panel whose button was pressed, over
+  the gap and the next heading. Nothing on either page moves when a note comes or goes.
+- A note covers no button, link or field, at 320, 360, 390 and 1280 wide, light and
+  dark. A press anywhere on a note reaches what is under it, except a link in the note.
+  While a note shows on Stake, the line about which wallet will send steps aside so the
+  note covers none of its links.
+- Stake's "Connection lost" line floats in the same place and moves nothing either.
+- A note comes in with a short fade and a 4px rise (200ms) and fades out where it stood
+  (140ms). Nothing plays on load, on reconnect, or with less motion asked for. A note
+  the wallet turned down still shakes once, and a press during the shake still reaches
+  the wallet.
+- Screen readers hear each note as before.
+- Tests: on Stake and Redeem, a declined press shows its note with every other box on
+  the page exactly where it was and no control under the note, at 320 and 1280 wide,
+  and the next press that is sent takes the note away.

@@ -2,6 +2,7 @@ import {decodeFunctionData, parseAbi, type Hex} from "viem"
 import {expect, test, type Locator, type Page} from "./support/offline"
 
 import {identityTokenFor} from "./support/authenticated_privy"
+import {boxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
@@ -426,6 +427,45 @@ test("Redeem shakes the note when the wallet turns a press down", async ({page})
   await page.waitForTimeout(600)
   expect(await shakes(page)).toBe(1)
   expect(await sendCount(page)).toBe(3)
+})
+
+// The note for a press the wallet declined floats just under its panel, the flow's
+// under the flow and the claim's under the account: it moves nothing on the page,
+// covers no control, and goes when the next press is sent.
+test("Redeem's note for a declined press moves nothing and covers no control", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  const flowNote = page.locator("#redemption-activity-press")
+  const claimNote = page.locator("#redemption-claim-activity-press")
+  const approve = page.locator("#redemption-approve_nft_collection")
+  const claim = page.locator("#redemption-claim")
+
+  for (const width of [320, 1280]) {
+    await page.setViewportSize({width, height: 900})
+    await page.goto("/redeem")
+    await expect(page.locator("[data-phx-main].phx-connected")).toBeAttached()
+    await page.getByLabel("Token ID").fill("42")
+    await expect(page.locator("#redemption-redeem")).toBeVisible()
+    await setWalletAnswer(page, "declined")
+
+    for (const [button, note] of [[approve, flowNote], [claim, claimNote]] as const) {
+      await button.scrollIntoViewIfNeeded()
+      const before = await boxes(page, ".redeem-page")
+      await button.click()
+      await expect(note).toHaveText("Your wallet declined this. Nothing was sent.")
+      await expect(button).not.toHaveAttribute("data-awaiting-wallet")
+      // Read once the pressed button's own squeeze has played out.
+      await expect.poll(() => boxes(page, ".redeem-page"), `Redeem at ${width}`).toEqual(before)
+      expect(await coveredControls(page), `Redeem at ${width}`).toEqual([])
+    }
+    await expect(flowNote).toHaveCount(0)
+
+    await setWalletAnswer(page, "hash")
+    await claim.click()
+    await expect(page.locator("#redemption-claim-activity li")).toHaveCount(1)
+    await expect(claimNote).toHaveCount(0)
+    await expect(page.locator("[data-leaving]")).toHaveCount(0)
+  }
 })
 
 // Sign out ends the wallet connection, and it stays ended across reloads

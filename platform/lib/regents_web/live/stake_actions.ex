@@ -803,7 +803,7 @@ defmodule RegentsWeb.StakeActions do
               </p>
 
               <%!-- Approve, when it is offered beside the next step, shares its row and
-                   its size. --%>
+                   its size. A press that was not sent says why just under them. --%>
               <div class="stake-submit-row">
                 <Regent.Primitives.button
                   :if={@signed_in && @approval_offered}
@@ -823,6 +823,7 @@ defmodule RegentsWeb.StakeActions do
                   data-account-target={!@signed_in && "sign-in"}
                   data-confirming={OnchainSteps.confirming?(@presses, [@next_step])}
                 ><OnchainButton.label label={primary_label(@next_step, @action)} /></Regent.Primitives.button>
+                <OnchainSteps.notes id="staking-press-notice" press={@press_note} lost />
               </div>
 
               <p id="staking-approval-note" class="stake-line stake-approval-note">
@@ -849,7 +850,7 @@ defmodule RegentsWeb.StakeActions do
           </div>
         </div>
 
-        <.activity sent={@sent} press={@press_note} myself={@myself} />
+        <.activity sent={@sent} myself={@myself} />
         <TransactionReceipt.receipt
           :if={@receipt}
           id="staking-receipt-dialog"
@@ -993,26 +994,12 @@ defmodule RegentsWeb.StakeActions do
   end
 
   attr :sent, :list, required: true
-  attr :press, :map, default: nil, doc: "an `OnchainSteps.press_note/2`"
   attr :myself, :any, required: true
 
   # What happened to each press, newest first, read on Base by the server.
   defp activity(assigns) do
     ~H"""
     <section id="staking-activity" class="stake-activity">
-      <p
-        :if={@press}
-        id="staking-press-notice"
-        class="stake-notice"
-        role="alert"
-        phx-hook="MotionRefusal"
-        data-refused={@press.refused}
-      >
-        <OnchainSteps.note id="staking-press-notice-words" parts={@press.parts} />
-      </p>
-      <p class="stake-notice" role="status" data-onchain-lost hidden>
-        Connection lost, so nothing was sent. Press again once it's back.
-      </p>
       <SubmittedTransactions.list id="staking-activity" sent={@sent} myself={@myself} />
     </section>
     """

@@ -2,6 +2,7 @@ import type {Address, Hex} from "viem"
 
 import type {Hook} from "../hook_composition"
 import {report} from "../visit_log"
+import {leave} from "./motion/moments"
 import {activeEthereumWallet} from "../wallet_actions/connected_wallet"
 import {
   failure,
@@ -186,8 +187,11 @@ function mark(button: HTMLElement): () => void {
 }
 
 // The component's `data-onchain-lost` line, shown when a press could not reach
-// the server. The next render from the server hides it again.
+// the server. The next press fades it out; a render from the server hides it at
+// once.
 function lost(root: HTMLElement, shown: boolean): void {
   const line = root.querySelector<HTMLElement>("[data-onchain-lost]")
-  if (line) line.hidden = !shown
+  if (!line) return
+  if (!shown && !line.hidden) leave(line, line.parentElement)
+  line.hidden = !shown
 }

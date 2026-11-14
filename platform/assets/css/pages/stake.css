@@ -413,8 +413,29 @@
 
 /* Approve, when offered, shares the row and the size of the step it unlocks. */
 .stake-submit-row {
+  position: relative;
   display: flex;
   gap: 0.75rem;
+}
+
+/* A press that was not sent says why just under the buttons, over the approval
+   line and the preview, above the wallet row. The wallet line there steps aside
+   while it shows, so the note covers none of its links. */
+.stake-submit-row > .onchain-notes {
+  inset-inline: 0;
+  inset-block-start: calc(100% + 0.25rem);
+}
+
+/* On a narrow card the note reaches to just inside the card's edges, so the
+   longest one, which names the wallet twice, still ends above the wallet row. */
+@container stake-card (inline-size < 24rem) {
+  .stake-submit-row > .onchain-notes {
+    inset-inline: calc(0.25rem - var(--rg-panel-padding));
+  }
+}
+
+#staking-amount-form:has(.onchain-note:not([hidden])) > .shell-sending-wallet {
+  visibility: hidden;
 }
 
 .stake-submit-row > .stake-submit {
@@ -537,7 +558,7 @@
   gap: 0.6rem;
 }
 
-/* With nothing sent and no notice, the activity takes no room, so the rewards sit close below. */
+/* With nothing sent, the activity takes no room, so the rewards sit close below. */
 .stake-activity:not(:has(> :not([hidden]))) {
   display: none;
 }

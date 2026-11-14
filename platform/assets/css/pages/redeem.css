@@ -814,6 +814,19 @@
 
 .redeem-activity[hidden] { display: none; }
 
+/* A press that was not sent says why just under its panel, in line with the
+   panel's contents, over the gap and the heading of what follows, where nothing
+   takes a press. The panel holding the note sits above its neighbours so the
+   note shows over them. */
+.redeem-page .onchain-notes {
+  inset-inline: var(--rg-panel-padding);
+  inset-block-start: calc(100% + 0.5rem);
+}
+
+:is(.redeem-actions, .redeem-position):has(.onchain-note) {
+  z-index: var(--rg-layer-card);
+}
+
 
 @media (hover: hover) and (pointer: fine) {
   .redeem-page button:not(:disabled):hover {
@@ -838,7 +851,7 @@
   .redeem-intro { grid-template-columns: minmax(0, 1fr); }
   .redeem-intro-media { width: min(100%, 19rem); }
   .redeem-layout { grid-template-columns: minmax(0, 1fr); }
-  .redeem-position { position: static; }
+  .redeem-position { position: relative; }
 }
 
 @media (max-width: 50rem) {
