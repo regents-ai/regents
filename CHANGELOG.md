@@ -6310,3 +6310,14 @@ seasons), on the shared Points library regents.sh was already on.
   is simply there.
 - The chosen pick's bar is now its own line under the pick, drawn the same as before,
   so it can travel.
+
+## 2026-11-14 — Released v314 (OpenSea link, sent list, paper glide)
+
+- v314, commit 69df4d39: Redeem's "View collection on OpenSea" shows its whole name; a sent
+  transaction slides into the list on Stake and Redeem; switching papers on Daily Research
+  glides. Full check exit 0 on 69df4d39, six gates in one run. No migration.
+- Live read, signed out, at 320, 390 and 1280: Redeem, Stake, Daily Research, home and
+  Overview have no sideways scroll, nothing past the screen's edge and no console errors; a
+  pressed pick switches the paper. The sent list needs a connected wallet and was not read
+  on live.
+- Rollback: v313's image main-9a467a4a0f25.
