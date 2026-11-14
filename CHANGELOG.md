@@ -6419,3 +6419,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Tests: on Stake and Redeem, a declined press shows its note with every other box on
   the page exactly where it was and no control under the note, at 320 and 1280 wide,
   and the next press that is sent takes the note away.
+
+## 2026-11-14 — Released v318 (collection links, floating notes)
+
+- v318, commit 6ed3a3f7: on Redeem "View collection" is a small link under each
+  collection's name; on Stake and Redeem the note for a press that was not sent floats and
+  moves nothing. Full check exit 0 on 6ed3a3f7, six gates in one run. No migration.
+- Live read, signed out, at 320, 390 and 1280: Redeem shows the three links inside the
+  screen, with no sideways scroll and no console errors on Redeem, Stake, home or Overview.
+  The floating note needs a connected wallet and was not read on live.
+- Rollback: v317's image main-08f2f97ec49c.
