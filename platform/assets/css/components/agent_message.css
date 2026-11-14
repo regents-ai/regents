@@ -123,5 +123,5 @@
 }
 
 .agent-message__head .rg-button:is(:hover, :focus-visible) {
-  --rg-local-ink: var(--agent-tools-accent);
+  --rg-local-ink: var(--agent-tools-cool);
 }

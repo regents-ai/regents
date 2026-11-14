@@ -45,6 +45,33 @@ test("the tools window copies every site's tools", async ({page, context}) => {
   await expect(dialog.getByRole("button", {name: "Copy as Markdown"})).toBeVisible()
 })
 
+// The window's edge turns only while the window is open, so a closed window
+// costs the page nothing, and holds still when the device asks for less motion.
+test("the tools window's edge turns only while it is open", async ({page}) => {
+  const turning = () =>
+    page.evaluate(
+      () => document.getAnimations().filter(animation => (animation as CSSAnimation).animationName === "agent-tools-turn").length,
+    )
+  await page.goto("/about")
+  await page.locator(".phx-connected").first().waitFor()
+  const dialog = page.getByRole("dialog", {name: /^Agents see \d+ WebMCP Tools$/})
+  expect(await turning()).toBe(0)
+
+  await page.locator("#shell-agent-tools-button").click()
+  await expect(dialog).toBeVisible()
+  // The edge and the glow outside it.
+  await expect.poll(turning).toBe(2)
+
+  await dialog.getByRole("button", {name: "Close"}).click()
+  await expect(dialog).toBeHidden()
+  expect(await turning()).toBe(0)
+
+  await page.emulateMedia({reducedMotion: "reduce"})
+  await page.locator("#shell-agent-tools-button").click()
+  await expect(dialog).toBeVisible()
+  expect(await turning()).toBe(0)
+})
+
 type Registered = {name: string; execute(input: unknown): Promise<unknown>}
 
 // Every page offers the list tools: one for each site and the complete list.

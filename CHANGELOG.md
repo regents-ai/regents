@@ -6525,3 +6525,45 @@ seasons), on the shared Points library regents.sh was already on.
   site or another; Account, Overview and the agent guide load. A signed-in save was not
   read on live.
 - Rollback: v319's image main-96434fcc7095.
+
+## 2026-11-14 — Product pages match each product's sources; new homepage line; the night windows lose their orange
+
+- Why: the product pages and documents had fallen behind each product's own README,
+  changelog and code; the founder gave Regents a new one-line description; and the tools
+  window's orange was the loudest thing on screen.
+- Homepage: "We build platforms for persistent agents. All revenue is converted to USDC and
+  split with $REGENT stakers.", with a smaller, dimmer note under it: "Agent-built and
+  designed to be agent-owned. The token is foremost, no equity value." About, llms.txt,
+  skill.md, the page descriptions, the README and the Overview map say the same of
+  revenue; no percentage was added. Product-specific shares (Keyfleet's one-time 10% of a
+  Key purchase, Autolaunch's per-chain 1%, Patchbay's 10% of priority reports) were left
+  for the founder.
+- Autolaunch, from its README at a45f7c95: Base or Robinhood Chain; Memestock bidding about
+  24 hours, priced in the stock, with the creator's 0.5% released over 30 days from
+  graduation; Revstake bidding about 2 days, priced in REGENT; the fees on each chain; an
+  auction sells over its whole length. The public changes page corrects its 12 November
+  timings.
+- Techtree, from techtree.sh's services at 69b7e683: "Better agents for your business.",
+  six cards (Skills, Evals, Environments, Models, Security, Wallet Bench) and Run locally.
+  Patchbay, from 3260617f: its about line, Audience, family line and two card headlines.
+  Keyfleet: Git in its tech stack and the daily share's wording. Cloak, from its README:
+  in development, every card Planned, and what the rewording covers.
+- This repository's own documents against its router and released regents-cli: README,
+  platform/README.md, FEATURES.md, docs/agent-parity.md, blog/README.md, plugins/README.md,
+  the codebase handoff, agents.md, skill.md and Signed reads. OpenAPI is 6.0.4 for the
+  product directory's new words.
+- Night windows (Agents see, the homepage's agent prompt, Agent Message): a 1.5 px edge
+  turns once every 16 seconds through Cornflower, Powder Blue and Platinum, with a faint
+  glow outside it that follows each colour; inside, the rules are a quiet neutral and the
+  tools' names Powder Blue. CSS, not a WebGPU canvas: a registered angle turns a conic
+  gradient masked to the frame's lines, the frame's own cut corners and marks included,
+  and the glow is three shadows on the window. The animation exists only while a window
+  is open and not under less motion; open, it costs about 40 ms of main thread a second
+  in headless Chromium, with no layout. The app's focus ring inside these windows now
+  takes their ink, so it shows in light too. The glow follows the cut corners where the
+  browser supports `corner-shape`; elsewhere those two corners of the glow are rounded.
+- Not changed: the /techtree and /stake share pictures were not regenerated.
+- Tests: the homepage pins in `homepage.spec.ts` and `home_live_test.exs`, the map line in
+  `lab_blocks.spec.ts`, and a new `agent_tools.spec.ts` check that the edge turns only
+  while the window is open and holds still with less motion. No migration, no new
+  dependency. Not released.

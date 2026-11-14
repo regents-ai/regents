@@ -33,11 +33,14 @@
 
 
 /* The list itself: a modal whose list scrolls, closed with its X or Escape.
-   It is night in either theme, so its colours are its own. */
+   It is night in either theme, so its colours are its own: its edge turns
+   slowly through Cornflower, Powder Blue and Platinum (below), and inside it
+   only the tools' names take a colour, Powder Blue. */
 @layer regents-product {
 .agent-tools {
   --agent-tools-ink: #e5e3d2;
-  --agent-tools-accent: var(--palette-tangerine-tango);
+  --agent-tools-cool: var(--palette-powder-blue);
+  --agent-tools-rule: color-mix(in srgb, var(--agent-tools-ink) 14%, transparent);
   --rg-dialog-size: 40rem;
 }
 
@@ -54,12 +57,7 @@
   align-items: start;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-4) var(--space-4) var(--space-3);
-  border-bottom: 1px solid color-mix(in srgb, var(--agent-tools-accent) 30%, transparent);
-  background: linear-gradient(
-    180deg in oklch,
-    color-mix(in srgb, var(--agent-tools-accent) 14%, transparent),
-    oklch(from var(--agent-tools-accent) l c h / 0)
-  );
+  border-bottom: 1px solid var(--agent-tools-rule);
 }
 
 .agent-tools__head h2 {
@@ -132,7 +130,7 @@
   gap: 0.3rem;
   min-width: 0;
   padding: 0.75rem 0.875rem;
-  border-left: 2px solid var(--agent-tools-accent);
+  border-left: 2px solid var(--agent-tools-rule);
   background: color-mix(in srgb, var(--agent-tools-ink) 5%, transparent);
 }
 
@@ -149,7 +147,7 @@
 }
 
 .agent-tools__tool code {
-  color: var(--agent-tools-accent);
+  color: var(--agent-tools-cool);
   font: 0.75rem/1.4 var(--font-family-mono);
   overflow-wrap: anywhere;
 }
@@ -162,13 +160,20 @@
 }
 
 /* The shared frame's own rules sit outside any layer, so the night colours on
-   it, and its body's edge-to-edge padding, sit outside one too. The head stays
-   put and the list scrolls, clipped to the frame's cut corners. */
+   it, and its body's edge-to-edge padding, sit outside one too. The frame
+   keeps only its fill; the edge below draws its lines. The app's focus ring,
+   drawn in the page's ink, takes the dialog's ink, so it shows in light too.
+   The dialog's own box is cut like the frame, so the glow below follows the
+   cuts. The head stays put and the list scrolls, clipped to the frame's cut
+   corners, with a little cool light just inside the edge. */
 :root .agent-tools.rg-dialog {
   --rg-dialog-fill: #0a0c11;
-  --rg-dialog-edge: color-mix(in srgb, var(--agent-tools-accent) 45%, #0a0c11);
-  --rg-dialog-cut-ink: var(--agent-tools-accent);
-  --rg-dialog-mark-ink: var(--agent-tools-accent);
+  --rg-dialog-edge: transparent;
+  --rg-dialog-cut-ink: transparent;
+  --rg-dialog-mark-ink: transparent;
+  --ash-ink: var(--agent-tools-ink);
+  border-radius: var(--rg-dialog-cut) 0;
+  corner-shape: bevel;
   color: var(--agent-tools-ink);
 }
 
@@ -176,6 +181,65 @@
   padding: 0;
   overflow: hidden;
   clip-path: polygon(var(--rg-dialog-cut) 0, 100% 0, 100% calc(100% - var(--rg-dialog-cut)), calc(100% - var(--rg-dialog-cut)) 100%, 0 100%, 0 var(--rg-dialog-cut));
+  box-shadow:
+    inset 0 0 1.5rem -0.75rem color-mix(in srgb, var(--palette-powder-blue) 22%, transparent),
+    inset 0 2rem 2rem -2rem color-mix(in srgb, var(--palette-platinum) 7%, transparent);
+}
+
+/* The edge: one gradient through the three colours, shown only along the
+   frame's lines (its four sides, its two cuts and the marks in its two square
+   corners) and drawn over the contents, which never reach it. It turns once
+   every 16 seconds, while the dialog is open, unless less motion is asked for,
+   and a faint glow outside it turns with it, each colour's light on the side
+   that colour is passing. Only the paint changes, so nothing moves. */
+@property --agent-tools-turn {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes agent-tools-turn {
+  to { --agent-tools-turn: 1turn; }
+}
+
+:root .agent-tools.rg-dialog::after {
+  --agent-tools-edge: 1.5px;
+  --agent-tools-mark: 2px;
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: var(--agent-tools-edge);
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--agent-tools-turn) in oklab,
+    var(--palette-cornflower), var(--palette-powder-blue), var(--palette-platinum), var(--palette-cornflower)
+  );
+  mask:
+    linear-gradient(#000 0 0) right top / var(--rg-dialog-mark-length) var(--agent-tools-mark) no-repeat,
+    linear-gradient(#000 0 0) right top / var(--agent-tools-mark) var(--rg-dialog-mark-length) no-repeat,
+    linear-gradient(#000 0 0) left bottom / var(--rg-dialog-mark-length) var(--agent-tools-mark) no-repeat,
+    linear-gradient(#000 0 0) left bottom / var(--agent-tools-mark) var(--rg-dialog-mark-length) no-repeat,
+    linear-gradient(135deg, #0000 50%, #000 0 calc(50% + var(--agent-tools-edge)), #0000 0) left top / var(--rg-dialog-cut) var(--rg-dialog-cut) no-repeat,
+    linear-gradient(315deg, #0000 50%, #000 0 calc(50% + var(--agent-tools-edge)), #0000 0) right bottom / var(--rg-dialog-cut) var(--rg-dialog-cut) no-repeat,
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: add, add, add, add, add, add, exclude, add;
+  clip-path: polygon(var(--rg-dialog-cut) 0, 100% 0, 100% calc(100% - var(--rg-dialog-cut)), calc(100% - var(--rg-dialog-cut)) 100%, 0 100%, 0 var(--rg-dialog-cut));
+}
+
+:root .agent-tools.rg-dialog[open] {
+  box-shadow:
+    calc(sin(var(--agent-tools-turn)) * 0.75rem) calc(cos(var(--agent-tools-turn)) * -0.75rem) 2rem -0.5rem color-mix(in srgb, var(--palette-cornflower) 40%, transparent),
+    calc(sin(var(--agent-tools-turn) + 120deg) * 0.75rem) calc(cos(var(--agent-tools-turn) + 120deg) * -0.75rem) 2rem -0.5rem color-mix(in srgb, var(--palette-powder-blue) 26%, transparent),
+    calc(sin(var(--agent-tools-turn) + 240deg) * 0.75rem) calc(cos(var(--agent-tools-turn) + 240deg) * -0.75rem) 2rem -0.5rem color-mix(in srgb, var(--palette-platinum) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root .agent-tools.rg-dialog[open],
+  :root .agent-tools.rg-dialog[open]::after {
+    animation: agent-tools-turn 16s linear infinite;
+  }
 }
 
 /* The copy buttons, in the dialog's colours in either theme. */
@@ -188,5 +252,5 @@
 }
 
 .agent-tools__copies .rg-button:is(:hover, :focus-visible) {
-  --rg-local-ink: var(--agent-tools-accent);
+  --rg-local-ink: var(--agent-tools-cool);
 }
