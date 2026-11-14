@@ -32,7 +32,7 @@ defmodule RegentsWeb.StakeLive do
           <p class="stake-lede">
             Stake REGENT to get a slice of all revenue from any Regents Labs product.
           </p>
-          <p class="stake-yield-badge">Plus 20% a year in REGENT, for now</p>
+          <p class="stake-yield-badge">Early adopter 20% APY</p>
           <div class="stake-token-links">
             <a
               class="rg-button stake-buy"

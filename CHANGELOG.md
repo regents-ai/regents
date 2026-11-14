@@ -6367,3 +6367,8 @@ seasons), on the shared Points library regents.sh was already on.
   view, the sidebar marks Account, /names answers not found, with no sideways scroll and no
   page errors. The page signed in was not read on live.
 - Rollback: v315's image main-925e98241e3e.
+
+## 2026-11-14 — Stake badge reads "Early adopter 20% APY"
+
+- The badge under the Stake page's heading says "Early adopter 20% APY" in place of
+  "Plus 20% a year in REGENT, for now". Nothing else on the page changed.
