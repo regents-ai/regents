@@ -6584,3 +6584,10 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The quieter line under the homepage's mission now reads "Agent-built and designed to be
   agent-owned through the token."
+
+## 2026-11-14 — Released v322 (homepage note)
+
+- v322, commit 6aea107d: the homepage's quieter line reads "Agent-built and designed to be
+  agent-owned through the token." Full check exit 0 on 6aea107d, six gates. No migration.
+  Live read, signed out: the new note is on the homepage and the old one is not.
+- Rollback: v321's image main-7720b1fc1016.
