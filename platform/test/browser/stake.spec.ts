@@ -7,6 +7,9 @@ import {boxes, restingBoxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
+// The second wallet the staking account links besides its main one, above. It
+// holds no REGENT (Regents.BrowserStakingReading).
+const linkedWallet = "0x50080000000000000000000000000000000054d0"
 const sendsKey = "regent:test:staking-wallet-sends"
 const disconnectedKey = "regent:wallet-disconnected:v1"
 // The sign-in this page's staking bearer names is the wallet above.
@@ -60,17 +63,12 @@ test("Stake sends each press straight to the signed-in wallet and follows it on 
   await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
   await expect(page.getByLabel("Amount", {exact: true})).toBeVisible()
 
-  // A press with no wallet open sends nothing, names the account's wallet to
-  // open, and never opens the wallet app's connect step.
+  // A press with no wallet open sends nothing, names the account's main wallet
+  // and opens Privy's connect window for it, without leaving the page.
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("#staking-primary").click()
-  await expect(page.locator("#staking-press-notice")).toContainText(
-    "You're signed in with 0x1111..1111",
-  )
-  await expect(page.locator("#staking-press-notice")).toContainText(
-    ", but your wallet app has no wallet open.",
-  )
-  expect(await privyRequests(page)).not.toContain("connect-wallet")
+  await expect.poll(() => privyRequests(page)).toContain("connect-wallet")
+  await expect(page.locator("#staking-press-notice .rg-address__full")).toHaveText(wallet)
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStarted)
   expect(await sendCount(page)).toBe(0)
 
@@ -175,28 +173,37 @@ test("Stake opens the Privy sign-in instead of sending for a visitor with no sig
   await expect(page.locator(".stake-notice:visible, .onchain-note:visible")).toHaveCount(0)
 })
 
-// Privy's active wallet is the only one that acts. When it is not one of the
-// account's wallets, the figures stay the account's, a press sends nothing and
-// says what to do, and a note names both wallets.
-test("Stake sends nothing from a wallet that is not the account's", async ({page}) => {
+// Signed in, Stake shows and sends from the account's main wallet only (the
+// founder's rule, 14 Nov 2026). With a second wallet the account links open,
+// the figures stay the main wallet's, a note names both, and a press sends
+// nothing and opens Privy's connect window. With the main wallet open, the
+// press sends from it.
+test("Stake sends only from the account's main wallet, never a second linked one", async ({page}) => {
   await installWallet(page)
   await signIn(page)
+  await page.route(bridgePattern, route =>
+    route.fulfill({contentType: "application/javascript", body: bridgeRecorder}),
+  )
 
   await page.goto("/stake")
-  await selectWallet(page, wallet)
-  await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
-
-  await selectWallet(page, otherWallet)
+  await selectWallet(page, linkedWallet)
   await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
+  await expect(page.locator("#staking-position")).toContainText("5 REGENT")
   const note = page.locator(".shell-sending-wallet").first()
-  await expect(note).toContainText("0x2222..2222")
-  await expect(note).toContainText("0x1111..1111")
+  await expect(note.locator(".rg-address__full").first()).toHaveText(linkedWallet)
+  await expect(note.locator(".rg-address__full").last()).toHaveText(wallet)
 
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("#staking-primary").click()
-  await expect(page.locator("#staking-press-notice")).toContainText(
-    "which isn't linked to this account",
-  )
+  await expect.poll(() => privyRequests(page)).toContain("connect-wallet")
+  await expect(page.locator("#staking-press-notice .rg-address__full").last()).toHaveText(wallet)
+  expect(await sendCount(page)).toBe(0)
+
+  // A wallet the account does not link is held to the same rule.
+  await selectWallet(page, otherWallet)
+  await expect(page.locator("#staking-signer-wallet-full")).toHaveText(wallet)
+  await page.locator("#staking-primary").click()
+  await expect.poll(async () => (await privyRequests(page)).filter(kind => kind === "connect-wallet").length).toBe(2)
   expect(await sendCount(page)).toBe(0)
 
   await selectWallet(page, wallet)
@@ -405,11 +412,11 @@ test("Stake and Redeem draw every address with the address primitive", async ({p
   await expect(page.getByRole("heading", {name: "Put REGENT to work."})).toBeVisible()
   await selectWallet(page, otherWallet)
   await expect(page.locator("#staking-signer-wallet")).toBeVisible()
-  // A wallet the account does not link: the notes name both wallets.
+  // A wallet other than the account's main one: the notes name both wallets.
   await expect(page.locator(".shell-sending-wallet").first()).toBeVisible()
   await page.getByLabel("Amount", {exact: true}).fill("1")
   await page.locator("#staking-primary").click()
-  await expect(page.locator("#staking-press-notice")).toContainText("isn't linked to this account")
+  await expect(page.locator("#staking-press-notice .rg-address__full").last()).toHaveText(wallet)
   await page.locator(".stake-contract-details summary").click()
   await expect(page.locator(".stake-contract-facts")).toBeVisible()
   await page.locator('button[phx-click*="staking-supply-dialog"]').first().click()

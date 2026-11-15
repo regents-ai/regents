@@ -9,10 +9,10 @@ defmodule RegentsWeb.StakeActions do
   `RegentsWeb.OnchainSteps` the shared half.
 
   The page passes the readings (`staking`, for `wallet`) and `account`, the
-  signed-in account (`nil` signed out), whose wallets may act. Only Privy's active wallet
-  acts, and only when the account links it. The component tells the page which
-  wallet Privy has active, so the figures follow it, and when a step lands, so
-  they are read again.
+  signed-in account (`nil` signed out). Every step is built for the account's
+  main wallet, and the page sends only from it. The component tells the page
+  which wallet Privy has active, so the figures follow it while signed out, and
+  when a step lands, so they are read again.
   """
   use RegentsWeb, :live_component
 
@@ -97,9 +97,9 @@ defmodule RegentsWeb.StakeActions do
 
   # The account as the page gave it, or as it reads now before each event and
   # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
-  # the wallets that may act and the review follow it.
+  # the wallet that acts and the review follow it.
   defp take_account(socket, account),
-    do: socket |> assign(linked: Identity.linked_wallets(account)) |> sync()
+    do: socket |> assign(main: Identity.main_wallet(account)) |> sync()
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket) do
@@ -109,7 +109,7 @@ defmodule RegentsWeb.StakeActions do
     socket =
       if active == socket.assigns.active, do: socket, else: assign(socket, press_note: nil)
 
-    {:noreply, socket |> assign(active: active) |> sync()}
+    {:noreply, assign(socket, active: active)}
   end
 
   def handle_event("select_staking_action", %{"mode" => mode}, socket)
@@ -248,11 +248,10 @@ defmodule RegentsWeb.StakeActions do
     {:reply, %{review: review, send: send}, socket}
   end
 
-  # The review follows the signer and the form. With no eligible signer there is
-  # no review, and every press says why nothing was sent.
+  # The review is for the account's main wallet and follows the form. Signed
+  # out there is no review, and every press says to sign in.
   defp sync(socket) do
-    %{linked: linked, active: active, staking: staking} = socket.assigns
-    signer = OnchainSteps.signer(linked, active)
+    %{main: signer, staking: staking} = socket.assigns
 
     review =
       if signer,
@@ -408,14 +407,14 @@ defmodule RegentsWeb.StakeActions do
 
   # A press with no step behind it says what on the form is missing; every other
   # reason has the shared words.
-  defp failure_note("step_unknown", name, %{linked: linked, active: active} = assigns)
-       when name in ~w(approve stake unstake) and is_list(linked) and is_binary(active) do
-    (OnchainSteps.signer(linked, active) && missing(name, staking_form(assigns))) ||
-      OnchainSteps.failure_note("step_unknown", linked, active, "Base")
+  defp failure_note("step_unknown", name, %{main: main, active: main} = assigns)
+       when name in ~w(approve stake unstake) and is_binary(main) do
+    missing(name, staking_form(assigns)) ||
+      OnchainSteps.failure_note("step_unknown", main, main, "Base")
   end
 
-  defp failure_note(reason, _name, %{linked: linked, active: active}),
-    do: OnchainSteps.failure_note(reason, linked, active, "Base")
+  defp failure_note(reason, _name, %{main: main, active: active}),
+    do: OnchainSteps.failure_note(reason, main, active, "Base")
 
   defp missing(name, form) do
     cond do
@@ -551,7 +550,7 @@ defmodule RegentsWeb.StakeActions do
 
     assigns =
       assign(assigns,
-        signed_in: is_list(assigns.linked),
+        signed_in: is_binary(assigns.main),
         wallet_ready: wallet_ready?(assigns.staking, assigns.wallet),
         preview: position_preview(assigns),
         claims: claims(available),
@@ -564,7 +563,7 @@ defmodule RegentsWeb.StakeActions do
         approval_note: approval_note(assigns),
         approval_offered: approval_offered?(assigns),
         approved: approved?(assigns),
-        mismatch_note: OnchainSteps.mismatch_note(assigns.linked, assigns.active)
+        mismatch_note: OnchainSteps.mismatch_note(assigns.main, assigns.active)
       )
 
     ~H"""
@@ -983,8 +982,8 @@ defmodule RegentsWeb.StakeActions do
   attr :id, :string, required: true
   attr :note, :list, default: nil
 
-  # Only the wallet the wallet app has open can act, and only when it is one of
-  # the account's own. When it is not, both are named so the person can switch.
+  # Only the account's main wallet acts. While the wallet app has another open,
+  # both are named so the person can switch.
   defp mismatch(assigns) do
     ~H"""
     <p :if={@note} class="shell-sending-wallet" role="note">

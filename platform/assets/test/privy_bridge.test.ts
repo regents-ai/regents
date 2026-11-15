@@ -148,7 +148,11 @@ function installAccountBridgeRenderer() {
 
 // The account control is the only evidence of whether a page is signed in, so
 // schedules that turn on it name their marker; the default page shows neither.
-function stubBrowserGlobals(accountMarker: "sign-in" | "profile" | null = null) {
+// A signed-in page's control also names the account's main wallet.
+function stubBrowserGlobals(
+  accountMarker: "sign-in" | "profile" | null = null,
+  accountWallet: string | null = null,
+) {
   const dispatched: string[] = []
   const listeners = new Map<string, () => void>()
   const reload = vi.fn()
@@ -168,10 +172,12 @@ function stubBrowserGlobals(accountMarker: "sign-in" | "profile" | null = null) 
   vi.stubGlobal("document", {
     body: {append: vi.fn()},
     createElement: () => ({hidden: false, remove: vi.fn()}),
-    querySelector: (selector: string) =>
-      accountMarker && selector === `#account-control [data-account-target='${accountMarker}']`
+    querySelector: (selector: string) => {
+      if (accountWallet && selector === "#account-control") return {dataset: {accountWallet}}
+      return accountMarker && selector === `#account-control [data-account-target='${accountMarker}']`
         ? {}
-        : null,
+        : null
+    },
   })
   vi.stubGlobal("window", {
     addEventListener: (event: string, listener: () => void) => void listeners.set(event, listener),
@@ -1344,6 +1350,85 @@ describe("Privy session bridge", () => {
     await until(() => dispatched.length === 5)
     expect(activeEthereumWallet()).toBeNull()
     expect(new Set(dispatched)).toEqual(new Set(["ash:wallet-state"]))
+  })
+
+  // Founder's decision (14 Nov 2026): signed in, the account's main wallet, the
+  // one the account menu shows, is the page's wallet whenever this tab has it
+  // connected, even while Privy remembers another wallet the account links.
+  it("MAIN_WALLET_ONLY: signed in, the main wallet is made active over another linked one", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const main = ethereumWallet("0x0cb2000000000000000000000000000000003c37")
+    const other = ethereumWallet(`0x5008${"0".repeat(32)}54d0`)
+    stubBrowserGlobals("profile", main.address)
+    stubSessionRequests()
+    const setActiveWallet = vi.fn()
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [other, main],
+      linkedWallets: [main, other].map(held => held.address),
+      activeWallet: other,
+      setActiveWallet,
+    }
+
+    const startup = bridge.startPrivyBridge({}, providerState as unknown as bridge.PrivyBridgeProviderState)
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => activeEthereumWallet()?.provider === main.provider)
+    expect(setActiveWallet).toHaveBeenCalledWith(main)
+
+    // Privy now has the main wallet active, so it is not asked again.
+    providerState.activeWallet = main
+    renderAccountBridge(accountElement)
+    await settled()
+    expect(setActiveWallet).toHaveBeenCalledOnce()
+    expect(activeEthereumWallet()?.provider).toBe(main.provider)
+  })
+
+  // Without the main wallet connected here, no other wallet is chosen. The one
+  // Privy has active is published only so Stake and Redeem can name it; their
+  // presses send nothing from it and open the connect window.
+  it("MAIN_WALLET_ONLY: signed in without the main wallet connected, no other wallet is chosen", async () => {
+    productionRootRender.mockReset()
+    replaceActiveEthereumWallet(null)
+    const renderAccountBridge = installAccountBridgeRenderer()
+    const main = "0x0cb2000000000000000000000000000000003c37"
+    const other = ethereumWallet(`0x5008${"0".repeat(32)}54d0`)
+    stubBrowserGlobals("profile", main)
+    stubSessionRequests()
+    const setActiveWallet = vi.fn()
+    const providerState = {
+      appId: "test-app",
+      authenticated: true,
+      getAccessToken: async () => "current-token",
+      logout: async () => undefined,
+      ready: true,
+      walletsReady: true,
+      wallets: [other],
+      linkedWallets: [main, other.address],
+      activeWallet: other as typeof other | undefined,
+      setActiveWallet,
+    }
+
+    const startup = bridge.startPrivyBridge({}, providerState as unknown as bridge.PrivyBridgeProviderState)
+    const accountElement = renderedAccountBridge()
+    renderAccountBridge(accountElement)
+    await startup
+    await until(() => activeEthereumWallet()?.provider === other.provider)
+
+    // With none active, the one connected wallet still does not stand in.
+    providerState.activeWallet = undefined
+    renderAccountBridge(accountElement)
+    await until(() => activeEthereumWallet() === null)
+    await settled()
+    expect(setActiveWallet).not.toHaveBeenCalled()
   })
 
   it("SIGN_OUT_ONLY_WALLETS: the wallet Privy still holds after Disconnect is never adopted", async () => {

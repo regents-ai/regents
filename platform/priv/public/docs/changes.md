@@ -1,5 +1,7 @@
 ## 2026-11-14
 
+Signed in, [Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem) now always use your account's main wallet, the one your account menu shows. Your balances, stake, rewards and passes are that wallet's, whichever wallet is open, and a press sends only from it. When it is connected in your browser it is chosen for you; when it is not, or another wallet is open, a press sends nothing, names the wallet to switch to and opens the connect window. Another wallet linked to your account is never used in its place.
+
 The [homepage]({{origin}}/) now says: "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers.", with a quieter line under it: "Agent-built and designed to be agent-owned through the token." [About]({{origin}}/about) and the [agent guide]({{origin}}/llms.txt) say the same of revenue, About lists Cloak among the products, Stake reads "plus an early adopter 20% APY in REGENT", and its actions are stake, unstake, claim, and claim and restake.
 
 The [Autolaunch]({{origin}}/autolaunch) page now gives the terms for new launches (version 3 on Base, version 2 on Robinhood Chain): Memestock bidding lasts about 24 hours on both chains and the creator's 0.5% is released over 30 days from graduation; Revstake bidding lasts about 2 days. This corrects the 12 November entry's about 2 hours and about 5 hours, which are the terms of earlier Base launches. The page also says an auction sells a little at a time over its whole length, and where the 1% that goes to Regent ends up on each chain.

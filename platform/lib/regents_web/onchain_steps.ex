@@ -11,9 +11,9 @@ defmodule RegentsWeb.OnchainSteps do
   the page. A step that lands asks every reader of its chain to read it again
   (`Regents.ChainRefresh`), so the shared figures show what it changed.
 
-  The only wallet that may act is Privy's active wallet when it is one of the
-  signed-in account's own (`signer/2`). Reads that show another wallet never
-  imply that wallet can send.
+  Signed in, every review is built for the account's main wallet
+  (`RegentsWeb.ShellLive.Identity.main_wallet/1`), and the page sends only from
+  that wallet. Signed out there is no review.
   """
 
   use Phoenix.Component
@@ -24,35 +24,13 @@ defmodule RegentsWeb.OnchainSteps do
   alias RegentsWeb.EventInput
 
   @recheck_ms 250
-  @no_wallet "Your account has no wallet yet. Sign in again to get one."
   @refusals ~w(wallet_declined network_mismatch insufficient_funds)
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
   @doc "The assigns a wallet-button component starts with."
   def init(socket), do: assign(socket, presses: Presses.new(), review: nil, press_note: nil)
 
-  @doc """
-  The wallet that may act: Privy's `active` wallet when the signed-in account
-  links it, lowercased. Signed out (`linked` is `nil`), with no active wallet, or
-  with one the account does not link, nothing may act.
-  """
-  def signer(nil, _active), do: nil
-  def signer(_linked, nil), do: nil
-
-  def signer(linked, active) do
-    active = String.downcase(active)
-    if active in Enum.map(linked, &String.downcase/1), do: active
-  end
-
-  @doc """
-  The wallet a panel shows figures for. Signed in, the wallet that may act, or
-  with none the account's own wallet (`own`), so a wrong or missing active wallet
-  never empties the panel. Signed out (`linked` is `nil`), Privy's active wallet.
-  """
-  def shown_wallet(nil, _own, active), do: active
-  def shown_wallet(linked, own, active), do: signer(linked, active) || own
-
-  @doc "Privy's active wallet as the page reported it, or `nil`."
+  @doc "Privy's active wallet as the page reported it, lowercased, or `nil`."
   def active_wallet(%{"address" => address}) when is_binary(address) do
     if Regex.match?(@address, address), do: String.downcase(address)
   end
@@ -130,33 +108,28 @@ defmodule RegentsWeb.OnchainSteps do
 
   @doc """
   What to say when a press sent nothing, or may have sent something, in words
-  for the person who pressed, as parts for `note/1`. `linked` and `active` are
-  the account's wallets (`nil` signed out) and Privy's active wallet, as for
-  `signer/2`.
+  for the person who pressed, as parts for `note/1`. `main` is the signed-in
+  account's main wallet (`nil` signed out) and `active` Privy's active wallet.
   """
-  def failure_note(reason, linked, active, chain_name)
+  def failure_note(reason, main, active, chain_name)
 
   def failure_note(reason, nil, _active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),
       do: ["Sign in to send this. Nothing was sent."]
 
-  def failure_note(reason, [], _active, _chain_name)
+  def failure_note(reason, main, nil, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable),
-      do: ["#{@no_wallet} Nothing was sent."]
+      do: [
+        "Connect ",
+        {:address, main},
+        ", your account's main wallet, then press again. Nothing was sent."
+      ]
 
-  def failure_note(reason, linked, nil, _chain_name)
-      when reason in ~w(step_unknown wallet_unavailable),
-      do:
-        ["You're signed in with "] ++
-          wallets(linked, " and ") ++
-          [", but your wallet app has no wallet open. Open "] ++
-          wallets(linked, " or ") ++ [" there, then press again. Nothing was sent."]
-
-  def failure_note(reason, linked, active, _chain_name)
+  def failure_note(reason, main, active, _chain_name)
       when reason in ~w(step_unknown wallet_unavailable) do
     cond do
-      signer(linked, active) == nil ->
-        mismatch_note(linked, active) ++ [" Nothing was sent."]
+      active != main ->
+        mismatch_note(main, active) ++ [" Nothing was sent."]
 
       reason == "step_unknown" ->
         [
@@ -168,20 +141,20 @@ defmodule RegentsWeb.OnchainSteps do
     end
   end
 
-  def failure_note("network_mismatch", _linked, _active, chain_name),
+  def failure_note("network_mismatch", _main, _active, chain_name),
     do: [
       "Your wallet is on a different network. Switch it to #{chain_name}, then press again. Nothing was sent."
     ]
 
-  def failure_note("wallet_declined", _linked, _active, _chain_name),
+  def failure_note("wallet_declined", _main, _active, _chain_name),
     do: ["Your wallet declined this. Nothing was sent."]
 
-  def failure_note("insufficient_funds", _linked, _active, chain_name),
+  def failure_note("insufficient_funds", _main, _active, chain_name),
     do: [
       "Your wallet doesn't have enough on #{chain_name} to pay the network fee. Nothing was sent."
     ]
 
-  def failure_note("send_unconfirmed", _linked, _active, _chain_name),
+  def failure_note("send_unconfirmed", _main, _active, _chain_name),
     do: ["Your wallet may have sent this. Check your wallet activity."]
 
   @doc """
@@ -196,24 +169,20 @@ defmodule RegentsWeb.OnchainSteps do
   def unreadable_note, do: %{parts: [EventInput.unreadable()], refused: false}
 
   @doc """
-  The note beside the buttons while the wallet app has open a wallet the
-  signed-in account does not link, naming both and asking the person to switch,
-  as parts for `note/1`.
+  The note beside the buttons while the wallet app has open a wallet other than
+  the signed-in account's `main` one, naming both and asking the person to
+  switch, as parts for `note/1`.
   """
-  def mismatch_note([], active) when is_binary(active), do: [@no_wallet]
+  def mismatch_note(main, active) when is_binary(main) and is_binary(active) and main != active,
+    do: [
+      "Your wallet is on ",
+      {:address, active},
+      ". Switch to ",
+      {:address, main},
+      ", your account's main wallet."
+    ]
 
-  def mismatch_note(linked, active) when is_list(linked) and is_binary(active) do
-    if signer(linked, active) == nil do
-      [
-        "Your wallet is on ",
-        {:address, active},
-        ", which isn't linked to this account. Switch to "
-      ] ++
-        wallets(linked, " or ") ++ ["."]
-    end
-  end
-
-  def mismatch_note(_linked, _active), do: nil
+  def mismatch_note(_main, _active), do: nil
 
   attr :id, :string, required: true
 
@@ -306,7 +275,4 @@ defmodule RegentsWeb.OnchainSteps do
 
   defp review_id(nil), do: nil
   defp review_id(%{id: id}), do: id
-
-  defp wallets(linked, joiner),
-    do: linked |> Enum.map(&{:address, &1}) |> Enum.intersperse(joiner)
 end

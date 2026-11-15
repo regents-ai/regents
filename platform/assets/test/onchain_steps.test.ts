@@ -147,11 +147,14 @@ describe("a press on a wallet button", () => {
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "insufficient_funds"}]])
   })
 
-  it("sends nothing when Privy's active wallet is not the review's signer", async () => {
+  // The review's signer is the account's main wallet; any other wallet Privy has
+  // active, linked to the account or not, sends nothing, and the press opens
+  // Privy's connect window instead.
+  it("sends nothing from a wallet that is not the review's signer, and opens connect", async () => {
     const {provider} = wallet({}, "0x4444444444444444444444444444444444444444")
     await press(review, "stake", push)
     expect(methods(provider)).toEqual([])
-    expect(dispatched).toEqual([])
+    expect(dispatched).toEqual(["ash:wallet-connect"])
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]])
   })
 
@@ -193,9 +196,9 @@ describe("a press on a wallet button", () => {
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "network_mismatch"}]])
   })
 
-  it("sends nothing and opens no connect step when no wallet is active here", async () => {
+  it("opens connect when no wallet is active here, and sends nothing", async () => {
     await press(review, "stake", push)
-    expect(dispatched).toEqual([])
+    expect(dispatched).toEqual(["ash:wallet-connect"])
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]])
   })
 
@@ -204,6 +207,7 @@ describe("a press on a wallet button", () => {
     await press(undefined, "stake", push)
     await press(review, "unstake", push)
     expect(methods(provider)).not.toContain("eth_sendTransaction")
+    expect(dispatched).toEqual([])
     expect(pushed).toEqual([
       ["step_failed", {step: "stake", reason: "step_unknown"}],
       ["step_failed", {step: "unstake", reason: "step_unknown"}],
@@ -341,14 +345,30 @@ describe("the wallet-button hook", () => {
     await vi.waitFor(() => expect(sends).toHaveLength(1))
   })
 
-  it("sends nothing at once when no wallet is active, whatever the form says", async () => {
+  it("opens connect at once when no wallet is active, whatever the form says", async () => {
     const view = mount(inputs)
     view.review(review)
     view.fields.amount.value = "7"
 
     view.click(view.primary)
     await vi.waitFor(() => expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]]))
-    expect(dispatched).not.toContain("ash:wallet-connect")
+    expect(dispatched).toContain("ash:wallet-connect")
+  })
+
+  // A press with another wallet active and a changed form still asks for the
+  // matching review, which is the main wallet's, and then opens connect.
+  it("sends nothing from another wallet after asking for the review, and opens connect", async () => {
+    const {provider} = wallet({}, "0x4444444444444444444444444444444444444444")
+    const view = mount(inputs)
+    view.review(review)
+    view.fields.amount.value = "7"
+    dispatched.length = 0
+
+    view.click(view.primary)
+    view.replies[0].resolve({review: {...review, id: "review-2", inputs: {...inputs, amount: "7"}}, send: "stake"})
+    await vi.waitFor(() => expect(pushed.at(-1)).toEqual(["step_failed", {step: "stake", reason: "wallet_unavailable"}]))
+    expect(methods(provider)).toEqual([])
+    expect(dispatched).toEqual(["ash:wallet-connect"])
   })
 
   it("sends a claim at once while the form matches", async () => {

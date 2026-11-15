@@ -9,7 +9,7 @@ import type {PrivyEvents} from "@privy-io/react-auth"
 vi.mock("@privy-io/react-auth", () => ({}))
 vi.mock("react-dom/client", () => ({}))
 
-const {accountActiveWallet, createConnectWalletRequest, createPrivyLoginCallbacks, signOutOfProvider} =
+const {createConnectWalletRequest, createPrivyLoginCallbacks, mainConnectedWallet, signOutOfProvider} =
   await import("../js/privy_bridge")
 
 const disconnected = "regent:wallet-disconnected:v1"
@@ -58,18 +58,27 @@ it("a real redirect return after Disconnect signs in", () => {
   expect(stored.has(disconnected)).toBe(false)
 })
 
-// Invariant (Sean, 21 Oct 2026): a sign-in shows only its own account's wallets,
-// and signing out lets go of every wallet, so nothing carries to the next person.
-it("signed in, a wallet app left from before is never the account's wallet", () => {
-  const zerion = {address: "0x0cB2000000000000000000000000000000003C37"}
-  const regents = {address: "0x2c95000000000000000000000000000000008cf6"}
-  const held = [zerion, regents]
+// Invariant (founder, 14 Nov 2026): signed in, only the account's main wallet,
+// the one the account menu shows, sends. It is chosen whenever this tab has it
+// connected, whichever wallet Privy remembers; no other wallet, linked to the
+// account or not, ever takes its place.
+it("signed in, only the account's main wallet is chosen", () => {
+  const main = "0x0cb2000000000000000000000000000000003c37"
+  const zerion = {address: "0x0cB2000000000000000000000000000000003C37", type: "ethereum"}
+  const linked = {address: `0x5008${"0".repeat(32)}54d0`, type: "ethereum"}
+  const regents = {address: "0x2c95000000000000000000000000000000008cf6", type: "ethereum"}
 
-  expect(accountActiveWallet(zerion, held, true, [regents.address])).toBeNull()
-  expect(accountActiveWallet(regents, held, true, [regents.address])).toBe(regents)
-  expect(accountActiveWallet(zerion, held, true, [zerion.address.toLowerCase()])).toBe(zerion)
-  expect(accountActiveWallet(zerion, held, false, [])).toBe(zerion)
-  expect(accountActiveWallet(zerion, [regents], false, [])).toBeNull()
+  // Privy remembers another linked wallet: the main one is chosen in its place.
+  expect(mainConnectedWallet(main, linked, [linked, zerion, regents])).toBe(zerion)
+  expect(mainConnectedWallet(main, null, [regents, zerion])).toBe(zerion)
+  expect(mainConnectedWallet(main, zerion, [linked, zerion])).toBe(zerion)
+  // The main wallet held twice, by two wallet apps: Privy's choice between them stands.
+  const zerionAgain = {...zerion}
+  expect(mainConnectedWallet(main, zerionAgain, [zerion, zerionAgain])).toBe(zerionAgain)
+  // The main wallet not connected here: no wallet, never another one.
+  expect(mainConnectedWallet(main, linked, [linked, regents])).toBeNull()
+  expect(mainConnectedWallet(main, null, [])).toBeNull()
+  expect(mainConnectedWallet(main, null, [{...zerion, type: "solana"}])).toBeNull()
 })
 
 it("signing out lets go of every wallet before Privy signs out, even one that refuses", async () => {

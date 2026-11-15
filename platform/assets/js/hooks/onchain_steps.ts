@@ -56,7 +56,7 @@ export const OnchainSteps: Hook = {
       this.pushEventTo(this.el, event, payload).then(() => undefined, () => undefined)
 
     // Every hook on the page hears this event; keep only this component's review.
-    // No review means no eligible wallet: a press then sends nothing.
+    // No review means signed out: a press then sends nothing.
     this.handleEvent("onchain-steps:review", payload => {
       const {component_id, review} = payload as {component_id: string; review: Review | null}
       if (component_id === this.el.id) this.review = review ?? undefined
@@ -101,8 +101,9 @@ export const OnchainSteps: Hook = {
     }
     this.el.addEventListener("click", this.clicked)
 
-    // The server decides which wallet may act; it hears every change of the
-    // wallet Privy has active and pushes a new review, or none.
+    // The server hears every change of the wallet Privy has active, to name it
+    // beside the buttons while it is not the account's main wallet and, signed
+    // out, to show its figures.
     this.walletChanged = () => push("onchain_active_wallet", {address: activeEthereumWallet()?.address ?? null})
     window.addEventListener("ash:wallet-state", this.walletChanged)
 
@@ -117,11 +118,12 @@ export const OnchainSteps: Hook = {
 }
 
 /**
- * Sends or signs the named step from Privy's active wallet, the only wallet that
- * acts, when it is the signer the server built the review for. With no wallet
- * active, the press sends nothing and the server's note says why. Reports only
- * what the wallet answered, against the review it sent from: the hash or
- * signature, or why nothing was sent. The server decides what the hash did.
+ * Sends or signs the named step from the review's signer, the account's main
+ * wallet, when it is Privy's active wallet. While another wallet or none is
+ * active, the press sends nothing and opens Privy's connect window, and the
+ * server's note says which wallet to connect. Reports only what the wallet
+ * answered, against the review it sent from: the hash or signature, or why
+ * nothing was sent. The server decides what the hash did.
  */
 export async function press(review: Review | undefined, name: string, push: Push): Promise<void> {
   const step = review?.steps.find(candidate => candidate.step === name)
@@ -131,13 +133,16 @@ export async function press(review: Review | undefined, name: string, push: Push
   }
 
   try {
-    if (!activeEthereumWallet()) throw new NothingSent("wallet_unavailable")
-    if (!review || !step) throw new NothingSent("step_unknown")
+    if (!review) throw new NothingSent("step_unknown")
     const wallet = () => {
       const active = activeEthereumWallet()
       return active?.address.toLowerCase() === review.signer.toLowerCase() ? active : null
     }
-    if (!wallet()) throw new NothingSent("wallet_unavailable")
+    if (!wallet()) {
+      window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
+      throw new NothingSent("wallet_unavailable")
+    }
+    if (!step) throw new NothingSent("step_unknown")
 
     if (step.kind === "signature") {
       const signature: Hex = await signStep(review.chain, review.signer, step, wallet, started)

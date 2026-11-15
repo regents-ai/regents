@@ -1108,6 +1108,9 @@ export function installAccountAuthLazyLoader(
   // mounts, so a returning customer sees their wallet without a click. Nothing
   // is shown when that cannot happen: the page still offers the connection.
   const onWalletSync = () => void loader.request("sync").catch(() => undefined)
+  // A wallet button pressed while the account's main wallet is not the one open
+  // here opens Privy's connect window, as Connect wallet does.
+  const onWalletConnect = () => request("connect-wallet")
   const reconcileSignedInStartup = () => {
     clearStatus()
     void withinWindow(
@@ -1120,6 +1123,7 @@ export function installAccountAuthLazyLoader(
   documentRoot.addEventListener("click", onClick)
   walletEvents.addEventListener(IDENTITY_REQUEST_EVENT, onIdentityRequest)
   walletEvents.addEventListener("ash:wallet-sync", onWalletSync)
+  walletEvents.addEventListener("ash:wallet-connect", onWalletConnect)
   if (consumedHandoff) {
     // The page that signed out could not finish Privy's logout. It is waited
     // for here, never cut short, before this page acts on anything else.
@@ -1145,6 +1149,7 @@ export function installAccountAuthLazyLoader(
     documentRoot.removeEventListener("click", onClick)
     walletEvents.removeEventListener(IDENTITY_REQUEST_EVENT, onIdentityRequest)
     walletEvents.removeEventListener("ash:wallet-sync", onWalletSync)
+    walletEvents.removeEventListener("ash:wallet-connect", onWalletConnect)
   }
 }
 

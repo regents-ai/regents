@@ -43,6 +43,7 @@ import {
 } from "./auth_lazy"
 import {
   activeEthereumWallet,
+  eligibleActiveWallet,
   forgetEthereumWalletSelection,
   forgetWalletDisconnected,
   pendingEthereumWalletSelection,
@@ -105,19 +106,18 @@ export async function signOutOfProvider(
   await logout()
 }
 
-// Signed in, the wallet Privy remembers as active counts only when the account
-// is linked to it: a wallet app left connected from before, such as one used
-// ahead of a Google sign-in, is never this account's wallet.
-export function accountActiveWallet<W extends {address: string}>(
+// Signed in, only the account's main wallet (`main`, the one the account menu
+// shows) sends: Privy's active wallet when it is that one, otherwise that wallet
+// as this tab has it connected. Null when this tab does not have it connected:
+// no other wallet, linked to the account or not, ever takes its place.
+export function mainConnectedWallet<W extends {address: string; type: string}>(
+  main: string,
   active: W | null,
-  wallets: ReadonlyArray<{address: string}>,
-  authenticated: boolean,
-  linked: ReadonlyArray<string>,
+  wallets: ReadonlyArray<W>,
 ): W | null {
-  if (!active) return null
-  const address = active.address.toLowerCase()
-  const held = wallets.some(wallet => wallet.address.toLowerCase() === address)
-  return held && (!authenticated || linked.includes(address)) ? active : null
+  const held = wallets.filter(wallet => wallet.type === "ethereum" && wallet.address.toLowerCase() === main)
+  if (held.length === 0) return null
+  return active?.address.toLowerCase() === main ? active : held[0]
 }
 
 // A refusal the server itself answered, told apart from a failure on the way.
@@ -947,14 +947,21 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
       return
     }
 
-    const linked = linkedWallets ? linkedWallets.split(",") : []
-    let selectedWallet = accountActiveWallet(
-      activeWallet?.type === "ethereum" ? activeWallet : null,
-      wallets,
-      authenticated,
-      linked,
-    )
-    const pendingSelection = pendingEthereumWalletSelection()
+    const heldActive = eligibleActiveWallet(activeWallet?.type === "ethereum" ? activeWallet : null, wallets)
+    let selectedWallet = heldActive
+    const main = accountWallet()
+    // Signed in, the account's main wallet is made Privy's active wallet whenever
+    // this tab has it connected, whichever wallet Privy remembers. When it is not
+    // connected no other wallet is chosen: the one Privy has active is published
+    // only so the page can name it, and Stake and Redeem send nothing from it.
+    const mainWallet = main ? mainConnectedWallet(main, heldActive, wallets) : null
+    if (mainWallet) {
+      if (!sameConnectedWallet(heldActive, mainWallet)) setActiveWallet(mainWallet)
+      selectedWallet = mainWallet
+    }
+    // Signed out, the wallet the visitor just chose in Privy's window becomes the
+    // active one.
+    const pendingSelection = main ? null : pendingEthereumWalletSelection()
     if (pendingSelection) {
       const matches = ready && walletsReady ? wallets.filter(wallet =>
         wallet.type === "ethereum" && wallet.address.toLowerCase() === pendingSelection.address &&
@@ -968,24 +975,6 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
           setActiveWallet(selectedWallet)
         }
         forgetEthereumWalletSelection()
-      }
-    }
-    // Privy names no wallet after a sign-in that skipped its window, or in a new
-    // tab. The signed-in wallet then sends as this tab has it connected: the one
-    // connected wallet the account is linked to, or, when this tab has several,
-    // the account's own wallet the page was drawn for. Several and none of them
-    // the account's own is no wallet; the press opens Privy's connect window.
-    if (!selectedWallet && !pendingSelection && ready && walletsReady && linked.length > 0) {
-      const signedIn = wallets.filter(wallet =>
-        wallet.type === "ethereum" && linked.includes(wallet.address.toLowerCase()),
-      )
-      const own = accountWallet()
-      const chosen = signedIn.length === 1
-        ? signedIn
-        : signedIn.filter(wallet => wallet.address.toLowerCase() === own)
-      if (chosen.length === 1) {
-        selectedWallet = chosen[0]
-        setActiveWallet(selectedWallet)
       }
     }
     const switchedAccount = selectedWallet || pendingSelection ? null : switchedAccountOf(selectedWalletRef.current, wallets)
@@ -1063,7 +1052,6 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
   }, [
     activeWallet,
     authenticated,
-    linkedWallets,
     ready,
     reconcileProviderSession,
     setActiveWallet,

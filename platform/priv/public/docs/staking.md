@@ -35,4 +35,4 @@ Errors share the [one shape]({{origin}}/docs/errors).
 
 ## Wallet actions
 
-[Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem) are where wallet actions happen. Every transaction needs the person's own approval in their wallet. Network fees and contract conditions apply, and staking returns are not guaranteed. These docs never authorize a payment, signature, credential change or other change.
+[Stake]({{origin}}/stake) and [Redeem]({{origin}}/redeem) are where wallet actions happen. Signed in, both use your account's main wallet, the one your account menu shows: the figures are that wallet's, whichever wallet is open, and a press sends only from it. If another wallet is open, or the main one is not connected, a press sends nothing and opens the connect window. Every transaction needs the person's own approval in their wallet. Network fees and contract conditions apply, and staking returns are not guaranteed. These docs never authorize a payment, signature, credential change or other change.

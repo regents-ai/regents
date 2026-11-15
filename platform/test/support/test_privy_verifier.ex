@@ -82,13 +82,18 @@ defmodule Regents.TestPrivyVerifier do
      }}
   end
 
+  # The Stake and Redeem accounts link a second wallet besides their main one,
+  # as an account with a wallet app and a Regents wallet does.
   defp access_evidence("valid-staking") do
     {:ok,
      %{
        session_id: "staking-browser-session",
        privy_user_id: "did:privy:staking-browser",
        wallet_address: "0x1111111111111111111111111111111111111111",
-       wallet_addresses: ["0x1111111111111111111111111111111111111111"]
+       wallet_addresses: [
+         "0x1111111111111111111111111111111111111111",
+         "0x50080000000000000000000000000000000054d0"
+       ]
      }}
   end
 
@@ -108,7 +113,10 @@ defmodule Regents.TestPrivyVerifier do
        session_id: "redemption-browser-session",
        privy_user_id: "did:privy:redemption-browser",
        wallet_address: "0x1111111111111111111111111111111111111111",
-       wallet_addresses: ["0x1111111111111111111111111111111111111111"]
+       wallet_addresses: [
+         "0x1111111111111111111111111111111111111111",
+         "0x50080000000000000000000000000000000054d0"
+       ]
      }}
   end
 

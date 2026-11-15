@@ -525,30 +525,37 @@ defmodule RegentsWeb.StakeLiveTest do
     assert_offers_sign_in(view)
   end
 
-  test "WALLET_MISMATCH: a wallet that is not the account's sends nothing and the figures stay",
+  test "OTHER_WALLET: a wallet that is not the account's sends nothing and the figures stay",
        %{conn: conn} do
-    view = stake_as_signer(conn, "wallet-mismatch")
+    view = stake_as_signer(conn, "other-wallet")
     refute has_element?(view, ".shell-sending-wallet")
 
     activate(view, @other)
 
     assert staking_assigns(view).staking_wallet == @wallet
-    assert actions_assigns(view).review == nil
+    assert actions_assigns(view).review.signer == @wallet
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|)
-    assert has_element?(view, ".shell-sending-wallet", "0x2222..2222")
-    assert has_element?(view, ".shell-sending-wallet", "0x1111..1111")
+    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @other)
+    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @wallet)
 
     activate(view, @wallet)
     refute has_element?(view, ".shell-sending-wallet")
   end
 
-  test "LINKED_WALLET: the active wallet acts whenever it is one of the account's own", %{
+  # The founder's rule (14 Nov 2026): signed in, Stake shows and sends from the
+  # account's main wallet, the one its menu shows, whichever wallet the browser
+  # has open, a second wallet the account links included.
+  test "MAIN_WALLET: with a second linked wallet open, Stake stays on the main wallet", %{
     conn: conn
   } do
     seed_snapshot()
 
+    Application.put_env(:regents, :test_staking_balances, %{
+      @second => %{token: "0", stake: "0"}
+    })
+
     assert {:ok, account} =
-             Accounts.register_verified("did:privy:linked-wallet", @wallet, [@wallet, @second],
+             Accounts.register_verified("did:privy:main-wallet", @wallet, [@wallet, @second],
                actor: %System{}
              )
 
@@ -556,11 +563,27 @@ defmodule RegentsWeb.StakeLiveTest do
       conn |> init_test_session(%{human_account_id: account.id}) |> live("/stake")
 
     activate(view, @second)
-    assert staking_assigns(view).staking_wallet == @second
-    assert actions_assigns(view).review.signer == @second
-    assert has_element?(view, "#staking-signer-wallet-full", @second)
-    refute has_element?(view, ".shell-sending-wallet")
 
+    assert staking_assigns(view).staking_wallet == @wallet
+    assert staking_assigns(view).staking.wallet_address == @wallet
+    assert actions_assigns(view).review.signer == @wallet
+    assert has_element?(view, "#staking-signer-wallet-full", @wallet)
+    assert has_element?(view, "#staking-position", "5 REGENT")
+    assert has_element?(view, "#staking-position", "10 REGENT")
+
+    # The press found the second wallet open: nothing was sent, and the note
+    # names the main wallet to switch to.
+    view
+    |> actions()
+    |> render_hook("step_failed", %{"step" => "claim_usdc", "reason" => "wallet_unavailable"})
+
+    assert has_element?(view, "#staking-press-notice .rg-address__full", @second)
+    assert has_element?(view, "#staking-press-notice .rg-address__full", @wallet)
+    assert actions_assigns(view).presses.sent == []
+
+    # With the main wallet open, the same press sends, from the main wallet.
+    activate(view, @wallet)
+    refute has_element?(view, ".shell-sending-wallet")
     send_landed(view, "claim_usdc", @hash, "0x1")
 
     assert has_element?(
@@ -569,15 +592,27 @@ defmodule RegentsWeb.StakeLiveTest do
              "Done. Any USDC you had waiting is now in your wallet."
            )
 
-    # A wallet that is not the account's is one to switch away from.
-    activate(view, @other)
-    assert staking_assigns(view).staking_wallet == @wallet
-
-    assert has_element?(view, ".shell-sending-wallet", "which isn't linked to this account.")
-    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @other)
+    assert [%{review: %{signer: @wallet}}] = actions_assigns(view).presses.sent
   end
 
-  test "APPROVAL_PER_WALLET: an approval counts for the wallet that sent it, even after a switch",
+  test "NO_WALLET_OPEN: signed in with no wallet open, the steps stay the main wallet's", %{
+    conn: conn
+  } do
+    view = stake_as_signer(conn, "no-wallet-open")
+    activate(view, nil)
+
+    assert staking_assigns(view).staking_wallet == @wallet
+    assert actions_assigns(view).review.signer == @wallet
+    refute has_element?(view, ".shell-sending-wallet")
+
+    view
+    |> actions()
+    |> render_hook("step_failed", %{"step" => "stake", "reason" => "wallet_unavailable"})
+
+    assert has_element?(view, "#staking-press-notice .rg-address__full", @wallet)
+  end
+
+  test "APPROVAL_STAYS: an approval on its way stays the main wallet's when another opens",
        %{conn: conn} do
     seed_snapshot()
 
@@ -591,29 +626,17 @@ defmodule RegentsWeb.StakeLiveTest do
 
     view = activate(view, @wallet)
     set_amount(view, "1")
-    approval = approval_from(view, @wallet)
 
-    # An approval on its way moves this wallet's button on to the stake.
+    # An approval on its way moves the button on to the stake.
     send_step(view, "approve", @hash)
     assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|)
 
-    # It says nothing about another wallet, which needs its own approval. The
-    # press was still in the wallet when the person switched; Base's answer is
-    # read against the wallet that sent it, so its check is still running.
-    # The form shows once the second wallet's figures are read; the wait spans
-    # the approval check's pause between reads too.
+    # Another wallet opening changes neither the steps nor the approval, which
+    # Base is still being asked about.
     view |> actions() |> render_hook("onchain_active_wallet", %{"address" => @second})
-    render_async(view, 3_000)
-    set_amount(view, "1")
-    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
-
-    put_chain(:test_chain_transactions, @hash, approval)
-    put_chain(:test_chain_receipts, @hash, %{"status" => "0x1"})
-    render_async(view, 3_000)
-
-    set_amount(view, "1")
-    assert has_element?(view, ~s|#staking-primary[data-onchain-step="approve"]|)
-    assert has_element?(view, "#staking-activity-#{@hash}", "Approved. You can stake now.")
+    assert staking_assigns(view).staking_wallet == @wallet
+    assert has_element?(view, ~s|#staking-primary[data-onchain-step="stake"]|)
+    assert actions_assigns(view).review.signer == @wallet
   end
 
   test "ACCOUNT_POSITION: a signed-in page opens on the account's wallet before the browser reports one",
@@ -1347,12 +1370,6 @@ defmodule RegentsWeb.StakeLiveTest do
 
     put_chain(:test_chain_transactions, hash, transaction)
     put_chain(:test_chain_receipts, hash, %{"status" => status})
-  end
-
-  # The page's approval step as Base shows it when `from` sent it.
-  defp approval_from(view, from) do
-    [%{to: to, data: data, value: value}] = step(view, "approve")
-    %{"chainId" => "0x2105", "from" => from, "to" => to, "input" => data, "value" => value}
   end
 
   defp put_chain(key, hash, value) do

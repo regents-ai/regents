@@ -26,24 +26,22 @@ defmodule RegentsWeb.ShellLive.Identity do
     |> Enum.uniq()
   end
 
-  @doc "The signed-in account's wallets, the only ones that may act; `nil` signed out."
-  def linked_wallets(nil), do: nil
-  def linked_wallets(account), do: account_wallets(account)
+  @doc """
+  The signed-in account's main wallet, lowercased: the one its menu shows and
+  the only one Stake and Redeem act for. `nil` signed out.
+  """
+  def main_wallet(nil), do: nil
+  def main_wallet(account), do: String.downcase(account.wallet_address)
 
   @doc """
-  Privy's active wallet is the only wallet that acts. Signed in, Stake and
-  Redeem show it when it is one of the account's own wallets; any other wallet
-  is one to switch away from, so the page stays on the account's first wallet
-  and asks. Signed out, the page shows whatever wallet is active.
+  The wallet Stake and Redeem show. Signed in, the account's main wallet,
+  whichever wallet the browser has open. Signed out, the wallet the browser has
+  open.
   """
   def position_wallet(%{access_context: access_context, browser_wallet: browser_wallet}) do
     case current_account(access_context) do
-      nil ->
-        browser_wallet
-
-      account ->
-        wallets = account_wallets(account)
-        if browser_wallet in wallets, do: browser_wallet, else: List.first(wallets)
+      nil -> browser_wallet
+      account -> main_wallet(account)
     end
   end
 end

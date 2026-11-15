@@ -8,10 +8,10 @@ defmodule RegentsWeb.RedeemLive do
   `RegentsWeb.OnchainSteps` the shared half.
 
   The shell owns the readings, the selection and every other control here; this
-  component owns the presses. Only Privy's active wallet acts, and only when the
-  signed-in account links it (`account`, `nil` signed out). The component tells
-  the shell which wallet Privy has active, so the figures follow it, and when a
-  step lands, so they are read again.
+  component owns the presses. Every step is built for the signed-in account's
+  main wallet (`account`, `nil` signed out), and the page sends only from it.
+  The component tells the shell which wallet Privy has active, so the figures
+  follow it while signed out, and when a step lands, so they are read again.
   """
   use RegentsWeb, :live_component
 
@@ -93,9 +93,9 @@ defmodule RegentsWeb.RedeemLive do
 
   # The account as the page gave it, or as it reads now before each event and
   # each background result (`RegentsWeb.Live.Session.check_component_lease/2`):
-  # the wallets that may act and the review follow it.
+  # the wallet that acts and the review follow it.
   defp take_account(socket, account),
-    do: socket |> assign(linked: Identity.linked_wallets(account)) |> sync()
+    do: socket |> assign(main: Identity.main_wallet(account)) |> sync()
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket) do
@@ -105,7 +105,7 @@ defmodule RegentsWeb.RedeemLive do
     socket =
       if active == socket.assigns.active, do: socket, else: assign(socket, press_note: nil)
 
-    {:noreply, socket |> assign(active: active) |> sync()}
+    {:noreply, assign(socket, active: active)}
   end
 
   # A press made before the review caught up with the selection: the selection
@@ -203,17 +203,14 @@ defmodule RegentsWeb.RedeemLive do
   defp receipt_summary(%{name: "claim"}),
     do: "Base confirmed it. The unlocked REGENT is in your wallet."
 
-  # The review follows the signer and the selection. With no eligible signer
-  # there is no review, and every press says why nothing was sent.
+  # The review is for the account's main wallet and follows the selection.
+  # Signed out there is no review, and every press says to sign in.
   defp sync(socket) do
-    %{linked: linked, active: active, selection: selection} = socket.assigns
+    %{main: signer, selection: selection} = socket.assigns
 
     review =
-      case OnchainSteps.signer(linked, active) do
-        nil ->
-          nil
-
-        signer ->
+      if signer,
+        do:
           Review.new(
             socket.assigns.id,
             signer,
@@ -221,7 +218,6 @@ defmodule RegentsWeb.RedeemLive do
             Steps.steps(selection),
             %{"collection" => selection.collection, "token_id" => selection.token_id}
           )
-      end
 
     OnchainSteps.put_review(socket, review)
   end
@@ -233,15 +229,15 @@ defmodule RegentsWeb.RedeemLive do
 
   # A redemption with no token ID behind it says so; every other reason has the
   # shared words.
-  defp failure_note("step_unknown", "redeem", %{linked: linked, active: active} = assigns)
-       when is_list(linked) and is_binary(active) do
-    (OnchainSteps.signer(linked, active) && Steps.token_id(assigns.selection.token_id) == :error &&
-       ["Enter a token ID from 1 to 999. Nothing was sent."]) ||
-      OnchainSteps.failure_note("step_unknown", linked, active, "Base")
+  defp failure_note("step_unknown", "redeem", %{main: main, active: main} = assigns)
+       when is_binary(main) do
+    if Steps.token_id(assigns.selection.token_id) == :error,
+      do: ["Enter a token ID from 1 to 999. Nothing was sent."],
+      else: OnchainSteps.failure_note("step_unknown", main, main, "Base")
   end
 
-  defp failure_note(reason, _name, %{linked: linked, active: active}),
-    do: OnchainSteps.failure_note(reason, linked, active, "Base")
+  defp failure_note(reason, _name, %{main: main, active: active}),
+    do: OnchainSteps.failure_note(reason, main, active, "Base")
 
   # The sent lists are kept beside the presses they show, so the page is sent one
   # again only when a step in it changed, not on every read of a pending step.
@@ -313,8 +309,8 @@ defmodule RegentsWeb.RedeemLive do
   def render(assigns) do
     assigns =
       assigns
-      |> assign(:signed_in, is_list(assigns.linked))
-      |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.linked, assigns.active))
+      |> assign(:signed_in, is_binary(assigns.main))
+      |> assign(:mismatch_note, OnchainSteps.mismatch_note(assigns.main, assigns.active))
       |> assign(:claim_confirming, OnchainSteps.confirming?(assigns.presses, ["claim"]))
       |> assign(
         :flow_press,

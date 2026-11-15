@@ -6591,3 +6591,21 @@ seasons), on the shared Points library regents.sh was already on.
   agent-owned through the token." Full check exit 0 on 6aea107d, six gates. No migration.
   Live read, signed out: the new note is on the homepage and the old one is not.
 - Rollback: v321's image main-7720b1fc1016.
+
+## 2026-11-14 — Stake and Redeem use the account's main wallet
+
+- Signed in, Stake and Redeem show and build every step for the account's main wallet, the
+  one the account menu shows, whichever wallet is open. The old rule, which followed
+  whichever linked wallet Privy had active, is gone: a second linked wallet showed its own
+  0 REGENT in place of the main wallet's figures.
+- In the browser, the main wallet is made Privy's active wallet whenever this tab has it
+  connected. When it is not connected, or another wallet is open, a press sends nothing,
+  names the wallet to switch to and opens Privy's connect window. No press is blocked or
+  disabled. Signed out is unchanged.
+- The server no longer reads the account's other linked wallets for Stake or Redeem; Names,
+  Points and Account still do.
+- Tests: `stake_live_test.exs` "MAIN_WALLET", "OTHER_WALLET", "NO_WALLET_OPEN",
+  "APPROVAL_STAYS"; `redeem_live_test.exs` "MAIN_WALLET", "OTHER_WALLET"; the bridge,
+  hook and connect-window unit tests; `stake.spec.ts` and `redeem.spec.ts` "… sends only
+  from the account's main wallet, never a second linked one". No migration, no new
+  dependency. Not released.

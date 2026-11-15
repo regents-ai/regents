@@ -671,6 +671,29 @@ describe("lazy browser authentication", () => {
     expect(reload).not.toHaveBeenCalled()
   })
 
+  // Stake and Redeem ask for this when a press finds the account's main wallet
+  // is not the one open here.
+  it("opens Privy's connect window when a wallet button asks for it", async () => {
+    vi.stubGlobal("Element", AccountElement)
+    const page = accountDocument({signedIn: true})
+    const handleRequest = vi.fn(async () => undefined)
+    const reload = vi.fn()
+    const stop = installAccountAuthLazyLoader(page.documentRoot, async () => ({
+      startPrivyBridge: async () => ({request: handleRequest}),
+    }), {reload})
+    page.dispatch("ash:wallet-connect")
+    await vi.waitFor(() => expect(handleRequest).toHaveBeenCalledWith("connect-wallet"))
+    expect(handleRequest).not.toHaveBeenCalledWith("sign-in")
+    expect(reload).not.toHaveBeenCalled()
+
+    // A page that went away stops listening.
+    stop()
+    handleRequest.mockClear()
+    page.dispatch("ash:wallet-connect")
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(handleRequest).not.toHaveBeenCalled()
+  })
+
   it("synchronizes Privy's wallets when a wallet page mounts, without starting sign in", async () => {
     const page = accountDocument()
     const handleRequest = vi.fn(async () => undefined)

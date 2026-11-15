@@ -6,6 +6,8 @@ import {boxes, restingBoxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
 const otherWallet = "0x2222222222222222222222222222222222222222"
+// The second wallet the redemption account links besides its main one, above.
+const linkedWallet = "0x50080000000000000000000000000000000054d0"
 const sendsKey = "regent:test:redemption-wallet-sends"
 const disconnectedKey = "regent:wallet-disconnected:v1"
 // The sign-in this page's redemption bearer names is the wallet above.
@@ -24,6 +26,13 @@ const bridgePattern =
 const bridgeStub = `
 export async function startPrivyBridge() {
   return {async request() {}}
+}
+`
+// The same stub, keeping a record of what the page asked Privy for.
+const bridgeRecorder = `
+window.__privyRequests = window.__privyRequests || []
+export async function startPrivyBridge() {
+  return {async request(kind) { window.__privyRequests.push(kind) }}
 }
 `
 
@@ -298,29 +307,30 @@ test("Redeem refresh retains the current snapshot and scroll position", async ({
   )
 })
 
-// Privy's active wallet is the only one that acts. When it is not one of the
-// account's wallets, the figures stay the account's, a press sends nothing and
-// says what to do, and a note names both wallets.
-test("Redeem sends nothing from a wallet that is not the account's", async ({page}) => {
+// Signed in, Redeem shows and sends from the account's main wallet only (the
+// founder's rule, 14 Nov 2026). With a second wallet the account links open,
+// the figures stay the main wallet's, a note names both, and a press sends
+// nothing and opens Privy's connect window. With the main wallet open, the
+// press sends from it.
+test("Redeem sends only from the account's main wallet, never a second linked one", async ({page}) => {
   await installWallet(page)
   await signIn(page)
+  await page.route(bridgePattern, route =>
+    route.fulfill({contentType: "application/javascript", body: bridgeRecorder}),
+  )
 
   await page.goto("/redeem")
   await page.getByLabel("Token ID").fill("42")
-  await selectWallet(page, wallet)
-  await expect(page.locator(".shell-sending-wallet")).toHaveCount(0)
-
-  await selectWallet(page, otherWallet)
+  await selectWallet(page, linkedWallet)
   await expect(page.locator("#redemption-signer-wallet-full")).toHaveText(wallet)
   await expect(page.locator(".redeem-summary")).toContainText("100.00 USDC")
   const note = page.locator(".shell-sending-wallet").first()
-  await expect(note).toContainText("0x2222..2222")
-  await expect(note).toContainText("0x1111..1111")
+  await expect(note.locator(".rg-address__full").first()).toHaveText(linkedWallet)
+  await expect(note.locator(".rg-address__full").last()).toHaveText(wallet)
 
   await page.locator("#redemption-approve_nft_collection").click()
-  await expect(page.locator("#redemption-activity-press")).toContainText(
-    "which isn't linked to this account",
-  )
+  await expect.poll(() => privyRequests(page)).toContain("connect-wallet")
+  await expect(page.locator("#redemption-activity-press .rg-address__full").last()).toHaveText(wallet)
   expect(await sendCount(page)).toBe(0)
 
   await selectWallet(page, wallet)
@@ -423,7 +433,7 @@ test("Redeem shakes the note when the wallet turns a press down", async ({page})
 
   await selectWallet(page, otherWallet)
   await approve.click()
-  await expect(press).toContainText("isn't linked to this account")
+  await expect(press.locator(".rg-address__full").last()).toHaveText(wallet)
   await page.waitForTimeout(600)
   expect(await shakes(page)).toBe(1)
   expect(await sendCount(page)).toBe(3)
@@ -601,6 +611,12 @@ function expectedHash(index: number): string {
 
 async function sendCount(page: Page): Promise<number> {
   return page.evaluate(key => Number(sessionStorage.getItem(key) ?? "0"), sendsKey)
+}
+
+async function privyRequests(page: Page): Promise<string[]> {
+  return page.evaluate(
+    () => (window as Window & {__privyRequests?: string[]}).__privyRequests ?? [],
+  )
 }
 
 async function selectWallet(page: Page, address: string): Promise<void> {

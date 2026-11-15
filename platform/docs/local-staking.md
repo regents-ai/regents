@@ -35,8 +35,12 @@ transaction.
    **Approve REGENT** until the approval is sent, then **Stake REGENT**.
 
 The server builds every wallet step (the `regent_chain` package from `elixir-utils/chain`) and
-pushes them to the page before anyone presses. The button only sends the step it names from the
-wallet the account signed in with. The server then reads the transaction on Base at the latest
+pushes them to the page before anyone presses. Signed in, every figure and every step is for the
+account's main wallet, the one the account menu shows, and the button only sends the step it names
+from that wallet. When the browser has the main wallet connected it is made the active one, even if
+the wallet app had another open. When it is not connected, or another wallet is open, a press sends
+nothing, names the wallet to switch to and opens the connect window; no other linked wallet ever
+takes its place. Signed out, the figures follow whichever wallet is open, and a press opens sign-in. The server then reads the transaction on Base at the latest
 block every quarter second, checks it is exactly the step it built, and says whether it went through.
 A confirmed step reads the wallet's position and the shared totals again.
 

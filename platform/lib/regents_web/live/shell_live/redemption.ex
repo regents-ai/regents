@@ -177,8 +177,9 @@ defmodule RegentsWeb.ShellLive.Redemption do
   end
 
   @doc """
-  The Redeem buttons heard which wallet Privy has active; the figures follow
-  it on the same terms as Stake's.
+  The Redeem buttons heard which wallet Privy has active. Signed out, the
+  figures follow it; signed in, they stay on the account's main wallet
+  (`Identity.position_wallet/1`).
   """
   def active_wallet(%{assigns: %{route_spec: %{route_id: :redeem}}} = socket, active) do
     socket = assign(socket, browser_wallet: active)

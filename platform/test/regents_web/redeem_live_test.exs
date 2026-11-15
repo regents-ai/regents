@@ -154,30 +154,61 @@ defmodule RegentsWeb.RedeemLiveTest do
     assert redeem_assigns(view).review == nil
   end
 
-  test "WALLET_MISMATCH: only the account's own active wallet acts; another is named to switch from",
+  # The founder's rule (14 Nov 2026): signed in, Redeem shows and sends from the
+  # account's main wallet, the one its menu shows, whichever wallet the browser
+  # has open, a second wallet the account links included.
+  test "MAIN_WALLET: with a second linked wallet open, Redeem stays on the main wallet",
        %{conn: conn} do
-    view = redeem_as_signer(conn, "wallet-mismatch")
-    select(view, "animata_i", "42")
-    refute has_element?(view, ".shell-sending-wallet")
-    assert redeem_assigns(view).review.signer == @wallet
+    assert {:ok, account} =
+             Accounts.register_verified("did:privy:main-wallet", @wallet, [@wallet, @third],
+               actor: %System{}
+             )
 
-    activate(view, @other)
+    {:ok, view, _html} =
+      conn |> init_test_session(%{human_account_id: account.id}) |> live("/redeem")
+
+    activate(view, @third)
     select(view, "animata_i", "42")
 
     assert redemption_assigns(view).redemption_wallet == @wallet
-    assert has_element?(view, ".shell-sending-wallet", "0x2222..2222")
-    assert has_element?(view, ".shell-sending-wallet", "0x1111..1111")
-    assert redeem_assigns(view).review == nil
+    assert redemption_assigns(view).redemption.wallet_address == @wallet
+    assert has_element?(view, "#redemption-signer-wallet-full", @wallet)
+    assert redeem_assigns(view).review.signer == @wallet
+    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @third)
+    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @wallet)
 
-    # The button still reaches the wallet; the wallet sends nothing and the page says why.
+    # The button still reaches the wallet; the wallet sends nothing, and the note
+    # names the main wallet to switch to.
     assert has_element?(view, control("redeem"))
     press_failed(view, "redeem", "wallet_unavailable")
-    assert has_element?(view, "#redemption-activity-press", "isn't linked to this account")
+    assert has_element?(view, "#redemption-activity-press .rg-address__full", @wallet)
     refute has_element?(view, "#redemption-activity-press[data-refused]")
+    assert redeem_assigns(view).presses.sent == []
 
+    # With the main wallet open, the same press sends, from the main wallet.
     activate(view, @wallet)
     refute has_element?(view, ".shell-sending-wallet")
+    send_landed(view, "redeem", hash("41"), "0x1")
+    assert [%{review: %{signer: @wallet}}] = redeem_assigns(view).presses.sent
+  end
+
+  test "OTHER_WALLET: a wallet the account does not link sends nothing and the figures stay",
+       %{conn: conn} do
+    view = redeem_as_signer(conn, "other-wallet")
+    select(view, "animata_i", "42")
+    refute has_element?(view, ".shell-sending-wallet")
+
+    activate(view, @other)
+
+    assert redemption_assigns(view).redemption_wallet == @wallet
     assert redeem_assigns(view).review.signer == @wallet
+    assert has_element?(view, ".shell-sending-wallet .rg-address__full", @other)
+
+    # No wallet open at all: the note asks for the main wallet.
+    activate(view, nil)
+    assert redemption_assigns(view).redemption_wallet == @wallet
+    press_failed(view, "redeem", "wallet_unavailable")
+    assert has_element?(view, "#redemption-activity-press .rg-address__full", @wallet)
   end
 
   test "ACCOUNT_POSITION: a signed-in page opens on the account's wallet before the browser reports one",
