@@ -6631,3 +6631,10 @@ seasons), on the shared Points library regents.sh was already on.
 - The agent start words, the agent guide, the pairing guide, the tool list and the
   Makefile's pin name regents-cli 1.10.30, the newest release; the sign-in gate refuses
   a release while they name an older one.
+
+## 2026-11-15 — Released v324 (a closed connection is not a crash)
+
+- v324, commit 07fe1353: a visitor closing the connection mid-page no longer saves an
+  error, and the site names regents-cli 1.10.30. Full check exit 0 on 07fe1353, six gates. No migration.
+- Live read, signed out: home, a paper page, Stake and health answer 200.
+- Rollback: v323's image main-39348075d0c8.
