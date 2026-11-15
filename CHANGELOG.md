@@ -6669,3 +6669,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Tests: `points_page_test.exs` "every listed action shows under its site…", "the shared
   daily limit shows…", "before the first season…", and the agent's answer by site. No
   migration. Not released.
+
+## 2026-11-15 — Released v325 (Points page by site, shared library 6ed42536)
+
+- v325, commit 5d94e6a0: the Points page and its API answer list every action grouped by
+  site; the shared library moves to 6ed42536. Full check exit 0 on 5d94e6a0, six gates.
+  No migration. Points is not started.
+- Live read, signed out: home, Account Points, Stake and health answer; OpenAPI is 7.0.0.
+  The signed-in Points page was not read on live.
+- Rollback: v324's image main-07fe1353691a.
