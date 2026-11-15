@@ -6609,3 +6609,12 @@ seasons), on the shared Points library regents.sh was already on.
   hook and connect-window unit tests; `stake.spec.ts` and `redeem.spec.ts` "… sends only
   from the account's main wallet, never a second linked one". No migration, no new
   dependency. Not released.
+
+## 2026-11-15 — Released v323 (Stake and Redeem use the main wallet)
+
+- v323, commit 39348075: signed in, Stake and Redeem show and send only from the wallet in
+  the account menu. Independent review read before release. Full check exit 0 on 39348075,
+  six gates. No migration.
+- Live read, signed out: Stake, Redeem and Account load. A signed-in person with two linked
+  wallets was not read on live.
+- Rollback: v322's image main-6aea107d7c64.
