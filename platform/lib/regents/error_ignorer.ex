@@ -2,7 +2,9 @@ defmodule Regents.ErrorIgnorer do
   @moduledoc """
   Leaves out an exception the site answers below 500, such as not found or a bad
   request. Anyone can raise those by visiting a wrong address, so saving them
-  would let anyone fill the table. Server faults, exits and throws are all kept.
+  would let anyone fill the table. A connection the visitor closed while a page
+  was being sent is left out for the same reason. Server faults, exits and throws
+  are all kept.
 
   A job attempt that Oban will retry is left out too: ErrorTracker reports each
   failed attempt with Oban's `state`, which is `:failure` while attempts remain
@@ -24,6 +26,10 @@ defmodule Regents.ErrorIgnorer do
   # class names whose doing it was: bad input or a refusal, or a server fault.
   defp visitors?(class) when class in [Ash.Error.Invalid, Ash.Error.Forbidden], do: true
   defp visitors?(class) when class in [Ash.Error.Unknown, Ash.Error.Framework], do: false
+
+  # A visitor who closes the tab or loses the connection while a page is being
+  # sent: nothing on the site failed, and anyone can do it at will.
+  defp visitors?(Bandit.TransportError), do: true
 
   defp visitors?(exception),
     do:

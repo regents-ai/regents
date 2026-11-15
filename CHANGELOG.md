@@ -6618,3 +6618,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: Stake, Redeem and Account load. A signed-in person with two linked
   wallets was not read on live.
 - Rollback: v322's image main-6aea107d7c64.
+
+## 2026-11-15 — A closed connection is not a crash
+
+- A visitor who closes the tab or loses the connection while a page is being sent no
+  longer saves an error (Bandit.TransportError, first reported by Sentinel on
+  /paper-pro-daily/c997a649 at 20:01Z). Nothing on the site failed. Server faults are
+  saved as before.
