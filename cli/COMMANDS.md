@@ -62,9 +62,13 @@ and pairing ID. Claims remain filtered to the owner's verified wallets. Staking
 uses the owner's primary verified wallet, separately from the agent signing key.
 `account points` returns the
 owner’s shared Points total, what they earned today and yesterday, their place,
-the actions still open, daily limits, the leaderboard by name or wallet, recent
-entries and the pending count; it creates no account or event and awards no
-Points. `name` on a leaderboard row is null when the person shows by their wallet.
+every action by the site it belongs to, done or still open, daily limits, the
+leaderboard by name or wallet, recent entries and the pending count; it creates
+no account or event and awards no Points. `to_do` is one group per site, in
+order, each `{"site", "actions"}`: `site` is `Account`, `Autolaunch`, `Keyfleet`,
+`Patchbay` or `Cloak`, and each action has `label`, `repeats`, `points`, `done`,
+`left` and `today`. A one-time action earned on any site is `done`. `name` on a
+leaderboard row is null when the person shows by their wallet.
 
 The one private agent write is `messages leave`, below. Account security remains
 owner-only. Do not spend, claim a name, activate Points or

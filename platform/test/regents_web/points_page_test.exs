@@ -1,15 +1,17 @@
 defmodule RegentsWeb.PointsPageTest do
   # What a signed-in person gets from Points on the first render, with no wait:
-  # their own figures, the actions still open with where to do them, and their own
-  # row on the leaderboard beside other people's names or wallets. Awards are earned the
-  # way the site earns them: an account is made, and the queued checks are run. The
-  # board every reader shares is then read once, as its producer reads it on notice.
+  # their own figures, every action by the site it belongs to with where to do this
+  # site's, and their own row on the leaderboard beside other people's names or
+  # wallets. Awards are earned the way the site earns them: an account is made, and
+  # the queued checks are run. The board every reader shares is then read once, as
+  # its producer reads it on notice.
   # Ported from ash-template's `AshTemplateWeb.PointsPageTest`.
   use RegentsWeb.ConnCase, async: false
 
+  alias RegentPoints.{Rules, Store}
   alias Regents.{Accounts, SharedProfiles, SharedReading}
   alias Regents.Actors.System
-  alias Regents.Points.Board
+  alias Regents.Points.{Board, LinkedSocial}
 
   @wallet "0x" <> String.duplicate("b", 40)
   @other "0x" <> String.duplicate("9", 40)
@@ -18,7 +20,10 @@ defmodule RegentsWeb.PointsPageTest do
 
   setup %{conn: conn} do
     previous =
-      Map.new([:starts_at, :approved_rules], &{&1, Application.get_env(:regent_points, &1)})
+      Map.new(
+        [:starts_at, :approved_rules, :adapters],
+        &{&1, Application.get_env(:regent_points, &1)}
+      )
 
     Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), -1, :day))
     Application.put_env(:regent_points, :approved_rules, ~w(account.activated social.x))
@@ -60,13 +65,14 @@ defmodule RegentsWeb.PointsPageTest do
     assert text(page, "#points-total dl") =~ "#1"
 
     # The account's own award is ticked; the social link is open and says where to go.
-    assert text(page, ~s(#points-todo li[data-done="true"])) =~ "Account activated"
+    assert text(page, ~s(#points-todo li[data-done="true"])) =~ Rules.label("account.activated")
 
-    assert LazyHTML.attribute(
-             LazyHTML.query(page, ~s(#points-todo li[data-done="false"] a)),
-             "href"
-           ) ==
-             ["/account/connections"]
+    assert [x] =
+             page
+             |> LazyHTML.query(~s(#points-todo li[data-done="false"] a))
+             |> Enum.filter(&(LazyHTML.text(&1) == Rules.label("social.x")))
+
+    assert LazyHTML.attribute(x, "href") == ["/account/connections"]
 
     # Two accounts level on points share first place; only the reader's row is marked.
     # Other tests' awards commit on purpose and sit below them.
@@ -79,6 +85,106 @@ defmodule RegentsWeb.PointsPageTest do
     assert Enum.count(ranks, &(&1 == "1")) == 2
     assert page |> LazyHTML.query(~s(#points-board li[data-you="true"])) |> Enum.count() == 1
     refute text(page, "#points-page") =~ "Loading"
+  end
+
+  # Every action a Points page lists shows under its site, whichever site earns it:
+  # a one-time action is done once earned anywhere, a daily one shows today's count,
+  # and the hidden rule never shows. The agent gets the same groups.
+  test "every listed action shows under its site, done wherever it was earned", %{
+    conn: conn,
+    person: person
+  } do
+    count!(person.id, "keyfleet.first_vote", 1)
+    count!(person.id, "keyfleet.key_bought", 2)
+    of = Enum.find(Rules.catalog(), &(&1["id"] == "keyfleet.key_bought"))["count"]
+
+    page = conn |> get("/account/points") |> html_response(200) |> LazyHTML.from_document()
+    answer = agent_answer(person)
+
+    shown =
+      for group <- LazyHTML.query(page, "#points-todo .rg-points-todo__group"),
+          do: {text(group, "h3"), todo_labels(group)}
+
+    assert shown ==
+             for(
+               %{site: site, rules: rules} <- Rules.groups(),
+               do: {site, rules |> Enum.map(&Rules.label(&1["id"])) |> Enum.sort()}
+             )
+
+    refute Rules.label("template.first_agent_note") in todo_labels(page)
+    assert Enum.empty?(LazyHTML.query(page, "#points-limit"))
+
+    assert page |> todo_row("keyfleet.first_vote") |> LazyHTML.attribute("data-done") == ["true"]
+
+    keys = todo_row(page, "keyfleet.key_bought")
+    assert LazyHTML.attribute(keys, "data-done") == ["false"]
+    assert keys |> LazyHTML.query("progress") |> LazyHTML.attribute("value") == ["2"]
+
+    actions =
+      for group <- answer["to_do"],
+          action <- group["actions"],
+          into: %{},
+          do: {action["label"], action}
+
+    assert %{"done" => true, "left" => false, "repeats" => "once"} =
+             actions[Rules.label("keyfleet.first_vote")]
+
+    assert %{"done" => false, "left" => true, "repeats" => "daily", "today" => today} =
+             actions[Rules.label("keyfleet.key_bought")]
+
+    assert today == %{"done" => 2, "of" => of}
+  end
+
+  # While a daily action earns on this site, the one limit every daily action shares
+  # shows under the list's title with what is used of it today, as the agent gets it.
+  test "the shared daily limit shows while a daily action earns here", %{
+    conn: conn,
+    person: person
+  } do
+    daily = "patchbay.reply_published"
+    adapters = Application.get_env(:regent_points, :adapters)
+    Application.put_env(:regent_points, :approved_rules, ["account.activated", daily])
+    # Any source makes the rule earn here; the page reads only that it does.
+    Application.put_env(:regent_points, :adapters, Map.put(adapters, daily, LinkedSocial))
+
+    window = Rules.window("day", DateTime.utc_now())
+    spend!(person.id, Rules.program(), "activity:account", window, 10 * Rules.unit())
+
+    page = conn |> get("/account/points") |> html_response(200) |> LazyHTML.from_document()
+    bar = LazyHTML.query(page, "#points-limit progress")
+    limit = Rules.daily_cap("activity:account")
+
+    assert LazyHTML.attribute(bar, "value") == ["10"]
+    assert LazyHTML.attribute(bar, "max") == [to_string(div(limit, Rules.unit()))]
+
+    assert [%{"remaining" => remaining}] = agent_answer(person)["daily_limits"]
+    assert remaining == RegentPoints.Amount.format(limit - 10 * Rules.unit())
+  end
+
+  # Before the first season every action is listed by its site, but none carries
+  # points and none is done or left, an award already made included; the agent gets
+  # the same.
+  test "before the first season, every action is listed and none is done or left", %{
+    conn: conn,
+    person: person
+  } do
+    Application.put_env(:regent_points, :starts_at, DateTime.add(DateTime.utc_now(), 1, :day))
+
+    page = conn |> get("/account/points") |> html_response(200) |> LazyHTML.from_document()
+    answer = agent_answer(person)
+    actions = for group <- answer["to_do"], action <- group["actions"], do: action
+
+    assert todo_sites(page) == Enum.map(Rules.groups(), & &1.site)
+    assert Enum.map(answer["to_do"], & &1["site"]) == todo_sites(page)
+    assert length(actions) == length(Rules.listed())
+    assert Enum.map(actions, & &1["label"]) |> Enum.sort() == todo_labels(page)
+
+    assert Enum.empty?(LazyHTML.query(page, ~s(#points-todo li[data-done="true"])))
+    assert Enum.empty?(LazyHTML.query(page, "#points-todo .rg-points-todo__points"))
+    assert Enum.empty?(LazyHTML.query(page, "#points-todo .rg-points-todo__left"))
+
+    for action <- actions,
+        do: assert(%{"points" => false, "done" => false, "left" => false} = action)
   end
 
   # The board shows the names people saved in their shared profiles. Names are not
@@ -137,11 +243,16 @@ defmodule RegentsWeb.PointsPageTest do
     assert "#" <> to_string(answer["rank"]) == "#1"
     assert answer["earned_today"] == "25"
 
+    actions = for group <- answer["to_do"], action <- group["actions"], do: action
+
     assert %{"done" => true, "left" => false} =
-             Enum.find(answer["to_do"], &(&1["label"] == "Account activated"))
+             Enum.find(actions, &(&1["label"] == Rules.label("account.activated")))
 
     assert %{"done" => false, "left" => true} =
-             Enum.find(answer["to_do"], &(&1["label"] == "X account linked"))
+             Enum.find(actions, &(&1["label"] == Rules.label("social.x")))
+
+    assert Enum.map(answer["to_do"], & &1["site"]) == todo_sites(page)
+    assert Enum.map(actions, & &1["label"]) |> Enum.sort() == todo_labels(page)
 
     assert length(answer["leaderboard"]) ==
              page |> LazyHTML.query("#points-board li") |> Enum.count()
@@ -239,6 +350,47 @@ defmodule RegentsWeb.PointsPageTest do
     build_conn()
     |> put_req_header("x-siwa-signature", "fixture-proof")
     |> get("/api/v1/account/points")
+  end
+
+  defp todo_sites(page) do
+    page
+    |> LazyHTML.query("#points-todo .rg-points-todo__group > h3")
+    |> Enum.map(&String.trim(LazyHTML.text(&1)))
+  end
+
+  # How many times the account has had a rule, today for a daily one and ever for a
+  # one-time one, kept where the award keeps it, as if earned on another site.
+  defp count!(account_id, id, times) do
+    rule = Enum.find(Rules.catalog(), &(&1["id"] == id))
+    program = if rule["period"] == "lifetime", do: "lifetime", else: Rules.program()
+    window = Rules.window(rule["period"], DateTime.utc_now())
+
+    for _ <- 1..times, do: spend!(account_id, program, Rules.count_scope(rule), window, 0)
+  end
+
+  defp spend!(account_id, program, scope, {from, to}, points) do
+    %{
+      account_id: account_id,
+      program_id: program,
+      cap_scope: scope,
+      window_start: from,
+      window_end: to
+    }
+    |> RegentPoints.reserve_cap!(actor: Store.system())
+    |> RegentPoints.consume_cap!(points, actor: Store.system())
+  end
+
+  defp todo_row(page, id) do
+    page
+    |> LazyHTML.query("#points-todo li")
+    |> Enum.find(&(text(&1, ".rg-points-todo__label > :first-child") == Rules.label(id)))
+  end
+
+  defp todo_labels(page) do
+    page
+    |> LazyHTML.query("li .rg-points-todo__label > :first-child")
+    |> Enum.map(&String.trim(LazyHTML.text(&1)))
+    |> Enum.sort()
   end
 
   defp bonus_line(state) do

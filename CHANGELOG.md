@@ -6638,3 +6638,34 @@ seasons), on the shared Points library regents.sh was already on.
   error, and the site names regents-cli 1.10.30. Full check exit 0 on 07fe1353, six gates. No migration.
 - Live read, signed out: home, a paper page, Stake and health answer 200.
 - Rollback: v323's image main-39348075d0c8.
+
+## 2026-11-15 — Points page lists every action, by site
+
+- Library pin `f2138718` → `6ed42536` (elixir-utils): the Points library's 14 Nov catalog,
+  `Rules.listed/0` and `groups/0`, the summary's `done` as `%{times, here}` for every listed
+  rule, and an award confirmed again by the site's own record just before it is written. The
+  same pin brings the oauth refusal reasons and the payments operator's Builder Code, which
+  this site does not use. On the old code the new `done` would have shown every one-time
+  action as done.
+- `/account/points` lists every action a Points page shows (`RegentPoints.Rules.groups/0`)
+  under the site it belongs to: Account, Autolaunch, Keyfleet, Patchbay, Cloak, as
+  ash-template does (Sean's decisions 68 b and 69 a). An action another site records is
+  listed like this site's own: a one-time action is done once earned on any site, a daily
+  one shows today's times against its daily count, and only this site's account actions
+  link to where they are done. The first-note action stays hidden. Before the first season
+  every action is listed with no points and none done or left; after the last none is
+  listed, as before. The list no longer reads `Rules.tracked/0`; earning is unchanged and
+  Points is still not started (`starts_at: nil`, `approved_rules: []`).
+- The daily limit every daily action shares moves from the old Daily group to one line under
+  the list's title, shown while a daily action earns on this site.
+- API 7.0.0: `GET /api/v1/account/points` (`account points`, `account_points`) answers
+  `to_do` as one group per site, in order, each `{"site", "actions"}`, each action with the
+  fields a `to_do` item had (`label`, `repeats`, `points`, `done`, `left`, `today`). The
+  OpenAPI JSON, both YAML contract copies, the public changes page, the agent guide,
+  `cli/COMMANDS.md`, `cli/commands.json`, the tool list and FEATURES.md say so.
+- The three account checks (`AccountActivated`, `LinkedSocial`, `PairedAgent`) read only
+  saved records and change nothing, so being asked again as the award is written needs no
+  change.
+- Tests: `points_page_test.exs` "every listed action shows under its site…", "the shared
+  daily limit shows…", "before the first season…", and the agent's answer by site. No
+  migration. Not released.

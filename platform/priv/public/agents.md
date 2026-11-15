@@ -125,8 +125,10 @@ browser sign-in gives you nothing. With no signer there, use regents-cli instead
 ## Points
 
 The Points summary creates no account or record and awards nothing. Its answer carries a
-`note` when earning Points is off on this site. Points runs in three seasons of 30 days, one
-after another from the start; after the last season nothing earns and no action is listed to do.
+`note` when earning Points is off on this site. It lists every action under the site it
+belongs to, and an action done on another site is done here too. Points runs in three seasons
+of 30 days, one after another from the start; after the last season nothing earns and no
+action is listed to do.
 
 Each client address has 120 requests a minute across the API; pairing also allows 10 a minute. Errors
 carry `error.code`, `error.message` and `error.hint`; respect `Retry-After` on 429. Never

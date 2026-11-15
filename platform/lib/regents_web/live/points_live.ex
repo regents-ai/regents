@@ -1,9 +1,9 @@
 defmodule RegentsWeb.PointsLive do
   @moduledoc """
-  Private Account Points presentation: the total, the actions left, the
-  leaderboard, the NFT bonus added at the end of each 30-day period, and the
-  activity. The pieces are `Regent.Points`; this page supplies their words.
-  Ported from ash-template's `AshTemplateWeb.PointsLive`.
+  Private Account Points presentation: the total, every action by the site it
+  belongs to, the leaderboard, the NFT bonus added at the end of each 30-day
+  period, and the activity. The pieces are `Regent.Points`; this page supplies
+  their words. Ported from ash-template's `AshTemplateWeb.PointsLive`.
   """
   use RegentsWeb, :html
   import RegentsWeb.Components.PageHead, only: [page_head: 1]
@@ -40,6 +40,7 @@ defmodule RegentsWeb.PointsLive do
         summary: summary,
         groups: Enum.map(groups, &linked/1),
         left: if(summary && assigns.phase == :running, do: PointsEntries.left(groups)),
+        limit: summary && PointsEntries.daily_limit(summary),
         places: board,
         rows: if(summary, do: Enum.map(summary.entries, &row(&1, summary.agent_names)), else: [])
       )
@@ -75,6 +76,11 @@ defmodule RegentsWeb.PointsLive do
         <:main>
           <Regent.Points.todo :if={@summary} id="points-todo" left={@left} groups={@groups}>
             <p :if={@phase == :before} role="status">Earning hasn’t opened yet.</p>
+            <p :if={@limit} id="points-limit" class="rg-points-todo__limit rg-figure">
+              <span>{@limit.label}</span>
+              <progress max={@limit.of} value={@limit.used}>{@limit.value}</progress>
+              <span>{@limit.value}</span>
+            </p>
           </Regent.Points.todo>
           <Regent.Points.activity
             :if={@summary}
