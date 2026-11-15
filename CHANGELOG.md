@@ -6625,3 +6625,9 @@ seasons), on the shared Points library regents.sh was already on.
   longer saves an error (Bandit.TransportError, first reported by Sentinel on
   /paper-pro-daily/c997a649 at 20:01Z). Nothing on the site failed. Server faults are
   saved as before.
+
+## 2026-11-15 — Names regents-cli 1.10.30
+
+- The agent start words, the agent guide, the pairing guide, the tool list and the
+  Makefile's pin name regents-cli 1.10.30, the newest release; the sign-in gate refuses
+  a release while they name an older one.
