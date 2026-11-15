@@ -3,9 +3,9 @@ defmodule RegentsWeb.OnchainSteps do
   The server half of a wallet-button component. `skills/onchain-buttons` has the
   rules; The Stake and Redeem components use it.
 
-  The component builds a `RegentChain.Review` for the eligible signer and hands
-  it to `put_review/2`, which remembers it and pushes it to the page before
-  anyone presses. The page reports each press against the review it sent from.
+  The component builds a `RegentChain.Review` for the account's main wallet and
+  hands it to `put_review/2`, which remembers it and pushes it to the page
+  before anyone presses. The page reports each press against the review it sent from.
   Every sent step is then read at the latest block of the review's chain, every
   quarter second, until it lands or the page stops asking. Nothing is kept beyond
   the page. A step that lands asks every reader of its chain to read it again
