@@ -28,10 +28,14 @@ defmodule RegentsWeb.Components.AgentMessage.Form do
 
   @impl true
   def update(assigns, socket) do
-    socket = assign(socket, Map.take(assigns, [:id, :topic, :account, :lease, :client_tag]))
+    socket =
+      socket
+      |> assign(Map.take(assigns, [:id, :topic, :account, :lease, :client_tag]))
+      |> assign(:signed_in, assigns.account && assigns.account.id)
 
-    # A new sign-in, or none, gets a fresh form; a re-render keeps what is typed.
-    if changed?(socket, :account),
+    # A different person, or none, gets a fresh form. The same person's account
+    # read again, after a sign-in elsewhere or an ENS lookup, keeps what is typed.
+    if changed?(socket, :signed_in),
       do: {:ok, assign(socket, :form, new_form(socket))},
       else: {:ok, socket}
   end

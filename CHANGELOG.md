@@ -6700,3 +6700,10 @@ seasons), on the shared Points library regents.sh was already on.
 - The two October hand-off notes and the July acceptance plan that described Credits are
   deleted, and the rollout guidance skill no longer names Credits (Sean's 1 c, 16 November).
   Credits left the site in v299; nothing shipped changes.
+
+## 2026-11-16 — Agent Message keeps what is typed
+
+- The Agent Message form on /agents no longer empties what a person is typing when their
+  account is read again: after they sign in in another tab or on another device, or when
+  their wallet's ENS lookup finishes after the page opened. Only a different person, or
+  signing out, starts it afresh. Found by running the browser walk with several browsers.
