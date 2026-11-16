@@ -6774,3 +6774,12 @@ seasons), on the shared Points library regents.sh was already on.
   showing disappears at release. Nothing else in a row changes, its update time included.
   Proved on the local test database. The ENS row's wallet is marked sensitive and its
   owner read forbids every actor (independent security review).
+
+## 2026-11-16 — Released v328 (ENS name follows the wallet)
+
+- v328, commit 7a08a9ec: a changed wallet never shows the old wallet's ENS name. Full
+  check exit 0 on 7a08a9ec, six gates. Migration 20261116074145 added the column and
+  filled it once.
+- Live read, signed out: home, Account, Account Points, Stake and health answer. No
+  signed-in page and no filled row has been read.
+- Rollback: v327's image main-03ab23999618.
