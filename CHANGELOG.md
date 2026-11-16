@@ -6738,3 +6738,12 @@ seasons), on the shared Points library regents.sh was already on.
   each time it opens, as sign-in does, and an unchanged answer changes nothing.
   platform/lib/regents_web/live/shell_live/account.ex; one test rewritten and one
   removed in platform/test/regents_web/shell_live_test.exs.
+
+## 2026-11-16 — Released v327 (typed text and open lists survive a second sign-in)
+
+- v327, commit 03ab2399: the Agent Message and ENS fixes, the Account name refresh, the
+  eight-browser walk and the slow-gate warning. Full check exit 0 on 03ab2399, six gates.
+  No migration.
+- Live read, signed out: home, Account, Account Points, Stake and health answer. No
+  signed-in page has been read.
+- Rollback: v326's image main-7eb393c7ef48.
