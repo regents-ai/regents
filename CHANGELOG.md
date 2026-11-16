@@ -6806,3 +6806,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Stake, Redeem and health answer and the page head names
   chain 8453. No real wallet has pressed a button on it.
 - Rollback: v328's image main-7a08a9ec596a.
+
+## 2026-11-16 — Privy's own wallet changes network through the provider the page holds
+
+- Port of the template's commit 8f28f899. Privy's own wallet is asked to change network
+  through the provider the page sends with, since Privy's switch for it only changes
+  Privy's record; wallet apps still go through Privy's own switch.
+  platform/assets/js/privy_bridge.tsx, with a test of both in
+  platform/assets/test/privy_bridge.test.ts. Read from Privy's source by the template's
+  owner; not tried with a real Privy wallet.

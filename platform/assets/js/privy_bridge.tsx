@@ -54,6 +54,7 @@ import {
   walletDisconnected,
   walletWorkEpoch,
   type EthereumProvider,
+  type SwitchChain,
 } from "./wallet_actions/connected_wallet"
 
 type AccountRequestHandlerOptions = {
@@ -501,6 +502,24 @@ export function switchedAccountOf(
   return sameApp.length === 1 && candidate.address.toLowerCase() !== previous.address.toLowerCase()
     ? candidate
     : null
+}
+
+// How a press moves `wallet` to another network. A wallet app is asked through
+// Privy's own switch, which knows how each app adds a network it lacks. Privy's
+// own wallet is asked through the provider this page holds: its `switchChain`
+// only changes Privy's record and leaves a provider already handed out on the
+// old network, while the provider itself moves at once and asks nobody.
+export function switchChainOf(
+  wallet: {walletClientType: string; switchChain: SwitchChain},
+  provider: EthereumProvider,
+): SwitchChain {
+  if (wallet.walletClientType !== "privy") return chainId => wallet.switchChain(chainId)
+  return async chainId => {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{chainId: `0x${chainId.toString(16)}`}],
+    })
+  }
 }
 
 type ProviderSessionReconcilerOptions = {
@@ -1013,15 +1032,18 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
     // resolve is not a wallet here, so a failed selection leaves the page with no
     // active wallet rather than with the previous one.
     const resolved = await Promise.allSettled(
-      wallets.map(async wallet => ({
-        address: wallet.address.toLowerCase(),
-        provider: (await wallet.getEthereumProvider()) as EthereumProvider,
-        // Privy's own ways of moving this wallet to another network and of
-        // letting go of it, carried beside the provider so a press and
-        // Disconnect can use them without the bridge.
-        switchChain: (chainId: number) => wallet.switchChain(chainId),
-        disconnect: () => wallet.disconnect(),
-      })),
+      wallets.map(async wallet => {
+        const provider = (await wallet.getEthereumProvider()) as EthereumProvider
+        return {
+          address: wallet.address.toLowerCase(),
+          provider,
+          // Privy's own ways of moving this wallet to another network and of
+          // letting go of it, carried beside the provider so a press and
+          // Disconnect can use them without the bridge.
+          switchChain: switchChainOf(wallet, provider),
+          disconnect: () => wallet.disconnect(),
+        }
+      }),
     )
     if (walletSyncGeneration.current !== generation || lifetime.aborted || walletWorkEpoch() !== epoch) return
 
@@ -1049,7 +1071,7 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
         ? {
           address: selectedWallet.address,
           provider: selectedProvider,
-          switchChain: (chainId: number) => selectedWallet.switchChain(chainId),
+          switchChain: switchChainOf(selectedWallet, selectedProvider),
         }
         : null,
     )

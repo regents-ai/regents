@@ -1164,6 +1164,23 @@ describe("Privy session bridge", () => {
     expect(wallet.switchChain.mock.calls).toEqual([[8453], [8453]])
   })
 
+  // Invariant: Privy's own wallet moves through the provider the page holds,
+  // which is the one that sends; a wallet app moves through Privy's switch.
+  it("moves Privy's own wallet through its provider and a wallet app through Privy's switch", async () => {
+    const own = ethereumWallet("0x00000000000000000000000000000000000000a1", {walletClientType: "privy"})
+    await bridge.switchChainOf(own, own.provider)(8453)
+    expect(own.provider.request).toHaveBeenCalledWith({
+      method: "wallet_switchEthereumChain",
+      params: [{chainId: "0x2105"}],
+    })
+    expect(own.switchChain).not.toHaveBeenCalled()
+
+    const app = ethereumWallet("0x00000000000000000000000000000000000000a2")
+    await bridge.switchChainOf(app, app.provider)(8453)
+    expect(app.switchChain.mock.calls).toEqual([[8453]])
+    expect(app.provider.request).not.toHaveBeenCalled()
+  })
+
   // The anonymous page is where sign in starts, so Privy has nothing to report
   // yet. Reading that emptiness as a stale session deletes the session the
   // customer is deliberately browsing under and reloads away from the chooser.
