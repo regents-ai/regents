@@ -6815,3 +6815,10 @@ seasons), on the shared Points library regents.sh was already on.
   platform/assets/js/privy_bridge.tsx, with a test of both in
   platform/assets/test/privy_bridge.test.ts. Read from Privy's source by the template's
   owner; not tried with a real Privy wallet.
+
+## 2026-11-16 — Released v330 (Privy's own wallet changes network through its provider)
+
+- v330, commit 7e91c6d4. Full check exit 0 on 7e91c6d4, six gates. No migration.
+- Live read, signed out: home, Stake, Redeem and health answer. No real wallet has
+  pressed a button on it.
+- Rollback: v329's image main-fe527c84b4a6.
