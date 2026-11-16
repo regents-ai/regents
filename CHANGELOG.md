@@ -6694,3 +6694,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Account Points, Stake and health answer. Nothing after the
   start has been read.
 - Rollback: v325's image main-5d94e6a05155, before the start only.
+
+## 2026-11-16 — Last Credits notes removed
+
+- The two October hand-off notes and the July acceptance plan that described Credits are
+  deleted, and the rollout guidance skill no longer names Credits (Sean's 1 c, 16 November).
+  Credits left the site in v299; nothing shipped changes.
