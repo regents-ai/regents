@@ -49,8 +49,8 @@ config :regents, :admins, []
 
 # Regent Points: one private Points ledger per account, shared by every Regent
 # site. Regents owns the `regent_points` schema's migrations and is the one site
-# that tallies the NFT bonus at the end of each 30-day period. Earning starts only when Sean approves
-# rules, a start time and each rule's source check.
+# that tallies the NFT bonus at the end of each 30-day period. Earning is off here;
+# config/prod.exs sets the start time and the approved rules for the live site.
 config :regent_points,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,

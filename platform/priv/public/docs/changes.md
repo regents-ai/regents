@@ -1,5 +1,7 @@
 ## 2026-11-15
 
+[Points]({{origin}}/account/points) opens on 16 November 2026 at 17:00 UTC. From then, signing in, pairing your first agent and linking X, GitHub or Farcaster each earn once. An account, a paired agent or a link you already have at the start earns its points at the start, with nothing to do.
+
 [Points]({{origin}}/account/points) lists every action across Regents under the site where you do it: Account, Autolaunch, Keyfleet, Patchbay and Cloak. An action you have done on another site is ticked here too, and a daily action shows how many times you have done it today. `GET /api/v1/account/points` answers `to_do` the same way, as one group per site in that order, each `{"site", "actions"}`, where `actions` holds that site's actions with the fields a `to_do` item had (`label`, `repeats`, `points`, `done`, `left`, `today`). A one-time action earned on any site is `done`. The [OpenAPI JSON specification]({{origin}}/openapi.json) and the [YAML contract]({{origin}}/api-contract.openapiv3.yaml) are now version 7.0.0.
 
 ## 2026-11-14

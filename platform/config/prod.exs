@@ -23,3 +23,10 @@ config :logger, level: :info
 # by route. Phoenix's own request and connection lines would repeat them with
 # each raw path and its parameters, so they are off.
 config :phoenix, :logger, false
+
+# Regent Points earns from the shared start, 16 November 2026 17:00 UTC (Sean's
+# 2 a, 15 November). The start never changes once set; to stop an action earning,
+# take it off `approved_rules`. These are this site's five account actions.
+config :regent_points,
+  starts_at: ~U[2026-11-16 17:00:00Z],
+  approved_rules: ~w(account.activated agent.activated social.x social.github social.farcaster)

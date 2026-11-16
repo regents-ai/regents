@@ -6678,3 +6678,11 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Account Points, Stake and health answer; OpenAPI is 7.0.0.
   The signed-in Points page was not read on live.
 - Rollback: v324's image main-07fe1353691a.
+
+## 2026-11-15 — Points opens on regents.sh at 16 Nov 17:00 UTC
+
+- platform/config/prod.exs sets the shared Points start, 16 November 2026 17:00 UTC, and
+  approves this site's five account actions: account.activated, agent.activated, social.x,
+  social.github and social.farcaster (Sean's 2 a, 15 November). The start never changes once
+  set; to stop an action earning, take it off the approved list. What an account already has
+  at the start earns at the start through the hourly start awards.
