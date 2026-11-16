@@ -11,8 +11,9 @@ the separate regents-cli repository.
   `platform/mix.exs`. The shared profile (`regent_identity`) is elixir-utils'
   `ash_components/identity`, as on every Regent site.
 - `make check` runs every component gate side by side, each logging to
-  `platform/_build/check/<gate>.log`, and prints the log of any that failed;
-  `make check-platform`, `check-required-fixes`, `check-cli`, `check-siwa-latest`
+  `platform/_build/check/<gate>.log`, and prints the log of any that failed; a gate
+  over its budget in the Makefile's `CHECK_BUDGETS` gets a `SLOW:` line, a warning
+  that never fails the check. `make check-platform`, `check-required-fixes`, `check-cli`, `check-siwa-latest`
   and `check-contracts` run one. `check-siwa-latest` fails until the
   site is on the newest regents-cli release and the newest SIWA library change. `MIX_TEST_PARTITION` (an underscore and
   a short id, unique to your working tree) is required.

@@ -6724,3 +6724,9 @@ seasons), on the shared Points library regents.sh was already on.
   connection per query, as the live site does, so several browsers do not run it out of
   connections. Two walk files keep their tests in order, and the tests that change what
   other tests would see sign in as people of their own.
+
+## 2026-11-16 — Slow gates are named
+
+- `make check` gives each gate a time budget, about 40% over its usual time, in the
+  Makefile's `CHECK_BUDGETS`. A gate over its budget gets a `SLOW:` line under its own;
+  it is a warning and never fails the check.

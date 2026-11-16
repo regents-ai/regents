@@ -4,9 +4,10 @@
 help:
 	@echo "make check runs every component gate side by side, each writing its output to"
 	@echo "platform/_build/check/<gate>.log, then prints one line per gate and the log of"
-	@echo "any that failed. Run check-platform, check-required-fixes, check-cli,"
-	@echo "check-siwa-latest or check-contracts for one component;"
-	@echo "check-platform includes the headless browser checks in platform/test/browser."
+	@echo "any that failed. A gate slower than its budget (CHECK_BUDGETS) gets a SLOW line;"
+	@echo "that warns and never fails. Run check-platform, check-required-fixes, check-cli,"
+	@echo "check-siwa-latest or check-contracts for one component; check-platform includes"
+	@echo "the browser walk in platform/test/browser, one headless browser per two cores."
 	@echo "Set MIX_TEST_PARTITION (an underscore and a short id) first. make release checks,"
 	@echo "then builds and smoke-checks the committed tree. make deploy puts the committed"
 	@echo "HEAD on regents.sh."
@@ -14,6 +15,11 @@ help:
 # both compile for the test environment, and Mix's build lock makes the later one wait.
 CHECK_GATES := platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts
 CHECK_LOGS := platform/_build/check
+# Each gate's budget in seconds, about 40% over its time in make check on a 16-core
+# Mac (Nov 2026), and 5 s for a gate that takes a second or two. A gate over its
+# budget gets a SLOW line under its own; it never fails the check.
+CHECK_BUDGETS := platform-precommit:105 platform-web:75 check-required-fixes:5 check-cli:5 \
+  check-siwa-latest:5 check-contracts:365
 check:
 	@mkdir -p $(CHECK_LOGS)
 	@for gate in $(CHECK_GATES); do \
@@ -24,6 +30,8 @@ check:
 	  read code seconds < $(CHECK_LOGS)/$$gate.result; \
 	  if [ "$$code" = 0 ]; then echo "$$gate: ok in $$seconds s"; \
 	  else echo "$$gate: FAILED after $$seconds s"; failed="$$failed $$gate"; fi; \
+	  budget=$$(printf '%s\n' $(CHECK_BUDGETS) | sed -n "s/^$$gate://p"); \
+	  if [ "$$seconds" -gt "$$budget" ]; then echo "SLOW: $$gate took $$seconds s (budget $$budget s)"; fi; \
 	done; \
 	for gate in $$failed; do echo; echo "== $$gate ($(CHECK_LOGS)/$$gate.log)"; cat $(CHECK_LOGS)/$$gate.log; done; \
 	test -z "$$failed"
