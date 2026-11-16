@@ -6766,3 +6766,11 @@ seasons), on the shared Points library regents.sh was already on.
   platform/lib/regents/ens.ex; three new tests in platform/test/regents/ens_test.exs and
   its three failed-lookup tests now keep the same wallet; callers in four web tests pass
   the wallet.
+
+## 2026-11-16 — ENS rows recorded earlier are filled with their account's wallet
+
+- The record_ens_wallet migration now also fills the new column once, for rows recorded
+  before it, with their account's wallet (Sean's 1 a, 16 November), so no name already
+  showing disappears at release. Nothing else in a row changes, its update time included.
+  Proved on the local test database. The ENS row's wallet is marked sensitive and its
+  owner read forbids every actor (independent security review).
