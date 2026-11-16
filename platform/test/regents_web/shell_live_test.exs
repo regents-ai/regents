@@ -479,7 +479,8 @@ defmodule RegentsWeb.ShellLiveTest do
     assert has_element?(view, "#account-identity-wallet-full", wallet)
   end
 
-  test "Account re-reads a primary name recorded more than a day ago", %{conn: conn} do
+  test "Account asks again for a primary name already recorded and shows the new one",
+       %{conn: conn} do
     account =
       register_account(
         "account-ens-stale",
@@ -487,11 +488,6 @@ defmodule RegentsWeb.ShellLiveTest do
       )
 
     Accounts.put_ens_identity(account.id, "yesterday.eth", nil, actor: %System{})
-
-    Regents.Repo.query!(
-      "update regents_app.account_ens_identities set updated_at = now() - interval '2 days' where human_account_id = $1",
-      [account.id]
-    )
 
     Phoenix.PubSub.subscribe(Regents.PubSub, Regents.Ens.topic(account.id))
 
@@ -504,25 +500,6 @@ defmodule RegentsWeb.ShellLiveTest do
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
     assert has_element?(view, "#account-identity h2", "atlas.eth")
     refute render(view) =~ "yesterday.eth"
-  end
-
-  test "Account leaves a primary name recorded today alone", %{conn: conn} do
-    account =
-      register_account(
-        "account-ens-today",
-        Regents.TestEnsChainClient.wallet(:named_with_avatar)
-      )
-
-    Accounts.put_ens_identity(account.id, "today.eth", nil, actor: %System{})
-    Phoenix.PubSub.subscribe(Regents.PubSub, Regents.Ens.topic(account.id))
-
-    {:ok, view, _html} =
-      conn
-      |> init_test_session(%{human_account_id: account.id})
-      |> live("/account")
-
-    assert has_element?(view, "#account-identity h2", "today.eth")
-    refute_receive {:ens_lookup_finished, _account_id}, 300
   end
 
   test "Names lists claimed names oldest first and adds the next page as the reader reaches the end",

@@ -6730,3 +6730,11 @@ seasons), on the shared Points library regents.sh was already on.
 - `make check` gives each gate a time budget, about 40% over its usual time, in the
   Makefile's `CHECK_BUDGETS`. A gate over its budget gets a `SLOW:` line under its own;
   it is a warning and never fails the check.
+
+## 2026-11-16 — Account asks for the wallet's name each time it opens
+
+- With an unchanged answer no longer recorded, the Account page's once-a-day rule
+  only held for a name that had just changed. The rule is removed: the page asks
+  each time it opens, as sign-in does, and an unchanged answer changes nothing.
+  platform/lib/regents_web/live/shell_live/account.ex; one test rewritten and one
+  removed in platform/test/regents_web/shell_live_test.exs.

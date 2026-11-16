@@ -108,17 +108,15 @@ defmodule RegentsWeb.ShellLive.Account do
     socket
   end
 
-  # Sign-in read the wallet's primary name once. A wallet never answered for, or
-  # whose answer was last recorded more than a day ago (the same answer again is
-  # not recorded), is asked again when the Account page opens; the session reads
-  # the account again once a new answer is recorded, so every place showing the
-  # name follows. Only the connected page asks, so the
-  # static render does not start a lookup the connected mount would start again.
+  # Sign-in read the wallet's primary name once, and the Account page asks again
+  # each time it opens. An answer the same as the recorded one changes nothing; the
+  # session reads the account again once a new answer is recorded, so every place
+  # showing the name follows. Only the connected page asks, so the static render
+  # does not start a lookup the connected mount would start again.
   defp refresh_ens(socket, %{route_id: :account}) do
     with true <- connected?(socket),
-         %{wallet_address: wallet, ens_identity: identity} = account when is_binary(wallet) <-
-           Identity.current_account(socket.assigns.access_context),
-         true <- is_nil(identity) or ens_stale?(identity) do
+         %{wallet_address: wallet} = account when is_binary(wallet) <-
+           Identity.current_account(socket.assigns.access_context) do
       Ens.refresh(account)
     end
 
@@ -126,9 +124,6 @@ defmodule RegentsWeb.ShellLive.Account do
   end
 
   defp refresh_ens(socket, _route_spec), do: socket
-
-  defp ens_stale?(%{updated_at: read_at}),
-    do: DateTime.diff(DateTime.utc_now(), read_at, :hour) >= 24
 
   defp load_verified_connections(socket, %{route_id: :connections}),
     do: read_verified_connections(socket)
