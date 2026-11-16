@@ -8,8 +8,10 @@ defmodule Regents.Ens do
   A picture service that does not answer in time, or answers busy, broken or
   refusing this server, is such a failure too: it says nothing about the picture,
   so nothing is written and the next sign-in asks again.
-  A finished attempt announces itself on `topic/1` and the pages showing that
-  account read it again.
+  An answer that changes the recorded name or picture is announced on `topic/1`
+  and the pages showing that account read it again. An answer the same as the
+  recorded one, like a lookup that fails, writes and announces nothing, so those
+  pages stay exactly as the person left them.
 
   A wallet's reverse record only claims a name. The name is resolved forward
   again and kept only when it resolves back to the same wallet, so no one can
@@ -41,7 +43,7 @@ defmodule Regents.Ens do
   def child_spec(_options),
     do: Supervisor.child_spec({Task.Supervisor, name: @supervisor}, id: @supervisor)
 
-  @doc "The topic a finished lookup for `account_id` is announced on."
+  @doc "The topic a lookup that changed `account_id`'s name or picture is announced on."
   @spec topic(integer()) :: String.t()
   def topic(account_id) when is_integer(account_id), do: "account_ens_identity:#{account_id}"
 
@@ -61,24 +63,22 @@ defmodule Regents.Ens do
 
   defp start(account_id, wallet, endpoint) do
     Task.Supervisor.start_child(@supervisor, fn ->
-      store(account_id, bounded_lookup(String.downcase(wallet), endpoint))
-      announce(account_id)
+      if store(account_id, bounded_lookup(String.downcase(wallet), endpoint)) == :changed,
+        do: announce(account_id)
     end)
 
     :started
   end
 
   defp store(account_id, {:ok, %{ens_name: name, ens_avatar_url: avatar}}) do
-    case served(avatar) do
-      {:ok, picture} ->
-        Accounts.put_ens_identity(account_id, name, picture, actor: %SystemActor{})
-
-      {:error, _no_answer} ->
-        :ok
+    with {:ok, picture} <- served(avatar),
+         {:ok, identity} <-
+           Accounts.put_ens_identity(account_id, name, picture, actor: %SystemActor{}) do
+      if Ash.Resource.get_metadata(identity, :upsert_skipped), do: :unchanged, else: :changed
     end
   end
 
-  defp store(_account_id, :unavailable), do: :ok
+  defp store(_account_id, :unavailable), do: :unavailable
 
   # A picture is kept only when the ENS service really answers with one, asked
   # once on its own budget. So a record the service cannot resolve and an image

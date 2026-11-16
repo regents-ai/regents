@@ -468,12 +468,18 @@ defmodule RegentsWeb.ShellLiveTest do
     wallet = Regents.TestEnsChainClient.wallet(:unreachable)
     account = register_account("account-ens-down", wallet)
 
-    {view, _html} = open_account(conn, account)
+    {:ok, view, _html} =
+      conn
+      |> init_test_session(%{human_account_id: account.id})
+      |> live("/account")
+
+    # A lookup that could not ask announces nothing, so the page is settled once it ends.
+    Regents.EnsLookups.await()
 
     assert has_element?(view, "#account-identity-wallet-full", wallet)
   end
 
-  test "Account re-reads a primary name last read more than a day ago", %{conn: conn} do
+  test "Account re-reads a primary name recorded more than a day ago", %{conn: conn} do
     account =
       register_account(
         "account-ens-stale",
@@ -500,7 +506,7 @@ defmodule RegentsWeb.ShellLiveTest do
     refute render(view) =~ "yesterday.eth"
   end
 
-  test "Account leaves a primary name read today alone", %{conn: conn} do
+  test "Account leaves a primary name recorded today alone", %{conn: conn} do
     account =
       register_account(
         "account-ens-today",

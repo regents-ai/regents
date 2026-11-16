@@ -1,7 +1,7 @@
 defmodule Regents.EnsTest do
   use RegentsWeb.ConnCase, async: false
 
-  alias Regents.{Accounts, Ens, PublicIdentity, TestEnsChainClient}
+  alias Regents.{Accounts, Ens, EnsLookups, PublicIdentity, TestEnsChainClient}
   alias Regents.Accounts.VerifiedSession
   alias Regents.Actors.{Human, System}
 
@@ -64,7 +64,7 @@ defmodule Regents.EnsTest do
     assert %{ens_name: "atlas.eth"} = resolve(account)
 
     assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} =
-             account |> moved_to(:named_with_refused_picture) |> resolve()
+             account |> moved_to(:named_with_refused_picture) |> ask_again()
   end
 
   test "a wallet with no ENS name keeps its shortened address and generated picture" do
@@ -88,15 +88,42 @@ defmodule Regents.EnsTest do
     account = account(:named_with_avatar)
     assert %{ens_name: "atlas.eth"} = resolve(account)
 
+    Phoenix.PubSub.subscribe(Regents.PubSub, Ens.topic(account.id))
+
     assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} =
-             account |> moved_to(:unreachable) |> resolve()
+             account |> moved_to(:unreachable) |> ask_again()
+
+    refute_received {:ens_lookup_finished, _account_id}
   end
 
   test "a chain that never answers in time keeps the last known name and picture" do
     account = account(:named_with_avatar)
     assert %{ens_name: "atlas.eth"} = resolve(account)
 
-    assert %{ens_name: "atlas.eth"} = account |> moved_to(:slow) |> resolve()
+    assert %{ens_name: "atlas.eth"} = account |> moved_to(:slow) |> ask_again()
+  end
+
+  # A name and picture, a name alone, or nothing at all: the same answer again
+  # changes nothing, so no page showing the account reads it again.
+  test "an answer the same as the recorded one writes and announces nothing" do
+    for story <- [:named_with_avatar, :named_without_avatar, :unnamed] do
+      account = account(story)
+      %{ens_identity: recorded} = resolve(account)
+      Phoenix.PubSub.subscribe(Regents.PubSub, Ens.topic(account.id))
+
+      assert %{ens_identity: ^recorded} = ask_again(account)
+      refute_received {:ens_lookup_finished, _account_id}
+    end
+  end
+
+  test "a new answer is recorded and announced" do
+    account = account(:named_with_avatar)
+    %{ens_identity: recorded} = resolve(account)
+
+    assert %{ens_name: "plain.eth", ens_avatar_url: nil, ens_identity: identity} =
+             account |> moved_to(:named_without_avatar) |> resolve()
+
+    assert DateTime.after?(identity.updated_at, recorded.updated_at)
   end
 
   test "no Ethereum endpoint means no lookup at all" do
@@ -156,6 +183,13 @@ defmodule Regents.EnsTest do
     assert Ens.refresh(account) == :started
     assert_receive {:ens_lookup_finished, _account_id}, 2_000
     Phoenix.PubSub.unsubscribe(Regents.PubSub, topic)
+    read(account)
+  end
+
+  # Asks again and waits for the lookup to finish, whether or not it announces.
+  defp ask_again(account) do
+    assert Ens.refresh(account) == :started
+    EnsLookups.await()
     read(account)
   end
 

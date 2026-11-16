@@ -28,6 +28,17 @@ defmodule Regents.Accounts.EnsIdentity do
       upsert? true
       upsert_identity :unique_human_account
       upsert_fields [:ens_name, :ens_avatar_url]
+
+      # An answer the same as the recorded one, an absent name or picture
+      # included, leaves the row and its update time as they are, and the row
+      # comes back marked `upsert_skipped`, so the pages showing it are not told
+      # to read it again.
+      upsert_condition expr(
+                         is_distinct_from(ens_name, upsert_conflict(:ens_name)) or
+                           is_distinct_from(ens_avatar_url, upsert_conflict(:ens_avatar_url))
+                       )
+
+      return_skipped_upsert? true
     end
 
     read :read do

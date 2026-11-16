@@ -109,9 +109,10 @@ defmodule RegentsWeb.ShellLive.Account do
   end
 
   # Sign-in read the wallet's primary name once. A wallet never answered for, or
-  # last answered for more than a day ago, is asked again when the Account page
-  # opens; the session reads the account again once the answer is recorded, so
-  # every place showing the name follows. Only the connected page asks, so the
+  # whose answer was last recorded more than a day ago (the same answer again is
+  # not recorded), is asked again when the Account page opens; the session reads
+  # the account again once a new answer is recorded, so every place showing the
+  # name follows. Only the connected page asks, so the
   # static render does not start a lookup the connected mount would start again.
   defp refresh_ens(socket, %{route_id: :account}) do
     with true <- connected?(socket),

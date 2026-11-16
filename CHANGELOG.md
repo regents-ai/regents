@@ -6707,3 +6707,11 @@ seasons), on the shared Points library regents.sh was already on.
   account is read again: after they sign in in another tab or on another device, or when
   their wallet's ENS lookup finishes after the page opened. Only a different person, or
   signing out, starts it afresh. Found by running the browser walk with several browsers.
+
+## 2026-11-16 — Signing in again leaves open pages alone
+
+- Signing in asks Ethereum for the wallet's ENS name and picture. When the answer is the
+  same as the one already on record, nothing is saved and no open page is told to look
+  again, so a person's other tabs no longer redraw, closing an open dropdown, each time
+  they sign in somewhere else. A lookup that fails no longer prompts pages to look again
+  either. A new name or picture still shows on every open page as soon as it lands.
