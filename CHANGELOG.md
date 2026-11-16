@@ -6686,3 +6686,11 @@ seasons), on the shared Points library regents.sh was already on.
   social.github and social.farcaster (Sean's 2 a, 15 November). The start never changes once
   set; to stop an action earning, take it off the approved list. What an account already has
   at the start earns at the start through the hourly start awards.
+
+## 2026-11-15 — Released v326 (Points opens 16 Nov 17:00 UTC)
+
+- v326, commit 7eb393c7: the live site's Points start and five approved account actions.
+  Full check exit 0 on 7eb393c7, six gates. No migration.
+- Live read, signed out: home, Account Points, Stake and health answer. Nothing after the
+  start has been read.
+- Rollback: v325's image main-5d94e6a05155, before the start only.
