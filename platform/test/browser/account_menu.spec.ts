@@ -7,8 +7,8 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 // first. Manage beside the heading opens the Agents page; with a
 // mouse it shows while the pointer is over the list or a key has moved into it, and
 // the rows never move when it does. Ported from ash-template's account_menu.spec.ts.
-async function signIn(page: Page, path = "/stake") {
-  const auth = await installAuthenticatedPrivy(page, "valid")
+async function signIn(page: Page, path = "/stake", person = "valid") {
+  const auth = await installAuthenticatedPrivy(page, person)
   await auth.establishLocalSession()
   await page.goto(path)
   await expect(page.locator("#app-shell")).toHaveAttribute("data-behavior-ready", "true")
@@ -110,9 +110,12 @@ test("the account menu opens from the keyboard, is named for the person, and a p
 })
 
 // An open section on the page behind keeps its place: Escape is the menu's first.
+// The section is added here, and the page drops it when it redraws, as it does
+// when the same person signs in elsewhere; so each of these two tests signs in as
+// a person of its own.
 test("Escape closes the account menu before an open section behind it", async ({page}) => {
   const problems = watch(page)
-  await signIn(page)
+  await signIn(page, "/stake", "escape-menu")
   await page.locator("#route-content").evaluate(content => {
     const details = document.createElement("details")
     details.open = true
@@ -131,7 +134,7 @@ test("Escape closes the account menu before an open section behind it", async ({
 // behind and left the window open. Escape is the window's, and the section stays.
 test("Escape closes a window before an open section behind it", async ({page}) => {
   const problems = watch(page)
-  await signIn(page)
+  await signIn(page, "/stake", "escape-window")
   await page.locator("#route-content").evaluate(content => {
     const details = document.createElement("details")
     details.open = true

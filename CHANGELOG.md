@@ -6715,3 +6715,12 @@ seasons), on the shared Points library regents.sh was already on.
   again, so a person's other tabs no longer redraw, closing an open dropdown, each time
   they sign in somewhere else. A lookup that fails no longer prompts pages to look again
   either. A new name or picture still shows on every open page as soon as it lands.
+
+## 2026-11-16 — Browser walk runs several browsers at once
+
+- The browser walk in `make check` runs one browser for every two of the machine's cores
+  (at most twelve) instead of one, so it takes about 47 seconds instead of about four
+  minutes. Every test is kept as it was. The walk's test server lends a database
+  connection per query, as the live site does, so several browsers do not run it out of
+  connections. Two walk files keep their tests in order, and the tests that change what
+  other tests would see sign in as people of their own.

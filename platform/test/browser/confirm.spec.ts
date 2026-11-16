@@ -5,6 +5,10 @@ import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 // browser's grey box. The walk's "other-account" person has one agent, Leaving Agent
 // (Regents.BrowserAgents), which this walk unpairs. Ported from ash-template's
 // polls.spec.ts, which presses End in the same window.
+
+// In order: the last test unpairs the one agent the three before it keep.
+test.describe.configure({mode: "default"})
+
 async function signIn(page: Page) {
   const auth = await installAuthenticatedPrivy(page, "other-account")
   await auth.establishLocalSession()

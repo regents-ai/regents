@@ -120,6 +120,40 @@ defmodule Regents.TestPrivyVerifier do
      }}
   end
 
+  # The Public Display Name walk's own person (test/browser/public_name.spec.ts),
+  # so the name it saves never reaches the menus of the walk's other sign-ins.
+  defp access_evidence("public-name") do
+    {:ok,
+     %{
+       session_id: "public-name-browser-session",
+       privy_user_id: "did:privy:public-name-browser",
+       wallet_address: "0x6666666666666666666666666666666666666666",
+       wallet_addresses: ["0x6666666666666666666666666666666666666666"]
+     }}
+  end
+
+  # The account menu's two Escape walks each sign in as their own person
+  # (test/browser/account_menu.spec.ts), so no other sign-in redraws their page.
+  defp access_evidence("escape-menu") do
+    {:ok,
+     %{
+       session_id: "escape-menu-browser-session",
+       privy_user_id: "did:privy:escape-menu-browser",
+       wallet_address: "0x7777777777777777777777777777777777777777",
+       wallet_addresses: ["0x7777777777777777777777777777777777777777"]
+     }}
+  end
+
+  defp access_evidence("escape-window") do
+    {:ok,
+     %{
+       session_id: "escape-window-browser-session",
+       privy_user_id: "did:privy:escape-window-browser",
+       wallet_address: "0x8888888888888888888888888888888888888888",
+       wallet_addresses: ["0x8888888888888888888888888888888888888888"]
+     }}
+  end
+
   defp access_evidence("conflicting-social") do
     {:ok,
      %{

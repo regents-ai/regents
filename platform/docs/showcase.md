@@ -129,7 +129,7 @@ migrations to support this gallery.
 Run the disposable test server in the test environment with that partition and port:
 
 ```sh
-env MIX_ENV=test REGENTS_BROWSER_TEST=1 mix run --no-halt -e 'Ecto.Adapters.SQL.Sandbox.mode(Regents.Repo, :auto)'
+env MIX_ENV=test REGENTS_BROWSER_TEST=1 REGENTS_OUTSIDE_LOG=tmp/outside-requests.log mix run --no-halt
 ```
 
 That command belongs only in the isolated test context. Use its printed URL and

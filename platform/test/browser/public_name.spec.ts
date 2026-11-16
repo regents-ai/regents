@@ -3,9 +3,13 @@
 // sign-in, its session cookie and forms token, and it is still there after a
 // reload. Privy plays no part in the save (R-20261114-name-save-session: saves on
 // regents.sh were refused when the browser could not hand over fresh Privy
-// tokens; the walk's browser never runs Privy here).
+// tokens; the walk's browser never runs Privy here). It signs in as its own
+// person, so the name it saves never shows in another test's account menu.
 import {installAuthenticatedPrivy} from "./support/authenticated_privy"
 import {expect, test} from "./support/offline"
+
+// In order: both widths save the one name of this file's person.
+test.describe.configure({mode: "default"})
 
 for (const width of [1280, 390]) {
   test(`a signed-in person saves their Public Display Name and sees it after a reload (${width})`, async ({page}) => {
@@ -13,7 +17,7 @@ for (const width of [1280, 390]) {
     const errors: string[] = []
     page.on("pageerror", error => errors.push(error.message))
     await page.setViewportSize({width, height: 900})
-    const auth = await installAuthenticatedPrivy(page, "valid")
+    const auth = await installAuthenticatedPrivy(page, "public-name")
     await auth.establishLocalSession()
 
     await page.goto("/account")
