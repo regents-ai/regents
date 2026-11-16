@@ -147,3 +147,26 @@ it("sends nothing and reports a declined switch apart from a failed one", async 
     }
   }
 })
+
+// Invariant: the wallet that sends is the one whose account and network were
+// read. A wallet Privy replaces while its switch is open sends nothing.
+it("sends nothing when Privy swaps the wallet while the switch is open", async () => {
+  const first = walletOn(signer, {on: 1})
+  const second = walletOn(signer)
+  let held = first.selected
+  const swapping = {
+    ...first.selected,
+    switchChain: async (wanted: number) => {
+      await first.selected.switchChain(wanted)
+      held = second.selected
+    },
+  }
+  held = swapping
+
+  await expect(sendStep(chain, signer, step, () => held, () => undefined)).rejects.toMatchObject({
+    reason: "wallet_unavailable",
+  })
+  expect(first.switches).toEqual([base])
+  expect(first.sent).toEqual([])
+  expect(second.sent).toEqual([])
+})
