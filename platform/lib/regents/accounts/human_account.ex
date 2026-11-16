@@ -49,6 +49,12 @@ defmodule Regents.Accounts.HumanAccount do
       prepare build(load: [:display_name, :ens_name, :ens_avatar_url])
     end
 
+    # Read only by `EnsIdentity` writing an answer, to see that it was read for
+    # the wallet the account signs with now. No policy allows it otherwise.
+    read :ens_identity_owner do
+      public? false
+    end
+
     read :public_profile_source do
       public? false
       get? true
@@ -142,8 +148,17 @@ defmodule Regents.Accounts.HumanAccount do
       public?: true
 
     # What Ethereum mainnet says about this account's wallet, flattened onto the
-    # account so one display shape serves every identity a page renders.
-    calculate :ens_name, :string, expr(ens_identity.ens_name)
-    calculate :ens_avatar_url, :string, expr(ens_identity.ens_avatar_url)
+    # account so one display shape serves every identity a page renders. Only
+    # an answer read for the wallet the account signs with now counts.
+    calculate :ens_name,
+              :string,
+              expr(if ens_identity.wallet_address == wallet_address, do: ens_identity.ens_name)
+
+    calculate :ens_avatar_url,
+              :string,
+              expr(
+                if ens_identity.wallet_address == wallet_address,
+                  do: ens_identity.ens_avatar_url
+              )
   end
 end

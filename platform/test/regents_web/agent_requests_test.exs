@@ -18,7 +18,7 @@ defmodule RegentsWeb.AgentRequestsTest do
   end
 
   test "an agent pairs with the code its person made here, signed for Regents", %{conn: conn} do
-    {person, _account_id} = person!()
+    {person, _account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
 
@@ -40,7 +40,7 @@ defmodule RegentsWeb.AgentRequestsTest do
 
   test "a check-in names the account as the person's own Account page names it",
        %{conn: conn} do
-    {person, account_id} = person!()
+    {person, person_account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
     assert conn |> pair(issued.code) |> response(201)
@@ -51,7 +51,10 @@ defmodule RegentsWeb.AgentRequestsTest do
     assert account == %{"display_name" => nil, "ens_name" => nil}
 
     Regents.SharedProfiles.put_name!(person.privy_user_id, "Ada")
-    Accounts.put_ens_identity(account_id, "ada.eth", nil, actor: %System{})
+
+    Accounts.put_ens_identity(person_account.id, person_account.wallet_address, "ada.eth", nil,
+      actor: %System{}
+    )
 
     assert %{"data" => %{"account" => %{"display_name" => "Ada", "ens_name" => "ada.eth"}}} =
              conn |> recycle() |> get("/api/agents/v1/me") |> json_response(200)
@@ -88,7 +91,7 @@ defmodule RegentsWeb.AgentRequestsTest do
   end
 
   test "a paired agent whose person signed in here is told it is paired", %{conn: conn} do
-    {person, _account_id} = person!()
+    {person, _account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
     assert %{"data" => %{"id" => id}} = conn |> pair(issued.code) |> json_response(201)
@@ -101,7 +104,7 @@ defmodule RegentsWeb.AgentRequestsTest do
 
   # The pair and check-in answers carry the pairing id the contract lists.
   test "pairing and check-in name the same pairing id", %{conn: conn} do
-    {person, _account_id} = person!()
+    {person, _account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
 
@@ -115,7 +118,7 @@ defmodule RegentsWeb.AgentRequestsTest do
   # Every body the API takes keeps its exact bytes for the sign-in server, so
   # spacing the agent signed but a parser would drop still matches.
   test "a signed claims read sends the digest of the exact body bytes", %{conn: conn} do
-    {person, _account_id} = person!()
+    {person, _account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
     assert conn |> pair(issued.code) |> response(201)
@@ -137,7 +140,7 @@ defmodule RegentsWeb.AgentRequestsTest do
   end
 
   test "a paired agent reads its person's Points under /api/v1/account", %{conn: conn} do
-    {person, _account_id} = person!()
+    {person, _account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)
     siwa_verifies(@agent_wallet)
     assert conn |> pair(issued.code) |> response(201)
@@ -284,6 +287,6 @@ defmodule RegentsWeb.AgentRequestsTest do
     wallet = "0x" <> String.pad_leading(Integer.to_string(unique, 16), 40, "0")
     did = "did:privy:agent-api:#{unique}"
     account = Accounts.register_verified!(did, wallet, [wallet], actor: %System{})
-    {%Person{privy_user_id: did}, account.id}
+    {%Person{privy_user_id: did}, account}
   end
 end

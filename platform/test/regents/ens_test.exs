@@ -6,6 +6,7 @@ defmodule Regents.EnsTest do
   alias Regents.Actors.{Human, System}
 
   @atlas_picture "https://metadata.ens.domains/mainnet/avatar/atlas.eth"
+  @earlier_picture "https://metadata.ens.domains/mainnet/avatar/earlier.eth"
 
   test "a wallet with an ENS name and picture is called and drawn by them" do
     identity = :named_with_avatar |> account() |> resolve()
@@ -60,11 +61,9 @@ defmodule Regents.EnsTest do
   # A service that does not answer says nothing about the picture, so it must
   # not be recorded as "no picture".
   test "a picture the ENS service will not answer about keeps the last known name and picture" do
-    account = account(:named_with_avatar)
-    assert %{ens_name: "atlas.eth"} = resolve(account)
+    account = :named_with_refused_picture |> account() |> known_before()
 
-    assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} =
-             account |> moved_to(:named_with_refused_picture) |> ask_again()
+    assert %{ens_name: "earlier.eth", ens_avatar_url: @earlier_picture} = ask_again(account)
   end
 
   test "a wallet with no ENS name keeps its shortened address and generated picture" do
@@ -85,22 +84,17 @@ defmodule Regents.EnsTest do
   end
 
   test "a chain that refuses to answer keeps the last known name and picture" do
-    account = account(:named_with_avatar)
-    assert %{ens_name: "atlas.eth"} = resolve(account)
-
+    account = :unreachable |> account() |> known_before()
     Phoenix.PubSub.subscribe(Regents.PubSub, Ens.topic(account.id))
 
-    assert %{ens_name: "atlas.eth", ens_avatar_url: @atlas_picture} =
-             account |> moved_to(:unreachable) |> ask_again()
-
+    assert %{ens_name: "earlier.eth", ens_avatar_url: @earlier_picture} = ask_again(account)
     refute_received {:ens_lookup_finished, _account_id}
   end
 
   test "a chain that never answers in time keeps the last known name and picture" do
-    account = account(:named_with_avatar)
-    assert %{ens_name: "atlas.eth"} = resolve(account)
+    account = :slow |> account() |> known_before()
 
-    assert %{ens_name: "atlas.eth"} = account |> moved_to(:slow) |> ask_again()
+    assert %{ens_name: "earlier.eth", ens_avatar_url: @earlier_picture} = ask_again(account)
   end
 
   # A name and picture, a name alone, or nothing at all: the same answer again
@@ -124,6 +118,40 @@ defmodule Regents.EnsTest do
              account |> moved_to(:named_without_avatar) |> resolve()
 
     assert DateTime.after?(identity.updated_at, recorded.updated_at)
+  end
+
+  # The recorded name was read for one wallet. An account that now signs with
+  # another is never shown it, even before that wallet's own lookup answers.
+  test "a wallet change hides the old wallet's name and picture at once" do
+    account = account(:named_with_avatar)
+    assert %{ens_name: "atlas.eth"} = resolve(account)
+
+    shown = account |> moved_to(:named_without_avatar) |> read()
+
+    assert %{ens_name: nil, ens_avatar_url: nil} = shown
+    assert PublicIdentity.label(shown) == "0xaaaa..0002"
+  end
+
+  test "a failed lookup after a wallet change leaves no name shown" do
+    account = account(:named_with_avatar)
+    assert %{ens_name: "atlas.eth"} = resolve(account)
+
+    assert %{ens_name: nil, ens_avatar_url: nil} =
+             account |> moved_to(:unreachable) |> ask_again()
+  end
+
+  # A lookup reads one wallet and writes when it finishes, by which time the
+  # account may sign with another. `former` is the account as that lookup saw it.
+  test "a late answer for the former wallet is not written or announced" do
+    former = account(:named_with_avatar)
+
+    %{ens_name: "plain.eth", ens_identity: recorded} =
+      former |> moved_to(:named_without_avatar) |> resolve()
+
+    Phoenix.PubSub.subscribe(Regents.PubSub, Ens.topic(former.id))
+
+    assert %{ens_name: "plain.eth", ens_identity: ^recorded} = ask_again(former)
+    refute_received {:ens_lookup_finished, _account_id}
   end
 
   test "no Ethereum endpoint means no lookup at all" do
@@ -174,6 +202,14 @@ defmodule Regents.EnsTest do
   defp moved_to(account, story) do
     wallet = TestEnsChainClient.wallet(story)
     {:ok, account} = Accounts.refresh_verified(account, wallet, [wallet], actor: %System{})
+    account
+  end
+
+  # What an earlier lookup recorded for the account's own wallet.
+  defp known_before(%{id: id, wallet_address: wallet} = account) do
+    {:ok, _identity} =
+      Accounts.put_ens_identity(id, wallet, "earlier.eth", @earlier_picture, actor: %System{})
+
     account
   end
 

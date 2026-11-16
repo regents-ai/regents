@@ -31,7 +31,7 @@ defmodule Regents.Accounts do
     resource Regents.Accounts.EnsIdentity do
       define :put_ens_identity,
         action: :put_resolved,
-        args: [:human_account_id, :ens_name, :ens_avatar_url]
+        args: [:human_account_id, :wallet_address, :ens_name, :ens_avatar_url]
     end
 
     resource Regents.Accounts.SessionAuthority

@@ -354,7 +354,7 @@ defmodule RegentsWeb.AccountAgentsLiveTest do
         actor: %System{}
       )
 
-    Accounts.put_ens_identity(account.id, "#{suffix}.eth", nil, actor: %System{})
+    Accounts.put_ens_identity(account.id, wallet, "#{suffix}.eth", nil, actor: %System{})
     account
   end
 end

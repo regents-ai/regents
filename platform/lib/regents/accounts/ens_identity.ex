@@ -6,6 +6,13 @@ defmodule Regents.Accounts.EnsIdentity do
   protected row keeps the verified Privy identity and wallet, and this row only
   carries what a page needs to draw the name and picture the wallet already
   announces to everyone.
+
+  `wallet_address` is the wallet the row was read for. The account shows the
+  name and picture only while that is still its own wallet
+  (`Regents.Accounts.HumanAccount`'s `ens_name` and `ens_avatar_url`), so an
+  account whose wallet changed shows neither until its new wallet's lookup
+  answers. A row recorded before the wallet was kept has none and shows nothing
+  until the next lookup.
   """
 
   use Ash.Resource,
@@ -18,24 +25,30 @@ defmodule Regents.Accounts.EnsIdentity do
     create :put_resolved do
       accept []
       argument :human_account_id, :integer, allow_nil?: false
+      argument :wallet_address, :string, allow_nil?: false
       argument :ens_name, :string
       argument :ens_avatar_url, :string
 
       change set_attribute(:human_account_id, arg(:human_account_id))
+      change set_attribute(:wallet_address, arg(:wallet_address))
       change set_attribute(:ens_name, arg(:ens_name))
       change set_attribute(:ens_avatar_url, arg(:ens_avatar_url))
 
       upsert? true
       upsert_identity :unique_human_account
-      upsert_fields [:ens_name, :ens_avatar_url]
+      upsert_fields [:wallet_address, :ens_name, :ens_avatar_url]
 
-      # An answer the same as the recorded one, an absent name or picture
-      # included, leaves the row and its update time as they are, and the row
-      # comes back marked `upsert_skipped`, so the pages showing it are not told
-      # to read it again.
+      # The row is written only for the wallet the account signs with now, so
+      # an answer that finishes after the wallet changed is dropped. An answer
+      # the same as the recorded one for that wallet, an absent name or picture
+      # included, leaves the row and its update time as they are. Either way
+      # the row comes back marked `upsert_skipped`, so the pages showing it are
+      # not told to read it again.
       upsert_condition expr(
-                         is_distinct_from(ens_name, upsert_conflict(:ens_name)) or
-                           is_distinct_from(ens_avatar_url, upsert_conflict(:ens_avatar_url))
+                         exists(human_account, wallet_address == upsert_conflict(:wallet_address)) and
+                           (is_distinct_from(wallet_address, upsert_conflict(:wallet_address)) or
+                              is_distinct_from(ens_name, upsert_conflict(:ens_name)) or
+                              is_distinct_from(ens_avatar_url, upsert_conflict(:ens_avatar_url)))
                        )
 
       return_skipped_upsert? true
@@ -64,6 +77,7 @@ defmodule Regents.Accounts.EnsIdentity do
 
   attributes do
     uuid_primary_key :id
+    attribute :wallet_address, :string
     attribute :ens_name, :string, public?: true
     attribute :ens_avatar_url, :string, public?: true
     timestamps()
@@ -73,6 +87,7 @@ defmodule Regents.Accounts.EnsIdentity do
     belongs_to :human_account, Regents.Accounts.HumanAccount do
       allow_nil? false
       attribute_type :integer
+      read_action :ens_identity_owner
     end
   end
 

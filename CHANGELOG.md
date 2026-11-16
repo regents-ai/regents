@@ -6747,3 +6747,22 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Account, Account Points, Stake and health answer. No
   signed-in page has been read.
 - Rollback: v326's image main-7eb393c7ef48.
+
+## 2026-11-16 — A changed wallet never shows the old wallet's ENS name
+
+- The recorded ENS name and picture now keep the wallet they were read for, and an
+  account shows them only while that is still its own wallet. Before, an account whose
+  wallet changed kept showing the old wallet's name and picture until the new wallet's
+  lookup answered, and kept them for good when that lookup failed or ran out of time.
+- A lookup's answer is written only while the account still signs with the wallet it
+  was read for. Before, a lookup for the old wallet that finished after the change wrote
+  the old wallet's name onto the account and told its open pages.
+- Unchanged from v327: an answer the same as the recorded one writes and announces
+  nothing, a new one is saved and announced, and a failed lookup writes nothing.
+- Migration `20261116074145_record_ens_wallet` adds one empty `wallet_address` column to
+  `account_ens_identities`; it changes no existing row. Names recorded before it show
+  nothing until the wallet's next lookup, at the next sign-in or Account visit.
+- platform/lib/regents/accounts/ens_identity.ex, human_account.ex, accounts.ex,
+  platform/lib/regents/ens.ex; three new tests in platform/test/regents/ens_test.exs and
+  its three failed-lookup tests now keep the same wallet; callers in four web tests pass
+  the wallet.

@@ -487,7 +487,9 @@ defmodule RegentsWeb.ShellLiveTest do
         Regents.TestEnsChainClient.wallet(:named_with_avatar)
       )
 
-    Accounts.put_ens_identity(account.id, "yesterday.eth", nil, actor: %System{})
+    Accounts.put_ens_identity(account.id, account.wallet_address, "yesterday.eth", nil,
+      actor: %System{}
+    )
 
     Phoenix.PubSub.subscribe(Regents.PubSub, Regents.Ens.topic(account.id))
 

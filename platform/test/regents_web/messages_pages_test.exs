@@ -57,7 +57,9 @@ defmodule RegentsWeb.MessagesPagesTest do
 
     # What a finished ENS lookup does after any sign-in of this person.
     {:ok, _identity} =
-      Accounts.put_ens_identity(account.id, "typed.eth", nil, actor: %System{})
+      Accounts.put_ens_identity(account.id, account.wallet_address, "typed.eth", nil,
+        actor: %System{}
+      )
 
     lookup_finished(account)
 
