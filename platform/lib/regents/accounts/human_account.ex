@@ -49,8 +49,9 @@ defmodule Regents.Accounts.HumanAccount do
       prepare build(load: [:display_name, :ens_name, :ens_avatar_url])
     end
 
-    # Read only by `EnsIdentity` writing an answer, to see that it was read for
-    # the wallet the account signs with now. No policy allows it otherwise.
+    # Names the account inside `EnsIdentity`'s write condition, which sees that
+    # an answer was read for the wallet the account signs with now. No caller
+    # reads through it: its policy forbids every actor.
     read :ens_identity_owner do
       public? false
     end
@@ -112,6 +113,10 @@ defmodule Regents.Accounts.HumanAccount do
              :points_people
            ]) do
       authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action(:ens_identity_owner) do
+      forbid_if always()
     end
 
     policy action(:read_self) do

@@ -77,7 +77,7 @@ defmodule Regents.Accounts.EnsIdentity do
 
   attributes do
     uuid_primary_key :id
-    attribute :wallet_address, :string
+    attribute :wallet_address, :string, sensitive?: true
     attribute :ens_name, :string, public?: true
     attribute :ens_avatar_url, :string, public?: true
     timestamps()
