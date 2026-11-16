@@ -6798,3 +6798,11 @@ seasons), on the shared Points library regents.sh was already on.
   visit log records the new `switch_declined` reason.
 - Ported from the template's commit dc372dee. Checked with the stand-in wallet only; no
   real wallet app, and no phone wallet over WalletConnect, has been tried.
+
+## 2026-11-16 — Released v329 (wallets move to Base through Privy's own switch)
+
+- v329, commit fe527c84: the wallet network switch port. Full check exit 0 on fe527c84,
+  six gates. No migration.
+- Live read, signed out: home, Stake, Redeem and health answer and the page head names
+  chain 8453. No real wallet has pressed a button on it.
+- Rollback: v328's image main-7a08a9ec596a.
