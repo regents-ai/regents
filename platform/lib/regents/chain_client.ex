@@ -4,8 +4,9 @@ defmodule Regents.ChainClient do
 
   `RegentChain.Outcome` reads sent steps through `transaction/2` and `receipt/2`.
   Every read is at `latest`: never wait for `safe` or `finalized`. Regents reads
-  Base through its own read endpoint (`:base_read_rpc_url`); the review's
-  `rpc_url` is the public one the wallet is given, never a keyed server endpoint.
+  Base through its own read endpoint (`:base_read_rpc_url`), never the review's
+  public `rpc_url`, which no wallet is given either: Privy moves a wallet to Base
+  from its own list of networks.
   """
 
   alias Regents.WalletActions.Rpc
@@ -18,7 +19,11 @@ defmodule Regents.ChainClient do
   @rpc_opts [scope: "wallet_steps"]
   @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}
 
-  @doc "Base, as a wallet is asked to switch to it."
+  @doc """
+  Base, the one chain every wallet step goes to. The root layout names it to
+  Privy (the `wallet-chain-id` meta), which connects wallets on it and switches
+  them to no other.
+  """
   def base, do: @base
 
   @doc "The reader wallet steps use: this module, or the site's test stand-in."

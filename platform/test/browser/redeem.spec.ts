@@ -539,11 +539,14 @@ async function signIn(page: Page): Promise<void> {
   expect(response.status()).toBe(200)
 }
 
+// The stand-in wallet app, on Base throughout: it carries a switch as Privy's
+// wallets do, and Redeem never needs to ask it.
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(
     ({wallet, sendsKey}) => {
       ;(window as Window & {__regentsTestWallet?: unknown}).__regentsTestWallet = {
         address: wallet,
+        switchChain: async () => undefined,
         provider: {
           request: async ({method, params}: {method: string; params?: unknown[]}) => {
             const testWindow = window as Window & {

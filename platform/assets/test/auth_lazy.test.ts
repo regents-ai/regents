@@ -26,6 +26,7 @@ import {
   replaceActiveEthereumWallet,
   replaceConnectedEthereumWallets,
   walletDisconnected,
+  type ConnectedEthereumWallet,
   type EthereumProvider,
 } from "../js/wallet_actions/connected_wallet"
 
@@ -189,7 +190,11 @@ describe("lazy browser authentication", () => {
     const page = accountDocument({signedIn: true})
     vi.stubGlobal("document", page.documentRoot)
     vi.stubGlobal("window", {location: {origin: "https://regents.sh"}, localStorage: memoryStorage()})
-    const selected = {address: "0x1111111111111111111111111111111111111111", provider: {request: vi.fn()}}
+    const selected = {
+      address: "0x1111111111111111111111111111111111111111",
+      provider: {request: vi.fn()},
+      switchChain: vi.fn(async () => undefined),
+    }
     replaceActiveEthereumWallet(selected)
     const fetcher = vi.fn(async (_url: RequestInfo | URL) => new Response(JSON.stringify({authenticated: false}), {status: 200}))
     vi.stubGlobal("fetch", fetcher)
@@ -840,7 +845,7 @@ describe("lazy browser authentication", () => {
     const clearSession = vi.fn(async () => void order.push("local"))
     const reload = vi.fn(() => void order.push("reload"))
 
-    const wallet = (name: string): [string, {provider: EthereumProvider; disconnect: () => void}] => {
+    const wallet = (name: string): [string, ConnectedEthereumWallet] => {
       const provider: EthereumProvider = {
         request: vi.fn(async () => {
           order.push(`revoke:${name}`)
@@ -852,7 +857,11 @@ describe("lazy browser authentication", () => {
 
       return [
         `0x${name === "first" ? "1" : "2"}`.padEnd(42, name === "first" ? "1" : "2"),
-        {provider, disconnect: vi.fn(() => void order.push(`disconnect:${name}`))},
+        {
+          provider,
+          switchChain: vi.fn(async () => undefined),
+          disconnect: vi.fn(() => void order.push(`disconnect:${name}`)),
+        },
       ]
     }
 

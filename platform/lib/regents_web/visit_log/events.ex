@@ -24,7 +24,7 @@ defmodule RegentsWeb.VisitLog.Events do
   alias RegentsWeb.VisitLog
 
   # The reasons the wallet hook reports (`Failure` in send_step.ts).
-  @wallet_failures ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
+  @wallet_failures ~w(step_unknown wallet_unavailable switch_declined network_mismatch wallet_declined insufficient_funds send_unconfirmed)
   @domain_apps [
     :regents,
     :regent_identity,

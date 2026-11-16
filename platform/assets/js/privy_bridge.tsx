@@ -1,5 +1,6 @@
 import {
   PrivyProvider,
+  SUPPORTED_CHAINS,
   type ConnectedWallet,
   type PrivyEvents,
   getIdentityToken,
@@ -1015,8 +1016,10 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
       wallets.map(async wallet => ({
         address: wallet.address.toLowerCase(),
         provider: (await wallet.getEthereumProvider()) as EthereumProvider,
-        // Privy's own way of letting go of this wallet, carried beside the
-        // provider so Disconnect can release both without the bridge.
+        // Privy's own ways of moving this wallet to another network and of
+        // letting go of it, carried beside the provider so a press and
+        // Disconnect can use them without the bridge.
+        switchChain: (chainId: number) => wallet.switchChain(chainId),
         disconnect: () => wallet.disconnect(),
       })),
     )
@@ -1040,12 +1043,14 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
     // which is why the visitor's own choice is read again here, last.
     if (walletDisconnected() || lifetime.aborted || walletWorkEpoch() !== epoch) return
 
-    replaceConnectedEthereumWallets(
-      entries.map(entry => [entry.address, {provider: entry.provider, disconnect: entry.disconnect}]),
-    )
+    replaceConnectedEthereumWallets(entries.map(({address, ...wallet}) => [address, wallet]))
     replaceActiveEthereumWallet(
       selectedWallet && selectedProvider
-        ? {address: selectedWallet.address, provider: selectedProvider}
+        ? {
+          address: selectedWallet.address,
+          provider: selectedProvider,
+          switchChain: (chainId: number) => selectedWallet.switchChain(chainId),
+        }
         : null,
     )
     window.dispatchEvent(new CustomEvent("ash:wallet-state"))
@@ -1181,6 +1186,11 @@ export function startPrivyBridge(
     providerState?.appId ??
     document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
   if (!appId) return Promise.reject(new Error("Privy app is unavailable"))
+  // The chain the site's wallet buttons send on (`Regents.ChainClient.base/0`),
+  // as Privy's own list of networks describes it.
+  const walletChainId = Number(document.querySelector<HTMLMetaElement>("meta[name='wallet-chain-id']")?.content)
+  const walletChain = SUPPORTED_CHAINS.find(chain => chain.id === walletChainId)
+  if (!walletChain) return Promise.reject(new Error("Privy has no network for the wallet chain"))
   // Read before Privy finishes the return and clears these from the address.
   const oauthReturn = returnedFromOAuth(window.location.search)
   const host = document.createElement("div")
@@ -1253,14 +1263,22 @@ export function startPrivyBridge(
       // wallet, gets a Privy Ethereum wallet (their Regents wallet) at their next
       // sign-in, linked to their account, so every account can act. It is an
       // ordinary wallet, never a smart wallet: SIWA checks its signatures without
-      // asking the chain. Privy's own list of networks covers every network a
-      // step goes to, through Privy's own nodes, and a person always sees Privy's
-      // confirm window before their Privy wallet signs.
+      // asking the chain. A person always sees Privy's confirm window before
+      // their Privy wallet signs.
+      //
+      // The site's wallet chain is the only network, taken from Privy's own list
+      // so the Privy wallet reads and sends through Privy's own nodes. The Privy
+      // wallet starts on it. A wallet app on another network is asked to switch
+      // as it connects (Privy leaves MetaMask through WalletConnect alone) and
+      // connects anyway if the person declines; a press asks again before it
+      // sends.
       <PrivyProvider
         appId={appId}
         config={{
           appearance: {logo: "/mark.png"},
           embeddedWallets: {showWalletUIs: true, ethereum: {createOnLogin: "all-users"}},
+          defaultChain: walletChain,
+          supportedChains: [walletChain],
         }}
       >
         <AccountBridge

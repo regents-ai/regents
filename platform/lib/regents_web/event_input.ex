@@ -6,7 +6,7 @@ defmodule RegentsWeb.EventInput do
   Each page keeps its own limits and its own meaning for the text.
   """
 
-  @failure_reasons ~w(step_unknown wallet_unavailable network_mismatch wallet_declined insufficient_funds send_unconfirmed)
+  @failure_reasons ~w(step_unknown wallet_unavailable switch_declined network_mismatch wallet_declined insufficient_funds send_unconfirmed)
 
   @doc "A reason the page gives for a wallet press that sent nothing, or may have sent something."
   defguard failure_reason(reason) when reason in @failure_reasons

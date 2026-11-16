@@ -626,6 +626,49 @@ test("Stake says the wallet declined when the approval is rejected", async ({pag
   await expect(page.locator("#staking-press-notice")).toHaveCount(0)
 })
 
+// A wallet on another network is asked to move to Base through its own switch on
+// every press. Saying no, or a switch that fails, sends nothing and says which it
+// was; once the wallet moves, the same press goes to it.
+test("Stake asks a wallet on another network to switch on every press", async ({page}) => {
+  await installWallet(page)
+  await signIn(page)
+  await page.goto("/stake")
+  await selectWallet(page, wallet)
+  await page.getByLabel("Amount", {exact: true}).fill("1")
+  await page.evaluate(() => {
+    ;(window as Window & {__ashStakingChain?: number}).__ashStakingChain = 1
+  })
+  await setSwitch(page, "declined")
+
+  const primary = page.locator("#staking-primary")
+  const notice = page.locator("#staking-press-notice")
+  const declined = "Your wallet declined the switch to Base. Nothing was sent."
+  await primary.click()
+  await expect.poll(() => switchAsks(page)).toEqual([8453])
+  await expect(notice).toHaveText(declined)
+
+  // Still elsewhere, so the next press asks again.
+  await primary.click()
+  await expect.poll(() => switchAsks(page)).toEqual([8453, 8453])
+  await expect(notice).toHaveText(declined)
+
+  await setSwitch(page, "failed")
+  await primary.click()
+  await expect.poll(() => switchAsks(page)).toEqual([8453, 8453, 8453])
+  await expect(notice).toHaveText(
+    "Your wallet isn't on Base. Change the network to Base in your wallet app, then press again. Nothing was sent.",
+  )
+  expect(await sendCount(page)).toBe(0)
+  await expect(primary).toHaveText(/Approve REGENT/)
+
+  await setSwitch(page, undefined)
+  await primary.click()
+  await expect.poll(() => sendCount(page)).toBe(1)
+  await expect(page.locator(`#staking-activity-${expectedHash(1)}`)).toContainText("REGENT approval")
+  await expect(notice).toHaveCount(0)
+  expect(await switchAsks(page)).toEqual([8453, 8453, 8453, 8453])
+})
+
 // The note for a press the wallet declined floats just under the buttons: it moves
 // nothing in the panel, covers no control, and goes when the next press is sent.
 test("Stake's note for a declined press moves nothing and covers no control", async ({page}) => {
@@ -1196,16 +1239,31 @@ function picture(name: string): string {
   return `${process.env.REGENTS_SHOT_DIR ?? test.info().outputPath()}/${name}.png`
 }
 
+// The stand-in wallet app, on Base unless a test puts it on another network
+// (`__ashStakingChain`). It moves only through its own switch, as Privy's wallets
+// do, which records each ask and can be made to decline or fail
+// (`__ashStakingSwitch`).
 async function installWallet(page: Page): Promise<void> {
   await page.addInitScript(
     ({wallet, sendsKey}) => {
+      const network = window as Window & {
+        __ashStakingChain?: number
+        __ashStakingSwitch?: "declined" | "failed"
+        __ashStakingSwitches?: number[]
+      }
       ;(window as Window & {__regentsTestWallet?: unknown}).__regentsTestWallet = {
         address: wallet,
+        switchChain: async (chainId: number) => {
+          ;(network.__ashStakingSwitches ??= []).push(chainId)
+          if (network.__ashStakingSwitch === "declined") throw {code: 4001, message: "User rejected the request."}
+          if (network.__ashStakingSwitch === "failed") throw {code: 4902, message: "Unrecognized chain."}
+          network.__ashStakingChain = chainId
+        },
         provider: {
           request: async ({method, params}: {method: string; params?: unknown[]}) => {
             switch (method) {
               case "eth_chainId":
-                return "0x2105"
+                return `0x${(network.__ashStakingChain ?? 8453).toString(16)}`
               case "eth_accounts":
               case "eth_requestAccounts":
                 return [
@@ -1288,6 +1346,20 @@ async function privyRequests(page: Page): Promise<string[]> {
 
 async function sendCount(page: Page): Promise<number> {
   return page.evaluate(key => Number(sessionStorage.getItem(key) ?? "0"), sendsKey)
+}
+
+// How the stand-in wallet answers its switch: decline, fail, or (unset) move.
+async function setSwitch(page: Page, answer: "declined" | "failed" | undefined): Promise<void> {
+  await page.evaluate(next => {
+    ;(window as Window & {__ashStakingSwitch?: "declined" | "failed"}).__ashStakingSwitch = next
+  }, answer)
+}
+
+// Every network the stand-in wallet was asked to switch to, in order.
+async function switchAsks(page: Page): Promise<number[]> {
+  return page.evaluate(
+    () => (window as Window & {__ashStakingSwitches?: number[]}).__ashStakingSwitches ?? [],
+  )
 }
 
 async function selectWallet(page: Page, address: string): Promise<void> {

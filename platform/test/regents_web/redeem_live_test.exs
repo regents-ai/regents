@@ -741,7 +741,8 @@ defmodule RegentsWeb.RedeemLiveTest do
     # Only a press the wallet turned down marks its note as a refusal, which shakes.
     for {reason, words, refused} <- [
           {"wallet_declined", "Your wallet declined this. Nothing was sent.", true},
-          {"network_mismatch", "Switch it to Base", true},
+          {"switch_declined", "Your wallet declined the switch to Base.", true},
+          {"network_mismatch", "Change the network to Base in your wallet app", true},
           {"wallet_unavailable", "Your wallet changed during the press", false},
           {"insufficient_funds", "enough on Base to pay the network fee", true},
           {"send_unconfirmed", "Your wallet may have sent this.", false},

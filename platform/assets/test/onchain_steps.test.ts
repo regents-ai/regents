@@ -15,7 +15,7 @@ const review: Review = {
   id: "review-1",
   component_id: "staking-actions",
   signer,
-  chain: {chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"},
+  chain: {chain_id: 8453},
   steps: [
     {kind: "transaction", step: "approve", to: "0x2222222222222222222222222222222222222222", data: "0x095ea7b3", value: "0x0"},
     {kind: "transaction", step: "stake", to: "0x3333333333333333333333333333333333333333", data: "0x7acb7757", value: "0x0"},
@@ -24,7 +24,8 @@ const review: Review = {
   inputs,
 }
 
-// A stand-in wallet Privy has active: answers by method name, and holds every send until released.
+// A stand-in wallet Privy has active, on Base: answers by method name, and holds
+// every send until released. Its switch is never asked (send_step.test.ts covers it).
 function wallet(answers: Record<string, unknown> = {}, address = signer) {
   const sends: Array<(value: unknown) => void> = []
   const provider: EthereumProvider = {
@@ -35,8 +36,9 @@ function wallet(answers: Record<string, unknown> = {}, address = signer) {
       return answer
     }),
   }
-  replaceConnectedEthereumWallets([[address, {provider, disconnect: () => {}}]])
-  replaceActiveEthereumWallet({address, provider})
+  const switchChain = vi.fn(async () => undefined)
+  replaceConnectedEthereumWallets([[address, {provider, switchChain, disconnect: () => {}}]])
+  replaceActiveEthereumWallet({address, provider, switchChain})
   return {provider, sends}
 }
 
@@ -163,37 +165,6 @@ describe("a press on a wallet button", () => {
     await press(review, "stake", push)
     expect(methods(provider)).not.toContain("eth_sendTransaction")
     expect(pushed).toEqual([["step_failed", {step: "stake", reason: "wallet_unavailable"}]])
-  })
-
-  it("moves the wallet to Base, adding it when the wallet does not know it", async () => {
-    let chain = "0x1"
-    const {provider, sends} = wallet()
-    vi.mocked(provider.request).mockImplementation(async ({method}) => {
-      if (method === "wallet_switchEthereumChain" && chain === "0x1") {
-        chain = "unknown"
-        throw Object.assign(new Error("unknown chain"), {code: 4902})
-      }
-      if (method === "wallet_switchEthereumChain") chain = "0x2105"
-      if (method === "eth_sendTransaction") return new Promise(resolve => sends.push(resolve))
-      return ({eth_chainId: chain === "0x2105" ? "0x2105" : "0x1", eth_accounts: [signer]} as Record<string, unknown>)[method]
-    })
-
-    const sending = press(review, "stake", push)
-    await vi.waitFor(() => expect(sends).toHaveLength(1))
-    sends[0](hash)
-    await sending
-    expect(methods(provider)).toContain("wallet_addEthereumChain")
-    expect(pushed).toEqual([sent("stake")])
-  })
-
-  it("sends nothing when the wallet will not switch to Base", async () => {
-    const {provider} = wallet({
-      eth_chainId: "0x1",
-      wallet_switchEthereumChain: Object.assign(new Error("no"), {code: 4001}),
-    })
-    await press(review, "stake", push)
-    expect(methods(provider)).not.toContain("eth_sendTransaction")
-    expect(pushed).toEqual([["step_failed", {step: "stake", reason: "network_mismatch"}]])
   })
 
   it("opens connect when no wallet is active here, and sends nothing", async () => {

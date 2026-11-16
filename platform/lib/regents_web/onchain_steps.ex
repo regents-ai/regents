@@ -24,7 +24,7 @@ defmodule RegentsWeb.OnchainSteps do
   alias RegentsWeb.EventInput
 
   @recheck_ms 250
-  @refusals ~w(wallet_declined network_mismatch insufficient_funds)
+  @refusals ~w(wallet_declined switch_declined network_mismatch insufficient_funds)
   @address ~r/\A0x[0-9a-fA-F]{40}\z/
 
   @doc "The assigns a wallet-button component starts with."
@@ -141,9 +141,12 @@ defmodule RegentsWeb.OnchainSteps do
     end
   end
 
+  def failure_note("switch_declined", _main, _active, chain_name),
+    do: ["Your wallet declined the switch to #{chain_name}. Nothing was sent."]
+
   def failure_note("network_mismatch", _main, _active, chain_name),
     do: [
-      "Your wallet is on a different network. Switch it to #{chain_name}, then press again. Nothing was sent."
+      "Your wallet isn't on #{chain_name}. Change the network to #{chain_name} in your wallet app, then press again. Nothing was sent."
     ]
 
   def failure_note("wallet_declined", _main, _active, _chain_name),
@@ -160,8 +163,8 @@ defmodule RegentsWeb.OnchainSteps do
   @doc """
   The note beside the buttons for a press that failed for `reason`: its words,
   as parts for `note/1`, and whether the wallet turned the press down (it
-  declined, would not move to the step's network, or could not pay the fee),
-  which the page answers with a shake.
+  declined the step or the switch to the step's network, could not move there,
+  or could not pay the fee), which the page answers with a shake.
   """
   def press_note(reason, parts), do: %{parts: parts, refused: reason in @refusals}
 

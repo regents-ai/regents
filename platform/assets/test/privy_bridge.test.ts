@@ -25,6 +25,7 @@ vi.mock("react-dom/client", () => ({
 
 vi.mock("@privy-io/react-auth", () => ({
   PrivyProvider: "privy-provider",
+  SUPPORTED_CHAINS: [{id: 8453, name: "Base"}],
   usePrivy: () => ({authenticated: false, logout: vi.fn(), ready: true}),
   useWallets: () => ({ready: true, wallets: []}),
   useConnectWallet: (callbacks?: {onSuccess?: (params: unknown) => void}) => {
@@ -173,6 +174,7 @@ function stubBrowserGlobals(
     body: {append: vi.fn()},
     createElement: () => ({hidden: false, remove: vi.fn()}),
     querySelector: (selector: string) => {
+      if (selector === "meta[name='wallet-chain-id']") return {content: "8453"}
       if (accountWallet && selector === "#account-control") return {dataset: {accountWallet}}
       return accountMarker && selector === `#account-control [data-account-target='${accountMarker}']`
         ? {}
@@ -235,6 +237,7 @@ function ethereumWallet(
     provider,
     walletClientType,
     connectorType,
+    switchChain: vi.fn(async (_chainId: number) => undefined),
     disconnect: vi.fn(),
     getEthereumProvider: async () => provider,
   }
@@ -1153,6 +1156,12 @@ describe("Privy session bridge", () => {
     expect(dispatched).toContain("ash:wallet-state")
     expect(sessionRequests).toEqual([])
     expect(reload).not.toHaveBeenCalled()
+
+    // A press moves the wallet that sends through Privy's own switch for that
+    // wallet, whichever way the page found it.
+    await activeEthereumWallet()!.switchChain(8453)
+    await connectedEthereumWallet(wallet.address)!.switchChain(8453)
+    expect(wallet.switchChain.mock.calls).toEqual([[8453], [8453]])
   })
 
   // The anonymous page is where sign in starts, so Privy has nothing to report
@@ -1231,7 +1240,7 @@ describe("Privy session bridge", () => {
     const {dispatched, reload} = stubBrowserGlobals("profile")
     const sessionRequests = stubSessionRequests()
     const wallet = ethereumWallet("0x1111111111111111111111111111111111111111")
-    replaceActiveEthereumWallet({address: wallet.address, provider: wallet.provider})
+    replaceActiveEthereumWallet({address: wallet.address, provider: wallet.provider, switchChain: wallet.switchChain})
 
     const getAccessToken = vi.fn(async () => null)
     const startup = bridge.startPrivyBridge({}, {
@@ -1948,15 +1957,15 @@ describe("Privy session bridge", () => {
 
       // Nothing is taken away before the await, so a press here still finds
       // its wallet and Stake hears no change it would reset consent for.
-      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider, switchChain: expect.any(Function)})
       expect(page.dispatched).toEqual(["ash:wallet-state"])
       await until(refresh.held)
-      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider, switchChain: expect.any(Function)})
       expect(page.dispatched).toEqual(["ash:wallet-state"])
 
       refresh.release()
       await until(() => page.dispatched.length === 2)
-      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider, switchChain: expect.any(Function)})
     })
 
     it("lets only the latest refresh publish when an older one finishes late", async () => {
@@ -1976,11 +1985,11 @@ describe("Privy session bridge", () => {
       older.release()
       await settled()
       expect(page.dispatched).toEqual(["ash:wallet-state"])
-      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider, switchChain: expect.any(Function)})
 
       newer.release()
       await until(() => page.dispatched.length === 2)
-      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider, switchChain: expect.any(Function)})
     })
 
     // Address and app identity say the wallet is the same; only the resolved
@@ -1995,7 +2004,7 @@ describe("Privy session bridge", () => {
       page.providerState.activeWallet = refresh.wallet
       page.rerender()
       await until(refresh.held)
-      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider})
+      expect(activeEthereumWallet()).toEqual({address: lower, provider: first.provider, switchChain: expect.any(Function)})
 
       refresh.release()
       await until(() => activeEthereumWallet()?.provider === replacement)
@@ -2168,8 +2177,8 @@ describe("Privy session bridge", () => {
     const first = {request: vi.fn()}
     const expected = {request: vi.fn()}
     const wallets: Array<[string, ConnectedEthereumWallet]> = [
-      ["0x2222222222222222222222222222222222222222", {provider: first, disconnect: vi.fn()}],
-      ["0x1111111111111111111111111111111111111111", {provider: expected, disconnect: vi.fn()}],
+      ["0x2222222222222222222222222222222222222222", {provider: first, switchChain: vi.fn(), disconnect: vi.fn()}],
+      ["0x1111111111111111111111111111111111111111", {provider: expected, switchChain: vi.fn(), disconnect: vi.fn()}],
     ]
 
     expect(

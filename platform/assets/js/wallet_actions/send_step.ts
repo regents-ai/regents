@@ -2,8 +2,11 @@ import type {Address, Hash, Hex} from "viem"
 
 import type {EthereumProvider, SelectedWallet} from "./connected_wallet"
 
-/** The chain a step goes to, as the server names it for the wallet's prompt. */
-export type StepChain = {chain_id: number; name: string; rpc_url: string}
+/**
+ * The chain a step goes to. The server's review also names it and its public
+ * node; the wallet takes those from Privy's own list of networks instead.
+ */
+export type StepChain = {chain_id: number}
 
 /** One transaction a button sends, built on the server. */
 export type TransactionStep = {kind: "transaction"; step: string; to: Address; data: Hex; value: Hex}
@@ -15,7 +18,7 @@ export type Step = TransactionStep | SignatureStep
 
 /** Nothing reached the wallet's send; the reason picks the words the server shows. */
 export class NothingSent extends Error {
-  constructor(readonly reason: "step_unknown" | "wallet_unavailable" | "network_mismatch") {
+  constructor(readonly reason: "step_unknown" | "wallet_unavailable" | "switch_declined" | "network_mismatch") {
     super(reason)
   }
 }
@@ -88,6 +91,9 @@ export function failure(sending: boolean, error: unknown): Failure {
 }
 
 // The wallet is on the step's chain and account, and still the one Privy holds.
+// A wallet on another chain is asked to switch on every press, through Privy's
+// own switch: a person who says no hears that they did, and any other failure,
+// or a wallet still elsewhere afterwards, is told to change network in the app.
 async function ready(
   chain: StepChain,
   signer: Address,
@@ -97,7 +103,11 @@ async function ready(
   if (!selected) throw new NothingSent("wallet_unavailable")
   const {provider} = selected
 
-  if ((await chainId(provider)) !== chain.chain_id) await switchChain(provider, chain)
+  if ((await chainId(provider)) !== chain.chain_id) {
+    await selected.switchChain(chain.chain_id).catch((error: unknown) => {
+      throw new NothingSent(hasCode(error, 4001) ? "switch_declined" : "network_mismatch")
+    })
+  }
 
   const [account] = await accounts(provider)
   // Wallets answer addresses in any letter case.
@@ -106,30 +116,6 @@ async function ready(
   // Privy may have swapped the wallet during those reads; this check makes no request.
   if (wallet()?.provider !== provider) throw new NothingSent("wallet_unavailable")
   return provider
-}
-
-/** Asks the wallet onto `chain`, adding it first when the wallet does not know it. */
-async function switchChain(provider: EthereumProvider, chain: StepChain): Promise<void> {
-  const chainId = `0x${chain.chain_id.toString(16)}`
-  try {
-    try {
-      await provider.request({method: "wallet_switchEthereumChain", params: [{chainId}]})
-    } catch (error) {
-      if (!hasCode(error, 4902)) throw error
-      await provider.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId,
-          chainName: chain.name,
-          nativeCurrency: {name: "Ether", symbol: "ETH", decimals: 18},
-          rpcUrls: [chain.rpc_url],
-        }],
-      })
-      await provider.request({method: "wallet_switchEthereumChain", params: [{chainId}]})
-    }
-  } catch {
-    throw new NothingSent("network_mismatch")
-  }
 }
 
 /** The chain the wallet is on now; -1 when it does not say. */

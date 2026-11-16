@@ -6783,3 +6783,18 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Account, Account Points, Stake and health answer. No
   signed-in page and no filled row has been read.
 - Rollback: v327's image main-03ab23999618.
+
+## 2026-11-16 — Wallets move to Base through Privy's own switch
+
+- A Stake or Redeem press from a wallet on another network now asks the wallet to move
+  to Base through Privy's own switch for that wallet, which knows how each wallet app
+  adds a network it lacks. The site's own switch and add-network request are removed.
+  Privy is told Base is the one network wallets connect on and switch to (the
+  `wallet-chain-id` line in the page head, from `Regents.ChainClient.base/0`).
+- Every press asks again while the wallet stays elsewhere. Saying no now reads "Your
+  wallet declined the switch to Base. Nothing was sent."; a switch that fails, or leaves
+  the wallet on another network, reads "Your wallet isn't on Base. Change the network to
+  Base in your wallet app, then press again. Nothing was sent." Both shake, and the
+  visit log records the new `switch_declined` reason.
+- Ported from the template's commit dc372dee. Checked with the stand-in wallet only; no
+  real wallet app, and no phone wallet over WalletConnect, has been tried.

@@ -11,6 +11,7 @@ import {
   walletDisconnected,
   type ConnectedEthereumWallet,
   type EthereumProvider,
+  type SwitchChain,
 } from "../js/wallet_actions/connected_wallet"
 
 const first = "0x1111111111111111111111111111111111111111"
@@ -20,8 +21,12 @@ function provider(): EthereumProvider {
   return {request: vi.fn(async () => undefined)}
 }
 
+function switchChain(): SwitchChain {
+  return vi.fn(async () => undefined)
+}
+
 function connected(walletProvider: EthereumProvider = provider()): ConnectedEthereumWallet {
-  return {provider: walletProvider, disconnect: vi.fn()}
+  return {provider: walletProvider, switchChain: switchChain(), disconnect: vi.fn()}
 }
 
 function memoryStorage() {
@@ -53,11 +58,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("P1_ACTIVE_WALLET_ONLY: Privy's selection is the Stake wallet", () => {
-  it("publishes the selected wallet under its lowercased address", () => {
+  it("publishes the selected wallet under its lowercased address, with its own switch", () => {
     const selected = provider()
-    replaceActiveEthereumWallet({address: first.toUpperCase(), provider: selected})
+    const switches = switchChain()
+    replaceActiveEthereumWallet({address: first.toUpperCase(), provider: selected, switchChain: switches})
 
-    expect(activeEthereumWallet()).toEqual({address: first, provider: selected})
+    expect(activeEthereumWallet()).toEqual({address: first, provider: selected, switchChain: switches})
 
     replaceActiveEthereumWallet(null)
     expect(activeEthereumWallet()).toBeNull()
@@ -85,17 +91,18 @@ describe("P1_ACTIVE_WALLET_ONLY: Privy's selection is the Stake wallet", () => {
   // Redeem keeps reading the connected set by expected signer.
   // Publishing an active wallet changes neither answer.
   it("leaves the shared connected-wallet lookup untouched", () => {
-    const one = provider()
-    const two = provider()
+    const one = connected()
+    const two = connected()
     replaceConnectedEthereumWallets([
-      [first, connected(one)],
-      [second, connected(two)],
+      [first, one],
+      [second, two],
     ])
-    replaceActiveEthereumWallet({address: second, provider: two})
+    replaceActiveEthereumWallet({address: second, provider: two.provider, switchChain: two.switchChain})
 
-    expect(connectedEthereumWallet(first)?.provider).toBe(one)
-    expect(connectedEthereumWallet(second)?.provider).toBe(two)
-    expect(connectedEthereumWallet()?.provider).toBe(one)
+    // Each wallet found comes with its own switch, never another wallet's.
+    expect(connectedEthereumWallet(first)).toEqual({address: first, provider: one.provider, switchChain: one.switchChain})
+    expect(connectedEthereumWallet(second)).toEqual({address: second, provider: two.provider, switchChain: two.switchChain})
+    expect(connectedEthereumWallet()?.provider).toBe(one.provider)
     expect(connectedEthereumWallet("0x3333333333333333333333333333333333333333")).toBeNull()
   })
 
@@ -126,7 +133,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
       [first, one],
       [second, two],
     ])
-    replaceActiveEthereumWallet({address: first, provider: one.provider})
+    replaceActiveEthereumWallet({address: first, provider: one.provider, switchChain: one.switchChain})
 
     await disconnectEveryEthereumWallet(walletEvents)
 
@@ -153,7 +160,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
     const walletEvents = new EventTarget()
     const silent = connected({request: () => new Promise(() => undefined)})
     replaceConnectedEthereumWallets([[first, silent]])
-    replaceActiveEthereumWallet({address: first, provider: silent.provider})
+    replaceActiveEthereumWallet({address: first, provider: silent.provider, switchChain: silent.switchChain})
 
     const releasing = disconnectEveryEthereumWallet(walletEvents)
     await Promise.resolve()
@@ -170,7 +177,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
       ["https://regents.sh", false],
     ] as const) {
       stubWindow(address)
-      const testWallet = {address: first, provider: provider()}
+      const testWallet = {address: first, provider: provider(), switchChain: switchChain()}
       window.__regentsTestWallet = testWallet
       expect(activeEthereumWallet(), address).toEqual(drives ? testWallet : null)
     }
@@ -178,7 +185,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
 
   it("keeps the browser test wallet gone until the visitor connects again", async () => {
     stubWindow("http://127.0.0.1:4002")
-    const testWallet = {address: first, provider: provider()}
+    const testWallet = {address: first, provider: provider(), switchChain: switchChain()}
     window.__regentsTestWallet = testWallet
 
     expect(activeEthereumWallet()).toEqual(testWallet)
@@ -204,7 +211,7 @@ describe("DISCONNECT_RELEASES_EVERY_WALLET: Disconnect ends the wallet connectio
     expect(walletDisconnected()).toBe(true)
     const returning = connected()
     replaceConnectedEthereumWallets([[first, returning]])
-    replaceActiveEthereumWallet({address: first, provider: returning.provider})
+    replaceActiveEthereumWallet({address: first, provider: returning.provider, switchChain: returning.switchChain})
     expect(activeEthereumWallet()).toBeNull()
     expect(connectedEthereumWallet(first)).toBeNull()
     forgetWalletDisconnected()
