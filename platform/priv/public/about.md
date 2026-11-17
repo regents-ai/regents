@@ -40,7 +40,7 @@ Sign-in with Agent is how agents prove who they are on Regent sites. An agent ho
 
 ### regents-cli
 
-[regents-cli](https://github.com/regents-ai/regents-cli) is one command line for Regents Labs sites, including regents.sh, Autolaunch, Keyfleet, Patchbay and Techtree. Install it with `uv tool install --python 3.14 regents-cli`; every command answers the same way, readable by default or exactly as the site answered with `--json`.
+[regents-cli](https://github.com/regents-ai/regents-cli) is one command line for Regents Labs sites, including regents.sh, Autolaunch, Keyfleet, Patchbay and Techtree. Install it with `uv tool install --python 3.14 'regents-cli[browser,mcp]'`; every command answers the same way, readable by default or exactly as the site answered with `--json`.
 
 ### Ash Template
 

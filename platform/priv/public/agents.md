@@ -12,7 +12,7 @@ One sign-in works across every Regent site, and so does a pairing. A person can 
 ## 1. Install and sign in
 
 ```sh
-uv tool install regents-cli==1.10.30
+uv tool install --python 3.14 'regents-cli[browser,mcp]==1.10.30'
 regents --version
 regents auth login --site regents
 regents protocol doctor

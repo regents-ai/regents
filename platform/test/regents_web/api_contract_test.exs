@@ -464,7 +464,9 @@ defmodule RegentsWeb.ApiContractTest do
 
   test "the tool list names the regents-cli release the agent guide installs", %{conn: conn} do
     [installed] =
-      Regex.run(~r/uv tool install regents-cli==(\S+)/, File.read!("priv/public/agents.md"),
+      Regex.run(
+        ~r/uv tool install --python 3\.14 'regents-cli\[browser,mcp\]==([^']+)'/,
+        File.read!("priv/public/agents.md"),
         capture: :all_but_first
       )
 

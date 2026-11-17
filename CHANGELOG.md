@@ -6847,3 +6847,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Stake and health answer; an unsigned agent read is
   refused as before. No signed agent request was run against it.
 - Rollback: v330's image main-7e91c6d4bacf.
+
+## 2026-11-17 — Install lines name both optional parts of regents-cli
+
+- Every install line an agent is shown now reads
+  `uv tool install --python 3.14 'regents-cli[browser,mcp]==1.10.30'`: a later install
+  replaces the tool with exactly what its line names, so a line without the parts dropped
+  the browser and MCP parts an earlier one had installed. Agent guide, pairing guide,
+  the short guide for AI tools, the agent start page and the About page.
+- scripts/check-siwa-latest.sh checks that form (the template's a5e06050), so the
+  script now differs from the template's only in this site's three places.

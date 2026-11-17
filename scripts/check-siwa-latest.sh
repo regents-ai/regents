@@ -10,8 +10,10 @@
 #   scripts/check-siwa-latest.sh <the Makefile's REGENTS_CLI_REV>
 #
 # regents-cli: the pin is the newest release's tag commit; the agent guide names
-# the release, that commit and the wheel's SHA256; every install line and
-# capabilities.json's cli.release name the release. The SIWA library:
+# the release, that commit and the wheel's SHA256; every install line
+# (`'regents-cli[browser,mcp]==RELEASE'`, both parts, since a later install drops
+# the parts an earlier one chose) and capabilities.json's cli.release name the
+# release. The SIWA library:
 # siwa/siwa-elixir/apps/siwa at the elixir-utils commit platform/mix.exs pins is
 # the same folder, file for file, as on elixir-utils main. The folder is
 # compared, not the history, so a site whose pin is its own line plus the SIWA
@@ -51,11 +53,11 @@ fail() {
 
 [ "$pin" = "$tag" ] ||
   fail "regents-cli $latest is the newest release: move REGENTS_CLI_REV in the Makefile from $pin to $tag."
-for word in "regents-cli==$latest" "$tag" "$wheel"; do
+for word in "regents-cli[browser,mcp]==$latest" "$tag" "$wheel"; do
   grep -qF "$word" "$guide" ||
     fail "regents-cli $latest is the newest release: $guide does not name $word."
 done
-stale=$(grep -rnoE 'regents-cli==[0-9]+(\.[0-9]+)*' "${install_lines[@]}" | grep -vE "==${latest//./\\.}\$" || true)
+stale=$(grep -rnoE 'regents-cli\[browser,mcp\]==[0-9]+(\.[0-9]+)*' "${install_lines[@]}" | grep -vE "==${latest//./\\.}\$" || true)
 [ -z "$stale" ] || fail "regents-cli $latest is the newest release: these install lines name another release:
 $stale"
 release=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["cli"]["release"])' "$capabilities")
