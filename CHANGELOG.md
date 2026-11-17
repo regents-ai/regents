@@ -6887,3 +6887,8 @@ seasons), on the shared Points library regents.sh was already on.
 - platform/playwright.config.ts: one browser for every three cores, at most five (it was
   one for every two, at most twelve). The Mac runs three checks at once (Sean's 263 a,
   template 9ce57ec5). Makefile and platform/README.md say the same.
+
+## 2026-11-17 — Names regents-cli 1.10.31
+
+- The install lines, the agent guide's commit and file sum, the Makefile's pin and the
+  tool manifest name regents-cli 1.10.31 (commit 2e8b98c7), the newest release.
