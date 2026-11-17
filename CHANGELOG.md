@@ -6863,3 +6863,10 @@ seasons), on the shared Points library regents.sh was already on.
 - v332, commit 59d0add1. Full check exit 0 on 59d0add1, six gates. No migration.
 - Live read, signed out: the agent guide, pairing guide and short guide show the new line.
 - Rollback: v331's image main-082220035534.
+
+## 2026-11-17 — Site tool lists are kept five minutes, not a day
+
+- platform/lib/regents/site_tools.ex kept each site's tool list for 24 hours on each
+  machine, so the list shown here could disagree with a site for a day and more. It is
+  now kept five minutes. Mirror of the template's commit c3f9fb8f (rollout
+  /Users/sean/Documents/regent/control/rollouts/2026-11-17-tool-lists-five-minutes.md).
