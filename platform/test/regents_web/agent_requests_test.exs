@@ -139,6 +139,26 @@ defmodule RegentsWeb.AgentRequestsTest do
     assert envelope["body_digest"] == Siwa.content_digest_for_body(body)
   end
 
+  # No body and an empty body are one signed request: neither names a digest.
+  test "a signed request with an empty body sends no body digest", %{conn: conn} do
+    {person, _account} = person!()
+    issued = RegentAgents.issue_pairing_code!(actor: person)
+    siwa_verifies(@agent_wallet)
+    assert conn |> pair(issued.code) |> response(201)
+    assert_received {:verified, _audience, _pairing}
+
+    conn =
+      conn
+      |> recycle()
+      |> put_req_header("content-type", "application/json")
+      |> post("/api/agent/v1/claims", "")
+
+    assert %{"claims" => [], "next" => nil} = json_response(conn, 200)
+
+    assert_received {:verified, ["regents-test"], %{"path" => "/api/agent/v1/claims"} = envelope}
+    assert envelope["body_digest"] == nil
+  end
+
   test "a paired agent reads its person's Points under /api/v1/account", %{conn: conn} do
     {person, _account} = person!()
     issued = RegentAgents.issue_pairing_code!(actor: person)

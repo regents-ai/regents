@@ -14,11 +14,6 @@ defmodule RegentsWeb.Plugs.PairedAgent do
     conn = put_resp_header(conn, "cache-control", "no-store")
 
     conn =
-      if conn.assigns[:raw_body] == "",
-        do: %{conn | assigns: Map.delete(conn.assigns, :raw_body)},
-        else: conn
-
-    conn =
       Siwa.AgentAuthPlug.call(conn,
         client: Broker,
         hooks: RegentAgents.HTTP.Hooks,

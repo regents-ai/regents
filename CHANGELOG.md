@@ -6822,3 +6822,16 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: home, Stake, Redeem and health answer. No real wallet has
   pressed a button on it.
 - Rollback: v329's image main-fe527c84b4a6.
+
+## 2026-11-17 — No body and an empty body are one signed request
+
+- Shared library pin moved from 6ed42536 to 18f9c405, the branch
+  eu/empty-body-on-6ed4-1117: the old pin plus only the sign-in change (rollout
+  /Users/sean/Documents/regent/control/rollouts/2026-11-17-empty-body-one-request.md).
+  An agent may sign the empty body's digest or leave it off, and both are taken.
+  Nothing else in the library moves; the library's main line (receipts, Points and
+  the rest) stays a separate decision of Sean's.
+- platform/lib/regents_web/plugs/paired_agent.ex loses its own "drop an empty body"
+  step; the library does it. One test of an empty signed body in
+  platform/test/regents_web/agent_requests_test.exs.
+- This site passed none of the removed options and named none of the removed refusals.
