@@ -146,8 +146,8 @@ contains the newest change to `siwa/siwa-elixir/apps/siwa`. For focused changes,
 exercise the changed behavior; retain the full gate for protected changes.
 
 It runs `mix precommit`, builds the assets, then runs the TypeScript typecheck, the Vitest unit suite and
-the browser walk in `test/browser`: headless Chromium, one browser for every two of the
-machine's cores (at most twelve), all against one test server and its database. `mix precommit`
+the browser walk in `test/browser`: headless Chromium, one browser for every three of the
+machine's cores (at most five), all against one test server and its database. `mix precommit`
 compiles with warnings as errors, checks unused dependency locks and formatting, runs
 Credo in strict mode and Sobelow, holds the compile-connected `xref` graph under its limit,
 runs the test suite with warnings as errors, and verifies the Ash codegen and route handoff

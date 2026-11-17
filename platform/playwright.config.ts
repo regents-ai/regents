@@ -2,13 +2,13 @@ import {availableParallelism, tmpdir} from "node:os"
 import {join} from "node:path"
 import {defineConfig, devices} from "@playwright/test"
 
-// One browser for every two of the machine's cores, so the walk's server, its database
-// and the check's other gates have the rest; at most twelve, past which the one server
-// is the limit. Every browser reaches that one server, its one database and the state
+// One browser for every three of the machine's cores, at most five: the Mac runs three
+// checks at once, and each walk's server, its database and the check's other gates need
+// cores too. Every browser reaches that one server, its one database and the state
 // prepared before it starts, so a file whose tests change something its own other
 // tests read keeps them in order (`test.describe.configure`), and a test that changes
 // what other files read signs in as its own person.
-const workers = Math.max(1, Math.min(12, Math.floor(availableParallelism() / 2)))
+const workers = Math.max(1, Math.min(5, Math.floor(availableParallelism() / 3)))
 const port = process.env.PORT || "4002"
 const baseURL = `http://127.0.0.1:${port}`
 

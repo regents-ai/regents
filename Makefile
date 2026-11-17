@@ -7,7 +7,7 @@ help:
 	@echo "any that failed. A gate slower than its budget (CHECK_BUDGETS) gets a SLOW line;"
 	@echo "that warns and never fails. Run check-platform, check-required-fixes, check-cli,"
 	@echo "check-siwa-latest or check-contracts for one component; check-platform includes"
-	@echo "the browser walk in platform/test/browser, one headless browser per two cores."
+	@echo "the browser walk in platform/test/browser, one headless browser per three cores."
 	@echo "Set MIX_TEST_PARTITION (an underscore and a short id) first. make release checks,"
 	@echo "then builds and smoke-checks the committed tree. make deploy puts the committed"
 	@echo "HEAD on regents.sh."

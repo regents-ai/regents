@@ -6876,3 +6876,14 @@ seasons), on the shared Points library regents.sh was already on.
 - v333, commit 71ecdbbb. Full check exit 0 on 71ecdbbb, six gates. No migration.
 - Live read, signed out: home, health and the agents page answer.
 - Rollback: v332's image main-59d0add11592.
+
+## 2026-11-17 — Security fixes in plug 1.20.4 and bandit 1.15.0; the walk runs five browsers
+
+- platform/mix.lock: plug 1.20.3 to 1.20.4 (CVE-2026-120287: empty headers in a multipart
+  upload now count towards the length limit) and bandit 1.14.1 to 1.15.0
+  (GHSA-j9wq-h5xx-5qx5: a small compressed HTTP/2 trailer section could cause large CPU
+  use and log volume). telemetry 1.4.2 to 1.4.3 comes with plug. plug_crypto was already
+  2.2.1 (CVE-2026-105963) and phoenix 1.8.16, the newest of each.
+- platform/playwright.config.ts: one browser for every three cores, at most five (it was
+  one for every two, at most twelve). The Mac runs three checks at once (Sean's 263 a,
+  template 9ce57ec5). Makefile and platform/README.md say the same.
