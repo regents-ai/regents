@@ -6857,3 +6857,9 @@ seasons), on the shared Points library regents.sh was already on.
   the short guide for AI tools, the agent start page and the About page.
 - scripts/check-siwa-latest.sh checks that form (the template's a5e06050), so the
   script now differs from the template's only in this site's three places.
+
+## 2026-11-17 — Released v332 (install lines name both optional parts of regents-cli)
+
+- v332, commit 59d0add1. Full check exit 0 on 59d0add1, six gates. No migration.
+- Live read, signed out: the agent guide, pairing guide and short guide show the new line.
+- Rollback: v331's image main-082220035534.
