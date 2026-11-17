@@ -6835,3 +6835,8 @@ seasons), on the shared Points library regents.sh was already on.
   step; the library does it. One test of an empty signed body in
   platform/test/regents_web/agent_requests_test.exs.
 - This site passed none of the removed options and named none of the removed refusals.
+- /Users/sean/Documents/regent/worktrees/regents/credits-read-limit/scripts/check-siwa-latest.sh
+  now asks whether the pinned commit holds the sign-in library exactly as the
+  library's main line holds it, instead of whether it sits on that line. A branch
+  carrying the same library passes; an older library is still refused (the old pin
+  6ed42536 is).
