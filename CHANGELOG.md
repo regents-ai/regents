@@ -6840,3 +6840,10 @@ seasons), on the shared Points library regents.sh was already on.
   library's main line holds it, instead of whether it sits on that line. A branch
   carrying the same library passes; an older library is still refused (the old pin
   6ed42536 is).
+
+## 2026-11-17 — Released v331 (no body and an empty body are one signed request)
+
+- v331, commit 08222003. Full check exit 0 on 08222003, six gates. No migration.
+- Live read, signed out: home, Stake and health answer; an unsigned agent read is
+  refused as before. No signed agent request was run against it.
+- Rollback: v330's image main-7e91c6d4bacf.
