@@ -6956,3 +6956,9 @@ seasons), on the shared Points library regents.sh was already on.
 - /cloak (Sean's words, 18 Nov): the opening line ends after "via Tor and zkAPI."; the
   sentence saying it is in development is gone, since the download is not open yet.
   platform/lib/regents_web/live/cloak_live.ex.
+
+## 2026-11-18 — Released v337 (Cloak opening line)
+
+- v337, commit 0d96374e. Full check exit 0 on 0d96374e, six gates. No migration.
+- Live read, signed out: home, health and Cloak answer; the in-development sentence is gone.
+- Rollback: v336's image main-280ab9640135.
