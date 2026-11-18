@@ -6926,3 +6926,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The install lines, the agent guide's commit and file sum, the Makefile's pin and the
   tool manifest name regents-cli 1.10.32 (commit a972d344), the newest release.
+
+## 2026-11-18 — Released v335 (Stake's three-step tour)
+
+- v335, commit 01fc718b. Full check exit 0 on 01fc718b, six gates. No migration.
+- Live read, signed out: home, health and Stake answer; Stake carries the tour and the home page carries none.
+- Rollback: v334's image main-3f5d0b7c0fa9.
