@@ -376,7 +376,7 @@ defmodule RegentsWeb.ShellLive do
           product={@route_spec.route_id}
         />
 
-        <CloakLive.page :if={@route_spec.route_id == :cloak} />
+        <CloakLive.page :if={@route_spec.route_id == :cloak} client_tag={@client_tag} />
 
         <.live_component
           :if={

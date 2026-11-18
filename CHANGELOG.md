@@ -6962,3 +6962,20 @@ seasons), on the shared Points library regents.sh was already on.
 - v337, commit 0d96374e. Full check exit 0 on 0d96374e, six gates. No migration.
 - Live read, signed out: home, health and Cloak answer; the in-development sentence is gone.
 - Rollback: v336's image main-280ab9640135.
+
+## 2026-11-18 — Cloak page: Updates email box
+
+- /cloak (Sean's words, 18 Nov): an Updates band under the heading takes an email
+  address with "Notify me", and a good address gives way to "Thanks. We will email you
+  when Cloak is ready." A bad address shows "Enter a valid email address." beside the
+  field, and past 5 tries a minute from one network the field says "Too many tries. Wait
+  a minute and try again." Leaving an address already on the list answers the same, so
+  the page never says whether it was there. Nothing is emailed yet.
+- The addresses are kept in the site's own database, in lowercase, once each, with the
+  page they came from and when (`Regents.Updates.Subscriber`); no page, tool or read
+  action shows them. Migration `20261118215603_add_update_subscribers` adds one new
+  table, `regents_app.update_subscribers`, and its unique index; nothing existing changes.
+  platform/lib/regents/updates.ex, platform/lib/regents/updates/,
+  platform/lib/regents_web/components/cloak_updates.ex,
+  platform/lib/regents_web/live/cloak_live.ex, platform/lib/regents_web/live/shell_live.ex,
+  platform/assets/css/pages/cloak.css, platform/config/config.exs.

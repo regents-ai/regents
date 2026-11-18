@@ -1,11 +1,14 @@
 defmodule RegentsWeb.CloakLive do
   @moduledoc """
   The `/cloak` product page. Its one action is the Mac app's download, which
-  stays off, with the reason beside it, until a signed release exists.
+  stays off, with the reason beside it, until a signed release exists. Until
+  then a visitor can leave an email address to hear when it is ready
+  (`RegentsWeb.Components.CloakUpdates`).
   """
   use RegentsWeb, :html
 
   alias RegentsWeb.Cloak
+  alias RegentsWeb.Components.CloakUpdates
   alias RegentsWeb.HomeLive
   alias RegentsWeb.ProductLive
 
@@ -40,6 +43,8 @@ defmodule RegentsWeb.CloakLive do
           <span id="cloak-download-soon" class="cloak-download__soon">Coming soon</span>
         </div>
       </header>
+
+      <.live_component module={CloakUpdates} id="cloak-updates" client_tag={@client_tag} />
 
       <Regent.Structure.panel id="cloak-features" class="product-column rg-panel__body">
         <h2 class="product-kicker">Features</h2>

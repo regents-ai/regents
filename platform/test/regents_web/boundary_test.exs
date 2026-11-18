@@ -68,6 +68,9 @@ defmodule RegentsWeb.BoundaryTest do
     assert [ens_wallet_migration] =
              Path.wildcard("priv/repo/migrations/*_record_ens_wallet.exs")
 
+    assert [update_subscribers_migration] =
+             Path.wildcard("priv/repo/migrations/*_add_update_subscribers.exs")
+
     assert Enum.sort(Path.wildcard("priv/repo/migrations/*")) ==
              Enum.sort([
                extensions_migration,
@@ -87,7 +90,8 @@ defmodule RegentsWeb.BoundaryTest do
                error_tracker_migration,
                ash_functions_v7_migration,
                left_messages_migration,
-               ens_wallet_migration
+               ens_wallet_migration,
+               update_subscribers_migration
              ])
 
     # The sign-in time only adds a column and fills it for bound sessions.

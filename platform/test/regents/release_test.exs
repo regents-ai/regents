@@ -190,7 +190,8 @@ defmodule Regents.ReleaseTest do
              "regents",
              "schema_migrations",
              "session_authorities",
-             "staking_protocol_readings"
+             "staking_protocol_readings",
+             "update_subscribers"
            ]
 
     assert table_names(config, "regent_payments") == [

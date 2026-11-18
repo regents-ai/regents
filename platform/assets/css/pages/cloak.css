@@ -1,6 +1,6 @@
 @layer regents-product {
 /* Regents Cloak stands on the product page grammar (product.css). Only the
-   download and its reason need their own rules. */
+   download and its reason, and the Updates band, need their own rules. */
 
 .cloak-download {
   align-items: center;
@@ -38,5 +38,104 @@
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+/* Updates: a mail tile, the heading and its line, then the address and its
+   button on one row; the row drops under the words on a narrow screen. */
+.cloak-updates__panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 26rem);
+  align-items: center;
+  gap: 1rem 1.5rem;
+  padding: var(--rg-panel-padding);
+}
+
+.cloak-updates__icon {
+  display: grid;
+  place-items: center;
+  align-self: start;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  font-size: 1.25rem;
+}
+
+.cloak-updates__copy {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.cloak-updates__copy h2 {
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.cloak-updates__copy p {
+  max-width: 48ch;
+  color: var(--color-fg-muted);
+  line-height: 1.5;
+}
+
+.cloak-updates__form {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cloak-updates__field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The placeholder names the field; the label stays for screen readers. */
+.cloak-updates__field .rg-field__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cloak-updates__form .rg-button {
+  flex: none;
+  min-block-size: 2.75rem;
+}
+
+.cloak-updates__status:not(:has(*)) {
+  display: none;
+}
+
+.cloak-updates__done {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.4;
+}
+
+.cloak-updates__done .rg-icon {
+  flex: none;
+  color: var(--color-success);
+}
+
+@media (max-width: 47.999rem) {
+  .cloak-updates__panel {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .cloak-updates__status,
+  .cloak-updates__form {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 29.999rem) {
+  .cloak-updates__form {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 }

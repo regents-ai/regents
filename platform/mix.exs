@@ -192,8 +192,9 @@ defmodule Regents.MixProject do
         # The measured compile-connected baseline; lower it whenever references are removed.
         # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
         # Messages adds four, as every Ash domain does: the domain reads its resource, and the
-        # resource its two policy checks and its `run` module.
-        "xref graph --label compile-connected --fail-above 42",
+        # resource its two policy checks and its `run` module. Updates adds one: the domain
+        # reads its resource.
+        "xref graph --label compile-connected --fail-above 43",
         "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",
