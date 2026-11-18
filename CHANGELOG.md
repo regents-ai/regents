@@ -6950,3 +6950,9 @@ seasons), on the shared Points library regents.sh was already on.
 - v336, commit 280ab964. Full check exit 0 on 280ab964, six gates. No migration.
 - Live read, signed out: home, health and Cloak answer; Cloak shows the new heading and the Features list.
 - Rollback: v335's image main-01fc718b731e.
+
+## 2026-11-18 — Cloak page: shorter opening line
+
+- /cloak (Sean's words, 18 Nov): the opening line ends after "via Tor and zkAPI."; the
+  sentence saying it is in development is gone, since the download is not open yet.
+  platform/lib/regents_web/live/cloak_live.ex.

@@ -25,7 +25,7 @@ defmodule RegentsWeb.CloakLive do
         <p class="product-kicker">Regents Cloak</p>
         <h1 id="product-heading" tabindex="-1">Your private local agent in a simple Mac app.</h1>
         <p class="product-lede">
-          Slower on purpose, for 100% prompt + answer privacy via Tor and zkAPI. It is in development: nothing is released yet, and no protection is proven.
+          Slower on purpose, for 100% prompt + answer privacy via Tor and zkAPI.
         </p>
         <div class="product-actions cloak-download">
           <button
