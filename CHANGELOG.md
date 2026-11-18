@@ -6932,3 +6932,15 @@ seasons), on the shared Points library regents.sh was already on.
 - v335, commit 01fc718b. Full check exit 0 on 01fc718b, six gates. No migration.
 - Live read, signed out: home, health and Stake answer; Stake carries the tour and the home page carries none.
 - Rollback: v334's image main-3f5d0b7c0fa9.
+
+## 2026-11-18 — Cloak page: new heading, a feature list, fuller cards
+
+- /cloak (Sean's words, 18 Nov): the heading reads "Your private local agent in a simple
+  Mac app." and the lede "Slower on purpose, for 100% prompt + answer privacy via Tor and
+  zkAPI.", still followed by the line that nothing is released or proven.
+- A short Features list sits under the heading. The four cards, the six Protections and
+  the Limits say more of how each part works (local rewriting, a fresh Tor circuit per
+  conversation, cover requests, zkAPI payment, the sandbox), and the Limits name the
+  delay and the timing attack cover traffic does not stop.
+  platform/lib/regents_web/cloak.ex, platform/lib/regents_web/live/cloak_live.ex,
+  platform/lib/regents_web/public_documents.ex.

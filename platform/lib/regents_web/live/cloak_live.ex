@@ -13,6 +13,7 @@ defmodule RegentsWeb.CloakLive do
     assigns =
       assign(assigns,
         cards: Cloak.cards(),
+        features: Cloak.features(),
         protections:
           Enum.map(Cloak.protections(), &Map.merge(&1, %{status: :planned, link: nil})),
         limits: Cloak.limits()
@@ -22,9 +23,9 @@ defmodule RegentsWeb.CloakLive do
     <section id="cloak-page" class="product-page" aria-labelledby="product-heading">
       <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
         <p class="product-kicker">Regents Cloak</p>
-        <h1 id="product-heading" tabindex="-1">The private agent stack, ready to run.</h1>
+        <h1 id="product-heading" tabindex="-1">Your private local agent in a simple Mac app.</h1>
         <p class="product-lede">
-          One Mac app to install and run the whole setup. It is in development: nothing is released yet, and no protection is proven.
+          Slower on purpose, for 100% prompt + answer privacy via Tor and zkAPI. It is in development: nothing is released yet, and no protection is proven.
         </p>
         <div class="product-actions cloak-download">
           <button
@@ -39,6 +40,13 @@ defmodule RegentsWeb.CloakLive do
           <span id="cloak-download-soon" class="cloak-download__soon">Coming soon</span>
         </div>
       </header>
+
+      <Regent.Structure.panel id="cloak-features" class="product-column rg-panel__body">
+        <h2 class="product-kicker">Features</h2>
+        <ul class="product-audience">
+          <li :for={feature <- @features}>{feature}</li>
+        </ul>
+      </Regent.Structure.panel>
 
       <ProductLive.cards cards={@cards} />
 
@@ -64,7 +72,9 @@ defmodule RegentsWeb.CloakLive do
         </Regent.Structure.panel>
         <Regent.Structure.panel class="product-column rg-panel__body">
           <h2 class="product-kicker">Origin</h2>
-          <p>The private setup Vitalik Buterin described on 16 October, packaged for the Mac.</p>
+          <p>
+            The "paranoid mode" setup Vitalik Buterin described on 16 October, packaged for the Mac. A privacy proxy for any model, not another chat app.
+          </p>
           <nav class="product-family__links" aria-label="Origin">
             <ProductLive.external href={Cloak.post()}>Read the post</ProductLive.external>
           </nav>
