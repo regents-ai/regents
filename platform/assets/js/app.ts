@@ -40,6 +40,7 @@ import {PublicName} from "./hooks/public_name"
 import {SentList} from "./hooks/sent_list"
 import {MenuAgents} from "./hooks/menu_agents"
 import {ThemeSwitch} from "./hooks/theme_switch"
+import {Tour} from "./hooks/tour"
 import {ValueCard} from "./hooks/value_card"
 import {ResearchScrollCue} from "./hooks/research_scroll_cue"
 import {mountMotion} from "./motion"
@@ -232,6 +233,17 @@ const shellBehavior: Hook = {
     }
   },
 
+  // A page reached from another starts at its top. This runs as the new page is
+  // drawn, before its own parts start, so a part one of them brings into view as
+  // it starts (the Stake page's guided tour) stays in view. LiveView hands it the
+  // shell as the server has just drawn it.
+  beforeUpdate(this: ShellHook, next: unknown) {
+    const destination = (next as HTMLElement).dataset.destination ?? ""
+    if (this.shellState && shellDestinationChanged(this.shellState, {destination})) {
+      this.el.querySelector<HTMLElement>("#app-shell-scroller")?.scrollTo({top: 0})
+    }
+  },
+
   updated(this: ShellHook) {
     document.documentElement.dataset.brand = brandForShellApp(this.el.dataset.app)
     const incoming = {
@@ -240,9 +252,6 @@ const shellBehavior: Hook = {
     }
 
     const menuWasOpen = this.shellState?.menuOpen === true
-    const shouldScroll = this.shellState
-      ? shellDestinationChanged(this.shellState, incoming)
-      : false
     if (this.shellState) {
       this.shellState = reconcileShellState(this.shellState, incoming)
     }
@@ -251,9 +260,6 @@ const shellBehavior: Hook = {
       this.el.querySelector<HTMLButtonElement>("#mobile-menu-button")?.focus()
     }
     this.el.dataset.behaviorReady = "true"
-    if (shouldScroll) {
-      this.el.querySelector<HTMLElement>("#app-shell-scroller")?.scrollTo({top: 0})
-    }
   },
 
   destroyed(this: ShellHook) {
@@ -293,6 +299,7 @@ const hooks = {
   SentList,
   ShellBehavior: composeHooks(shellBehavior, ShellViews),
   ThemeSwitch,
+  Tour,
   ValueCard,
   VerifiedConnections,
 }

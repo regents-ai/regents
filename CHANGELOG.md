@@ -6898,3 +6898,26 @@ seasons), on the shared Points library regents.sh was already on.
 - v334, commit 3f5d0b7c. Full check exit 0 on 3f5d0b7c, six gates. No migration.
 - Live read, signed out: home, health, Stake, Account and the agent guide answer.
 - Rollback: v333's image main-71ecdbbb2d20.
+
+## 2026-11-18 — Stake plays a short guided tour the first time it opens
+
+- Sean, 18 November: no tour on the home page, and a three-step tour the first time a
+  person opens Stake. regents.sh had no home page tour, and none is added.
+- The template's guided tour, lifted as it is (ash-template main): the component
+  (platform/lib/regents_web/components/tour.ex, without its start button), its hook,
+  placement, light and shader (platform/assets/js/hooks/tour.ts, platform/assets/js/tour/),
+  platform/assets/css/components/tour.css and the `.tour` line of tokens/root.css.
+  motion/shared.ts gains `fadeIn` and theme_switch.ts shares `colourReader`, which it reads.
+- Stake (platform/lib/regents_web/live/stake_live.ex) plays it by itself the first time a
+  browser opens the page, and never again once it is ended (`regent:tour:stake`). Stake
+  rings the trade card, Share the first line of Payouts and Claim its no-lock-up line,
+  each on the page signed in or out, with a wallet open or not. Claim says "builds up as
+  payments arrive" where the brief said "builds up here", since that line shows no USDC.
+- The shell sends a newly reached page to its top as the page is drawn, before the page's
+  own parts start (platform/assets/js/app.ts), so the tour's first part stays in view when
+  Stake is reached from the sidebar. A part the tour brings into view stops 1rem inside
+  the screen's edge (pages/stake.css), so its ring shows whole.
+- Walks: every walk starts with the tour seen (platform/playwright.config.ts);
+  test/browser/tour.spec.ts walks it from nothing kept, stake.spec.ts proves a press on
+  Stake under the dimming reaches the wallet, and assets/test/tour_place.test.ts checks
+  where its pieces go.

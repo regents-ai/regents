@@ -48,7 +48,7 @@ const settling = spring({bounce: 0.2, duration: 300}).ease
  * Any colour the page can state, as red, green and blue from 0 to 1, with its
  * opacity; nothing for a colour that paints nothing.
  */
-function colourReader() {
+export function colourReader() {
   const canvas = document.createElement("canvas")
   canvas.width = 1
   canvas.height = 1

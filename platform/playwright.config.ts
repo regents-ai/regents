@@ -28,6 +28,13 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // Every walk starts with the Stake page's guided tour seen, so it never opens
+    // over what a walk presses. A walk signs in inside its own browser, which keeps
+    // the tour seen; tour.spec.ts starts with nothing kept.
+    storageState: {
+      cookies: [],
+      origins: [{origin: baseURL, localStorage: [{name: "regent:tour:stake", value: "seen"}]}],
+    },
   },
   webServer: {
     // Its own database, so what this server saves never reaches `mix test`.

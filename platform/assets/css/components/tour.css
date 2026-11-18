@@ -1,0 +1,154 @@
+@layer regents-product {
+/* The guided tour (`RegentsWeb.Components.Tour`, hooks/tour.ts): a layer
+   over the whole screen, in the tip's place, that takes no presses; only its
+   card does. The dimming and the ring are pieces one pixel square that the
+   script moves and stretches by transform alone. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--rg-layer-tip);
+  overflow: clip;
+  pointer-events: none;
+}
+
+.tour__stage,
+.tour__shade,
+.tour__edge {
+  position: absolute;
+  inset: 0;
+}
+
+/* Only the script moves the pieces and the card, so none of them takes the
+   brief transition the site gives every change when less motion is asked
+   for: the ring is where its part is on the frame it gets there. */
+.tour__piece,
+.tour__spot {
+  transition-property: none;
+}
+
+.tour__piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  transform-origin: 0 0;
+}
+
+/* The page dims toward charcoal, as it does behind an open window. */
+.tour__shade > .tour__piece {
+  background: light-dark(
+    color-mix(in oklab, var(--palette-charcoal) 32%, transparent),
+    color-mix(in oklab, var(--palette-charcoal) 64%, transparent)
+  );
+}
+
+.tour__edge > .tour__piece {
+  background: var(--ash-signal);
+}
+
+/* The light round the ring shows once a first frame of it has really been
+   drawn; until then, and without it, the ring is the lines above. */
+.tour__light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.tour[data-tour-ready="true"] .tour__light {
+  visibility: visible;
+}
+
+/* A tip: a firm edge on the page's own fill. On a phone it spans the screen,
+   less the page's gutter on each side. */
+.tour__spot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(17.5rem, calc(100% - 2 * var(--space-2)));
+}
+
+.tour__card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--ash-quiet);
+  background: var(--ash-ground);
+  color: var(--ash-ink);
+  box-shadow: var(--rg-layer-tip-shadow);
+  font-family: var(--font-family-ui);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+  pointer-events: auto;
+}
+
+/* A card leaving lets a press through to the page under it. */
+.tour__stage[data-leaving] .tour__card {
+  pointer-events: none;
+}
+
+.tour__dots {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tour__dots > li {
+  width: 6px;
+  height: 6px;
+  background: var(--ash-raised);
+}
+
+.tour__dots > [data-current] {
+  background: var(--ash-signal);
+}
+
+.tour__words {
+  display: grid;
+}
+
+.tour__title {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: var(--type-headline-size);
+  font-weight: 400;
+  line-height: var(--type-headline-line);
+}
+
+.tour__text {
+  margin: 0;
+}
+
+.tour__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-block-start: var(--space-1);
+}
+
+.tour__actions > [data-tour-skip] {
+  margin-inline-end: auto;
+}
+
+@media (max-width: 47.99rem) {
+  .tour__spot {
+    width: calc(100% - 2 * var(--space-2));
+  }
+}
+
+@media (forced-colors: active) {
+  .tour__shade {
+    display: none;
+  }
+
+  .tour__edge > .tour__piece,
+  .tour__dots > [data-current] {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+}
+}

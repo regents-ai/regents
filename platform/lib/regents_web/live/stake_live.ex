@@ -1,8 +1,29 @@
 defmodule RegentsWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
-  alias RegentsWeb.Components.Loading
+  alias RegentsWeb.Components.{Loading, Tour}
   alias RegentsWeb.{TokenDisplay, TokenLinks}
+
+  # The tour that plays by itself the first time a browser opens this page. Each
+  # step rings a part that is on the page whether or not a wallet is open.
+  @tour [
+    %{
+      target: "#staking-actions",
+      title: "Stake",
+      text: "Stake $REGENT here to earn a share of what Regents products take in."
+    },
+    %{
+      target: "#staking-how-split",
+      title: "Share",
+      text:
+        "Each USDC payment is shared with stakers by their share of all $REGENT, and the rest goes to the Regents Labs treasury."
+    },
+    %{
+      target: "#staking-how-claim",
+      title: "Claim",
+      text: "Your USDC builds up as payments arrive, and you can claim it or unstake at any time."
+    }
+  ]
 
   attr :lease, :map, required: true
   attr :staking, :map, default: nil
@@ -18,6 +39,7 @@ defmodule RegentsWeb.StakeLive do
       assigns
       |> assign(:dashboard, staking_dashboard(assigns.staking))
       |> assign(:signed_in, not is_nil(assigns.account))
+      |> assign(:tour, @tour)
 
     ~H"""
     <section
@@ -216,6 +238,8 @@ defmodule RegentsWeb.StakeLive do
           </dl>
         </div>
       </Regent.Primitives.disclosure>
+
+      <Tour.tour id="staking-tour" name="stake" steps={@tour} />
     </section>
     """
   end
@@ -340,7 +364,7 @@ defmodule RegentsWeb.StakeLive do
     >
       <h2 id="staking-how-heading">Payouts</h2>
       <ol>
-        <li>
+        <li id="staking-how-split">
           Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷
           <.read staking={@staking} key={:revenue_share_denominator} loading={@loading} />.
         </li>
@@ -349,7 +373,7 @@ defmodule RegentsWeb.StakeLive do
           Revenue comes from every Regents Labs product: Keyfleet, Autolaunch, Patchbay and
           Techtree. The 80 USDC from each Animata redemption goes to the staking contract too.
         </li>
-        <li>Claim USDC at any time. There is no lock-up.</li>
+        <li id="staking-how-claim">Claim USDC at any time. There is no lock-up.</li>
         <li>
           REGENT rewards come from a reward pool,
           <.read staking={@staking} key={:reward_inventory} loading={@loading} /> today. The

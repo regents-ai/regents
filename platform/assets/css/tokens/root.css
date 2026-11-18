@@ -87,10 +87,11 @@
 }
 
 /* The shared pieces (buttons, fields, notices, addresses, Points, the account
-   pages) read the design system's colour roles; on the app pages every role is
-   one of the six. */
+   pages) read the design system's colour roles; on the app pages, and on the
+   guided tour's card over any page, every role is one of the six. */
 #app-shell,
-.legal-root {
+.legal-root,
+.tour {
   --color-bg: var(--ash-ground);
   --color-surface: var(--ash-ground);
   --color-surface-elevated: var(--ash-ground);

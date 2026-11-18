@@ -23,6 +23,10 @@ export const CLIPPED_CHAR = "<span class='split-clip'><span data-char='{i}'>{val
 export const still = (el: Element) =>
   matchMedia("(prefers-reduced-motion: reduce)").matches || el.closest("[data-motion='reduced']") !== null
 
+// With less motion asked for, an arrival only fades in.
+export const fadeIn = (targets: Element | Element[]) =>
+  play(targets, {opacity: {from: 0}, duration: BASE, ease: EASE_OUT})
+
 // A click from Enter or Space reports no pointer presses. Keyboard-driven UI
 // answers at once rather than animating.
 export const byPointer = (event: MouseEvent) => event.detail > 0

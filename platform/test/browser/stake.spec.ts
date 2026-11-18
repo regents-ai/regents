@@ -3,6 +3,7 @@ import {expect, test, type Locator, type Page} from "./support/offline"
 
 import {addressesOutOfCase, bareAddresses} from "./support/addresses"
 import {identityTokenFor} from "./support/authenticated_privy"
+import {card as tourCard, next as tourNext, title as tourTitle} from "./support/tour"
 import {boxes, restingBoxes, coveredControls} from "./support/wallet_notes"
 
 const wallet = "0x1111111111111111111111111111111111111111"
@@ -1167,6 +1168,35 @@ test("Claim USDC still reaches the wallet while USDC rewards wait on a top-up", 
   expect(await sent(page, 1, usdcShortWallet)).toEqual({
     to: stakingContract,
     call: {functionName: "claimUSDC", args: [usdcShortWallet]},
+  })
+})
+
+// The guided tour only points (tour.spec.ts): the first time Stake opens it plays,
+// and while it shows, the amount box and the Stake button under its dimming take
+// their presses, and the press reaches the wallet.
+test.describe("with the guided tour showing", () => {
+  test.use({storageState: {cookies: [], origins: []}})
+
+  test("a press on Stake under the dimming still reaches the wallet", async ({page}) => {
+    await installWallet(page)
+    await signIn(page)
+    await page.goto("/stake")
+    await selectWallet(page, wallet)
+    await expect(tourTitle(page)).toHaveText("Stake")
+    await tourNext(page).click()
+    await expect(tourTitle(page)).toHaveText("Share")
+
+    await page.getByLabel("Amount", {exact: true}).fill("1")
+    const primary = page.locator("#staking-primary")
+    await expect(primary).toHaveText(/Approve REGENT/)
+    await primary.click()
+    await expect.poll(() => sendCount(page)).toBe(1)
+    expect(await sent(page, 1)).toEqual({
+      to: "0x6f89bca4ea5931edfcb09786267b251dee752b07",
+      call: {functionName: "approve", args: [stakingContract, 2n ** 256n - 1n]},
+    })
+    await expect(tourCard(page)).toBeVisible()
+    await expect(tourTitle(page)).toHaveText("Share")
   })
 })
 

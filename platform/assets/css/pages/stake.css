@@ -148,6 +148,14 @@
 .stake-layout > .stake-figures { grid-area: figures; }
 .stake-layout > .stake-how { grid-area: payouts; }
 
+/* The guided tour's three parts: one the tour brings into view stops this far
+   inside the screen's edge, so the ring round it shows whole. */
+#staking-actions,
+#staking-how-split,
+#staking-how-claim {
+  scroll-margin: 1rem;
+}
+
 .stake-actions {
   padding: var(--rg-panel-padding);
 }
