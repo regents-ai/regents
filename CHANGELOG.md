@@ -6993,3 +6993,9 @@ seasons), on the shared Points library regents.sh was already on.
   "email addresses you leave for product updates, such as Cloak's release". Its effective
   date is 18 November 2026 and its version 1.2, as the policy says a change brings.
   platform/priv/legal/privacy.md.
+
+## 2026-11-18 — Released v339 (Privacy Policy line)
+
+- v339, commit 17d6ed3a. Full check exit 0 on 17d6ed3a, six gates. No migration.
+- Live read, signed out: home, health and Privacy answer; Privacy shows the new line and date.
+- Rollback: v338's image main-802e7129838a.
