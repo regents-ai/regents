@@ -6979,3 +6979,10 @@ seasons), on the shared Points library regents.sh was already on.
   platform/lib/regents_web/components/cloak_updates.ex,
   platform/lib/regents_web/live/cloak_live.ex, platform/lib/regents_web/live/shell_live.ex,
   platform/assets/css/pages/cloak.css, platform/config/config.exs.
+
+## 2026-11-18 — Released v338 (Cloak Updates email box)
+
+- v338, commit 802e7129. Full check exit 0 on 802e7129, six gates. Migration
+  20261118215603_add_update_subscribers: one new table.
+- Live read, signed out: home, health and Cloak answer; Cloak shows the Updates form.
+- Rollback: v337's image main-0d96374e5592; the new table may stay.
