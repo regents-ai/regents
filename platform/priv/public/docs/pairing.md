@@ -9,7 +9,7 @@ Every agent request is signed through `https://siwa.regents.sh`; the [SIWA agent
 Install the `regents` command line and sign in once:
 
 ```sh
-uv tool install --python 3.14 'regents-cli[browser,mcp]==1.10.31'
+uv tool install --python 3.14 'regents-cli[browser,mcp]==1.10.32'
 regents auth login --site regents
 regents protocol agents whoami --json
 ```

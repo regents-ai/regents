@@ -6921,3 +6921,8 @@ seasons), on the shared Points library regents.sh was already on.
   test/browser/tour.spec.ts walks it from nothing kept, stake.spec.ts proves a press on
   Stake under the dimming reaches the wallet, and assets/test/tour_place.test.ts checks
   where its pieces go.
+
+## 2026-11-18 — Names regents-cli 1.10.32
+
+- The install lines, the agent guide's commit and file sum, the Makefile's pin and the
+  tool manifest name regents-cli 1.10.32 (commit a972d344), the newest release.
