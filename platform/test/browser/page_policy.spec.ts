@@ -4,7 +4,7 @@ import {expect, test} from "./support/offline"
 // refusal means a picture, video, script or connection the page needs is
 // blocked. One page stands for each kind: the docs and About, the legal pages,
 // the account pages with Pair and Names, the Redeem pages and the product pages
-// each share one layout, and Cloak has its own.
+// each share one layout, and Cloak and its download page have their own.
 test("[R14] no page is refused anything by its security policy", async ({page}) => {
   await page.addInitScript(() => {
     const refused: string[] = []
@@ -21,7 +21,7 @@ test("[R14] no page is refused anything by its security policy", async ({page}) 
   }
 
   for (const path of ["/", "/articles", "/docs", "/privacy", "/app", "/stake", "/redeem/gallery", "/account",
-    "/autolaunch", "/cloak", "/no-such-page"]) {
+    "/autolaunch", "/cloak", "/cloak/download", "/no-such-page"]) {
     await page.goto(path)
     await page.waitForLoadState("networkidle")
     await collect(path)

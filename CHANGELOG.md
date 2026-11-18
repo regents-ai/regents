@@ -6986,3 +6986,24 @@ seasons), on the shared Points library regents.sh was already on.
   20261118215603_add_update_subscribers: one new table.
 - Live read, signed out: home, health and Cloak answer; Cloak shows the Updates form.
 - Rollback: v337's image main-0d96374e5592; the new table may stay.
+
+## 2026-11-18 — Cloak download page (branch cloak-download-1118, held until the installer exists)
+
+- /cloak (Sean, 18 Nov, 1 a): Download for Mac is a live link, no longer "Coming soon",
+  and opens the new shell page /cloak/download. The Updates band leaves /cloak.
+- /cloak/download: "Your download is starting", with "Didn't start? Download it
+  directly" under it. The installer starts by itself once as the page opens, without
+  taking focus, and the direct link starts the same file. Two steps follow, side by side
+  and stacked on a phone, each a drawn picture over its words: drag Regents Cloak to
+  Applications, then find it in the menu bar, where it waits Paused. The Updates band
+  sits under them, now for news: "Occasional news on new releases and features.",
+  Subscribe, and "Thanks. You are on the list."
+- The installer's address is one constant, `RegentsWeb.Cloak.installer/0`, set to
+  https://regents.sh/cloak/RegentsCloak.dmg; it must be confirmed before this branch is
+  merged. No database change.
+  platform/lib/regents_web/cloak.ex, platform/lib/regents_web/live/cloak_download_live.ex,
+  platform/lib/regents_web/live/cloak_live.ex,
+  platform/lib/regents_web/components/cloak_updates.ex,
+  platform/lib/regents_web/live/shell_live.ex, platform/lib/regents_web/router.ex,
+  platform/lib/regents_web/route_catalog.ex, platform/lib/regents_web/public_documents.ex,
+  platform/assets/css/pages/cloak.css, platform/priv/handoff/.

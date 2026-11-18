@@ -1,7 +1,7 @@
 defmodule Regents.Updates do
   @moduledoc """
-  The email addresses visitors leave to hear when something is ready, such as
-  Cloak's download (`/cloak`). The site only keeps them; nothing here sends mail,
+  The email addresses visitors leave to hear news, such as Cloak's releases
+  (`/cloak/download`). The site only keeps them; nothing here sends mail,
   and no page or tool reads them back.
   """
 

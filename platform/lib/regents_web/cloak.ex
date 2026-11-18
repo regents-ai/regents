@@ -1,9 +1,9 @@
 defmodule RegentsWeb.Cloak do
   @moduledoc """
   Regents Cloak: a private local agent in one Mac app. `/cloak` shows it as
-  Cloak's own README (14 Nov) does: in development, with no release and no
-  protection proven, so every protection and card reads as planned and the
-  download stays off.
+  Cloak's own README (14 Nov) does, with every protection and card read as
+  planned, and its Download for Mac opens `/cloak/download`, which starts the
+  installer.
   """
 
   @features [
@@ -91,6 +91,11 @@ defmodule RegentsWeb.Cloak do
 
   @post "https://x.com/VitalikButerin/status/2111046730959433793"
 
+  # The signed installer, which `/cloak/download` starts by itself and links to.
+  # The one thing to confirm before this branch is merged: this address must
+  # answer with Cloak's first signed installer.
+  @installer "https://regents.sh/cloak/RegentsCloak.dmg"
+
   def cards,
     do: Enum.map(@cards, &Map.merge(&1, %{action: "See protections", href: "/cloak#protections"}))
 
@@ -98,4 +103,5 @@ defmodule RegentsWeb.Cloak do
   def protections, do: @protections
   def limits, do: @limits
   def post, do: @post
+  def installer, do: @installer
 end

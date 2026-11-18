@@ -32,12 +32,16 @@ function serverRefusedRequests(): string[] {
   return existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : []
 }
 
+// The installer's address, as `RegentsWeb.Cloak.installer/0` names it.
+export const cloakInstaller = "https://regents.sh/cloak/RegentsCloak.dmg"
+
 // A one-pixel GIF, for the Club Pass pictures the gallery shows from media.regents.sh.
 const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64")
 
 // Every test's browser stays on this machine. The outside services pages call
 // are answered here: media.regents.sh's pictures with a pixel, WalletConnect's
-// wallet list as empty, and Privy's servers as unavailable, so the Privy
+// wallet list as empty, the Cloak installer that /cloak/download starts with a
+// stand-in file, and Privy's servers as unavailable, so the Privy
 // library on the page never starts. A request anywhere else is answered empty and
 // recorded, and the test fails on it. The test also fails once the server has
 // refused a request to an outside address, or if it held a connection outside
@@ -51,6 +55,12 @@ export const test = base.extend<{outside: string[]; serverOffline: void}>({
         return route.fulfill({body: pixel, contentType: "image/gif"})
       if (url.hostname === "explorer-api.walletconnect.com")
         return route.fulfill({json: {listings: {}}})
+      if (url.href === cloakInstaller)
+        return route.fulfill({
+          contentType: "application/x-apple-diskimage",
+          headers: {"content-disposition": 'attachment; filename="RegentsCloak.dmg"'},
+          body: "stand-in installer",
+        })
       if (url.hostname === "auth.privy.io")
         return route.fulfill({status: 503, json: {error: "Privy is not on this machine"}})
       outside.push(url.origin + url.pathname)

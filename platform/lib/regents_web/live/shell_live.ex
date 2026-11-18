@@ -24,6 +24,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AccountLive
   alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
+  alias RegentsWeb.CloakDownloadLive
   alias RegentsWeb.CloakLive
   alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
@@ -376,7 +377,11 @@ defmodule RegentsWeb.ShellLive do
           product={@route_spec.route_id}
         />
 
-        <CloakLive.page :if={@route_spec.route_id == :cloak} client_tag={@client_tag} />
+        <CloakLive.page :if={@route_spec.route_id == :cloak} />
+        <CloakDownloadLive.page
+          :if={@route_spec.route_id == :cloak_download}
+          client_tag={@client_tag}
+        />
 
         <.live_component
           :if={

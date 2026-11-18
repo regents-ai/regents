@@ -147,6 +147,7 @@ test.describe("on a 320 touch phone", () => {
       ["/techtree", "#product-heading"],
       ["/keyfleet", "#product-heading"],
       ["/cloak", "#product-heading"],
+      ["/cloak/download", "#product-heading"],
       ["/redeem/gallery", "#gallery-heading"],
       ["/literature", "#literature-chart"],
       ["/docs/limits", "#docs-article"],

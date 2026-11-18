@@ -3,23 +3,29 @@ defmodule RegentsWeb.CloakLiveTest do
 
   alias RegentsWeb.Cloak
 
-  test "CLOAK_PAGE: the download stays off with its reason", %{conn: conn} do
+  test "CLOAK_PAGE: Download for Mac opens the download page, which starts the installer",
+       %{conn: conn} do
     {:ok, view, _html} = live(conn, "/cloak")
 
-    assert has_element?(
-             view,
-             "#cloak-page button[disabled][aria-describedby=cloak-download-soon]"
-           )
-
-    assert has_element?(view, "#cloak-download-soon")
-
+    refute has_element?(view, "#cloak-page button[disabled]")
+    refute has_element?(view, "#cloak-updates")
     assert view |> element(".product-proof [data-proof-status]") |> has_element?()
     refute has_element?(view, ".product-proof [data-proof-status=live]")
+
+    {:ok, download, html} =
+      view
+      |> element("#cloak-download")
+      |> render_click()
+      |> follow_redirect(conn, "/cloak/download")
+
+    assert has_element?(download, "#cloak-installer[href='#{Cloak.installer()}'][download]")
+    assert has_element?(download, "#cloak-installer[phx-hook]")
+    assert html |> Floki.parse_document!() |> Floki.find(".cloak-steps > li") |> length() == 2
   end
 
   test "CLOAK_UPDATES: a good address gives way to the thanks; a bad one stays with its error",
        %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/cloak")
+    {:ok, view, _html} = live(conn, "/cloak/download")
 
     view |> form("#cloak-updates-form", updates: %{address: "not-an-address"}) |> render_submit()
     assert has_element?(view, "#cloak-updates-form #cloak-updates-address[aria-invalid=true]")

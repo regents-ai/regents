@@ -1,12 +1,12 @@
 defmodule RegentsWeb.Components.CloakUpdates do
   @moduledoc """
-  The Updates band on `/cloak`: a visitor leaves an email address to hear when
-  Cloak is ready to download, through `Regents.Updates`' `subscribe` action, and
-  the form gives way to a thank-you. The address is checked when the visitor
-  leaves the field and again on the press.
+  The Updates band on `/cloak/download`: someone who has just downloaded Cloak
+  leaves an email address for news of its releases and features, through
+  `Regents.Updates`' `subscribe` action, and the form gives way to a thank-you.
+  The address is checked when the visitor leaves the field and again on the press.
 
-  `RegentsWeb.CloakLive` passes the shell's `client_tag`, which the action counts
-  tries against.
+  `RegentsWeb.CloakDownloadLive` passes the shell's `client_tag`, which the action
+  counts tries against.
   """
 
   use RegentsWeb, :live_component
@@ -56,14 +56,14 @@ defmodule RegentsWeb.Components.CloakUpdates do
         <div class="cloak-updates__copy">
           <h2 id={"#{@id}-title"}>Updates</h2>
           <p>
-            Get an email when Cloak is ready to download. Your address is used only for Cloak news.
+            Occasional news on new releases and features. Your address is used only for Cloak news.
           </p>
         </div>
         <%!-- Always on the page, so a screen reader says the thanks as it appears. --%>
         <div role="status" class="cloak-updates__status">
           <p :if={@done?} id={"#{@id}-done"} class="cloak-updates__done">
             <Regent.Icons.icon name="mail-check" />
-            <span>Thanks. We will email you when Cloak is ready.</span>
+            <span>Thanks. You are on the list.</span>
           </p>
         </div>
         <.form
@@ -97,7 +97,7 @@ defmodule RegentsWeb.Components.CloakUpdates do
             />
           </Primitives.field>
           <Primitives.button type="submit" arrow={false} phx-disable-with="Sending…">
-            Notify me
+            Subscribe
           </Primitives.button>
         </.form>
       </Regent.Structure.panel>

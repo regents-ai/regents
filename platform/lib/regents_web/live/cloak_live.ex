@@ -1,14 +1,12 @@
 defmodule RegentsWeb.CloakLive do
   @moduledoc """
-  The `/cloak` product page. Its one action is the Mac app's download, which
-  stays off, with the reason beside it, until a signed release exists. Until
-  then a visitor can leave an email address to hear when it is ready
-  (`RegentsWeb.Components.CloakUpdates`).
+  The `/cloak` product page. Its one action is the Mac app's download: Download
+  for Mac opens `/cloak/download` (`RegentsWeb.CloakDownloadLive`), which starts
+  the installer.
   """
   use RegentsWeb, :html
 
   alias RegentsWeb.Cloak
-  alias RegentsWeb.Components.CloakUpdates
   alias RegentsWeb.HomeLive
   alias RegentsWeb.ProductLive
 
@@ -31,20 +29,12 @@ defmodule RegentsWeb.CloakLive do
           Slower on purpose, for 100% prompt + answer privacy via Tor and zkAPI.
         </p>
         <div class="product-actions cloak-download">
-          <button
-            type="button"
-            class="cloak-download__button"
-            disabled
-            aria-describedby="cloak-download-soon"
-          >
+          <.link id="cloak-download" navigate={~p"/cloak/download"} class="cloak-download__button">
             <.apple_logo />
             <span>Download for Mac</span>
-          </button>
-          <span id="cloak-download-soon" class="cloak-download__soon">Coming soon</span>
+          </.link>
         </div>
       </header>
-
-      <.live_component module={CloakUpdates} id="cloak-updates" client_tag={@client_tag} />
 
       <Regent.Structure.panel id="cloak-features" class="product-column rg-panel__body">
         <h2 class="product-kicker">Features</h2>

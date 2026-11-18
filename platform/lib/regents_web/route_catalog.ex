@@ -206,6 +206,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :cloak
     },
     %Entry{
+      path_pattern: "/cloak/download",
+      live_action: :cloak_download,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :cloak_download
+    },
+    %Entry{
       path_pattern: "/admin/articles",
       live_action: :articles_admin,
       parameter_schema: %{},
@@ -286,7 +293,10 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     cloak:
       {:cloak, :regent_ops, "Regents Labs", "Cloak", "/app", [:profile_actions], :regents_labs,
-       %{}}
+       %{}},
+    cloak_download:
+      {:cloak_download, :regent_ops, "Regents Labs", "Download", "/app", [:profile_actions],
+       :regents_labs, %{}}
   }
 
   # The Account pages are tabs of one another.

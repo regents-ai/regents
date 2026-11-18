@@ -102,7 +102,7 @@ were skipped.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read about Regents and the docs | `/about`, `/docs` and each `/docs/<page>` | `regents_about` (`docs`, `docs-<page>`) | — | — | — (plain fetch) | no | R2, R3 |
 | Read other site pages (start, privacy, terms) | `/start`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
-| Read Regents Cloak | `/cloak` | — | — | — | — (plain fetch of the page) | no | R2, R3, R13 |
+| Read Regents Cloak | `/cloak`, `/cloak/download` | — | — | — | — (plain fetch of the page) | no | R2, R3, R13 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
 | Read Articles | `/articles`, `/articles/:slug` | `regents_articles_list`, `regents_article` | — | — | `articles list`, `articles show` | no | R2, R3 |

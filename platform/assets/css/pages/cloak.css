@@ -1,13 +1,10 @@
 @layer regents-product {
 /* Regents Cloak stands on the product page grammar (product.css). Only the
-   download and its reason, and the Updates band, need their own rules. */
+   download, the after-download page's steps and the Updates band need their
+   own rules. */
 
-.cloak-download {
-  align-items: center;
-}
-
-/* The Mac app's download: a white pill with the Apple mark, in both themes. Off
-   until a signed release exists, so it neither lifts nor presses. */
+/* The Mac app's download: a white pill with the Apple mark, in both themes,
+   that gives a little under the press. */
 .cloak-download__button {
   display: inline-flex;
   align-items: center;
@@ -22,7 +19,27 @@
   font-size: 1rem;
   font-weight: 500;
   line-height: 1.2;
-  cursor: not-allowed;
+  text-decoration: none;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.cloak-download__button:active {
+  transform: scale(0.97);
+}
+
+.cloak-download__button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloak-download__button {
+    transition: none;
+  }
+
+  .cloak-download__button:active {
+    transform: none;
+  }
 }
 
 .cloak-download__logo {
@@ -32,12 +49,256 @@
   margin-block-start: -0.15em;
 }
 
-.cloak-download__soon {
+/* After the download: the heading centred over two steps, each a picture over
+   its words, side by side and stacked on a phone. */
+.cloak-download-page__heading {
+  justify-items: center;
+  text-align: center;
+}
+
+.cloak-download-page__heading h1 {
+  max-width: none;
+}
+
+.cloak-download-page__heading a {
+  color: var(--color-fg);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.cloak-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cloak-step {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 0.75rem;
+  block-size: 100%;
+  padding: var(--rg-panel-padding);
+}
+
+.cloak-step h2 {
+  margin-block-start: 0.75rem;
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.cloak-step p {
+  max-width: 56ch;
   color: var(--color-fg-muted);
+  line-height: 1.5;
+}
+
+/* Both pictures share one height, so the titles under them line up. */
+.cloak-step__picture {
+  display: grid;
+  place-items: center;
+  block-size: 15rem;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-border) 35%, var(--color-bg));
+  overflow: hidden;
+}
+
+/* Step 1: the disk image's window, the app beside the Applications folder. */
+.cloak-window {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  inline-size: min(100%, 22rem);
+  block-size: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  background: var(--color-bg);
+  color: var(--color-fg);
   font-family: var(--font-family-ui);
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+}
+
+.cloak-window__bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-block-end: 1px solid var(--color-border);
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+}
+
+.cloak-window__lights {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.cloak-window__lights i {
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.cloak-window__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.cloak-window__item {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.cloak-window__icon {
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+}
+
+/* The app's dark tile keeps an edge on a dark window. */
+.cloak-window__tile {
+  stroke: color-mix(in oklab, var(--color-fg) 22%, transparent);
+  stroke-width: 1;
+}
+
+.cloak-window__arrow {
+  font-size: 1.25rem;
+  color: var(--color-fg-muted);
+}
+
+.cloak-folder__back {
+  fill: color-mix(in oklab, var(--color-button) 70%, var(--color-bg));
+}
+
+.cloak-folder__front {
+  fill: var(--color-button);
+}
+
+.cloak-folder__mark {
+  stroke: var(--color-fg-on-button);
+}
+
+/* Step 2: a strip of menu bar with Cloak's icon chosen and "Paused" under it. */
+.cloak-step__picture--menu {
+  place-items: start end;
+}
+
+.cloak-menubar {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+}
+
+.cloak-menubar__bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 1.125rem;
+}
+
+.cloak-menubar__cloak {
+  display: grid;
+  place-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  background: var(--color-border);
+}
+
+/* Half again the app's 25 by 19 points, as the rest of the strip is. */
+.cloak-menubar__cloak svg {
+  inline-size: 2.34375rem;
+  block-size: 1.78125rem;
+}
+
+.cloak-menubar__time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The bubble hangs from Cloak's icon, its point under the icon's centre. */
+.cloak-menubar__bubble {
+  position: relative;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.875rem;
+}
+
+.cloak-menubar__bubble::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -0.375rem;
+  inset-inline-start: 1.25rem;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-block-start: 1px solid var(--color-border);
+  border-inline-start: 1px solid var(--color-border);
+  background: var(--color-bg);
+  transform: rotate(45deg);
+}
+
+@media (max-width: 47.999rem) {
+  .cloak-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloak-step__picture {
+    block-size: 12rem;
+    padding: 1rem;
+  }
+
+  .cloak-step__picture--menu {
+    block-size: 8rem;
+  }
+}
+
+/* On the narrowest phones the window and the strip tighten so both pictures
+   stay whole. */
+@media (max-width: 23.999rem) {
+  .cloak-window__bar {
+    padding-inline: 0.5rem;
+    font-size: 0.6875rem;
+  }
+
+  .cloak-window__lights {
+    gap: 0.25rem;
+  }
+
+  .cloak-window__lights i {
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+  }
+
+  .cloak-window__body {
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .cloak-window__item {
+    font-size: 0.6875rem;
+  }
+
+  .cloak-window__icon {
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+  }
+
+  .cloak-menubar__bar {
+    gap: 0.625rem;
+    font-size: 1rem;
+  }
 }
 
 /* Updates: a mail tile, the heading and its line, then the address and its

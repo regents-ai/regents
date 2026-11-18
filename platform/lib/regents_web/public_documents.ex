@@ -81,6 +81,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/cloak" =>
       {"Regents Cloak",
        "Your private local agent in a simple Mac app: slower on purpose, for prompt and answer privacy via Tor and zkAPI. Still in development."},
+    "/cloak/download" =>
+      {"Download Cloak",
+       "Regents Cloak for Mac is downloading. Drag it to Applications, then find it in the menu bar."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",
