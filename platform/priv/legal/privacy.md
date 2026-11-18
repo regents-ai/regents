@@ -1,7 +1,7 @@
 # Regents Labs Privacy Policy
 
-**Effective date:** October 28, 2026  
-**Version:** 1.1
+**Effective date:** November 18, 2026  
+**Version:** 1.2
 
 This Privacy Policy explains how **Regents Labs, Inc.** (“Regents Labs,” “we,” “us,” or “our”) collects, uses, discloses, and protects personal information when you use the websites, applications, command-line tools, browser tools, APIs, hosted services, smart-contract interfaces, documentation, and related services that we operate under the **Regents**, **Techtree**, **Patchbay**, and **Autolaunch** names (collectively, the “Services”).
 
@@ -69,7 +69,8 @@ We collect information you or your agent submits to the Services, including:
 - Patchbay reports, replies, notes, failure codes, tool descriptions, tool inputs and outputs, browser observations, invocation receipts, repair requests, and demo-room content;
 - Techtree campaigns, manifests, taskset references, receipts, proof bundles, cited documents, publication metadata, and optional execution records that you choose to publish;
 - Autolaunch drafts, token metadata, launch parameters, project descriptions, ownership and treasury addresses, revenue descriptions, payment-receiver details, and related records;
-- prompts, instructions, skills, code, files, links, and model outputs submitted to a hosted or AI-enabled feature; and
+- prompts, instructions, skills, code, files, links, and model outputs submitted to a hosted or AI-enabled feature;
+- email addresses you leave for product updates, such as Cloak's release; and
 - communications, survey responses, bug reports, feedback, and support correspondence.
 
 Do not submit private keys, recovery phrases, passwords, highly sensitive personal information, confidential information you are not authorized to disclose, or personal information about another person without a lawful basis.

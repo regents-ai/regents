@@ -6986,3 +6986,10 @@ seasons), on the shared Points library regents.sh was already on.
   20261118215603_add_update_subscribers: one new table.
 - Live read, signed out: home, health and Cloak answer; Cloak shows the Updates form.
 - Rollback: v337's image main-0d96374e5592; the new table may stay.
+
+## 2026-11-18 — Privacy Policy names the updates list
+
+- The Privacy Policy (Sean's 1 a, 18 Nov) lists, under content and records you provide,
+  "email addresses you leave for product updates, such as Cloak's release". Its effective
+  date is 18 November 2026 and its version 1.2, as the policy says a change brings.
+  platform/priv/legal/privacy.md.
