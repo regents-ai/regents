@@ -6944,3 +6944,9 @@ seasons), on the shared Points library regents.sh was already on.
   delay and the timing attack cover traffic does not stop.
   platform/lib/regents_web/cloak.ex, platform/lib/regents_web/live/cloak_live.ex,
   platform/lib/regents_web/public_documents.ex.
+
+## 2026-11-18 — Released v336 (Cloak page wording)
+
+- v336, commit 280ab964. Full check exit 0 on 280ab964, six gates. No migration.
+- Live read, signed out: home, health and Cloak answer; Cloak shows the new heading and the Features list.
+- Rollback: v335's image main-01fc718b731e.
