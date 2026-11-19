@@ -6999,3 +6999,12 @@ seasons), on the shared Points library regents.sh was already on.
 - v339, commit 17d6ed3a. Full check exit 0 on 17d6ed3a, six gates. No migration.
 - Live read, signed out: home, health and Privacy answer; Privacy shows the new line and date.
 - Rollback: v338's image main-802e7129838a.
+
+## 2026-11-19 — idna 8.0.0 (EEF-CVE-2026-117678)
+
+- idna 7.1.0 to 8.0.0: a very long "xn--" name label could keep the server busy for
+  seconds to minutes; idna 8 refuses it at once. The shared library moves from 18f9c405
+  to 4568285e (branch eu/idna-8-on-regents-pin-1119: the old pin plus the one ens
+  commit), and platform/mix.exs overrides idna to ~> 8.0 because ethers 0.8.0 and jsv
+  0.27.0 still ask for 7. ENS names: emoji names are accepted; empty labels and malformed
+  "xn--" labels are refused; ASCII rules unchanged. platform/mix.exs, platform/mix.lock.

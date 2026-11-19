@@ -4,7 +4,7 @@ defmodule Regents.MixProject do
   # Shared Regent libraries, each pinned to one published commit. To move a pin,
   # change its ref and run `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "18f9c405032b575c4647a4cc4e4ca552276bfb4f"
+  @elixir_utils_ref "4568285eed9ec267c0719f484ac8a63b18a1cb11"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "c9071e2c52089566094e166913adbb68293c35b9"
 
@@ -71,6 +71,8 @@ defmodule Regents.MixProject do
       {:mdex, "== 0.14.6"},
       {:floki, "== 0.38.5"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
+      # idna 8 fixes EEF-CVE-2026-117678; ethers and jsv still ask for idna 7.
+      {:idna, "~> 8.0", override: true},
       # ens_elixir names siwa by a sibling path; this pin replaces it.
       {:siwa,
        git: @elixir_utils,
