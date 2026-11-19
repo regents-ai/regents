@@ -7143,3 +7143,9 @@ seasons), on the shared Points library regents.sh was already on.
   eu/siwa-tests-out-on-regents-pin-1119: the same pin plus one commit that makes the SIWA
   folder main's). The library's own tests are gone there and one comment changed; what it
   does is unchanged. No migration. platform/mix.exs, platform/mix.lock.
+
+## 2026-11-19 — Released v346 (third narrow Points line)
+
+- v346, commit b16683e2: the third Points line and the tests-out commit. Full check exit 0 on b16683e2, six gates, none of them a test now except the held contracts gate; image smoke passed. No migration.
+- Live read, signed out: home, health, Points and Stake answer.
+- Rollback: v345's image main-fdf6f3ce03e6.
