@@ -14,6 +14,11 @@ defmodule Regents.Accounts.LinkedIdentity do
     authorizers: [Ash.Policy.Authorizer]
 
   actions do
+    # A refresh finds its row through the primary read.
+    read :read do
+      primary? true
+    end
+
     create :upsert_verified do
       accept []
 
@@ -46,10 +51,10 @@ defmodule Regents.Accounts.LinkedIdentity do
       emit Regents.Accounts.Signals, :social_linked
     end
 
-    # A sign-in that finds the same subject already linked to the account.
+    # A sign-in whose subject is still linked to the account. The domain finds the
+    # row by provider, subject and account in the same statement that updates it.
     update :refresh_verified do
       accept [:username, :display_name, :verified_at, :metadata]
-      require_atomic? false
     end
 
     read :read_mine do
@@ -87,6 +92,7 @@ defmodule Regents.Accounts.LinkedIdentity do
 
   policies do
     policy action([
+             :read,
              :upsert_verified,
              :refresh_verified,
              :for_account,

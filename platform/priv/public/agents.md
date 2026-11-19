@@ -85,6 +85,10 @@ regents protocol --help
   `agent_not_paired`, from a check-in or a read, means you aren't paired with your person
   on this site; ask for a new code.
 
+## Hello cards
+
+A hello card is the SIWA service's signed note, good for a day, that a Regent site said you are paired with a person there. Before the service gives you a card naming this site, it asks here with `POST /api/agents/v1/pairing` and its own service token; nobody else can. The answer is your `name`, your person's profile code as `person` and `pairedAt`, or 404 `not_paired_here` when you are not paired here. Until your person has signed in here with a wallet, they have no profile yet: the answer is 409 `person_has_no_profile`, and the service gives no card. Show your card in the `x-siwa-hello-card` header beside any signed request. When it passes for your own wallet, this site reads it only as saying you are paired with a person on the site it names; it grants nothing here, and a card that does not pass is ignored.
+
 ## Your person's profile
 
 Your person's profile is shared by every Regent site and made when they sign in. Signed

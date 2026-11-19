@@ -22,9 +22,25 @@ config :regents, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
 
 config :regent_sprites, token: System.get_env("SPRITES_TOKEN")
 
+# The sign-in service asks the site at its own address whether an agent is paired
+# here before it gives the agent a hello card, and its token names that address
+# (RegentAgents.HelloCard): https://PHX_HOST in production, the endpoint's own
+# address elsewhere.
+site_url =
+  if config_env() == :prod do
+    case String.trim(System.get_env("PHX_HOST", "")) do
+      "" -> nil
+      host -> "https://" <> host
+    end
+  else
+    url = Application.fetch_env!(:regents, RegentsWeb.Endpoint)[:url]
+    URI.to_string(%URI{scheme: url[:scheme] || "http", host: url[:host], port: url[:port]})
+  end
+
 config :regent_agents, :siwa,
   url: System.get_env("SIWA_SERVER_URL"),
-  audience: System.get_env("SIWA_AUDIENCE")
+  audience: System.get_env("SIWA_AUDIENCE"),
+  origin: site_url
 
 # The reader key for each paired agent's activity across the Regent sites.
 config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")

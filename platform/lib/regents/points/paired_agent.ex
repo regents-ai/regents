@@ -5,12 +5,15 @@ defmodule Regents.Points.PairedAgent do
   pairing code.
 
   `existing/2` lists, for `RegentPoints.StartAwards`, each person's earliest
-  pairing made before the given time that is still paired; the run asks with its
-  own time.
+  pairing made before the given time that is still paired, as a lazy stream read
+  a page of people at a time; the run asks with its own time.
   """
 
   alias Regents.Accounts
   alias Regents.Actors.System
+
+  # How many people's accounts one read takes.
+  @page 500
 
   def verify(%{"source_event_key" => id}) do
     case RegentAgents.pairing_history(id) do
@@ -19,9 +22,16 @@ defmodule Regents.Points.PairedAgent do
     end
   end
 
+  # A lazy stream: the pairings come a page of people at a time, and each page's
+  # accounts are read in one go.
   def existing("agent.activated", at) do
-    {:ok, pairings} = RegentAgents.pairings_held_from_before(at)
+    at
+    |> RegentAgents.pairings_held_from_before()
+    |> Stream.chunk_every(@page)
+    |> Stream.flat_map(&offers/1)
+  end
 
+  defp offers(pairings) do
     accounts =
       pairings
       |> Enum.map(& &1.privy_user_id)

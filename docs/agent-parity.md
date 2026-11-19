@@ -66,6 +66,12 @@ were skipped.
 | Open or unpair an agent, read its last actions | account menu Agents, `/account/agents` | — | — | — | — | no (owner only) | R5 |
 | Set or remove an agent's picture | `/account/agents` agent window (upload) | — | — | — | — | no | R6 |
 
+Hello cards have no row: they are not an action here. The SIWA service alone asks the
+pairing read (`POST /api/agents/v1/pairing`, with its service token), and a card an
+agent shows beside a signed request is checked and kept on the request, where nothing
+reads it yet. A page that comes to show one says only "paired with a person on
+<site>", and never greets or names anyone with its `person`, the profile code.
+
 ## Names
 
 | Action | Page | WebMCP | MCP | Connector | CLI | Protected | Gap |
@@ -162,7 +168,7 @@ were skipped.
   open only to the owner from R1. Not protected (owner only).
 - **R6. Agent pictures are page-only.** The person uploads or removes an agent's
   picture in its window on `/account`; the agent has no route to set its own (the shared agents
-  router serves only pair, me and whoami). Plan: a signed picture route, tools and
+  router serves only pair, me, whoami and the SIWA service's pairing read). Plan: a signed picture route, tools and
   `agents picture set` and `agents picture remove` commands. Not protected.
 - **R7. Closed.** Credits are gone (12 Nov 2026), and agent spending limits with them.
 - **R8. Closed.** Credits are gone (12 Nov 2026); there is nothing to buy.

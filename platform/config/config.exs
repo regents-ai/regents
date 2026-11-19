@@ -14,12 +14,15 @@ config :regent_payments, repo: Regents.Repo, ash_domains: [RegentPayments]
 # shares (RegentAgents). `allowed` is what an agent may do here in each status,
 # as GET /api/agents/v1/whoami tells it and priv/public/agents.md and the tools
 # in priv/tool_manifest.json list it: true to the routes and policies, so change
-# them together.
+# them together. `person` names the person, by their profile code, when the
+# sign-in service asks before giving an agent a hello card; the service's
+# `origin` is in config/runtime.exs.
 config :regent_agents,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,
   notifications: Regents.Notifications,
   account: {Regents.AgentAccount, :account},
+  person: {Regents.AgentAccount, :person},
   allowed: %{
     "not_paired" => [
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
