@@ -7013,3 +7013,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The install lines, the agent guide's commit and file sum, the Makefile's pin and the
   tool manifest name regents-cli 1.10.33 (commit c12d8563), the newest release.
+
+## 2026-11-19 — Released v340 (idna 8.0.0)
+
+- v340, commit 02f0d3c3. Full check exit 0 on 02f0d3c3, six gates. No migration.
+- Live read, signed out: home, health, Stake and Cloak answer.
+- Rollback: v339's image main-17d6ed3ab9f8.
