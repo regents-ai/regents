@@ -33,8 +33,10 @@ RUN mix local.hex 2.6.0 --force && \
     --sha512 b51946058fbe4aa823185bfe27204be59be439982ac3a3e1dbd9f8260b9af046fcfdfbd9066283c3fbba5a2a45dc3570550c12a9a548daf223b80cac222a6d0f \
     --force
 
-# Shared Regent libraries arrive here from GitHub at the commits mix.lock pins;
-# a mix.lock that no longer matches mix.exs stops the build.
+# mix.exs names this repository's shared/ packages by path (../shared), so they
+# come in first. The pinned shared libraries arrive here from GitHub at the
+# commits mix.lock pins; a mix.lock that no longer matches mix.exs stops the build.
+COPY shared /workspace/shared
 COPY platform/mix.exs platform/mix.lock ./
 RUN mix deps.get --only prod --check-locked
 COPY platform/config config

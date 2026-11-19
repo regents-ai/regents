@@ -7206,3 +7206,30 @@ seasons), on the shared Points library regents.sh was already on.
 - v347, commit de53401b: the shared library at elixir-utils main, the sign-in refresh, the standing practice run and the contract-tests removal. Full check exit 0 on de53401b; the practice run built the image and ran its database commands on a throwaway database. No site migration.
 - Live read, signed out: the 23 pages and agent documents answer; the pairing read refuses a request with no token.
 - Rollback: v346's image main-b16683e296cb.
+
+## 2026-11-19 — The shared library's site packages are this repository's own folders
+
+- Founder decision 337 b, step two. Twelve packages of elixir-utils, copied from commit
+  23bb83df91f7ce86a24eea27c599adfb23e27b41, are now folders under shared/ at their library
+  paths: ens, privy, ash_components/identity, ash_components/payments,
+  ash_components/agents, blog, agent_access, format, points, http, sprites and credo_ash.
+  Every file under each one's lib/, priv/, assets/ and config/ is the library's, byte for
+  byte; same modules, application names, versions and migration files. Each mix.exs keeps
+  only what building here needs: the dev-only tools, aliases and publishing settings are
+  gone, and siwa and regent_chain are named by their pin instead of a library path.
+  platform/mix.exs names the twelve by path with the options they had. shared/SOURCE.json
+  records the repository and commit the copies come from; a newer library commit is taken
+  in by copying the packages again from it and moving that commit.
+- siwa and regent_chain stay pinned to elixir-utils, now at 23bb83df; that commit also
+  brings the library's one change since the last pin to the copied agents package
+  (`RegentAgents.HelloCard`: a failed read of the sign-in service's keys waits a minute
+  before the next). platform/mix.lock drops the twelve and moves the two.
+- The image copies shared/ before `mix deps.get` (platform/Dockerfile,
+  platform/Dockerfile.dockerignore) and still needs no credentials. `make
+  check-required-fixes` runs this repository's scripts/check-required-fixes.exs against
+  ash-template's registry: the twelve load from shared/ and each must be named in
+  platform/mix.exs with its folder present, every required fix to them is in the history
+  of shared/SOURCE.json's commit as GitHub's compare answers it, and the other shared
+  libraries are pinned and inspectable. AGENTS.md, README.md, platform/AGENTS.md, platform/README.md,
+  platform/docs/codebase-handoff.md, platform/repo.yaml, blog/contract.yaml and
+  scripts/release.sh say so. No migration.

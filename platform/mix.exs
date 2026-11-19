@@ -1,10 +1,12 @@
 defmodule Regents.MixProject do
   use Mix.Project
 
-  # Shared Regent libraries, each pinned to one published commit. To move a pin,
-  # change its ref and run `mix deps.update <name>`.
+  # Shared Regent libraries. Twelve elixir-utils packages are this repository's own
+  # folders under ../shared; siwa and regent_chain, and design-system's regent_ui, stay
+  # pinned to one published commit. To move a pin, change its ref and run
+  # `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "b9d530d4d55443153d4d45be7c8e362032ec1b7f"
+  @elixir_utils_ref "23bb83df91f7ce86a24eea27c599adfb23e27b41"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "c9071e2c52089566094e166913adbb68293c35b9"
 
@@ -57,38 +59,30 @@ defmodule Regents.MixProject do
       {:usage_rules, "~> 1.3", only: :dev, runtime: false},
       {:mdex, "== 0.14.6"},
       {:floki, "== 0.38.5"},
-      {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
+      {:ens_elixir, path: "../shared/ens"},
       # idna 8 fixes EEF-CVE-2026-117678; ethers and jsv still ask for idna 7.
       {:idna, "~> 8.0", override: true},
-      # ens_elixir names siwa by a sibling path; this pin replaces it.
+      # ens_elixir and regent_agents name the same siwa pin.
       {:siwa,
        git: @elixir_utils,
        ref: @elixir_utils_ref,
        sparse: "siwa/siwa-elixir/apps/siwa",
        override: true},
-      # regent_identity names regent_privy by a sibling path; this pin replaces it.
-      {:regent_privy,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "privy", override: true},
-      {:regent_identity,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/identity"},
-      {:regent_payments,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/payments"},
-      {:regent_agents,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ash_components/agents", override: true},
+      {:regent_privy, path: "../shared/privy", override: true},
+      {:regent_identity, path: "../shared/ash_components/identity"},
+      {:regent_payments, path: "../shared/ash_components/payments"},
+      {:regent_agents, path: "../shared/ash_components/agents", override: true},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
-      {:regent_blog, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "blog"},
-      {:regent_agent_access, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "agent_access"},
-      # regent_identity, regent_agents and regent_points name regent_format by path;
-      # this pin replaces it.
-      {:regent_format,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "format", override: true},
-      # regent_payments names regent_chain by a sibling path; this pin replaces it.
+      {:regent_blog, path: "../shared/blog"},
+      {:regent_agent_access, path: "../shared/agent_access"},
+      {:regent_format, path: "../shared/format", override: true},
+      # regent_payments names the same regent_chain pin.
       {:regent_chain,
        git: @elixir_utils, ref: @elixir_utils_ref, sparse: "chain", override: true},
-      {:regent_points, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "points"},
+      {:regent_points, path: "../shared/points"},
       # The site's crash saving (RegentHttp.ErrorSaving).
-      {:regent_http, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "http", override: true},
-      {:regent_sprites, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "sprites"},
+      {:regent_http, path: "../shared/http", override: true},
+      {:regent_sprites, path: "../shared/sprites"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
       {:sourceror, "~> 1.12", only: :dev, runtime: false},
@@ -107,8 +101,7 @@ defmodule Regents.MixProject do
       {:bandit, "~> 1.14"},
       {:credo, "~> 1.7", only: :dev, runtime: false},
       {:ex_slop, "~> 0.4", only: :dev, runtime: false},
-      {:credo_ash,
-       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credo_ash", only: :dev, runtime: false},
+      {:credo_ash, path: "../shared/credo_ash", only: :dev, runtime: false},
       {:sobelow, "~> 0.16", only: :dev, runtime: false}
     ]
   end

@@ -29,9 +29,12 @@ general informational directory for the varied apps and products made by Regents
 | Solidity, staking and contract history | [contracts/](contracts/README.md) | `make check-contracts` |
 | Agent runtime plugins | [plugins/](plugins/README.md) | None yet; runtime integrations ship with the [Regents CLI](https://github.com/regents-ai/regents-cli) |
 
-Run setup from the owning component. The shared libraries, the shared profile among them,
-are independent repositories, and [platform setup](platform/README.md#shared-dependencies)
-explains how they are pinned. The platform's OTP application and release are both named
+Run setup from the owning component. Twelve shared Elixir libraries, the shared profile
+among them, are copied into [shared/](shared/), from the library commit
+[shared/SOURCE.json](shared/SOURCE.json) records; a newer library commit is taken in by
+copying the packages again from it and moving that commit. The rest are independent
+repositories, and [platform setup](platform/README.md#shared-dependencies) explains how
+each is used. The platform's OTP application and release are both named
 `regents`.
 
 ## Current boundaries
@@ -59,7 +62,8 @@ preview is not evidence of a deployed capability.
 Each product owns its API, CLI and authorization. A login, payment or published
 result on one product does not grant permissions on another. Shared presentation
 lives in [design-system](https://github.com/regents-ai/design-system); common Elixir
-libraries live in [elixir-utils](https://github.com/regents-ai/elixir-utils).
+libraries live in [elixir-utils](https://github.com/regents-ai/elixir-utils), and this
+repository keeps its own copies of twelve of them in [shared/](shared/).
 
 ## License
 

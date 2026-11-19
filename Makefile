@@ -38,14 +38,18 @@ platform-precommit:
 	cd platform && mix precommit
 platform-web:
 	cd platform && mix assets.build && npm run typecheck
-# Every site runs the same check against ash-template's current main branch, so a
-# newly published required fix reaches every site's next gate. Needs `gh auth login`.
+# Checks against ash-template's required-fixes registry on its current main branch,
+# so a newly published required fix reaches this site's next gate. The checker is
+# this repository's scripts/check-required-fixes.exs: the twelve packages copied
+# into shared/ load from there and every required fix to them is in the library
+# commit shared/SOURCE.json names, and every other shared library (siwa,
+# regent_chain, regent_ui, ash_postgres) is a pinned, inspectable commit. Needs
+# `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template
 check-required-fixes:
 	cd platform && mkdir -p _build && rev=$$(gh api $(TEMPLATE)/commits/main --jq .sha) \
-	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/platform/scripts/check_required_fixes.exs?ref=$$rev" > _build/check_required_fixes.exs \
 	&& gh api -H "Accept: application/vnd.github.raw" "$(TEMPLATE)/contents/security/required-fixes.json?ref=$$rev" > _build/required-fixes.json \
-	&& elixir _build/check_required_fixes.exs "ash-template $$rev" < _build/required-fixes.json
+	&& elixir ../scripts/check-required-fixes.exs "ash-template $$rev" ../shared/SOURCE.json < _build/required-fixes.json
 # The command description check is regents-cli's own checker at the commit pinned
 # here, run by uv straight from GitHub. Move the pin in a commit.
 REGENTS_CLI_REV := c12d8563c46e8b5229e32db76c1a104fb469b7b7

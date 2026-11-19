@@ -7,9 +7,13 @@ the separate regents-cli repository.
 - `contracts/`: Solidity, staking/distribution and retained historical evidence.
 - `plugins/`: home for standalone runtime plugin packages; none exist yet. Hermes,
   OpenClaw, MCP and bundled-skill integrations are CLI code in regents-cli.
-- Shared UI and Elixir libraries come from GitHub, each pinned to one commit in
-  `platform/mix.exs`. The shared profile (`regent_identity`) is elixir-utils'
-  `ash_components/identity`, as on every Regent site.
+- `shared/`: twelve elixir-utils packages copied into this repository (Sean, decision
+  337 b, 19 Nov 2026), each at its library folder, which `platform/mix.exs` names by
+  path. `shared/SOURCE.json` records the library commit they are copied from; a newer
+  library commit is taken in by copying the packages again from it and moving that
+  commit. The shared profile (`regent_identity`) is `shared/ash_components/identity`.
+  `siwa`, `regent_chain` and design-system's `regent_ui` still come from GitHub, each
+  pinned to one commit in `platform/mix.exs`.
 - `make check` runs every component gate side by side, each logging to
   `platform/_build/check/<gate>.log`, and prints the log of any that failed; a gate
   over its budget in the Makefile's `CHECK_BUDGETS` gets a `SLOW:` line, a warning

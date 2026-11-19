@@ -30,8 +30,11 @@ Base (chain 8453) for every on-chain figure.
 ## 2. Environment
 
 - Application root: `/Users/sean/Documents/regent/repos/regents/platform`.
-- Shared libraries are git pins at the top of `mix.exs`; component checks are
-  documented in the current README.
+- Twelve shared libraries are the repository's own `../shared` folders, named by path
+  in `mix.exs`; `siwa`, `regent_chain` and `regent_ui` are git pins at its top.
+  `../shared/SOURCE.json` records the library commit the copies come from; a newer one
+  is taken in by copying the packages again from it and moving that commit.
+  Component checks are documented in the current README.
 - Follow the workspace `regent-workflow`. Use ordinary Git worktrees for concurrent
   writers, unique ports and disposable test databases. Historical ticket paths and
   reserved-port lists are no longer current assignments.
@@ -134,7 +137,8 @@ HEAD`). It runs `make release` first (the full check, then the image built and i
 commands practised on a throwaway database), then `scripts/deploy.sh`, which builds `git archive` of HEAD on Fly with
 `platform/Dockerfile.dockerignore` and the `org.opencontainers.image.revision` label set
 to the commit, tags the image `main-<sha12>`, and deploys it to the one machine with
-`--ha=false`. The build fetches the pinned shared libraries from GitHub.
+`--ha=false`. The build takes `shared/` from the archive and fetches the pinned shared
+libraries from GitHub.
 
 The release runs `/app/bin/migrate` before boot, so any migration you add ships and
 runs automatically.

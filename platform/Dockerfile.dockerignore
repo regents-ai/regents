@@ -10,6 +10,7 @@
 !platform/package.json
 !platform/package-lock.json
 !blog/**
+!shared/**
 !cli/commands.json
 
 # The copied source trees must never carry runtime environment files.

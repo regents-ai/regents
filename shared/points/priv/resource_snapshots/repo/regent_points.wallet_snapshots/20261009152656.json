@@ -1,0 +1,114 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "account_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "wallet_addresses",
+      "type": [
+        "array",
+        "text"
+      ]
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "effective_at",
+      "type": "utc_datetime_usec"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [],
+  "create_table_options": null,
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "account_id",
+        "effective_at",
+        "id"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "account_id"
+        },
+        {
+          "type": "atom",
+          "value": "effective_at"
+        },
+        {
+          "type": "atom",
+          "value": "id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    }
+  ],
+  "custom_statements": [
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER points_verified_wallets ON regent_names.platform_human_users;\nDROP FUNCTION regent_points.capture_verified_wallets();\nDROP FUNCTION regent_points.verified_wallets(text, text[]);\nDROP TRIGGER wallet_snapshots_are_final ON regent_points.wallet_snapshots;\nDROP TRIGGER wallet_coverage_is_final ON regent_points.wallet_coverage;\nDROP TRIGGER period_snapshots_are_final ON regent_points.period_snapshots;\nDROP FUNCTION regent_points.refuse_snapshot_change();\n",
+      "global?": false,
+      "name": "capture_verified_wallets",
+      "up": "CREATE FUNCTION regent_points.verified_wallets(primary_wallet text, other_wallets text[])\nRETURNS text[] LANGUAGE sql IMMUTABLE AS $$\n  SELECT COALESCE(array_agg(DISTINCT lower(wallet) ORDER BY lower(wallet)), ARRAY[]::text[])\n  FROM unnest(COALESCE(other_wallets, ARRAY[]::text[]) || ARRAY[primary_wallet]) AS wallet\n  WHERE wallet IS NOT NULL AND wallet <> '';\n$$;\n\nCREATE FUNCTION regent_points.capture_verified_wallets() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  IF TG_OP = 'INSERT' OR\n     regent_points.verified_wallets(NEW.wallet_address, NEW.wallet_addresses)\n     IS DISTINCT FROM regent_points.verified_wallets(OLD.wallet_address, OLD.wallet_addresses) THEN\n    INSERT INTO regent_points.wallet_snapshots(account_id, wallet_addresses, effective_at)\n    VALUES (NEW.id, regent_points.verified_wallets(NEW.wallet_address, NEW.wallet_addresses),\n            clock_timestamp() AT TIME ZONE 'utc');\n  END IF;\n  RETURN NEW;\nEND;\n$$;\n\nLOCK TABLE regent_names.platform_human_users IN SHARE ROW EXCLUSIVE MODE;\nINSERT INTO regent_points.wallet_coverage(id, starts_at)\nVALUES (1, clock_timestamp() AT TIME ZONE 'utc');\nINSERT INTO regent_points.wallet_snapshots(account_id, wallet_addresses, effective_at)\nSELECT id, regent_points.verified_wallets(wallet_address, wallet_addresses),\n       (SELECT starts_at FROM regent_points.wallet_coverage WHERE id = 1)\nFROM regent_names.platform_human_users;\n\nCREATE TRIGGER points_verified_wallets\nAFTER INSERT OR UPDATE OF wallet_address, wallet_addresses ON regent_names.platform_human_users\nFOR EACH ROW EXECUTE FUNCTION regent_points.capture_verified_wallets();\n\nCREATE FUNCTION regent_points.refuse_snapshot_change() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  RAISE EXCEPTION 'regent_points.% rows are final', TG_TABLE_NAME;\nEND;\n$$;\nCREATE TRIGGER wallet_snapshots_are_final BEFORE UPDATE OR DELETE ON regent_points.wallet_snapshots\nFOR EACH ROW EXECUTE FUNCTION regent_points.refuse_snapshot_change();\nCREATE TRIGGER wallet_coverage_is_final BEFORE UPDATE OR DELETE ON regent_points.wallet_coverage\nFOR EACH ROW EXECUTE FUNCTION regent_points.refuse_snapshot_change();\nCREATE TRIGGER period_snapshots_are_final BEFORE UPDATE OR DELETE ON regent_points.period_snapshots\nFOR EACH ROW EXECUTE FUNCTION regent_points.refuse_snapshot_change();\n"
+    }
+  ],
+  "has_create_action": false,
+  "hash": "7B148EC5F47CB4C7733BE4EA212AA681F80D428F0D8677E65F45593C3E484C13",
+  "identities": [],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.RegentPoints.Repo",
+  "schema": "regent_points",
+  "table": "wallet_snapshots"
+}

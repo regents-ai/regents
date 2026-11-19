@@ -6,8 +6,11 @@ This is the Phoenix/Ash component of the Regents monorepo. Run Mix and npm here.
 root `contracts/`. Keep internal OTP/release names stable during layout changes.
 
 Follow the root instructions and the workspace's `regent-workflow`. Use the
-assignment's acceptance and applicable focused checks. Shared libraries are git
-pins in `mix.exs`.
+assignment's acceptance and applicable focused checks. Twelve shared libraries are
+the repository's own `../shared` folders, named by path in `mix.exs`; `siwa`,
+`regent_chain` and `regent_ui` are git pins there. `../shared/SOURCE.json` records the
+library commit the copies come from; a newer one is taken in by copying the packages
+again from it and moving that commit.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

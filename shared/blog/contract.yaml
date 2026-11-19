@@ -1,0 +1,29 @@
+version: 1
+package: regent_blog
+ownership:
+  library: Compile-time Markdown catalog, metadata validation, safe HTML and asset staging
+  design_system: Regent.Blog gallery/article/contents components and scoped blog styles/behavior
+  products: GET /blog and GET /blog/:slug, existing headers/themes, repository-root blog/*.md and blog/images
+content:
+  format: YAML front matter followed by Markdown; README.md is documentation, not a post
+  required: [title, date, author, author_x, image, image_alt]
+  optional: [slug, description, draft]
+  slug: Lowercase ASCII letters/digits with single hyphens; defaults to filename stem
+  date: ISO YYYY-MM-DD publication date
+  author_x: HTTPS x.com or twitter.com profile URL
+  image: Self-hosted /images/blog/ path, compatible with every product's existing CSP
+  publication: draft true is hidden; future-dated posts hidden until their UTC date; newest dates first with slug tie-break
+  markdown: Paragraphs, heading anchors, lists, links, images, tables, code, footnotes, dollar-delimited inline/display LaTeX
+  safety: No HEEx evaluation or raw HTML; no runtime user-supplied filesystem paths; invalid/duplicate posts fail compilation; symlinks refused
+api:
+  RegentBlog.Catalog: use with explicit compile-time root; all/0 and get/1 return public posts only
+  post: slug, title, date, author, author_x, image, image_alt, description, draft, markdown (the body after the front matter, trimmed, so a post can answer as Markdown), html, toc
+  RegentBlog.load!: Parse a trusted authoring directory and validate the entire catalog
+  mix.regent_blog.assets: Stage local math module and blog images from the consuming repo into priv/static/assets/regent-blog and priv/static/images/blog
+  mix.regent_blog.stage: Stage a pinned package plus product content for application-only Docker contexts; preserve existing generated versions and refuse unknown destinations
+runtime:
+  storage: Content compiled into product BEAM; releases do not depend on absolute source paths
+  refresh: Changed files trigger compilation; new/deleted files detected by __mix_recompile__?; asset additions require asset build
+  math: Locally served KaTeX with trust false; native MathML output avoids inline-style CSP weakening; TeX remains readable without JS
+  contents: Native fragment links; sticky desktop TOC and mobile disclosure; JS active-section enhancement with no navigation requirement
+  section_ids: blog-section-* belongs exclusively to generated Markdown headings; product shells must not use this namespace

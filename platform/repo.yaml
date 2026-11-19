@@ -43,9 +43,30 @@ protected_datasets:
     - basenames_mint_allowances
     - basenames_payment_credits
 local_path_dependencies:
+  - id: ens_elixir
+    path: ../shared/ens
   - id: regent_privy
-    path: ../../elixir-utils/privy
-    reviewed_repo_commit: cbb09857065069590671e2cbabdd5ae0885a65c4
+    path: ../shared/privy
+  - id: regent_identity
+    path: ../shared/ash_components/identity
+  - id: regent_payments
+    path: ../shared/ash_components/payments
+  - id: regent_agents
+    path: ../shared/ash_components/agents
+  - id: regent_blog
+    path: ../shared/blog
+  - id: regent_agent_access
+    path: ../shared/agent_access
+  - id: regent_format
+    path: ../shared/format
+  - id: regent_points
+    path: ../shared/points
+  - id: regent_http
+    path: ../shared/http
+  - id: regent_sprites
+    path: ../shared/sprites
+  - id: credo_ash
+    path: ../shared/credo_ash
 planning_records:
   role: historical_evidence_only
   binding_contract: false

@@ -18,11 +18,18 @@ in its own monorepo, not in this app. Cloak, in development, has its page here t
 
 ## Shared dependencies
 
-The shared libraries from design-system and elixir-utils are git dependencies,
-each pinned to one commit at the top of `mix.exs`; `mix deps.get` fetches them.
-To move a pin, change its ref and run `mix deps.update <name>`.
-The shared profile (`regent_identity`) is elixir-utils' `ash_components/identity`, as on
-every Regent site; a person's name on every page is the one saved there.
+Twelve elixir-utils packages are this repository's own folders under `../shared`, each at
+the folder it has in elixir-utils, and `mix.exs` names them by path: `ens`, `privy`,
+`ash_components/identity`, `ash_components/payments`, `ash_components/agents`, `blog`,
+`agent_access`, `format`, `points`, `http`, `sprites` and `credo_ash`. A change to one is
+an ordinary change in this repository. `../shared/SOURCE.json` records the elixir-utils
+commit they are copied from; a newer library commit is taken in by copying the packages
+again from it and moving that commit. `siwa` and `regent_chain` from elixir-utils, and
+`regent_ui` from design-system, stay git dependencies, each pinned to one commit at the
+top of `mix.exs`; `mix deps.get` fetches them. To move a pin, change its ref and run
+`mix deps.update <name>`.
+The shared profile (`regent_identity`) is `../shared/ash_components/identity`; a person's
+name on every page is the one saved there.
 Do not clone recursive Solidity submodules for a web-only change.
 
 ## Quickstart
@@ -135,8 +142,12 @@ rel/                    Release overlays, including the migrate command
 ## Checks
 
 The full platform gate is `make check-platform`, run from the repository root.
-`make check-required-fixes` confirms every shared library is
-pinned and carries each required fix. `make check-siwa-latest`
+`make check-required-fixes` (`scripts/check-required-fixes.exs`, against ash-template's
+registry on its main branch) confirms the twelve copied packages load from `../shared` at
+their library folders, every other shared library is pinned to a full commit with its
+history, every required Hex fix is locked, every required fix to a pinned library is in
+its history, and every required fix to a copied package is in the history of the commit
+`../shared/SOURCE.json` names, as GitHub answers it. `make check-siwa-latest`
 (`scripts/check-siwa-latest.sh`) fails until the site is on the newest SIWA: the Makefile's
 `REGENTS_CLI_REV` is the newest regents-cli release's tag commit, the agent guide names
 that release, its commit and its wheel's SHA256, every install line names it, the tool
@@ -165,7 +176,7 @@ are up to date.
 > Confirm the target and its secrets before running a deploy.
 >
 > A deploy never applies a change to the shared Identity, Agents, Points or Payments
-> database; it refuses to start while one its pinned libraries carry is
+> database; it refuses to start while one its shared libraries carry is
 > missing. `/app/bin/migrate-shared` applies them and prints each one, or `none`. Every
 > site carries this same command; the site whose release first carries a change runs it
 > once from the new image, on a one-off machine, before that image's deploy, and only on
@@ -194,7 +205,7 @@ signed request (`RegentsWeb.Plugs.ProfileOwner`). A profile is made at sign-in.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
 
-Run `mix assets.build` after moving a shared library pin. All deployments must use one Privy application and
+Run `mix assets.build` after changing a shared library. All deployments must use one Privy application and
 one PostgreSQL destination before profiles can be shared between sites.
 Regents owns the explicit identity migration; consumers do not run it on startup.
 Do not repoint existing databases or replay migration histories: legacy identity
