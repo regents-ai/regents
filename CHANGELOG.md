@@ -7056,3 +7056,9 @@ seasons), on the shared Points library regents.sh was already on.
   image smoke passed against PostgreSQL 17.12 (Debian 17.12-1.pgdg13+1). No migration.
 - Live read, signed out: home, health, Stake, Redeem, Cloak and Points answer.
 - Rollback: v341's image main-d323ff33fe90.
+
+## 2026-11-19 — Playwright 1.65.1 and Vitest 5.1.1, as ash-template v292
+
+- The browser test tools step of the six-site refresh (ash-template 0b0399cd): Playwright
+  1.64.1 to 1.65.1 and Vitest 5.1.0 to 5.1.1, with the lock following. Test tools only;
+  no timeout or test changed. No migration. platform/package.json, platform/package-lock.json.
