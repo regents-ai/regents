@@ -1,4 +1,4 @@
-defmodule Regents.Redemption.Steps do
+defmodule Regents.Redeem.Steps do
   @moduledoc """
   The wallet steps behind the Redeem page's buttons, built on the server with
   `regent_chain` and pushed to the page before anyone presses.
@@ -10,7 +10,7 @@ defmodule Regents.Redemption.Steps do
   """
 
   alias RegentChain.Review
-  alias Regents.WalletActions.RedemptionAbi
+  alias Regents.Redeem.RedemptionAbi
 
   @doc """
   The steps from the selection on screen: the collection id and the token ID as

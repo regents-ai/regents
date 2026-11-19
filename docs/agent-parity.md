@@ -12,7 +12,7 @@ Credits were removed on 12 Nov 2026: their rows are gone and R7 and R8 are close
 Sources: `platform/lib/regents_web/router.ex`, `platform/lib/regents_web/endpoint.ex`,
 every `handle_event` in `platform/lib/regents_web/live/` and
 `platform/lib/regents_web/components/`, the wallet step builders
-(`Regents.Stake.Steps` and `Regents.Redemption.Steps`, both sent through
+(`Regents.Stake.Steps` and `Regents.Redeem.Steps`, both sent through
 `RegentsWeb.Chain.OnchainSteps`), `platform/priv/tool_manifest.json` (22 tools),
 `cli/regents/commands.json` (16 commands),
 the shared profile `RegentIdentity.HTTP` (then this repository's `identity/`, now
@@ -180,7 +180,7 @@ reads it yet. A page that comes to show one says only "paired with a person on
   wallet).
 - **R10. Redeem is page-only, reads included.** The redemption figures and the Animata
   and Club passes a wallet holds have no agent read, and redeeming and claiming run
-  only from `/redeem`. `Regents.Redemption.Steps.steps/1` names no sender, so any key
+  only from `/redeem`. `Regents.Redeem.Steps.steps/1` names no sender, so any key
   can sign its steps. Plan: a signed read, a steps route, `redeem` commands and tools.
   Protected (money, wallet) for the steps; the read is not.
 - **R11. Account settings are page-only.** Linked wallets are not in

@@ -62,7 +62,7 @@ defmodule RegentsWeb.Showcase.Catalog do
             "Regents.WalletActions.",
             "Regents.DatabaseConfig",
             "Regents.Stake.",
-            "Regents.Redemption."
+            "Regents.Redeem."
           ]),
           do: {module, "Regents-owned"}
 

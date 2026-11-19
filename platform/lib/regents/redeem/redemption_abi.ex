@@ -1,4 +1,4 @@
-defmodule Regents.WalletActions.RedemptionAbi do
+defmodule Regents.Redeem.RedemptionAbi do
   @moduledoc false
 
   alias Regents.Chain.Abi

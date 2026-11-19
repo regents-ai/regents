@@ -1,4 +1,4 @@
-defmodule RegentsWeb.RedeemGalleryLive do
+defmodule RegentsWeb.Redeem.RedeemGalleryLive do
   @moduledoc false
   use Phoenix.Component
 

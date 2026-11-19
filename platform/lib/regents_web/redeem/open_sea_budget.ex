@@ -1,4 +1,4 @@
-defmodule RegentsWeb.ShellLive.OpenSeaBudget do
+defmodule RegentsWeb.Redeem.OpenSeaBudget do
   @moduledoc """
   Every owned-collectible lookup spends the site's one OpenSea key, whose
   allowance every visitor shares, so each visitor may only start a few of them

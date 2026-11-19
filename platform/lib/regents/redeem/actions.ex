@@ -1,8 +1,8 @@
-defmodule Regents.Redemption.Actions do
+defmodule Regents.Redeem.Actions do
   @moduledoc false
   alias Regents.Chain.Address
-  alias Regents.Redemption.RpcClient
-  alias Regents.WalletActions.RedemptionAbi
+  alias Regents.Redeem.RedemptionAbi
+  alias Regents.Redeem.RpcClient
 
   def overview(_input, _context), do: RpcClient.overview(nil, nil, nil)
 

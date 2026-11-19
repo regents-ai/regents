@@ -1,8 +1,8 @@
-defmodule Regents.Redemption.RpcClient do
+defmodule Regents.Redeem.RpcClient do
   @moduledoc false
 
   alias Regents.Chain.{Abi, Rpc}
-  alias Regents.WalletActions.RedemptionAbi
+  alias Regents.Redeem.RedemptionAbi
 
   @read_timeout 12_000
   @chain_id 8453

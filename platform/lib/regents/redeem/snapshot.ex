@@ -1,11 +1,11 @@
-defmodule Regents.Redemption.Snapshot do
+defmodule Regents.Redeem.Snapshot do
   @moduledoc "Onchain Animata redemption reads."
 
   use Ash.Resource,
-    domain: Regents.Redemption,
+    domain: Regents.Redeem,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Regents.Redemption.Actions
+  alias Regents.Redeem.Actions
 
   # Closures rather than captures: a capture evaluated inside the DSL would
   # make the implementation module a compile-time dependency of this resource.

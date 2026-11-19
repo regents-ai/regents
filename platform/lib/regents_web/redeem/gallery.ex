@@ -1,4 +1,4 @@
-defmodule RegentsWeb.ShellLive.Gallery do
+defmodule RegentsWeb.Redeem.Gallery do
   @moduledoc """
   The gallery's "My passes" filter. It reads the signed-in account's own
   wallets once; after that the toggle only shows or hides what is already on
@@ -11,7 +11,8 @@ defmodule RegentsWeb.ShellLive.Gallery do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias Regents.OpenSea
-  alias RegentsWeb.ShellLive.{Identity, OpenSeaBudget}
+  alias RegentsWeb.Redeem.OpenSeaBudget
+  alias RegentsWeb.ShellLive.Identity
 
   def init(socket), do: assign(socket, gallery_mine: false, gallery_owned: idle())
 

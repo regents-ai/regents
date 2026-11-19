@@ -1,4 +1,4 @@
-defmodule RegentsWeb.ShellLive.Redemption do
+defmodule RegentsWeb.Redeem.Redemption do
   @moduledoc """
   The Redeem page's reading of Base for the chosen Animata and wallet, and the
   panel of collectibles that wallet holds. Each Base read is numbered; only the
@@ -9,12 +9,13 @@ defmodule RegentsWeb.ShellLive.Redemption do
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
 
-  alias Regents.{OpenSea, Redemption}
+  alias Regents.{OpenSea, Redeem}
   alias Regents.OpenSea.HoldingsCache
-  alias Regents.Redemption.Steps
+  alias Regents.Redeem.Steps
   alias RegentsWeb.Chain.ReadBudget
   alias RegentsWeb.EventInput
-  alias RegentsWeb.ShellLive.{Identity, OpenSeaBudget}
+  alias RegentsWeb.Redeem.OpenSeaBudget
+  alias RegentsWeb.ShellLive.Identity
 
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
   @collections ~w(animata_i animata_ii)
@@ -66,7 +67,7 @@ defmodule RegentsWeb.ShellLive.Redemption do
 
   def step(assigns) do
     if selection_ready?(assigns),
-      do: Redemption.next_step(assigns.redemption, assigns.redemption_wallet),
+      do: Redeem.next_step(assigns.redemption, assigns.redemption_wallet),
       else: nil
   end
 
@@ -285,8 +286,8 @@ defmodule RegentsWeb.ShellLive.Redemption do
     )
     |> start_async(name, fn ->
       if wallet,
-        do: Redemption.account_for_wallet(wallet, collection, token_id),
-        else: Redemption.overview()
+        do: Redeem.account_for_wallet(wallet, collection, token_id),
+        else: Redeem.overview()
     end)
   end
 

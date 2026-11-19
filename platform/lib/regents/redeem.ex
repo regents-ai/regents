@@ -1,9 +1,9 @@
-defmodule Regents.Redemption do
+defmodule Regents.Redeem do
   @moduledoc "Canonical domain boundary for Animata redemption on Base."
   use Ash.Domain
 
   resources do
-    resource Regents.Redemption.Snapshot do
+    resource Regents.Redeem.Snapshot do
       define :overview, action: :overview
 
       define :account_for_wallet,
@@ -14,5 +14,5 @@ defmodule Regents.Redemption do
 
   # A display-only projection of the last reading from Base, used for the page's
   # stepper and its hint copy; the wallet steps never consult it.
-  defdelegate next_step(facts, signer), to: Regents.Redemption.Actions
+  defdelegate next_step(facts, signer), to: Regents.Redeem.Actions
 end

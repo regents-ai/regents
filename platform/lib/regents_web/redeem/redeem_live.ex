@@ -1,4 +1,4 @@
-defmodule RegentsWeb.RedeemLive do
+defmodule RegentsWeb.Redeem.RedeemLive do
   @moduledoc """
   The Redeem page and its wallet buttons.
 
@@ -16,8 +16,8 @@ defmodule RegentsWeb.RedeemLive do
   use RegentsWeb, :live_component
 
   alias Regents.Chain.Client
-  alias Regents.Redemption
-  alias Regents.Redemption.Steps
+  alias Regents.Redeem
+  alias Regents.Redeem.Steps
 
   alias RegentsWeb.Chain.{OnchainButton, SubmittedTransactions, TransactionReceipt}
   alias RegentsWeb.Components.Loading
@@ -180,7 +180,7 @@ defmodule RegentsWeb.RedeemLive do
     socket
     |> assign(receipt: %{hash: hash, name: name, inputs: review.inputs, position: :reading})
     |> start_async({:receipt_position, hash}, fn ->
-      Redemption.account_for_wallet(signer, nil, nil)
+      Redeem.account_for_wallet(signer, nil, nil)
     end)
   end
 

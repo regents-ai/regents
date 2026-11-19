@@ -34,13 +34,14 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
   alias RegentsWeb.Read
-  alias RegentsWeb.RedeemGalleryLive
-  alias RegentsWeb.RedeemLive
+  alias RegentsWeb.Redeem.RedeemGalleryLive
+  alias RegentsWeb.Redeem.RedeemLive
   alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
 
-  alias RegentsWeb.ShellLive.{Account, Gallery, Names, PaperProDaily, Points, Redemption}
+  alias RegentsWeb.Redeem.{Gallery, Redemption}
+  alias RegentsWeb.ShellLive.{Account, Names, PaperProDaily, Points}
   alias RegentsWeb.Stake.Staking
 
   @impl true
