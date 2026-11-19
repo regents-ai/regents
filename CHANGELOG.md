@@ -7043,3 +7043,9 @@ seasons), on the shared Points library regents.sh was already on.
   database at the PostgreSQL version .tool-versions names, stops unless the server answers
   that exact version, and prints it. The site's live database server is not changed.
   No migration. platform/.tool-versions, platform/Dockerfile, scripts/release.sh.
+
+## 2026-11-19 — The release smoke names its image
+
+- scripts/release.sh gives the smoke's server the image it runs (FLY_IMAGE_REF), which
+  the server has required at start-up since it began reporting its release; without it
+  the smoke stopped at start-up. As ash-template's script does. scripts/release.sh.

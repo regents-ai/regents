@@ -94,6 +94,7 @@ docker run --detach --name "$run-app" "${release_env[@]}" \
   --publish 127.0.0.1::4000 \
   --env DATABASE_POOLED_URL="$database_url" \
   --env PHX_HOST=localhost \
+  --env FLY_IMAGE_REF="$image" \
   --env SECRET_KEY_BASE="$(openssl rand -base64 48)" \
   "$image" >/dev/null
 base="http://$(docker port "$run-app" 4000/tcp | head -n 1)"
