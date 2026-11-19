@@ -7200,3 +7200,9 @@ seasons), on the shared Points library regents.sh was already on.
   platform/docs/codebase-handoff.md.
 - From the independent review of the library move: `Regents.AgentAccount.person/1` raises
   a plain message when a profile cannot be read, so the failure's log names no one.
+
+## 2026-11-19 — Released v347 (shared library at main, sign-in refresh)
+
+- v347, commit de53401b: the shared library at elixir-utils main, the sign-in refresh, the standing practice run and the contract-tests removal. Full check exit 0 on de53401b; the practice run built the image and ran its database commands on a throwaway database. No site migration.
+- Live read, signed out: the 23 pages and agent documents answer; the pairing read refuses a request with no token.
+- Rollback: v346's image main-b16683e296cb.
