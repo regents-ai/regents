@@ -24,8 +24,8 @@ selection is returned as unverified. This field does not rewrite product payout
 or wallet-signer selection. The latter must be adopted through reviewed product
 changes.
 
-The migration runs once, from Regents, with its own migration ledger. Consumers
-must not run it from their migration streams. New product destinations must avoid Regents' occupied legacy `autolaunch` schema.
+The migrations run once, from Regents, with their own migration ledger. Consumers
+must not run them from their migration streams. New product destinations must avoid Regents' occupied legacy `autolaunch` schema.
 **Do not simply repoint existing databases**: historical public foreign keys,
 sequences, sessions, ledgers and product IDs need a rehearsed data reconciliation.
 

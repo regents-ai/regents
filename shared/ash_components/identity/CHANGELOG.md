@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- Several profiles in one app may hold the same X account (19 Nov 2026): migration
+  `20261119204035_shared_x_accounts` drops the unique index on a profile's app and
+  X account, and its way back rebuilds it.
+
 - The tests and their database are gone (19 Nov 2026). `mix check` runs in dev
   against `RegentIdentity.Repo` in `dev/`, which no `:prod` build compiles, and
   compiles with warnings as errors and checks unused locks, formatting, Credo and the

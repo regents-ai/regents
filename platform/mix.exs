@@ -6,7 +6,7 @@ defmodule Regents.MixProject do
   # pinned to one published commit. To move a pin, change its ref and run
   # `mix deps.update <name>`.
   @elixir_utils "https://github.com/regents-ai/elixir-utils.git"
-  @elixir_utils_ref "23bb83df91f7ce86a24eea27c599adfb23e27b41"
+  @elixir_utils_ref "6d98a1139caf6a89e7b358070ea1165306d2f47b"
   @design_system "https://github.com/regents-ai/design-system.git"
   @design_system_ref "c9071e2c52089566094e166913adbb68293c35b9"
 
