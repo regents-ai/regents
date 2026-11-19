@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Regents.RouteHandoff do
+  use Boundary, classify_to: Regents.Release
+
   @shortdoc "Writes or checks the generated founder-shell route handoff"
 
   use Mix.Task

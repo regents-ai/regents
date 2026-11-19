@@ -29,7 +29,7 @@ install_lines=(
   platform/priv/public/agents.md
   platform/priv/public/llms.md
   platform/priv/public/docs/pairing.md
-  platform/lib/regents_web/agent_start.ex
+  platform/lib/regents_web/account/agent_start.ex
   cli
 )
 capabilities=platform/priv/tool_manifest.json

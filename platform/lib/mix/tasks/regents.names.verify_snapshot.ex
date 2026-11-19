@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Regents.Names.VerifySnapshot do
+  use Boundary, classify_to: Regents.Release
+
   @shortdoc "Compare complete local claim snapshots without starting the application"
   use Mix.Task
 

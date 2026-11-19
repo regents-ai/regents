@@ -1,5 +1,6 @@
 defmodule Regents.Release do
   @moduledoc false
+  use Boundary, top_level?: true, deps: [Regents, RegentsWeb, Regents.LocalDatabaseFixture]
 
   @app :regents
   @deployment_role_variable "REGENTS_DEPLOYMENT_ROLE"

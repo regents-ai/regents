@@ -7,6 +7,7 @@ defmodule Regents.SharedChanges do
   (`Regents.DatabaseConfig.notifications_config/1`). The connection starts
   first, so a new connection brings new listeners.
   """
+  use Boundary, top_level?: true, deps: [Regents, Regents.Stake]
 
   use Supervisor
 

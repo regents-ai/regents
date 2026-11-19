@@ -1,5 +1,7 @@
 defmodule Regents.Redeem do
   @moduledoc "Canonical domain boundary for Animata redemption on Base."
+  use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [Steps]
+
   use Ash.Domain
 
   resources do
@@ -15,4 +17,9 @@ defmodule Regents.Redeem do
   # A display-only projection of the last reading from Base, used for the page's
   # stepper and its hint copy; the wallet steps never consult it.
   defdelegate next_step(facts, signer), to: Regents.Redeem.Actions
+
+  @doc "`:ok` when the redemption reading from Base answers. Not used yet."
+  def health do
+    with {:ok, _facts} <- overview(), do: :ok
+  end
 end

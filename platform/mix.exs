@@ -19,7 +19,7 @@ defmodule Regents.MixProject do
       aliases: aliases(),
       deps: deps(),
       usage_rules: usage_rules(),
-      compilers: [:ash_signals, :phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:boundary, :ash_signals, :phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -102,7 +102,10 @@ defmodule Regents.MixProject do
       {:credo, "~> 1.7", only: :dev, runtime: false},
       {:ex_slop, "~> 0.4", only: :dev, runtime: false},
       {:credo_ash, path: "../shared/credo_ash", only: :dev, runtime: false},
-      {:sobelow, "~> 0.16", only: :dev, runtime: false}
+      {:sobelow, "~> 0.16", only: :dev, runtime: false},
+      # Each product's code may use the site, the shared chain plumbing and Account's
+      # exports, never another product (`use Boundary` in each product's root module).
+      {:boundary, "~> 0.12.0", runtime: false}
     ]
   end
 

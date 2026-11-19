@@ -2,6 +2,9 @@ defmodule Regents.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
+  use Boundary,
+    top_level?: true,
+    deps: [Regents, RegentsWeb, Regents.Stake]
 
   use Application
 

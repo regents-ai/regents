@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Regents.Blog.Check do
+  use Boundary, classify_to: Regents.Release
+
   @shortdoc "Checks a blog folder without saving it"
   use Mix.Task
 

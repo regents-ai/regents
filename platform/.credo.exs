@@ -67,7 +67,7 @@
              files: %{
                excluded: [
                  # Redemption runtime code is protected and cannot receive semantic refactors in this ticket.
-                 "lib/regents/redemption/**/*.ex",
+                 "lib/regents/redeem/**/*.ex",
                  # This LiveView owns protected wallet, stake, and redemption flows.
                  "lib/regents_web/live/shell_live.ex"
                ]
@@ -80,7 +80,7 @@
              files: %{
                excluded: [
                  # Changing the protected redemption RPC interface is not a lint-only edit.
-                 "lib/regents/redemption/**/*.ex"
+                 "lib/regents/redeem/**/*.ex"
                ]
              }
            ]},

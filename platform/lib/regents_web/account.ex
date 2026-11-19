@@ -1,0 +1,29 @@
+defmodule RegentsWeb.Account do
+  @moduledoc """
+  The Account pages, controllers, components, plugs and shell features.
+  """
+  use Boundary,
+    deps: [RegentsWeb, RegentsWeb.Chain],
+    exports: [
+      AccountLive,
+      AgentPictureController,
+      AgentReadsController,
+      AgentStart,
+      AgentStartLive,
+      Identity,
+      Names,
+      NamesLive,
+      OwnedClaimsController,
+      Pages,
+      PairLive,
+      PairedAgent,
+      Points,
+      PointsLive,
+      PrivyPair,
+      PrivySessionController,
+      ProfileOwner,
+      PublicRegentController,
+      RegentProfileLive,
+      VerifiedConnections
+    ]
+end

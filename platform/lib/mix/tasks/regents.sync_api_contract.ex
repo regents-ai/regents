@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Regents.SyncApiContract do
+  use Boundary, classify_to: Regents.Release
+
   use Mix.Task
 
   @shortdoc "Syncs the canonical API contract to its served location"

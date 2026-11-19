@@ -1,5 +1,8 @@
 defmodule Regents.LocalDatabaseFixture do
   @moduledoc false
+  # Prepares a local database the way a release does (`Regents.Release`), which in
+  # turn creates the shared tables from here: a dev-only tool outside the checks.
+  use Boundary, top_level?: true, check: [out: false]
 
   # A local database is prepared exactly as staging's first deployment is
   # (`Regents.Release.prepare_database!/1`): the same tables, the same shared

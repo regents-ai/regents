@@ -16,6 +16,29 @@ defmodule RegentsWeb do
   below. Instead, define additional modules and import
   those modules here.
   """
+  use Boundary,
+    deps: [Regents, Regents.Chain, Regents.Stake, Regents.Redeem],
+    exports: [
+      Capabilities,
+      ClientAddress,
+      Components.Loading,
+      Components.PageHead,
+      Components.Tour,
+      Endpoint,
+      EventInput,
+      FormErrors,
+      HomeLive,
+      Live.Session,
+      Motion,
+      PaperProDaily.Feed,
+      PaperProDaily.Reading,
+      ProductLive,
+      PublicDocuments,
+      Read,
+      RouteCatalog,
+      VisitLog,
+      VisitLog.Events
+    ]
 
   def static_paths,
     do:

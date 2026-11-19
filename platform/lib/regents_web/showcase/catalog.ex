@@ -59,7 +59,9 @@ defmodule RegentsWeb.Showcase.Catalog do
     product =
       for module <- Application.spec(:regents, :modules) || [],
           String.starts_with?(inspect(module), [
-            "Regents.WalletActions.",
+            "Regents.Chain.Abi",
+            "Regents.Chain.Address",
+            "Regents.Chain.Rpc",
             "Regents.DatabaseConfig",
             "Regents.Stake.",
             "Regents.Redeem."

@@ -1,5 +1,10 @@
 defmodule Regents.Stake do
   @moduledoc "Canonical domain boundary for REGENT staking on Base."
+  use Boundary,
+    top_level?: true,
+    deps: [Regents, Regents.Chain],
+    exports: [Actions, Facts, PriceClient, SnapshotCache, SnapshotRefresh, Steps]
+
   use Ash.Domain
 
   resources do
@@ -23,4 +28,9 @@ defmodule Regents.Stake do
   defdelegate spendable(snapshot, action), to: Regents.Stake.Actions
   defdelegate available_claims(snapshot), to: Regents.Stake.Actions
   defdelegate parse_amount(value), to: Regents.Stake.Actions
+
+  @doc "`:ok` when the latest staking reading from Base is stored. Not used yet."
+  def health do
+    if Regents.Stake.SnapshotCache.snapshot(), do: :ok, else: {:error, :no_snapshot}
+  end
 end

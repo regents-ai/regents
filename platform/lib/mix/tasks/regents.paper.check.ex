@@ -1,6 +1,8 @@
 defmodule Mix.Tasks.Regents.Paper.Check do
   @shortdoc "Checks a paper folder without saving it"
   @moduledoc "Run `mix regents.paper.check ../Papers/<folder>` before uploading a paper."
+  use Boundary, classify_to: Regents.Release
+
   use Mix.Task
 
   def run([folder]) do

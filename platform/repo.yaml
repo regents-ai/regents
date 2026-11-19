@@ -29,11 +29,11 @@ code_map:
   - id: routes
     path: lib/regents_web/router.ex
   - id: accounts
-    path: lib/regents/accounts.ex
+    path: lib/regents/account/accounts.ex
 domain_interfaces:
   - id: accounts
     owner: regents
-    path: lib/regents/accounts.ex
+    path: lib/regents/account/accounts.ex
 protected_datasets:
   disposition: deliberate_later_ash_resources
   no_data_action_in_this_unit: true

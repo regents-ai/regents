@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Regents.SetupLocalAuth do
+  use Boundary, classify_to: Regents.Release
+
   use Mix.Task
 
   @shortdoc "Prepares the guarded local Regents database"

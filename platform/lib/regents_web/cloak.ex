@@ -5,6 +5,7 @@ defmodule RegentsWeb.Cloak do
   protection proven, so every protection and card reads as planned and the
   download stays off.
   """
+  use Boundary, deps: [RegentsWeb], exports: [CloakLive]
 
   @features [
     "Works with the agents you already use: a local OpenAI-compatible address on your Mac.",

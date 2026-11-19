@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Regents.VerifyChainManifest do
+  use Boundary, classify_to: Regents.Release
+
   use Mix.Task
 
   @shortdoc "Verifies pinned Base contracts through bounded read-only RPC calls"

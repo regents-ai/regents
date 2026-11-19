@@ -110,7 +110,7 @@ config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
-  queues: [default: 1, points: 5, points_chain: 2, staking_reads: 1],
+  queues: [default: 1, points: 5, points_chain: 2, stake_reads: 1],
   cron: [
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
