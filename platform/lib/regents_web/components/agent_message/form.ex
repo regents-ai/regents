@@ -15,7 +15,7 @@ defmodule RegentsWeb.Components.AgentMessage.Form do
   use RegentsWeb, :live_component
 
   alias Regent.Primitives
-  alias Regents.Actors.Human
+  alias Regents.Account.Actors.Human
   alias Regents.Messages
   alias RegentsWeb.FormErrors
   alias RegentsWeb.Live.Session

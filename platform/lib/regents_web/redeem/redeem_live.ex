@@ -23,9 +23,9 @@ defmodule RegentsWeb.Redeem.RedeemLive do
   alias RegentsWeb.Components.Loading
 
   alias RegentChain.{Presses, Review}
+  alias RegentsWeb.Account.Identity
   alias RegentsWeb.Chain.{OnchainSteps, TokenDisplay}
   alias RegentsWeb.EventInput
-  alias RegentsWeb.ShellLive.Identity
 
   @control_labels %{
     "approve_nft_collection" => "Approve NFT collection",

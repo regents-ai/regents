@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Regents.Blog.Check do
 
     changeset =
       Ash.Changeset.for_create(Regents.Blog.Post, :put, attributes,
-        actor: %Regents.Actors.System{}
+        actor: %Regents.Account.Actors.System{}
       )
 
     unless changeset.valid?,

@@ -14,7 +14,7 @@ defmodule Regents.Messages.Message.AgentLeave do
 
   use Ash.Resource.Actions.Implementation
 
-  alias Regents.Actors.{Agent, System}
+  alias Regents.Account.Actors.{Agent, System}
   alias Regents.Messages
   alias Regents.Messages.{Message, Refused}
 

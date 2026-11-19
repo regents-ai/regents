@@ -25,11 +25,11 @@ defmodule Regents.Application do
         Regents.SiteTools,
         # Each paired agent's reading from the sign-in service, kept five minutes
         # and shared by the account menu and the Agents page.
-        Regents.Agents.ActivityReading,
+        Regents.Account.Agents.ActivityReading,
         # What the papers page shows, kept a minute and shared by every open of it.
         RegentsWeb.PaperProDaily.Feed,
         # Each agent's reading for an open account menu, unlinked from the page.
-        {Task.Supervisor, name: Regents.Agents.Reads},
+        {Task.Supervisor, name: Regents.Account.Agents.Reads},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
         # After the repository and PubSub: a pairing or the staking figures
@@ -39,7 +39,7 @@ defmodule Regents.Application do
         oban_child(),
         # After PubSub: a finished ENS lookup announces itself on the topic the
         # signed-in shell listens on.
-        Regents.Ens,
+        Regents.Account.Ens,
         # After PubSub: the figures every reader they admit sees alike, and the
         # Points board read once for all of them.
         Regents.SharedReading,
@@ -92,7 +92,7 @@ defmodule Regents.Application do
   # the database before it asks to.
   defp points_board_child do
     if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint),
-      do: Regents.Points.Board
+      do: Regents.Account.Points.Board
   end
 
   # Metrics are served beside the site, never by a process that only runs a task.

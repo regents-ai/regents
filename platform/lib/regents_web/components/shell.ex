@@ -36,7 +36,7 @@ defmodule RegentsWeb.Components.Shell do
   ]
 
   attr(:route_spec, :map, required: true)
-  attr(:account_control, Regents.AccessContext.AccountControl, required: true)
+  attr(:account_control, Regents.Account.AccessContext.AccountControl, required: true)
   attr(:shell_instance, :integer, required: true)
 
   slot(:content, required: true)
@@ -216,7 +216,7 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
-  attr :account_control, Regents.AccessContext.AccountControl, required: true
+  attr :account_control, Regents.Account.AccessContext.AccountControl, required: true
   attr :enabled, :boolean, default: true
 
   attr :menu, :boolean,
@@ -419,7 +419,7 @@ defmodule RegentsWeb.Components.Shell do
 
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)
-  attr(:account_control, Regents.AccessContext.AccountControl, required: true)
+  attr(:account_control, Regents.Account.AccessContext.AccountControl, required: true)
 
   defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
     assigns = assign(assigns, :target, target)
@@ -473,7 +473,7 @@ defmodule RegentsWeb.Components.Shell do
   defp current?(route_spec, path),
     do: path in [route_spec.destination | Enum.map(route_spec.tabs, & &1.path)]
 
-  attr :account_control, Regents.AccessContext.AccountControl, required: true
+  attr :account_control, Regents.Account.AccessContext.AccountControl, required: true
 
   # The account's picture and name. The `profile` marker tells the browser the
   # page was drawn for a signed-in account.

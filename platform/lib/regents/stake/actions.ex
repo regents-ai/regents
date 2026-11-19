@@ -1,7 +1,7 @@
 defmodule Regents.Stake.Actions do
   @moduledoc false
-  alias Regents.Accounts
-  alias Regents.Actors.Human
+  alias Regents.Account.Accounts
+  alias Regents.Account.Actors.Human
   alias Regents.Chain.Address
   alias Regents.Stake.RpcClient
 

@@ -52,7 +52,7 @@ defmodule Regents.SharedReading do
       audience:
         "signed-in people and paired agents, the readers the Points page and the agent's " <>
           "Points answer admit; each gets the rows without account ids " <>
-          "(Regents.Points.Board)",
+          "(Regents.Account.Points.Board)",
       keys: 1,
       bytes: 65_536
     }

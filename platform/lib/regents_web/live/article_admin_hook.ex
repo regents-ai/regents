@@ -12,7 +12,7 @@ defmodule RegentsWeb.Live.ArticleAdminHook do
   end
 
   defp admit(%{assigns: %{live_action: :articles_admin}} = socket) do
-    account = RegentsWeb.ShellLive.Identity.current_account(socket.assigns.access_context)
+    account = RegentsWeb.Account.Identity.current_account(socket.assigns.access_context)
 
     if Regents.Blog.admin?(account),
       do: {:cont, socket},

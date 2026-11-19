@@ -12,7 +12,7 @@ defmodule RegentsWeb.Chain.OnchainSteps do
   (`Regents.Chain.Refresh`), so the shared figures show what it changed.
 
   Signed in, every review is built for the account's main wallet
-  (`RegentsWeb.ShellLive.Identity.main_wallet/1`), and the page sends only from
+  (`RegentsWeb.Account.Identity.main_wallet/1`), and the page sends only from
   that wallet. Signed out there is no review.
   """
 

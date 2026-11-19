@@ -25,9 +25,9 @@ defmodule RegentsWeb.Stake.StakeActions do
 
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
+  alias RegentsWeb.Account.Identity
   alias RegentsWeb.Chain.{OnchainSteps, TokenDisplay}
   alias RegentsWeb.EventInput
-  alias RegentsWeb.ShellLive.Identity
   alias RegentsWeb.Stake.StakeLive
 
   import RegentsWeb.EventInput, only: [failure_reason: 1]

@@ -4,9 +4,9 @@ defmodule RegentsWeb.Live.Session do
   import Phoenix.LiveView,
     only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
 
-  alias Regents.{AccessContext, Ens, Formation}
-  alias Regents.Accounts.SessionAuthority
-  alias Regents.Actors.Human
+  alias Regents.Account.{AccessContext, Ens, Formation}
+  alias Regents.Account.Accounts.SessionAuthority
+  alias Regents.Account.Actors.Human
 
   @public_root "/"
 
@@ -57,7 +57,7 @@ defmodule RegentsWeb.Live.Session do
   end
 
   # Which wallets the sign-in named the Regents wallet and the person's own
-  # (`Regents.Accounts.VerifiedSession.wallet_labels/1`), read from the same
+  # (`Regents.Account.Accounts.VerifiedSession.wallet_labels/1`), read from the same
   # cookie as the claim; the account itself only ever comes from the claim's row.
   defp sign_in_wallets(%{"wallets" => %{} = wallets}), do: wallets
   defp sign_in_wallets(_session), do: %{}

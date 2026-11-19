@@ -85,7 +85,7 @@ development and from the deployment's secret store in production.
 | `PRIVY_VERIFICATION_KEY` | For sign-in | Privy's PEM-encoded ES256 verification **public** key — not the app secret. The value is the PEM with real line breaks, for example `fly secrets set PRIVY_VERIFICATION_KEY="$(cat privy-verification-key.pem)"`. |
 | `SIWA_SERVER_URL` | For signed agent requests | Base URL of the `siwa-server` verification service. |
 | `SIWA_AUDIENCE` | For signed agent requests | Audience value required for agent request verification. |
-| `SIWA_ACTIVITY_READ_TOKEN` | No | The reader key for the sign-in service's agent activity, which gives the account menu each agent's last active site and the Agents page each agent's sites by day. `Regents.Agents.ActivityReading` keeps each agent's reading for five minutes. Unset means neither shows activity. |
+| `SIWA_ACTIVITY_READ_TOKEN` | No | The reader key for the sign-in service's agent activity, which gives the account menu each agent's last active site and the Agents page each agent's sites by day. `Regents.Account.Agents.ActivityReading` keeps each agent's reading for five minutes. Unset means neither shows activity. |
 | `SPRITES_TOKEN` | For Formation | Server-only token used to provision and inspect Formation runtimes. |
 | `BASE_READ_RPC_URL` | Yes in production | Base mainnet JSON-RPC endpoint the Stake and Redeem pages read. Development falls back to a public endpoint. |
 | `REGENTS_APP_SURFACES` | Yes in production | `on` opens the product surfaces. Anything else keeps them closed, so a typo closes rather than opens. Boot fails in production if unset. |
@@ -201,7 +201,7 @@ MIT — see [LICENSE](../LICENSE).
 `/account` is the signed-in person's own page, the same on every Regent site: its tabs are Account, Agents, Points, Wallets, Connections and Names, and the page starts in ash-template. The private `/api/v1/profile` contract,
 served by the shared `regent_identity` library, provides `GET` and `PATCH` for the person
 signed in on this site (a change carries the session's forms token) or a paired agent's
-signed request (`RegentsWeb.Plugs.ProfileOwner`). A profile is made at sign-in.
+signed request (`RegentsWeb.Account.ProfileOwner`). A profile is made at sign-in.
 Personal X verification comes from signed Privy evidence. Product sessions,
 permissions and existing payout identities remain product-owned.
 

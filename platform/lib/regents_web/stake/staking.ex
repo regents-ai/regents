@@ -14,13 +14,13 @@ defmodule RegentsWeb.Stake.Staking do
   import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
 
   alias RegentChain.Address
-  alias Regents.Actors.Human
+  alias Regents.Account.Actors.Human
   alias Regents.Chain.Refresh
   alias Regents.Stake
   alias Regents.Stake.Facts, as: StakingFacts
   alias Regents.Stake.SnapshotCache
+  alias RegentsWeb.Account.Identity
   alias RegentsWeb.Chain.ReadBudget
-  alias RegentsWeb.ShellLive.Identity
 
   @routes [:stake, :app]
   # After a step is sent, the wallet's figures are read again this often, this

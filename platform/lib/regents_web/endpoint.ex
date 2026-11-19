@@ -79,7 +79,7 @@ defmodule RegentsWeb.Endpoint do
   # The largest body the site takes is a sign-in request of a few kilobytes;
   # anything past a megabyte is refused before it is read.
   plug RegentsWeb.Plugs.Parsers,
-    body_reader: {RegentsWeb.Plugs.AgentBodyReader, :read_body, []},
+    body_reader: {RegentsWeb.Account.AgentBodyReader, :read_body, []},
     parsers: [Plug.Parsers.URLENCODED, Plug.Parsers.JSON],
     pass: ["*/*"],
     length: 1_000_000,

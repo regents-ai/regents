@@ -29,13 +29,13 @@ defmodule RegentsWeb.Router do
   end
 
   pipeline :paired_agent do
-    plug RegentsWeb.Plugs.PairedAgent
+    plug RegentsWeb.Account.PairedAgent
   end
 
   # The profile API's owner: the person signed in here, with the forms token on a
-  # change, or the person a paired agent acts for (RegentsWeb.Plugs.ProfileOwner).
+  # change, or the person a paired agent acts for (RegentsWeb.Account.ProfileOwner).
   pipeline :profile_owner do
-    plug RegentsWeb.Plugs.ProfileOwner
+    plug RegentsWeb.Account.ProfileOwner
   end
 
   # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
@@ -83,7 +83,7 @@ defmodule RegentsWeb.Router do
   end
 
   def enforce_session_authority(conn, _opts) do
-    RegentsWeb.PrivySessionController.enforce_authority(conn)
+    RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
 
   if Application.compile_env(:regents, :local_showcase, false) do
@@ -148,7 +148,7 @@ defmodule RegentsWeb.Router do
     get "/paper-pro-daily/share.png", PaperPictureController, :page_share
     get "/paper-pro-daily/:paper/share.png", PaperPictureController, :paper_share
     get "/articles/covers/:slug", BlogCoverController, :show
-    get "/agents/:wallet/picture", AgentPictureController, :show
+    get "/agents/:wallet/picture", Account.AgentPictureController, :show
     get "/agents/:agent/skill.md", PublicPagesController, :agent_skill
   end
 
@@ -164,11 +164,11 @@ defmodule RegentsWeb.Router do
     pipe_through :api
     get "/health", RegentsWeb.HealthController, :status
     get "/docs", RegentsWeb.PublicPagesController, :document, assigns: %{document: "/docs"}
-    get "/claims", RegentsWeb.OwnedClaimsController, :index
+    get "/claims", RegentsWeb.Account.OwnedClaimsController, :index
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show
     get "/site-tools", RegentsWeb.SiteToolsController, :index
-    get "/regents/:slug", RegentsWeb.PublicRegentController, :show
+    get "/regents/:slug", RegentsWeb.Account.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
     get "/staking/position", RegentsWeb.Stake.StakingPositionController, :show
   end
@@ -190,8 +190,8 @@ defmodule RegentsWeb.Router do
 
   scope "/api/agent/v1", RegentsWeb do
     pipe_through [:api, :paired_agent]
-    get "/account", AgentReadsController, :account
-    post "/claims", OwnedClaimsController, :agent_index
+    get "/account", Account.AgentReadsController, :account
+    post "/claims", Account.OwnedClaimsController, :agent_index
     get "/staking/position", Stake.StakingPositionController, :agent_show
   end
 
@@ -204,7 +204,7 @@ defmodule RegentsWeb.Router do
   # A paired agent's read of its person's Points, at the same path on every site.
   scope "/api/v1/account", RegentsWeb do
     pipe_through [:api, :paired_agent]
-    get "/points", AgentReadsController, :points
+    get "/points", Account.AgentReadsController, :points
   end
 
   scope "/api/agents/v1" do
@@ -222,12 +222,12 @@ defmodule RegentsWeb.Router do
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
 
-    get "/auth/csrf", PrivySessionController, :csrf
-    post "/auth/privy/failure", PrivySessionController, :failure
+    get "/auth/csrf", Account.PrivySessionController, :csrf
+    post "/auth/privy/failure", Account.PrivySessionController, :failure
     post "/visit-log", VisitLogController, :create, log: false
-    post "/auth/privy/session", PrivySessionController, :create
-    get "/auth/session", PrivySessionController, :show
-    delete "/auth/privy/session", PrivySessionController, :delete
+    post "/auth/privy/session", Account.PrivySessionController, :create
+    get "/auth/session", Account.PrivySessionController, :show
+    delete "/auth/privy/session", Account.PrivySessionController, :delete
 
     live_session :product_shell,
       session: {RegentsWeb.Live.Session, :render_context, []},

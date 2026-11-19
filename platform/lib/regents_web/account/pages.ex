@@ -1,0 +1,213 @@
+defmodule RegentsWeb.Account.Pages do
+  @moduledoc """
+  The Account pages, as ash-template has them: Account (the shared layout),
+  Agents (the agents list, whose Pair New Agent opens the pairing window), Wallets
+  (read from the sign-in) and Connections (the accounts connected to it). Every
+  read here is the account's own, made with what its
+  sign-in verified, so nothing the browser sends can widen it. Agent changes from
+  other tabs and sites reach the account menu's agents and the pairing window on
+  every page, the Agents page's list while it is open, and the pairing link's page.
+  """
+
+  import Phoenix.Component, only: [assign: 2]
+  import Phoenix.LiveView, only: [connected?: 1, push_event: 3, send_update: 2]
+
+  alias Regents.Account.{Accounts, Ens}
+  alias Regents.Account.Accounts.LinkedIdentity.Providers
+  alias Regents.Account.Actors.Human
+  alias RegentsWeb.Account.{AgentsPanel, MenuAgents, PairingBox}
+  alias RegentsWeb.Account.Identity
+  alias RegentsWeb.Read
+
+  @actions %{"link" => :link, "unlink" => :unlink}
+  @refused %{
+    tone: :error,
+    message: "That connection couldn’t be updated. Refresh the page and try again."
+  }
+
+  @events ~w(request_verified_connection refresh_verified_connections public_name_saved)
+
+  def handles?(event), do: event in @events
+
+  def init(socket) do
+    socket
+    |> assign(
+      verified_connections: %Read{},
+      verified_connections_notice: nil,
+      connection_outcome: nil
+    )
+    |> follow_agents()
+  end
+
+  def route(socket, route_spec) do
+    socket
+    |> refresh_ens(route_spec)
+    |> load_verified_connections(route_spec)
+  end
+
+  # Agents pair, check in and change from other tabs and other Regent sites. The
+  # account menu's agents are on every page, so every signed-in page follows
+  # them. Signing in or out reloads the page, so the person followed is the
+  # page's own for as long as it is open.
+  defp follow_agents(socket) do
+    with true <- connected?(socket),
+         %{privy_user_id: id} <- Identity.current_account(socket.assigns.access_context) do
+      Phoenix.PubSub.subscribe(Regents.PubSub, RegentAgents.topic(id))
+    end
+
+    socket
+  end
+
+  def handle_event(
+        "request_verified_connection",
+        %{"action" => action, "provider" => provider},
+        socket
+      ) do
+    with %Human{} <- Identity.human_actor(socket),
+         {:ok, provider} <- Providers.parse(provider),
+         {:ok, action} <- Map.fetch(@actions, action),
+         {:ok, request} <-
+           identity_request(action, provider, socket.assigns.verified_connections.value) do
+      socket
+      |> assign(verified_connections_notice: %{tone: :info, message: connection_started(request)})
+      |> push_event("verified-connections:request", request)
+    else
+      _refused -> assign(socket, verified_connections_notice: @refused)
+    end
+  end
+
+  # The outcome is judged against the connections read after the provider came back.
+  def handle_event("refresh_verified_connections", params, socket) do
+    socket
+    |> assign(connection_outcome: params, verified_connections_notice: nil)
+    |> read_verified_connections()
+    |> report_connection_outcome()
+  end
+
+  # The Account page saved the person's name in the shared profile. Every event
+  # reads the account again first (`RegentsWeb.Live.Session`), so the page
+  # already shows the new name everywhere it appears.
+  def handle_event("public_name_saved", _params, socket), do: socket
+
+  def handle_event(_event, _params, socket), do: socket
+
+  @doc """
+  An agent paired, checked in or was unpaired, here or on another Regent site.
+  The account menu's agents and the pairing window are on every page; the Agents
+  page also lists the agents, and the pairing link's page holds a pairing box.
+  """
+  def agents_changed(socket) do
+    send_update(MenuAgents, id: "shell-agents", agents_changed: true)
+    send_update(PairingBox, id: "shell-pairing-box", agents_changed: true)
+
+    if socket.assigns.route_spec.route_id == :account_agents,
+      do: send_update(AgentsPanel, id: "account-agents", agents_changed: true)
+
+    if socket.assigns.route_spec.route_id == :pair,
+      do: send_update(PairingBox, id: "pair-pairing-box", agents_changed: true)
+
+    socket
+  end
+
+  # Sign-in read the wallet's primary name once, and the Account page asks again
+  # each time it opens. An answer the same as the recorded one changes nothing; the
+  # session reads the account again once a new answer is recorded, so every place
+  # showing the name follows. Only the connected page asks, so the static render
+  # does not start a lookup the connected mount would start again.
+  defp refresh_ens(socket, %{route_id: :account}) do
+    with true <- connected?(socket),
+         %{wallet_address: wallet} = account when is_binary(wallet) <-
+           Identity.current_account(socket.assigns.access_context) do
+      Ens.refresh(account)
+    end
+
+    socket
+  end
+
+  defp refresh_ens(socket, _route_spec), do: socket
+
+  defp load_verified_connections(socket, %{route_id: :connections}),
+    do: read_verified_connections(socket)
+
+  defp load_verified_connections(socket, _route_spec) do
+    socket
+    |> Read.clear(:verified_connections)
+    |> assign(verified_connections_notice: nil, connection_outcome: nil)
+  end
+
+  # The account's own record is the only thing a connection is read from, so
+  # nothing the browser reports can name a connection the record does not hold.
+  defp read_verified_connections(socket) do
+    case Identity.human_actor(socket) do
+      %Human{} = actor ->
+        Read.now(socket, :verified_connections, actor.human_account_id, fn ->
+          Accounts.list_my_linked_identities(actor: actor)
+        end)
+
+      nil ->
+        Read.clear(socket, :verified_connections)
+    end
+  end
+
+  defp identity_request(:link, provider, _identities),
+    do: {:ok, %{action: :link, provider: provider}}
+
+  defp identity_request(:unlink, provider, identities) when is_list(identities) do
+    case Enum.find(identities, &(&1.provider == provider)) do
+      nil -> :error
+      identity -> {:ok, %{action: :unlink, provider: provider, subject: identity.subject}}
+    end
+  end
+
+  defp identity_request(_action, _provider, _identities), do: :error
+
+  # X and GitHub take the whole tab to their own approval page and bring it
+  # back; Farcaster asks for a scan here.
+  defp connection_started(%{action: :link, provider: :farcaster}),
+    do: "Scan the code with Farcaster to approve the connection."
+
+  defp connection_started(%{action: :link, provider: provider}),
+    do: "Taking you to #{Providers.label(provider)} to approve the connection."
+
+  defp connection_started(%{action: :unlink, provider: provider}),
+    do: "Disconnecting #{Providers.label(provider)}…"
+
+  defp report_connection_outcome(%{assigns: %{connection_outcome: nil}} = socket), do: socket
+
+  defp report_connection_outcome(%{assigns: assigns} = socket) do
+    notice = connection_outcome(assigns.connection_outcome, assigns.verified_connections)
+    assign(socket, verified_connections_notice: notice, connection_outcome: nil)
+  end
+
+  defp connection_outcome(%{"error" => "already-connected"}, _read),
+    do: %{tone: :error, message: "That account is already connected to another account here."}
+
+  defp connection_outcome(%{"error" => error}, _read) when is_binary(error) and error != "",
+    do: %{tone: :error, message: "That connection couldn’t be verified. Try again."}
+
+  defp connection_outcome(params, %Read{state: state, value: identities})
+       when state in [:ready, :empty] do
+    with {:ok, provider} <- Providers.parse(params["provider"]),
+         {:ok, action} <- Map.fetch(@actions, params["action"]) do
+      label = Providers.label(provider)
+
+      case {action, Enum.any?(identities, &(&1.provider == provider))} do
+        {:link, true} ->
+          %{tone: :success, message: "#{label} connected."}
+
+        {:link, false} ->
+          %{tone: :error, message: "#{label} didn’t come back connected. Try again."}
+
+        {:unlink, false} ->
+          %{tone: :success, message: "#{label} disconnected."}
+
+        {:unlink, true} ->
+          %{tone: :error, message: "#{label} is still connected. Try again."}
+      end
+    else
+      :error -> nil
+    end
+  end
+
+  defp connection_outcome(_params, _read), do: nil
+end

@@ -1,7 +1,7 @@
 defmodule RegentsWeb.MessagesController do
   @moduledoc """
   A paired agent leaving a private message for the site's team, under a topic
-  the site names, with per-request SIWA proof (`RegentsWeb.Plugs.PairedAgent`).
+  the site names, with per-request SIWA proof (`RegentsWeb.Account.PairedAgent`).
   Only the team reads them, at /admin/messages.
   """
 

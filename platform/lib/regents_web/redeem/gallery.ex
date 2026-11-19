@@ -11,8 +11,8 @@ defmodule RegentsWeb.Redeem.Gallery do
   import Phoenix.LiveView, only: [start_async: 3]
 
   alias Regents.OpenSea
+  alias RegentsWeb.Account.Identity
   alias RegentsWeb.Redeem.OpenSeaBudget
-  alias RegentsWeb.ShellLive.Identity
 
   def init(socket), do: assign(socket, gallery_mine: false, gallery_owned: idle())
 

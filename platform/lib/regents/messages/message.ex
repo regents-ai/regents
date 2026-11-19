@@ -45,7 +45,7 @@ defmodule Regents.Messages.Message do
 
   relationships do
     # The person it was left by, or the person whose paired agent left it.
-    belongs_to :human_account, Regents.Accounts.HumanAccount do
+    belongs_to :human_account, Regents.Account.Accounts.HumanAccount do
       attribute_type :integer
       allow_nil? false
     end

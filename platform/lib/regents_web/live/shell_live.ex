@@ -3,7 +3,7 @@ defmodule RegentsWeb.ShellLive do
   One LiveView behind every product-shell page. It keeps what the pages share,
   the route, the signed-in account (through the session hook) and the wallet
   Privy has active, and hands each page's reads, events and messages to the
-  feature that owns them: `Account`, `Points`, `Names`, `Staking`,
+  feature that owns them: `Pages`, `Points`, `Names`, `Staking`,
   `Redemption`, `Gallery` and `PaperProDaily`. Reads go through
   `RegentsWeb.Read`, so only the newest answer for the reader lands.
   Each feature starts what its page needs when the page opens and lets go of
@@ -14,34 +14,35 @@ defmodule RegentsWeb.ShellLive do
 
   import RegentsWeb.Components.Shell
 
-  import RegentsWeb.ShellLive.Identity,
+  import RegentsWeb.Account.Identity,
     only: [authenticated?: 1, current_account: 1]
 
   import RegentsWeb.Stake.StakeLive
 
-  alias Regents.Formation
+  alias Regents.Account.Formation
   alias RegentsWeb.AboutLive
-  alias RegentsWeb.AccountLive
-  alias RegentsWeb.AgentStartLive
+  alias RegentsWeb.Account.AccountLive
+  alias RegentsWeb.Account.AgentStartLive
+  alias RegentsWeb.Account.NamesLive
+  alias RegentsWeb.Account.PairLive
+  alias RegentsWeb.Account.PointsLive
+  alias RegentsWeb.Account.RegentProfileLive
   alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.Cloak.CloakLive
   alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
-  alias RegentsWeb.NamesLive
-  alias RegentsWeb.PairLive
   alias RegentsWeb.PaperProDailyLive
-  alias RegentsWeb.PointsLive
   alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
   alias RegentsWeb.Read
   alias RegentsWeb.Redeem.RedeemGalleryLive
   alias RegentsWeb.Redeem.RedeemLive
   alias RegentsWeb.RegentOpsLive
-  alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
 
+  alias RegentsWeb.Account.{Names, Pages, Points}
   alias RegentsWeb.Redeem.{Gallery, Redemption}
-  alias RegentsWeb.ShellLive.{Account, Names, PaperProDaily, Points}
+  alias RegentsWeb.ShellLive.PaperProDaily
   alias RegentsWeb.Stake.Staking
 
   @impl true
@@ -63,7 +64,7 @@ defmodule RegentsWeb.ShellLive do
        shell_instance: System.unique_integer([:positive, :monotonic]),
        pair_start: nil
      )
-     |> Account.init()
+     |> Pages.init()
      |> Points.init()
      |> Names.init()
      |> Staking.init()
@@ -83,7 +84,7 @@ defmodule RegentsWeb.ShellLive do
      |> load_blog_route(route_spec, params)
      |> load_docs_route(route_spec, params)
      |> assign_page(route_spec, uri)
-     |> Account.route(route_spec)
+     |> Pages.route(route_spec)
      |> Points.route(route_spec)
      |> Names.route(route_spec)
      |> Staking.route(route_spec)
@@ -109,8 +110,8 @@ defmodule RegentsWeb.ShellLive do
   @impl true
   def handle_event(event, params, socket) do
     cond do
-      Account.handles?(event) ->
-        {:noreply, Account.handle_event(event, params, socket)}
+      Pages.handles?(event) ->
+        {:noreply, Pages.handle_event(event, params, socket)}
 
       Names.handles?(event) ->
         {:noreply, Names.handle_event(event, params, socket)}
@@ -159,7 +160,7 @@ defmodule RegentsWeb.ShellLive do
   # wallet's name shows the answer.
   def handle_info({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
 
-  def handle_info(:agents_changed, socket), do: {:noreply, Account.agents_changed(socket)}
+  def handle_info(:agents_changed, socket), do: {:noreply, Pages.agents_changed(socket)}
 
   # A points award or correction landed for this account; the Points page follows.
   def handle_info(%{topic: "points:" <> _}, socket), do: {:noreply, Points.changed(socket)}
@@ -180,7 +181,7 @@ defmodule RegentsWeb.ShellLive do
     >
       <:agents :if={current_account(@access_context)}>
         <.live_component
-          module={RegentsWeb.MenuAgents}
+          module={RegentsWeb.Account.MenuAgents}
           id="shell-agents"
           lease={@session_lease}
           account={current_account(@access_context)}
@@ -188,7 +189,7 @@ defmodule RegentsWeb.ShellLive do
       </:agents>
       <:pairing_panel :if={current_account(@access_context)}>
         <.live_component
-          module={RegentsWeb.PairingBox}
+          module={RegentsWeb.Account.PairingBox}
           id="shell-pairing-box"
           lease={@session_lease}
           account={current_account(@access_context)}

@@ -11,7 +11,7 @@ defmodule Regents.Stake.SnapshotRefresh do
 
   require Logger
 
-  alias Regents.Actors.System
+  alias Regents.Account.Actors.System
   alias Regents.Stake
   alias Regents.Stake.{PriceClient, RevenueHistory, RpcClient, SnapshotCache}
 

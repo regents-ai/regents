@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Regents.Paper.Check do
 
     changeset =
       Ash.Changeset.for_create(Regents.PaperProDaily.Paper, :put, attributes,
-        actor: %Regents.Actors.System{}
+        actor: %Regents.Account.Actors.System{}
       )
 
     unless changeset.valid?,

@@ -9,7 +9,7 @@ defmodule RegentsWeb.AgentMessageLive do
 
   use RegentsWeb, :live_view
 
-  alias Regents.AccessContext
+  alias Regents.Account.AccessContext
   alias RegentsWeb.Components.AgentMessage.Form
 
   on_mount {RegentsWeb.Live.Session, :load_human}

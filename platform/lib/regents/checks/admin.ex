@@ -1,11 +1,11 @@
 defmodule Regents.Checks.Admin do
   @moduledoc """
   The actor is one of the site's admins: the team actor the admin pages act as
-  (`Regents.Actors.Admin`), whose account the site's `:admins` setting names.
+  (`Regents.Account.Actors.Admin`), whose account the site's `:admins` setting names.
   """
   use Ash.Policy.SimpleCheck
 
-  alias Regents.Actors.Admin
+  alias Regents.Account.Actors.Admin
 
   @impl true
   def describe(_opts), do: "actor is one of the site's admins"

@@ -148,7 +148,7 @@ defmodule RegentsWeb.RegentOpsLive do
   attr :staking, :map, default: nil
   attr :status, :atom, required: true
   attr :notice, :map, default: nil
-  attr :account_control, Regents.AccessContext.AccountControl, required: true
+  attr :account_control, Regents.Account.AccessContext.AccountControl, required: true
   attr :account, :map, default: nil
   attr :reading, :boolean, default: false
 

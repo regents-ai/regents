@@ -11,7 +11,7 @@ defmodule RegentsWeb.AdminPicturesLive do
 
   alias Regent.Primitives
   alias Regents.Chain.Address
-  alias RegentsWeb.AgentPictureController
+  alias RegentsWeb.Account.AgentPictureController
 
   @impl true
   def mount(_params, _session, socket) do

@@ -57,7 +57,7 @@ defmodule RegentsWeb.ArticleEditor do
   defp form(account, params) do
     Regents.Blog.Post
     |> AshPhoenix.Form.for_create(:publish,
-      actor: %Regents.Actors.Human{human_account_id: account.id},
+      actor: %Regents.Account.Actors.Human{human_account_id: account.id},
       as: "article",
       params: params
     )

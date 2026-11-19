@@ -15,7 +15,7 @@ defmodule Mix.Tasks.Regents.Names.VerifySnapshot do
     # Compile modules only: no app.start and no database operations.
     Mix.Task.run("compile")
 
-    case Regents.Names.Snapshot.verify(read!(source), read!(candidate)) do
+    case Regents.Account.Names.Snapshot.verify(read!(source), read!(candidate)) do
       :ok -> Mix.shell().info("PASS: supplied schemas and complete row values match")
       {:error, problems} -> Mix.raise(Jason.encode!(%{status: "conflict", problems: problems}))
     end

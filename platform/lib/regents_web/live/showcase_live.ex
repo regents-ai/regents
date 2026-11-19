@@ -28,7 +28,7 @@ defmodule RegentsWeb.ShowcaseLive do
        identities: [],
        connection_notice: nil,
        route_spec: RegentsWeb.RouteCatalog.fetch!(:app),
-       account: %Regents.AccessContext.AccountControl{
+       account: %Regents.Account.AccessContext.AccountControl{
          kind: :preview,
          label: "Fixture",
          profile_path: nil
@@ -570,7 +570,7 @@ defmodule RegentsWeb.ShowcaseLive do
               id="connections-detail"
               summary="Verified connections · local fixture"
             >
-              <RegentsWeb.Components.VerifiedConnections.verified_connections
+              <RegentsWeb.Account.VerifiedConnections.verified_connections
                 id="showcase-connections"
                 identities={@identities}
                 authenticated

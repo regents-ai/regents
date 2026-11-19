@@ -6,8 +6,8 @@ defmodule Regents.Blog.Checks.Admin do
   def describe(_opts), do: "actor's verified account is one of the site's admins"
 
   @impl true
-  def match?(%Regents.Actors.Human{human_account_id: id} = actor, _context, _opts) do
-    case Regents.Accounts.get_human_account(id, actor: actor) do
+  def match?(%Regents.Account.Actors.Human{human_account_id: id} = actor, _context, _opts) do
+    case Regents.Account.Accounts.get_human_account(id, actor: actor) do
       {:ok, account} -> Regents.Blog.admin?(account)
       _ -> false
     end

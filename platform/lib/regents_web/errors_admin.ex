@@ -11,7 +11,7 @@ defmodule RegentsWeb.ErrorsAdmin do
   dashboard writes into its page. As an `on_mount` hook it checks the socket the
   page connects with, then re-reads the sign-in on every navigation and press,
   so a sign-in that ends or lapses cannot keep acting on the page. The page acts
-  as `Regents.Actors.Admin`, which `Regents.Checks.Admin` checks again in each
+  as `Regents.Account.Actors.Admin`, which `Regents.Checks.Admin` checks again in each
   policy.
   """
 
@@ -20,7 +20,7 @@ defmodule RegentsWeb.ErrorsAdmin do
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1, get_connect_info: 2, redirect: 2]
   import Plug.Conn
 
-  alias Regents.Accounts.SessionAuthority
+  alias Regents.Account.Accounts.SessionAuthority
   alias RegentsWeb.ContentSecurityPolicy
 
   @impl Plug
@@ -53,7 +53,7 @@ defmodule RegentsWeb.ErrorsAdmin do
 
         {:cont,
          socket
-         |> Phoenix.Component.assign(:admin, %Regents.Actors.Admin{
+         |> Phoenix.Component.assign(:admin, %Regents.Account.Actors.Admin{
            privy_user_id: account.privy_user_id
          })
          |> attach_hook(:errors_admin_params, :handle_params, fn _params, _uri, socket ->

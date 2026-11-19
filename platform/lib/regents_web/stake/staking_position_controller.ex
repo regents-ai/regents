@@ -9,8 +9,9 @@ defmodule RegentsWeb.Stake.StakingPositionController do
   alias Regents.Stake
   alias Regents.Stake.Facts
   alias Regents.Stake.SnapshotCache
+  alias RegentsWeb.Account.PrivyPair
   alias RegentsWeb.Chain.ReadBudget
-  alias RegentsWeb.{ClientAddress, PrivyPair}
+  alias RegentsWeb.ClientAddress
 
   def show(conn, params) do
     conn =

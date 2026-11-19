@@ -12,10 +12,10 @@ defmodule RegentsWeb.Redeem.Redemption do
   alias Regents.{OpenSea, Redeem}
   alias Regents.OpenSea.HoldingsCache
   alias Regents.Redeem.Steps
+  alias RegentsWeb.Account.Identity
   alias RegentsWeb.Chain.ReadBudget
   alias RegentsWeb.EventInput
   alias RegentsWeb.Redeem.OpenSeaBudget
-  alias RegentsWeb.ShellLive.Identity
 
   @refresh_failure_notice "Couldn’t update just now. The figures shown are from the last successful reading."
   @collections ~w(animata_i animata_ii)

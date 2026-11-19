@@ -133,9 +133,9 @@ defmodule RegentsWeb.VisitLog do
   defp fit(_value, _pattern), do: "other"
 
   @doc "The one-way code for who acted: an account, a signed-in agent, or nobody."
-  def actor(%Regents.Actors.Agent{wallet_address: wallet}), do: "agent:" <> code(wallet)
-  def actor(%Regents.Accounts.HumanAccount{id: id}), do: "person:" <> code(id)
-  def actor(%Regents.AccessContext{principal: {:human, account}}), do: actor(account)
+  def actor(%Regents.Account.Actors.Agent{wallet_address: wallet}), do: "agent:" <> code(wallet)
+  def actor(%Regents.Account.Accounts.HumanAccount{id: id}), do: "person:" <> code(id)
+  def actor(%Regents.Account.AccessContext{principal: {:human, account}}), do: actor(account)
   def actor(_nobody), do: "anonymous"
 
   defp code(id) do

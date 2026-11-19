@@ -7,8 +7,8 @@ defmodule Regents.Messages.Message.SetSender do
 
   use Ash.Resource.Change
 
-  alias Regents.Accounts
-  alias Regents.Actors.{Agent, Human, System}
+  alias Regents.Account.Accounts
+  alias Regents.Account.Actors.{Agent, Human, System}
 
   @impl true
   def change(changeset, _opts, %{actor: %Human{human_account_id: id}}),
@@ -33,7 +33,7 @@ defmodule Regents.Messages.Message.SetSender do
       Ash.Changeset.force_change_attribute(
         changeset,
         :sender_name,
-        Regents.PublicIdentity.label(account)
+        Regents.Account.PublicIdentity.label(account)
       )
     end)
   end

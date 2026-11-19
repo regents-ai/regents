@@ -187,7 +187,7 @@ reads it yet. A page that comes to show one says only "paired with a person on
   `regents_account` and verified connections need the Privy session. The display name is
   saved on `/account` with the person's session, and a paired agent reads and sets it with a
   signed request to `GET` and `PATCH /api/v1/profile` (14 Nov,
-  `RegentsWeb.Plugs.ProfileOwner`); no command or browser tool calls it yet. Plan: owner
+  `RegentsWeb.Account.ProfileOwner`); no command or browser tool calls it yet. Plan: owner
   reads in `account show`, after R1. Protected (sign-in, wallet).
 - **R12. Name claims are page-only.** Checking a name, seeing free claims left and
   claiming a free Regent Name run only on `/account/names`; agents can only read the claims

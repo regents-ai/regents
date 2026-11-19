@@ -21,8 +21,8 @@ config :regent_agents,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,
   notifications: Regents.Notifications,
-  account: {Regents.AgentAccount, :account},
-  person: {Regents.AgentAccount, :person},
+  account: {Regents.Account.AgentAccount, :account},
+  person: {Regents.Account.AgentAccount, :person},
   allowed: %{
     "not_paired" => [
       "Read this site's public pages and docs, also with the regents_about, regents_products, regents_product, regents_research_list, regents_research_paper, regents_articles_list, regents_article, regents_literature and regents_public_profile tools.",
@@ -57,18 +57,18 @@ config :regents, :admins, []
 config :regent_points,
   repo: Regents.Repo,
   pubsub: Regents.PubSub,
-  accounts: Regents.Points.Accounts,
-  chain_client: Regents.Points.ChainClient,
+  accounts: Regents.Account.Points.Accounts,
+  chain_client: Regents.Account.Points.ChainClient,
   ash_domains: [RegentPoints],
   program_id: "regents-points-v1",
   starts_at: nil,
   approved_rules: [],
   adapters: %{
-    "account.activated" => Regents.Points.AccountActivated,
-    "agent.activated" => Regents.Points.PairedAgent,
-    "social.farcaster" => Regents.Points.LinkedSocial,
-    "social.github" => Regents.Points.LinkedSocial,
-    "social.x" => Regents.Points.LinkedSocial
+    "account.activated" => Regents.Account.Points.AccountActivated,
+    "agent.activated" => Regents.Account.Points.PairedAgent,
+    "social.farcaster" => Regents.Account.Points.LinkedSocial,
+    "social.github" => Regents.Account.Points.LinkedSocial,
+    "social.x" => Regents.Account.Points.LinkedSocial
   }
 
 # Ash 3.33 requires an explicit string length unit. Codepoints match how
@@ -82,14 +82,14 @@ config :mime, :types, %{"application/yaml" => ["yaml"]}
 config :regents,
   local_showcase: false,
   ash_domains: [
-    Regents.Names,
-    Regents.Accounts,
-    Regents.Formation,
+    Regents.Account.Names,
+    Regents.Account.Accounts,
+    Regents.Account.Formation,
     Regents.OpenSea,
     Regents.Redeem,
     Regents.Stake,
     Regents.PaperProDaily,
-    Regents.Points,
+    Regents.Account.Points,
     Regents.Blog,
     Regents.Messages,
     Regents.Updates
@@ -138,7 +138,7 @@ config :regents, Regents.Repo,
 
 # Each paired agent's reading from the sign-in service, kept five minutes. Older
 # readings leave with the generation the collector drops every ten minutes.
-config :regents, Regents.Agents.ActivityReading,
+config :regents, Regents.Account.Agents.ActivityReading,
   gc_interval: :timer.minutes(10),
   max_size: 10_000
 
@@ -187,7 +187,7 @@ config :regents, :session_options,
   same_site: "Lax",
   secure: false,
   http_only: true,
-  # A sign-in lasts 30 days; Regents.Accounts.SessionAuthority refuses it after that too.
+  # A sign-in lasts 30 days; Regents.Account.Accounts.SessionAuthority refuses it after that too.
   max_age: 30 * 24 * 60 * 60
 
 # Configure the endpoint

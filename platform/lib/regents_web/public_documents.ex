@@ -160,7 +160,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/"), do: %{markdown: RegentsWeb.HomeLive.agent_markdown()}
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
-  def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
+  def document("/start"), do: %{markdown: RegentsWeb.Account.AgentStart.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))

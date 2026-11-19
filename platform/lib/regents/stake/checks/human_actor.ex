@@ -2,7 +2,7 @@ defmodule Regents.Stake.Checks.HumanActor do
   @moduledoc false
   use Ash.Policy.SimpleCheck
 
-  alias Regents.Actors.Human
+  alias Regents.Account.Actors.Human
 
   @impl true
   def describe(_opts), do: "actor is an authenticated human account"

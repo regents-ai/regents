@@ -1,7 +1,7 @@
 defmodule Regents.Checks.SystemActor do
   use Ash.Policy.SimpleCheck
 
-  alias Regents.Actors.System
+  alias Regents.Account.Actors.System
 
   @impl true
   def describe(_opts), do: "actor is the internal system principal"
