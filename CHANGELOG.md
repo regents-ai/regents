@@ -7103,3 +7103,16 @@ seasons), on the shared Points library regents.sh was already on.
 - v345, commit fdf6f3ce. Full check exit 0 on fdf6f3ce, six gates. No migration.
 - Live read, signed out: home, health, Points and Stake answer.
 - Rollback: v344's image main-5393e052fb02.
+
+## 2026-11-19 — Points: an offer never fails the action it rides in; the start run waits behind live awards
+
+- The shared library moves from 437b8f4c to 0d6b3c77 (branch
+  eu/points-third-on-regents-pin-1119: the same pin plus six commits in points/ only).
+  Recording a Points offer always answers; an over-long reference is set aside and logged
+  instead of failing the person's action. The start run's checks and awards wait behind
+  live ones, a check is one job per reference while it waits, the run leaves out only
+  accounts whose event earned or was capped, and before the start it stops.
+- The start run's two reads here select only what they use: the account id, and a link's
+  provider, subject and account. No Points setting, rule or amount changes. No migration.
+  platform/mix.exs, platform/mix.lock, platform/lib/regents/accounts/human_account.ex,
+  platform/lib/regents/accounts/linked_identity.ex.

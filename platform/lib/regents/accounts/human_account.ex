@@ -31,10 +31,12 @@ defmodule Regents.Accounts.HumanAccount do
       filter expr(id == ^arg(:id))
     end
 
-    # The accounts made before a moment, such as the Points start.
+    # The accounts made before a moment, such as the time the Points start run reads them,
+    # by their id alone.
     read :created_before do
       argument :at, :utc_datetime_usec, allow_nil?: false
       filter expr(created_at < ^arg(:at))
+      prepare build(select: [:id])
     end
 
     read :by_privy_dids do
