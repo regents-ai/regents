@@ -1,7 +1,12 @@
 # Regents platform
 
 This is the Phoenix/Ash component of the Regents monorepo. Run Mix and npm here.
-`lib/regents/` owns domains; `lib/regents_web/` owns routes and LiveViews.
+`lib/regents/` owns domains; `lib/regents_web/` owns routes and LiveViews. Each product
+(Stake, Redeem, Cloak, Account) has one folder and namespace on each side
+(`Regents.Stake.*` in `lib/regents/stake/`, `RegentsWeb.Stake.*` in
+`lib/regents_web/stake/`), chain plumbing two products share is `Regents.Chain.*` and
+`RegentsWeb.Chain.*`, and the rest is the site itself. The `boundary` compiler fails the
+build when one product uses another; Account is reached only through its exports.
 `contracts/` here contains runtime API/ABI/manifests; Solidity lives in the monorepo's
 root `contracts/`. Keep internal OTP/release names stable during layout changes.
 

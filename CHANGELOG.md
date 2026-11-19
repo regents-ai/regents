@@ -7267,3 +7267,33 @@ seasons), on the shared Points library regents.sh was already on.
   check-cli`, the image (platform/Dockerfile, platform/Dockerfile.dockerignore), the Agent
   Message texts (platform/lib/regents_web/components/agent_message.ex), platform/README.md,
   cli/COMMANDS.md and docs/agent-parity.md read it there. No behaviour change. No migration.
+
+## 2026-11-19 — One folder and one namespace per product, and a check that products stay apart
+
+- Branch one-site, step (a) part 2. Each product of this site has one folder and one
+  namespace on each side: Stake (`Regents.Stake`, platform/lib/regents/stake/;
+  `RegentsWeb.Stake`, platform/lib/regents_web/stake/), Redeem (`Regents.Redeem`,
+  `RegentsWeb.Redeem`), Cloak (`Regents.Cloak`, `RegentsWeb.Cloak`) and Account
+  (`Regents.Account`, `RegentsWeb.Account`: sign-in and sessions, actors, names, points,
+  Regent profiles, agents and pairing, ENS, public identity and the access context). A
+  product's pages, controllers, components and plugs sit together in its web folder.
+  Chain reading and the wallet steps Stake and Redeem share are `Regents.Chain` and
+  `RegentsWeb.Chain`; the redemption ABI moves to Redeem; OpenSea holdings and the rest
+  of the site stay where they were. Renames are complete: no module is left at an old name.
+- The `boundary` library (0.12.0) runs first in the compiler list (platform/mix.exs). A
+  product that uses another product fails `mix compile --warnings-as-errors`, so it fails
+  `mix precommit`; Account is reached only through its exports. The boundaries are named
+  in each product's root module (platform/lib/regents/stake.ex, redeem.ex, cloak.ex,
+  account.ex, chain.ex; platform/lib/regents_web/stake.ex, redeem.ex, cloak.ex,
+  account.ex, chain.ex) and in platform/lib/regents.ex and platform/lib/regents_web.ex.
+  The compile-connected gate stays at 43.
+- Stake's job queue is `stake_reads` (was `staking_reads`) and its worker is
+  `Regents.Stake.SnapshotRefresh` (was `Regents.Staking.SnapshotRefresh`): jobs queued
+  under the old queue or worker name must be drained before the switch. Each product's
+  core has a `health/0`, not used yet.
+- Routes keep their paths (only controller names change), the agent documents and the
+  capabilities file are byte for byte the same, and no table changes. Log lines that name
+  a module (a press, a job) name it with its product, for example `Stake.SnapshotRefresh`.
+  platform/AGENTS.md, platform/README.md, platform/docs/codebase-handoff.md,
+  platform/docs/design-integration.md, platform/repo.yaml, platform/.credo.exs and
+  scripts/check-siwa-latest.sh name the new paths. No migration.

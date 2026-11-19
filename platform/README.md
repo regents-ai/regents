@@ -126,9 +126,12 @@ address, and pairing also has its own 10 a minute, as in ash-template
 ## Repository layout
 
 ```text
-lib/regents/       Ash domains: accounts, formation, names, staking,
-                        redemption
-lib/regents_web/   Endpoint, router, LiveViews, controllers, components
+lib/regents/            Ash domains: one folder per product (stake/, redeem/,
+                        account/; cloak.ex), chain/ shared by Stake and Redeem,
+                        and the site's own domains
+lib/regents_web/        Endpoint, router, the shell and site pages; each product's
+                        pages, controllers, components and plugs in one folder
+                        (stake/, redeem/, cloak/, account/), and chain/
 lib/mix/tasks/          Local setup, contract sync, and route-handoff checks
 contracts/              The OpenAPI contract, chain-contract manifest, and ABIs
 config/                 Compile-time and runtime configuration

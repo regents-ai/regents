@@ -29,9 +29,9 @@ Regents consumes the current `design-system/STYLE.md` and top-level contract in
 
 `StakeLive.supply_basis_points/1` reads `total_staked_raw` over
 `regent_circulating_supply_raw` from the **existing** shared staking snapshot.
-`Staking.RPCClient` creates these as decimal integer strings from same-block uint
+`Stake.RpcClient` creates these as decimal integer strings from same-block uint
 readings. Both use REGENT's 18-decimal atomic unit. The denominator is existing
-`Staking.Supply.circulating/4`: total minus treasury, Animata redeemer, staking reward
+`Stake.Supply.circulating/4`: total minus treasury, Animata redeemer, staking reward
 inventory and the existing 40-billion-REGENT Clanker-vault estimate. The estimate
 is now explicitly disclosed beside the ratio; it is not a newly sourced reading.
 

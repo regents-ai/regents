@@ -76,8 +76,8 @@ This is the most opinionated code in the repo and the easiest to get wrong.
 - **The manifest is the authority.** `contracts/base-mainnet.json` pins every address,
   every read, every prepared action and its selector. `contracts/chain-contracts.yaml`
   pins a SHA-256 of that file; change the manifest and you must repin the digest.
-- **Selectors are proved at compile time.** `wallet_actions/abi.ex` and
-  `redemption_abi.ex` declare each locally encoded selector and assert in
+- **Selectors are proved at compile time.** `chain/abi.ex` and
+  `redeem/redemption_abi.ex` declare each locally encoded selector and assert in
   `__after_compile__` that its signature exists in the pinned ABI JSON. A typo'd
   selector fails the build, not production.
 - **One block owns a whole reading.** Reads go through multicall3 `aggregate3`, pinned
@@ -87,12 +87,12 @@ This is the most opinionated code in the repo and the easiest to get wrong.
   is sent against the same pinned block.
 - **`ownerOf` is read alone.** It legitimately reverts for a token that does not
   exist, and under `allowFailure: false` that would take the whole aggregate down.
-- **Staking pages never call Base on page load.** `Staking.SnapshotCache` is a
+- **Staking pages never call Base on page load.** `Stake.SnapshotCache` is a
   GenServer holding one shared reading for everyone; a page paints it instantly.
   Only a signed-in visitor can ask for a new one, rate-limited, and the refusal path
   leaves the previous good reading exactly where it was. If you add a figure to the
   staking page, it belongs *inside* that snapshot, not in a per-request read.
-- Circulating REGENT is computed in `staking/supply.ex` as total supply less the
+- Circulating REGENT is computed in `stake/supply.ex` as total supply less the
   treasury, the Animata redeemer, the staking contract's own reward inventory, and a
   hardcoded 40 billion Clanker vault. The Clanker figure is the one number on the
   page not read from chain, by founder decision.
@@ -100,17 +100,21 @@ This is the most opinionated code in the repo and the easiest to get wrong.
 ### File map
 
 ```
-lib/regents/
-  staking/        snapshot cache, rpc_client, facts, supply arithmetic
-  redemption/     rpc_client, actions, snapshot
-  wallet_actions/ abi.ex, redemption_abi.ex, rpc.ex, envelope, observer
-  formation/      regents, agent links, cloud runtimes
-lib/regents_web/
+lib/regents/          one folder per product, the rest is the site itself
+  stake/          snapshot cache, rpc_client, facts, supply arithmetic
+  redeem/         rpc_client, actions, snapshot, redemption_abi.ex
+  cloak.ex        Cloak keeps nothing on this site yet
+  account/        sign-in and sessions, actors, names, points, agents,
+                  formation (regents, agent links, cloud runtimes), ENS
+  chain/          shared by Stake and Redeem: abi.ex, rpc.ex, client, refresh
+lib/regents_web/      the same products, each with its pages, controllers,
+                      components and plugs in one folder
+  stake/ redeem/ cloak/ account/
+  chain/             wallet steps, on-chain button, receipts, token display
   route_catalog.ex   the route allowlist and its behaviour metadata
   live/shell_live.ex the one shell LiveView (large; read the region you need)
   live/home_live.ex  the marketing page
-  live/stake_live.ex live/redeem_live.ex
-  token_links.ex     the Uniswap and DexScreener links, built from the pinned
+  stake/token_links.ex the Uniswap and DexScreener links, built from the pinned
                      token address so a link can never name another token
 assets/css/pages/    one stylesheet per surface
 assets/js/hooks/     LiveView hooks; datascape flies the homepage's picture,
