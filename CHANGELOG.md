@@ -7008,3 +7008,8 @@ seasons), on the shared Points library regents.sh was already on.
   commit), and platform/mix.exs overrides idna to ~> 8.0 because ethers 0.8.0 and jsv
   0.27.0 still ask for 7. ENS names: emoji names are accepted; empty labels and malformed
   "xn--" labels are refused; ASCII rules unchanged. platform/mix.exs, platform/mix.lock.
+
+## 2026-11-19 — Names regents-cli 1.10.33
+
+- The install lines, the agent guide's commit and file sum, the Makefile's pin and the
+  tool manifest name regents-cli 1.10.33 (commit c12d8563), the newest release.
