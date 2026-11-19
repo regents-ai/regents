@@ -24,7 +24,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.AccountLive
   alias RegentsWeb.AgentStartLive
   alias RegentsWeb.AutolaunchLive
-  alias RegentsWeb.CloakLive
+  alias RegentsWeb.Cloak.CloakLive
   alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.NamesLive

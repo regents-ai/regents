@@ -1,14 +1,14 @@
-defmodule RegentsWeb.CloakLive do
+defmodule RegentsWeb.Cloak.CloakLive do
   @moduledoc """
   The `/cloak` product page. Its one action is the Mac app's download, which
   stays off, with the reason beside it, until a signed release exists. Until
   then a visitor can leave an email address to hear when it is ready
-  (`RegentsWeb.Components.CloakUpdates`).
+  (`RegentsWeb.Cloak.CloakUpdates`).
   """
   use RegentsWeb, :html
 
   alias RegentsWeb.Cloak
-  alias RegentsWeb.Components.CloakUpdates
+  alias RegentsWeb.Cloak.CloakUpdates
   alias RegentsWeb.HomeLive
   alias RegentsWeb.ProductLive
 

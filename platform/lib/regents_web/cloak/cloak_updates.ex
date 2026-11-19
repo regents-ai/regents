@@ -1,11 +1,11 @@
-defmodule RegentsWeb.Components.CloakUpdates do
+defmodule RegentsWeb.Cloak.CloakUpdates do
   @moduledoc """
   The Updates band on `/cloak`: a visitor leaves an email address to hear when
   Cloak is ready to download, through `Regents.Updates`' `subscribe` action, and
   the form gives way to a thank-you. The address is checked when the visitor
   leaves the field and again on the press.
 
-  `RegentsWeb.CloakLive` passes the shell's `client_tag`, which the action counts
+  `RegentsWeb.Cloak.CloakLive` passes the shell's `client_tag`, which the action counts
   tries against.
   """
 
