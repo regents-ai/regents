@@ -1,9 +1,9 @@
-defmodule RegentsWeb.StakeLive do
+defmodule RegentsWeb.Stake.StakeLive do
   @moduledoc false
   use Phoenix.Component
   alias RegentsWeb.Chain.TokenDisplay
   alias RegentsWeb.Components.{Loading, Tour}
-  alias RegentsWeb.TokenLinks
+  alias RegentsWeb.Stake.TokenLinks
 
   # The tour that plays by itself the first time a browser opens this page. Each
   # step rings a part that is on the page whether or not a wallet is open.
@@ -165,7 +165,7 @@ defmodule RegentsWeb.StakeLive do
 
       <div class="stake-layout" data-trade={if @wallet, do: "open", else: "connect"}>
         <.live_component
-          module={RegentsWeb.StakeActions}
+          module={RegentsWeb.Stake.StakeActions}
           id="staking-actions"
           lease={@lease}
           staking={@staking}

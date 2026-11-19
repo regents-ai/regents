@@ -1,14 +1,14 @@
-defmodule Regents.Staking.Actions do
+defmodule Regents.Stake.Actions do
   @moduledoc false
   alias Regents.Accounts
   alias Regents.Actors.Human
   alias Regents.Chain.Address
-  alias Regents.Staking.RpcClient
+  alias Regents.Stake.RpcClient
 
   @claims ~w(claim_usdc claim_regent claim_and_restake_regent)
 
   def overview(_input, _context) do
-    case Regents.Staking.SnapshotCache.snapshot() do
+    case Regents.Stake.SnapshotCache.snapshot() do
       nil -> {:error, :unavailable}
       snapshot -> {:ok, snapshot}
     end

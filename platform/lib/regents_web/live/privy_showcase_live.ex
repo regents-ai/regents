@@ -13,8 +13,8 @@ defmodule RegentsWeb.PrivyShowcaseLive do
   alias Regent.Primitives, as: P
   alias Regents.Chain.Address
   alias Regents.Chain.Refresh
-  alias Regents.Staking
-  alias Regents.Staking.SnapshotCache
+  alias Regents.Stake
+  alias Regents.Stake.SnapshotCache
   alias RegentsWeb.Chain.TokenDisplay
   alias RegentsWeb.Components.{Loading, Shell}
   alias RegentsWeb.ShowcaseLive
@@ -333,7 +333,7 @@ defmodule RegentsWeb.PrivyShowcaseLive do
     socket
     |> assign(:wallet_status, :loading)
     |> start_async({:privy_wallet, socket.assigns.wallet_generation}, fn ->
-      Staking.account_for_wallet(wallet)
+      Stake.account_for_wallet(wallet)
     end)
   end
 

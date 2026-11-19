@@ -1,4 +1,4 @@
-defmodule RegentsWeb.ShellLive.Staking do
+defmodule RegentsWeb.Stake.Staking do
   @moduledoc """
   The staking figures on the Stake and operations pages. The contract reading
   is shared by every visitor and arrives from `SnapshotCache`; each page adds
@@ -16,9 +16,9 @@ defmodule RegentsWeb.ShellLive.Staking do
   alias RegentChain.Address
   alias Regents.Actors.Human
   alias Regents.Chain.Refresh
-  alias Regents.Staking
-  alias Regents.Staking.Facts, as: StakingFacts
-  alias Regents.Staking.SnapshotCache
+  alias Regents.Stake
+  alias Regents.Stake.Facts, as: StakingFacts
+  alias Regents.Stake.SnapshotCache
   alias RegentsWeb.Chain.ReadBudget
   alias RegentsWeb.ShellLive.Identity
 
@@ -363,7 +363,7 @@ defmodule RegentsWeb.ShellLive.Staking do
 
       account ->
         actor = %Human{human_account_id: account.id}
-        start_wallet_read(socket, fn -> Staking.account(actor: actor) end)
+        start_wallet_read(socket, fn -> Stake.account(actor: actor) end)
     end
   end
 
@@ -375,7 +375,7 @@ defmodule RegentsWeb.ShellLive.Staking do
 
   defp start_staking_read(socket) do
     wallet = socket.assigns.staking_wallet
-    start_wallet_read(socket, fn -> Staking.account_for_wallet(wallet) end)
+    start_wallet_read(socket, fn -> Stake.account_for_wallet(wallet) end)
   end
 
   # The same read, answered under its own name so the page shows nothing in
@@ -391,7 +391,7 @@ defmodule RegentsWeb.ShellLive.Staking do
     case ReadBudget.admit(socket.assigns.client_tag) do
       :ok ->
         start_async(socket, {:staking_quiet, socket.assigns.staking_generation}, fn ->
-          Staking.account_for_wallet(wallet)
+          Stake.account_for_wallet(wallet)
         end)
 
       {:limited, _seconds} ->

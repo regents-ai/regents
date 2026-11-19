@@ -17,7 +17,7 @@ defmodule RegentsWeb.ShellLive do
   import RegentsWeb.ShellLive.Identity,
     only: [authenticated?: 1, current_account: 1]
 
-  import RegentsWeb.StakeLive
+  import RegentsWeb.Stake.StakeLive
 
   alias Regents.Formation
   alias RegentsWeb.AboutLive
@@ -40,15 +40,8 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.RegentProfileLive
   alias RegentsWeb.RouteCatalog
 
-  alias RegentsWeb.ShellLive.{
-    Account,
-    Gallery,
-    Names,
-    PaperProDaily,
-    Points,
-    Redemption,
-    Staking
-  }
+  alias RegentsWeb.ShellLive.{Account, Gallery, Names, PaperProDaily, Points, Redemption}
+  alias RegentsWeb.Stake.Staking
 
   @impl true
   def mount(params, session, socket) do

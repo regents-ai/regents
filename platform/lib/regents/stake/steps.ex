@@ -1,4 +1,4 @@
-defmodule Regents.Staking.Steps do
+defmodule Regents.Stake.Steps do
   @moduledoc """
   The wallet steps behind the Stake page's buttons, built on the server with
   `regent_chain` and pushed to the page before anyone presses.
@@ -13,7 +13,7 @@ defmodule Regents.Staking.Steps do
 
   alias RegentChain.{Address, Call, Review}
   alias Regents.Chain.Abi
-  alias Regents.Staking.Actions
+  alias Regents.Stake.Actions
 
   @approve "approve(address,uint256)"
   @unlimited 2 ** 256 - 1

@@ -1,4 +1,4 @@
-defmodule RegentsWeb.StakeActions do
+defmodule RegentsWeb.Stake.StakeActions do
   @moduledoc """
   The Stake page's actions: the amount form, the wallet buttons and what
   happened to each press.
@@ -17,8 +17,8 @@ defmodule RegentsWeb.StakeActions do
   use RegentsWeb, :live_component
 
   alias Regents.Chain.Client
-  alias Regents.Staking
-  alias Regents.Staking.{Actions, Steps}
+  alias Regents.Stake
+  alias Regents.Stake.{Actions, Steps}
 
   alias RegentsWeb.Chain.{OnchainButton, SubmittedTransactions, TransactionReceipt}
   alias RegentsWeb.Components.Loading
@@ -26,8 +26,9 @@ defmodule RegentsWeb.StakeActions do
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
   alias RegentsWeb.Chain.{OnchainSteps, TokenDisplay}
-  alias RegentsWeb.{EventInput, StakeLive}
+  alias RegentsWeb.EventInput
   alias RegentsWeb.ShellLive.Identity
+  alias RegentsWeb.Stake.StakeLive
 
   import RegentsWeb.EventInput, only: [failure_reason: 1]
 
@@ -124,7 +125,7 @@ defmodule RegentsWeb.StakeActions do
 
   def handle_event("fill_staking_amount", %{"portion" => portion}, socket)
       when portion in ["half", "max"] do
-    case Staking.spendable(socket.assigns.staking, socket.assigns.action) do
+    case Stake.spendable(socket.assigns.staking, socket.assigns.action) do
       :unavailable ->
         {:noreply, socket}
 
@@ -229,7 +230,7 @@ defmodule RegentsWeb.StakeActions do
 
     socket
     |> assign(receipt: %{hash: hash, name: name, review: review, position: :reading})
-    |> start_async({:receipt_position, hash}, fn -> Staking.account_for_wallet(signer) end)
+    |> start_async({:receipt_position, hash}, fn -> Stake.account_for_wallet(signer) end)
   end
 
   defp open_receipt(socket, _entry), do: socket
@@ -416,7 +417,7 @@ defmodule RegentsWeb.StakeActions do
 
   defp missing(name, form) do
     cond do
-      match?({:error, _}, Staking.parse_amount(form.amount)) ->
+      match?({:error, _}, Stake.parse_amount(form.amount)) ->
         ["Enter an amount above zero. Nothing was sent."]
 
       name != "unstake" and Steps.receiver(form) == {:error, :receiver_invalid} ->
@@ -462,14 +463,14 @@ defmodule RegentsWeb.StakeActions do
   # or would take the contract past what it can hold. A USDC claim is refused
   # when the contract holds too little USDC to pay it.
   defp contract_limit(%{name: "claim_usdc"}, %{} = staking),
-    do: Staking.limit_refusal(staking, "claim_usdc", nil)
+    do: Stake.limit_refusal(staking, "claim_usdc", nil)
 
   defp contract_limit(%{name: "claim_and_restake_regent"}, %{} = staking),
-    do: Staking.limit_refusal(staking, "claim_and_restake_regent", nil)
+    do: Stake.limit_refusal(staking, "claim_and_restake_regent", nil)
 
   defp contract_limit(%{name: "stake", review: %{} = review}, %{} = staking) do
-    {:ok, raw} = Staking.parse_amount(amount(review))
-    Staking.limit_refusal(staking, "stake", raw)
+    {:ok, raw} = Stake.parse_amount(amount(review))
+    Stake.limit_refusal(staking, "stake", raw)
   end
 
   defp contract_limit(_entry, _staking), do: nil
@@ -544,7 +545,7 @@ defmodule RegentsWeb.StakeActions do
 
   @impl true
   def render(assigns) do
-    available = Staking.available_claims(assigns.staking)
+    available = Stake.available_claims(assigns.staking)
 
     assigns =
       assign(assigns,
@@ -555,7 +556,7 @@ defmodule RegentsWeb.StakeActions do
         claim_note: claim_note(available),
         receiver: receiver(assigns.form),
         receiver_invalid: receiver_invalid?(assigns.form),
-        spendable: Staking.spendable(assigns.staking, assigns.action),
+        spendable: Stake.spendable(assigns.staking, assigns.action),
         amount_notice: amount_notice(assigns),
         next_step: next_step(assigns),
         approval_note: approval_note(assigns),
@@ -1028,8 +1029,8 @@ defmodule RegentsWeb.StakeActions do
   defp amount_notice(%{staking: nil}), do: nil
 
   defp amount_notice(%{staking: staking, action: action, amount: amount}) do
-    case amount |> String.trim() |> Staking.parse_amount() do
-      {:ok, requested} -> staking |> Staking.limit_refusal(action, requested) |> limit_copy()
+    case amount |> String.trim() |> Stake.parse_amount() do
+      {:ok, requested} -> staking |> Stake.limit_refusal(action, requested) |> limit_copy()
       {:error, _} -> blank_or_invalid(amount)
     end
   end
@@ -1055,7 +1056,7 @@ defmodule RegentsWeb.StakeActions do
   defp position_preview(%{staking: nil}), do: nil
 
   defp position_preview(%{staking: staking, action: action, amount: amount}) do
-    with {:ok, requested} <- Staking.parse_amount(amount),
+    with {:ok, requested} <- Stake.parse_amount(amount),
          {:ok, current_position} <- atomic(staking.wallet_stake_balance_raw) do
       position =
         if action == "stake",

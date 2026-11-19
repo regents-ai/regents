@@ -1,11 +1,11 @@
-defmodule Regents.Staking.SnapshotListener do
+defmodule Regents.Stake.SnapshotListener do
   @moduledoc """
   Passes shared database refresh notices to this machine's staking pages, heard on
   the site's listening connection (`Regents.SharedChanges`).
   """
 
   use GenServer
-  alias Regents.Staking.SnapshotCache
+  alias Regents.Stake.SnapshotCache
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 

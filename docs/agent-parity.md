@@ -12,7 +12,7 @@ Credits were removed on 12 Nov 2026: their rows are gone and R7 and R8 are close
 Sources: `platform/lib/regents_web/router.ex`, `platform/lib/regents_web/endpoint.ex`,
 every `handle_event` in `platform/lib/regents_web/live/` and
 `platform/lib/regents_web/components/`, the wallet step builders
-(`Regents.Staking.Steps` and `Regents.Redemption.Steps`, both sent through
+(`Regents.Stake.Steps` and `Regents.Redemption.Steps`, both sent through
 `RegentsWeb.Chain.OnchainSteps`), `platform/priv/tool_manifest.json` (22 tools),
 `cli/regents/commands.json` (16 commands),
 the shared profile `RegentIdentity.HTTP` (then this repository's `identity/`, now
@@ -174,7 +174,7 @@ reads it yet. A page that comes to show one says only "paired with a person on
 - **R8. Closed.** Credits are gone (12 Nov 2026); there is nothing to buy.
 - **R9. Staking is page-only.** Stake, unstake, claim USDC, claim REGENT and claim and
   restake run only from `/stake` with the browser's Privy wallet.
-  `Regents.Staking.Steps.steps/3` already takes the signer's address, so the site can
+  `Regents.Stake.Steps.steps/3` already takes the signer's address, so the site can
   build the same steps for an agent's own key. Plan: a signed steps route, `staking
   stake`, `unstake` and `claim` commands and matching WebMCP tools. Protected (money,
   wallet).

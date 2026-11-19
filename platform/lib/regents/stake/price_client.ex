@@ -1,4 +1,4 @@
-defmodule Regents.Staking.PriceClient do
+defmodule Regents.Stake.PriceClient do
   @moduledoc """
   REGENT's USD price as REGENT/ETH on the pool it trades in, times ETH/USD.
 

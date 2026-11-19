@@ -1,4 +1,4 @@
-defmodule Regents.Staking.SnapshotCache do
+defmodule Regents.Stake.SnapshotCache do
   @moduledoc """
   The last successful public staking reading, shared through Postgres.
 
@@ -12,8 +12,8 @@ defmodule Regents.Staking.SnapshotCache do
 
   alias Regents.Chain.Abi
   alias Regents.Chain.Refresh
-  alias Regents.Staking
-  alias Regents.Staking.{Facts, SnapshotRefresh}
+  alias Regents.Stake
+  alias Regents.Stake.{Facts, SnapshotRefresh}
 
   @topic "staking:protocol_snapshot"
   @dates [:read_at, :regent_price_read_at, :clanker_vault_locked_until, :clanker_vault_vested_by]
@@ -34,7 +34,7 @@ defmodule Regents.Staking.SnapshotCache do
 
   def snapshot do
     if Application.get_env(:regents, :database_startup_enabled, false) do
-      case Staking.current_protocol_reading(key()) do
+      case Stake.current_protocol_reading(key()) do
         {:ok, %{snapshot: snapshot}} -> decode(snapshot)
         _unavailable -> nil
       end

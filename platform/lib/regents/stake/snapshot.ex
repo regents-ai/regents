@@ -1,11 +1,11 @@
-defmodule Regents.Staking.Snapshot do
+defmodule Regents.Stake.Snapshot do
   @moduledoc "Onchain REGENT staking reads."
 
   use Ash.Resource,
-    domain: Regents.Staking,
+    domain: Regents.Stake,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Regents.Staking.Actions
+  alias Regents.Stake.Actions
 
   # Closures rather than captures: a capture evaluated inside the DSL would
   # make the implementation module a compile-time dependency of this resource.
@@ -30,7 +30,7 @@ defmodule Regents.Staking.Snapshot do
     end
 
     policy action(:account) do
-      authorize_if Regents.Staking.Checks.HumanActor
+      authorize_if Regents.Stake.Checks.HumanActor
     end
   end
 end

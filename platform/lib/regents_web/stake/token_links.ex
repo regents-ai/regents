@@ -1,4 +1,4 @@
-defmodule RegentsWeb.TokenLinks do
+defmodule RegentsWeb.Stake.TokenLinks do
   @moduledoc """
   Where a visitor goes to buy REGENT or to look at its chart.
 
@@ -9,7 +9,7 @@ defmodule RegentsWeb.TokenLinks do
   """
 
   alias Regents.Chain.Abi
-  alias Regents.Staking.PriceClient
+  alias Regents.Stake.PriceClient
 
   @doc "The REGENT contract address a visitor copies. Same token the buy link names."
   def address, do: Abi.stake_token_address()

@@ -1,4 +1,4 @@
-defmodule Regents.Staking.RpcClient do
+defmodule Regents.Stake.RpcClient do
   @moduledoc """
   The Base readings the staking pages take, kept apart on purpose.
 
@@ -10,7 +10,7 @@ defmodule Regents.Staking.RpcClient do
   require Logger
 
   alias Regents.Chain.{Abi, Rpc}
-  alias Regents.Staking.{RevenueHistory, Supply}
+  alias Regents.Stake.{RevenueHistory, Supply}
 
   @read_timeout 20_000
   # A first pass has seven days of logs to ask for; every later pass has minutes.

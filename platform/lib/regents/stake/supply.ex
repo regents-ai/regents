@@ -1,4 +1,4 @@
-defmodule Regents.Staking.Supply do
+defmodule Regents.Stake.Supply do
   @moduledoc """
   How much REGENT is actually in circulation.
 

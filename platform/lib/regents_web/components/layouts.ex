@@ -50,7 +50,7 @@ defmodule RegentsWeb.Layouts do
         />
       </div>
       <nav class="regent-footer__links" aria-label="About Regents Labs">
-        <a href={RegentsWeb.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
+        <a href={RegentsWeb.Stake.TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
           Buy $REGENT
         </a>
         <a href={~p"/about"}>About</a>

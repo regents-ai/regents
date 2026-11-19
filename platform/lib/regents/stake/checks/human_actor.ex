@@ -1,4 +1,4 @@
-defmodule Regents.Staking.Checks.HumanActor do
+defmodule Regents.Stake.Checks.HumanActor do
   @moduledoc false
   use Ash.Policy.SimpleCheck
 

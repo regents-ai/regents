@@ -1,4 +1,4 @@
-defmodule RegentsWeb.StakingPositionController do
+defmodule RegentsWeb.Stake.StakingPositionController do
   @moduledoc """
   What the Stake page shows for the signed-in person's wallet: the shared
   contract reading beside a fresh reading of their own wallet, merged the way
@@ -6,9 +6,9 @@ defmodule RegentsWeb.StakingPositionController do
   """
   use RegentsWeb, :controller
 
-  alias Regents.Staking
-  alias Regents.Staking.Facts
-  alias Regents.Staking.SnapshotCache
+  alias Regents.Stake
+  alias Regents.Stake.Facts
+  alias Regents.Stake.SnapshotCache
   alias RegentsWeb.Chain.ReadBudget
   alias RegentsWeb.{ClientAddress, PrivyPair}
 
@@ -65,13 +65,13 @@ defmodule RegentsWeb.StakingPositionController do
 
       protocol ->
         wallet_facts =
-          case Staking.account_for_wallet(wallet) do
+          case Stake.account_for_wallet(wallet) do
             {:ok, facts} -> facts
             {:error, _reason} -> Facts.unavailable_wallet(wallet)
           end
 
         position = Facts.merge(protocol, wallet_facts)
-        json(conn, %{position: position, claims: Staking.available_claims(position)})
+        json(conn, %{position: position, claims: Stake.available_claims(position)})
     end
   end
 

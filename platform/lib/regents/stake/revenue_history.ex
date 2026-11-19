@@ -1,4 +1,4 @@
-defmodule Regents.Staking.RevenueHistory do
+defmodule Regents.Stake.RevenueHistory do
   @moduledoc """
   A rolling public projection of the contract's deposits, not an accounting ledger.
 

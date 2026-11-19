@@ -1,9 +1,9 @@
-defmodule Regents.Staking.ProtocolReading do
+defmodule Regents.Stake.ProtocolReading do
   @moduledoc "The shared, restart-safe public staking projection and its retained deposit history."
 
   use Ash.Resource,
     otp_app: :regents,
-    domain: Regents.Staking,
+    domain: Regents.Stake,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 

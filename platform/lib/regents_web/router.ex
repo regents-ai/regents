@@ -170,7 +170,7 @@ defmodule RegentsWeb.Router do
     get "/site-tools", RegentsWeb.SiteToolsController, :index
     get "/regents/:slug", RegentsWeb.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
-    get "/staking/position", RegentsWeb.StakingPositionController, :show
+    get "/staking/position", RegentsWeb.Stake.StakingPositionController, :show
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.
@@ -192,7 +192,7 @@ defmodule RegentsWeb.Router do
     pipe_through [:api, :paired_agent]
     get "/account", AgentReadsController, :account
     post "/claims", OwnedClaimsController, :agent_index
-    get "/staking/position", StakingPositionController, :agent_show
+    get "/staking/position", Stake.StakingPositionController, :agent_show
   end
 
   # A paired agent's private message for the site's team.

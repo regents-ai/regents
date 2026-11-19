@@ -10,7 +10,7 @@ defmodule RegentsWeb.Components.RegentLinks do
 
   use Phoenix.Component
 
-  alias RegentsWeb.TokenLinks
+  alias RegentsWeb.Stake.TokenLinks
 
   @doc "X and GitHub, as the footer shows them."
   def social_links(assigns) do

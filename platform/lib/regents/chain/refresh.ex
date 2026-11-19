@@ -11,7 +11,7 @@ defmodule Regents.Chain.Refresh do
 
   Each reader named in this module's `:readers` setting implements `refresh/1`
   and decides for itself how to read again soon; the staking reading
-  (`Regents.Staking.SnapshotCache`) queues its one unique Oban job. Every reader
+  (`Regents.Stake.SnapshotCache`) queues its one unique Oban job. Every reader
   keeps at least ten seconds between two reads it was asked for, so a crowd
   pressing the icon costs one read. The same module runs in every Regent site;
   ash-template holds the original.

@@ -87,7 +87,7 @@ config :regents,
     Regents.Formation,
     Regents.OpenSea,
     Regents.Redemption,
-    Regents.Staking,
+    Regents.Stake,
     Regents.PaperProDaily,
     Regents.Points,
     Regents.Blog,
@@ -114,10 +114,10 @@ config :regents, Oban,
   cron: [
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
-      {"@reboot", Regents.Staking.SnapshotRefresh},
+      {"@reboot", Regents.Stake.SnapshotRefresh},
       # Every five minutes, and early after a confirmed on-chain press or a press
       # of the read-again icon (Regents.Chain.Refresh).
-      {"*/5 * * * *", Regents.Staking.SnapshotRefresh},
+      {"*/5 * * * *", Regents.Stake.SnapshotRefresh},
       {"17 4 * * *", Regents.ErrorPruner},
       # From the Points start, the one-time points for what accounts already had.
       {"@hourly", RegentPoints.StartAwards},
@@ -178,7 +178,7 @@ config :regents, :staking_snapshot_refresh_enabled, true
 
 # Who reads a chain again when a person's action may have changed it
 # (`Regents.Chain.Refresh`).
-config :regents, Regents.Chain.Refresh, readers: [Regents.Staking.SnapshotCache]
+config :regents, Regents.Chain.Refresh, readers: [Regents.Stake.SnapshotCache]
 
 config :regents, :session_options,
   store: :cookie,

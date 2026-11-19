@@ -1,4 +1,4 @@
-defmodule Regents.Staking.Facts do
+defmodule Regents.Stake.Facts do
   @moduledoc """
   The two Base readings a staking page shows, and the one shape they merge into.
 

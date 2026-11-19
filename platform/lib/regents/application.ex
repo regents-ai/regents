@@ -12,7 +12,7 @@ defmodule Regents.Application do
     # Debian image can lag by weeks. Req, Finch and Mint read this list through
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
-    :ok = Regents.Staking.SnapshotRefresh.attach_failure_notice()
+    :ok = Regents.Stake.SnapshotRefresh.attach_failure_notice()
     :ok = RegentHttp.ErrorSaving.attach()
     :ok = RegentsWeb.VisitLog.Events.attach()
 
@@ -86,7 +86,7 @@ defmodule Regents.Application do
   end
 
   defp without_snapshot_refresh(entries),
-    do: Enum.reject(entries, &match?({_, Regents.Staking.SnapshotRefresh}, &1))
+    do: Enum.reject(entries, &match?({_, Regents.Stake.SnapshotRefresh}, &1))
 
   # The Points board is read only where pages are served, so a task never reads
   # the database before it asks to.

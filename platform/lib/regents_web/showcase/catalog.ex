@@ -61,7 +61,7 @@ defmodule RegentsWeb.Showcase.Catalog do
           String.starts_with?(inspect(module), [
             "Regents.WalletActions.",
             "Regents.DatabaseConfig",
-            "Regents.Staking.",
+            "Regents.Stake.",
             "Regents.Redemption."
           ]),
           do: {module, "Regents-owned"}

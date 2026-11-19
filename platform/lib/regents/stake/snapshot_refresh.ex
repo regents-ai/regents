@@ -1,4 +1,4 @@
-defmodule Regents.Staking.SnapshotRefresh do
+defmodule Regents.Stake.SnapshotRefresh do
   @moduledoc "The site's one restart-safe, incremental staking refresh."
 
   # One waiting pass at a time. A pass already running does not count, so an ask
@@ -12,8 +12,8 @@ defmodule Regents.Staking.SnapshotRefresh do
   require Logger
 
   alias Regents.Actors.System
-  alias Regents.Staking
-  alias Regents.Staking.{PriceClient, RevenueHistory, RpcClient, SnapshotCache}
+  alias Regents.Stake
+  alias Regents.Stake.{PriceClient, RevenueHistory, RpcClient, SnapshotCache}
 
   @impl Oban.Worker
   def timeout(_job), do: 70_000
@@ -60,7 +60,7 @@ defmodule Regents.Staking.SnapshotRefresh do
   end
 
   defp refresh do
-    with {:ok, previous} <- Staking.get_protocol_reading(SnapshotCache.key(), actor: %System{}) do
+    with {:ok, previous} <- Stake.get_protocol_reading(SnapshotCache.key(), actor: %System{}) do
       snapshot = if previous, do: SnapshotCache.decode(previous.snapshot)
 
       case SnapshotCache.remaining_delay(snapshot) do
@@ -97,14 +97,14 @@ defmodule Regents.Staking.SnapshotRefresh do
 
   defp save(nil, snapshot, history),
     do:
-      Staking.record_protocol_reading(
+      Stake.record_protocol_reading(
         %{id: SnapshotCache.key(), snapshot: json(snapshot), history: history},
         actor: %System{}
       )
 
   defp save(previous, snapshot, history),
     do:
-      Staking.replace_protocol_reading(previous, %{snapshot: json(snapshot), history: history},
+      Stake.replace_protocol_reading(previous, %{snapshot: json(snapshot), history: history},
         actor: %System{}
       )
 
