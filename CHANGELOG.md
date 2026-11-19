@@ -7078,3 +7078,9 @@ seasons), on the shared Points library regents.sh was already on.
   and the refusal is recorded. A rule that is switched off answers "off" before it looks at
   anything else. No Points setting, rule or amount changes. No migration.
   platform/mix.exs, platform/mix.lock.
+
+## 2026-11-19 — Released v344 (Points award review line)
+
+- v344, commit 5393e052. Full check exit 0 on 5393e052, six gates. No migration.
+- Live read, signed out: home, health, Points and Stake answer.
+- Rollback: v343's image main-997bae818764.
