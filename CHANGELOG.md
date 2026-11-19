@@ -7233,3 +7233,9 @@ seasons), on the shared Points library regents.sh was already on.
   libraries are pinned and inspectable. AGENTS.md, README.md, platform/AGENTS.md, platform/README.md,
   platform/docs/codebase-handoff.md, platform/repo.yaml, blog/contract.yaml and
   scripts/release.sh say so. No migration.
+
+## 2026-11-19 — Released v348 (shared library packages copied in)
+
+- v348, commit 35206b1e: twelve shared packages are this repository's own folders under shared/. Full check exit 0 on 35206b1e; the practice run built the image and ran its database commands on a throwaway database, nothing pending. No migration.
+- Live read, signed out: the 23 pages and agent documents answer; the pairing read and the agent check-in refuse a request with no credentials.
+- Rollback: v347's image main-de53401b2c85.
