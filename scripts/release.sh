@@ -9,8 +9,8 @@
 # dependency at the version the lockfiles pin; the shared libraries'
 # repositories are public, so the build takes no credentials.
 #
-# The smoke check starts the image against a throwaway PostgreSQL 17 on its own
-# Docker network and removes both afterwards. It runs the staging release
+# The smoke check starts the image against a throwaway PostgreSQL, at the version
+# platform/.tool-versions names, on its own Docker network and removes both afterwards. It runs the staging release
 # commands against it, starts the server, and checks the health endpoint, the
 # home page, a built stylesheet and the running server's database connection.
 # It runs as staging because that role admits only the staging database
@@ -24,6 +24,9 @@ commit="$(git rev-parse HEAD)"
 image="regents:${commit:0:12}"
 run="regents-smoke-$$"
 database_url="postgres://smoke:smoke@regents-staging-db.internal/regents_smoke"
+# The throwaway database is the PostgreSQL version platform/.tool-versions names.
+postgres="$(awk '$1 == "postgres" { print $2 }' platform/.tool-versions)"
+[[ -n $postgres ]] || { echo "platform/.tool-versions names no postgres version." >&2; exit 1; }
 
 cleanup() {
   status=$?
@@ -66,8 +69,11 @@ docker run --detach --name "$run-db" --network "$run" \
   --network-alias regents-staging-db.internal \
   --env POSTGRES_USER=smoke --env POSTGRES_DB=regents_smoke \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
-  docker.io/library/postgres:17 >/dev/null
+  "docker.io/library/postgres:$postgres" >/dev/null
 wait_for "the database" docker exec "$run-db" pg_isready --quiet --host 127.0.0.1 --username smoke
+server_version="$(docker exec "$run-db" psql --username smoke --dbname regents_smoke --tuples-only --no-align --command 'SHOW server_version')"
+# The answer is the version, then the build's own note, such as "17.12 (Debian 17.12-1.pgdg13+1)".
+[[ ${server_version%% *} == "$postgres" ]] || fail "the throwaway database is PostgreSQL $server_version, not $postgres"
 
 # Production requires a Base read endpoint; the public one is enough to boot.
 release_env=(
@@ -119,4 +125,4 @@ echo "  image digest    $digest"
 echo "  migrations      bootstrap-staging and migrate succeeded; pending-migrations: $pending"
 echo "  health          $base/healthz answered $health"
 echo "  static asset    $stylesheet answered $stylesheet_answer"
-echo "  database        the running server queried $connected_database"
+echo "  database        the running server queried $connected_database on PostgreSQL $server_version"

@@ -7034,3 +7034,12 @@ seasons), on the shared Points library regents.sh was already on.
 - v341, commit d323ff33. Full check exit 0 on d323ff33, six gates. No migration.
 - Live read, signed out: home, health, Stake, Redeem, Cloak, Points and Articles answer.
 - Rollback: v340's image main-02f0d3c3770f.
+
+## 2026-11-19 — Node 26.13.1 and PostgreSQL 17.12, as ash-template v291
+
+- The toolchain step of the six-site refresh (ash-template 54a58195): platform/.tool-versions
+  names Node 26.13.1 and PostgreSQL 17.12, and the image's Node stage is
+  node:26.13.1-trixie-slim at its digest. scripts/release.sh starts the smoke's throwaway
+  database at the PostgreSQL version .tool-versions names, stops unless the server answers
+  that exact version, and prints it. The site's live database server is not changed.
+  No migration. platform/.tool-versions, platform/Dockerfile, scripts/release.sh.
