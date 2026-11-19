@@ -1,4 +1,4 @@
-defmodule RegentsWeb.Components.TransactionReceipt do
+defmodule RegentsWeb.Chain.TransactionReceipt do
   @moduledoc """
   The pop-up a wallet step opens once Base has confirmed it: what happened,
   where the wallet stands now, read again after it, and the transaction on
@@ -6,7 +6,7 @@ defmodule RegentsWeb.Components.TransactionReceipt do
   when the reader closes it.
   """
   use Phoenix.Component
-  alias RegentsWeb.{OnchainSteps, TokenDisplay}
+  alias RegentsWeb.Chain.{OnchainSteps, TokenDisplay}
 
   attr :id, :string, required: true
   attr :title, :list, required: true, doc: "parts for `OnchainSteps.note/1`"

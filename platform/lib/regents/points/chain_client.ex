@@ -6,7 +6,7 @@ defmodule Regents.Points.ChainClient do
 
   @behaviour RegentPoints.ChainClient
 
-  alias Regents.WalletActions.Rpc
+  alias Regents.Chain.Rpc
 
   @impl true
   def rpc(%{chain_id: 8453}, method, params),

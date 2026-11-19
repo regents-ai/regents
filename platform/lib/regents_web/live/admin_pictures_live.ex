@@ -10,7 +10,7 @@ defmodule RegentsWeb.AdminPicturesLive do
   use RegentsWeb, :live_view
 
   alias Regent.Primitives
-  alias Regents.WalletActions.Address
+  alias Regents.Chain.Address
   alias RegentsWeb.AgentPictureController
 
   @impl true

@@ -1,4 +1,4 @@
-defmodule RegentsWeb.Components.OnchainButton do
+defmodule RegentsWeb.Chain.OnchainButton do
   @moduledoc """
   The words inside a wallet button. They say "Confirm in your wallet" while the
   wallet has one of its presses (marked in the browser) and "Confirming" while a

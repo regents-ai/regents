@@ -1,7 +1,7 @@
 defmodule Regents.WalletActions.RedemptionAbi do
   @moduledoc false
 
-  alias Regents.WalletActions.Abi
+  alias Regents.Chain.Abi
 
   @manifest_path Path.expand("../../../contracts/base-mainnet.json", __DIR__)
   @abi_path Path.expand("../../../contracts/abi/animata-redeemer.json", __DIR__)

@@ -9,7 +9,8 @@ defmodule RegentsWeb.StakingPositionController do
   alias Regents.Staking
   alias Regents.Staking.Facts
   alias Regents.Staking.SnapshotCache
-  alias RegentsWeb.{ChainReadBudget, ClientAddress, PrivyPair}
+  alias RegentsWeb.Chain.ReadBudget
+  alias RegentsWeb.{ClientAddress, PrivyPair}
 
   def show(conn, params) do
     conn =
@@ -46,7 +47,7 @@ defmodule RegentsWeb.StakingPositionController do
   # Each reading of Base draws on the caller's address budget, shared with the
   # pages.
   defp admit(conn, wallet) do
-    case ChainReadBudget.admit(ClientAddress.tag(conn)) do
+    case ReadBudget.admit(ClientAddress.tag(conn)) do
       :ok ->
         position(conn, wallet)
 

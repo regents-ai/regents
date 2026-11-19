@@ -1,4 +1,4 @@
-defmodule RegentsWeb.OnchainSteps do
+defmodule RegentsWeb.Chain.OnchainSteps do
   @moduledoc """
   The server half of a wallet-button component. `skills/onchain-buttons` has the
   rules; The Stake and Redeem components use it.
@@ -9,7 +9,7 @@ defmodule RegentsWeb.OnchainSteps do
   Every sent step is then read at the latest block of the review's chain, every
   quarter second, until it lands or the page stops asking. Nothing is kept beyond
   the page. A step that lands asks every reader of its chain to read it again
-  (`Regents.ChainRefresh`), so the shared figures show what it changed.
+  (`Regents.Chain.Refresh`), so the shared figures show what it changed.
 
   Signed in, every review is built for the account's main wallet
   (`RegentsWeb.ShellLive.Identity.main_wallet/1`), and the page sends only from
@@ -20,7 +20,7 @@ defmodule RegentsWeb.OnchainSteps do
   import Phoenix.LiveView, only: [push_event: 3, start_async: 3]
 
   alias RegentChain.{Outcome, Presses}
-  alias Regents.{ChainClient, ChainRefresh}
+  alias Regents.Chain.{Client, Refresh}
   alias RegentsWeb.EventInput
 
   @recheck_ms 250
@@ -101,7 +101,7 @@ defmodule RegentsWeb.OnchainSteps do
 
       {entry, presses} ->
         socket = assign(socket, presses: presses)
-        if entry.outcome == :confirmed, do: ChainRefresh.request(entry.review.chain.chain_id)
+        if entry.outcome == :confirmed, do: Refresh.request(entry.review.chain.chain_id)
         if Presses.reading?(entry), do: check(socket, entry), else: socket
     end
   end
@@ -270,7 +270,7 @@ defmodule RegentsWeb.OnchainSteps do
   defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
     start_async(socket, {:onchain_step, hash}, fn ->
       if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(ChainClient, review, step, hash)
+      Outcome.of(Client, review, step, hash)
     end)
   end
 

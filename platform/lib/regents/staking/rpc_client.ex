@@ -9,8 +9,8 @@ defmodule Regents.Staking.RpcClient do
 
   require Logger
 
+  alias Regents.Chain.{Abi, Rpc}
   alias Regents.Staking.{RevenueHistory, Supply}
-  alias Regents.WalletActions.{Abi, Rpc}
 
   @read_timeout 20_000
   # A first pass has seven days of logs to ask for; every later pass has minutes.

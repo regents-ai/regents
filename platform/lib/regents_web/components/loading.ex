@@ -5,7 +5,7 @@ defmodule RegentsWeb.Components.Loading do
   only ever stands for a read still on its way.
   """
   use Phoenix.Component
-  alias RegentsWeb.TokenDisplay
+  alias RegentsWeb.Chain.TokenDisplay
 
   attr :kind, :string, default: "line", values: ~w(line title metric control inline)
 

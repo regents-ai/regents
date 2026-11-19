@@ -7,7 +7,7 @@ defmodule RegentsWeb.Telemetry do
   whole time (`total_time`). Every request the router sends to a page or
   controller is timed by its route pattern (`[:phoenix, :router_dispatch, :stop]`),
   never by its path. Background jobs report each run's outcome and time from
-  Oban's own events. Each staking chain read (`Regents.WalletActions.Rpc`) is
+  Oban's own events. Each staking chain read (`Regents.Chain.Rpc`) is
   counted by its purpose and method, and every chain request that got no answer
   by its method, class, chain and the caller's fixed scope
   (`[:regents, :chain, :failure]`, a `health.*` series). Each time the Points

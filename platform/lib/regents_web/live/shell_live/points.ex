@@ -7,7 +7,7 @@ defmodule RegentsWeb.ShellLive.Points do
   new reading of the board, are heard only while this page is open, and each one
   reads its part again. The NFT tier the account's wallets hold now is read from
   Base once per page open, never on each award notice, and only while a season
-  runs. That read draws on the visitor's `RegentsWeb.ChainReadBudget`; past it,
+  runs. That read draws on the visitor's `RegentsWeb.Chain.ReadBudget`; past it,
   the page says the NFTs could not be checked.
   """
 
@@ -18,7 +18,8 @@ defmodule RegentsWeb.ShellLive.Points do
   alias Regents.Actors.Human
   alias Regents.Points.Board
   alias Regents.SharedReading
-  alias RegentsWeb.{ChainReadBudget, Read}
+  alias RegentsWeb.Chain.ReadBudget
+  alias RegentsWeb.Read
   alias RegentsWeb.ShellLive.Identity
 
   def init(socket),
@@ -101,7 +102,7 @@ defmodule RegentsWeb.ShellLive.Points do
   end
 
   defp bonus(id, tag) do
-    case ChainReadBudget.admit(tag) do
+    case ReadBudget.admit(tag) do
       :ok -> RegentPoints.Bonus.current(id)
       {:limited, _seconds} -> {:error, :limited}
     end

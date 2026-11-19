@@ -116,7 +116,7 @@ config :regents, Oban,
       {"15 0 * * *", RegentPoints.TallyPeriods},
       {"@reboot", Regents.Staking.SnapshotRefresh},
       # Every five minutes, and early after a confirmed on-chain press or a press
-      # of the read-again icon (Regents.ChainRefresh).
+      # of the read-again icon (Regents.Chain.Refresh).
       {"*/5 * * * *", Regents.Staking.SnapshotRefresh},
       {"17 4 * * *", Regents.ErrorPruner},
       # From the Points start, the one-time points for what accounts already had.
@@ -177,8 +177,8 @@ config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 config :regents, :staking_snapshot_refresh_enabled, true
 
 # Who reads a chain again when a person's action may have changed it
-# (`Regents.ChainRefresh`).
-config :regents, Regents.ChainRefresh, readers: [Regents.Staking.SnapshotCache]
+# (`Regents.Chain.Refresh`).
+config :regents, Regents.Chain.Refresh, readers: [Regents.Staking.SnapshotCache]
 
 config :regents, :session_options,
   store: :cookie,

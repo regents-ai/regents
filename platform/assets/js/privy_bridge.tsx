@@ -1208,7 +1208,7 @@ export function startPrivyBridge(
     providerState?.appId ??
     document.querySelector<HTMLMetaElement>("meta[name='privy-app-id']")?.content
   if (!appId) return Promise.reject(new Error("Privy app is unavailable"))
-  // The chain the site's wallet buttons send on (`Regents.ChainClient.base/0`),
+  // The chain the site's wallet buttons send on (`Regents.Chain.Client.base/0`),
   // as Privy's own list of networks describes it.
   const walletChainId = Number(document.querySelector<HTMLMetaElement>("meta[name='wallet-chain-id']")?.content)
   const walletChain = SUPPORTED_CHAINS.find(chain => chain.id === walletChainId)

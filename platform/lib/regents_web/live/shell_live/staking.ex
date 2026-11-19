@@ -15,10 +15,11 @@ defmodule RegentsWeb.ShellLive.Staking do
 
   alias RegentChain.Address
   alias Regents.Actors.Human
-  alias Regents.{ChainRefresh, Staking}
+  alias Regents.Chain.Refresh
+  alias Regents.Staking
   alias Regents.Staking.Facts, as: StakingFacts
   alias Regents.Staking.SnapshotCache
-  alias RegentsWeb.ChainReadBudget
+  alias RegentsWeb.Chain.ReadBudget
   alias RegentsWeb.ShellLive.Identity
 
   @routes [:stake, :app]
@@ -322,7 +323,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   # A reading asked for within ten seconds of the last one comes when they are
   # up, so every ask gets its reading.
   defp request_shared_refresh(socket) do
-    case ChainRefresh.request(8453) do
+    case Refresh.request(8453) do
       :ok -> assign(socket, staking_shared_reading: true, staking_notice: nil)
       {:error, _unavailable} -> shared_read_failed(socket)
     end
@@ -387,7 +388,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   defp start_quiet_read(socket) do
     wallet = socket.assigns.staking_wallet
 
-    case ChainReadBudget.admit(socket.assigns.client_tag) do
+    case ReadBudget.admit(socket.assigns.client_tag) do
       :ok ->
         start_async(socket, {:staking_quiet, socket.assigns.staking_generation}, fn ->
           Staking.account_for_wallet(wallet)
@@ -418,7 +419,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   defp start_wallet_read(%{assigns: %{staking: nil}} = socket, _read), do: socket
 
   defp start_wallet_read(socket, read) do
-    case ChainReadBudget.admit(socket.assigns.client_tag) do
+    case ReadBudget.admit(socket.assigns.client_tag) do
       :ok ->
         name = {:staking, socket.assigns.staking_generation}
 
@@ -436,7 +437,7 @@ defmodule RegentsWeb.ShellLive.Staking do
   # Every control stays where it is.
   defp keep_last_reading(socket, seconds) do
     socket = if shown_wallet?(socket.assigns), do: socket, else: wallet_read_failed(socket)
-    assign(socket, staking_status: :ready, staking_notice: ChainReadBudget.notice(seconds))
+    assign(socket, staking_status: :ready, staking_notice: ReadBudget.notice(seconds))
   end
 
   defp shown_wallet?(%{

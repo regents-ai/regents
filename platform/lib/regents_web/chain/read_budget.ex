@@ -1,4 +1,4 @@
-defmodule RegentsWeb.ChainReadBudget do
+defmodule RegentsWeb.Chain.ReadBudget do
   @moduledoc """
   One budget per client address for the readings of Base a visitor starts: the
   wallet figures on Stake and the Overview, the Redeem page's figures, the

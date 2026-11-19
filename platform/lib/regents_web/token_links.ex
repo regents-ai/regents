@@ -8,8 +8,8 @@ defmodule RegentsWeb.TokenLinks do
   cap is priced from.
   """
 
+  alias Regents.Chain.Abi
   alias Regents.Staking.PriceClient
-  alias Regents.WalletActions.Abi
 
   @doc "The REGENT contract address a visitor copies. Same token the buy link names."
   def address, do: Abi.stake_token_address()

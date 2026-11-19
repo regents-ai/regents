@@ -11,11 +11,13 @@ defmodule RegentsWeb.PrivyShowcaseLive do
   use RegentsWeb, :live_view
 
   alias Regent.Primitives, as: P
-  alias Regents.{ChainRefresh, Staking}
+  alias Regents.Chain.Address
+  alias Regents.Chain.Refresh
+  alias Regents.Staking
   alias Regents.Staking.SnapshotCache
-  alias Regents.WalletActions.Address
+  alias RegentsWeb.Chain.TokenDisplay
   alias RegentsWeb.Components.{Loading, Shell}
-  alias RegentsWeb.{ShowcaseLive, TokenDisplay}
+  alias RegentsWeb.ShowcaseLive
 
   def mount(_params, _session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Regents.PubSub, SnapshotCache.topic())
@@ -274,7 +276,7 @@ defmodule RegentsWeb.PrivyShowcaseLive do
   def handle_event("refresh_data", _params, socket) do
     notice =
       if socket.assigns.account_control.kind == :signed_in do
-        case ChainRefresh.request(8453) do
+        case Refresh.request(8453) do
           :ok ->
             nil
 

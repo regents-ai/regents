@@ -3,16 +3,17 @@ defmodule Regents.Staking.SnapshotCache do
   The last successful public staking reading, shared through Postgres.
 
   Pages buy no chain reads. Refreshes use one unique Oban job across the site's
-  machines, every five minutes and early when `Regents.ChainRefresh` asks; Oban
+  machines, every five minutes and early when `Regents.Chain.Refresh` asks; Oban
   owns scheduling and retries. A failure leaves the saved reading and its
   original block/time untouched. Wallet balances are never stored here.
   """
 
-  @behaviour Regents.ChainRefresh
+  @behaviour Regents.Chain.Refresh
 
-  alias Regents.{ChainRefresh, Staking}
+  alias Regents.Chain.Abi
+  alias Regents.Chain.Refresh
+  alias Regents.Staking
   alias Regents.Staking.{Facts, SnapshotRefresh}
-  alias Regents.WalletActions.Abi
 
   @topic "staking:protocol_snapshot"
   @dates [:read_at, :regent_price_read_at, :clanker_vault_locked_until, :clanker_vault_vested_by]
@@ -45,14 +46,14 @@ defmodule Regents.Staking.SnapshotCache do
   last reading. This never delays or deduplicates a wallet action; it only
   follows one.
   """
-  @impl ChainRefresh
+  @impl Refresh
   def refresh(8453), do: enqueue(remaining_delay(snapshot()))
   def refresh(_chain_id), do: :ok
 
   def remaining_delay(nil), do: 0
 
   def remaining_delay(%{read_at: read_at}) do
-    max(ChainRefresh.gap_s() - DateTime.diff(DateTime.utc_now(), read_at, :second), 0)
+    max(Refresh.gap_s() - DateTime.diff(DateTime.utc_now(), read_at, :second), 0)
   end
 
   defp enqueue(delay) do

@@ -2,8 +2,8 @@ defmodule Regents.Staking.Actions do
   @moduledoc false
   alias Regents.Accounts
   alias Regents.Actors.Human
+  alias Regents.Chain.Address
   alias Regents.Staking.RpcClient
-  alias Regents.WalletActions.Address
 
   @claims ~w(claim_usdc claim_regent claim_and_restake_regent)
 

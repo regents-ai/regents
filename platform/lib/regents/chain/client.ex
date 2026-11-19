@@ -1,4 +1,4 @@
-defmodule Regents.ChainClient do
+defmodule Regents.Chain.Client do
   @moduledoc """
   Reads at the latest block for a sent wallet step on Base.
 
@@ -9,7 +9,7 @@ defmodule Regents.ChainClient do
   from its own list of networks.
   """
 
-  alias Regents.WalletActions.Rpc
+  alias Regents.Chain.Rpc
 
   @rpc_opts [scope: "wallet_steps"]
   @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}

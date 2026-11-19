@@ -9,7 +9,7 @@ defmodule Regents.Staking.RevenueHistory do
   projection.
   """
 
-  alias Regents.WalletActions.{Abi, Rpc}
+  alias Regents.Chain.{Abi, Rpc}
 
   @window_seconds 604_800
   # Base's fastest: five blocks in every second of the window. Older blocks are

@@ -13,7 +13,7 @@ Sources: `platform/lib/regents_web/router.ex`, `platform/lib/regents_web/endpoin
 every `handle_event` in `platform/lib/regents_web/live/` and
 `platform/lib/regents_web/components/`, the wallet step builders
 (`Regents.Staking.Steps` and `Regents.Redemption.Steps`, both sent through
-`RegentsWeb.OnchainSteps`), `platform/priv/tool_manifest.json` (22 tools),
+`RegentsWeb.Chain.OnchainSteps`), `platform/priv/tool_manifest.json` (22 tools),
 `cli/regents/commands.json` (16 commands),
 the shared profile `RegentIdentity.HTTP` (then this repository's `identity/`, now
 elixir-utils' `ash_components/identity`) and the shared agents

@@ -1,4 +1,4 @@
-defmodule Regents.ChainRefresh do
+defmodule Regents.Chain.Refresh do
   @moduledoc """
   Asks every reader of a chain to read it again now, instead of waiting for its
   next turn.
@@ -6,7 +6,7 @@ defmodule Regents.ChainRefresh do
   The site's background readers of a chain run on a slow clock (five minutes),
   because a node is paid for each call and almost nothing changes between two
   reads. What does change a reading is a person acting: so a confirmed on-chain
-  press (`RegentsWeb.OnchainSteps.checked/3`) and a press of a page's read-again
+  press (`RegentsWeb.Chain.OnchainSteps.checked/3`) and a press of a page's read-again
   icon (`Regent.Primitives.last_read`) call `request/1` with the chain's id.
 
   Each reader named in this module's `:readers` setting implements `refresh/1`

@@ -6,7 +6,7 @@ defmodule RegentsWeb.StakeActions do
   Every step is built on the server and pushed to the page before anyone
   presses; the browser sends only what the review holds and reports what the
   wallet said. `skills/onchain-buttons` has the rules and
-  `RegentsWeb.OnchainSteps` the shared half.
+  `RegentsWeb.Chain.OnchainSteps` the shared half.
 
   The page passes the readings (`staking`, for `wallet`) and `account`, the
   signed-in account (`nil` signed out). Every step is built for the account's
@@ -16,19 +16,17 @@ defmodule RegentsWeb.StakeActions do
   """
   use RegentsWeb, :live_component
 
-  alias Regents.{ChainClient, Staking}
+  alias Regents.Chain.Client
+  alias Regents.Staking
   alias Regents.Staking.{Actions, Steps}
 
-  alias RegentsWeb.Components.{
-    Loading,
-    OnchainButton,
-    SubmittedTransactions,
-    TransactionReceipt
-  }
+  alias RegentsWeb.Chain.{OnchainButton, SubmittedTransactions, TransactionReceipt}
+  alias RegentsWeb.Components.Loading
 
   alias Phoenix.LiveView.JS
   alias RegentChain.{Presses, Review}
-  alias RegentsWeb.{EventInput, OnchainSteps, StakeLive, TokenDisplay}
+  alias RegentsWeb.Chain.{OnchainSteps, TokenDisplay}
+  alias RegentsWeb.{EventInput, StakeLive}
   alias RegentsWeb.ShellLive.Identity
 
   import RegentsWeb.EventInput, only: [failure_reason: 1]
@@ -259,7 +257,7 @@ defmodule RegentsWeb.StakeActions do
           Review.new(
             socket.assigns.id,
             signer,
-            ChainClient.base(),
+            Client.base(),
             Steps.steps(signer, staking, staking_form(socket.assigns)),
             inputs(socket.assigns)
           )

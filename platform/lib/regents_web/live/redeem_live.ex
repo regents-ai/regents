@@ -5,7 +5,7 @@ defmodule RegentsWeb.RedeemLive do
   Every wallet step is built on the server and pushed to the page before anyone
   presses; the browser sends only what the review holds and reports what the
   wallet said. `skills/onchain-buttons` has the rules and
-  `RegentsWeb.OnchainSteps` the shared half.
+  `RegentsWeb.Chain.OnchainSteps` the shared half.
 
   The shell owns the readings, the selection and every other control here; this
   component owns the presses. Every step is built for the signed-in account's
@@ -15,18 +15,16 @@ defmodule RegentsWeb.RedeemLive do
   """
   use RegentsWeb, :live_component
 
-  alias Regents.{ChainClient, Redemption}
+  alias Regents.Chain.Client
+  alias Regents.Redemption
   alias Regents.Redemption.Steps
 
-  alias RegentsWeb.Components.{
-    Loading,
-    OnchainButton,
-    SubmittedTransactions,
-    TransactionReceipt
-  }
+  alias RegentsWeb.Chain.{OnchainButton, SubmittedTransactions, TransactionReceipt}
+  alias RegentsWeb.Components.Loading
 
   alias RegentChain.{Presses, Review}
-  alias RegentsWeb.{EventInput, OnchainSteps, TokenDisplay}
+  alias RegentsWeb.Chain.{OnchainSteps, TokenDisplay}
+  alias RegentsWeb.EventInput
   alias RegentsWeb.ShellLive.Identity
 
   @control_labels %{
@@ -214,7 +212,7 @@ defmodule RegentsWeb.RedeemLive do
           Review.new(
             socket.assigns.id,
             signer,
-            ChainClient.base(),
+            Client.base(),
             Steps.steps(selection),
             %{"collection" => selection.collection, "token_id" => selection.token_id}
           )

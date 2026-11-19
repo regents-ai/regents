@@ -7,7 +7,7 @@ defmodule Regents.Staking.PriceClient do
   a guessed figure.
   """
 
-  alias Regents.WalletActions.Abi
+  alias Regents.Chain.Abi
 
   @pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
   @weth "0x4200000000000000000000000000000000000006"

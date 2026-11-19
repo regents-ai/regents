@@ -1,4 +1,4 @@
-defmodule RegentsWeb.Components.SubmittedTransactions do
+defmodule RegentsWeb.Chain.SubmittedTransactions do
   @moduledoc """
   The transactions a wallet button sent, newest first, each in its own box with
   what Base says about it and its link on BaseScan. Nothing shows until the
@@ -9,7 +9,7 @@ defmodule RegentsWeb.Components.SubmittedTransactions do
   while the others glide down (`SentList`).
   """
   use Phoenix.Component
-  alias RegentsWeb.OnchainSteps
+  alias RegentsWeb.Chain.OnchainSteps
 
   attr :id, :string, required: true, doc: "each transaction's box is `\#{id}-\#{hash}`"
 

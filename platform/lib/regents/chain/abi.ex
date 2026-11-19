@@ -1,7 +1,7 @@
-defmodule Regents.WalletActions.Abi do
+defmodule Regents.Chain.Abi do
   @moduledoc false
 
-  alias Regents.WalletActions.Address
+  alias Regents.Chain.Address
 
   @manifest_path Path.expand("../../../contracts/base-mainnet.json", __DIR__)
   @abi_path Path.expand("../../../contracts/abi/regent-revenue-staking.json", __DIR__)

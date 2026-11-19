@@ -12,8 +12,8 @@ defmodule Regents.Staking.Steps do
   """
 
   alias RegentChain.{Address, Call, Review}
+  alias Regents.Chain.Abi
   alias Regents.Staking.Actions
-  alias Regents.WalletActions.Abi
 
   @approve "approve(address,uint256)"
   @unlimited 2 ** 256 - 1

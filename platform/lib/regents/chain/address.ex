@@ -1,4 +1,4 @@
-defmodule Regents.WalletActions.Address do
+defmodule Regents.Chain.Address do
   @moduledoc """
   The one semantic EVM address boundary: twenty decoded bytes, not a display string.
 

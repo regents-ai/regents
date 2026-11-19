@@ -1,4 +1,4 @@
-defmodule RegentsWeb.TokenDisplay do
+defmodule RegentsWeb.Chain.TokenDisplay do
   @moduledoc """
   How the Stake, Redeem and Account pages write a figure.
 

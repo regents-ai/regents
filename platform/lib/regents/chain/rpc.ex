@@ -1,9 +1,9 @@
-defmodule Regents.WalletActions.Rpc do
+defmodule Regents.Chain.Rpc do
   @moduledoc false
 
   require Logger
 
-  alias Regents.WalletActions.{Abi, Address}
+  alias Regents.Chain.{Abi, Address}
 
   @timeout 8_000
   @chain_id 8453

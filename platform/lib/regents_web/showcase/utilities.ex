@@ -1,6 +1,6 @@
 defmodule RegentsWeb.Showcase.Utilities do
   @moduledoc false
-  alias Regents.WalletActions.{Abi, Address, Rpc}
+  alias Regents.Chain.{Abi, Address, Rpc}
 
   def address(value) do
     case Address.decode(value) do

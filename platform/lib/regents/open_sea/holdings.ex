@@ -2,8 +2,8 @@ defmodule Regents.OpenSea.Holdings do
   @moduledoc "Bounded, data-layer-less OpenSea lookup for the three fixed Base collections."
   use Ash.Resource, domain: Regents.OpenSea, authorizers: [Ash.Policy.Authorizer]
   require Logger
+  alias Regents.Chain.Address
   alias Regents.OpenSea.HoldingsCache
-  alias Regents.WalletActions.Address
 
   @collections ["animata", "regent-animata-ii", "regents-club"]
   @max_pages 10

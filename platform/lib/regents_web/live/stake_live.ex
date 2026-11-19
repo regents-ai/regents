@@ -1,8 +1,9 @@
 defmodule RegentsWeb.StakeLive do
   @moduledoc false
   use Phoenix.Component
+  alias RegentsWeb.Chain.TokenDisplay
   alias RegentsWeb.Components.{Loading, Tour}
-  alias RegentsWeb.{TokenDisplay, TokenLinks}
+  alias RegentsWeb.TokenLinks
 
   # The tour that plays by itself the first time a browser opens this page. Each
   # step rings a part that is on the page whether or not a wallet is open.
