@@ -1,7 +1,6 @@
 defmodule Regents.Formation.CloudRuntime.Changes.RefreshStatus do
   use Ash.Resource.Change
 
-  alias Regents.Formation.SpriteProvider
   alias RegentSprites.Sprite
 
   @impl true
@@ -9,7 +8,7 @@ defmodule Regents.Formation.CloudRuntime.Changes.RefreshStatus do
     Ash.Changeset.before_transaction(changeset, fn changeset ->
       sprite_name = changeset.data.sprite_name
 
-      case SpriteProvider.adapter().get(sprite_name) do
+      case RegentSprites.get(sprite_name) do
         {:ok, %Sprite{name: ^sprite_name} = sprite} ->
           Ash.Changeset.force_change_attributes(changeset, %{
             provider_sprite_id: sprite.id,

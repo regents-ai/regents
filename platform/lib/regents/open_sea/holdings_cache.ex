@@ -13,9 +13,6 @@ defmodule Regents.OpenSea.HoldingsCache do
   def fetch(address, loader) when is_binary(address) and is_function(loader, 0),
     do: GenServer.call(__MODULE__, {:fetch, address, loader}, @call_timeout)
 
-  @doc false
-  def clear, do: GenServer.call(__MODULE__, :clear)
-
   def invalidate(address) when is_binary(address),
     do: GenServer.call(__MODULE__, {:invalidate, address})
 
@@ -26,17 +23,6 @@ defmodule Regents.OpenSea.HoldingsCache do
   def init(_), do: {:ok, empty()}
 
   @impl true
-  # Resetting abandons every read in flight, so the pages waiting on one are told
-  # the lookup is unavailable rather than left holding a call nothing will answer.
-  def handle_call(:clear, _from, state) do
-    Enum.each(state.in_flight, fn {_address, %{monitor: monitor, waiters: waiters}} ->
-      Process.demonitor(monitor, [:flush])
-      Enum.each(waiters, &GenServer.reply(&1, {:error, :unavailable}))
-    end)
-
-    {:reply, :ok, empty()}
-  end
-
   # An address may be invalidated once per cache window. A page that just watched
   # a redemption confirm gets the fresh read it needs, while a page repeating the
   # same request only ever gets the one read the window already allowed.

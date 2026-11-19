@@ -3,21 +3,6 @@
 This page explains how to verify the admitted `/stake` capability locally. It does not require
 or authorize a production deployment, database migration, or automated live transaction.
 
-## Automated proof
-
-From `repos/regents/platform/` in an isolated prepared worktree:
-
-```sh
-mix test test/regents/staking test/regents_web/stake_live_test.exs
-npm test -- --run assets/test/stake_steps.test.ts assets/test/privy_bridge.test.ts
-npx playwright test test/browser/stake.spec.ts
-```
-
-The browser test uses an in-memory wallet provider and a test-only chain boundary. It presses an
-unlimited REGENT approval and stake, checks the wallet received exactly the steps the server built, and
-reads their outcome back through the same stand-in chain. It never contacts a wallet or sends a live
-transaction.
-
 ## Manual local check
 
 1. Complete the local Privy setup in [`local-privy-auth.md`](local-privy-auth.md).

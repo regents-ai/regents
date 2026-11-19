@@ -39,22 +39,18 @@ defmodule Regents.WalletActions.Abi do
 
   # `totalSupply()` belongs to the REGENT token, not to this contract, so it is
   # not proved against the staking ABI below.
-  @erc20_total_supply_signature "totalSupply()"
   @erc20_total_supply_selector "0x18160ddd"
 
   # `allocation(address)` belongs to the Clanker vault: for one token it holds,
   # the amount locked away, what of it has been claimed, when the lock ends and
   # when the release after it is complete. It is not proved against the staking
   # ABI below either.
-  @vault_allocation_signature "allocation(address)"
   @vault_allocation_selector "0xb81b8630"
 
   # `getThreshold()` and `getOwners()` belong to the Safe the staking contract
   # names as its treasury: how many signers must agree, and who they are. They
   # are not proved against the staking ABI below either.
-  @safe_threshold_signature "getThreshold()"
   @safe_threshold_selector "0xe75235b8"
-  @safe_owners_signature "getOwners()"
   @safe_owners_selector "0xa0e67e2b"
 
   # Multicall3 is the canonical read aggregator, deployed at the same address on
@@ -70,7 +66,6 @@ defmodule Regents.WalletActions.Abi do
   # requireCanonical); see artifacts/web-ops-2026-09-01/multicall3-admission-2026-09-02.md.
   @multicall3_address "0xcA11bde05977b3631167028862bE2a173976CA11"
   @multicall3_runtime_keccak256 "0xd5c15df687b16f2ff992fc8d767b4216323184a2bbc6ee2f9c398c318e770891"
-  @multicall3_runtime_sha256 "2756d7c52baee85cacb504f6ee1df7aad6809ac8d94a4a111d76991f90d36d6e"
   @multicall3_runtime_bytes 3808
   @aggregate3_signature "aggregate3((address,bool,bytes)[])"
   @aggregate3_selector "0x82ad56cb"
@@ -144,24 +139,9 @@ defmodule Regents.WalletActions.Abi do
   def encode_vault_allocation(token),
     do: String.downcase(@vault_allocation_selector <> encode_static("address", token))
 
-  def supply_denominator_signature, do: @supply_denominator_signature
-  def total_usdc_received_signature, do: @total_usdc_received_signature
-  def treasury_recipient_signature, do: @treasury_recipient_signature
-  def reward_inventory_signature, do: @reward_inventory_signature
-  def total_usdc_credited_signature, do: @total_usdc_credited_signature
-  def total_claimed_usdc_signature, do: @total_claimed_usdc_signature
-  def treasury_residual_usdc_signature, do: @treasury_residual_usdc_signature
-  def safe_threshold_signature, do: @safe_threshold_signature
-  def safe_owners_signature, do: @safe_owners_signature
-  def erc20_total_supply_signature, do: @erc20_total_supply_signature
-  def vault_allocation_signature, do: @vault_allocation_signature
-
   def multicall3_address, do: @multicall3_address
   def multicall3_runtime_keccak256, do: @multicall3_runtime_keccak256
-  def multicall3_runtime_sha256, do: @multicall3_runtime_sha256
   def multicall3_runtime_bytes, do: @multicall3_runtime_bytes
-  def aggregate3_signature, do: @aggregate3_signature
-  def aggregate3_selector, do: @aggregate3_selector
 
   @doc """
   Calldata for one Multicall3 `aggregate3` carrying exactly these sub-calls.

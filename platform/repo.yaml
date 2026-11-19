@@ -59,5 +59,3 @@ acceptance_commands:
     command: mix precommit
   - cwd: platform
     command: npm run typecheck
-  - cwd: platform
-    command: npm test

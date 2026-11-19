@@ -2,12 +2,9 @@ import Config
 
 require Logger
 
-# Tests sign in to their own app id (config/test.exs), whatever the shell sets.
-if config_env() != :test do
-  config :regents, :privy,
-    app_id: System.get_env("PRIVY_APP_ID"),
-    verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
-end
+config :regents, :privy,
+  app_id: System.get_env("PRIVY_APP_ID"),
+  verification_key: System.get_env("PRIVY_VERIFICATION_KEY")
 
 # Without its Privy settings a local server answers every page while nobody can
 # sign in, so it refuses to start. A worktree holds no settings files of its own.
@@ -21,48 +18,16 @@ if config_env() == :dev and Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoi
   end
 end
 
-# The browser acceptance server names a test-only Privy app, and has no reader
-# key for agents' activity, since nothing there answers the SIWA service.
-# Production can never take this branch.
-if config_env() == :test and System.get_env("REGENTS_BROWSER_TEST") == "1" do
-  config :regents, :privy, app_id: "browser-test-privy-app-id", verification_key: nil
-
-  config :regent_agents, activity_read_token: nil
-
-  # The walk's browsers reach this server at once, as visitors do, so it lends a
-  # connection for each query as production does. `mix test`'s sandbox pool keeps
-  # one with every process that used it until that process ends, and several
-  # browsers' pages and requests hold all ten.
-  config :regents, Regents.Repo, pool: DBConnection.ConnectionPool
-
-  # Every Req call to anywhere but this machine is refused and written to the
-  # log the browser checks read, so a check that reaches outside fails.
-  config :req, :default_options, adapter: Regents.OutsideRequests
-  config :regents, Regents.OutsideRequests, log: System.fetch_env!("REGENTS_OUTSIDE_LOG")
-
-  # It writes its lines in production's shape, at production's level, to a file,
-  # which test/browser/visits.spec.ts reads to replay a visit.
-  config :logger, level: :info
-
-  config :logger, :default_handler,
-    config: [file: String.to_charlist(Path.expand("../tmp/walk-lines.jsonl", __DIR__))],
-    formatter: LoggerJSON.Formatters.Basic.new(metadata: RegentsWeb.VisitLog.fields())
-end
-
-if config_env() != :test do
-  config :regents, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
-end
+config :regents, :opensea_api_key, System.get_env("OPENSEA_API_KEY")
 
 config :regent_sprites, token: System.get_env("SPRITES_TOKEN")
 
-if config_env() != :test do
-  config :regent_agents, :siwa,
-    url: System.get_env("SIWA_SERVER_URL"),
-    audience: System.get_env("SIWA_AUDIENCE")
+config :regent_agents, :siwa,
+  url: System.get_env("SIWA_SERVER_URL"),
+  audience: System.get_env("SIWA_AUDIENCE")
 
-  # The reader key for each paired agent's activity across the Regent sites.
-  config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
-end
+# The reader key for each paired agent's activity across the Regent sites.
+config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
 
 # Production must say out loud whether the product surfaces are open. Anything
 # but "on" keeps them closed, so a typo closes rather than opens.
@@ -84,17 +49,14 @@ config :regents, :app_surfaces, app_surfaces?
 
 Logger.info("App surfaces #{if app_surfaces?, do: "enabled", else: "disabled"}")
 
-# The signed wallet's ENS name and picture are read from Ethereum mainnet. The
-# test environment owns this setting outright, and only the host is logged
-# because provider URLs carry the API key.
-if config_env() != :test do
-  ethereum_read_rpc_url = String.trim(System.get_env("ETHEREUM_READ_RPC_URL", ""))
+# The signed wallet's ENS name and picture are read from Ethereum mainnet. Only
+# the host is logged, because provider URLs carry the API key.
+ethereum_read_rpc_url = String.trim(System.get_env("ETHEREUM_READ_RPC_URL", ""))
 
-  if ethereum_read_rpc_url != "" do
-    config :regents, :ethereum_read_rpc_url, ethereum_read_rpc_url
+if ethereum_read_rpc_url != "" do
+  config :regents, :ethereum_read_rpc_url, ethereum_read_rpc_url
 
-    Logger.info("Ethereum read endpoint host #{URI.parse(ethereum_read_rpc_url).host}")
-  end
+  Logger.info("Ethereum read endpoint host #{URI.parse(ethereum_read_rpc_url).host}")
 end
 
 # The Privy accounts that run this site, comma separated (config/config.exs).

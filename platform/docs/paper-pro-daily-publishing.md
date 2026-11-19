@@ -47,17 +47,3 @@ Publication does not rewrite the row and requires no cron job, worker, migration
 or per-paper deployment. The code change itself must be deployed before relying
 on this behavior. It does not make an independently shared ChatGPT answer, source
 paper, previously cached content or externally hosted copy private.
-
-## Verification
-
-From `platform/`, with the normal prepared local test database and a unique
-`MIX_TEST_PARTITION`, run:
-
-```sh
-MIX_TEST_PARTITION=_paper_utc mix test test/regents/paper_pro_daily_test.exs test/regents_web/paper_pro_daily_live_test.exs
-MIX_TEST_PARTITION=_paper_utc mix precommit
-```
-
-The regression tests cover early insertion and replacement, today/past/future
-reads, exact UTC midnight and offset handling, leap/year boundaries,
-static and connected-page visibility, the refresh handler, and direct image URLs.

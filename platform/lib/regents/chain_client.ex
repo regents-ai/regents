@@ -26,7 +26,7 @@ defmodule Regents.ChainClient do
   """
   def base, do: @base
 
-  @doc "The reader wallet steps use: this module, or the site's test stand-in."
+  @doc "The reader wallet steps use: this module unless `:chain_client` names another."
   def module, do: Application.get_env(:regents, :chain_client, __MODULE__)
 
   @doc "The transaction sent as `hash`, or `nil` while the chain does not know it."

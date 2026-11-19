@@ -59,7 +59,7 @@
   );
   /* Signal Blue and its two neighbours. Enter App's gradient drifts between the
      three and bakes them into its shader as BLUE, LIGHT and DEEP
-     (assets/js/enter_gradient/shader.ts); its test keeps each pair equal. */
+     (assets/js/enter_gradient/shader.ts); keep each pair equal. */
   --ash-action: #3361FF;
   --ash-action-light: #3966FF;
   --ash-action-deep: #1E42DC;

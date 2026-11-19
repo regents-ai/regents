@@ -15,10 +15,9 @@ the separate regents-cli repository.
   over its budget in the Makefile's `CHECK_BUDGETS` gets a `SLOW:` line, a warning
   that never fails the check. `make check-platform`, `check-required-fixes`, `check-cli`, `check-siwa-latest`
   and `check-contracts` run one. `check-siwa-latest` fails until the
-  site is on the newest regents-cli release and the newest SIWA library change. `MIX_TEST_PARTITION` (an underscore and
-  a short id, unique to your working tree) is required.
+  site is on the newest regents-cli release and the newest SIWA library change.
 - Follow the workspace's `regent-workflow`; use one integrating owner for this repository.
-  Scope verification to observable acceptance and preserve useful regression coverage.
+  Scope verification to observable acceptance.
 - Preserve uncommitted work, public command/API shapes and protected source evidence.
   Every distinct wallet press reaches the wallet. No signing, production access,
   deployment or publishing without applicable founder authority. Never read `.env`,

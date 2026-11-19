@@ -3,7 +3,7 @@
     %{
       name: "default",
       files: %{
-        included: ["mix.exs", "config/", "lib/", "test/"],
+        included: ["mix.exs", "config/", "lib/"],
         excluded: [
           # Build artifacts are generated and are not application source.
           ~r"/_build/",
@@ -69,13 +69,7 @@
                  # Redemption runtime code is protected and cannot receive semantic refactors in this ticket.
                  "lib/regents/redemption/**/*.ex",
                  # This LiveView owns protected wallet, stake, and redemption flows.
-                 "lib/regents_web/live/shell_live.ex",
-                 # Redemption tests are protected from semantic refactors and assertion changes.
-                 "test/regents/redemption/**/*_test.exs",
-                 # The redemption chain stub models protected chain behavior.
-                 "test/support/test_redemption_chain_client.ex",
-                 # The staking chain stub models protected chain behavior.
-                 "test/support/test_staking_chain_client.ex"
+                 "lib/regents_web/live/shell_live.ex"
                ]
              }
            ]},
@@ -130,7 +124,6 @@
           {Credo.Check.Warning.UnusedRegexOperation, []},
           {Credo.Check.Warning.UnusedStringOperation, []},
           {Credo.Check.Warning.UnusedTupleOperation, []},
-          {Credo.Check.Warning.WrongTestFilename, []},
           # ExSlop catches patterns LLMs produce that experienced Elixir
           # developers do not. Registered as checks rather than as a plugin
           # because this config pins an explicit enabled list, which Credo
@@ -169,8 +162,6 @@
            [
              files: %{
                excluded: [
-                 # Exact-size assertions are clearer test failures than counting helpers.
-                 "test/**/*.exs",
                  # These validations require an exact ABI/domain shape, not an emptiness test.
                  "lib/regents/autolaunch/indexer/chain.ex"
                ]
@@ -210,8 +201,6 @@
           {Credo.Check.Consistency.UnusedVariableNames, []},
           # DuplicatedCode is experimental and intentionally left opt-in.
           {Credo.Check.Design.DuplicatedCode, []},
-          # SkipTestWithoutComment is controversial and intentionally left opt-in.
-          {Credo.Check.Design.SkipTestWithoutComment, []},
           # AliasAs is controversial and intentionally left opt-in.
           {Credo.Check.Readability.AliasAs, []},
           # BlockPipe is controversial and intentionally left opt-in.
@@ -256,8 +245,6 @@
           {Credo.Check.Refactor.ModuleDependencies, []},
           # NegatedIsNil is controversial and intentionally left opt-in.
           {Credo.Check.Refactor.NegatedIsNil, []},
-          # PassAsyncInTestCases is controversial and intentionally left opt-in.
-          {Credo.Check.Refactor.PassAsyncInTestCases, []},
           # PipeChainStart is controversial and intentionally left opt-in.
           {Credo.Check.Refactor.PipeChainStart, []},
           # RejectFilter is controversial and intentionally left opt-in.

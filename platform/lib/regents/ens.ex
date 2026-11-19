@@ -25,7 +25,7 @@ defmodule Regents.Ens do
   than with a box the browser cannot fill.
   """
 
-  alias AgentEns.Internal.Contract
+  alias AgentEns.Internal.{Contract, RPC}
   alias Regents.Accounts
   alias Regents.Actors.System, as: SystemActor
 
@@ -95,7 +95,7 @@ defmodule Regents.Ens do
   defp served(nil), do: {:ok, nil}
 
   defp served(url) do
-    case avatar_client().head(url,
+    case Req.head(url,
            receive_timeout: avatar_deadline_ms(),
            retry: false,
            redirect: false
@@ -131,8 +131,8 @@ defmodule Regents.Ens do
 
   defp lookup(wallet, endpoint) do
     with {:ok, node} <- AgentEns.Verify.namehash(reverse_name(wallet)),
-         {:ok, resolver} <- Contract.fetch_resolver(rpc(), endpoint, @ens_registry, node),
-         {:ok, claimed} <- Contract.fetch_name_record(rpc(), endpoint, resolver, node) do
+         {:ok, resolver} <- Contract.fetch_resolver(RPC, endpoint, @ens_registry, node),
+         {:ok, claimed} <- Contract.fetch_name_record(RPC, endpoint, resolver, node) do
       forward_resolved(String.trim(claimed), wallet, endpoint)
     end
   end
@@ -150,7 +150,7 @@ defmodule Regents.Ens do
       ens_name: name,
       chain_id: @ethereum_chain_id,
       rpc_url: endpoint,
-      rpc_module: rpc(),
+      rpc_module: RPC,
       text_keys: [@avatar_record],
       include_contenthash?: false
     })
@@ -173,11 +173,7 @@ defmodule Regents.Ens do
 
   defp image_url(_absent, _name), do: nil
 
-  defp rpc, do: Application.fetch_env!(:regents, :ethereum_rpc_module)
-
   defp deadline_ms, do: Application.fetch_env!(:regents, :ens_lookup_deadline_ms)
-
-  defp avatar_client, do: Application.fetch_env!(:regents, :ens_avatar_http_client)
 
   defp avatar_deadline_ms,
     do: Application.fetch_env!(:regents, :ens_avatar_deadline_ms)

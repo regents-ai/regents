@@ -127,7 +127,6 @@ contracts/              The OpenAPI contract, chain-contract manifest, and ABIs
 config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
-test/                   ExUnit suites, including browser and budget tests
 docs/                   Local setup guides, operations notes, plans, and specs
 scripts/                The release build-context helper
 rel/                    Release overlays, including the migrate command
@@ -135,8 +134,8 @@ rel/                    Release overlays, including the migrate command
 
 ## Checks
 
-The full platform gate is `make check-platform`, run from the repository root with
-`MIX_TEST_PARTITION` set. `make check-required-fixes` confirms every shared library is
+The full platform gate is `make check-platform`, run from the repository root.
+`make check-required-fixes` confirms every shared library is
 pinned and carries each required fix. `make check-siwa-latest`
 (`scripts/check-siwa-latest.sh`) fails until the site is on the newest SIWA: the Makefile's
 `REGENTS_CLI_REV` is the newest regents-cli release's tag commit, the agent guide names
@@ -145,29 +144,11 @@ manifest's `cli.release` is it, and the elixir-utils commit `platform/mix.exs` p
 contains the newest change to `siwa/siwa-elixir/apps/siwa`. For focused changes, run the checks that
 exercise the changed behavior; retain the full gate for protected changes.
 
-It runs `mix precommit`, builds the assets, then runs the TypeScript typecheck, the Vitest unit suite and
-the browser walk in `test/browser`: headless Chromium, one browser for every three of the
-machine's cores (at most five), all against one test server and its database. `mix precommit`
-compiles with warnings as errors, checks unused dependency locks and formatting, runs
-Credo in strict mode and Sobelow, holds the compile-connected `xref` graph under its limit,
-runs the test suite with warnings as errors, and verifies the Ash codegen and route handoff
+It runs `mix precommit`, builds the assets, then runs the TypeScript typecheck. `mix precommit`
+compiles with warnings as errors, checks unused dependency locks, audits the Hex packages,
+checks formatting, runs Credo in strict mode and Sobelow, holds the compile-connected `xref`
+graph under its limit, and verifies the Ash codegen, the usage rules and the route handoff
 are up to date.
-
-Other relevant checks are available for browser behavior, asset budgets, and external tooling:
-
-| Command | What it does |
-| --- | --- |
-| `npm run test:browser` | Builds assets and runs the Playwright browser suite. |
-| `REGENTS_SHOT_DIR=<folder> npx playwright test test/browser/stake.spec.ts` | Runs the Stake walk and saves its pictures of the Stake card (signed out, idle, an amount, Unstake, rewards waiting on a top-up, and when Base was last read, at 390 and 1280 wide) to that folder for review. Without it they go to `test-results`. |
-| `npm run test:budgets` | Enforces the asset size budgets. |
-| `mix test.external` | Runs one Docker build-context test. Excluded from `mix precommit` because it requires tools outside the hermetic test suite. |
-
-The test database name carries whatever `MIX_TEST_PARTITION` holds, just before its `_test` ending.
-Setting it is required, not advisory, whenever more than one test run can happen on a machine: every
-writer and every working tree gives it its own value, an underscore followed by a short id, so that
-the runs use separate databases. `MIX_TEST_PARTITION=_regent_88a` gives the database
-`regents_regent_88a_test`. Run `MIX_ENV=test mix ecto.create` once for a new value; the suite
-builds the schema itself on its first run.
 
 ## Deployment
 

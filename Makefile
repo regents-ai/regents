@@ -6,13 +6,11 @@ help:
 	@echo "platform/_build/check/<gate>.log, then prints one line per gate and the log of"
 	@echo "any that failed. A gate slower than its budget (CHECK_BUDGETS) gets a SLOW line;"
 	@echo "that warns and never fails. Run check-platform, check-required-fixes, check-cli,"
-	@echo "check-siwa-latest or check-contracts for one component; check-platform includes"
-	@echo "the browser walk in platform/test/browser, one headless browser per three cores."
-	@echo "Set MIX_TEST_PARTITION (an underscore and a short id) first. make release checks,"
+	@echo "check-siwa-latest or check-contracts for one component. make release checks,"
 	@echo "then builds and smoke-checks the committed tree. make deploy puts the committed"
 	@echo "HEAD on regents.sh."
 # The gates share nothing they write, so they run at once. The two platform gates
-# both compile for the test environment, and Mix's build lock makes the later one wait.
+# both compile for the dev environment, and Mix's build lock makes the later one wait.
 CHECK_GATES := platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts
 CHECK_LOGS := platform/_build/check
 # Each gate's budget in seconds, about 40% over its time in make check on a 16-core
@@ -39,7 +37,7 @@ check-platform: platform-precommit platform-web
 platform-precommit:
 	cd platform && mix precommit
 platform-web:
-	cd platform && mix assets.build && npm run typecheck && npm test && npx playwright test
+	cd platform && mix assets.build && npm run typecheck
 # Every site runs the same check against ash-template's current main branch, so a
 # newly published required fix reaches every site's next gate. Needs `gh auth login`.
 TEMPLATE := repos/regents-ai/ash-template

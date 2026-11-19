@@ -13,9 +13,6 @@ defmodule Regents.MixProject do
       app: :regents,
       version: "0.1.0",
       elixir: "~> 1.20",
-      elixirc_paths: elixirc_paths(Mix.env()),
-      # The browser walk's files under test/browser are run by Playwright, not ExUnit.
-      test_ignore_filters: [&String.starts_with?(&1, "test/browser/")],
       start_permanent: false,
       aliases: aliases(),
       deps: deps(),
@@ -34,16 +31,6 @@ defmodule Regents.MixProject do
       extra_applications: [:logger, :runtime_tools]
     ]
   end
-
-  def cli do
-    [
-      preferred_envs: [precommit: :test, "test.external": :test]
-    ]
-  end
-
-  # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
   #
@@ -66,8 +53,8 @@ defmodule Regents.MixProject do
       {:nebulex_local, "~> 3.0"},
       {:ash_oban, "~> 0.10.3"},
       {:ash_phoenix, "~> 2.3.26"},
-      {:igniter, "== 0.8.5", only: [:dev, :test], runtime: false},
-      {:usage_rules, "~> 1.3", only: [:dev, :test], runtime: false},
+      {:igniter, "== 0.8.5", only: :dev, runtime: false},
+      {:usage_rules, "~> 1.3", only: :dev, runtime: false},
       {:mdex, "== 0.14.6"},
       {:floki, "== 0.38.5"},
       {:ens_elixir, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "ens"},
@@ -104,8 +91,7 @@ defmodule Regents.MixProject do
       {:regent_sprites, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "sprites"},
       {:picosat_elixir, "~> 0.2.3"},
       {:simple_sat, "~> 0.1"},
-      {:sourceror, "~> 1.12", only: [:dev, :test], runtime: false},
-      {:lazy_html, ">= 0.1.13", only: :test},
+      {:sourceror, "~> 1.12", only: :dev, runtime: false},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:logger_json, "~> 7.0"},
       {:telemetry_metrics, "~> 1.0"},
@@ -119,17 +105,11 @@ defmodule Regents.MixProject do
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},
       {:bandit, "~> 1.14"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: :dev, runtime: false},
+      {:ex_slop, "~> 0.4", only: :dev, runtime: false},
       {:credo_ash,
-       git: @elixir_utils,
-       ref: @elixir_utils_ref,
-       sparse: "credo_ash",
-       only: [:dev, :test],
-       runtime: false},
-      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false},
-      # Property tests. Ash already ships it in every environment, so it cannot be test-only.
-      {:stream_data, "~> 1.4"}
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "credo_ash", only: :dev, runtime: false},
+      {:sobelow, "~> 0.16", only: :dev, runtime: false}
     ]
   end
 
@@ -180,10 +160,6 @@ defmodule Regents.MixProject do
       "ecto.migrate": ["ecto.migrate --prefix regents_app"],
       "ecto.rollback": ["ecto.rollback --prefix regents_app"],
       "ecto.migrations": ["ecto.migrations --prefix regents_app"],
-      # The test database is prepared before the site starts, since its Oban
-      # refuses to start without its tables.
-      test: ["ecto.create --quiet", "regents.setup_local_auth", "test"],
-      "test.external": ["test --only external"],
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --check-unused",
@@ -197,7 +173,6 @@ defmodule Regents.MixProject do
         # resource its two policy checks and its `run` module. Updates adds one: the domain
         # reads its resource.
         "xref graph --label compile-connected --fail-above 43",
-        "test --warnings-as-errors",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

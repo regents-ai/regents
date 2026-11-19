@@ -67,36 +67,10 @@ export function forgetEthereumWalletSelection(): void {
 let connectedWallets = new Map<string, ConnectedEthereumWallet>()
 let activeWallet: SelectedWallet | null = null
 
-declare global {
-  interface Window {
-    __regentsTestWallet?: SelectedWallet
-  }
-}
-
 export function replaceConnectedEthereumWallets(
   wallets: ReadonlyArray<readonly [string, ConnectedEthereumWallet]>,
 ): void {
   connectedWallets = new Map(wallets.map(([address, wallet]) => [address.toLowerCase(), wallet]))
-}
-
-export function connectedEthereumWallet(expectedSigner?: string): SelectedWallet | null {
-  if (walletDisconnected()) return null
-  const testWallet = testEthereumWallet()
-  if (testWallet) {
-    if (!expectedSigner || testWallet.address.toLowerCase() === expectedSigner.toLowerCase()) {
-      return testWallet
-    }
-    return null
-  }
-
-  if (expectedSigner) {
-    return selectConnectedEthereumWallet([...connectedWallets.entries()], expectedSigner)
-  }
-
-  const first = connectedWallets.entries().next().value as
-    | [string, ConnectedEthereumWallet]
-    | undefined
-  return first ? {address: first[0], provider: first[1].provider, switchChain: first[1].switchChain} : null
 }
 
 export function selectConnectedEthereumWallet(
@@ -121,7 +95,7 @@ export function replaceActiveEthereumWallet(wallet: SelectedWallet | null): void
 
 export function activeEthereumWallet(): SelectedWallet | null {
   if (walletDisconnected()) return null
-  return testEthereumWallet() ?? activeWallet
+  return activeWallet
 }
 
 /**
@@ -200,17 +174,4 @@ function disconnectedStorage(): Pick<Storage, "getItem" | "setItem" | "removeIte
   } catch {
     return null
   }
-}
-
-// The browser test seam stands in for Privy's selection as well as for the
-// connected set, so the same wallet drives the wallet buttons there as in a real browser —
-// including staying gone after the visitor disconnects it. Each browser test
-// server runs on its own port of this machine, and no public page is ever served
-// from it.
-function testEthereumWallet(): SelectedWallet | null {
-  return window.location.hostname === "127.0.0.1" &&
-    window.__regentsTestWallet &&
-    !walletDisconnected()
-    ? window.__regentsTestWallet
-    : null
 }

@@ -1,6 +1,6 @@
 # Local component workshop
 
-Open `/showcase` on a development or test server using `localhost` or `127.0.0.1`.
+Open `/showcase` on a development server using `localhost` or `127.0.0.1`.
 The production configuration omits its routes. HTTP requests and connected
 LiveView mounts both require a loopback peer and a loopback hostname; forwarded
 headers do not grant access. Gallery styles and metadata use the same guard.
@@ -11,9 +11,8 @@ headers do not grant access. Gallery styles and metadata use the same guard.
 the separate wallet fixture in the main gallery. It includes configuration
 instructions, header Sign in/Sign out, in-page connection controls, the selected
 wallet, asynchronous Base balance hydration, and the shared protocol reading.
-Controls are disabled with an explanation when configuration is missing or the
-server uses a test verifier. No configuration values, tokens or provider objects
-are displayed. The data panels request no transaction or extra signature.
+Controls are disabled with an explanation when configuration is missing. No
+configuration values, tokens or provider objects are displayed. The data panels request no transaction or extra signature.
 
 The production header and this page both render
 `RegentsWeb.Components.Shell.account_control/1`. The small
@@ -22,12 +21,12 @@ does not create a second `PrivyProvider`. The existing trusted session hook stil
 owns authentication. `PrivyShowcaseLive` owns only read-only data loading and drops
 stale results on a wallet change. Source comments identify those boundaries.
 
-For real testing, use the configured development server and a Privy-allowed
+For a real sign-in, use the configured development server and a Privy-allowed
 localhost origin. Supply `PRIVY_APP_ID`, `PRIVY_VERIFICATION_KEY`, and the desired
 Base/ENS reader configuration to that process. Prepare the local PostgreSQL
 database (`regents_dev` by default), run `mix regents.setup_local_auth`,
-then `mix assets.build` and `mix phx.server`. Do not use browser-test configuration
-as proof of real Privy sign-in. A detailed source map is also on the reference page.
+then `mix assets.build` and `mix phx.server`. A detailed source map is also on the
+reference page.
 
 `design-system/regent_ui` is already the shared Phoenix component library,
 consumed as a path dependency rather than a Hex release. `elixir-utils/ash_components/identity`
@@ -100,8 +99,8 @@ Ash action with an in-memory data layer.
   real wallet store or sends a network request.
 - Privy controls use the existing bridge and trusted session loader. A configured
   development server offers only the action matching its verified account state.
-  The test verifier or missing configuration instead shows a disabled control and
-  an adjacent explanation; the browser-fixture server is not real human sign-in.
+  Missing configuration instead shows a disabled control and an adjacent
+  explanation.
   A real app, verification key and Privy-allowed origin are required for that canary.
 - Create/add/reset items and chamber edits use the local Ash sample action. Copy
   writes the displayed ledger or utility result through the browser clipboard API.
@@ -111,48 +110,9 @@ Ash action with an in-memory data layer.
   authentication endpoint; no key or token is displayed or retained.
 - Address checksums, token formatting and ERC20 calldata call existing functions.
   Encoded calldata is never submitted.
-- Postgres: a fixed read-only diagnostic accepts only the prepared loopback
-  worktree test database naming convention. It refuses other database settings.
 - Linked identities are synthetic LiveView state, lost on reload.
 
-## Run in an isolated worktree
+## Run in a worktree
 
-Give the worktree its own `MIX_TEST_PARTITION` and a unique `PORT`, so it uses a
-unique local database and port. Install locked Mix and npm
-dependencies, then run `mix assets.build`.
-
-A prepared test database can be created with `MIX_ENV=test mix ecto.create`. This
-showcase does not require replaying the app's migration history. Existing ExUnit
-setup creates its disposable local account fixtures. Do not run production
-migrations to support this gallery.
-
-Run the disposable test server in the test environment with that partition and port:
-
-```sh
-env MIX_ENV=test REGENTS_BROWSER_TEST=1 REGENTS_OUTSIDE_LOG=tmp/outside-requests.log mix run --no-halt
-```
-
-That command belongs only in the isolated test context. Use its printed URL and
-append `/showcase`.
-
-## Focused verification
-
-From the worktree, with the same partition:
-
-```sh
-mix test test/regents_web/showcase/showcase_test.exs
-npm run typecheck
-npm test -- assets/test/auth_lazy.test.ts assets/test/connected_wallet.test.ts assets/test/hook_composition.test.ts
-```
-
-Against the already-running disposable server, naming its port:
-
-```sh
-PORT=<port> npx playwright test --config playwright.showcase.config.ts
-```
-
-The dedicated browser configuration avoids the product suite's seeding and global
-teardown. Browser tests block external origins and cover eight palettes, persistent
-edits, keyboard focus, reduced motion, mobile overflow, Ash validation, utility
-results, repeat wallet presses and expandable fixtures. Failures retain screenshots
-and traces in `test-results/`.
+Install the locked Mix and npm dependencies and run `mix assets.build`. Start the
+development server with `mix phx.server` and open `/showcase` on it.

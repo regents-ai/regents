@@ -7116,3 +7116,23 @@ seasons), on the shared Points library regents.sh was already on.
   provider, subject and account. No Points setting, rule or amount changes. No migration.
   platform/mix.exs, platform/mix.lock, platform/lib/regents/accounts/human_account.ex,
   platform/lib/regents/accounts/linked_identity.ex.
+
+## 2026-11-19 — The tests are removed
+
+- Founder decision: every server, unit and browser test goes, with everything that existed
+  only for them: platform/test/ (its support files, stand-ins and browser walks),
+  platform/assets/test/, the Playwright and Vitest configs, platform/config/test.exs, and
+  the test-only settings in platform/config/config.exs and platform/config/runtime.exs.
+- Dependencies: lazy_html (with fine) and the explicit stream_data line leave
+  platform/mix.exs; @playwright/test, vitest and @types/node leave platform/package.json,
+  which now names playwright itself for the share-card and value-card stills. The dev tools
+  are `only: :dev`.
+- `mix precommit` runs in dev with no test step, and make check's platform-web gate builds
+  the assets and typechecks. The contracts gate is unchanged.
+- Code that existed only for tests is gone: the test hasher in wallet_actions/rpc.ex, the
+  `:test` database settings, the browser-test wallet, the showcase's test-database card and
+  helpers nothing else called. Sprites, ENS and the site tools call their real modules
+  directly; the sign-in, session, wallet, staking and redemption config settings are
+  unchanged.
+- The guides no longer tell anyone to run or write tests. No migration; nothing the live
+  site does changes.

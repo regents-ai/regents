@@ -1,7 +1,7 @@
 # Test Privy, Stake, and Redeem locally
 
 This is the single local handoff for the first protected `regents` routes. It keeps the
-automated proof separate from actions that would create real Base mainnet transactions.
+local checks separate from actions that would create real Base mainnet transactions.
 
 ## 1. Install and verify
 
@@ -13,13 +13,7 @@ mix deps.get
 npm install
 mix precommit
 npm run typecheck
-npm test
-npm run test:budgets
-npm run test:browser
 ```
-
-The browser suite uses deterministic in-memory wallets. It does not contact a real wallet or send
-a transaction.
 
 ## 2. Prepare the local login database
 
@@ -60,8 +54,8 @@ mix regents.setup_local_auth
 mix phx.server
 ```
 
-The setup command refuses production mode, non-loopback database hosts, and database names that do
-not end in `_dev` or `_test`.
+The setup command runs only in the dev environment, and refuses non-loopback database hosts and
+database names that do not end in `_dev`.
 
 ## 3. Verify real Privy sign-in without moving value
 

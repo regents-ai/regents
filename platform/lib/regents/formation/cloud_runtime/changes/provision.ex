@@ -3,7 +3,6 @@ defmodule Regents.Formation.CloudRuntime.Changes.Provision do
 
   alias Regents.Actors.Human
   alias Regents.Formation
-  alias Regents.Formation.SpriteProvider
   alias RegentSprites.{Error, Sprite}
 
   @impl true
@@ -43,9 +42,9 @@ defmodule Regents.Formation.CloudRuntime.Changes.Provision do
 
   # The name is fixed per Regent, so a name already in use is this Regent's Sprite.
   defp create_or_get(sprite_name) do
-    case SpriteProvider.adapter().create(sprite_name, wait_for_capacity: false) do
+    case RegentSprites.create(sprite_name, wait_for_capacity: false) do
       {:error, %Error{reason: {:sprites, 409, _message}}} ->
-        SpriteProvider.adapter().get(sprite_name)
+        RegentSprites.get(sprite_name)
 
       result ->
         result

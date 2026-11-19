@@ -5,22 +5,15 @@ defmodule Regents.PaperProDaily.Publication do
   require Ash.Query
 
   @impl true
-  def prepare(query, _opts, _context), do: published_query(query)
-
-  @doc "Filters by the server's current UTC date; an explicit instant supports boundary tests."
-  def published_query(query, now \\ DateTime.utc_now()) do
-    today = now |> DateTime.shift_zone!("Etc/UTC") |> DateTime.to_date()
+  def prepare(query, _opts, _context) do
+    today = Date.utc_today()
     Ash.Query.filter(query, date <= ^today)
   end
 
   @doc "Milliseconds until the next UTC midnight, never scheduling before a sub-millisecond boundary."
-  def milliseconds_until_midnight(now \\ DateTime.utc_now()) do
-    midnight =
-      now
-      |> DateTime.shift_zone!("Etc/UTC")
-      |> DateTime.to_date()
-      |> Date.add(1)
-      |> DateTime.new!(~T[00:00:00], "Etc/UTC")
+  def milliseconds_until_midnight do
+    now = DateTime.utc_now()
+    midnight = now |> DateTime.to_date() |> Date.add(1) |> DateTime.new!(~T[00:00:00], "Etc/UTC")
 
     # Round up, rather than waking just before midnight and showing the old day.
     microseconds = DateTime.diff(midnight, now, :microsecond)

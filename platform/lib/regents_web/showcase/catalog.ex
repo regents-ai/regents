@@ -10,7 +10,6 @@ defmodule RegentsWeb.Showcase.Catalog do
     {RegentsWeb.Components.VerifiedConnections, [:verified_connections]},
     {RegentsWeb.Layouts, [:app, :root]}
   ]
-  def registry, do: @components
 
   def components do
     for {module, names} <- @components, name <- names do

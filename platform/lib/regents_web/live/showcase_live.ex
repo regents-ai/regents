@@ -664,22 +664,6 @@ defmodule RegentsWeb.ShowcaseLive do
                   </P.disclosure>
                 </S.panel>
               </div>
-              <div class="sc-example rg-feature">
-                <S.panel class="sc-card">
-                  <h3>Postgres <small>Read only</small></h3><P.button
-                    variant="secondary"
-                    phx-click="database"
-                  >Check isolated database</P.button><P.disclosure
-                    phx-mounted={JS.ignore_attributes("open")}
-                    id="database-notes"
-                    summary="Diagnostic boundary"
-                  >
-                    <p>
-                      Runs SELECT current_database(), 1 only against this worktree's prepared loopback test database. Other database configurations are refused. No arbitrary query, fixture writes, schema changes or resets.
-                    </p>
-                  </P.disclosure>
-                </S.panel>
-              </div>
             </div>
           </section>
 
@@ -848,9 +832,6 @@ defmodule RegentsWeb.ShowcaseLive do
 
   def handle_event("run_utility", params, socket),
     do: {:noreply, assign(socket, :result, run_utility(params["kind"], params))}
-
-  def handle_event("database", _, socket),
-    do: {:noreply, assign(socket, :result, Utilities.database())}
 
   def handle_event("example_action", _, socket),
     do: {:noreply, assign(socket, :result, %{example: "Action received."})}

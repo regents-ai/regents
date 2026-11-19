@@ -72,8 +72,7 @@ This is the most opinionated code in the repo and the easiest to get wrong.
 
 - **The manifest is the authority.** `contracts/base-mainnet.json` pins every address,
   every read, every prepared action and its selector. `contracts/chain-contracts.yaml`
-  pins a SHA-256 of that file; change the manifest and you must repin the digest, or
-  `test/regents/wallet_actions/manifest_test.exs` fails.
+  pins a SHA-256 of that file; change the manifest and you must repin the digest.
 - **Selectors are proved at compile time.** `wallet_actions/abi.ex` and
   `redemption_abi.ex` declare each locally encoded selector and assert in
   `__after_compile__` that its signature exists in the pinned ABI JSON. A typo'd
@@ -116,7 +115,6 @@ assets/js/hooks/     LiveView hooks; datascape flies the homepage's picture,
                      when the pointer steers again
 assets/js/datascape/ the homepage's datascape (from ash-template)
 contracts/           the pinned manifest, its digest, and the ABIs
-test/browser/        Playwright specs (real browser, port 4002)
 ```
 
 ---
@@ -124,18 +122,7 @@ test/browser/        Playwright specs (real browser, port 4002)
 ## 4. Gates — run all of these before claiming anything works
 
 Run `make check-platform` from the repository root; the README's "Checks" section says
-what it covers. For browser behaviour, also run:
-
-```bash
-mix assets.build && npx playwright test test/browser/<spec>.spec.ts
-```
-
-**First run in a new worktree** needs its partition database; follow the README's
-"Checks" section.
-
-For asset-budget checks, run `mix compile` in dev first — `mix esbuild --minify`
-fails on unresolved `phoenix-colocated/regents` until the colocated hooks exist.
-Afterwards restore with `mix phx.digest.clean --all && mix assets.build`.
+what it covers.
 
 ---
 
@@ -186,14 +173,9 @@ Follow the founder rules in `/Users/sean/Documents/regent/AGENTS.md`.
 ## 8. Traps that have already cost time
 
 - `Application.get_env(app, key, default)` returns a **stored `nil`** rather than the
-  default. Restore test config with `Application.delete_env`, never by putting `nil`.
+  default. Clear a setting with `Application.delete_env`, never by putting `nil`.
 - The Bash working directory persists between commands and silently drifts;
   `package.json` is at the repo root, not in `assets/`.
-- Playwright failing en masse on `[data-hero-enhanced]` almost always means the
-  worktree has no built assets — run `mix assets.build`.
-- Changing `contracts/base-mainnet.json` breaks two pinned tests until you repin:
-  the evidence SHA-256 in `chain-contracts.yaml`, and the explicit interface id lists
-  in `test/regents/contracts/chain_manifest_test.exs`.
 - The machine has filled its disk more than once. `uv cache clean` reclaims ~79 GB
   safely; Docker's VM has held 131 GB. A full disk knocks Postgres into recovery mode
   and every command fails with `ENOSPC` until space is freed.

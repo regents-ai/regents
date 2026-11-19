@@ -1,23 +1,7 @@
 # Local Animata redemption verification
 
-This page explains how to verify `/redeem` locally. The automated path never contacts a wallet or
-sends a live transaction. The manual path reads Base mainnet and opens a wallet prompt only after
-you explicitly review and choose one action.
-
-## Automated proof
-
-From `regents/`:
-
-```sh
-mix test test/regents/redemption test/regents_web/redeem_live_test.exs
-npm test -- --run assets/test/redemption_wallet.test.ts assets/test/privy_bridge.test.ts
-npx playwright test test/browser/redeem.spec.ts
-```
-
-The browser test uses an in-memory wallet provider and deterministic chain boundary. It proves that
-NFT approval, exact 80 USDC approval, redemption, and claim are four separate wallet actions. Each
-action is simulated, submitted once, independently confirmed, and followed by an onchain-state
-refresh. No live transaction is sent.
+This page explains how to verify `/redeem` locally. The manual check reads Base mainnet and opens a
+wallet prompt only after you explicitly review and choose one action.
 
 ## Manual local check
 

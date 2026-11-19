@@ -52,8 +52,8 @@ database needs that table created before migrations can run.
    `regents_app` schema.
 
 The tables it creates are staging-only approximations of tables owned outside this
-repository. They are deliberately the shape the whole local test suite already
-runs on, and nothing else.
+repository. They are deliberately the shape local databases run on, and nothing
+else.
 
 The command never repairs. If it fails partway, recover by destroying and
 recreating the staging database (see [Recovery](#recovery)).
@@ -305,8 +305,7 @@ fly secrets set REGENTS_DEPLOYMENT_ROLE=production -a regents-sh-web --stage
   founder's ordinary per-action signing authority. There is no testnet here and
   nothing on staging makes a transaction a rehearsal.
 - **Nothing through `DATABASE_URL`.** `fly postgres attach` leaves a `DATABASE_URL`
-  secret behind. No code reads it: `test/regents_web/boundary_test.exs` fails
-  if any file under `config/`, `lib/`, or `rel/` contains the literal text
+  secret behind. No code reads it: nothing under `config/`, `lib/` or `rel/` calls
   `System.get_env("DATABASE_URL")`, which is how this repository would read it.
   The database staging reaches is the one `DATABASE_POOLED_URL` and
   `DATABASE_DIRECT_URL` name, and the staging role admits only staging hosts.

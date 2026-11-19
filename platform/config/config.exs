@@ -133,7 +133,6 @@ config :regents, Regents.Repo,
   port: 1,
   pool_size: 1
 
-config :regents, :sprite_provider, RegentSprites
 # Each paired agent's reading from the sign-in service, kept five minutes. Older
 # readings leave with the generation the collector drops every ten minutes.
 config :regents, Regents.Agents.ActivityReading,
@@ -161,19 +160,15 @@ config :regents, :base_read_rpc_url, "https://base-rpc.publicnode.com"
 # ENS lives on Ethereum mainnet, which has no public endpoint this product is
 # willing to trust: without one named at boot, no name or picture is looked up.
 config :regents, :ethereum_read_rpc_url, nil
-config :regents, :ethereum_rpc_module, AgentEns.Internal.RPC
 config :regents, :ens_lookup_deadline_ms, 4_000
-config :regents, :ens_avatar_http_client, Regents.Ens.AvatarHttpClient
 config :regents, :ens_avatar_deadline_ms, 10_000
 config :regents, :app_surfaces, true
 config :regents, :opensea_api_key, nil
 config :regents, :opensea_http_client, Regents.OpenSea.HttpClient
-# Extra options for each read of a site's published tools (tests answer them here).
-config :regents, Regents.SiteTools, req_options: []
 config :regents, :opensea_live_lookups_per_minute, 60
 config :regents, :opensea_lookups_per_minute, 6
 config :regents, :opensea_holdings_clock, &Regents.OpenSea.HoldingsCache.monotonic_ms/0
-# The clock request budgets count windows on; tests set it to hold or cross a window's edge.
+# The clock request budgets count windows on.
 config :regents, :rate_limiter_clock, &Regents.RateLimiter.monotonic_second/0
 # Also bounds how often one address may be reset: once per window.
 config :regents, :opensea_holdings_cache_ttl_ms, 15_000

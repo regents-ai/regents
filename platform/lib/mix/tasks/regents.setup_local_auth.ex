@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Regents.SetupLocalAuth do
 
   @impl true
   def run(_args) do
-    unless Mix.env() in [:dev, :test], do: Mix.raise("local auth setup is dev/test only")
+    unless Mix.env() == :dev, do: Mix.raise("local auth setup is dev only")
     # Only the repo runs: the site's Oban refuses to start until these tables exist.
     Mix.Task.run("app.config")
 

@@ -39,7 +39,7 @@ mix phx.server
 
 Open `http://localhost:4000/app` and use **Sign in**. `localhost` is the address to use; there is no separate setup for any other spelling of it. Sign out from the account control to verify both the local session and Privy session are cleared.
 
-The setup task refuses production mode, non-loopback database hosts, and database names that do not end in `_dev` or `_test`. It prepares the protected local `platform.platform_human_users` fixture and applies the current Regents schema only to that guarded local database. It is not a production setup path.
+The setup task runs only in the dev environment, and refuses non-loopback database hosts and database names that do not end in `_dev`. It prepares the protected local `platform.platform_human_users` fixture and applies the current Regents schema only to that guarded local database. It is not a production setup path.
 
 ## Current dependency risk
 

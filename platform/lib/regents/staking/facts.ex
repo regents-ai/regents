@@ -95,7 +95,6 @@ defmodule Regents.Staking.Facts do
   ]
 
   def protocol_keys, do: @protocol_keys
-  def wallet_keys, do: @wallet_keys
 
   @doc "A wallet reading that found nothing, which is never a set of zero balances."
   def blank_wallet, do: Map.new(@wallet_keys, &{&1, nil})

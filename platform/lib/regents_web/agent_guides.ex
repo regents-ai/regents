@@ -49,9 +49,6 @@ defmodule RegentsWeb.AgentGuides do
   def __mix_recompile__?,
     do: @directory |> Path.join("*.md") |> Path.wildcard() |> Enum.sort() != @files
 
-  @doc "The page of the agent on `harness`."
-  def path(harness), do: "/agents/" <> String.replace(to_string(harness), "_", "-")
-
   @doc "The list of agents, then every agent's page."
   def paths, do: ["/agents" | Enum.map(@slugs, &("/agents/" <> &1))]
 

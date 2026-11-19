@@ -62,23 +62,4 @@ defmodule RegentsWeb.Showcase.Utilities do
         %{result: "Rejected fixture", reason: reason, session_created: false}
     end
   end
-
-  def database do
-    config = Regents.Repo.config()
-    database = config[:database] || ""
-
-    if is_nil(config[:url]) and config[:hostname] in ["127.0.0.1", "localhost"] and
-         Regex.match?(~r/\Aregents[a-z0-9_]*_browser_test\z/, database) do
-      case Ecto.Adapters.SQL.query(Regents.Repo, "SELECT current_database(), 1", [],
-             timeout: 2_000
-           ) do
-        {:ok, %{rows: [[name, 1]]}} -> %{database: name, result: "SELECT 1 passed", writes: 0}
-        {:error, _} -> %{error: "Local database unavailable."}
-      end
-    else
-      %{error: "This diagnostic requires a prepared isolated local test database."}
-    end
-  catch
-    :exit, _ -> %{error: "Local database process unavailable."}
-  end
 end

@@ -88,8 +88,8 @@ defmodule Regents.Application do
   defp without_snapshot_refresh(entries),
     do: Enum.reject(entries, &match?({_, Regents.Staking.SnapshotRefresh}, &1))
 
-  # The Points board is read only where pages are served, so a task or a test
-  # never reads the database before it asks to.
+  # The Points board is read only where pages are served, so a task never reads
+  # the database before it asks to.
   defp points_board_child do
     if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint),
       do: Regents.Points.Board

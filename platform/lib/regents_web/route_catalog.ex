@@ -300,8 +300,6 @@ defmodule RegentsWeb.RouteCatalog do
   ]
   @tabs Map.new(@account_tabs, &{&1.route_id, @account_tabs})
 
-  def entries, do: @entries
-
   def fetch!(action, params \\ %{}) do
     entry = Enum.find(@entries, &(&1.live_action == action)) || raise(NotFoundError)
     validate_params!(entry, params)

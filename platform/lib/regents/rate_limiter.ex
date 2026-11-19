@@ -27,7 +27,7 @@ defmodule Regents.RateLimiter do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
-  @doc "The machine's clock in whole seconds, which `:rate_limiter_clock` names outside tests."
+  @doc "The machine's clock in whole seconds, which `:rate_limiter_clock` names."
   @spec monotonic_second() :: integer()
   def monotonic_second, do: System.monotonic_time(:second)
 
@@ -49,13 +49,6 @@ defmodule Regents.RateLimiter do
     }
 
     if count <= limit, do: {:ok, budget}, else: {:error, :rate_limited, budget}
-  end
-
-  @doc false
-  @spec reset() :: :ok
-  def reset do
-    :ets.delete_all_objects(@table)
-    :ok
   end
 
   # The first request of a window drops that window's older counters, and the

@@ -12,7 +12,7 @@ const rgb = (hex: string): Rgb => {
  * on every mix of them. The shader is compiled with these numbers, so they are written
  * here as well as in the stylesheet, where the main buttons take them: BLUE is
  * `--ash-action`, LIGHT `--ash-action-light` and DEEP `--ash-action-deep`
- * (assets/css/tokens/root.css), and the test keeps each pair equal.
+ * (assets/css/tokens/root.css); keep each pair equal.
  */
 export const BLUE = rgb("#3361FF")
 export const DEEP = rgb("#1E42DC")

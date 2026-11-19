@@ -49,18 +49,10 @@ defmodule Regents.WalletActions.Rpc do
          do: {:ok, block.timestamp}
   end
 
-  def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &decode_uint/1, opts)
-
-  def call_bool(to, data, block, opts \\ []),
-    do: call(to, data, block, &decode_bool/1, opts)
-
-  def call_address(to, data, block, opts \\ []),
-    do: call(to, data, block, &decode_address/1, opts)
-
   @doc """
   An `address` read that tells a contract's refusal apart from a read that did
   not happen: `{:reverted, data}` carries the revert data the contract answered
-  with, and every other failure is the `{:error, reason}` `call_address/4` gives.
+  with, and every other failure is an `{:error, reason}`.
   """
   def call_address_or_revert(to, data, %{hash: hash}, opts \\ []) do
     params = [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}]
@@ -78,10 +70,6 @@ defmodule Regents.WalletActions.Rpc do
           {:error, reason} -> {:error, reason}
         end
     end
-  end
-
-  def call_words(to, data, block, count, opts \\ []) when is_integer(count) and count > 0 do
-    call(to, data, block, &decode_words(&1, count), opts)
   end
 
   @doc """
@@ -145,23 +133,8 @@ defmodule Regents.WalletActions.Rpc do
     end
   end
 
-  defp real_keccak256(bytes),
+  defp keccak256(bytes),
     do: "0x" <> Base.encode16(:jose_jwa_sha3.keccak(1088, 512, bytes, 1, 32), case: :lower)
-
-  # The runtime this identifies is thousands of bytes of deployed code that no
-  # test can hold, so a test supplies the hash it wants observed instead.
-  # Nothing of this survives into a release: outside the test build there is
-  # only the real hash.
-  if Mix.env() == :test do
-    defp keccak256(bytes) do
-      case Application.get_env(:regents, :test_runtime_hasher) do
-        hasher when is_function(hasher, 1) -> hasher.(bytes)
-        _real_hash -> real_keccak256(bytes)
-      end
-    end
-  else
-    defp keccak256(bytes), do: real_keccak256(bytes)
-  end
 
   defp decode_each(returned, calls) do
     returned
@@ -298,25 +271,6 @@ defmodule Regents.WalletActions.Rpc do
     do: byte_size(hash) == 64 and String.match?(hash, ~r/^[0-9a-fA-F]+\z/)
 
   def valid_hash?(_hash), do: false
-
-  # EIP-1898: the block hash owns the read and `requireCanonical` refuses an
-  # answer from a block that is no longer part of the chain.
-  defp call(to, data, %{hash: hash}, decoder, opts) do
-    with {:ok, result} <-
-           request(
-             "eth_call",
-             [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}],
-             opts
-           ),
-         {:ok, decoded} <- decoder.(result) do
-      {:ok, decoded}
-    else
-      :error -> {:error, :invalid_chain_response}
-      {:error, reason} -> {:error, reason}
-    end
-  rescue
-    _ -> {:error, :invalid_chain_response}
-  end
 
   defp block_identity(%{"number" => number, "hash" => hash, "timestamp" => timestamp}) do
     with {:ok, number} <- quantity(number),

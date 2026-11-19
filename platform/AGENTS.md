@@ -6,8 +6,8 @@ This is the Phoenix/Ash component of the Regents monorepo. Run Mix and npm here.
 root `contracts/`. Keep internal OTP/release names stable during layout changes.
 
 Follow the root instructions and the workspace's `regent-workflow`. Use the
-assignment's acceptance and applicable focused checks. Browser fixtures belong to
-the prepared local database. Shared libraries are git pins in `mix.exs`.
+assignment's acceptance and applicable focused checks. Shared libraries are git
+pins in `mix.exs`.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->
