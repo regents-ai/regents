@@ -7278,3 +7278,9 @@ seasons), on the shared Points library regents.sh was already on.
   hold the same X account (`RegentIdentity.Profile` loses `:x_subject_owner`). Its shared
   migration `regent_identity 20261119204035_shared_x_accounts` is already applied to the
   shared database (by the template on 19 Nov), so this release finds it applied.
+
+## 2026-11-19 — Released v349 (several accounts may hold one X account)
+
+- v349, commit af4b134c. Full check exit 0 on af4b134c; the practice run built the image and applied every migration, this one included, to a throwaway database, nothing pending. The release applied 20261119231832_shared_x_accounts to production (indexes only, no row changed).
+- Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied.
+- Rollback: v348's image main-35206b1ee1ba; the migration is not rolled back.
