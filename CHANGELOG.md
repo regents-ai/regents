@@ -7084,3 +7084,16 @@ seasons), on the shared Points library regents.sh was already on.
 - v344, commit 5393e052. Full check exit 0 on 5393e052, six gates. No migration.
 - Live read, signed out: home, health, Points and Stake answer.
 - Rollback: v343's image main-997bae818764.
+
+## 2026-11-19 — Points: late starts are caught up, and a waiting or refused award blocks no later offer
+
+- The shared library moves from bc996fe0 to 437b8f4c (branch
+  eu/points-second-on-regents-pin-1119: the same pin plus two commits in points/ only).
+  The start run now asks each source for what is there at the time of the run, so an
+  account made, a social account linked or an agent paired after the Points start that
+  was never recorded is recorded once, at its real time; from before the start it still
+  earns at the start. The run goes at most once a day. An award still being checked, or
+  refused, no longer keeps a later genuine offer from being recorded; only one can earn.
+- The three Points sources here name their time argument `at`. No Points setting, rule
+  or amount changes. No migration. platform/mix.exs, platform/mix.lock,
+  platform/lib/regents/points/.
