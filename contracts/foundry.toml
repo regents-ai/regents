@@ -10,7 +10,6 @@ via_ir = true
 bytecode_hash = "none"
 verbosity = 2
 threads = 1
-fs_permissions = [{ access = "read", path = "./test/fixtures" }]
 
 remappings = [
   "forge-std/=lib/forge-std/src/",

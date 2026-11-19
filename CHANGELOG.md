@@ -7149,3 +7149,13 @@ seasons), on the shared Points library regents.sh was already on.
 - v346, commit b16683e2: the third Points line and the tests-out commit. Full check exit 0 on b16683e2, six gates, none of them a test now except the held contracts gate; image smoke passed. No migration.
 - Live read, signed out: home, health, Points and Stake answer.
 - Rollback: v345's image main-fdf6f3ce03e6.
+
+## 2026-11-19 — The contract tests are removed
+
+- Founder decision 336 b. contracts/test/, contracts/reference/test/, contracts/.gas-snapshot
+  and contracts/docs/gate-proofs/ are gone, with the test step in contracts/bin/gate.sh and
+  the fixtures read permission in contracts/foundry.toml. The gate still checks the pinned
+  libraries, compiles every contract and checks formatting (83 s; budget 115 s).
+- The one deployed source that lived under test/, TestnetMintableERC20.sol (Base Sepolia),
+  is back at contracts/src/mocks/; its deployment record and the migration inventory name
+  the new path. No contract source changed. Nothing here is part of the site's image.

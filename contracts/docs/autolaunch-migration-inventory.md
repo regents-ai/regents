@@ -51,7 +51,7 @@ All active entries below built successfully and were exercised by the combined F
 | `src/libraries/BaseUsdc.sol` | `src/shared/libraries/BaseUsdc.sol` | build/script pass | 26/30* | Y | N | N | none |
 | `src/libraries/HookMiner.sol` | `src/shared/libraries/HookMiner.sol` | launch indirect pass | 26/30* | Y | N | N | none |
 | `src/libraries/SafeTransferLib.sol` | `src/shared/libraries/SafeTransferLib.sol` | indirect pass | 26/30* | Y | N | N | none |
-| `src/mocks/TestnetMintableERC20.sol` | `test/mocks/TestnetMintableERC20.sol` | build/script pass | 26/30* | Y | Y (Sepolia; bytecode verified) | N | none |
+| `src/mocks/TestnetMintableERC20.sol` | same path | build/script pass | 26/30* | Y | Y (Sepolia; bytecode verified) | N | none |
 | `src/revenue/DeferredAutolaunchFactory.sol` | `src/autolaunch/revenue/DeferredAutolaunchFactory.sol` | revenue pass | 26/30* | Y | N | N | none |
 | `src/revenue/LiveStakeFeePoolSplitter.sol` | `src/autolaunch/revenue/LiveStakeFeePoolSplitter.sol` | revenue pass | 26/30* | Y | N | N | none |
 | `src/revenue/PaymentLinkFactory.sol` | `src/autolaunch/revenue/PaymentLinkFactory.sol` | revenue pass | 26/30* | Y | N | N | `payment_link_factory.create_payment_link`, `payment_link_factory.create_canonical_payment_link`, `payment_link_factory.set_payment_link_canonical`, `payment_link_factory.set_payment_link_receiver_state` |

@@ -639,7 +639,7 @@ test_token:
     owner: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
     initial_holder: "0x1515EEfA0d418eF1A8cD788b57Eb36B6d7437b86"
     initial_supply: "1000000000000000000000000000"
-  source_lineage: {status: current_source_verified_creation_bytecode_match, migrated_source: test/mocks/TestnetMintableERC20.sol}
+  source_lineage: {status: current_source_verified_creation_bytecode_match, migrated_source: src/mocks/TestnetMintableERC20.sol}
   current_source_binding:
     method: sha256_creation_bytecode_without_constructor_arguments_or_cbor_metadata
     compiler: solc_0.8.30_forge_1.5.1

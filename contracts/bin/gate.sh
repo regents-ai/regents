@@ -10,7 +10,6 @@ nested_submodule_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-nested-submodules.XXX
 submodule_attempt_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-submodule-attempt.XXXXXX")
 phase_paths_snapshot_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-phase-paths.XXXXXX")
 submodule_status_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-submodule-status.XXXXXX")
-test_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-test.XXXXXX")
 required_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-required-paths.XXXXXX")
 root_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-root-paths.XXXXXX")
 nested_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-nested-paths.XXXXXX")
@@ -19,7 +18,7 @@ root_effective_remappings_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-root-effecti
 gitmodule_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-gitmodule-paths.XXXXXX")
 imports_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-imports.XXXXXX")
 resolution_paths_log=$(mktemp "${TMPDIR:-/tmp}/regent-gate-resolution-paths.XXXXXX")
-trap 'rm -f "$root_submodule_log" "$nested_submodule_log" "$submodule_attempt_log" "$phase_paths_snapshot_log" "$submodule_status_log" "$test_log" "$required_paths_log" "$root_paths_log" "$nested_paths_log" "$effective_remappings_log" "$root_effective_remappings_log" "$gitmodule_paths_log" "$imports_log" "$resolution_paths_log"' 0 1 2 15
+trap 'rm -f "$root_submodule_log" "$nested_submodule_log" "$submodule_attempt_log" "$phase_paths_snapshot_log" "$submodule_status_log" "$required_paths_log" "$root_paths_log" "$nested_paths_log" "$effective_remappings_log" "$root_effective_remappings_log" "$gitmodule_paths_log" "$imports_log" "$resolution_paths_log"' 0 1 2 15
 
 : >"$required_paths_log"
 : >"$root_paths_log"
@@ -316,7 +315,7 @@ derive_project() {
         [ -n "$import_value" ] || continue
 
         case "$import_value" in
-            ./*|../*|src/*|test/*|script/*|reference/*)
+            ./*|../*|src/*|script/*|reference/*)
                 continue
                 ;;
         esac
@@ -581,19 +580,4 @@ sort -u "$required_paths_log"
 
 forge clean
 forge build
-
-forge_test_status=0
-forge test >"$test_log" 2>&1 || forge_test_status=$?
-cat "$test_log"
-
-test_summary=$(grep -E '[0-9]+ tests passed|[0-9]+ tests, [0-9]+ failures|[0-9]+ tests, [0-9]+ failed' "$test_log" | tail -n 1)
-if [ -n "$test_summary" ]; then
-    printf '%s\n' "$test_summary"
-else
-    echo "forge test produced no summary/count line." >&2
-fi
-
-[ "$forge_test_status" -eq 0 ] || exit "$forge_test_status"
-[ -n "$test_summary" ] || exit 1
-
 forge fmt --check

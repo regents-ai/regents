@@ -18,13 +18,12 @@ by Regents Labs and covers the shared, staking, and Autolaunch contract families
 ## Quickstart
 
 You need [mise](https://mise.jdx.dev), which runs the Foundry version pinned in `mise.toml`
-(the formatter's layout changes between versions). Clone with submodules, then build and test:
+(the formatter's layout changes between versions). Clone with submodules, then build:
 
 ```bash
 mise install
 git submodule update --init --recursive
 forge build
-forge test
 ```
 
 Formatting and static analysis:
@@ -65,11 +64,10 @@ exact commit of each; treat it as the source of truth over any version written i
 src/shared/       Shared auth, libraries, and interfaces
 src/staking/      RegentRevenueStaking
 src/autolaunch/   Autolaunch factory, CCA, launch fees, vesting, revenue split
-test/             Foundry unit, invariant, and proof-of-concept suites
 script/           Deployment and example scripts
 contracts/        chain-contracts.yaml manifest and draft economics manifests
 deployments/      Per-network deployment records (base-mainnet, base-sepolia)
-docs/             Gate proofs, security notes, migration inventory
+docs/             Security notes, migration inventory
 reference/        Read-only reference copies of prior implementations
 bin/gate.sh       The repository gate script
 ```
@@ -136,7 +134,6 @@ These must pass before a change is proposed:
 | Command | What it does |
 | --- | --- |
 | `forge build` | Compiles every contract. |
-| `forge test` | Runs the unit, invariant, and proof-of-concept suites. |
 | `forge fmt --check` | Fails on any formatting drift. |
 | `slither .` | Static analysis against `slither.config.json`. |
 

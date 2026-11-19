@@ -17,7 +17,7 @@ CHECK_LOGS := platform/_build/check
 # Mac (Nov 2026), and 5 s for a gate that takes a second or two. A gate over its
 # budget gets a SLOW line under its own; it never fails the check.
 CHECK_BUDGETS := platform-precommit:105 platform-web:75 check-required-fixes:5 check-cli:5 \
-  check-siwa-latest:5 check-contracts:365
+  check-siwa-latest:5 check-contracts:115
 check:
 	@mkdir -p $(CHECK_LOGS)
 	@for gate in $(CHECK_GATES); do \
