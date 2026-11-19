@@ -233,7 +233,7 @@ defmodule Regents.DatabaseConfig do
       password: nil,
       hostname: "127.0.0.1",
       port: 5432,
-      database: "regents_dev",
+      database: System.get_env("REGENTS_DEV_DATABASE", "regents_dev"),
       pool_size: 2
     ]
   end

@@ -7,12 +7,16 @@ config :regents, :local_showcase, true
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
+# A second local copy, such as a branch beside the main checkout, runs at its own
+# port (`PORT`) against its own local database (`REGENTS_DEV_DATABASE`).
+port = String.to_integer(System.get_env("PORT", "4000"))
+
 config :regents, RegentsWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  url: [host: "localhost", port: 4000],
-  http: [ip: {127, 0, 0, 1}],
-  check_origin: ["http://localhost:4000", "http://127.0.0.1:4000"],
+  url: [host: "localhost", port: port],
+  http: [ip: {127, 0, 0, 1}, port: port],
+  check_origin: ["http://localhost:#{port}", "http://127.0.0.1:#{port}"],
   code_reloader: true,
   # Signal listeners added while the server runs are picked up on reload.
   reloadable_compilers: [:ash_signals, :phoenix_live_view, :elixir, :app],

@@ -7342,3 +7342,11 @@ seasons), on the shared Points library regents.sh was already on.
 - v349, commit af4b134c. Full check exit 0 on af4b134c; the practice run built the image and applied every migration, this one included, to a throwaway database, nothing pending. The release applied 20261119231832_shared_x_accounts to production (indexes only, no row changed).
 - Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied.
 - Rollback: v348's image main-35206b1ee1ba; the migration is not rolled back.
+
+## 2026-11-19 — A branch can run locally beside the main checkout
+
+- Founder decision 349 a (view the one-site branch on this Mac). A local copy now takes its
+  own port from `PORT` and its own loopback database from `REGENTS_DEV_DATABASE` (default
+  `regents_dev`; the local setup still refuses a name that does not end in `_dev`).
+  `platform/config/dev.exs`, `platform/lib/regents/database_config.ex`, `platform/README.md`.
+  Production settings are untouched. No migration.

@@ -92,6 +92,7 @@ development and from the deployment's secret store in production.
 | `PHX_HOST` | Yes in production | Public hostname the endpoint builds URLs from. |
 | `SECRET_KEY_BASE` | Yes in production | Session signing secret; must be at least 64 bytes. |
 | `PORT` | No | HTTP port. Defaults to `4000`. |
+| `REGENTS_DEV_DATABASE` | No | Local only: the loopback database a local copy uses. Defaults to `regents_dev`; the name must end in `_dev`. With `PORT`, a branch runs beside the main checkout. |
 | `REGENTS_DEPLOYMENT_ROLE` | Yes in production | `production` or `staging`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. |
 | `DATABASE_POOLED_URL` | Yes in production | Pooled Postgres connection string. Rejected unless it is a well-formed PostgreSQL URL for an approved target. |
 | `DATABASE_DIRECT_URL` | Only when migrating | Direct Postgres connection string, used by the migration release command. |
