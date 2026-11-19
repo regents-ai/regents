@@ -173,7 +173,8 @@ are up to date.
 > would apply under `shared-pending:`, without applying anything.
 
 The image is built from `Dockerfile` and the Fly configuration lives in `fly.toml`.
-`make deploy` (`scripts/deploy.sh`) deploys only a commit that is on origin/main, and
+`make deploy` runs `make release` first (the full check, then the image's database commands
+practised on a throwaway database), then `scripts/deploy.sh` deploys only a commit that is on origin/main, and
 passes it to the build as `SOURCE_COMMIT`; a build without it stops, as in ash-template.
 
 ## Related products

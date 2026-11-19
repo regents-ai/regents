@@ -7,8 +7,8 @@ help:
 	@echo "any that failed. A gate slower than its budget (CHECK_BUDGETS) gets a SLOW line;"
 	@echo "that warns and never fails. Run check-platform, check-required-fixes, check-cli,"
 	@echo "check-siwa-latest or check-contracts for one component. make release checks,"
-	@echo "then builds and smoke-checks the committed tree. make deploy puts the committed"
-	@echo "HEAD on regents.sh."
+	@echo "then builds and smoke-checks the committed tree. make deploy does the same and"
+	@echo "then puts the committed HEAD on regents.sh."
 # The gates share nothing they write, so they run at once. The two platform gates
 # both compile for the dev environment, and Mix's build lock makes the later one wait.
 CHECK_GATES := platform-precommit platform-web check-required-fixes check-cli check-siwa-latest check-contracts
@@ -68,6 +68,7 @@ release:
 	$(MAKE) check
 	scripts/release.sh
 # Deploys the committed HEAD to regents.sh, its image labelled with that commit.
-deploy:
-	@test -z "$$(git status --porcelain --untracked-files=no)" || { echo "Commit every change first: the deploy builds the committed tree." >&2; exit 1; }
+# Every deploy runs the release first: the full check, then the image's own
+# database commands practised on a throwaway database (scripts/release.sh).
+deploy: release
 	scripts/deploy.sh

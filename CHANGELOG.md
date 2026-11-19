@@ -7159,3 +7159,44 @@ seasons), on the shared Points library regents.sh was already on.
 - The one deployed source that lived under test/, TestnetMintableERC20.sol (Base Sepolia),
   is back at contracts/src/mocks/; its deployment record and the migration inventory name
   the new path. No contract source changed. Nothing here is part of the site's image.
+
+## 2026-11-19 — Shared library at main, and sign-in refreshes a linked social account in one step
+
+- Founder decisions 337 b and 338 a. The shared library moves from 54dc6b94 to b9d530d4,
+  elixir-utils main (platform/mix.exs, platform/mix.lock; only the fourteen library lines
+  move in the lock).
+- Points' start run reads the pairing list a page of 500 people at a time: the library now
+  answers it as a stream, and platform/lib/regents/points/paired_agent.ex looks up each
+  page's accounts in one read, as the template does.
+- Hello cards: the sign-in service can ask this site, with its own token, whether an agent
+  is paired here before it gives the agent a card naming the site. The site answers with
+  the agent's name, its person's shared profile code and when it paired
+  (platform/lib/regents/agent_account.ex `person/1`, `person` in platform/config/config.exs,
+  the site's own address as `origin` in platform/config/runtime.exs). A card an agent
+  shows beside a signed request is checked and kept on the request; nothing reads it yet.
+  platform/priv/public/agents.md, platform/priv/public/llms.md and docs/agent-parity.md
+  say so in the template's words.
+- Sign-in, ported from the template's 7578541e: a sign-in whose social account is already
+  linked to the account refreshes that link's name and check time in one statement that
+  finds the row by provider, subject and account. When no row holds that subject for the
+  account, the sign-in links it as for a first link or a replacement, so a person signed
+  in from two places at once always finishes signing in and each name stays on its own
+  subject's row. `social_linked` is still recorded only for a subject new to the account,
+  and a subject another account holds is still reported, never a failed sign-in.
+  platform/lib/regents/accounts.ex, platform/lib/regents/accounts/linked_identity.ex (a
+  system-only primary read), platform/lib/regents/accounts/verified_session.ex.
+- Shared database: the library carries one shared change this site's release has not
+  carried before, `regent_payments 20261112180000` (a default of "usdc" on
+  `payment_receipts.paid_with`; no row or column is rewritten or dropped). The template
+  applied it once on 15 Nov with `/app/bin/migrate-shared` (Sean's letter 77 a), so this
+  release finds it applied. No site migration.
+
+## 2026-11-19 — Every deploy practises its database step first
+
+- Founder decision 342 b. `make deploy` now runs `make release` before `scripts/deploy.sh`:
+  the full check, then the image built from the commit and its own database commands run
+  against a throwaway PostgreSQL, the server started on it and read. A deploy that skips
+  the practice run is no longer possible from the Makefile. Makefile, platform/README.md,
+  platform/docs/codebase-handoff.md.
+- From the independent review of the library move: `Regents.AgentAccount.person/1` raises
+  a plain message when a profile cannot be read, so the failure's log names no one.

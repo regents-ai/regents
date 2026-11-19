@@ -130,7 +130,8 @@ what it covers.
 
 Release with `make deploy` from a clean checkout of the commit you mean to ship, after
 confirming that commit contains the live one (`git merge-base --is-ancestor <live sha>
-HEAD`). It runs `scripts/deploy.sh`, which builds `git archive` of HEAD on Fly with
+HEAD`). It runs `make release` first (the full check, then the image built and its database
+commands practised on a throwaway database), then `scripts/deploy.sh`, which builds `git archive` of HEAD on Fly with
 `platform/Dockerfile.dockerignore` and the `org.opencontainers.image.revision` label set
 to the commit, tags the image `main-<sha12>`, and deploys it to the one machine with
 `--ha=false`. The build fetches the pinned shared libraries from GitHub.
