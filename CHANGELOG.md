@@ -7136,3 +7136,10 @@ seasons), on the shared Points library regents.sh was already on.
   unchanged.
 - The guides no longer tell anyone to run or write tests. No migration; nothing the live
   site does changes.
+
+## 2026-11-19 — The sign-in library's folder matches the shared library's main
+
+- The shared library moves from 0d6b3c77 to 54dc6b94 (branch
+  eu/siwa-tests-out-on-regents-pin-1119: the same pin plus one commit that makes the SIWA
+  folder main's). The library's own tests are gone there and one comment changed; what it
+  does is unchanged. No migration. platform/mix.exs, platform/mix.lock.
