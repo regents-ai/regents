@@ -7068,3 +7068,13 @@ seasons), on the shared Points library regents.sh was already on.
 - v343, commit 997bae81. Full check exit 0 on 997bae81, six gates. No migration.
 - Live read, signed out: home, health, Stake, Redeem, Cloak and Points answer.
 - Rollback: v342's image main-95d9dd375eb4.
+
+## 2026-11-19 — Points: an award counts only for the account it was offered to
+
+- The shared library moves from 4568285e to bc996fe0 (branch
+  eu/points-review-on-regents-pin-1119: the same pin plus three commits in points/ only).
+  When Points are about to be awarded the source is asked again, and its yes now counts
+  only if it still names the same account; otherwise nothing is awarded to either account
+  and the refusal is recorded. A rule that is switched off answers "off" before it looks at
+  anything else. No Points setting, rule or amount changes. No migration.
+  platform/mix.exs, platform/mix.lock.
