@@ -7062,3 +7062,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The browser test tools step of the six-site refresh (ash-template 0b0399cd): Playwright
   1.64.1 to 1.65.1 and Vitest 5.1.0 to 5.1.1, with the lock following. Test tools only;
   no timeout or test changed. No migration. platform/package.json, platform/package-lock.json.
+
+## 2026-11-19 — Released v343 (Playwright 1.65.1 and Vitest 5.1.1)
+
+- v343, commit 997bae81. Full check exit 0 on 997bae81, six gates. No migration.
+- Live read, signed out: home, health, Stake, Redeem, Cloak and Points answer.
+- Rollback: v342's image main-95d9dd375eb4.
