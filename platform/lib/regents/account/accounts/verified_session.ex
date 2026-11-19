@@ -5,6 +5,7 @@ defmodule Regents.Account.Accounts.VerifiedSession do
 
   require Logger
 
+  alias Ash.Error.Changes.InvalidAttribute
   alias Ash.Error.Query.NotFound
   alias Regents.Account.Accounts
   alias Regents.Account.Actors.System
@@ -15,9 +16,9 @@ defmodule Regents.Account.Accounts.VerifiedSession do
   @doc """
   Registers or refreshes the account the verified session names, reconciles its
   linked socials, gives the person their shared profile when they have none and
-  asks Ethereum for its wallet's ENS name again, returning the providers another
-  account already holds. Without a linked wallet the account's wallet evidence is
-  withdrawn instead.
+  asks Ethereum for its wallet's ENS name again, returning the providers whose
+  social account another account already holds where it cannot be shared.
+  Without a linked wallet the account's wallet evidence is withdrawn instead.
 
   Unlike ash-template, a profile that cannot be made is logged and never refuses
   the sign-in.
@@ -184,28 +185,24 @@ defmodule Regents.Account.Accounts.VerifiedSession do
   defp upsert_linked_social(_social, _human_account_id, _actor),
     do: {:error, :invalid_verified_identity}
 
-  # A first link for the provider, or one that replaces the account's earlier subject.
+  # A first link for the provider, or one that replaces the account's earlier
+  # subject. A subject other accounts hold is linked here as well when its
+  # provider's accounts are shared; otherwise the database refuses it.
   defp link_social(%{provider: provider, subject: subject} = social, human_account_id, actor) do
     verified = verified(social)
 
-    with {:ok, current} <-
-           Accounts.get_linked_identity_by_subject(provider, subject, actor: actor),
-         :ok <- subject_available(current, human_account_id),
-         {:ok, _identity} <-
-           Accounts.upsert_linked_identity(
-             provider,
-             subject,
-             verified.username,
-             verified.display_name,
-             verified.verified_at,
-             verified.metadata,
-             human_account_id,
-             actor: actor
-           ) do
-      {:ok, provider}
-    else
-      {:error, :already_linked} -> {:conflict, provider}
-      {:error, error} -> resolve_upsert_error(error, provider, subject, human_account_id, actor)
+    case Accounts.upsert_linked_identity(
+           provider,
+           subject,
+           verified.username,
+           verified.display_name,
+           verified.verified_at,
+           verified.metadata,
+           human_account_id,
+           actor: actor
+         ) do
+      {:ok, _identity} -> {:ok, provider}
+      {:error, error} -> conflict_or_error(error, provider)
     end
   end
 
@@ -217,16 +214,19 @@ defmodule Regents.Account.Accounts.VerifiedSession do
       metadata: %{}
     }
 
-  defp subject_available(nil, _human_account_id), do: :ok
-  defp subject_available(%{human_account_id: id}, id), do: :ok
-  defp subject_available(_identity, _human_account_id), do: {:error, :already_linked}
-
-  defp resolve_upsert_error(error, provider, subject, human_account_id, actor) do
-    case Accounts.get_linked_identity_by_subject(provider, subject, actor: actor) do
-      {:ok, %{human_account_id: id}} when id != human_account_id -> {:conflict, provider}
-      _result -> {:error, error}
-    end
+  # `LinkedIdentity` `:unique_subject_per_provider` refuses a subject another
+  # account holds, one a concurrent sign-in just took included, with an error on
+  # the subject alone that names the unique rule: that is the conflict.
+  defp conflict_or_error(%Ash.Error.Invalid{errors: errors} = error, provider) do
+    if Enum.any?(errors, &subject_taken?/1), do: {:conflict, provider}, else: {:error, error}
   end
+
+  defp conflict_or_error(error, _provider), do: {:error, error}
+
+  defp subject_taken?(%InvalidAttribute{field: :subject, private_vars: vars}),
+    do: vars[:constraint_type] == :unique
+
+  defp subject_taken?(_error), do: false
 
   defp remove_missing_socials(existing, token_providers, actor) do
     existing

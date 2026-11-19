@@ -1,7 +1,7 @@
 defmodule RegentIdentity do
   @moduledoc """
-  Canonical Regent profiles in the shared `regent_identity` schema, whose one
-  migration ran once, from Regents. Each product supplies its own repository
+  Canonical Regent profiles in the shared `regent_identity` schema, whose
+  migrations run once, from Regents. Each product supplies its own repository
   connection to the same database and keeps its own sessions, product account IDs
   and authorization.
 

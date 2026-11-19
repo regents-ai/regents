@@ -35,7 +35,7 @@ defmodule RegentAgents.MixProject do
       {:phoenix_pubsub, "~> 2.1"},
       {:siwa,
        git: "https://github.com/regents-ai/elixir-utils.git",
-       ref: "23bb83df91f7ce86a24eea27c599adfb23e27b41",
+       ref: "6d98a1139caf6a89e7b358070ea1165306d2f47b",
        sparse: "siwa/siwa-elixir/apps/siwa"},
       {:regent_format, path: "../../format"}
     ]

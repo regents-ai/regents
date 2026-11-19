@@ -7297,3 +7297,48 @@ seasons), on the shared Points library regents.sh was already on.
   platform/AGENTS.md, platform/README.md, platform/docs/codebase-handoff.md,
   platform/docs/design-integration.md, platform/repo.yaml, platform/.credo.exs and
   scripts/check-siwa-latest.sh name the new paths. No migration.
+
+## 2026-11-19 — Several accounts may link the same X account
+
+- Founder decisions 340, 344 a and 345 a, the template's v300 (ash-template `a350c33d`).
+  A sign-in links an X account to the account even when other accounts here hold it, and
+  takes nothing from them. A later sign-in refreshes this account's own row alone, and
+  unlinking X from one account leaves the others' links. GitHub and Farcaster stay one
+  account each: a subject another account holds is reported as before and not linked,
+  never a failed sign-in.
+- The choice lives in one place, `@shared_providers` in `Regents.Accounts.LinkedIdentity`.
+  Its `:unique_subject_per_provider` identity covers every other provider (`where`, with
+  `identity_wheres_to_sql`: a partial unique index) and names the subject in its error,
+  which `Regents.Accounts.VerifiedSession` reports as held by someone else: the database
+  alone decides, with no read before or after the link. `:unique_provider_per_account`
+  still keeps each account to one row per provider. platform/lib/regents/accounts.ex,
+  platform/lib/regents/accounts/linked_identity.ex,
+  platform/lib/regents/accounts/verified_session.ex.
+- Points: `LinkedIdentity` `:first_link` (`Accounts.get_first_link`, in place of
+  `:by_provider_subject`) answers, of the accounts holding one social account, the link
+  made first. `Regents.Points.LinkedSocial.verify/1` reads it, so a shared X account earns
+  once, for the account that linked it first and still holds it, and a later link moves
+  nothing earned or waiting. The Points start run offers a shared social account once, to
+  the account that linked it first (`existing/2`; `:linked_before` reads in
+  `:first_link`'s order). The key `provider:subject`, the `subject_key` evidence and every
+  Points setting are unchanged. platform/lib/regents/points/linked_social.ex.
+- Migration `20261119231832_shared_x_accounts`, in one transaction that waits at most 5
+  seconds for its lock: the subject index on `linked_identities` becomes the same index
+  over every row but X's, and a plain index on provider and subject serves the Points
+  read. It holds `ACCESS EXCLUSIVE` on `linked_identities` until commit; no row changes.
+  Its `down` brings the rule back for X and fails, changing nothing, while two accounts
+  hold the same X account. Resource snapshot
+  platform/priv/resource_snapshots/repo/linked_identities/20261119231833.json.
+- Shared packages copied again from elixir-utils
+  6d98a1139caf6a89e7b358070ea1165306d2f47b (shared/SOURCE.json, `@elixir_utils_ref` in
+  platform/mix.exs, the siwa and regent_chain pins in the copies and platform/mix.lock).
+  The one change is in shared/ash_components/identity: several profiles in one app may
+  hold the same X account (`RegentIdentity.Profile` loses `:x_subject_owner`). Its shared
+  migration `regent_identity 20261119204035_shared_x_accounts` is already applied to the
+  shared database (by the template on 19 Nov), so this release finds it applied.
+
+## 2026-11-19 — Released v349 (several accounts may hold one X account)
+
+- v349, commit af4b134c. Full check exit 0 on af4b134c; the practice run built the image and applied every migration, this one included, to a throwaway database, nothing pending. The release applied 20261119231832_shared_x_accounts to production (indexes only, no row changed).
+- Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied.
+- Rollback: v348's image main-35206b1ee1ba; the migration is not rolled back.

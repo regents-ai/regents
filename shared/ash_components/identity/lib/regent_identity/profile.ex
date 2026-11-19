@@ -2,6 +2,7 @@ defmodule RegentIdentity.Profile do
   @moduledoc """
   One shared profile per Privy account: display name, selected wallet, the
   verified linked wallets and X account, and when that proof was issued.
+  Several profiles in one app may hold the same X account.
   """
   use Ash.Resource,
     domain: RegentIdentity,
@@ -39,7 +40,6 @@ defmodule RegentIdentity.Profile do
 
   identities do
     identity :privy_subject, [:app_id, :privy_user_id]
-    identity :x_subject_owner, [:app_id, :x_subject]
   end
 
   actions do
