@@ -7019,3 +7019,12 @@ seasons), on the shared Points library regents.sh was already on.
 - v340, commit 02f0d3c3. Full check exit 0 on 02f0d3c3, six gates. No migration.
 - Live read, signed out: home, health, Stake and Cloak answer.
 - Rollback: v339's image main-17d6ed3ab9f8.
+
+## 2026-11-19 — Ash libraries refreshed to ash-template v290's
+
+- The same versions as ash-template v290 (f513e944), on Sean's words of 19 Nov ("roll out
+  the same versions to all five sites"): ash 3.37.2 to 3.37.7, ash_sql 0.8.7 to 0.8.9,
+  spark 2.7.9 to 2.7.10, websock_adapter 0.7.0 to 0.7.2, ash_postgres from 55db7d44 to its
+  2.16.0 tag e36aa20a (which contains 55db7d44). This site has no ash_ai. Everything else
+  the update would have moved is held at its earlier version, as in the template. Pins and
+  lock only; no migration. platform/mix.exs, platform/mix.lock.

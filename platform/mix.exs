@@ -55,11 +55,11 @@ defmodule Regents.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.2.6", override: true},
       {:ash, "~> 3.37"},
-      # ash_postgres main with #910 until a Hex release carries it: upserts use the
-      # repo's prefix, which picks each site's schema on the shared database.
+      # ash_postgres at its v2.16.0 tag, which carries #910: upserts use the repo's
+      # prefix, which picks each site's schema on the shared database.
       {:ash_postgres,
        git: "https://github.com/ash-project/ash_postgres.git",
-       ref: "55db7d449aad351d200c5f300fca2a83e0a8734c",
+       ref: "e36aa20a9f000f3f3bd89b0816fa9460156cb13c",
        override: true},
       {:oban, "~> 2.24"},
       {:nebulex, "~> 3.0"},
