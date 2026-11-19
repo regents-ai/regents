@@ -7049,3 +7049,10 @@ seasons), on the shared Points library regents.sh was already on.
 - scripts/release.sh gives the smoke's server the image it runs (FLY_IMAGE_REF), which
   the server has required at start-up since it began reporting its release; without it
   the smoke stopped at start-up. As ash-template's script does. scripts/release.sh.
+
+## 2026-11-19 — Released v342 (Node 26.13.1 and PostgreSQL 17.12)
+
+- v342, commit 95d9dd37. Full check exit 0 on 95d9dd37 on Node 26.13.1, six gates; the
+  image smoke passed against PostgreSQL 17.12 (Debian 17.12-1.pgdg13+1). No migration.
+- Live read, signed out: home, health, Stake, Redeem, Cloak and Points answer.
+- Rollback: v341's image main-d323ff33fe90.
