@@ -7028,3 +7028,9 @@ seasons), on the shared Points library regents.sh was already on.
   2.16.0 tag e36aa20a (which contains 55db7d44). This site has no ash_ai. Everything else
   the update would have moved is held at its earlier version, as in the template. Pins and
   lock only; no migration. platform/mix.exs, platform/mix.lock.
+
+## 2026-11-19 — Released v341 (Ash library refresh)
+
+- v341, commit d323ff33. Full check exit 0 on d323ff33, six gates. No migration.
+- Live read, signed out: home, health, Stake, Redeem, Cloak, Points and Articles answer.
+- Rollback: v340's image main-02f0d3c3770f.
