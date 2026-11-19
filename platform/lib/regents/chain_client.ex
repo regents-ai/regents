@@ -11,11 +11,6 @@ defmodule Regents.ChainClient do
 
   alias Regents.WalletActions.Rpc
 
-  @callback transaction(RegentChain.Review.chain(), String.t()) ::
-              {:ok, map() | nil} | {:error, term()}
-  @callback receipt(RegentChain.Review.chain(), String.t()) ::
-              {:ok, map() | nil} | {:error, term()}
-
   @rpc_opts [scope: "wallet_steps"]
   @base %{chain_id: 8453, name: "Base", rpc_url: "https://mainnet.base.org"}
 
@@ -25,9 +20,6 @@ defmodule Regents.ChainClient do
   them to no other.
   """
   def base, do: @base
-
-  @doc "The reader wallet steps use: this module unless `:chain_client` names another."
-  def module, do: Application.get_env(:regents, :chain_client, __MODULE__)
 
   @doc "The transaction sent as `hash`, or `nil` while the chain does not know it."
   def transaction(chain, hash), do: request(chain, "eth_getTransactionByHash", [hash])

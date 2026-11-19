@@ -170,13 +170,6 @@ defmodule Regents.WalletActions.Rpc do
     do: method |> post(params, opts) |> result(method, opts)
 
   defp post(method, params, opts) do
-    client =
-      Application.get_env(
-        :regents,
-        Keyword.get(opts, :client_key, :wallet_http_client),
-        Req
-      )
-
     # Base unless the caller names another chain's endpoint.
     url =
       Keyword.get_lazy(opts, :url, fn -> Application.fetch_env!(:regents, :base_read_rpc_url) end)
@@ -190,7 +183,7 @@ defmodule Regents.WalletActions.Rpc do
       })
     end
 
-    client.post(url,
+    Req.post(url,
       json: %{jsonrpc: "2.0", id: 1, method: method, params: params},
       finch: [pool_timeout: 3_000, conn_opts: [transport_opts: [timeout: 3_000]]],
       receive_timeout: @timeout,

@@ -16,9 +16,6 @@ defmodule Regents.OpenSea.HoldingsCache do
   def invalidate(address) when is_binary(address),
     do: GenServer.call(__MODULE__, {:invalidate, address})
 
-  @doc false
-  def monotonic_ms, do: System.monotonic_time(:millisecond)
-
   @impl true
   def init(_), do: {:ok, empty()}
 
@@ -190,8 +187,5 @@ defmodule Regents.OpenSea.HoldingsCache do
         0
       )
 
-  defp now, do: clock().()
-
-  defp clock,
-    do: Application.get_env(:regents, :opensea_holdings_clock, &__MODULE__.monotonic_ms/0)
+  defp now, do: System.monotonic_time(:millisecond)
 end

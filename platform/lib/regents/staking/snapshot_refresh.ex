@@ -13,7 +13,7 @@ defmodule Regents.Staking.SnapshotRefresh do
 
   alias Regents.Actors.System
   alias Regents.Staking
-  alias Regents.Staking.{ChainClient, PriceClient, RevenueHistory, SnapshotCache}
+  alias Regents.Staking.{PriceClient, RevenueHistory, RpcClient, SnapshotCache}
 
   @impl Oban.Worker
   def timeout(_job), do: 70_000
@@ -73,7 +73,7 @@ defmodule Regents.Staking.SnapshotRefresh do
   defp read_and_save(previous, snapshot) do
     history = if previous, do: previous.history
 
-    with {:ok, protocol, history} <- ChainClient.module().protocol_snapshot(history),
+    with {:ok, protocol, history} <- RpcClient.protocol_snapshot(history),
          :ok <- forward(snapshot, protocol),
          protocol = Map.merge(protocol, quote_values(snapshot)),
          {:ok, saved} <- save(previous, protocol, history) do

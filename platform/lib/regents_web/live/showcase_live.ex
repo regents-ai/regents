@@ -535,11 +535,6 @@ defmodule RegentsWeb.ShowcaseLive do
                         aria-describedby="privy-unavailable"
                       >Connect Privy</P.button>
                     </div>
-                    <p :if={@privy_mode == :fixture} id="privy-unavailable">
-                      Real sign-in is unavailable on this test-fixture server. Use a development
-                      server with your real Privy app, verifier and an allowed local origin.
-                      The separate wallet demo does not authenticate an account.
-                    </p>
                     <p :if={@privy_mode == :unconfigured} id="privy-unavailable">
                       Real sign-in is unavailable until this server has a Privy app ID and
                       verification key. The Privy app must also allow this local origin.
@@ -900,21 +895,12 @@ defmodule RegentsWeb.ShowcaseLive do
   def privy_mode do
     config = Application.get_env(:regents, :privy, [])
 
-    cond do
-      Application.get_env(:regents, :privy_verifier, RegentPrivy.Session) !=
-          RegentPrivy.Session ->
-        :fixture
-
-      Enum.all?([:app_id, :verification_key], fn key ->
-        value = Keyword.get(config, key)
-        is_binary(value) && String.trim(value) != ""
-      end) ->
-        :configured
-
-      true ->
-        :unconfigured
-    end
+    if Enum.all?([:app_id, :verification_key], &present?(Keyword.get(config, &1))),
+      do: :configured,
+      else: :unconfigured
   end
+
+  defp present?(value), do: is_binary(value) && String.trim(value) != ""
 
   defp run_utility("privy_valid", _params), do: Utilities.privy(:valid)
   defp run_utility("privy_expired", _params), do: Utilities.privy(:expired)

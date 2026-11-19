@@ -110,7 +110,7 @@ defmodule Regents.Staking.PriceClient do
   end
 
   defp get(url) do
-    client().get(url,
+    Req.get(url,
       receive_timeout: @timeout,
       finch: [pool_timeout: @timeout, conn_opts: [transport_opts: [timeout: @timeout]]],
       retry: false,
@@ -119,12 +119,4 @@ defmodule Regents.Staking.PriceClient do
   rescue
     error -> {:error, error}
   end
-
-  defp client,
-    do:
-      Application.get_env(
-        :regents,
-        :staking_price_http_client,
-        Regents.Staking.PriceHttpClient
-      )
 end

@@ -56,7 +56,7 @@ defmodule RegentsWeb.PrivySessionController do
   def create(conn, _untrusted_params) do
     with {:ok, pair} <- session_pair(conn),
          {:ok, verified} <-
-           verifier().verify(pair, Application.get_env(:regents, :privy, [])),
+           RegentPrivy.Session.verify(pair, Application.get_env(:regents, :privy, [])),
          {:ok, account, identity_conflicts} <- establish(verified) do
       bind(conn, account, verified, identity_conflicts)
     else
@@ -276,8 +276,6 @@ defmodule RegentsWeb.PrivySessionController do
   end
 
   defp drop_session(conn), do: configure_session(conn, drop: true)
-
-  defp verifier, do: Application.get_env(:regents, :privy_verifier, RegentPrivy.Session)
 
   defp session_payload(nil),
     do: %{

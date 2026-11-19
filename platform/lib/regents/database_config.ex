@@ -26,29 +26,27 @@ defmodule Regents.DatabaseConfig do
   @deployment_role_error ~s(REGENTS_DEPLOYMENT_ROLE must be set to "production" or "staging")
   @production_target_error "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod"
 
-  def runtime_config!(environment, getenv \\ &System.get_env/1)
-
-  def runtime_config!(:prod, getenv) do
+  def runtime_config!(:prod) do
     config =
-      case deployment_role!(getenv) do
+      case deployment_role!() do
         :production ->
-          database_url!(getenv, "DATABASE_POOLED_URL", @production_hosts, @production_identities)
+          database_url!("DATABASE_POOLED_URL", @production_hosts, @production_identities)
 
         :staging ->
-          database_url!(getenv, "DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
+          database_url!("DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
       end
 
     Keyword.put(config, :pool_size, @server_pool_size)
   end
 
-  def runtime_config!(:dev, getenv) do
-    case remote_target(getenv) do
-      :local -> local_config(getenv)
-      :remote -> database_url!(getenv, "DATABASE_POOLED_URL")
+  def runtime_config!(:dev) do
+    case remote_target() do
+      :local -> local_config()
+      :remote -> database_url!("DATABASE_POOLED_URL")
     end
   end
 
-  def runtime_config!(_environment, _getenv), do: nil
+  def runtime_config!(_environment), do: nil
 
   @doc """
   The connection the site's listeners share (`Regents.SharedChanges`): the
@@ -70,35 +68,30 @@ defmodule Regents.DatabaseConfig do
     end
   end
 
-  def release_config!(getenv \\ &System.get_env/1) do
-    case deployment_role!(getenv) do
+  def release_config! do
+    case deployment_role!() do
       :production ->
-        require_production_target!(getenv)
-        database_url!(getenv, "DATABASE_DIRECT_URL", @production_hosts, @production_identities)
+        require_production_target!()
+        database_url!("DATABASE_DIRECT_URL", @production_hosts, @production_identities)
 
       :staging ->
-        database_url!(getenv, "DATABASE_DIRECT_URL", @staging_hosts, @staging_refusals)
+        database_url!("DATABASE_DIRECT_URL", @staging_hosts, @staging_refusals)
     end
   end
 
   # Deployments say which venue they are. There is no default and no fallback
   # between roles: an unset or unrecognized role stops the boot before any
   # database URL is read.
-  defp deployment_role!(getenv) do
-    case getenv.(@deployment_role_variable) do
+  defp deployment_role! do
+    case System.get_env(@deployment_role_variable) do
       "production" -> :production
       "staging" -> :staging
       _unset_or_unknown -> raise @deployment_role_error
     end
   end
 
-  defp database_url!(
-         getenv,
-         variable,
-         admitted_hosts \\ nil,
-         refused_terms \\ @production_identities
-       ) do
-    with value when is_binary(value) and value != "" <- getenv.(variable),
+  defp database_url!(variable, admitted_hosts \\ nil, refused_terms \\ @production_identities) do
+    with value when is_binary(value) and value != "" <- System.get_env(variable),
          {:ok, %URI{scheme: scheme, host: host, path: "/" <> database, userinfo: userinfo} = uri} <-
            parse_uri(value),
          true <- scheme in ["postgres", "postgresql"],
@@ -203,10 +196,10 @@ defmodule Regents.DatabaseConfig do
     host |> String.downcase() |> String.starts_with?("pgbouncer.")
   end
 
-  defp remote_target(getenv) do
-    cluster_id = getenv.("REGENTS_DATABASE_CLUSTER_ID")
-    cluster_name = getenv.("REGENTS_DATABASE_CLUSTER_NAME")
-    fly_app_name = getenv.("FLY_APP_NAME")
+  defp remote_target do
+    cluster_id = System.get_env("REGENTS_DATABASE_CLUSTER_ID")
+    cluster_name = System.get_env("REGENTS_DATABASE_CLUSTER_NAME")
+    fly_app_name = System.get_env("FLY_APP_NAME")
 
     cond do
       production_identity?(fly_app_name) ->
@@ -223,20 +216,20 @@ defmodule Regents.DatabaseConfig do
     end
   end
 
-  defp require_production_target!(getenv) do
-    if getenv.("REGENTS_DATABASE_TARGET_MODE") == "production" and
-         getenv.("REGENTS_DATABASE_CLUSTER_ID") == @cluster_id and
-         getenv.("REGENTS_DATABASE_CLUSTER_NAME") == @cluster_name and
-         not production_identity?(getenv.("FLY_APP_NAME")) do
+  defp require_production_target! do
+    if System.get_env("REGENTS_DATABASE_TARGET_MODE") == "production" and
+         System.get_env("REGENTS_DATABASE_CLUSTER_ID") == @cluster_id and
+         System.get_env("REGENTS_DATABASE_CLUSTER_NAME") == @cluster_name and
+         not production_identity?(System.get_env("FLY_APP_NAME")) do
       :ok
     else
       raise @production_target_error
     end
   end
 
-  defp local_config(getenv) do
+  defp local_config do
     [
-      username: getenv.("USER"),
+      username: System.get_env("USER"),
       password: nil,
       hostname: "127.0.0.1",
       port: 5432,

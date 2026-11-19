@@ -268,11 +268,9 @@ defmodule RegentsWeb.OnchainSteps do
   defp check(socket, %{step: nil}), do: socket
 
   defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
-    client = ChainClient.module()
-
     start_async(socket, {:onchain_step, hash}, fn ->
       if reads > 0, do: Process.sleep(@recheck_ms)
-      Outcome.of(client, review, step, hash)
+      Outcome.of(ChainClient, review, step, hash)
     end)
   end
 

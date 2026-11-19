@@ -78,9 +78,6 @@ defmodule RegentsWeb.PrivyShowcaseLive do
           <p :if={@mode == :unconfigured} role="status">
             Configure the local Privy app and verification key before using these controls. Nothing is simulated.
           </p>
-          <p :if={@mode == :fixture} role="status">
-            This server uses a test verifier. Readouts are test data; real sign-in is disabled here.
-          </p>
         </section>
 
         <section class="rg-panel rg-panel--surface" aria-labelledby="privy-state-heading">

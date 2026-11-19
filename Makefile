@@ -55,7 +55,7 @@ check-required-fixes:
 REGENTS_CLI_REV := c12d8563c46e8b5229e32db76c1a104fb469b7b7
 check-cli:
 	uv run --no-project --with "regents-cli[check] @ git+https://github.com/regents-ai/regents-cli@$(REGENTS_CLI_REV)" \
-	  python -m regents_cli.check_commands cli/commands.json platform/priv/public/openapi.json platform/priv/static/api-contract.openapiv3.yaml
+	  python -m regents_cli.check_commands cli/regents/commands.json platform/priv/public/openapi.json platform/priv/static/api-contract.openapiv3.yaml
 # Every site is on the newest SIWA: the newest regents-cli release on PyPI (the pin
 # above, the agent guide and the install lines) and the newest change to the SIWA
 # library in elixir-utils. Needs `gh auth login`.

@@ -2,7 +2,7 @@ defmodule Regents.LocalDatabaseFixture do
   @moduledoc false
 
   # A local database is prepared exactly as staging's first deployment is
-  # (`Regents.Release.prepare_database!/2`): the same tables, the same shared
+  # (`Regents.Release.prepare_database!/1`): the same tables, the same shared
   # changes, in production's order. `mix regents.setup_local_auth` runs this. In
   # production `bin/migrate-shared` applies the shared changes.
   def ensure_human_accounts! do

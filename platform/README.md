@@ -223,5 +223,5 @@ preservation workflow before enabling the display against production records.
 Published papers, Articles, the AI & SCIFI book list and public Regent profiles can
 be read without sign-in under `/api/v1/reading/*` and `/api/v1/regents/{slug}`. They
 use the same publication rules as the pages, so drafts and future-dated posts stay
-hidden. The browser WebMCP tools, `cli/commands.json` and
+hidden. The browser WebMCP tools, `cli/regents/commands.json` and
 `priv/public/openapi.json` describe the same routes; change all three together.

@@ -167,12 +167,8 @@ config :regents, :ens_lookup_deadline_ms, 4_000
 config :regents, :ens_avatar_deadline_ms, 10_000
 config :regents, :app_surfaces, true
 config :regents, :opensea_api_key, nil
-config :regents, :opensea_http_client, Regents.OpenSea.HttpClient
 config :regents, :opensea_live_lookups_per_minute, 60
 config :regents, :opensea_lookups_per_minute, 6
-config :regents, :opensea_holdings_clock, &Regents.OpenSea.HoldingsCache.monotonic_ms/0
-# The clock request budgets count windows on.
-config :regents, :rate_limiter_clock, &Regents.RateLimiter.monotonic_second/0
 # Also bounds how often one address may be reset: once per window.
 config :regents, :opensea_holdings_cache_ttl_ms, 15_000
 

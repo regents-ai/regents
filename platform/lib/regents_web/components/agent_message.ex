@@ -5,7 +5,7 @@ defmodule RegentsWeb.Components.AgentMessage do
   site names, through the regents CLI or the site's WebMCP tool. regents.sh has
   no hosted MCP server, so there is no MCP text. Each names this site's address
   and the command and tool read when this module compiles from
-  `cli/commands.json` and `priv/tool_manifest.json`, so the texts cannot name a
+  `cli/regents/commands.json` and `priv/tool_manifest.json`, so the texts cannot name a
   command that is not there. `texts/1` gives them to any page that tells an
   agent how.
 
@@ -19,7 +19,7 @@ defmodule RegentsWeb.Components.AgentMessage do
   alias RegentsWeb.Live.Session
   alias RegentsWeb.PublicDocuments
 
-  commands = Path.expand("../../../../cli/commands.json", __DIR__)
+  commands = Path.expand("../../../../cli/regents/commands.json", __DIR__)
   manifest = Application.app_dir(:regents, "priv/tool_manifest.json")
   @external_resource commands
   @external_resource manifest

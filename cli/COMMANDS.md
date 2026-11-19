@@ -1,6 +1,6 @@
 # Regents protocol commands
 
-`cli/commands.json` describes `regents protocol` commands at `https://regents.sh`.
+`cli/regents/commands.json` describes `regents protocol` commands at `https://regents.sh`.
 These additions require the coordinating CLI release; this source commit does not publish that client.
 
 Public reads need no sign-in, pairing or wallet:

@@ -26,12 +26,10 @@ defmodule Regents.Release do
     {:regent_payments, "regent_payments", RegentPayments.Migrator}
   ]
 
-  def migration_config!(getenv \\ &System.get_env/1) do
-    Regents.DatabaseConfig.release_config!(getenv)
-  end
+  def migration_config!, do: Regents.DatabaseConfig.release_config!()
 
   def migrate do
-    with_release_repo([], fn repo ->
+    with_release_repo(fn repo ->
       require_signed_access_schema!(repo)
       repo.migrate!(migrations_path())
     end)
@@ -47,11 +45,11 @@ defmodule Regents.Release do
   the founder's own named go; the site whose release first carries it runs this
   from the new image before that deployment, because only that image carries
   the change's file. Each library's ledger takes a migration lock, so two sites
-  running it at once apply each change once. Its options are the bootstrap's.
+  running it at once apply each change once.
   """
-  def migrate_shared(opts \\ []) when is_list(opts) do
+  def migrate_shared do
     applied =
-      with_release_repo(opts, fn repo ->
+      with_release_repo(fn repo ->
         unapplied = unapplied_shared_migrations(repo)
         if unapplied != [], do: apply_shared(repo)
         unapplied
@@ -99,7 +97,7 @@ defmodule Regents.Release do
     RegentBlog.markdown(attributes.markdown)
 
     post =
-      with_release_repo([], fn _repo ->
+      with_release_repo(fn _repo ->
         Regents.Blog.put_post!(attributes, actor: %Regents.Actors.System{})
       end)
 
@@ -114,28 +112,23 @@ defmodule Regents.Release do
   command creates a staging-only approximation of it with the shape the local
   fixture already proves sufficient, then applies every shared change this
   release carries, as `migrate_shared/0` does in production, and runs every
-  migration into `regents_app` (`prepare_database!/2`).
+  migration into `regents_app` (`prepare_database!/1`).
 
   It refuses any database that already carries migration state or the
   regent_names schema, and it repairs nothing: recovery from a half-finished
-  bootstrap is to destroy and recreate the staging database.
-
-  The deployed launcher passes no options, so it reads only the database the
-  release configuration resolves. The options (`:getenv`, `:config`,
-  `:migrations_path`) aim it at a disposable database under test.
+  bootstrap is to destroy and recreate the staging database. It reads only the
+  database the release configuration resolves.
   """
-  def bootstrap_staging(opts \\ []) when is_list(opts) do
-    getenv = Keyword.get(opts, :getenv, &System.get_env/1)
-
+  def bootstrap_staging do
     # The role is read before anything opens a connection, so no configuration
     # mistake can point this command at a database outside staging.
-    if getenv.(@deployment_role_variable) != @staging_role do
+    if System.get_env(@deployment_role_variable) != @staging_role do
       raise @bootstrap_role_error
     end
 
-    with_release_repo(opts, fn repo ->
+    with_release_repo(fn repo ->
       refuse_existing_state!(repo)
-      prepare_database!(repo, migrations_directory(opts))
+      prepare_database!(repo)
     end)
   end
 
@@ -145,10 +138,10 @@ defmodule Regents.Release do
   # order: the tables this repository reads but does not own (the fixture is the
   # only definition of their shape), every shared change this release carries,
   # then this site's own migrations.
-  def prepare_database!(repo, path \\ migrations_path()) do
+  def prepare_database!(repo) do
     Regents.LocalDatabaseFixture.create_shared_tables!()
     apply_shared(repo)
-    repo.migrate!(path)
+    repo.migrate!(migrations_path())
   end
 
   @doc """
@@ -160,12 +153,12 @@ defmodule Regents.Release do
   `migrate_shared/0` would apply under `shared-pending:` (each as schema and
   version; a deployment is refused while one is listed). Prints `none` when all
   three are empty. It applies nothing, creates nothing, and takes no migration
-  lock. Its options are the bootstrap's.
+  lock.
   """
-  def pending_migrations(opts \\ []) when is_list(opts) do
+  def pending_migrations do
     {pending, applied_without_file, shared} =
-      with_release_repo(opts, fn repo ->
-        {pending, applied_without_file} = disagreements(repo, migrations_directory(opts))
+      with_release_repo(fn repo ->
+        {pending, applied_without_file} = disagreements(repo, migrations_path())
         {pending, applied_without_file, unapplied_shared_migrations(repo)}
       end)
 
@@ -279,19 +272,13 @@ defmodule Regents.Release do
   defp migration_source(repo), do: repo.config()[:migration_source] || "schema_migrations"
 
   # Loads the app and starts only its database connection, on the release
-  # login unless `:config` names another, for as long as `fun` runs; returns
-  # what `fun` returns.
-  defp with_release_repo(opts, fun) do
-    getenv = Keyword.get(opts, :getenv, &System.get_env/1)
+  # login, for as long as `fun` runs; returns what `fun` returns.
+  defp with_release_repo(fun) do
     :ok = Application.ensure_loaded(@app)
-    config = Keyword.get_lazy(opts, :config, fn -> migration_config!(getenv) end)
-    Application.put_env(@app, Regents.Repo, config)
+    Application.put_env(@app, Regents.Repo, migration_config!())
     {:ok, result, _started} = Ecto.Migrator.with_repo(Regents.Repo, fun)
     result
   end
-
-  defp migrations_directory(opts),
-    do: Keyword.get_lazy(opts, :migrations_path, &migrations_path/0)
 
   defp migrations_path, do: Application.app_dir(@app, "priv/repo/migrations")
 end

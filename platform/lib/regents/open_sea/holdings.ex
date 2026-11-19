@@ -115,7 +115,7 @@ defmodule Regents.OpenSea.Holdings do
   end
 
   defp bounded_get(url, options) do
-    task = Task.async(fn -> client().get(url, options) end)
+    task = Task.async(fn -> Req.get(url, options) end)
 
     case Task.yield(task, @request_timeout) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
@@ -179,8 +179,6 @@ defmodule Regents.OpenSea.Holdings do
 
     %{animata: animata, regents_club: club}
   end
-
-  defp client, do: Application.fetch_env!(:regents, :opensea_http_client)
 
   defp unavailable(reason) do
     Logger.warning("OpenSea owned-NFT lookup unavailable: #{inspect(reason)}")

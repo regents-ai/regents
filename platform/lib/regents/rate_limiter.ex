@@ -27,14 +27,10 @@ defmodule Regents.RateLimiter do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
-  @doc "The machine's clock in whole seconds, which `:rate_limiter_clock` names."
-  @spec monotonic_second() :: integer()
-  def monotonic_second, do: System.monotonic_time(:second)
-
   @spec admit(term(), pos_integer(), pos_integer()) ::
           {:ok, budget()} | {:error, :rate_limited, budget()}
   def admit(key, limit, window_seconds) do
-    now = Application.fetch_env!(:regents, :rate_limiter_clock).()
+    now = System.monotonic_time(:second)
     bucket = Integer.floor_div(now, window_seconds)
     sweep(window_seconds, bucket)
     # Each window has its own row, so a new window starts from a fresh counter.

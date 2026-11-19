@@ -1,15 +1,15 @@
 defmodule Regents.Redemption.Actions do
   @moduledoc false
-  alias Regents.Redemption.ChainClient
+  alias Regents.Redemption.RpcClient
   alias Regents.WalletActions.{Address, RedemptionAbi}
 
-  def overview(_input, _context), do: ChainClient.module().overview(nil, nil, nil)
+  def overview(_input, _context), do: RpcClient.overview(nil, nil, nil)
 
   def account_for_wallet(input, _context) do
     with {:ok, signer} <- Address.normalize_wallet(input.arguments.expected_signer),
          {:ok, collection} <-
            optional_collection(input.arguments.collection, input.arguments.token_id),
-         do: ChainClient.module().overview(signer, collection, input.arguments.token_id)
+         do: RpcClient.overview(signer, collection, input.arguments.token_id)
   end
 
   @doc """

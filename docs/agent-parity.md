@@ -14,7 +14,7 @@ every `handle_event` in `platform/lib/regents_web/live/` and
 `platform/lib/regents_web/components/`, the wallet step builders
 (`Regents.Staking.Steps` and `Regents.Redemption.Steps`, both sent through
 `RegentsWeb.OnchainSteps`), `platform/priv/tool_manifest.json` (22 tools),
-`cli/commands.json` (16 commands),
+`cli/regents/commands.json` (16 commands),
 the shared profile `RegentIdentity.HTTP` (then this repository's `identity/`, now
 elixir-utils' `ash_components/identity`) and the shared agents
 router from elixir-utils `14013e42` (`RegentAgents.HTTP`: pair, me, whoami). The
@@ -36,7 +36,7 @@ were skipped.
   no MCP library in its dependencies (R2).
 - **Connector**: the Claude connector at `/mcp`, signed in with OAuth. regents.sh has
   none: no OAuth routes and no connector code (R3).
-- **CLI**: the command in `cli/commands.json`, matched on route and operation id. All
+- **CLI**: the command in `cli/regents/commands.json`, matched on route and operation id. All
   16 are in released regents-cli 1.10.28 and in regents-cli main
   (`platforms/protocol/commands.json`), so nothing here waits for the next release.
   There are no wallet commands.

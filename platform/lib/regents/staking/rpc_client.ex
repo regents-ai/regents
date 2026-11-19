@@ -1,6 +1,11 @@
 defmodule Regents.Staking.RpcClient do
-  @moduledoc false
-  @behaviour Regents.Staking.ChainClient
+  @moduledoc """
+  The Base readings the staking pages take, kept apart on purpose.
+
+  `protocol_snapshot/1` advances the retained public contract history for the
+  shared job. `wallet_snapshot/1` answers for one connected account and is never
+  shared, never cached, and always taken at its own fresh block.
+  """
 
   require Logger
 
@@ -11,7 +16,7 @@ defmodule Regents.Staking.RpcClient do
   # A first pass has seven days of logs to ask for; every later pass has minutes.
   @window_timeout 60_000
   @chain_id 8453
-  @rpc_opts [client_key: :staking_http_client, scope: "staking", purpose: :staking_protocol]
+  @rpc_opts [scope: "staking", purpose: :staking_protocol]
 
   # A public Base endpoint answers `eth_getLogs` over at most ten thousand
   # blocks, so the window is asked for in that many at a time, a few at a time.
@@ -25,7 +30,6 @@ defmodule Regents.Staking.RpcClient do
   }
 
   @doc "Incremental protocol reading; returns retained history only after the pinned reads succeed."
-  @impl true
   def protocol_snapshot(history) do
     with {:ok, block} <- bounded(fn -> Rpc.latest_block(@rpc_opts) end),
          {:ok, history, window} <- revenue_window(history, block),
@@ -65,7 +69,6 @@ defmodule Regents.Staking.RpcClient do
     end
   end
 
-  @impl true
   def wallet_snapshot(wallet_address),
     do: bounded(fn -> read_wallet(Abi.normalize_address!(wallet_address)) end)
 

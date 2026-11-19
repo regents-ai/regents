@@ -1,17 +1,15 @@
 defmodule Regents.Redemption.RpcClient do
   @moduledoc false
-  @behaviour Regents.Redemption.ChainClient
 
   alias Regents.WalletActions.{Abi, RedemptionAbi, Rpc}
 
   @read_timeout 12_000
   @chain_id 8453
-  @rpc_opts [client_key: :redemption_http_client, scope: "redemption"]
+  @rpc_opts [scope: "redemption"]
   # ERC721A's `OwnerQueryForNonexistentToken()`, which both Animata
   # collections answer `ownerOf` with for a token that does not exist.
   @nonexistent_token "0xdf2d9b42"
 
-  @impl true
   def overview(wallet, collection, token_id),
     do: bounded(fn -> read({wallet, collection, token_id}) end)
 

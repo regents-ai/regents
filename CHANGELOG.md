@@ -7239,3 +7239,31 @@ seasons), on the shared Points library regents.sh was already on.
 - v348, commit 35206b1e: twelve shared packages are this repository's own folders under shared/. Full check exit 0 on 35206b1e; the practice run built the image and ran its database commands on a throwaway database, nothing pending. No migration.
 - Live read, signed out: the 23 pages and agent documents answer; the pairing read and the agent check-in refuse a request with no credentials.
 - Rollback: v347's image main-de53401b2c85.
+
+## 2026-11-19 — Settings and options only the removed tests used are gone; the command list moves
+
+- Founder decision of 19 Nov (tests removed). Every swap-in setting no configuration set
+  is gone and its one implementation is called directly: the sign-in verifier
+  (`RegentPrivy.Session`, in platform/lib/regents_web/controllers/privy_session_controller.ex
+  and the showcase's Privy status in platform/lib/regents_web/live/showcase_live.ex), the
+  wallet step reader (`Regents.ChainClient`, platform/lib/regents_web/onchain_steps.ex),
+  the staking and redemption readers (`Regents.Staking.RpcClient`,
+  `Regents.Redemption.RpcClient`, from platform/lib/regents/staking/actions.ex,
+  platform/lib/regents/staking/snapshot_refresh.ex and platform/lib/regents/redemption/actions.ex),
+  and Req for every Base read (platform/lib/regents/wallet_actions/rpc.ex) and the price
+  read (platform/lib/regents/staking/price_client.ex). The wrappers that existed only to be
+  swapped are deleted: platform/lib/regents/staking/chain_client.ex,
+  platform/lib/regents/redemption/chain_client.ex,
+  platform/lib/regents/staking/price_http_client.ex and platform/lib/regents/open_sea/http_client.ex.
+- The three settings platform/config/config.exs set to their only value are gone with it:
+  the OpenSea lookup calls Req (platform/lib/regents/open_sea/holdings.ex), and the
+  holdings cache and request budgets read the machine's monotonic clock directly
+  (platform/lib/regents/open_sea/holdings_cache.ex, platform/lib/regents/rate_limiter.ex).
+  The showcase pages lose their test-verifier notes, which no server could reach.
+- The release commands take no options (platform/lib/regents/release.ex) and the database
+  settings read the environment directly (platform/lib/regents/database_config.ex): every
+  caller passed none, and each computes the same connection and the same refusals.
+- The command list is cli/regents/commands.json (was cli/commands.json), unchanged. `make
+  check-cli`, the image (platform/Dockerfile, platform/Dockerfile.dockerignore), the Agent
+  Message texts (platform/lib/regents_web/components/agent_message.ex), platform/README.md,
+  cli/COMMANDS.md and docs/agent-parity.md read it there. No behaviour change. No migration.
