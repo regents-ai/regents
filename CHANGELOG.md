@@ -7097,3 +7097,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The three Points sources here name their time argument `at`. No Points setting, rule
   or amount changes. No migration. platform/mix.exs, platform/mix.lock,
   platform/lib/regents/points/.
+
+## 2026-11-19 — Released v345 (second narrow Points line)
+
+- v345, commit fdf6f3ce. Full check exit 0 on fdf6f3ce, six gates. No migration.
+- Live read, signed out: home, health, Points and Stake answer.
+- Rollback: v344's image main-5393e052fb02.
