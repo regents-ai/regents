@@ -335,6 +335,7 @@ defmodule RegentsWeb.Components.Shell do
   end
 
   attr(:id, :string, required: true)
+  attr(:class, :string, default: nil, doc: "a product header's own place for it")
 
   @doc """
   The light and dark theme switch: a button with the role of a switch, on for
@@ -361,7 +362,7 @@ defmodule RegentsWeb.Components.Shell do
     ~H"""
     <div
       id={@id}
-      class="theme-switch"
+      class={["theme-switch" | List.wrap(@class)]}
       phx-hook="ThemeSwitch"
       phx-update="ignore"
       phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-theme-switch-ready", "style"])}

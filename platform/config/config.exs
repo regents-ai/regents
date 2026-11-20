@@ -190,6 +190,14 @@ config :regents, Regents.Techtree.Catalog,
   catalog_root: {:priv, "techtree/catalog"},
   channel: "development"
 
+# The public addresses Keyfleet's agent guides give an agent: the sign-in
+# server, a fleet's code, and a fleet's notebooks at https://<fleet>.<suffix>
+# (RegentsWeb.Keyfleet.AgentFilesController).
+config :regents,
+  keyfleet_siwa_origin: "https://siwa.regents.sh",
+  keyfleet_code_origin: "https://code.keyfleet.ai",
+  keyfleet_notebooks_host_suffix: "notebooks.keyfleet.ai"
+
 config :regents, :session_options,
   store: :cookie,
   key: "_regents_key",

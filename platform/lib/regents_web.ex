@@ -23,7 +23,8 @@ defmodule RegentsWeb do
       Regents.Products,
       Regents.Stake,
       Regents.Redeem,
-      Regents.Techtree
+      Regents.Techtree,
+      Regents.Keyfleet
     ],
     exports: [
       # The only Account web modules the product pages may use: who the page acts

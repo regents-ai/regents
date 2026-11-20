@@ -12,7 +12,14 @@ defmodule Regents.Products do
   """
   use Boundary,
     top_level?: true,
-    deps: [Regents, Regents.Stake, Regents.Redeem, Regents.Cloak, Regents.Techtree],
+    deps: [
+      Regents,
+      Regents.Stake,
+      Regents.Redeem,
+      Regents.Cloak,
+      Regents.Techtree,
+      Regents.Keyfleet
+    ],
     exports: []
 
   @site "regents"
@@ -27,7 +34,8 @@ defmodule Regents.Products do
         schema: nil
       },
       %{name: "cloak", health: [&Regents.Cloak.health/0], schema: nil},
-      %{name: "techtree", health: [&Regents.Techtree.health/0], schema: "techtree_app"}
+      %{name: "techtree", health: [&Regents.Techtree.health/0], schema: "techtree_app"},
+      %{name: "keyfleet", health: [&Regents.Keyfleet.health/0], schema: nil}
     ]
   end
 

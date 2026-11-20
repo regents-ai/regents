@@ -1,0 +1,260 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["eth-account>=0.13", "cryptography>=43"]
+# ///
+"""git-remote-siwa: git over https, every request signed with your agent's own sign-in.
+
+    git clone siwa::https://code.keyfleet.ai/FLEET_ID.git
+
+Keep this file beside siwa_agent.py, in a folder on your PATH, and make it
+executable. It signs with the key siwa_agent.py keeps (SIWA_AGENT_HOME), the
+same way `siwa_agent.py request` does, so git never asks for a password.
+
+Git calls it for each copy, fetch and push. Each HTTP request is signed as it
+is sent: its method, its path with the query, and the sha-256 content digest
+of its exact body, an empty one included. A request's whole body, a push's
+pack included, is gathered before it is signed and sent, so the digest covers
+every byte the site receives. A sign-in that is refused is renewed once.
+"""
+
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+import siwa_agent
+
+USER_AGENT = "git-remote-siwa/1.0"
+TIMEOUT_SECONDS = 600
+
+
+class Refused(Exception):
+    pass
+
+
+def pkt_line(payload: bytes) -> bytes:
+    return b"%04x" % (len(payload) + 4) + payload
+
+
+FLUSH = b"0000"
+
+
+def pkt_lines(data: bytes):
+    """Each pkt-line's payload in `data`, None for a flush, with where it ends."""
+    at = 0
+    while at < len(data):
+        size = int(data[at : at + 4], 16)
+        if size == 0:
+            yield None, at + 4
+            at += 4
+        else:
+            yield data[at + 4 : at + size], at + size
+            at += size
+
+
+def read_exactly(stream, size: int) -> bytes:
+    data = stream.read(size)
+    if len(data) != size:
+        raise Refused("git stopped in the middle of a request")
+    return data
+
+
+def read_request(stream) -> bytes | None:
+    """One request from git's stateless exchange: pkt-lines whose payloads are
+    the body, ended by a flush. A flush on its own means git is done."""
+    body = bytearray()
+    while True:
+        size = int(read_exactly(stream, 4), 16)
+        if size == 0:
+            return bytes(body) if body else None
+        body += read_exactly(stream, size - 4)
+
+
+def refusal(status: int, data: bytes) -> str:
+    # The code address refuses in plain text: what went wrong, then what to do.
+    return " ".join(data.decode("utf-8", "replace").split()) or f"the site answered {status}"
+
+
+class Remote:
+    def __init__(self, url: str):
+        self.url = url.rstrip("/")
+        self.config = siwa_agent.settings()
+        self.key = siwa_agent.require_key(self.config)
+        self.audience = siwa_agent.audience_for(self.config, self.url)
+        self.advertised: dict[str, bytes] = {}
+        self.verbosity = 1
+        self.progress = False
+        self.depth = None
+        self.flags: set[str] = set()
+
+    def send(self, method: str, path: str, body: bytes, headers: dict) -> bytes:
+        url = self.url + path
+        receipt = siwa_agent.fresh_receipt(self.config, self.key, self.audience)
+        for renewed in (False, True):
+            signed = siwa_agent.signed_headers(self.key, receipt, method, url, body)
+            request = urllib.request.Request(
+                url,
+                data=body if method == "POST" else None,
+                method=method,
+                headers={**headers, **signed, "User-Agent": USER_AGENT},
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+                    return response.read()
+            except urllib.error.HTTPError as error:
+                data = error.read()
+                if error.code != 401 or renewed:
+                    raise Refused(refusal(error.code, data)) from None
+                receipt = siwa_agent.sign_in(self.config, self.key, self.audience)
+            except urllib.error.URLError as error:
+                raise Refused(f"could not reach {url}: {error.reason}") from None
+        raise AssertionError("unreachable")
+
+    def advertisement(self, service: str) -> bytes:
+        """What the repository holds, as git's own exchange reads it: the
+        answer to info/refs after its service line."""
+        if service not in self.advertised:
+            data = self.send("GET", f"/info/refs?service={service}", b"", {"Accept": "*/*"})
+            lines = pkt_lines(data)
+            first, _ = next(lines, (None, 0))
+            if first != f"# service={service}\n".encode():
+                raise Refused(f"{self.url} is not a git repository this helper can reach")
+            for payload, end in lines:
+                if payload is None:
+                    self.advertised[service] = data[end:]
+                    break
+        return self.advertised[service]
+
+    def refs(self, service: str) -> str:
+        refs, head = [], None
+        for payload, _ in pkt_lines(self.advertisement(service)):
+            if payload is None:
+                break
+            line, _, capabilities = payload.rstrip(b"\n").partition(b"\0")
+            for capability in capabilities.split():
+                if capability.startswith(b"symref=HEAD:"):
+                    head = capability[len(b"symref=HEAD:") :].decode()
+            sha, _, name = line.decode().partition(" ")
+            if sha != "shallow" and not name.endswith("^{}"):
+                refs.append((sha, name))
+        return "".join(
+            f"@{head} HEAD\n" if name == "HEAD" and head else f"{sha} {name}\n" for sha, name in refs
+        )
+
+    def option(self, name: str, value: str) -> str:
+        if name == "verbosity":
+            self.verbosity = int(value)
+        elif name == "progress":
+            self.progress = value == "true"
+        elif name == "depth":
+            self.depth = int(value)
+        elif name in ("followtags", "thin", "dry-run", "cloning", "atomic"):
+            (self.flags.add if value == "true" else self.flags.discard)(name)
+        else:
+            return "unsupported"
+        return "ok"
+
+    def rpc(self, service: str, command: list[str], preamble: bytes) -> bytes:
+        """Runs git's own side of the exchange (`fetch-pack` or `send-pack`)
+        and carries each request it makes to the site, signed, and each
+        answer back to it. Returns what it says when done."""
+        child = subprocess.Popen(["git", *command], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        try:
+            child.stdin.write(preamble + self.advertisement(service))
+            child.stdin.flush()
+            while (body := read_request(child.stdout)) is not None:
+                answer = self.send(
+                    "POST",
+                    f"/{service}",
+                    body,
+                    {
+                        "Content-Type": f"application/x-{service}-request",
+                        "Accept": f"application/x-{service}-result",
+                    },
+                )
+                child.stdin.write(answer)
+                child.stdin.flush()
+            child.stdin.close()
+            said = child.stdout.read()
+        except BaseException:
+            child.kill()
+            raise
+        if child.wait() != 0 and not said:
+            raise Refused(f"git {command[0]} stopped")
+        return said
+
+    def fetch(self, wanted: list[str]) -> str:
+        command = ["fetch-pack", "--stateless-rpc", "--stdin", "--lock-pack"]
+        command += ["--include-tag"] if "followtags" in self.flags else []
+        command += ["--thin"] if "thin" in self.flags else []
+        command += ["--cloning"] if "cloning" in self.flags else []
+        command += ["-v", "-v"] if self.verbosity >= 3 else []
+        command += [] if self.progress else ["--no-progress"]
+        command += [f"--depth={self.depth}"] if self.depth else []
+        preamble = b"".join(pkt_line(f"{line}\n".encode()) for line in wanted) + FLUSH
+        said = self.rpc("git-upload-pack", command + [self.url], preamble)
+        # Git hears only of the pack it must keep; the refs it asked for it knows.
+        return "".join(line + "\n" for line in said.decode().splitlines() if line.startswith("lock "))
+
+    def push(self, specs: list[str]) -> str:
+        command = ["send-pack", "--stateless-rpc", "--helper-status", "--stdin"]
+        command += ["--thin"] if "thin" in self.flags else []
+        command += ["--dry-run"] if "dry-run" in self.flags else []
+        command += ["--atomic"] if "atomic" in self.flags else []
+        command += ["--quiet"] if self.verbosity == 0 else ["--verbose"] if self.verbosity > 1 else []
+        command += ["--progress"] if self.progress else ["--no-progress"]
+        preamble = b"".join(pkt_line(f"{spec}\n".encode()) for spec in specs) + FLUSH
+        return self.rpc("git-receive-pack", command + [self.url], preamble).decode()
+
+
+def batch(first: str, word: str) -> list[str]:
+    """A command git sends as a batch: its lines up to a blank one."""
+    lines = [first]
+    while line := sys.stdin.readline().rstrip("\n"):
+        lines.append(line)
+    return [line[len(word) + 1 :] for line in lines]
+
+
+def serve(remote: Remote) -> None:
+    def say(text: str) -> None:
+        sys.stdout.write(text)
+        sys.stdout.flush()
+
+    while line := sys.stdin.readline():
+        line = line.rstrip("\n")
+        if line == "capabilities":
+            say("fetch\noption\npush\n\n")
+        elif line.startswith("option "):
+            name, _, value = line[len("option ") :].partition(" ")
+            say(remote.option(name, value) + "\n")
+        elif line == "list":
+            say(remote.refs("git-upload-pack") + "\n")
+        elif line == "list for-push":
+            say(remote.refs("git-receive-pack") + "\n")
+        elif line.startswith("fetch "):
+            say(remote.fetch(batch(line, "fetch")) + "\n")
+        elif line.startswith("push "):
+            say(remote.push(batch(line, "push")) + "\n")
+        elif line == "":
+            return
+        else:
+            raise Refused(f"git asked for {line!r}, which this helper does not do")
+
+
+def main(argv: list[str]) -> None:
+    if len(argv) != 3:
+        sys.exit("usage: git clone siwa::https://HOST/REPOSITORY.git (git runs this helper itself)")
+    try:
+        serve(Remote(argv[2]))
+    except (Refused, siwa_agent.SiwaError) as error:
+        print(f"fatal: {error}", file=sys.stderr)
+        sys.exit(128)
+    except siwa_agent.Unreachable as error:
+        print(f"fatal: {error} {siwa_agent.network_hint(error.host)}", file=sys.stderr)
+        sys.exit(128)
+
+
+if __name__ == "__main__":
+    main(sys.argv)

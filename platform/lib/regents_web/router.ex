@@ -92,6 +92,13 @@ defmodule RegentsWeb.Router do
     plug :put_layout, html: {RegentsWeb.Techtree.Layouts, :app}
   end
 
+  # Keyfleet's pages: the page is Keyfleet's (its stylesheets), read inside
+  # Keyfleet's own frame (RegentsWeb.Keyfleet).
+  pipeline :keyfleet do
+    plug :put_brand, "keyfleet"
+    plug :put_layout, html: {RegentsWeb.Keyfleet.Layouts, :app}
+  end
+
   def enforce_session_authority(conn, _opts) do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
@@ -335,6 +342,35 @@ defmodule RegentsWeb.Router do
   scope "/techtree", RegentsWeb.Techtree do
     pipe_through :api
     get "/train.json", TrainController, :index
+  end
+
+  scope "/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through [:browser, :keyfleet]
+
+    live_session :keyfleet,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      layout: {RegentsWeb.Keyfleet.Layouts, :app},
+      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
+      live "/about", ShellLive, :about
+      live "/opportunities", ShellLive, :opportunities
+      live "/docs", ShellLive, :docs
+      live "/changelog", ShellLive, :changelog
+      live "/agents", ShellLive, :agents
+      live "/agents/:agent", ShellLive, :agent
+      live "/privacy", ShellLive, :privacy
+      live "/terms", ShellLive, :terms
+    end
+  end
+
+  # Keyfleet's agent guides, to any caller, as the site's own are.
+  scope "/keyfleet", RegentsWeb.Keyfleet do
+    get "/skill.md", AgentFilesController, :skill
+    get "/skill/:part", AgentFilesController, :part
+    get "/agents/:agent/skill.md", AgentFilesController, :agent_skill
+    get "/agent/git-remote-siwa", AgentFilesController, :git_helper
+    get "/llms.txt", PublicPagesController, :llms
+    get "/agents.md", PublicPagesController, :agents
+    get "/help", PublicPagesController, :help
   end
 
   scope "/admin" do
