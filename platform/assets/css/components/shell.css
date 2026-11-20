@@ -682,6 +682,12 @@
   }
   .account-control > .rg-button { font-size: .75rem; margin: 4px; padding-inline: .75rem; white-space: nowrap; }
 }
+/* A page drawn on the whole width (the catalog's `rail: false`) shows no side
+   menu beside it or above it; on a phone the menu stays behind Menu. */
+@media (width > 48rem) {
+  #app-shell[data-rail="false"] { grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); }
+  #app-shell[data-rail="false"] #shell-sidebar { display: none; }
+}
 /* The narrowest phones: the account button is its picture alone. */
 @media (max-width: 23.75rem) {
   #app-shell #shell-header .account-chip { max-width: 2.75rem; }

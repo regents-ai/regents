@@ -7343,3 +7343,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 905bcd67. Full check exit 0 on 905bcd67; the practice run built the image and found no migration pending.
 - Live read, signed out: the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-c97cd374b614.
+
+## 2026-11-20 — Cloak page drawn after llama.cpp's (not released)
+
+- /cloak is rebuilt as the Cloak chief's design, after the founder asked for less text and the download on the first screen: the app's icon, the pill "Built on llama.cpp, Tor and NEAR AI", the heading "Anon. Local. / Private AI.", the subtitle, Download for Mac and Watch the intro 0:20, and the facts line all fit the first screen at 1440 × 900 and 390 × 844 in both themes. Below them, a dark-blue panel with Anon V, NEAR Privacy and Llama Normal beside a drawn picture of the chat window, then the Needs and Caution notes and the last line. The words are a draft the founder has not yet approved; this is built and held.
+- Watch plays the 20-second intro in a dialog. The film is fetched only when the dialog opens, and closing it (Escape, Close or a press outside) stops it and returns it to the start. The film and the icon are served from /images/cloak/.
+- Gone from the page: About, the three boxed points, the Install steps and their styles.
+- The heading is the design system's sans, Geist, at its heaviest weight (600), declared by the page.
+- A page can now be drawn on the whole width: the route catalog's `rail: false` hides the side menu on a wide screen and keeps it behind Menu on a phone. Only /cloak uses it; every other page is unchanged.
+- /cloak's Markdown carries the new words, the Download link and the film. No migration.

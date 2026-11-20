@@ -15,6 +15,10 @@ defmodule RegentsWeb.RouteCatalog do
 
   @slug ~r/\A[a-z0-9][a-z0-9-]{0,62}\z/
 
+  # Pages drawn on the whole width: on a wide screen they show no side menu, which
+  # stays behind the header's Menu button on a phone.
+  @without_rail [:cloak]
+
   @entries [
     %Entry{
       path_pattern: "/",
@@ -345,6 +349,7 @@ defmodule RegentsWeb.RouteCatalog do
       page_display_label: page_label,
       canonical_root: root,
       sidebar_model: sidebar_model(app_id),
+      rail: route_id not in @without_rail,
       tabs: Map.get(@tabs, route_id, []),
       header_controls: controls,
       background_slot: background,
@@ -398,6 +403,7 @@ defmodule RegentsWeb.RouteCatalog do
       "page_display_label" => spec.page_display_label,
       "parameter_schema" => entry.parameter_schema,
       "path_pattern" => entry.path_pattern,
+      "rail" => spec.rail,
       "reserved_values" => entry.reserved_values,
       "route_id" => spec.route_id,
       "scroll_policy" => spec.scroll_policy,

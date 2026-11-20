@@ -45,6 +45,7 @@ defmodule RegentsWeb.RouteCatalog.Spec do
     :page_display_label,
     :canonical_root,
     :sidebar_model,
+    :rail,
     :tabs,
     :header_controls,
     :background_slot,

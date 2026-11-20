@@ -61,6 +61,7 @@ defmodule RegentsWeb.Components.Shell do
       data-variant={RegentsWeb.Motion.standard("tabs")}
       data-background={@route_spec.background_slot}
       data-menu-open="false"
+      data-rail={to_string(@route_spec.rail)}
       data-route-id={@route_spec.route_id}
       data-destination={@route_spec.destination}
       data-shell-instance={@shell_instance}
