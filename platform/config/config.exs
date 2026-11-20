@@ -105,7 +105,7 @@ config :regents, ecto_repos: [Regents.Repo]
 config :regents, :build, %{commit: nil, release: nil}
 
 # The home colour every page carries as `data-home`: "ink", "tangerine" or "blue".
-config :regents, :home_colour, "ink"
+config :regents, :home_colour, "blue"
 
 # Background jobs live in the site's own schema, beside its tables. Queues hear
 # about new jobs through Erlang process groups, across the site's machines.

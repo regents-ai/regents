@@ -7929,3 +7929,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit f4ab3aea, on the founder's "14. a" in the Cloak thread. Full check exit 0 on f4ab3aea; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows the new names and the feedback link, the new film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-ffc12d6b91c8.
+
+## 2026-11-20 — Home page is Blue by default (not released)
+
+- On the founder's "362 c" the one site's home colour default is Blue. `?home=ink` and `?home=tangerine` still show the other two for one page.
