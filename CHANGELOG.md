@@ -7409,3 +7409,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 53daab6b, on the founder's words in the Cloak thread: new sentences under Anon and Local Llama, and both lines under Anon at one size. The NEAR sentence waits on his answer. Full check exit 0 on 53daab6b; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows both new sentences, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-d72d7e172a75.
+
+## 2026-11-20 — Released the Cloak NEAR sentence
+
+- Commit 55065e46, on the founder's words in the Cloak thread: his sentence under NEAR Private AI, as written. Full check exit 0 on 55065e46; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new sentence, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-53daab6b32a8.
