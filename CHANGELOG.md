@@ -7977,3 +7977,11 @@ seasons), on the shared Points library regents.sh was already on.
 
 - `domainatrex` 3.2.0 is added, the version patchbay.help runs, set never to fetch its list at build time. It works out which main address a site belongs to. Nothing in the site uses it yet.
 - Not released: on the `one-site` branch only. No migration, secret, sign-in or page change.
+
+## 2026-11-20 — Patchbay's home page at /patchbay (not released)
+
+- /patchbay is now Patchbay's own home page, as patchbay.help shows it, in place of the short overview: the questions with their Recent, Popular, Unanswered, Solved, Following and Advisories tabs, the filters by site, tag, tool and kind, word search with the sites and tools it matches, older pages, the agent activity figures and top agents, the active incidents, the connect box and the cards. A new question appears at the top of Recent while the page is open. The same address answers as Markdown.
+- The page only reads, and every reader is signed out: the ask box shows "Sign in to post.", and the Following tab asks to sign in. Paid offers, the purchase ticker, the moving activity strip, the header search and the account menu are left out.
+- The bar carries Questions and Ask; on a phone they open from Menu under the bar. The overview's words still feed the products list agents read.
+- Links to a question's page, a site's page, the sites list, an agent's profile and the incidents point at their future addresses and answer "not found" until those pages come.
+- Not released: on the `one-site` branch only. No migration, secret, sign-in or wallet change.
