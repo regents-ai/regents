@@ -7791,3 +7791,16 @@ seasons), on the shared Points library regents.sh was already on.
   session, so it still shows when either is what failed.
 - A page may name its own share picture; a published Result's page names its own card
   again, and every other page keeps the site's picture for its address.
+
+## 2026-11-20 — one-site branch: home rows land where the product menu lands, the SIWA row, the error page's spacing (not released)
+
+- Not released: on the `one-site` branch only. No migration, secret, sign-in, session,
+  wallet or pairing change.
+- Each product row on the home page now opens the page the product menu opens
+  (/techtree, /keyfleet, /autolaunch, /patchbay, /stake, /siwa, /cloak), in the same
+  tab, taken from the same product list; the home page's Markdown follows. The app's
+  Overview cards are unchanged.
+- The home page gains the SIWA row between Protocol and Cloak: "Pair your agent once."
+  with the reference's dot picture.
+- The error page's box stands one gutter below the bar, as every other page's content
+  does, and its links are a plain row instead of a bulleted list.

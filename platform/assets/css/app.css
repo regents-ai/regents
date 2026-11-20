@@ -35,6 +35,7 @@
 @import "./pages/account.css";
 @import "./pages/agent_start.css";
 @import "./pages/docs.css";
+@import "./pages/error.css";
 @import "./components/account_auth_status.css";
 @import "./techtree/index.css";
 @import "./keyfleet/index.css";

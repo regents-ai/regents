@@ -50,14 +50,14 @@ defmodule RegentsWeb.ErrorHTML do
       </head>
       <body>
         <Shell.site_bar product="regents" account_control={@account_control} />
-        <Regent.Structure.frame>
+        <Regent.Structure.frame class="error-page">
           <Regent.Structure.row rail={false}>
             <main class="rg-inset">
               <p>Regents Labs</p>
               <h1 class="rg-hero-title">{@title}</h1>
               <p><a class="rg-button rg-button--secondary" href="/">Go to the homepage</a></p>
               <nav aria-label="Recovery links">
-                <ul>
+                <ul class="error-page__links">
                   <li :for={{label, path} <- RegentsWeb.PublicDocuments.recovery_links()}>
                     <a href={path}>{label}</a>
                   </li>

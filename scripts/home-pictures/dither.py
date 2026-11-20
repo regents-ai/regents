@@ -1,7 +1,7 @@
 """Turn the home page's stills into one-colour fields of dots.
 
-Reads the opening still in art/ and the products' stills in
-platform/priv/static/images/value-cards/, and writes each picture, on each of its
+Reads the opening still and SIWA's (the reference's) in art/ and the other products'
+stills in platform/priv/static/images/value-cards/, and writes each picture, on each of its
 grids, to platform/priv/static/images/home/ as an SVG of dots, with
 platform/assets/css/pages/home_pictures.css naming them. Each picture is a rectangle
 of round dots on a square grid, one dot in every cell, the subject and its ground
@@ -62,6 +62,7 @@ PICTURES = {
     "protocol": (STILLS / "prorata.webp", (0.0, 0.33, 1.0, 1.0), 7, PRODUCT),
     "patchbay": (STILLS / "blob.webp", (0.1, 0.12, 0.9, 0.65), 7, PRODUCT),
     "techtree": (STILLS / "compare.webp", (0.5, 0.04, 1.0, 0.38), 5, PRODUCT),
+    "siwa": (ART / "splats-campfire-stories-wide.png", (0.0, 0.0, 1.0, 1.0), 0.6, PRODUCT),
     "cloak": (STILLS / "cloak/rewrite.webp", (0.0, 0.15, 1.0, 0.82), 7, PRODUCT),
 }
 

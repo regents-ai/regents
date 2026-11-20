@@ -11,12 +11,31 @@ defmodule RegentsWeb.HomeLive do
   @mission "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers."
   @mission_note "Agent-built and designed to be agent-owned through the token."
 
+  # SIWA's row, in /siwa's own claims (the design chief's words, 20 Nov). It has no
+  # Overview card; every other product's row carries its card's words.
+  @siwa %{
+    name: "SIWA",
+    headline: "Pair your agent once.",
+    line: "It pairs with its own SIWA key and needs no API key or wallet balance.",
+    action: "Open SIWA"
+  }
+
+  # The product rows, in the product menu's order (`Regent.Site.products/0`), each
+  # landing where the menu lands.
+  defp rows do
+    words = Map.new([@siwa | RegentOpsLive.products()], &{&1.name, &1})
+
+    for %{name: name, href: href} <- Regent.Site.products(),
+        Map.has_key?(words, name),
+        do: Map.put(words[name], :href, href)
+  end
+
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
     products =
-      Enum.map_join(RegentOpsLive.products(), "\n\n", fn product ->
+      Enum.map_join(rows(), "\n\n", fn product ->
         "### #{product.name}\n\n#{product.headline} #{product.line}\n\n" <>
-          "[#{product.action}](#{absolute(product.href)})"
+          "[#{product.action}](#{PublicDocuments.url(product.href)})"
       end)
 
     """
@@ -56,11 +75,6 @@ defmodule RegentsWeb.HomeLive do
       "After that, help me use one of the apps: Patchbay, Autolaunch or Keyfleet."
   end
 
-  # The product sites are already full addresses; the staking and Cloak pages are this
-  # site's own.
-  defp absolute("/" <> _ = path), do: PublicDocuments.url(path)
-  defp absolute(url), do: url
-
   def mount(_params, session, socket) do
     {:ok,
      socket
@@ -80,7 +94,7 @@ defmodule RegentsWeb.HomeLive do
         mission: @mission,
         mission_note: @mission_note,
         agent_prompt: agent_prompt(),
-        products: RegentOpsLive.products()
+        products: rows()
       )
 
     ~H"""
@@ -194,9 +208,8 @@ defmodule RegentsWeb.HomeLive do
 
   attr :products, :list, required: true
 
-  # The products in the site's order (founder, 2026-11-12), each with the Overview
-  # card's words and its picture, on the home colour's slab. Each product's own site
-  # opens in a new tab; the staking and Cloak pages are this site's.
+  # The products in the product menu's order, each with its words and its picture, on
+  # the home colour's slab. Each link loads the page the menu lands on, in the same tab.
   defp slab(assigns) do
     ~H"""
     <section class="slab" aria-labelledby="home-products-title">
@@ -206,13 +219,8 @@ defmodule RegentsWeb.HomeLive do
           <p class="home__label">{product.name}</p>
           <h3 class="slab__headline">{product.headline}</h3>
           <p class="slab__line">{product.line}</p>
-          <a
-            class="slab__link"
-            href={product.href}
-            target={away?(product) && "_blank"}
-            rel={away?(product) && "noopener noreferrer"}
-          >
-            {product.action}<span :if={away?(product)} class="visually-hidden">, opens in a new tab</span>
+          <a class="slab__link" href={product.href}>
+            {product.action}
             <Regent.Icons.icon name="arrow-right" />
           </a>
         </div>
@@ -223,7 +231,6 @@ defmodule RegentsWeb.HomeLive do
   end
 
   defp picture(product), do: String.downcase(product.name)
-  defp away?(product), do: String.starts_with?(product.href, "https://")
 
   # What a proof's product offers today, in the product's own words, and where to
   # try it when it can be tried.

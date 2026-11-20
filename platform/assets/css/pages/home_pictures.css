@@ -6,6 +6,7 @@
 .pic--protocol { aspect-ratio: 95 / 63; --pic: url("/images/home/protocol-95x63.svg"); }
 .pic--patchbay { aspect-ratio: 95 / 63; --pic: url("/images/home/patchbay-95x63.svg"); }
 .pic--techtree { aspect-ratio: 95 / 63; --pic: url("/images/home/techtree-95x63.svg"); }
+.pic--siwa { aspect-ratio: 95 / 63; --pic: url("/images/home/siwa-95x63.svg"); }
 .pic--cloak { aspect-ratio: 95 / 63; --pic: url("/images/home/cloak-95x63.svg"); }
 @media (width <= 62rem) {
   .pic--hero { aspect-ratio: 110 / 46; --pic: url("/images/home/hero-110x46.svg"); }
@@ -19,5 +20,6 @@
   .pic--protocol { aspect-ratio: 65 / 43; --pic: url("/images/home/protocol-65x43.svg"); }
   .pic--patchbay { aspect-ratio: 65 / 43; --pic: url("/images/home/patchbay-65x43.svg"); }
   .pic--techtree { aspect-ratio: 65 / 43; --pic: url("/images/home/techtree-65x43.svg"); }
+  .pic--siwa { aspect-ratio: 65 / 43; --pic: url("/images/home/siwa-65x43.svg"); }
   .pic--cloak { aspect-ratio: 65 / 43; --pic: url("/images/home/cloak-65x43.svg"); }
 }

@@ -1,0 +1,21 @@
+/* The error page (`RegentsWeb.ErrorHTML`). Its frame stands one gutter below the bar,
+   as every other page's content does, and its links are a plain row, as the footer's
+   are. */
+.error-page {
+  margin-block-start: var(--rg-page-gutter);
+}
+
+.error-page__links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.error-page__links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
