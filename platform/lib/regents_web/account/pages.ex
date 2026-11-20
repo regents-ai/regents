@@ -25,7 +25,7 @@ defmodule RegentsWeb.Account.Pages do
     message: "That connection couldn’t be updated. Refresh the page and try again."
   }
 
-  @events ~w(request_verified_connection refresh_verified_connections public_name_saved)
+  @events ~w(request_verified_connection verified_connection_state public_name_saved)
 
   def handles?(event), do: event in @events
 
@@ -76,8 +76,18 @@ defmodule RegentsWeb.Account.Pages do
     end
   end
 
+  # Privy's window is showing the code for the Farcaster link the person asked for.
+  def handle_event(
+        "verified_connection_state",
+        %{"stage" => "opened", "provider" => "farcaster"},
+        socket
+      ) do
+    notice = %{tone: :info, message: "Scan the code with Farcaster to approve the connection."}
+    assign(socket, verified_connections_notice: notice)
+  end
+
   # The outcome is judged against the connections read after the provider came back.
-  def handle_event("refresh_verified_connections", params, socket) do
+  def handle_event("verified_connection_state", %{"stage" => "ended"} = params, socket) do
     socket
     |> assign(connection_outcome: params, verified_connections_notice: nil)
     |> read_verified_connections()
@@ -162,9 +172,9 @@ defmodule RegentsWeb.Account.Pages do
   defp identity_request(_action, _provider, _identities), do: :error
 
   # X and GitHub take the whole tab to their own approval page and bring it
-  # back; Farcaster asks for a scan here.
+  # back; Farcaster asks for a scan here, once Privy's window has opened.
   defp connection_started(%{action: :link, provider: :farcaster}),
-    do: "Scan the code with Farcaster to approve the connection."
+    do: "Opening Farcaster…"
 
   defp connection_started(%{action: :link, provider: provider}),
     do: "Taking you to #{Providers.label(provider)} to approve the connection."
@@ -181,6 +191,9 @@ defmodule RegentsWeb.Account.Pages do
 
   defp connection_outcome(%{"error" => "already-connected"}, _read),
     do: %{tone: :error, message: "That account is already connected to another account here."}
+
+  defp connection_outcome(%{"error" => "not-started", "provider" => "farcaster"}, _read),
+    do: %{tone: :error, message: "Farcaster couldn’t be started. Try again."}
 
   defp connection_outcome(%{"error" => error}, _read) when is_binary(error) and error != "",
     do: %{tone: :error, message: "That connection couldn’t be verified. Try again."}

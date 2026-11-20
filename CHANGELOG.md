@@ -7364,3 +7364,27 @@ seasons), on the shared Points library regents.sh was already on.
 - "Adding a product" in platform/AGENTS.md lists the `use Boundary` lines a new product
   needs. No route, table, migration or behaviour change; the compile-connected gate stays
   at 43.
+
+## 2026-11-19 — Farcaster's scan line waits for Privy's window
+
+- Founder decision 350 a, ported from ash-template 386901f019124cd268fe8d37b8a6046644d4161f
+  (template v301).
+- Account → Connections: pressing Connect on Farcaster now says "Opening Farcaster…" and
+  shows "Scan the code with Farcaster to approve the connection." only once Privy's window
+  is open with the code. If Privy refuses, or the window has not opened ten seconds on, as
+  when Farcaster is switched off for the app in Privy, the row says "Farcaster couldn’t be
+  started. Try again." X, GitHub, disconnecting and the other outcomes are unchanged, and
+  every press still reaches Privy.
+- The identity state the browser hands the page carries `stage`: `opened` for Privy's
+  Farcaster window, `ended` for every finished request, whose `error` is now also
+  `not-started`. The page hears it as `verified_connection_state`.
+  platform/assets/js/auth_lazy.ts, platform/assets/js/hooks/verified_connections.ts,
+  platform/assets/js/privy_bridge.tsx, platform/lib/regents_web/live/shell_live/account.ex.
+  No migration, no package change.
+
+## 2026-11-20 — Released the Farcaster connect fix
+
+- Commit 5d0b860e. Full check exit 0 on 5d0b860e; the practice run built the image and found no migration pending.
+- Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied. Not tried: a signed-in press of Connect on Farcaster.
+- Rollback: the image main-af4b134cad01.
+- Correction to the entry above: Fly numbers the X-account release (af4b134c) v350; v349 is its failed first attempt, which changed nothing.

@@ -8,6 +8,7 @@ import {
   useConnectWallet,
   useLogin,
   useLinkAccount,
+  useModalStatus,
   usePrivy,
   useToken,
   useUnlinkFarcaster,
@@ -895,29 +896,63 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
     const tokens = await acquireTokensRef.current()
     requireCurrent(current)
     const result = await createLocalSession(tokens, fetch, browserSessionMutations, current)
-    if (current()) notifyIdentityState({...outcome, error: result.identityError ?? null})
+    if (current()) notifyIdentityState({...outcome, stage: "ended", error: result.identityError ?? null})
   }, [lifetime, notifyIdentityState])
+  // A Farcaster link shows its code in Privy's own window. When Privy cannot
+  // open it, as with Farcaster switched off for the app, it calls neither link
+  // callback, so the wait for the window is bounded. Null when nothing waits.
+  const farcasterWait = React.useRef<number | null>(null)
+  const endFarcasterWait = React.useCallback((): boolean => {
+    const timer = farcasterWait.current
+    if (timer === null) return false
+    window.clearTimeout(timer)
+    farcasterWait.current = null
+    return true
+  }, [])
+  const {isOpen: privyWindowOpen} = useModalStatus()
+  React.useEffect(() => {
+    if (privyWindowOpen && endFarcasterWait()) {
+      notifyIdentityState({stage: "opened", error: null, action: "link", provider: "farcaster"})
+    }
+  }, [endFarcasterWait, notifyIdentityState, privyWindowOpen])
+  React.useEffect(() => () => { endFarcasterWait() }, [endFarcasterWait])
   // Privy answers a link on these after its own flow, including after X and
   // GitHub bring the tab back, so the outcome names the account kind it was for.
+  // Privy runs one link at a time, so any answer ends the wait for its window.
   const linkCallbacks = React.useMemo<PrivyEvents["linkAccount"]>(
     () => ({
       onSuccess: ({linkMethod}) => {
+        endFarcasterWait()
         const provider = identityProviderFor(linkMethod)
         if (!provider) return
         void refreshIdentitySession({action: "link", provider}).catch(error => {
           if (!(error instanceof StalePrivyOperation)) {
-            notifyIdentityState({error: "failed", action: "link", provider})
+            notifyIdentityState({stage: "ended", error: "failed", action: "link", provider})
           }
         })
       },
       onError: (_error, {linkMethod}) => {
+        endFarcasterWait()
         const provider = identityProviderFor(linkMethod)
-        if (provider) notifyIdentityState({error: "failed", action: "link", provider})
+        if (provider) notifyIdentityState({stage: "ended", error: "failed", action: "link", provider})
       },
     }),
-    [notifyIdentityState, refreshIdentitySession],
+    [endFarcasterWait, notifyIdentityState, refreshIdentitySession],
   )
   const {linkTwitter, linkGithub, linkFarcaster} = useLinkAccount(linkCallbacks)
+  // Privy fetches the code from its own service before its window opens, well
+  // inside a second; ten seconds allows a slow line. Set first: `onError` may come at
+  // once. A refusal Privy hands back from the call itself ends the wait there.
+  const openFarcasterLink = React.useCallback(() => {
+    const notStarted = () => {
+      if (endFarcasterWait()) {
+        notifyIdentityState({stage: "ended", error: "not-started", action: "link", provider: "farcaster"})
+      }
+    }
+    endFarcasterWait()
+    farcasterWait.current = window.setTimeout(notStarted, 10_000)
+    void Promise.resolve(linkFarcaster()).catch(notStarted)
+  }, [endFarcasterWait, linkFarcaster, notifyIdentityState])
   const {unlink: unlinkOAuth} = useUnlinkOAuth()
   const {unlink: unlinkFarcasterAccount} = useUnlinkFarcaster()
   const walletsRef = React.useRef(wallets)
@@ -1148,7 +1183,7 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
       createIdentityRequestHandler({
         linkX: linkTwitter,
         linkGithub,
-        linkFarcaster,
+        linkFarcaster: openFarcasterLink,
         unlinkOAuth: async (provider, subject) => {
           await unlinkOAuth({provider, subject})
         },
@@ -1158,9 +1193,9 @@ function AccountBridge({oauthReturn, mode, providerState, publishRequestHandler,
         refreshSession: refreshIdentitySession,
       }),
     [
-      linkFarcaster,
       linkGithub,
       linkTwitter,
+      openFarcasterLink,
       refreshIdentitySession,
       unlinkFarcasterAccount,
       unlinkOAuth,
