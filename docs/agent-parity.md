@@ -108,7 +108,7 @@ reads it yet. A page that comes to show one says only "paired with a person on
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Read about Regents and the docs | `/about`, `/docs` and each `/docs/<page>` | `regents_about` (`docs`, `docs-<page>`) | — | — | — (plain fetch) | no | R2, R3 |
 | Read other site pages (start, privacy, terms) | `/start`, `/privacy`, `/terms` | `regents_about` | — | — | — (plain fetch, as Markdown) | no | R2, R3 |
-| Read Regents Cloak | `/cloak` | — | — | — | — (plain fetch of the page) | no | R2, R3, R13 |
+| Read Regents Cloak | `/cloak` | — | — | — | — (plain fetch, as Markdown) | no | R2, R3, R13 |
 | Read products | `/app`, `/autolaunch`, `/techtree`, `/patchbay`, `/keyfleet` | `regents_products`, `regents_product` | — | — | `products list`, `products get` | no | R2, R3 |
 | Read research (Paper Pro Daily) | `/paper-pro-daily` (more, list) | `regents_research_list`, `regents_research_paper` | — | — | `research list`, `research show` | no | R2, R3 |
 | Read Articles | `/articles`, `/articles/:slug` | `regents_articles_list`, `regents_article` | — | — | `articles list`, `articles show` | no | R2, R3 |
@@ -193,11 +193,10 @@ reads it yet. A page that comes to show one says only "paired with a person on
   claiming a free Regent Name run only on `/account/names`; agents can only read the claims
   made. Plan: a signed route, `regents_name_check` and `regents_name_claim` tools and
   `names check` and `names claim` commands. Not protected (free, no wallet step).
-- **R13. Cloak has no Markdown.** `regents_about` reads, as Markdown: `/about`,
-  `/docs` and each docs page (`docs-limits` and so on), `/start`, `/privacy` and `/terms`.
-  Cloak's setup guide was removed on 13 Nov, since the Mac app is the one way to set it
-  up, so `/cloak` is read only as the page. Plan: `/cloak` answers as Markdown and
-  `regents_about` reads it. Not protected.
+- **R13. `regents_about` does not read Cloak.** `regents_about` reads, as Markdown:
+  `/about`, `/docs` and each docs page (`docs-limits` and so on), `/start`, `/privacy`
+  and `/terms`. `/cloak` answers as Markdown since 20 Nov, but no browser tool reads it.
+  Plan: `regents_about` reads it. Not protected.
 - **R14. Publishing Articles is page-only.** `/admin/articles` is for article admins in a
   browser. An admin agent needs the same through the five surfaces. Protected
   (production data, public post); after R1.

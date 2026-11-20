@@ -28,7 +28,7 @@ On [Redeem]({{origin}}/redeem), holders of an Animata I or II Pass turn it into 
 
 ### Cloak
 
-[Regents Cloak]({{origin}}/cloak) is a Mac app, in development, to install and run a private agent stack: a local model rewords each message you write before it leaves, and the agent's requests travel over Tor. Nothing is released yet, and no protection is proven.
+[Regents Cloak]({{origin}}/cloak) is a Mac app, in development, to install and run a private agent stack: a local model rewords each message you write before it leaves, and the agent's requests travel over Tor. Early test build for invited testers. Its protections have not been independently checked, so don't rely on it for anything sensitive yet.
 
 ### Regents Mobile
 

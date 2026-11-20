@@ -7308,3 +7308,22 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied. Not tried: a signed-in press of Connect on Farcaster.
 - Rollback: the image main-af4b134cad01.
 - Correction to the entry above: Fly numbers the X-account release (af4b134c) v350; v349 is its failed first attempt, which changed nothing.
+
+## 2026-11-20 — Cloak page: the approved words and a working Download
+
+- /cloak now carries only the text the founder approved on 20 Nov, word for word: the
+  heading "A Mac app that rewords your messages and sends them through Tor.", three
+  points, About, Needs and three Install steps. Download is a plain link to the newest
+  signed build, https://github.com/regents-ai/cloak-releases/releases/latest/download/Regents-Cloak.dmg,
+  with "Updates itself" beside it and no version number, so the page never goes stale.
+  The tab reads "Cloak".
+- Gone from the page: the Features list, the four Highlights cards, Protections,
+  Limits, Origin, the Updates email band, "Coming soon" and the switched-off button.
+  `RegentsWeb.Components.CloakUpdates`, the three unused Cloak card pictures and their
+  stills, and their styles are deleted.
+- /cloak answers as Markdown with the same words and the Download link. The page's
+  search description, the agent guide (/llms.txt), About and the Overview's Cloak card
+  no longer say Cloak is unreleased or planned.
+- The email sign-ups already stored are kept: `Regents.Updates`, its table
+  `update_subscribers`, its migration and `:updates_rate_limit` are unchanged, though
+  no page writes to them any more. No migration.

@@ -1,90 +1,60 @@
 defmodule RegentsWeb.CloakLive do
   @moduledoc """
-  The `/cloak` product page. Its one action is the Mac app's download, which
-  stays off, with the reason beside it, until a signed release exists. Until
-  then a visitor can leave an email address to hear when it is ready
-  (`RegentsWeb.Components.CloakUpdates`).
+  The `/cloak` product page: the founder's approved words (`RegentsWeb.Cloak`)
+  and the Mac app's Download, a plain link to the newest signed build.
   """
   use RegentsWeb, :html
 
   alias RegentsWeb.Cloak
-  alias RegentsWeb.Components.CloakUpdates
-  alias RegentsWeb.HomeLive
-  alias RegentsWeb.ProductLive
 
   def page(assigns) do
-    assigns =
-      assign(assigns,
-        cards: Cloak.cards(),
-        features: Cloak.features(),
-        protections:
-          Enum.map(Cloak.protections(), &Map.merge(&1, %{status: :planned, link: nil})),
-        limits: Cloak.limits()
-      )
-
     ~H"""
-    <section id="cloak-page" class="product-page" aria-labelledby="product-heading">
+    <section id="cloak-page" class="product-page cloak-page" aria-labelledby="product-heading">
       <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
-        <p class="product-kicker">Regents Cloak</p>
-        <h1 id="product-heading" tabindex="-1">Your private local agent in a simple Mac app.</h1>
-        <p class="product-lede">
-          Slower on purpose, for 100% prompt + answer privacy via Tor and zkAPI.
-        </p>
-        <div class="product-actions cloak-download">
-          <button
-            type="button"
-            class="cloak-download__button"
-            disabled
-            aria-describedby="cloak-download-soon"
-          >
-            <.apple_logo />
-            <span>Download for Mac</span>
-          </button>
-          <span id="cloak-download-soon" class="cloak-download__soon">Coming soon</span>
-        </div>
+        <p class="product-kicker cloak-page__address">{Cloak.top_line()}</p>
+        <h1 id="product-heading" tabindex="-1">{Cloak.heading()}</h1>
+        <p class="product-lede">{Cloak.note()}</p>
       </header>
 
-      <.live_component module={CloakUpdates} id="cloak-updates" client_tag={@client_tag} />
-
-      <Regent.Structure.panel id="cloak-features" class="product-column rg-panel__body">
-        <h2 class="product-kicker">Features</h2>
-        <ul class="product-audience">
-          <li :for={feature <- @features}>{feature}</li>
-        </ul>
-      </Regent.Structure.panel>
-
-      <ProductLive.cards cards={@cards} />
-
-      <Regent.Structure.section_bar class="rg-support-band">
-        <h2 id="protections" class="rg-section-bar__label">Protections</h2>
-      </Regent.Structure.section_bar>
-      <ul class="product-proofs" aria-label="Protections">
-        <li :for={protection <- @protections}>
-          <Regent.Structure.panel class="product-proof rg-panel__body">
-            <h3>{protection.title}</h3>
-            <p>{protection.copy}</p>
-            <div class="product-proof__status"><HomeLive.proof_status proof={protection} /></div>
+      <ul class="product-proofs" role="list">
+        <li :for={{word, sentence} <- Cloak.points()}>
+          <Regent.Structure.panel class="product-proof cloak-point rg-panel__body">
+            <p><strong>{word}</strong> {sentence}</p>
           </Regent.Structure.panel>
         </li>
       </ul>
 
       <div class="product-columns">
         <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Limits</h2>
-          <ul class="product-audience">
-            <li :for={limit <- @limits}>{limit}</li>
-          </ul>
+          <h2 class="product-kicker">About</h2>
+          <p>{Cloak.about()}</p>
         </Regent.Structure.panel>
-        <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Origin</h2>
-          <p>
-            The "paranoid mode" setup Vitalik Buterin described on 16 October, packaged for the Mac. A privacy proxy for any model, not another chat app.
-          </p>
-          <nav class="product-family__links" aria-label="Origin">
-            <ProductLive.external href={Cloak.post()}>Read the post</ProductLive.external>
-          </nav>
+        <Regent.Structure.panel class="product-column cloak-caution rg-panel__body">
+          <p>{Cloak.caution()}</p>
         </Regent.Structure.panel>
       </div>
+
+      <div class="product-columns">
+        <Regent.Structure.panel class="product-column rg-panel__body">
+          <h2 class="product-kicker">Needs</h2>
+          <p>{Cloak.needs()}</p>
+        </Regent.Structure.panel>
+        <Regent.Structure.panel id="cloak-install" class="product-column rg-panel__body">
+          <h2 class="product-kicker">Install</h2>
+          <ol class="cloak-steps">
+            <li :for={step <- Cloak.install()}>{step}</li>
+          </ol>
+          <div class="cloak-download">
+            <a id="cloak-download" class="cloak-download__button" href={Cloak.download()}>
+              <.apple_logo />
+              <span>Download</span>
+            </a>
+            <span class="cloak-download__note">{Cloak.updates()}</span>
+          </div>
+        </Regent.Structure.panel>
+      </div>
+
+      <p class="cloak-page__feedback">{Cloak.feedback()}</p>
     </section>
     """
   end
