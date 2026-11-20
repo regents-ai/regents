@@ -7391,3 +7391,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The heading now reads "Cloak your local AI." with "Always private, full anon is optional." as its second, smaller line: the founder's words, as typed. The Markdown form of the page carries the same words.
 - The intro film is replaced by the re-made one at the same address: only the line on its end card changed, to the same tagline.
 - No table, setting or migration.
+
+## 2026-11-20 — Released the Cloak tagline and film
+
+- Commit e506d67c, on the founder's words in the Cloak thread. Full check exit 0 on e506d67c; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new heading, the new film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-f75574cad013.
