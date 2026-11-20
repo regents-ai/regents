@@ -54,10 +54,9 @@ defmodule Regents.Techtree.ModelClimb.Report do
   end
 
   policies do
-    # The site's agent actor exists only while its pairing is current
-    # (`RegentsWeb.Account.PairedAgent`).
+    # Only an agent whose pairing is current (`Regents.Account.Actors.Agent`).
     policy action(:submit) do
-      authorize_if actor_attribute_equals(:role, :agent)
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
 
     policy action_type(:read) do

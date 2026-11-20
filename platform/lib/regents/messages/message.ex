@@ -105,13 +105,14 @@ defmodule Regents.Messages.Message do
   end
 
   policies do
+    # An agent only while its pairing is current (`Regents.Account.Actors.Agent`).
     policy action(:leave) do
       authorize_if actor_attribute_equals(:role, :human)
-      authorize_if actor_attribute_equals(:role, :agent)
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
 
     policy action(:agent_leave) do
-      authorize_if actor_attribute_equals(:role, :agent)
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
     end
 
     # The site's admins on their team page; the site itself when it answers a

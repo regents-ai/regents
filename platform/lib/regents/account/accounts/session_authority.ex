@@ -287,18 +287,51 @@ defmodule Regents.Account.Accounts.SessionAuthority do
   """
   @spec leased_account(String.t(), integer()) :: Ash.Resource.record() | nil
   def leased_account(lineage, account_id) when is_binary(lineage) and is_integer(account_id) do
-    row = lineage |> digest() |> row()
-
-    if match?(%{revoked_at: nil, human_account_id: ^account_id}, row) and not lapsed?(row),
-      do: verified(account_id)
+    if current?(lineage |> digest() |> row(), account_id), do: verified(account_id)
   end
 
   def leased_account(_lineage, _account_id), do: nil
 
+  @doc """
+  The id of the sign-in `lineage` carries while it is current for `account_id`,
+  or `nil`. A product that must see the sign-in end later keeps the id, never
+  the lineage, and asks `signed_in/2` with it.
+  """
+  @spec current_id(String.t(), integer()) :: String.t() | nil
+  def current_id(lineage, account_id) do
+    row = lineage |> digest() |> row()
+    if current?(row, account_id), do: row.id
+  end
+
+  @doc """
+  The verified account the sign-in with this id still resolves to, with the
+  topic its sign-out is announced on and when it lapses (`{account, topic,
+  ends_at}`), or `nil` once it is signed out, switched to another account or
+  lapsed.
+  """
+  @spec signed_in(String.t(), integer()) ::
+          {Ash.Resource.record(), String.t(), DateTime.t()} | nil
+  def signed_in(id, account_id) do
+    row = Ash.get!(__MODULE__, id, actor: @actor, not_found_error?: false)
+
+    with true <- current?(row, account_id),
+         %{} = account <- verified(account_id) do
+      {account, digest_topic(row.lineage_digest),
+       DateTime.add(row.signed_in_at, @sign_in_days, :day)}
+    else
+      _signed_out -> nil
+    end
+  end
+
   @doc "The deterministic, lineage-stable topic every socket for a lineage mounts on."
   @spec topic(String.t()) :: String.t()
-  def topic(lineage) when is_binary(lineage),
-    do: @topic_prefix <> Base.url_encode64(digest(lineage), padding: false)
+  def topic(lineage) when is_binary(lineage), do: lineage |> digest() |> digest_topic()
+
+  defp digest_topic(digest), do: @topic_prefix <> Base.url_encode64(digest, padding: false)
+
+  # A sign-in bound to the account, neither revoked nor lapsed.
+  defp current?(row, account_id),
+    do: match?(%{revoked_at: nil, human_account_id: ^account_id}, row) and not lapsed?(row)
 
   # The four states an integrity-valid claim can hold against its row. A claim
   # ahead of its row, or above generation zero without one, is unrecoverable

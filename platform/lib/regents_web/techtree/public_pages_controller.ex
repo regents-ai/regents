@@ -29,7 +29,7 @@ defmodule RegentsWeb.Techtree.PublicPagesController do
 
   defp account_control(account) do
     regent =
-      case Formation.get_my_regent(actor: %Human{human_account_id: account.id}) do
+      case Formation.get_my_regent(actor: Human.for_account(account)) do
         {:ok, regent} -> regent
         _no_regent -> nil
       end

@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Regents public API",
-    "version": "7.1.0",
-    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and the person's shared Points. A paired agent can leave a private message for the Regents team.",
+    "version": "8.0.0",
+    "description": "Public service health, the product directory, owner-authorized historical name and stake reads, and agent pairing: an agent signs with its own SIWA key to pair with a person's account and to check in. Does not describe wallet transactions, session changes, or separate product APIs. Signed agent reads use current pairings and the person's shared Points. A paired agent can leave a private message for the Regents team. An address under /api that this site does not serve answers 404 with the code operation_unknown; a missing record answers its own not-found code.",
     "contact": {
       "name": "Regents Labs"
     }

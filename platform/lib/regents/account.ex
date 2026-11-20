@@ -15,6 +15,7 @@ defmodule Regents.Account do
       Accounts.VerifiedSession,
       Actors.Admin,
       Actors.Agent,
+      Actors.ConnectedApp,
       Actors.Human,
       Actors.System,
       AgentPicture,

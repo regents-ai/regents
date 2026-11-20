@@ -44,11 +44,25 @@ defmodule Regents.Account.Accounts.HumanAccount do
       filter expr(privy_user_id in ^arg(:privy_dids))
     end
 
-    # The accounts the Points board lists, with what shows of them to others.
-    read :points_people do
-      argument :ids, {:array, :integer}, allow_nil?: false
+    read :by_ids do
+      argument :ids, {:array, :integer}, allow_nil?: false, constraints: [max_length: 100]
       filter expr(id in ^arg(:ids))
-      prepare build(load: [:display_name, :ens_name, :ens_avatar_url])
+    end
+
+    # The accounts linking any of these wallets, which are lowercase; the
+    # accounts may keep theirs in any case.
+    read :holding_wallets do
+      argument :wallets, {:array, :string}, allow_nil?: false, constraints: [max_length: 100]
+
+      filter expr(
+               fragment(
+                 "lower(?) = ANY(?) OR EXISTS (SELECT 1 FROM unnest(?) AS linked(wallet) WHERE lower(linked.wallet) = ANY(?))",
+                 wallet_address,
+                 ^arg(:wallets),
+                 wallet_addresses,
+                 ^arg(:wallets)
+               )
+             )
     end
 
     # Names the account inside `EnsIdentity`'s write condition, which sees that
@@ -112,7 +126,8 @@ defmodule Regents.Account.Accounts.HumanAccount do
              :points_account,
              :created_before,
              :by_privy_dids,
-             :points_people
+             :by_ids,
+             :holding_wallets
            ]) do
       authorize_if Regents.Checks.SystemActor
     end

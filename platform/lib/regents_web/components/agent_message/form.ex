@@ -63,7 +63,7 @@ defmodule RegentsWeb.Components.AgentMessage.Form do
 
   defp new_form(%{assigns: assigns}) do
     Messages.form_to_leave_message(
-      actor: %Human{human_account_id: assigns.account.id},
+      actor: Human.for_account(assigns.account),
       as: "message",
       context: %{client_key: assigns.client_tag},
       prepare_params: fn params, _phase -> Map.put(params, "topic", assigns.topic) end

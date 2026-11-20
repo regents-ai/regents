@@ -1,0 +1,32 @@
+defmodule Regents.Limits do
+  @moduledoc """
+  The site's named allowances, `config :regents, :limits`, each named
+  `<product>_<name>` with its `limit` and `window_seconds`, and spent through
+  `Regents.RateLimiter`.
+  """
+
+  alias Regents.RateLimiter
+
+  @doc "Spends one of `name`'s allowance for `who`: `:ok` or `:limited`."
+  @spec spend(atom(), term()) :: :ok | :limited
+  def spend(name, who) do
+    case admit(name, who) do
+      :ok -> :ok
+      {:limited, _retry_after} -> :limited
+    end
+  end
+
+  @doc """
+  Spends one of `name`'s allowance for `who`: `:ok`, or `{:limited, seconds}`
+  with the seconds until the allowance starts again.
+  """
+  @spec admit(atom(), term()) :: :ok | {:limited, pos_integer()}
+  def admit(name, who) do
+    config = :regents |> Application.fetch_env!(:limits) |> Keyword.fetch!(name)
+
+    case RateLimiter.admit({name, who}, config[:limit], config[:window_seconds]) do
+      {:ok, _budget} -> :ok
+      {:error, :rate_limited, budget} -> {:limited, budget.reset}
+    end
+  end
+end

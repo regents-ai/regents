@@ -5,23 +5,24 @@ defmodule RegentsWeb.ErrorJSON do
   See config/config.exs.
   """
 
+  alias RegentAgentAccess.Recovery
   alias RegentsWeb.PublicDocuments
 
-  # If you want to customize a particular status code,
-  # you may add your own clauses, such as:
-  #
-  # def render("500.json", _assigns) do
-  #   %{errors: %{detail: "Internal Server Error"}}
-  # end
+  # An address the site does not serve is `operation_unknown`, never the
+  # `not_found` of a record that is missing.
+  def render("404.json", %{reason: %Phoenix.Router.NoRouteError{}}),
+    do: Recovery.json("Operation Unknown", hint())
 
   # By default, Phoenix returns the status message from
-  # the template name. For example, "404.json" becomes
-  # "Not Found".
+  # the template name. For example, "500.json" becomes
+  # "Internal Server Error".
   def render(template, _assigns) do
     template
     |> Phoenix.Controller.status_message_from_template()
-    |> RegentAgentAccess.Recovery.json(
-      "See #{PublicDocuments.url("/docs")} and #{PublicDocuments.url("/openapi.json")} for supported requests."
-    )
+    |> Recovery.json(hint())
   end
+
+  defp hint,
+    do:
+      "See #{PublicDocuments.url("/docs")} and #{PublicDocuments.url("/openapi.json")} for supported requests."
 end

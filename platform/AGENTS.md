@@ -54,7 +54,20 @@ again from it and moving that commit.
 - Core, `lib/regents/<product>.ex`:
   `use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [...]`
   (drop `Regents.Chain` if it reads no chain). It may use the site core and, through
-  `Regents`' exports, `Accounts`, `Actors.Human` and `Actors.System`.
+  `Regents`' exports, the account parts below.
+- Actors: `Actors.Human` (built from an account by `Human.for_account/1`), `Actors.Agent`,
+  `Actors.System` and `Actors.ConnectedApp` (the struct only). An Agent may be unpaired:
+  its `pairing` is the person's `Human`, `:none` or `:person_not_here`, decided only by
+  `Agent.with_pairing/1`. Protected work requires the paired shape: a policy admits an
+  agent with `{RegentAgents.Checks.Paired, repo: Regents.Repo}`, and a write locks the
+  pairing inside its transaction with `Agent.lock_pairing/1`; `Agent.valid?/1` and
+  `refresh/1` read it again. A product never names `RegentAgents.Authority`.
+- Reads: `Accounts.accounts_by_ids/2`, `accounts_by_ids!/2` and
+  `accounts_holding_wallets!/2`; `PublicIdentity.people/1` for a product that only shows
+  people; `SessionAuthority.current_id/2` and `signed_in/2` for a sign-in kept by its id.
+- `Regents.Alert.report/1` saves what a person must act on with the site's errors, and
+  `Regents.Limits.admit/2` and `spend/2` spend a named allowance from the one list,
+  `config :regents, :limits`, named `<product>_<name>`.
 - Pages, `lib/regents_web/<product>.ex`:
   `use Boundary, deps: [RegentsWeb, RegentsWeb.Chain], exports: [...]`, exporting only
   what the shell and router mount. It may use the `RegentsWeb` toolkit and its two

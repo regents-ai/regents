@@ -161,6 +161,9 @@ config :regents, :message_rate_limit, limit: 10, window_seconds: 3600
 config :regents, :message_address_rate_limit, limit: 30, window_seconds: 3600
 # Email addresses left for updates (`Regents.Updates`): each network leaves a few a minute.
 config :regents, :updates_rate_limit, limit: 5, window_seconds: 60
+# The site's named allowances (`Regents.Limits`), `<product>_<name>: [limit:,
+# window_seconds:]`. None is named yet.
+config :regents, :limits, []
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false

@@ -31,7 +31,11 @@ defmodule Regents.Account.Points.Accounts do
   def people([]), do: {:ok, %{}}
 
   def people(ids) do
-    with {:ok, accounts} <- Accounts.points_people(ids, actor: %System{}) do
+    with {:ok, accounts} <-
+           Accounts.accounts_by_ids(ids,
+             actor: %System{},
+             load: [:display_name, :ens_name, :ens_avatar_url]
+           ) do
       {:ok,
        Map.new(accounts, fn account ->
          {account.id,

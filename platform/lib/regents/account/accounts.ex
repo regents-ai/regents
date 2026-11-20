@@ -12,7 +12,8 @@ defmodule Regents.Account.Accounts do
       define :points_account, action: :points_account, args: [:id]
       define :accounts_created_before, action: :created_before, args: [:at]
       define :accounts_by_privy_dids, action: :by_privy_dids, args: [:privy_dids]
-      define :points_people, action: :points_people, args: [:ids]
+      define :accounts_by_ids, action: :by_ids, args: [:ids]
+      define :accounts_holding_wallets, action: :holding_wallets, args: [:wallets]
 
       define :get_public_profile_source,
         action: :public_profile_source,

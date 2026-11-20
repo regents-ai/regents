@@ -8,7 +8,38 @@ defmodule Regents.Account.PublicIdentity do
   address and drawn with a picture generated from that address.
   """
 
+  alias Regents.Account.Accounts
+  alias Regents.Account.Actors.System
+
   @wallet ~r/\A0x[0-9a-fA-F]{40}\z/
+
+  @doc """
+  How each of these accounts (up to 100 ids) shows to other people, for a
+  product that only shows people: `{:ok, [%{id, display_name, ens_name,
+  ens_avatar_url, wallet_address}]}`, each value nil when the account shows
+  none. The ENS name and its picture count only while they belong to the
+  account's wallet, as on the site's own pages.
+  """
+  @spec people([integer()]) :: {:ok, [map()]} | {:error, term()}
+  def people(ids) do
+    with {:ok, accounts} <-
+           Accounts.accounts_by_ids(ids,
+             actor: %System{},
+             load: [:display_name, :ens_name, :ens_avatar_url]
+           ) do
+      {:ok, Enum.map(accounts, &person/1)}
+    end
+  end
+
+  defp person(account) do
+    %{
+      id: account.id,
+      display_name: present(account.display_name),
+      ens_name: ens_name(account),
+      ens_avatar_url: picture(account),
+      wallet_address: wallet(account)
+    }
+  end
 
   def label(identity) when is_map(identity) do
     identity

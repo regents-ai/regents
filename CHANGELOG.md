@@ -7713,3 +7713,41 @@ seasons), on the shared Points library regents.sh was already on.
   pictures of the old home page and their scripts are deleted.
 - The app frames span the window, as the reference shows. No migration, secret,
   sign-in, session, wallet or pairing change.
+
+## 2026-11-20 — one-site branch: the shared account parts the products need (not released)
+
+- Not released: on the `one-site` branch only. No migration, secret, sign-in, session,
+  cookie, Privy or pairing-page change.
+- One agent actor. `Regents.Account.Actors.Agent` is any agent whose signed request the
+  SIWA service verified, paired or not. Its `pairing` is the person's `Human`, `:none`
+  or `:person_not_here`, decided only by `Agent.with_pairing/1`; the pairing episode, its
+  owner and the account id are set only when it is a `Human`. `Agent.paired/3` is gone.
+  New: `authenticated?/1`, `valid?/1`, `refresh/1` and `lock_pairing/1`, which locks the
+  pairing inside a product's transaction. The SIWA answer the site reads keeps no chain,
+  verification method or receipt end, so those fields are nil and `authenticated?/1`,
+  `valid?/1` and `refresh/1` refuse every agent the site builds today; nothing calls them
+  yet.
+- The rules that admitted any agent struct (leaving a message, an agent's message,
+  submitting a model-climb report) now require a current pairing through
+  `RegentAgents.Checks.Paired`, which reads the pairing again.
+  `RegentsWeb.Account.PairedAgent` refuses exactly as before.
+- `Human.for_account/1` builds the person from an account row, and the pages that built
+  one by hand use it; the Privy sign-in controller and the live session still build
+  theirs. `RegentsWeb.Account.Identity.account_wallets/1` is gone.
+- `Actors.ConnectedApp`, the struct only.
+- Account reads `Accounts.accounts_by_ids` and `accounts_holding_wallets`, at most 100
+  a read; the Points board's `points_people` read is now `accounts_by_ids`.
+  `PublicIdentity.people/1` gives each account's `id`, `display_name`, `ens_name`,
+  `ens_avatar_url` and `wallet_address` by the site's own display rules.
+- `SessionAuthority.current_id/2` and `signed_in/2`, reads only; a sign-in ends 30 days
+  after it was made, as the site's own rule says.
+- `Regents.Alert.report/1`, and `Regents.Limits.admit/2` and `spend/2` over the one list,
+  `config :regents, :limits`, empty for now. The site's existing budgets
+  (`session_bootstrap_rate_limit`, `chain_read_rate_limit`, `message_rate_limit`,
+  `message_address_rate_limit`, `updates_rate_limit`) are not moved into it yet.
+- An address the site does not serve, asked for in JSON (every address under `/api`),
+  answers 404 `operation_unknown` instead of `not_found`, with the same hint naming the
+  docs and openapi.json. A missing record keeps its own code, and the forwarded
+  addresses under `/api/agents/v1/` and `/api/v1/profile/` keep the shared libraries'
+  answers. The Errors docs page says so, and the OpenAPI JSON specification is now
+  version 8.0.0.

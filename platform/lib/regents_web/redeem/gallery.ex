@@ -10,6 +10,7 @@ defmodule RegentsWeb.Redeem.Gallery do
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [start_async: 3]
 
+  alias Regents.Account.Actors.Human
   alias Regents.OpenSea
   alias RegentsWeb.Account.Identity
   alias RegentsWeb.Redeem.OpenSeaBudget
@@ -53,7 +54,7 @@ defmodule RegentsWeb.Redeem.Gallery do
         assign(socket, gallery_owned: %{status: :unavailable, ids: []})
 
       :ok ->
-        wallets = Identity.account_wallets(account)
+        wallets = Human.for_account(account).wallet_addresses
 
         socket
         |> assign(gallery_owned: %{status: :loading, ids: []})

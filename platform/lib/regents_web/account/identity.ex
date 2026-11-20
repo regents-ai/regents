@@ -15,15 +15,8 @@ defmodule RegentsWeb.Account.Identity do
   def human_actor(%{assigns: %{access_context: access_context}}) do
     case current_account(access_context) do
       nil -> nil
-      account -> %Human{human_account_id: account.id, wallet_addresses: account_wallets(account)}
+      account -> Human.for_account(account)
     end
-  end
-
-  def account_wallets(account) do
-    [account.wallet_address | List.wrap(account.wallet_addresses)]
-    |> Enum.filter(&is_binary/1)
-    |> Enum.map(&String.downcase/1)
-    |> Enum.uniq()
   end
 
   @doc """

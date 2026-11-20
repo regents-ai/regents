@@ -362,7 +362,7 @@ defmodule RegentsWeb.Stake.Staking do
         socket
 
       account ->
-        actor = %Human{human_account_id: account.id}
+        actor = Human.for_account(account)
         start_wallet_read(socket, fn -> Stake.account(actor: actor) end)
     end
   end

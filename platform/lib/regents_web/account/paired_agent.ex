@@ -1,9 +1,9 @@
 defmodule RegentsWeb.Account.PairedAgent do
-  @moduledoc "Verify SIWA once, resolve the current pairing and local beneficiary, and check the pairing again before the answer is sent."
+  @moduledoc "Verify SIWA once, admit only an agent paired with a person who has an account here, and check the pairing again before the answer is sent."
   @behaviour Plug
   import Plug.Conn
   alias RegentAgents.{Authority, Broker}
-  alias Regents.Account.Actors.{Agent, System}
+  alias Regents.Account.Actors.{Agent, Human}
 
   @not_paired_message "This agent has no current pairing."
   @not_paired_hint "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again. Help: https://patchbay.help/errors/agent_not_paired"
@@ -21,8 +21,8 @@ defmodule RegentsWeb.Account.PairedAgent do
       )
 
     case conn.assigns do
-      %{regent_agent: %RegentAgents.Agent{wallet: wallet}} ->
-        resolve(conn, wallet)
+      %{regent_agent: %RegentAgents.Agent{} = verified} ->
+        resolve(conn, verified)
 
       %{regent_agent_refusal: refusal} ->
         refuse_proof(conn, refusal)
@@ -38,20 +38,17 @@ defmodule RegentsWeb.Account.PairedAgent do
     end
   end
 
-  defp resolve(conn, wallet) do
-    with {:ok, pairing} <- Authority.resolve(Regents.Repo, wallet),
-         {:ok, account} when not is_nil(account) <-
-           Regents.Account.Accounts.get_by_privy_did(pairing.privy_user_id, actor: %System{}) do
-      actor = Agent.paired(wallet, pairing, account)
+  defp resolve(conn, verified) do
+    case conn |> agent(verified) |> Agent.with_pairing() do
+      {:ok, %Agent{pairing: %Human{}} = actor} ->
+        conn
+        |> assign(:actor, actor)
+        |> register_before_send(&recheck(&1, actor))
 
-      conn
-      |> assign(:actor, actor)
-      |> register_before_send(&recheck(&1, actor))
-    else
-      {:error, :not_paired} ->
+      {:ok, %Agent{pairing: :none}} ->
         refuse(conn, 403, "agent_not_paired", @not_paired_message, @not_paired_hint)
 
-      {:ok, nil} ->
+      {:ok, %Agent{pairing: :person_not_here}} ->
         refuse(
           conn,
           403,
@@ -69,6 +66,29 @@ defmodule RegentsWeb.Account.PairedAgent do
           "Try again in a moment with fresh proof."
         )
     end
+  end
+
+  # The agent the verified request names: its wallet and what the SIWA service
+  # said of it, this site's audience, which the request was verified for, and
+  # its credential named by the receipt and key id, each sent exactly once (the
+  # SIWA plug refuses a repeat and the SIWA service a request missing either).
+  # The SIWA answer as the shared hook keeps it carries neither the chain, the
+  # verification method nor the receipt's end, so those are nil.
+  defp agent(conn, %RegentAgents.Agent{} = verified) do
+    [receipt] = get_req_header(conn, Siwa.Contract.header_for("receipt"))
+    [key_id] = get_req_header(conn, Siwa.Contract.header_for("key_id"))
+
+    %Agent{
+      wallet_address: verified.wallet,
+      chain_id: nil,
+      verification_method: nil,
+      audience: Broker.audience(),
+      credential_ref:
+        "sha256:" <> Base.encode16(:crypto.hash(:sha256, [receipt, "\n", key_id]), case: :lower),
+      registry_url: verified.registry_listing,
+      human_id: verified.human_id,
+      same_person_agent_count: verified.same_person_agent_count
+    }
   end
 
   # The read ran after the pairing was resolved. Before anything is sent, the

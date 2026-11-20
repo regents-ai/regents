@@ -44,8 +44,8 @@ defmodule RegentsWeb.Account.PersonOrAgent do
       |> PrivySessionController.enforce_authority()
 
     case conn.assigns.current_human_account do
-      %{id: id} -> assign(conn, :actor, %Human{human_account_id: id})
       nil -> assign(conn, :actor, nil)
+      account -> assign(conn, :actor, Human.for_account(account))
     end
   end
 end
