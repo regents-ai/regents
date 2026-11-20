@@ -7388,3 +7388,24 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied. Not tried: a signed-in press of Connect on Farcaster.
 - Rollback: the image main-af4b134cad01.
 - Correction to the entry above: Fly numbers the X-account release (af4b134c) v350; v349 is its failed first attempt, which changed nothing.
+
+## 2026-11-19 — Techtree's pages that need no database, under /techtree
+
+- First slice of folding Techtree (regents-ai/techtree c6dba424) into this site, on
+  branch one-site. Not released.
+- New pages: /techtree, /techtree/services/skills, evals, environments, models,
+  security and swarm-verify, /techtree/services/security/sample-report,
+  /techtree/formal, /techtree/changelog and /techtree/train/:slug. Their copy is
+  Techtree's, word for word, without the parts that need accounts, tables or
+  Techtree's other pages (the enquiry form, Results and Docs links, the star count,
+  the Install action and the report download).
+- /techtree was the shell's product page; it is now Techtree's home page.
+- Techtree's stylesheets apply only on pages whose `<html data-brand>` is
+  `techtree`; every other page sets `platform`. platform/assets/css/techtree/,
+  platform/assets/js/techtree/, platform/lib/regents/techtree/,
+  platform/lib/regents_web/techtree/, platform/priv/techtree/. What was taken is
+  listed in platform/lib/regents/techtree/SOURCE.json.
+- Book Call reads `TECHTREE_BOOK_CALL_URL`; unset, the button is left out.
+- No migration, resource, Ash domain or Oban change; sign-in, session and wallet code
+  unchanged; the compile-connected gate stays at 43. "Adding a product" in
+  platform/AGENTS.md now covers a product with its own look.

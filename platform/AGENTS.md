@@ -33,6 +33,26 @@ again from it and moving that commit.
 - Add the core to `RegentsWeb`'s `deps` in `lib/regents_web.ex` so the shell can mount it.
 - Use your own core only; the compiler does not stop a call into another product's core.
 
+### A product with its own look (Techtree)
+
+A product that keeps its own pages and look, rather than living in the shell, follows
+Techtree (`lib/regents_web/techtree/`):
+
+- One `scope "/<product>"` in the router with its own `live_session`, layout and
+  `on_mount`, and a pipeline that sets `put_brand`. Every other pipeline sets
+  `"platform"`. The root layout writes the brand to `<html data-brand>`, and the
+  regents.sh footer shows only on `"platform"` pages.
+- Stylesheets in `assets/css/<product>/`, each file wrapped in
+  `@scope (:root[data-brand="<product>"]) { ... }` and imported once from `app.css`.
+  Inside the scope a selector is read as a descendant of `<html>`, so a rule for the
+  page itself is written `:scope` (not `html` or `:root`), or it never applies.
+- Hooks in `assets/js/<product>/`, merged into the one `app.ts`. Keep a product's
+  lazy imports lazy.
+- Static files in `priv/static/images/<product>/`, other files in `priv/<product>/`,
+  read with `Application.app_dir(:regents, ...)`. regents.sh's favicon serves every page.
+- Record what was taken from the product's own repository, at which commit, in
+  `lib/regents/<product>/SOURCE.json`.
+
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->
 ## usage_rules usage
