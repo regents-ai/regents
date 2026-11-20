@@ -7594,3 +7594,30 @@ seasons), on the shared Points library regents.sh was already on.
   blog), and the enquiry form (it needs Techtree's team inbox).
 - No migration, queue, scheduled job, secret, signer or wallet code changed.
   regents.sh's own pages, header, footer and titles are unchanged.
+
+## 2026-11-20 — one-site branch: Keyfleet's frame, reading pages and agent guides (not released)
+
+- Keyfleet's reading pages are on this site under `/keyfleet`: About, Docs,
+  Changelog, Opportunities, Agents with each agent's page and Agent compatibility,
+  Privacy and Terms. Each is word for word as keyfleet.ai shows it at `03eb26813`,
+  with Keyfleet's own header, sidebar, footer and look, and answers as Markdown when
+  asked with `Accept: text/markdown`.
+- Keyfleet's agent guides are served beside them: `/keyfleet/skill.md` and its three
+  parts, each agent's `/keyfleet/agents/:agent/skill.md`, `/keyfleet/llms.txt`,
+  `/keyfleet/agents.md`, `/keyfleet/help` and the git helper at
+  `/keyfleet/agent/git-remote-siwa`.
+- In the carried words only addresses changed: Keyfleet's pages and guides gain
+  `/keyfleet`, its API addresses gain `/api/v1/keyfleet/`, a person pairs an agent on
+  `/account/agents`, and the sign-in audience reads `regents`. The Docs' Bring your
+  agent link still names `/pair?to=PAGE` until this site's pairing page can take a
+  destination.
+- Keyfleet's header has this site's theme switch and Sign in. Signed in, it shows the
+  person's picture, name and Sign out; keyfleet.ai's account menu is not here yet.
+- Left out for now: Keyfleet's home (`/keyfleet` is still regents.sh's page), the
+  fleet pages, the sidebar's fleet entries and the moving sea behind each page (they
+  read fleets), Buy Key, and the Agents page's Agent Message window.
+- Three plain settings name the addresses the guides give agents: the sign-in service
+  (`https://siwa.regents.sh`), the fleets' code (`https://code.keyfleet.ai`) and their
+  notebooks (`notebooks.keyfleet.ai`). No migration, queue, scheduled job, secret,
+  signer or wallet code changed. regents.sh's and Techtree's pages and regents.sh's
+  documents answer as before; `/api/v1/health` also lists Keyfleet.

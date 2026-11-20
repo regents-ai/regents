@@ -68,6 +68,46 @@ Techtree (`lib/regents_web/techtree/`):
 - Record what was taken from the product's own repository, at which commit, in
   `lib/regents/<product>/SOURCE.json`.
 
+### A product with its own frame (Keyfleet)
+
+Keyfleet's pages share one frame (`RegentsWeb.Keyfleet.Components.Shell`), drawn by one
+LiveView that patches between them (`RegentsWeb.Keyfleet.ShellLive`, each page named by
+its live action in `RegentsWeb.Keyfleet.RouteCatalog`):
+
+- The frame keeps its own element names, which are also regents.sh's frame's
+  (`#app-shell`, `#shell-header`, `.shell-brand`, the header links and the crown menu).
+  regents.sh's rules for those names sit under `:where([data-brand="platform"])` in
+  `components/shell.css`, `tokens/root.css`, `pages/home.css` and `app.css`: no added
+  weight, same order, and they stay off a product's frame. The sign-in control's rules
+  (`.account-control`, `.account-chip`, `.account-name`, `.account-avatar`) stay shared,
+  as every product header uses the site's control.
+- A product header uses the site's theme switch (`Shell.theme_toggle`, with a `class`
+  for its place) and sign-in control (`Shell.account_control menu={false}`).
+- A product whose own site wears another brand's Regent UI palette (keyfleet.ai wears
+  `platform`) copies those blocks into `assets/css/<product>/tokens/palette.css`, read
+  as `:scope[data-brand]` at the same weight. The file goes when Regent UI has the
+  product's palette.
+- The frame's hook is the product's (`KeyfleetShell`), composed with the site's
+  `ShellViews`. It never sets the page's brand; the scope does.
+
+### A product's carried documents
+
+Guides and pages carried from a product's own site keep every word but their addresses
+(each change is listed in its `SOURCE.json`):
+
+- A product page or guide gains the product's address: `{{origin}}/docs` becomes
+  `{{origin}}/keyfleet/docs`, `/skill.md` becomes `/keyfleet/skill.md`.
+- An API address under `/api/v1/` gains the product: `/api/v1/agent/rooms` becomes
+  `/api/v1/keyfleet/agent/rooms`.
+- `/mcp`, `/oauth…`, `/api/agents/v1/…` and `/account…` stay as they are: they are
+  regents.sh's. A person pairs an agent on `/account/agents`, so `/pair` becomes that.
+- The product's own hosts stay (`https://code.keyfleet.ai`, a fleet's notebooks host,
+  `https://keyfleet.ai/metadata/…`), the sign-in audience is `regents`, and the
+  product's name stays.
+- An address a guide fills in when served reads a plain setting,
+  `config :regents, :<product>_<name>` (Keyfleet's sign-in, code and notebook
+  addresses), never a secret.
+
 ### A product's tables
 
 A folded product's tables stay in its own schema of the one database (Techtree's is
