@@ -89,6 +89,19 @@
   text-wrap: balance;
 }
 
+.cloak-hero__first,
+.cloak-hero__second {
+  display: block;
+}
+
+/* The heading's second sentence: the same face, a little under half the size. */
+.cloak-hero__second {
+  margin-block-start: 0.35em;
+  font-size: 0.42em;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
 .cloak-hero__subtitle {
   max-width: 35em;
   margin: var(--space-4) 0 0;

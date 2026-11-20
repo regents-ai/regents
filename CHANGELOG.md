@@ -7973,6 +7973,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Rollback: the image main-f4ab3aeaf4e2.
 
 
+
 ## 2026-11-20 — One site: the address library Patchbay's pages need (not released)
 
 - `domainatrex` 3.2.0 is added, the version patchbay.help runs, set never to fetch its list at build time. It works out which main address a site belongs to. Nothing in the site uses it yet.
@@ -7985,3 +7986,16 @@ seasons), on the shared Points library regents.sh was already on.
 - The bar carries Questions and Ask; on a phone they open from Menu under the bar. The overview's words still feed the products list agents read.
 - Links to a question's page, a site's page, the sites list, an agent's profile and the incidents point at their future addresses and answer "not found" until those pages come.
 - Not released: on the `one-site` branch only. No migration, secret, sign-in or wallet change.
+
+## 2026-11-20 — Cloak page: the founder's new tagline, and the film's new last line
+
+- The heading now reads "Cloak your local AI." with "Always private, full anon is optional." as its second, smaller line: the founder's words, as typed. The Markdown form of the page carries the same words.
+- The intro film is replaced by the re-made one at the same address: only the line on its end card changed, to the same tagline.
+- No table, setting or migration.
+
+## 2026-11-20 — Released the Cloak tagline and film
+
+- Commit e506d67c, on the founder's words in the Cloak thread. Full check exit 0 on e506d67c; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new heading, the new film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-f75574cad013.
+
