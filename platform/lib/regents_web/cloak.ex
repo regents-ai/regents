@@ -37,7 +37,8 @@ defmodule RegentsWeb.Cloak do
        href: "https://x.com/VitalikButerin/status/2111046730959433793",
        after: " about his preferred AI usage."
      }, "Tor routing, cover traffic, prompt rewording, and zkAPI inference"},
-    {"NEAR Private AI", nil, "Proof of NEAR's servers is checked before anything is sent."},
+    {"NEAR Private AI", nil,
+     "Verifiably private AI models. See where your tokens go, and opt-in to earn NEAR AI Cloud inference credits for the traces you choose to share."},
     {"Local Llama", nil,
      "Answered fully on your Mac with recommended best-in-class local models. Zero traffic is sent over the web."}
   ]
