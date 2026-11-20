@@ -12,8 +12,8 @@ defmodule Regents.Account.Points.PairedAgent do
   alias Regents.Account.Accounts
   alias Regents.Account.Actors.System
 
-  # How many people's accounts one read takes.
-  @page 500
+  # How many people's accounts one read takes: the most `accounts_by_privy_dids` takes.
+  @page 100
 
   def verify(%{"source_event_key" => id}) do
     case RegentAgents.pairing_history(id) do

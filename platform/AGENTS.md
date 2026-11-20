@@ -86,6 +86,8 @@ again from it and moving that commit.
   wallets a read; `PublicIdentity.people/1` for a product that only shows people;
   `SessionAuthority.current_id/2` and `signed_in/2` for a sign-in kept by its id (they
   do not check the generation number).
+  `PublicIdentity.people_by_privy_ids/1`: `people/1` for up to 100 Privy ids, by Privy id.
+  `Human.privy_id/1`: a signed-in person's Privy id; a product calls it, never a field.
 - `Regents.Alert.report/1` saves what a person must act on with the site's errors, and
   `Regents.Limits.admit/2` and `spend/2` spend a named allowance from the one list,
   `config :regents, :limits`, named `<product>_<name>`: the prefix is required, as the

@@ -40,7 +40,12 @@ defmodule Regents.Account.Accounts.HumanAccount do
     end
 
     read :by_privy_dids do
-      argument :privy_dids, {:array, :string}, allow_nil?: false
+      description """
+      The accounts signed in with any of these Privy ids. At most 100 ids may be
+      asked for in one read; an id with no account here answers nothing.
+      """
+
+      argument :privy_dids, {:array, :string}, allow_nil?: false, constraints: [max_length: 100]
       filter expr(privy_user_id in ^arg(:privy_dids))
     end
 

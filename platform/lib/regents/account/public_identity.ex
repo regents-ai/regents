@@ -13,6 +13,9 @@ defmodule Regents.Account.PublicIdentity do
 
   @wallet ~r/\A0x[0-9a-fA-F]{40}\z/
 
+  # What an account shows of itself besides its wallet.
+  @shown [:display_name, :ens_name, :ens_avatar_url]
+
   @doc """
   How each of these accounts (up to 100 ids) shows to other people, for a
   product that only shows people: `{:ok, [%{id, display_name, ens_name,
@@ -22,12 +25,21 @@ defmodule Regents.Account.PublicIdentity do
   """
   @spec people([integer()]) :: {:ok, [map()]} | {:error, term()}
   def people(ids) do
-    with {:ok, accounts} <-
-           Accounts.accounts_by_ids(ids,
-             actor: %System{},
-             load: [:display_name, :ens_name, :ens_avatar_url]
-           ) do
+    with {:ok, accounts} <- Accounts.accounts_by_ids(ids, actor: %System{}, load: @shown) do
       {:ok, Enum.map(accounts, &person/1)}
+    end
+  end
+
+  @doc """
+  `people/1` for these Privy ids (up to 100), keyed by Privy id: `{:ok,
+  %{privy_id => person}}`, each person the same five fields by the same rules.
+  A Privy id with no account here is absent from the answer.
+  """
+  @spec people_by_privy_ids([String.t()]) :: {:ok, %{String.t() => map()}} | {:error, term()}
+  def people_by_privy_ids(privy_ids) do
+    with {:ok, accounts} <-
+           Accounts.accounts_by_privy_dids(privy_ids, actor: %System{}, load: @shown) do
+      {:ok, Map.new(accounts, &{&1.privy_user_id, person(&1)})}
     end
   end
 
