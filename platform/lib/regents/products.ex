@@ -19,7 +19,8 @@ defmodule Regents.Products do
       Regents.Cloak,
       Regents.Techtree,
       Regents.Keyfleet,
-      Regents.Autolaunch
+      Regents.Autolaunch,
+      Regents.Patchbay
     ],
     exports: []
 
@@ -37,7 +38,8 @@ defmodule Regents.Products do
       %{name: "cloak", health: [&Regents.Cloak.health/0], schema: nil},
       %{name: "techtree", health: [&Regents.Techtree.health/0], schema: "techtree_app"},
       %{name: "keyfleet", health: [&Regents.Keyfleet.health/0], schema: nil},
-      %{name: "autolaunch", health: [&Regents.Autolaunch.health/0], schema: nil}
+      %{name: "autolaunch", health: [&Regents.Autolaunch.health/0], schema: nil},
+      %{name: "patchbay", health: [&Regents.Patchbay.health/0], schema: nil}
     ]
   end
 

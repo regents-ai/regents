@@ -1,0 +1,627 @@
+@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+/* patchbay.help's own rules from its app.css that these pages use: the page, the
+   sheet under the site's bar, each page's heading row, the written pages, the
+   setup pages and the footer. Its masthead is the site's bar. */
+
+/* The page: patchbay.help's html and body, set on the scope's root and on the
+   sheet, so the site's bar keeps the type it has on every page. The sheet is the
+   container the page's own rules measure (`pb-page`). */
+:scope {
+  background: var(--color-bg);
+}
+.pb-frame {
+  color: var(--pb-text);
+  font-family: var(--font-family-ui);
+  font-size: 1.125rem;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  container: pb-page / inline-size;
+}
+
+/* The skip link, the only part of the page outside the sheet, keeps patchbay.help's
+   ring at the weight of the site's own link ring (app.css), which it meets unscoped.
+   Inside the sheet, Regent UI's sheet ring serves both sites. */
+.pb-skip-link:focus-visible {
+  outline: 3px solid var(--pb-accent-deep);
+  outline-offset: 2px;
+}
+.pb-skip-link {
+  position: fixed;
+  top: var(--space-1);
+  left: var(--space-1);
+  z-index: var(--rg-layer-skip);
+  transform: translateY(calc(-100% - var(--space-2)));
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  color: var(--pb-ink);
+  background: var(--pb-text);
+  font: var(--pb-fs-xs)/1.2 var(--font-family-ui);
+  text-decoration: none;
+}
+.pb-skip-link:focus {
+  transform: none;
+}
+#pb-content:focus {
+  outline: none;
+}
+
+/* Each page's heading row (`RegentsWeb.Patchbay.Chrome.board_header/1`). */
+.patchbay-shell {
+  color: var(--pb-text);
+  background: transparent;
+  padding: var(--rg-panel-padding);
+  font-family: var(--font-family-ui);
+}
+.patchbay-topbar {
+  width: 100%;
+  margin-inline: auto;
+}
+.patchbay-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--pb-line);
+  padding-block: var(--space-1) var(--space-2);
+}
+.patchbay-brand, .patchbay-topbar-meta {
+  display: flex;
+  align-items: center;
+}
+.patchbay-brand {
+  gap: var(--space-2);
+}
+.patchbay-brand h1 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: var(--pb-fs-lg);
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: -.025em;
+}
+.patchbay-mark {
+  display: block;
+  flex-shrink: 0;
+  width: 1.45rem;
+  height: 1.45rem;
+  background: #0c0c0c;
+  color: #e4e3d1;
+}
+.patchbay-mark img, .patchbay-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.patchbay-topbar-meta {
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.patchbay-guide-links {
+  margin: var(--space-1) 0 0;
+  font-size: var(--pb-fs-xs);
+}
+.patchbay-guide-links a {
+  color: var(--pb-accent-deep);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--pb-accent-deep) 40%, transparent);
+}
+.patchbay-guide-links a:hover {
+  border-bottom-color: var(--pb-accent-deep);
+}
+@container pb-page (max-width: 760px) {
+  .patchbay-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .patchbay-topbar-meta {
+    width: 100%;
+  }
+}
+.patchbay-board .patchbay-topbar {
+  width: 100%;
+  margin-inline: auto;
+}
+.pb-back {
+  margin: 0 0 var(--space-1);
+  color: var(--pb-text-muted);
+  font-size: var(--pb-fs-xs);
+}
+.pb-back a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (pointer: coarse), (hover: none) {
+  .pb-back a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+.patchbay-board h3 a {
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+.patchbay-board h3 a:hover {
+  text-decoration: underline;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+.patchbay-board-facts {
+  color: var(--pb-text-muted);
+  font-family: var(--font-family-ui);
+  font-size: var(--pb-fs-xs);
+}
+a.patchbay-board-facts {
+  text-decoration: none;
+}
+a.patchbay-board-facts:hover {
+  text-decoration: underline;
+}
+.patchbay-room-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--pb-text);
+  font-size: var(--pb-fs-xs);
+  text-decoration: underline;
+  text-decoration-color: var(--pb-line-strong);
+  text-underline-offset: .3em;
+}
+.patchbay-room-link:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Written words: About, Terms, the agent guide and the agents list. */
+.pb-markdown {
+  white-space: normal;
+}
+.pb-markdown p, .pb-markdown ul, .pb-markdown ol, .pb-markdown pre, .pb-markdown blockquote, .pb-markdown table {
+  margin-block: var(--space-1);
+}
+.pb-markdown > :first-child {
+  margin-top: 0;
+}
+.pb-markdown > :last-child {
+  margin-bottom: 0;
+}
+.pb-markdown ul, .pb-markdown ol {
+  padding-inline-start: var(--space-3);
+}
+.pb-markdown ul {
+  list-style-type: disc;
+}
+.pb-markdown ol {
+  list-style-type: decimal;
+}
+.pb-markdown li + li {
+  margin-top: var(--space-1);
+}
+.pb-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.pb-markdown code {
+  font-family: var(--font-family-mono);
+}
+.pb-markdown blockquote {
+  border-left: 2px solid var(--pb-line-strong);
+  padding-left: var(--space-2);
+  color: var(--pb-text-muted);
+}
+.pb-markdown img {
+  max-width: 100%;
+  height: auto;
+}
+.pb-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+@media (pointer: coarse) {
+  .patchbay-room-link, .pb-skip-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+.patchbay-board {
+  color: var(--pb-text);
+  background: transparent;
+}
+.patchbay-board .patchbay-topbar, .patchbay-board .pb-lede, .pb-board-head, .pb-setup-page {
+  width: 100%;
+  margin-inline: auto;
+}
+.patchbay-board .patchbay-topbar {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--pb-line);
+  padding: 0 0 var(--space-3);
+  color: var(--pb-text);
+  background: transparent;
+}
+.patchbay-board .patchbay-topbar h1 {
+  font-size: clamp(1.15rem, 2.3vw, 1.62rem);
+  letter-spacing: -.035em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+.patchbay-board .patchbay-mark {
+  background: #0c0c0c;
+}
+.patchbay-board .patchbay-topbar-meta {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.patchbay-board .patchbay-room-link {
+  color: var(--pb-text);
+  text-decoration-color: var(--pb-line-strong);
+}
+.patchbay-board h3 a:hover {
+  color: var(--pb-accent-deep);
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+.patchbay-board .pb-lede {
+  margin: var(--space-2) auto var(--space-1);
+  padding-right: min(16rem, 26%);
+  color: var(--pb-text-muted);
+  font-size: .875rem;
+  line-height: 1.62;
+  text-wrap: pretty;
+}
+@container pb-page (max-width: 760px) {
+  .patchbay-board .patchbay-topbar-meta {
+    justify-content: flex-start;
+  }
+}
+
+/* The setup pages: help, payments, WebMCP, developers, About, Terms, Privacy,
+   agents. */
+.pb-setup-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--pb-text);
+  font-size: var(--pb-fs-xs);
+  line-height: 1.45;
+}
+.pb-setup-dot {
+  flex: 0 0 auto;
+  width: .55rem;
+  height: .55rem;
+  margin-top: .28rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--pb-line-strong);
+  background: transparent;
+}
+.pb-setup-dot.is-full {
+  border-color: var(--pb-good);
+  background: var(--pb-good);
+}
+/* The WebMCP guide's first line: whether this browser has WebMCP. */
+.pb-webmcp-status {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0;
+  padding: var(--space-2);
+  border: 1px solid var(--pb-line);
+  background: var(--pb-surface);
+}
+.pb-webmcp-status p {
+  margin: 0;
+  color: var(--pb-text-muted);
+  font-size: var(--pb-fs-xs);
+  line-height: 1.5;
+}
+.pb-webmcp-status .rg-disclosure {
+  border: 0;
+}
+.pb-webmcp-status .rg-disclosure > summary {
+  min-height: 2.75rem;
+  padding-block: 0;
+  font-size: var(--pb-fs-xs);
+}
+.pb-webmcp-status .rg-disclosure-body {
+  padding-block: 0;
+}
+.pb-webmcp-status .rg-disclosure-body p + p {
+  margin-top: var(--space-1);
+}
+.pb-setup-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+.pb-setup-page section {
+  scroll-margin-top: var(--pb-header-height);
+}
+.pb-setup-page h2 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--pb-fs-md);
+  letter-spacing: -.02em;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+.pb-setup-page h3 {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--pb-fs-sm);
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+#patchbay-about .pb-markdown > h2 {
+  margin-top: var(--space-3);
+}
+#patchbay-about .pb-markdown th:first-child {
+  width: 7.5rem;
+}
+.pb-setup-page p, .pb-setup-page li {
+  margin: 0;
+  color: var(--pb-text);
+  font-size: var(--pb-fs-xs);
+  line-height: 1.55;
+}
+.pb-setup-page ol, .pb-setup-page ul {
+  margin: 0;
+  padding-left: var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+}
+.pb-setup-page .pb-help-links {
+  padding-left: 0;
+  list-style: none;
+}
+.pb-help-links a {
+  display: inline-block;
+  min-height: 24px;
+  padding-block: 3px;
+}
+@media (pointer: coarse), (hover: none) {
+  .pb-help-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding-block: 0;
+  }
+}
+.pb-help-trouble + .pb-help-trouble::before {
+  content: "· ";
+  color: var(--pb-text-muted);
+}
+.pb-setup-page pre {
+  margin: var(--space-1) 0 0;
+  padding: var(--rg-panel-padding);
+  overflow: auto;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--pb-text) 6%, transparent);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.pb-setup-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--pb-fs-xs);
+}
+.pb-setup-page th, .pb-setup-page td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-1) var(--space-1) var(--space-1) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--pb-text) 12%, transparent);
+}
+#pb-content {
+  position: relative;
+  isolation: isolate;
+}
+.pb-dir-lede {
+  width: 100%;
+  max-width: 48rem;
+  margin: var(--space-1) 0 var(--space-3);
+  color: var(--pb-text-muted);
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.pb-setup-payment-note {
+  margin-bottom: var(--space-2);
+  font-size: var(--pb-fs-xs);
+}
+.pb-setup-page, .pb-setup-page .rg-disclosure, .pb-setup-page .rg-disclosure-body {
+  min-width: 0;
+}
+.pb-setup-page pre {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pb-setup-page table {
+  table-layout: fixed;
+}
+.pb-setup-page td, .pb-setup-page th, .pb-setup-page p, .pb-setup-page li {
+  overflow-wrap: anywhere;
+}
+.pb-setup-page section > * + * {
+  margin-top: var(--space-1);
+}
+@media (max-width: 47.99rem) {
+  .pb-setup-page .pb-card-table, .pb-setup-page .pb-card-table tbody {
+    display: block;
+  }
+  .pb-setup-page .pb-card-table thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .pb-setup-page .pb-card-table tr {
+    display: grid;
+    gap: var(--space-1);
+    padding-block: var(--space-2);
+    border-bottom: 1px solid color-mix(in srgb, var(--pb-text) 12%, transparent);
+  }
+  .pb-setup-page .pb-card-table td {
+    display: block;
+    position: relative;
+    padding: 0;
+    padding-inline-start: calc(6rem + var(--space-2));
+    border: 0;
+  }
+  .pb-setup-page .pb-card-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    inset-inline-start: 0;
+    inline-size: 6rem;
+    color: var(--pb-text-muted);
+  }
+}
+.pb-guide h2 {
+  margin-top: var(--space-3);
+}
+.pb-guide h2, .pb-guide h3 {
+  scroll-margin-top: var(--pb-header-height);
+}
+.pb-guide ol {
+  list-style: decimal;
+}
+.pb-guide ul {
+  list-style: disc;
+}
+.pb-guide li + li {
+  margin-top: var(--space-1);
+}
+.pb-guide blockquote {
+  margin: 0;
+  padding: var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+  border-left: 2px solid var(--pb-text);
+  background: color-mix(in srgb, var(--pb-text) 6%, transparent);
+}
+#patchbay-agent-setup a:focus-visible, #patchbay-agent-setup textarea:focus-visible {
+  outline: 2px solid var(--pb-accent-deep);
+  outline-offset: 3px;
+}
+#patchbay-agent-setup .pb-setup-payment-note {
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* The footer (`RegentsWeb.Patchbay.Layouts.product_links/1`). */
+.regent-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--rg-panel-padding);
+  font-size: 0.8125rem;
+}
+.regent-footer p {
+  margin: 0;
+}
+.regent-footer__social {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.regent-footer__social > a, .regent-footer__social > a svg {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+@media (pointer: coarse), (hover: none) {
+  .regent-footer__social {
+    gap: 0;
+    margin-inline-start: -10px;
+  }
+  .regent-footer__social > a {
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+.regent-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+}
+.regent-footer__links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: inherit;
+}
+.regent-footer__links .regent-footer__guide {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.regent-footer__legal {
+  display: flex;
+  column-gap: var(--space-3);
+}
+@container pb-page (min-width: 48rem) {
+  .regent-footer__legal {
+    padding-inline-start: var(--space-3);
+    border-inline-start: 1px solid var(--hairline);
+  }
+}
+@container pb-page (max-width: 47.99rem) {
+  .regent-footer__legal {
+    flex-basis: 100%;
+  }
+}
+.regent-footer__guide-body p {
+  margin: 0;
+  color: var(--rg-p-muted);
+}
+.regent-footer__guide-body a {
+  min-height: 2.75rem;
+}
+.regent-footer__guide-body:popover-open {
+  display: grid;
+}
+
+/* The sheet: one continuous product sheet under the site's bar, at least the rest
+   of the screen tall, so the footer sits at the foot of a short page. The bar's
+   bottom line is the sheet's top line. */
+.pb-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--pb-top-end));
+  border-block-start: 0;
+}
+.pb-frame > .pb-content-row {
+  flex: 1;
+}
+.pb-sheet-section {
+  min-width: 0;
+  padding-block: var(--rg-panel-padding);
+  border-bottom: 1px solid var(--pb-line);
+}
+.pb-sheet-section > :last-child {
+  margin-bottom: 0;
+}
+}

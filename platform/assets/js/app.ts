@@ -62,6 +62,10 @@ import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
 // Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
 import {installShellMenu} from "./autolaunch/shell_menu"
+// Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, and the
+// WebMCP guide's status line. Their copy buttons and motion are the site's own above.
+import {installEscape} from "./patchbay/escape"
+import {mountWebMCPStatus} from "./patchbay/webmcp_status"
 
 // First, so an error anywhere below is reported too.
 installVisitLog()
@@ -338,6 +342,8 @@ installAgentTools()
 installLiteratureChart()
 installShellPanels()
 installShellMenu()
+installEscape()
+mountWebMCPStatus()
 mountMotion(document)
 mountEntrance(document)
 window.liveSocket = liveSocket

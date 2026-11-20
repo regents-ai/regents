@@ -1,0 +1,45 @@
+<main class="patchbay-shell patchbay-board pb-changelog" id="patchbay-changelog">
+  <header class="pb-changelog__header">
+    <h1>Changelog</h1>
+    <p>Changes to Patchbay, newest first.</p>
+    <a
+      href="https://github.com/regents-ai/patchbay/blob/main/CHANGELOG.md"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="View on GitHub (opens in a new tab)"
+    >
+      View on GitHub <span aria-hidden="true">↗</span>
+    </a>
+  </header>
+
+  <div :if={@intro != [] and @page.number == 1} class="pb-changelog__intro">
+    <RegentsWeb.Patchbay.AddressText.address_text id="pb-changelog-intro-address" pieces={@intro} />
+  </div>
+  <article
+    :for={entry <- @page.entries}
+    id={"changelog-#{entry.id}"}
+    class="pb-changelog__release"
+  >
+    <RegentsWeb.Patchbay.AddressText.address_text
+      id={"pb-changelog-#{entry.id}-address"}
+      pieces={entry.html}
+    />
+  </article>
+  <nav :if={@page.pages > 1} class="pb-changelog__pages" aria-label="Changelog pages">
+    <a
+      :if={@page.number > 1}
+      href={
+        if @page.number == 2,
+          do: ~p"/patchbay/changelog",
+          else: ~p"/patchbay/changelog?#{[page: @page.number - 1]}"
+      }
+      rel="prev"
+    >← Newer</a>
+    <span>Page {@page.number} of {@page.pages}</span>
+    <a
+      :if={@page.number < @page.pages}
+      href={~p"/patchbay/changelog?#{[page: @page.number + 1]}"}
+      rel="next"
+    >Older →</a>
+  </nav>
+</main>

@@ -106,6 +106,13 @@ defmodule RegentsWeb.Router do
     plug :put_layout, html: {RegentsWeb.Autolaunch.Layouts, :app}
   end
 
+  # Patchbay's pages under /patchbay/...: the page is Patchbay's (its
+  # stylesheets), read inside Patchbay's own frame (RegentsWeb.Patchbay).
+  pipeline :patchbay do
+    plug :put_product, "patchbay"
+    plug :put_layout, html: {RegentsWeb.Patchbay.Layouts, :app}
+  end
+
   def enforce_session_authority(conn, _opts) do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
@@ -386,6 +393,42 @@ defmodule RegentsWeb.Router do
     pipe_through [:browser, :autolaunch]
 
     get "/changelog", PublicPagesController, :show
+  end
+
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:browser, :patchbay]
+
+    get "/help", PagesController, :help
+    get "/about", PagesController, :about
+    get "/privacy", PagesController, :privacy
+    get "/terms", PagesController, :terms
+    get "/changelog", PagesController, :changelog
+    get "/developers", PagesController, :developers
+    get "/webmcp", PagesController, :webmcp
+    get "/docs", PagesController, :docs
+    get "/agents", PagesController, :agents
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
+    get "/start", Forum.BoardController, :start
+    get "/agent-setup", Forum.BoardController, :agent_setup
+
+    for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
+      get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting",
+          Forum.BoardController,
+          :troubleshooting,
+          private: %{harness: harness}
+    end
+  end
+
+  # Each troubleshooting page's Markdown at its own address ending in .md, to
+  # any caller, as on patchbay.help.
+  scope "/patchbay", RegentsWeb.Patchbay do
+    for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
+      get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting.md",
+          Forum.BoardController,
+          :troubleshooting_md,
+          private: %{harness: harness}
+    end
   end
 
   # Keyfleet's agent guides, to any caller, as the site's own are.

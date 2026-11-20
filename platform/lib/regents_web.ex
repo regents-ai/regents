@@ -25,7 +25,8 @@ defmodule RegentsWeb do
       Regents.Redeem,
       Regents.Techtree,
       Regents.Keyfleet,
-      Regents.Autolaunch
+      Regents.Autolaunch,
+      Regents.Patchbay
     ],
     exports: [
       # The only Account web modules the product pages may use: who the page acts

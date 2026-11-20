@@ -1,0 +1,90 @@
+@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+/* patchbay.help's own main button, links, focus ring and chosen tab: the patchbay
+   palette's, as Regent UI 69dbfface (which patchbay.help at da7b217b wears, with no
+   product named) states them. Regent UI's product colours (`data-product`) draw a
+   main button's corner marks in the words' colour; patchbay.help draws them in the
+   shared marks, so the mark goes back to unset. Scoped, these win over them. The bar
+   keeps the product's line, and its Sign in the shared plate. */
+:scope[data-product][data-theme="light"] {
+  --color-button: #294EC3;
+  --color-fg-on-button: #FFFFFF;
+  --color-link: #294EC3;
+  --color-focus: #294EC3;
+  --color-chosen: #294EC3;
+  --color-fg-on-chosen: #FFFFFF;
+  --color-button-mark: initial;
+}
+
+:scope[data-product][data-theme="dark"],
+:scope[data-product]:not([data-theme]) {
+  --color-button: #9BB4FF;
+  --color-fg-on-button: #142247;
+  --color-link: #9BB4FF;
+  --color-focus: #9BB4FF;
+  --color-chosen: #9BB4FF;
+  --color-fg-on-chosen: #142247;
+  --color-button-mark: initial;
+}
+
+@media (prefers-color-scheme: light) {
+  :scope[data-product]:not([data-theme]) {
+    --color-button: #294EC3;
+    --color-fg-on-button: #FFFFFF;
+    --color-link: #294EC3;
+    --color-focus: #294EC3;
+    --color-chosen: #294EC3;
+    --color-fg-on-chosen: #FFFFFF;
+  }
+}
+
+/* Patchbay's own names for the palette's roles, its type steps and its page widths,
+   as patchbay.help's app.css sets them on its page. */
+:scope {
+  --pb-ink: var(--color-surface);
+  --pb-ink-soft: var(--color-surface);
+  --pb-canvas: var(--color-bg);
+  --pb-canvas-deep: var(--color-bg);
+  --pb-surface: var(--color-surface);
+  --pb-surface-sunk: var(--color-bg);
+  --pb-line: var(--color-border);
+  --pb-line-strong: color-mix(in srgb, var(--color-fg) 35%, var(--color-border));
+  /* Patchbay's light page colour, for logos that need a light ground in either theme. */
+  --pb-porcelain: #F6F7FA;
+  --pb-accent: var(--color-accent);
+  --pb-accent-deep: var(--color-link);
+  --pb-accent-wash: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  --pb-accent-ink: var(--color-fg-on-accent);
+  --pb-good: var(--color-success);
+  --pb-good-wash: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+  --pb-bad: var(--color-error);
+  --pb-bad-wash: color-mix(in srgb, var(--color-error) 12%, var(--color-surface));
+  --pb-agent-edge: var(--color-accent);
+  --pb-human-edge: var(--color-fg-muted);
+  --pb-card: var(--color-surface);
+  --pb-card-line: var(--color-border);
+  --pb-card-sunk: var(--color-surface-elevated);
+  --pb-form: var(--color-surface-elevated);
+  --pb-form-edge: var(--color-border);
+  --pb-field: var(--color-surface);
+  --pb-cut-size: 14px;
+  --pb-cut: polygon(var(--pb-cut-size) 0, 100% 0, 100% calc(100% - var(--pb-cut-size)), calc(100% - var(--pb-cut-size)) 100%, 0 100%, 0 var(--pb-cut-size));
+  --pb-text: var(--color-fg);
+  --pb-text-muted: var(--color-fg-muted);
+  --pb-text-on-ink: var(--color-fg);
+  --pb-text-on-ink-muted: var(--color-fg-muted);
+  --pb-page-width: 76rem;
+  --pb-header-height: 4.5rem;
+  --pb-fs-micro: .66rem;
+  --pb-fs-xs: .8125rem;
+  --pb-fs-sm: .875rem;
+  --pb-fs-md: .96rem;
+  --pb-fs-lg: 1.08rem;
+  --pb-fs-xl: clamp(1.15rem, 2vw, 1.5rem);
+  /* Where the site's bar ends: 4rem, 3.5rem at 48rem and below (Regent.Site.bar). */
+  --pb-top-end: 4rem;
+}
+
+@media (max-width: 48rem) {
+  :scope { --pb-top-end: 3.5rem; }
+}
+}

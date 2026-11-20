@@ -1,0 +1,48 @@
+@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+/* patchbay.help's standard motion that these pages show: a tab that is not the
+   chosen one draws its line in from the left under a mouse, and a copy button's
+   words swap with a short rise. The presses and the headline's rise are the
+   site's own (`assets/js/motion.ts`), which runs on every page. */
+:is(.pb-feed-tabs) a:not([aria-current="page"]) {
+  position: relative;
+}
+:is(.pb-feed-tabs) a:not([aria-current="page"])::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -2px;
+  block-size: 2px;
+  background: var(--pb-line-strong);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 120ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.pb-feed-tabs) a:not([aria-current="page"]):hover::after {
+    transform: none;
+    transition-duration: 200ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.pb-feed-tabs) a::after {
+    transition: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-copy :is(.rg-copy__idle, .rg-copy__copied, .rg-copy__selected, .rg-copy__failed) {
+    transition: opacity 140ms var(--ease-out), transform 160ms var(--ease-out), visibility 140ms;
+  }
+  .rg-copy:not([data-copy-state]) :is(.rg-copy__copied, .rg-copy__selected, .rg-copy__failed),
+  .rg-copy[data-copy-state="copied"] :is(.rg-copy__idle, .rg-copy__selected, .rg-copy__failed),
+  .rg-copy[data-copy-state="selected"] :is(.rg-copy__idle, .rg-copy__copied, .rg-copy__failed),
+  .rg-copy[data-copy-state="failed"] :is(.rg-copy__idle, .rg-copy__copied, .rg-copy__selected) {
+    opacity: 0;
+    transform: translateY(.35em);
+  }
+  .rg-copy--icon:not([data-copy-state]) :is(.rg-copy__copied, .rg-copy__selected, .rg-copy__failed),
+  .rg-copy--icon[data-copy-state="copied"] :is(.rg-copy__idle, .rg-copy__selected, .rg-copy__failed),
+  .rg-copy--icon[data-copy-state="selected"] :is(.rg-copy__idle, .rg-copy__copied, .rg-copy__failed),
+  .rg-copy--icon[data-copy-state="failed"] :is(.rg-copy__idle, .rg-copy__copied, .rg-copy__selected) {
+    transform: scale(.5);
+  }
+}
+}

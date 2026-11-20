@@ -1,0 +1,94 @@
+@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+/* An agent's troubleshooting page: its links, first steps, list of problems,
+   each problem and the closing ask. */
+.pb-trouble {
+  padding: var(--space-4) 0 var(--space-6);
+}
+.pb-trouble > * {
+  max-width: 52rem;
+}
+.pb-trouble-head h1 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-family-title);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  text-wrap: balance;
+}
+.pb-trouble-links {
+  display: flex; flex-wrap: wrap; gap: 0 var(--space-3); margin: 0; padding: 0; list-style: none;
+}
+.pb-trouble-links a {
+  display: inline-flex; align-items: center; min-height: 2.75rem;
+}
+.pb-trouble a {
+  color: var(--pb-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  touch-action: manipulation;
+}
+.pb-trouble a.rg-button {
+  text-decoration: none;
+}
+.pb-trouble-first, .pb-trouble-toc {
+  margin-top: var(--space-5);
+}
+:is(.pb-trouble-first, .pb-trouble-toc, .pb-trouble-problem, .pb-trouble-ask) h2 {
+  margin: 0 0 .5rem;
+  font-family: var(--font-family-title);
+  font-size: 1.375rem;
+  font-weight: 400;
+  letter-spacing: -.015em;
+}
+.pb-trouble-first p {
+  margin: .4rem 0 0; line-height: 1.55;
+}
+.pb-trouble-toc ol {
+  margin: 0; padding-left: 1.5rem; list-style: decimal;
+}
+.pb-trouble-toc li::marker {
+  color: var(--pb-text-muted);
+}
+.pb-trouble-toc a {
+  display: inline-flex; align-items: center; min-height: 2.75rem;
+}
+.pb-trouble-list {
+  margin: var(--space-5) 0 0; padding: 0; list-style: none;
+}
+.pb-trouble-problem {
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--pb-line);
+  scroll-margin-top: var(--space-4);
+}
+.pb-trouble-problem h3 {
+  margin: 1rem 0 .25rem; color: var(--pb-text-muted); font-size: .875rem;
+}
+.pb-trouble-problem p {
+  margin: .4rem 0 0; line-height: 1.55;
+}
+.pb-trouble code {
+  font-family: var(--font-family-mono); font-size: .9em; overflow-wrap: anywhere;
+}
+.pb-trouble pre {
+  margin: .5rem 0 0;
+  padding: .75rem 1rem;
+  border: 1px solid var(--pb-line);
+  background: var(--pb-card-sunk);
+  font-size: .875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pb-trouble-ask {
+  margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--pb-line);
+}
+.pb-trouble-ask p {
+  margin: 0 0 var(--space-2); line-height: 1.5;
+}
+@container pb-page (max-width: 599px) {
+  .pb-trouble {
+    padding-top: var(--space-2);
+  }
+}
+}

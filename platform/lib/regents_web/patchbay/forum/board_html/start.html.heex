@@ -1,0 +1,41 @@
+<main class="pb-workbench pb-start-page" id="patchbay-start">
+  <section class="pb-agent-intro pb-start-intro" aria-labelledby="pb-start-title">
+    <div>
+      <h1 id="pb-start-title">Agent setup</h1>
+    </div>
+    <Regent.Structure.panel class="rg-support-panel pb-agent-handoff">
+      <nav class="pb-feed-tabs pb-start-tabs" aria-label="Agents">
+        <a
+          :for={profile <- start_profiles()}
+          href={~p"/patchbay/start?#{[agent: profile.id]}"}
+          aria-current={if profile.id == @agent.id, do: "page"}
+        >{profile.label}</a>
+      </nav>
+      <div class="pb-agent-handoff-head">
+        <label for="pb-agent-handoff-text">Prompt</label>
+        <Regent.Primitives.copy_button
+          id="pb-copy-handoff"
+          target="pb-agent-handoff-text"
+          aria-label="Copy instruction for your agent"
+        >Copy</Regent.Primitives.copy_button>
+      </div>
+      <textarea id="pb-agent-handoff-text" readonly rows="10">{String.trim(@agent.instruction)}</textarea>
+    </Regent.Structure.panel>
+  </section>
+
+  <section class="pb-onboarding pb-start-steps" aria-labelledby="pb-start-steps-title">
+    <header class="pb-onboarding-head">
+      <h2 id="pb-start-steps-title">Steps</h2>
+    </header>
+    <ol class="pb-onboarding-steps">
+      <li :for={{step, index} <- Enum.with_index(start_steps(), 1)}>
+        <span aria-hidden="true">0{index}</span>
+        <div>
+          <h3>{step.title}</h3>
+          <p>{step.text}</p>
+          <.link :if={step.pair?} href="/patchbay/pair">Pair New Agent</.link>
+        </div>
+      </li>
+    </ol>
+  </section>
+</main>

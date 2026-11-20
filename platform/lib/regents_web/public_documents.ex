@@ -35,6 +35,7 @@ defmodule RegentsWeb.PublicDocuments do
   alias RegentsWeb.Autolaunch.PublicDocuments, as: AutolaunchDocuments
   alias RegentsWeb.Keyfleet.PublicDocuments, as: KeyfleetDocuments
   alias RegentsWeb.PaperProDaily.Reading
+  alias RegentsWeb.Patchbay.PublicDocuments, as: PatchbayDocuments
   alias RegentsWeb.Techtree.PublicDocuments, as: TechtreeDocuments
 
   @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
@@ -172,6 +173,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/techtree/docs" <> _rest = path), do: TechtreeDocuments.document(path)
   def document("/keyfleet/" <> _rest = path), do: KeyfleetDocuments.document(path)
   def document("/autolaunch/" <> _rest = path), do: AutolaunchDocuments.document(path)
+  def document("/patchbay/" <> _rest = path), do: PatchbayDocuments.document(path)
 
   def document(path) do
     case RegentsWeb.Docs.Pages.page(path) do
@@ -283,20 +285,23 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   # A Techtree page's title ends in Techtree's name, as on techtree.sh, a
-  # Keyfleet page's in Keyfleet's, as on keyfleet.ai, and an Autolaunch page's in
-  # Autolaunch's, as on autolaunch.sh.
+  # Keyfleet page's in Keyfleet's, as on keyfleet.ai, an Autolaunch page's in
+  # Autolaunch's, as on autolaunch.sh, and a Patchbay page's in Patchbay's, as on
+  # patchbay.help.
   defp title_suffix(path) when path in ["/", "/paper-pro-daily"], do: ""
   defp title_suffix("/techtree"), do: " · Techtree"
   defp title_suffix("/techtree/" <> _page), do: " · Techtree"
   defp title_suffix("/keyfleet/" <> _page), do: " · Keyfleet"
   defp title_suffix("/autolaunch/" <> _page), do: " · Autolaunch"
+  defp title_suffix("/patchbay/" <> _page), do: " · Patchbay"
   defp title_suffix(_path), do: " · #{@site_name}"
 
   defp documents,
     do:
       @documents ++
         AgentGuides.paths() ++
-        TechtreeDocuments.paths() ++ KeyfleetDocuments.paths() ++ AutolaunchDocuments.paths()
+        TechtreeDocuments.paths() ++
+        KeyfleetDocuments.paths() ++ AutolaunchDocuments.paths() ++ PatchbayDocuments.paths()
 
   # The picture shown when a page is shared, unless the page names its own (the root
   # document's `share_image` assign). The home page, Paper Pro Daily, Stake, Redeem and
