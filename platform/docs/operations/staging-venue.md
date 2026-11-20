@@ -357,3 +357,15 @@ whole recovery story:
   never bootstrapped, or was recreated since. Run `bin/bootstrap-staging`.
 - **The venue is wedged for any other reason.** Recreating the database and
   redeploying the current image is always available and always cheap.
+
+## The one-site preview
+
+The `one-site` branch has its own online preview, the Fly app
+`regents-one-site-preview` at https://regents-one-site-preview.fly.dev, described by
+`platform/fly.preview.toml`. It runs under the staging role against the database app
+`regents-staging-db`, so everything above about what the staging role may reach holds
+for it. It is not a release venue: nothing is promoted from it and it runs only that
+branch. The first build is bootstrapped with `bin/bootstrap-staging`; later builds
+deploy with `platform/fly.preview.toml` and migrate through the release command.
+Privy sign-in works there only once the founder has added the preview address to the
+Privy app.

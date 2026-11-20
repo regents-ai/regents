@@ -1,0 +1,56 @@
+# The online preview of the one-site branch (founder decisions 349 b and 358 a).
+# It is not a release venue: nothing is promoted from it, and it runs only the
+# `one-site` branch. Its database is its own empty `regents-staging-db`; the
+# staging role cannot reach the live database.
+app = "regents-one-site-preview"
+primary_region = "iad"
+
+kill_signal = "SIGTERM"
+kill_timeout = "60s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "/app/bin/migrate"
+
+# Public values only. The database address, the session key and the Privy
+# values are set on the app itself.
+[env]
+  PORT = "4000"
+  REGENTS_DEPLOYMENT_ROLE = "staging"
+  PHX_HOST = "regents-one-site-preview.fly.dev"
+  REGENTS_APP_SURFACES = "on"
+  BASE_READ_RPC_URL = "https://mainnet.base.org"
+  SIWA_SERVER_URL = "https://siwa-server.fly.dev"
+  SIWA_AUDIENCE = "regents"
+  TECHTREE_BOOK_CALL_URL = "https://calendly.com/techtree/agent-env-intro"
+
+[metrics]
+  port = 9091
+  path = "/metrics"
+
+# The machine stops when nobody is reading the preview and starts on the next
+# visit, so it costs little while idle.
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 2048
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "10s"
+  method = "GET"
+  path = "/healthz"
+  protocol = "http"
+  timeout = "2s"
+
+  [http_service.checks.headers]
+    Host = "localhost"

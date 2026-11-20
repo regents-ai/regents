@@ -7441,3 +7441,12 @@ seasons), on the shared Points library regents.sh was already on.
   snapshots or ledger; sign-in, session and wallet code unchanged. The
   compile-connected gate moves from 43 to 44 for the new domain. "A product's
   tables" in platform/AGENTS.md describes the rule.
+
+## 2026-11-20 — one-site branch: an online preview (not released)
+
+- Founder decisions 349 b and 358 a. `platform/fly.preview.toml` describes the
+  Fly app `regents-one-site-preview` (https://regents-one-site-preview.fly.dev):
+  the `one-site` branch under the staging role, on its own empty database app
+  `regents-staging-db`, stopping when idle. It holds its own database address and
+  session key and public values only; the staging role cannot reach the live
+  database. `platform/docs/operations/staging-venue.md` describes it.
