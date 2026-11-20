@@ -8,6 +8,9 @@ defmodule Regents.Messages.Message.AgentLeave do
   `idempotency_conflict`. Of two calls with one key at once, the second's write
   meets the identity, finds the first's message, and answers as a reuse.
 
+  The one write is `:leave`, whose own transaction locks the agent's pairing
+  (`RegentAgents.RequirePairing`) before the row goes in.
+
   Every caller passes the client address tag as `context: %{client_key: tag}`,
   which the message's allowance counts (`SpendAllowance`).
   """

@@ -2,7 +2,8 @@ defmodule Regents.Limits do
   @moduledoc """
   The site's named allowances, `config :regents, :limits`, each named
   `<product>_<name>` with its `limit` and `window_seconds`, and spent through
-  `Regents.RateLimiter`.
+  `Regents.RateLimiter`. The `<product>_` prefix is required: the allowances
+  share the site's counters, so a name without it could spend another's.
   """
 
   alias Regents.RateLimiter

@@ -13,10 +13,13 @@ defmodule Regents.Account.Actors.Agent do
   owner) and `human_account_id` set; otherwise all three are nil. Protected
   work requires the paired shape: a policy admits an agent with
   `{RegentAgents.Checks.Paired, repo: Regents.Repo}`, which also reads the
-  pairing again, and a product's write locks it with `lock_pairing/1`.
-  `wallet_addresses` (the person's wallets, which a name claim's owner is
-  matched against) and `beneficiary_wallet_address` (the person's main wallet,
-  whose staking position the agent reads) come with the paired shape too.
+  pairing again, and a product's write locks it inside its transaction, with
+  `{RegentAgents.RequirePairing, repo: Regents.Repo}` on an Ash action or
+  `lock_pairing/1` elsewhere. `wallet_addresses` (the person's wallets that are
+  addresses, lowercase, which a name claim's owner is matched against) and
+  `beneficiary_wallet_address` (the person's main wallet, lowercase, or nil when
+  it is not an address; the agent reads its staking position) come with the
+  paired shape too.
 
   `credential_ref` names the signed request's credential, `sha256:` over its
   receipt and key id, so a record can cite it without holding it.
@@ -44,7 +47,15 @@ defmodule Regents.Account.Actors.Agent do
   alias Regents.Account.Actors.{Human, System}
 
   @enforce_keys [:wallet_address, :chain_id, :verification_method, :audience]
-  @derive {Inspect, except: [:human_id, :connection]}
+  @derive {Inspect,
+           except: [
+             :human_id,
+             :connection,
+             :privy_user_id,
+             :pairing,
+             :wallet_addresses,
+             :credential_ref
+           ]}
   defstruct [
     :wallet_address,
     :chain_id,
@@ -107,7 +118,9 @@ defmodule Regents.Account.Actors.Agent do
   The agent with its pairing filled from the shared pairing record and this
   site's account: `{:ok, agent}` with `pairing` a `Human`, `:person_not_here`
   or `:none`, or `{:error, reason}` when either could not be read. The only
-  place that decides the pairing.
+  place that decides the pairing. Only the site's plug
+  (`RegentsWeb.Account.PairedAgent`) calls it, on a request it verified: the
+  pairing check proves the pairing, never the signature.
   """
   @spec with_pairing(t()) :: {:ok, t()} | {:error, term()}
   def with_pairing(%__MODULE__{} = agent) do
@@ -132,10 +145,18 @@ defmodule Regents.Account.Actors.Agent do
         pairing_id: pairing.id,
         privy_user_id: pairing.privy_user_id,
         human_account_id: account.id,
-        beneficiary_wallet_address: account.wallet_address,
-        wallet_addresses: human.wallet_addresses
+        beneficiary_wallet_address: address(account.wallet_address),
+        wallet_addresses: for(wallet <- human.wallet_addresses, address(wallet), do: wallet)
     }
   end
+
+  # A wallet as the agent carries it: lowercase, or nil when it is not an address.
+  defp address(wallet) when is_binary(wallet) do
+    wallet = String.downcase(wallet)
+    if Regex.match?(~r/\A0x[0-9a-f]{40}\z/, wallet), do: wallet
+  end
+
+  defp address(_), do: nil
 
   defp unpaired(agent, pairing) do
     %{
@@ -179,7 +200,8 @@ defmodule Regents.Account.Actors.Agent do
   Inside the caller's database transaction, reads the paired agent's pairing
   episode again and locks it until the transaction ends, so it cannot be ended
   mid-write. `:ok`, or the refusal `RegentsWeb.Account.PairedAgent` gives:
-  `:agent_not_paired`, `:person_not_here` or `:unavailable`.
+  `:agent_not_paired`, `:person_not_here` or `:unavailable`. Called for a
+  paired agent outside a transaction, it raises.
   """
   @spec lock_pairing(t()) :: :ok | {:error, :agent_not_paired | :person_not_here | :unavailable}
   def lock_pairing(%__MODULE__{pairing: %Human{}} = agent) do

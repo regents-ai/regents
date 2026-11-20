@@ -60,14 +60,19 @@ again from it and moving that commit.
   its `pairing` is the person's `Human`, `:none` or `:person_not_here`, decided only by
   `Agent.with_pairing/1`. Protected work requires the paired shape: a policy admits an
   agent with `{RegentAgents.Checks.Paired, repo: Regents.Repo}`, and a write locks the
-  pairing inside its transaction with `Agent.lock_pairing/1`; `Agent.valid?/1` and
-  `refresh/1` read it again. A product never names `RegentAgents.Authority`.
+  pairing inside its transaction: `change {RegentAgents.RequirePairing, repo:
+  Regents.Repo}` on its Ash action, or `Agent.lock_pairing/1` elsewhere (it raises
+  outside a transaction); `Agent.valid?/1` and `refresh/1` read it again. A product
+  never names `RegentAgents.Authority`.
 - Reads: `Accounts.accounts_by_ids/2`, `accounts_by_ids!/2` and
-  `accounts_holding_wallets!/2`; `PublicIdentity.people/1` for a product that only shows
-  people; `SessionAuthority.current_id/2` and `signed_in/2` for a sign-in kept by its id.
+  `accounts_holding_wallets!/2` (wallets in any case), each taking at most 100 ids or
+  wallets a read; `PublicIdentity.people/1` for a product that only shows people;
+  `SessionAuthority.current_id/2` and `signed_in/2` for a sign-in kept by its id (they
+  do not check the generation number).
 - `Regents.Alert.report/1` saves what a person must act on with the site's errors, and
   `Regents.Limits.admit/2` and `spend/2` spend a named allowance from the one list,
-  `config :regents, :limits`, named `<product>_<name>`.
+  `config :regents, :limits`, named `<product>_<name>`: the prefix is required, as the
+  allowances share the site's counters.
 - Pages, `lib/regents_web/<product>.ex`:
   `use Boundary, deps: [RegentsWeb, RegentsWeb.Chain], exports: [...]`, exporting only
   what the shell and router mount. It may use the `RegentsWeb` toolkit and its two

@@ -6,5 +6,6 @@ defmodule Regents.Account.Actors.ConnectedApp do
   person approved. No address and no policy on this site admits it yet.
   """
   @enforce_keys [:principal]
+  @derive {Inspect, except: [:principal]}
   defstruct [:principal, role: :connected_app]
 end

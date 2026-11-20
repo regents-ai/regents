@@ -295,26 +295,28 @@ defmodule Regents.Account.Accounts.SessionAuthority do
   @doc """
   The id of the sign-in `lineage` carries while it is current for `account_id`,
   or `nil`. A product that must see the sign-in end later keeps the id, never
-  the lineage, and asks `signed_in/2` with it.
+  the lineage, and asks `signed_in/2` with it. It does not check the generation number.
   """
   @spec current_id(String.t(), integer()) :: String.t() | nil
-  def current_id(lineage, account_id) do
+  def current_id(lineage, account_id) when is_binary(lineage) and is_integer(account_id) do
     row = lineage |> digest() |> row()
     if current?(row, account_id), do: row.id
   end
+
+  def current_id(_lineage, _account_id), do: nil
 
   @doc """
   The verified account the sign-in with this id still resolves to, with the
   topic its sign-out is announced on and when it lapses (`{account, topic,
   ends_at}`), or `nil` once it is signed out, switched to another account or
-  lapsed.
+  lapsed, and for an id that is not a UUID. It does not check the generation number.
   """
   @spec signed_in(String.t(), integer()) ::
           {Ash.Resource.record(), String.t(), DateTime.t()} | nil
-  def signed_in(id, account_id) do
-    row = Ash.get!(__MODULE__, id, actor: @actor, not_found_error?: false)
-
-    with true <- current?(row, account_id),
+  def signed_in(id, account_id) when is_binary(id) and is_integer(account_id) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         row = Ash.get!(__MODULE__, id, actor: @actor, not_found_error?: false),
+         true <- current?(row, account_id),
          %{} = account <- verified(account_id) do
       {account, digest_topic(row.lineage_digest),
        DateTime.add(row.signed_in_at, @sign_in_days, :day)}
@@ -322,6 +324,8 @@ defmodule Regents.Account.Accounts.SessionAuthority do
       _signed_out -> nil
     end
   end
+
+  def signed_in(_id, _account_id), do: nil
 
   @doc "The deterministic, lineage-stable topic every socket for a lineage mounts on."
   @spec topic(String.t()) :: String.t()

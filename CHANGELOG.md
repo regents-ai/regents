@@ -7723,26 +7723,39 @@ seasons), on the shared Points library regents.sh was already on.
   or `:person_not_here`, decided only by `Agent.with_pairing/1`; the pairing episode, its
   owner and the account id are set only when it is a `Human`. `Agent.paired/3` is gone.
   New: `authenticated?/1`, `valid?/1`, `refresh/1` and `lock_pairing/1`, which locks the
-  pairing inside a product's transaction. The SIWA answer the site reads keeps no chain,
-  verification method or receipt end, so those fields are nil and `authenticated?/1`,
-  `valid?/1` and `refresh/1` refuse every agent the site builds today; nothing calls them
-  yet.
+  pairing inside a product's transaction and raises outside one. The SIWA answer the
+  site reads keeps no chain, verification method or receipt end, so those fields are
+  nil and `authenticated?/1`, `valid?/1` and `refresh/1` refuse every agent the site
+  builds today; nothing calls them yet. The agent's copy of the person's main wallet
+  and wallet list stays as before: lowercase, and only values that are addresses.
+  Inspecting an agent hides the person's ids, wallets and pairing and the credential.
 - The rules that admitted any agent struct (leaving a message, an agent's message,
   submitting a model-climb report) now require a current pairing through
-  `RegentAgents.Checks.Paired`, which reads the pairing again.
-  `RegentsWeb.Account.PairedAgent` refuses exactly as before.
+  `RegentAgents.Checks.Paired`, which reads the pairing again. Leaving a message (also
+  the write of an agent's message) and submitting a report then lock the pairing inside
+  the write's own transaction (`RegentAgents.RequirePairing`), so a pairing ended in
+  between is refused and nothing is written; a person leaving a message is unaffected.
+  `RegentsWeb.Account.PairedAgent` refuses exactly as before, and a verified request
+  missing its receipt or key id header now gets its 401 `authentication_required`
+  instead of an error page.
 - `Human.for_account/1` builds the person from an account row, and the pages that built
   one by hand use it; the Privy sign-in controller and the live session still build
   theirs. `RegentsWeb.Account.Identity.account_wallets/1` is gone.
-- `Actors.ConnectedApp`, the struct only.
-- Account reads `Accounts.accounts_by_ids` and `accounts_holding_wallets`, at most 100
-  a read; the Points board's `points_people` read is now `accounts_by_ids`.
+- `Actors.ConnectedApp`, the struct only; inspecting it hides its principal.
+- Account reads `Accounts.accounts_by_ids` and `accounts_holding_wallets`, each taking
+  at most 100 ids or wallets a read (one wallet can be linked by more than one account,
+  so the accounts answered are not capped); `accounts_holding_wallets` compares wallets
+  in any case on both sides. The Points board's `points_people` read is now
+  `accounts_by_ids`.
   `PublicIdentity.people/1` gives each account's `id`, `display_name`, `ens_name`,
   `ens_avatar_url` and `wallet_address` by the site's own display rules.
 - `SessionAuthority.current_id/2` and `signed_in/2`, reads only; a sign-in ends 30 days
-  after it was made, as the site's own rule says.
+  after it was made, as the site's own rule says. They answer nil for a missing account
+  id, a sign-in not yet bound to an account, and an id that is not a UUID, and do not
+  check the generation number.
 - `Regents.Alert.report/1`, and `Regents.Limits.admit/2` and `spend/2` over the one list,
-  `config :regents, :limits`, empty for now. The site's existing budgets
+  `config :regents, :limits`, empty for now; each name carries its `<product>_` prefix,
+  as the allowances share the site's counters. The site's existing budgets
   (`session_bootstrap_rate_limit`, `chain_read_rate_limit`, `message_rate_limit`,
   `message_address_rate_limit`, `updates_rate_limit`) are not moved into it yet.
 - An address the site does not serve, asked for in JSON (every address under `/api`),

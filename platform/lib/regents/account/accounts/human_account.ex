@@ -49,10 +49,20 @@ defmodule Regents.Account.Accounts.HumanAccount do
       filter expr(id in ^arg(:ids))
     end
 
-    # The accounts linking any of these wallets, which are lowercase; the
-    # accounts may keep theirs in any case.
     read :holding_wallets do
+      description """
+      The accounts linking any of these wallets, compared in any case on either
+      side. At most 100 wallets may be asked for in one read; the accounts
+      answered are not capped, as one wallet can be linked by more than one account.
+      """
+
       argument :wallets, {:array, :string}, allow_nil?: false, constraints: [max_length: 100]
+
+      prepare fn query, _context ->
+                wallets = Enum.map(query.arguments.wallets, &String.downcase/1)
+                Ash.Query.set_argument(query, :wallets, wallets)
+              end,
+              only_when_valid?: true
 
       filter expr(
                fragment(

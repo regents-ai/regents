@@ -71,6 +71,8 @@ defmodule Regents.Messages.Message do
 
     create :leave do
       accept [:topic, :body, :reply_to]
+      # An agent's pairing, locked in this write's transaction until it ends.
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
       change SetSender
       validate match(:body, RegentFormat.Text.pattern()), message: @shown_text
       validate match(:reply_to, RegentFormat.Name.pattern()), message: @shown_text

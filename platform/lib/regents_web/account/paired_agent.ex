@@ -20,10 +20,10 @@ defmodule RegentsWeb.Account.PairedAgent do
         audience: Broker.audience()
       )
 
-    case conn.assigns do
-      %{regent_agent: %RegentAgents.Agent{} = verified} ->
-        resolve(conn, verified)
-
+    with %{regent_agent: %RegentAgents.Agent{} = verified} <- conn.assigns,
+         {:ok, credential_ref} <- credential_ref(conn) do
+      resolve(conn, verified, credential_ref)
+    else
       %{regent_agent_refusal: refusal} ->
         refuse_proof(conn, refusal)
 
@@ -38,8 +38,8 @@ defmodule RegentsWeb.Account.PairedAgent do
     end
   end
 
-  defp resolve(conn, verified) do
-    case conn |> agent(verified) |> Agent.with_pairing() do
+  defp resolve(conn, verified, credential_ref) do
+    case verified |> agent(credential_ref) |> Agent.with_pairing() do
       {:ok, %Agent{pairing: %Human{}} = actor} ->
         conn
         |> assign(:actor, actor)
@@ -68,23 +68,34 @@ defmodule RegentsWeb.Account.PairedAgent do
     end
   end
 
+  # The verified request's credential, `sha256:` over its receipt and key id,
+  # each sent exactly once. The SIWA plug refuses a repeat on this node; a
+  # missing one is refused by the SIWA service, not here, so it is answered
+  # here too.
+  defp credential_ref(conn) do
+    case {get_req_header(conn, Siwa.Contract.header_for("receipt")),
+          get_req_header(conn, Siwa.Contract.header_for("key_id"))} do
+      {[receipt], [key_id]} ->
+        {:ok,
+         "sha256:" <>
+           Base.encode16(:crypto.hash(:sha256, [receipt, "\n", key_id]), case: :lower)}
+
+      _missing ->
+        :error
+    end
+  end
+
   # The agent the verified request names: its wallet and what the SIWA service
   # said of it, this site's audience, which the request was verified for, and
-  # its credential named by the receipt and key id, each sent exactly once (the
-  # SIWA plug refuses a repeat and the SIWA service a request missing either).
-  # The SIWA answer as the shared hook keeps it carries neither the chain, the
-  # verification method nor the receipt's end, so those are nil.
-  defp agent(conn, %RegentAgents.Agent{} = verified) do
-    [receipt] = get_req_header(conn, Siwa.Contract.header_for("receipt"))
-    [key_id] = get_req_header(conn, Siwa.Contract.header_for("key_id"))
-
+  # its credential. The SIWA answer as the shared hook keeps it carries neither
+  # the chain, the verification method nor the receipt's end, so those are nil.
+  defp agent(%RegentAgents.Agent{} = verified, credential_ref) do
     %Agent{
       wallet_address: verified.wallet,
       chain_id: nil,
       verification_method: nil,
       audience: Broker.audience(),
-      credential_ref:
-        "sha256:" <> Base.encode16(:crypto.hash(:sha256, [receipt, "\n", key_id]), case: :lower),
+      credential_ref: credential_ref,
       registry_url: verified.registry_listing,
       human_id: verified.human_id,
       same_person_agent_count: verified.same_person_agent_count

@@ -35,6 +35,8 @@ defmodule Regents.Techtree.ModelClimb.Report do
       upsert_identity :unique_owner_report
       upsert_fields []
 
+      # The agent's pairing, locked in this write's transaction until it ends.
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
       change set_attribute(:owner_privy_user_id, actor(:privy_user_id))
       change set_attribute(:pairing_id, actor(:pairing_id))
       change set_attribute(:acting_agent_wallet, actor(:wallet_address))
