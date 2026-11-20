@@ -7368,3 +7368,9 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-20 — Cloak page: the app's mode names, new film, feedback link
 
 - On the founder's "14. a": the drawn chat window shows the app's 0.5.3 labels (Anon, NEAR Private AI, Local Llama, Agent), mode 2 in the panel is "NEAR Private AI", the intro film is the re-made one with the same names, and the last line reads "Something broke? Tell us at patchbay.help/regents.sh." with the address a link opening in a new tab.
+
+## 2026-11-20 — Released the Cloak page update
+
+- Commit f4ab3aea, on the founder's "14. a" in the Cloak thread. Full check exit 0 on f4ab3aea; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new names and the feedback link, the new film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-ffc12d6b91c8.
