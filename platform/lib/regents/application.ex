@@ -31,6 +31,12 @@ defmodule Regents.Application do
         Regents.Account.Agents.ActivityReading,
         # What the papers page shows, kept a minute and shared by every open of it.
         RegentsWeb.PaperProDaily.Feed,
+        # Patchbay's home page board figures, kept a minute.
+        Regents.Patchbay.Forum.BoardActivity,
+        # Each Patchbay question list's thread count, kept a minute.
+        Regents.Patchbay.Forum.FeedCount,
+        # Room for two Patchbay word searches at once.
+        Regents.Patchbay.Forum.SearchSlots,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
         # Each product's health read for /api/v1/health, unlinked from the request.

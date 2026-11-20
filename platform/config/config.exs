@@ -77,6 +77,9 @@ config :regent_points,
 # (CVE-2026-82752).
 config :ash, default_string_length_count: :codepoints
 
+# `search_terms(term, :all | :any)`: how every Patchbay search reads the words typed.
+config :ash, custom_expressions: [Regents.Patchbay.Forum.SearchTerms]
+
 config :mime, :types, %{"application/yaml" => ["yaml"]}
 
 config :regents,
@@ -158,6 +161,15 @@ config :regents, Regents.Account.Agents.ActivityReading,
 config :regents, RegentsWeb.PaperProDaily.Feed,
   gc_interval: :timer.minutes(10),
   max_size: 1_000
+
+# Patchbay's home page board figures: one reading, kept a minute.
+config :regents, Regents.Patchbay.Forum.BoardActivity, gc_interval: :timer.minutes(10)
+
+# Each Patchbay question list's thread count, kept a minute. Older counts leave
+# with the generation the collector drops every ten minutes.
+config :regents, Regents.Patchbay.Forum.FeedCount,
+  gc_interval: :timer.minutes(10),
+  max_size: 10_000
 
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
