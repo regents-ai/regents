@@ -33,6 +33,7 @@ defmodule RegentsWeb.PublicDocuments do
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.PaperProDaily.Reading
+  alias RegentsWeb.Techtree.PublicDocuments, as: TechtreeDocuments
 
   @paper_share_heading "Daily Research Papers Reviewed by ChatGPT Pro"
   @site_name "Regents Labs"
@@ -163,6 +164,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
   def document("/agents" = path), do: AgentGuides.document(path)
   def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
+  def document("/techtree/docs" <> _rest = path), do: TechtreeDocuments.document(path)
 
   def document(path) do
     case RegentsWeb.Docs.Pages.page(path) do
@@ -273,7 +275,7 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
-  defp documents, do: @documents ++ AgentGuides.paths()
+  defp documents, do: @documents ++ AgentGuides.paths() ++ TechtreeDocuments.paths()
 
   # The picture shown when a page is shared. The home page, Paper Pro Daily, Stake,
   # Redeem and the literature chart each have their own; every other page shares the crown.

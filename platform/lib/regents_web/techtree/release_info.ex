@@ -1,0 +1,112 @@
+defmodule RegentsWeb.Techtree.ReleaseInfo do
+  @moduledoc """
+  The one active release the public pages may present, read for display.
+
+  Every installation coordinate a page shows comes from here, and here reads
+  the exact published bytes the site serves — never a value written into a
+  template. A page therefore cannot show a version, a fingerprint, or a command
+  that this release does not publish, and it cannot pair one release's command
+  with another release's fingerprint: both come out of the same read.
+
+  When the published contract says its coordinates are stand-ins, that is
+  release state a page may describe, and never something a page offers as a
+  command to run or an address to follow.
+  """
+
+  alias Regents.Techtree.Catalog.Error
+  alias Regents.Techtree.Catalog.Query
+
+  @type t :: %{
+          channel: String.t() | nil,
+          climbs: [String.t()],
+          digest: String.t(),
+          install_argv: [String.t()],
+          installable?: boolean(),
+          introductory_reference: String.t() | nil,
+          minimums: map(),
+          plugin_doctor_argv: [String.t()],
+          plugin_install_argv: [String.t()],
+          source_revision: String.t() | nil,
+          version: String.t() | nil
+        }
+
+  @doc """
+  The active release as display data, or `nil` when nothing is published. Any
+  other failure to read it raises.
+  """
+  @spec current() :: t() | nil
+  def current do
+    case Query.bootstrap_payload() do
+      {:ok, payload, digest} -> payload |> Jason.decode!() |> describe(digest)
+      {:error, %Error{code: :bootstrap_release_missing}} -> nil
+    end
+  end
+
+  @doc """
+  The short compatibility sentence shown beside the active installer.
+
+  Every clause is read from the published contract. Nothing is claimed about a
+  platform the contract does not name.
+  """
+  @spec compatibility(t()) :: String.t()
+  def compatibility(%{minimums: minimums}) do
+    [
+      "macOS or Linux",
+      python_words(minimums["python"]),
+      docker_words(minimums["docker_required"]),
+      hermes_words(minimums["hermes_version"])
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  @doc """
+  A compact release label: the version, and the first characters of the
+  fingerprint of the exact contract those coordinates were read from.
+  """
+  @spec label(t()) :: String.t()
+  def label(release), do: "v#{release.version} · #{short(release.digest)}"
+
+  @doc """
+  The exact reference (`slug@version`) this release ships for a Climb slug, the
+  highest version if it ships more than one, or `nil` when it ships none.
+  """
+  @spec climb(t(), String.t()) :: String.t() | nil
+  def climb(%{climbs: climbs}, slug) do
+    # Versions are whole numbers, and a longer one is a higher one.
+    climbs
+    |> Enum.filter(&String.starts_with?(&1, slug <> "@"))
+    |> Enum.max_by(&{String.length(&1), &1}, fn -> nil end)
+  end
+
+  defp describe(instructions, digest) do
+    cli = Map.get(instructions, "cli", %{})
+    hermes_plugin = Map.get(instructions, "hermes_plugin", %{})
+
+    %{
+      channel: instructions["channel"],
+      climbs: instructions |> Map.get("climbs", %{}) |> Map.keys() |> Enum.sort(),
+      digest: digest,
+      install_argv: Map.get(cli, "install_argv", []),
+      installable?: instructions["placeholder_release"] == false,
+      introductory_reference: get_in(instructions, ["introductory_climb", "reference"]),
+      minimums: Map.get(instructions, "minimums", %{}),
+      plugin_doctor_argv: Map.get(hermes_plugin, "doctor_argv", []),
+      plugin_install_argv: Map.get(hermes_plugin, "install_argv", []),
+      source_revision: cli["source_revision"],
+      version: cli["version"]
+    }
+  end
+
+  defp python_words(nil), do: nil
+  defp python_words(version), do: "Python #{version}, provided by the installer"
+
+  defp docker_words(true), do: "Docker required"
+  defp docker_words(_other), do: nil
+
+  defp hermes_words(nil), do: nil
+  defp hermes_words(version), do: "Hermes #{version}+ for the plugin path"
+
+  defp short("sha256:" <> digest), do: "sha256:" <> String.slice(digest, 0, 12) <> "…"
+  defp short(digest), do: digest
+end

@@ -7528,3 +7528,28 @@ seasons), on the shared Points library regents.sh was already on.
   `pending-migrations` and `bootstrap-staging` alike.
 - No route, migration, setting, secret or wallet code changed; the API
   description and public documents already describe the answer this way.
+
+## 2026-11-20 — one-site branch: Techtree's Docs pages and agent guide (not released)
+
+- Techtree's Docs are on this site at `/techtree/docs` and `/techtree/docs/:slug`:
+  the index and its 15 guides, word for word as techtree.sh shows them at
+  `c6dba424`, with links under `/techtree`. The guides live in
+  platform/priv/techtree/public/docs/. The install, Hello World, Frontier-CS,
+  Hermes and run-locally guides read the active catalog release, as on techtree.sh.
+  With no release they say there is nothing to install yet, and with no database
+  they say the steps can't be shown right now.
+- Each Docs page answers as Markdown when asked with `Accept: text/markdown`,
+  through this site's own public documents. The Markdown is techtree.sh's, with the
+  links moved and the `api.md` and `browser-agents.md` placeholders filled with the
+  values techtree.sh shows. The pages carry the Markdown alternate link.
+- Techtree's agent guide is at `/techtree/agents.md`, Markdown for any caller,
+  word for word as techtree.sh serves `/agents.md`. With no release it answers 404.
+- The Docs' Copy page control and command copy buttons came with them
+  (platform/assets/js/techtree/).
+- Links still pointing at pages not on this site yet are left in place:
+  `/results`, `/examples/tdd` and `[Agents](/agents)`. The DocsLive tdd link is
+  plain words for now. `/openapi.json`, `/.well-known/api-catalog` and
+  `/capabilities.json` resolve to regents.sh's own.
+- Docs pages are not counted against the request budget, as with this site's
+  other pages. No migration, setting, secret, process or wallet code changed.
+  regents.sh's own pages and documents answer as before.

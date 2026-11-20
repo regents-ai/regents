@@ -19,6 +19,7 @@ defmodule Regents.Techtree do
       Catalog.Digest,
       Catalog.Error,
       Catalog.Query,
+      Catalog.Route,
       ModelClimb,
       Release,
       Train.Comparisons

@@ -1,0 +1,91 @@
+defmodule RegentsWeb.Techtree.PageCopy do
+  @moduledoc """
+  The split control that hands a reader the whole page as Markdown.
+
+  Founder ruling 2026-08-26, after the Devin docs reference: one primary
+  action copies the page as Markdown for an agent's context window, and a
+  small menu repeats it beside "View as Markdown". Everything happens in the
+  reader's browser — the Markdown is serialized from the rendered page itself
+  (assets/js/techtree/page_copy.ts), so it can never drift from what the page says, and
+  nothing is requested from or sent to the server.
+  """
+
+  use Phoenix.Component
+
+  attr :variant, :string,
+    default: "primary",
+    values: ~w(primary secondary),
+    doc: "secondary beside a page's own main action"
+
+  @doc "The Copy page split button. Place inside a page heading."
+  def page_copy(assigns) do
+    ~H"""
+    <div class="pagecopy" data-markdown-skip>
+      <Regent.Primitives.button
+        type="button"
+        variant={@variant}
+        arrow={false}
+        class="pagecopy__main"
+        id="copy-page"
+        phx-hook="CopyCommandPage"
+        phx-update="ignore"
+      >
+        <.words />
+      </Regent.Primitives.button>
+      <span
+        class="offscreen"
+        data-copy-status
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></span>
+      <details>
+        <summary aria-label="More ways to take this page">⌄</summary>
+        <div class="pagecopy__menu" data-panel="menu">
+          <Regent.Primitives.button
+            type="button"
+            variant="quiet"
+            class="pagecopy__item"
+            id="copy-page-menu"
+            phx-hook="CopyCommandPage"
+            phx-update="ignore"
+          >
+            <.words />
+            <small>Copy page as Markdown for agents</small>
+          </Regent.Primitives.button>
+          <span
+            class="offscreen"
+            data-copy-status
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          ></span>
+          <Regent.Primitives.button
+            type="button"
+            variant="quiet"
+            class="pagecopy__item"
+            id="view-page-markdown"
+            phx-hook="CopyCommandPageView"
+            phx-update="ignore"
+          >
+            View as Markdown <small>Open this page as plain text</small>
+          </Regent.Primitives.button>
+        </div>
+      </details>
+    </div>
+    """
+  end
+
+  # The button's three words, stacked, so it keeps the width of the widest and
+  # its answer never moves the menu beside it. The hook shows one by setting
+  # `data-copy-state` (assets/js/techtree/copy_feedback.ts).
+  defp words(assigns) do
+    ~H"""
+    <span class="pagecopy__words" data-copy-words>
+      <span class="pagecopy__idle">Copy page</span>
+      <span class="pagecopy__copied">Copied</span>
+      <span class="pagecopy__failed">Couldn't copy</span>
+    </span>
+    """
+  end
+end

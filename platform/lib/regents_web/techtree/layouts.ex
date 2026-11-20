@@ -14,6 +14,7 @@ defmodule RegentsWeb.Techtree.Layouts do
   use RegentsWeb, :html
 
   alias RegentsWeb.Techtree.Components.BookCall
+  alias RegentsWeb.Techtree.DocsGuides
   alias RegentsWeb.Techtree.Services
   alias RegentsWeb.Techtree.SiteMenu
 
@@ -239,6 +240,16 @@ defmodule RegentsWeb.Techtree.Layouts do
   def description("/techtree/train/" <> _slug),
     do:
       "A public Skill against the revision chosen to improve it, on a final test: attempts solved, the verdict, every case, the method and the tools."
+
+  def description("/techtree/docs"),
+    do: "Run Techtree locally, check and publish a Result, and connect an agent."
+
+  def description("/techtree/docs/" <> slug) do
+    case DocsGuides.fetch(slug) do
+      {:ok, guide} -> guide.summary
+      :error -> raise RegentsWeb.NotFoundError, "there is no Docs guide by that name"
+    end
+  end
 
   def description("/techtree"),
     do:

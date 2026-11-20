@@ -319,7 +319,14 @@ defmodule RegentsWeb.Router do
       live "/services/swarm-verify", ServiceLive, :swarm_verify
       live "/formal", FormalLive
       live "/train/:slug", TrainLive.Show
+      live "/docs", DocsLive
+      live "/docs/:slug", DocsLive
     end
+  end
+
+  # Techtree's agent guide, Markdown to any caller, as the site's own /agents.md is.
+  scope "/techtree", RegentsWeb.Techtree do
+    get "/agents.md", AgentsController, :show
   end
 
   scope "/admin" do

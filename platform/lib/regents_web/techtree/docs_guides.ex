@@ -1,0 +1,150 @@
+defmodule RegentsWeb.Techtree.DocsGuides do
+  @moduledoc """
+  The Docs guides, in reading order. Each guide has its own page at
+  `/techtree/docs/<slug>` and its own Markdown in
+  `priv/techtree/public/docs/<slug>.md`; the `/techtree/docs` page and its
+  Markdown list them from here.
+  """
+
+  @guides [
+    %{
+      slug: "run-locally",
+      group: "Get started",
+      title: "Run locally",
+      summary: "Test a Skill on your own computer, or run the example."
+    },
+    %{
+      slug: "install",
+      group: "Get started",
+      title: "Install",
+      summary: "Install the release Techtree names and check this machine."
+    },
+    %{
+      slug: "test-a-skill",
+      group: "Get started",
+      title: "Evaluate & Climb",
+      summary: "Make tasks from a Skill, then run them without it and with it."
+    },
+    %{
+      slug: "hello-world",
+      group: "Get started",
+      title: "Hello World",
+      summary: "A small, fixed comparison that shows how a run works."
+    },
+    %{
+      slug: "frontier-cs",
+      group: "Get started",
+      title: "Frontier-CS problems",
+      summary: "Improve a Skill on ten open-ended programming problems."
+    },
+    %{
+      slug: "hermes",
+      group: "Get started",
+      title: "Use Hermes",
+      summary: "Let Hermes run each step. Approve each model call before it runs."
+    },
+    %{
+      slug: "verify",
+      group: "Results",
+      title: "Proof",
+      summary: "What a Result proves, and how to check one yourself."
+    },
+    %{
+      slug: "publish",
+      group: "Results",
+      title: "Publishing",
+      summary: "Add a finished run to the public Results, or withdraw it."
+    },
+    %{
+      slug: "api",
+      group: "For agents",
+      title: "Public API",
+      summary: "Every address, its errors and limits, and how changes are announced."
+    },
+    %{
+      slug: "browser-agents",
+      group: "For agents",
+      title: "Browser agents",
+      summary: "What a browser's agent can read and do on Techtree."
+    },
+    %{
+      slug: "agents-for-a-person",
+      group: "For agents",
+      title: "Paired agents",
+      summary: "Pair an agent with your account, and what it can then read."
+    },
+    %{
+      slug: "factory",
+      group: "Background",
+      title: "Factory",
+      summary:
+        "The steps before a first run on Prime Intellect's Model Factory, and where Techtree helps."
+    },
+    %{
+      slug: "where-this-goes",
+      group: "Background",
+      title: "Roadmap",
+      summary: "What comes after Skills, and the network around Techtree."
+    },
+    %{
+      slug: "data",
+      group: "Help",
+      title: "Your data",
+      summary: "What stays on your computer and what Techtree receives."
+    },
+    %{
+      slug: "troubleshooting",
+      group: "Help",
+      title: "Troubleshooting",
+      summary: "Where to look when a step fails."
+    }
+  ]
+
+  @by_slug Map.new(@guides, &{&1.slug, &1})
+
+  @lede "Run Techtree on your own computer, test a Skill against no Skill or its earlier " <>
+          "version, check a Result, and publish one to the public Results. Reading the " <>
+          "catalog and Results needs no account."
+
+  @type guide :: %{slug: String.t(), group: String.t(), title: String.t(), summary: String.t()}
+
+  @doc "The line under the `/docs` heading."
+  @spec lede() :: String.t()
+  def lede, do: @lede
+
+  @spec all() :: [guide()]
+  def all, do: @guides
+
+  @spec slugs() :: [String.t()]
+  def slugs, do: Enum.map(@guides, & &1.slug)
+
+  @spec fetch(String.t()) :: {:ok, guide()} | :error
+  def fetch(slug), do: Map.fetch(@by_slug, slug)
+
+  @doc "The guides grouped for the menu, groups in reading order."
+  @spec groups() :: [{String.t(), [guide()]}]
+  def groups, do: Enum.chunk_by(@guides, & &1.group) |> Enum.map(&{hd(&1).group, &1})
+
+  @doc "The guides just before and after `slug`, or nil at either end."
+  @spec neighbours(String.t()) :: {guide() | nil, guide() | nil}
+  def neighbours(slug) do
+    index = Enum.find_index(@guides, &(&1.slug == slug))
+    {if(index > 0, do: Enum.at(@guides, index - 1)), Enum.at(@guides, index + 1)}
+  end
+
+  @doc "The `/techtree/docs` page as Markdown: every guide, by group, with its link."
+  @spec index_markdown() :: String.t()
+  def index_markdown do
+    groups =
+      Enum.map_join(groups(), "\n\n", fn {group, guides} ->
+        "## #{group}\n\n" <>
+          Enum.map_join(
+            guides,
+            "\n",
+            &"- [#{&1.title}](/techtree/docs/#{&1.slug}): #{&1.summary}"
+          )
+      end)
+
+    "# Docs\n\n#{@lede}\n\n#{groups}\n"
+  end
+end

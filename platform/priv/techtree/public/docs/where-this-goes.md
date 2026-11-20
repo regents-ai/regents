@@ -1,0 +1,28 @@
+# Roadmap
+
+An agent is more than a model. It also has a harness, Skills, tools, memory, rules and the place where it works, and each can change the outcome. Techtree starts with Skills because they give the cleanest comparison.
+
+## Wider use
+
+- Hold the tasks fixed, and improve the Skill.
+- Hold the Skill and the tasks fixed, and improve the harness.
+- Hold the agent fixed, and improve the environment.
+- Hold the training fixed, and compare which environment helps most.
+
+The rule stays the same: freeze the system, say what may change, measure the result, keep the evidence.
+
+## More places
+
+Not available yet. The plan is to run the same comparison locally and, later, on hosted machines; with Hermes; and with Codex. Each new way to run is its own Climb version, so changing where a run happens never changes what an existing Result means.
+
+## Agent stack
+
+[Prime Intellect's Verifiers](https://github.com/PrimeIntellect-ai/verifiers) stays the judge of task scores. Techtree records what was fixed, what changed, and what the evidence lets anyone claim.
+
+## Network
+
+Regents will add the network around Techtree's work: publishing, discovery, identity, reputation, hosted runs, repeats and payments. Later, Results, Skills and environments may be shared or sold, and agents that do useful work will be able to build a track record and earn USDC. That depends on the research being honest first: same agent, same tasks, one changed Skill, and a receipt for the difference.
+
+## Agent prompt
+
+Go to [techtree.sh/docs/run-locally](/techtree/docs/run-locally), install the release Techtree names, and run the Hello World Climb. Stop before any paid model call and ask me to approve it.

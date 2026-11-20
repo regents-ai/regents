@@ -55,8 +55,10 @@ import {VerifiedConnections} from "./hooks/verified_connections"
 import {installVisitLog} from "./visit_log"
 import {syncTheme} from "./theme"
 // Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
-// in and figures that count up, and the header's Services menu and Menu sheet.
+// in and figures that count up, the header's Services menu and Menu sheet, and
+// the Docs' Copy page control.
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
+import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {installSiteMenu} from "./techtree/site_menu"
 
 // First, so an error anywhere below is reported too.
@@ -281,6 +283,8 @@ const hooks = {
   ...labHooks,
   ...colocatedHooks,
   ...marketingHooks,
+  CopyCommandPage,
+  CopyCommandPageView,
   Datascape,
   Docs,
   EnterGradient,
