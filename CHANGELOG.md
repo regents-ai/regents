@@ -7749,11 +7749,6 @@ seasons), on the shared Points library regents.sh was already on.
   `accounts_by_ids`.
   `PublicIdentity.people/1` gives each account's `id`, `display_name`, `ens_name`,
   `ens_avatar_url` and `wallet_address` by the site's own display rules.
-- `PublicIdentity.people_by_privy_ids/1` gives the same for up to 100 Privy ids, keyed by
-  Privy id, leaving out an id with no account here; `accounts_by_privy_dids` now takes
-  at most 100 ids a read, and the Points start run reads 100 people at a time.
-- `Human.privy_id/1` answers a signed-in person's Privy id from their account, or
-  `:error` when no account has their id.
 - `SessionAuthority.current_id/2` and `signed_in/2`, reads only; a sign-in ends 30 days
   after it was made, as the site's own rule says. They answer nil for a missing account
   id, a sign-in not yet bound to an account, and an id that is not a UUID, and do not
@@ -7843,3 +7838,15 @@ seasons), on the shared Points library regents.sh was already on.
 - The cards, the picture's names and the home page's rows read one list: the product
   menu's, with each product's words. The way out to a product's older site stays only
   on that product's own overview page.
+
+## 2026-11-20 — one-site branch: two more shared account parts (not released)
+
+- Not released: on the `one-site` branch only. No migration, secret, sign-in, session,
+  wallet or pairing change. These two were first written into the shared account parts
+  entry above; they stand here instead, as this file is append-only.
+- `PublicIdentity.people_by_privy_ids/1` gives the same as `people/1` for up to 100
+  Privy ids, keyed by Privy id, leaving out an id with no account here;
+  `accounts_by_privy_dids` now takes at most 100 ids a read, and the Points start run
+  reads 100 people at a time.
+- `Human.privy_id/1` answers a signed-in person's Privy id from their account, or
+  `:error` when no account has their id.
