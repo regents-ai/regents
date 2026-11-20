@@ -1,0 +1,236 @@
+@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+/* The phone menu, the template's (ash-template platform/assets/css/components/shell.css,
+   "Phones: the rail and sidebar fold into the menu drawer"): Autolaunch's links fold
+   into a drawer that comes in from the left under the site's bar and Menu
+   (`RegentsWeb.Autolaunch.Layouts`, `assets/js/autolaunch/shell_menu.ts`). From 48rem
+   up the links are in the bar, and none of these show. */
+.rg-button.mobile-menu-button,
+#shell-drawer,
+.rg-button.shell-menu-scrim {
+  display: none;
+}
+
+/* The bar hides its links at 48rem and below, so Menu shows from there. */
+@media (max-width: 48rem) {
+  /* The page behind the open menu stays where it is. */
+  :scope[data-menu="open"] {
+    overflow: hidden;
+  }
+
+  /* Menu is a strip of its own under the bar, as on regents.sh's own pages, and
+     stays under the bar as the page scrolls, so it closes what it opened. */
+  .rg-button.mobile-menu-button {
+    position: sticky;
+    inset-block-start: 3.5rem;
+    z-index: var(--rg-layer-header);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 0;
+    border-block-end: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-family-ui);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .rg-button.mobile-menu-button::before,
+  .rg-button.mobile-menu-button::after {
+    content: none;
+  }
+
+  .rg-button.mobile-menu-button[aria-expanded="true"],
+  .rg-button.mobile-menu-button:active {
+    background: color-mix(in oklch, var(--color-fg) 10%, var(--color-bg));
+  }
+
+  /* The drawer comes in from the left edge under the bar and Menu, as the
+     template's does; its Close navigation bar is its first row. */
+  #shell-drawer {
+    position: fixed;
+    inset: var(--shell-top-end) auto 0 0;
+    z-index: var(--rg-layer-panel);
+    display: flex;
+    flex-direction: column;
+    width: min(20rem, calc(100% - 3rem));
+    padding-block-end: env(safe-area-inset-bottom, 0px);
+    padding-inline-start: env(safe-area-inset-left, 0px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-inline-end: 1px solid var(--hairline-strong);
+    background: var(--color-bg);
+    color: var(--color-fg);
+    box-shadow: var(--rg-layer-panel-shadow);
+    visibility: hidden;
+    transform: translateX(-100%);
+    transition:
+      transform var(--duration-slow) var(--ease-out),
+      visibility var(--duration-slow);
+  }
+
+  /* Shown at once on opening, so focus can move into it; hidden only once it
+     has slid shut. */
+  :scope[data-menu="open"] #shell-drawer {
+    visibility: visible;
+    transform: none;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  #shell-drawer:focus {
+    outline: none;
+  }
+
+  .rg-button.shell-menu-close {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-block-end: 1px solid var(--color-border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-fg-muted);
+    font-family: var(--font-family-ui);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    touch-action: manipulation;
+  }
+
+  .rg-button.shell-menu-close::before,
+  .rg-button.shell-menu-close::after {
+    content: none;
+  }
+
+  .shell-drawer__nav ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Every row keeps room for the current page's mark, so nothing moves. */
+  .shell-drawer__row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0 var(--space-3) 0 calc(var(--space-3) - 2px);
+    border: 0;
+    border-inline-start: 2px solid transparent;
+    border-block-end: 1px solid var(--hairline);
+    background: transparent;
+    color: var(--color-fg);
+    font: inherit;
+    font-size: 1.0625rem;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  /* The page you are on: heavier, with the brand's mark at its edge, as the
+     rail has it. */
+  .shell-drawer__row[aria-current="page"] {
+    color: var(--color-fg);
+    border-inline-start-color: var(--palette-tangerine-tango);
+  }
+
+  .shell-drawer__row:active {
+    background: color-mix(in oklch, var(--color-fg) 10%, transparent);
+  }
+
+  .shell-drawer__row:focus-visible,
+  .rg-button.shell-menu-close:focus-visible {
+    outline: 2px solid var(--color-fg);
+    outline-offset: -2px;
+  }
+
+  /* The page beside the open drawer dims, under the bar and Menu, and a press on
+     it closes the drawer. */
+  .rg-button.shell-menu-scrim {
+    position: fixed;
+    inset: var(--shell-top-end) 0 0;
+    z-index: var(--rg-layer-shade);
+    display: block;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: color-mix(in oklch, var(--color-bg) 72%, transparent);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--duration-slow) var(--ease-out),
+      visibility var(--duration-slow);
+  }
+
+  .rg-button.shell-menu-scrim::before,
+  .rg-button.shell-menu-scrim::after {
+    content: none;
+  }
+
+  :scope[data-menu="open"] .rg-button.shell-menu-scrim {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  /* The footer is one column: the words wrap under its buttons, and the legal
+     pair and the copyright each start a line, lined up with the words above. */
+  .regent-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .regent-footer__legal {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
+  .regent-footer__copyright {
+    padding-inline: 0;
+  }
+}
+
+@media (hover: hover) and (max-width: 48rem) {
+  .shell-drawer__row:hover,
+  .rg-button.mobile-menu-button:hover,
+  .rg-button.shell-menu-close:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, var(--color-bg));
+    text-decoration: none;
+  }
+}
+
+/* Forced colours: the page you are on keeps its mark, in the link colour. */
+@media (forced-colors: active) and (max-width: 48rem) {
+  .shell-drawer__row {
+    border-inline-start-color: Canvas;
+  }
+
+  .shell-drawer__row[aria-current="page"] {
+    border-inline-start-color: LinkText;
+  }
+}
+
+/* Reduced motion: the drawer is there at once; the page beside it still dims. */
+@media (prefers-reduced-motion: reduce) {
+  #shell-drawer,
+  :scope[data-menu="open"] #shell-drawer {
+    transition: none;
+  }
+}
+}

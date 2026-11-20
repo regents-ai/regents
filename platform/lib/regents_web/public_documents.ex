@@ -32,6 +32,7 @@ defmodule RegentsWeb.PublicDocuments do
   @documents ~w(/ /about /changelog /privacy /terms /start /cloak /siwa) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
+  alias RegentsWeb.Autolaunch.PublicDocuments, as: AutolaunchDocuments
   alias RegentsWeb.Keyfleet.PublicDocuments, as: KeyfleetDocuments
   alias RegentsWeb.PaperProDaily.Reading
   alias RegentsWeb.Techtree.PublicDocuments, as: TechtreeDocuments
@@ -170,6 +171,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
   def document("/techtree/docs" <> _rest = path), do: TechtreeDocuments.document(path)
   def document("/keyfleet/" <> _rest = path), do: KeyfleetDocuments.document(path)
+  def document("/autolaunch/" <> _rest = path), do: AutolaunchDocuments.document(path)
 
   def document(path) do
     case RegentsWeb.Docs.Pages.page(path) do
@@ -280,17 +282,21 @@ defmodule RegentsWeb.PublicDocuments do
     }
   end
 
-  # A Techtree page's title ends in Techtree's name, as on techtree.sh, and a
-  # Keyfleet page's in Keyfleet's, as on keyfleet.ai.
+  # A Techtree page's title ends in Techtree's name, as on techtree.sh, a
+  # Keyfleet page's in Keyfleet's, as on keyfleet.ai, and an Autolaunch page's in
+  # Autolaunch's, as on autolaunch.sh.
   defp title_suffix(path) when path in ["/", "/paper-pro-daily"], do: ""
   defp title_suffix("/techtree"), do: " · Techtree"
   defp title_suffix("/techtree/" <> _page), do: " · Techtree"
   defp title_suffix("/keyfleet/" <> _page), do: " · Keyfleet"
+  defp title_suffix("/autolaunch/" <> _page), do: " · Autolaunch"
   defp title_suffix(_path), do: " · #{@site_name}"
 
   defp documents,
     do:
-      @documents ++ AgentGuides.paths() ++ TechtreeDocuments.paths() ++ KeyfleetDocuments.paths()
+      @documents ++
+        AgentGuides.paths() ++
+        TechtreeDocuments.paths() ++ KeyfleetDocuments.paths() ++ AutolaunchDocuments.paths()
 
   # The picture shown when a page is shared, unless the page names its own (the root
   # document's `share_image` assign). The home page, Paper Pro Daily, Stake, Redeem and

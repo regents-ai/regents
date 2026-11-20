@@ -60,6 +60,8 @@ import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 // Keyfleet's pages (`RegentsWeb.Keyfleet`): their frame, with its phone menu and the
 // bar while the next page loads.
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
+// Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
+import {installShellMenu} from "./autolaunch/shell_menu"
 
 // First, so an error anywhere below is reported too.
 installVisitLog()
@@ -335,6 +337,7 @@ installAgentMessage()
 installAgentTools()
 installLiteratureChart()
 installShellPanels()
+installShellMenu()
 mountMotion(document)
 mountEntrance(document)
 window.liveSocket = liveSocket

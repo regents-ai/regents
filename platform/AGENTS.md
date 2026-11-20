@@ -41,8 +41,10 @@ again from it and moving that commit.
 - A page takes its product's colours (design-system's `data-product` blocks: main
   button, links, focus ring, chosen tab). A product with a look of its own restates
   its own in its scoped tokens, per theme, so they win: Techtree in
-  `assets/css/techtree/app.css`, Keyfleet in `assets/css/keyfleet/tokens/root.css`.
-  Autolaunch and Patchbay wear design-system's until their own pages come in.
+  `assets/css/techtree/app.css`, Keyfleet in `assets/css/keyfleet/tokens/root.css`,
+  Autolaunch on its own pages in `assets/css/autolaunch/tokens/autolaunch.css` (its
+  overview, `/autolaunch`, still wears design-system's). Patchbay wears design-system's
+  until its own pages come in.
 
 ### The one-site bar and the page's three attributes
 
@@ -130,6 +132,27 @@ its live action in `RegentsWeb.Keyfleet.RouteCatalog`):
   links in it: the sidebar holds Keyfleet's pages, behind Menu on a phone.
 - The frame's hook is the product's (`KeyfleetShell`), composed with the site's
   `ShellViews`. It never sets the page's attributes; the root layout does.
+
+### A product page beside its regents.sh overview (Autolaunch)
+
+Autolaunch's pages under `/autolaunch/...` wear its own frame
+(`RegentsWeb.Autolaunch.Layouts`) while `/autolaunch` is still regents.sh's overview:
+
+- The overview carries the same `data-product`, so the product's stylesheets are scoped
+  `@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame)`: only a
+  page holding the product's own frame (`.shell`) takes them. Drop the `:has(...)` when
+  the product's home replaces the overview.
+- regents.sh's `a { color: currentColor }` and its `:focus-visible` rules are unscoped.
+  A product restates its plain links as `a` (not `:where(a)`) and its focus ring with
+  regents.sh's selector list (`:is(button, a, input):focus-visible`,
+  `[tabindex]:not([tabindex="-1"]):focus-visible`, `[tabindex="-1"]:focus-visible`),
+  so at equal weight the scoped rule wins.
+- A frame that scrolls with the page keeps Menu on a strip of its own that sticks under
+  the bar (`position: sticky; inset-block-start: 3.5rem`, the header layer); its drawer
+  and the dimmed page start below both (`3.5rem + 2.75rem`).
+- A page served by a controller gets the frame from its pipeline
+  (`put_layout html: {RegentsWeb.Autolaunch.Layouts, :app}`). That layout's assigns are
+  a plain map, so it never calls `assign/3`; the components it calls may.
 
 ### A product's carried documents
 

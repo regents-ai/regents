@@ -1,0 +1,69 @@
+@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+/* The site's bar is 4rem tall, 3.5rem at 48rem and below (Regent.Site.bar), and on a
+   phone Menu has a 2.75rem strip of its own under it. The phone menu and its
+   backdrop open under both (`--shell-top-end`). */
+:scope { --shell-top-end: 4rem; }
+@media (max-width: 48rem) { :scope { --shell-top-end: calc(3.5rem + 2.75rem); } }
+/* One continuous sheet: the gutter track belongs to Structure.row. */
+/* The frame is at least the rest of the screen under the bar, and the page column
+   grows to fill it, so the footer sits at the foot of the screen however short the
+   page is, in the page's own flow. The bar's bottom line is the frame's top line. */
+.shell { display: flex; flex-direction: column; min-height: calc(100dvh - var(--shell-top-end)); border-block-start: 0; }
+.shell-body { flex: 1 0 auto; }
+.shell-body > .rg-sheet-row__main { display: flex; flex-direction: column; }
+/* Pages lay themselves out by the page column's own width (`shell-page`). */
+.shell-main { flex: 1 0 auto; min-width: 0; display: flex; flex-direction: column; container: shell-page / inline-size; }
+.shell-content { min-width: 0; max-width: 100%; flex: 1 0 auto; padding: var(--rg-panel-padding); }
+.shell-skip { position: absolute; top: var(--space-2); left: var(--space-2); z-index: var(--rg-layer-skip); padding: var(--space-2); background: var(--color-surface); color: var(--color-fg); transform: translateY(-180%); }
+.shell-skip:focus { transform: none; }
+/* The footer: its buttons on the first row, then one line of the site's documents,
+   the legal pair and the copyright, in muted words that take the full ink and an
+   underline under a mouse. Every word stands 44px tall with 8px either side, so
+   the gaps between the words are the same 24px everywhere and the first word
+   lines up with the buttons' edge. */
+.regent-footer {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-1);
+  padding: var(--rg-panel-padding); border-top: 1px solid var(--rg-page-rule); font-size: .8125rem;
+}
+/* The row keeps the room autolaunch.sh gives the light behind its buttons, 16px past
+   them on every side but the bottom, where that room is the row's gap to the words
+   below, so the buttons sit where they do there. The light itself shows only on a
+   live page and comes with the first one. */
+.regent-footer__buttons {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-1);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0; padding: var(--space-2);
+}
+.regent-footer__buttons .regent-social-links { gap: 0; }
+.regent-footer p { margin: 0; }
+.regent-footer__links, .regent-footer__legal { display: flex; flex-wrap: wrap; column-gap: var(--space-1); }
+.regent-footer__links { margin-inline-start: calc(-1 * var(--space-1)); }
+.regent-footer__links > a, .regent-footer__legal > a, .regent-footer__links .regent-footer__guide, .regent-footer__copyright {
+  display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 var(--space-1);
+  color: var(--color-fg-muted); text-decoration: none; text-underline-offset: .2em;
+}
+.regent-footer__links .regent-footer__guide { border: 0; background: none; font: inherit; cursor: pointer; }
+@media (hover: hover) {
+  .regent-footer__links > a:hover, .regent-footer__legal > a:hover, .regent-footer__links .regent-footer__guide:hover { color: var(--color-fg); text-decoration: underline; }
+}
+.regent-footer__links :is(a, button):focus-visible { outline: var(--rg-ring-width) solid var(--color-focus); outline-offset: calc(-1 * var(--rg-ring-width)); }
+/* The legal pair closes the line, and the copyright follows it. */
+.regent-footer__legal { margin-inline-start: auto; }
+.regent-footer__copyright { padding-inline-end: 0; }
+.regent-footer__guide-body p { margin: 0; color: var(--rg-p-muted); }
+.regent-footer__guide-body a { min-height: 2.75rem; }
+.regent-footer__guide-body:popover-open { display: grid; }
+.regent-social-links { display: flex; align-items: center; gap: var(--space-2); }
+.regent-social-links a { display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; color: inherit; }
+@media (hover: hover) { .regent-footer__buttons .regent-social-links a:hover { background: color-mix(in oklch, var(--color-fg) 6%, transparent); } }
+.regent-social-links svg { width: 1.25rem; height: 1.25rem; }
+.regent-social-links a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+/* Real routes retain one section heading and sibling navigation. No tab or entrance motion. */
+.learn-navigation { max-width: 1040px; margin-block-end: var(--space-4); border-bottom: 1px solid var(--rg-page-rule); }
+.learn-navigation__title { margin: 0 0 var(--space-1); font-family: var(--font-family-title); font-size: 1.25rem; }
+.learn-navigation nav { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); }
+.learn-navigation a { display: inline-flex; align-items: center; justify-content: center; min-width: 2.75rem; min-height: 2.75rem; color: var(--color-fg-muted); text-decoration: none; }
+.learn-navigation a[aria-current="page"] { color: var(--color-fg); text-decoration: underline; text-underline-offset: .4em; }
+.learn-navigation a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 3px; }
+.shell-content:has(> .learn-navigation) > :not(.learn-navigation) { max-width: 1040px; }
+}

@@ -7804,3 +7804,22 @@ seasons), on the shared Points library regents.sh was already on.
   with the reference's dot picture.
 - The error page's box stands one gutter below the bar, as every other page's content
   does, and its links are a plain row instead of a bulleted list.
+
+## 2026-11-20 — one-site branch: Autolaunch's frame and its Changelog (not released)
+
+- Not released: on the `one-site` branch only. No migration, queue, scheduled job,
+  setting, secret, sign-in, session, wallet or pairing change.
+- Autolaunch's Changelog is on this site at `/autolaunch/changelog`, word for word as
+  autolaunch.sh shows it at `4799025d`, with Autolaunch's Learn links, footer and look
+  in both themes, and answers as Markdown when asked with `Accept: text/markdown`.
+- Its frame is this site's bar with Autolaunch's own links (Explore, to `/autolaunch`);
+  on a phone they open from Menu, on a strip directly under the bar that stays there as
+  the page scrolls. Autolaunch's buttons, links and focus ring are autolaunch.sh's; Sign
+  in and Account in the bar are the shared ones. Signed in, the bar shows the person's
+  picture, name and Sign out.
+- Left out for now: autolaunch.sh's market ticker, $REGENT menu, search, account menu
+  with its agents, and its side rail; About, How it works and Docs (they read the
+  launch contracts' settings) and every page that reads launches. `/autolaunch` is still
+  regents.sh's overview page.
+- regents.sh's, Techtree's and Keyfleet's pages and the site's agent documents answer as
+  before; `/api/v1/health` also lists Autolaunch.

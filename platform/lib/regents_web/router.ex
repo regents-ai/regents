@@ -99,6 +99,13 @@ defmodule RegentsWeb.Router do
     plug :put_layout, html: {RegentsWeb.Keyfleet.Layouts, :app}
   end
 
+  # Autolaunch's pages under /autolaunch/...: the page is Autolaunch's (its
+  # stylesheets), read inside Autolaunch's own frame (RegentsWeb.Autolaunch).
+  pipeline :autolaunch do
+    plug :put_product, "autolaunch"
+    plug :put_layout, html: {RegentsWeb.Autolaunch.Layouts, :app}
+  end
+
   def enforce_session_authority(conn, _opts) do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
@@ -373,6 +380,12 @@ defmodule RegentsWeb.Router do
       live "/privacy", ShellLive, :privacy
       live "/terms", ShellLive, :terms
     end
+  end
+
+  scope "/autolaunch", RegentsWeb.Autolaunch do
+    pipe_through [:browser, :autolaunch]
+
+    get "/changelog", PublicPagesController, :show
   end
 
   # Keyfleet's agent guides, to any caller, as the site's own are.

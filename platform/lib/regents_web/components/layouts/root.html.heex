@@ -72,6 +72,8 @@
   <body>
     {@inner_content}
     <Regent.Structure.confirm />
-    <.product_links :if={!home? and !shell? and @site_product not in ~w(techtree keyfleet)} />
+    <.product_links :if={
+      !home? and !shell? and @site_product not in ~w(techtree keyfleet autolaunch)
+    } />
   </body>
 </html>

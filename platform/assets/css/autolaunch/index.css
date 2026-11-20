@@ -1,0 +1,14 @@
+/* Autolaunch's stylesheets, as autolaunch.sh orders them (regents-ai/autolaunch
+   platform/assets/css/app.css, SOURCE.json), for the pages brought so far. Each file
+   is wrapped in `@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame)`,
+   so it applies only to a page in Autolaunch's own frame (`.shell`) and never to
+   Autolaunch's overview, which is regents.sh's frame and keeps the shared product
+   colours; a scoped rule keeps its own specificity and wins over an unscoped rule of
+   the same specificity. Regent UI's tokens and primitives, with the autolaunch
+   palette the page wears (`data-brand="autolaunch"`), come from the site's own app.css. */
+@import "./tokens/autolaunch.css";
+@import "./base.css";
+@import "./shell/layout.css";
+@import "./pages/autolaunch.css";
+@import "./pages/facts.css";
+@import "./shell/phone.css";

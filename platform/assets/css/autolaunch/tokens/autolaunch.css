@@ -1,0 +1,34 @@
+@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+/* autolaunch.sh's own main button, links, focus ring and chosen tab: the autolaunch
+   palette's, as Regent UI 69dbfface (which autolaunch.sh at 4799025d wears, with no
+   product named) states them. Regent UI's product colours (`data-product`) are for a
+   product without a look of its own; scoped, these win over them. The bar keeps the
+   product's line, and its Sign in the shared plate. */
+:scope[data-product][data-theme="light"] {
+  --color-button: #FF5B19;
+  --color-fg-on-button: #161616;
+  --color-link: #161616;
+  --color-focus: #A33208;
+  --color-chosen: #FF5B19;
+  --color-fg-on-chosen: #161616;
+  --color-button-mark: initial;
+}
+
+:scope[data-product][data-theme="dark"],
+:scope[data-product]:not([data-theme]) {
+  --color-button: #FF5B19;
+  --color-fg-on-button: #161616;
+  --color-link: #FF5B19;
+  --color-focus: #AECACD;
+  --color-chosen: #FF5B19;
+  --color-fg-on-chosen: #161616;
+  --color-button-mark: initial;
+}
+
+@media (prefers-color-scheme: light) {
+  :scope[data-product]:not([data-theme]) {
+    --color-link: #161616;
+    --color-focus: #A33208;
+  }
+}
+}
