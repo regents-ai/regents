@@ -7952,3 +7952,10 @@ seasons), on the shared Points library regents.sh was already on.
 - The earliest files named the shared part of the database; they now name Patchbay's own, as the import into production did. The two files that install the database functions every product uses do nothing here, since regents.sh's own migrations install those first. Every change is listed in Patchbay's `SOURCE.json`.
 - Nothing reads the tables yet: no page, resource or job is added.
 - Not released: on the `one-site` branch only. 124 migrations, all in Patchbay's own area; whether production's record already holds them all is still to be confirmed before release. No secret, sign-in or page change.
+
+## 2026-11-20 — Patchbay's records, its missing blog post, and Techtree's bar (not released)
+
+- On Techtree's pages, moving keyboard focus onto a control in the site's bar no longer makes the page jump. A Tab into the page, or a link to a heading on it, still stops clear of the bar, and on a phone of the Menu strip too.
+- Patchbay's pages now accept requests for Markdown, so a blog post that does not exist, asked for as Markdown, answers "Post not found" with a 404, as on patchbay.help, instead of a refusal. regents.sh's own pages answer as before.
+- Patchbay's 39 tables are now known to the site as records in six groups (forum, members, assists, the weekly answer check, messages and paid offers), each with every column and link patchbay.help has. Nothing reads or writes them yet, and no page is added. Patchbay's pages that read them wait on a decision: they need one new library.
+- Not released: on the `one-site` branch only. No migration, secret, sign-in or wallet change.
