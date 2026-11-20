@@ -7301,3 +7301,10 @@ seasons), on the shared Points library regents.sh was already on.
   platform/assets/js/auth_lazy.ts, platform/assets/js/hooks/verified_connections.ts,
   platform/assets/js/privy_bridge.tsx, platform/lib/regents_web/live/shell_live/account.ex.
   No migration, no package change.
+
+## 2026-11-20 — Released the Farcaster connect fix
+
+- Commit 5d0b860e. Full check exit 0 on 5d0b860e; the practice run built the image and found no migration pending.
+- Live read, signed out: the 23 pages and agent documents answer; health reports migrations applied. Not tried: a signed-in press of Connect on Farcaster.
+- Rollback: the image main-af4b134cad01.
+- Correction to the entry above: Fly numbers the X-account release (af4b134c) v350; v349 is its failed first attempt, which changed nothing.
