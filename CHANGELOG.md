@@ -7886,3 +7886,28 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 905bcd67. Full check exit 0 on 905bcd67; the practice run built the image and found no migration pending.
 - Live read, signed out: the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-c97cd374b614.
+
+## 2026-11-20 — Cloak page drawn after llama.cpp's (not released)
+
+- /cloak is rebuilt as the Cloak chief's design, after the founder asked for less text and the download on the first screen: the app's icon, the pill "Built on llama.cpp, Tor and NEAR AI", the heading "Anon. Local. / Private AI.", the subtitle, Download for Mac and Watch the intro 0:20, and the facts line all fit the first screen at 1440 × 900 and 390 × 844 in both themes. Below them, a dark-blue panel with Anon V, NEAR Privacy and Llama Normal beside a drawn picture of the chat window, then the Needs and Caution notes and the last line. The words are a draft the founder has not yet approved; this is built and held.
+- Watch plays the 20-second intro in a dialog. The film is fetched only when the dialog opens, and closing it (Escape, Close or a press outside) stops it and returns it to the start. The film and the icon are served from /images/cloak/.
+- Gone from the page: About, the three boxed points, the Install steps and their styles.
+- The heading is the design system's sans, Geist, at its heaviest weight (600), declared by the page.
+- A page can now be drawn on the whole width: the route catalog's `rail: false` hides the side menu on a wide screen and keeps it behind Menu on a phone. Only /cloak uses it; every other page is unchanged.
+- /cloak's Markdown carries the new words, the Download link and the film. No migration.
+
+## 2026-11-20 — Cloak page: panel title and mode names (not released)
+
+- The blue panel on /cloak gets the title "3 modes of operation"; its three points are named Anon “paranoid mode” (with the line "Inspired by Vitalik's X post about his preferred AI usage.", the words X post linking to the post in a new tab), NEAR AI Gateway and Local Llama, as the founder asked. The Needs note says "Modes 1 and 2". The drawn chat window keeps the app's own labels.
+- The page's search and share description is now its subtitle.
+- The subtitle is the founder's new words (local model or private NEAR inference, then “paranoid mode”), set wider and a little smaller so the buttons stay on the first screen; the description is its first two sentences.
+
+## 2026-11-20 — Released the new Cloak page
+
+- Commit ffc12d6b, on the founder's "12. a" in the Cloak thread. Full check exit 0 on ffc12d6b; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new heading and subtitle, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-905bcd678fe6.
+
+## 2026-11-20 — One site: the new Cloak page in the one-site frame
+
+- Branch one-site takes main's new Cloak page (the three entries above) unchanged: its words, links, film and styles. Cloak has no side menu of its own on this branch, so /cloak already runs the frame's full width with no Menu at every width; main's route catalog switch `rail: false` is not carried, and the catalog handoff is regenerated without it. No migration.

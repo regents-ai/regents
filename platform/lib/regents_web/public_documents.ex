@@ -79,7 +79,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/keyfleet" =>
       {"Keyfleet",
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
-    "/cloak" => {"Cloak", "A Mac app that rewords your messages and sends them through Tor."},
+    "/cloak" =>
+      {"Cloak",
+       "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
