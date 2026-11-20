@@ -36,7 +36,13 @@ again from it and moving that commit.
   and the answer stays 200 (`RegentsWeb.HealthController`).
 - `data-brand` is a different word: the look a page wears, in design-system's
   vocabulary, always `Regent.Site.brand/1` of the page's product. regents.sh's own
-  pages, Keyfleet, staking, SIWA and Cloak wear `platform`; Techtree wears `techtree`.
+  pages, Keyfleet, staking, SIWA and Cloak wear `platform`; Techtree, Autolaunch and
+  Patchbay wear their own.
+- A page takes its product's colours (design-system's `data-product` blocks: main
+  button, links, focus ring, chosen tab). A product with a look of its own restates
+  its own in its scoped tokens, per theme, so they win: Techtree in
+  `assets/css/techtree/app.css`, Keyfleet in `assets/css/keyfleet/tokens/root.css`.
+  Autolaunch and Patchbay wear design-system's until their own pages come in.
 
 ### The one-site bar and the page's three attributes
 
@@ -49,6 +55,10 @@ again from it and moving that commit.
 - Every page shows the site's bar, `RegentsWeb.Components.Shell.site_bar/1` around
   `Regent.Site.bar`: the crown, the product menu, the product's own links (its
   `links` slot) and the account control. No product draws a header of its own.
+- In the app shell only Regents' and Protocol's pages carry the side menu (the app's
+  pages and the reading, `RouteCatalog`); another product's page there carries none,
+  and no Menu, and runs the frame's full width. The bar's product menu is the one way
+  between products.
 - The root layout is not redrawn by live navigation, so a link from one product's
   pages to another's is a plain `href` load, never `navigate` or `patch`.
 - Core, `lib/regents/<product>.ex`:
@@ -108,11 +118,12 @@ LiveView that patches between them (`RegentsWeb.Keyfleet.ShellLive`, each page n
 its live action in `RegentsWeb.Keyfleet.RouteCatalog`):
 
 - The frame keeps its own element names, which are also regents.sh's frame's
-  (`#app-shell`, `#shell-sidebar`, `.mobile-menu-button`). Keyfleet wears the
-  `platform` brand, so its stylesheets are scoped on `data-product="keyfleet"`, and
-  regents.sh's rules for those names sit under
-  `:where([data-brand="platform"]:not([data-product="keyfleet"]))`: no added weight,
-  same order, and they stay off Keyfleet's frame. The sign-in control's rules
+  (`#app-shell`, `#shell-sidebar`, `.mobile-menu-button`). regents.sh's rules for those
+  names are keyed on its frame's own class, `:where(.regents-frame)` (no added weight),
+  so they reach that frame whatever product its page names and never Keyfleet's.
+  Keyfleet wears the `platform` brand, so its stylesheets are scoped
+  `@scope (:root[data-product="keyfleet"]) to (.regents-frame)`: they stop at
+  regents.sh's frame, which Keyfleet's overview (`/keyfleet`) wears. The sign-in control's rules
   (`.account-control`, `.account-chip`, `.account-name`, `.account-avatar`) stay shared,
   as every product's bar holds the site's control.
 - The frame starts with the site's bar (`Shell.site_bar product="keyfleet"`), with no

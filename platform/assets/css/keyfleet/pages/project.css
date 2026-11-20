@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* A project's page (`KeyfleetWeb.ProjectLive`) is one solid card over the
    swarm city, in the workspace's Key grammar: the display face for headings,

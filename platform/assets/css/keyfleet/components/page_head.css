@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* An account page opens with one title row: the name in the display face. No
    kicker, no tip, no paragraph and no frame: the content starts right under it. */

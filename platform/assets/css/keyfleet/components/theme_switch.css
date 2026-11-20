@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* The light and dark theme switch (KeyfleetWeb.Components.Shell.theme_toggle/1, hooks/theme_switch.ts).
 
    The button is the whole press. Inside it sits the still face the server draws,

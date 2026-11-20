@@ -3,14 +3,16 @@ defmodule RegentsWeb.Techtree.SiteMenu do
   The site's pages for the bar and the footer (`RegentsWeb.Techtree.Layouts`).
 
   The bar links Results and Docs, after Services. The footer lists the services
-  (`RegentsWeb.Techtree.Services`), Techtree's Results, Docs and changelog with the
-  site's own pages, and the files to hand an agent, in columns, by name.
+  (`RegentsWeb.Techtree.Services`), Techtree's Results, Docs, changelog and code on
+  GitHub with the site's own pages, and the files to hand an agent, in columns, by
+  name.
   """
 
   use RegentsWeb, :verified_routes
 
   alias RegentsWeb.Techtree.Services
 
+  @repository "https://github.com/regents-ai/techtree"
   @buy_regent "https://app.uniswap.org/explore/tokens/base/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
 
   @type link :: %{name: String.t(), href: String.t()}
@@ -37,6 +39,7 @@ defmodule RegentsWeb.Techtree.SiteMenu do
         link("Docs", ~p"/techtree/docs"),
         link("Run locally", ~p"/techtree/docs/run-locally"),
         link("Changelog", ~p"/techtree/changelog"),
+        link("GitHub", @repository),
         link("About", ~p"/about"),
         link("Buy $REGENT", @buy_regent)
       ]),

@@ -62,6 +62,7 @@ defmodule RegentsWeb.Techtree.RunsLive.Show do
   alias RegentsWeb.Techtree.ReleaseInfo
   alias RegentsWeb.Techtree.ResultAssessment
   alias RegentsWeb.Techtree.ResultNames
+  alias RegentsWeb.Techtree.ResultShareCard
 
   @impl true
   def mount(%{"bundle_digest" => digest}, _session, socket) do
@@ -577,6 +578,11 @@ defmodule RegentsWeb.Techtree.RunsLive.Show do
 
     %{
       page_title: "#{campaign_name} · Published Result",
+      share_image: %{
+        url: ResultShareCard.image_url(entry),
+        size: ResultShareCard.size(),
+        alt: ResultShareCard.alt(entry)
+      },
       entry: entry,
       campaign_name: campaign_name,
       skill_name: skill_name(entry, climb),

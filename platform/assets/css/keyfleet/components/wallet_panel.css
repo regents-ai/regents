@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* A group of wallet buttons (ash-template's skills/onchain-buttons): the
    form the steps are built from, the line naming what a press sends, the buttons, and each sent

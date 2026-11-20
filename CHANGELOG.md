@@ -7764,3 +7764,30 @@ seasons), on the shared Points library regents.sh was already on.
   addresses under `/api/agents/v1/` and `/api/v1/profile/` keep the shared libraries'
   answers. The Errors docs page says so, and the OpenAPI JSON specification is now
   version 8.0.0.
+
+## 2026-11-20 — one-site branch: the design review's fixes to the bar, the app frame and the home page (not released)
+
+- Not released: on the `one-site` branch only. No migration, secret, sign-in, session,
+  wallet or pairing change.
+- The app frame's styles (side menu, Menu, skip link, footer) now belong to the frame
+  itself rather than to the Regents look, so they hold on every product's page in the
+  frame. `/autolaunch` and `/patchbay` no longer show a bulleted side menu, plain-text
+  Menu and Close, or a skip link pushing the bar down.
+- Side menus: the Products group is gone (the bar's product menu is the one way between
+  products). Only Regents' and Protocol's pages carry the side menu (Overview, Stake,
+  Redeem, Account, then Reading); the Keyfleet, Autolaunch, Patchbay, Cloak and SIWA
+  overview pages carry none and run the frame's full width, with no Menu on a phone.
+- `/keyfleet` names Keyfleet in the bar and takes Keyfleet's colours, as `/autolaunch` and
+  `/patchbay` take theirs. Keyfleet's own styles stop at the regents.sh frame.
+- The home page's products follow the product menu's order (Techtree, Keyfleet,
+  Autolaunch, Patchbay, Protocol, Cloak), as do the home page's Markdown and the app's
+  Overview cards and picture. The SIWA row is held back: its words make a claim no page
+  on the site makes yet. The slab's headline gets the second spacing step above and below.
+- Techtree's main button, links and focus ring are techtree.sh's in both themes (light:
+  lime words on dark), and Keyfleet's are keyfleet.ai's, instead of the shared product
+  colours; Sign in in the bar stays the shared button. Techtree's footer gains a GitHub
+  link, and its bar height is the site bar's (64, 56 on a phone).
+- The error page opens with the site's bar, signed out. It reads no account and no
+  session, so it still shows when either is what failed.
+- A page may name its own share picture; a published Result's page names its own card
+  again, and every other page keeps the site's picture for its address.

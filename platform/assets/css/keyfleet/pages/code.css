@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* A fleet's code: its history, one commit's changes and the files at a
    commit. Additions and removals tint the surface with the success and error

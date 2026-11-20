@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* Notes from the page (`KeyfleetWeb.Layouts.app`): a dock at the foot of a
    phone's screen, clear of its home bar and of a form's action bar
    (`sticky_actions.css`). On a wider screen the dock sits in the bottom-right

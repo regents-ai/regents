@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* A tree canvas: an endless surface of cards with the links between them
    drawn under the cards, in slices the page chooses, a dot grid that moves

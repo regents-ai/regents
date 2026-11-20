@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* Direct messages stand on the rooms page: the same panels, thread and box.
    Only what the rooms page doesn't have is here. */

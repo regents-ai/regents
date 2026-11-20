@@ -39,10 +39,9 @@
 @import "./techtree/index.css";
 @import "./keyfleet/index.css";
 
-/* The page itself, its height and its footer are regents.sh's only on its own pages
+/* The page itself and its height are regents.sh's only on its own pages
    (`data-brand="platform"`, but not Keyfleet's); Techtree's and Keyfleet's pages set
-   their own and share the footer's class names. `:where` keeps each rule's weight as
-   it was. */
+   their own. `:where` keeps each rule's weight as it was. */
 :root:where([data-brand="platform"]:not([data-product="keyfleet"])) {
   color-scheme: light dark;
   --radius-sm: 0px;
@@ -169,8 +168,10 @@ input:focus-visible,
   }
 }
 
-/* The footer of every public page and the app's pages (`Layouts.product_links/1`). */
-:where([data-brand="platform"]:not([data-product="keyfleet"])) {
+/* The footer of every public page and the app's pages (`Layouts.product_links/1`):
+   regents.sh's own pages, and its frame whatever product the frame's page names.
+   Techtree's and Keyfleet's footers share the class names and bring their own rules. */
+:where(.regents-frame, [data-product="regents"]) {
   .regent-footer {
     display: flex;
     flex-wrap: wrap;
@@ -209,13 +210,13 @@ input:focus-visible,
 /* On touch screens every press is at least 44px each way; a link inside a sentence
    keeps the sentence's line, and a box to tick keeps its label as its press. */
 @media (hover: none), (pointer: coarse) {
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) #app-shell :is(a:not(p a), button, summary, select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"])) { min-height: 2.75rem; }
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) #app-shell :is(a:not(p a), button, summary) { min-width: 2.75rem; }
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) #app-shell .shell-skip { display: inline-flex; align-items: center; }
+  #app-shell:where(.regents-frame) :is(a:not(p a), button, summary, select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"])) { min-height: 2.75rem; }
+  #app-shell:where(.regents-frame) :is(a:not(p a), button, summary) { min-width: 2.75rem; }
+  #app-shell:where(.regents-frame) .shell-skip { display: inline-flex; align-items: center; }
   .docs-crumbs a { display: inline-flex; align-items: center; }
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) .regent-footer__social { gap: 0; }
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) .regent-footer__social > a { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) .regent-footer__links a { min-width: 2.75rem; }
+  :where(.regents-frame, [data-product="regents"]) .regent-footer__social { gap: 0; }
+  :where(.regents-frame, [data-product="regents"]) .regent-footer__social > a { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
+  :where(.regents-frame, [data-product="regents"]) .regent-footer__links a { min-width: 2.75rem; }
 }
 
 /* A public page fills the screen with its footer, so the footer sits at the foot of

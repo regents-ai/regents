@@ -5,9 +5,9 @@ defmodule RegentsWeb.RegentOpsLive do
   alias RegentsWeb.Chain.TokenDisplay
   alias RegentsWeb.Components.{LabBlocks, Loading, ValueCards}
 
-  # One card for each product, in the site's order, each with its template
-  # panel in its product's colours (assets/js/value_cards/panels/).
-  @products [
+  # One card for each product, each with its template panel in its product's
+  # colours (assets/js/value_cards/panels/).
+  @cards [
     %{
       id: "fleet",
       name: "Keyfleet",
@@ -64,7 +64,10 @@ defmodule RegentsWeb.RegentOpsLive do
     }
   ]
 
-  @doc "The six products' cards, in the site's order; the home page shows the same words."
+  # The cards in the product menu's order, the site's one list of its products.
+  @products for %{name: name} <- Regent.Site.products(), %{name: ^name} = card <- @cards, do: card
+
+  @doc "The products' cards, in the product menu's order; the home page shows the same words."
   def products, do: @products
 
   # The hero (RegentsWeb.Components.LabBlocks) places each product and Sign-in

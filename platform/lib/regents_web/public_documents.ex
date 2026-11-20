@@ -258,9 +258,7 @@ defmodule RegentsWeb.PublicDocuments do
       suffix: "",
       description: description,
       canonical: url(path),
-      image: paper_share_image(path),
-      image_size: {1200, 630},
-      image_alt: title,
+      share_image: %{url: paper_share_image(path), size: {1200, 630}, alt: title},
       markdown?: false
     }
   end
@@ -273,9 +271,11 @@ defmodule RegentsWeb.PublicDocuments do
       suffix: suffix,
       description: description,
       canonical: url(path),
-      image: share_image(path),
-      image_size: share_image_size(path),
-      image_alt: share_image_alt(path),
+      share_image: %{
+        url: share_image(path),
+        size: share_image_size(path),
+        alt: share_image_alt(path)
+      },
       markdown?: path in documents()
     }
   end
@@ -292,8 +292,9 @@ defmodule RegentsWeb.PublicDocuments do
     do:
       @documents ++ AgentGuides.paths() ++ TechtreeDocuments.paths() ++ KeyfleetDocuments.paths()
 
-  # The picture shown when a page is shared. The home page, Paper Pro Daily, Stake,
-  # Redeem and the literature chart each have their own; every other page shares the crown.
+  # The picture shown when a page is shared, unless the page names its own (the root
+  # document's `share_image` assign). The home page, Paper Pro Daily, Stake, Redeem and
+  # the literature chart each have their own; every other page shares the crown.
   @share_cards %{
     "/" => "home",
     "/stake" => "stake",

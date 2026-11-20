@@ -1,11 +1,12 @@
-/* regents.sh's own frame (`RegentsWeb.Components.Shell.shell/1`) styles only its own
-   pages: Keyfleet's frame uses the same names and brings its own rules, so these are
-   keyed on every page but Keyfleet's (`data-product="keyfleet"`). `:where` keeps each
-   rule's weight and order. The sign-in control's rules (`.account-control`,
-   `.account-chip`, `.account-name`, `.account-avatar`) stay shared: every product's
-   bar holds the same control. The bar itself is the site's (`Regent.Site.bar`). */
-:where([data-brand="platform"]:not([data-product="keyfleet"])) {
-  #app-shell {
+/* regents.sh's own frame (`RegentsWeb.Components.Shell.shell/1`), whatever product its
+   page names: these rules are keyed on the frame's own class (`.regents-frame`), never
+   on a brand. Keyfleet's frame uses the same names and brings its own rules, which stop
+   at this frame. `:where` keeps each rule's weight and order. The sign-in control's
+   rules (`.account-control`, `.account-chip`, `.account-name`, `.account-avatar`) stay
+   shared: every product's bar holds the same control. The bar itself is the site's
+   (`Regent.Site.bar`). */
+:where(.regents-frame) {
+  &#app-shell {
     --shell-header: 4rem;
     /* Where the bar's bottom line ends; a phone's menu and its backdrop open here,
        so they never cover that line. */
@@ -23,23 +24,8 @@
     line-height: 1.55;
   }
 
-  #app-shell > .rg-bar {
+  &#app-shell > .rg-bar {
     grid-column: 1 / -1;
-  }
-
-  /* Unseen until a keyboard reaches it. */
-  .shell-skip {
-    position: absolute;
-    inset-block-start: 0.5rem;
-    inset-inline-start: 0.5rem;
-    z-index: var(--rg-layer-skip);
-    padding: 0.5rem 0.75rem;
-    background: var(--color-bg);
-    color: var(--color-fg);
-  }
-
-  .shell-skip:not(:focus) {
-    clip-path: inset(50%);
   }
 
   #shell-sidebar,
@@ -65,7 +51,7 @@
 
   /* One ring on both grounds: outside the control where there is room for it,
      inside the sidebar's cells, which run edge to edge. */
-  #app-shell :focus-visible:not([tabindex="-1"]) {
+  &#app-shell :focus-visible:not([tabindex="-1"]) {
     outline: 2px solid var(--ash-ink);
     outline-offset: 2px;
   }
@@ -73,6 +59,22 @@
   #shell-sidebar :focus-visible {
     outline-offset: -2px;
   }
+}
+
+/* The first stop for a keyboard in the frame and on the home page: unseen until a
+   keyboard reaches it. */
+:where(.regents-frame, #public-home) > .shell-skip {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: var(--rg-layer-skip);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+:where(.regents-frame, #public-home) > .shell-skip:not(:focus) {
+  clip-path: inset(50%);
 }
 
 .account-control {
@@ -117,7 +119,7 @@
   }
 }
 
-:where([data-brand="platform"]:not([data-product="keyfleet"])) {
+:where(.regents-frame) {
   /* The theme switch has a row of the account menu to itself, its words at the
      start, so it can be larger than elsewhere and its blocks read. Its light
      spills only above and below its own press, inside the row. */
@@ -129,11 +131,11 @@
   }
 
   /* The account name opens the account menu, which hangs from it. */
-  #app-shell:has(#account-menu:popover-open) #account-chip {
+  &#app-shell:has(#account-menu:popover-open) #account-chip {
     background: color-mix(in oklch, var(--color-fg) 10%, transparent);
   }
 
-  #app-shell #account-chip {
+  &#app-shell #account-chip {
     anchor-name: --rg-account-menu;
   }
 }
@@ -153,7 +155,7 @@
   image-rendering: pixelated;
 }
 
-:where([data-brand="platform"]:not([data-product="keyfleet"])) {
+:where(.regents-frame) {
   .mobile-menu-button {
     display: none;
   }
@@ -314,8 +316,8 @@
 }
 
 @media (min-width: 48rem) and (max-width: 63.99rem) {
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) {
-    #app-shell { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
+  :where(.regents-frame) {
+    &#app-shell { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
     #shell-sidebar { border-inline-end: 0; border-block-end: 1px solid var(--color-border); }
     #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
@@ -324,8 +326,8 @@
 /* On a phone the sidebar is a drawer, opened by Menu on a strip of its own under
    the bar. */
 @media (max-width: 48rem) {
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) {
-    #app-shell {
+  :where(.regents-frame) {
+    &#app-shell {
       --shell-header: 3.5rem;
       --shell-header-end: calc(var(--shell-header) + 2.75rem);
       grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr);
@@ -360,7 +362,7 @@
       box-shadow: var(--rg-layer-panel-shadow);
     }
 
-    #app-shell[data-menu-open="true"] #shell-sidebar {
+    &#app-shell[data-menu-open="true"] #shell-sidebar {
       display: block;
     }
 
@@ -424,8 +426,16 @@
   }
 }
 
+/* A page whose product has no side menu of its own (`RouteCatalog`) has no Menu either:
+   the bar, then the page across the frame's full width, at every width. */
+:where(.regents-frame) {
+  &#app-shell:not(:has(> #shell-sidebar)) {
+    grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 47.99rem) {
-  :where([data-brand="platform"]:not([data-product="keyfleet"])) {
+  :where(.regents-frame) {
     /* On a phone the tabs sit closer; the six scroll sideways within the strip. */
     .shell-tabs {
       gap: 0.625rem;
@@ -443,7 +453,7 @@
   .account-chip { max-width: 2.75rem; }
 }
 
-:where([data-brand="platform"]:not([data-product="keyfleet"])) {
+:where(.regents-frame) {
   /* The close button of the pairing window, square in the window's top right
      corner, and kept there while the window scrolls. Its margins give back the
      room it takes, so what is under it keeps its place. It sits outside the

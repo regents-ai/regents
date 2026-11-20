@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* The reading pages (KeyfleetWeb.Components.Reading) open as the other pages
    do: the title and its one line on the ground, then the document as prose in

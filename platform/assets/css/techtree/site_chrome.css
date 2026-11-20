@@ -1,10 +1,12 @@
 @scope (:root[data-brand="techtree"]) {
 /* The frame and footer on every page (`RegentsWeb.Techtree.Layouts`). The site's
    bar sits over them and draws itself. */
-/* A link reached from the keyboard is never left under the 4rem bar. */
-:scope { scroll-padding-top: calc(4rem + var(--space-2)); }
+/* The site's bar: 4rem tall, 3.5rem at 48rem and below (Regent UI's site.css). A link
+   reached from the keyboard is never left under it. */
+:scope { --tt-bar: 4rem; scroll-padding-top: calc(var(--tt-bar) + var(--space-2)); }
+@media (max-width: 48rem) { :scope { --tt-bar: 3.5rem; } }
 
-.techtree-frame { min-height: calc(100vh - 4rem); display: flex; flex-direction: column; }
+.techtree-frame { min-height: calc(100vh - var(--tt-bar)); display: flex; flex-direction: column; }
 .regent-footer__title {
   display: flex; align-items: center; gap: .625rem; margin-bottom: var(--space-1);
   color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .6875rem;

@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* The one palette every surface stands on: eight swatches. Every colour is one
    of them or a mix of exactly two, and nothing else states a colour. The
    homepage uses the same saved light/dark choice and shared semantic roles. */
@@ -22,6 +22,42 @@
 
 :scope[data-theme="dark"] #app-shell {
   color-scheme: dark;
+}
+
+/* keyfleet.ai's own main button, links, focus ring and chosen tab: the platform
+   palette's, as Regent UI 69dbfface (which keyfleet.ai at 03eb26813 wears) states
+   them. Regent UI's product colours (`data-product`) are for a product without a
+   look of its own; scoped, these win over them. The bar's Sign in keeps the shared
+   plate. */
+:scope[data-product][data-theme="light"] {
+  --color-button: #161616;
+  --color-fg-on-button: #E5E3D2;
+  --color-link: #161616;
+  --color-focus: #A33208;
+  --color-chosen: var(--color-fg);
+  --color-fg-on-chosen: var(--color-bg);
+  --color-button-mark: initial;
+}
+
+:scope[data-product][data-theme="dark"],
+:scope[data-product]:not([data-theme]) {
+  --color-button: #E5E3D2;
+  --color-fg-on-button: #161616;
+  --color-link: #E5E3D2;
+  --color-focus: #AECACD;
+  --color-chosen: var(--color-fg);
+  --color-fg-on-chosen: var(--color-bg);
+  --color-button-mark: #FF5B19;
+}
+
+@media (prefers-color-scheme: light) {
+  :scope[data-product]:not([data-theme]) {
+    --color-button: #161616;
+    --color-fg-on-button: #E5E3D2;
+    --color-link: #161616;
+    --color-focus: #A33208;
+    --color-button-mark: initial;
+  }
 }
 
 :scope {

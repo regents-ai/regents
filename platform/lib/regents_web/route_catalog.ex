@@ -288,16 +288,22 @@ defmodule RegentsWeb.RouteCatalog do
   }
 
   # The product each page belongs to (`Regent.Site.products/0`): Regents, unless named
-  # here. The root layout marks the page with it, and a sidebar link to another
-  # product's page loads that page in full.
+  # here. A product's overview page belongs to that product. The root layout marks the
+  # page with it, and a sidebar link to another product's page loads that page in full.
   @products %{
-    techtree: "techtree",
     stake: "protocol",
+    keyfleet: "keyfleet",
     autolaunch: "autolaunch",
     patchbay: "patchbay",
     cloak: "cloak",
     siwa: "siwa"
   }
+
+  # The products with a side menu of their own: the app's pages and the reading, on
+  # Regents' pages and on Protocol's (Stake is one of the app's pages). Every other
+  # product's page here is its only one, so it carries none. No side menu lists the
+  # products: the bar's product menu is the one way between them.
+  @app_menu_products ~w(regents protocol)
 
   # The Account pages are tabs of one another.
   @account_tabs [
@@ -350,15 +356,17 @@ defmodule RegentsWeb.RouteCatalog do
     {route_id, app_id, app_label, page_label, root, controls, background, local_state} =
       Map.fetch!(@specs, action)
 
+    product = product(route_id)
+
     %Spec{
       route_id: route_id,
-      product: product(route_id),
+      product: product,
       destination: destination(action, params),
       app_id: app_id,
       app_display_label: app_label,
       page_display_label: page_label,
       canonical_root: root,
-      sidebar_model: sidebar_model(app_id),
+      sidebar_model: sidebar_model(app_id, product),
       tabs: Map.get(@tabs, route_id, []),
       header_controls: controls,
       background_slot: background,
@@ -367,9 +375,12 @@ defmodule RegentsWeb.RouteCatalog do
     }
   end
 
-  defp sidebar_model(nil), do: %SidebarModel{id: :public, targets: []}
+  defp sidebar_model(nil, _product), do: %SidebarModel{id: :public, targets: []}
 
-  defp sidebar_model(:regent_ops) do
+  defp sidebar_model(:regent_ops, product) when product not in @app_menu_products,
+    do: %SidebarModel{id: :none, targets: []}
+
+  defp sidebar_model(:regent_ops, _product) do
     %SidebarModel{
       id: :regent_ops,
       targets: [
@@ -378,12 +389,6 @@ defmodule RegentsWeb.RouteCatalog do
         %RouteTarget{route_id: :redeem, label: "Redeem", path: "/redeem"},
         %RouteTarget{route_id: :account, label: "Account", path: "/account"},
         %ViewerProfileTarget{label: "Profile"},
-        %SidebarHeading{label: "Products"},
-        %RouteTarget{route_id: :keyfleet, label: "Keyfleet", path: "/keyfleet"},
-        %RouteTarget{route_id: :autolaunch, label: "Autolaunch", path: "/autolaunch"},
-        %RouteTarget{route_id: :patchbay, label: "Patchbay", path: "/patchbay"},
-        %RouteTarget{route_id: :techtree, label: "Techtree", path: "/techtree"},
-        %RouteTarget{route_id: :cloak, label: "Cloak", path: "/cloak"},
         %SidebarHeading{label: "Reading"},
         %PageTarget{
           route_id: :paper_pro_daily,

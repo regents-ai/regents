@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* A fleet's search: one hairline panel, then each match as a line that opens
    the page it is on, with what it is, where, when and its words. */

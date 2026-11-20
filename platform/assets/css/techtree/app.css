@@ -7,6 +7,42 @@
 :scope[data-theme="dark"] { color-scheme: dark; }
 :scope:not([data-theme]) { color-scheme: dark light; }
 
+/* Techtree's own main button, links, focus ring and chosen tab: techtree.sh's in both
+   themes, as its brand states them (Regent UI d4075655, which techtree.sh at c6dba424
+   wears). Regent UI's product colours (`data-product`) are for a product without a
+   look of its own; scoped, these win over them. Stated per theme, not through
+   light-dark(), so a dark band keeps the theme's button, as on techtree.sh: lime
+   lettering on green-black in light. The bar's Sign in keeps the shared plate. */
+:scope[data-product][data-theme="light"] {
+  --color-button: #0F1B14;
+  --color-fg-on-button: #C8F25C;
+  --color-link: #0F1B14;
+  --color-focus: #1E6B45;
+  --color-chosen: #1E6B45;
+  --color-fg-on-chosen: #F3F5EF;
+  --color-button-mark: initial;
+}
+:scope[data-product][data-theme="dark"],
+:scope[data-product]:not([data-theme]) {
+  --color-button: #C8F25C;
+  --color-fg-on-button: #0D1611;
+  --color-link: #C8F25C;
+  --color-focus: #C8F25C;
+  --color-chosen: #C8F25C;
+  --color-fg-on-chosen: #0D1611;
+  --color-button-mark: initial;
+}
+@media (prefers-color-scheme: light) {
+  :scope[data-product]:not([data-theme]) {
+    --color-button: #0F1B14;
+    --color-fg-on-button: #C8F25C;
+    --color-link: #0F1B14;
+    --color-focus: #1E6B45;
+    --color-chosen: #1E6B45;
+    --color-fg-on-chosen: #F3F5EF;
+  }
+}
+
 /* Canopy colours for Techtree's own pieces: the home cards, the command box and
    the shade behind dialogs. The site palette itself is regent_ui's Techtree one.
    Dark unless light is chosen, or nothing is chosen and the device asks for light. */

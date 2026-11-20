@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* One key's profile, open over its fleet's page. Laptops see the card beside
    everything else, tablets above it, and phones the whole screen. */
 .key-profile {

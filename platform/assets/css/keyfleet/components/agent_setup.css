@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* A row of dots for each paired agent: green when done, faded orange when not
    done or not known yet. */
 .agent-setup {

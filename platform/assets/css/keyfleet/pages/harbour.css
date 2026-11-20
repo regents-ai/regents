@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* The swarm city behind the app's pages (`KeyfleetWeb.HarbourSeaLive`): it
    fills the screen behind everything, seen from above its southern edge. The
    header, sidebar, cards and reading column stay solid over it;

@@ -1,6 +1,9 @@
 <!DOCTYPE html> <% home? = @conn.request_path == "/" %>
 <% metadata =
   RegentsWeb.PublicDocuments.metadata(@conn.request_path, @page_title, @page_description) %>
+<%!-- A page may name its own share picture (`share_image`: its url, size and alt, as a
+     published Result does); every other page shows the site's for its address. --%>
+<% share_image = assigns[:share_image] || metadata.share_image %>
 <%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
 <% shell? =
   assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
@@ -22,10 +25,10 @@
       canonical={metadata.canonical}
       site_name="Regents Labs"
       site_type="business"
-      image={metadata.image}
-      image_width={elem(metadata.image_size, 0)}
-      image_height={elem(metadata.image_size, 1)}
-      image_alt={metadata.image_alt}
+      image={share_image.url}
+      image_width={elem(share_image.size, 0)}
+      image_height={elem(share_image.size, 1)}
+      image_alt={share_image.alt}
       twitter_site="@regents_sh"
       markdown={metadata.markdown?}
       agent_guide={~p"/llms.txt"}

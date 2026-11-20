@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* The "Buy Key" window, the one place a Key is bought, on every page: the Key
    cards turning, how many are sold, the Key on offer and its price, then
    Approve and Buy. Phones see it across the whole width. Each row keeps its full height,

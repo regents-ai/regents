@@ -78,6 +78,10 @@ defmodule RegentsWeb.Techtree.ResultShareCard do
       else: url(~p"/techtree/results/#{entry.bundle_digest}/share.png")
   end
 
+  @doc "The picture's width and height."
+  @spec size() :: {pos_integer(), pos_integer()}
+  def size, do: {@width, @height}
+
   @doc "What the picture shows, in words, for a reader that cannot see it."
   @spec alt(map()) :: String.t()
   def alt(entry) do

@@ -40,7 +40,8 @@
   color: var(--rg-home-ink);
   padding-block-end: var(--space-4);
 }
-.home :is(h1, h2, h3, p) { margin-block: 0; }
+/* Weighed as one class, so a part's own spacing (the slab's headline) wins over it. */
+.home :where(h1, h2, h3, p) { margin-block: 0; }
 .home a:not(.rg-button) { color: var(--rg-home-ink); }
 
 /* The frame: an overlay, so it never moves the bar or the page. */

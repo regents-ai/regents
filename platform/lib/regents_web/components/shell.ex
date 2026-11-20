@@ -46,10 +46,14 @@ defmodule RegentsWeb.Components.Shell do
   )
 
   def shell(assigns) do
+    # A product without a side menu of its own (`RouteCatalog`) has no Menu either,
+    # and its page runs the frame's full width.
+    assigns = assign(assigns, :side_menu?, assigns.route_spec.sidebar_model.targets != [])
+
     ~H"""
     <div
       id="app-shell"
-      class="rg-sheet"
+      class="rg-sheet regents-frame"
       phx-hook="ShellBehavior"
       data-app={@route_spec.app_id}
       data-variant={RegentsWeb.Motion.standard("tabs")}
@@ -90,6 +94,7 @@ defmodule RegentsWeb.Components.Shell do
       </.site_bar>
 
       <Regent.Primitives.button
+        :if={@side_menu?}
         variant="quiet"
         id="mobile-menu-button"
         class="mobile-menu-button"
@@ -121,6 +126,7 @@ defmodule RegentsWeb.Components.Shell do
       </Regent.Structure.dialog>
 
       <nav
+        :if={@side_menu?}
         id="shell-sidebar"
         data-panel="drawer"
         aria-label="Context navigation"
@@ -149,6 +155,7 @@ defmodule RegentsWeb.Components.Shell do
       </nav>
 
       <Regent.Primitives.button
+        :if={@side_menu?}
         variant="quiet"
         type="button"
         class="shell-menu-scrim"

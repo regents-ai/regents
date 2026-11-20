@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 @layer regents-product {
 /* Value cards (`AshTemplateWeb.Components.ValueCards`): a row of cards, shown at
    /animations/cards, that every site takes for its home page and other sections.

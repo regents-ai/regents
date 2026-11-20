@@ -1,4 +1,4 @@
-@scope (:root[data-product="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) to (.regents-frame) {
 /* The Agent Message button and window (`KeyfleetWeb.Components.AgentMessage`):
    three texts to paste into an agent, each with its title and copy press on one
    line and its text wrapped, so nothing scrolls sideways on a phone; then a

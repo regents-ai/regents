@@ -3,8 +3,17 @@ defmodule RegentsWeb.ErrorHTML do
   This module is invoked by your endpoint in case of errors on HTML requests.
 
   See config/config.exs.
+
+  The page carries the site's bar signed out, as every page does. It reads no
+  session and no account, so it still renders when the database or the session
+  is what failed: the bar is drawn for an anonymous visitor, and the theme comes
+  from its cookie alone. The page loads no script, so the bar's product menu
+  opens (the browser's own popover) while Sign in and the theme switch only show.
   """
   use RegentsWeb, :html
+
+  alias Regents.Account.AccessContext
+  alias RegentsWeb.Components.Shell
 
   def render(template, assigns) do
     assigns = assigns |> Map.new() |> Map.put_new(:__changed__, nil)
@@ -20,7 +29,8 @@ defmodule RegentsWeb.ErrorHTML do
     assigns =
       assign(assigns,
         title: headline(template),
-        theme: theme
+        theme: theme,
+        account_control: AccessContext.account_control(AccessContext.anonymous())
       )
 
     ~H"""
@@ -39,6 +49,7 @@ defmodule RegentsWeb.ErrorHTML do
         <link rel="stylesheet" href="/assets/js/app.css" />
       </head>
       <body>
+        <Shell.site_bar product="regents" account_control={@account_control} />
         <Regent.Structure.frame>
           <Regent.Structure.row rail={false}>
             <main class="rg-inset">
