@@ -17,7 +17,7 @@ defmodule RegentsWeb do
   those modules here.
   """
   use Boundary,
-    deps: [Regents, Regents.Chain, Regents.Stake, Regents.Redeem],
+    deps: [Regents, Regents.Chain, Regents.Stake, Regents.Redeem, Regents.Techtree],
     exports: [
       # The only Account web modules the product pages may use: who the page acts
       # for, and the Privy sign-in a signed-in read carries.
@@ -34,6 +34,7 @@ defmodule RegentsWeb do
       HomeLive,
       Live.Session,
       Motion,
+      NotFoundError,
       PaperProDaily.Feed,
       PaperProDaily.Reading,
       ProductLive,

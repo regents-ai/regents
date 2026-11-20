@@ -178,13 +178,6 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :autolaunch
     },
     %Entry{
-      path_pattern: "/techtree",
-      live_action: :techtree,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :techtree
-    },
-    %Entry{
       path_pattern: "/patchbay",
       live_action: :patchbay,
       parameter_schema: %{},
@@ -274,9 +267,6 @@ defmodule RegentsWeb.RouteCatalog do
        [:profile_actions], :regents_labs, %{}},
     autolaunch:
       {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
-       :regents_labs, %{}},
-    techtree:
-      {:techtree, :regent_ops, "Regents Labs", "Techtree", "/app", [:profile_actions],
        :regents_labs, %{}},
     patchbay:
       {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],

@@ -1,0 +1,219 @@
+defmodule RegentsWeb.Techtree.FormalLive do
+  @moduledoc """
+  Techtree Formal at `/techtree/formal`: what formal verification is, what a
+  proof does and doesn't establish, recent advances with their dated sources,
+  and how to send code to be proved, an email whose body already asks for what
+  we need (`mailto/0`).
+  """
+
+  use RegentsWeb, :live_view
+
+  alias RegentsWeb.Techtree.Layouts
+
+  import RegentsWeb.Techtree.Components.Marketing, only: [field: 1, opening: 1]
+
+  alias RegentsWeb.Techtree.Components.BookCall
+
+  @frontier [
+    %{
+      date: ~D[2026-10-22],
+      title: "Crash-free libraries",
+      line:
+        "Claude wrote proofs, checked by the Rocq proof checker, that 239 entry points in 123 open-source libraries never crash or fail a check on any input under 64 MB, counting the memory errors a standard detector catches. The proofs assume one thread on a model of a RISC-V computer running Linux; hundreds of bugs were found and fixed on the way.",
+      source: "Anthropic and Theorem",
+      url: "https://www.anthropic.com/research/formal-verification"
+    },
+    %{
+      date: ~D[2026-09-04],
+      title: "Fermat proof",
+      line:
+        "Claude, working largely on its own for 11 days, wrote a complete proof of Fermat's Last Theorem, building on Lean's shared maths library, that the Lean proof checker accepts. It checks a known proof; it is not new mathematics.",
+      source: "Anthropic",
+      url: "https://www.anthropic.com/research/formalizing-fermats-last-theorem"
+    },
+    %{
+      date: ~D[2025-11-21],
+      title: "AI Composer",
+      line:
+        "Certora released an early, open-source tool that checks AI-written smart contract code against safety rules with its Prover while the code is being written.",
+      source: "Certora",
+      url: "https://www.certora.com/blog/certora-ai-composer-first-safe-ai-coding-platform"
+    },
+    %{
+      date: ~D[2025-11-17],
+      title: "AI specs",
+      line:
+        "Informal Systems had an AI update a Quint model of a consensus protocol, checked the model by hand and by machine, then had the AI write the code and tests from it, with people guiding the design. One case study; the authors say the process has much to mature.",
+      source: "Quint",
+      url: "https://quint-lang.org/posts/llm_era"
+    },
+    %{
+      date: ~D[2025-11-12],
+      title: "AlphaProof",
+      line:
+        "Google DeepMind published how AlphaProof learns to find Lean proofs by practising on millions of problems. With AlphaGeometry 2 it reached a silver-medal score at the 2024 International Mathematical Olympiad.",
+      source: "Nature",
+      url: "https://www.nature.com/articles/s41586-025-09833-y"
+    },
+    %{
+      date: ~D[2025-10-01],
+      title: "Aristotle",
+      line:
+        "Harmonic's Aristotle gave Lean-checked solutions to five of the six 2025 International Mathematical Olympiad problems, a gold-medal-equivalent result.",
+      source: "Harmonic",
+      url: "https://arxiv.org/abs/2510.01346"
+    },
+    %{
+      date: ~D[2025-08-06],
+      title: "Checked answers",
+      line:
+        "Automated Reasoning checks in Amazon Bedrock became generally available. They use mathematical logic to check that an AI model's answers follow a set of written rules.",
+      source: "AWS",
+      url:
+        "https://aws.amazon.com/about-aws/whats-new/2025/08/automated-reasoning-checks-amazon-bedrock-guardrails/"
+    },
+    %{
+      date: ~D[2025-07-14],
+      title: "Halmos invariants",
+      line:
+        "Halmos 0.3.0 from a16z checks that a rule, written as a Solidity test, holds across every sequence of smart contract calls up to a set length (two calls by default).",
+      source: "a16z",
+      url: "https://a16zfrontier.com/posts/article/halmos-v0-3-0-release-highlights/"
+    },
+    %{
+      date: ~D[2024-05-16],
+      title: "Kontrol CI",
+      line:
+        "Runtime Verification used Kontrol to prove that Optimism's bridge contracts on Ethereum stop processing withdrawals while paused, and added the proofs to Optimism's automatic checks.",
+      source: "Runtime Verification",
+      url:
+        "https://runtimeverification.com/blog/kontrol-integrated-verification-of-the-optimism-pausability-mechanism"
+    }
+  ]
+
+  @subject "Techtree Formal"
+  @body ["Company:", "Code:", "Property to prove:", "Where it runs:"]
+
+  @impl true
+  def mount(_params, _session, socket) do
+    {:ok,
+     assign(socket,
+       page_title: "Formal",
+       frontier: @frontier,
+       mailto: mailto()
+     )}
+  end
+
+  @doc "The email the page starts: to build@regents.sh, with its subject and the lines its body asks for."
+  @spec mailto() :: String.t()
+  def mailto do
+    query = URI.encode_query([subject: @subject, body: Enum.join(@body, "\r\n")], :rfc3986)
+    "mailto:build@regents.sh?" <> query
+  end
+
+  defp date(day), do: Calendar.strftime(day, "%-d %B %Y")
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.page wide flush>
+      <.opening
+        eyebrow="Prove"
+        title="Formal"
+        line="A proof shows that a precise model of the code keeps a stated property for every input the model allows, not only the inputs a test tried, and a computer checks every step."
+        shape={4}
+        icon="sigma"
+      >
+        <:actions>
+          <a class="rg-button rg-button--primary" href={@mailto}>Email us</a>
+        </:actions>
+        <p class="mk-links">
+          <Regent.Primitives.status tone="warning" class="badge">
+            Experimental
+          </Regent.Primitives.status>
+        </p>
+      </.opening>
+
+      <section class="mk-section mk-split" aria-labelledby="formal-basics-title">
+        <header class="mk-section__head">
+          <p class="mk-eyebrow">Plain words</p>
+          <h2 id="formal-basics-title">Basics</h2>
+          <p>A test tries the inputs someone picked. A proof covers every input the model allows.</p>
+        </header>
+        <dl class="mk-facts">
+          <div>
+            <dt>Property</dt>
+            <dd>The rule you need, such as "the total paid never passes the cap".</dd>
+          </div>
+          <div>
+            <dt>Model</dt>
+            <dd>A precise description of the code, or of its design, that the proof is about.</dd>
+          </div>
+          <div>
+            <dt>Proof</dt>
+            <dd>A step-by-step argument that a small checker program accepts.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="mk-section mk-split" aria-labelledby="formal-limits-title">
+        <header class="mk-section__head">
+          <p class="mk-eyebrow">Honest scope</p>
+          <h2 id="formal-limits-title">Limits</h2>
+          <p>
+            A proof covers the property as written and the model as built, under the assumptions it states.
+          </p>
+        </header>
+        <ul class="mk-status">
+          <li>A property that misses the point gives a sound proof of the wrong thing.</li>
+          <li>
+            Anything outside the model, such as the compiler, the chip, other services or the people calling the code, is assumed, not proven.
+          </li>
+          <li>A proof about the design says nothing about whether the code follows it.</li>
+          <li>
+            <span>
+              In Anthropic's words, “Formally verified” does not mean “bug-free.”
+              <a href="https://www.anthropic.com/research/formal-verification">Source</a>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="mk-section" aria-labelledby="formal-frontier-title">
+        <header class="mk-section__head">
+          <p class="mk-eyebrow">Recent advances</p>
+          <h2 id="formal-frontier-title">Frontier</h2>
+        </header>
+        <ol class="formal-frontier__list">
+          <li :for={item <- @frontier}>
+            <time datetime={Date.to_iso8601(item.date)}>{date(item.date)}</time>
+            <div>
+              <strong>{item.title}</strong>
+              <p>{item.line}</p>
+              <a class="text-link" href={item.url}>{item.source} →</a>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section id="submit" class="mk-band mk-dark" aria-labelledby="submit-title">
+        <.field id="submit-field" scene="glow" class="mk-band__field" />
+        <div class="mk-band__copy">
+          <p class="mk-eyebrow">Submit</p>
+          <h2 id="submit-title">Submit Code</h2>
+          <ul class="mk-status">
+            <li>The code, or a link to its repository.</li>
+            <li>The property you need guaranteed, in plain words.</li>
+            <li>Where it runs, such as a chain, a server or a device.</li>
+          </ul>
+          <p class="mk-band__more">We reply by email with a proposed scope.</p>
+          <div class="mk-band__actions">
+            <a class="rg-button rg-button--primary" href={@mailto}>Email build@regents.sh</a>
+            <BookCall.book_call variant={:secondary} />
+          </div>
+        </div>
+      </section>
+    </Layouts.page>
+    """
+  end
+end

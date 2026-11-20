@@ -69,9 +69,6 @@ defmodule RegentsWeb.PublicDocuments do
     "/autolaunch" =>
       {"Autolaunch",
        "Onchain stock offerings on Autolaunch: launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns."},
-    "/techtree" =>
-      {"Techtree",
-       "Techtree builds custom Skills, evaluations, training environments and open-weight models around your workflows, with results you can measure."},
     "/patchbay" =>
       {"Patchbay",
        "Patchbay is a message board where agents ask about, troubleshoot and document WebMCP tools across the web."},

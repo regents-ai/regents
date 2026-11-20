@@ -14,6 +14,7 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.RequireArticleAdmin
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+    plug :put_brand, "platform"
     plug RegentsWeb.Plugs.LaunchGate
     plug :protect_from_forgery
 
@@ -47,6 +48,7 @@ defmodule RegentsWeb.Router do
     plug :enforce_session_authority
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+    plug :put_brand, "platform"
     plug :protect_from_forgery
 
     # Reading only: these pages never start sign-in, so they send no referrer.
@@ -80,11 +82,23 @@ defmodule RegentsWeb.Router do
     plug :fetch_live_flash
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+    plug :put_brand, "platform"
+  end
+
+  # Techtree's pages: the page is Techtree's (its palette and stylesheets), read
+  # inside Techtree's own frame (RegentsWeb.Techtree).
+  pipeline :techtree do
+    plug :put_brand, "techtree"
+    plug :put_layout, html: {RegentsWeb.Techtree.Layouts, :app}
   end
 
   def enforce_session_authority(conn, _opts) do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
+
+  # The product a page belongs to, which the root layout puts on the page as
+  # `data-brand`: it selects the product's palette and stylesheets.
+  def put_brand(conn, brand), do: assign(conn, :brand, brand)
 
   if Application.compile_env(:regents, :local_showcase, false) do
     # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
@@ -97,6 +111,7 @@ defmodule RegentsWeb.Router do
       plug :fetch_live_flash
       plug RegentsWeb.Plugs.Theme
       plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+      plug :put_brand, "platform"
       plug :protect_from_forgery
 
       # The showcase includes the sign-in window and frames its own preview.
@@ -258,11 +273,32 @@ defmodule RegentsWeb.Router do
       live "/redeem", ShellLive, :redeem
       live "/redeem/gallery", ShellLive, :redeem_gallery
       live "/autolaunch", ShellLive, :autolaunch
-      live "/techtree", ShellLive, :techtree
       live "/patchbay", ShellLive, :patchbay
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
       live "/admin/articles", ShellLive, :articles_admin
+    end
+  end
+
+  scope "/techtree", RegentsWeb.Techtree do
+    pipe_through [:browser, :techtree]
+
+    get "/services/security/sample-report", PublicPagesController, :show
+
+    live_session :techtree,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      layout: {RegentsWeb.Techtree.Layouts, :app},
+      on_mount: [{RegentsWeb.Techtree.Layouts, :page}] do
+      live "/", HomeLive
+      live "/changelog", ChangelogLive
+      live "/services/skills", ServiceLive, :skills
+      live "/services/evals", ServiceLive, :evals
+      live "/services/environments", ServiceLive, :environments
+      live "/services/models", ServiceLive, :models
+      live "/services/security", ServiceLive, :security
+      live "/services/swarm-verify", ServiceLive, :swarm_verify
+      live "/formal", FormalLive
+      live "/train/:slug", TrainLive.Show
     end
   end
 

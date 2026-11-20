@@ -7,7 +7,7 @@
   assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
 <html
   lang="en"
-  data-brand="platform"
+  data-brand={@brand}
   data-theme={theme}
   data-home-theme-locked={if home?, do: "true", else: "false"}
 >
@@ -61,6 +61,6 @@
   <body>
     {@inner_content}
     <Regent.Structure.confirm />
-    <.product_links :if={!home? and !shell?} />
+    <.product_links :if={!home? and !shell? and @brand == "platform"} />
   </body>
 </html>

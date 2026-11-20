@@ -75,6 +75,19 @@ if ethereum_read_rpc_url != "" do
   Logger.info("Ethereum read endpoint host #{URI.parse(ethereum_read_rpc_url).host}")
 end
 
+# Techtree's Book Call button's booking page
+# (RegentsWeb.Techtree.Components.BookCall): in Techtree's header and on every
+# Techtree page that offers a call. Unset, no page shows the button; set, it is
+# an https address or the boot stops.
+book_call =
+  case System.get_env("TECHTREE_BOOK_CALL_URL") do
+    nil -> nil
+    "https://" <> _rest = address -> address
+    _other -> raise "TECHTREE_BOOK_CALL_URL must be an https address"
+  end
+
+config :regents, :techtree_book_call, book_call
+
 # The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENTS_ADMINS") do
   admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)

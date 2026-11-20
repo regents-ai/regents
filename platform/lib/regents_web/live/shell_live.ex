@@ -367,7 +367,7 @@ defmodule RegentsWeb.ShellLive do
         />
 
         <ProductLive.page
-          :if={@route_spec.route_id in [:techtree, :patchbay, :keyfleet]}
+          :if={@route_spec.route_id in [:patchbay, :keyfleet]}
           product={@route_spec.route_id}
         />
 
