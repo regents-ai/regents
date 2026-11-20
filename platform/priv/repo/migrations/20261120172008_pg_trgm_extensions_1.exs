@@ -8,7 +8,8 @@ defmodule Regents.Repo.Migrations.PgTrgmExtensions1 do
   use Ecto.Migration
 
   def up do
-    execute("CREATE EXTENSION IF NOT EXISTS \"pg_trgm\"")
+    # Named schema, as the ash_functions migration does: every product's search reads it from public.
+    execute("CREATE EXTENSION IF NOT EXISTS \"pg_trgm\" WITH SCHEMA public")
   end
 
   def down do
