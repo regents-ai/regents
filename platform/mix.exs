@@ -97,6 +97,11 @@ defmodule Regents.MixProject do
       {:jose, "~> 1.11.13"},
       {:ex_keccak, "~> 0.7.8"},
       {:yaml_elixir, "== 2.12.2"},
+      # Keyfleet's, ahead of its port: nothing in the site uses them yet.
+      {:ash_state_machine, "~> 0.3.1"},
+      {:mint, "~> 1.11"},
+      {:mint_web_socket, "~> 1.0"},
+      {:ex_image_info, "~> 1.0"},
       {:decimal, "== 3.2.0"},
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},

@@ -7940,3 +7940,8 @@ seasons), on the shared Points library regents.sh was already on.
 - `ex_keccak` and `yaml_elixir` become the site's own dependencies, at the versions the lock already held through other packages (0.7.8 and 2.12.2); nothing new is downloaded.
 - Four optional settings name Autolaunch's deployment description files: `AUTOLAUNCH_BASE_DEPLOYMENT`, `AUTOLAUNCH_BASE_DEPLOYMENT_ID` (its label, required with it), `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` (refused without the Base one) and `AUTOLAUNCH_ROBINHOOD_DEPLOYMENT`. Unset or empty, each is left out. Nothing reads them yet, and no venue sets them.
 - Not released: on the `one-site` branch only. One migration, which only adds the extension; no secret, sign-in or page change.
+
+## 2026-11-20 — One site: four libraries Keyfleet's move needs (not released)
+
+- `ash_state_machine` 0.3.1, `mint_web_socket` 1.0.6 and `ex_image_info` 1.0.0 are added, and `mint` 1.11.0 (already present) becomes the site's own dependency. These are the versions Keyfleet runs today. Nothing in the site uses them yet.
+- Not released: on the `one-site` branch only. No migration, secret, sign-in or page change.
