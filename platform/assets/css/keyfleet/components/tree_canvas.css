@@ -1,0 +1,402 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A tree canvas: an endless surface of cards with the links between them
+   drawn under the cards, in slices the page chooses, a dot grid that moves
+   with it, the slices' headings kept in sight, and the zoom in a corner.
+   The cards take the standing colours of the workspace's graph. */
+.tree-canvas {
+  --kf-tone-open: var(--color-fg-muted);
+  --kf-tone-doing: var(--color-info);
+  --kf-tone-waiting: var(--color-warning);
+  --kf-tone-held: var(--color-error);
+  --kf-tone-done: var(--color-success);
+  --kf-tone-dropped: var(--ash-line-strong);
+  --kf-tone-plain: var(--ash-line-strong);
+  --tc-ground: color-mix(in oklab, var(--color-fg) 6%, var(--color-bg));
+  --tc-dot: color-mix(in oklab, var(--color-fg) 22%, transparent);
+  --tc-band: color-mix(in oklab, var(--color-fg) 3%, transparent);
+  --tc-band-odd: color-mix(in oklab, var(--color-fg) 7%, transparent);
+  --tc-band-edge: color-mix(in oklab, var(--color-fg) 10%, transparent);
+  --tc-link: var(--color-fg-muted);
+  /* The whole width, in a panel that starts its other parts at their own. */
+  width: 100%;
+  min-width: 0;
+}
+
+.tree-canvas [data-tone="open"] { --kf-tone: var(--kf-tone-open); }
+.tree-canvas [data-tone="doing"] { --kf-tone: var(--kf-tone-doing); }
+.tree-canvas [data-tone="waiting"] { --kf-tone: var(--kf-tone-waiting); }
+.tree-canvas [data-tone="held"] { --kf-tone: var(--kf-tone-held); }
+.tree-canvas [data-tone="done"] { --kf-tone: var(--kf-tone-done); }
+.tree-canvas [data-tone="dropped"] { --kf-tone: var(--kf-tone-dropped); }
+.tree-canvas [data-tone="plain"] { --kf-tone: var(--kf-tone-plain); }
+
+.tree-canvas-stage {
+  position: relative;
+}
+
+.tree-canvas-surface {
+  position: relative;
+  height: clamp(360px, 68svh, 760px);
+  overflow: clip;
+  border: 1px solid var(--color-border);
+  background: var(--tc-ground);
+  color: var(--color-fg);
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  contain: strict;
+}
+
+.tree-canvas-surface[data-dragging] { cursor: grabbing; }
+
+/* The dot grid: one tile per spacing, a dot at its centre, one tile wider
+   and taller than the surface each way so it can shift by a tile. */
+.tree-canvas-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% + 6rem);
+  height: calc(100% + 6rem);
+  background-image: radial-gradient(circle at center in oklch, var(--tc-dot) 0 1px, oklch(from var(--tc-dot) l c h / 0) 1.5px);
+  pointer-events: none;
+}
+
+/* The world: everything placed on the surface, from its top left corner. */
+.tree-canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.tree-canvas-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--tc-band-edge);
+  background: var(--tc-band);
+}
+
+.tree-canvas-band[data-odd] { background: var(--tc-band-odd); }
+
+/* The GPU's links and their glow, once it has drawn them; until then, and
+   without WebGPU, the drawn links stand in. */
+.tree-canvas-glow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tree-canvas-surface[data-canvas-ready="true"] .tree-canvas-glow { opacity: 1; }
+.tree-canvas-surface[data-canvas-ready="true"] .tree-canvas-links { visibility: hidden; }
+
+.tree-canvas-links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tree-canvas-links path {
+  fill: none;
+  stroke: var(--tc-link);
+  stroke-opacity: 0.55;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A fork points back to the task it came from, a review to the task it
+   judged, and a link back closes a loop: all dashed. */
+.tree-canvas-links path:is([data-type="forks"], [data-type="reviews"], [data-back]) {
+  stroke-dasharray: 5 4;
+}
+
+.tree-canvas-links path[data-type="contradicts"] {
+  stroke: var(--color-error);
+  stroke-dasharray: 4 3;
+}
+
+.tree-canvas-surface[data-lighting] .tree-canvas-links path { stroke-opacity: 0.2; }
+
+.tree-canvas-surface[data-lighting] .tree-canvas-links path[data-lit] {
+  stroke: var(--ash-accent);
+  stroke-opacity: 1;
+  stroke-width: 2.5;
+}
+
+/* A card: its kind and standing along the top, its title, then who made
+   it. Edged in the colour of where its item stands. */
+.tree-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.3rem;
+  width: 240px;
+  height: 104px;
+  padding: 0.6rem 0.75rem 0.65rem 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--kf-tone) 55%, var(--color-border));
+  border-left: 4px solid var(--kf-tone);
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--color-fg) 10%, transparent);
+  transition: opacity 160ms ease-out;
+}
+
+.tree-card[hidden] { display: none; }
+
+.tree-card[data-archived] {
+  border-style: dashed;
+  border-left-style: solid;
+}
+
+.tree-card[data-archived] > * { opacity: 0.7; }
+
+.tree-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.tree-card-kind {
+  flex: none;
+  color: var(--color-fg-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tree-card-standing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tree-card-standing[hidden] { display: none; }
+
+.tree-card-standing .workspace-graph-mark {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.tree-card-title {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-fg);
+  font-size: 0.875rem;
+  line-height: 1.3;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.tree-card-title:hover { text-decoration: underline; }
+.tree-card-title:focus-visible { outline: none; }
+
+.tree-card-meta {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tree-card:has(.tree-card-title:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* A pressed card and its whole line stand out; the rest steps back. */
+.tree-canvas-surface[data-lighting] .tree-card:not([data-lit]) { opacity: 0.35; }
+
+.tree-card[data-lit] { border-color: var(--ash-accent); border-left-color: var(--kf-tone); }
+
+.tree-card[data-pressed] {
+  outline: 2px solid var(--ash-accent);
+  outline-offset: 3px;
+}
+
+/* Each slice's heading, kept in sight while its slice is. */
+.tree-canvas-headings {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tree-canvas-heading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  transform-origin: 0 0;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tree-canvas-heading[hidden] { display: none; }
+
+/* The zoom, in the bottom right corner. */
+.tree-canvas-zoom {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: var(--font-family-ui);
+  font-size: 0.8rem;
+}
+
+.tree-canvas-zoom button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tree-canvas-zoom button:first-child { border-left: 0; }
+.tree-canvas-zoom button:hover { background: var(--ash-panel-strong); }
+
+.tree-canvas-zoom button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.tree-canvas-zoom output {
+  display: grid;
+  place-items: center;
+  min-width: 3.25rem;
+  border-left: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+/* How the canvas is arranged: two rows of choices that wrap on a phone. */
+.tree-canvas-arrange {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.tree-canvas-segments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  max-width: 100%;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface);
+  font-family: var(--font-family-ui);
+  font-size: 0.85rem;
+}
+
+.tree-canvas-arrange-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  color: var(--color-fg-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tree-canvas-segments button {
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  border: 0;
+  border-left: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tree-canvas-segments > button:first-child { border-left: 0; }
+.tree-canvas-segments button:hover { background: var(--ash-panel-strong); }
+
+.tree-canvas-segments button[aria-pressed="true"] {
+  background: var(--color-chosen);
+  color: var(--color-fg-on-chosen);
+}
+
+.tree-canvas-segments button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-card { transition: none; }
+}
+
+/* On a phone each row of choices fills the width and shares it, so the three
+   keep to one row however narrow; the label is still read out. The zoom
+   tightens to fit the narrowest canvas. */
+@media (max-width: 47.99rem) {
+  .tree-canvas-surface { height: clamp(340px, 62svh, 560px); }
+  .tree-canvas-zoom { right: 0.5rem; bottom: 0.5rem; }
+  .tree-canvas-zoom button { min-width: 2.5rem; }
+  .tree-canvas-zoom output { min-width: 2.75rem; }
+  .tree-canvas-arrange { width: 100%; }
+  .tree-canvas-segments { flex-wrap: nowrap; width: 100%; }
+
+  .tree-canvas-segments button {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 0.5rem;
+  }
+
+  .tree-canvas-arrange-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+}
+}

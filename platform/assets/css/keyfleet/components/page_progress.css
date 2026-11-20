@@ -1,0 +1,39 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The bar along the top of the window while the next page is on its way
+   (js/page_progress.ts). It eases most of the way across and waits there,
+   then fills and fades once the page lands. */
+.page-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: var(--rg-layer-tip);
+  height: 2px;
+  background: var(--ash-accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.page-progress[data-state="running"] {
+  transform: scaleX(0.85);
+  opacity: 1;
+  transition: transform 6s cubic-bezier(0.1, 0.7, 0.2, 1);
+}
+
+.page-progress[data-state="done"] {
+  transform: scaleX(1);
+  opacity: 0;
+  transition: transform 160ms ease-out, opacity 240ms ease-out 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-progress[data-state="running"] {
+    transform: scaleX(1);
+    transition: none;
+  }
+
+  .page-progress[data-state="done"] {
+    transition: opacity 240ms ease-out;
+  }
+}
+}

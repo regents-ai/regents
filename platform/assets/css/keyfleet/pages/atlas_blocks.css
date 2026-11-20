@@ -1,0 +1,374 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* The Atlas as blocks: one quiet bar (the window, the path, the key and the
+   zoom), the picture with its names and the card beside the block pointed
+   at, a short hint, and the strip of the most active things beside it. */
+
+.atlas-blocks-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17.5rem;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.atlas-blocks {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.atlas-blocks__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+/* Fleet, project, kind: each step back up is a button. */
+.atlas-blocks__trail {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.atlas-blocks__trail ol {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.atlas-blocks__trail li + li::before {
+  content: "/";
+  padding-inline: 0.125rem;
+  color: var(--color-fg-muted);
+}
+
+.atlas-blocks__trail :is(button, span) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--atlas-control);
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: var(--atlas-radius);
+  background: transparent;
+  color: var(--color-fg-muted);
+  font: inherit;
+}
+
+.atlas-blocks__trail button {
+  cursor: pointer;
+}
+
+.atlas-blocks__trail span {
+  color: var(--color-fg);
+  font-weight: 500;
+}
+
+.atlas-blocks__zoom {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.atlas-blocks__zoom button {
+  min-width: var(--atlas-control);
+  min-height: var(--atlas-control);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-fg);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.atlas-blocks__zoom output {
+  min-width: 3.75rem;
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-blocks__trail button:hover,
+  .atlas-blocks__zoom button:hover {
+    background: var(--ash-panel-strong);
+    color: var(--color-fg);
+  }
+}
+
+.atlas-blocks__trail button:focus-visible,
+.atlas-blocks__zoom button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* The picture: the ground the blocks stand on, a few pixels inside its edge. */
+.atlas-blocks__stage {
+  position: relative;
+  min-width: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--atlas-radius) + 0.25rem);
+  background: var(--atlas-ground);
+}
+
+.atlas-blocks__stage:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.atlas-blocks__surface {
+  position: relative;
+  height: clamp(18rem, 60svh, 40rem);
+  overflow: clip;
+  border-radius: var(--atlas-radius);
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  contain: strict;
+}
+
+.atlas-blocks__surface[data-dragging] {
+  cursor: grabbing;
+}
+
+.atlas-blocks__canvas,
+.atlas-blocks__names {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.atlas-blocks__names {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* A block's name, a caption in its top left: shown only where every word
+   fits (the stage measures it), so it is never cut short. The room around
+   it is what stage.ts measures with. */
+.atlas-blocks__name {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  padding: 6px 8px 0;
+  overflow: hidden;
+  color: var(--color-fg);
+  line-height: 1rem;
+}
+
+/* Room for the dot of a block changed today. */
+.atlas-blocks__name[data-today] {
+  padding-inline-end: 20px;
+}
+
+.atlas-blocks__name[hidden] {
+  display: none;
+}
+
+.atlas-blocks__name a {
+  max-width: 100%;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.atlas-blocks__name a[href] {
+  pointer-events: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-blocks__name a[href]:hover {
+    text-decoration: underline;
+  }
+}
+
+.atlas-blocks__name a:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.atlas-blocks__name small {
+  color: inherit;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.atlas-blocks__name small[hidden] {
+  display: none;
+}
+
+.atlas-blocks__note {
+  position: absolute;
+  inset-inline: 1rem;
+  top: 45%;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Said only when the browser cannot draw the blocks. */
+.atlas-blocks__still {
+  display: none;
+}
+
+.atlas-blocks__surface[data-atlas-still] .atlas-blocks__still {
+  display: block;
+}
+
+.atlas-blocks__surface[data-atlas-still] .atlas-blocks__names {
+  display: none;
+}
+
+/* What the block pointed at holds, beside it and never over it. */
+.atlas-blocks__card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(16rem, 100%);
+  padding: 0.5rem 0.375rem 0.625rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--atlas-radius);
+  background: var(--color-surface);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--color-fg) 6%, transparent),
+    0 8px 24px color-mix(in oklab, var(--color-fg) 10%, transparent);
+  color: var(--color-fg);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  cursor: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+@starting-style {
+  .atlas-blocks__card {
+    opacity: 0;
+  }
+}
+
+.atlas-blocks__card[hidden] {
+  display: none;
+}
+
+.atlas-blocks__card :is(strong, span:not(.atlas-pill)) {
+  grid-column: 1 / -1;
+  padding-inline-end: 0.375rem;
+}
+
+.atlas-blocks__card strong {
+  font-weight: 600;
+}
+
+.atlas-blocks__card span:not(.atlas-pill) {
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-blocks__card .atlas-blocks__when {
+  color: var(--color-fg-muted);
+}
+
+.atlas-blocks__card .atlas-blocks__when[hidden] {
+  display: none;
+}
+
+.atlas-blocks__close {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-fg-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-blocks__close:hover {
+    background: var(--ash-panel-strong);
+    color: var(--color-fg);
+  }
+}
+
+.atlas-blocks__close:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* The key: the scale, the dot of today, and the rest of a kind. */
+.atlas-blocks__bar .atlas-legend {
+  margin-inline-start: auto;
+  font-size: 0.75rem;
+}
+
+.atlas-blocks__ramp {
+  width: 4.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--atlas-tone-1), var(--atlas-tone-2), var(--atlas-tone-3));
+}
+
+.atlas-blocks__key {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.atlas-blocks__key[data-key="today"] {
+  border-radius: 999px;
+  background: var(--atlas-today);
+}
+
+.atlas-blocks__key[data-key="more"] {
+  border-radius: 3px;
+  background: var(--atlas-rest);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-blocks__card {
+    transition: none;
+  }
+}
+
+@media (max-width: 64rem) {
+  .atlas-blocks-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+}
+}

@@ -1,0 +1,209 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* The key page stands on the Account grammar: one ground, hairline panels, the
+   display face for headings and a mono voice for kickers. */
+
+.key-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.key-heading,
+.key-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.key-page h1,
+.key-page h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.key-page p {
+  margin: 0;
+}
+
+.key-kicker {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.key-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.key-heading__words {
+  display: grid;
+  gap: 1rem;
+  align-content: center;
+  justify-items: start;
+  padding: var(--rg-panel-padding);
+}
+
+/* The Key's own card, its stage reaching the panel's edges beside the number. */
+.key-heading__card {
+  --key-stage-pad: clamp(1.25rem, 3vw, 2rem);
+
+  padding: var(--key-stage-pad) clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.key-heading__card .key-card__tilt {
+  width: clamp(9rem, 22vw, 15rem);
+}
+
+/* Phones: the stage under the number, the card and its stage two-fifths of
+   the screen tall at most, so what follows starts on the first screen. */
+@media (max-width: 599px) {
+  .key-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .key-heading__card .key-card__tilt {
+    width: min(70vw, (40svh - 2 * var(--key-stage-pad)) * 767 / 959);
+  }
+}
+
+.key-heading h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.key-heading h1:focus {
+  outline: none;
+}
+
+/* Panels side by side share one height, so each row reads as one band;
+   their contents stay at the top. */
+.key-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem;
+}
+
+.key-panel {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+  justify-items: start;
+}
+
+.key-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.key-notice {
+  grid-column: 1 / -1;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent);
+}
+
+.key-wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* On a phone OpenSea is a full finger's height, level with the address's
+   icons. */
+@media (max-width: 47.99rem) {
+  #key-owner-opensea {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+
+.key-detail {
+  color: var(--color-fg-muted);
+}
+
+/* A shard reads top to bottom: its agent, when it runs out and its wallet,
+   then the owner's buttons. */
+.key-shard-list {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.key-shard-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  justify-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+}
+
+.key-shard-list li > div:first-child {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* Only the row's own lines are muted, never the words on its buttons. */
+.key-shard-list li > div > span {
+  color: var(--color-fg-muted);
+}
+
+.key-shard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.key-shard-form {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.key-issue-shard,
+#key-shards-action {
+  width: 100%;
+}
+
+/* A heading with a tip beside it keeps the tip on its line. */
+.key-panel h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 47.99rem) {
+  /* Every wallet button spans its panel, one above the other, so the
+     buttons' edges line up and each label has the panel's width. */
+  .key-shard-actions {
+    justify-self: stretch;
+  }
+
+  .key-page .wallet-panel-step {
+    flex: 1 1 100%;
+  }
+
+  .key-page .wallet-panel-step > .rg-button {
+    flex-grow: 1;
+  }
+}
+
+}
+}

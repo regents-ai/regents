@@ -1,0 +1,11 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The last word and the tip after it wrap together; the tip's own words
+   still wrap inside it. */
+.footnote__end {
+  white-space: nowrap;
+}
+
+.footnote__end .rg-tip-body {
+  white-space: normal;
+}
+}

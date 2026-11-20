@@ -1,0 +1,218 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A project's page (`KeyfleetWeb.ProjectLive`) is one solid card over the
+   swarm city, in the workspace's Key grammar: the display face for headings,
+   a mono kicker for each item's type, a framed badge for where it stands and
+   hairlines between rows. Its four lists sit two to a row where there is room
+   and stack on a phone. Every title wraps wherever it must and opens its
+   item. */
+
+.project-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  max-width: 72rem;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+
+.project-page h2,
+.project-page p {
+  margin: 0;
+}
+
+/* Who holds the project and its fleet, in grey under the title and close to
+   it, so the two read as one heading. */
+.project-page > .project-held {
+  margin-block-start: -1rem;
+  color: var(--color-fg-muted);
+}
+
+.project-held a {
+  color: inherit;
+}
+
+/* The line its Key describes it with, read with the heading above it. */
+.project-page > .project-description {
+  margin-block-start: -0.75rem;
+  max-width: 42rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.project-workspace {
+  color: var(--color-fg);
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+
+.project-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+}
+
+.project-part {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  min-width: 0;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--ash-line-strong);
+}
+
+.project-part h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--font-family-title);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.project-count {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-items {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row: its type above its title and who made it, where it stands or its
+   pairing link on the right. */
+.project-items li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 1rem;
+  align-items: center;
+  padding-block: 0.65rem;
+}
+
+.project-items li + li {
+  border-block-start: 1px solid var(--color-border);
+}
+
+.project-item {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+/* Under a goal, the tasks that deliver on it, each joined to it by a line:
+   title and where it stands, nothing more. */
+.project-items .project-goal-tasks {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 1rem;
+  row-gap: 0.15rem;
+  margin: 0.4rem 0 0 0.35rem;
+  padding: 0 0 0 0.9rem;
+  list-style: none;
+  border-inline-start: 1px solid var(--ash-line-strong);
+  font-size: 0.9rem;
+}
+
+/* Every task's badge stands in one column, however long its title. */
+.project-items .project-goal-tasks li {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  padding-block: 0.25rem;
+  border: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-goal-tasks .project-standing {
+  justify-self: start;
+}
+
+.project-type {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* A blocked task's kicker reads at full strength: it asks for help. */
+.project-help {
+  color: var(--color-fg);
+}
+
+.project-title {
+  color: var(--color-fg);
+  line-height: 1.4;
+  text-decoration: none;
+  text-underline-offset: 0.2em;
+}
+
+a.project-title:hover {
+  text-decoration: underline;
+}
+
+.project-by {
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.project-standing {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--ash-line-strong);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* An open or blocked task's own pairing link, where a badge would stand. */
+.project-invite {
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+}
+
+.project-more {
+  justify-self: start;
+  color: var(--color-fg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+
+.project-empty {
+  padding-block: 0.65rem;
+  color: var(--color-fg-muted);
+}
+
+/* What only members see is said once, under the goals. */
+.project-note {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent-warm);
+  color: var(--color-fg-muted);
+}
+
+}
+}

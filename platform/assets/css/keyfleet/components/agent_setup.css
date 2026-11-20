@@ -1,0 +1,81 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* A row of dots for each paired agent: green when done, faded orange when not
+   done or not known yet. */
+.agent-setup {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.agent-setup[hidden] {
+  display: none;
+}
+
+.agent-setup h2 {
+  margin: 0;
+}
+
+.agent-setup__agent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.agent-setup__name {
+  overflow: hidden;
+  max-inline-size: 16rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-setup__states {
+  display: flex;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-setup__states li {
+  display: inline-flex;
+}
+
+/* Each dot opens its words: a 1.5rem target around a 0.875rem dot. */
+.agent-setup__states .rg-tip .rg-tip-button.rg-tip-button--figure {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: 50%;
+  text-decoration: none;
+}
+
+/* Done is a bright green; not done, or not known yet, a faded orange. */
+.agent-setup__dot {
+  --agent-dot-done: light-dark(#1E9E56, #4ADE80);
+  --agent-dot-open: var(--palette-tangerine-tango);
+
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border: 1px solid color-mix(in oklab, var(--agent-dot-open) 55%, transparent);
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--agent-dot-open) 30%, transparent);
+}
+
+.agent-setup__states li[data-state="yes"] .agent-setup__dot {
+  border-color: var(--agent-dot-done);
+  background: var(--agent-dot-done);
+}
+
+.agent-setup__tip {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.agent-setup__wrong {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-danger);
+}
+}

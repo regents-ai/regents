@@ -1,0 +1,52 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* "Who's here": the agents holding shards of a fleet's keys, in the hall's
+   right-hand column */
+
+.who-is-here {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.who-is-here__list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.who-is-here__list li {
+  display: grid;
+  gap: 0.25rem;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.who-is-here__list li:first-child {
+  padding-block-start: 0;
+}
+
+.who-is-here__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.who-is-here__keys,
+.who-is-here__status,
+.who-is-here__note {
+  color: var(--color-fg-muted);
+}
+
+.who-is-here__status {
+  font-size: 0.9375rem;
+}
+
+.who-is-here__note {
+  margin: 0;
+}
+}

@@ -1,0 +1,202 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* The guided tour (`KeyfleetWeb.Components.Tour`, hooks/tour.ts): a layer
+   over the whole screen, in the tip's place, that takes no presses; only its
+   card does. The dimming and the ring are pieces one pixel square that the
+   script moves and stretches by transform alone. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--rg-layer-tip);
+  overflow: clip;
+  pointer-events: none;
+}
+
+/* The tour points at the fleet's page, so it goes with the page when the
+   city is lifted into view (pages/harbour.css). */
+body[data-sea-lifted] .tour {
+  display: none;
+}
+
+.tour__stage,
+.tour__shade,
+.tour__edge {
+  position: absolute;
+  inset: 0;
+}
+
+/* Only the script moves the pieces and the card, so none of them takes the
+   brief transition the site gives every change when less motion is asked
+   for: the ring is where its part is on the frame it gets there. */
+.tour__piece,
+.tour__spot {
+  transition-property: none;
+}
+
+.tour__piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  transform-origin: 0 0;
+}
+
+.tour__shade > .tour__piece {
+  background: color-mix(in oklab, var(--ash-scrim) 60%, transparent);
+}
+
+.tour__edge > .tour__piece {
+  background: var(--ash-accent-warm);
+}
+
+/* The light round the ring shows once a first frame of it has really been
+   drawn; until then, and without it, the ring is the lines above. */
+.tour__light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.tour[data-tour-ready="true"] .tour__light {
+  visibility: visible;
+}
+
+/* A tip: a firm edge on a raised fill. On a phone it spans the screen, less
+   the page's gutter on each side. */
+.tour__spot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(17.5rem, calc(100% - 2 * var(--space-2)));
+}
+
+.tour__card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  color: var(--color-fg);
+  box-shadow: var(--rg-layer-tip-shadow);
+  font-family: var(--font-family-ui);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+
+/* A card leaving lets a press through to the page under it. */
+.tour__stage[data-leaving] .tour__card {
+  pointer-events: none;
+}
+
+.tour__dots {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tour__dots > li {
+  width: 0.375rem;
+  height: 0.375rem;
+  background: var(--hairline-strong);
+}
+
+.tour__dots > [data-current] {
+  background: var(--ash-accent);
+}
+
+.tour__words {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.tour__title {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.125rem;
+  line-height: 1.2;
+}
+
+.tour__text {
+  margin: 0;
+}
+
+/* Copy sits under the step's words; it keeps the width of its widest answer,
+   so "Copied" never moves the card. */
+.tour__copy {
+  justify-self: start;
+  margin-block-start: var(--space-1);
+}
+
+.tour__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-block-start: var(--space-1);
+}
+
+.tour__actions > [data-tour-skip] {
+  margin-inline-end: auto;
+}
+
+@media (max-width: 47.99rem) {
+  .tour__spot {
+    width: calc(100% - 2 * var(--space-2));
+  }
+}
+
+@media (forced-colors: active) {
+  .tour__shade {
+    display: none;
+  }
+
+  .tour__edge > .tour__piece,
+  .tour__dots > [data-current] {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+}
+}
+
+/* The card's buttons, one calm set: square and one height. Next is the one
+   filled button, in the site's main button colours, and square: a cut of
+   nothing squares the shared button's shape, its keyboard ring and its marks
+   alike. Back and Copy are outlines; Skip is words alone, set back to line up
+   with the words above it. These rules sit outside the product layer, as the
+   shared button's own do, so that inside the card they win. */
+.tour__card .rg-button--primary {
+  --rg-cut-control: 0px;
+}
+
+.tour__card .rg-button--secondary::before {
+  transition: background-color 150ms ease;
+}
+
+.tour__card .rg-button--quiet {
+  margin-inline-start: calc(-1 * var(--space-1));
+  padding-inline: var(--space-1);
+  color: var(--color-fg-muted);
+  transition: color 150ms ease;
+}
+
+/* Square, Next has no corner marks to bring in on hover in dark, so its fill
+   eases toward the page's ground in both themes instead. */
+@media (hover: hover) {
+  .tour__card .rg-button--primary:hover::before {
+    background-color: color-mix(in oklab, var(--rg-p-accent) 88%, var(--color-bg));
+  }
+
+  .tour__card .rg-button--secondary:hover::before {
+    background-color: color-mix(in oklab, var(--color-fg) 6%, var(--color-surface));
+  }
+
+  .tour__card .rg-button--quiet:hover {
+    color: var(--color-fg);
+  }
+}
+}

@@ -1,0 +1,52 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* A proposal's vote at a glance: a bar split by Keys, and the counts. */
+.vote-tally {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.vote-tally__bar {
+  display: flex;
+  gap: 1px;
+  block-size: 0.375rem;
+  background: var(--color-border);
+}
+
+.vote-tally__bar > span {
+  flex: 0 0 auto;
+  min-inline-size: 2px;
+}
+
+.vote-tally__bar > [data-side="yes"] {
+  background: var(--color-success);
+}
+
+.vote-tally__bar > [data-side="no"] {
+  background: var(--ash-accent-warm);
+}
+
+.vote-tally__bar > [data-side="abstain"] {
+  background: var(--color-fg-muted);
+}
+
+.vote-tally__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+}
+
+.vote-tally__counts > [data-side="yes"] {
+  color: var(--color-success);
+}
+
+.vote-tally__counts > [data-side="no"] {
+  color: var(--ash-accent-warm);
+}
+
+.vote-tally__counts > [data-side="abstain"] {
+  color: var(--color-fg-muted);
+}
+}

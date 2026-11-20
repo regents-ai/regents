@@ -1,0 +1,63 @@
+/* Keyfleet's stylesheets, as keyfleet.ai orders them (regents-ai/keyfleet
+   platform/assets/css/app.css, SOURCE.json). Each file is wrapped in
+   `@scope (:root[data-brand="keyfleet"])`, so it applies only to a page the
+   Keyfleet scope marks; a scoped rule keeps its own specificity and wins over
+   an unscoped rule of the same specificity. Regent UI's tokens and primitives
+   come from the site's own app.css; the platform palette keyfleet.ai's pages
+   wear comes first (tokens/palette.css), and app.css's own rules last, as there. */
+@import "./tokens/palette.css";
+@import "./tokens/root.css";
+@import "./components/shell.css";
+@import "./components/theme_switch.css";
+@import "./components/sticky_actions.css";
+@import "./components/key_map.css";
+@import "./components/tree_canvas.css";
+@import "./components/key_profile.css";
+@import "./components/key_card.css";
+@import "./components/who_is_here.css";
+@import "./components/vote_tally.css";
+@import "./components/check_in_status.css";
+@import "./components/activity.css";
+@import "./components/agent_picture.css";
+@import "./components/buy_key.css";
+@import "./components/wallet_panel.css";
+@import "./components/account_wallets.css";
+@import "./components/presence_card.css";
+@import "./components/agent_setup.css";
+@import "./components/fleet_prompts.css";
+@import "./components/schedule_card.css";
+@import "./components/motion.css";
+@import "./components/placeholder.css";
+@import "./components/page_progress.css";
+@import "./components/load_failed.css";
+@import "./components/toast.css";
+@import "./components/footnote.css";
+@import "./components/page_head.css";
+@import "./components/agent_message.css";
+@import "./components/value_cards.css";
+@import "./components/tour.css";
+@import "./pages/home.css";
+@import "./pages/legal.css";
+@import "./pages/reading.css";
+@import "./pages/early.css";
+@import "./pages/account.css";
+@import "./pages/fleet.css";
+@import "./pages/members.css";
+@import "./pages/keys.css";
+@import "./pages/rooms.css";
+@import "./pages/dms.css";
+@import "./pages/workspace.css";
+@import "./pages/workspace_graph.css";
+@import "./pages/code.css";
+@import "./pages/project.css";
+@import "./pages/proposals.css";
+@import "./pages/polls.css";
+@import "./pages/search.css";
+@import "./pages/worldline.css";
+@import "./pages/atlas.css";
+@import "./pages/atlas_blocks.css";
+@import "./pages/seasons.css";
+@import "./pages/animations.css";
+@import "./pages/harbour.css";
+@import "./components/account_auth_status.css";
+@import "./app.css";

@@ -1,0 +1,162 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The Agent Message button and window (`KeyfleetWeb.Components.AgentMessage`):
+   three texts to paste into an agent, each with its title and copy press on one
+   line and its text wrapped, so nothing scrolls sideways on a phone; then a
+   signed-in person's own message. */
+.agent-message-button {
+  margin-block-start: var(--space-4);
+}
+
+.agent-message-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.agent-message {
+  --rg-dialog-size: 40rem;
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 1rem;
+}
+
+.agent-message .rg-dialog__body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.agent-message__top,
+.agent-message__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.agent-message h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.agent-message h3 {
+  margin: 0;
+  font-size: var(--type-label-size);
+  font-weight: 600;
+}
+
+.agent-message__close {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  margin-inline-end: calc(var(--space-2) * -1);
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+
+.agent-message__close:is(:hover, :focus-visible) {
+  color: var(--color-fg);
+}
+
+.agent-message__close svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.agent-message__note {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.agent-message__texts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-message__text {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.agent-message__text pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-family-mono);
+  font-size: var(--type-code-size);
+}
+
+.agent-message__text code {
+  overflow-wrap: anywhere;
+}
+
+/* The person's own message, under the three texts. */
+.agent-message__form {
+  display: grid;
+  gap: var(--space-2);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--color-border);
+}
+
+.agent-message__fields {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.agent-message__fields .rg-field,
+.agent-message__fields :is(textarea, input) {
+  inline-size: 100%;
+}
+
+.agent-message__form .rg-notice code {
+  overflow-wrap: anywhere;
+}
+
+/* The team's inbox (`AdminMessagesLive`). */
+.admin-messages__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-messages__list > li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+}
+
+.admin-messages__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.admin-messages__meta dt {
+  color: var(--color-fg-muted);
+  font-size: var(--type-caption-size);
+}
+
+.admin-messages__meta dd {
+  margin: 0;
+}
+
+.admin-messages__body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+}

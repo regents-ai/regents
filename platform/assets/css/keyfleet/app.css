@@ -1,0 +1,188 @@
+@scope (:root[data-brand="keyfleet"]) {
+:scope {
+  color-scheme: light dark;
+  --radius-sm: 0px;
+  font-family: var(--font-family-ui);
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:scope,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  line-height: 1.5;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button, input, select, textarea {
+  font-family: var(--font-family-ui);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-family-mono);
+}
+
+a {
+  color: currentColor;
+}
+
+/* Every title consumes the canonical upright Pixel Square face. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-synthesis: none;
+}
+
+/* Native fallback controls; actual application actions use Regent.Primitives.
+   In the lowest layer, so any component's own button or field rule wins. */
+@layer regents-base {
+  button:not(.rg-button),
+  input {
+    border: 1px solid currentColor;
+    border-radius: 0;
+    background: var(--color-surface-elevated, Canvas);
+    color: var(--color-fg, CanvasText);
+  }
+
+  button:not(.rg-button) {
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+  }
+}
+
+/* Keyboard focus is a thin ring in --ash-ring, the same here as inside the app
+   (components/shell.css). Buttons, and controls drawn as buttons, ring in the
+   warm accent of the buttons' corner marks; the focus colour they set is the
+   one the shared button draws its own ring in. */
+:is(button, .rg-button, .shell-tool, [role="button"], [role="tab"]) {
+  --ash-ring: var(--ash-accent-warm);
+  --color-focus: var(--ash-accent-warm);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ash-ring);
+  outline-offset: 2px;
+}
+
+/* A cut-corner button shows the shared button's thin ring cut to its corners,
+   so the shell's square ring stays off it. */
+#app-shell .rg-button:where(:not(.rg-button--secondary):not(.rg-button--quiet)):focus-visible {
+  outline: none;
+}
+
+/* With the device's own colours forced, the button is a plain box, so its ring is too. */
+@media (forced-colors: active) {
+  #app-shell .rg-button:where(:not(.rg-button--secondary):not(.rg-button--quiet)):focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* The label a wallet button squishes when pressed, while the button keeps its size. */
+[data-press-label] {
+  display: inline-block;
+}
+
+/* Carries the exact figure behind a shortened one, for assistive technology. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The footer of the home page and every public page (`Layouts.product_links/1`):
+   one short row, tight above and below. */
+.regent-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  padding: var(--space-1) var(--rg-panel-padding);
+  border-top: 1px solid var(--hairline);
+  font-size: 0.8125rem;
+}
+.regent-footer p { margin: 0; }
+.regent-footer__social { display: flex; align-items: center; gap: var(--space-2); }
+.regent-footer__social > a { display: inline-grid; place-items: center; }
+.regent-footer__social > a svg { display: block; width: 1.5rem; height: 1.5rem; }
+.regent-footer__links { display: flex; flex-wrap: wrap; column-gap: var(--space-3); }
+.regent-footer__links a { display: inline-flex; align-items: center; min-height: 2rem; color: inherit; }
+.regent-footer__links .regent-footer__guide {
+  display: inline-flex; align-items: center; min-height: 2rem; padding: 0; border: 0;
+  background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer;
+}
+/* Under a finger each brand link and each short link is a full finger's size. */
+@media (pointer: coarse) {
+  .regent-footer__social > a { min-width: 2.75rem; min-height: 2.75rem; }
+  .regent-footer__links :is(a, .regent-footer__guide) { justify-content: center; min-width: 2.75rem; min-height: 2.75rem; }
+}
+/* Under a mouse the theme switch is no taller than the links beside it. */
+@media not (pointer: coarse) {
+  .regent-footer .theme-switch { --theme-switch-press: 2rem; }
+}
+/* On a phone the brand marks and the copyright share the first line, and the
+   links run on below them. */
+@media (max-width: 47.99rem) {
+  .regent-footer__links { order: 1; }
+}
+/* The two legal documents stay together, apart from the rest by a hairline. */
+.regent-footer__legal { display: flex; column-gap: var(--space-3); }
+@media (min-width: 48rem) {
+  .regent-footer__legal { padding-inline-start: var(--space-3); border-inline-start: 1px solid var(--hairline); }
+}
+.regent-footer__guide-body p { margin: 0; color: var(--rg-p-muted); }
+.regent-footer__guide-body a { min-height: 2.75rem; }
+.regent-footer__guide-body:popover-open { display: grid; }
+
+/* A public page fills the screen with its footer, so the footer sits at the foot of
+   the screen however short the page is, across its whole width. The page grows to
+   meet it, frame and all. Its one column is the screen's width, so a row that
+   scrolls sideways on its own, such as the shared tabs, never widens it. */
+body:has(> .regent-footer) { display: flex; flex-direction: column; height: auto; min-height: 100dvh; }
+body:has(> .regent-footer) > :first-child { flex: 1 0 auto; }
+body:has(> .regent-footer) > [data-phx-main] { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); }
+.rg-panel.rg-support-panel { --color-fg: var(--support-panel-ink); --color-fg-muted: color-mix(in srgb, var(--support-panel-ink) 72%, var(--support-panel-surface)); --color-surface: var(--support-panel-surface); --color-border: color-mix(in srgb, var(--support-panel-ink) 22%, var(--support-panel-surface)); }
+}

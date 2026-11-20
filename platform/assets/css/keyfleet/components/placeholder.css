@@ -1,0 +1,60 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* Grey bars standing in for figures still on their way. */
+.kf-placeholder {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kf-placeholder--figures {
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--space-3);
+}
+
+.kf-placeholder__bar {
+  display: block;
+  height: 0.875rem;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  animation: kf-placeholder-pulse 1.6s ease-in-out infinite;
+}
+
+.kf-placeholder--lines .kf-placeholder__bar + .kf-placeholder__bar:last-child {
+  width: 60%;
+}
+
+.kf-placeholder--figures .kf-placeholder__bar {
+  height: 2.5rem;
+}
+
+.kf-placeholder--area {
+  position: absolute;
+  inset: 0;
+}
+
+.kf-placeholder--area .kf-placeholder__bar {
+  height: 100%;
+}
+
+@keyframes kf-placeholder-pulse {
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kf-placeholder__bar { animation: none; }
+}
+
+/* An empty list's line and next step, inside a section that already has room around it. */
+.kf-empty {
+  padding: var(--space-3) 0;
+  justify-items: start;
+}
+
+/* Straight under a heading, it starts as close as any other panel's first
+   line, and the last thing in its section ends as close to the edge. */
+:is(h2, h3) + .kf-empty {
+  padding-block-start: 0;
+}
+
+.kf-empty:last-child {
+  padding-block-end: 0;
+}
+}

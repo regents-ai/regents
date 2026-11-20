@@ -1,0 +1,73 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* Notes from the page (`KeyfleetWeb.Layouts.app`): a dock at the foot of a
+   phone's screen, clear of its home bar and of a form's action bar
+   (`sticky_actions.css`). On a wider screen the dock sits in the bottom-right
+   corner. Only the notes catch a press, never the space around them. */
+.toast-dock {
+  position: fixed;
+  inset-inline: var(--space-2);
+  bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+  z-index: var(--rg-layer-tip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  min-width: 0;
+  pointer-events: auto;
+}
+
+/* The dismiss button sits in the note's own padding, so a long message wraps
+   beside it rather than under it. Both are named inside the toast so they
+   outrank the notice's own padding and the site's plain button. */
+.toast .toast__notice {
+  margin: 0;
+  padding-inline-end: 2.75rem;
+  box-shadow: var(--rg-layer-tip-shadow);
+  overflow-wrap: anywhere;
+}
+
+.toast .toast__dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-fg-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.toast .toast__dismiss:hover {
+  color: var(--color-fg);
+}
+
+/* A note stays until it is dismissed, so while one shows a control tabbed
+   to near the foot of the page stops above the dock instead of under it. */
+:scope:has(.toast) #app-shell-scroller {
+  scroll-padding-block-end: 8rem;
+}
+
+/* The action bar is a button's height and its padding above and below. */
+@media (max-width: 47.99rem) {
+  :scope:has(.sticky-actions) .toast-dock {
+    bottom: calc(var(--space-2) * 3 + 2.75rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 48rem) {
+  .toast-dock {
+    inset-inline: auto var(--space-3);
+    bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    width: 24rem;
+  }
+}
+}

@@ -1,0 +1,391 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The early-access page in the Regents palette, with headlines in the key
+   cards' lettering. On a wide screen what Keyfleet is and the email form sit on
+   the left and the key roller on the right; on a phone the roller follows the
+   form.
+
+   The six rarities climb the four Regents colours: Common in muted Platinum,
+   Uncommon in Platinum, Rare and Epic in Powder Blue, Legendary and Mythic in
+   Tangerine. Epic and Mythic are the filled ones. */
+@layer regents-product {
+  .early {
+    --tier-0: var(--color-fg-muted);
+    --tier-1: var(--color-fg);
+    --tier-2: var(--palette-powder-blue);
+    --tier-3: var(--palette-powder-blue);
+    --tier-4: var(--brand-accent);
+    --tier-5: var(--brand-accent);
+    --early-stage: var(--palette-charcoal);
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+    width: min(100%, 84rem);
+    min-height: 100svh;
+    margin-inline: auto;
+    padding: clamp(2.5rem, 8svh, 5rem) 16px 1.5rem;
+    color: var(--color-fg);
+    background: var(--color-bg);
+  }
+
+  @media (min-width: 64rem) {
+    .early {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+      column-gap: clamp(2.5rem, 5vw, 5rem);
+      padding-inline: clamp(16px, 4vw, 3rem);
+    }
+
+    .early__footer { grid-column: 1 / -1; }
+  }
+
+  .early :where(h1, h2, p) { margin-block: 0; }
+
+  .early__pitch { min-width: 0; }
+
+  .early__overline {
+    font-family: var(--font-family-ui);
+    font-size: .6875rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--brand-accent);
+  }
+
+  .early__title {
+    margin-block-start: var(--space-2);
+    font-size: clamp(2.25rem, 1.2rem + 3.6vw, 4rem);
+    line-height: 1.02;
+    letter-spacing: -.03em;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+
+  .early__accent { color: var(--brand-accent); }
+
+  .early__tagline {
+    margin-block-start: var(--space-3);
+    font-family: var(--font-family-title);
+    font-size: clamp(1.25rem, .9rem + 1.3vw, 1.875rem);
+    line-height: 1.1;
+    letter-spacing: -.015em;
+  }
+
+  .early__lede {
+    margin-block-start: var(--space-3);
+    max-width: 36rem;
+    color: var(--color-fg-muted);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+
+  .early__lede + .early__lede { margin-block-start: var(--space-2); }
+
+  .early__result { margin-block-start: var(--space-3); max-width: 36rem; }
+
+  /* The address and the button side by side, or stacked on a narrow screen. */
+  .early__form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-2);
+    margin-block-start: var(--space-3);
+    max-width: 36rem;
+  }
+
+  .early__field { flex: 1 1 16rem; min-width: 0; }
+  .early__submit { flex: 0 0 auto; min-height: 2.75rem; }
+
+  @media (max-width: 30rem) {
+    .early__submit { flex-basis: 100%; }
+  }
+
+  /* The tech stack: a small closed dropdown under the form, its four short
+     lines each marked with a Powder Blue rule. */
+  .early__stack { margin-block-start: var(--space-5); max-width: 36rem; }
+
+  .early__stack .rg-disclosure-title {
+    font-size: .6875rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+  }
+
+  .early__stack ul {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .early__stack li {
+    padding-inline-start: var(--space-2);
+    border-inline-start: 2px solid var(--palette-powder-blue);
+    color: var(--color-fg);
+    font-size: .9375rem;
+    line-height: 1.45;
+  }
+
+
+  /* The field a person never sees and a program fills in. */
+  .early__trap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* ---------------- the key roller ---------------- */
+
+  .roller {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+    min-width: 0;
+    padding: clamp(1rem, 3vw, 1.75rem);
+    border: 1px solid var(--color-border);
+    border-block-start: 2px solid var(--brand-accent);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .roller__title {
+    margin-block-start: calc(var(--space-2) * -1 + 4px);
+    font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+  }
+
+  /* One canvas draws the whole card on a Charcoal ground, short
+     enough that the roll button stays in view on a laptop. */
+  .roller__stage {
+    position: relative;
+    justify-self: center;
+    width: min(100%, 60svh * 4 / 5);
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--early-stage);
+  }
+
+  .roller__canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .roller__loading {
+    position: absolute;
+    inset: auto 0 18px;
+    font-family: var(--font-family-ui);
+    font-size: .6875rem;
+    letter-spacing: .14em;
+    text-align: center;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+  }
+
+  .roller__stage[data-state="painting"] .roller__loading { opacity: 1; }
+
+  .roller__no-gpu {
+    display: none;
+    position: absolute;
+    inset: 0;
+    place-content: center;
+    padding: var(--space-4);
+    text-align: center;
+    color: var(--color-fg-muted);
+  }
+
+  .roller__stage[data-state="no-gpu"] .roller__no-gpu { display: grid; }
+  .roller__stage[data-state="no-gpu"] .roller__loading { opacity: 0; }
+
+  .roller__roll { justify-self: start; min-height: 2.75rem; }
+
+  .roller__status {
+    min-height: 1.5em;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+
+  /* ---------------- rarity chips ---------------- */
+  .early [data-tier="0"] { --tier: var(--tier-0); }
+  .early [data-tier="1"] { --tier: var(--tier-1); }
+  .early [data-tier="2"] { --tier: var(--tier-2); }
+  .early [data-tier="3"] { --tier: var(--tier-3); }
+  .early [data-tier="4"] { --tier: var(--tier-4); }
+  .early [data-tier="5"] { --tier: var(--tier-5); }
+
+  /* Epic and Mythic are filled, with Charcoal letters on the colour. */
+  .early :is([data-tier="3"], [data-tier="5"]) { --tier-fill: var(--tier); --tier-ink: var(--palette-charcoal); }
+
+  .roller__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border: 1px solid var(--tier);
+    border-radius: var(--radius);
+    background: var(--tier-fill, transparent);
+    color: var(--tier-ink, var(--tier));
+    font-family: var(--font-family-ui);
+    font-size: .6875rem;
+    letter-spacing: .06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .roller__chip::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+  }
+
+  .roller__tally { display: flex; flex-wrap: wrap; gap: var(--space-1); min-height: 1.5rem; }
+
+  /* ---------------- the eight traits ---------------- */
+  .roller__traits {
+    container: traits / inline-size;
+    display: grid;
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .roller__trait { border-block-end: 1px solid var(--color-border); }
+
+  /* Name, drawn value, rarity and chances on one line; in a narrow list the
+     value takes its own line under the name. */
+  .roller__trait-head {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr) auto 5.5rem 1rem;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 2.75rem;
+    padding-block: var(--space-1);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .roller__trait-head::-webkit-details-marker { display: none; }
+
+  .roller__trait-head::after {
+    content: "";
+    justify-self: end;
+    width: 7px;
+    height: 7px;
+    border-inline-end: 1.5px solid var(--color-fg-muted);
+    border-block-end: 1.5px solid var(--color-fg-muted);
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .2s;
+  }
+
+  .roller__trait[open] > .roller__trait-head::after { transform: rotate(225deg); }
+
+  .roller__trait-head:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+  .roller__trait-name {
+    font-family: var(--font-family-ui);
+    font-size: .6875rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+  }
+
+  .roller__trait-value { min-width: 0; overflow-wrap: anywhere; }
+
+  .roller__odds {
+    color: var(--color-fg-muted);
+    font-family: var(--font-family-ui);
+    font-size: .75rem;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+    white-space: nowrap;
+  }
+
+  @container traits (max-width: 34rem) {
+    .roller__trait-head {
+      grid-template-columns: minmax(0, 1fr) auto 1rem;
+      grid-template-areas: "name chip mark" "value odds mark";
+      row-gap: 4px;
+    }
+
+    .roller__trait-name { grid-area: name; }
+    .roller__trait-value { grid-area: value; }
+    .roller__trait-head .roller__chip { grid-area: chip; justify-self: end; }
+    .roller__trait-head .roller__odds { grid-area: odds; }
+    .roller__trait-head::after { grid-area: mark; }
+  }
+
+  /* Every value the trait could have given, the drawn one lit in its colour.
+     Each value's mark is an outline, or solid for the filled rarities. */
+  .roller__values {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+    gap: 2px var(--space-2);
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    list-style: none;
+  }
+
+  .roller__value {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    font-size: .875rem;
+  }
+
+  .roller__value::before {
+    content: "";
+    box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid var(--tier);
+    background: var(--tier-fill, transparent);
+  }
+
+  .roller__value-name { min-width: 0; overflow-wrap: anywhere; }
+
+  .roller__value[aria-current="true"] {
+    background: color-mix(in srgb, var(--tier) 14%, transparent);
+    box-shadow: inset 0 0 0 1px var(--tier);
+  }
+
+  .early__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-self: end;
+    padding-block-start: var(--space-4);
+    font-family: var(--font-family-ui);
+    font-size: .75rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .early__footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--color-fg-muted);
+    text-decoration: none;
+  }
+
+  .early__footer a:is(:hover, :focus-visible) {
+    color: var(--color-fg);
+    text-decoration: underline;
+    text-underline-offset: .3em;
+  }
+}
+}

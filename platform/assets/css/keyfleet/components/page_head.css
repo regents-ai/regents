@@ -1,0 +1,29 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* An account page opens with one title row: the name in the display face. No
+   kicker, no tip, no paragraph and no frame: the content starts right under it. */
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) 0.75rem;
+  min-width: 0;
+}
+
+.page-head h1 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.page-head h1:focus {
+  outline: none;
+}
+
+}
+}

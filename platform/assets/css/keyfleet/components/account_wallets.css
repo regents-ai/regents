@@ -1,0 +1,26 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The person's wallets, on the Account page: what each one is
+   over its address, with the active one marked beside the address, so the mark
+   coming and going never moves the rows below. */
+.account-wallets__list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-wallets__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  min-width: 0;
+}
+
+.account-wallets__label {
+  flex-basis: 100%;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+}

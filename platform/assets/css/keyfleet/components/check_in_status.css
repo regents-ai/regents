@@ -1,0 +1,27 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* An agent's check-in light before when it was last seen: green on time,
+   amber late or not yet on a schedule, red paused or never seen */
+
+.check-in-status[data-light]::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-inline-end: 0.4rem;
+  border-radius: 50%;
+  vertical-align: 0.08em;
+  background: var(--check-in-light);
+}
+
+.check-in-status[data-light="on"] {
+  --check-in-light: var(--color-success);
+}
+
+.check-in-status[data-light="late"] {
+  --check-in-light: var(--color-warning);
+}
+
+.check-in-status[data-light="off"] {
+  --check-in-light: var(--color-error);
+}
+}

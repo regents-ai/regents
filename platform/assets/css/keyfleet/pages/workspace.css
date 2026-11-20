@@ -1,0 +1,937 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* The workspace stands on the Key grammar: one ground, hairline panels, the
+   display face for headings and a mono voice for kickers. Everyone's text
+   wraps wherever it must, so no item widens the page. */
+
+.workspace-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-heading,
+.workspace-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.workspace-page h1,
+.workspace-page h2,
+.workspace-page h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.workspace-page p {
+  margin: 0;
+}
+
+.workspace-kicker,
+.workspace-kind {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.workspace-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+/* Sign in, under the members-only outline, keeps its own width. */
+.workspace-heading > .rg-button {
+  justify-self: start;
+}
+
+.workspace-heading h2 {
+  max-width: 24ch;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.workspace-notebooks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.workspace-notebooks-notice {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent-warm);
+}
+
+.workspace-lede {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  max-width: 56ch;
+  color: var(--color-fg-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.workspace-notice {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-inline-start: 3px solid var(--ash-accent-warm);
+  background: var(--color-surface);
+  line-height: 1.5;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* One continuous workstream, with code access beside it. */
+.workspace-main {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.workspace-tools-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+  margin: 0;
+}
+
+.workspace-tools-list > div {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.75rem;
+}
+
+.workspace-tools-list dt { font-weight: 600; }
+.workspace-tools-list dt span { display: block; font-weight: 400; }
+.workspace-tools-list dd { margin: 0; line-height: 1.5; }
+
+@media (max-width: 960px) {
+  .workspace-tools-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .workspace-tools-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+.workspace-item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.workspace-panel {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+  justify-items: start;
+}
+
+.workspace-panel > * {
+  max-width: 100%;
+}
+
+.workspace-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+/* A visitor's workspace: each project by title, its goals beneath. */
+.workspace-public-project {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.workspace-public-project h3 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.workspace-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.workspace-filters a[aria-current="page"] {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* The projects to show, each with the Key that holds it, the archived ones
+   under their own heading, and what the member's Key may do now. */
+.workspace-projects {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.workspace-project-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.workspace-project-picker a[aria-current="page"] {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.workspace-project-archive {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.workspace-project-archive > h3 {
+  margin: 0;
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.workspace-project-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 24rem;
+}
+
+.workspace-project-form label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* Under a finger each box is a full finger's height. */
+@media (pointer: coarse) {
+  .workspace-project-form :is(input, select) {
+    min-height: 2.75rem;
+  }
+}
+
+/* Which project an item, a goal or a pin belongs to, when all are shown. */
+.workspace-project-tag {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.75rem;
+}
+
+.workspace-cards,
+.workspace-lines,
+.workspace-list {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-list {
+  gap: 0.25rem;
+}
+
+/* A space's notebooks, by folder: those in none first, then each folder
+   under its name. */
+.workspace-folders {
+  display: grid;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.workspace-folder {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.workspace-folder h3 {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+/* Goals, and the work around one, read as a list of pages: one line each,
+   hairlines between them and no box around any. The title takes the room it
+   needs; what stands out about it follows, and wraps under it when narrow. */
+.workspace-rows {
+  display: grid;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.workspace-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+  padding-block: 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-row .workspace-kind {
+  flex: 0 0 6rem;
+}
+
+.workspace-row-title {
+  flex: 1 1 16rem;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.workspace-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+}
+
+.workspace-wide {
+  grid-column: 1 / -1;
+}
+
+.workspace-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  color: var(--color-fg-muted);
+}
+
+.workspace-file {
+  max-height: 70vh;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  tab-size: 4;
+}
+
+.workspace-card {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+}
+
+.workspace-card h3 {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.workspace-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.workspace-badge {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--ash-line-strong);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-gist {
+  line-height: 1.5;
+}
+
+.workspace-facts,
+.workspace-fields {
+  display: grid;
+  gap: 0.6rem;
+  width: 100%;
+  margin: 0;
+}
+
+.workspace-facts {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+}
+
+.workspace-facts div,
+.workspace-fields div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.workspace-facts dt,
+.workspace-fields dt,
+.workspace-detail {
+  color: var(--color-fg-muted);
+}
+
+.workspace-facts dd,
+.workspace-fields dd {
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* A value laid out in paragraphs keeps the page's own line breaks, not the
+   markup's. */
+.workspace-fields dd:has(> p) {
+  white-space: normal;
+}
+
+.workspace-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.9rem;
+}
+
+.workspace-lines li {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding-block-end: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-lines li:last-child {
+  padding-block-end: 0;
+  border-bottom: 0;
+}
+
+/* A Workstream line reads like a line of the fleet's feed: its time in a
+   narrow column before the sentence, and above it on a phone. */
+.workspace-stream > li {
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+  column-gap: 0.5rem;
+  align-items: baseline;
+}
+
+.workspace-stream > li > * {
+  grid-column: 2;
+}
+
+.workspace-stream > li > .workspace-detail {
+  grid-row: 1;
+  grid-column: 1;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 47.99rem) {
+  .workspace-stream > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-stream > li > * {
+    grid-column: 1;
+  }
+}
+
+.workspace-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.workspace-side {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+/* The code's address and a git password: long, unbroken, copied whole. */
+.workspace-code-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.workspace-code-line code {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.workspace-code-password {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The four places, one tab each in a cut-corner window, under a
+   chart whose ridge rises over the place that is open. The chart only
+   decorates: until a first frame lands, and for anyone who asked for less
+   motion, a still face of hairlines stands in its place. Each place has its
+   own colour, which the chart and the tab's mark both take. */
+.workspace-page {
+  --kf-place-project: var(--palette-tangerine-tango);
+  --kf-place-docs: var(--color-info);
+  --kf-place-code: var(--color-success);
+  --kf-place-public: var(--color-warning);
+}
+
+.workspace-places {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.workspace-places > h2.workspace-kicker {
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.workspace-places-chart {
+  --still-at: 12.5%;
+  position: relative;
+  height: 4.5rem;
+}
+
+.workspace-places-chart[data-place="docs"] { --still-at: 37.5%; }
+.workspace-places-chart[data-place="code"] { --still-at: 62.5%; }
+.workspace-places-chart[data-place="public"] { --still-at: 87.5%; }
+
+.workspace-places-chart::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom in oklch,
+    oklch(from var(--color-border) l c h / 0) 0 calc(0.643rem - 1px),
+    var(--color-border) calc(0.643rem - 1px) 0.643rem
+  );
+  mask-image: radial-gradient(ellipse 24% 120% at var(--still-at) 100% in oklch, #000 30%, #00000000 100%);
+}
+
+.workspace-places-chart canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+.workspace-places-chart[data-chart-ready="true"]::before { content: none; }
+.workspace-places-chart[data-chart-ready="true"] canvas { opacity: 1; }
+
+.workspace-places-list {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding-block-end: 0.75rem;
+}
+
+.workspace-place-tab {
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+}
+
+.workspace-place-tab[aria-selected="false"] {
+  --rg-panel-fill: transparent;
+  color: var(--color-fg-muted);
+}
+
+.workspace-place-tab:is(:hover, :focus-visible) {
+  --rg-panel-edge: color-mix(in srgb, var(--color-fg) 45%, transparent);
+  color: var(--color-fg);
+}
+
+.workspace-place-tab:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 2px;
+}
+
+.workspace-place-tab[aria-selected="true"] {
+  --rg-panel-edge: color-mix(in srgb, var(--color-fg) 60%, transparent);
+}
+
+.workspace-place-name {
+  font-family: var(--font-family-title);
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.workspace-place-name::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-inline-end: 0.5rem;
+  vertical-align: 0.15em;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.workspace-place-tab[data-tab="project"] .workspace-place-name::before { color: var(--kf-place-project); }
+.workspace-place-tab[data-tab="docs"] .workspace-place-name::before { color: var(--kf-place-docs); }
+.workspace-place-tab[data-tab="code"] .workspace-place-name::before { color: var(--kf-place-code); }
+.workspace-place-tab[data-tab="public"] .workspace-place-name::before { color: var(--kf-place-public); }
+.workspace-place-tab[aria-selected="true"] .workspace-place-name::before { background: currentColor; }
+
+.workspace-place-tool {
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-fg-muted);
+}
+
+/* The mark under the open tab, one tab wide. The server puts it under the
+   open tab; once the page is live it travels to the next one chosen. */
+.workspace-places-ink {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: calc((100% - 2.25rem) / 4);
+  height: 2px;
+  background: var(--palette-tangerine-tango);
+  transform-origin: 0 0;
+}
+
+#workspace-page[data-active="docs"] .workspace-places-ink { transform: translateX(calc(100% + 0.75rem)); }
+#workspace-page[data-active="code"] .workspace-places-ink { transform: translateX(calc(200% + 1.5rem)); }
+#workspace-page[data-active="public"] .workspace-places-ink { transform: translateX(calc(300% + 2.25rem)); }
+
+/* The windows beside each place: what is pinned there, and how to work in it. */
+.workspace-info .rg-panel__body {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.workspace-info .rg-panel__body > * {
+  max-width: 100%;
+}
+
+.workspace-page .workspace-info h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.workspace-info-rules {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  line-height: 1.45;
+}
+
+.workspace-info .rg-button {
+  justify-self: stretch;
+}
+
+/* An address or password held whole, with its copy icon in the corner. */
+.workspace-copy-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.35rem 0.35rem 0.75rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.workspace-copy-box code {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.workspace-pins {
+  display: grid;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.workspace-pins li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  padding-block: 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.workspace-pins li > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-row-text {
+  flex: 1 1 100%;
+  color: var(--color-fg-muted);
+  line-height: 1.45;
+}
+
+.workspace-row .kf-pin {
+  margin-inline-start: auto;
+  align-self: center;
+}
+
+/* A notebook creator's Lock or Unlock, quiet beside the date. */
+.workspace-row-switch {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-fg);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+/* One notebook's daily copies: its title, a day, and Bring back. */
+.workspace-copy-form {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.workspace-copy-form label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.workspace-copy-form label span {
+  overflow-wrap: anywhere;
+}
+
+/* A pin: quiet until pointed at, filled once set. */
+.kf-pin {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.kf-pin svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.kf-pin:is(:hover, :focus-visible) {
+  border-color: var(--color-border);
+  color: var(--color-fg);
+}
+
+.kf-pin:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 2px;
+}
+
+.kf-pin:active svg {
+  transform: scale(0.88);
+  transition-duration: 100ms;
+}
+
+.kf-pin[aria-pressed="true"] {
+  color: var(--palette-tangerine-tango);
+}
+
+.kf-pin[aria-pressed="true"] svg path {
+  fill: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .kf-pin:hover svg { transform: scale(1.08); }
+}
+
+@media (max-width: 40rem) {
+  .workspace-places-chart { height: 3rem; }
+  .workspace-places-list { gap: 0.5rem; }
+  .workspace-places-ink { width: calc((100% - 1.5rem) / 4); }
+  #workspace-page[data-active="docs"] .workspace-places-ink { transform: translateX(calc(100% + 0.5rem)); }
+  #workspace-page[data-active="code"] .workspace-places-ink { transform: translateX(calc(200% + 1rem)); }
+  #workspace-page[data-active="public"] .workspace-places-ink { transform: translateX(calc(300% + 1.5rem)); }
+  .workspace-place-tab { padding: 0.65rem 0.45rem; }
+  /* Four names stay whole on one line, down to a 320px phone. */
+  .workspace-place-name { font-size: clamp(0.85rem, 4vw, 1rem); white-space: nowrap; }
+  .workspace-place-name::before { display: none; }
+  .workspace-place-tool {
+    overflow: hidden;
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .kf-pin {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* A notebook, file or folder keeps its pin beside it: its kind and its
+     size or date above the name, and what it says below. */
+  .workspace-row--pinnable {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "kind meta pin"
+      "title title pin"
+      "text text text";
+    align-items: center;
+    gap: 0 0.75rem;
+  }
+
+  .workspace-row--pinnable .workspace-kind { grid-area: kind; }
+  .workspace-row--pinnable .workspace-row-title { grid-area: title; }
+  .workspace-row--pinnable .workspace-row-meta { grid-area: meta; justify-self: end; }
+  .workspace-row--pinnable .workspace-row-text { grid-area: text; }
+
+  .workspace-row--pinnable .kf-pin {
+    grid-area: pin;
+    margin: 0;
+  }
+}
+
+@media (max-width: 60rem) {
+  .workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 47.99rem) {
+  /* Every link that stands on its own line is a full finger's height: the
+     kinds of item, the page links, the way back to the workspace, archived
+     items, each item's title, and the Keys, commits and addresses an item
+     names. */
+  .workspace-filters,
+  .workspace-project-picker {
+    row-gap: 0;
+  }
+
+  .workspace-filters a,
+  .workspace-project-picker a,
+  .workspace-pages a,
+  .workspace-kicker a,
+  .workspace-crumbs a,
+  .workspace-heading > a,
+  .workspace-panel > a,
+  .workspace-card h3 a,
+  .workspace-row-title,
+  .workspace-row-meta > a,
+  .workspace-pins li > a,
+  .workspace-facts dd > a,
+  .workspace-fields dd > a,
+  .workspace-list li > a,
+  .workspace-lines > li > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  /* A link inside a Workstream line stays part of its sentence, so the quote
+     or full stop after it wraps with its last word; its padding still makes
+     it a finger's height to press. */
+  .workspace-lines > li > p:first-child > a {
+    padding-block: 0.625rem;
+  }
+
+  /* Sign in, the code's Copy buttons and Get a git password span their
+     panel. */
+  .workspace-heading > .rg-button,
+  .workspace-panel > .rg-button {
+    justify-self: stretch;
+  }
+
+  .workspace-code-line .rg-copy {
+    flex-grow: 1;
+  }
+}
+
+}
+
+/* The Public place: each thing a Key made public in its own window, and for
+   posts the posts themselves, as the room shows them. */
+.workspace-public {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.workspace-public-record {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.workspace-public-head {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.workspace-public-head h3 {
+  font-size: 1.2rem;
+  line-height: 1.15;
+}
+
+/* The posts keep the room's own hairlines; the first sits under the heading. */
+.workspace-public-posts {
+  padding-block-start: 1rem;
+  border-block-start: 1px solid var(--color-border);
+}
+}

@@ -1,0 +1,111 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A group of wallet buttons (ash-template's skills/onchain-buttons): the
+   form the steps are built from, the line naming what a press sends, the buttons, and each sent
+   step with how it landed, newest first. A press in progress is marked,
+   never blocked: the button keeps taking presses. */
+
+[data-onchain-step][data-awaiting-wallet] {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+.wallet-panel,
+.wallet-panel-form {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.wallet-panel-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Approve and the step it allows are one size: each spans the group, one
+   above the other, with any reason under its button. */
+.wallet-panel-buttons:has([data-onchain-step="approve"]) {
+  justify-self: stretch;
+}
+
+.wallet-panel-buttons:has([data-onchain-step="approve"]) > :is(.rg-button, .wallet-panel-step),
+.wallet-panel-buttons:has([data-onchain-step="approve"]) .wallet-panel-step > .rg-button {
+  flex: 1 1 100%;
+}
+
+/* A button the chain's own state makes certain to fail stays in view,
+   disabled, with a few words beside it saying why. */
+.wallet-panel-step {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.wallet-panel-why {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.wallet-panel-line,
+.wallet-panel-note {
+  margin: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.wallet-panel-note {
+  color: var(--color-fg-muted);
+}
+
+.wallet-panel-sent {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wallet-panel-sent li {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.wallet-panel-sent li[data-state="reverted"],
+.wallet-panel-sent li[data-state="not_this_step"],
+.wallet-panel-sent li[data-state="unknown"] {
+  border-inline-start-color: var(--ash-accent-warm);
+}
+}
+
+/* Outside the layer, because the button's paint is drawn by unlayered rules:
+   a step that has landed, as Approve once it has, is greyed with a green edge
+   all the way round. */
+:scope .wallet-panel .wallet-panel-buttons .rg-button.rg-button[data-onchain-step][data-done] {
+  color: var(--color-fg-muted);
+}
+
+:scope .wallet-panel .wallet-panel-buttons .rg-button.rg-button[data-onchain-step][data-done]::before {
+  --rg-button-edge-ink: var(--color-success);
+  --rg-button-cut-ink: var(--color-success);
+  --rg-button-cut-gap: 0px;
+  background-color: color-mix(in srgb, var(--color-fg) 12%, var(--color-surface));
+  background-size:
+    var(--rg-cut-control) var(--rg-cut-control), var(--rg-cut-control) var(--rg-cut-control),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px),
+    calc(100% - var(--rg-cut-control) + 1px) 1px, 1px calc(100% - var(--rg-cut-control) + 1px);
+}
+
+:scope .wallet-panel .wallet-panel-buttons .rg-button.rg-button[data-onchain-step][data-done]::after {
+  content: none;
+}
+}

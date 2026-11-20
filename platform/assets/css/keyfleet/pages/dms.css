@@ -1,0 +1,142 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* Direct messages stand on the rooms page: the same panels, thread and box.
+   Only what the rooms page doesn't have is here. */
+
+.dms-settings {
+  gap: 0.75rem;
+}
+
+.dms-auto-delete {
+  width: 100%;
+}
+
+.dms-auto-delete select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* The line under the box keeps its space, so nothing moves when it speaks. */
+.dms-notice {
+  min-height: 1.5rem;
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+}
+
+.dms-list {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dms-list li {
+  display: grid;
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+}
+
+/* The latest message shows on one line, however long it is. */
+.dms-preview {
+  overflow: hidden;
+  color: var(--color-fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dms-parts {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+/* A reader at the end of the thread stays there as a message lands and makes
+   room for itself: the page keeps its place by the box under the thread, not
+   by a message that is moving. */
+#dms-thread-list {
+  overflow-anchor: none;
+}
+
+/* A message's parts sit inside it, not in boxes of their own. */
+.rooms-thread-list .dms-parts li {
+  padding: 0;
+  border: 0;
+}
+
+/* The site a named link goes to, under its name. */
+.dms-link-host {
+  display: block;
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.dms-parts pre {
+  margin: 0;
+  padding: 0.5rem;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.key-messages {
+  justify-self: start;
+}
+
+@media (max-width: 47.99rem) {
+  /* On a phone the conversation comes first and its settings after it. */
+  .dms-settings {
+    order: 1;
+  }
+
+  .dms-list li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  /* The links that open a conversation, the inbox and the other Key's page
+     are a full finger's height. */
+  .dms-list li > a,
+  .dms-settings > a {
+    min-height: 2.75rem;
+  }
+
+  .dms-settings > a {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* A file or link sent in a message is a full finger's height. */
+  .dms-parts a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  /* Block spans its panel like the choice above it, and so does Sign in
+     when the messages are closed. */
+  .dms-settings > .rg-button,
+  #dms-closed > .rg-button {
+    justify-self: stretch;
+  }
+
+  /* A Key's one action spans its heading. */
+  .key-messages {
+    justify-self: stretch;
+  }
+}
+
+}
+}

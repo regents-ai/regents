@@ -1,0 +1,692 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* Proposals stand on the same Key grammar as the workspace: one ground,
+   hairline panels, the display face for headings and a mono voice for
+   kickers. Proposal text and addresses wrap, so nothing widens the page. */
+
+.proposals-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.proposals-heading,
+.proposals-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.proposals-page h1,
+.proposals-page h2,
+.proposals-page h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.proposals-page p {
+  margin: 0;
+}
+
+.proposals-kicker,
+.proposals-kind {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.proposals-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.proposals-heading h1 {
+  max-width: 24ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.proposals-heading h1:focus {
+  outline: none;
+}
+
+.proposals-notice {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-inline-start: 3px solid var(--ash-accent-warm);
+  background: var(--color-surface);
+  line-height: 1.5;
+}
+
+.proposals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.proposals-panel {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+  justify-items: start;
+}
+
+.proposals-panel > * {
+  max-width: 100%;
+}
+
+.proposals-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.proposals-rule,
+.proposals-detail,
+.proposals-facts dt {
+  color: var(--color-fg-muted);
+}
+
+.proposals-rule {
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+.proposals-list,
+.proposals-lines {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proposals-card {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+}
+
+.proposals-card-action {
+  overflow-wrap: anywhere;
+}
+
+/* What is open to a vote, top right of a fleet's workspace. The list scrolls
+   in its own room, so a run of proposals never pushes the page away. */
+.open-proposals {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem var(--rg-panel-padding);
+  border-inline-start: 1px solid var(--color-border);
+  border-block-end: 1px solid var(--color-border);
+}
+
+.open-proposals h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.open-proposals__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  max-block-size: min(16rem, 40vh);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.open-proposal {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.open-proposal + .open-proposal {
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.open-proposal p {
+  margin: 0;
+}
+
+.open-proposal__count,
+.open-proposal__yours {
+  font-size: 0.875rem;
+  color: var(--color-fg-muted);
+}
+
+.open-proposal__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+@media (pointer: coarse) {
+  .open-proposal__head a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+  }
+}
+
+/* Buttons first, so nothing that arrives moves one under a finger; below them
+   one line's room, held from the start, for how the vote is cast or why a
+   button can't be pressed. */
+.open-proposal .open-proposal__vote {
+  align-content: start;
+  gap: 0.35rem;
+  min-block-size: 4.25rem;
+}
+
+.open-proposal .wallet-panel-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  order: -1;
+  gap: 0.35rem 0.5rem;
+}
+
+.open-proposal .wallet-panel-step {
+  display: contents;
+}
+
+.open-proposal .wallet-panel-step > .rg-button {
+  grid-row: 1;
+  width: 100%;
+}
+
+.open-proposal .wallet-panel-why {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* Both buttons held back for one reason say it once. */
+.open-proposal .wallet-panel-step:has(.wallet-panel-why) + .wallet-panel-step .wallet-panel-why {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.open-proposal .wallet-panel-line {
+  overflow: hidden;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* In the workspace, the right column for as long as anything is open. */
+.fleet-view[data-view="workspace"] .fleet-stage:has(> .open-proposals) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.fleet-stage > .open-proposals {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  padding: 0 0 0 var(--rg-panel-padding);
+  border-block-end: 0;
+}
+
+@media (max-width: 64rem) {
+  .open-proposals {
+    border-inline-start: 0;
+  }
+
+  .fleet-view[data-view="workspace"] .fleet-stage:has(> .open-proposals) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fleet-stage > .open-proposals {
+    grid-column: auto;
+    grid-row: auto;
+    padding: 0 0 1rem;
+    border-block-end: 1px solid var(--color-border);
+  }
+}
+
+.proposals-card h3 {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.proposals-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.proposals-badge {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--ash-line-strong);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proposals-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.9rem;
+}
+
+/* Each card's first line: its status, its kind and the time it has left,
+   the last pushed to the far edge. */
+.proposals-type {
+  color: var(--color-fg);
+}
+
+.proposals-when {
+  margin-inline-start: auto;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.proposals-badge[data-status="open"] {
+  border-color: var(--ash-accent);
+  color: var(--ash-accent);
+}
+
+.proposals-badge:is([data-status="waiting"], [data-status="approved"], [data-status="executed"]) {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.proposals-badge:is([data-status="rejected"], [data-status="cancelled"], [data-status="execution_expired"]) {
+  border-color: var(--color-border);
+  color: var(--color-fg-muted);
+}
+
+/* The vote so far: a bar filled to the shares of Keys counted that voted yes
+   and no, with a tick at the 60% a proposal needs, then each count. */
+.proposals-share {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.6rem;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+
+.proposals-share__bar {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 0.375rem;
+  background: linear-gradient(
+    to right in oklch,
+    var(--color-success) 0 var(--yes),
+    var(--ash-accent-warm) var(--yes) calc(var(--yes) + var(--no)),
+    var(--color-border) calc(var(--yes) + var(--no))
+  );
+}
+
+.proposals-share__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+  list-style: none;
+}
+
+.proposals-share__counts > [data-side="yes"] {
+  color: var(--color-success);
+}
+
+.proposals-share__counts > [data-side="no"] {
+  color: var(--ash-accent-warm);
+}
+
+.proposals-share__counts > :is([data-side="abstain"], [data-side="silent"]) {
+  color: var(--color-fg-muted);
+}
+
+.proposals-share__bar::after {
+  position: absolute;
+  inset-block: -0.2rem;
+  inset-inline-start: 60%;
+  width: 1px;
+  background: var(--color-fg);
+  content: "";
+}
+
+.proposals-share > :not(.proposals-share__bar) {
+  grid-row: 2;
+}
+
+/* Each Key's vote: one row for each choice, its Keys wrapping beside it. */
+.proposals-ballots {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+}
+
+.proposals-ballots > div {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.proposals-ballots dt {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.proposals-ballots [data-side="yes"] dt {
+  color: var(--color-success);
+}
+
+.proposals-ballots [data-side="no"] dt {
+  color: var(--ash-accent-warm);
+}
+
+.proposals-ballots dd {
+  margin: 0;
+}
+
+.proposals-ballot-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+  list-style: none;
+}
+
+.proposals-ballot-keys li {
+  white-space: nowrap;
+}
+
+.proposals-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.proposals-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.6rem;
+  width: 100%;
+  margin: 0;
+}
+
+.proposals-facts div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.proposals-facts dd {
+  margin: 0;
+}
+
+.proposals-plan {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  justify-items: start;
+}
+
+.proposals-plan > * {
+  max-width: 100%;
+}
+
+/* A token's address never breaks, so a rolling amount wraps as it does at rest. */
+.proposals-token {
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.proposals-lines li {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding-block-end: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Each movement of money is one line: what moved, then to whom or for what. */
+.treasury-history .proposals-lines li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.35em;
+}
+
+/* "with 61.317 USDC" reads as one phrase, one space apart. */
+.treasury-history .proposals-lines .proposals-detail {
+  display: inline;
+}
+
+.proposals-lines li:last-child {
+  padding-block-end: 0;
+  border-bottom: 0;
+}
+
+.proposals-call-words {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+/* A call exactly as the network runs it: long addresses and data stay on
+   one line each and scroll inside the list, never the page. */
+.proposals-call {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+
+.proposals-call div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.5rem;
+  min-width: 0;
+}
+
+.proposals-call dd {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.proposals-call-data {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.proposals-panel h3 {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.proposals-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* A form a group of wallet buttons reads. */
+.proposals-form {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Each kind's fields, stacked in one cell: the form is always as tall as the
+   longest kind, and the kinds not chosen keep their place unseen. */
+.proposals-kinds {
+  display: grid;
+}
+
+.proposals-kinds > .proposals-form {
+  grid-area: 1 / 1;
+  align-self: start;
+}
+
+.proposals-kinds > [inert] {
+  visibility: hidden;
+}
+
+/* A table of figures per asset; it scrolls inside its panel on a narrow
+   screen rather than widening the page, and takes keyboard focus so it can
+   be scrolled without a pointer. */
+.proposals-table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.proposals-table th,
+.proposals-table td {
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.proposals-table th {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+/* Amounts set in figures of one width, so digits stack row over row. */
+.proposals-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.proposals-panel h2,
+.proposals-panel h3 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* A proposal's own words, as its proposer wrote them; in a list, the first
+   three lines. */
+.proposals-words {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.proposals-words--short {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+}
+
+@layer regents-product {
+  #treasury-page .proposals-panel { justify-items: stretch; }
+  #treasury-page .proposals-table { display: table; table-layout: fixed; }
+  #treasury-page .proposals-table th, #treasury-page .proposals-table td { white-space: normal; overflow-wrap: anywhere; }
+  .treasury-permissions { margin: 0; }
+  .treasury-permissions > div { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1fr); gap: 1rem; padding-block: .8rem; border-bottom: 1px solid var(--color-border); }
+  .treasury-permissions dd { margin: 0; }
+  .treasury-history { display: grid; gap: 1rem; border-top: 1px solid var(--color-border); padding-block-start: 1.25rem; }
+  @media (max-width: 40rem) { .treasury-permissions > div { grid-template-columns: 1fr; gap: .25rem; } }
+  /* The month's usage: each figure large right under its name, with its count
+     beneath when it has one. */
+  .treasury-usage > div { align-content: start; }
+  .treasury-usage dd { display: grid; gap: .15rem; }
+  .treasury-usage .rg-figure { font-size: 1.6rem; line-height: 1.1; }
+}
+
+@layer regents-product {
+  @media (max-width: 47.99rem) {
+    /* A heading's "i" follows its last word instead of dropping to a line of
+       its own. */
+    .proposals-panel h2,
+    .proposals-panel h3 {
+      display: block;
+    }
+
+    /* The yes, no and abstain counts sit two to a row; the dates under them
+       keep a row each. */
+    .proposals-facts:has(+ .proposals-facts) {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+    }
+
+    /* A figure stays right under its label when the label beside it wraps. */
+    .proposals-facts div {
+      align-content: start;
+    }
+
+    /* Wallet buttons fill the row they sit on, so one action spans the panel
+       and a group wraps into even rows. */
+    .proposals-page .wallet-panel-step,
+    .proposals-page .wallet-panel-step > .rg-button:not(.rg-button--quiet) {
+      flex: 1 1 auto;
+    }
+
+    /* Older and newer pages and each carried-out proposal are a full
+       finger's height; an address's BaseScan link is as tall and as wide. */
+    .proposals-pages a,
+    .proposals-lines > li > a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2.75rem;
+    }
+
+    .proposals-lines > li > a {
+      justify-self: start;
+    }
+
+    /* The Treasury's tables break only between words, and a table still too
+       wide scrolls inside its panel. */
+    #treasury-page .proposals-table {
+      display: block;
+    }
+
+    #treasury-page .proposals-table th,
+    #treasury-page .proposals-table td {
+      overflow-wrap: normal;
+    }
+  }
+}
+}

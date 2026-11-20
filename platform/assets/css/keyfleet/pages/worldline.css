@@ -1,0 +1,619 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A fleet's Worldline: one hairline panel with the picture across its full
+   width, or the same events as lines that open the page each happened on. */
+
+.worldline-page {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.worldline-panel {
+  /* The picture's colours, as its shader, the legend and the list take them.
+     Four hues nothing else is taken for: the line and the sun gold;
+     Workspace the vivid blue; Code mint by night and deep green by day; and
+     Notebooks platinum by night and charcoal by day. Each room takes one of
+     six faint tints, a swatch folded into the page's muted ink, and the
+     points on the line take their own. */
+  --worldline-line: var(--color-warning);
+  --worldline-workspace: var(--palette-cornflower);
+  --worldline-code: var(--color-success);
+  --worldline-notebooks: light-dark(var(--palette-charcoal), var(--palette-platinum));
+  --worldline-chat-1: color-mix(in oklab, var(--palette-powder-blue) 55%, var(--color-fg-muted));
+  --worldline-chat-2: color-mix(in oklab, var(--palette-tangerine-tango) 40%, var(--color-fg-muted));
+  --worldline-chat-3: color-mix(in oklab, var(--color-success) 45%, var(--color-fg-muted));
+  --worldline-chat-4: color-mix(in oklab, var(--color-error) 45%, var(--color-fg-muted));
+  --worldline-chat-5: color-mix(in oklab, var(--color-warning) 45%, var(--color-fg-muted));
+  --worldline-chat-6: color-mix(in oklab, var(--worldline-workspace) 45%, var(--color-fg-muted));
+  --worldline-proposals: var(--ash-accent-warm);
+  --worldline-votes: color-mix(in oklab, var(--ash-accent-warm) 55%, var(--color-fg-muted));
+  --worldline-polls: var(--ash-accent);
+  --worldline-keys: var(--color-fg);
+  --worldline-shards: color-mix(in oklab, var(--color-fg) 55%, var(--ash-accent));
+  --worldline-present: var(--color-fg-muted);
+  --worldline-treasury: color-mix(in oklab, var(--color-warning) 55%, var(--color-fg));
+  --worldline-projects: color-mix(in oklab, var(--color-info) 50%, var(--color-fg));
+  /* The stars, drawn by night only. */
+  --worldline-stars: var(--color-fg);
+
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.worldline-panel [data-trail="workspace"] { --worldline-tone: var(--worldline-workspace); }
+.worldline-panel [data-trail="code"] { --worldline-tone: var(--worldline-code); }
+.worldline-panel [data-trail="notebooks"] { --worldline-tone: var(--worldline-notebooks); }
+.worldline-panel [data-trail="chat"] { --worldline-tone: var(--worldline-chat-1); }
+.worldline-panel [data-trail="proposals"] { --worldline-tone: var(--worldline-proposals); }
+.worldline-panel [data-trail="votes"] { --worldline-tone: var(--worldline-votes); }
+.worldline-panel [data-trail="polls"] { --worldline-tone: var(--worldline-polls); }
+.worldline-panel [data-trail="keys"] { --worldline-tone: var(--worldline-keys); }
+.worldline-panel [data-trail="shards"] { --worldline-tone: var(--worldline-shards); }
+.worldline-panel [data-trail="present"] { --worldline-tone: var(--worldline-present); }
+.worldline-panel [data-trail="treasury"] { --worldline-tone: var(--worldline-treasury); }
+.worldline-panel [data-trail="projects"] { --worldline-tone: var(--worldline-projects); }
+
+.worldline-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.worldline-head h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+/* Each planet's path as a short stroke, the outer ones finer; the rooms as a
+   dither of pixels; the points on the line as dots; and the daily split as a
+   tick across it. */
+.worldline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.worldline-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.worldline-legend li::before {
+  content: "";
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: var(--worldline-tone);
+}
+
+/* A planet's swatch, in the legend and beside its events, is a stroke of its orbit. */
+.worldline-legend li:is([data-trail="workspace"], [data-trail="code"], [data-trail="notebooks"])::before,
+li:is([data-trail="workspace"], [data-trail="code"], [data-trail="notebooks"]) .worldline-event__what::before {
+  width: 1rem;
+  height: 3px;
+  border-radius: 0;
+}
+
+.worldline-legend li[data-trail="code"]::before {
+  height: 2.5px;
+}
+
+.worldline-legend li[data-trail="notebooks"]::before {
+  height: 2px;
+}
+
+.worldline-legend li[data-trail="chat"]::before {
+  width: 0.75rem;
+  height: 0.5rem;
+  border-radius: 0;
+  background: repeating-conic-gradient(in oklch, var(--worldline-chat-1) 0 25%, transparent 0 50%) 0 0 / 4px 4px;
+}
+
+.worldline-legend li:is([data-trail="votes"], [data-trail="present"])::before {
+  width: 0.3125rem;
+  height: 0.3125rem;
+}
+
+.worldline-legend li[data-trail="treasury"]::before {
+  width: 2px;
+  height: 0.75rem;
+  border-radius: 0;
+}
+
+/* A planet's name in the legend is a link to its place in the workspace,
+   its underline full under the pointer, as a planet's name is. */
+.worldline-legend a {
+  text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+/* The filter: its field, Apply and Clear on one row, and what went wrong
+   under them. */
+.worldline-filter {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) auto auto;
+  justify-content: start;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  min-width: 0;
+}
+
+.worldline-filter .rg-field {
+  display: contents;
+}
+
+.worldline-filter .rg-field__label {
+  grid-column: 1 / -1;
+}
+
+.worldline-filter input {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.worldline-filter .rg-field-errors {
+  grid-row: 3;
+  grid-column: 1 / -1;
+}
+
+.worldline-filter__clear {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+/* The picture, edge to edge inside the panel, on the page's own ground; its
+   stars by night are drawn with it. A mouse dragging across it turns it; a
+   finger dragging across it moves through time, and one dragging up or down
+   still scrolls the page. The heads' names, the link on the mark in focus,
+   Now and the zoom stand over it. */
+.worldline-stage {
+  position: relative;
+  isolation: isolate;
+  height: clamp(18rem, 56vw, 32rem);
+  margin-inline: calc(var(--rg-panel-padding) * -1);
+  overflow: hidden;
+  border-block: 1px solid var(--color-border);
+  background: var(--color-bg);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  & .worldline-tips {
+    z-index: 1;
+  }
+
+  & .worldline-focus {
+    z-index: 2;
+  }
+
+  & :is(.worldline-now, .worldline-view) {
+    z-index: 3;
+  }
+}
+
+.worldline-stage[data-dragging] {
+  cursor: grabbing;
+}
+
+.worldline-stage:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* While the picture has the keyboard, a hairline marks the middle, where the
+   mark shown is read from. */
+.worldline-stage:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 1px;
+  background: color-mix(in oklab, var(--color-focus) 45%, transparent);
+  pointer-events: none;
+}
+
+.worldline-stage__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* What stands until the picture is drawn: the line, and the sun at now. */
+.worldline-stage__line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 85%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--worldline-line);
+}
+
+.worldline-stage__head {
+  position: absolute;
+  top: 50%;
+  left: 85%;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin: -0.3125rem 0 0 -0.3125rem;
+  border-radius: 50%;
+  background: var(--worldline-line);
+  outline: 0.3125rem solid color-mix(in oklab, var(--worldline-line) 22%, transparent);
+}
+
+.worldline-stage[data-worldline-ready] :is(.worldline-stage__line, .worldline-stage__head) {
+  visibility: hidden;
+}
+
+.worldline-stage__still {
+  display: none;
+  position: absolute;
+  inset-inline: 1rem;
+  bottom: 1rem;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.worldline-stage[data-worldline-still] .worldline-stage__still {
+  display: block;
+}
+
+/* The sun and each planet at now, named beside it where the picture draws
+   it, once it is drawn. A planet's name, underlined in its colour, and a
+   ring the size of a fingertip on the planet are one link; Now only names
+   the sun. A name with no room beside its head fades out. */
+.worldline-tips {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.worldline-stage:not([data-worldline-ready]) .worldline-tips,
+.worldline-tip:not([data-shown]) {
+  visibility: hidden;
+}
+
+.worldline-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2rem;
+  height: 2rem;
+  margin: -1rem 0 0 -1rem;
+  border-radius: 50%;
+  text-decoration: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.worldline-tip__name {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 0.1875rem 0.375rem;
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--color-bg) 80%, transparent);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: underline 2px var(--worldline-tone);
+  text-underline-offset: 0.25em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out, scale 120ms ease-out;
+}
+
+.worldline-tip__name[data-room] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.worldline-tip:active .worldline-tip__name {
+  scale: 0.97;
+}
+
+.worldline-tip:focus-visible .worldline-tip__name {
+  text-decoration-color: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .worldline-legend a:hover,
+  .worldline-tip:hover .worldline-tip__name {
+    text-decoration-color: currentColor;
+  }
+}
+
+.worldline-tip--now,
+.worldline-tip--now .worldline-tip__name {
+  pointer-events: none;
+}
+
+.worldline-tip--now .worldline-tip__name {
+  color: var(--color-fg-muted);
+  text-decoration-line: none;
+}
+
+/* The one link, standing on the mark in focus: a ring the size of a
+   fingertip centred on the mark, and its words beside it. */
+.worldline-focus {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2rem;
+  height: 2rem;
+  margin: -1rem 0 0 -1rem;
+  border-radius: 50%;
+  color: var(--color-fg);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.worldline-focus[hidden] {
+  display: none;
+}
+
+.worldline-focus__card {
+  position: absolute;
+  bottom: calc(50% + 0.75rem);
+  left: calc(50% + 0.875rem);
+  display: grid;
+  gap: 0.125rem;
+  width: max-content;
+  max-width: min(15rem, 62vw);
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.worldline-focus[data-side="left"] .worldline-focus__card {
+  right: calc(50% + 0.875rem);
+  left: auto;
+}
+
+.worldline-focus[data-edge="below"] .worldline-focus__card {
+  top: calc(50% + 0.75rem);
+  bottom: auto;
+}
+
+.worldline-focus__what {
+  color: var(--color-fg-muted);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.worldline-focus__title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.worldline-focus__meta {
+  color: var(--color-fg-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .worldline-focus:hover .worldline-focus__title {
+    text-decoration: underline;
+  }
+}
+
+.worldline-focus:focus-visible {
+  outline: none;
+}
+
+.worldline-focus:focus-visible .worldline-focus__card {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* A word for what just arrived, over the sun, shown a moment as it flares. */
+.worldline-news {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: -50% calc(-100% - 1.25rem);
+  color: var(--worldline-line);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Back to the sun, once the picture stands away from it. */
+.worldline-now {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+}
+
+/* The zoom and Reset, in the corner across from Now. */
+.worldline-view {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: var(--font-family-ui);
+  font-size: 0.8rem;
+  cursor: auto;
+}
+
+.worldline-view button {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.worldline-view button:first-child {
+  border-left: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .worldline-view button:hover {
+    background: var(--ash-panel-strong);
+  }
+}
+
+.worldline-view button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.worldline-view output {
+  display: grid;
+  place-items: center;
+  min-width: 3.25rem;
+  border-left: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 30rem) {
+  .worldline-view button {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+
+  .worldline-view output {
+    min-width: 2.75rem;
+  }
+}
+
+.worldline-help {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* The words for a mouse and trackpad, or for a finger. */
+.worldline-help__touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .worldline-help__mouse {
+    display: none;
+  }
+
+  .worldline-help__touch {
+    display: inline;
+  }
+}
+
+/* Nothing flies for a reader who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .worldline-help__flight {
+    display: none;
+  }
+}
+
+/* The list: each event a line that opens the page it happened on. */
+.worldline-events {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.worldline-events > li {
+  border-block-end: 1px solid var(--color-border);
+}
+
+.worldline-event {
+  display: grid;
+  gap: 0.3rem;
+  padding-block: 0.85rem;
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+.worldline-event:hover .worldline-event__title,
+.worldline-event:focus-visible .worldline-event__title {
+  text-decoration: underline;
+}
+
+.worldline-event:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.worldline-event__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.worldline-event__what {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.worldline-event__what::before {
+  content: "";
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: var(--worldline-tone);
+}
+
+.worldline-event__who,
+.worldline-event__at {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.worldline-event__at {
+  margin-inline-start: auto;
+}
+
+.worldline-panel > .rg-button {
+  justify-self: start;
+}
+}
+}

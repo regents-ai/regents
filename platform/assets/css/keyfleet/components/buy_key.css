@@ -1,0 +1,69 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The "Buy Key" window, the one place a Key is bought, on every page: the Key
+   cards turning, how many are sold, the Key on offer and its price, then
+   Approve and Buy. Phones see it across the whole width. Each row keeps its full height,
+   so on a short screen the window scrolls and nothing overlaps. */
+.buy-key {
+  --rg-dialog-size: 26rem; --buy-key-pad: clamp(var(--space-2), 4vw, var(--space-4));
+  font-size: 1rem; color: var(--color-fg);
+}
+.buy-key .rg-dialog__body { display: grid; grid-auto-rows: max-content; gap: var(--space-3); padding: var(--buy-key-pad); }
+.buy-key h2 { margin: 0; font-size: 1.5rem; line-height: 1.1; }
+.buy-key h2:focus { outline: none; }
+/* The cards turn on the same charcoal stage as a Key's own card, reaching the
+   window's edges. */
+.buy-key__stage { margin-inline: calc(-1 * var(--buy-key-pad)); padding-block: clamp(1.25rem, 4vw, 2rem); }
+.buy-key .key-cards { inline-size: min(100%, 12rem); }
+.buy-key__facts { display: grid; margin: 0; border-block-start: 1px solid var(--hairline); }
+.buy-key__facts > div {
+  display: flex; justify-content: space-between; gap: var(--space-2); padding-block: var(--space-1);
+  border-block-end: 1px solid var(--hairline);
+}
+.buy-key__facts dt { color: var(--color-fg-muted); }
+.buy-key__facts dd { margin: 0; font-variant-numeric: tabular-nums; text-align: end; }
+.buy-key__actions { display: grid; justify-items: start; gap: var(--space-2); }
+.buy-key__actions form { margin: 0; }
+/* Approve and Buy, with the line saying where a purchase is sent from. */
+#buy-key-order {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.buy-key__why { min-block-size: 1.5em; margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+
+/* Close goes nowhere, so it carries no chevron. */
+.buy-key .buy-key__close::after { content: none; }
+
+/* Thirty Key cards turning over, a fifth of a second each, only while they
+   are on screen (`KeyCards` marks them turning). The sheet holds them six
+   across and five down: the rows step down one every six cards while the
+   sheet steps across one each card, so they show in order, and the rows and
+   the sheet stop and start together. Less motion shows the first card
+   alone. */
+.key-cards { inline-size: 9rem; aspect-ratio: 4 / 5; overflow: hidden; }
+.key-cards__rows { inline-size: 600%; block-size: 500%; }
+.key-cards__sheet { display: block; inline-size: 100%; block-size: 100%; }
+@keyframes key-cards-down { to { translate: 0 -100%; } }
+@keyframes key-cards-across { to { translate: -100% 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  .key-cards__rows { animation: key-cards-down 6s steps(5, jump-end) infinite paused; }
+  .key-cards__sheet { animation: key-cards-across 1.2s steps(6, jump-end) infinite paused; }
+  .key-cards[data-cards-turning] :is(.key-cards__rows, .key-cards__sheet) { animation-play-state: running; }
+}
+
+/* Once a Key bought here lands: what happened, and the one next step. */
+.buy-key__in { display: grid; flex: 1 1 100%; justify-items: start; gap: var(--space-1); }
+/* The stamp grows and turns about the words' left end, where they rest against
+   the window's edge, so the edge never cuts them. */
+.buy-key__in strong { font-size: 1.125rem; transform-origin: 0 50%; }
+/* "You’re in" lands like a stamp, from larger than it rests, so it passes
+   under Approve and Buy above it: they stay on top, and every press reaches
+   its button. */
+.buy-key .wallet-panel-buttons > .rg-button { z-index: 1; }
+.buy-key__in > span { color: var(--color-fg-muted); font-size: .875rem; }
+/* Focus scrolls the window to "Set up your agent" as the box appears; the
+   window's own padding stays below it, so the whole box is in view. */
+.buy-key__in .rg-button { scroll-margin-block-end: var(--buy-key-pad); }
+}

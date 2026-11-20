@@ -1,0 +1,293 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A fleet's code: its history, one commit's changes and the files at a
+   commit. Additions and removals tint the surface with the success and error
+   colours, so both themes keep their contrast. */
+
+.code-commit-heading {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* A commit's first line is a sentence, often a long one, so it reads at a
+   sentence's size and measure rather than a title's. */
+.code-commit-heading h2 {
+  max-width: 60ch;
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+  line-height: 1.25;
+}
+
+.code-commit-main {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.code-byline,
+.code-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+}
+
+.code-byline-sender {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.code-hash {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.25rem 0.1rem 0.45rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  font-family: var(--font-family-mono);
+  font-size: 0.8rem;
+}
+
+.code-message {
+  font-family: var(--font-family-ui);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.code-summary,
+.code-actions,
+.code-history-cites {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.code-added {
+  color: var(--color-success);
+  font-family: var(--font-family-ui);
+}
+
+.code-removed {
+  color: var(--color-error);
+  font-family: var(--font-family-ui);
+}
+
+/* Each changed file is a hairline card; its lines scroll inside it, so a
+   long line never widens the page. */
+.code-files {
+  display: grid;
+  gap: 0.75rem;
+  justify-self: stretch;
+  min-width: 0;
+}
+
+.code-file {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.code-file-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.code-file-head::-webkit-details-marker {
+  display: none;
+}
+
+.code-file-mark {
+  color: var(--color-fg-muted);
+  transition: transform 140ms ease-out;
+}
+
+.code-file[open] > .code-file-head {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.code-file[open] > .code-file-head .code-file-mark {
+  transform: rotate(90deg);
+}
+
+.code-file-path {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: var(--font-family-mono);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.code-file-counts {
+  display: inline-flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.code-file-note {
+  padding: 0.6rem 0.75rem;
+}
+
+.code-status {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--ash-line-strong);
+  font-family: var(--font-family-ui);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.code-status--added {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.code-status--deleted {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.code-diff-scroll {
+  overflow-x: auto;
+}
+
+.code-diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-family-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.code-diff td {
+  padding: 0 0.6rem;
+  vertical-align: top;
+}
+
+.code-diff-num {
+  width: 1%;
+  color: var(--color-fg-muted);
+  text-align: right;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.code-diff-text {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.code-diff-sign {
+  display: inline-block;
+  width: 1.1em;
+  color: var(--color-fg-muted);
+  user-select: none;
+}
+
+.code-diff-row--added {
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg));
+}
+
+.code-diff-row--removed {
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg));
+}
+
+.code-diff-row--added .code-diff-sign {
+  color: var(--color-success);
+}
+
+.code-diff-row--removed .code-diff-sign {
+  color: var(--color-error);
+}
+
+.code-diff-hunk {
+  padding-block: 0.2rem;
+  border-block: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-fg-muted);
+}
+
+/* The history: one commit a row, its first line leading, who sent it and
+   when beneath, its short hash at the end. */
+.code-history-panel {
+  justify-items: stretch;
+}
+
+.code-history {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.code-history-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.code-history-main {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.code-history-subject {
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.code-history-hash {
+  flex: none;
+  text-decoration: none;
+}
+
+.code-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--color-border);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.code-chip .workspace-kind {
+  flex: none;
+}
+
+.code-chip:hover,
+.code-history-hash:hover {
+  border-color: var(--ash-line-strong);
+}
+
+.code-action {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 40rem) {
+  .code-history-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-file-head::before {
+    transition: none;
+  }
+}
+}
+}

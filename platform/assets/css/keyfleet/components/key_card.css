@@ -1,0 +1,47 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A Key's card on its stage. Every Key's picture is drawn on the same
+   charcoal, so the stage carries that ground out to whatever edges the page
+   gives it, and the picture's own edges fade into it. The page sets the
+   card's size and the stage's padding.
+
+   The tilt turns in 3D under a mouse (key_card.ts); the light is twice the
+   card's size and rests unseen until a mouse is over it. It overlays the
+   picture, so it brightens the foil and leaves the charcoal dark. */
+.key-card {
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse 60% 55% at 50% 48% in oklch, rgb(35 37 42), rgb(27 28 33));
+  perspective: 900px;
+}
+
+.key-card__tilt {
+  position: relative;
+  aspect-ratio: 767 / 959;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  mask-image:
+    linear-gradient(to right in oklch, #00000000, #000 7%, #000 93%, #00000000),
+    linear-gradient(in oklch, #00000000, #000 3%, #000 96%, #00000000);
+  mask-composite: intersect;
+}
+
+.key-card__tilt img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.key-card__light {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(closest-side in oklch, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0));
+  mix-blend-mode: overlay;
+  opacity: 0;
+  pointer-events: none;
+}
+}
+}

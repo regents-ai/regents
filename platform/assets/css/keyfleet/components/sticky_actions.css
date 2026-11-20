@@ -1,0 +1,22 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* A form's main action on a phone stays at the foot of the screen while the
+   form is in view, on the panel's own ground, so the press is always under a
+   thumb. Panels pad with --rg-panel-padding, so the bar reaches both of the
+   panel's edges. A field the form scrolls to stops clear of the bar above it.
+   Unlayered, so it wins over the pages' own spacing for the row it marks. */
+@media (max-width: 47.99rem) {
+  .sticky-actions {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: var(--rg-layer-card);
+    margin-inline: calc(-1 * var(--rg-panel-padding));
+    padding: var(--space-2) var(--rg-panel-padding);
+    border-block-start: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  :has(> .sticky-actions) :is(input, select, textarea) {
+    scroll-margin-block-end: 6rem;
+  }
+}
+}

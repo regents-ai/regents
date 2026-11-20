@@ -1,0 +1,229 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The hall's feed, dense like a game's chat: each line is when it happened,
+   its channel's tag and one sentence. Each Key's name keeps one of four
+   colours, so its lines are easy to follow down the feed. A run of posts
+   shows its newest words after the sentence. A problem raised with an item
+   is marked in the warm accent. */
+
+.activity-lines {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-line {
+  display: grid;
+  grid-template-columns: 5.25rem 3.25rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-block: 0.3rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+/* The warm mark sits in the margin before the line, clear of its time. */
+.activity-line[data-tone="disagreement"] {
+  margin-inline-start: -0.6rem;
+  padding-inline-start: 0.6rem;
+  box-shadow: inset 3px 0 0 var(--ash-accent-warm);
+}
+
+.activity-line p {
+  margin: 0;
+}
+
+.activity-line__time {
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-line__tag {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.activity-line[data-channel="chat"] .activity-line__tag {
+  color: var(--ash-accent);
+}
+
+.activity-line[data-channel="votes"] .activity-line__tag {
+  color: var(--ash-accent-warm);
+}
+
+.activity-line__text {
+  overflow-wrap: anywhere;
+}
+
+/* A vote's line: the proposal, and how it stands, all on one row where it fits. */
+.activity-line__votes,
+.activity-line__votes .vote-tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.activity-line__votes .vote-tally {
+  flex: 1 1 12rem;
+}
+
+.activity-line__votes .vote-tally__bar {
+  flex: 1 1 6rem;
+  max-inline-size: 12rem;
+}
+
+.activity-line__text [data-key] {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.activity-line__text [data-key]:hover {
+  text-decoration: underline;
+}
+
+/* A proposal's name, "Proposal 12", never breaks across two lines. */
+.activity-line__text [data-proposal] {
+  white-space: nowrap;
+}
+
+.activity-line__text [data-hue="0"] {
+  color: var(--ash-accent-warm);
+}
+
+.activity-line__text [data-hue="1"] {
+  color: var(--ash-accent);
+}
+
+.activity-line__text [data-hue="2"] {
+  color: light-dark(
+    color-mix(in oklab, var(--palette-tangerine-tango) 40%, var(--palette-charcoal)),
+    color-mix(in oklab, var(--palette-tangerine-tango) 50%, var(--palette-platinum))
+  );
+}
+
+.activity-line__text [data-hue="3"] {
+  color: light-dark(
+    color-mix(in oklab, var(--palette-powder-blue) 30%, var(--palette-charcoal)),
+    color-mix(in oklab, var(--palette-powder-blue) 55%, var(--palette-platinum))
+  );
+}
+
+.activity-line__quote {
+  color: var(--color-fg-muted);
+}
+
+.activity-line[data-kind="posts"] .activity-line__quote {
+  display: block;
+}
+
+/* A channel narrows the feed to its lines; when none of the latest are of
+   its kind, a note says so. */
+.fleet-feed:not([data-show="all"]) .activity-line {
+  display: none;
+}
+
+.fleet-feed[data-show="chat"] .activity-line[data-channel="chat"],
+.fleet-feed[data-show="work"] .activity-line[data-channel="work"],
+.fleet-feed[data-show="keys"] .activity-line[data-channel="keys"],
+.fleet-feed[data-show="votes"] .activity-line[data-channel="votes"] {
+  display: grid;
+}
+
+.fleet-feed__none {
+  display: none;
+}
+
+.fleet-feed[data-show="chat"]:not(:has(.activity-line[data-channel="chat"])) .fleet-feed__none,
+.fleet-feed[data-show="work"]:not(:has(.activity-line[data-channel="work"])) .fleet-feed__none,
+.fleet-feed[data-show="keys"]:not(:has(.activity-line[data-channel="keys"])) .fleet-feed__none,
+.fleet-feed[data-show="votes"]:not(:has(.activity-line[data-channel="votes"])) .fleet-feed__none {
+  display: grid;
+}
+
+@media (max-width: 47.99rem) {
+  /* On a phone the time and the tag share a line above the sentence, which
+     then has the whole width, with the space between one line and the next. */
+  .activity-line {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 0;
+    padding-block: var(--space-1);
+  }
+
+  .activity-line__text {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Recent Work: each of the fleet's projects by title, with its open goals as
+   a short list. */
+
+.recent-work {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.recent-work p {
+  margin: 0;
+}
+
+.recent-work__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-work li {
+  overflow-wrap: anywhere;
+}
+
+.recent-goal {
+  display: grid;
+  gap: 0.2rem;
+  padding-block-end: 0.6rem;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.recent-project {
+  display: grid;
+  gap: 0.4rem;
+}
+
+/* A project's name is a label over its goals, as a line's tag is in the feed. */
+.recent-project h3 {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-microlabel);
+  text-transform: uppercase;
+}
+
+.recent-goal__title {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.recent-work > a {
+  justify-self: start;
+}
+
+/* On a phone the link to the workspace is a full finger's height. */
+@media (max-width: 47.99rem) {
+  .recent-work > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+}

@@ -1,0 +1,90 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A fleet's search: one hairline panel, then each match as a line that opens
+   the page it is on, with what it is, where, when and its words. */
+
+.search-page {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.search-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  justify-items: start;
+}
+
+.search-panel h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.search-matches {
+  display: grid;
+  justify-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.search-matches > li {
+  border-block-end: 1px solid var(--color-border);
+}
+
+.search-match {
+  display: grid;
+  gap: 0.35rem;
+  padding-block: 0.9rem;
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+.search-match:hover .search-match__place,
+.search-match:focus-visible .search-match__place {
+  text-decoration: underline;
+}
+
+.search-match:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.search-match__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+
+.search-match__kind {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.search-match__place {
+  font-weight: 600;
+}
+
+.search-match__at {
+  margin-inline-start: auto;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.search-match__words {
+  color: var(--color-fg-muted);
+}
+}
+}

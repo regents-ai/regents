@@ -1,0 +1,353 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* The key map: one stage, one moving layer and a pool of hex tiles. Tiles are
+   pointy-top hexagons inset by the gap, with a rim drawn around an inner face.
+   A sold key's face is its card's close-up once that has loaded, and its
+   number until then. A levelled fleet's keys take their level's tone, and
+   each level is outlined along its edge, in the gap between tiles. */
+
+/* The map's colours, shared with its still pictures. */
+.key-map,
+.key-map-preview {
+  /* The level tones, in order: neighbouring levels always differ. */
+  --km-tone-0: color-mix(in oklch, var(--color-fg) 11%, var(--color-bg));
+  --km-tone-1: color-mix(in oklch, var(--palette-powder-blue) 42%, var(--color-bg));
+  --km-tone-2: color-mix(in oklch, var(--color-fg) 24%, var(--color-bg));
+  --km-tone-3: color-mix(in oklch, var(--palette-powder-blue) 20%, var(--color-bg));
+  /* Each tone with the accent at 22%, for the level on sale. Safari stops
+     drawing the page when one color-mix() takes two color-mix() colours, and
+     the light accent and every tone are mixes, so each is mixed from its
+     tone's own two colours instead. */
+  --km-sale-0: color-mix(in oklch, color-mix(in oklch, var(--ash-accent) 71.9%, var(--color-fg)) 30.6%, var(--color-bg));
+  --km-sale-1: color-mix(in oklch, color-mix(in oklch, var(--ash-accent) 40.2%, var(--palette-powder-blue)) 54.8%, var(--color-bg));
+  --km-sale-2: color-mix(in oklch, color-mix(in oklch, var(--ash-accent) 54%, var(--color-fg)) 40.7%, var(--color-bg));
+  --km-sale-3: color-mix(in oklch, color-mix(in oklch, var(--ash-accent) 58.5%, var(--palette-powder-blue)) 37.6%, var(--color-bg));
+  --km-sold-out-line: var(--ash-line-strong);
+  --km-on-sale-line: var(--ash-accent);
+}
+
+.key-map {
+  --km-cell: 96px;
+  --km-gap: 6px;
+  --km-tile-w: calc(var(--km-cell) - var(--km-gap));
+  --km-tile-h: calc(var(--km-tile-w) * 2 / 1.7320508);
+  --km-rim-width: 3px;
+  /* How far a key's close-up sits inside its hex: over the whole face, or
+     further in where the face's colour says something. */
+  --km-pic-inset: var(--km-rim-width);
+  --km-hex: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  position: relative;
+  height: clamp(420px, 70svh, 820px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  contain: strict;
+}
+
+@media (max-width: 767.98px) {
+  .key-map { --km-cell: 76px; }
+}
+
+.key-map[data-dragging] { cursor: grabbing; }
+
+.key-map:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* A still picture of a fleet's map, in the map's own tones and marks; it
+   fills whatever box it is given. */
+.key-map-preview {
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.key-map-preview svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.key-map-preview polygon {
+  --km-tone: var(--km-tone-0);
+  --km-sale: var(--km-sale-0);
+  --km-face: var(--km-tone);
+  --km-rim: var(--km-face);
+  fill: var(--km-face);
+  stroke: var(--km-rim);
+  stroke-width: 1.5;
+}
+
+.key-map-preview polygon[data-tone="1"] { --km-tone: var(--km-tone-1); --km-sale: var(--km-sale-1); }
+.key-map-preview polygon[data-tone="2"] { --km-tone: var(--km-tone-2); --km-sale: var(--km-sale-2); }
+.key-map-preview polygon[data-tone="3"] { --km-tone: var(--km-tone-3); --km-sale: var(--km-sale-3); }
+.key-map-preview polygon[data-tone] { --km-rim: color-mix(in oklch, var(--color-fg) 16%, var(--km-tone)); }
+.key-map-preview polygon[data-level="on-sale"] { --km-face: var(--km-sale); }
+.key-map-preview polygon[data-state="unsold"] { --km-face: color-mix(in oklch, var(--km-tone) 35%, var(--color-bg)); --km-rim: var(--km-face); }
+.key-map-preview polygon[data-state="next"] { --km-rim: var(--palette-tangerine-tango); --km-face: var(--color-bg); stroke-width: 2.5; }
+
+.km-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.km-layer > [hidden] { display: none; }
+
+.km-tile,
+.km-level {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: var(--font-family-ui);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.km-tile {
+  --km-tone: var(--km-tone-0);
+  --km-sale: var(--km-sale-0);
+  --km-face: var(--km-tone);
+  --km-rim: var(--km-face);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  width: var(--km-tile-w);
+  height: var(--km-tile-h);
+  margin: calc(var(--km-tile-h) / -2) 0 0 calc(var(--km-tile-w) / -2);
+  font-size: 13px;
+  /* The tile's box overlaps its neighbours at the corners, so only the hex
+     inside it takes the pointer. */
+  pointer-events: none;
+}
+
+/* The hex that takes the pointer, holding the key's close-up. */
+.km-pic {
+  position: absolute;
+  inset: calc(var(--km-pic-inset) * 2 / 1.7320508) var(--km-pic-inset);
+  overflow: hidden;
+  clip-path: var(--km-hex);
+  pointer-events: auto;
+}
+
+.km-level > .km-pic { display: none; }
+
+.km-pic > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  visibility: hidden;
+}
+
+.km-tile[data-pic] .km-pic > img { visibility: visible; }
+
+/* The close-up stands in for the number; the agent dot stays. */
+.km-tile[data-pic] > span:first-of-type { font-size: 0; }
+
+/* Under the pointer a sold key's hex rises and its close-up draws back
+   inside it, a zoom out. A tap on a phone leaves the map still. */
+@media (hover: hover) and (pointer: fine) {
+  .km-tile::before,
+  .km-tile::after,
+  .km-pic,
+  .km-pic > img {
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .km-tile:hover:not([data-state~="unsold"]) {
+    z-index: 1;
+    filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.35));
+  }
+
+  .km-tile:hover:not([data-state~="unsold"])::before,
+  .km-tile:hover:not([data-state~="unsold"])::after,
+  .km-tile:hover:not([data-state~="unsold"]) > .km-pic {
+    transform: scale(1.18);
+  }
+
+  .km-tile:hover > .km-pic > img { transform: scale(0.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .km-tile::before,
+  .km-tile::after,
+  .km-pic,
+  .km-pic > img {
+    transition: none;
+  }
+}
+
+/* The rim, and the face inset evenly from all six edges so the rim shows
+   around it, both under the tile's words. The tile itself is left unclipped
+   so its level outline can reach into the gap. */
+.km-tile::before,
+.km-tile::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--km-rim);
+  clip-path: var(--km-hex);
+}
+
+.km-tile::after {
+  inset: calc(var(--km-rim-width) * 2 / 1.7320508) var(--km-rim-width);
+  background: var(--km-face);
+}
+
+.km-tile[data-tone="1"] { --km-tone: var(--km-tone-1); --km-sale: var(--km-sale-1); }
+.km-tile[data-tone="2"] { --km-tone: var(--km-tone-2); --km-sale: var(--km-sale-2); }
+.km-tile[data-tone="3"] { --km-tone: var(--km-tone-3); --km-sale: var(--km-sale-3); }
+
+.km-tile[data-tone] { --km-rim: color-mix(in oklch, var(--color-fg) 16%, var(--km-tone)); }
+
+/* The level on sale now is tinted with the accent. */
+.km-tile[data-level="on-sale"] { --km-face: var(--km-sale); }
+
+/* A key not sold yet is faint. */
+.km-tile[data-state~="unsold"] {
+  --km-face: color-mix(in oklch, var(--km-tone) 35%, var(--color-bg));
+  --km-rim: var(--km-face);
+  color: var(--color-fg-muted);
+}
+
+/* The levels' outlines, in the gap round each tile on a level's edge: solid
+   once sold out, dashed while a level waits, and a thicker accent dash
+   round the level on sale now. */
+.km-edges {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* An SVG drawing of no size draws nothing, so it has a pixel at the tile's
+     centre, and its outlines spill out of it. */
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.km-edge {
+  fill: none;
+  stroke: var(--km-sold-out-line);
+  stroke-width: 1px;
+  stroke-linecap: round;
+}
+
+.km-edge[data-level="on-sale"] {
+  stroke: var(--km-on-sale-line);
+  stroke-width: 3px;
+  stroke-dasharray: 7 5;
+}
+
+.km-tile > span:last-child {
+  color: var(--color-fg-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.km-tile > span:last-child:empty { display: none; }
+
+/* A key the last search found is drawn dark, with light words; its close-up
+   sits further in, inside a dark band. */
+.km-tile[data-state~="found"] {
+  --km-face: var(--color-fg);
+  --km-rim: var(--color-fg);
+  --km-pic-inset: 9px;
+  color: var(--color-bg);
+}
+
+.km-tile[data-state~="found"] > span:last-child { color: inherit; }
+
+.km-tile[data-state~="mine"] { --km-rim: var(--palette-tangerine-tango); }
+
+.km-tile[data-state~="next"] {
+  --km-rim: var(--palette-tangerine-tango);
+  --km-face: var(--color-bg);
+  color: var(--palette-tangerine-tango);
+}
+
+.km-tile[data-state~="next"] > span:last-child { color: inherit; }
+
+.km-tile[data-state~="selected"] {
+  --km-face: var(--palette-tangerine-tango);
+  --km-pic-inset: 9px;
+  color: var(--palette-charcoal);
+}
+
+.km-tile[data-state~="selected"] > span:last-child { color: inherit; }
+
+.km-tile[data-state~="cursor"] { --km-rim: var(--color-focus); }
+
+/* A key with an agent carries a powder-blue dot above its number, ringed
+   where it lies over the key's close-up. */
+.km-tile[data-state~="agent"] > span:first-of-type::before {
+  content: "";
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: var(--palette-powder-blue);
+}
+
+.km-tile[data-pic][data-state~="agent"] > span:first-of-type::before {
+  box-shadow: 0 0 0 2px var(--color-bg);
+}
+
+.km-level {
+  margin: -0.75em 0 0 calc(var(--km-cell) / -2 + var(--km-gap) / 2);
+  padding: 0.2em 0.6em;
+  border: 1px solid var(--km-sold-out-line);
+  background: var(--color-bg);
+  color: var(--color-fg-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.km-level[data-level="on-sale"] {
+  border: 2px dashed var(--km-on-sale-line);
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+@media (max-width: 767.98px) {
+  .km-tile { font-size: 11px; }
+}
+
+/* Colours overridden: the tiles keep the system's two, and the outlines tell
+   the levels apart by line alone: thin solid, thin dashed, thick dashed. */
+@media (forced-colors: active) {
+  .km-tile,
+  .km-tile[data-tone],
+  .km-tile[data-level],
+  .km-tile[data-state] {
+    --km-face: Canvas;
+    --km-rim: CanvasText;
+    forced-color-adjust: none;
+    color: CanvasText;
+  }
+  .km-tile > span:last-child { color: inherit; }
+  .km-tile[data-state~="unsold"] { --km-rim: GrayText; color: GrayText; }
+  .km-tile[data-state~="mine"],
+  .km-tile[data-state~="next"],
+  .km-tile[data-state~="cursor"] { --km-rim: Highlight; }
+  .km-tile[data-state~="found"] { --km-face: CanvasText; color: Canvas; }
+  .km-tile[data-state~="selected"] { --km-face: Highlight; color: HighlightText; }
+  .km-tile[data-state~="agent"] > span:first-of-type::before { background: CanvasText; }
+  .km-edge,
+  .km-edge[data-level] { forced-color-adjust: none; stroke: CanvasText; }
+}
+}
+}

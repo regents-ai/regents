@@ -1,0 +1,161 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A fleet's record of seasons: one hairline panel with the day's figure, the
+   settled seasons as a table, each opening to its picks under its row, and
+   the line on what the results are. Figures keep equal-width digits so they
+   line up row over row, and sit at the end of their column. */
+
+.seasons-page {
+  display: grid;
+  min-width: 0;
+}
+
+.seasons-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.seasons-panel > .rg-button {
+  justify-self: start;
+}
+
+.seasons-minor {
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.seasons-day {
+  margin: 0;
+}
+
+.seasons-day dt {
+  color: var(--color-fg-muted);
+  font-size: 0.75rem;
+}
+
+.seasons-day dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  margin: 0;
+}
+
+.seasons-day__figure {
+  font-size: 1.6rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The table scrolls inside its frame on a narrow screen rather than
+   widening the page, and the frame takes keyboard focus so it scrolls
+   without a pointer. */
+.seasons-table-frame {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.seasons-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.seasons-table :is(th, td) {
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: baseline;
+}
+
+.seasons-table thead th {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.seasons-table tbody th {
+  font-weight: 400;
+}
+
+/* A product's name stays whole ("SOL-USD", never "SOL-" over "USD"); the
+   picks under a row wrap as text does. */
+.seasons-table td:not([colspan]) {
+  white-space: nowrap;
+}
+
+.seasons-table__figure {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.seasons-table :is(th, td).seasons-table__figure {
+  text-align: end;
+}
+
+.seasons-table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+/* A season's number opens its picks; its start time sits under it. The
+   button is a full finger's height and keeps the row's own type. */
+.seasons-table__open {
+  display: grid;
+  gap: 0.125rem;
+  min-block-size: 2.75rem;
+  align-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.seasons-table__open > span:first-child {
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 0.2em;
+}
+
+.seasons-table__open[aria-expanded="true"] > span:first-child {
+  text-decoration-color: currentColor;
+}
+
+.seasons-picks {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seasons-picks li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.125rem 0.75rem;
+  padding-block: 0.5rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.seasons-picks li:first-child {
+  border-block-start: 0;
+}
+
+.seasons-picks__reason {
+  grid-column: 1 / -1;
+  color: var(--color-fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.seasons-picks + .rg-button {
+  margin-block-start: 0.5rem;
+}
+}
+}

@@ -1,0 +1,333 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* Homepage-only composition: the hero, with Classic #1's figures and "Buy
+   Key". The legal pages share the .rl-root colours and spacing. */
+@layer regents-product {
+  .rl-root {
+    /* The colours the GPU pictures read, per theme. */
+    --rl-field-line: var(--color-fg);
+    --rl-field-deep: light-dark(
+      color-mix(in oklab, var(--color-bg) 78%, var(--palette-charcoal)),
+      color-mix(in oklab, var(--palette-charcoal) 45%, #000)
+    );
+    --rl-field-light: var(--ash-accent-warm);
+    --rl-ease: cubic-bezier(.23, 1, .32, 1);
+    --rl-bg: var(--color-bg);
+    --rl-panel: var(--color-surface);
+    --rl-ink: var(--color-fg);
+    --rl-muted: var(--color-fg-muted);
+    --rl-line: var(--hairline);
+    background: var(--rl-bg);
+    color: var(--rl-ink);
+  }
+  .rl-root :is(h1, h2, h3, p) { margin-block: 0; }
+  .rl-root [id] { scroll-margin-block-start: 2rem; }
+  .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
+  .rl-header-links > a:not(.rg-button) { display: inline-grid; place-items: center; }
+  .rl-header-links svg { display: block; width: 1.5rem; height: 1.5rem; }
+  /* Under a finger each brand link is a full finger's size around its 24px mark. */
+  @media (pointer: coarse) {
+    .rl-header-links > a:not(.rg-button) { min-width: 2.75rem; min-height: 2.75rem; }
+  }
+
+
+  /* The hero. Wide: the headline, "Explore" and Classic #1's figures in
+     the left half, "Buy Key" centred in the right half, and the steps across
+     both under them. Narrow: the headline down to the figures, then the
+     button, then the steps. The hex field sits behind all of it. */
+  .rl-hero {
+    position: relative; isolation: isolate; overflow: hidden;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "buy" "steps";
+    gap: var(--space-5) var(--space-6);
+    padding: clamp(2rem, 6svh, 4.5rem) var(--rg-panel-padding);
+  }
+  .rl-hero__head { grid-area: head; display: grid; align-content: start; gap: var(--space-3); min-width: 0; }
+  .rl-hero__head > .rl-hero__title {
+    max-inline-size: 13ch; font-size: clamp(2.5rem, 1.1rem + 4.6vw, 5.25rem); font-weight: 400;
+    line-height: 1.02; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere;
+  }
+  .rl-hero__accent { color: var(--ash-accent-warm); }
+  .rl-hero__lead { max-inline-size: 34ch; color: var(--rl-muted); font-size: clamp(1.0625rem, 1rem + .35vw, 1.25rem); line-height: 1.45; text-wrap: pretty; }
+  .rl-hero__ways { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-block-start: var(--space-2); }
+
+  /* Classic #1 as it is now: its label, its figures and the goal it is working on. */
+  .rl-now { display: grid; gap: var(--space-1); padding-block-start: var(--space-3); }
+  .rl-now__label { color: var(--rl-muted); font-size: .875rem; }
+  .rl-now__goal { max-inline-size: 44ch; color: var(--rl-muted); font-size: .9375rem; text-wrap: pretty; }
+  .rl-now__goal a { color: var(--rl-ink); }
+
+  /* Classic in three figures, side by side, each in a cell of its own height.
+     Every label and figure starts at the top of its cell, so a figure that
+     takes a second line leaves the other labels in line with its own. */
+  .rl-facts {
+    display: grid; grid-template-columns: repeat(3, minmax(0, auto)); justify-content: start;
+    margin: 0; border-block: 1px solid var(--rl-line);
+  }
+  .rl-facts > div { display: grid; align-content: start; gap: .25rem; min-width: 0; padding: var(--space-2) var(--space-4) var(--space-2) 0; }
+  .rl-facts > div + div { padding-inline-start: var(--space-4); border-inline-start: 1px solid var(--rl-line); }
+  .rl-facts dt { display: flex; align-items: center; gap: .25rem; min-block-size: 1.5rem; color: var(--rl-muted); font-size: .8125rem; }
+  .rl-facts dd { margin: 0; font-size: clamp(1.0625rem, 1rem + .3vw, 1.25rem); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* The steps a person takes, in the figures' hairlines and on the plain
+     ground over the hex field: each a title after its number, over one short
+     line. Two by two, and four in a row once the hero has two halves. */
+  .rl-steps {
+    grid-area: steps; counter-reset: rl-step;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0; padding: 0; list-style: none;
+    background: var(--rl-bg); border-block: 1px solid var(--rl-line);
+  }
+  .rl-steps > li { counter-increment: rl-step; display: grid; align-content: start; gap: .25rem; min-width: 0; padding: .75rem var(--space-3); }
+  .rl-steps > li:nth-child(odd) { padding-inline-start: 0; }
+  .rl-steps > li:nth-child(even) { border-inline-start: 1px solid var(--rl-line); }
+  .rl-steps > li:nth-child(n + 3) { border-block-start: 1px solid var(--rl-line); }
+  .rl-steps__title { display: flex; align-items: baseline; gap: .5rem; font-size: clamp(1.0625rem, 1rem + .3vw, 1.25rem); line-height: 1.2; }
+  .rl-steps__title::before { content: counter(rl-step) / ""; color: var(--rl-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+  .rl-steps__line { color: var(--rl-muted); font-size: .875rem; line-height: 1.4; text-wrap: pretty; }
+
+  /* "Buy Key": the Key on offer's card over the button, and under them one
+     line, the Key's number and price or the reason it can't be pressed. */
+  .rl-buy { grid-area: buy; display: grid; gap: var(--space-2); justify-self: center; inline-size: min(100%, 22rem); }
+  /* The card's picture is cut out of its backdrop, so the page shows around
+     its rounded corners and the Key's head on its left side. */
+  .rl-buy__card { position: relative; aspect-ratio: 600 / 754; perspective: 60rem; }
+  .rl-buy__tilt { position: absolute; inset: 0; }
+  .rl-buy__tilt img { display: block; inline-size: 100%; block-size: 100%; object-fit: contain; }
+  /* Under a mouse, dust gathers just outside the card's edge on the side
+     facing the pointer, brighter the nearer it comes; pointing at the card or
+     its button flashes the card into a shuffle of a hundred Keys, which
+     dissolves back to the pass when the pointer leaves. NextKeyCard draws the
+     dust in the warm light of the hex field and shows the shuffle over the
+     pass. Each shuffled Key is drawn whole, its key reaching past its card,
+     so the picture is larger than the pass: its cards (columns 62 to 417 and
+     rows 50 to 549 of 480 by 600) sit centred on the pass's card at its width. */
+  .rl-buy__dust { position: absolute; inset: -3rem; inline-size: calc(100% + 6rem); block-size: calc(100% + 6rem); pointer-events: none; color: var(--rl-field-light); }
+  .rl-buy__tilt .rl-buy__shuffle {
+    position: absolute; inset-inline-start: -7.02%; inset-block-start: -10.94%;
+    inline-size: 122.47%; block-size: 121.82%; visibility: hidden; opacity: 0;
+  }
+  /* The price on the card itself, beside the crown in its lower corner (the
+     crown ends 197 of the picture's 716 columns in and 40 of its 900 rows up).
+     The card's art is dark in both themes, so the tag keeps light ink on
+     charcoal in both. */
+  .rl-buy__tag {
+    position: absolute; inset-inline-start: calc(197 / 716 * 100% + var(--space-2)); inset-block-end: calc(40 / 900 * 100%);
+    padding: .25rem .5rem; background: rgb(22 22 22 / .82); color: var(--palette-platinum);
+    font-family: var(--font-family-ui); font-size: .75rem; font-variant-numeric: tabular-nums;
+    border: 1px solid rgb(229 227 210 / .18);
+  }
+  /* The button and the line under it span the card itself, columns 52 to 598
+     of the picture's 600, not the Key's head beside it. */
+  .rl-buy__button,
+  .rl-buy__line { justify-self: start; inline-size: calc(546 / 600 * 100%); margin-inline-start: calc(52 / 600 * 100%); }
+  .rl-buy__line { min-block-size: 1.5em; color: var(--rl-muted); font-size: .875rem; font-variant-numeric: tabular-nums; text-align: center; }
+
+  /* Under a mouse the card waits a step back, with its price hidden. Pointing
+     at the card or the button, or tabbing to the button, brings it forward
+     and shows its price. It only moves and fades, so nothing around it
+     shifts. A finger gets the card as it is, price showing, and keyboard
+     focus shows the price on any device. Less motion: the card stays put and
+     only the price appears. */
+  @media (hover: hover) and (pointer: fine) {
+    .rl-buy__card { opacity: .82; }
+    .rl-buy__tag { opacity: 0; }
+    .rl-buy:has(.rl-buy__card:hover, .rl-buy__button:is(:hover, :focus-visible)) :is(.rl-buy__card, .rl-buy__tag) { opacity: 1; }
+  }
+  .rl-buy:has(.rl-buy__button:focus-visible) .rl-buy__tag { opacity: 1; }
+  @media (prefers-reduced-motion: no-preference) {
+    .rl-buy__card { transition: transform 240ms var(--rl-ease), opacity 240ms var(--rl-ease); }
+    .rl-buy__tag { transition: transform 200ms var(--rl-ease), opacity 200ms var(--rl-ease); }
+    .rl-buy:has(.rl-buy__button:focus-visible) .rl-buy__card { transform: translateY(-.375rem); }
+    @media (hover: hover) and (pointer: fine) {
+      .rl-buy__card { transform: scale(.97); }
+      .rl-buy__tag { transform: translateY(.25rem); }
+      .rl-buy:has(.rl-buy__card:hover, .rl-buy__button:is(:hover, :focus-visible)) .rl-buy__card { transform: translateY(-.375rem); }
+      .rl-buy:has(.rl-buy__card:hover, .rl-buy__button:is(:hover, :focus-visible)) .rl-buy__tag { transform: none; }
+    }
+  }
+
+  /* The hex field: the stylesheet's still drawing of the tiles, and the GPU's
+     over it once its first frame has landed. The field fades out toward its
+     edges, and in the hero away from the headline, so the words always sit on
+     the plain ground. The fade is stated once, as numbers 0..1 across the
+     field: its centre, its radii, and where along them it starts and ends.
+     The still drawing is masked with it; the GPU's picture reads the same
+     numbers and fades itself the same way. */
+  .rl-field { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+  .rl-field__still, .rl-field__canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; }
+  .rl-field__still {
+    background: var(--rl-field-line); opacity: .16;
+    mask:
+      url("/images/home/hex.svg") 50% 50% / var(--rl-cell) calc(var(--rl-cell) * 1.7320508) repeat,
+      radial-gradient(
+        ellipse calc(var(--rl-fade-width) * 100%) calc(var(--rl-fade-height) * 100%)
+          at calc(var(--rl-fade-x) * 100%) calc(var(--rl-fade-y) * 100%) in oklch,
+        #000 calc(var(--rl-fade-from) * 100%), #00000000 calc(var(--rl-fade-to) * 100%)
+      );
+    mask-composite: intersect;
+  }
+  .rl-field__canvas { opacity: 0; }
+  .rl-field[data-field-ready] .rl-field__still { opacity: 0; }
+  .rl-field[data-field-ready] .rl-field__canvas { opacity: 1; }
+  @media (prefers-reduced-motion: no-preference) {
+    .rl-field__still, .rl-field__canvas { transition: opacity 240ms ease; }
+  }
+  /* Narrow: a band across the middle, between the headline and the Key. */
+  .rl-hero__field {
+    --rl-fade-x: .5; --rl-fade-y: .58; --rl-fade-width: 10; --rl-fade-height: .28;
+    --rl-fade-from: .43; --rl-fade-to: 1;
+  }
+
+  @media (min-width: 64rem) {
+    .rl-hero {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-areas: "head buy" "steps steps"; align-items: start;
+      row-gap: var(--space-3);
+    }
+    .rl-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .rl-steps > li:nth-child(n) { padding-inline-start: var(--space-3); border-block-start: 0; }
+    .rl-steps > li:first-child { padding-inline-start: 0; }
+    .rl-steps > li + li { border-inline-start: 1px solid var(--rl-line); }
+    .rl-hero__field {
+      --rl-fade-x: .75; --rl-fade-y: .5; --rl-fade-width: .6; --rl-fade-height: .95;
+      --rl-fade-from: .25; --rl-fade-to: .8;
+    }
+  }
+
+  /* The hero settles in once as the page first paints: the field, the
+     headline, "Explore", the figures and the Key, one after another.
+     It plays from the stylesheet, so it runs before the page connects and
+     never replays when the page updates. Less motion, and it is simply there.
+     The Key only rises, never starting unseen, so a slow phone counts it as
+     drawn with the first paint. */
+  @keyframes rl-settle { from { opacity: 0; transform: translateY(.75rem); } }
+  @keyframes rl-card-settle { from { transform: translateY(1rem) scale(.98); } }
+  @keyframes rl-fade { from { opacity: 0; } }
+  @media (prefers-reduced-motion: no-preference) {
+    .rl-hero .rl-hero__head > * { animation: rl-settle 320ms var(--rl-ease) backwards; }
+    .rl-hero .rl-buy { animation: rl-card-settle 420ms var(--rl-ease) 180ms backwards; }
+    .rl-hero .rl-hero__field { animation: rl-fade 600ms ease-out backwards; }
+    .rl-hero .rl-hero__title { animation-delay: 60ms; }
+    .rl-hero .rl-hero__lead { animation-delay: 90ms; }
+    .rl-hero .rl-hero__ways { animation-delay: 120ms; }
+    .rl-hero .rl-now { animation-delay: 150ms; }
+  }
+
+  /* Under the hero, between hairlines: Recent, what Classic #1's Keys made
+     public, and Notebook, its newest notebook page made public, each one
+     line after its label. */
+  .rl-recent { display: grid; padding-inline: var(--rg-panel-padding); }
+  .rl-recent__part { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: .25rem var(--space-3); padding-block: .75rem; }
+  .rl-recent__part + .rl-recent__part { border-block-start: 1px solid var(--rl-line); }
+  .rl-recent__label { color: var(--rl-muted); font-family: var(--font-family-title); font-size: .8125rem; font-weight: 400; letter-spacing: .02em; }
+  .rl-recent__head { display: flex; align-items: center; gap: .5rem; font-size: .75rem; }
+
+  /* Pause, beside Recent while the line slides: one quiet word in a hairline
+     box, Play while the line is stopped; under a finger, a finger's size.
+     Its words take the head's size, since the site's own button rule, outside
+     the layers, has every button inherit its font. */
+  .rl-recent__toggle {
+    display: none; place-items: center; min-inline-size: 1.5rem; min-block-size: 1.5rem; padding: 0 .5rem;
+    border: 1px solid var(--rl-line); background: transparent; color: var(--rl-muted); cursor: pointer;
+  }
+  .rl-recent__toggle:hover { border-color: currentColor; color: var(--rl-ink); }
+  .rl-recent__part:not([data-paused]) .rl-recent__play, .rl-recent__part[data-paused] .rl-recent__pause { display: none; }
+  @media (pointer: coarse) {
+    .rl-recent__toggle { min-inline-size: 2.75rem; min-block-size: 2.75rem; }
+  }
+
+  /* Each thing made public is one line: a diamond, its kind, its title and
+     its Key. Still, the newest three stand side by side, the longest titles
+     cut short first when the line has no room; on a phone they run on
+     across, swiped sideways. The rest, and the second copy, show only while
+     it slides, every title whole. A link with keyboard focus is the line's
+     one resting place, so the line comes to rest with it at its start. */
+  .rl-ticker { container-type: inline-size; padding-block: .375rem; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .rl-ticker__track, .rl-ticker__list { display: flex; }
+  .rl-ticker__list { gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+  .rl-ticker__list > li { display: flex; flex: none; min-width: 0; max-inline-size: 85cqi; scroll-snap-align: start; }
+  .rl-ticker__list > li:nth-child(n + 4), .rl-ticker__list + .rl-ticker__list { display: none; }
+  .rl-ticker:has(:focus-visible) .rl-ticker__list > li:not(:has(:focus-visible)) { scroll-snap-align: none; }
+  .rl-ticker__item { display: flex; align-items: baseline; gap: .5rem; min-width: 0; line-height: 1.5; text-decoration: none; white-space: nowrap; }
+  .rl-ticker__item::before {
+    content: ""; flex: none; align-self: center; inline-size: .375rem; block-size: .375rem; margin-inline: 1px;
+    border: 1px solid var(--rl-muted); transform: rotate(45deg);
+  }
+  .rl-ticker__kind, .rl-ticker__key { flex: none; color: var(--rl-muted); font-size: .8125rem; }
+  .rl-ticker__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .9375rem; }
+  .rl-ticker__item:hover .rl-ticker__title { text-decoration: underline; }
+
+  /* Notebook: the project's title, its Key and the page, which opens apart. */
+  .rl-notebook { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem var(--space-2); min-width: 0; }
+  .rl-notebook__name { min-width: 0; font-size: .9375rem; overflow-wrap: anywhere; }
+  .rl-notebook__key { color: var(--rl-muted); font-size: .8125rem; }
+  .rl-notebook__open { margin-inline-start: auto; font-size: .875rem; }
+  .rl-notebook__open::after { content: " ↗" / ""; }
+
+  @media (min-width: 48rem) {
+    .rl-recent__part { grid-template-columns: 7rem minmax(0, 1fr); }
+    .rl-ticker__list { inline-size: 100cqi; }
+    .rl-ticker__list > li { flex: 0 1 auto; max-inline-size: none; }
+  }
+
+  /* From four, they slide leftward without stopping, about 40px a second,
+     at an even pace, held twice so the line loops without a jump: a track
+     of two equal copies, each at least the band's width, moved by half its
+     length. Pointing at it pauses it where it is; Pause stops it there until
+     Play. Keyboard focus in it stops it at its first item and lets the line
+     scroll, so Tab walks the links in order, each brought to the line's
+     start and, while focused, no wider than the line; once focus leaves it
+     no longer scrolls, so it slides again from its start. Less motion: it
+     stays still, with no Pause. */
+  @keyframes rl-ticker { to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: no-preference) {
+    .rl-recent__toggle { display: inline-grid; }
+    .rl-ticker[data-slides] {
+      overflow: clip; scroll-snap-type: none;
+      mask-image: linear-gradient(to right, transparent, #000 var(--space-4), #000 calc(100% - var(--space-4)), transparent);
+    }
+    .rl-ticker[data-slides] .rl-ticker__track { inline-size: max-content; animation: rl-ticker calc(var(--rl-ticker-items) * 10s) linear infinite; }
+    .rl-ticker[data-slides] .rl-ticker__list { display: flex; flex: none; justify-content: space-around; gap: 0; inline-size: auto; min-inline-size: 100cqi; }
+    .rl-ticker[data-slides] .rl-ticker__list > li { display: flex; flex: none; max-inline-size: none; padding-inline: calc(var(--space-5) / 2); }
+    .rl-ticker[data-slides]:hover .rl-ticker__track, .rl-recent__part[data-paused] .rl-ticker__track { animation-play-state: paused; }
+    .rl-ticker[data-slides]:has(:focus-visible) { overflow: hidden; scroll-snap-type: x mandatory; mask-image: none; }
+    .rl-ticker[data-slides]:has(:focus-visible) .rl-ticker__list > li { max-inline-size: 100cqi; }
+    .rl-ticker[data-slides]:has(:focus-visible) .rl-ticker__track { animation: none; }
+  }
+
+  /* Overview, under the hero: its section bar, then the value cards
+     (components/value_cards.css), at the hero's inline padding. */
+  .rl-overview { display: grid; gap: var(--space-4); padding: var(--space-5) var(--rg-panel-padding) var(--space-6); }
+
+  /* On a phone the card stays small enough that its button shows with it. */
+  @media (max-width: 39.99rem) {
+    .rl-buy { inline-size: min(100%, 17rem); }
+  }
+
+  @media (max-width: 47.99rem) {
+    /* The hero opens the same distance under its rule as every other section. */
+    .rl-hero { padding-block: var(--rg-panel-padding); }
+    .rl-facts > div { padding-inline-end: var(--space-2); }
+    .rl-facts > div + div { padding-inline-start: var(--space-2); }
+    .rl-facts dd { font-size: 1rem; }
+  }
+
+  /* On a phone the three figures become rows, label left and figure right,
+     so no figure breaks across lines. It follows the rule above, whose cell
+     padding it replaces. */
+  @media (max-width: 25.99rem) {
+    .rl-facts { grid-template-columns: minmax(0, 1fr); }
+    .rl-facts > div { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-2); padding: .125rem 0; }
+    .rl-facts > div + div { padding-inline-start: 0; border-inline-start: 0; border-block-start: 1px solid var(--rl-line); }
+    .rl-facts dd { text-align: end; }
+  }
+}
+
+/* Outside the layer, because the header's own rules are unlayered. Here the
+   header sits in the page rather than the app's grid, so the brand only fills
+   the bar's height once it lets go of the shared full height: its mark and
+   name then share one middle line with the theme switch and Sign in. Sign in
+   keeps the same room from the frame's right edge as the brand keeps from its
+   left. */
+.rl-root #shell-header .shell-brand { height: auto; }
+.rl-root #shell-header .account-control > .rg-button { margin-inline-end: var(--space-1); }
+}

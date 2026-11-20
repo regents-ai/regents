@@ -1,0 +1,58 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The one palette every surface stands on: eight swatches. Every colour is one
+   of them or a mix of exactly two, and nothing else states a colour. The
+   homepage uses the same saved light/dark choice and shared semantic roles. */
+
+/* RegentUI states one colour scheme per product, at a weight that would
+   otherwise decide the document's for it, so the shell's own statement is made
+   at the same weight and the document agrees with what its head declares. */
+:scope[data-brand][data-theme="light"] {
+  color-scheme: light;
+}
+
+:scope[data-brand][data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Inside the shell the visitor's choice wins on every product, not only the
+   one this palette is named for. */
+:scope[data-theme="light"] #app-shell {
+  color-scheme: light;
+}
+
+:scope[data-theme="dark"] #app-shell {
+  color-scheme: dark;
+}
+
+:scope {
+  /* One step past the panel, for the row the visitor is standing on and for the
+     cells that carry a figure: Border folded into Surface, away from the page. */
+  --ash-panel-strong: light-dark(
+    color-mix(in oklab, var(--color-border) 55%, var(--color-surface)),
+    color-mix(in oklab, var(--color-border) 50%, var(--color-surface))
+  );
+
+  /* The edge of a control has to be found before the control can be used, so it
+     is drawn at 3:1 against both the fill inside it and the page outside it:
+     Text folded into Border, far enough to clear that on every surface. */
+  --ash-line-strong: light-dark(
+    color-mix(in oklab, var(--palette-charcoal) 40%, var(--color-border)),
+    color-mix(in oklab, var(--color-fg) 40%, var(--color-border))
+  );
+
+  /* The palette carries two accents and the shell reads them as two. Blue is what
+     the page points at: links, and the focus ring on links and fields. Orange is
+     what carries value or risk, such as disconnecting or an error, and it rings
+     a focused button, as its corner marks do (app.css).
+     Dark takes both swatches raw. Light folds each into Primary only as far as
+     4.5:1 on the deepest light panel needs — blue reads 4.7:1 there and orange
+     4.6:1, and both clear 5:1 on Surface. */
+  --ash-accent: light-dark(color-mix(in oklab, var(--palette-powder-blue) 50%, var(--palette-charcoal)), var(--palette-powder-blue));
+  --ash-accent-warm: light-dark(color-mix(in oklab, var(--palette-tangerine-tango) 68%, var(--palette-charcoal)), var(--palette-tangerine-tango));
+  --ash-ring: var(--ash-accent);
+
+  /* Behind a dialog the page is dimmed toward Primary in both themes, so the sheet
+     in front of it reads the same whichever ground it was opened from. */
+  --ash-scrim: color-mix(in oklab, var(--palette-charcoal) 72%, transparent);
+}
+}

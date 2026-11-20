@@ -1,0 +1,447 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The swarm city behind the app's pages (`KeyfleetWeb.HarbourSeaLive`): it
+   fills the screen behind everything, seen from above its southern edge. The
+   header, sidebar, cards and reading column stay solid over it;
+   the open margins between them show the city. Every rule here applies only
+   while the city is on the page, so a page without it (the homepage, /early)
+   is drawn as before. Unlayered, so it wins over the shell's own rules. */
+
+/* The ground the city stands on in each theme, the colour of its far haze. */
+.harbour-sea__harbour {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: #0e0e0e;
+}
+
+:scope[data-theme="light"] .harbour-sea__harbour {
+  background: #e5e3d2;
+}
+
+.harbour-sea__stage {
+  position: absolute;
+  inset: 0;
+  color: var(--color-fg);
+}
+
+.harbour-sea__stage canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 600ms ease;
+  touch-action: none;
+  cursor: grab;
+}
+
+.harbour-sea__stage[data-harbour-dragging] canvas {
+  cursor: grabbing;
+}
+
+.harbour-sea__harbour[data-harbour-ready="true"] canvas {
+  opacity: 1;
+}
+
+/* The name of the agent whose disc is under the mouse, or of the place the
+   district under it leads to, standing over it. The hook moves it with
+   `translate`. */
+.harbour-sea__tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: 0.4em;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  transform: translate(-50%, calc(-100% - 0.2rem));
+  border: 1px solid var(--ash-line-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font: 0.68rem/1.2 var(--font-family-ui);
+  letter-spacing: var(--tracking-microlabel);
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.harbour-sea__tag[hidden] {
+  display: none;
+}
+
+.harbour-sea__tag::before,
+.harbour-card__sail {
+  border-radius: 50%;
+  background: var(--sail);
+}
+
+.harbour-sea__tag::before {
+  width: 0.55rem;
+  height: 0.55rem;
+  content: "";
+}
+
+/* A disc's name opens its card, as the disc does; a district's name is only a
+   name. The count of the holder's Keys rides raised after the Key. */
+.harbour-sea__tag[data-harbour-ship] {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.harbour-sea__tag sup {
+  align-self: flex-start;
+  margin-top: -0.3em;
+  color: var(--color-fg-muted);
+  font-size: 0.8em;
+  line-height: 1;
+  text-transform: none;
+}
+
+/* A district's name carries no agent's colour. */
+.harbour-sea__tag[data-harbour-district]::before {
+  content: none;
+}
+
+/* ---- The page over the city ---- */
+
+/* The html element keeps the ground, which shows while the city loads and where
+   there is no WebGPU; everything above it lets the city through. */
+body:has(> .harbour-sea) {
+  --sea-lift: 560ms;
+  background: transparent;
+}
+
+/* The root view only holds fixed parts, so it takes no room. The footer rule
+   in app.css would otherwise let it grow as the body's first child, and the
+   html in front outweighs that rule. */
+:scope body:has(> .harbour-sea) > .harbour-sea {
+  flex: none;
+}
+
+body:has(> .harbour-sea) #app-shell {
+  z-index: 1;
+  background: transparent;
+  transition:
+    translate var(--sea-lift) cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity var(--sea-lift) ease,
+    visibility 0s;
+}
+
+/* The account tabs and the reading pages' document (/docs, /about and the
+   rest) carry text straight on the ground, so they keep it. Cards already paint
+   their own. The account pages stand on the ground whole, so the city never
+   shows through them. */
+body:has(> .harbour-sea) #shell-tabs,
+body:has(> .harbour-sea) #route-content:has(.account-page) {
+  background: var(--color-bg);
+}
+
+body:has(> .harbour-sea) #route-content .reading__prose {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* The footer at the end of the page stands on the same ground as the header. */
+body:has(> .harbour-sea) #app-shell-scroller > .regent-footer {
+  background: var(--color-bg);
+}
+
+/* The city never takes a press meant for the page: it lies behind it and lets
+   every press through. Once the page is lifted away, the city takes them. */
+.harbour-sea__harbour {
+  pointer-events: none;
+}
+
+body[data-sea-lifted] .harbour-sea__harbour {
+  pointer-events: auto;
+}
+
+/* ---- The lift button and the city's bar ---- */
+
+/* The button that lifts the page away stands before a fleet's name
+   (`HarbourSeaLive.lift/1`, `.fleet-bar__title` in pages/fleet.css): a
+   skyline, unboxed, its press target the height of the name beside it. Its
+   rules name its place, so the plain button's frame never applies. */
+.fleet-bar__title > .harbour-sea__lift {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fg);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .harbour-sea__lift:hover {
+    background: color-mix(in oklab, var(--color-fg) 6%, transparent);
+  }
+}
+
+.harbour-sea__lift svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.harbour-sea__lift-flag {
+  fill: var(--palette-tangerine-tango);
+}
+
+/* With the page lifted, the bar at the top centre names the fleet, and its
+   first button brings the page back; Chat and Workspace open those pages. It
+   stands on the page's ground so it stays easy to find over the city. */
+.harbour-sea__bar {
+  display: none;
+}
+
+body[data-sea-lifted] .harbour-sea__bar {
+  position: fixed;
+  z-index: 2;
+  inset-block-start: var(--space-2);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  width: max-content;
+  max-width: calc(100% - 2 * var(--space-2));
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.harbour-sea__bar > .harbour-sea__return {
+  min-height: 2.75rem;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .harbour-sea__return:hover {
+    background: color-mix(in oklab, var(--color-fg) 6%, transparent);
+  }
+}
+
+/* On a phone the bar tightens and its buttons drop their arrows, so the name,
+   Chat and Workspace share one row on a 390-wide screen. Narrower than that,
+   the name takes the first row and Chat and Workspace share the second. */
+@media (max-width: 30rem) {
+  body[data-sea-lifted] .harbour-sea__bar {
+    gap: 0.25rem;
+    padding: 0.25rem;
+    font-size: 0.9375rem;
+  }
+
+  .harbour-sea__bar > .harbour-sea__return {
+    padding: 0 0.375rem;
+  }
+
+  .harbour-sea__bar > .rg-button {
+    padding-inline: 0.625rem;
+    font-size: inherit;
+  }
+
+  .harbour-sea__bar > .rg-button::after {
+    content: none;
+  }
+}
+
+@media (max-width: 24rem) {
+  .harbour-sea__bar > .harbour-sea__return {
+    flex-basis: 100%;
+  }
+}
+
+/* Lifted: the page, menus and footer included, rises off the top and only the
+   city is left. Hidden once it has gone, so the keyboard and screen readers
+   skip it and land on the button and the city. */
+body[data-sea-lifted]:has(> .harbour-sea) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body[data-sea-lifted]:has(> .harbour-sea) #app-shell {
+  translate: 0 -100%;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    translate var(--sea-lift) cubic-bezier(0.5, 0, 0.75, 0),
+    opacity var(--sea-lift) ease,
+    visibility 0s var(--sea-lift);
+}
+
+/* ---- An agent's card: who it is, its Key and its last few actions ---- */
+
+.harbour-card {
+  --rg-dialog-size: 24rem;
+  color: var(--color-fg);
+}
+
+.harbour-card .rg-dialog__body {
+  padding: 0;
+}
+
+.harbour-card__head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.harbour-card__sail {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.harbour-card__head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.harbour-card h2 {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-family-title);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The title takes focus when the card opens so it is read out first; it is not
+   something to press. */
+.harbour-card h2:focus {
+  outline: none;
+}
+
+.harbour-card__head p,
+.harbour-card time {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font: 0.72rem/1.4 var(--font-family-ui);
+  letter-spacing: var(--tracking-microlabel);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.harbour-card__head form {
+  display: contents;
+}
+
+.harbour-card .harbour-card__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+}
+
+@media (hover: hover) {
+  .harbour-card .harbour-card__close:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+}
+
+.harbour-card__close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.harbour-card__owner {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-1) var(--space-3) 0;
+  font: 0.8rem/1.4 var(--font-family-ui);
+}
+
+.harbour-card__owned {
+  margin-inline-start: auto;
+  color: var(--color-fg-muted);
+}
+
+.harbour-card__actions {
+  display: grid;
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  list-style: none;
+}
+
+.harbour-card__actions li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  color: var(--color-fg-muted);
+}
+
+.harbour-card__actions li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+/* The last action leads. */
+.harbour-card__actions li:first-child {
+  color: var(--color-fg);
+  font-size: 1.1rem;
+}
+
+.harbour-card__key {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.harbour-card__key .rg-icon {
+  margin-inline-start: 0.4em;
+}
+
+@media (hover: hover) {
+  .harbour-card__key:hover {
+    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .harbour-sea__stage canvas,
+  body:has(> .harbour-sea) #app-shell,
+  body[data-sea-lifted]:has(> .harbour-sea) #app-shell {
+    transition: none;
+  }
+
+  /* No slide: the page simply goes. */
+  body[data-sea-lifted]:has(> .harbour-sea) #app-shell {
+    translate: none;
+  }
+}
+}

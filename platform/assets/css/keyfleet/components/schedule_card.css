@@ -1,0 +1,177 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* Schedule (KeyfleetWeb.Components.ScheduleCard): a quiet panel in the page's
+   own cut-corner style, never over it. Its title and Dismiss share a line,
+   then a sentence, then who with Copy line. On a fleet's page who is one line,
+   the first agent and how many more, so the card keeps one height however
+   many agents it names; on the Agents page it lists each agent. Unlayered, as
+   the shared panel and button styles are. */
+.schedule-card {
+  max-inline-size: 40rem;
+}
+
+/* One column no wider than the card, so a line held to one line is cut
+   rather than widening it. */
+.schedule-card .rg-panel__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+.schedule-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.schedule-card h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.schedule-card__words {
+  margin: 0;
+  color: var(--color-fg-muted);
+  text-wrap: pretty;
+}
+
+.schedule-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin-block-start: var(--space-1);
+  font-size: 0.875rem;
+}
+
+/* One line: a long name is cut first, down to its first letters, then a long
+   state, and how many more always shows whole. */
+.schedule-card__who {
+  display: flex;
+  flex: 1 1 14rem;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.schedule-card__who > * {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+}
+
+.schedule-card__who .schedule-card__name {
+  flex: 0 100 auto;
+  min-inline-size: 3rem;
+}
+
+.schedule-card__who .check-in-status {
+  flex: 0 1 auto;
+}
+
+.schedule-card__who .schedule-card__more {
+  flex: none;
+}
+
+/* Too narrow for a name, its state and how many more, as on a phone: the
+   light leads the name and its words are kept for screen readers alone. */
+.schedule-card--fleet .schedule-card__foot {
+  container: schedule-foot / inline-size;
+}
+
+@container schedule-foot (max-width: 26rem) {
+  .schedule-card__who:has(.schedule-card__more) .check-in-status {
+    order: -1;
+  }
+
+  .schedule-card__who:has(.schedule-card__more) .check-in-status::before {
+    margin-inline-end: 0;
+  }
+
+  .schedule-card__who:has(.schedule-card__more) .schedule-card__state {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The Agents page lists every agent, with Copy line under the list. */
+.schedule-card--agents .schedule-card__foot {
+  display: grid;
+  justify-items: start;
+}
+
+.schedule-card__agents {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.schedule-card__agents li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-inline-size: 0;
+}
+
+/* A long name an agent chose for itself is cut, never pushed off a phone. */
+.schedule-card__name {
+  overflow: hidden;
+  max-inline-size: 16rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-card .check-in-status {
+  color: var(--color-fg-muted);
+}
+
+/* A 2.75rem target around a 1.25rem cross, its edge on the panel's padding. */
+.schedule-card__dismiss {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  margin: calc(var(--space-2) * -1);
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  transition: color 150ms ease, transform 160ms ease-out;
+}
+
+.schedule-card__dismiss:focus-visible {
+  color: var(--color-fg);
+}
+
+.schedule-card__dismiss:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .schedule-card__dismiss:hover {
+    color: var(--color-fg);
+  }
+}
+
+.schedule-card__dismiss svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+}

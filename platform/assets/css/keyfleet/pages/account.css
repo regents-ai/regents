@@ -1,0 +1,640 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* Account stands on the product pages' grammar: one ground, hairline panels, the
+   display face for headings and a mono voice for kickers. The identity card
+   is the shared holographic card and brings its own graphite ground. */
+
+.account-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.account-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.account-page h1,
+.account-page h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.account-page p {
+  margin: 0;
+}
+
+.account-kicker,
+.account-details dt {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.account-identity .rg-account-identity__kicker {
+  color: color-mix(in srgb, var(--rg-holo-ink) 70%, transparent);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Panels */
+
+.account-panel,
+.account-identity .rg-holo__content {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.account-panel h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+/* Identity card */
+
+.account-identity .rg-holo__content {
+  min-height: 12rem;
+  align-content: end;
+}
+
+/* The shared account card stands on the holographic ground, in its ink. */
+.account-identity .rg-account-identity {
+  padding: 0;
+  color: var(--rg-holo-ink);
+}
+
+.account-identity .rg-account-identity__picture {
+  border-color: var(--rg-holo-edge);
+}
+
+.account-identity .rg-account-identity__picture img {
+  object-fit: cover;
+}
+
+.account-identity .rg-account-identity__name h2 {
+  font-family: var(--font-family-title);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 400;
+}
+
+.account-identity .rg-account-identity__name p {
+  color: color-mix(in srgb, var(--rg-holo-ink) 70%, transparent);
+}
+
+/* Your keys */
+
+.account-keys__fleet {
+  display: grid;
+  gap: 0.5rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.account-keys__fleet h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+/* A fleet's Keys as a gallery of cards, those with agents first. Each card is
+   the Key's picture and name, and under it the agents on it, each with its
+   picture, its harness's logo, its name and a remove button, then Add agent. */
+.key-gallery {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.key-gallery__keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.key-gallery__key {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.key-gallery__key--agents {
+  border-color: var(--ash-line-strong);
+}
+
+.key-gallery__card {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+/* The card's picture, or its space while it is still being made, edged as
+   the fleet's own cards are. */
+.key-gallery__card img,
+.key-gallery__blank {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 767 / 959;
+  border: 1px solid
+    light-dark(
+      color-mix(in oklab, var(--palette-platinum) 80%, var(--palette-charcoal)),
+      color-mix(in oklab, var(--palette-platinum) 30%, var(--palette-charcoal))
+    );
+  background: var(--color-surface);
+  object-fit: cover;
+}
+
+.key-gallery__name {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.key-gallery__card:hover .key-gallery__name {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* Under a pointer, a card's picture rises a little, like a card picked up. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .key-gallery__card :is(img, .key-gallery__blank) {
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .key-gallery__card:hover :is(img, .key-gallery__blank) {
+    transform: translateY(-3px);
+  }
+}
+
+.key-gallery__agents {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.5rem 0 0;
+  border-block-start: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.key-gallery__agents li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-inline-size: 0;
+}
+
+.key-gallery__agent-name {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.key-gallery__remove {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  min-block-size: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+}
+
+.key-gallery__remove:hover,
+.key-gallery__remove:focus-visible {
+  border-color: var(--color-border);
+  color: var(--color-fg);
+}
+
+.key-gallery__remove svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+}
+
+/* Add agent draws Lucide's chevron in place of the browser's own arrow, which
+   keeps to the right border whatever the padding. The chevron stands in from
+   the right border as far as the words stand in from the left one. */
+.key-gallery__add {
+  --key-gallery-add-pad: 0.5rem;
+  position: relative;
+}
+
+.key-gallery__add select {
+  display: block;
+  inline-size: 100%;
+  padding: 0.375rem calc(2 * var(--key-gallery-add-pad) + 0.5rem) 0.375rem
+    var(--key-gallery-add-pad);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg-muted);
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  appearance: none;
+}
+
+/* Lucide draws the chevron across the middle half of its square, so the
+   square reaches a quarter of its width past the padding. */
+.key-gallery__add .rg-icon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: calc(1px + var(--key-gallery-add-pad) - 0.25em);
+  color: var(--color-fg-muted);
+  font-size: 1rem;
+  translate: 0 -50%;
+  pointer-events: none;
+}
+
+.key-gallery__add select:hover,
+.key-gallery__add select:focus-visible {
+  border-color: var(--ash-line-strong);
+  color: var(--color-fg);
+}
+
+.key-gallery__add select:is(:hover, :focus-visible) + .rg-icon {
+  color: var(--color-fg);
+}
+
+.key-gallery__notice {
+  min-block-size: 1lh;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+/* The Key a person posts as where they hold several. Its line under the
+   choice keeps its height whether or not it says anything. */
+.account-keys__posting {
+  display: grid;
+  gap: 0.25rem;
+  max-inline-size: 18rem;
+}
+
+.account-keys__posting select {
+  inline-size: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: inherit;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-keys__notice {
+  min-block-size: 1lh;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+/* Details */
+
+.account-details dl {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.account-details dl > div {
+  display: grid;
+  gap: 0.35rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.account-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account-wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Verified connections */
+
+.verified-connections > div:first-child {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.verified-connections__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.verified-connections__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+}
+
+.verified-connections__list li > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Only the text cell is muted; the row's button keeps the shared button's ink. */
+.verified-connections__list li > div span {
+  color: var(--color-fg-muted);
+}
+
+.verified-connections__notice {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent);
+}
+
+.verified-connections__notice--error {
+  border-inline-start-color: var(--ash-accent-warm);
+}
+
+/* The failure line carries its Try again button beneath it. */
+div.verified-connections__notice {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+}
+
+div.verified-connections__notice p {
+  margin: 0;
+}
+
+/* Session */
+
+.account-session {
+  justify-items: start;
+}
+
+@media (max-width: 30rem) {
+  .verified-connections__list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+}
+
+/* Every account section is a panel with the same inner edge as the others, so
+   nothing behind the page shows through it. These rules sit outside the
+   product layer, so they win over the shared account sections' own padding
+   and open ground. */
+.account-agents > .rg-account,
+.rg-account-layout > * > .rg-account,
+.account-page > .rg-account--signed-out {
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* Schedule and Blocked, while they show, stand above the agents. */
+.account-agents {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* Blocked: each agent's own words on what holds it up, set off as a quote
+   under what its check-ins show, so its claim never reads as the site's. */
+.agents-blocked {
+  max-inline-size: 40rem;
+}
+
+.agents-blocked .rg-panel__body {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.agents-blocked h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.agents-blocked__words {
+  margin: 0;
+  color: var(--color-fg-muted);
+  text-wrap: pretty;
+}
+
+.agents-blocked__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agents-blocked__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.agents-blocked__who strong {
+  overflow: hidden;
+  max-inline-size: 16rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-blocked__who > span {
+  color: var(--color-fg-muted);
+}
+
+/* An agent's line may be one long word; it wraps rather than widening a phone. */
+.agents-blocked__line {
+  margin: 0.375rem 0 0;
+  padding-inline-start: var(--space-2);
+  border-inline-start: 2px solid var(--color-border);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.agents-blocked__line p {
+  margin: 0;
+}
+
+/* On a Key card, the logo of an agent's harness is the shared picture the
+   Agents page shows, on its white tile in both themes, a little smaller than
+   the agent's own picture beside it. Unlayered, so its size wins over the
+   shared picture's own. */
+.key-gallery__harness {
+  display: grid;
+  flex: none;
+}
+
+.key-gallery__harness .rg-account__mark {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+}
+
+/* The shared sections' headings take the same face and size as the page's
+   other panels. */
+:is(.account-agents, .rg-account-layout > *) > .rg-account h2 {
+  font-family: var(--font-family-title);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+/* On a phone the account's sections stack in one column. */
+@media (max-width: 47.99rem) {
+  /* Signed out, "Sign in" is the page's one action and spans the panel. */
+  .rg-account--signed-out > .rg-button {
+    flex: 1 1 auto;
+  }
+
+  /* An agent's name keeps the row's width; "World ID Connected" moves under
+     it when both don't fit, instead of squeezing the name to nothing. */
+  .rg-account__agent {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  /* Each fleet's name above its Keys and each connected account are a full
+     finger's height. */
+  .account-keys__fleet h3 a,
+  .verified-connections__list a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .verified-connections__list a {
+    justify-self: start;
+  }
+
+  /* Each agent's remove button and each Add agent are a full finger's height. */
+  .key-gallery__remove {
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    margin-inline-end: -0.5rem;
+  }
+
+  .key-gallery__add select {
+    min-block-size: 2.75rem;
+  }
+
+  /* On a phone each Key is a row: its picture and name on the left, its
+     agents and Add agent beside them. */
+  @media (max-width: 29.99rem) {
+    .key-gallery__key {
+      grid-template-columns: 5.5rem minmax(0, 1fr);
+      grid-template-rows: auto auto 1fr;
+      column-gap: 0.75rem;
+    }
+
+    .key-gallery__card {
+      grid-row: 1 / -1;
+      align-self: start;
+    }
+
+    .key-gallery__key > :not(.key-gallery__card) {
+      grid-column: 2;
+      align-self: start;
+    }
+
+    .key-gallery__agents {
+      padding: 0;
+      border: 0;
+    }
+  }
+
+  /* "Copy message" and "Make a new code" fill the row they wrap onto. */
+  .rg-account__pair-actions > .rg-button {
+    flex: 1 1 auto;
+  }
+}
+
+/* Pairing: the window every Pair New Agent opens, and the pairing link's page
+   (/pair), whose box keeps the window's width and whose start page wraps rather
+   than running off a narrow screen. Unlayered, like the shared pairing box. */
+.shell-pairing-dialog {
+  --rg-dialog-size: 30rem;
+  --shell-dialog-pad: clamp(var(--space-2), 4vw, var(--space-4));
+}
+
+.shell-pairing-dialog h2 {
+  margin: 0 0 var(--space-3);
+  padding-inline-end: 3rem;
+  font-family: var(--font-family-ui);
+  font-size: var(--type-headline-size);
+}
+
+/* The window's close button, square in its top right corner, and kept there
+   while the window scrolls. Its margins give back the room it takes, so what is
+   under it keeps its place. The pad is the window frame's own. */
+.shell-dialog-close {
+  position: sticky;
+  inset-block-start: calc(-1 * var(--shell-dialog-pad));
+  z-index: var(--rg-layer-card);
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 0;
+  margin-block: calc(-1 * var(--shell-dialog-pad)) calc(var(--shell-dialog-pad) - 2.75rem);
+  margin-inline: auto calc(-1 * var(--shell-dialog-pad));
+  padding: 0;
+  border: 0;
+  border-radius: 0 calc(1.25rem - 1px) 0 0.75rem;
+}
+
+.shell-dialog-close svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.pair-page .rg-account__pair {
+  max-inline-size: 27rem;
+}
+
+.pair-page #pair-start {
+  overflow-wrap: anywhere;
+}
+
+/* Assign a Key appears under the pairing box once an agent pairs; its line
+   keeps a button's height before, so the page below never moves. */
+.account-pairing-next {
+  min-block-size: 2.75rem;
+  margin: 0.75rem 0 0;
+}
+}

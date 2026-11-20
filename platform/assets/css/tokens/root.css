@@ -88,41 +88,44 @@
 
 /* The shared pieces (buttons, fields, notices, addresses, Points, the account
    pages) read the design system's colour roles; on the app pages, and on the
-   guided tour's card over any page, every role is one of the six. */
-#app-shell,
-.legal-root,
-.tour {
-  --color-bg: var(--ash-ground);
-  --color-surface: var(--ash-ground);
-  --color-surface-elevated: var(--ash-ground);
-  --color-border: var(--ash-raised);
-  --color-fg: var(--ash-ink);
-  --color-fg-muted: var(--ash-quiet);
-  --color-muted: var(--ash-quiet);
-  --color-accent: var(--ash-raised);
-  --color-accent-secondary: var(--ash-signal);
-  --color-fg-on-accent: var(--ash-ink);
-  --color-primary-shade: var(--ash-raised);
-  --color-success: var(--ash-ink);
-  --color-info: var(--ash-ink);
-  --color-warning: var(--ash-signal);
-  --color-error: var(--ash-signal);
-  --color-focus: var(--ash-ink);
-  --color-link: var(--ash-ink);
-  --brand-accent: var(--ash-signal);
-  --support-figure-surface: var(--ash-raised);
-  --support-figure-ink: var(--ash-ink);
-  --support-band-surface: var(--ash-signal);
-  --support-band-ink: var(--ash-ground);
-  --support-panel-surface: var(--ash-raised);
-  --support-panel-ink: var(--ash-ink);
-  --rg-button-border-color: var(--ash-signal);
-  --rg-button-mark-color: var(--ash-signal);
-  --rg-shimmer-color: var(--ash-signal);
-  /* The account pages (`.rg-utility`) set the roles above from their own palette. */
-  --utility-bg: var(--ash-ground);
-  --utility-surface: var(--ash-ground);
-  --utility-ink: var(--ash-ink);
-  --utility-muted: var(--ash-quiet);
-  --utility-rule: var(--ash-raised);
+   guided tour's card over any page, every role is one of the six. Only on
+   regents.sh's own pages: Keyfleet's frame is also `#app-shell`, in its own colours. */
+:where([data-brand="platform"]) {
+  #app-shell,
+  .legal-root,
+  .tour {
+    --color-bg: var(--ash-ground);
+    --color-surface: var(--ash-ground);
+    --color-surface-elevated: var(--ash-ground);
+    --color-border: var(--ash-raised);
+    --color-fg: var(--ash-ink);
+    --color-fg-muted: var(--ash-quiet);
+    --color-muted: var(--ash-quiet);
+    --color-accent: var(--ash-raised);
+    --color-accent-secondary: var(--ash-signal);
+    --color-fg-on-accent: var(--ash-ink);
+    --color-primary-shade: var(--ash-raised);
+    --color-success: var(--ash-ink);
+    --color-info: var(--ash-ink);
+    --color-warning: var(--ash-signal);
+    --color-error: var(--ash-signal);
+    --color-focus: var(--ash-ink);
+    --color-link: var(--ash-ink);
+    --brand-accent: var(--ash-signal);
+    --support-figure-surface: var(--ash-raised);
+    --support-figure-ink: var(--ash-ink);
+    --support-band-surface: var(--ash-signal);
+    --support-band-ink: var(--ash-ground);
+    --support-panel-surface: var(--ash-raised);
+    --support-panel-ink: var(--ash-ink);
+    --rg-button-border-color: var(--ash-signal);
+    --rg-button-mark-color: var(--ash-signal);
+    --rg-shimmer-color: var(--ash-signal);
+    /* The account pages (`.rg-utility`) set the roles above from their own palette. */
+    --utility-bg: var(--ash-ground);
+    --utility-surface: var(--ash-ground);
+    --utility-ink: var(--ash-ink);
+    --utility-muted: var(--ash-quiet);
+    --utility-rule: var(--ash-raised);
+  }
 }

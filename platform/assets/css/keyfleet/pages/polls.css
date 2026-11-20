@@ -1,0 +1,259 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* Polls stand on the same Key grammar as proposals: one ground, hairline
+   panels, the display face for headings and a mono voice for kickers.
+   Questions, choices and reasons wrap, so nothing widens the page. */
+
+.polls-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.polls-heading,
+.polls-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.polls-page h1,
+.polls-page h2,
+.polls-page h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.polls-page p {
+  margin: 0;
+}
+
+.polls-kicker {
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.polls-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.polls-heading h1 {
+  max-width: 24ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.polls-heading h1:focus {
+  outline: none;
+}
+
+.polls-lede {
+  max-width: 56ch;
+  color: var(--color-fg-muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.polls-notice {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-inline-start: 3px solid var(--ash-accent-warm);
+  background: var(--color-surface);
+  line-height: 1.5;
+}
+
+.polls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* The choices take the narrower share beside the notes and votes on a wide screen. */
+@media (min-width: 60rem) {
+  .polls-grid {
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+  }
+}
+
+.polls-side {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.polls-panel {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+  justify-items: start;
+}
+
+.polls-panel > * {
+  max-width: 100%;
+}
+
+/* The place a vote's line is read out from takes no room until it holds one. */
+.polls-said:not(:has(*)) {
+  margin-block-end: -1rem;
+}
+
+.polls-panel h2 {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.polls-detail,
+.polls-status {
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.polls-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  align-items: center;
+}
+
+.polls-badge {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--ash-line-strong);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.polls-badge[data-open="true"] {
+  border-color: var(--ash-accent-warm);
+}
+
+.polls-list,
+.polls-options,
+.polls-totals,
+.polls-votes {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.polls-card {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+}
+
+.polls-card h3 {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.polls-options,
+.polls-totals {
+  gap: 0.4rem;
+}
+
+.polls-options li,
+.polls-totals li {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+}
+
+.polls-totals li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.polls-totals li[data-winner="true"] {
+  border-color: var(--ash-accent-warm);
+}
+
+.polls-form {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.polls-field input,
+.polls-field select,
+.polls-field textarea {
+  width: 100%;
+}
+
+.polls-choices {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.polls-choices legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 0.5rem;
+  padding: 0;
+}
+
+.polls-choices label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.polls-votes {
+  gap: 0.5rem;
+}
+
+.polls-reason {
+  display: block;
+  color: var(--color-fg-muted);
+  white-space: pre-line;
+}
+
+@media (max-width: 47.99rem) {
+  /* Start poll and Vote span the form, in the row that keeps them in reach. */
+  .polls-form > .sticky-actions {
+    display: grid;
+  }
+
+  /* Each choice, and the Key that started the poll, are a full finger's
+     height. */
+  .polls-choices label,
+  .polls-status a {
+    min-height: 2.75rem;
+  }
+
+  .polls-status a {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+}
+}

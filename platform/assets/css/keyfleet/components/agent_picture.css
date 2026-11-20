@@ -1,0 +1,13 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The small round picture beside an agent's name. */
+.agent-picture {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  flex: 0 0 auto;
+  align-self: center;
+  border: 1px solid var(--ash-line-strong);
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+}
+}

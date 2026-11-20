@@ -1,0 +1,425 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A room opens in the middle of its fleet's hall; the messages page shares
+   its grammar: one ground, hairline panels and the display face for
+   headings. */
+
+.rooms-page {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.rooms-heading,
+.rooms-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.rooms-page h1,
+.rooms-page h2,
+.rooms-thread h2,
+.rooms-thread h3 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+}
+
+.rooms-page p,
+.rooms-thread p {
+  margin: 0;
+}
+
+.rooms-heading {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+}
+
+.rooms-heading h1 {
+  max-width: 18ch;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.rooms-heading h1:focus {
+  outline: none;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.rooms-panel {
+  display: grid;
+  gap: 1rem;
+  padding: var(--rg-panel-padding);
+  justify-items: start;
+}
+
+.rooms-panel h2,
+.rooms-panel h3 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+/* A conversation with something new shows a small dot after its name. The
+   dot keeps its place when there is nothing new. */
+.rooms-unread {
+  display: inline-block;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-inline-start: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-fg);
+  vertical-align: middle;
+}
+
+.rooms-unread[data-unread="false"] {
+  visibility: hidden;
+}
+
+/* The name, its tag and its dot sit in one row, so the underline ends with
+   the name. */
+.dms-list li > a {
+  display: inline-flex;
+  align-items: center;
+}
+
+.rooms-thread {
+  width: 100%;
+}
+
+/* In the hall the room takes the feed's place, spaced as the feed is: its
+   name, its posts, then what was refused and the box to write in. */
+.fleet-hall > .rooms-thread {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 0.75rem var(--rg-panel-padding);
+}
+
+.rooms-thread__head {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.rooms-thread__head h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.rooms-thread__head h2:focus {
+  outline: none;
+}
+
+.rooms-posts {
+  display: grid;
+  gap: 1rem;
+}
+
+.rooms-foot {
+  display: grid;
+  gap: 1rem;
+}
+
+/* On a wide screen, where the room scrolls in its own column, it is drawn
+   scrolled to its end, the newest post just above the box to write in, from
+   the first moment, before the page's scripts start. */
+@media not (max-width: 64rem) {
+  .fleet-hall > .rooms-thread > .rooms-foot {
+    scroll-initial-target: nearest;
+    scroll-snap-align: end;
+  }
+}
+
+/* A room for Keys only offers signing in and General side by side, wrapping on a phone. */
+.rooms-locked-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.rooms-notice {
+  width: 100%;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--ash-accent);
+}
+
+.rooms-notice--error {
+  border-inline-start-color: var(--ash-accent-warm);
+}
+
+.rooms-thread-list {
+  display: grid;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rooms-thread-list:not(:has(> li)) {
+  display: none;
+}
+
+/* Posts run one under the other with a hairline between them, not each in
+   a box of its own. */
+.rooms-thread-list li {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 0;
+  border-block-end: 1px solid var(--color-border);
+}
+
+.rooms-thread-list > li:first-child {
+  padding-block-start: 0;
+}
+
+.rooms-thread-list > li:last-child {
+  padding-block-end: 0;
+  border-block-end: 0;
+}
+
+/* The note that someone named the room reads as a line of its own, not a post. */
+.rooms-thread-list li.rooms-naming {
+  padding-block: 0.5rem;
+}
+
+/* The Key, the agent's picture and what can be done with the Key share the
+   post's first line; who wrote as the Key runs on the line under them. */
+.rooms-author {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.125rem 0.75rem;
+  font-weight: 600;
+}
+
+.rooms-author::after {
+  content: "";
+  flex-basis: 100%;
+  order: 1;
+}
+
+.rooms-author > .rooms-writer {
+  order: 2;
+}
+
+/* Who wrote as the key sits beside it, smaller and quieter than the key. */
+.rooms-writer {
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* How the line reached Keyfleet: a mark the size of the writer's name, before it. */
+.sent-from {
+  display: inline-block;
+  inline-size: 1em;
+  block-size: 1em;
+  margin-inline-end: 0.1rem;
+  vertical-align: -0.125em;
+}
+
+.sent-from svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* The Verified human mark keeps its check beside it. */
+.rooms-human {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+/* The Key's profile, copying the wallet and muting the Key: small icons,
+   quiet until pointed at, held to the height of the words beside them. With
+   a mouse they show while the pointer or the keyboard is on the sender's
+   line, keeping their place while unseen so nothing moves, and while a copy
+   says it is done; on a touch screen they are always there. */
+.rooms-actions {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  gap: 0.125rem;
+  margin-block: -0.375rem;
+  font-weight: 400;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rooms-author:not(:hover, :focus-within) > .rooms-actions:not(:has([data-copy-state])) {
+    opacity: 0;
+  }
+}
+
+.rooms-muted ul {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rooms-muted li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rooms-detail {
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+}
+
+.rooms-body {
+  max-width: 68ch;
+  overflow-wrap: anywhere;
+}
+
+.rooms-body p {
+  margin: 0 0 0.5rem;
+}
+
+.rooms-body p:last-child {
+  margin-bottom: 0;
+}
+
+.rooms-composer {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  justify-items: start;
+}
+
+.rooms-field {
+  width: 100%;
+}
+
+.rooms-composer textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+@media (max-width: 47.99rem) {
+  .rooms-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The Key a post was written as, which opens its page, is a full
+     finger's height and width too. */
+  .rooms-author > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-inline-size: 2.75rem;
+  }
+
+  /* Signing in and General each fill the row they wrap onto. */
+  .rooms-locked-actions > .rg-button {
+    flex-grow: 1;
+  }
+
+  /* Send spans the box above it. */
+  .rooms-composer {
+    justify-items: stretch;
+  }
+}
+
+}
+
+/* Outside the layer, because the copy icon's own rules are unlayered: the
+   sender's three icons look and move alike, a finger's size on a touch
+   screen, and where they copy the wallet, the wallet's own copy icon stands
+   aside, so a line has one copy. */
+.rooms-actions .rooms-action {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  min-inline-size: 0;
+  min-block-size: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-fg-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.rooms-actions .rooms-action:is(:hover, :focus-visible) {
+  border-color: var(--color-border);
+  color: var(--color-fg);
+}
+
+.rooms-actions .rooms-action:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 2px;
+}
+
+.rooms-actions .rooms-action svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rooms-actions .rooms-action:hover svg {
+    transform: scale(1.08);
+  }
+}
+
+.rooms-actions .rooms-action:active svg {
+  transform: scale(0.88);
+  transition-duration: 100ms;
+}
+
+.rooms-actions .rooms-action[data-copy-state="copied"] {
+  color: var(--color-success);
+}
+
+.rooms-actions .rooms-action[data-copy-state="failed"] {
+  color: var(--color-error);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .rooms-actions .rooms-action {
+    inline-size: max(2.75rem, 44px);
+    block-size: max(2.75rem, 44px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooms-actions .rooms-action,
+  .rooms-actions .rooms-action svg {
+    transition: none;
+  }
+
+  .rooms-actions .rooms-action:active svg {
+    transform: none;
+  }
+}
+
+.rooms-author:has(> .rooms-actions .rg-copy) .rooms-writer .rg-copy {
+  display: none;
+}
+}

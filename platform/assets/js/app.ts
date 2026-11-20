@@ -60,6 +60,9 @@ import {syncTheme} from "./theme"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {installSiteMenu} from "./techtree/site_menu"
+// Keyfleet's pages (`RegentsWeb.Keyfleet`): their frame, with its phone menu and the
+// bar while the next page loads.
+import {KeyfleetShell} from "./keyfleet/shell_behavior"
 
 // First, so an error anywhere below is reported too.
 installVisitLog()
@@ -291,6 +294,7 @@ const hooks = {
   HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,
+  KeyfleetShell,
   LabBlocks,
   MotionCascade,
   MotionCount,

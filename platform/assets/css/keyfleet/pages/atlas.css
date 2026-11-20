@@ -1,0 +1,362 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* A fleet's Atlas: one hairline panel holding its heading, the window and
+   kind chosen, and the picture with the strip of the most active things
+   beside it, or the same work as text and links. */
+
+.atlas-page {
+  /* The ground the blocks stand on, and their scale from the oldest work to
+     the newest: soft tints of powder blue and cornflower on it, stronger the
+     newer, each light enough under the page's ink for its smallest text in
+     either theme. */
+  --atlas-ground: var(--color-surface);
+  --atlas-tone-1: light-dark(
+    color-mix(in oklab, var(--palette-powder-blue) 35%, var(--atlas-ground)),
+    color-mix(in oklab, var(--palette-powder-blue) 16%, var(--atlas-ground))
+  );
+  --atlas-tone-2: light-dark(
+    color-mix(in oklab, var(--palette-cornflower) 24%, var(--atlas-ground)),
+    color-mix(in oklab, var(--palette-cornflower) 30%, var(--atlas-ground))
+  );
+  --atlas-tone-3: light-dark(
+    color-mix(in oklab, var(--palette-cornflower) 46%, var(--atlas-ground)),
+    color-mix(in oklab, var(--palette-cornflower) 52%, var(--atlas-ground))
+  );
+  /* The rest of a kind, a neutral block; the hairline of the block pointed
+     at; the dot of a block changed today. */
+  --atlas-rest: light-dark(var(--ash-panel-strong), var(--color-border));
+  --atlas-line: light-dark(var(--palette-cornflower), var(--palette-powder-blue));
+  --atlas-today: var(--ash-accent-warm);
+  /* The Atlas's corners and the height of its controls, a full finger's
+     under a finger. */
+  --atlas-radius: 0.5rem;
+  --atlas-control: 2.25rem;
+
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (pointer: coarse) {
+  .atlas-page {
+    --atlas-control: 2.75rem;
+  }
+}
+
+.atlas-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: var(--rg-panel-padding);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.atlas-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.atlas-head h2 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.atlas-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+/* A thing's kind, as a small pill. */
+.atlas-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--atlas-tone-1);
+  color: var(--color-fg);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+/* The strip of the window's most active things. */
+.atlas-active {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.atlas-active__head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.atlas-active__head p {
+  margin: 0.125rem 0 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.atlas-active__things {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0 -0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.atlas-active__thing {
+  display: grid;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.625rem 0.5rem;
+  border: 0;
+  border-radius: var(--atlas-radius);
+  background: transparent;
+  color: var(--color-fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-active__thing:hover {
+    background: var(--ash-panel-strong);
+  }
+}
+
+.atlas-active__thing:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.atlas-active__title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.atlas-active__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-active__none {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.atlas-help {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.atlas-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.atlas-legend__zone {
+  margin-inline-start: 0.25rem;
+}
+
+/* The List: the window as text, a link for every thing. */
+.atlas-list {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.atlas-list h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* Earlier, the window, Later: in the List and in the bar above the blocks. */
+.atlas-list__window {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.atlas-list__window h3 {
+  margin: 0;
+  padding-inline: 0.25rem;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.atlas-list__window a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--atlas-control);
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-list__window a:hover {
+    background: var(--ash-panel-strong);
+  }
+}
+
+.atlas-list__window a:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.atlas-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.atlas-totals > div {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--atlas-radius);
+}
+
+.atlas-totals dt {
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+}
+
+.atlas-totals dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.atlas-table :is(th, td) {
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.atlas-table thead th {
+  color: var(--color-fg-muted);
+  font-weight: 400;
+}
+
+.atlas-table tbody th {
+  font-weight: 500;
+}
+
+.atlas-table td {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.atlas-table thead th:not(:first-child) {
+  text-align: right;
+}
+
+.atlas-things {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0 -0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.atlas-thing {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.625rem 0.5rem;
+  border-radius: var(--atlas-radius);
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .atlas-thing:hover {
+    background: var(--ash-panel-strong);
+  }
+}
+
+.atlas-thing:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.atlas-thing__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.atlas-thing__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.atlas-thing__who,
+.atlas-thing__at,
+.atlas-thing__count {
+  color: var(--color-fg-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-thing__at {
+  margin-inline-start: auto;
+}
+
+.atlas-list .rg-button {
+  justify-self: start;
+  margin-top: 0.75rem;
+}
+
+/* On a phone the totals stack. */
+@media (max-width: 30rem) {
+  .atlas-totals {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+}
+}

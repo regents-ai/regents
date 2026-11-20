@@ -1,0 +1,41 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* Pair and Mark present under a fleet's tabs: one row, side by side when
+   both show, with the pairing box opening under it, and Schedule under that.
+   With nothing showing, a Schedule hidden as it is put away included, it
+   takes no room.
+   Unlayered, as the shared button styles are. */
+.fleet-prompts {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.fleet-prompts:has(> :not([hidden])) {
+  padding: var(--space-2) var(--rg-panel-padding);
+  border-block-end: 1px solid var(--color-border);
+}
+
+.fleet-prompts__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.fleet-prompts__present {
+  width: auto;
+}
+
+.fleet-prompts__idle {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where the row is narrower than Pair's words, they wrap rather than being
+   cut off. */
+.fleet-prompts__pair {
+  white-space: normal;
+  text-wrap: balance;
+}
+}

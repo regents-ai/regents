@@ -1,0 +1,461 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* One key's profile, open over its fleet's page. Laptops see the card beside
+   everything else, tablets above it, and phones the whole screen. */
+.key-profile {
+  --rg-dialog-size: 1200px;
+  block-size: min(860px, 92svh);
+  max-block-size: none;
+  color: var(--color-fg);
+}
+
+.key-profile .rg-dialog__body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* While the visitor signs in, the profile stays where it was, above the page
+   and its header and below the sign-in window. Stepped down from the browser's
+   top layer for that while, it takes the highest place a page part has. */
+.key-profile[open]:not(:modal) {
+  position: fixed;
+  inset: 0;
+  z-index: var(--rg-layer-tip);
+  margin: auto;
+}
+
+/* The card and its traits scroll on their own when taller than the window,
+   and take keyboard focus so they can be scrolled without a pointer. */
+.key-profile__card {
+  --key-profile-card-pad: clamp(1rem, 3vw, 2rem);
+
+  position: sticky;
+  top: 0;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: var(--key-profile-card-pad);
+  border-inline-end: 1px solid var(--color-border);
+  overflow: auto;
+}
+
+/* The traits the key drew, under its card. */
+.key-profile__traits {
+  display: grid;
+  gap: 0.6rem;
+  width: min(100%, 26rem);
+}
+
+.key-profile__traits h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* A control tabbed to stops clear of the title bar that sticks to its top. */
+.key-profile__body {
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+  min-width: 0;
+  padding: 0 clamp(1rem, 3vw, 2rem) 2rem;
+  overflow: auto;
+  scroll-padding-block-start: 6rem;
+}
+
+.key-profile__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 1rem;
+  border-block-end: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.key-profile__header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+/* The title takes focus when the profile opens so it is read out first; it
+   is not something to press, so it shows no focus ring. Named by id to
+   outrank the shell's ring for everything inside it. */
+#key-profile-title:focus {
+  outline: none;
+}
+
+.key-profile__header form {
+  margin: 0;
+}
+
+.key-profile__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Each part of the profile is its own section under a rule. */
+.key-profile__section {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.key-profile__section + .key-profile__section {
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+/* A heading with a tip beside it keeps the tip on its line. */
+.key-profile__section h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* A section's title with its one link at the other end. */
+.key-profile__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+/* "Held by", with what a person can do with that address beside it. */
+.key-profile-holder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.key-profile__section a {
+  color: inherit;
+}
+
+/* The Key its holder posts as, its small card beside its number. */
+.key-profile-posts-as {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-self: start;
+  padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+}
+
+.key-profile-posts-as:hover {
+  border-color: var(--color-fg);
+}
+
+/* "Posts as" in grey over the Key's number. */
+.key-profile-posts-as__words {
+  display: grid;
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+}
+
+.key-profile-posts-as__words strong {
+  color: var(--color-fg);
+  font-size: 1rem;
+}
+
+.key-profile-posts-as img,
+.key-profile-posts-as .fleet-entry__blank {
+  display: block;
+  inline-size: 2.5rem;
+  aspect-ratio: 767 / 959;
+  border: 1px solid var(--color-border);
+  object-fit: cover;
+}
+
+/* On a phone OpenSea and Manage shards are a full finger's height, level with
+   the address's icons. */
+@media (max-width: 47.99rem) {
+  #key-profile-opensea,
+  #key-profile-manage {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+
+/* Facts are rows, a name and its figure, with a rule between rows and none
+   above the first or under the last, so a section's own rule is never
+   doubled. Two columns where the section is wide enough. */
+.key-profile-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 2rem;
+  margin: 0;
+}
+
+.key-profile-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding-block: 0.6rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.key-profile-facts > div:first-child {
+  border-block-start: 0;
+}
+
+@container (min-width: 34rem) {
+  .key-profile-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .key-profile-facts > div:nth-child(2) {
+    border-block-start: 0;
+  }
+}
+
+.key-profile-facts dt {
+  color: var(--color-fg-muted);
+  font-size: 0.875rem;
+}
+
+.key-profile-facts dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Each shard is a row, its agent then what is known about it, ruled like
+   the facts above it. */
+.key-profile-shards {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.key-profile-shards li {
+  display: grid;
+  gap: 0.2rem;
+  padding-block: 0.75rem;
+}
+
+.key-profile-shards li + li {
+  border-block-start: 1px solid var(--color-border);
+}
+
+.key-profile-shard__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+/* Each kind of reward waiting is its own line, never run into the next. */
+#key-profile-rewards [data-count] {
+  display: block;
+}
+
+.key-profile-traits,
+.key-profile-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.key-profile-traits {
+  display: grid;
+}
+
+/* The holder's own button on each post of their wall, at the line's end. */
+.key-profile-remove {
+  margin-inline-start: auto;
+  font-weight: 400;
+}
+
+.key-profile-keys a[aria-current="true"] {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.key-profile-muted,
+.key-profile-status {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.key-profile-status {
+  display: block;
+}
+
+/* Said only while every post on the wall is from a Key the visitor muted. */
+.key-profile-muted-hidden {
+  display: none;
+}
+
+#key-profile-thread:not(:has([data-post])) ~ .key-profile-muted-hidden {
+  display: block;
+}
+
+.key-profile .rooms-composer {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.key-profile .rooms-composer textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: inherit;
+  resize: vertical;
+}
+
+.key-profile__signed-out {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.key-profile__signed-out p {
+  margin: 0;
+}
+
+/* Read out to screen readers when a message arrives; nothing to see. */
+.key-profile-news {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The Key's picture, the same one its metadata names, its dark stage inside
+   the profile's white edge, so it reads as part of the window. */
+.key-profile-card {
+  justify-self: stretch;
+  padding: clamp(1.25rem, 3vw, 2rem) var(--key-profile-card-pad);
+}
+
+.key-profile-card .key-card__tilt {
+  width: min(100%, 26rem);
+}
+
+/* Tablets and phones: one column, the title and Close first and kept at the
+   top while the card and the rest scroll under them. */
+@media (max-width: 959px) {
+  .key-profile .rg-dialog__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow: auto;
+  }
+
+  .key-profile__body {
+    display: contents;
+  }
+
+  .key-profile__header {
+    order: -1;
+    padding-inline: clamp(1rem, 3vw, 2rem);
+  }
+
+  .key-profile__card {
+    --key-profile-card-pad: 1rem;
+
+    position: static;
+    padding: 0 var(--key-profile-card-pad);
+    border-inline-end: 0;
+    overflow: visible;
+  }
+
+  .key-profile-card .key-card__tilt {
+    width: auto;
+    height: min(46svh, 36rem);
+  }
+
+  .key-profile__section {
+    padding-inline: clamp(1rem, 3vw, 2rem);
+  }
+
+  .key-profile__section:last-child {
+    padding-block-end: 2rem;
+  }
+}
+
+/* Phones: a sheet against the bottom edge, with a strip of the fleet's page
+   left showing above it, so it reads as a layer over the map. */
+@media (max-width: 47.99rem) {
+  .key-profile,
+  .key-profile[open]:not(:modal) {
+    inline-size: 100vw;
+    block-size: calc(100dvh - 3rem);
+    margin: auto 0 0;
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+
+  /* The card is never taller than about half the screen, as on a tablet,
+     so on a phone held sideways it doesn't fill the sheet. */
+  .key-profile-card .key-card__tilt {
+    width: min(58vw, 33svh);
+    height: auto;
+  }
+
+  /* Close sits beside the title when they fit. With the message button too,
+     both go on a line of their own under the title, so Close never runs past
+     the screen's edge. */
+  .key-profile__header {
+    flex-wrap: wrap;
+  }
+
+  .key-profile__actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+
+  .key-profile__actions > form {
+    flex: none;
+  }
+
+  /* The Key's other Keys are a full finger's height, and each Claim spans
+     the panel, one above the other, as Approve and Buy do. */
+  .key-profile-keys a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .key-profile .wallet-panel-step {
+    flex: 1 1 100%;
+  }
+
+  .key-profile .wallet-panel-step > .rg-button {
+    flex-grow: 1;
+  }
+
+  /* Post spans the box above it, as Send does in the rooms. */
+  .key-profile .rooms-composer {
+    justify-items: stretch;
+  }
+}
+}

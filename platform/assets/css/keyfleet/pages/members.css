@@ -1,0 +1,111 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* A fleet's Member List: one card for each address holding its Keys, each
+   with the holder's cards in one row that scrolls sideways. */
+.member-list {
+  display: grid;
+  gap: 1rem;
+  min-inline-size: 0;
+  padding: var(--rg-panel-padding);
+}
+
+.member-list h2 {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.member-list__holders {
+  display: grid;
+  gap: 0.75rem;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-card {
+  display: grid;
+  gap: 0.375rem;
+  min-inline-size: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+}
+
+.member-card__who,
+.member-card__connections {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-inline-size: 0;
+}
+
+/* A typed name may be one long word; it wraps inside the card. */
+.member-card__who strong {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.member-card__who span,
+.member-card__status,
+.member-card__label {
+  color: var(--color-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.member-card__count {
+  margin-inline-start: auto;
+}
+
+/* With no typed name, the address or ENS name is the card's name. */
+.member-card__who > .member-card__identity {
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.member-card__status[data-present="true"] {
+  color: var(--color-fg);
+}
+
+.member-card__connections a {
+  overflow-wrap: anywhere;
+}
+
+/* Every card's row of Keys keeps the same height, however many it holds. */
+.member-card__cards {
+  flex: none;
+  align-items: flex-end;
+  padding-inline: 0;
+}
+
+/* The Key the person posts as leads the row in a slot of its own, framed and
+   named, with a rule between it and the rest. */
+.member-card__face {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem 0 0.25rem;
+  margin-inline-end: 0.25rem;
+  border-inline-end: 1px solid var(--color-border);
+}
+
+.member-card__face .fleet-entry__card {
+  border-color: var(--color-fg);
+  font-weight: 600;
+}
+
+.member-card__face-label {
+  color: var(--color-fg-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* On a phone each connection is a full finger's height. */
+@media (max-width: 47.99rem) {
+  .member-card__connections a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+}
+}

@@ -1,0 +1,10 @@
+@scope (:root[data-brand="keyfleet"]) {
+/* The two ways on from a page that couldn't be read: side by side, and
+   stacked on a phone when they don't fit. */
+.load-failed__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+}

@@ -1,0 +1,61 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* Whether keys are present (KeyfleetWeb.Components.PresenceCard): the rule
+   for idle keys, each key on its own line with when its presence lapses, the
+   wallet's idle keys above its button and its present keys in a closed
+   dropdown under it. */
+
+.presence-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.presence-keys {
+  display: grid;
+  gap: 0.4rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.presence-keys li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  min-width: 0;
+}
+
+.presence-on {
+  color: var(--color-success);
+}
+
+.presence-off {
+  color: var(--color-fg-muted);
+}
+
+.fleet-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+}
+
+.fleet-figures > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.fleet-figures dt {
+  color: var(--color-fg-muted);
+}
+
+.fleet-figures dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+}
+}

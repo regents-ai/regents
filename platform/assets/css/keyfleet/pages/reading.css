@@ -1,0 +1,191 @@
+@scope (:root[data-brand="keyfleet"]) {
+@layer regents-product {
+/* The reading pages (KeyfleetWeb.Components.Reading) open as the other pages
+   do: the title and its one line on the ground, then the document as prose in
+   one panel below them, at a reading measure along the page's left edge. Code
+   blocks and wide tables scroll inside themselves, so the page never scrolls
+   sideways. */
+
+.reading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  max-inline-size: 48rem;
+}
+
+.reading__head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.reading__head h1 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.reading__head h1:focus {
+  outline: none;
+}
+
+.reading__head p {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.reading__prose {
+  padding: var(--rg-panel-padding);
+  overflow-wrap: anywhere;
+}
+
+.reading__prose > :first-child {
+  margin-block-start: 0;
+}
+
+.reading__prose > :last-child {
+  margin-block-end: 0;
+}
+
+.reading__prose h2 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-family: var(--font-family-title);
+  font-size: var(--type-headline-size);
+  font-weight: 400;
+  line-height: var(--type-headline-line);
+}
+
+.reading__prose h3 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--type-body-size);
+  font-weight: 600;
+  line-height: var(--type-body-line);
+}
+
+.reading__prose :is(p, li) {
+  color: var(--color-fg-muted);
+}
+
+.reading__prose p {
+  margin: 0 0 var(--space-2);
+}
+
+.reading__prose :is(ul, ol) {
+  margin: 0 0 var(--space-2);
+  padding-inline-start: var(--space-3);
+}
+
+.reading__prose a {
+  color: var(--color-fg);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.reading__prose strong {
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.reading__prose code {
+  font-family: var(--font-family-mono);
+  font-size: var(--type-code-size);
+  line-height: var(--type-code-line);
+}
+
+.reading__prose pre {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.reading__prose table {
+  display: block;
+  max-inline-size: 100%;
+  margin: 0 0 var(--space-2);
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.reading__prose :is(th, td) {
+  padding: var(--space-1);
+  border: 1px solid var(--hairline);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: normal;
+}
+
+/* A table's last column holds the values (a web address, a contract address), so a
+   long one wraps there rather than pushing the table past its column. */
+.reading__prose td:last-child {
+  overflow-wrap: anywhere;
+}
+
+/* Each cell starts with its column's name, shown only when the rows stand as cards. */
+.reading__prose td > span:first-child {
+  display: none;
+}
+
+/* Under 768px each table row stands as a card, with every column's name beside
+   its value. */
+@media (max-width: 47.99rem) {
+  .reading__prose :is(table, tbody, tr, td) {
+    display: block;
+  }
+
+  .reading__prose table {
+    overflow: visible;
+  }
+
+  .reading__prose thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .reading__prose tr {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: 1px solid var(--hairline);
+  }
+
+  .reading__prose tr + tr {
+    border-block-start: 0;
+  }
+
+  .reading__prose td {
+    display: grid;
+    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+    gap: var(--space-2);
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .reading__prose td > span:first-child {
+    display: block;
+    color: var(--color-fg-muted);
+  }
+}
+
+/* On the narrowest phones the column's name stands above its value, so a long
+   value keeps the card's whole width and never breaks inside a word. */
+@media (max-width: 29.99rem) {
+  .reading__prose td {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    overflow-wrap: break-word;
+  }
+}
+
+}
+}
