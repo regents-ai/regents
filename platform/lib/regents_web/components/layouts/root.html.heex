@@ -4,6 +4,11 @@
 <%!-- A page may name its own share picture (`share_image`: its url, size and alt, as a
      published Result does); every other page shows the site's for its address. --%>
 <% share_image = assigns[:share_image] || metadata.share_image %>
+<%!-- A product's page may also name its own canonical address (`canonical`, a whole url,
+     as an older changelog page does) and its own schema.org graph (`structured_data`);
+     every other page has its address and the site's graph. --%>
+<% canonical = assigns[:canonical] || metadata.canonical %>
+<% structured_data = assigns[:structured_data] || RegentsWeb.PublicDocuments.structured_data() %>
 <%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
 <% shell? =
   assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
@@ -22,7 +27,7 @@
     <Regent.AgentMetadata.head
       title={metadata.title}
       description={metadata.description}
-      canonical={metadata.canonical}
+      canonical={canonical}
       site_name="Regents Labs"
       site_type="business"
       image={share_image.url}
@@ -34,7 +39,7 @@
       agent_guide={~p"/llms.txt"}
       sitemap={~p"/sitemap.xml"}
       service_description={~p"/openapi.json"}
-      structured_data={RegentsWeb.PublicDocuments.structured_data()}
+      structured_data={structured_data}
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content={@theme || "dark light"} />
@@ -73,7 +78,7 @@
     {@inner_content}
     <Regent.Structure.confirm />
     <.product_links :if={
-      !home? and !shell? and @site_product not in ~w(techtree keyfleet autolaunch)
+      !home? and !shell? and @site_product not in ~w(techtree keyfleet autolaunch patchbay)
     } />
   </body>
 </html>
