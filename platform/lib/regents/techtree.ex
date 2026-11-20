@@ -10,6 +10,6 @@ defmodule Regents.Techtree do
   """
   use Boundary, top_level?: true, deps: [Regents], exports: [ModelClimb, Train.Comparisons]
 
-  @doc "Always `:ok`: Techtree has no facts of its own on this site yet. Not used yet."
+  @doc "Always `:ok`: Techtree has no facts of its own on this site yet (`Regents.Products.health/0`)."
   def health, do: :ok
 end

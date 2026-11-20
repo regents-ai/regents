@@ -29,7 +29,7 @@ defmodule Regents.Stake do
   defdelegate available_claims(snapshot), to: Regents.Stake.Actions
   defdelegate parse_amount(value), to: Regents.Stake.Actions
 
-  @doc "`:ok` when the latest staking reading from Base is stored. Not used yet."
+  @doc "`:ok` when the latest staking reading from Base is stored (`Regents.Products.health/0`)."
   def health do
     if Regents.Stake.SnapshotCache.snapshot(), do: :ok, else: {:error, :no_snapshot}
   end

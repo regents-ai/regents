@@ -1,6 +1,8 @@
 defmodule Regents.Release do
   @moduledoc false
-  use Boundary, top_level?: true, deps: [Regents, RegentsWeb, Regents.LocalDatabaseFixture]
+  use Boundary,
+    top_level?: true,
+    deps: [Regents, RegentsWeb, Regents.Products, Regents.LocalDatabaseFixture]
 
   @app :regents
   @deployment_role_variable "REGENTS_DEPLOYMENT_ROLE"
@@ -26,16 +28,6 @@ defmodule Regents.Release do
     {:regent_points, "regent_points", RegentPoints.Migrator},
     {:regent_payments, "regent_payments", RegentPayments.Migrator}
   ]
-
-  # Every product folded into this site, with the schema its tables live in. Each
-  # keeps its own migrations (`priv/<product>/migrations`) and its own ledger
-  # (`<schema>.schema_migrations`) beside this site's own, all on `Regents.Repo`.
-  @products [{"techtree", "techtree_app"}]
-
-  @doc false
-  # `mix ash.codegen` (`Mix.Tasks.Regents.Codegen`) writes each product's
-  # migrations into its own folder.
-  def products, do: @products
 
   def migration_config!, do: Regents.DatabaseConfig.release_config!()
 
@@ -288,12 +280,14 @@ defmodule Regents.Release do
     result
   end
 
-  # This site's own schema and migrations first, then each folded product's.
+  # This site's own schema and migrations first, then each folded product's
+  # (`Regents.Products.schemas/0`): its own migrations (`priv/<product>/migrations`)
+  # and its own ledger (`<schema>.schema_migrations`), all on `Regents.Repo`.
   defp areas(repo) do
     [
       {repo.default_prefix(), Application.app_dir(@app, "priv/repo/migrations")}
       | for(
-          {product, schema} <- @products,
+          {product, schema} <- Regents.Products.schemas(),
           do: {schema, Application.app_dir(@app, "priv/#{product}/migrations")}
         )
     ]

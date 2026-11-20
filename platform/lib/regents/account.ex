@@ -27,7 +27,7 @@ defmodule Regents.Account do
       PublicIdentity
     ]
 
-  @doc "`:ok` when the site's database answers. Not used yet."
+  @doc "`:ok` when the site's database answers (`Regents.Products.health/0`)."
   def health do
     if Regents.Health.database_ready?(), do: :ok, else: {:error, :database_unavailable}
   end

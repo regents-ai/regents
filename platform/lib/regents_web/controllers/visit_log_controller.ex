@@ -8,8 +8,9 @@ defmodule RegentsWeb.VisitLogController do
   - `step` `sign_in_opened`: a Sign in button was pressed.
 
   Each line is checked against the names, routes and outcomes the page can send;
-  anything else is dropped. The answer is the same whatever was sent, and nothing
-  is stored.
+  anything else is dropped. A post names the page it comes from (`page`, its
+  path), and its lines carry that page's `product`; a post without one writes
+  nothing. The answer is the same whatever was sent, and nothing is stored.
   """
   use RegentsWeb, :controller
 
@@ -18,13 +19,20 @@ defmodule RegentsWeb.VisitLogController do
   @most 20
   @name ~r/\A[a-z][a-z0-9_]{0,63}\z/
 
-  def create(conn, params) do
-    Logger.metadata(actor: VisitLog.actor(conn.assigns[:current_human_account]))
+  def create(conn, %{"page" => "/" <> _ = page} = params) do
+    Logger.metadata(
+      actor: VisitLog.actor(conn.assigns[:current_human_account]),
+      product: Regents.Products.for_path(page)
+    )
 
     for line <- lines(params, conn.host), do: write(line)
-
-    conn |> put_resp_header("cache-control", "no-store") |> send_resp(:no_content, "")
+    answer(conn)
   end
+
+  def create(conn, _params), do: answer(conn)
+
+  defp answer(conn),
+    do: conn |> put_resp_header("cache-control", "no-store") |> send_resp(:no_content, "")
 
   @doc "The lines of a post worth writing, as `{name, where, outcome}`."
   def lines(%{"lines" => lines}, host) when is_list(lines),

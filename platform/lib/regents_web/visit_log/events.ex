@@ -92,9 +92,16 @@ defmodule RegentsWeb.VisitLog.Events do
   def handle([:phoenix, :live_component, :handle_event, ending], measurements, metadata, _config),
     do: pressed(metadata.component, ending, measurements, metadata)
 
-  # A job runs in its own process; its lines say so, and carry no visit.
-  def handle([:oban, :job, :start], _measurements, _metadata, _config),
-    do: Logger.metadata(surface: "job", visit: nil, actor: nil)
+  # A job runs in its own process; its lines say so, carry no visit, and belong to
+  # its worker's product.
+  def handle([:oban, :job, :start], _measurements, %{job: job}, _config),
+    do:
+      Logger.metadata(
+        surface: "job",
+        visit: nil,
+        actor: nil,
+        product: Regents.Products.for_module(job.worker)
+      )
 
   def handle([:oban, :job, _ending], %{duration: duration}, %{job: job, state: state}, _config),
     do: VisitLog.record("job", VisitLog.short(job.worker), state, ms(duration))

@@ -18,8 +18,10 @@ defmodule Regents.Redeem do
   # stepper and its hint copy; the wallet steps never consult it.
   defdelegate next_step(facts, signer), to: Regents.Redeem.Actions
 
-  @doc "`:ok` when the redemption reading from Base answers. Not used yet."
-  def health do
-    with {:ok, _facts} <- overview(), do: :ok
-  end
+  @doc """
+  Always `:ok`: Redeem keeps no reading on this site (each page reads Base when it
+  opens), and a health read buys no chain read. Base answering for regents.sh is
+  Stake's stored reading (`Regents.Stake.health/0`).
+  """
+  def health, do: :ok
 end

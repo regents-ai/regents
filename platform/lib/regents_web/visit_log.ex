@@ -5,9 +5,9 @@ defmodule RegentsWeb.VisitLog do
   (ash-template's docs/logging-replay-plan.md).
 
   Every line carries the same few fields and nothing else: in production the
-  JSON formatter writes only the `visit`, `actor`, `surface`, `request_id` and
-  `event` metadata (config/runtime.exs), and `record/4` keeps only an event's
-  name, where it happened, its outcome and how long it took. Free text never
+  JSON formatter writes only the `visit`, `actor`, `surface`, `product`,
+  `request_id` and `event` metadata (config/runtime.exs), and `record/4` keeps
+  only an event's name, where it happened, its outcome and how long it took. Free text never
   reaches a line: names, routes and tool names come from the site's own code or
   from a short header checked against a pattern, and anything else is written as
   `other`.
@@ -22,6 +22,12 @@ defmodule RegentsWeb.VisitLog do
     say `x-regent-client: webmcp/<tool>`; Regents CLI says
     `regents-cli/<version> <command>`. An API call that names neither but
     carries a visit is the page's own script, so it is `page`.
+  - `product`: the product the line belongs to, by name from `Regents.Products`:
+    `regents` for everything that is regents.sh's own, else `cloak`, `techtree`
+    and so on. A request takes it from its address (`/techtree/...`,
+    `/api/v1/techtree/...`); a page takes its first render's, then its own
+    address each time that changes; the browser's own lines take the page they
+    report from; a job takes its worker's namespace (`Regents.Techtree.*`).
 
   A `tool.call` line also names its `client`: `webmcp`, `regents-cli/<version>`,
   another program's `<name>/<version>` as its `x-regent-client` gave them,
@@ -86,7 +92,7 @@ defmodule RegentsWeb.VisitLog do
   }
 
   @doc "The metadata a production line carries (config/runtime.exs)."
-  def fields, do: [:request_id, :visit, :actor, :surface, :event]
+  def fields, do: [:request_id, :visit, :actor, :surface, :product, :event]
 
   @doc "The named steps of the shared journey."
   def steps, do: @steps
@@ -191,11 +197,13 @@ defmodule RegentsWeb.VisitLog do
     {conn, visit} = if gpc, do: {forget(conn), nil}, else: visit(conn, surface)
     # Only a browser sends Global Privacy Control, so its API calls are its page's own.
     surface = if surface == "agent_http" and (visit || gpc), do: "page", else: surface
-    Logger.metadata(visit: visit, surface: surface)
+    product = Regents.Products.for_path(conn.request_path)
+    Logger.metadata(visit: visit, surface: surface, product: product)
     Process.put(@gpc, gpc)
 
     conn
     |> assign(:visit, visit)
+    |> assign(:product, product)
     |> assign(:gpc, gpc)
     |> put_private(:visit_log_client, client)
     |> put_private(:visit_log_caller, caller(conn, surface))
@@ -320,14 +328,23 @@ defmodule RegentsWeb.VisitLog do
   # (RegentsWeb.Live.Session.render_context/1). A page the router opened writes
   # a `page` line when it opens and each time its address changes, whether or not
   # it handles params itself; a view drawn inside another page is part of that page.
-  # The first page of a visit writes its `arrival` line first. The page keeps the
-  # session it was drawn with across moves to other pages and reconnects, so only
-  # the first connection of the page as loaded writes it: a reconnect counts
-  # `_mounts` above 0, and a move to another page names the page it left.
+  # The first page of a visit writes its `arrival` line first. Its `product` is its
+  # first render's until the page reads its own address, and is read again each
+  # time that changes (a connected mount cannot learn its address; see
+  # RegentsWeb.Live.Session). The page keeps the session it was drawn with across
+  # moves to other pages and reconnects, so only the first connection of the page
+  # as loaded writes its `arrival`: a reconnect counts `_mounts` above 0, and a
+  # move to another page names the page it left.
   def on_mount(:default, _params, session, socket) do
     visit = session["visit"]
 
-    Logger.metadata(visit: visit, surface: "page", actor: actor(socket.assigns[:access_context]))
+    Logger.metadata(
+      visit: visit,
+      surface: "page",
+      product: session["product"],
+      actor: actor(socket.assigns[:access_context])
+    )
+
     Process.put(@gpc, session["gpc"] == true)
 
     socket =
@@ -349,8 +366,10 @@ defmodule RegentsWeb.VisitLog do
   end
 
   defp page(_params, uri, socket) do
+    %URI{path: path, host: host} = URI.parse(uri)
+    Logger.metadata(product: Regents.Products.for_path(path))
+
     if Phoenix.LiveView.connected?(socket) do
-      %URI{path: path, host: host} = URI.parse(uri)
       Logger.metadata(actor: actor(socket.assigns[:access_context]))
       route = route(socket.router, "GET", path, host)
       if arrival = socket.assigns.arrival, do: record("arrival", route, arrival)

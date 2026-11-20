@@ -1,8 +1,9 @@
 defmodule Mix.Tasks.Regents.Codegen do
   @moduledoc """
   `mix ash.codegen`, once for regents.sh's own domains and once for each folded
-  product's (`Regents.Release.products/0`), so each keeps its migrations and
-  snapshots in its own folders (`priv/repo/` and `priv/<product>/`). Takes
+  product with tables of its own (`Regents.Products.schemas/0`), so each keeps
+  its migrations and snapshots in its own folders (`priv/repo/` and
+  `priv/<product>/`). Takes
   `ash.codegen`'s arguments; `mix ash.codegen` runs this.
   """
   use Boundary, classify_to: Regents.Release
@@ -17,7 +18,7 @@ defmodule Mix.Tasks.Regents.Codegen do
     domains = Application.fetch_env!(:regents, :ash_domains)
 
     products =
-      for {product, _schema} <- Regents.Release.products() do
+      for {product, _schema} <- Regents.Products.schemas() do
         namespace = ["Regents", Macro.camelize(product)]
         {product, Enum.filter(domains, &(Enum.take(Module.split(&1), 2) == namespace))}
       end

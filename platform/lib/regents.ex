@@ -27,6 +27,7 @@ defmodule Regents do
       SharedReading,
       SiteTools,
       Updates,
+      Account,
       Account.AccessContext,
       Account.AccessContext.AccountControl,
       Account.Accounts,

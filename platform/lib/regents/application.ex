@@ -33,6 +33,8 @@ defmodule Regents.Application do
         RegentsWeb.PaperProDaily.Feed,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
+        # Each product's health read for /api/v1/health, unlinked from the request.
+        {Task.Supervisor, name: Regents.Products.Health},
         database_child(),
         {Phoenix.PubSub, name: Regents.PubSub},
         # After the repository and PubSub: a pairing or the staking figures

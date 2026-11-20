@@ -219,7 +219,7 @@ config :esbuild,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :visit, :actor, :surface, :event]
+  metadata: [:request_id, :visit, :actor, :surface, :product, :event]
 
 # Failed requests, pages and jobs are saved in the site's own schema and shown
 # to the site's admins at /admin/errors. Only server faults, and only a job's last

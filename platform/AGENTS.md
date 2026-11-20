@@ -22,6 +22,21 @@ again from it and moving that commit.
 
 ## Adding a product
 
+- Add one entry to the list in `products/0` in `lib/regents/products.ex`, the one list of
+  products: its lowercase name, the `health/0` of its core, and its schema (or
+  `nil`), with its core in that module's Boundary `deps`. The name is its address (`/<name>` for pages, `/api/v1/<name>` for its
+  API) and its namespace (`Regents.<Name>`). From that entry `/api/v1/health`
+  reports it under `products`, every visit line from its addresses and jobs
+  carries `product: "<name>"`, and the release walks its schema. Anything not
+  under a product's address is `regents`.
+- Its core's `health/0` answers `:ok` or `{:error, reason}` from what the site
+  already holds (a stored reading, a database read): never a call to another
+  service. The health page asks every product at once and cuts each off at one
+  second; a product that fails, raises or is slow reads `unavailable` alone,
+  and the answer stays 200 (`RegentsWeb.HealthController`).
+- `data-brand` is a different word: the look a page wears, in design-system's
+  vocabulary (`platform`, `techtree`, ...). regents.sh's own pages and Cloak's
+  wear `platform`; a product with its own look uses its name as its brand.
 - Core, `lib/regents/<product>.ex`:
   `use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [...]`
   (drop `Regents.Chain` if it reads no chain). It may use the site core and, through
@@ -60,7 +75,7 @@ A folded product's tables stay in its own schema of the one database (Techtree's
 
 - Its resources say `schema "<product>_app"` and `repo Regents.Repo`, keep their table
   names, and its domains are in `config :regents, ash_domains` under `Regents.<Product>.*`.
-- Add `{"<product>", "<product>_app"}` to `@products` in `lib/regents/release.ex`.
+- Give its entry in `lib/regents/products.ex` `schema: "<product>_app"`.
   `bin/migrate`, `bootstrap-staging`, `mix regents.setup_local_auth` and
   `bin/pending-migrations` then walk it after `regents_app`, each schema with its own
   `<schema>.schema_migrations`; `pending-migrations` names every entry as schema and version.

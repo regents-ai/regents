@@ -7450,3 +7450,35 @@ seasons), on the shared Points library regents.sh was already on.
   `regents-staging-db`, stopping when idle. It holds its own database address and
   session key and public values only; the staging role cannot reach the live
   database. `platform/docs/operations/staging-venue.md` describes it.
+
+## 2026-11-20 — one-site branch: health and visit lines per product (not released)
+
+- One list of the products the site serves, the list in `products/0` in
+  platform/lib/regents/products.ex (`Regents.Products`): `regents` (regents.sh's
+  own Account, Stake and Redeem), `cloak` and `techtree`, each with its core's
+  `health/0` and its own schema. The release's migrations and `mix ash.codegen`
+  read it in place of `@products` in platform/lib/regents/release.ex, which is gone.
+- `GET /api/v1/health` adds `products`, each product `ok` or `unavailable` from its
+  own `health/0`, all asked at once and each cut off at one second
+  (`Task.Supervisor.async_stream_nolink` under `Regents.Products.Health`). `status`
+  is `ok` only when every product is, else `degraded`, and the answer stays 200
+  while the database answers, so a product fault reads as that product, never as
+  the site down; a database that does not answer is still 503. `/healthz` is
+  unchanged. The OpenAPI JSON specification is now version 7.1.0.
+- Redeem's `health/0` no longer reads Base (three to four chain calls on an open
+  address); it is `:ok`, and Base answering for regents.sh is Stake's stored reading.
+- Every visit line carries `product`, from the same list: a request by its address
+  (`/techtree/...`, `/api/v1/techtree/...`, else `regents`), a page by its first
+  render and then its own address each time it changes, the browser's own lines by
+  the page they come from (visit_log.ts now sends its path; a post without one
+  writes nothing), and a job by its worker's namespace.
+- `data-brand` stays as it is: it names the look in design-system's vocabulary,
+  whose `platform` tokens regents.sh's and Cloak's pages wear, so renaming it to
+  `regents` would drop those tokens. "Adding a product" in platform/AGENTS.md
+  describes both words.
+- No route, migration, Oban queue or cron, secret or wallet code changed. Two
+  lines near sign-in: `RegentsWeb.Live.Session.render_context/1` passes the page's
+  `product` to its LiveView as it already passes `visit`, and `Regents` now exports
+  `Regents.Account` itself (whose only function is `health/0`) so the product list
+  can ask it. `config/config.exs` adds `product` to the development console's
+  log metadata.

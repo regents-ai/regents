@@ -35,6 +35,7 @@ defmodule RegentsWeb.Live.Session do
     |> Map.put("render_route", local_route(conn.request_path, conn.query_string))
     |> Map.put("client_tag", RegentsWeb.ClientAddress.tag(conn))
     |> Map.put("visit", conn.assigns.visit)
+    |> Map.put("product", conn.assigns.product)
     |> Map.put("arrival", conn.assigns[:arrival])
     |> Map.put("gpc", conn.assigns.gpc)
   end

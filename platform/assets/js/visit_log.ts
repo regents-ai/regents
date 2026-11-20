@@ -1,8 +1,9 @@
 // The few visit lines only the browser can see (RegentsWeb.VisitLogController):
 // a script error, a page tool's call that got no answer, a wallet press that
 // never reached the site, and a press on a Sign in button. They wait together and go in one post when the page is
-// hidden or five seconds after the first, at most 20 at a time. Nothing else
-// about the page is sent: an error is named by its page alone, never its message.
+// hidden or five seconds after the first, at most 20 at a time, with the page's
+// path, which names the product they belong to. Nothing else about the page is
+// sent: an error is named by its page alone, never its message.
 
 export type VisitLine =
   | {name: "page.error"; where: string; outcome: "error" | "unhandledrejection"}
@@ -37,7 +38,7 @@ function send(): void {
     keepalive: true,
     credentials: "same-origin",
     headers: {"content-type": "application/json", "x-csrf-token": csrf},
-    body: JSON.stringify({lines: waiting.splice(0)}),
+    body: JSON.stringify({page: window.location.pathname, lines: waiting.splice(0)}),
   }).catch(() => undefined)
 }
 

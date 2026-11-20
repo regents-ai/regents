@@ -5,6 +5,6 @@ defmodule Regents.Cloak do
   """
   use Boundary, top_level?: true
 
-  @doc "Always `:ok`: Cloak has no facts of its own on this site yet. Not used yet."
+  @doc "Always `:ok`: Cloak has no facts of its own on this site yet (`Regents.Products.health/0`)."
   def health, do: :ok
 end
