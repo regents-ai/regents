@@ -7621,3 +7621,21 @@ seasons), on the shared Points library regents.sh was already on.
   notebooks (`notebooks.keyfleet.ai`). No migration, queue, scheduled job, secret,
   signer or wallet code changed. regents.sh's and Techtree's pages and regents.sh's
   documents answer as before; `/api/v1/health` also lists Keyfleet.
+
+## 2026-11-20 — one-site branch: design-system 69dbffa (not released)
+
+- **Pin.** design-system `c9071e2c` to `69dbffa`, the commit the Keyfleet site took.
+- **Points page.** A large total no longer runs into Today or pushes Rank off the
+  card: Today, Yesterday and Rank move to the next line when there is no room, and a
+  total longer than seven digits steps its size down to fit. On a narrow leaderboard
+  the pictures hide, a long name or wallet ends in an ellipsis before it reaches
+  "You", and a long rank widens its square instead of running into the row. With
+  ordinary figures the page looks as before.
+- **Addresses.** A name or wallet address inside a line of words now sits on that
+  line instead of dropping below it, on every page that shows one.
+- **Status word.** The shared status word now writes only the word showing. No
+  regents.sh page uses it (Techtree's service page draws its own), so nothing changes
+  and `app.ts` does not load its new script.
+- The palette blocks Keyfleet's pages copy are the same at both commits, so
+  `assets/css/keyfleet/tokens/palette.css` is unchanged. No route, migration,
+  setting, secret or wallet code changed.
