@@ -4,9 +4,9 @@ defmodule RegentsWeb.Techtree.SiteMenu do
 
   The header has one menu, Services: the four services
   (`RegentsWeb.Techtree.Services`) with Security and Swarm Verify set apart beside
-  them, each with a Lucide icon and one short line. The footer lists the
-  services, Techtree's changelog with the site's own pages, and the files to
-  hand an agent, in columns, by name.
+  them, each with a Lucide icon and one short line. Docs is a plain link beside it.
+  The footer lists the services, Techtree's Docs and changelog with the site's own
+  pages, and the files to hand an agent, in columns, by name.
   """
 
   use RegentsWeb, :verified_routes
@@ -28,6 +28,10 @@ defmodule RegentsWeb.Techtree.SiteMenu do
     ]
   end
 
+  @doc "The header's plain links beside the Services menu, by name and address."
+  @spec links() :: [link()]
+  def links, do: [link("Docs", ~p"/techtree/docs")]
+
   @doc "The footer's columns, each page by name and address."
   @spec footer() :: [column(link())]
   def footer do
@@ -41,6 +45,8 @@ defmodule RegentsWeb.Techtree.SiteMenu do
         )
       ),
       column("site", "Site", [
+        link("Docs", ~p"/techtree/docs"),
+        link("Run locally", ~p"/techtree/docs/run-locally"),
         link("Changelog", ~p"/techtree/changelog"),
         link("About", ~p"/about"),
         link("Buy $REGENT", @buy_regent)
@@ -50,7 +56,9 @@ defmodule RegentsWeb.Techtree.SiteMenu do
         link("agents.md", ~p"/agents.md"),
         link("llms.txt", ~p"/llms.txt"),
         link("capabilities.json", ~p"/capabilities.json"),
-        link("openapi.json", ~p"/openapi.json")
+        link("openapi.json", ~p"/openapi.json"),
+        link("Public API", ~p"/techtree/docs/api"),
+        link("Browser agents", ~p"/techtree/docs/browser-agents")
       ])
     ]
   end

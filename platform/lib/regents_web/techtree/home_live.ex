@@ -4,8 +4,8 @@ defmodule RegentsWeb.Techtree.HomeLive do
   tools the work is built on; the four services as cards with their price
   levels and the tools each uses under their status (`RegentsWeb.Techtree.Services`);
   Factory, the four things a first run on Prime Intellect's Model Factory
-  needs, in order, each with the service that delivers it, then Model
-  Factory's own page; the demonstrations, every
+  needs, in order, each with the service that delivers it, then the guide
+  (`/techtree/docs/factory`) and Model Factory's own page; the demonstrations, every
   published comparison side by side (`Regents.Techtree.Train.Comparisons`), each with
   its two figures, its verdict, its page and the Skill's own links, whatever
   the verdict; how a project runs, in
@@ -14,7 +14,8 @@ defmodule RegentsWeb.Techtree.HomeLive do
   from `Services.libraries/0` so the two never differ; and Contact: a last
   Book Call and an email.
 
-  The page reads no database. The moving parts are the hooks in
+  The page's own parts read no database; only the header reads the visitor's
+  account (`RegentsWeb.Live.Session`). The moving parts are the hooks in
   `assets/js/techtree/marketing`; every one of them starts from the page as
   the server drew it, which is whole and still.
   """
@@ -196,6 +197,9 @@ defmodule RegentsWeb.Techtree.HomeLive do
           <p>{@factory_after}</p>
           <p class="mk-factory__note">{@factory_note}</p>
           <p class="mk-links">
+            <.link navigate={~p"/techtree/docs/factory"} class="text-link">
+              Guide <span aria-hidden="true">→</span>
+            </.link>
             <a href={@model_factory} class="text-link" rel="noopener">
               Model Factory <span aria-hidden="true">↗</span>
             </a>

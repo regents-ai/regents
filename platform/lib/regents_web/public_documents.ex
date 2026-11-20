@@ -261,7 +261,7 @@ defmodule RegentsWeb.PublicDocuments do
   end
 
   def metadata(path, title, description) do
-    suffix = if path in ["/", "/paper-pro-daily"], do: "", else: " · #{@site_name}"
+    suffix = title_suffix(path)
 
     %{
       title: title <> suffix,
@@ -274,6 +274,12 @@ defmodule RegentsWeb.PublicDocuments do
       markdown?: path in documents()
     }
   end
+
+  # A Techtree page's title ends in Techtree's name, as on techtree.sh.
+  defp title_suffix(path) when path in ["/", "/paper-pro-daily"], do: ""
+  defp title_suffix("/techtree"), do: " · Techtree"
+  defp title_suffix("/techtree/" <> _page), do: " · Techtree"
+  defp title_suffix(_path), do: " · #{@site_name}"
 
   defp documents, do: @documents ++ AgentGuides.paths() ++ TechtreeDocuments.paths()
 

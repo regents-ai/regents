@@ -7567,3 +7567,30 @@ seasons), on the shared Points library regents.sh was already on.
   `/api/v1/health`, which says whether a release is being served, in place of
   `/healthz`. `/healthz` is unchanged.
 - No route, migration, setting, secret or wallet code changed.
+
+## 2026-11-20 — one-site branch: Techtree's header, footer and first pages match techtree.sh (not released)
+
+- Techtree's header now has the Docs link, the theme switch and this site's Sign in,
+  in the places techtree.sh shows them. Signed in, it shows the person's picture,
+  name and Sign out, with the theme switch beside them; techtree.sh's account menu
+  (agents, Pair New Agent, Manage Account) is not here yet.
+- With `TECHTREE_BOOK_CALL_URL` set, Book Call shows in the header, on every page
+  that has it on techtree.sh, and as the home page's first button. Unset, no
+  Techtree page shows it, as before. platform/.env.example documents the setting.
+- The footer adds Run locally, Public API and Browser agents. The home page's
+  Factory section adds Guide, linking to `/techtree/docs/factory`.
+- Every Techtree page title ends in "· Techtree", as on techtree.sh.
+- Each training page has its Report section again, with the report to download.
+  `/techtree/train.json` lists every comparison, and
+  `/techtree/train/:slug/report.json` serves each report, byte for byte as
+  techtree.sh serves them.
+- The three starter Skills the catalog names are served at
+  `/api/v1/techtree/objects/:digest`, byte for byte as techtree.sh serves them.
+  Before, they answered 404. Every answer from that address now carries a content
+  policy under which nothing can run, as on techtree.sh. The catalog, bootstrap and
+  climb addresses and all of regents.sh's own pages keep their headers.
+- Left out for now: the Results link (it comes with the Network work), the GitHub
+  star count (it needs a cache kept running), the Blog link (regents.sh has its own
+  blog), and the enquiry form (it needs Techtree's team inbox).
+- No migration, queue, scheduled job, secret, signer or wallet code changed.
+  regents.sh's own pages, header, footer and titles are unchanged.

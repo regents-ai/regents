@@ -308,7 +308,7 @@ defmodule RegentsWeb.Router do
     live_session :techtree,
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Techtree.Layouts, :app},
-      on_mount: [{RegentsWeb.Techtree.Layouts, :page}] do
+      on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Techtree.Layouts, :page}] do
       live "/", HomeLive
       live "/changelog", ChangelogLive
       live "/services/skills", ServiceLive, :skills

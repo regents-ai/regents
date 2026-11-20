@@ -1,10 +1,14 @@
 defmodule RegentsWeb.Techtree.Layouts do
   @moduledoc """
   The frame every Techtree page is read inside, within the site's one root
-  document. The header holds the name, the Services menu
-  (`RegentsWeb.Techtree.SiteMenu`), the project source and Book Call; below a
-  wide screen they fold into one Menu sheet. The footer lists the services,
-  the site's pages and the agent links in columns, with the legal pages.
+  document. The header holds the name, the Services menu and the Docs link
+  (`RegentsWeb.Techtree.SiteMenu`), the project source, the theme switch with
+  the site's account control (`RegentsWeb.Components.Shell`), and Book Call;
+  below a wide screen the menu and the link fold into one Menu sheet. Signed in,
+  the account control is the person's picture and name with Sign out, as the
+  site draws it where there is no account menu, and the theme switch stays
+  beside it. The footer lists the services, the site's pages and the agent
+  links in columns, with the legal pages.
 
   `app/1` is the layout of the Techtree scope's pages; `on_mount(:page, ...)`
   gives each live page the address the header marks and the description the
@@ -13,6 +17,8 @@ defmodule RegentsWeb.Techtree.Layouts do
 
   use RegentsWeb, :html
 
+  alias Regents.Account.AccessContext.AccountControl
+  alias RegentsWeb.Components.Shell
   alias RegentsWeb.Techtree.Components.BookCall
   alias RegentsWeb.Techtree.DocsGuides
   alias RegentsWeb.Techtree.Services
@@ -21,6 +27,7 @@ defmodule RegentsWeb.Techtree.Layouts do
   @repository_url "https://github.com/regents-ai/techtree"
 
   attr :current_path, :string, required: true
+  attr :account_control, AccountControl, required: true
   attr :inner_content, :any, required: true
 
   @doc "The frame: the skip link, the header and the page under it."
@@ -30,7 +37,7 @@ defmodule RegentsWeb.Techtree.Layouts do
       Skip to main content
     </a>
     <Regent.Structure.frame class="techtree-frame">
-      <.masthead current_path={@current_path} />
+      <.masthead current_path={@current_path} account_control={@account_control} />
       {@inner_content}
     </Regent.Structure.frame>
     """
@@ -68,6 +75,7 @@ defmodule RegentsWeb.Techtree.Layouts do
   end
 
   attr(:current_path, :string, required: true)
+  attr(:account_control, AccountControl, required: true)
 
   # Services is a button and the popover it opens: the browser closes it on
   # Escape or a press outside it, and puts its links next in the Tab order.
@@ -77,7 +85,8 @@ defmodule RegentsWeb.Techtree.Layouts do
     assigns =
       assign(assigns,
         repository_url: @repository_url,
-        services: SiteMenu.services()
+        services: SiteMenu.services(),
+        links: SiteMenu.links()
       )
 
     ~H"""
@@ -101,6 +110,15 @@ defmodule RegentsWeb.Techtree.Layouts do
                 <.menu_columns columns={@services} place="menu" current_path={@current_path} />
               </div>
             </li>
+            <li :for={link <- @links}>
+              <a
+                class="masthead__link"
+                href={link.href}
+                aria-current={current?(link.href, @current_path) && "page"}
+              >
+                {link.name}
+              </a>
+            </li>
           </ul>
         </nav>
         <div class="masthead__end">
@@ -115,6 +133,12 @@ defmodule RegentsWeb.Techtree.Layouts do
             <.github_logo class="masthead__github-logo" />
             <span class="masthead__github-label">Star</span>
           </a>
+          <div class="masthead__account">
+            <div id="account-menu-control" class="account-menu-control">
+              <Shell.theme_toggle id="site-theme-switch" />
+              <Shell.account_control account_control={@account_control} menu={false} />
+            </div>
+          </div>
           <BookCall.book_call class="masthead__book" />
           <button
             type="button"
@@ -132,6 +156,17 @@ defmodule RegentsWeb.Techtree.Layouts do
           <div class="sheet__group">
             <.menu_columns columns={@services} place="sheet" current_path={@current_path} />
           </div>
+          <ul class="sheet__group sheet__links">
+            <li :for={link <- @links}>
+              <a
+                class="sheet__link"
+                href={link.href}
+                aria-current={current?(link.href, @current_path) && "page"}
+              >
+                {link.name}
+              </a>
+            </li>
+          </ul>
           <div class="sheet__end">
             <a href={@repository_url} target="_blank" rel="noopener noreferrer" class="text-link">
               <.github_logo class="sheet__github" /> GitHub
