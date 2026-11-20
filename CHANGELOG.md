@@ -7515,3 +7515,16 @@ seasons), on the shared Points library regents.sh was already on.
 - No Oban queue or cron, no process, no secret, no new migration, and no change to
   regents.sh's migrations, snapshots or ledger; sign-in, session and wallet code
   unchanged. The agent documents and `capabilities.json` are unchanged.
+
+## 2026-11-20 — one-site branch: the health check counts each product's migrations (not released)
+
+- `GET /api/v1/health` answers `migrations_applied: false` while any migration
+  this release carries is unapplied in regents.sh's own schema or in a product's
+  own (`techtree_app` today), where before it read only regents.sh's own. The
+  answer stays 200 either way, and `/healthz` is unchanged.
+- One list of the areas the release migrates, `Regents.Products.migration_areas/0`,
+  and one read-only ledger read, `Regents.Repo.migrations/3` (no lock, never
+  creates a ledger), now serve the health check and the release's `migrate`,
+  `pending-migrations` and `bootstrap-staging` alike.
+- No route, migration, setting, secret or wallet code changed; the API
+  description and public documents already describe the answer this way.

@@ -44,6 +44,22 @@ defmodule Regents.Products do
       for(%{name: name, schema: schema} when is_binary(schema) <- products(), do: {name, schema})
 
   @doc """
+  Every area of the database this release migrates, as `{schema, migrations folder}`,
+  in the order they apply: regents.sh's own (`regents_app`, `priv/repo/migrations`),
+  then each product's from `schemas/0` (`priv/<name>/migrations`), each with its
+  own ledger `<schema>.schema_migrations`.
+  """
+  def migration_areas do
+    [
+      {Regents.Repo.default_prefix(), Application.app_dir(:regents, "priv/repo/migrations")}
+      | for(
+          {name, schema} <- schemas(),
+          do: {schema, Application.app_dir(:regents, "priv/#{name}/migrations")}
+        )
+    ]
+  end
+
+  @doc """
   The product an address belongs to: the first part of its path, or the part
   after `/api/v1/`, when that is a product's name; otherwise `regents`.
   """

@@ -3,7 +3,8 @@ defmodule RegentsWeb.HealthController do
   Whether the site and its own database answer: `/healthz` in plain text for the
   host's health check, `/api/v1/health` in JSON for Sentinel and the command line.
 
-  The JSON also says whether this release's migrations are all applied, and how
+  The JSON also says whether this release's migrations are all applied, in the
+  site's own schema and each product's (`Regents.Products.migration_areas/0`), and how
   each product answers (`Regents.Products.health/0`): `products` maps every
   product's name to `ok` or `unavailable`, and `status` is `ok` only when all are,
   else `degraded`. While the database answers the status code stays 200, whatever
@@ -33,7 +34,7 @@ defmodule RegentsWeb.HealthController do
 
       json(conn, %{
         status: if(Enum.all?(Map.values(products), &(&1 == "ok")), do: "ok", else: "degraded"),
-        migrations_applied: Health.migrations_applied?(),
+        migrations_applied: Health.migrations_applied?(Products.migration_areas()),
         products: products
       })
     else

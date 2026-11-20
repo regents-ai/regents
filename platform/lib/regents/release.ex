@@ -197,7 +197,8 @@ defmodule Regents.Release do
           do: raise(@missing_migration_table_error)
 
         areas =
-          for {schema, path} <- areas(repo), do: {schema, disagreements(repo, schema, path)}
+          for {schema, path} <- Regents.Products.migration_areas(),
+              do: {schema, disagreements(repo, schema, path)}
 
         [
           {"pending", for({schema, {pending, _}} <- areas, v <- pending, do: "#{schema} #{v}")},
@@ -217,18 +218,11 @@ defmodule Regents.Release do
   end
 
   # The versions in `path` the schema's ledger lacks, and the versions it holds
-  # with no file in `path`. A read only: with its table creation skipped and no
-  # migration lock the migrator just selects the ledger. A schema whose ledger
-  # does not exist yet has had none of its changes applied.
+  # with no file in `path` (`Regents.Repo.migrations/3`, a read only). A schema
+  # whose ledger does not exist yet has had none of its changes applied.
   defp disagreements(repo, schema, path) do
     if table_exists?(repo, schema, migration_source(repo)) do
-      migrations =
-        Ecto.Migrator.migrations(repo, [path],
-          prefix: schema,
-          skip_table_creation: true,
-          migration_lock: false
-        )
-
+      migrations = repo.migrations(path, schema)
       carried = carried_versions(path)
 
       {for({:down, version, _name} <- migrations, do: version),
@@ -281,7 +275,8 @@ defmodule Regents.Release do
   defp refuse_existing_state!(repo) do
     source = migration_source(repo)
 
-    for {schema, _path} <- areas(repo), table_exists?(repo, schema, source) do
+    for {schema, _path} <- Regents.Products.migration_areas(),
+        table_exists?(repo, schema, source) do
       raise "#{schema}.#{source} already exists: destroy and recreate the staging database"
     end
 
@@ -311,19 +306,11 @@ defmodule Regents.Release do
     result
   end
 
-  # This site's own schema and migrations first, then each folded product's
-  # (`Regents.Products.schemas/0`): its own migrations (`priv/<product>/migrations`)
-  # and its own ledger (`<schema>.schema_migrations`), all on `Regents.Repo`.
-  defp areas(repo) do
-    [
-      {repo.default_prefix(), Application.app_dir(@app, "priv/repo/migrations")}
-      | for(
-          {product, schema} <- Regents.Products.schemas(),
-          do: {schema, Application.app_dir(@app, "priv/#{product}/migrations")}
-        )
-    ]
+  # This site's own schema first, then each folded product's, all on `Regents.Repo`
+  # (`Regents.Products.migration_areas/0`).
+  defp migrate_areas!(repo) do
+    Enum.each(Regents.Products.migration_areas(), fn {schema, path} ->
+      repo.migrate!(path, schema)
+    end)
   end
-
-  defp migrate_areas!(repo),
-    do: Enum.each(areas(repo), fn {schema, path} -> repo.migrate!(path, schema) end)
 end

@@ -34,4 +34,18 @@ defmodule Regents.Repo do
     Ecto.Adapters.SQL.query!(__MODULE__, "CREATE SCHEMA IF NOT EXISTS #{schema}", [])
     Ecto.Migrator.run(__MODULE__, path, :up, all: true, prefix: schema)
   end
+
+  @doc """
+  Every migration in `path` as `{:up | :down, version, name}`, by what
+  `<schema>.schema_migrations` records. A read only: no lock, and the ledger is
+  never created, so a schema without one raises. `opts` go to
+  `Ecto.Migrator.migrations/3`.
+  """
+  def migrations(path, schema, opts \\ []) do
+    Ecto.Migrator.migrations(
+      __MODULE__,
+      [path],
+      Keyword.merge([prefix: schema, skip_table_creation: true, migration_lock: false], opts)
+    )
+  end
 end

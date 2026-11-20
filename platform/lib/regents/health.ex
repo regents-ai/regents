@@ -28,20 +28,19 @@ defmodule Regents.Health do
   end
 
   @doc """
-  True when every migration file this release carries is recorded in the site's
-  own schema. It only reads: no lock, and it never creates the ledger. A
-  database that does not answer is `false`.
+  True when every migration file this release carries is recorded in its area's
+  own ledger. `areas` is `Regents.Products.migration_areas/0`, the site's own
+  schema and each product's; the caller passes it, since the product list depends
+  on this module's boundary and not the other way. It only reads: no lock, and it
+  never creates a ledger. A database that does not answer, or an area without a
+  ledger, is `false`.
   """
-  def migrations_applied? do
-    Regents.Repo
-    |> Ecto.Migrator.migrations([Application.app_dir(:regents, "priv/repo/migrations")],
-      prefix: Regents.Repo.default_prefix(),
-      skip_table_creation: true,
-      migration_lock: false,
-      timeout: 1_000,
-      log: false
-    )
-    |> Enum.all?(&match?({:up, _version, _name}, &1))
+  def migrations_applied?(areas) do
+    Enum.all?(areas, fn {schema, path} ->
+      path
+      |> Regents.Repo.migrations(schema, timeout: 1_000, log: false)
+      |> Enum.all?(&match?({:up, _version, _name}, &1))
+    end)
   rescue
     _error -> false
   catch
