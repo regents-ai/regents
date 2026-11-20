@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* The Project's two views, Board and Graph, each a small window; the open
    one stands firmer. */

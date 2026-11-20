@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* Whether keys are present (KeyfleetWeb.Components.PresenceCard): the rule
    for idle keys, each key on its own line with when its presence lapses, the

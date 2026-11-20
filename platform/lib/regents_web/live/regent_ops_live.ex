@@ -64,6 +64,9 @@ defmodule RegentsWeb.RegentOpsLive do
     }
   ]
 
+  @doc "The six products' cards, in the site's order; the home page shows the same words."
+  def products, do: @products
+
   # The hero (RegentsWeb.Components.LabBlocks) places each product and Sign-in
   # with Agent in its scene itself.
   @map_products Enum.map(@products, &Map.take(&1, [:name, :tint, :href]))

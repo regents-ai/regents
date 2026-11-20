@@ -1,6 +1,6 @@
 // Keyfleet's frame (`RegentsWeb.Keyfleet.Components.Shell`): its phone menu, its
 // keyboard, where each page starts and the bar while the next one loads. The page
-// stays Keyfleet's (`data-brand="keyfleet"`), which its stylesheets are scoped to.
+// stays Keyfleet's (`data-product="keyfleet"`), which its stylesheets are scoped to.
 
 import {composeHooks, type Hook} from "../hook_composition"
 import {ShellViews} from "../hooks/motion/reveals"

@@ -199,6 +199,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :cloak
     },
     %Entry{
+      path_pattern: "/siwa",
+      live_action: :siwa,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :siwa
+    },
+    %Entry{
       path_pattern: "/admin/articles",
       live_action: :articles_admin,
       parameter_schema: %{},
@@ -276,7 +283,20 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     cloak:
       {:cloak, :regent_ops, "Regents Labs", "Cloak", "/app", [:profile_actions], :regents_labs,
-       %{}}
+       %{}},
+    siwa: {:siwa, :regent_ops, "Regents Labs", "SIWA", "/app", [], :regents_labs, %{}}
+  }
+
+  # The product each page belongs to (`Regent.Site.products/0`): Regents, unless named
+  # here. The root layout marks the page with it, and a sidebar link to another
+  # product's page loads that page in full.
+  @products %{
+    techtree: "techtree",
+    stake: "protocol",
+    autolaunch: "autolaunch",
+    patchbay: "patchbay",
+    cloak: "cloak",
+    siwa: "siwa"
   }
 
   # The Account pages are tabs of one another.
@@ -295,6 +315,9 @@ defmodule RegentsWeb.RouteCatalog do
     validate_params!(entry, params)
     build_spec(entry.route_spec_id, params)
   end
+
+  @doc "The product of the page a sidebar entry or route id names."
+  def product(route_id), do: Map.get(@products, route_id, "regents")
 
   def design_handoff do
     json =
@@ -329,6 +352,7 @@ defmodule RegentsWeb.RouteCatalog do
 
     %Spec{
       route_id: route_id,
+      product: product(route_id),
       destination: destination(action, params),
       app_id: app_id,
       app_display_label: app_label,
@@ -388,6 +412,7 @@ defmodule RegentsWeb.RouteCatalog do
       "page_display_label" => spec.page_display_label,
       "parameter_schema" => entry.parameter_schema,
       "path_pattern" => entry.path_pattern,
+      "product" => spec.product,
       "reserved_values" => entry.reserved_values,
       "route_id" => spec.route_id,
       "scroll_policy" => spec.scroll_policy,

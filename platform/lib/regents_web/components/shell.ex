@@ -8,15 +8,19 @@ defmodule RegentsWeb.Components.Shell do
   the theme switch, Manage Account and Sign out. Pair New Agent opens the pairing
   window (the `pairing_panel` slot) over the page; the agents are on the Agents
   page, and everything else about the account is on the Account page. Signed
-  out, with no account menu, the header has the theme switch and Sign in.
+  out, with no account menu, the bar has the theme switch and Sign in.
 
-  The top bar's nine-dot button opens the Regents Products menu, and the
-  footer's button the list of tools agents see.
+  The bar at the top is the site's (`site_bar/1`): the crown, the product's
+  menu of every Regents product, and the account. The footer's button opens the
+  list of tools agents see. On a phone, Menu opens the sidebar.
   """
 
   use Phoenix.Component
 
-  alias RegentsWeb.Components.{AgentTools, RegentLinks}
+  alias Regents.Account.AccessContext.AccountControl
+  alias RegentsWeb.Components.AgentTools
+
+  alias RegentsWeb.RouteCatalog
 
   alias RegentsWeb.RouteCatalog.{
     PageTarget,
@@ -25,18 +29,8 @@ defmodule RegentsWeb.Components.Shell do
     ViewerProfileTarget
   }
 
-  # The Regents Products, each shown with the crown in its own pair of brand
-  # colours. The other sites open in a new tab; this site's own page does not.
-  @regents_apps [
-    %{name: "Patchbay", href: "https://patchbay.help", tone: "patchbay", away?: true},
-    %{name: "Autolaunch", href: "https://autolaunch.sh", tone: "autolaunch", away?: true},
-    %{name: "Techtree", href: "https://techtree.sh", tone: "techtree", away?: true},
-    %{name: "Keyfleet", href: "https://keyfleet.ai", tone: "keyfleet", away?: true},
-    %{name: "$REGENT Staking", href: "/stake", tone: "protocol", away?: false}
-  ]
-
   attr(:route_spec, :map, required: true)
-  attr(:account_control, Regents.Account.AccessContext.AccountControl, required: true)
+  attr(:account_control, AccountControl, required: true)
   attr(:shell_instance, :integer, required: true)
 
   slot(:content, required: true)
@@ -55,7 +49,7 @@ defmodule RegentsWeb.Components.Shell do
     ~H"""
     <div
       id="app-shell"
-      class="rg-sheet rg-frame"
+      class="rg-sheet"
       phx-hook="ShellBehavior"
       data-app={@route_spec.app_id}
       data-variant={RegentsWeb.Motion.standard("tabs")}
@@ -66,70 +60,45 @@ defmodule RegentsWeb.Components.Shell do
       data-shell-instance={@shell_instance}
     >
       <a class="shell-skip" href="#route-content">Skip to content</a>
-      <header id="shell-header">
-        <.link id="shell-brand" class="shell-brand" href="/" aria-label="Regents Labs home">
-          <span class="shell-brand__mark" aria-hidden="true">
-            <img
-              class="shell-brand__mark-light"
-              src="/images/brand/regents-crown-flat-light.svg"
-              alt=""
-            />
-            <img
-              class="shell-brand__mark-dark"
-              src="/images/brand/regents-crown-flat-dark.svg"
-              alt=""
-            />
-          </span>
-          <span class="shell-brand__name">Regents Labs</span>
-        </.link>
+      <.site_bar product={@route_spec.product} account_control={@account_control} menu>
+        <:account_menu :if={@account_control.kind == :signed_in}>
+          <Regent.Account.menu
+            id="account-menu"
+            name={@account_control.label}
+            wallet={@account_control.wallet}
+            ens_name={@account_control.ens_name}
+            manage_href="/account"
+            pair_window="shell-pairing"
+          >
+            <:picture>
+              <img
+                :if={@account_control.avatar_src}
+                src={@account_control.avatar_src}
+                referrerpolicy="no-referrer"
+                width="40"
+                height="40"
+                alt=""
+              />
+            </:picture>
+            <:agents>{render_slot(@agents)}</:agents>
+            <:theme>
+              <span class="shell-theme-label" aria-hidden="true">Light theme</span>
+              <.theme_toggle id="account-menu-theme" />
+            </:theme>
+          </Regent.Account.menu>
+        </:account_menu>
+      </.site_bar>
 
-        <Regent.Primitives.button
-          variant="quiet"
-          id="mobile-menu-button"
-          class="mobile-menu-button"
-          type="button"
-          aria-controls="shell-sidebar"
-          aria-expanded="false"
-        >
-          Menu
-        </Regent.Primitives.button>
-
-        <span class="shell-spacer" />
-        <.theme_toggle :if={@account_control.kind != :signed_in} id="theme-control" />
-        <div class="rl-header-links">
-          <RegentLinks.header_links id="shell-token-menu" />
-        </div>
-
-        <.apps_menu />
-
-        <.account_control account_control={@account_control} />
-
-        <Regent.Account.menu
-          :if={@account_control.kind == :signed_in}
-          id="account-menu"
-          name={@account_control.label}
-          wallet={@account_control.wallet}
-          ens_name={@account_control.ens_name}
-          manage_href="/account"
-          pair_window="shell-pairing"
-        >
-          <:picture>
-            <img
-              :if={@account_control.avatar_src}
-              src={@account_control.avatar_src}
-              referrerpolicy="no-referrer"
-              width="40"
-              height="40"
-              alt=""
-            />
-          </:picture>
-          <:agents>{render_slot(@agents)}</:agents>
-          <:theme>
-            <span class="shell-theme-label" aria-hidden="true">Light theme</span>
-            <.theme_toggle id="account-menu-theme" />
-          </:theme>
-        </Regent.Account.menu>
-      </header>
+      <Regent.Primitives.button
+        variant="quiet"
+        id="mobile-menu-button"
+        class="mobile-menu-button"
+        type="button"
+        aria-controls="shell-sidebar"
+        aria-expanded="false"
+      >
+        Menu
+      </Regent.Primitives.button>
 
       <Regent.Structure.dialog
         :if={@pairing_panel != []}
@@ -208,7 +177,7 @@ defmodule RegentsWeb.Components.Shell do
         <main id="route-content">
           {render_slot(@content)}
         </main>
-        <RegentsWeb.Layouts.product_links agent_tools theme={false} />
+        <RegentsWeb.Layouts.product_links agent_tools />
       </div>
 
       <AgentTools.dialog id="shell-agent-tools" />
@@ -216,7 +185,38 @@ defmodule RegentsWeb.Components.Shell do
     """
   end
 
-  attr :account_control, Regents.Account.AccessContext.AccountControl, required: true
+  attr :product, :string, required: true, doc: "the page's product, one of `Regent.Site`'s"
+  attr :account_control, AccountControl, required: true
+
+  attr :menu, :boolean,
+    default: false,
+    doc: """
+    Signed in, the name opens the account menu, given in `account_menu`; the theme
+    switch is then in that menu. Without it the bar shows the theme switch, the
+    name and Sign out.
+    """
+
+  slot :links, doc: "the product's own links"
+  slot :account_menu, doc: "`Regent.Account.menu`, when `menu` is on and someone is signed in"
+
+  @doc """
+  The site's bar (`Regent.Site.bar`) on every page: the crown, the product's menu of
+  every Regents product, the product's links, and the account control.
+  """
+  def site_bar(assigns) do
+    ~H"""
+    <Regent.Site.bar id="site-bar" product={@product}>
+      <:links :if={@links != []}>{render_slot(@links)}</:links>
+      <:account>
+        <.theme_toggle :if={!@menu or @account_control.kind != :signed_in} id="theme-control" />
+        <.account_control account_control={@account_control} menu={@menu} />
+        {render_slot(@account_menu)}
+      </:account>
+    </Regent.Site.bar>
+    """
+  end
+
+  attr :account_control, AccountControl, required: true
   attr :enabled, :boolean, default: true
 
   attr :menu, :boolean,
@@ -420,14 +420,17 @@ defmodule RegentsWeb.Components.Shell do
 
   attr(:target, :map, required: true)
   attr(:route_spec, :map, required: true)
-  attr(:account_control, Regents.Account.AccessContext.AccountControl, required: true)
+  attr(:account_control, AccountControl, required: true)
 
+  # A link to another product's page loads it in full, so the page wears that
+  # product's look (`data-product` is written once, when the page loads).
   defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
-    assigns = assign(assigns, :target, target)
+    assigns = assign(assigns, target: target, away?: away?(assigns.route_spec, target.route_id))
 
     ~H"""
     <.link
-      patch={@target.path}
+      href={@target.path}
+      patch={if !@away?, do: @target.path}
       aria-current={if current?(@route_spec, @target.path), do: "page"}
     >
       {@target.label}
@@ -436,21 +439,27 @@ defmodule RegentsWeb.Components.Shell do
   end
 
   defp sidebar_target(%{target: %PageTarget{} = target} = assigns) do
-    assigns = assign(assigns, :target, target)
+    assigns = assign(assigns, target: target, away?: away?(assigns.route_spec, target.route_id))
 
     ~H"""
     <.link
-      navigate={@target.path}
+      href={@target.path}
+      navigate={if !@away?, do: @target.path}
       aria-current={if @route_spec.destination == @target.path, do: "page"}
     >{@target.label}</.link>
     """
   end
 
   defp sidebar_target(%{target: %ViewerProfileTarget{} = target} = assigns) do
-    assigns = assign(assigns, :target, target)
+    assigns =
+      assign(assigns, target: target, away?: away?(assigns.route_spec, :regent_profile))
 
     ~H"""
-    <.link :if={@account_control.profile_path} patch={@account_control.profile_path}>
+    <.link
+      :if={@account_control.profile_path}
+      href={@account_control.profile_path}
+      patch={if !@away?, do: @account_control.profile_path}
+    >
       {@target.label}
     </.link>
     """
@@ -469,12 +478,14 @@ defmodule RegentsWeb.Components.Shell do
 
   defp visible_sidebar_target?(_target, _account_control), do: true
 
+  defp away?(route_spec, route_id), do: RouteCatalog.product(route_id) != route_spec.product
+
   # A sidebar entry is current on its own page and on every tab of that page,
   # so Account stays marked on Agents, Points, Wallets, Connections and Names.
   defp current?(route_spec, path),
     do: path in [route_spec.destination | Enum.map(route_spec.tabs, & &1.path)]
 
-  attr :account_control, Regents.Account.AccessContext.AccountControl, required: true
+  attr :account_control, AccountControl, required: true
 
   # The account's picture and name. The `profile` marker tells the browser the
   # page was drawn for a signed-in account.
@@ -491,37 +502,6 @@ defmodule RegentsWeb.Components.Shell do
       alt=""
     />
     <span class="account-name" data-account-target="profile">{@account_control.label}</span>
-    """
-  end
-
-  # The browser opens and closes the panel itself (`popover`), so it closes on
-  # Escape or a press anywhere else, and a page update never shuts it.
-  defp apps_menu(assigns) do
-    assigns = assign(assigns, :apps, @regents_apps)
-
-    ~H"""
-    <button
-      id="shell-apps-button"
-      class="shell-tool"
-      type="button"
-      popovertarget="shell-apps"
-      aria-label="Regents Products"
-    >
-      <Regent.Icons.icon name="grip" class="shell-icon shell-icon--apps" />
-    </button>
-    <nav id="shell-apps" class="shell-apps" popover aria-labelledby="shell-apps-title">
-      <h2 id="shell-apps-title">Regents Products</h2>
-      <ul>
-        <li :for={app <- @apps}>
-          <a href={app.href} target={app.away? && "_blank"} rel={app.away? && "noopener"}>
-            <span class="shell-apps__tile" data-tone={app.tone}>
-              <RegentLinks.source_icon kind={:regent} />
-            </span>
-            <span>{app.name}</span>
-          </a>
-        </li>
-      </ul>
-    </nav>
     """
   end
 end

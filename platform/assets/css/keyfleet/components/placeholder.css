@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* Grey bars standing in for figures still on their way. */
 .kf-placeholder {
   display: grid;

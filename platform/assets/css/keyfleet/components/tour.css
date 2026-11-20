@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* The guided tour (`KeyfleetWeb.Components.Tour`, hooks/tour.ts): a layer
    over the whole screen, in the tip's place, that takes no presses; only its

@@ -18,6 +18,7 @@
 @import "./components/lab_blocks.css";
 @import "./components/tour.css";
 @import "./pages/home.css";
+@import "./pages/home_pictures.css";
 @import "./pages/legal.css";
 @import "./pages/admin_pictures.css";
 @import "./pages/literature.css";
@@ -39,9 +40,10 @@
 @import "./keyfleet/index.css";
 
 /* The page itself, its height and its footer are regents.sh's only on its own pages
-   (`data-brand="platform"`); Techtree's pages set their own and share the footer's
-   class names. `:where` keeps each rule's weight as it was. */
-:root:where([data-brand="platform"]) {
+   (`data-brand="platform"`, but not Keyfleet's); Techtree's and Keyfleet's pages set
+   their own and share the footer's class names. `:where` keeps each rule's weight as
+   it was. */
+:root:where([data-brand="platform"]:not([data-product="keyfleet"])) {
   color-scheme: light dark;
   --radius-sm: 0px;
   --radius-md: 0px;
@@ -55,8 +57,8 @@
   box-sizing: border-box;
 }
 
-html:where([data-brand="platform"]),
-:where([data-brand="platform"]) body {
+html:where([data-brand="platform"]:not([data-product="keyfleet"])),
+:where([data-brand="platform"]:not([data-product="keyfleet"])) body {
   height: 100%;
   margin: 0;
 }
@@ -168,7 +170,7 @@ input:focus-visible,
 }
 
 /* The footer of every public page and the app's pages (`Layouts.product_links/1`). */
-:where([data-brand="platform"]) {
+:where([data-brand="platform"]:not([data-product="keyfleet"])) {
   .regent-footer {
     display: flex;
     flex-wrap: wrap;
@@ -207,13 +209,13 @@ input:focus-visible,
 /* On touch screens every press is at least 44px each way; a link inside a sentence
    keeps the sentence's line, and a box to tick keeps its label as its press. */
 @media (hover: none), (pointer: coarse) {
-  :where([data-brand="platform"]) #app-shell :is(a:not(p a), button, summary, select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"])) { min-height: 2.75rem; }
-  :where([data-brand="platform"]) #app-shell :is(a:not(p a), button, summary) { min-width: 2.75rem; }
-  :where([data-brand="platform"]) #app-shell .shell-skip { display: inline-flex; align-items: center; }
+  :where([data-brand="platform"]:not([data-product="keyfleet"])) #app-shell :is(a:not(p a), button, summary, select, input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"])) { min-height: 2.75rem; }
+  :where([data-brand="platform"]:not([data-product="keyfleet"])) #app-shell :is(a:not(p a), button, summary) { min-width: 2.75rem; }
+  :where([data-brand="platform"]:not([data-product="keyfleet"])) #app-shell .shell-skip { display: inline-flex; align-items: center; }
   .docs-crumbs a { display: inline-flex; align-items: center; }
-  :where([data-brand="platform"]) .regent-footer__social { gap: 0; }
-  :where([data-brand="platform"]) .regent-footer__social > a { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
-  :where([data-brand="platform"]) .regent-footer__links a { min-width: 2.75rem; }
+  :where([data-brand="platform"]:not([data-product="keyfleet"])) .regent-footer__social { gap: 0; }
+  :where([data-brand="platform"]:not([data-product="keyfleet"])) .regent-footer__social > a { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
+  :where([data-brand="platform"]:not([data-product="keyfleet"])) .regent-footer__links a { min-width: 2.75rem; }
 }
 
 /* A public page fills the screen with its footer, so the footer sits at the foot of

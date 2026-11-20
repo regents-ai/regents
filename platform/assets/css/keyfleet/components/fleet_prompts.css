@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* Pair and Mark present under a fleet's tabs: one row, side by side when
    both show, with the pairing box opening under it, and Schedule under that.
    With nothing showing, a Schedule hidden as it is put away included, it

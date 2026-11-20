@@ -104,6 +104,9 @@ config :regents, ecto_repos: [Regents.Repo]
 # The commit and Fly image a deployed machine runs; production sets both at boot.
 config :regents, :build, %{commit: nil, release: nil}
 
+# The home colour every page carries as `data-home`: "ink", "tangerine" or "blue".
+config :regents, :home_colour, "ink"
+
 # Background jobs live in the site's own schema, beside its tables. Queues hear
 # about new jobs through Erlang process groups, across the site's machines.
 # AshOban adds each trigger's sweep to `cron`. `points` checks and awards Points;

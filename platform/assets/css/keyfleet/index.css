@@ -1,11 +1,10 @@
 /* Keyfleet's stylesheets, as keyfleet.ai orders them (regents-ai/keyfleet
    platform/assets/css/app.css, SOURCE.json). Each file is wrapped in
-   `@scope (:root[data-brand="keyfleet"])`, so it applies only to a page the
-   Keyfleet scope marks; a scoped rule keeps its own specificity and wins over
-   an unscoped rule of the same specificity. Regent UI's tokens and primitives
-   come from the site's own app.css; the platform palette keyfleet.ai's pages
-   wear comes first (tokens/palette.css), and app.css's own rules last, as there. */
-@import "./tokens/palette.css";
+   `@scope (:root[data-product="keyfleet"])`, so it applies only to a Keyfleet
+   page; a scoped rule keeps its own specificity and wins over an unscoped rule
+   of the same specificity. Regent UI's tokens and primitives, with the platform
+   palette keyfleet.ai's pages wear (`data-brand="platform"`), come from the
+   site's own app.css, and app.css's own rules last, as there. */
 @import "./tokens/root.css";
 @import "./components/shell.css";
 @import "./components/theme_switch.css";

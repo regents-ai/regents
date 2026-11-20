@@ -14,7 +14,7 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.RequireArticleAdmin
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
-    plug :put_brand, "platform"
+    plug :put_product, "regents"
     plug RegentsWeb.Plugs.LaunchGate
     plug :protect_from_forgery
 
@@ -48,7 +48,7 @@ defmodule RegentsWeb.Router do
     plug :enforce_session_authority
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
-    plug :put_brand, "platform"
+    plug :put_product, "regents"
     plug :protect_from_forgery
 
     # Reading only: these pages never start sign-in, so they send no referrer.
@@ -82,20 +82,20 @@ defmodule RegentsWeb.Router do
     plug :fetch_live_flash
     plug RegentsWeb.Plugs.Theme
     plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
-    plug :put_brand, "platform"
+    plug :put_product, "regents"
   end
 
   # Techtree's pages: the page is Techtree's (its palette and stylesheets), read
   # inside Techtree's own frame (RegentsWeb.Techtree).
   pipeline :techtree do
-    plug :put_brand, "techtree"
+    plug :put_product, "techtree"
     plug :put_layout, html: {RegentsWeb.Techtree.Layouts, :app}
   end
 
   # Keyfleet's pages: the page is Keyfleet's (its stylesheets), read inside
   # Keyfleet's own frame (RegentsWeb.Keyfleet).
   pipeline :keyfleet do
-    plug :put_brand, "keyfleet"
+    plug :put_product, "keyfleet"
     plug :put_layout, html: {RegentsWeb.Keyfleet.Layouts, :app}
   end
 
@@ -103,9 +103,10 @@ defmodule RegentsWeb.Router do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
 
-  # The product a page belongs to, which the root layout puts on the page as
-  # `data-brand`: it selects the product's palette and stylesheets.
-  def put_brand(conn, brand), do: assign(conn, :brand, brand)
+  # The product a page belongs to, one of `Regent.Site.products/0`'s ids. The root
+  # layout puts it on the page as `data-product`, with its brand (`data-brand`) and
+  # the home colour (`data-home`). A shell page names its own (`RouteCatalog`).
+  def put_product(conn, product), do: assign(conn, :site_product, product)
 
   if Application.compile_env(:regents, :local_showcase, false) do
     # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
@@ -118,7 +119,7 @@ defmodule RegentsWeb.Router do
       plug :fetch_live_flash
       plug RegentsWeb.Plugs.Theme
       plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
-      plug :put_brand, "platform"
+      plug :put_product, "regents"
       plug :protect_from_forgery
 
       # The showcase includes the sign-in window and frames its own preview.
@@ -308,6 +309,7 @@ defmodule RegentsWeb.Router do
       live "/patchbay", ShellLive, :patchbay
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
+      live "/siwa", ShellLive, :siwa
       live "/admin/articles", ShellLive, :articles_admin
     end
   end

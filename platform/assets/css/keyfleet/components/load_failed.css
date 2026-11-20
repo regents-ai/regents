@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* The two ways on from a page that couldn't be read: side by side, and
    stacked on a phone when they don't fit. */
 .load-failed__actions {

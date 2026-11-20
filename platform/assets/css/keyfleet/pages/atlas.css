@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* A fleet's Atlas: one hairline panel holding its heading, the window and
    kind chosen, and the picture with the strip of the most active things

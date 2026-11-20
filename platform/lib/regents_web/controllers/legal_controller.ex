@@ -2,6 +2,7 @@ defmodule RegentsWeb.LegalController do
   @moduledoc "Serves the public Privacy Policy and Terms of Use."
 
   use RegentsWeb, :controller
+  alias RegentsWeb.Live.Session
   alias RegentsWeb.PublicDocuments
 
   def privacy(conn, _params), do: show(conn, :privacy)
@@ -9,7 +10,14 @@ defmodule RegentsWeb.LegalController do
 
   defp show(conn, id) do
     document = Regents.Legal.document(id)
-    render(conn, :show, [document: document] ++ PublicDocuments.page(conn.request_path))
+    account_control = conn |> get_session() |> Session.account_control()
+
+    render(
+      conn,
+      :show,
+      [document: document, account_control: account_control] ++
+        PublicDocuments.page(conn.request_path)
+    )
   end
 end
 
@@ -18,11 +26,13 @@ defmodule RegentsWeb.LegalHTML do
 
   use RegentsWeb, :html
 
+  alias RegentsWeb.Components.Shell
+
   def show(assigns) do
     ~H"""
+    <Shell.site_bar product="regents" account_control={@account_control} />
     <div class="rl-root legal-root rg-sheet rg-frame">
       <header class="legal-header">
-        <a href={~p"/"} class="legal-home">Regents Labs</a>
         <nav class="legal-nav" aria-label="Legal">
           <a href={~p"/privacy"} aria-current={if(@document.id == :privacy, do: "page")}>
             Privacy

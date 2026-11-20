@@ -1,63 +1,12 @@
 @scope (:root[data-brand="techtree"]) {
-/* The theme switch and the account control near the right end of the header's
-   one row (`RegentsWeb.Techtree.Layouts`): signed out, the switch beside Sign in;
-   signed in, beside the picture, the name and Sign out. */
-.masthead__account { min-width: 0; }
-/* The template's account-control border token, mixed from Techtree's own ink. */
+/* The account control at the right end of the site's bar is the site's own
+   (`components/shell.css`), so it keeps its size and place on every product. Only
+   the template's account-control border token is Techtree's, mixed from its ink. */
 .account-menu-control {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   --ash-line-strong: color-mix(in oklab, var(--color-fg) 40%, var(--color-border));
 }
-/* On the narrowest phones the header's switch is at its smallest, so the header
-   keeps its one row. */
-@media (max-width: 24rem) {
-  #site-theme-switch {
-    --theme-switch-lens: var(--space-3);
-    --theme-switch-track: var(--space-2);
-    --theme-switch-travel: var(--space-2);
-    --theme-switch-gutter: calc(var(--space-1) / 2);
-  }
-}
-
 .account-auth-status { border-color: var(--ash-line-strong); }
-
-.account-control,
-.account-chip {
-  display: flex;
-  align-items: center;
-}
-/* The site's own header spaces its buttons apart; Techtree's draws them as the
-   shared primitives do. */
-.account-control > .rg-button { margin: 0; font-size: inherit; padding-inline: var(--space-2); }
-
-.account-chip {
-  gap: 0.55rem;
-  min-width: 0;
-  min-height: 2.75rem;
-  max-width: 14rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 0.875rem;
-}
-.account-chip .account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* On a phone the picture stands for the name, which screen readers still hear. */
-@media (max-width: 47.99rem) {
-  .account-chip .account-avatar + .account-name {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-  }
-}
-
-.account-avatar {
-  width: 1.75rem;
-  height: 1.75rem;
-  flex: 0 0 auto;
-  border: 1px solid var(--ash-line-strong);
-}
 }

@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* The small round picture beside an agent's name. */
 .agent-picture {
   inline-size: 1.5rem;

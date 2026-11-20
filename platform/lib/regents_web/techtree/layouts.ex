@@ -1,17 +1,15 @@
 defmodule RegentsWeb.Techtree.Layouts do
   @moduledoc """
   The frame every Techtree page is read inside, within the site's one root
-  document. The header holds the name, the Services menu and the Results and
-  Docs links (`RegentsWeb.Techtree.SiteMenu`), the project source, the theme switch with
-  the site's account control (`RegentsWeb.Components.Shell`), and Book Call;
-  below a wide screen the menu and the links fold into one Menu sheet. Signed in,
-  the account control is the person's picture and name with Sign out, as the
-  site draws it where there is no account menu, and the theme switch stays
-  beside it. The footer lists the services, the site's pages and the agent
-  links in columns, with the legal pages.
+  document. The site's bar (`RegentsWeb.Components.Shell.site_bar/1`) holds
+  Techtree's links, Services, Results and Docs (`RegentsWeb.Techtree.SiteMenu`),
+  the theme switch and the site's account control. Signed in, the account control
+  is the person's picture and name with Sign out, as the site draws it where there
+  is no account menu. The footer lists the services, the site's pages and the
+  agent links in columns, with the legal pages.
 
   `app/1` is the layout of the Techtree scope's pages; `on_mount(:page, ...)`
-  gives each live page the address the header marks and the description the
+  gives each live page the address the bar marks and the description the
   root document carries.
   """
 
@@ -19,32 +17,29 @@ defmodule RegentsWeb.Techtree.Layouts do
 
   alias Regents.Account.AccessContext.AccountControl
   alias RegentsWeb.Components.Shell
-  alias RegentsWeb.Techtree.Components.BookCall
   alias RegentsWeb.Techtree.DocsGuides
   alias RegentsWeb.Techtree.Services
   alias RegentsWeb.Techtree.SiteMenu
-
-  @repository_url "https://github.com/regents-ai/techtree"
 
   attr :current_path, :string, required: true
   attr :account_control, AccountControl, required: true
   attr :inner_content, :any, required: true
 
-  @doc "The frame: the skip link, the header and the page under it."
+  @doc "The frame: the skip link, the bar and the page under it."
   def app(assigns) do
     ~H"""
     <a class="skip-link" href="#main-content">
       Skip to main content
     </a>
+    <.bar current_path={@current_path} account_control={@account_control} />
     <Regent.Structure.frame class="techtree-frame">
-      <.masthead current_path={@current_path} account_control={@account_control} />
       {@inner_content}
     </Regent.Structure.frame>
     """
   end
 
   @doc """
-  Each live page's address, for the header's current link, and its
+  Each live page's address, for the bar's current link, and its
   description, for the root document's head, as the router hands it over.
   """
   def on_mount(:page, _params, _session, socket) do
@@ -77,135 +72,29 @@ defmodule RegentsWeb.Techtree.Layouts do
   attr(:current_path, :string, required: true)
   attr(:account_control, AccountControl, required: true)
 
-  # Services is a button and the popover it opens: the browser closes it on
-  # Escape or a press outside it, and puts its links next in the Tab order.
-  # Below a wide screen the menu and the links give way to Menu, which opens
-  # them in one sheet under the header (`assets/js/techtree/site_menu.ts`).
-  defp masthead(assigns) do
-    assigns =
-      assign(assigns,
-        repository_url: @repository_url,
-        services: SiteMenu.services(),
-        links: SiteMenu.links()
-      )
+  # Services goes to the services on Techtree's home page, and is current on a
+  # service's own page.
+  defp bar(assigns) do
+    assigns = assign(assigns, links: SiteMenu.links())
 
     ~H"""
-    <header class="masthead">
-      <div class="masthead__inner">
-        <a class="masthead__name" href={~p"/techtree"} aria-label="Techtree home">
-          <.mark class="masthead__mark" />
-          <span class="masthead__wordmark">Techtree</span>
+    <Shell.site_bar product="techtree" account_control={@account_control}>
+      <:links>
+        <a
+          href={~p"/techtree" <> "#services"}
+          aria-current={String.starts_with?(@current_path, "/techtree/services/") && "page"}
+        >
+          Services
         </a>
-        <nav class="masthead__nav" aria-label="Primary">
-          <ul class="masthead__groups">
-            <li>
-              <button
-                type="button"
-                class="masthead__trigger"
-                popovertarget="menu-services"
-              >
-                Services <Regent.Icons.icon name="chevron-down" class="masthead__chevron" />
-              </button>
-              <div id="menu-services" class="mega" popover data-mega>
-                <.menu_columns columns={@services} place="menu" current_path={@current_path} />
-              </div>
-            </li>
-            <li :for={link <- @links}>
-              <a
-                class="masthead__link"
-                href={link.href}
-                aria-current={current?(link.href, @current_path) && "page"}
-              >
-                {link.name}
-              </a>
-            </li>
-          </ul>
-        </nav>
-        <div class="masthead__end">
-          <a
-            class="masthead__github"
-            href={@repository_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Star on GitHub"
-            title="regents-ai/techtree on GitHub"
-          >
-            <.github_logo class="masthead__github-logo" />
-            <span class="masthead__github-label">Star</span>
-          </a>
-          <div class="masthead__account">
-            <div id="account-menu-control" class="account-menu-control">
-              <Shell.theme_toggle id="site-theme-switch" />
-              <Shell.account_control account_control={@account_control} menu={false} />
-            </div>
-          </div>
-          <BookCall.book_call class="masthead__book" />
-          <button
-            type="button"
-            class="masthead__menu-button"
-            popovertarget="site-menu"
-            aria-label="Menu"
-          >
-            <Regent.Icons.icon name="menu" class="masthead__menu-open" />
-            <Regent.Icons.icon name="x" class="masthead__menu-close" />
-          </button>
-        </div>
-      </div>
-      <div id="site-menu" class="sheet" popover data-sheet>
-        <nav class="sheet__nav" aria-label="Pages">
-          <div class="sheet__group">
-            <.menu_columns columns={@services} place="sheet" current_path={@current_path} />
-          </div>
-          <ul class="sheet__group sheet__links">
-            <li :for={link <- @links}>
-              <a
-                class="sheet__link"
-                href={link.href}
-                aria-current={current?(link.href, @current_path) && "page"}
-              >
-                {link.name}
-              </a>
-            </li>
-          </ul>
-          <div class="sheet__end">
-            <a href={@repository_url} target="_blank" rel="noopener noreferrer" class="text-link">
-              <.github_logo class="sheet__github" /> GitHub
-            </a>
-            <BookCall.book_call />
-          </div>
-        </nav>
-      </div>
-    </header>
-    """
-  end
-
-  attr :columns, :list, required: true
-  attr :place, :string, required: true, doc: "menu or sheet, so each list keeps an id of its own"
-  attr :current_path, :string, required: true
-
-  defp menu_columns(assigns) do
-    ~H"""
-    <div class="menu-columns">
-      <div
-        :for={column <- @columns}
-        class={["menu-columns__column", "menu-columns__column--#{column.id}"]}
-      >
-        <p class="menu-columns__title" id={"#{@place}-#{column.id}-title"}>{column.title}</p>
-        <ul aria-labelledby={"#{@place}-#{column.id}-title"}>
-          <li :for={page <- column.pages}>
-            <a
-              class="menu-page"
-              href={page.href}
-              aria-current={current?(page.href, @current_path) && "page"}
-            >
-              <Regent.Icons.icon name={page.icon} class="menu-page__icon" />
-              <span class="menu-page__name">{page.name}</span>
-              <span class="menu-page__line">{page.line}</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </div>
+        <a
+          :for={link <- @links}
+          href={link.href}
+          aria-current={current?(link.href, @current_path) && "page"}
+        >
+          {link.name}
+        </a>
+      </:links>
+    </Shell.site_bar>
     """
   end
 
@@ -239,16 +128,6 @@ defmodule RegentsWeb.Techtree.Layouts do
         <rect x="48" y="24" width="10" height="10" />
       </svg>
     </span>
-    """
-  end
-
-  attr :class, :string, required: true
-
-  defp github_logo(assigns) do
-    ~H"""
-    <svg class={@class} viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64.18-1.32.27-2 .27-.68 0-1.36-.09-2-.27-1.53-1.04-2.2-.82-2.2-.82-.44 1.1-.16 1.91-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.61.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A8.013 8.013 0 0 1 0 8c0-4.42 3.58-8 8-8Z" />
-    </svg>
     """
   end
 

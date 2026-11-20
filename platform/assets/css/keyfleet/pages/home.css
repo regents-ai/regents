@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* Homepage-only composition: the hero, with Classic #1's figures and "Buy
    Key". The legal pages share the .rl-root colours and spacing. */
 @layer regents-product {
@@ -21,13 +21,6 @@
   }
   .rl-root :is(h1, h2, h3, p) { margin-block: 0; }
   .rl-root [id] { scroll-margin-block-start: 2rem; }
-  .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
-  .rl-header-links > a:not(.rg-button) { display: inline-grid; place-items: center; }
-  .rl-header-links svg { display: block; width: 1.5rem; height: 1.5rem; }
-  /* Under a finger each brand link is a full finger's size around its 24px mark. */
-  @media (pointer: coarse) {
-    .rl-header-links > a:not(.rg-button) { min-width: 2.75rem; min-height: 2.75rem; }
-  }
 
 
   /* The hero. Wide: the headline, "Explore" and Classic #1's figures in
@@ -321,13 +314,4 @@
     .rl-facts dd { text-align: end; }
   }
 }
-
-/* Outside the layer, because the header's own rules are unlayered. Here the
-   header sits in the page rather than the app's grid, so the brand only fills
-   the bar's height once it lets go of the shared full height: its mark and
-   name then share one middle line with the theme switch and Sign in. Sign in
-   keeps the same room from the frame's right edge as the brand keeps from its
-   left. */
-.rl-root #shell-header .shell-brand { height: auto; }
-.rl-root #shell-header .account-control > .rg-button { margin-inline-end: var(--space-1); }
 }

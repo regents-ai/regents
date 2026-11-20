@@ -35,8 +35,22 @@ again from it and moving that commit.
   second; a product that fails, raises or is slow reads `unavailable` alone,
   and the answer stays 200 (`RegentsWeb.HealthController`).
 - `data-brand` is a different word: the look a page wears, in design-system's
-  vocabulary (`platform`, `techtree`, ...). regents.sh's own pages and Cloak's
-  wear `platform`; a product with its own look uses its name as its brand.
+  vocabulary, always `Regent.Site.brand/1` of the page's product. regents.sh's own
+  pages, Keyfleet, staking, SIWA and Cloak wear `platform`; Techtree wears `techtree`.
+
+### The one-site bar and the page's three attributes
+
+- Every page carries `data-product`, `data-brand` and `data-home` on `<html>`, written
+  in one place, the root layout. The product comes from the router (`put_product` in
+  each pipeline) or, in the app shell, from the route catalog (`RouteCatalog.product/1`);
+  the brand is `Regent.Site.brand/1` of it; `data-home` is the home colour,
+  `config :regents, :home_colour`, with a `?home=` preview marked in
+  `RegentsWeb.Layouts.home_colour/1` until the founder picks one.
+- Every page shows the site's bar, `RegentsWeb.Components.Shell.site_bar/1` around
+  `Regent.Site.bar`: the crown, the product menu, the product's own links (its
+  `links` slot) and the account control. No product draws a header of its own.
+- The root layout is not redrawn by live navigation, so a link from one product's
+  pages to another's is a plain `href` load, never `navigate` or `patch`.
 - Core, `lib/regents/<product>.ex`:
   `use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [...]`
   (drop `Regents.Chain` if it reads no chain). It may use the site core and, through
@@ -54,11 +68,12 @@ A product that keeps its own pages and look, rather than living in the shell, fo
 Techtree (`lib/regents_web/techtree/`):
 
 - One `scope "/<product>"` in the router with its own `live_session`, layout and
-  `on_mount`, and a pipeline that sets `put_brand`. Every other pipeline sets
-  `"platform"`. The root layout writes the brand to `<html data-brand>`, and the
-  regents.sh footer shows only on `"platform"` pages.
+  `on_mount`, and a pipeline that sets `put_product`. Its layout puts the site's bar
+  first, with the product's links in it. The regents.sh footer stays off its pages.
 - Stylesheets in `assets/css/<product>/`, each file wrapped in
-  `@scope (:root[data-brand="<product>"]) { ... }` and imported once from `app.css`.
+  `@scope (:root[data-brand="<product>"]) { ... }` (or `data-product`, when the
+  product wears another product's brand, as Keyfleet does) and imported once from
+  `app.css`.
   Inside the scope a selector is read as a descendant of `<html>`, so a rule for the
   page itself is written `:scope` (not `html` or `:root`), or it never applies.
 - Hooks in `assets/js/<product>/`, merged into the one `app.ts`. Keep a product's
@@ -75,20 +90,17 @@ LiveView that patches between them (`RegentsWeb.Keyfleet.ShellLive`, each page n
 its live action in `RegentsWeb.Keyfleet.RouteCatalog`):
 
 - The frame keeps its own element names, which are also regents.sh's frame's
-  (`#app-shell`, `#shell-header`, `.shell-brand`, the header links and the crown menu).
-  regents.sh's rules for those names sit under `:where([data-brand="platform"])` in
-  `components/shell.css`, `tokens/root.css`, `pages/home.css` and `app.css`: no added
-  weight, same order, and they stay off a product's frame. The sign-in control's rules
+  (`#app-shell`, `#shell-sidebar`, `.mobile-menu-button`). Keyfleet wears the
+  `platform` brand, so its stylesheets are scoped on `data-product="keyfleet"`, and
+  regents.sh's rules for those names sit under
+  `:where([data-brand="platform"]:not([data-product="keyfleet"]))`: no added weight,
+  same order, and they stay off Keyfleet's frame. The sign-in control's rules
   (`.account-control`, `.account-chip`, `.account-name`, `.account-avatar`) stay shared,
-  as every product header uses the site's control.
-- A product header uses the site's theme switch (`Shell.theme_toggle`, with a `class`
-  for its place) and sign-in control (`Shell.account_control menu={false}`).
-- A product whose own site wears another brand's Regent UI palette (keyfleet.ai wears
-  `platform`) copies those blocks into `assets/css/<product>/tokens/palette.css`, read
-  as `:scope[data-brand]` at the same weight. The file goes when Regent UI has the
-  product's palette.
+  as every product's bar holds the site's control.
+- The frame starts with the site's bar (`Shell.site_bar product="keyfleet"`), with no
+  links in it: the sidebar holds Keyfleet's pages, behind Menu on a phone.
 - The frame's hook is the product's (`KeyfleetShell`), composed with the site's
-  `ShellViews`. It never sets the page's brand; the scope does.
+  `ShellViews`. It never sets the page's attributes; the root layout does.
 
 ### A product's carried documents
 

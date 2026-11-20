@@ -3,6 +3,8 @@ import "../vendor/regent_ui/blog.mjs"
 import "../vendor/regent_ui/confirm.mjs"
 // An open pill menu closes on Escape or a tap outside it, iPhones included.
 import "../vendor/regent_ui/pill_select.mjs"
+// The arrow keys of the site bar's product menu (`Regent.Site.bar`).
+import "../vendor/regent_ui/product_menu.mjs"
 import "../vendor/regent_ui/tip.mjs"
 
 import {Socket} from "phoenix"
@@ -20,14 +22,10 @@ import {
   type PinnedSocket,
 } from "./auth_lazy"
 import {
-  brandForShellApp,
   reconcileShellState,
   shellDestinationChanged,
   type ShellState,
 } from "./shell_state"
-import {Datascape} from "./hooks/datascape"
-import {EnterGradient} from "./hooks/enter_gradient"
-import {HomeTokenMenu} from "./hooks/home_token_menu"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
@@ -35,7 +33,6 @@ import {InfoDialog} from "./hooks/info_dialog"
 import {LabBlocks} from "./hooks/lab_blocks"
 import {OnchainSteps} from "./hooks/onchain_steps"
 import {PaperPicks} from "./hooks/paper_picks"
-import {ProductTiles} from "./hooks/product_tiles"
 import {PublicName} from "./hooks/public_name"
 import {SentList} from "./hooks/sent_list"
 import {MenuAgents} from "./hooks/menu_agents"
@@ -55,12 +52,11 @@ import {VerifiedConnections} from "./hooks/verified_connections"
 import {installVisitLog} from "./visit_log"
 import {syncTheme} from "./theme"
 // Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
-// in and figures that count up, the header's Services menu and Menu sheet, the
-// Docs' Copy page control, and the Results page's agent-version strip.
+// in and figures that count up, the Docs' Copy page control, and the Results
+// page's agent-version strip.
 import {AgentVersions} from "./techtree/agent_versions"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
-import {installSiteMenu} from "./techtree/site_menu"
 // Keyfleet's pages (`RegentsWeb.Keyfleet`): their frame, with its phone menu and the
 // bar while the next page loads.
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
@@ -99,7 +95,6 @@ const shellBehavior: Hook = {
       destination: shell.dataset.destination ?? "",
       menuOpen: shell.dataset.menuOpen === "true",
     }
-    root.dataset.brand = brandForShellApp(shell.dataset.app)
     this.shellState = cachedShellState
       ? reconcileShellState(cachedShellState, initialState)
       : initialState
@@ -255,7 +250,6 @@ const shellBehavior: Hook = {
   },
 
   updated(this: ShellHook) {
-    document.documentElement.dataset.brand = brandForShellApp(this.el.dataset.app)
     const incoming = {
       routeId: this.el.dataset.routeId ?? "",
       destination: this.el.dataset.destination ?? "",
@@ -290,10 +284,7 @@ const hooks = {
   AgentVersions,
   CopyCommandPage,
   CopyCommandPageView,
-  Datascape,
   Docs,
-  EnterGradient,
-  HomeTokenMenu,
   InfiniteScroll,
   InfoDialog,
   KeyfleetShell,
@@ -308,7 +299,6 @@ const hooks = {
   MenuAgents,
   OnchainSteps,
   PaperPicks,
-  ProductTiles,
   PublicName,
   ResearchScrollCue,
   SentList,
@@ -347,5 +337,4 @@ installLiteratureChart()
 installShellPanels()
 mountMotion(document)
 mountEntrance(document)
-installSiteMenu()
 window.liveSocket = liveSocket

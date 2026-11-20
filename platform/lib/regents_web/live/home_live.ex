@@ -1,8 +1,10 @@
 defmodule RegentsWeb.HomeLive do
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Components.{AgentTools, RegentLinks}
-  alias RegentsWeb.{PublicDocuments, RouteCatalog}
+  alias RegentsWeb.Components.{AgentTools, RegentLinks, Shell}
+  alias RegentsWeb.Live.Session
+  alias RegentsWeb.{PublicDocuments, RegentOpsLive, RouteCatalog}
+  alias RegentsWeb.Stake.TokenLinks
 
   # The lab's one plain line under its name, and the quieter line under that, on
   # the page and in the agent copy.
@@ -12,8 +14,9 @@ defmodule RegentsWeb.HomeLive do
   @doc "A public text representation saying what the page says, in the page's order."
   def agent_markdown do
     products =
-      Enum.map_join(nav_links(), " · ", fn {label, _id, href, _new_tab?} ->
-        "[#{label}](#{absolute(href)})"
+      Enum.map_join(RegentOpsLive.products(), "\n\n", fn product ->
+        "### #{product.name}\n\n#{product.headline} #{product.line}\n\n" <>
+          "[#{product.action}](#{absolute(product.href)})"
       end)
 
     """
@@ -35,6 +38,12 @@ defmodule RegentsWeb.HomeLive do
 
     #{products}
 
+    ## $REGENT
+
+    #{TokenLinks.address()}
+
+    [Buy on Uniswap](#{TokenLinks.buy()}) · [View Chart](#{TokenLinks.chart()})
+
     © 2026 Regents Labs
     """
   end
@@ -47,121 +56,75 @@ defmodule RegentsWeb.HomeLive do
       "After that, help me use one of the apps: Patchbay, Autolaunch or Keyfleet."
   end
 
-  # The product sites are already full addresses; the staking page is this site's own.
+  # The product sites are already full addresses; the staking and Cloak pages are this
+  # site's own.
   defp absolute("/" <> _ = path), do: PublicDocuments.url(path)
   defp absolute(url), do: url
 
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     {:ok,
      socket
      |> assign(route_spec: RouteCatalog.fetch!(:home))
-     |> assign(RegentsWeb.PublicDocuments.page("/"))}
+     |> assign(account_control: Session.account_control(session))
+     |> assign(PublicDocuments.page("/"))}
   end
 
-  # The datascape fills the window, with one glass panel over it that holds the page.
-  # While the picture can be drawn the page starts black and the picture's panels
-  # open out of it, and the glass panel starts away: pressing a panel in the picture
-  # brings it in, and once it has stood for a moment, flying the picture sends it away
-  # again. Without scripts, without WebGPU, or with less motion asked for, the
-  # server's still picture shows instead and the panel starts open. The crown in the
-  # window's corner opens and closes the panel whenever the page's script runs; without
-  # it, the panel simply stays open. The copyright stands at the window's foot
-  # throughout, under the panel where the two meet.
+  # The page in its window frame: the name as large as the window allows, the two
+  # lines and the two ways in beside it, the opening picture, the agent prompt, a row
+  # for each product on the home colour's slab, $REGENT and the foot. Every colour
+  # is the home colour's (`--rg-home-*`); each picture is a field of dots painted in
+  # it (`pages/home_pictures.css`).
   def render(assigns) do
     assigns =
       assign(assigns,
         mission: @mission,
         mission_note: @mission_note,
-        agent_prompt: agent_prompt()
+        agent_prompt: agent_prompt(),
+        products: RegentOpsLive.products()
       )
 
     ~H"""
-    <div
-      id="public-home"
-      class="rl-root home"
-      phx-hook="Datascape"
-      phx-mounted={JS.ignore_attributes(["data-datascape-ready", "data-datascape-glass-state"])}
-    >
+    <div id="public-home" class="home">
       <a class="shell-skip" href="#home-content">Skip to content</a>
-      <%!-- The homepage is always dark, so the crown is the white one, without the
-           crown's own ground, which would show as a square on the picture. --%>
-      <button
-        id="home-crown"
-        type="button"
-        class="home__crown"
-        aria-label="Menu"
-        aria-controls="home-glass"
-        aria-expanded="true"
-        data-datascape-crown
-        phx-mounted={JS.ignore_attributes(["aria-expanded"])}
-      >
-        <img
-          src={~p"/images/brand/regents-crown-flat-dark-clear.svg"}
-          width="252"
-          height="186"
-          alt=""
-        />
-      </button>
-      <img
-        class="home__still"
-        src={~p"/images/animations/datascape.webp"}
-        width="1600"
-        height="900"
-        alt=""
-        aria-hidden="true"
-      />
-      <div id="home-stage" class="home__stage" phx-update="ignore">
-        <canvas id="home-canvas" data-datascape-canvas aria-hidden="true"></canvas>
-      </div>
-      <p class="home__copyright">© 2026 Regents Labs</p>
+      <Shell.site_bar product="regents" account_control={@account_control} />
+      <div class="home-frame" aria-hidden="true"></div>
 
-      <section
-        id="home-glass"
-        class="home__glass"
-        data-datascape-glass
-        phx-mounted={JS.ignore_attributes(["style"])}
-      >
-        <.landing_header />
+      <main id="home-content" class="home__main">
+        <div class="home__hero">
+          <h1 id="home-title" class="home__name" tabindex="-1">Regents Labs</h1>
+          <div class="home__lead">
+            <div class="home__words">
+              <p>{@mission}</p>
+              <p>{@mission_note}</p>
+            </div>
+            <div class="home__actions">
+              <a id="home-enter" href={~p"/app"} class="rg-button rg-button--no-arrow home__enter">
+                <span class="rg-button__label">Enter App</span>
+              </a>
+              <AgentTools.button
+                id="home-agent-tools-button"
+                dialog="home-agent-tools"
+                class="rg-button rg-button--secondary rg-button--no-arrow home__tools"
+              >
+                <span class="rg-button__label">Agent Tools</span>
+              </AgentTools.button>
+            </div>
+          </div>
+        </div>
 
-        <main id="home-content" class="home__main">
-          <div class="rl-statement">
-            <h1 id="home-title" class="rl-statement__name">Regents Labs</h1>
-            <p class="rl-statement__line">{@mission}</p>
-            <p class="rl-statement__note">{@mission_note}</p>
-          </div>
-          <%!-- Enter App's blue, drawn moving once the browser can; until then, and for
-               less motion, the stage's own flat blue. --%>
-          <div class="home__actions">
-            <a
-              id="home-enter"
-              href={~p"/app"}
-              class="rg-button rg-button--no-arrow rl-hero-cta"
-              phx-hook="EnterGradient"
-              phx-mounted={JS.ignore_attributes(["data-enter-gradient-ready"])}
-            >
-              <span id="home-enter-stage" class="rl-hero-cta__stage" phx-update="ignore">
-                <canvas data-enter-gradient-canvas aria-hidden="true"></canvas>
-              </span>
-              <span class="rg-button__label">Enter App</span>
-            </a>
-            <AgentTools.button
-              id="home-agent-tools-button"
-              dialog="home-agent-tools"
-              class="rl-hero-tools"
-            >
-              Agent Tools
-            </AgentTools.button>
-          </div>
-          <%!-- The words a person pastes to their agent, on one line that ends where
-               the box does; the whole prompt is copied, or shown in its own window. --%>
-          <section class="rl-prompt" aria-labelledby="home-prompt-title">
-            <h2 id="home-prompt-title" class="visually-hidden">Agent prompt</h2>
-            <p id="home-prompt-text" class="rl-prompt__text">{@agent_prompt}</p>
+        <div class="home__picture pic pic--hero" aria-hidden="true"></div>
+
+        <%!-- The words a person pastes to their agent; the whole prompt is copied, or
+             shown in its own window. --%>
+        <section class="home__prompt" aria-labelledby="home-prompt-title">
+          <h2 id="home-prompt-title" class="home__label">Agent prompt</h2>
+          <p id="home-prompt-text" class="home__prompt-text">{@agent_prompt}</p>
+          <div class="home__prompt-tools">
             <Regent.Primitives.copy_icon id="home-prompt-copy" target="home-prompt-text" label="Copy" />
             <button
               id="home-prompt-view"
               type="button"
-              class="rl-prompt__view"
+              class="home__prompt-view"
               aria-label="View"
               title="View"
               aria-haspopup="dialog"
@@ -170,11 +133,27 @@ defmodule RegentsWeb.HomeLive do
             >
               <Regent.Icons.icon name="maximize-2" />
             </button>
-          </section>
-        </main>
+          </div>
+        </section>
 
-        <.products />
-      </section>
+        <.slab products={@products} />
+
+        <section class="home__token" aria-labelledby="home-token-title">
+          <h2 id="home-token-title" class="home__label">$REGENT</h2>
+          <Regent.Primitives.address id="home-token-address" address={TokenLinks.address()} />
+          <a class="home__link" href={TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
+            Buy on Uniswap<span class="visually-hidden">, opens in a new tab</span>
+          </a>
+          <a class="home__link" href={TokenLinks.chart()} target="_blank" rel="noopener noreferrer">
+            View Chart<span class="visually-hidden">, opens in a new tab</span>
+          </a>
+        </section>
+
+        <footer class="home__footer">
+          <p>© 2026 Regents Labs</p>
+          <div class="home__social"><RegentLinks.social_links /></div>
+        </footer>
+      </main>
 
       <AgentTools.dialog id="home-agent-tools" />
       <.prompt_dialog agent_prompt={@agent_prompt} />
@@ -213,53 +192,38 @@ defmodule RegentsWeb.HomeLive do
     """
   end
 
-  defp landing_header(assigns) do
+  attr :products, :list, required: true
+
+  # The products in the site's order (founder, 2026-11-12), each with the Overview
+  # card's words and its picture, on the home colour's slab. Each product's own site
+  # opens in a new tab; the staking and Cloak pages are this site's.
+  defp slab(assigns) do
     ~H"""
-    <header class="rl-header" data-home-header>
-      <div class="rl-header-bar">
-        <div class="rl-header-links">
-          <RegentLinks.header_links id="home-token-menu" />
+    <section class="slab" aria-labelledby="home-products-title">
+      <h2 id="home-products-title" class="visually-hidden">Products</h2>
+      <article :for={product <- @products} id={"home-#{picture(product)}"} class="slab__row">
+        <div class="slab__text">
+          <p class="home__label">{product.name}</p>
+          <h3 class="slab__headline">{product.headline}</h3>
+          <p class="slab__line">{product.line}</p>
+          <a
+            class="slab__link"
+            href={product.href}
+            target={away?(product) && "_blank"}
+            rel={away?(product) && "noopener noreferrer"}
+          >
+            {product.action}<span :if={away?(product)} class="visually-hidden">, opens in a new tab</span>
+            <Regent.Icons.icon name="arrow-right" />
+          </a>
         </div>
-      </div>
-    </header>
+        <div class={["slab__pic pic", "pic--#{picture(product)}"]} aria-hidden="true"></div>
+      </article>
+    </section>
     """
   end
 
-  # The panel's foot: the product sites and the staking page, under their title at
-  # the start of a line across the panel. Each tile wears its product's own colours.
-  # The server draws them as a still gradient; one canvas behind the row sets them
-  # flowing once it has drawn.
-  defp products(assigns) do
-    ~H"""
-    <nav class="home__foot" aria-labelledby="home-products-title">
-      <h2 id="home-products-title" class="home__rule">Products</h2>
-      <div
-        id="home-product-tabs"
-        class="rl-product-tabs"
-        phx-hook="ProductTiles"
-        phx-mounted={JS.ignore_attributes(["data-product-tiles-ready"])}
-      >
-        <div id="home-product-tabs-stage" class="rl-product-tabs__stage" phx-update="ignore">
-          <canvas data-product-tiles-canvas aria-hidden="true"></canvas>
-        </div>
-        <a
-          :for={{label, id, href, new_tab?} <- nav_links()}
-          id={"home-nav-#{id}"}
-          href={href}
-          target={new_tab? && "_blank"}
-          rel={new_tab? && "noopener noreferrer"}
-          class="rg-button rl-product-tab"
-          data-product-tile={id}
-        >
-          <span class="rl-product-tab__still" aria-hidden="true"></span>
-          <span class="rg-button__label">
-            {label}<span :if={new_tab?} class="visually-hidden">, opens in a new tab</span>
-          </span>
-        </a>
-      </div>
-    </nav>
-    """
-  end
+  defp picture(product), do: String.downcase(product.name)
+  defp away?(product), do: String.starts_with?(product.href, "https://")
 
   # What a proof's product offers today, in the product's own words, and where to
   # try it when it can be tried.
@@ -285,21 +249,6 @@ defmodule RegentsWeb.HomeLive do
   defp status_label(:live), do: "Available now"
   defp status_label(:experimental), do: "Experimental"
   defp status_label(:planned), do: "Planned"
-
-  # The products in the site's order (founder, 2026-11-12). Each product tab opens
-  # that product's site in a new tab; Protocol opens the staking page and Cloak its
-  # page here. Founder decision (2026-09-28): the tab is named Protocol.
-  defp nav_links do
-    for name <- ~w(keyfleet autolaunch protocol patchbay techtree cloak), do: nav_link(name)
-  end
-
-  defp nav_link("protocol"), do: {"Protocol", "protocol", ~p"/stake", false}
-  defp nav_link("cloak"), do: {"Cloak", "cloak", ~p"/cloak", false}
-
-  defp nav_link(name) do
-    product = Enum.find(hero_products(), &(&1.name == name))
-    {String.capitalize(name), name, product.site, true}
-  end
 
   # The four products and their public website destinations. The product pages
   # in the app read the same list, so the copy lives once.

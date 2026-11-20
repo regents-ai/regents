@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* The team's messages page (KeyfleetWeb.AdminMessagesLive): one column of
    text at a reading measure, outside the app shell. */

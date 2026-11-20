@@ -1,4 +1,5 @@
-/* Homepage-only composition. Product faces use the canonical paired identity colors. */
+/* The pages that read as plain documents (legal, About, the public documents, the
+   admin pages and the holding page) share these colours and spacing. */
 @layer regents-product {
   .rl-root {
     --rl-bg: var(--color-bg);
@@ -11,383 +12,203 @@
   }
   .rl-root :is(h1, h2, h3, p) { margin-block: 0; }
   .rl-root [id] { scroll-margin-block-start: 2rem; }
-  .rl-header-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 1.25rem var(--rg-panel-padding) .25rem; }
-  .rl-product-tabs { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
-  /* The header's links and $REGENT menu, only on regents.sh's own pages: Keyfleet's
-     header uses the same names and brings its own rules. */
-  :where([data-brand="platform"]) {
-    .rl-header-bar > .rl-header-links { margin-inline-start: auto; }
-    .rl-header-links { display: flex; align-items: center; gap: var(--space-2); }
-    .rl-header-links > a:not(.rg-button), .rl-header-links svg { display: inline-flex; width: 1.5rem; height: 1.5rem; }
-    .rl-token-menu { position: relative; z-index: var(--rg-layer-tip); }
-    .rl-token-menu > summary { display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; list-style: none; cursor: pointer; }
-    .rl-token-menu > summary::-webkit-details-marker { display: none; }
 
-    .rl-token-menu-panel { position: absolute; inset-block-start: 100%; inset-inline-end: 0; width: 12rem; padding-block-start: .75rem; }
-    .rl-token-menu-content { display: grid; padding: .5rem; background: var(--rl-panel, var(--color-surface)); color: var(--rl-ink, var(--color-fg)); border: 1px solid var(--rl-line, var(--hairline)); box-shadow: var(--rg-layer-tip-shadow); }
-    .rl-token-menu-content p { padding: .5rem .625rem; font-family: var(--font-family-title); }
-
-    .rl-token-menu :is(summary, a, button):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
-
-    /* The $REGENT heading doubles as the copy-the-contract-address control. */
-    .rl-token-copy { display: flex; justify-content: flex-start; width: 100%; min-height: 0; padding: .5rem .625rem; background: none; border: 0; color: inherit; font: inherit; font-family: var(--font-family-title); text-align: start; cursor: pointer; }
-    .rl-token-copy .rg-copy__idle { display: inline-flex; align-items: center; gap: .4rem; }
-    .rl-token-copy .rg-copy__copied { color: var(--color-success); }
-    .rl-token-copy__icon { display: inline-flex; opacity: .55; transition: opacity .15s ease; }
-    .rl-token-copy:hover .rl-token-copy__icon { opacity: 1; }
-    .rl-token-copy__icon svg { width: .95em; height: .95em; }
-  }
-  /* The page is the datascape, fixed to the window, with one glass panel in the
-     middle holding everything. A panel taller than the window scrolls the page while
-     the picture stays put, and ends above the copyright at the window's foot; the
-     same room stands above it, so a panel that fits sits in the window's middle. The
-     picture's ground is the scene's own. The room above and below is a little more
-     than the crown's height, so a panel that starts at the top starts under it. */
-  .home {
-    position: relative; display: grid; place-items: center; min-height: 100dvh;
-    padding: calc(var(--space-8) + env(safe-area-inset-bottom)) 1rem; background: #020307;
-  }
-  /* The crown: the lab's mark in the window's top-left corner, over the picture and
-     the glass, which opens and closes the glass. Its picture keeps the room the
-     artwork draws round the crown, so the crown shows about 3rem wide in a box a
-     full press tall. */
-  .home__crown {
-    position: fixed; z-index: var(--rg-layer-header);
-    inset-block-start: calc(var(--space-1) + env(safe-area-inset-top));
-    inset-inline-start: calc(var(--space-1) + env(safe-area-inset-left));
-    display: grid; place-items: center; min-height: 2.75rem; padding: 0;
-    background: none; border: 0; color: var(--rl-ink); cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .home__crown img { display: block; width: 4.25rem; height: auto; }
-  .home__still, .home__stage { position: fixed; inset: 0; width: 100%; height: 100%; }
-  .home__still { object-fit: cover; }
-  /* A finger held on the picture steers it, so it does not scroll the page from there. */
-  .home__stage canvas { display: block; width: 100%; height: 100%; visibility: hidden; touch-action: none; }
-  .home[data-datascape-ready="true"] .home__stage canvas { visibility: visible; }
-  /* While the picture can be drawn the page starts on its black ground and the
-     picture's panels open out of it, so the still is never painted. It shows without
-     scripts, with less motion asked for, or once the picture will not be drawn. */
-  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .home:not([data-datascape-ready="false"]) .home__still { display: none; }
-  }
-
-  /* The copyright stays at the window's foot over the picture, on a dark fill so a
-     bright panel passing behind it does not wash it out. It comes before the glass,
-     which covers it where the two meet, and never takes the pointer. */
-  .home__copyright {
-    position: fixed;
-    inset-inline-end: max(1rem, env(safe-area-inset-right));
-    inset-block-end: max(.75rem, env(safe-area-inset-bottom));
-    padding: .125rem .5rem; pointer-events: none;
-    background: color-mix(in srgb, #020307 72%, transparent);
-    color: var(--rl-ink); font-size: .75rem; line-height: 1.5;
-  }
-
-  /* The glass: a dark, see-through fill that blurs the picture behind it, edged by a
-     light hairline that is lighter along the top. It stands over the picture by
-     coming later in the page, so it needs no stacking number. Keyboard focus on
-     everything in it is marked in the light Signal Blue, and its buttons' corner
-     marks are drawn in its ink, in dark too. */
-  .home__glass {
-    --rg-panel-padding: var(--space-4);
-    --color-focus: #8fb0ff; --color-focus-ring: #8fb0ff;
-    --color-button-mark: var(--rl-ink);
-    position: relative; display: grid; width: min(44rem, 100%); min-width: 0;
-    background: color-mix(in srgb, #070b14 72%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
-    backdrop-filter: blur(20px) saturate(150%);
-    border: 1px solid color-mix(in srgb, var(--rl-ink) 18%, transparent);
-    border-block-start-color: color-mix(in srgb, var(--rl-ink) 34%, transparent);
-  }
-  /* While the picture can be drawn the glass starts away, out of sight and out of
-     the pointer's way, until a press on the picture opens it; the hook moves it
-     between this pose and the open one, and the crown sends it either way. Focus
-     inside it always shows it. Without scripts, with less motion asked for, or once
-     the picture will not be drawn, there is nothing to press, so it starts open and
-     goes only when the crown sends it. It stays in the page for assistive technology
-     and the keyboard. Until the page's script says which it is, a glass over a
-     picture that may be drawn waits in the same away pose; if the script has not
-     answered in four seconds, the glass comes in by itself. */
-  @media (scripting: enabled) {
-    .home[data-datascape-glass-state="away"] .home__glass:not(:focus-within) {
-      transform: scale(.3); opacity: 0; pointer-events: none;
-    }
-  }
-  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-    .home:not([data-datascape-glass-state]) .home__glass:not(:focus-within) { animation: home-glass-wait 4s step-end; }
-  }
-  @keyframes home-glass-wait {
-    from { transform: scale(.3); opacity: 0; pointer-events: none; }
-  }
-  /* The name and its line, then Enter App with Agent Tools beside it, then the agent
-     prompt. */
-  .home__main {
-    container-type: inline-size;
-    display: grid; gap: var(--space-4); min-width: 0;
-    padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
-  }
-  /* In a narrow panel Enter App takes the whole width and Agent Tools sits under it. */
-  .home__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; }
-  @container (max-width: 34rem) {
-    .home__actions .rl-hero-cta { flex: 1 1 100%; }
-  }
-  /* The panel's foot: the product sites under their title, which starts the line
-     that parts the foot from what is above it. */
-  .home__foot {
-    container-type: inline-size;
-    display: grid; gap: var(--space-2); min-width: 0;
-    padding: 0 var(--rg-panel-padding) var(--rg-panel-padding);
-  }
-  .home__rule { display: flex; align-items: center; gap: .75rem; font-size: .875rem; line-height: 1.5; }
-  .home__rule::after { content: ""; flex: 1; border-block-start: 1px solid var(--rl-line); }
-  /* The whole agent prompt, in its own window. */
-  .rl-prompt-dialog { --rg-dialog-size: 36rem; }
-  .rl-prompt-dialog__text {
-    font: var(--type-code-size)/1.6 var(--font-family-mono);
-    color: color-mix(in srgb, var(--agent-tools-ink) 88%, transparent); overflow-wrap: anywhere;
-  }
-
-  /* The lab's name in the title face, then one plain line in body weight, then a
-     quieter note: smaller, dimmer, and closer to the line than the line is to the
-     name, so the two read as one statement. */
-  .rl-statement { display: grid; gap: var(--space-2); }
-  .rl-statement__name { font: 400 clamp(2.5rem, 5vw, 4rem)/1 var(--font-family-title); letter-spacing: -.015em; }
-  .rl-statement__line { max-width: 40ch; font: var(--font-weight-regular) 1.125rem/1.5 var(--font-family-ui); text-wrap: pretty; }
-  .rl-statement__note {
-    max-width: 48ch;
-    color: color-mix(in srgb, var(--rl-ink) 66%, transparent);
-    font: var(--font-weight-regular) .875rem/1.5 var(--font-family-ui); text-wrap: pretty;
-  }
-  .rl-statement__line + .rl-statement__note { margin-block-start: calc(var(--space-1) - var(--space-2)); }
-
+  /* The holding page's one message. */
   .rl-hero { min-width: 0; }
   .rl-hero-copy { width: fit-content; max-width: 100%; align-self: start; padding: var(--space-2) 0 var(--space-4); }
   .rl-hero-copy h1 { font-size: clamp(2.25rem, 11cqi, 4.5rem); line-height: 1.05; letter-spacing: -.035em; overflow-wrap: anywhere; }
   .rl-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); }
   .rl-overline { font-family: var(--font-family-ui); font-size: .6875rem; letter-spacing: .16em; text-transform: uppercase; }
 
-  @media (max-width: 47.99rem) {
-    :where([data-brand="platform"]) .rl-header-links { position: relative; gap: .25rem; }
-    /* Phone tap targets are 44px square; the icons keep their size. */
-    :where([data-brand="platform"]) .rl-header-links > a:not(.rg-button), :where([data-brand="platform"]) .rl-token-menu > summary { width: 2.75rem; height: 2.75rem; align-items: center; justify-content: center; }
-    :where([data-brand="platform"]) .rl-token-menu { position: static; display: flex; align-items: center; align-self: stretch; }
-    .home__glass { --rg-panel-padding: var(--space-2); }
+  /* The home page's whole agent prompt, in its own window. */
+  .rl-prompt-dialog { --rg-dialog-size: 36rem; }
+  .rl-prompt-dialog__text {
+    font: var(--type-code-size)/1.6 var(--font-family-mono);
+    color: color-mix(in srgb, var(--agent-tools-ink) 88%, transparent); overflow-wrap: anywhere;
   }
 }
 
-/* Everything the home page lets a pointer press answers it: the crown lifts and
-   glows, the icons and plain links take the app's signal colour (on the home
-   page's own panel, white), and outlined and menu buttons take a faint wash of
-   their own ink. Outside the layer, so they win over the links' and buttons' own
-   unlayered colours. A press squishes the crown with every other button (motion.ts). */
-:where([data-brand="platform"]) .rl-header-links > a:not(.rg-button), :where([data-brand="platform"]) .rl-token-menu > summary { transition: color 140ms ease, opacity 140ms ease; }
-.home__crown img { transition: filter 140ms ease; }
-.rl-root .rg-button--secondary::before { transition: box-shadow 140ms ease; }
-:where([data-brand="platform"]) .rg-button.rl-token-link::before { transition: background-color 140ms ease; }
-@media (prefers-reduced-motion: no-preference) {
-  .home__crown img { transition: filter 140ms ease, translate 140ms var(--ease-out); }
+/* The regents.sh home page (`RegentsWeb.HomeLive`): a flat ground and the home colour
+   doing everything, a thin frame of it round the window, the huge one-line name,
+   fields of dots, and a slab of the colour carrying the products. Every colour is a
+   home colour (`--rg-home-*`, set by `data-home` on the page's root). Outside the
+   layer, so it wins over the shared buttons' and links' own rules. */
+.home {
+  --home-gutter: var(--space-4);
+  --color-focus: var(--rg-home-ink);
+  --pic-ink: var(--rg-home-picture);
+  color: var(--rg-home-ink);
+  padding-block-end: var(--space-4);
 }
-/* On the home page's own panel the token menu marks keyboard focus in the panel's
-   light Signal Blue, as every other control there does. */
-.home .rl-token-menu :is(summary, a, button):focus-visible { outline-color: var(--color-focus); }
-@media (hover: hover) {
-  .home__crown:hover img { filter: drop-shadow(0 0 .5rem color-mix(in srgb, var(--palette-platinum) 45%, transparent)); }
-  :where([data-brand="platform"]) :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-token-copy):hover { color: var(--ash-signal); }
-  .home :is(.rl-header-links > a:not(.rg-button), .rl-token-menu > summary, .rl-token-copy):hover { color: #fff; }
-  .rl-root .rg-button--secondary:not(:disabled):hover::before { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, currentColor 10%, transparent); }
-  :where([data-brand="platform"]) .rg-button.rl-token-link:hover::before { background-color: color-mix(in srgb, var(--rl-ink, var(--color-fg)) 8%, var(--rl-panel, var(--color-surface))); }
-}
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .home__crown:hover img { translate: 0 -2px; }
+.home :is(h1, h2, h3, p) { margin-block: 0; }
+.home a:not(.rg-button) { color: var(--rg-home-ink); }
+
+/* The frame: an overlay, so it never moves the bar or the page. */
+.home-frame {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--rg-layer-header) + 1);
+  border: 5px solid var(--rg-home-picture);
+  pointer-events: none;
 }
 
-/* The agent prompt as one line of code on a deep blue-black, edged in the light
-   Signal Blue: the words stop in an ellipsis where the box does, then the copy and
-   view icons, each a full press square in the same blue, white with a blue wash
-   when pointed at. The copy icon is the shared one, so its own colour roles are set
-   here. Outside the layer, so they win over the copy icon's own unlayered rules. */
-.rl-prompt {
-  --rl-prompt-edge: #8fb0ff;
-  --color-fg-muted: var(--rl-prompt-edge); --color-fg: #fff; --color-border: transparent;
-  position: relative; display: flex; align-items: center; gap: .25rem; min-width: 0;
-  padding: .25rem .25rem .25rem var(--space-2);
-  background: #050a1f; border: 1px solid var(--rl-prompt-edge);
+.home__hero { container-type: inline-size; padding: var(--space-7) var(--home-gutter) 0; }
+
+/* One line, as wide as the column: 100cqi is the column's width. At this tracking the
+   name measures 5.43em, so the size is a little under 1/5.43 of the column. */
+.home__name {
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-size: calc(100cqi * 0.1835);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+  color: var(--rg-home-large);
+  text-indent: -0.035em;
 }
-.rl-prompt__text {
-  flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font: var(--type-code-size)/var(--type-code-line) var(--font-family-mono); color: #eef1ff;
+.home__name:focus { outline: none; }
+
+.home__lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+  margin-block-start: var(--space-5);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--rg-home-line);
 }
-.rl-prompt :is(.rg-copy--icon, .rl-prompt__view) {
-  inline-size: 2.75rem; block-size: 2.75rem; min-block-size: 2.75rem;
-  background: none; transition: color 120ms ease, background-color 120ms ease;
+.home__words { display: grid; gap: var(--space-1); max-inline-size: 38rem; font-size: 1.25rem; line-height: 1.4; text-wrap: pretty; }
+.home__actions { display: flex; gap: var(--space-2); }
+.home__actions .rg-button { min-height: 2.75rem; padding-inline: var(--space-3); }
+.rg-button.home__enter { --rg-p-accent: var(--rg-home-fill); --rg-p-on-accent: var(--rg-home-on-fill); --rg-button-border-color: var(--rg-home-on-fill); }
+.rg-button.home__tools { --rg-p-text: var(--rg-home-ink); --rg-p-surface: var(--color-bg); --rg-p-control-border: var(--rg-home-line); }
+
+/* A small capital label, as the sites set their micro-labels. */
+.home__label {
+  font-family: var(--font-family-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
-.rl-prompt__view {
-  display: inline-grid; place-items: center; flex: none; padding: 0;
-  border: 1px solid transparent; color: var(--color-fg-muted); cursor: pointer;
+
+/* A picture is a mask of dots (`pages/home_pictures.css`) painted in the home colour. */
+.pic {
+  background-color: var(--pic-ink);
+  -webkit-mask: var(--pic) center / 100% 100% no-repeat;
+  mask: var(--pic) center / 100% 100% no-repeat;
 }
-.rl-prompt__view svg { inline-size: 1.125rem; block-size: 1.125rem; }
-.rl-prompt__view:focus-visible { color: var(--color-fg); }
-.rl-prompt .rg-copy--icon:focus-visible { outline-color: var(--color-focus); }
+
+.home__picture { margin: var(--space-7) var(--home-gutter) 0; }
+
+.home__prompt {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-4);
+  margin: var(--space-7) var(--home-gutter) 0;
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--rg-home-line);
+}
+.home__prompt .home__label { padding-block-start: 0.3rem; }
+.home__prompt-text { max-inline-size: 70ch; overflow-wrap: anywhere; text-wrap: pretty; }
+.home__prompt-tools { display: flex; align-items: center; margin-block-start: -0.5rem; }
+.home__prompt-tools :is(.rg-copy--icon, .home__prompt-view) {
+  display: inline-grid; place-items: center;
+  inline-size: 2.75rem; block-size: 2.75rem; min-block-size: 2.75rem; padding: 0;
+  border: 0; background: none; color: var(--rg-home-ink); cursor: pointer;
+}
+.home__prompt-view svg { inline-size: 1.125rem; block-size: 1.125rem; }
 @media (hover: hover) and (pointer: fine) {
-  .rl-prompt :is(.rg-copy--icon, .rl-prompt__view):hover { background: color-mix(in srgb, var(--ash-action) 24%, transparent); }
-  .rl-prompt__view:hover { color: var(--color-fg); }
-}
-/* A copy's answer, which the copy icon's status says for screen readers, shows for
-   the same moment as a small pill before the icons, over the line's end. It comes
-   in quickly and goes at once. */
-.rl-prompt .rg-copy__status { inset-block-start: 50%; inset-inline-end: 6.25rem; opacity: 0; pointer-events: none; }
-.rl-prompt .rg-copy__status:not(:empty) {
-  width: auto; height: auto; margin: 0; overflow: visible; clip-path: none;
-  padding: .125rem .625rem; translate: 0 -50%; opacity: 1;
-  background: #050a1f; border: 1px solid color-mix(in srgb, currentColor 45%, transparent); border-radius: 999px;
-  color: var(--rl-ink); font: .75rem/1.5 var(--font-family-ui);
-  transition: opacity 200ms var(--ease-out);
-}
-.rl-prompt .rg-copy--icon[data-copy-state="copied"] + .rg-copy__status { color: var(--color-success); }
-.rl-prompt .rg-copy--icon[data-copy-state="failed"] + .rg-copy__status { color: var(--color-error); }
-@media (prefers-reduced-motion: no-preference) {
-  .rl-prompt .rg-copy__status { translate: 0 calc(-50% + 4px); }
-  .rl-prompt .rg-copy__status:not(:empty) { transition: opacity 200ms var(--ease-out), translate 200ms var(--ease-out); }
-}
-
-.rg-button.rl-token-link {
-  --rg-cut-control: 0px;
-  --rg-p-accent: var(--rl-panel, var(--color-surface));
-  --rg-p-on-accent: var(--palette-tangerine-tango);
-  --rg-button-border-color: transparent;
-  --rg-shimmer-color: color-mix(in srgb, var(--palette-tangerine-tango) 40%, transparent);
-  --rg-shimmer-duration: 1.6s;
-  width: 100%; min-height: 2.75rem; padding: .625rem; border-radius: 0;
-  font-size: .875rem; font-weight: 400; white-space: nowrap;
-  justify-content: flex-start; text-align: start;
-}
-.rg-button.rl-token-link::after { content: none; }
-/* On the home page's own panel the token menu's links keep its ivory. */
-.home .rg-button.rl-token-link { --rg-p-on-accent: var(--rl-ink); }
-
-/* The product tiles are one charcoal set: a ramp from deep through mid to light
-   that the flow runs along, the light that drifts across it, and the platinum ink
-   of the words. They are registered so the canvas reads them back as plain rgb().
-   Each tile's only colour of its own is a small dot from its product's palette. */
-@property --tile-deep { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
-@property --tile-mid { syntax: "<color>"; inherits: true; initial-value: #141414; }
-@property --tile-light { syntax: "<color>"; inherits: true; initial-value: #222220; }
-@property --tile-sheen { syntax: "<color>"; inherits: true; initial-value: #3a3a36; }
-@property --tile-ink { syntax: "<color>"; inherits: true; initial-value: #e5e3d2; }
-.rl-product-tabs {
-  --tile-deep: #0b0b0b; --tile-mid: #141414; --tile-light: #222220;
-  --tile-sheen: #3a3a36; --tile-ink: #e5e3d2;
-}
-/* Patchbay's dark-theme accent, Autolaunch's soft orange, Techtree's green,
-   Keyfleet's tangerine, the platform's platinum, and a violet for Cloak. */
-.rl-product-tab[data-product-tile="patchbay"] { --tile-dot: #9bb4ff; }
-.rl-product-tab[data-product-tile="autolaunch"] { --tile-dot: #ffb188; }
-.rl-product-tab[data-product-tile="techtree"] { --tile-dot: #2fa866; }
-.rl-product-tab[data-product-tile="keyfleet"] { --tile-dot: #ff5b19; }
-.rl-product-tab[data-product-tile="protocol"] { --tile-dot: #e5e3d2; }
-.rl-product-tab[data-product-tile="cloak"] { --tile-dot: #a97bf0; }
-
-/* Quiet, equally padded charcoal keys. One canvas behind the row draws them
-   flowing; until it has, each key shows its still gradient. The
-   shared Anime.js press scales the paint and label, never the hit target. */
-.rg-button.rl-product-tab {
-  --rg-cut-control: 0px;
-  --rg-p-accent: transparent;
-  --rg-p-on-accent: var(--tile-ink);
-  --rg-button-border-color: color-mix(in srgb, var(--tile-ink) 28%, transparent);
-  min-width: 0; min-height: 3.25rem; padding: .875rem .25rem;
-  border-radius: 0; font-size: 1rem; line-height: 1.25; font-weight: 400;
-  text-align: center; justify-content: center; white-space: nowrap; user-select: none;
-}
-/* The product's dot, in the key's top corner. It is painted on a layer the size of
-   the key, so the shared press scales it with the key. */
-.rg-button.rl-product-tab::after {
-  all: unset; content: ""; position: absolute; inset: -1px; pointer-events: none;
-  background: radial-gradient(circle at .625rem .625rem in oklch, var(--tile-dot) 0 .1875rem, oklch(from var(--tile-dot) l c h / 0) calc(.1875rem + .5px));
-  transform: scale(var(--rg-press-scale, 1));
-}
-/* Agent Tools is a quiet text link beside Enter App, a full 44px tall to tap, that
-   opens the tools window. */
-.rl-hero-tools {
-  display: inline-flex; align-items: center; min-height: 2.75rem;
-  padding: 0; background: none; border: 0; color: var(--rl-ink); cursor: pointer;
-  font: inherit; font-size: 1rem; line-height: 1.5;
-  text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
-  text-underline-offset: .2em;
-  transition: color 140ms ease, text-decoration-color 140ms ease;
-}
-@media (hover: hover) {
-  .rl-hero-tools:hover { color: #fff; text-decoration-color: currentColor; }
-}
-/* Enter App is the page's one main action: white words on Signal Blue, with the
-   shared white marks at its corners on hover and focus. The blue is its stage,
-   under the marks and the words: flat until the gradient has drawn a first frame,
-   and flat for less motion. A pointer over it deepens the blue a little, and a press
-   a little more, under the shared squish, so the words only ever read more clearly. */
-.rg-button.rl-hero-cta {
-  --rg-p-accent: transparent; --rg-p-on-accent: #fff;
-  --rg-button-border-color: #fff; --color-button-mark: #fff;
-  min-height: 3.5rem; padding: 0 var(--space-4); font-size: 1.125rem; line-height: 1.5;
-}
-.rl-hero-cta__stage {
-  position: absolute; inset: -1px; z-index: -2; pointer-events: none; background: var(--ash-action);
-  clip-path: polygon(var(--rg-cut-control) 0, 100% 0, 100% calc(100% - var(--rg-cut-control)), calc(100% - var(--rg-cut-control)) 100%, 0 100%, 0 var(--rg-cut-control));
-  transform: scale(var(--rg-press-scale, 1));
-}
-.rl-hero-cta__stage canvas { display: block; width: 100%; height: 100%; opacity: 0; }
-.rl-hero-cta[data-enter-gradient-ready="true"] .rl-hero-cta__stage canvas { opacity: 1; }
-.rl-hero-cta__stage::after {
-  content: ""; position: absolute; inset: 0; background: #0a1a6b; opacity: 0;
-  transition: opacity 150ms ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .rg-button.rl-hero-cta:hover .rl-hero-cta__stage::after { opacity: .12; }
-}
-.rg-button.rl-hero-cta:active .rl-hero-cta__stage::after { opacity: .22; transition-duration: 60ms; }
-@media (prefers-reduced-motion: no-preference) {
-  .rl-hero-cta__stage canvas { transition: opacity 600ms ease; }
-}
-.rg-button.rl-product-tab::before {
-  border: 1px solid var(--rg-button-border-color);
-  transition: border-color 140ms ease;
-}
-/* The still gradient keeps to the colours the words read on. It sits under the
-   key's edge and gives way to the canvas once that has drawn. */
-.rl-product-tab__still {
-  position: absolute; inset: -1px; z-index: -2; pointer-events: none;
-  background: linear-gradient(110deg in oklch, var(--tile-mid), var(--tile-light));
-  transform: scale(var(--rg-press-scale, 1));
-}
-.rl-product-tabs__stage { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; }
-.rl-product-tabs__stage canvas { display: block; width: 100%; height: 100%; }
-.rl-product-tabs[data-product-tiles-ready="true"] .rl-product-tabs__stage { opacity: 1; }
-.rl-product-tabs[data-product-tiles-ready="true"] .rl-product-tab__still { opacity: 0; }
-.rg-button.rl-product-tab:focus-visible {
-  outline: 2px solid var(--color-focus); outline-offset: 4px;
-  --rg-button-border-color: var(--tile-ink);
-}
-@media (hover: hover) and (pointer: fine) {
-  .rg-button.rl-product-tab:hover {
-    --rg-button-border-color: color-mix(in srgb, var(--tile-ink) 60%, transparent);
+  .home__prompt-tools :is(.rg-copy--icon, .home__prompt-view):hover {
+    background: color-mix(in oklab, var(--rg-home-ink) 10%, transparent);
   }
 }
-.rg-button.rl-product-tab:active { --rg-button-border-color: var(--tile-ink); }
-/* A narrow panel lays the tabs out two to a row. */
-@container (max-width: 36rem) {
-  .rl-product-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* The slab: the colour itself, edge to edge, carrying the products. */
+.slab {
+  --color-focus: var(--rg-home-on-fill);
+  --pic-ink: var(--rg-home-on-fill);
+  margin-block-start: var(--space-8);
+  background: var(--rg-home-fill);
+  color: var(--rg-home-on-fill);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .rl-product-tab__still { transition: opacity 240ms ease; }
+.home .slab a:not(.rg-button) { color: var(--rg-home-on-fill); }
+.slab__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-7) var(--home-gutter);
+  border-block-end: 1px solid color-mix(in oklab, var(--rg-home-on-fill) 35%, var(--rg-home-fill));
 }
-@media (prefers-reduced-motion: reduce) {
-  .rg-button.rl-product-tab::before { transition: none; }
-  .rg-button.rl-product-tab::after { transform: none; }
+.slab__row:last-child { border-block-end: 0; }
+.slab__row:nth-of-type(even) .slab__pic { order: -1; }
+.slab__headline {
+  margin-block: var(--space-2);
+  max-inline-size: 16ch;
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
 }
+.slab__line { max-inline-size: 32rem; font-size: 1.0625rem; line-height: 1.5; text-wrap: pretty; }
+.slab__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-block-size: 2.75rem;
+  margin-block-start: var(--space-2);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+.slab__link svg { inline-size: 1em; block-size: 1em; }
+.slab__pic { inline-size: 100%; }
+
+.home__token {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-7) var(--home-gutter) 0;
+  padding-block: var(--space-2);
+  border-block: 1px solid var(--rg-home-line);
+}
+.home__token .home__label { margin-inline-end: var(--space-2); }
+.home__token .rg-address { color: var(--rg-home-ink); }
+.home__link { display: inline-flex; align-items: center; gap: 0.25rem; min-block-size: 2.75rem; font-size: var(--type-label-size); }
+
+.home__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-3) var(--home-gutter) 0;
+  font-size: var(--type-label-size);
+}
+.home__footer p { margin-inline-end: auto; }
+.home__social { display: flex; align-items: center; }
+.home__social a { display: inline-grid; place-items: center; inline-size: 2.75rem; block-size: 2.75rem; }
+.home__social svg { inline-size: 1.25rem; block-size: 1.25rem; }
+
+@media (max-width: 48rem) {
+  .home { --home-gutter: var(--space-2); }
+  .home-frame { border-width: 4px; }
+  .home__hero { padding-block-start: var(--space-5); }
+  .home__lead { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); margin-block-start: var(--space-3); }
+  .home__words { font-size: 1.0625rem; }
+  .home__actions .rg-button { flex: 1; }
+  .home__picture { margin-block-start: var(--space-5); }
+  .home__prompt { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); margin-block-start: var(--space-5); }
+  .home__prompt-tools { margin: 0; justify-self: start; }
+  .slab { margin-block-start: var(--space-6); }
+  .slab__row { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); padding-block: var(--space-6); }
+  .slab__row:nth-of-type(even) .slab__pic { order: 0; }
+  .home__token { margin-block-start: var(--space-5); }
+}
+
 @media (forced-colors: active) {
-  .rl-product-tab__still, .rl-product-tabs__stage, .rg-button.rl-product-tab::after, .rl-hero-cta__stage { display: none; }
-  .rg-button.rl-product-tab { border-color: ButtonText; color: LinkText; }
-  .rg-button.rl-product-tab:focus-visible { outline-color: Highlight; }
+  .pic { background-color: CanvasText; }
 }
-
-html[data-home-theme-locked="true"] [data-theme-switch] { display: none; }

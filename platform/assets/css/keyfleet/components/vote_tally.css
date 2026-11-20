@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* A proposal's vote at a glance: a bar split by Keys, and the counts. */
 .vote-tally {
   display: grid;

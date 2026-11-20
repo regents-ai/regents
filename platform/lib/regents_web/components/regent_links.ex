@@ -1,16 +1,9 @@
 defmodule RegentsWeb.Components.RegentLinks do
   @moduledoc """
-  The shared Regents Labs links: X, the $REGENT token menu and GitHub.
-
-  The landing header and the app shell header render the same three controls;
-  the footer shows X and GitHub (`social_links/1`).
-  The token menu is a native details element driven by the global
-  `HomeTokenMenu` hook; its styles ship in `pages/home.css`.
+  The shared Regents Labs links, X and GitHub, as the footers show them.
   """
 
   use Phoenix.Component
-
-  alias RegentsWeb.Stake.TokenLinks
 
   @doc "X and GitHub, as the footer shows them."
   def social_links(assigns) do
@@ -46,63 +39,7 @@ defmodule RegentsWeb.Components.RegentLinks do
     """
   end
 
-  attr :id, :string, required: true
-
-  def header_links(assigns) do
-    ~H"""
-    <.x_link />
-    <details id={@id} class="rl-token-menu" phx-hook="HomeTokenMenu">
-      <summary aria-label="$REGENT links">
-        <.source_icon kind={:regent} />
-      </summary>
-      <div class="rl-token-menu-panel" data-panel="menu">
-        <nav class="rl-token-menu-content" aria-label="$REGENT">
-          <Regent.Primitives.copy_button
-            id={"#{@id}-copy"}
-            text={TokenLinks.address()}
-            variant="quiet"
-            class="rl-token-copy"
-            aria-label="Copy $REGENT contract address"
-          >
-            <span class="rl-token-copy__label">$REGENT</span>
-            <span class="rl-token-copy__icon" aria-hidden="true">
-              <Regent.Icons.icon name="copy" />
-            </span>
-          </Regent.Primitives.copy_button>
-          <a
-            class="rg-button rl-token-link"
-            href={TokenLinks.buy()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Buy on Uniswap
-          </a>
-          <a
-            class="rg-button rl-token-link"
-            href={TokenLinks.chart()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View Chart
-          </a>
-        </nav>
-      </div>
-    </details>
-    <.github_link />
-    """
-  end
-
   attr :kind, :atom, required: true
-
-  def source_icon(%{kind: :regent} = assigns) do
-    ~H"""
-    <svg viewBox="31 46 178 106" fill="currentColor" aria-hidden="true">
-      <rect :for={x <- [31, 103, 175]} x={x} y="46" width="34" height="34" />
-      <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="82" width="34" height="34" />
-      <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="118" width="34" height="34" />
-    </svg>
-    """
-  end
 
   def source_icon(%{kind: :x} = assigns) do
     ~H"""

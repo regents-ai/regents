@@ -5,6 +5,19 @@ defmodule RegentsWeb.Layouts do
 
   embed_templates("layouts/*")
 
+  @doc """
+  The home colour the root writes as `data-home`: `ink`, `tangerine` or `blue`, from
+  `config :regents, :home_colour`.
+  """
+  def home_colour(conn) do
+    # ONE-SITE PREVIEW: `?home=ink|tangerine|blue` shows that home colour for one page
+    # load, so the three can be compared. Delete this case once one is chosen.
+    case conn.query_params do
+      %{"home" => colour} when colour in ~w(ink tangerine blue) -> colour
+      _query -> Application.fetch_env!(:regents, :home_colour)
+    end
+  end
+
   attr(:flash, :map, required: true)
   attr(:inner_content, :any, required: true)
 
@@ -26,10 +39,6 @@ defmodule RegentsWeb.Layouts do
     default: false,
     doc: "true in the app, which has no bottom bar to hold the tools button"
 
-  attr :theme, :boolean,
-    default: true,
-    doc: "false in the app, whose header or account menu holds the theme switch"
-
   @doc """
   The footer of every public page and the app's pages, the same on every Regent
   site: the social links, Buy $REGENT, the site's documents and its two plain-text
@@ -42,7 +51,6 @@ defmodule RegentsWeb.Layouts do
     <footer class="regent-footer">
       <div class="regent-footer__social">
         <RegentsWeb.Components.RegentLinks.social_links />
-        <RegentsWeb.Components.Shell.theme_toggle :if={@theme} id="footer-theme-control" />
         <RegentsWeb.Components.AgentTools.button
           :if={@agent_tools}
           id="shell-agent-tools-button"

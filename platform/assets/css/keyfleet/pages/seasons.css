@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* A fleet's record of seasons: one hairline panel with the day's figure, the
    settled seasons as a table, each opening to its picks under its row, and

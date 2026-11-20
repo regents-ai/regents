@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 :scope {
   color-scheme: light dark;
   --radius-sm: 0px;

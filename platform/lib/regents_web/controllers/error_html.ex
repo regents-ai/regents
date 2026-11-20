@@ -25,7 +25,13 @@ defmodule RegentsWeb.ErrorHTML do
 
     ~H"""
     <!DOCTYPE html>
-    <html lang="en" data-brand="platform" data-theme={@theme}>
+    <html
+      lang="en"
+      data-product="regents"
+      data-brand={Regent.Site.brand("regents")}
+      data-home={Application.fetch_env!(:regents, :home_colour)}
+      data-theme={@theme}
+    >
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

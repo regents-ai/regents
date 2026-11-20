@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* The last word and the tip after it wrap together; the tip's own words
    still wrap inside it. */
 .footnote__end {

@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* The hall's feed, dense like a game's chat: each line is when it happened,
    its channel's tag and one sentence. Each Key's name keeps one of four
    colours, so its lines are easy to follow down the feed. A run of posts

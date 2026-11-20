@@ -1,23 +1,13 @@
 defmodule RegentsWeb.Keyfleet.Components.RegentLinks do
   @moduledoc """
-  The shared brand links: the Regents Products menu, then X and GitHub, with a
-  hairline between the menu and the marks.
-
-  The site header and the footer render the same controls; the header also
-  has the Regents crown beside the menu, which opens the $REGENT menu. The X
-  and GitHub marks point at Regents, which runs Keyfleet.
+  X and GitHub, in Keyfleet's footer. The marks point at Regents, which runs Keyfleet.
   """
 
   use Phoenix.Component
 
-  attr :id, :string, required: true
-
-  def header_links(assigns) do
+  def social_links(assigns) do
     ~H"""
-    <.apps_menu id={"#{@id}-apps"} />
-    <span class="rl-header-links__rule" aria-hidden="true"></span>
     <a
-      id={@id}
       href="https://x.com/regents_sh"
       target="_blank"
       rel="noopener noreferrer"
@@ -34,119 +24,6 @@ defmodule RegentsWeb.Keyfleet.Components.RegentLinks do
       <.source_icon kind={:github} />
     </a>
     """
-  end
-
-  # REGENT on Base, and the Uniswap pool it trades in, as regents.sh names them.
-  @regent_address "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
-  @regent_pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
-
-  attr :id, :string, required: true
-
-  @doc """
-  The Regents crown on its charcoal tile, opening the $REGENT menu as regents.sh's
-  crown does: "$REGENT" copies the token's address, then Buy on Uniswap and View
-  Chart. A mouse opens it on hover; a press, a tap or the keyboard opens and
-  shuts it; Escape, a press elsewhere or focus leaving it shuts it, through
-  regents.sh's own crown menu (`assets/js/hooks/home_token_menu.ts`).
-  """
-  def token_menu(assigns) do
-    assigns =
-      assign(assigns,
-        address: @regent_address,
-        buy: "https://app.uniswap.org/explore/tokens/base/#{@regent_address}",
-        chart: "https://dexscreener.com/base/#{@regent_pool}"
-      )
-
-    ~H"""
-    <details id={@id} class="rl-token-menu" phx-hook="HomeTokenMenu">
-      <summary class="shell-tool shell-regents-crown" aria-label="$REGENT links">
-        <span class="shell-apps__tile" data-tone="protocol"><.crown /></span>
-      </summary>
-      <div class="rl-token-menu-panel">
-        <nav class="rl-token-menu-content" aria-label="$REGENT">
-          <Regent.Primitives.copy_button
-            id={"#{@id}-copy"}
-            text={@address}
-            variant="quiet"
-            class="rl-token-copy"
-            aria-label="Copy $REGENT contract address"
-          >
-            <span class="rl-token-copy__label">$REGENT</span>
-            <Regent.Icons.icon name="copy" class="rl-token-copy__icon" />
-          </Regent.Primitives.copy_button>
-          <a class="rg-button rl-token-link" href={@buy} target="_blank" rel="noopener noreferrer">
-            Buy on Uniswap
-          </a>
-          <a class="rg-button rl-token-link" href={@chart} target="_blank" rel="noopener noreferrer">
-            View Chart
-          </a>
-        </nav>
-      </div>
-    </details>
-    """
-  end
-
-  # The other Regents Products, each shown with the crown in its own pair of
-  # brand colours, as the template's menu has them, less this site.
-  @regents_apps [
-    %{name: "Patchbay", url: "https://patchbay.help", tone: "patchbay"},
-    %{name: "Autolaunch", url: "https://autolaunch.sh", tone: "autolaunch"},
-    %{name: "Techtree", url: "https://techtree.sh", tone: "techtree"},
-    %{name: "$REGENT Staking", url: "https://regents.sh/stake", tone: "protocol"}
-  ]
-
-  attr :id, :string, required: true
-
-  # The template's Regents Products menu. The browser opens and closes the panel
-  # itself (`popover`), so it closes on Escape or a press anywhere else, and a
-  # page update never shuts it. The header and the footer each have one; each
-  # panel hangs from its own button (`assets/css/keyfleet/components/shell.css`).
-  def apps_menu(assigns) do
-    assigns = assign(assigns, :apps, @regents_apps)
-
-    ~H"""
-    <button
-      id={"#{@id}-button"}
-      class="shell-tool shell-apps-button"
-      type="button"
-      popovertarget={@id}
-      aria-label="Regents Products"
-    >
-      <Regent.Icons.icon name="grip" class="shell-icon--apps" />
-      <span class="shell-tool__tip" aria-hidden="true">Regents Products</span>
-    </button>
-    <nav
-      id={@id}
-      class="shell-apps"
-      popover
-      aria-labelledby={"#{@id}-title"}
-    >
-      <h2 id={"#{@id}-title"}>Regents Products</h2>
-      <ul>
-        <li :for={app <- @apps}>
-          <a href={app.url} target="_blank" rel="noopener noreferrer">
-            <span class="shell-apps__tile" data-tone={app.tone}><.crown /></span>
-            <span>{app.name}</span>
-          </a>
-        </li>
-      </ul>
-    </nav>
-    """
-  end
-
-  @doc "The Regents crown: thirteen blocks, drawn in the current text colour."
-  def crown(assigns) do
-    ~H"""
-    <svg class="shell-apps__crown" viewBox="31 46 178 106" fill="currentColor" aria-hidden="true">
-      <rect :for={{x, y} <- crown_blocks()} x={x} y={y} width="34" height="34" />
-    </svg>
-    """
-  end
-
-  defp crown_blocks do
-    top = for x <- [31, 103, 175], do: {x, 46}
-    rows = for y <- [82, 118], x <- [31, 67, 103, 139, 175], do: {x, y}
-    top ++ rows
   end
 
   attr :kind, :atom, required: true

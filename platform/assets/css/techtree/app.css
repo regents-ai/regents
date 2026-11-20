@@ -252,10 +252,6 @@ section.section:not(.doc-section) { padding-top: var(--space-4); border-top: 1px
 .error-page__name { min-height: 2.75rem; display: inline-flex; align-items: center; justify-self: start; }
 
 @media (max-width: 63.99rem) {
-  /* Narrow screens: one row of the name, Menu, GitHub, the theme switch and the account. */
-  .masthead__inner { min-height: 4rem; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-1); }
-  .masthead__nav { gap: var(--space-1); }
-  .masthead__github { display: none; }
   .docs-layout { grid-template-columns: minmax(0, 1fr); }
   .docs-nav { grid-column: 1; grid-row: auto; padding: var(--space-3) 0 0; border-top: 1px solid var(--hairline); }
   .docs-nav nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
@@ -284,11 +280,11 @@ section.section:not(.doc-section) { padding-top: var(--space-4); border-top: 1px
     --hairline-strong: CanvasText; --color-surface: Canvas;
   }
   :where(a, button, summary, input, textarea, select, [tabindex]):focus-visible { outline-color: Highlight; }
-  .rg-frame, .rg-sheet-row, .masthead, .docs-content { border-color: CanvasText; }
+  .rg-frame, .rg-sheet-row, .docs-content { border-color: CanvasText; }
   .runs-table__withdrawn { border-color: CanvasText; }
 }
 @media print {
-  .masthead__nav, .theme-switch, .skip-link, .pagecopy, .command__copy, .docs-nav { display: none; }
+  .rg-bar, .theme-switch, .skip-link, .pagecopy, .command__copy, .docs-nav { display: none; }
   .rg-frame { width: 100%; margin: 0; }
   .page { padding: 1rem; }
   .docs-layout { display: block; }

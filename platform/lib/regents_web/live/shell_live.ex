@@ -39,6 +39,7 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.Redeem.RedeemLive
   alias RegentsWeb.RegentOpsLive
   alias RegentsWeb.RouteCatalog
+  alias RegentsWeb.SiwaLive
 
   alias RegentsWeb.Account.{Names, Pages, Points}
   alias RegentsWeb.Redeem.{Gallery, Redemption}
@@ -54,6 +55,7 @@ defmodule RegentsWeb.ShellLive do
      |> assign(
        client_tag: Map.fetch!(session, "client_tag"),
        route_spec: route_spec,
+       site_product: route_spec.product,
        route_params: params,
        regent: socket.assigns.current_regent,
        regent_status: if(socket.assigns.current_regent, do: :ready, else: :empty),
@@ -202,29 +204,11 @@ defmodule RegentsWeb.ShellLive do
           patch="/admin/articles"
         >New Article →</.link>
         <Regent.Blog.gallery
-          :if={@route_spec.route_id == :blog and @blog_posts != []}
+          :if={@route_spec.route_id == :blog}
           posts={@blog_posts}
           name="Articles"
           path="/articles"
         />
-        <%!-- Before the first article, point readers at what is new every day. --%>
-        <section
-          :if={@route_spec.route_id == :blog and @blog_posts == []}
-          class="rg-blog rg-sheet rg-blog--gallery"
-          aria-labelledby="blog-title"
-        >
-          <header class="rg-blog__intro">
-            <p class="rg-blog__eyebrow">Articles</p>
-            <h1 id="blog-title">Latest updates from Regents Labs.</h1>
-          </header>
-          <div class="rg-blog__empty">
-            <h2>The first article is on its way.</h2>
-            <p>
-              Until then, <.link navigate="/paper-pro-daily">Daily Research</.link>
-              has new papers every day.
-            </p>
-          </div>
-        </section>
 
         <%!-- The post is static; retain the shared renderer's client-side math enhancement. --%>
         <div
@@ -372,6 +356,7 @@ defmodule RegentsWeb.ShellLive do
         />
 
         <CloakLive.page :if={@route_spec.route_id == :cloak} />
+        <SiwaLive.page :if={@route_spec.route_id == :siwa} />
 
         <.live_component
           :if={

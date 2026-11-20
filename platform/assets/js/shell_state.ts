@@ -4,13 +4,6 @@ export type ShellState = {
   menuOpen: boolean
 }
 
-export type ShellBrand = "platform"
-
-// Nested product routes retain the Regents platform palette.
-export function brandForShellApp(_app: string | undefined): ShellBrand {
-  return "platform"
-}
-
 export function reconcileShellState(
   current: ShellState,
   incoming: Pick<ShellState, "routeId" | "destination">,

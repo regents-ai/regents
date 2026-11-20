@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* The fleet page: a slim bar with the fleet's name, who is here, Send your
    agent, one way in and the fleet's tabs; then the hall (channels, feed and

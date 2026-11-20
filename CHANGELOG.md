@@ -7688,3 +7688,28 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit c97cd374. Full check exit 0 on c97cd374; the practice run built the image and found no migration pending.
 - Live read, signed out: the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-5d0b860ef442.
+
+## 2026-11-20 — One site: the bar, the product looks and the home page (not released)
+
+- Not released: on the `one-site` branch only.
+- Every page now opens with the site's one bar from Regent UI (pinned to design-system
+  fe50396): the crown, a menu of every product (Regents, Techtree, Keyfleet,
+  Autolaunch, Patchbay, Protocol, SIWA, Cloak), the product's own links and the account
+  control. Techtree's links are Services, Results and Docs; regents.sh's and Keyfleet's
+  have none, and Keyfleet keeps its sidebar. The old headers, their crown links, apps
+  menus, $REGENT menus, Techtree's Services panel, Menu sheet, project link and Book
+  Call, and their styles and scripts are deleted.
+- `<html>` carries `data-product`, `data-brand` and `data-home` from the root layout.
+  Keyfleet now wears the `platform` brand, so its stylesheets are scoped on
+  `data-product="keyfleet"`. Links from one product's pages to another's are plain
+  page loads.
+- New page `/siwa`, with its Markdown version and a sitemap entry.
+- The home page is rebuilt in the reference's layout: the window frame, the name on one
+  line, dot pictures (made by scripts/home-pictures/dither.py) and the products on a
+  slab of the home colour, with the agent prompt, $REGENT and the foot. Its colours come
+  only from the home colour, `config :regents, :home_colour` ("ink"); on this branch
+  `?home=ink`, `?home=tangerine` or `?home=blue` previews another for one page load.
+  The home page follows the visitor's theme instead of staying dark. The moving
+  pictures of the old home page and their scripts are deleted.
+- The app frames span the window, as the reference shows. No migration, secret,
+  sign-in, session, wallet or pairing change.

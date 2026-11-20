@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* A Key's card on its stage. Every Key's picture is drawn on the same
    charcoal, so the stage carries that ground out to whatever edges the page

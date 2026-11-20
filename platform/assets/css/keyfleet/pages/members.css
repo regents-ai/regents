@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* A fleet's Member List: one card for each address holding its Keys, each
    with the holder's cards in one row that scrolls sideways. */
 .member-list {

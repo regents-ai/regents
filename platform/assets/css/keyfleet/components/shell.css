@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* The app fills the screen edge to edge: the menu stands against the screen's
    left edge and the page runs to its right edge. */
 #app-shell {
@@ -37,180 +37,39 @@
   outline: none;
 }
 
-#shell-header,
+
+#app-shell > .rg-bar {
+  grid-column: 1 / -1;
+}
+
 #shell-sidebar,
 #app-shell-scroller {
   position: relative;
 }
 
-/* One hairline grid: the header draws the line under it, the sidebar the line
-   beside it, and nothing floats. */
-#shell-header {
-  z-index: var(--rg-layer-header);
-  display: flex;
-  grid-column: 1 / -1;
-  align-items: stretch;
-  min-width: 0;
-  min-height: 4rem;
-  border-block-end: 1px solid var(--color-border);
-  background: var(--color-bg);
-}
-
-#shell-header .shell-spacer {
-  flex: 1;
-}
-
-#shell-header .rl-header-links {
-  margin-inline-end: 1.7rem;
-}
-
 /* A link drawn as a button keeps the button's own colours. */
-#shell-header a:not(.rg-button),
 #shell-sidebar a:not(.rg-button) {
   color: inherit;
   text-decoration: none;
 }
 
 /* One ring on both grounds: outside the control where there is room for it,
-   inside the header and sidebar cells, which run edge to edge. */
+   inside the sidebar's cells, which run edge to edge. */
 #app-shell :focus-visible {
   outline: 2px solid var(--ash-ring);
   outline-offset: 2px;
 }
 
-#shell-header :focus-visible,
 #shell-sidebar :focus-visible {
   outline-offset: -2px;
-}
-
-.account-control {
-  position: relative;
-}
-
-/* The account menu hangs from the account button. */
-#account-chip {
-  anchor-name: --rg-account-menu;
-}
-
-/* Every header control is a bordered cell, as the marketing header's tabs are. */
-.shell-brand,
-.account-chip,
-.mobile-menu-button {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 2.75rem;
-  height: 100%;
-  padding: 0.45rem 0.85rem;
-  border: 0;
-  border-inline-start: 1px solid var(--color-border);
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.shell-brand {
-  margin-inline-start: -1px;
-}
-
-.account-control,
-.account-chip {
-  display: flex;
-  align-items: center;
-}
-
-.account-chip {
-  min-width: 0;
-  font: inherit;
-}
-
-/* Signed in, the name opens the account menu, drawn as the header cell it was
-   rather than as a plain button; on a page without the menu it only shows who
-   is signed in. */
-#shell-header button.account-chip {
-  padding: 0.45rem 0.85rem;
-  border: 0;
-  border-inline-start: 1px solid var(--color-border);
-  background: transparent;
-  color: inherit;
 }
 
 span.account-chip {
   cursor: default;
 }
 
-#shell-header > .account-control {
-  align-self: center;
-}
-
-#app-shell #shell-header .account-chip {
-  height: auto;
-  min-height: 2.75rem;
-}
-
-/* The theme switch has a row of the account menu to itself, its words at the
-   start, so it can be larger than elsewhere and its blocks read. Its light
-   spills only above and below its own press, inside the row. */
-#account-menu .theme-switch {
-  --theme-switch-lens: var(--space-5);
-  --theme-switch-track: var(--space-4);
-  --theme-switch-travel: var(--space-4);
-  --theme-switch-press: var(--space-6);
-}
-
-/* Signed out, the header's switch stands in the header's middle line. */
-#shell-header .shell-header-theme {
-  align-self: center;
-}
-
-@media (hover: hover) {
-  .shell-brand:hover,
-  button.account-chip:hover,
-  .mobile-menu-button:hover {
-    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
-    color: var(--color-fg);
-  }
-}
-
 .account-avatar {
-  width: 1.75rem;
-  height: 1.75rem;
-  flex: 0 0 auto;
-  border: 1px solid var(--ash-line-strong);
-  image-rendering: pixelated;
-}
-
-.shell-brand__mark {
-  position: relative;
-  display: block;
-  width: 1.6rem;
-  height: 1.3rem;
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-
-.shell-brand__mark img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* The mark for each theme. */
-.shell-brand__mark-light {
-  display: none;
-}
-
-:scope[data-theme="light"] .shell-brand__mark-light {
-  display: block;
-}
-
-:scope[data-theme="light"] .shell-brand__mark-dark {
-  display: none;
+  border-color: var(--ash-line-strong);
 }
 
 .mobile-menu-button {
@@ -341,70 +200,30 @@ span.account-chip {
 }
 
 @media (max-width: 47.99rem) {
-  /* The header row is 3.5rem and its rule, signed in or out; the menu's drawer
-     and the dimmed page behind it open under that rule and the frame's top line.
-     Every panel keeps the page's own 1rem margin inside it on every phone, so
-     text starts at one edge from page to page. */
+  /* Under the 3.5rem bar, Menu has a strip of its own; the menu's drawer and the
+     dimmed page behind it open under both. Every panel keeps the page's own 1rem
+     margin inside it on every phone, so text starts at one edge from page to page. */
   #app-shell {
-    --shell-header-bottom: calc(3.5rem + 2px);
+    --shell-header-bottom: calc(3.5rem + 2.75rem);
     --rg-panel-padding: var(--space-2);
-    grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
-  }
-
-  #shell-header {
-    grid-column: 1;
-    min-height: calc(3.5rem + 1px);
-  }
-
-  #shell-header > * {
-    min-width: 0;
-  }
-
-  #shell-header .shell-spacer {
-    display: none;
-  }
-
-  .shell-brand {
-    flex: 1 1 auto;
-    gap: 0.4rem;
-    max-width: 100%;
-    min-width: 0;
-    padding-inline: 0.5rem;
-  }
-
-  /* "Keyfleet" shows whole or not at all. The name is one line tall, and
-     with no room beside the crown its word wraps onto a second line, out of
-     sight, rather than shrinking to a letter and an ellipsis. */
-  .shell-brand__name {
-    display: flex;
-    flex-wrap: wrap;
-    min-width: 0;
-    height: 1lh;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-
-  .shell-brand__name::before {
-    content: "";
-    height: 100%;
+    grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr);
   }
 
   .mobile-menu-button {
-    display: inline-flex;
-    flex: 0 0 auto;
-    justify-content: center;
-    padding-inline: 0.65rem;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+    border: 0;
+    border-block-end: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-bg);
+    color: inherit;
     font-family: var(--font-family-ui);
     font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-  }
-
-  .account-chip {
-    max-width: 6rem;
-    padding-inline: 0.5rem;
-    overflow: hidden;
-    white-space: nowrap;
   }
 
   #shell-sidebar {
@@ -468,403 +287,36 @@ span.account-chip {
 /* The frame itself owns the ruled edges; there is no decorative page mat. */
 #shell-sidebar ul { padding: var(--space-1); }
 #shell-sidebar [aria-current] { border-inline-start: 3px solid currentColor; font-weight: 600; }
-.shell-brand__name { font-family: var(--font-family-title); font-weight: 400; }
-#shell-header { flex-wrap: wrap; }
-#shell-header > a:not(.shell-brand) { align-self: center; padding: var(--space-1); font-size: .75rem; }
-.account-control > .rg-button { margin: var(--space-1); height: auto; }
-.shell-get-key { display: flex; align-items: center; }
-.shell-get-key > .rg-button { margin: var(--space-1); height: auto; white-space: nowrap; }
 @media (min-width: 48rem) and (max-width: 63.99rem) {
   #app-shell { grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr); }
   #shell-sidebar { grid-area: 2 / 1; border-inline-end: 0; border-block-end: 1px solid var(--color-border); }
   #app-shell-scroller { grid-area: 3 / 1; }
   #shell-sidebar ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (max-width: 47.99rem) {
-  /* One row on a phone: brand, Menu, theme, Buy Key, account. The X and GitHub
-     links stay reachable in the footer, so the header never wraps over content. */
-  #shell-header { flex-wrap: nowrap; }
-  #shell-header .rl-header-links { display: none; }
-  #shell-header > a:not(.shell-brand) { display: none; }
-  #shell-header .account-control { min-width: 0; }
-  /* The name keeps its 6rem cap and shrinks to an ellipsis, so the picture
-     stays inside the cap instead of spilling past the screen edge. */
-  #shell-header .account-chip .account-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  /* With a picture, the name is for screen readers only; the account page
-     shows it. */
-  #shell-header .account-chip .account-avatar + .account-name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  /* Header buttons stand 3rem tall in the 3.5rem row, 0.5rem apart, and the last
-     keeps the same 0.5rem from the frame's right edge as the crown keeps from its
-     left. */
-  .account-control > .rg-button { font-size: .75rem; margin: 4px var(--space-1) 4px 0; padding: var(--space-1) .75rem; white-space: nowrap; }
-  .shell-get-key > .rg-button { font-size: .75rem; margin: 4px var(--space-1) 4px 0; padding: var(--space-1) .5rem; gap: .375rem; }
-  /* The crown keeps its size; only the name beside it gives way. */
-  #shell-header .shell-brand__mark { flex: none; }
-  #shell-header .shell-header-theme,
-  #shell-header .shell-get-key,
-  #shell-header .account-control,
-  #shell-header .account-chip { flex: 0 0 auto; }
-  #shell-header button.account-chip { padding-inline: 0.5rem; }
-}
-@media (max-width: 22.49rem) {
-  /* A 320px phone fits the whole row, the theme switch included, with the crown
-     as far from Menu's rule as from the screen's edge: the switch's knob travels
-     a shorter track, and Menu, Buy Key and Sign in keep a little less room. */
-  #shell-header .shell-header-theme { --theme-switch-travel: var(--space-2); --theme-switch-gutter: 4px; }
-  #shell-header .mobile-menu-button,
-  #shell-header .account-control > .rg-button { padding-inline: 0.5rem; }
-  #shell-header .shell-get-key > .rg-button { margin-inline-end: 4px; }
-}
 
-/* ---- Header marks ---- */
+/* ---- Footer marks ---- */
 
-/* The theme switch, the nine-dot menu, X and GitHub stand evenly apart, with a
-   hairline after the theme switch and after the nine-dot menu. Under a mouse
-   each mark keeps its own size with an even gap between; under a finger each
-   fills a 2.75rem press target with nothing between them. */
-#shell-header .rl-header-links,
+/* X and GitHub stand evenly apart. Under a mouse each mark keeps its own size with
+   an even gap between; under a finger each fills a 2.75rem press target with
+   nothing between them. */
 .regent-footer__social {
   gap: var(--space-3);
 }
 
-#shell-header .shell-header-theme + .rl-header-links::before,
-.rl-header-links__rule {
-  content: "";
-  flex: none;
-  width: 1px;
-  height: 1.25rem;
-  background: var(--hairline-strong);
-}
-
-/* The theme switch sits outside the marks' row, so its hairline brings its own
-   gap before it. */
-#shell-header .shell-header-theme + .rl-header-links::before {
-  margin-inline-start: var(--space-3);
-}
-
 @media (hover: hover) {
-  :is(#shell-header .rl-header-links, .regent-footer__social) > a:hover {
+  .regent-footer__social > a:hover {
     background: color-mix(in oklch, var(--color-fg) 6%, transparent);
   }
 }
 
-/* ---- Regents Products ---- */
-
-/* The nine-dot button, as the template's is, without the plain button's border
-   and fill, in the same ink as the X and GitHub marks beside it. */
-:is(.rl-header-links, .regent-footer__social) .shell-tool {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.shell-tool .shell-icon--apps {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-/* On a touch screen every mark, the nine dots included, keeps a full finger's
-   press area. */
 @media (pointer: coarse) {
-  #shell-header .rl-header-links,
   .regent-footer__social {
     gap: 0;
   }
 
-  #shell-header .shell-header-theme + .rl-header-links::before,
-  .rl-header-links__rule {
-    margin-inline: 0.5rem;
-  }
-
-  :is(#shell-header .rl-header-links, .regent-footer__social) > a,
-  :is(.rl-header-links, .regent-footer__social) .shell-tool {
+  .regent-footer__social > a {
     min-width: 2.75rem;
     min-height: 2.75rem;
-  }
-}
-
-
-/* The Regents crown beside the nine dots, on its charcoal tile, the size of
-   the marks beside it. */
-.shell-regents-crown .shell-apps__tile {
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 0;
-}
-
-.rl-header-links .shell-regents-crown .shell-apps__crown {
-  display: block;
-  width: 70%;
-  height: auto;
-}
-
-/* ---- $REGENT ---- */
-
-/* The crown opens the $REGENT menu, as regents.sh's does: hung under the crown,
-   its right edge lined up with the crown's, on the page's own surface, so it
-   reads in light and dark alike. The gap above the panel belongs to the menu,
-   so a mouse moving down onto it never leaves the menu. */
-.rl-token-menu {
-  position: relative;
-  z-index: var(--rg-layer-tip);
-  display: flex;
-}
-
-.rl-token-menu > summary {
-  list-style: none;
-}
-
-.rl-token-menu > summary::-webkit-details-marker {
-  display: none;
-}
-
-.rl-token-menu-panel {
-  position: absolute;
-  inset-block-start: 100%;
-  inset-inline-end: 0;
-  width: 12rem;
-  padding-block-start: 0.75rem;
-}
-
-.rl-token-menu-content {
-  display: grid;
-  padding: 0.5rem;
-  border: 1px solid var(--hairline);
-  background: var(--color-surface);
-  color: var(--color-fg);
-  box-shadow: var(--rg-layer-tip-shadow);
-}
-
-.rl-token-menu :is(a, button):focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 3px;
-}
-
-/* The $REGENT heading doubles as the copy-the-contract-address control: a
-   quiet button, its words centred over the two links, as tall as each link. */
-.rl-token-copy {
-  min-height: 2.75rem;
-}
-
-.rl-token-copy .rg-copy__idle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.rl-token-copy .rg-copy__copied {
-  color: var(--color-success);
-}
-
-.rl-token-copy .rl-token-copy__icon {
-  inline-size: 0.95em;
-  block-size: 0.95em;
-  opacity: 0.55;
-  transition: opacity 0.15s ease;
-}
-
-.rl-token-copy:hover .rl-token-copy__icon {
-  opacity: 1;
-}
-
-/* Buy on Uniswap and View Chart: Tangerine words on the panel, a full row each. */
-.rg-button.rl-token-link {
-  --rg-cut-control: 0px;
-  --rg-p-accent: var(--color-surface);
-  --rg-p-on-accent: var(--palette-tangerine-tango);
-  --rg-button-border-color: transparent;
-  --rg-shimmer-color: color-mix(in srgb, var(--palette-tangerine-tango) 40%, transparent);
-  --rg-shimmer-duration: 1.6s;
-  width: 100%;
-  min-height: 2.75rem;
-  padding: 0.625rem;
-  border-radius: 0;
-  font-size: 0.875rem;
-  font-weight: 400;
-  white-space: nowrap;
-  justify-content: flex-start;
-  text-align: start;
-}
-
-.rg-button.rl-token-link::after {
-  content: none;
-}
-
-@media (hover: hover) {
-  .shell-tool:hover {
-    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
-  }
-}
-
-.shell-apps-button:has(+ .shell-apps:popover-open) {
-  background: var(--ash-panel-strong);
-}
-
-/* A name for the icon, shown on hover and on keyboard focus: under it in the
-   header, over it in the footer. */
-.shell-tool__tip {
-  position: absolute;
-  inset-block-start: calc(100% + 0.35rem);
-  inset-inline-start: 50%;
-  z-index: var(--rg-layer-tip);
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-  color: var(--color-fg);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(-50%);
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-.regent-footer .shell-tool__tip {
-  inset-block: auto calc(100% + 0.35rem);
-}
-
-.shell-tool:focus-visible > .shell-tool__tip {
-  opacity: 1;
-}
-
-@media (hover: hover) {
-  .shell-tool:hover > .shell-tool__tip {
-    opacity: 1;
-  }
-}
-
-.shell-apps-button:has(+ .shell-apps:popover-open) > .shell-tool__tip {
-  opacity: 0;
-}
-
-/* The panel hangs from its button, as the template's does: straight under it,
-   its right edge lined up with the button's. In the footer, where the screen
-   ends first, it opens above. The browser places it above everything else and
-   closes it on Escape or a press outside. */
-#shell-token-menu-apps-button { anchor-name: --shell-token-menu-apps; }
-#shell-token-menu-apps { position-anchor: --shell-token-menu-apps; }
-#footer-brand-links-apps-button { anchor-name: --footer-brand-links-apps; }
-#footer-brand-links-apps { position-anchor: --footer-brand-links-apps; }
-
-.shell-apps {
-  position: fixed;
-  inset: anchor(bottom) anchor(right) auto auto;
-  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
-  width: min(21rem, calc(100% - 2rem));
-  max-height: calc(100dvh - 5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  margin: 0.25rem 0 0;
-  padding: 1rem;
-  overflow: auto;
-  border: 1px solid var(--ash-line-strong);
-  background: var(--color-surface);
-  color: var(--color-fg);
-  font-family: var(--font-family-ui);
-  line-height: 1.4;
-}
-
-.shell-apps h2 {
-  margin: 0 0 0.75rem;
-  font-family: var(--font-family-title);
-  font-size: 1.1rem;
-  font-weight: 400;
-}
-
-.shell-apps ul {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.shell-apps a {
-  display: grid;
-  justify-items: center;
-  gap: 0.45rem;
-  padding: 0.75rem 0.25rem;
-  color: inherit;
-  font-size: 0.85rem;
-  text-align: center;
-  text-decoration: none;
-}
-
-.shell-apps a:focus-visible {
-  outline: 2px solid var(--color-fg);
-  outline-offset: -2px;
-}
-
-@media (hover: hover) {
-  .shell-apps a:hover {
-    background: color-mix(in oklch, var(--color-fg) 6%, transparent);
-  }
-}
-
-.shell-apps__tile {
-  display: grid;
-  place-items: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  border: 1px solid var(--ash-line-strong);
-}
-
-.shell-apps .shell-apps__crown {
-  display: block;
-  width: 70%;
-  height: auto;
-}
-
-/* Each product's crown in its own pair of the four brand colours. */
-.shell-apps__tile[data-tone="patchbay"] {
-  background: var(--palette-platinum);
-  color: var(--palette-charcoal);
-}
-
-.shell-apps__tile[data-tone="autolaunch"] {
-  background: var(--palette-tangerine-tango);
-  color: var(--palette-charcoal);
-}
-
-.shell-apps__tile[data-tone="techtree"] {
-  background: var(--palette-powder-blue);
-  color: var(--palette-charcoal);
-}
-
-.shell-apps__tile[data-tone="protocol"] {
-  background: var(--palette-charcoal);
-  color: var(--palette-tangerine-tango);
-}
-
-/* On a phone the panel spans the screen, still straight under or over its
-   button. */
-@media (max-width: 47.99rem) {
-  .shell-apps {
-    inset: anchor(bottom) 0.5rem auto;
-    position-try-fallbacks: flip-block;
-    width: auto;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .shell-tool__tip {
-    transition: none;
   }
 }
 }

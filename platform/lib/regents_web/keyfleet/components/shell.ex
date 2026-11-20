@@ -1,21 +1,19 @@
 defmodule RegentsWeb.Keyfleet.Components.Shell do
   @moduledoc """
-  Keyfleet's frame: the header, the sidebar and the page with Keyfleet's
+  Keyfleet's frame: the site's bar, the sidebar and the page with Keyfleet's
   footer at its end.
 
-  The header holds the name, Menu, the site's theme switch and its account
-  control (`RegentsWeb.Components.Shell`), and the Regents crown and links
-  (`RegentsWeb.Keyfleet.Components.RegentLinks`). Signed in, the account control
+  The bar (`RegentsWeb.Components.Shell.site_bar/1`) holds the crown, the product
+  menu, the theme switch and the account control. Signed in, the account control
   is the person's picture and name with Sign out, as the site draws it where
-  there is no account menu. The sidebar lists the pages the frame holds; below
-  a wide screen Menu opens it as a drawer
+  there is no account menu. The sidebar lists the pages the frame holds; on a
+  phone Menu, under the bar, opens it as a drawer
   (`assets/js/keyfleet/shell_behavior.ts`).
   """
 
   use RegentsWeb, :html
 
   alias RegentsWeb.Components.Shell, as: SiteShell
-  alias RegentsWeb.Keyfleet.Components.RegentLinks
   alias RegentsWeb.Keyfleet.RouteCatalog.RouteTarget
 
   attr(:route_spec, :map, required: true)
@@ -28,7 +26,7 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
     ~H"""
     <div
       id="app-shell"
-      class="rg-sheet rg-frame"
+      class="rg-sheet"
       phx-hook="KeyfleetShell"
       data-app={@route_spec.app_id}
       data-variant={RegentsWeb.Motion.standard("tabs")}
@@ -39,7 +37,18 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
       data-shell-instance={@shell_instance}
     >
       <a class="shell-skip" href="#route-content">Skip to content</a>
-      <.header account_control={@account_control} />
+      <SiteShell.site_bar product="keyfleet" account_control={@account_control} />
+
+      <Regent.Primitives.button
+        variant="quiet"
+        id="mobile-menu-button"
+        class="mobile-menu-button"
+        type="button"
+        aria-controls="shell-sidebar"
+        aria-expanded="false"
+      >
+        Menu
+      </Regent.Primitives.button>
 
       <nav
         id="shell-sidebar"
@@ -79,54 +88,6 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
         <RegentsWeb.Keyfleet.Layouts.product_links />
       </div>
     </div>
-    """
-  end
-
-  attr :account_control, Regents.Account.AccessContext.AccountControl, required: true
-
-  @doc """
-  The site header: brand, Menu, the theme switch, the Regents crown and links,
-  and the account control. It fits one line on a phone.
-  """
-  def header(assigns) do
-    ~H"""
-    <header id="shell-header">
-      <.link id="shell-brand" class="shell-brand" href={~p"/keyfleet"} aria-label="Keyfleet">
-        <span class="shell-brand__mark" aria-hidden="true">
-          <img
-            class="shell-brand__mark-light"
-            src={~p"/images/brand/regents-crown-flat-light.svg"}
-            alt=""
-          />
-          <img
-            class="shell-brand__mark-dark"
-            src={~p"/images/brand/regents-crown-flat-dark.svg"}
-            alt=""
-          />
-        </span>
-        <span class="shell-brand__name">Keyfleet</span>
-      </.link>
-
-      <Regent.Primitives.button
-        variant="quiet"
-        id="mobile-menu-button"
-        class="mobile-menu-button"
-        type="button"
-        aria-controls="shell-sidebar"
-        aria-expanded="false"
-      >
-        Menu
-      </Regent.Primitives.button>
-
-      <span class="shell-spacer" />
-      <SiteShell.theme_toggle id="theme-control" class="shell-header-theme" />
-      <div class="rl-header-links">
-        <RegentLinks.token_menu id="shell-regents-crown" />
-        <RegentLinks.header_links id="shell-token-menu" />
-      </div>
-
-      <SiteShell.account_control account_control={@account_control} menu={false} />
-    </header>
     """
   end
 

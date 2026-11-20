@@ -34,17 +34,13 @@ export function showingTheme(): Theme {
   return window.matchMedia(deviceLight).matches ? "light" : "dark"
 }
 
-// The homepage art is dark-only; this is not a change to visitor preference.
-const homeThemeLocked = () => window.location.pathname === "/"
-
 /**
- * Live navigation keeps the document, so each page restates its theme: dark on
- * the homepage, the visitor's choice elsewhere, or none so the device decides.
+ * Live navigation keeps the document, so each page restates its theme: the
+ * visitor's choice, or none so the device decides.
  */
 export function syncTheme(): void {
   const root = document.documentElement
-  const theme = homeThemeLocked() ? "dark" : chosenTheme()
-  root.dataset.homeThemeLocked = String(homeThemeLocked())
+  const theme = chosenTheme()
   if (theme) root.dataset.theme = theme
   else delete root.dataset.theme
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme ?? "dark light")

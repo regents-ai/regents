@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* The one palette every surface stands on: eight swatches. Every colour is one
    of them or a mix of exactly two, and nothing else states a colour. The
    homepage uses the same saved light/dark choice and shared semantic roles. */

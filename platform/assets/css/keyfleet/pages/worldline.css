@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* A fleet's Worldline: one hairline panel with the picture across its full
    width, or the same events as lines that open the page each happened on. */

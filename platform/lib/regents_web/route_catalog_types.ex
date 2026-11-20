@@ -39,6 +39,7 @@ defmodule RegentsWeb.RouteCatalog.Spec do
   @moduledoc false
   @enforce_keys [
     :route_id,
+    :product,
     :destination,
     :app_id,
     :app_display_label,

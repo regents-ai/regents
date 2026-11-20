@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 /* A form's main action on a phone stays at the foot of the screen while the
    form is in view, on the panel's own ground, so the press is always under a
    thumb. Panels pad with --rg-panel-padding, so the bar reaches both of the

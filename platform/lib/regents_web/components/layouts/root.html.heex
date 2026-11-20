@@ -1,15 +1,18 @@
 <!DOCTYPE html> <% home? = @conn.request_path == "/" %>
-<% theme = if home?, do: "dark", else: @theme %>
 <% metadata =
   RegentsWeb.PublicDocuments.metadata(@conn.request_path, @page_title, @page_description) %>
 <%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
 <% shell? =
   assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
+<%!-- The page's product (`Regent.Site`), from the router or the shell page: its look,
+     its brand's ground, and the home colour. A link to another product loads the page,
+     as these are written only here. --%>
 <html
   lang="en"
-  data-brand={@brand}
-  data-theme={theme}
-  data-home-theme-locked={if home?, do: "true", else: "false"}
+  data-product={@site_product}
+  data-brand={Regent.Site.brand(@site_product)}
+  data-home={home_colour(@conn)}
+  data-theme={@theme}
 >
   <head>
     <meta charset="utf-8" />
@@ -31,7 +34,7 @@
       structured_data={RegentsWeb.PublicDocuments.structured_data()}
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content={theme || "dark light"} />
+    <meta name="color-scheme" content={@theme || "dark light"} />
     <meta name="agent-request-origin" content={RegentsWeb.Endpoint.url()} />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta :if={assigns[:session_refused]} name="session-refused" content="true" />
@@ -48,12 +51,17 @@
     <link rel="icon" type="image/svg+xml" sizes="any" href={~p"/favicon.svg?v=2"} />
     <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />
     <meta
-      :if={theme}
+      :if={@theme}
       name="theme-color"
-      content={if theme == "dark", do: "#161616", else: "#e5e3d2"}
+      content={if @theme == "dark", do: "#161616", else: "#e5e3d2"}
     />
-    <meta :if={!theme} name="theme-color" media="(prefers-color-scheme: light)" content="#e5e3d2" />
-    <meta :if={!theme} name="theme-color" media="(prefers-color-scheme: dark)" content="#161616" />
+    <meta
+      :if={!@theme}
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#e5e3d2"
+    />
+    <meta :if={!@theme} name="theme-color" media="(prefers-color-scheme: dark)" content="#161616" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
     </script>
@@ -61,6 +69,6 @@
   <body>
     {@inner_content}
     <Regent.Structure.confirm />
-    <.product_links :if={!home? and !shell? and @brand == "platform"} />
+    <.product_links :if={!home? and !shell? and @site_product not in ~w(techtree keyfleet)} />
   </body>
 </html>

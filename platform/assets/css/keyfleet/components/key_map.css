@@ -1,4 +1,4 @@
-@scope (:root[data-brand="keyfleet"]) {
+@scope (:root[data-product="keyfleet"]) {
 @layer regents-product {
 /* The key map: one stage, one moving layer and a pool of hex tiles. Tiles are
    pointy-top hexagons inset by the gap, with a rim drawn around an inner face.

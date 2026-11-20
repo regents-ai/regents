@@ -40,6 +40,15 @@ defmodule RegentsWeb.Live.Session do
     |> Map.put("gpc", conn.assigns.gpc)
   end
 
+  @doc """
+  Who the page was rendered for, as the bar's account control shows it, for a page
+  that only shows it and holds no session of its own (the home page).
+  """
+  def account_control(session) do
+    access_context = session |> disconnected_account() |> access_context()
+    AccessContext.account_control(access_context, load_regent(access_context))
+  end
+
   def on_mount(:load_human, _params, session, socket) do
     socket = Phoenix.Component.assign(socket, session_lease: nil, signed_out_reason: :signed_out)
 
