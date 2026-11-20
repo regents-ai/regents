@@ -32,7 +32,13 @@ defmodule RegentsWeb.Techtree.ChangelogLive do
         line="What changed, what you can use, and what comes next."
         shape={5}
         icon="newspaper"
-      />
+      >
+        <:actions>
+          <.link navigate={~p"/techtree/docs/install"} class="rg-button rg-button--primary">
+            Install
+          </.link>
+        </:actions>
+      </.opening>
       <section class="mk-section">
         <article id="changelog" class="rg-blog__prose" aria-label="Release history">
           {raw(@changelog_html)}
