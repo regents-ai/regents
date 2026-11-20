@@ -80,7 +80,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <div
           class="cloak-window"
           role="img"
-          aria-label="The Cloak chat window with its mode switch: Anon V, NEAR Privacy, Llama Normal and Agent."
+          aria-label="The Cloak chat window with its mode switch: Anon, NEAR Private AI, Local Llama and Agent."
         >
           <div class="cloak-window__bar"><i></i><i></i><i></i><span>{@window.title}</span></div>
           <div class="cloak-window__state"><b>{@window.mode}</b>{@window.mode_note}</div>
@@ -112,7 +112,13 @@ defmodule RegentsWeb.Cloak.CloakLive do
           <h2>Caution</h2>
           <p>{Cloak.caution()}</p>
         </div>
-        <p class="cloak-notes__last">{Cloak.feedback()}</p>
+        <p class="cloak-notes__last">
+          {Cloak.feedback().before}<a
+            href={Cloak.feedback().href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{Cloak.feedback().link}</a>{Cloak.feedback().after}
+        </p>
       </section>
 
       <dialog

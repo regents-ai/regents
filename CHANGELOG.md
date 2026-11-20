@@ -7919,3 +7919,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Both close on Escape, on a press outside and on choosing an entry, and hand focus back to their button. A menu opened by a mouse or a finger drops in; from the keyboard, or with less motion asked for, it is simply there.
 - Gone: the bar's plain Services link to the home page's services. The product menu, the theme switch and Sign in stay where they were; other products are unchanged.
 - Not released: on the `one-site` branch only. No migration.
+
+## 2026-11-20 — Cloak page: the app's mode names, new film, feedback link
+
+- On the founder's "14. a": the drawn chat window shows the app's 0.5.3 labels (Anon, NEAR Private AI, Local Llama, Agent), mode 2 in the panel is "NEAR Private AI", the intro film is the re-made one with the same names, and the last line reads "Something broke? Tell us at patchbay.help/regents.sh." with the address a link opening in a new tab.
+
+## 2026-11-20 — Released the Cloak page update
+
+- Commit f4ab3aea, on the founder's "14. a" in the Cloak thread. Full check exit 0 on f4ab3aea; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new names and the feedback link, the new film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-ffc12d6b91c8.
