@@ -33,11 +33,14 @@ export type IdentityRequest = {
 }
 
 /**
- * How one connection request ended, told to the page that asked. `error` is
- * null when Privy finished and the session was refreshed; the page then reads
- * its own record to decide whether the connection really landed.
+ * Where one connection request stands, told to the page that asked. A
+ * Farcaster link is `opened` once Privy's window shows its code. A request that
+ * has `ended` carries `error`: null when Privy finished and the session was
+ * refreshed, and the page then reads its own record to decide whether the
+ * connection really landed; "not-started" when Privy's window never opened.
  */
 export type IdentityState = {
+  stage: "opened" | "ended"
   error: string | null
   action: IdentityRequest["action"]
   provider: IdentityProvider
@@ -1100,7 +1103,7 @@ export function installAccountAuthLazyLoader(
       .identity(event.detail)
       .then(clearStatus)
       .catch(() => {
-        const state: IdentityState = {error: "failed", action, provider}
+        const state: IdentityState = {stage: "ended", error: "failed", action, provider}
         walletEvents.dispatchEvent(new CustomEvent(IDENTITY_STATE_EVENT, {detail: state}))
       })
   }

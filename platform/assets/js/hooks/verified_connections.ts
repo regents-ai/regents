@@ -27,8 +27,8 @@ export const VerifiedConnections: Hook = {
       const detail =
         event instanceof CustomEvent && typeof event.detail === "object"
           ? event.detail
-          : {error: "failed"}
-      this.pushEvent("refresh_verified_connections", detail)
+          : {stage: "ended", error: "failed"}
+      this.pushEvent("verified_connection_state", detail)
     }
     window.addEventListener(IDENTITY_STATE_EVENT, this.identityStateListener)
   },
