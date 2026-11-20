@@ -7327,3 +7327,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The email sign-ups already stored are kept: `Regents.Updates`, its table
   `update_subscribers`, its migration and `:updates_rate_limit` are unchanged, though
   no page writes to them any more. No migration.
+
+## 2026-11-20 — Released the Cloak page
+
+- Commit c97cd374. Full check exit 0 on c97cd374; the practice run built the image and found no migration pending.
+- Live read, signed out: the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-5d0b860ef442.
