@@ -108,7 +108,7 @@
     {"from": "platform/lib/techtree/catalog/error.ex", "to": "platform/lib/regents/techtree/catalog/error.ex", "changes": "renamed"},
     {"from": "platform/lib/techtree/catalog/route.ex", "to": "platform/lib/regents/techtree/catalog/route.ex", "changes": "renamed"},
     {"from": "platform/lib/techtree/release.ex (import_catalog/1, publish_bootstrap/2, list_bootstrap_releases/1)", "to": "platform/lib/regents/techtree/release.ex", "changes": "the three command bodies only; Regents.Release runs each on the release login (techtree_import_catalog/1, techtree_publish_bootstrap/2, techtree_list_bootstrap_releases/1)"},
-    {"from": "platform/lib/techtree_web/exact_response.ex", "to": "platform/lib/regents_web/techtree/exact_response.ex", "changes": "renamed; hints name /api/v1/techtree/catalog and this site's /healthz; put_api_headers/1 and the :no_store rule carried for the Network brief's callers (the four catalog addresses answer with this site's headers)"},
+    {"from": "platform/lib/techtree_web/exact_response.ex", "to": "platform/lib/regents_web/techtree/exact_response.ex", "changes": "renamed; hints name /api/v1/techtree/catalog and this site's /api/v1/health; put_api_headers/1 and the :no_store rule carried for the Network brief's callers (the four catalog addresses answer with this site's headers)"},
     {"from": "platform/lib/techtree_web/controllers/catalog_controller.ex", "to": "platform/lib/regents_web/techtree/catalog_controller.ex", "changes": "renamed; served at /api/v1/techtree/catalog"},
     {"from": "platform/lib/techtree_web/controllers/bootstrap_controller.ex", "to": "platform/lib/regents_web/techtree/bootstrap_controller.ex", "changes": "renamed; served at /api/v1/techtree/bootstrap"},
     {"from": "platform/lib/techtree_web/controllers/object_controller.ex", "to": "platform/lib/regents_web/techtree/object_controller.ex", "changes": "renamed; served at /api/v1/techtree/objects/:digest; starter Skills left out (no StarterSkill here), so it serves catalog objects only"},
@@ -144,14 +144,14 @@
     {"from": "platform/priv/public/docs/test-a-skill.md", "to": "platform/priv/techtree/public/docs/test-a-skill.md", "changes": "none; its /examples/tdd link (line 14) waits for the Network brief"},
     {"from": "platform/priv/public/docs/troubleshooting.md", "to": "platform/priv/techtree/public/docs/troubleshooting.md", "changes": "line 12: /changelog becomes /techtree/changelog"},
     {"from": "platform/priv/public/docs/verify.md", "to": "platform/priv/techtree/public/docs/verify.md", "changes": "line 40: / becomes /techtree; its /results link (line 13) waits for the Network brief"},
-    {"from": "platform/priv/public/docs/where-this-goes.md", "to": "platform/priv/techtree/public/docs/where-this-goes.md", "changes": "line 28: the link to /docs/run-locally becomes /techtree/docs/run-locally; its words, techtree.sh/docs/run-locally, stay"}
+    {"from": "platform/priv/public/docs/where-this-goes.md", "to": "platform/priv/techtree/public/docs/where-this-goes.md", "changes": "line 28: the link to /docs/run-locally becomes /techtree/docs/run-locally; its words, techtree.sh/docs/run-locally, stay"},
+    {"from": "platform/lib/techtree_web/controllers/health_controller.ex (the catalog read)", "to": "platform/lib/regents/techtree.ex (health/0)", "changes": "the active catalog release read, without the controller: this site's /api/v1/health reports Techtree ok only while a release is active, and /healthz is this site's"}
   ],
   "not_brought": [
     "The climbs page (/techtree/climbs/:slug, climbs_live/show.ex): it links to Results pages and docs/run-locally, which are not on this site yet; it comes with the Network brief.",
     "lib/techtree/release/starter_skill.ex and priv/releases/: the starter Skills the bootstrap release names; until they come, their digests answer 404 here.",
     "priv/bootstrap/ (development.json, stable.json): no code reads it; Techtree's release documents name it.",
     "The techtree.bootstrap.list and techtree.bootstrap.publish mix tasks: the release commands cover the same two operations.",
-    "GET /api/v1/health's catalog read: the health addresses are this site's.",
     "Canonical.encode!/1: nothing in the catalog calls it; it stays with the Network brief.",
     "The Docs' page_read plug and Techtree.Limits: this site's own limits apply, and pages are not counted.",
     "plugs/page_markdown.ex: the Docs answer Markdown through this site's RegentsWeb.PublicDocuments.document/1 instead.",

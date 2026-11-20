@@ -7553,3 +7553,17 @@ seasons), on the shared Points library regents.sh was already on.
 - Docs pages are not counted against the request budget, as with this site's
   other pages. No migration, setting, secret, process or wallet code changed.
   regents.sh's own pages and documents answer as before.
+
+## 2026-11-20 — one-site branch: the health check says whether Techtree serves a catalog (not released)
+
+- `GET /api/v1/health` reports Techtree `ok` only while a catalog release is
+  active on its channel (`TECHTREE_BOOTSTRAP_CHANNEL`); with none, or when that
+  read fails or takes longer than the health check's one-second bound, Techtree
+  reads `unavailable` and `status` reads `degraded`. Before, Techtree always read
+  `ok`. The answer stays 200 either way.
+- After this ships, regents.sh reads `degraded` until the catalog is imported and
+  its release is active there.
+- When a Techtree catalog address cannot serve its bytes, its hint now names
+  `/api/v1/health`, which says whether a release is being served, in place of
+  `/healthz`. `/healthz` is unchanged.
+- No route, migration, setting, secret or wallet code changed.

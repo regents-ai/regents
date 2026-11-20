@@ -129,7 +129,7 @@ defmodule RegentsWeb.Techtree.ExactResponse do
     do: "Use a fingerprint listed in the catalog at #{url(~p"/api/v1/techtree/catalog")}."
 
   def hint_for(_code),
-    do: "Try again later; #{url(~p"/healthz")} says whether this site is serving a release."
+    do: "Try again later; #{url(~p"/api/v1/health")} says whether this site is serving a release."
 
   defp cache_control(:immutable), do: @immutable
   defp cache_control(:revalidated), do: @revalidated

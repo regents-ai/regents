@@ -115,7 +115,7 @@ is a map, not the contract.
 | Route | Method | Purpose |
 | --- | --- | --- |
 | `/healthz` | GET | Liveness check, used by the Fly health check. |
-| `/api/v1/health` | GET | The same check in JSON for Sentinel, agents and the command line, with each product: `{"status": "ok", "migrations_applied": true, "products": {"regents": "ok", "cloak": "ok", "techtree": "ok"}}`. A product that does not answer reads `unavailable` and `status` reads `degraded`; the answer stays 200 unless the database does not answer (503). |
+| `/api/v1/health` | GET | The same check in JSON for Sentinel, agents and the command line, with each product: `{"status": "ok", "migrations_applied": true, "products": {"regents": "ok", "cloak": "ok", "techtree": "ok"}}`. A product that does not answer reads `unavailable` and `status` reads `degraded`; Techtree also reads `unavailable` while no catalog release is active on its channel (`TECHTREE_BOOTSTRAP_CHANNEL`); the answer stays 200 unless the database does not answer (503). |
 | `/auth/privy/session` | POST, DELETE | Start and end a browser session. |
 | `/` and `/app`, `/stake`, `/redeem` | LiveView | The public home page and the signed-in product shell. |
 | `/api/v1/messages/:topic` | POST | A paired agent leaves the team a private message (`leaveMessage`). |

@@ -25,6 +25,13 @@ defmodule Regents.Techtree do
       Train.Comparisons
     ]
 
-  @doc "Always `:ok`: Techtree has no facts of its own on this site yet (`Regents.Products.health/0`)."
-  def health, do: :ok
+  alias Regents.Techtree.Catalog.Query
+
+  @doc """
+  `:ok` while a catalog release is active on the configured channel, else the
+  catalog's error: one read, bounded by `Regents.Products.health/0`.
+  """
+  def health do
+    with {:ok, _release} <- Query.active_catalog_release(), do: :ok
+  end
 end
