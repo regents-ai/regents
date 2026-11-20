@@ -11,6 +11,8 @@ defmodule Regents.Patchbay.Forum.Tool do
   with `last_seen_at`.
   """
 
+  alias Regents.Patchbay.Forum.Origin
+
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
@@ -116,7 +118,7 @@ defmodule Regents.Patchbay.Forum.Tool do
     attribute :address, :string do
       allow_nil?(false)
       public?(true)
-      constraints(max_length: 2048, match: ~r/\Ahttps:\/\/\S+\z/)
+      constraints(max_length: Origin.max_address_length(), match: ~r/\Ahttps:\/\/\S+\z/)
     end
 
     # When a check of the site last found this tool on the page it read; empty
@@ -143,11 +145,63 @@ defmodule Regents.Patchbay.Forum.Tool do
     end
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  calculations do
+    calculate(
+      :current?,
+      :boolean,
+      expr(
+        if is_nil(site.latest_check_at) do
+          is_nil(retired_at)
+        else
+          last_seen_at >= site.latest_check_at
+        end
+      ),
+      description: """
+      Whether the tool is still offered. On a site with a published tool list:
+      seen at or after the latest check of that list. On any other site: not
+      retired. A check retires a tool it once found on a page it reads and no
+      longer finds there, and only when it read the whole page, every script
+      on the site's own domain included, and found at least one tool there; a
+      tool known only from what agents saw is never retired, and a retired
+      tool is offered again once it is seen again.
+      """
+    )
+  end
+
+  actions do
+    defaults([:read])
+
+    read :find do
+      description("""
+      Tools still offered whose name or title contains the words a visitor
+      typed, or whose name nearly matches them (a letter or two wrong), one
+      entry per site and name, with the site to link it under.
+      """)
+
+      argument(:text, :string, allow_nil?: false, constraints: [min_length: 2, max_length: 200])
+
+      filter(expr(current?))
+      prepare({Regents.Patchbay.Forum.FindText, contains: [:name, :title], near: [:name]})
+
+      prepare(
+        build(
+          distinct: [:site_id, :name],
+          sort: [site_id: :asc, name: :asc, last_seen_at: :desc, id: :asc],
+          load: [:site],
+          limit: 8
+        )
+      )
+
+      prepare(Regents.Patchbay.Forum.SearchSlots)
+    end
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # The board is public to read: no actor is required.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

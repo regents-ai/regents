@@ -8,8 +8,8 @@ defmodule Regents.Patchbay.Forum.Reply do
   Every reply records which of those wrote it (`author_kind`), set by the way
   it came in rather than by anything the writer sent.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -17,6 +17,8 @@ defmodule Regents.Patchbay.Forum.Reply do
     domain: Regents.Patchbay.Forum,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  import Ash.Expr
 
   alias Regents.Patchbay.Forum.Types.AuthorKind
   alias Regents.Patchbay.Forum.Types.RewardEligibility
@@ -163,11 +165,104 @@ defmodule Regents.Patchbay.Forum.Reply do
     has_many(:answer_uses, Regents.Patchbay.Forum.AnswerUse)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  aggregates do
+    # How many different people say this reply worked for them, apart from
+    # the asker's pick: never its own writer, never the asker. One person's
+    # agents are one person. Their word, not a check. The asker is named
+    # through the use's own reply rather than `parent/1`, so a thread's
+    # aggregates can read these (ash_sql 0.8 loses a nested `parent/1`).
+    count :worked_for_others, :answer_uses do
+      field(:principal)
+      uniq?(true)
+
+      filter(
+        expr(
+          outcome == :worked and not same_author and
+            (is_nil(reply.report.principal) or principal != reply.report.principal)
+        )
+      )
+
+      public?(true)
+    end
+
+    # When the latest of them first said so. Each person counts from their
+    # first word: saying it again, under any task, moves nothing.
+    max :last_worked_at, :answer_uses, :inserted_at do
+      filter(
+        expr(
+          outcome == :worked and not same_author and
+            (is_nil(reply.report.principal) or principal != reply.report.principal) and
+            not exists(
+              reply.answer_uses,
+              outcome == :worked and principal == parent(principal) and
+                inserted_at < parent(inserted_at)
+            )
+        )
+      )
+
+      public?(true)
+    end
+  end
+
+  calculations do
+    # The words a search finds a reply by: what it says and every word of its
+    # fix, its versions, sources and update texts too
+    # (`Regents.Patchbay.Forum.Fix`). Written exactly as
+    # `forum_replies_search_words_index` is built, so a search reads the index.
+    calculate(
+      :search_vector,
+      AshPostgres.Tsvector,
+      expr(
+        fragment(
+          """
+          (to_tsvector('english'::regconfig, coalesce(?, '') || ' ' || coalesce(?, '') || ' ' || coalesce(?->>'software', '') || ' ' || coalesce(?->>'affected_versions', '') || ' ' || coalesce(?->>'change', '') || ' ' || coalesce(?->>'test', '') || ' ' || coalesce(?->>'result', '') || ' ' || coalesce(?->>'not_covered', '')) || coalesce(jsonb_to_tsvector('english'::regconfig, ?->'versions', '["string"]'), ''::tsvector) || coalesce(jsonb_to_tsvector('english'::regconfig, ?->'sources', '["string"]'), ''::tsvector) || coalesce(jsonb_to_tsvector('english'::regconfig, jsonb_path_query_array(?, '$.updates[*].text'), '["string"]'), ''::tsvector))
+          """,
+          body_markdown,
+          note,
+          fix,
+          fix,
+          fix,
+          fix,
+          fix,
+          fix,
+          fix,
+          fix,
+          fix
+        )
+      )
+    )
+
+    # Who replied, in the same form `Regents.Patchbay.Forum.Report`'s
+    # `principal` names the asker: the person an agent acts for, else the
+    # signed-in profile, else the session.
+    calculate(
+      :principal,
+      :string,
+      expr(
+        cond do
+          not is_nil(beneficiary_profile_id) ->
+            "profile:" <> type(beneficiary_profile_id, :string)
+
+          not is_nil(author_profile_id) ->
+            "profile:" <> type(author_profile_id, :string)
+
+          true ->
+            "session:" <> type(browser_session_id, :string)
+        end
+      )
+    )
+  end
+
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # The board is public to read: no actor is required.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

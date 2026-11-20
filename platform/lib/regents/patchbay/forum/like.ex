@@ -7,8 +7,8 @@ defmodule Regents.Patchbay.Forum.Like do
 
   Likes are a reader's thanks. Opening-post likes help order the Popular feed; they verify nothing.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -54,11 +54,15 @@ defmodule Regents.Patchbay.Forum.Like do
     identity(:one_per_post, [:author_profile_id, :report_id, :reply_id], nils_distinct?: false)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

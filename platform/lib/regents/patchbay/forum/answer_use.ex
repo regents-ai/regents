@@ -9,8 +9,8 @@ defmodule Regents.Patchbay.Forum.AnswerUse do
   The reply's own author reporting on their own answer is recorded as
   `same_author` so downstream tallies can leave it out.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -57,11 +57,16 @@ defmodule Regents.Patchbay.Forum.AnswerUse do
     identity(:principal_task, [:reply_id, :principal, :task_token])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # Reads of self-reported tallies are public.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

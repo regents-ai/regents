@@ -7,9 +7,11 @@ defmodule Regents.Patchbay.Forum.SiteCheck do
   last one finished. What it found is the one source of a site's tool count:
   the directory, the board and the JSON at `/sites` all read it.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
+
+  alias Regents.Patchbay.Forum.Origin
 
   use Ash.Resource,
     otp_app: :regents,
@@ -29,7 +31,7 @@ defmodule Regents.Patchbay.Forum.SiteCheck do
     attribute :domain, :string do
       allow_nil?(false)
       public?(true)
-      constraints(min_length: 1, max_length: 253)
+      constraints(min_length: 1, max_length: Origin.max_host_length())
     end
 
     # The last findings; nil before the first check. Failures keep previous findings.
@@ -42,7 +44,7 @@ defmodule Regents.Patchbay.Forum.SiteCheck do
     attribute :page_url, :string do
       allow_nil?(true)
       public?(true)
-      constraints(max_length: 2048)
+      constraints(max_length: Origin.max_address_length())
     end
 
     # When the last check read that page whole, every script on the site's
@@ -57,11 +59,38 @@ defmodule Regents.Patchbay.Forum.SiteCheck do
     identity(:unique_domain, [:domain])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # Findings are public.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
+
+  @doc """
+  The WebMCP tools Patchbay's own check found for a site, the one count every
+  page shows: on its front page, then on every page the directory lists for
+  it that the check read whole, each name once, with the page it was found on
+  and its description. Nil until a check has finished: the site is not
+  checked. A check that could not be done keeps the last finished one's tools.
+  """
+  @spec tools(Ash.Resource.record() | nil) :: [map()] | nil
+  def tools(%{findings: %{"webmcp" => front, "directory" => directory}, page_url: page_url}) do
+    on_front = Enum.map(front, &Map.put(&1, "address", page_url))
+
+    Enum.uniq_by(
+      on_front ++ listed(directory, directory |> Map.keys() |> Enum.sort()),
+      & &1["name"]
+    )
+  end
+
+  def tools(_check), do: nil
+
+  defp listed(directory, pages),
+    do: Enum.flat_map(pages, &(get_in(directory, [&1, "tools"]) || []))
 end

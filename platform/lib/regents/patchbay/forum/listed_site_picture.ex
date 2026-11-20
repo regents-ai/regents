@@ -12,6 +12,8 @@ defmodule Regents.Patchbay.Forum.ListedSitePicture do
   writes them yet.
   """
 
+  alias Regents.Patchbay.Forum.Origin
+
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Patchbay.Forum,
@@ -29,7 +31,7 @@ defmodule Regents.Patchbay.Forum.ListedSitePicture do
       primary_key?(true)
       allow_nil?(false)
       public?(true)
-      constraints(min_length: 1, max_length: 253)
+      constraints(min_length: 1, max_length: Origin.max_host_length())
     end
 
     # Nil when no picture came back.

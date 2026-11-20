@@ -1,0 +1,23 @@
+defmodule Regents.Patchbay.Forum.SearchUnavailable do
+  @moduledoc """
+  A text search that did not answer because the site is busy
+  (`Regents.Patchbay.Forum.SearchSlots`): no place free in time
+  (`cause: :no_slot`), no database connection free in time (`:no_connection`),
+  or out of time (`:timeout`). The home page answers it with `words/0` and
+  asks to try again shortly.
+  """
+
+  use Splode.Error, fields: [:cause], class: :unknown
+
+  def message(_error), do: words()
+
+  @doc "What the caller is told."
+  @spec words() :: String.t()
+  def words, do: "Search is busy right now. Nothing was searched."
+
+  @doc "Whether an error from a search is this one."
+  @spec in?(term()) :: boolean()
+  def in?(%__MODULE__{}), do: true
+  def in?(%{errors: errors}) when is_list(errors), do: Enum.any?(errors, &in?/1)
+  def in?(_error), do: false
+end

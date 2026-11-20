@@ -1,0 +1,424 @@
+defmodule Regents.Patchbay.Forum.PostSummary do
+  @moduledoc """
+  What a post says about itself in a line: its own title, the error it is
+  about, and the headline its tab title, search description and address are
+  made of. One set of rules, so the page, its tab and its address agree.
+
+  A question (a help_needed thread) or a report (a failure_report thread) is
+  about an error, solved or not: it quotes the error in a code block and says
+  what fixed it in a paragraph that starts with a bold **Fix** label. Any
+  other kind of thread, such as a success story or a discussion, is about an
+  error only when its title quotes words ("…", “…” or `…`) that a sentence of
+  one of its code blocks holds whole, or failing that a span of inline code
+  (in a table too): the error is that sentence or span from those words on,
+  from the first quoted words that match. Otherwise it is headed by its
+  title, whatever its code holds.
+
+    * The error is a sentence of the post's first code block that holds one:
+      the sentence that shares the most words with the title, the earliest on
+      a tie. A block's lines are read as one text, since long errors are
+      wrapped over several lines. Commands typed at a prompt (`$ npm install`)
+      are not part of the error, and a block with no words left, such as `{}`,
+      holds none. A post whose code holds no error, or that has no code, takes
+      the first quoted words of its title (`"no_touch_id"`), if any. When
+      the title quotes words and the chosen sentence holds them exactly, the
+      error starts at them: a tool's own labels before them (the name of the
+      check that printed it) are not the error.
+    * The headline is the error, then the rest of the title (the title less
+      its quoted copy of the error). A post with no error is headed by its
+      title.
+    * The fix is the first sentence of the first paragraph labelled **Fix**,
+      after the label. Without one it is the first sentence after the error's
+      code block.
+
+  The tab title is the headline cut between words to 70 characters. The
+  description is the error, then the fix, cut between words to 155
+  characters; a post whose error is in its title only is described by its
+  headline then its first sentence, and a post with no error by its title
+  then its first sentence. The fix is left out rather than shown as a stub of
+  a few words.
+  """
+
+  alias Regents.Patchbay.BoundedText
+
+  @description_limit 155
+  @title_limit 70
+  # The fewest characters of a fix worth showing after the error.
+  @least_fix 40
+
+  @doc """
+  The post's own title: its title, or for an early report its note, or the
+  tool it names on its site, or its site.
+  """
+  @spec post_title(map()) :: String.t()
+  def post_title(report) do
+    cond do
+      written?(report.title) -> titled(report.title)
+      written?(report.note) -> titled(report.note)
+      report.tool_names != [] -> "#{hd(report.tool_names)} on #{site_name(report)}"
+      true -> site_name(report)
+    end
+  end
+
+  @doc "The page's tab title: the headline, cut between words to #{@title_limit} characters."
+  @spec title(map()) :: String.t()
+  def title(post), do: post |> headline() |> BoundedText.cut(@title_limit)
+
+  @doc "The error first, then the rest of the post's title; the title alone when there is no error."
+  @spec headline(map()) :: String.t()
+  def headline(post) do
+    title = post_title(post)
+
+    case found(post, fn -> code_blocks(post) end) do
+      nil -> title
+      {_error, _where} = error -> headed(error, title)
+    end
+  end
+
+  @doc "The page's search description, never empty."
+  @spec description(map()) :: String.t()
+  def description(post) do
+    blocks = blocks(post)
+    title = post_title(post)
+
+    case found(post, fn -> blocks end) do
+      nil -> join(title, first_sentence(prose(blocks)))
+      {error, {:code, after_error}} -> join(error, fix(blocks, after_error))
+      {_error, _title_or_inline} = error -> join(headed(error, title), fix(blocks, blocks))
+    end
+  end
+
+  @doc "The error the post is about, word for word, or nil when it names none."
+  @spec error(map()) :: String.t() | nil
+  def error(post) do
+    case found(post, fn -> code_blocks(post) end) do
+      nil -> nil
+      {error, _where} -> error
+    end
+  end
+
+  # Whether the post is about an error: a question or a report, solved or not.
+  defp about_error?(%{thread_kind: kind}), do: kind in [:help_needed, :failure_report]
+
+  # The error and where it was found: in a code block (with the blocks after
+  # it), in the title, or in a span of inline code. Any other post has one
+  # only when its title quotes words its code prints; a post whose title
+  # quotes nothing is not read.
+  defp found(post, blocks) do
+    title = post_title(post)
+
+    cond do
+      about_error?(post) -> error_in(blocks.(), title)
+      (spans = quoted(title)) != [] -> printed(blocks(post), spans)
+      true -> nil
+    end
+  end
+
+  # For the first quoted words that match: the first sentence of a code block
+  # that holds them whole, from those words on; or else the first span of
+  # inline code that holds them whole, from those words on.
+  defp printed(blocks, spans) do
+    found =
+      for span <- spans,
+          match <- [in_block(blocks, span), in_inline(blocks, span)],
+          match != nil,
+          do: match
+
+    List.first(found)
+  end
+
+  defp in_block(blocks, span) do
+    found =
+      for {{:code, text}, index} <- Enum.with_index(blocks),
+          sentence <- sentences(text),
+          error = from_whole(sentence, span),
+          do: {error, {:code, Enum.drop(blocks, index + 1)}}
+
+    List.first(found)
+  end
+
+  defp in_inline(blocks, span) do
+    found =
+      for {:inline, text} <- blocks,
+          error = from_whole(text, span),
+          do: {error, :inline}
+
+    List.first(found)
+  end
+
+  defp error_in(blocks, title) do
+    wanted = words(title)
+    in_title = List.first(quoted(title))
+
+    blocks
+    |> Enum.with_index()
+    |> Enum.find_value(fn
+      {{:code, text}, index} ->
+        with error when is_binary(error) <- chosen(text, wanted, in_title),
+             do: {error, {:code, Enum.drop(blocks, index + 1)}}
+
+      _paragraph ->
+        nil
+    end)
+    |> case do
+      nil -> with words when is_binary(words) <- in_title, do: {words, :title}
+      found -> found
+    end
+  end
+
+  defp chosen(text, wanted, in_title) do
+    case sentences(text) do
+      [] ->
+        nil
+
+      sentences ->
+        sentences
+        |> Enum.with_index()
+        |> Enum.max_by(fn {sentence, index} -> {overlap(sentence, wanted), -index} end)
+        |> elem(0)
+        |> from_quoted(in_title)
+        |> without_marks()
+        |> worded()
+    end
+  end
+
+  # The sentence from the title's quoted words on, when it holds them whole.
+  defp from_quoted(sentence, nil), do: sentence
+  defp from_quoted(sentence, words), do: from_whole(sentence, words) || sentence
+
+  # The sentence from `words` on, when it holds them whole (not inside a
+  # longer word); nil when it does not.
+  defp from_whole(sentence, words) do
+    whole = ~r/(?<![\p{L}\p{N}_])#{Regex.escape(words)}(?![\p{L}\p{N}_])/u
+
+    case Regex.run(whole, sentence, return: :index) do
+      [{at, _length}] -> binary_part(sentence, at, byte_size(sentence) - at)
+      nil -> nil
+    end
+  end
+
+  # The title's quoted words, in "double quotes", “curly quotes” or
+  # `backticks`, each holding a letter or digit, in order.
+  defp quoted(title) do
+    ~r/["“]([^"“”`]+)["”]|`([^`]+)`/u
+    |> Regex.scan(title, capture: :all_but_first)
+    |> Enum.flat_map(fn groups ->
+      groups |> Enum.reject(&(&1 == "")) |> Enum.map(&squash/1) |> Enum.filter(&worded/1)
+    end)
+  end
+
+  defp worded(text), do: if(text =~ ~r/[\p{L}\p{N}]/u, do: text)
+
+  # The error, then the title without its quoted copy of the error, or of
+  # the quoted words the error starts at. A bracket right after that copy,
+  # such as a status code, goes with the error: `Keyfleet git: "Git needs a
+  # password" (401). Agents sign…` is headed `Git needs a password (401).
+  # Keyfleet git: agents sign…`.
+  defp headed({error, _where}, title) do
+    {error, rest} =
+      title
+      |> quoted()
+      |> Enum.filter(&String.starts_with?(error, &1))
+      |> Enum.reduce({error, title}, &unquote_copy/2)
+
+    rest =
+      rest
+      |> squash()
+      |> String.replace(~r/\s+(?=[,;.])/u, "")
+      |> String.replace(~r/([,;:])[,;]/u, "\\1")
+      |> String.replace(~r/^[\s,;:—-]+|[\s,;:—-]+$/u, "")
+
+    cond do
+      rest == "" -> error
+      String.match?(error, ~r/[.!?]$/u) -> error <> " " <> rest
+      true -> error <> " — " <> rest
+    end
+  end
+
+  defp unquote_copy(words, {error, title}) do
+    copy = Enum.map_join(["\"#{words}\"", "“#{words}”", "`#{words}`"], "|", &Regex.escape/1)
+
+    case Regex.run(~r/(#{copy})(?:\s*(\([^()]*\))\.?)?/u, title, return: :index) do
+      nil ->
+        {error, title}
+
+      [{at, length} | bracket] ->
+        before = binary_part(title, 0, at) |> String.trim_trailing()
+        after_copy = title |> binary_part(at + length, byte_size(title) - at - length)
+
+        {with_bracket(error, title, bracket), joined(before, String.trim_leading(after_copy))}
+    end
+  end
+
+  defp with_bracket(error, _title, [_copy]), do: error
+
+  defp with_bracket(error, title, [_copy, {at, length}]) do
+    bracket = binary_part(title, at, length)
+
+    case String.split_at(error, -1) do
+      {said, end_mark} when end_mark in [".", "!", "?"] -> said <> " " <> bracket <> end_mark
+      _whole -> error <> " " <> bracket
+    end
+  end
+
+  # The title on either side of the removed copy. An ordinary capitalised
+  # word after a colon continues the clause, so it is lowercased.
+  defp joined(before, after_copy) do
+    after_copy =
+      if String.ends_with?(before, ":") and after_copy =~ ~r/\A\p{Lu}\p{Ll}/u,
+        do: String.downcase(String.first(after_copy)) <> String.slice(after_copy, 1..-1//1),
+        else: after_copy
+
+    before <> " " <> after_copy
+  end
+
+  # The fix's first sentence, after its label; or, when there is no labelled
+  # fix with words of its own, the first sentence of `after_error`.
+  defp fix(blocks, after_error) do
+    case Enum.find(blocks, &match?({:paragraph, "fix" <> _label, _words}, &1)) do
+      {:paragraph, _label, words} when words != "" -> "Fix: " <> first_sentence(words)
+      _no_fix -> after_error |> prose() |> first_sentence()
+    end
+  end
+
+  # The blocks the error is looked for in. Reading Markdown takes a fixed
+  # fraction of a millisecond however short the text, and every link to the
+  # post needs its error, so a body that cannot hold a top-level code block (a
+  # fence, or a line indented four spaces) is not read for one.
+  defp code_blocks(%{body_markdown: body} = post) when is_binary(body) do
+    if body =~ ~r/^ {0,3}(?:```|~~~|\t)|^ {4}/m, do: blocks(post), else: []
+  end
+
+  defp code_blocks(_post), do: []
+
+  # The post's top-level blocks: each code block's text without the commands
+  # typed at a prompt, and each paragraph's leading bold label (lowercased,
+  # for matching) and the words after it; then the text of every span of
+  # inline code, tables included, in the order written. A page asks for the same post's
+  # blocks many times over (each link to it, such as one per reply, its title,
+  # its description), and reading a body takes over a tenth of a millisecond,
+  # so the last post read is kept for the process that read it: by the post's
+  # id and the SHA-256 of its body, so another post, or this one edited, is
+  # read afresh.
+  defp blocks(%{id: id, body_markdown: body}) when is_binary(body) and body != "" do
+    key = {id, :crypto.hash(:sha256, body)}
+
+    case Process.get(__MODULE__) do
+      {^key, blocks} ->
+        blocks
+
+      _other ->
+        blocks = read(body)
+        Process.put(__MODULE__, {key, blocks})
+        blocks
+    end
+  end
+
+  defp blocks(%{note: note}) when is_binary(note), do: [{:paragraph, "", squash(note)}]
+  defp blocks(_post), do: []
+
+  defp read(body) do
+    document = MDEx.parse_document!(body, extension: [inline_code_attributes: false])
+
+    document
+    |> Map.fetch!(:nodes)
+    |> Enum.flat_map(fn
+      %MDEx.CodeBlock{literal: text} ->
+        case text
+             |> String.split("\n")
+             |> Enum.reject(&command?/1)
+             |> Enum.join(" ")
+             |> squash() do
+          "" -> []
+          printed -> [{:code, printed}]
+        end
+
+      %MDEx.Paragraph{nodes: nodes} ->
+        [paragraph(nodes)]
+
+      _other ->
+        []
+    end)
+    |> Enum.concat(for %MDEx.Code{literal: text} <- document, do: {:inline, squash(text)})
+  end
+
+  # A line typed at a shell prompt: `$ `, `% `, `# `, `> `, `>>> `, `PS C:\>`
+  # or `name@host:~$ `.
+  defp command?(line),
+    do: line =~ ~r/^\s*(?:>>>|[$%#>]|PS [^>]*>|[\w.-]+@[\w.-]+(?::\S*?)?[$#%])(?:\s|$)/u
+
+  defp paragraph([%MDEx.Strong{} = label | rest]),
+    do: {:paragraph, label |> text() |> String.downcase(), rest |> text() |> squash()}
+
+  defp paragraph(nodes), do: {:paragraph, "", nodes |> text() |> squash()}
+
+  defp text(nodes) do
+    nodes
+    |> List.wrap()
+    |> Enum.flat_map(fn
+      %struct{literal: literal} when struct in [MDEx.Text, MDEx.Code] -> [literal]
+      %struct{} when struct in [MDEx.SoftBreak, MDEx.LineBreak] -> [" "]
+      %{nodes: inner} -> [text(inner)]
+      _other -> []
+    end)
+    |> Enum.join()
+  end
+
+  defp prose(blocks) do
+    Enum.find_value(blocks, "", fn
+      {:paragraph, _label, words} when words != "" -> words
+      _other -> nil
+    end)
+  end
+
+  defp sentences(text), do: String.split(text, ~r/(?<=[.!?])\s+/u, trim: true)
+
+  defp first_sentence(""), do: ""
+  defp first_sentence(text), do: text |> sentences() |> hd()
+
+  defp words(text) do
+    ~r/[\p{L}\p{N}_]+/u
+    |> Regex.scan(String.downcase(text))
+    |> List.flatten()
+    |> MapSet.new()
+  end
+
+  defp overlap(sentence, wanted),
+    do: sentence |> words() |> MapSet.intersection(wanted) |> MapSet.size()
+
+  # A tool's marks before its message, such as a failed check's cross, are
+  # not part of the error's words.
+  defp without_marks(sentence), do: String.replace(sentence, ~r/^[^\p{L}\p{N}"'(\[]+/u, "")
+
+  defp squash(text), do: text |> String.split() |> Enum.join(" ")
+
+  defp written?(text), do: is_binary(text) and String.trim(text) != ""
+
+  defp titled(text) do
+    {text, cut?} = BoundedText.take(String.trim(text), 160)
+    if cut?, do: text <> "…", else: text
+  end
+
+  # The site's name, read when the post was read without its site.
+  defp site_name(%{site: %Ash.NotLoaded{}} = report),
+    do: report |> Ash.load!(:site, authorize?: false) |> site_name()
+
+  defp site_name(%{site: site}), do: site.display_name || site.origin
+
+  # The lead, then as much of the rest as fits; a rest that would show fewer
+  # than @least_fix characters is left out. A rest the lead already says is
+  # not said twice.
+  defp join(lead, rest) do
+    lead = squash(lead)
+    rest = squash(rest)
+
+    # A lead that is not a whole sentence, such as an error quoted as it was
+    # printed, is set apart from the rest with a dash rather than changed.
+    gap = if String.match?(lead, ~r/[.!?]$/u), do: " ", else: " — "
+    room = @description_limit - String.length(lead) - String.length(gap)
+
+    if rest == "" or room < @least_fix or String.contains?(lead, rest),
+      do: BoundedText.cut(lead, @description_limit),
+      else: lead <> gap <> BoundedText.cut(rest, room)
+  end
+end

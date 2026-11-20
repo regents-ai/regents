@@ -8,8 +8,8 @@ defmodule Regents.Patchbay.Forum.SolutionCard do
   Cards are derived records: the asker's selection of a reply creates one as
   a summary, always attributed as a summary, never as independently verified.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -68,11 +68,34 @@ defmodule Regents.Patchbay.Forum.SolutionCard do
     belongs_to(:source_reply, Regents.Patchbay.Forum.Reply, allow_nil?: false, public?: true)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  calculations do
+    # The words a search finds a card by: its summary, steps and caveats.
+    # Written exactly as `forum_solution_cards_search_words_index` is built, so
+    # a search reads the index.
+    calculate(
+      :search_vector,
+      AshPostgres.Tsvector,
+      expr(
+        fragment(
+          "to_tsvector('english'::regconfig, coalesce(?, '') || ' ' || coalesce(?, '') || ' ' || coalesce(?, ''))",
+          problem_summary,
+          proposed_steps,
+          caveats
+        )
+      )
+    )
+  end
+
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # Reads are public — a published card is public content.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

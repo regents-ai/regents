@@ -5,8 +5,8 @@ defmodule Regents.Patchbay.Forum.ThreadView do
   signed-in profile, or the forum session the server issued the browser, so
   reloading, liking or replying never counts again.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -42,11 +42,16 @@ defmodule Regents.Patchbay.Forum.ThreadView do
     identity(:report_viewer, [:report_id, :viewer])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # A thread's view count is public; no actor is required.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

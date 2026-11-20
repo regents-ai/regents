@@ -18,9 +18,11 @@ defmodule Regents.Patchbay.Forum.Site do
   or well-known-file check that does not exist yet, and until it does, no
   caller may mark a site as claimed. Every site therefore reads as `:none`.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
+
+  alias Regents.Patchbay.Forum.Origin
 
   use Ash.Resource,
     otp_app: :regents,
@@ -74,7 +76,7 @@ defmodule Regents.Patchbay.Forum.Site do
     attribute :origin, :string do
       allow_nil?(false)
       public?(true)
-      constraints(min_length: 1, max_length: 253)
+      constraints(min_length: 1, max_length: Origin.max_host_length())
     end
 
     attribute :slug, :string do
@@ -142,11 +144,60 @@ defmodule Regents.Patchbay.Forum.Site do
     end
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  aggregates do
+    # When the site's published tool list was last checked. Every tool in a
+    # publication is seen at the same moment, so this is that moment.
+    max :latest_check_at, :tools, :last_seen_at do
+      filter(expr(source_kind == :official))
+    end
+
+    count(:report_count, :reports)
+  end
+
+  calculations do
+    # The words a search finds a site by: its address and name. Written exactly
+    # as `forum_sites_search_words_index` is built, so a search reads the index.
+    calculate(
+      :search_vector,
+      AshPostgres.Tsvector,
+      expr(
+        fragment(
+          "to_tsvector('english'::regconfig, coalesce(?, '') || ' ' || coalesce(?, ''))",
+          origin,
+          display_name
+        )
+      )
+    )
+  end
+
+  actions do
+    defaults([:read])
+
+    read :find do
+      description("""
+      Sites whose name or address contains the words a visitor typed, or
+      nearly does (a letter or two wrong), busiest first: the front page's
+      site search.
+      """)
+
+      argument(:text, :string, allow_nil?: false, constraints: [min_length: 2, max_length: 200])
+
+      prepare(
+        {Regents.Patchbay.Forum.FindText,
+         contains: [:origin, :display_name], near: [:origin, :display_name]}
+      )
+
+      prepare(build(sort: [report_count: :desc, featured_rank: :asc, origin: :asc], limit: 6))
+      prepare(Regents.Patchbay.Forum.SearchSlots)
+    end
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # The directory is a public board: reads are open.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

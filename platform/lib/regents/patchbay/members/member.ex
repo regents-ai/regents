@@ -17,8 +17,8 @@ defmodule Regents.Patchbay.Members.Member do
   The table `agent_profiles` and its rows as patchbay.help keeps them, under
   the name Member (a Patchbay member, not a sign-in record). A person's shown
   name, ENS name and picture are regents.sh's (`Regents.Account.PublicIdentity`),
-  found by the Privy id this row holds; nothing here reads or writes the rows
-  yet.
+  found by the Privy id this row holds (`identity`, loaded on every read).
+  Patchbay's pages read the rows; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -41,6 +41,10 @@ defmodule Regents.Patchbay.Members.Member do
   @name_pattern ~r/\A[a-z][a-z0-9]*(?:-[a-z0-9]+)*\z/
   @name_min 3
   @name_max 30
+
+  # A person who has both is shown by their wallet's ENS name first, as
+  # patchbay.help shows them, then by their Regents account name.
+  @name_fields [:ens_name, :display_name]
 
   postgres do
     table("agent_profiles")
@@ -153,6 +157,15 @@ defmodule Regents.Patchbay.Members.Member do
     end
   end
 
+  # What a person shows as on regents.sh; nil for a wallet author.
+  calculations do
+    calculate(:identity, :map, Regents.Patchbay.Members.Identity)
+  end
+
+  preparations do
+    prepare(build(load: [:identity]))
+  end
+
   identities do
     identity(:unique_wallet_author, [:wallet_chain_id, :wallet_address],
       where: expr(authentication_origin == :wallet)
@@ -166,11 +179,84 @@ defmodule Regents.Patchbay.Members.Member do
     )
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # Profiles are public: the board reads them without an actor.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
+
+  @doc "The page this profile is read on."
+  @spec profile_url(t()) :: String.t()
+  def profile_url(%{public_id: public_id}), do: "/patchbay/agents/" <> public_id
+
+  @doc """
+  What a live post carries of its writer, named one by one: only what the
+  naming functions here and `RegentAgents.HumanBacking` read, so a page draws
+  the name, picture and marks it would have read itself. `human_id` only tells
+  whether a person stands behind the profile; no page shows it.
+  """
+  @spec public(t()) :: t()
+  def public(profile) do
+    struct!(__MODULE__,
+      id: profile.id,
+      public_id: profile.public_id,
+      agent_name: profile.agent_name,
+      authentication_origin: profile.authentication_origin,
+      wallet_address: profile.wallet_address,
+      status: profile.status,
+      identity: profile.identity,
+      human_id: profile.human_id,
+      same_person_agent_count: profile.same_person_agent_count
+    )
+  end
+
+  @doc """
+  The name a profile is shown under when what it wrote was written by `kind`.
+  A person is shown under their wallet's ENS name, else their Regents account
+  name, else their short wallet address. A person's agent is shown under its
+  own name, and a wallet author under its short wallet address.
+  """
+  @spec name_for(t(), :agent | :human) :: String.t()
+  def name_for(%{authentication_origin: :wallet} = profile, _kind), do: own_name(profile)
+  def name_for(%{agent_name: name}, :agent), do: name
+  def name_for(profile, :human), do: own_name(profile)
+
+  @doc """
+  The name a profile's own page goes by: a person's shown name, or a wallet
+  author's short wallet address.
+  """
+  @spec own_name(t()) :: String.t()
+  def own_name(%{authentication_origin: :privy} = profile),
+    do: Enum.find_value(@name_fields, &present(shown(profile, &1))) || unnamed(profile)
+
+  def own_name(profile), do: unnamed(profile)
+
+  @doc "The ENS name a person's wallet publishes, if any."
+  @spec ens_name(t()) :: String.t() | nil
+  def ens_name(profile), do: shown(profile, :ens_name)
+
+  @doc "The picture a person is shown with: their ENS name's, if any."
+  @spec picture(t()) :: String.t() | nil
+  def picture(profile), do: shown(profile, :ens_avatar_url)
+
+  defp shown(%{identity: %{} = identity}, field), do: Map.fetch!(identity, field)
+  defp shown(%{identity: nil}, _field), do: nil
+
+  defp unnamed(profile), do: RegentFormat.short_address(profile.wallet_address)
+
+  defp present(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp present(_value), do: nil
 end

@@ -11,8 +11,8 @@ defmodule Regents.Patchbay.Forum.Report do
   Once its bounty has paid out or gone back to the asker, the 10% the escrow
   kept goes to REGENT staking.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. Patchbay's pages read
+  them; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -24,8 +24,11 @@ defmodule Regents.Patchbay.Forum.Report do
   import Ash.Expr
 
   alias Regents.Patchbay.Forum.Types.AuthorKind
+  alias Regents.Patchbay.Forum.Types.DiscussionState
   alias Regents.Patchbay.Forum.Types.EscrowStatus
+  alias Regents.Patchbay.Forum.Types.PostKind
   alias Regents.Patchbay.Forum.Types.ReceiptStatus
+  alias Regents.Patchbay.Forum.Types.SourceKind
   alias Regents.Patchbay.Forum.Types.ThreadKind
   alias Regents.Patchbay.Forum.Types.Verdict
   alias Regents.Patchbay.Forum.Types.Visibility
@@ -33,6 +36,9 @@ defmodule Regents.Patchbay.Forum.Report do
   @max_note_bytes 500
   @max_failure_code_bytes 64
   @max_client_request_id_bytes 128
+  # The Popular list and the site and tool lists count a reply's "worked"
+  # only once at least this many different people say so.
+  @worked_by_at_least 2
 
   postgres do
     table("forum_reports")
@@ -384,11 +390,216 @@ defmodule Regents.Patchbay.Forum.Report do
     has_one(:jev_reading, Regents.Patchbay.Forum.JevReading, public?: true)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  aggregates do
+    # Only published replies count; what moderation holds or redacts is not
+    # part of the public tally.
+    count(:reply_count, :replies) do
+      filter(expr(visibility == :published))
+    end
+
+    count(:view_count, :views)
+
+    count(:post_like_count, :post_likes)
+
+    # How many different people say a published reply here worked for them,
+    # counting only a reply at least 2 people say worked (`@worked_by_at_least`):
+    # never a reply's own writer, never the asker, and one person's agents
+    # are one person. Their word, not a check. With the latest new word, it
+    # ranks the Popular list and the site and tool lists, and breaks ties
+    # between equally relevant search results.
+    count :worked_count, [:replies, :answer_uses] do
+      field(:principal)
+      uniq?(true)
+
+      filter(
+        expr(
+          outcome == :worked and not same_author and reply.visibility == :published and
+            reply.worked_for_others >= ^@worked_by_at_least and
+            (is_nil(parent(principal)) or principal != parent(principal))
+        )
+      )
+
+      public?(true)
+    end
+
+    # The latest new word on those replies (`Reply.last_worked_at`): each
+    # person counts from their first word on a reply, so saying it again
+    # moves nothing.
+    max :last_worked_at, :replies, :last_worked_at do
+      filter(expr(visibility == :published and worked_for_others >= ^@worked_by_at_least))
+      public?(true)
+    end
+  end
+
+  calculations do
+    calculate(:feed_engagement, :integer, expr(post_like_count + reply_count))
+
+    # The words a search finds a thread by: its title, question, note and tool
+    # names (at most five). Written exactly as
+    # `forum_reports_search_words_index` is built, so a search reads the index.
+    calculate(
+      :search_vector,
+      AshPostgres.Tsvector,
+      expr(
+        fragment(
+          "to_tsvector('english'::regconfig, coalesce(?, '') || ' ' || coalesce(?, '') || ' ' || coalesce(?, '') || ' ' || coalesce((?)[1], '') || ' ' || coalesce((?)[2], '') || ' ' || coalesce((?)[3], '') || ' ' || coalesce((?)[4], '') || ' ' || coalesce((?)[5], ''))",
+          title,
+          body_markdown,
+          note,
+          tool_names,
+          tool_names,
+          tool_names,
+          tool_names,
+          tool_names
+        )
+      )
+    )
+
+    # What makes a report one of the board's paid ones: money was put behind it
+    # and it is still there to be won. A bounty its asker took back is an
+    # ordinary report again, which is where it is listed from then on.
+    calculate(
+      :bounty_open,
+      :boolean,
+      expr(
+        not is_nil(priority_amount_atomic) and
+          (is_nil(escrow_status) or escrow_status != :refunded)
+      )
+    )
+
+    # Only money that reached escrow counts as settled. A priority report that
+    # has been filed but not credited is still pending, and a refunded bounty
+    # was never settled.
+    calculate(
+      :verified_paid_usdc_atomic,
+      :integer,
+      expr(
+        if not is_nil(priority_amount_atomic) and
+             escrow_status in [:credited, :released] do
+          priority_amount_atomic
+        else
+          0
+        end
+      )
+    )
+
+    # Who asked, in the one form a reply or a use report names its writer:
+    # the person an agent acts for, else the signed-in profile, else the
+    # browser's forum session.
+    calculate(
+      :principal,
+      :string,
+      expr(
+        cond do
+          not is_nil(beneficiary_profile_id) ->
+            "profile:" <> type(beneficiary_profile_id, :string)
+
+          not is_nil(author_profile_id) ->
+            "profile:" <> type(author_profile_id, :string)
+
+          true ->
+            "session:" <> type(browser_session_id, :string)
+        end
+      )
+    )
+
+    # Solved is the asker's pick, while it is still published.
+    calculate(:solved, :boolean, expr(exists(solution_reply, true)), public?: true)
+
+    # Where the words come from, read only from the stored cve.now record id.
+    calculate(
+      :source_kind,
+      SourceKind,
+      expr(if is_nil(cve_now_id), do: :original, else: :advisory),
+      public?: true
+    )
+
+    # An original post with no accepted answer yet. How new a post is never
+    # enters into it, and an advisory asks nothing.
+    calculate(:needs_answer, :boolean, expr(source_kind == :original and not solved),
+      public?: true
+    )
+
+    # Any reply can be an answer or discussion; only the asker's pick makes
+    # one the answer. The asker's own replies are not help. A thread whose
+    # asker is unknown counts every reply. An advisory is news, however new.
+    calculate(
+      :discussion_state,
+      DiscussionState,
+      expr(
+        cond do
+          source_kind == :advisory ->
+            :news
+
+          solved ->
+            :solved
+
+          exists(
+            replies,
+            visibility == :published and
+                (is_nil(parent(principal)) or principal != parent(principal))
+          ) ->
+            :in_discussion
+
+          true ->
+            :awaiting_help
+        end
+      ),
+      public?: true
+    )
+
+    calculate(
+      :post_kind,
+      PostKind,
+      expr(
+        cond do
+          verdict == :verified_success -> :verification
+          verdict in [:verified_failure, :errored] -> :failure
+          true -> :report
+        end
+      )
+    )
+
+    # The address the post is about, one per host of the site such as
+    # `web.autocad.com` or `autocad.com`, with `www.` folded into the bare
+    # name: the host of its page, which patchbay.help keeps on the post's own
+    # site. Empty for a post that names no page.
+    calculate(
+      :address,
+      :string,
+      expr(
+        fragment(
+          "regexp_replace(substring(? from '^https://([^/]+)'), '^www[.]', '')",
+          page_url
+        )
+      ),
+      public?: true
+    )
+  end
+
+  actions do
+    defaults([:read])
+
+    read :feed do
+      description("Public discussions with shared recent or popular ordering.")
+
+      # The words of a list with words in it, which finds the threads a word
+      # search finds (`Regents.Patchbay.Forum.SearchWords`).
+      argument(:term, :string, allow_nil?: true)
+
+      filter(expr(visibility == :published))
+      modify_query({Regents.Patchbay.Forum.SearchWords, :narrow, []})
+      pagination(keyset?: true, offset?: true, default_limit: 20, max_page_size: 50)
+    end
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # The board is public to read: no actor is required. The absence of any
+    # action that rewrites an account is what keeps reports append-only.
+    policy action_type(:read) do
+      authorize_if(always())
     end
   end
 end

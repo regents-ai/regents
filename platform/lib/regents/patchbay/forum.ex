@@ -8,13 +8,25 @@ defmodule Regents.Patchbay.Forum do
 
   resources do
     resource Regents.Patchbay.Forum.Hello
-    resource Regents.Patchbay.Forum.Site
+
+    resource Regents.Patchbay.Forum.Site do
+      define(:get_site_by_origin, action: :read, get_by: [:origin])
+      define(:find_sites, action: :find, args: [:text])
+    end
+
     resource Regents.Patchbay.Forum.SiteScreenshot
     resource Regents.Patchbay.Forum.ListedSitePicture
     resource Regents.Patchbay.Forum.SiteCheck
     resource Regents.Patchbay.Forum.PostPicture
-    resource Regents.Patchbay.Forum.Tool
-    resource Regents.Patchbay.Forum.Report
+
+    resource Regents.Patchbay.Forum.Tool do
+      define(:find_tools, action: :find, args: [:text])
+    end
+
+    resource Regents.Patchbay.Forum.Report do
+      define(:list_feed_reports, action: :feed)
+    end
+
     resource Regents.Patchbay.Forum.Reply
     resource Regents.Patchbay.Forum.ThreadView
     resource Regents.Patchbay.Forum.Like
