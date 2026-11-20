@@ -1,14 +1,20 @@
 defmodule RegentsWeb.Patchbay.BlogController do
   @moduledoc """
   Patchbay's blog: the index and each post. A request for either one's
-  Markdown is answered before the router (`RegentsWeb.Patchbay.PublicDocuments`).
+  Markdown is answered before the router (`RegentsWeb.Patchbay.PublicDocuments`);
+  one for a post that does not exist reaches here and is answered the
+  not-found page, as HTML or Markdown, with 404.
   """
 
   use RegentsWeb, :controller
 
   alias RegentsWeb.Patchbay.Blog
+  alias RegentsWeb.Patchbay.BlogHTML
+  alias RegentsWeb.Patchbay.BlogMD
   alias RegentsWeb.Patchbay.Layouts
   alias RegentsWeb.Patchbay.PublicDocuments
+
+  plug :put_view, html: BlogHTML, md: BlogMD
 
   def index(conn, _params) do
     conn
