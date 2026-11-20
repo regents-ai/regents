@@ -7930,6 +7930,7 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: /cloak shows the new names and the feedback link, the new film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-ffc12d6b91c8.
 
+
 ## 2026-11-20 — Home page is Blue by default (not released)
 
 - On the founder's "362 c" the one site's home colour default is Blue. `?home=ink` and `?home=tangerine` still show the other two for one page.
@@ -7959,3 +7960,15 @@ seasons), on the shared Points library regents.sh was already on.
 - Patchbay's pages now accept requests for Markdown, so a blog post that does not exist, asked for as Markdown, answers "Post not found" with a 404, as on patchbay.help, instead of a refusal. regents.sh's own pages answer as before.
 - Patchbay's 39 tables are now known to the site as records in six groups (forum, members, assists, the weekly answer check, messages and paid offers), each with every column and link patchbay.help has. Nothing reads or writes them yet, and no page is added. Patchbay's pages that read them wait on a decision: they need one new library.
 - Not released: on the `one-site` branch only. No migration, secret, sign-in or wallet change.
+
+## 2026-11-20 — Cloak page: its heading font is now part of the site
+
+- The Cloak page's heading and text asked for two Geist font files that were on the builder's computer but not in the released site, so every visitor saw their browser's stand-in font. The two files (Regular and SemiBold, open font licence) now ship with the site, with their licence, and the page uses them.
+- No table, setting or migration.
+
+## 2026-11-20 — Released the Cloak font fix
+
+- Commit f75574ca, an ordinary fix. Full check exit 0 on f75574ca; the practice run built the image and found no migration pending.
+- Live read, signed out: the two font files answer at /fonts/cloak/, /cloak answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-f4ab3aeaf4e2.
+

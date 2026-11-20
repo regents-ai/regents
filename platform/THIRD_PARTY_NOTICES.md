@@ -56,3 +56,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Geist — the Cloak page's heading
+
+The Cloak page sets its heading and text in Geist sans. Two files,
+`priv/static/fonts/cloak/Geist-Regular.woff2` and `Geist-SemiBold.woff2`, are copied
+unchanged from the Regent design system's copy of the font (design-system revision
+before `cb4e3fb`, which stopped shipping the sans), and are served from this site.
+
+- Project: `vercel/geist-font` — https://github.com/vercel/geist-font
+- License: SIL Open Font License 1.1, in full at `priv/static/fonts/cloak/OFL.txt`
