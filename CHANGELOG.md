@@ -7379,3 +7379,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The Cloak page's heading and text asked for two Geist font files that were on the builder's computer but not in the released site, so every visitor saw their browser's stand-in font. The two files (Regular and SemiBold, open font licence) now ship with the site, with their licence, and the page uses them.
 - No table, setting or migration.
+
+## 2026-11-20 — Released the Cloak font fix
+
+- Commit f75574ca, an ordinary fix. Full check exit 0 on f75574ca; the practice run built the image and found no migration pending.
+- Live read, signed out: the two font files answer at /fonts/cloak/, /cloak answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-f4ab3aeaf4e2.
