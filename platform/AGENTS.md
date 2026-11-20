@@ -42,9 +42,9 @@ again from it and moving that commit.
   button, links, focus ring, chosen tab). A product with a look of its own restates
   its own in its scoped tokens, per theme, so they win: Techtree in
   `assets/css/techtree/app.css`, Keyfleet in `assets/css/keyfleet/tokens/root.css`,
-  Autolaunch on its own pages in `assets/css/autolaunch/tokens/autolaunch.css` (its
-  overview, `/autolaunch`, still wears design-system's). Patchbay wears design-system's
-  until its own pages come in.
+  Autolaunch on its own pages in `assets/css/autolaunch/tokens/autolaunch.css` and
+  Patchbay on its own in `assets/css/patchbay/tokens.css` (their overviews,
+  `/autolaunch` and `/patchbay`, still wear design-system's).
 
 ### The one-site bar and the page's three attributes
 
@@ -160,6 +160,27 @@ Autolaunch's pages under `/autolaunch/...` wear its own frame
 - A page served by a controller gets the frame from its pipeline
   (`put_layout html: {RegentsWeb.Autolaunch.Layouts, :app}`). That layout's assigns are
   a plain map, so it never calls `assign/3`; the components it calls may.
+
+### A product page's head, Markdown and left-out parts (Patchbay)
+
+- A page names its own head values as assigns the root layout reads: `page_title` and
+  `page_description` (the title gains the product's name in
+  `RegentsWeb.PublicDocuments`' `title_suffix/1`), `share_image` (url, size and alt),
+  `canonical` (a whole url, only where it is not the page's own address, as an older
+  changelog page `?page=N`) and `structured_data` (the product's schema.org graph with
+  the page's own nodes, `Regent.StructuredData.graph/2`). A page that names none has
+  the site's. Patchbay builds them in one place, `RegentsWeb.Patchbay.Layouts.frame/2`.
+- A page's Markdown is answered at its own address, before the router: the product's
+  `PublicDocuments.document/1` returns `%{markdown: text}` for its pages and nil for every
+  other address, `RegentsWeb.PublicDocuments.document/1` hands it `/<product>/…`, and its
+  `paths/0` joins the site's list. An address it answers nil for and the router serves
+  answers a Markdown request 406, as every page without a Markdown form does.
+- A part of a header or page that reads or writes tables (a search box, an account menu,
+  a message button) is left out whole until its tables come: no stub, placeholder or
+  disabled control. The bar carries only links whose pages are here, so a product with
+  none of its places here has no links and no Menu. Each left-out part is named in
+  `SOURCE.json`'s `not_brought`; links in a page's words to a page still to come keep its
+  future `/<product>/…` address.
 
 ### A product's carried documents
 

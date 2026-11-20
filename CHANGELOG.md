@@ -7850,3 +7850,29 @@ seasons), on the shared Points library regents.sh was already on.
   reads 100 people at a time.
 - `Human.privy_id/1` answers a signed-in person's Privy id from their account, or
   `:error` when no account has their id.
+
+## 2026-11-20 — one-site branch: Patchbay's pages that need no database (not released)
+
+- Not released: on the `one-site` branch only. No migration, queue, scheduled job,
+  setting, secret, sign-in, session, wallet or pairing change.
+- Patchbay's Help, About, Privacy, Terms of Use, Changelog with its older pages, WebMCP
+  guide, Developer docs, Agents, Blog with its four posts, Agent setup, Payments and the
+  ten troubleshooting pages are on this site under `/patchbay/...`, word for word as
+  patchbay.help shows them at `da7b217b`. Each also answers as Markdown when asked with
+  `Accept: text/markdown`, and each troubleshooting page at its `.md` address.
+  `/patchbay/developers` forwards to `/patchbay/docs`.
+- They open with this site's bar, then Patchbay's own sheet and footer. Patchbay's
+  places (Questions, Sites, Ask) are not in the bar yet: none of their pages is here.
+  Patchbay's buttons, links and focus ring are patchbay.help's in both themes; Sign in
+  in the bar is the shared one.
+- Each page's title, description, share picture, canonical address and structured data
+  are Patchbay's, through the site's one root document, which now also takes a page's
+  own canonical address and structured data.
+- Links in the pages to Patchbay pages still to come (its home, Sites, pairing, the agent
+  pages, Wallet Bench) point at their `/patchbay/...` addresses and answer "not found"
+  until those come. The site-wide guides the pages name (`/llms.txt`, `/agents.md`,
+  `/skill.md`, `/openapi.json`, `/mcp`) are regents.sh's.
+- Left out for now: the search box, account menu and Offers link of patchbay.help's
+  header, the Agents page's leave-a-message button, and open.patchbay.help's words.
+- regents.sh's, Techtree's, Keyfleet's and Autolaunch's pages and the site's agent
+  documents answer as before; `/api/v1/health` also lists Patchbay.
