@@ -7972,3 +7972,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: the two font files answer at /fonts/cloak/, /cloak answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-f4ab3aeaf4e2.
 
+
+## 2026-11-20 — One site: the address library Patchbay's pages need (not released)
+
+- `domainatrex` 3.2.0 is added, the version patchbay.help runs, set never to fetch its list at build time. It works out which main address a site belongs to. Nothing in the site uses it yet.
+- Not released: on the `one-site` branch only. No migration, secret, sign-in or page change.

@@ -102,6 +102,8 @@ defmodule Regents.MixProject do
       {:mint, "~> 1.11"},
       {:mint_web_socket, "~> 1.0"},
       {:ex_image_info, "~> 1.0"},
+      # Patchbay's: works out a site's main address (shop.example.co.uk belongs to example.co.uk).
+      {:domainatrex, "~> 3.2"},
       {:decimal, "== 3.2.0"},
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},

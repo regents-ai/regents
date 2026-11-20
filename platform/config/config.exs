@@ -284,6 +284,10 @@ config :error_tracker,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Domainatrex reads the list of public suffixes shipped inside the package; builds
+# never fetch it.
+config :domainatrex, fetch_latest: false
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
