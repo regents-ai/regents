@@ -36,9 +36,10 @@ defmodule RegentsWeb.Cloak do
        link: "X post",
        href: "https://x.com/VitalikButerin/status/2111046730959433793",
        after: " about his preferred AI usage."
-     }, "Reworded on your Mac, then sent through Tor."},
+     }, "Tor routing, cover traffic, prompt rewording, and zkAPI inference"},
     {"NEAR Private AI", nil, "Proof of NEAR's servers is checked before anything is sent."},
-    {"Local Llama", nil, "Answered on your Mac. Nothing is sent."}
+    {"Local Llama", nil,
+     "Answered fully on your Mac with recommended best-in-class local models. Zero traffic is sent over the web."}
   ]
 
   # The drawn chat window: the app's own words and one sample exchange.
