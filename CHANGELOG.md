@@ -7397,3 +7397,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit e506d67c, on the founder's words in the Cloak thread. Full check exit 0 on e506d67c; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows the new heading, the new film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-f75574cad013.
+
+## 2026-11-20 — Released the Cloak text sizes
+
+- Commit d72d7e17, on the founder's words in the Cloak thread: smaller heading and paragraph, and the line under the buttons no longer says "Early test build". Full check exit 0 on d72d7e17; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the heading and the shorter line, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-e506d67c49e6.
