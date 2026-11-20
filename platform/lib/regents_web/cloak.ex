@@ -37,26 +37,31 @@ defmodule RegentsWeb.Cloak do
        href: "https://x.com/VitalikButerin/status/2111046730959433793",
        after: " about his preferred AI usage."
      }, "Reworded on your Mac, then sent through Tor."},
-    {"NEAR AI Gateway", nil, "Proof of NEAR's servers is checked before anything is sent."},
+    {"NEAR Private AI", nil, "Proof of NEAR's servers is checked before anything is sent."},
     {"Local Llama", nil, "Answered on your Mac. Nothing is sent."}
   ]
 
   # The drawn chat window: the app's own words and one sample exchange.
   @window %{
     title: "Chat",
-    mode: "Llama Normal",
+    mode: "Local Llama",
     mode_note: "Answered on this Mac, with nothing to pay and no need to start Cloak.",
     asked: "Plan a quiet weekend in Lisbon.",
     answered:
       "Start with a slow morning in Alfama, then take the tram up to the viewpoint before lunch.",
     field: "Message",
-    switch: ["Anon V", "NEAR Privacy", "Llama Normal", "Agent"],
+    switch: ["Anon", "NEAR Private AI", "Local Llama", "Agent"],
     hint: "The model on this Mac answers. Nothing is sent."
   }
 
   @needs "16 GB of memory and 10 GB free; the app downloads a 6.5 GB model on first run. Modes 1 and 2 also need about 1 USDC.e on Tempo, or a NEAR AI Cloud key."
   @caution "This build is for testing. Its protections have not been independently checked, so don't rely on it for anything sensitive yet."
-  @feedback "Something broke? Tell Sean what you did and what you saw."
+  @feedback %{
+    before: "Something broke? Tell us at ",
+    link: "patchbay.help/regents.sh",
+    href: "https://patchbay.help/regents.sh",
+    after: "."
+  }
 
   def heading, do: @heading
   def subtitle, do: @subtitle
@@ -112,7 +117,7 @@ defmodule RegentsWeb.Cloak do
 
     #{@caution}
 
-    #{@feedback}
+    #{@feedback.before}[#{@feedback.link}](#{@feedback.href})#{@feedback.after}
     """
   end
 end
