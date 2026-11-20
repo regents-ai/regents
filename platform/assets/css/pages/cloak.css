@@ -89,10 +89,10 @@
 }
 
 .cloak-hero__subtitle {
-  max-width: 24.5em;
+  max-width: 35em;
   margin: var(--space-4) 0 0;
-  font-size: clamp(1.1875rem, 2.1vw, 1.875rem);
-  line-height: 1.5;
+  font-size: clamp(1.0625rem, 1.75vw, 1.5625rem);
+  line-height: 1.45;
   letter-spacing: -0.01em;
   text-wrap: balance;
 }

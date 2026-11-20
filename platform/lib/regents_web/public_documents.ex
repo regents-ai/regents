@@ -80,7 +80,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
     "/cloak" =>
       {"Cloak",
-       "Cloak is a small menu bar app for your Mac. Chat with a model on your Mac, or reword your message and send it through Tor."},
+       "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",
