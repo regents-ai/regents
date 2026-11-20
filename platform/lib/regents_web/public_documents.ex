@@ -78,7 +78,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/keyfleet" =>
       {"Keyfleet",
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
-    "/cloak" => {"Cloak", "A Mac app that rewords your messages and sends them through Tor."},
+    "/cloak" =>
+      {"Cloak",
+       "Cloak is a small menu bar app for your Mac. Chat with a model on your Mac, or reword your message and send it through Tor."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",

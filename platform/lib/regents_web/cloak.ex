@@ -5,7 +5,8 @@ defmodule RegentsWeb.Cloak do
   from here.
   """
 
-  # The heading's two lines and the subtitle: change their words here and nowhere else.
+  # The heading's two lines and the subtitle: change their words here. The subtitle is
+  # also the page's description in `RegentsWeb.PublicDocuments`; change it there too.
   @heading ["Anon. Local.", "Private AI."]
   @subtitle "Cloak is a small menu bar app for your Mac. Chat with a model on your Mac, or reword your message and send it through Tor."
 
