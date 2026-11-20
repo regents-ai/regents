@@ -5,10 +5,10 @@ defmodule RegentsWeb.Cloak do
   from here.
   """
 
-  # The heading's two lines and the subtitle: change their words here. The subtitle's
+  # The heading's two lines (the second is set smaller) and the subtitle: change their words here. The subtitle's
   # first two sentences are also the page's description in `RegentsWeb.PublicDocuments`;
   # change them there too.
-  @heading ["Anon. Local.", "Private AI."]
+  @heading ["Cloak your local AI.", "Always private, full anon is optional."]
   @subtitle "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference. Then go “paranoid mode” with Tor, cover traffic, zkAPI, and message rewording when you need Vitalik-level privacy."
 
   @pill %{

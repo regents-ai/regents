@@ -25,9 +25,8 @@ defmodule RegentsWeb.CloakLive do
           {@pill.before}<a href={@pill.href}>{@pill.link}</a>{@pill.after}
         </p>
         <h1 id="cloak-heading" tabindex="-1">
-          <%= for {line, index} <- Enum.with_index(Cloak.heading()) do %>
-            <br :if={index > 0} />{line}
-          <% end %>
+          <span class="cloak-hero__first">{hd(Cloak.heading())}</span>
+          <span class="cloak-hero__second">{List.last(Cloak.heading())}</span>
         </h1>
         <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
         <div class="cloak-hero__actions">

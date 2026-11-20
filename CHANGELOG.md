@@ -7385,3 +7385,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit f75574ca, an ordinary fix. Full check exit 0 on f75574ca; the practice run built the image and found no migration pending.
 - Live read, signed out: the two font files answer at /fonts/cloak/, /cloak answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-f4ab3aeaf4e2.
+
+## 2026-11-20 — Cloak page: the founder's new tagline, and the film's new last line
+
+- The heading now reads "Cloak your local AI." with "Always private, full anon is optional." as its second, smaller line: the founder's words, as typed. The Markdown form of the page carries the same words.
+- The intro film is replaced by the re-made one at the same address: only the line on its end card changed, to the same tagline.
+- No table, setting or migration.
