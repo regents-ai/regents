@@ -8,6 +8,16 @@ defmodule RegentsWeb.Techtree.ObjectController do
   single byte is sent. A digest this application cannot resolve that way is a
   `404`, never a guess.
 
+  Some published objects are not in the catalog bundle: the starter Skills, one
+  per Climb, which are release artifacts this application ships rather than
+  part of the protocol graph `regents-cli` generates. Each is addressed here by
+  the digest of its exact file bytes, and hashed again before it is sent for
+  the same reason everything else is.
+
+  Every answer is data, never a page: it carries a content policy that runs
+  nothing (`ExactResponse.put_api_headers/1`), so an object opened from this
+  site's address cannot run anything there.
+
   Two fixed policies:
 
     * a digest that is not spelled `sha256:` followed by 64 lowercase
@@ -21,12 +31,15 @@ defmodule RegentsWeb.Techtree.ObjectController do
 
   alias Regents.Techtree.Catalog.Digest
   alias Regents.Techtree.Catalog.Query
+  alias Regents.Techtree.Release.StarterSkill
   alias RegentsWeb.Techtree.ExactResponse
 
   @doc """
   Return the exact bytes filed under one digest.
   """
   def show(conn, %{"digest" => digest}) do
+    conn = ExactResponse.put_api_headers(conn)
+
     if Digest.valid?(digest) do
       send_object(conn, digest)
     else
@@ -41,12 +54,26 @@ defmodule RegentsWeb.Techtree.ObjectController do
   end
 
   defp send_object(conn, digest) do
-    case Query.object_bytes(digest) do
-      {:ok, bytes, entry} ->
-        ExactResponse.send_exact(conn, bytes, entry.media_type, digest, :immutable)
+    case published_bytes(digest) do
+      {:ok, bytes, media_type} ->
+        ExactResponse.send_exact(conn, bytes, media_type, digest, :immutable)
 
       {:error, error} ->
         ExactResponse.send_error(conn, error)
+    end
+  end
+
+  # The two things this site publishes under a content address: the starter
+  # Skills it ships, and the objects of the catalog bundle it imported.
+  defp published_bytes(digest) do
+    case StarterSkill.addressed_by(digest) do
+      {:ok, starter} ->
+        StarterSkill.bytes(starter)
+
+      :error ->
+        with {:ok, bytes, entry} <- Query.object_bytes(digest) do
+          {:ok, bytes, entry.media_type}
+        end
     end
   end
 end

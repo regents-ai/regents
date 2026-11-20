@@ -58,7 +58,9 @@ defmodule RegentsWeb.Techtree.ExactResponse do
   """
   @spec send_exact(Plug.Conn.t(), binary(), String.t(), String.t(), caching()) :: Plug.Conn.t()
   # The media type is chosen by the controller from a fixed set, and the bytes
-  # are published documents sent with nosniff under the site's content policy.
+  # are published documents sent with nosniff: objects and Train reports under a
+  # policy that runs nothing (put_api_headers/1), the catalog and bootstrap
+  # documents, which are JSON, under the site's reading policy.
   # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
   def send_exact(conn, bytes, media_type, digest, caching) do
     etag = ~s("#{digest}")

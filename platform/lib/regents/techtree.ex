@@ -8,7 +8,9 @@ defmodule Regents.Techtree do
   (`Regents.Techtree.ModelClimb`) and the catalog's releases and entries
   (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`). The
   published Skill comparisons are committed files
-  (`Regents.Techtree.Train.Comparisons`). Its pages are `RegentsWeb.Techtree`, and
+  (`Regents.Techtree.Train.Comparisons`), and so are the starter Skills
+  (`Regents.Techtree.Release.StarterSkill`, `priv/techtree/release`). Its pages
+  are `RegentsWeb.Techtree`, and
   its release commands `Regents.Techtree.Release`.
   """
   use Boundary,
@@ -22,6 +24,7 @@ defmodule Regents.Techtree do
       Catalog.Route,
       ModelClimb,
       Release,
+      Release.StarterSkill,
       Train.Comparisons
     ]
 
