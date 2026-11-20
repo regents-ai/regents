@@ -2,11 +2,12 @@
    download on it, then a dark-blue panel with the modes and a drawn chat window.
    Unlayered, so the heading's heavy sans wins over every title's serif. */
 
-/* The design system's sans, Geist, at the two weights it ships. Its files are
-   served with the serif's (regent_ui.assets). */
+/* Geist sans at two weights, for this page only. The design system ships the
+   serif and the mono, so these two files are the site's own (priv/static/fonts/cloak,
+   with their licence). */
 @font-face {
   font-family: "Geist";
-  src: url("/fonts/regent-ui/Geist-Regular.woff2") format("woff2");
+  src: url("/fonts/cloak/Geist-Regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -14,7 +15,7 @@
 
 @font-face {
   font-family: "Geist";
-  src: url("/fonts/regent-ui/Geist-SemiBold.woff2") format("woff2");
+  src: url("/fonts/cloak/Geist-SemiBold.woff2") format("woff2");
   font-style: normal;
   font-weight: 600;
   font-display: swap;

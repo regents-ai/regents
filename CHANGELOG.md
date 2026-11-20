@@ -7374,3 +7374,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit f4ab3aea, on the founder's "14. a" in the Cloak thread. Full check exit 0 on f4ab3aea; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows the new names and the feedback link, the new film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-ffc12d6b91c8.
+
+## 2026-11-20 — Cloak page: its heading font is now part of the site
+
+- The Cloak page's heading and text asked for two Geist font files that were on the builder's computer but not in the released site, so every visitor saw their browser's stand-in font. The two files (Regular and SemiBold, open font licence) now ship with the site, with their licence, and the page uses them.
+- No table, setting or migration.
