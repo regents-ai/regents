@@ -7358,3 +7358,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The blue panel on /cloak gets the title "3 modes of operation"; its three points are named Anon “paranoid mode” (with the line "Inspired by Vitalik's X post about his preferred AI usage.", the words X post linking to the post in a new tab), NEAR AI Gateway and Local Llama, as the founder asked. The Needs note says "Modes 1 and 2". The drawn chat window keeps the app's own labels.
 - The page's search and share description is now its subtitle.
 - The subtitle is the founder's new words (local model or private NEAR inference, then “paranoid mode”), set wider and a little smaller so the buttons stay on the first screen; the description is its first two sentences.
+
+## 2026-11-20 — Released the new Cloak page
+
+- Commit ffc12d6b, on the founder's "12. a" in the Cloak thread. Full check exit 0 on ffc12d6b; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows the new heading and subtitle, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-905bcd678fe6.
