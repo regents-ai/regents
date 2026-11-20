@@ -3,6 +3,6 @@ defmodule RegentsWeb.Redeem do
   The Redeem pages, gallery and shell features.
   """
   use Boundary,
-    deps: [RegentsWeb, RegentsWeb.Chain, RegentsWeb.Account],
+    deps: [RegentsWeb, RegentsWeb.Chain],
     exports: [Gallery, RedeemGalleryLive, Redemption]
 end

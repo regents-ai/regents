@@ -19,6 +19,10 @@ defmodule RegentsWeb do
   use Boundary,
     deps: [Regents, Regents.Chain, Regents.Stake, Regents.Redeem],
     exports: [
+      # The only Account web modules the product pages may use: who the page acts
+      # for, and the Privy sign-in a signed-in read carries.
+      Account.Identity,
+      Account.PrivyPair,
       Capabilities,
       ClientAddress,
       Components.Loading,

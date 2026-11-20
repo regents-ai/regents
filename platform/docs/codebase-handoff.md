@@ -124,6 +124,9 @@ assets/js/datascape/ the homepage's datascape (from ash-template)
 contracts/           the pinned manifest, its digest, and the ABIs
 ```
 
+The `boundary` lines a new product needs, and what it may use, are under "Adding a
+product" in platform/AGENTS.md.
+
 ---
 
 ## 4. Gates — run all of these before claiming anything works

@@ -6,7 +6,10 @@ This is the Phoenix/Ash component of the Regents monorepo. Run Mix and npm here.
 (`Regents.Stake.*` in `lib/regents/stake/`, `RegentsWeb.Stake.*` in
 `lib/regents_web/stake/`), chain plumbing two products share is `Regents.Chain.*` and
 `RegentsWeb.Chain.*`, and the rest is the site itself. The `boundary` compiler fails the
-build when one product uses another; Account is reached only through its exports.
+build when one product's pages use another product's pages, or Account pages other than
+`RegentsWeb.Account.Identity` and `RegentsWeb.Account.PrivyPair`; Account's core is
+reached only through its exports. Not yet enforced: a product's pages can still call
+another product's core, because they inherit what `RegentsWeb` may use.
 `contracts/` here contains runtime API/ABI/manifests; Solidity lives in the monorepo's
 root `contracts/`. Keep internal OTP/release names stable during layout changes.
 
@@ -16,6 +19,19 @@ the repository's own `../shared` folders, named by path in `mix.exs`; `siwa`,
 `regent_chain` and `regent_ui` are git pins there. `../shared/SOURCE.json` records the
 library commit the copies come from; a newer one is taken in by copying the packages
 again from it and moving that commit.
+
+## Adding a product
+
+- Core, `lib/regents/<product>.ex`:
+  `use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [...]`
+  (drop `Regents.Chain` if it reads no chain). It may use the site core and, through
+  `Regents`' exports, `Accounts`, `Actors.Human` and `Actors.System`.
+- Pages, `lib/regents_web/<product>.ex`:
+  `use Boundary, deps: [RegentsWeb, RegentsWeb.Chain], exports: [...]`, exporting only
+  what the shell and router mount. It may use the `RegentsWeb` toolkit and its two
+  Account exports (`Account.Identity`, `Account.PrivyPair`), and `RegentsWeb.Chain`.
+- Add the core to `RegentsWeb`'s `deps` in `lib/regents_web.ex` so the shell can mount it.
+- Use your own core only; the compiler does not stop a call into another product's core.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

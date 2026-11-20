@@ -7350,3 +7350,17 @@ seasons), on the shared Points library regents.sh was already on.
   `regents_dev`; the local setup still refuses a name that does not end in `_dev`).
   `platform/config/dev.exs`, `platform/lib/regents/database_config.ex`, `platform/README.md`.
   Production settings are untouched. No migration.
+
+## 2026-11-19 — Product pages see two Account modules
+
+- Stake's and Redeem's pages no longer list `RegentsWeb.Account` as a boundary dependency.
+  They reach Account's pages only through `RegentsWeb.Account.Identity` and
+  `RegentsWeb.Account.PrivyPair`, now exported by `RegentsWeb`; any other Account page
+  module fails the compile. platform/lib/regents_web.ex,
+  platform/lib/regents_web/stake.ex, platform/lib/regents_web/redeem.ex.
+- Not changed, and not yet enforced: a product's pages can still call another product's
+  core, and `Regents` still exports all 19 Account core modules to every boundary outside
+  it. boundary 0.12 has no native way to close either; the options are open.
+- "Adding a product" in platform/AGENTS.md lists the `use Boundary` lines a new product
+  needs. No route, table, migration or behaviour change; the compile-connected gate stays
+  at 43.
