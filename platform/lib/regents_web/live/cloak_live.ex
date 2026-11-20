@@ -64,10 +64,13 @@ defmodule RegentsWeb.CloakLive do
         <div>
           <h2 id="cloak-modes-heading" class="cloak-show__title">{Cloak.modes_title()}</h2>
           <ol class="cloak-modes">
-            <li :for={{{name, aside, sentence}, n} <- @modes}>
+            <li :for={{{name, credit, sentence}, n} <- @modes}>
               <span class="cloak-badge" aria-hidden="true">{n}</span>
               <div>
-                <h3>{name} <span :if={aside}>{aside}</span></h3>
+                <h3>{name}</h3>
+                <p :if={credit} class="cloak-modes__credit">
+                  {credit.before}<a href={credit.href} target="_blank" rel="noopener noreferrer">{credit.link}</a>{credit.after}
+                </p>
                 <p>{sentence}</p>
               </div>
             </li>

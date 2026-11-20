@@ -231,9 +231,14 @@
   line-height: 1.25;
 }
 
-.cloak-modes h3 span {
-  color: var(--cloak-panel-muted);
-  font-weight: 400;
+.cloak-modes .cloak-modes__credit {
+  margin-block: -4px var(--space-1);
+  font-size: 1.0625rem;
+}
+
+.cloak-modes__credit a {
+  color: var(--cloak-panel-text);
+  text-underline-offset: 3px;
   white-space: nowrap;
 }
 

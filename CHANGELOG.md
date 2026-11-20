@@ -7355,6 +7355,6 @@ seasons), on the shared Points library regents.sh was already on.
 
 ## 2026-11-20 — Cloak page: panel title and mode names (not released)
 
-- The blue panel on /cloak gets the title "3 modes of operation"; its three points are named Anon “paranoid mode” – Inspired by Vitalik, NEAR AI Gateway and Local Llama, as the founder asked. The Needs note says "Modes 1 and 2". The drawn chat window keeps the app's own labels.
+- The blue panel on /cloak gets the title "3 modes of operation"; its three points are named Anon “paranoid mode” (with the line "Inspired by Vitalik's X post about his preferred AI usage.", the words X post linking to the post in a new tab), NEAR AI Gateway and Local Llama, as the founder asked. The Needs note says "Modes 1 and 2". The drawn chat window keeps the app's own labels.
 - The page's search and share description is now its subtitle.
 - The subtitle is the founder's new words (local model or private NEAR inference, then “paranoid mode”), set wider and a little smaller so the buttons stay on the first screen; the description is its first two sentences.

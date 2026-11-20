@@ -28,10 +28,15 @@ defmodule RegentsWeb.Cloak do
 
   @modes_title "3 modes of operation"
 
-  # Each mode: its name, the quieter words after the name (or nil), its sentence.
+  # Each mode: its name, the quieter line under the name with its link (or nil), its sentence.
   @modes [
-    {"Anon “paranoid mode”", "– Inspired by Vitalik",
-     "Reworded on your Mac, then sent through Tor."},
+    {"Anon “paranoid mode”",
+     %{
+       before: "Inspired by Vitalik's ",
+       link: "X post",
+       href: "https://x.com/VitalikButerin/status/2111046730959433793",
+       after: " about his preferred AI usage."
+     }, "Reworded on your Mac, then sent through Tor."},
     {"NEAR AI Gateway", nil, "Proof of NEAR's servers is checked before anything is sent."},
     {"Local Llama", nil, "Answered on your Mac. Nothing is sent."}
   ]
@@ -74,8 +79,12 @@ defmodule RegentsWeb.Cloak do
     modes =
       @modes
       |> Enum.with_index(1)
-      |> Enum.map_join("\n", fn {{name, aside, sentence}, n} ->
-        "#{n}. **#{Enum.join(Enum.reject([name, aside], &is_nil/1), " ")}.** #{sentence}"
+      |> Enum.map_join("\n", fn
+        {{name, nil, sentence}, n} ->
+          "#{n}. **#{name}.** #{sentence}"
+
+        {{name, credit, sentence}, n} ->
+          "#{n}. **#{name}.** #{credit.before}[#{credit.link}](#{credit.href})#{credit.after} #{sentence}"
       end)
 
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
