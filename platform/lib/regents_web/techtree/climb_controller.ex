@@ -1,0 +1,77 @@
+defmodule RegentsWeb.Techtree.ClimbController do
+  @moduledoc """
+  A convenience view of one public Climb, for choosing between Climbs.
+
+  This is a projection and says so: it carries no protocol schema version, it is
+  addressed by slug rather than by digest, and it is assembled from what the
+  import already resolved. The scientific objects are linked, not restated — a
+  reader who needs the Climb or the Campaign follows `objects` and receives the
+  exact bytes with their digest.
+
+  The slug is never used to build a path. It is matched against the references
+  the active release imported, so a slug that names nothing is simply a `404`.
+  """
+
+  use RegentsWeb, :controller
+
+  alias Regents.Techtree.Catalog.Bundle
+  alias Regents.Techtree.Catalog.Query
+  alias RegentsWeb.Techtree.ExactResponse
+
+  @linked_objects [
+    {"climb", "climb_digest"},
+    {"campaign", "campaign_spec_digest"},
+    {"execution_plan", "execution_plan_digest"},
+    {"data_policy", "data_policy_digest"},
+    {"taskset_validation", "validation_receipt_digest"}
+  ]
+
+  @doc """
+  Return the public summary of one Climb, and where its objects live.
+  """
+  def show(conn, %{"slug" => slug}) do
+    case Query.get_climb_by_slug(slug) do
+      {:ok, entry} ->
+        conn
+        |> put_resp_header("cache-control", "public, max-age=300")
+        |> json(projection(entry))
+
+      {:error, error} ->
+        ExactResponse.send_error(conn, error)
+    end
+  end
+
+  defp projection(entry) do
+    entry.projection
+    |> Map.put("kind", "climb_summary_projection")
+    |> Map.put("objects", linked_objects(entry.projection))
+  end
+
+  # The Campaign of the tasks a Climb keeps apart is linked when the Climb
+  # names one.
+  defp linked_objects(projection) do
+    @linked_objects
+    |> Map.new(fn {name, key} -> {name, linked_object(Map.fetch!(projection, key))} end)
+    |> put_held_out_campaign(projection["held_out_campaign_spec_digest"])
+  end
+
+  defp put_held_out_campaign(objects, nil), do: objects
+
+  defp put_held_out_campaign(objects, digest),
+    do: Map.put(objects, "held_out_campaign", linked_object(digest))
+
+  defp linked_object(digest) do
+    %{
+      "digest" => digest,
+      "media_type" => Bundle.json_media_type(),
+      "url" => object_url(digest)
+    }
+  end
+
+  # Links are relative, and spell the digest the way the catalog spells it: a
+  # reader comparing a link against a digest should not have to decode it first.
+  # That is why the path is written out: a verified route would percent-encode
+  # the digest's colon. Every digest here came from the imported index, which is
+  # checked digest by digest before an import is allowed.
+  defp object_url(digest), do: "/api/v1/techtree/objects/" <> digest
+end

@@ -88,6 +88,38 @@ book_call =
 
 config :regents, :techtree_book_call, book_call
 
+# Techtree's catalog channel, overridable at boot. It belongs here rather than
+# beside the default in `config.exs`, because that file is evaluated when the
+# project is compiled: an environment variable read there is read once, at build
+# time, and a later value is silently ignored.
+#
+# The staged publication rehearsal is why it exists. The release candidate
+# publishes the stable channel while development is the default, and rehearsing
+# a release should not mean editing a committed default for the occasion.
+if channel = System.get_env("TECHTREE_CATALOG_CHANNEL") do
+  config :regents, Regents.Techtree.Catalog,
+    catalog_root: {:priv, "techtree/catalog"},
+    channel: channel
+end
+
+# Techtree's catalog serving. `TECHTREE_CATALOG_ROOT` points at a generated
+# bundle outside the release; without it the bundle shipped in
+# `priv/techtree/catalog` is used. `TECHTREE_BOOTSTRAP_CHANNEL` selects the
+# release channel that is imported and served; unset, it stays on the
+# compile-time default in `config/config.exs`, which is `development`. Every
+# carried snapshot declares `stable`, the channel Techtree's live site serves,
+# so a site that serves the catalog names it here. No model-provider credential
+# is read here.
+config :regents,
+       Regents.Techtree.Catalog,
+       Enum.reject(
+         [
+           catalog_root: System.get_env("TECHTREE_CATALOG_ROOT"),
+           channel: System.get_env("TECHTREE_BOOTSTRAP_CHANNEL")
+         ],
+         fn {_key, value} -> is_nil(value) end
+       )
+
 # The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENTS_ADMINS") do
   admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)

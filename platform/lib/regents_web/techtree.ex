@@ -9,11 +9,15 @@ defmodule RegentsWeb.Techtree do
   use Boundary,
     deps: [RegentsWeb, Regents.Techtree],
     exports: [
+      BootstrapController,
+      CatalogController,
       ChangelogLive,
+      ClimbController,
       FormalLive,
       HomeLive,
       Layouts,
       ModelClimbReportController,
+      ObjectController,
       PublicPagesController,
       ServiceLive,
       TrainLive.Show

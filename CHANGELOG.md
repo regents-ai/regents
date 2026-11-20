@@ -7482,3 +7482,36 @@ seasons), on the shared Points library regents.sh was already on.
   `Regents.Account` itself (whose only function is `health/0`) so the product list
   can ask it. `config/config.exs` adds `product` to the development console's
   log metadata.
+
+## 2026-11-20 — one-site branch: Techtree's catalog and its four API addresses (not released)
+
+- Techtree's catalog (`Regents.Techtree.Catalog`), taken from Techtree `c6dba424`:
+  the Ash domain and its three resources (catalog releases, catalog entries,
+  bootstrap releases) in Techtree's own schema `techtree_app`, where its rows
+  already are, with the reads, the importer, the verifier and the publication
+  switch. The tables' migrations were already carried; their three resource
+  snapshots are generated here, and `mix ash.codegen --check` wants no migration.
+- Only `Regents.Account.Actors.System` writes: import, activate, deactivate and
+  publish. Reads need no actor.
+- Four public reads on the `:api` pipeline: `GET /api/v1/techtree/catalog`,
+  `/api/v1/techtree/bootstrap`, `/api/v1/techtree/objects/:digest` and
+  `/api/v1/techtree/climbs/:slug`. The catalog, bootstrap and object bytes are the
+  ones techtree.sh serves at the same paths without `techtree/`; a Climb's summary
+  links its objects under `/api/v1/techtree/objects/`, and the error hints name
+  `/api/v1/techtree/catalog` and this site's `/healthz`. The answers carry this
+  site's headers.
+- The 34 generated catalog snapshots are carried byte for byte in
+  platform/priv/techtree/catalog/. Each one's `bootstrap.json` names its starter
+  Skills at `https://techtree.sh/api/v1/objects/…`; those bytes are hashed and
+  stay as they are. Starter Skills are not served here yet.
+- Commands: `mix techtree.catalog.verify` and `mix techtree.catalog.import`
+  (`--source-revision`, `--channel`), `scripts/sync_catalog.exs`, and on a release
+  `Regents.Release.techtree_import_catalog/1`, `techtree_publish_bootstrap/2` and
+  `techtree_list_bootstrap_releases/1` (`Regents.Techtree.Release`). Booting never
+  imports or publishes; the deploy still only migrates.
+- Settings, unchanged names: `TECHTREE_BOOTSTRAP_CHANNEL` (the channel imported
+  and served; `development` when unset, and every carried snapshot is `stable`),
+  `TECHTREE_CATALOG_ROOT` and `TECHTREE_CATALOG_CHANNEL`. None is a secret.
+- No Oban queue or cron, no process, no secret, no new migration, and no change to
+  regents.sh's migrations, snapshots or ledger; sign-in, session and wallet code
+  unchanged. The agent documents and `capabilities.json` are unchanged.

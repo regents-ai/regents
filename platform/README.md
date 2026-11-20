@@ -103,6 +103,9 @@ development and from the deployment's secret store in production.
 | `ETHEREUM_READ_RPC_URL` | No | Ethereum mainnet JSON-RPC endpoint for the signed-in wallet's ENS name and picture. Unset, the lookup is skipped. |
 | `OPENSEA_API_KEY` | For Redeem holdings | Server-only OpenSea key for the Redeem owned-NFT lookup. Unset, the lookup reports unavailable. Each visitor may start six lookups a minute across all of their pages (`:opensea_lookups_per_minute`), counted by network address: people who share one address (an office, a mobile network) share those six, and past them the page reports the lookup unavailable and offers manual entry. |
 | `REGENTS_ADMINS` | No | Comma-separated Privy user ids of the site's admins. Only they can open the saved errors at `/admin/errors`, the messages left for the team at `/admin/messages` and agent pictures at `/admin/pictures`, and publish articles; anyone else gets the not-found page. |
+| `TECHTREE_BOOTSTRAP_CHANNEL` | To serve Techtree's catalog | The channel Techtree's catalog is imported on and served from (`Regents.Techtree.Catalog`). Unset, it is `development`; every carried snapshot is `stable`, the channel techtree.sh serves. |
+| `TECHTREE_CATALOG_ROOT` | No | A folder holding a generated catalog bundle outside the release. Unset, the bundle in `priv/techtree/catalog` is used. |
+| `TECHTREE_CATALOG_CHANNEL` | No | For a staged rehearsal: sets the channel and the bundle in `priv/techtree/catalog` together. `TECHTREE_BOOTSTRAP_CHANNEL` and `TECHTREE_CATALOG_ROOT` win when set. |
 
 ## Public HTTP surface
 
@@ -139,7 +142,7 @@ config/                 Compile-time and runtime configuration
 assets/                 TypeScript and CSS, built with esbuild
 priv/                   Migrations, static assets, generated resource snapshots
 docs/                   Local setup guides, operations notes, plans, and specs
-scripts/                The release build-context helper
+scripts/                Techtree's catalog sync (sync_catalog.exs)
 rel/                    Release overlays, including the migrate command
 ```
 
@@ -191,6 +194,23 @@ The image is built from `Dockerfile` and the Fly configuration lives in `fly.tom
 `make deploy` runs `make release` first (the full check, then the image's database commands
 practised on a throwaway database), then `scripts/deploy.sh` deploys only a commit that is on origin/main, and
 passes it to the build as `SOURCE_COMMIT`; a build without it stops, as in ash-template.
+
+### Techtree's catalog
+
+The generated catalog snapshots ship in `priv/techtree/catalog`. Booting never imports
+or publishes one. On the release machine, with `TECHTREE_BOOTSTRAP_CHANNEL` set, each
+runs like the other release commands, on the direct database connection:
+
+```sh
+REGENTS_RELEASE_COMMAND=migrate /app/bin/regents eval 'Regents.Release.techtree_import_catalog("<full source revision>")'
+REGENTS_RELEASE_COMMAND=migrate /app/bin/regents eval 'Regents.Release.techtree_list_bootstrap_releases()'
+REGENTS_RELEASE_COMMAND=migrate /app/bin/regents eval 'Regents.Release.techtree_publish_bootstrap("sha256:<64 hex>")'
+```
+
+Publishing an earlier staged bootstrap release is the rollback. Locally,
+`mix techtree.catalog.verify --source-revision <revision>` checks a snapshot without
+the database, `mix techtree.catalog.import --source-revision <revision> --channel stable`
+imports one, and `scripts/sync_catalog.exs` adds a newly generated snapshot.
 
 ## Related products
 

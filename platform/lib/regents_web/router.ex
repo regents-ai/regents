@@ -231,6 +231,17 @@ defmodule RegentsWeb.Router do
     get "/reports/:digest", ModelClimbReportController, :show
   end
 
+  # Techtree's catalog, read by anyone: the exact bytes the catalog and its
+  # bootstrap release were generated as, each object by its digest, and one
+  # Climb's summary (RegentsWeb.Techtree.ExactResponse).
+  scope "/api/v1/techtree", RegentsWeb.Techtree do
+    pipe_through :api
+    get "/catalog", CatalogController, :index
+    get "/bootstrap", BootstrapController, :show
+    get "/objects/:digest", ObjectController, :show
+    get "/climbs/:slug", ClimbController, :show
+  end
+
   scope "/api/agents/v1" do
     pipe_through :api
     forward "/", RegentAgents.HTTP

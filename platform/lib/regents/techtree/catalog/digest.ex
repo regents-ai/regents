@@ -31,6 +31,18 @@ defmodule Regents.Techtree.Catalog.Digest do
   def valid?(_other), do: false
 
   @doc """
+  The 32 raw bytes a digest names, or a raise if it is not a digest.
+  """
+  @spec parse!(String.t()) :: binary()
+  def parse!(digest) do
+    if valid?(digest) do
+      digest |> binary_part(byte_size(@prefix), @hex_length) |> Base.decode16!(case: :lower)
+    else
+      raise ArgumentError, "expected a sha256:<64 lowercase hex> digest, got: #{inspect(digest)}"
+    end
+  end
+
+  @doc """
   The digest of exactly these bytes.
 
       iex> Regents.Techtree.Catalog.Digest.hash_bytes("")
@@ -39,6 +51,24 @@ defmodule Regents.Techtree.Catalog.Digest do
   @spec hash_bytes(binary()) :: String.t()
   def hash_bytes(bytes) when is_binary(bytes) do
     @prefix <> Base.encode16(:crypto.hash(:sha256, bytes), case: :lower)
+  end
+
+  @doc """
+  Whether these bytes are the object filed under this digest.
+
+  Returns `{:error, computed_digest}` on a mismatch so that the caller can
+  report both sides of the disagreement. The comparison is constant time; the
+  digests are public, but the habit is cheap and the code is copied.
+  """
+  @spec verify_bytes(binary(), String.t()) :: :ok | {:error, String.t()}
+  def verify_bytes(bytes, digest) do
+    computed = hash_bytes(bytes)
+
+    if valid?(digest) and Plug.Crypto.secure_compare(computed, digest) do
+      :ok
+    else
+      {:error, computed}
+    end
   end
 
   defp lowercase_hex?(hex) do

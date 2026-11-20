@@ -2,7 +2,7 @@ defmodule Regents.Release do
   @moduledoc false
   use Boundary,
     top_level?: true,
-    deps: [Regents, RegentsWeb, Regents.Products, Regents.LocalDatabaseFixture]
+    deps: [Regents, RegentsWeb, Regents.Products, Regents.LocalDatabaseFixture, Regents.Techtree]
 
   @app :regents
   @deployment_role_variable "REGENTS_DEPLOYMENT_ROLE"
@@ -106,6 +106,37 @@ defmodule Regents.Release do
 
     IO.puts("Article #{post.slug}: \"#{post.title}\" saved.")
   end
+
+  @doc """
+  Imports and activates Techtree's catalog snapshot for one full source revision
+  (`Regents.Techtree.Release.import_catalog/1`). Run as
+  `REGENTS_RELEASE_COMMAND=migrate /app/bin/regents eval 'Regents.Release.techtree_import_catalog("<revision>")'`.
+  """
+  def techtree_import_catalog(revision),
+    do: with_release_repo(fn _repo -> Regents.Techtree.Release.import_catalog(revision) end)
+
+  @doc """
+  Publishes one staged Techtree bootstrap release, which is also how one is rolled
+  back (`Regents.Techtree.Release.publish_bootstrap/2`). Run as
+  `REGENTS_RELEASE_COMMAND=migrate /app/bin/regents eval 'Regents.Release.techtree_publish_bootstrap("sha256:<64 hex>")'`.
+  """
+  def techtree_publish_bootstrap(digest, channel \\ nil),
+    do:
+      with_release_repo(fn _repo ->
+        Regents.Techtree.Release.publish_bootstrap(digest, channel)
+      end)
+
+  @doc """
+  Lists the Techtree bootstrap releases a channel has staged, newest first, with
+  `*` on the one it publishes (`Regents.Techtree.Release.list_bootstrap_releases/1`).
+  Run as
+  `REGENTS_RELEASE_COMMAND=migrate /app/bin/regents eval 'Regents.Release.techtree_list_bootstrap_releases()'`.
+  """
+  def techtree_list_bootstrap_releases(channel \\ nil),
+    do:
+      with_release_repo(fn _repo ->
+        Regents.Techtree.Release.list_bootstrap_releases(channel)
+      end)
 
   @doc """
   Prepares an empty staging database for the first deployment.

@@ -93,7 +93,8 @@ config :regents,
     Regents.Blog,
     Regents.Messages,
     Regents.Updates,
-    Regents.Techtree.ModelClimb
+    Regents.Techtree.ModelClimb,
+    Regents.Techtree.Catalog
   ],
   generators: [timestamp_type: :utc_datetime]
 
@@ -180,6 +181,14 @@ config :regents, :staking_snapshot_refresh_enabled, true
 # Who reads a chain again when a person's action may have changed it
 # (`Regents.Chain.Refresh`).
 config :regents, Regents.Chain.Refresh, readers: [Regents.Stake.SnapshotCache]
+
+# Techtree's catalog bundle this build serves, and the release channel it
+# belongs to. `catalog_root` holds the generated `techtree-python` export; it is
+# populated by `scripts/sync_catalog.exs` at release time and read only by the
+# importer and the exact-byte read path. Both are overridable at runtime.
+config :regents, Regents.Techtree.Catalog,
+  catalog_root: {:priv, "techtree/catalog"},
+  channel: "development"
 
 config :regents, :session_options,
   store: :cookie,

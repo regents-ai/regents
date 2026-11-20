@@ -171,8 +171,9 @@ defmodule Regents.MixProject do
         # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
         # Messages adds four, as every Ash domain does: the domain reads its resource, and the
         # resource its two policy checks and its `run` module. Updates adds one: the domain
-        # reads its resource. Techtree's Model Climb adds one the same way.
-        "xref graph --label compile-connected --fail-above 44",
+        # reads its resource. Techtree's Model Climb adds one the same way, and Techtree's
+        # catalog three: its domain reads its three resources.
+        "xref graph --label compile-connected --fail-above 47",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

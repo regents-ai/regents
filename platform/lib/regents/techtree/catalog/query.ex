@@ -1,0 +1,292 @@
+defmodule Regents.Techtree.Catalog.Query do
+  @moduledoc """
+  Everything the public surface is allowed to ask about the catalog.
+
+  Controllers and LiveViews call this module and nothing else: they never build
+  a query, and they never touch the filesystem. That is what keeps the two rules
+  of the serving contract (spec section 8.6) in one place — a digest is resolved
+  through the imported index rather than turned into a path, and exact bytes are
+  hashed again before they are handed to anyone.
+  """
+
+  alias Regents.Techtree.Catalog
+  alias Regents.Techtree.Catalog.Bundle
+  alias Regents.Techtree.Catalog.CatalogEntry
+  alias Regents.Techtree.Catalog.Digest
+  alias Regents.Techtree.Catalog.Error
+
+  @doc """
+  The public Climbs the active release offers, in reference order.
+  """
+  @spec list_climbs(keyword()) :: [CatalogEntry.t()]
+  def list_climbs(opts \\ []) do
+    Catalog.list_active_climbs!(%{}, opts)
+  end
+
+  @doc """
+  The active Climb one public reference names, such as `hello-world-climb@1`.
+
+  The import refuses a release whose first-run instructions name a Climb its
+  catalog does not ship, so the reference a release names always resolves.
+  """
+  @spec get_climb_by_reference!(String.t()) :: CatalogEntry.t()
+  def get_climb_by_reference!(reference) when is_binary(reference) do
+    Catalog.get_entry_by_reference!(:climb, reference)
+  end
+
+  @doc """
+  The highest active version of one Climb slug.
+
+  A reader who did not name a version is asking for the current one, which is
+  the same rule the CLI applies to a bare slug.
+  """
+  @spec get_climb_by_slug(String.t()) :: {:ok, CatalogEntry.t()} | {:error, Error.t()}
+  def get_climb_by_slug(slug) when is_binary(slug) do
+    list_climbs()
+    |> Enum.filter(&(&1.projection["slug"] == slug))
+    |> Enum.max_by(&version(&1.projection), fn -> nil end)
+    |> case do
+      nil ->
+        {:error,
+         Error.object_missing("this release ships no Climb by that name", %{"slug" => slug})}
+
+      entry ->
+        {:ok, entry}
+    end
+  end
+
+  @doc """
+  The Climb whose Campaign is the one this fingerprint addresses.
+
+  A published run names the Campaign it was a run of, and everything a page can
+  say about the comparison — the tasks, the harness, the model, the ceiling —
+  is on the Climb that Campaign belongs to. This is the one lookup that gets
+  from the first to the second, so the ingest and the pages ask the same
+  question in the same words. A Climb owns two Campaigns when it keeps tasks
+  apart, and either fingerprint finds it.
+  """
+  @spec get_climb_by_campaign_digest(String.t()) :: {:ok, CatalogEntry.t()} | {:error, Error.t()}
+  def get_climb_by_campaign_digest(digest) when is_binary(digest) do
+    list_climbs()
+    |> find_climb_by_campaign_digest(digest)
+  end
+
+  @doc "Resolve a published Result's Climb, including retired catalog entries."
+  @spec get_any_climb_by_campaign_digest(String.t()) ::
+          {:ok, CatalogEntry.t()} | {:error, Error.t()}
+  def get_any_climb_by_campaign_digest(digest) when is_binary(digest) do
+    Catalog.list_catalog_entries!(%{}, query: [filter: [kind: :climb], sort: [active: :desc]])
+    |> find_climb_by_campaign_digest(digest)
+  end
+
+  defp find_climb_by_campaign_digest(climbs, digest) do
+    climbs
+    |> Enum.find(&(digest in campaign_digests(&1)))
+    |> case do
+      nil ->
+        {:error,
+         Error.object_missing("this release publishes no campaign under that digest", %{
+           "digest" => digest
+         })}
+
+      climb ->
+        {:ok, climb}
+    end
+  end
+
+  @doc """
+  Whether this fingerprint is the Campaign of the tasks a Climb keeps apart: run
+  once, on the winning Skill, and never deciding the winner.
+  """
+  @spec held_out_campaign?(CatalogEntry.t(), String.t()) :: boolean()
+  def held_out_campaign?(%CatalogEntry{projection: projection}, digest) do
+    projection["held_out_campaign_spec_digest"] == digest
+  end
+
+  defp campaign_digests(%CatalogEntry{projection: projection}) do
+    [projection["campaign_spec_digest"], projection["held_out_campaign_spec_digest"]]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  @doc """
+  The catalog entry one digest addresses, whether or not it is still active.
+  """
+  @spec get_entry_by_digest(String.t()) :: {:ok, CatalogEntry.t()} | {:error, Error.t()}
+  def get_entry_by_digest(digest) do
+    with :ok <- check_digest(digest),
+         {:ok, entry} when not is_nil(entry) <- Catalog.get_entry_by_digest(digest) do
+      {:ok, entry}
+    else
+      {:error, %Error{} = error} ->
+        {:error, error}
+
+      _other ->
+        {:error,
+         Error.object_missing("this release ships no object under that digest", %{
+           "digest" => digest
+         })}
+    end
+  end
+
+  @doc """
+  The release currently being served, if there is one. A read that fails raises
+  rather than reporting that no release is active.
+  """
+  @spec active_catalog_release() :: {:ok, Catalog.CatalogRelease.t()} | {:error, Error.t()}
+  def active_catalog_release do
+    case Catalog.active_catalog_release!(Catalog.channel(), not_found_error?: false) do
+      nil -> {:error, no_active_release()}
+      release -> {:ok, release}
+    end
+  end
+
+  @doc """
+  The bootstrap release currently being published, if there is one. A read that
+  fails raises rather than reporting that nothing is published.
+  """
+  @spec active_bootstrap_release() :: {:ok, Catalog.BootstrapRelease.t()} | {:error, Error.t()}
+  def active_bootstrap_release do
+    case Catalog.active_bootstrap_release!(Catalog.channel(), not_found_error?: false) do
+      nil -> {:error, no_active_bootstrap()}
+      release -> {:ok, release}
+    end
+  end
+
+  @doc """
+  The exact catalog index bytes of the active release, verified against the
+  digest that release was imported under.
+  """
+  @spec catalog_bytes() :: {:ok, binary(), String.t()} | {:error, Error.t()}
+  def catalog_bytes do
+    with {:ok, release} <- active_catalog_release(),
+         {:ok, bytes} <- read_file(release.source_revision, Bundle.catalog_filename()) do
+      verified(bytes, release.catalog_digest, Bundle.catalog_filename())
+    end
+  end
+
+  @doc """
+  The exact bytes of one content-addressed object, verified before returning,
+  with the catalog entry that describes them.
+
+  The digest is looked up in the imported index and only the stored
+  catalog-relative path is resolved; a digest never becomes a path directly. The
+  entry comes back with the bytes because the media type a response declares is
+  the one the catalog recorded, not one inferred from the file.
+  """
+  @spec object_bytes(String.t()) :: {:ok, binary(), CatalogEntry.t()} | {:error, Error.t()}
+  def object_bytes(digest) do
+    with {:ok, _release} <- active_catalog_release(),
+         {:ok, entry} <- get_entry_by_digest(digest),
+         {:ok, bytes} <- read_file(entry.source_revision, entry.relative_path),
+         {:ok, bytes, _digest} <- verified(bytes, entry.protocol_digest, entry.relative_path) do
+      {:ok, bytes, entry}
+    end
+  end
+
+  @doc """
+  The exact bootstrap payload the active release publishes, verified against the
+  digest it was imported under.
+  """
+  @spec bootstrap_payload() :: {:ok, binary(), String.t()} | {:error, Error.t()}
+  def bootstrap_payload do
+    with {:ok, release} <- active_bootstrap_release() do
+      verified(release.raw_payload, release.payload_digest, "bootstrap.json")
+    end
+  end
+
+  @doc """
+  The published installation contract, read for display.
+
+  The pages need the argument lists inside the payload, so the verified bytes
+  are decoded here — for reading only. What the API serves is still the bytes,
+  never this map, and no page ever runs any of it.
+  """
+  @spec bootstrap_instructions() :: {:ok, map()} | {:error, Error.t()}
+  def bootstrap_instructions do
+    with {:ok, payload, _digest} <- bootstrap_payload() do
+      case Jason.decode(payload) do
+        {:ok, instructions} when is_map(instructions) ->
+          {:ok, instructions}
+
+        _other ->
+          {:error, Error.bundle_invalid("the published installation contract could not be read")}
+      end
+    end
+  end
+
+  @doc """
+  Every object the active release ships, in a stable order.
+  """
+  @spec list_objects() :: [CatalogEntry.t()]
+  def list_objects do
+    Catalog.list_catalog_entries!(%{},
+      query: [filter: [active: true], sort: [kind: :asc, reference: :asc]]
+    )
+  end
+
+  defp verified(bytes, digest, relative_path) do
+    case Digest.verify_bytes(bytes, digest) do
+      :ok ->
+        {:ok, bytes, digest}
+
+      {:error, computed} ->
+        {:error,
+         Error.object_digest_mismatch(
+           "the served bytes do not match the digest they are filed under",
+           %{
+             "path" => relative_path,
+             "expected_digest" => digest,
+             "computed_digest" => computed
+           }
+         )}
+    end
+  end
+
+  # The path comes from the imported index and is resolved inside the catalog
+  # root by Bundle.resolve/2; a request only names a digest.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp read_file(revision, relative_path) do
+    with {:ok, _snapshot} <- Catalog.snapshot_path(revision),
+         {:ok, path} <-
+           Bundle.resolve(
+             Catalog.catalog_root(),
+             "sources/" <> revision <> "/" <> relative_path
+           ) do
+      case File.read(path) do
+        {:ok, bytes} ->
+          {:ok, bytes}
+
+        {:error, reason} ->
+          {:error,
+           Error.object_missing("the active release does not ship this object", %{
+             "path" => relative_path,
+             "reason" => to_string(:file.format_error(reason))
+           })}
+      end
+    end
+  end
+
+  defp check_digest(digest) do
+    if Digest.valid?(digest) do
+      :ok
+    else
+      {:error,
+       Error.bundle_invalid("a digest is spelled sha256: followed by 64 lowercase hex characters")}
+    end
+  end
+
+  defp version(%{"version" => version}) when is_integer(version), do: version
+  defp version(_projection), do: 0
+
+  defp no_active_release do
+    Error.bootstrap_missing("no catalog release is active on this channel", %{
+      "channel" => Catalog.channel()
+    })
+  end
+
+  defp no_active_bootstrap do
+    Error.bootstrap_missing("no bootstrap release is published on this channel", %{
+      "channel" => Catalog.channel()
+    })
+  end
+end
