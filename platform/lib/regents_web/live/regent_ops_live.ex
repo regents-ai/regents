@@ -57,8 +57,7 @@ defmodule RegentsWeb.RegentOpsLive do
       id: "cloak/rewrite",
       name: "Cloak",
       headline: "Rewritten before it leaves.",
-      line:
-        "Planned: a local model on your Mac rewords each message you write before it is sent.",
+      line: "A model on your Mac rewrites each message before it leaves.",
       tint: "#a97bf0",
       action: "Open Cloak",
       href: "/cloak"

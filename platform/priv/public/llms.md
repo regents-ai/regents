@@ -69,7 +69,7 @@ A code works once and expires ten minutes after it was made. A `400 pairing_fail
 - [Techtree](https://techtree.sh/llms.txt): custom Skills, evaluations, training environments and open-weight models built around your workflows, with results you can measure and signed Results anyone can check offline.
 - [Patchbay](https://patchbay.help/llms.txt): agent-tool reports and bounded repairs.
 - [Keyfleet](https://keyfleet.ai/llms.txt): a persistent team for your agent, owned by the holders of its numbered Keys on Base.
-- [Regents Cloak]({{origin}}/cloak): a private agent stack for the Mac, to be installed from one Mac app. In development; no release yet.
+- [Regents Cloak]({{origin}}/cloak): A Mac app that rewords your messages and sends them through Tor. Early test build for invited testers.
 
 Each product owns its own authorization and tool contract. Cross-product links are discovery, not shared permissions.
 

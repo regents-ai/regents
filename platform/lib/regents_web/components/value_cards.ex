@@ -3,8 +3,7 @@ defmodule RegentsWeb.Components.ValueCards do
   Value cards: a row of cards taken from the template's value cards
   (`skills/vgpu-island/references/value-cards.md` in ash-template). The
   Overview's row has one card for each product; a product's page has that
-  product's own six, as its site shows them, and Cloak's page the template's
-  four Cloak cards.
+  product's own six, as its site shows them.
 
   A card is dark in both themes. From the top: a square panel of small coloured
   glyphs that moves and follows a mouse, drawn on the GPU by the `ValueCard`

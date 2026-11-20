@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /changelog /privacy /terms /start) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start /cloak) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.Keyfleet.PublicDocuments, as: KeyfleetDocuments
@@ -77,9 +77,7 @@ defmodule RegentsWeb.PublicDocuments do
     "/keyfleet" =>
       {"Keyfleet",
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
-    "/cloak" =>
-      {"Regents Cloak",
-       "Your private local agent in a simple Mac app: slower on purpose, for prompt and answer privacy via Tor and zkAPI. Still in development."},
+    "/cloak" => {"Cloak", "A Mac app that rewords your messages and sends them through Tor."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",
@@ -160,6 +158,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/privacy"), do: %{markdown: Regents.Legal.markdown(:privacy)}
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.Account.AgentStart.markdown()}
+  def document("/cloak"), do: %{markdown: RegentsWeb.Cloak.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
