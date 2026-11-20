@@ -1,0 +1,307 @@
+@scope (:root[data-brand="techtree"]) {
+/* Palette, type, cut skins and interaction sweeps come from Regent UI.
+   Product CSS composes the home page (techtree_home.css) and the ruled document. */
+*, *::before, *::after { box-sizing: border-box; }
+:scope { -webkit-text-size-adjust: 100%; font-synthesis: none; }
+:scope[data-theme="light"] { color-scheme: light; }
+:scope[data-theme="dark"] { color-scheme: dark; }
+:scope:not([data-theme]) { color-scheme: dark light; }
+
+/* Canopy colours for Techtree's own pieces: the home cards, the command box and
+   the shade behind dialogs. The site palette itself is regent_ui's Techtree one.
+   Dark unless light is chosen, or nothing is chosen and the device asks for light. */
+:scope {
+  --tt-shade: #0F1B14;
+  --tt-card-border: #2C4234;
+  --tt-card-skill: #2A4A36;
+  --tt-card-skill-ink: #E4EEE6;
+  --tt-command-rule: #2A3B30;
+  --tt-command-label: #8FA595;
+}
+:scope[data-theme="light"] {
+  --tt-card-border: #0F1B14;
+  --tt-card-skill: #CFE2D2;
+  --tt-card-skill-ink: #0F1B14;
+  --tt-command-rule: #24352B;
+  --tt-command-label: #B9C9BD;
+}
+@media (prefers-color-scheme: light) {
+  :scope:not([data-theme]) {
+    --tt-card-border: #0F1B14;
+    --tt-card-skill: #CFE2D2;
+    --tt-card-skill-ink: #0F1B14;
+    --tt-command-rule: #24352B;
+    --tt-command-label: #B9C9BD;
+  }
+}
+body, h1, h2, h3, h4, h5, h6, p, dl, dd, ul, ol, figure, blockquote { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+button, input, textarea, select { font: inherit; font-family: var(--font-family-ui); }
+img, svg { display: block; max-width: 100%; }
+/* Not important, so an item the page hides can still fade out while it leaves. */
+[hidden] { display: none; }
+
+:scope {
+  --measure: 64ch;
+  --reading-width: 52rem;
+}
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+:is(h1, h2, h3, h4, h5, h6),
+:is(.boundary__title, .callout__title, .entry__title,
+    .docs-nav__group > p, .error-page__name) {
+  font-family: var(--font-family-title);
+  font-weight: 400;
+  font-style: normal;
+  font-synthesis: none;
+  overflow-wrap: anywhere;
+}
+:is(h1, h2, h3, h4, h5, h6) strong { font-weight: 400; }
+h1:not(.account-shell *) { font-size: clamp(2.5rem, 4.8vw, 4.5rem); line-height: 1.03; letter-spacing: -.045em; }
+h2:not(.account-shell *) { font-size: clamp(1.75rem, 3vw, 2.75rem); line-height: 1.12; letter-spacing: -.035em; }
+h3:not(.account-shell *) { font-size: 1.25rem; line-height: 1.2; }
+p, dd, li, a, dt, code, strong, time { overflow-wrap: anywhere; }
+p + p, h1 + p, h2 + p, h3 + p, dl + p, ol + p, ul + p { margin-top: var(--space-2); }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: .2em; }
+a:hover { text-decoration: underline; }
+a:not(.rg-button):hover { color: var(--rg-local-ink, var(--color-link)); }
+:where(a, button, summary, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 4px;
+}
+code, kbd, samp, pre { font-family: var(--font-family-mono); }
+code { font-size: .9em; }
+.lede { max-width: var(--measure); color: var(--color-fg-muted); font-size: 1rem; }
+.eyebrow { font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; }
+.quiet { color: var(--rg-local-ink, var(--color-fg-muted)); }
+.small { font-size: .875rem; }
+.plain { font-family: var(--font-family-ui); }
+.offscreen {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.skip-link {
+  position: fixed; top: 1rem; left: 1rem; z-index: var(--rg-layer-skip);
+  padding: 1rem; background: var(--color-surface); color: var(--color-fg);
+  transform: translateY(calc(-100% - 2rem));
+}
+.skip-link:focus { transform: none; }
+
+.page { min-width: 0; width: 100%; padding: var(--space-6) var(--rg-panel-padding); }
+.page--flush { padding-top: 0; padding-bottom: 0; }
+.page > *, .docs-content, .climb-contract > *, .facts > * { min-width: 0; }
+/* A short page still puts the footer at the bottom of the window. */
+.techtree-frame > [data-phx-main] { flex: 1 0 auto; display: flex; flex-direction: column; }
+.techtree-frame .rg-sheet-row:has(> .rg-sheet-row__main > main) { flex: 1 0 auto; }
+/* Product-owned links consume the same primary skin/label as real buttons.
+   No local pseudo-element or animation overrides the canonical shimmer. */
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.text-link { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 2.75rem; font-size: .875rem; }
+.command { --rg-panel-edge: var(--tt-command-rule); --rg-local-rule: var(--tt-command-rule); margin-top: var(--space-2); }
+.command__head {
+  padding: var(--space-2) var(--rg-panel-padding); border-bottom: 1px solid var(--rg-local-rule);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2);
+}
+.command__label { color: var(--tt-command-label); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+.command__copy { min-height: 2.75rem; font-size: .8125rem; }
+.command__block { min-width: 0; max-width: 100%; margin: 0; padding: var(--rg-panel-padding); overflow-x: auto; font-size: .875rem; line-height: 1.6; white-space: pre; }
+.command__block code { color: inherit; font-size: inherit; }
+.command__block code::before { content: "$ "; }
+.command--prose .command__block { white-space: normal; overflow-wrap: anywhere; overflow-x: visible; }
+.digest { max-width: 100%; font-size: .8125rem; overflow-wrap: anywhere; }
+
+/* Docs keep their own optional rail; all in-document links remain available. */
+.docs-layout { display: grid; grid-template-columns: var(--rg-rail-width) minmax(0, 1fr); gap: var(--rg-track-gap); align-items: start; }
+.docs-nav { grid-column: 1; grid-row: 1; min-width: 0; padding-right: var(--space-2); }
+.docs-nav__group a[aria-current="page"] { color: var(--color-fg); text-decoration: underline; text-underline-offset: .25em; }
+.docs-nav__version { padding-bottom: var(--space-2); border-bottom: 1px solid var(--hairline); font-size: .8125rem; }
+.docs-nav__group { margin-top: var(--space-3); }
+.docs-nav__group > p { font-size: 1rem; }
+.docs-nav__group a { display: flex; align-items: center; min-height: 2.75rem; padding: var(--space-1) 0; font-size: .8125rem; }
+.docs-content { grid-column: 2; width: 100%; padding-left: var(--rg-panel-padding); border-left: 1px solid var(--rg-page-rule); }
+/* The guide list at /docs and the next and previous links under each guide. */
+.docs-index__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
+.docs-index__link { display: grid; gap: var(--space-1); height: 100%; padding: var(--rg-panel-padding); border: 1px solid var(--hairline); background: var(--color-surface); text-decoration: none; }
+.docs-index__link small { color: var(--color-fg-muted); font-size: .875rem; }
+.docs-index__link:hover span, .docs-index__link:focus-visible span { text-decoration: underline; text-underline-offset: .25em; }
+.docs-pager { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-6); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
+.docs-pager a { display: grid; gap: calc(var(--space-1) / 2); min-height: 2.75rem; }
+.docs-pager small { color: var(--color-fg-muted); font-size: .75rem; }
+.docs-pager__next { margin-left: auto; text-align: right; }
+.docs-hero { padding-bottom: var(--space-6); }
+.docs-hero h1 { margin-top: var(--space-3); }
+.docs-hero__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.doc-section { padding-block: var(--space-6); border-top: 1px solid var(--hairline); scroll-margin-top: var(--space-3); }
+.doc-section h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
+.doc-section h3 { margin-top: var(--space-3); }
+.doc-section > p, .doc-list { max-width: var(--measure); }
+.doc-list, .docs-numbered-list { margin-top: var(--space-2); padding-left: var(--space-3); }
+.doc-list { list-style: square; }
+.docs-numbered-list { list-style: decimal; }
+.doc-list li + li, .docs-numbered-list li + li { margin-top: var(--space-1); }
+/* Reference sections written in Markdown: the same rhythm as the rest of the docs. */
+.docs-prose { margin-top: var(--space-2); }
+.docs-prose > * + * { margin-top: var(--space-2); }
+.docs-prose :where(p, ul, ol) { max-width: var(--measure); }
+.docs-prose ul { list-style: square; padding-left: var(--space-3); }
+.docs-prose li + li { margin-top: var(--space-1); }
+.docs-prose h3 { margin-top: var(--space-3); }
+.docs-prose pre { margin-block: var(--space-3); padding: var(--rg-panel-padding); border: 1px solid var(--hairline); background: var(--color-surface); white-space: pre-wrap; overflow-wrap: anywhere; font-size: .875rem; }
+.docs-prose table { display: block; max-width: 100%; margin-block: var(--space-3); overflow-x: auto; border-collapse: collapse; font-size: .875rem; }
+.docs-prose :where(th, td) { padding: var(--space-1) var(--space-2); border: 1px solid var(--hairline); text-align: left; vertical-align: top; }
+.docs-prose th { background: var(--color-surface); }
+/* Names and addresses stay whole; the description column keeps a readable measure and the table scrolls instead. */
+.docs-prose td code { overflow-wrap: normal; white-space: nowrap; }
+.docs-prose td:last-child { min-width: 18rem; }
+/* About, Privacy and Terms: a long value in a table's last column wraps to fit a phone. */
+.public-document td:last-child { overflow-wrap: anywhere; }
+.docs-code, .prompt__block { max-width: 100%; margin-block: var(--space-3); padding: var(--rg-panel-padding); border: 1px solid var(--hairline); background: var(--color-surface); white-space: pre-wrap; overflow-wrap: anywhere; font-size: .875rem; }
+
+/* Native copy menu is intentionally not a disclosure: it is a compact popup.
+   No ancestor clips it; only controls' decorative skins clip. */
+.pagecopy { position: relative; display: inline-flex; align-items: stretch; max-width: 100%; gap: 1px; }
+.pagecopy__main { min-height: 2.75rem; font-size: .875rem; }
+.pagecopy details { position: static; }
+.pagecopy summary { min-width: 2.75rem; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: var(--space-1) var(--space-2); border: 1px solid var(--hairline-strong); cursor: pointer; list-style: none; }
+.pagecopy summary::-webkit-details-marker { display: none; }
+.pagecopy__menu { position: absolute; top: calc(100% + var(--space-1)); right: 0; z-index: var(--rg-layer-tip); width: 20rem; max-width: calc(100vw - 4rem); border: 1px solid var(--hairline-strong); background: var(--color-surface); box-shadow: var(--rg-layer-tip-shadow); padding: var(--space-1); transform-origin: 100% 0; }
+.pagecopy__item { display: block; width: 100%; text-align: left; font-size: .875rem; }
+.pagecopy__item small { display: block; font-size: .8125rem; font-weight: 400; }
+/* "Copy page" holds the width of its widest word, so its answer never moves the menu beside it. */
+.pagecopy__words { display: inline-grid; }
+.pagecopy__words > * { grid-area: 1 / 1; }
+.pagecopy__words:not([data-copy-state]) > :not(.pagecopy__idle),
+.pagecopy__words[data-copy-state="copied"] > :not(.pagecopy__copied),
+.pagecopy__words[data-copy-state="failed"] > :not(.pagecopy__failed) { visibility: hidden; }
+
+/* Catalog contracts, verification and read-only evidence. */
+.page-heading { padding-bottom: var(--space-4); }
+.page-heading h1 { margin-top: var(--space-2); }
+.back-link { margin-bottom: var(--space-3); font-size: .875rem; }
+.section { margin-top: var(--space-5); }
+section.section:not(.doc-section) { padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
+.climb-contract { display: grid; gap: var(--space-4); }
+.climb-contract header { max-width: 60rem; }
+.climb-contract__facts { border-top: 1px solid var(--hairline); }
+.climb-contract__facts > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--hairline); }
+.climb-contract__facts dt { font-size: .8125rem; text-transform: uppercase; }
+.facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); margin-top: var(--space-3); border-top: 1px solid var(--hairline); }
+.facts__term, .facts__value { padding: var(--space-2) var(--space-2) var(--space-2) 0; border-bottom: 1px solid var(--hairline); font-size: .875rem; }
+.facts__term { color: var(--color-fg-muted); }
+.integrity-details { margin-top: var(--space-3); }
+.callout { padding: var(--rg-panel-padding); border: 1px solid var(--hairline); background: var(--color-surface); }
+.boundary__title, .callout__title { font-size: 1.125rem; }
+.callout { margin-block: var(--space-3); }
+.callout--attention { border-color: var(--color-warning); }
+.checks { margin-top: var(--space-3); }
+.checks li { padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline); font-size: .875rem; }
+.state, .badge { width: fit-content; max-width: 100%; font-size: .75rem; text-transform: uppercase; }
+.empty-state { padding: var(--rg-panel-padding); border: 1px solid var(--hairline); background: var(--color-surface); }
+
+/* A seven-column log intentionally scrolls within its labelled region.
+   No columns disappear, no identifiers are ellipsized, no data is clipped. */
+.runs-index { padding-block: var(--space-4); }
+.runs-index__table-frame { position: relative; margin-top: var(--space-3); max-width: 100%; overflow-x: auto; border: 1px solid var(--hairline); padding: var(--space-1); }
+.runs-table__header, .runs-table__row { min-width: 72rem; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1.75fr) minmax(0, 1.25fr) minmax(0, 1.5fr) minmax(0, 1fr); }
+.runs-table__header { background: var(--color-surface); font-size: .75rem; text-transform: uppercase; }
+.runs-table__header > span, .runs-table__cell { min-width: 0; padding: var(--space-2); border-bottom: 1px solid var(--hairline); border-right: 1px solid var(--hairline); }
+.runs-table__header > span:last-child, .runs-table__cell:last-child { border-right: 0; }
+.runs-table__cell { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); font-size: .8125rem; }
+.runs-table__row:focus-within, .runs-table__row:hover { background: var(--color-surface); }
+.runs-table__primary-link { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-height: 2.75rem; }
+.runs-table__primary-link strong { font-family: var(--font-family-title); font-weight: 400; font-size: 1rem; }
+.runs-table__withdrawn { border-left: 3px solid var(--color-error); padding-left: var(--space-1); }
+.runs-table__uplift strong { font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.runs-index__empty, .runs-index__pagination, .runs-index__provenance { margin-top: var(--space-3); }
+.runs-index__provenance { max-width: var(--measure); }
+.runs-index__footer { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
+.github-link { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 2.75rem; font-size: .875rem; }
+.github-link svg { width: 1rem; height: 1rem; flex: 0 0 auto; fill: currentColor; }
+.tasks__filters { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3); }
+.tasks__filter { min-height: 2.75rem; font-size: .875rem; }
+.tasks__filter[aria-pressed="true"] { border-bottom: 3px solid currentColor; }
+.tasks { position: relative; max-width: 100%; margin-top: var(--space-3); padding: var(--space-1); overflow-x: auto; }
+.tasks__row { display: grid; min-width: 32rem; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline); font-size: .875rem; }
+.tasks__head { font-size: .75rem; text-transform: uppercase; }
+.tasks__number { text-align: right; font-variant-numeric: tabular-nums; }
+.tasks__task strong, .tasks__task code { display: block; }
+.tasks__empty { margin-top: var(--space-2); }
+
+.stack > * + *, .entry__head + p { margin-top: var(--space-2); }
+.stack--loose > * + * { margin-top: var(--space-3); }
+.entries { margin-top: var(--space-3); }
+.entry { padding-block: var(--space-3); border-top: 1px solid var(--hairline); }
+.entry__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.entry__title { font-size: 1.25rem; }
+.steps, .quickstart { list-style: decimal; padding-left: var(--space-3); margin-top: var(--space-3); }
+.steps > li + li, .quickstart > li + li { margin-top: var(--space-3); }
+
+/* Standalone error documents. */
+.error-page { min-height: 100vh; display: grid; align-content: center; gap: var(--space-3); padding: var(--space-6) var(--rg-panel-padding); border-bottom: 1px solid var(--hairline); }
+.error-page h1 { max-width: 20ch; }
+.error-page > p { max-width: var(--measure); }
+.error-page nav { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.error-page nav a { min-height: 2.75rem; display: inline-flex; align-items: center; }
+.error-page__name { min-height: 2.75rem; display: inline-flex; align-items: center; justify-self: start; }
+
+@media (max-width: 63.99rem) {
+  /* Narrow screens: one row of the name, Menu, GitHub, the theme switch and the account. */
+  .masthead__inner { min-height: 4rem; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-1); }
+  .masthead__nav { gap: var(--space-1); }
+  .masthead__github { display: none; }
+  .docs-layout { grid-template-columns: minmax(0, 1fr); }
+  .docs-nav { grid-column: 1; grid-row: auto; padding: var(--space-3) 0 0; border-top: 1px solid var(--hairline); }
+  .docs-nav nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+  .docs-content { grid-column: 1; padding-left: 0; border-left: 0; }
+}
+@media (max-width: 47.99rem) {
+  .page { padding-block: var(--space-4); }
+  .page--flush { padding-block: 0; }
+}
+@media (max-width: 36rem) {
+  .facts, .climb-contract__facts > div { grid-template-columns: minmax(0, 1fr); }
+  .facts__term { padding-bottom: 0; border-bottom: 0; }
+  .facts__value { padding-top: var(--space-1); }
+  .docs-nav nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 24rem) {
+  .docs-nav nav { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+@media (forced-colors: active) {
+  body { background: Canvas; color: CanvasText; }
+  :scope[data-brand]:is([data-theme], :not([data-theme])) {
+    --color-fg: CanvasText; --color-fg-muted: CanvasText; --hairline: CanvasText;
+    --hairline-strong: CanvasText; --color-surface: Canvas;
+  }
+  :where(a, button, summary, input, textarea, select, [tabindex]):focus-visible { outline-color: Highlight; }
+  .rg-frame, .rg-sheet-row, .masthead, .docs-content { border-color: CanvasText; }
+  .runs-table__withdrawn { border-color: CanvasText; }
+}
+@media print {
+  .masthead__nav, .theme-switch, .skip-link, .pagecopy, .command__copy, .docs-nav { display: none; }
+  .rg-frame { width: 100%; margin: 0; }
+  .page { padding: 1rem; }
+  .docs-layout { display: block; }
+  .docs-content { border: 0; padding: 0; }
+  .command__block { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .runs-index__table-frame, .tasks { overflow: visible; }
+  .runs-table__header, .runs-table__row, .tasks__row { min-width: 0; }
+}
+
+/* On a touch screen a link that stands on its own in its line gets a finger's
+   44 pixels of height. The padding sits on the inline link, so the text it lies
+   in doesn't move; only the pressable area grows. */
+@media (pointer: coarse) {
+  :is(p, li, dd, td, th) > a:only-child { padding-block: .875rem; }
+}
+}

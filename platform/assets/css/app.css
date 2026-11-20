@@ -35,6 +35,7 @@
 @import "./pages/agent_start.css";
 @import "./pages/docs.css";
 @import "./components/account_auth_status.css";
+@import "./techtree/index.css";
 
 :root {
   color-scheme: light dark;

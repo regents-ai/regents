@@ -1,0 +1,372 @@
+@scope (:root[data-brand="techtree"]) {
+/* The home page (`RegentsWeb.Techtree.HomeLive`), inside the shared Regent frame.
+
+   Sections run the frame's full width, ruled above, with the frame's plus marks
+   where a rule meets its sides. Two bands are dark in either theme: the opening
+   and the closing Contact. Every moving picture (`.mk-field`) draws over a
+   still one the stylesheet paints here, which stays for less motion and
+   wherever WebGPU is missing; each names its colours as hex (`--field-*`), which
+   `assets/js/marketing/field_hook.ts` reads. */
+
+/* Techtree's dark palette, whatever the theme. */
+.mk-dark {
+  --color-bg: #0D1611;
+  --color-surface: #142019;
+  --color-surface-elevated: #142019;
+  --color-border: #2A3B30;
+  --color-fg: #E4EEE6;
+  --color-fg-muted: #9DB0A2;
+  --color-accent: #C8F25C;
+  --color-fg-on-accent: #0D1611;
+  --color-link: #C8F25C;
+  --color-focus: #C8F25C;
+  --color-success: #7ED8A9;
+  --color-error: #FF9B8F;
+  --color-warning: #F5C16C;
+  --hairline: rgb(228 238 230 / .14);
+  --hairline-strong: rgb(228 238 230 / .26);
+  --rg-page-rule: rgb(228 238 230 / .22);
+  color-scheme: dark;
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.mk-section {
+  position: relative;
+  margin-inline: calc(-1 * var(--rg-panel-padding));
+  padding: var(--space-7) var(--rg-panel-padding);
+  border-top: 1px solid var(--rg-page-rule);
+}
+@media (min-width: 48rem) {
+  .mk-section::before, .mk-section::after {
+    content: ""; position: absolute; top: -5px; width: 9px; height: 9px;
+    background:
+      linear-gradient(in oklch, var(--color-fg-muted) 0 0) center / 100% 1px no-repeat,
+      linear-gradient(in oklch, var(--color-fg-muted) 0 0) center / 1px 100% no-repeat;
+  }
+  .mk-section::before { left: -5px; }
+  .mk-section::after { right: -5px; }
+}
+.mk-section__head { max-width: 46rem; }
+.mk-section__head > p:not(.mk-eyebrow) { margin-top: var(--space-2); color: var(--color-fg-muted); font-size: 1.0625rem; }
+.mk-eyebrow {
+  display: flex; align-items: center; gap: .625rem; margin-bottom: var(--space-2);
+  color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .75rem;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.mk-eyebrow::before {
+  content: ""; width: 9px; height: 9px; flex: 0 0 auto;
+  background:
+    linear-gradient(in oklch, currentColor 0 0) center / 100% 1px no-repeat,
+    linear-gradient(in oklch, currentColor 0 0) center / 1px 100% no-repeat;
+}
+.mk-links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+
+/* A moving picture and the still under it. */
+.mk-field { position: relative; overflow: hidden; }
+.mk-field__still, .mk-field__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.mk-field__canvas { opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
+.mk-field[data-field-ready="true"] .mk-field__canvas { opacity: 1; }
+.mk-field[data-field-ready="true"] .mk-field__still { visibility: hidden; transition: visibility 0s var(--duration-slow); }
+.mk-field--glow { --field-ground: #0D1611; --field-ink: #C8F25C; --field-glow: #2FA866; }
+.mk-field--mark { --field-ground: #0D1611; --field-ink: #2FA866; --field-glow: #C8F25C; }
+.mk-field--screen { --field-ground: #0F1A14; --field-ink: #C8F25C; --field-glow: #2FA866; }
+.mk-field--glow .mk-field__still {
+  background:
+    radial-gradient(40% 60% at 80% 14% in oklch, color-mix(in srgb, var(--field-glow) 42%, transparent), oklch(from var(--field-glow) l c h / 0) 70%),
+    radial-gradient(36% 50% at 10% 78% in oklch, color-mix(in srgb, var(--field-ink) 16%, transparent), oklch(from var(--field-ink) l c h / 0) 70%),
+    radial-gradient(circle in oklch, color-mix(in srgb, var(--field-ink) 20%, transparent) 0 1px, oklch(from var(--field-ink) l c h / 0) 1.5px) 0 0 / 7px 7px,
+    var(--field-ground);
+}
+.mk-field--mark .mk-field__still {
+  background:
+    radial-gradient(50% 70% at 76% 50% in oklch, color-mix(in srgb, var(--field-glow) 22%, transparent), oklch(from var(--field-glow) l c h / 0) 72%),
+    radial-gradient(circle in oklch, color-mix(in srgb, var(--field-ink) 30%, transparent) 0 1.2px, oklch(from var(--field-ink) l c h / 0) 1.7px) 0 0 / 10px 10px,
+    var(--field-ground);
+}
+.mk-field--screen .mk-field__still {
+  display: grid; place-items: center;
+  background:
+    radial-gradient(circle in oklch, color-mix(in srgb, var(--field-ink) 30%, transparent) 0 1.3px, oklch(from var(--field-ink) l c h / 0) 1.8px) 0 0 / 9px 9px,
+    var(--field-ground);
+}
+.mk-field--backdrop .mk-field__still {
+  background:
+    repeating-radial-gradient(circle at 72% 24% in oklch, oklch(from var(--field-ink) l c h / 0) 0 22px, color-mix(in srgb, var(--field-ink) 26%, transparent) 22px 23px),
+    var(--field-ground);
+}
+/* Behind words, a darker middle keeps them easy to read over the picture. */
+.mk-hero__field::after, .mk-band__field::after, .mk-closing__field::after { content: ""; position: absolute; inset: 0; }
+.mk-hero__field::after { background: radial-gradient(72% 64% at 50% 42% in oklch, rgb(13 22 17 / .92), rgb(13 22 17 / .62) 72%, rgb(13 22 17 / 0)); }
+.mk-band__field::after { background: linear-gradient(90deg in oklch, rgb(13 22 17 / .9) 30%, rgb(13 22 17 / .2)); }
+.mk-closing__field::after { background: radial-gradient(60% 70% at 50% 50% in oklch, rgb(13 22 17 / .82), rgb(13 22 17 / .3)); }
+.mk-hero__field, .mk-band__field, .mk-closing__field, .mk-service__field { position: absolute; inset: 0; }
+
+/* The opening. */
+.mk-hero {
+  position: relative; isolation: isolate; overflow: clip;
+  display: grid; gap: var(--space-6);
+  margin-inline: calc(-1 * var(--rg-panel-padding));
+  padding: clamp(3.5rem, 9vh, 6.5rem) var(--rg-panel-padding) var(--space-5);
+}
+.mk-hero > :not(.mk-field), .mk-band > :not(.mk-field), .mk-closing > :not(.mk-field) { position: relative; }
+.mk-hero__copy { display: grid; justify-items: center; width: min(100%, 54rem); margin-inline: auto; text-align: center; }
+.mk-hero__display {
+  font-family: var(--font-family-title); font-size: clamp(2.5rem, 7.4vw, 6.25rem);
+  line-height: 1; letter-spacing: -.045em; text-wrap: balance;
+}
+.mk-hero__lede {
+  max-width: 38rem; margin-top: var(--space-3); color: color-mix(in srgb, var(--color-fg) 86%, transparent);
+  font-size: clamp(1rem, 1.4vw, 1.1875rem); line-height: 1.55; text-wrap: pretty;
+}
+.mk-hero__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-4); }
+
+/* The services: four tall cards, each in its own colours, with its price
+   level. The colours also draw each service's picture on its own page. Side by
+   side, the cards share their rows, so every name, promise, tool line and
+   price sits level with its neighbour's however long each promise runs. */
+.mk-services {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(10rem, auto) auto auto auto;
+  gap: var(--space-3); margin-top: var(--space-5);
+}
+.mk-service {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: var(--space-2); border: 1px solid var(--hairline);
+  background: var(--mk-service-ground); color: var(--mk-service-ink);
+}
+.mk-service--skills { --mk-service-ground: #C8F25C; --mk-service-ink: #0F1B14; --field-ground: #C8F25C; --field-ink: #0F1B14; --field-glow: #2FA866; }
+.mk-service--evals { --mk-service-ground: #1E6B45; --mk-service-ink: #F3F5EF; --field-ground: #1E6B45; --field-ink: #C8F25C; --field-glow: #7ED8A9; }
+.mk-service--environments { --mk-service-ground: #142019; --mk-service-ink: #E4EEE6; --field-ground: #142019; --field-ink: #2FA866; --field-glow: #C8F25C; }
+.mk-service--models { --mk-service-ground: #E4EEE6; --mk-service-ink: #0F1B14; --field-ground: #E4EEE6; --field-ink: #1E6B45; --field-glow: #2FA866; }
+.mk-service--security { --field-ground: #0D1611; --field-ink: #7ED8A9; --field-glow: #C8F25C; }
+.mk-service--swarm-verify { --field-ground: #0F1A14; --field-ink: #C8F25C; --field-glow: #7ED8A9; }
+.mk-service__words {
+  position: relative; display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; gap: var(--space-2); width: 100%;
+  padding: var(--space-6) var(--space-3) var(--space-3);
+  background: linear-gradient(to top in oklch, var(--mk-service-ground) 55%, oklch(from var(--mk-service-ground) l c h / 0));
+}
+.mk-service .mk-service__words h3 { font-size: clamp(1.625rem, 2.2vw, 2.25rem); line-height: 1.05; letter-spacing: -.035em; overflow-wrap: break-word; align-self: end; }
+.mk-service__words p { max-width: 20rem; margin-top: 0; }
+/* The tools a service uses, quiet under its promise: each status it has, in
+   its one word on a line of its own, then the tools under it. */
+.mk-service__tools {
+  display: grid; align-content: start; gap: .25rem;
+  font-family: var(--font-family-mono); font-size: .75rem; line-height: 1.5; letter-spacing: .01em;
+}
+.mk-service__tools dd { display: flex; flex-wrap: wrap; column-gap: .5em; }
+.mk-service__tools dt { text-transform: uppercase; letter-spacing: .08em; }
+/* Each tool's name stays whole; the dot between two goes with the first. */
+.mk-service__tool { white-space: nowrap; }
+.mk-service__tool:not(:last-child)::after { content: "·"; margin-left: .5em; }
+.mk-service__link { color: inherit; text-decoration: none; }
+.mk-service__link::after { content: ""; position: absolute; inset: 0; }
+.mk-service__link:hover, .mk-service__link:focus-visible { color: inherit; text-decoration: none; }
+.mk-service__link:focus-visible { outline: none; }
+.mk-service:has(.mk-service__link:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+.mk-service__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+}
+.mk-service__arrow { width: 1.25rem; height: 1.25rem; flex: none; transition: transform var(--duration-fast) var(--ease-out); }
+
+/* A service's price level: the word Price, then four diamonds, the first ones
+   filled. Never a figure. On a card the marks take the card's own ink. */
+.mk-price { display: inline-flex; align-items: center; gap: .75rem; color: var(--color-accent); }
+.mk-price__label {
+  color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .75rem;
+  letter-spacing: .14em; line-height: 1; text-transform: uppercase;
+}
+.mk-price__marks { display: inline-flex; align-items: center; gap: .625rem; padding-inline: 2px; }
+.mk-price__mark { width: .5rem; height: .5rem; border: 1.5px solid currentColor; transform: rotate(45deg); }
+.mk-price__mark--on { background: currentColor; }
+.mk-service .mk-price, .mk-service .mk-price__label { color: inherit; }
+
+/* What we build on: each maker's logo, or its name, with its projects under it,
+   each a link with its status beside it and its job in a Techtree project under
+   it, rising in the first time the row is seen. The makers wrap as the width
+   allows and each row's plates share it, so no row ends on an empty cell. */
+.mk-stack__list {
+  display: flex; flex-wrap: wrap; gap: 1px;
+  margin-top: var(--space-4); border: 1px solid var(--hairline); background: var(--hairline);
+}
+.mk-stack__list > li { display: flex; flex: 1 1 18rem; flex-direction: column; min-width: 0; background: var(--color-bg); }
+/* The logos are the makers' own files, unchanged, so each sits on the same light
+   plate in both themes rather than being recoloured. NVIDIA's file carries its
+   own clear space around the mark, so its box is taller for the same mark. A
+   maker we have no logo file for is its name on the same plate, in dark ink. */
+.mk-maker__plate { display: grid; place-items: center; height: 5.5rem; padding: 0 var(--space-3); background: #F4F5F2; }
+.mk-stack .mk-maker__plate--name {
+  color: #0F1B14; font-family: var(--font-family-title); font-size: 1.5rem;
+  line-height: 1; letter-spacing: -.03em; white-space: nowrap;
+}
+.mk-maker__logo { width: auto; }
+.mk-maker__logo--prime-intellect { height: 1.25rem; }
+.mk-maker__logo--nvidia { height: 4.25rem; }
+.mk-maker__logo--nous-research { height: 2.25rem; }
+.mk-maker__of { color: var(--color-fg-muted); }
+.mk-maker__projects { display: grid; gap: var(--space-2); padding: var(--space-3); font-size: .9375rem; line-height: 1.5; }
+.mk-maker__projects > li { display: grid; gap: .125rem; }
+.mk-maker__name { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem var(--space-1); }
+.mk-maker__job { color: var(--color-fg-muted); font-size: .875rem; text-wrap: pretty; }
+
+/* Under the Factory's four steps: what comes once the first model is in
+   service, the quieter note on who Techtree is, and where to read on. */
+.mk-factory__after { display: grid; justify-items: start; gap: var(--space-2); max-width: 46rem; margin-top: var(--space-5); }
+.mk-factory__after > p:first-child { font-size: 1.0625rem; text-wrap: pretty; }
+.mk-factory__note { color: var(--color-fg-muted); font-size: .875rem; }
+
+/* The demonstrations side by side, three across where there is room: each
+   card's two figures stay side by side, and its verdict sits under them. */
+.mk-offer.mk-offer--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mk-demos > section > p { text-wrap: pretty; }
+.mk-demos .mk-tallies { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--space-2); }
+.mk-demos .mk-tallies dd { font-size: clamp(2rem, 3vw, 2.75rem); }
+.mk-demos__verdict { display: grid; justify-items: start; gap: var(--space-1); margin-top: var(--space-2); text-wrap: pretty; }
+.mk-demos > section > .mk-links { margin-top: var(--space-1); }
+@media (max-width: 63.99rem) {
+  .mk-offer.mk-offer--three { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Two ways on, as tiles. */
+.mk-tile {
+  position: relative; display: grid; align-content: start; gap: .375rem; width: 100%; min-height: 10rem;
+  padding: var(--space-3); color: inherit; text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.mk-tile__name {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1);
+  font-family: var(--font-family-title); font-size: clamp(1.375rem, 2vw, 1.75rem); line-height: 1.1; letter-spacing: -.03em;
+}
+.mk-tile__line { margin-top: auto; padding-top: var(--space-2); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.4; }
+.mk-tile__arrow {
+  position: absolute; top: var(--space-3); right: var(--space-3); width: 1rem; height: 1rem;
+  color: var(--color-fg-muted); transition: transform var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.mk-tile::after {
+  content: ""; position: absolute; inset: auto 0 0; height: 2px; background: var(--color-accent);
+  transform: scaleX(0); transform-origin: left center; transition: transform var(--duration-base) var(--ease-out);
+}
+.mk-tile:hover { color: inherit; text-decoration: none; }
+.mk-tile:focus-visible::after { transform: scaleX(1); }
+
+/* Facts, one ruled row each. */
+.mk-facts { border-top: 1px solid var(--hairline); }
+.mk-facts > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline); }
+.mk-facts dt { color: var(--color-fg-muted); font-size: .75rem; text-transform: uppercase; }
+.mk-facts dd { font-size: .875rem; }
+
+/* A dark band across the page: its words over a moving picture. */
+.mk-band {
+  position: relative; isolation: isolate; overflow: clip;
+  margin-inline: calc(-1 * var(--rg-panel-padding)); padding: var(--space-7) var(--rg-panel-padding);
+}
+.mk-band__copy { max-width: 46rem; }
+.mk-band .mk-band__copy h2 { font-size: clamp(2.25rem, 5vw, 4rem); line-height: 1.02; letter-spacing: -.045em; }
+.mk-band__line { max-width: 40rem; margin-top: var(--space-3); font-family: var(--font-family-title); font-size: clamp(1.25rem, 2vw, 1.625rem); line-height: 1.3; letter-spacing: -.02em; text-wrap: pretty; }
+.mk-band__more { max-width: 38rem; margin-top: var(--space-2); color: var(--color-fg-muted); }
+.mk-band__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+
+/* A heading beside a ruled list. */
+.mk-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--rg-track-gap); }
+.mk-section > .mk-split { margin-top: var(--space-5); }
+.mk-status { margin-top: var(--space-3); border-top: 1px solid var(--hairline); }
+.mk-status li { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline); font-size: .875rem; }
+.mk-status .badge { flex: none; }
+.mk-status li > a { display: inline-flex; align-items: center; min-height: 1.5rem; }
+
+/* The blog's posts, as cards. */
+.mk-news { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
+.mk-news__card {
+  display: flex; flex-direction: column; gap: var(--space-2); height: 100%; min-height: 13rem; padding: var(--space-3);
+  border: 1px solid var(--hairline); background: var(--color-surface); color: inherit; text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.mk-news__meta { display: flex; justify-content: space-between; gap: var(--space-2); color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; }
+.mk-news .mk-news__title { font-size: 1.375rem; line-height: 1.2; }
+.mk-news__line { color: var(--color-fg-muted); font-size: .9375rem; }
+.mk-news__more { display: inline-flex; align-items: center; gap: var(--space-1); margin-top: auto; font-size: .875rem; }
+.mk-news__card:hover { color: inherit; text-decoration: none; }
+
+/* The closing Contact, dark, before the footer. */
+.mk-closing {
+  position: relative; isolation: isolate; overflow: clip;
+  margin-inline: calc(-1 * var(--rg-panel-padding)); padding: var(--space-8) var(--rg-panel-padding);
+  text-align: center;
+}
+.mk-closing__copy { display: grid; justify-items: center; }
+.mk-closing .mk-closing__copy h2 { color: var(--color-accent); font-family: var(--font-family-mono); font-size: .8125rem; line-height: 1.4; letter-spacing: .22em; text-transform: uppercase; }
+.mk-closing__line { margin-top: var(--space-2); font-family: var(--font-family-title); font-size: clamp(2.25rem, 6vw, 5rem); line-height: 1; letter-spacing: -.045em; text-wrap: balance; }
+.mk-closing > .mk-enquiry { max-width: 40rem; margin: var(--space-6) auto 0; text-align: start; }
+
+/* A service's Contact band: the call and the email beside the enquiry form, the
+   form under them on a narrower screen. */
+.mk-contact { display: grid; gap: var(--space-5); align-items: start; }
+@media (min-width: 64rem) {
+  .mk-contact { grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); gap: var(--space-6); }
+}
+
+/* The enquiry form (`TechtreeWeb.Components.Enquiry`): a card on the dark band,
+   one edge firmer and one fill lighter than the band, its fields sunk back to the
+   band's own ground. Two fields to a row where there is room. */
+.mk-enquiry {
+  --rg-local-fill: var(--color-bg);
+  display: grid; gap: var(--space-3); padding: var(--space-4);
+  border: 1px solid var(--hairline-strong); background: var(--color-surface);
+}
+.mk-enquiry .mk-enquiry__title { font-family: var(--font-family-ui); font-size: 1.0625rem; line-height: 1.3; }
+.mk-enquiry__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); align-items: start; }
+.mk-enquiry__wide { grid-column: 1 / -1; }
+.mk-enquiry__fields > .rg-notice { margin-bottom: var(--space-2); }
+.mk-enquiry__fields textarea { resize: vertical; }
+.mk-enquiry__send { grid-column: 1 / -1; justify-self: start; }
+.mk-enquiry__sent { display: grid; gap: var(--space-1); animation: mk-enquiry-arrive var(--duration-slow) var(--ease-out); }
+.mk-enquiry__sent:focus { outline: none; }
+.mk-enquiry__done { display: flex; align-items: center; gap: var(--space-1); color: var(--color-success); font-family: var(--font-family-title); font-size: 1.5rem; line-height: 1.2; letter-spacing: -.02em; }
+.mk-enquiry__more { color: var(--color-fg-muted); font-size: .9375rem; }
+@keyframes mk-enquiry-arrive { from { opacity: 0; transform: translateY(4px); } }
+
+@media (max-width: 71.99rem) {
+  .mk-services { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(9rem, auto) auto auto auto); }
+}
+@media (max-width: 47.99rem) {
+  .mk-section { padding-block: var(--space-6); }
+  .mk-split, .mk-news, .mk-services { grid-template-columns: minmax(0, 1fr); }
+  /* One card to a row: each keeps its own height, words at the foot. */
+  .mk-services { grid-template-rows: none; }
+  .mk-service { display: flex; grid-row: auto; min-height: 17rem; }
+  .mk-service__words { grid-template-rows: none; align-content: end; }
+}
+@media (max-width: 36rem) {
+  .mk-tile { min-height: 0; }
+  .mk-facts > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .mk-enquiry { padding: var(--space-3) var(--space-2); }
+  .mk-enquiry__fields { grid-template-columns: minmax(0, 1fr); }
+}
+/* The hover looks come only with a mouse: a finger's tap would leave them on.
+   The hover rules above only keep the page's link underline off the cards. */
+@media (hover: hover) and (pointer: fine) {
+  .mk-service:hover .mk-service__link { text-decoration: underline; text-underline-offset: .12em; text-decoration-thickness: 2px; }
+  .mk-service:hover .mk-service__arrow { transform: translateX(3px); }
+  .mk-tile:hover { background: var(--color-surface); }
+  .mk-tile:hover::after { transform: scaleX(1); }
+  .mk-tile:hover .mk-tile__arrow { transform: translate(2px, -2px); color: var(--color-fg); }
+  .mk-news__card:hover { border-color: var(--color-fg); }
+  .mk-news__card:hover .mk-news__more { text-decoration: underline; text-underline-offset: .2em; }
+}
+/* On a touch screen a card's name and a ruled list's link get a finger's 44
+   pixels of height. */
+@media (pointer: coarse) {
+  .mk-service__link { display: inline-flex; align-items: center; }
+  .mk-service__link, .mk-status li > a { min-height: 2.75rem; }
+}
+@media (forced-colors: active) {
+  .mk-field { display: none; }
+  .mk-service, .mk-news__card, .mk-enquiry { border-color: CanvasText; background: Canvas; color: CanvasText; }
+  .mk-price__mark { forced-color-adjust: none; border-color: CanvasText; }
+  .mk-price__mark--on { background: CanvasText; }
+}
+@media print {
+  .mk-field, .mk-enquiry { display: none; }
+  .mk-hero, .mk-band, .mk-closing { background: none; color: inherit; }
+}
+}

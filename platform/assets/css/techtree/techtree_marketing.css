@@ -1,0 +1,211 @@
+@scope (:root[data-brand="techtree"]) {
+/* The inner pages in the home page's look (`RegentsWeb.Techtree.Components.Marketing`).
+
+   Every inner page opens on a dark band: the eyebrow, the page's name, its
+   promise, its actions and, on a wide screen, a dot picture of the page's own
+   shape. Below it the page's parts are the home page's ruled sections
+   (`.mk-section`, in techtree_home.css) holding the pieces here. */
+
+/* The opening band. Its ground is a faint grid of dots the stylesheet draws, so
+   the band reads the same with or without the picture beside it. */
+/* It clips only sideways, and sits over the section after it, so a menu opened
+   in it (the Docs' Copy page) hangs over that section whole. */
+.mk-opening {
+  position: relative; z-index: 1; isolation: isolate; overflow-x: clip;
+  display: grid; align-items: center; gap: var(--space-5) var(--rg-track-gap);
+  margin-inline: calc(-1 * var(--rg-panel-padding));
+  padding: clamp(3rem, 8vh, 5.5rem) var(--rg-panel-padding);
+  background:
+    radial-gradient(60% 90% at 100% 0% in oklch, rgb(47 168 102 / .18), rgb(47 168 102 / 0) 70%),
+    radial-gradient(circle in oklch, rgb(200 242 92 / .09) 0 1px, rgb(200 242 92 / 0) 1.5px) 0 0 / 9px 9px,
+    var(--color-bg);
+}
+.mk-opening--picture { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.mk-opening__copy { display: grid; justify-items: start; min-width: 0; max-width: 46rem; }
+.mk-opening .mk-eyebrow { color: var(--color-accent); }
+.mk-opening .mk-opening__title {
+  max-width: 100%; font-family: var(--font-family-title); font-size: clamp(2.75rem, 6.4vw, 5.5rem);
+  line-height: 1; letter-spacing: -.045em; text-wrap: balance; overflow-wrap: break-word;
+}
+.mk-opening__line {
+  max-width: 38rem; margin-top: var(--space-3); color: var(--color-fg-muted);
+  font-family: var(--font-family-title); font-size: clamp(1.125rem, 1.7vw, 1.5rem); line-height: 1.35;
+  letter-spacing: -.015em; text-wrap: pretty;
+}
+.mk-opening__more { max-width: 38rem; margin-top: var(--space-2); color: var(--color-fg-muted); text-wrap: pretty; }
+.mk-opening__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+.mk-opening__note { max-width: 38rem; margin-top: var(--space-3); color: var(--color-fg-muted); font-size: .875rem; }
+.mk-opening__note a { color: var(--color-fg); }
+/* Each link in the row is its own press, so its line is a full 24 pixels. */
+.mk-opening__copy > .mk-links { margin-top: var(--space-3); color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5rem; }
+.mk-opening__tools { margin-top: var(--space-3); }
+/* A service's price level under its booking actions, and the one line on money. */
+.mk-opening__price { display: grid; justify-items: start; gap: var(--space-1); margin-top: var(--space-4); }
+.mk-opening__price > p { color: var(--color-fg-muted); font-size: .875rem; }
+/* A title that changes in place takes focus without a ring: it is where the
+   reader is, not a control. */
+.mk-opening__title[tabindex]:focus { outline: none; }
+/* The picture keeps the band's dark colours whatever the theme; a service's
+   picture takes the service's own (`.mk-service--*`, in techtree_home.css). */
+.mk-opening__picture {
+  justify-self: end; width: min(100%, 26rem); aspect-ratio: 1;
+  border: 1px solid var(--hairline-strong);
+}
+.mk-opening__picture .mk-field__still { display: grid; place-items: center; }
+.mk-opening .mk-opening__glyph { inline-size: 38%; block-size: auto; aspect-ratio: 1; color: var(--field-ink); stroke-width: 1; }
+
+/* Ways on, as tiles side by side. */
+.mk-paths {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: var(--space-4);
+  border: 1px solid var(--hairline); background: var(--hairline);
+}
+.mk-paths > * { background: var(--color-bg); }
+.mk-paths .mk-tile { min-height: 11rem; }
+.mk-paths .badge { justify-self: start; }
+
+/* The home page's six steps in order, each under an accent rule: three to a
+   row on a wide screen, so the two rows are even; two or one on a phone. */
+.mk-sequence { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--space-3); margin-top: var(--space-4); }
+@media (min-width: 48rem) { .mk-sequence { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--space-4); } }
+.mk-sequence > li { display: grid; align-content: start; gap: var(--space-1); padding-top: var(--space-2); border-top: 2px solid var(--color-accent); }
+.mk-sequence__index { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .75rem; letter-spacing: .12em; }
+.mk-sequence h3 { font-size: 1.25rem; line-height: 1.25; }
+.mk-sequence p { margin-top: 0; color: var(--color-fg-muted); font-size: .875rem; }
+/* Swarm Verify's five stages: one row on a wide screen, where three to a row
+   would leave the second row a stage short. */
+@media (min-width: 64rem) { .mk-sequence.mk-sequence--five { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+/* The home page's Factory: four steps, two to a row on a middling screen and
+   one row on a wide one. Each ends on the service that delivers it, the four
+   links level however long each line runs. */
+@media (min-width: 48rem) { .mk-sequence.mk-sequence--four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .mk-sequence.mk-sequence--four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.mk-sequence--four > li { grid-template-rows: auto auto 1fr auto; }
+.mk-sequence--four p { text-wrap: pretty; }
+.mk-sequence--four > li > .text-link { justify-self: start; margin-top: var(--space-1); }
+
+/* Facts beside what to copy: the section's two halves. */
+.mk-section > .mk-split, .mk-section > .facts { margin-top: var(--space-4); }
+.mk-section > .command { margin-top: var(--space-4); }
+.mk-section > .mk-links { margin-top: var(--space-3); }
+.mk-split > .command, .mk-split > .facts { margin: 0; }
+
+/* Two things side by side, Security's options or Models' comparisons: each
+   under an accent rule, a ruled list where it has one. */
+.mk-offer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--rg-track-gap); }
+.mk-section__head + .mk-offer { margin-top: var(--space-4); }
+.mk-offer > section { display: grid; align-content: start; gap: var(--space-1); min-width: 0; padding-top: var(--space-2); border-top: 2px solid var(--color-accent); }
+.mk-offer > section > :is(h2, h3) { font-size: 1.5rem; line-height: 1.2; }
+.mk-offer > section > p { margin-top: 0; color: var(--color-fg-muted); }
+.mk-offer ul { margin-top: var(--space-2); border-top: 1px solid var(--hairline); }
+.mk-offer li { padding: var(--space-1) 0; border-bottom: 1px solid var(--hairline); font-size: .9375rem; line-height: 1.5; }
+.mk-offer > section > .text-link { justify-self: start; margin-top: var(--space-2); }
+/* A comparison's question, before what it sets side by side. */
+.mk-offer > section > .mk-offer__question {
+  color: var(--color-fg); font-family: var(--font-family-title); font-size: 1.125rem;
+  line-height: 1.35; letter-spacing: -.01em;
+}
+
+/* A service's process: one ruled row a step, its number, its name with its
+   status, and what happens in it. On a phone the words go under the name. */
+.mk-steps { margin-top: var(--space-4); border-top: 1px solid var(--hairline); }
+.mk-steps > li {
+  display: grid; grid-template-columns: 3rem minmax(0, 15rem) minmax(0, 1fr); gap: var(--space-1) var(--space-3);
+  align-items: baseline; padding: var(--space-3) 0; border-bottom: 1px solid var(--hairline);
+}
+.mk-steps__index { color: var(--color-fg-muted); font-family: var(--font-family-mono); font-size: .75rem; letter-spacing: .12em; }
+.mk-steps__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); min-width: 0; }
+.mk-steps h3 { font-size: 1.25rem; line-height: 1.25; }
+.mk-steps__words { max-width: 44rem; margin: 0; color: var(--color-fg-muted); font-size: .9375rem; line-height: 1.55; text-wrap: pretty; }
+
+/* A status in its one word (Tested, Planned), quiet beside what it marks.
+   Delivered keeps its tone's colour. */
+.mk-status-word {
+  flex: none; font-family: var(--font-family-mono); font-size: .6875rem; line-height: 1.4;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.mk-status-word.rg-tone--neutral { border-color: var(--hairline-strong); color: var(--color-fg-muted); }
+
+/* The open-source tools a service uses, grouped under their status: each
+   project named with its maker, linked, beside its job on the project, one
+   ruled row each. */
+.mk-tools__groups { display: grid; gap: var(--space-4); min-width: 0; }
+.mk-tools__status { margin-bottom: var(--space-2); font-size: 1rem; line-height: 1; }
+.mk-tools { border-top: 1px solid var(--hairline); }
+.mk-tools > div {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--hairline);
+}
+.mk-tools dt { min-width: 0; font-size: .9375rem; line-height: 1.5; overflow-wrap: anywhere; }
+.mk-tools__name { color: var(--color-fg); text-decoration-color: var(--hairline-strong); text-underline-offset: .2em; }
+.mk-tools__name:hover { color: var(--color-fg); text-decoration-color: currentColor; }
+.mk-tools__maker { color: var(--color-fg-muted); font-weight: 400; }
+.mk-tools dd { color: var(--color-fg-muted); font-size: .875rem; line-height: 1.5; }
+/* The published results a tool did a part in, on their own line under its job. */
+.mk-tools__results { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); margin-top: .25rem; }
+/* On a phone the name is a link on its own, so it gets a finger's height. */
+@media (pointer: coarse) {
+  .mk-tools__name { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: .25em; min-height: 2.75rem; }
+  .mk-tools > div { align-items: center; }
+}
+
+/* A ruled list of sentences: the terms, a service's notes. */
+.mk-status--prose li { display: block; font-size: .9375rem; line-height: 1.55; }
+/* A Result's withdrawn and held-out notes, before what it compared. */
+.run-notices { display: grid; gap: var(--space-3); }
+.run-notices .callout { margin-block: 0; }
+
+/* The blog's posts: each card opens on the post's picture. */
+.mk-news--posts { margin-top: 0; }
+.mk-news__picture {
+  width: calc(100% + 2 * var(--space-3)); max-width: none; height: auto; aspect-ratio: 16 / 9;
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) var(--space-1);
+  border-bottom: 1px solid var(--hairline); object-fit: cover;
+}
+
+/* The Docs' guides, one ruled section a group. */
+.docs-index .mk-section > h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
+.docs-index .docs-index__list { margin-top: var(--space-3); }
+
+/* A page of prose under its band: the changelog, an agent's page. */
+.mk-section > .rg-blog__prose { max-width: var(--measure); }
+
+/* The Account's tabs sit in its band, and its views under it. */
+.mk-opening .account-shell__tabs { margin-top: var(--space-4); }
+.account-shell__body { padding-block: var(--space-5) var(--space-7); }
+
+/* Figures that count up the first time they are seen (`MarketingTally`). */
+.mk-tallies {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1px; margin-top: var(--space-4);
+  border: 1px solid var(--hairline); background: var(--hairline);
+}
+.mk-tallies > div { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); background: var(--color-bg); }
+.mk-tallies dd {
+  order: -1; font-family: var(--font-family-title); font-size: clamp(2.25rem, 4vw, 3.5rem);
+  line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums;
+}
+.mk-tallies dt { max-width: 28ch; color: var(--color-fg-muted); font-size: .875rem; }
+
+/* A ruled list beside its heading. */
+.mk-split > .mk-section__head { max-width: none; }
+.mk-split > .mk-facts, .mk-split > .mk-status { margin-top: 0; }
+
+/* A dark band's copy with a command or actions in it. */
+.mk-band__copy > .command { margin-top: var(--space-4); }
+.mk-band__copy > .mk-status { margin-top: var(--space-3); }
+
+@media (max-width: 63.99rem) {
+  .mk-opening--picture { grid-template-columns: minmax(0, 1fr); }
+  .mk-opening__picture { display: none; }
+}
+@media (max-width: 47.99rem) {
+  .mk-paths, .mk-offer { grid-template-columns: minmax(0, 1fr); }
+  .mk-steps > li { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .mk-steps__words { grid-column: 2; }
+}
+@media (max-width: 36rem) {
+  .mk-tools > div { grid-template-columns: minmax(0, 1fr); }
+}
+@media print {
+  .mk-opening { background: none; color: inherit; }
+}
+}

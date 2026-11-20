@@ -54,6 +54,10 @@ import {arriveAt, installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
 import {installVisitLog} from "./visit_log"
 import {syncTheme} from "./theme"
+// Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
+// in and figures that count up, and the header's Services menu and Menu sheet.
+import {marketingHooks, mountEntrance} from "./techtree/marketing"
+import {installSiteMenu} from "./techtree/site_menu"
 
 // First, so an error anywhere below is reported too.
 installVisitLog()
@@ -276,6 +280,7 @@ const hooks = {
   ...showcaseHooks,
   ...labHooks,
   ...colocatedHooks,
+  ...marketingHooks,
   Datascape,
   Docs,
   EnterGradient,
@@ -331,4 +336,6 @@ installAgentTools()
 installLiteratureChart()
 installShellPanels()
 mountMotion(document)
+mountEntrance(document)
+installSiteMenu()
 window.liveSocket = liveSocket

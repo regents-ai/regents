@@ -1,0 +1,13 @@
+/* Techtree's stylesheets, as techtree.sh orders them (regents-ai/techtree
+   platform/assets/css/app.css, SOURCE.json). Each file is wrapped in
+   `@scope (:root[data-brand="techtree"])`, so it applies only to a page the
+   Techtree scope marks; a scoped rule keeps its own specificity and wins over
+   an unscoped rule of the same specificity. Regent UI's tokens and primitives
+   come from the site's own app.css. */
+@import "./site_chrome.css";
+@import "./techtree_home.css";
+@import "./techtree_marketing.css";
+@import "./techtree_pages.css";
+@import "./train.css";
+@import "./motion.css";
+@import "./app.css";
