@@ -7945,3 +7945,10 @@ seasons), on the shared Points library regents.sh was already on.
 
 - `ash_state_machine` 0.3.1, `mint_web_socket` 1.0.6 and `ex_image_info` 1.0.0 are added, and `mint` 1.11.0 (already present) becomes the site's own dependency. These are the versions Keyfleet runs today. Nothing in the site uses them yet.
 - Not released: on the `one-site` branch only. No migration, secret, sign-in or page change.
+
+## 2026-11-20 — Patchbay's tables in the one database (not released)
+
+- Patchbay's 124 migrations now build its tables in their own part of the database, `patchbay_app`, with their own record of what has run, after regents.sh's and Techtree's. A fresh database comes out with Patchbay's 79 tables and 2 views; regents.sh's and Techtree's parts are left exactly as they were, and a second run changes nothing.
+- The earliest files named the shared part of the database; they now name Patchbay's own, as the import into production did. The two files that install the database functions every product uses do nothing here, since regents.sh's own migrations install those first. Every change is listed in Patchbay's `SOURCE.json`.
+- Nothing reads the tables yet: no page, resource or job is added.
+- Not released: on the `one-site` branch only. 124 migrations, all in Patchbay's own area; whether production's record already holds them all is still to be confirmed before release. No secret, sign-in or page change.

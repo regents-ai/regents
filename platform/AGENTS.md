@@ -220,6 +220,14 @@ A folded product's tables stay in its own schema of the one database (Techtree's
   the module name changes, plus `prefix()` wherever the SQL named another schema or none.
   Tables this site does not read yet are still created. Its `extensions.json` is carried;
   its resource snapshots are generated here (`--snapshots-only`), for its resources here.
+- Where production's schema was filled by an import rather than by running the early
+  files (Patchbay's `patchbay_app`, whose early files named `public`), those files name
+  the area being migrated (`prefix()`), so a fresh database builds the same tables there;
+  production's ledger already holds those versions, so none runs again.
+- A carried file that installs what regents.sh's own migrations already put in `public`
+  keeps its version and does nothing (`def up, do: :ok`, the Ash functions); one that
+  installs only where missing (`CREATE EXTENSION IF NOT EXISTS pg_trgm`) stays as carried.
+  `extensions.json` names each extension as `Regents.Repo` does (`"pg_trgm"`).
 - Locally, `mix regents.setup_local_auth` applies a product's new migrations; the stock
   `mix ecto.migrate` covers `regents_app` only.
 
