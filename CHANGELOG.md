@@ -7911,3 +7911,11 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-20 — One site: the new Cloak page in the one-site frame
 
 - Branch one-site takes main's new Cloak page (the three entries above) unchanged: its words, links, film and styles. Cloak has no side menu of its own on this branch, so /cloak already runs the frame's full width with no Menu at every width; main's route catalog switch `rail: false` is not carried, and the catalog handoff is regenerated without it. No migration.
+
+## 2026-11-20 — One site: Techtree's Services menu and Book Call in the bar (not released)
+
+- On every Techtree page the site's bar now holds Techtree's own links as on techtree.sh: **Services** opens the six services (Skills, Evals, Environments and Models, with Security and Swarm Verify set apart), each with its icon and one line, then Results, Docs and Book Call. Book Call is Techtree's own button and shows only where its booking page is set, from 64rem up as on techtree.sh.
+- On a phone, Menu on a strip under the bar opens one sheet with the six services, Results, Docs, GitHub and Book Call; the page behind it cannot be reached until it closes.
+- Both close on Escape, on a press outside and on choosing an entry, and hand focus back to their button. A menu opened by a mouse or a finger drops in; from the keyboard, or with less motion asked for, it is simply there.
+- Gone: the bar's plain Services link to the home page's services. The product menu, the theme switch and Sign in stay where they were; other products are unchanged.
+- Not released: on the `one-site` branch only. No migration.

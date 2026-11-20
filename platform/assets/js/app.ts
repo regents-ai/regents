@@ -52,11 +52,12 @@ import {VerifiedConnections} from "./hooks/verified_connections"
 import {installVisitLog} from "./visit_log"
 import {syncTheme} from "./theme"
 // Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
-// in and figures that count up, the Docs' Copy page control, and the Results
-// page's agent-version strip.
+// in and figures that count up, the Docs' Copy page control, the Results page's
+// agent-version strip, and the bar's Services menu with the phone Menu sheet.
 import {AgentVersions} from "./techtree/agent_versions"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
+import {installSiteMenu} from "./techtree/site_menu"
 // Keyfleet's pages (`RegentsWeb.Keyfleet`): their frame, with its phone menu and the
 // bar while the next page loads.
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
@@ -342,6 +343,7 @@ installAgentTools()
 installLiteratureChart()
 installShellPanels()
 installShellMenu()
+installSiteMenu()
 installEscape()
 mountWebMCPStatus()
 mountMotion(document)
