@@ -53,6 +53,29 @@ Techtree (`lib/regents_web/techtree/`):
 - Record what was taken from the product's own repository, at which commit, in
   `lib/regents/<product>/SOURCE.json`.
 
+### A product's tables
+
+A folded product's tables stay in its own schema of the one database (Techtree's is
+`techtree_app`), with its own migrations and its own ledger, all on `Regents.Repo`:
+
+- Its resources say `schema "<product>_app"` and `repo Regents.Repo`, keep their table
+  names, and its domains are in `config :regents, ash_domains` under `Regents.<Product>.*`.
+- Add `{"<product>", "<product>_app"}` to `@products` in `lib/regents/release.ex`.
+  `bin/migrate`, `bootstrap-staging`, `mix regents.setup_local_auth` and
+  `bin/pending-migrations` then walk it after `regents_app`, each schema with its own
+  `<schema>.schema_migrations`; `pending-migrations` names every entry as schema and version.
+- Migrations in `priv/<product>/migrations/`, snapshots in
+  `priv/<product>/resource_snapshots/`. `mix ash.codegen` (and `--check`) runs once for
+  regents.sh's domains and once for each product's, each into its own folders. Name a
+  product's migration after it (`mix ash.codegen techtree_add_x`): every migration module
+  is `Regents.Repo.Migrations.<Name>`, and the product's carried ones start with its name.
+- Migrations carried from the product's own repository keep their versions and SQL; only
+  the module name changes, plus `prefix()` wherever the SQL named another schema or none.
+  Tables this site does not read yet are still created. Its `extensions.json` is carried;
+  its resource snapshots are generated here (`--snapshots-only`), for its resources here.
+- Locally, `mix regents.setup_local_auth` applies a product's new migrations; the stock
+  `mix ecto.migrate` covers `regents_app` only.
+
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->
 ## usage_rules usage

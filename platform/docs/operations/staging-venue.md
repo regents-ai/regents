@@ -64,18 +64,22 @@ recreating the staging database (see [Recovery](#recovery)).
 disagree about. It reads only: it applies nothing, creates nothing, and takes no
 migration lock.
 
-It prints, in order:
+It reads `regents_app` and each folded product's schema (`techtree_app`), each
+against its own `schema_migrations`, and prints, in order:
 
-- `pending:` followed by every migration version the release carries that the
-  database has not applied.
+- `pending:` followed by every migration the release carries that the database has
+  not applied, as schema and version (`pending: techtree_app 20261119232353`).
 - `applied-without-file:` followed by every version the database has applied whose
-  migration file the release does not carry.
-- `none` when both lists are empty.
+  migration file the release does not carry, as schema and version.
+- `shared-pending:` followed by every shared change `bin/migrate-shared` would apply.
+- `none` when all three lists are empty.
 
-`none` is the only output that means the image and the database agree.
+`none` is the only output that means the image and the database agree. A product
+schema with no `schema_migrations` yet lists every one of its migrations as pending;
+`bin/migrate` creates the schema and applies them.
 
-If the database has no `schema_migrations` table at all — a fresh staging database
-before its bootstrap — the command fails with the message
+If the database has no `regents_app.schema_migrations` table — a fresh staging
+database before its bootstrap — the command fails with the message
 `no schema_migrations table: run bootstrap-staging first` and exits nonzero, so an
 absent table can never be mistaken for agreement. It fails by raising, so the exit
 carries an Elixir error report and a stack trace around that message rather than

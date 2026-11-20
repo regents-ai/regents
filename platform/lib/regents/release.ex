@@ -27,12 +27,22 @@ defmodule Regents.Release do
     {:regent_payments, "regent_payments", RegentPayments.Migrator}
   ]
 
+  # Every product folded into this site, with the schema its tables live in. Each
+  # keeps its own migrations (`priv/<product>/migrations`) and its own ledger
+  # (`<schema>.schema_migrations`) beside this site's own, all on `Regents.Repo`.
+  @products [{"techtree", "techtree_app"}]
+
+  @doc false
+  # `mix ash.codegen` (`Mix.Tasks.Regents.Codegen`) writes each product's
+  # migrations into its own folder.
+  def products, do: @products
+
   def migration_config!, do: Regents.DatabaseConfig.release_config!()
 
   def migrate do
     with_release_repo(fn repo ->
       require_signed_access_schema!(repo)
-      repo.migrate!(migrations_path())
+      migrate_areas!(repo)
     end)
   end
 
@@ -113,7 +123,8 @@ defmodule Regents.Release do
   command creates a staging-only approximation of it with the shape the local
   fixture already proves sufficient, then applies every shared change this
   release carries, as `migrate_shared/0` does in production, and runs every
-  migration into `regents_app` (`prepare_database!/1`).
+  migration into `regents_app` and each folded product's schema
+  (`prepare_database!/1`).
 
   It refuses any database that already carries migration state or the
   regent_names schema, and it repairs nothing: recovery from a half-finished
@@ -138,57 +149,70 @@ defmodule Regents.Release do
   # (`Regents.LocalDatabaseFixture`) are prepared the same way, in production's
   # order: the tables this repository reads but does not own (the fixture is the
   # only definition of their shape), every shared change this release carries,
-  # then this site's own migrations.
+  # then this site's own migrations and each folded product's.
   def prepare_database!(repo) do
     Regents.LocalDatabaseFixture.create_shared_tables!()
     apply_shared(repo)
-    repo.migrate!(migrations_path())
+    migrate_areas!(repo)
   end
 
   @doc """
   Lists what a deployed database and the release disagree about.
 
-  Prints every migration the release carries that the database has not applied
-  under `pending:`, every version the database has applied whose file the
-  release does not carry under `applied-without-file:`, and every shared change
-  `migrate_shared/0` would apply under `shared-pending:` (each as schema and
-  version; a deployment is refused while one is listed). Prints `none` when all
-  three are empty. It applies nothing, creates nothing, and takes no migration
-  lock.
+  Prints every migration the release carries that the database has not applied,
+  in this site's own schema and each folded product's, under `pending:`; every
+  version the database has applied whose file the release does not carry under
+  `applied-without-file:`; and every shared change `migrate_shared/0` would apply
+  under `shared-pending:`. Each is listed as schema and version; a deployment is
+  refused while a shared change is listed. Prints `none` when all three are
+  empty. It applies nothing, creates nothing, and takes no migration lock.
   """
   def pending_migrations do
-    {pending, applied_without_file, shared} =
+    lists =
       with_release_repo(fn repo ->
-        {pending, applied_without_file} = disagreements(repo, migrations_path())
-        {pending, applied_without_file, unapplied_shared_migrations(repo)}
+        unless table_exists?(repo, repo.default_prefix(), migration_source(repo)),
+          do: raise(@missing_migration_table_error)
+
+        areas =
+          for {schema, path} <- areas(repo), do: {schema, disagreements(repo, schema, path)}
+
+        [
+          {"pending", for({schema, {pending, _}} <- areas, v <- pending, do: "#{schema} #{v}")},
+          {"applied-without-file",
+           for({schema, {_, without}} <- areas, v <- without, do: "#{schema} #{v}")},
+          {"shared-pending", unapplied_shared_migrations(repo)}
+        ]
       end)
 
-    if pending == [] and applied_without_file == [] and shared == [], do: IO.puts("none")
-    if pending != [], do: IO.puts("pending: #{Enum.join(pending, " ")}")
+    case Enum.reject(lists, &match?({_label, []}, &1)) do
+      [] ->
+        IO.puts("none")
 
-    if applied_without_file != [],
-      do: IO.puts("applied-without-file: #{Enum.join(applied_without_file, " ")}")
-
-    if shared != [], do: IO.puts("shared-pending: #{Enum.join(shared, ", ")}")
+      lists ->
+        Enum.each(lists, fn {label, list} -> IO.puts("#{label}: #{Enum.join(list, ", ")}") end)
+    end
   end
 
-  defp disagreements(repo, path) do
-    prefix = repo.default_prefix()
+  # The versions in `path` the schema's ledger lacks, and the versions it holds
+  # with no file in `path`. A read only: with its table creation skipped and no
+  # migration lock the migrator just selects the ledger. A schema whose ledger
+  # does not exist yet has had none of its changes applied.
+  defp disagreements(repo, schema, path) do
+    if table_exists?(repo, schema, migration_source(repo)) do
+      migrations =
+        Ecto.Migrator.migrations(repo, [path],
+          prefix: schema,
+          skip_table_creation: true,
+          migration_lock: false
+        )
 
-    unless table_exists?(repo, prefix, migration_source(repo)),
-      do: raise(@missing_migration_table_error)
+      carried = carried_versions(path)
 
-    migrations =
-      Ecto.Migrator.migrations(repo, [path],
-        prefix: prefix,
-        skip_table_creation: true,
-        migration_lock: false
-      )
-
-    carried = carried_versions(path)
-
-    {for({:down, version, _name} <- migrations, do: version),
-     for({:up, version, _name} <- migrations, version not in carried, do: version)}
+      {for({:down, version, _name} <- migrations, do: version),
+       for({:up, version, _name} <- migrations, version not in carried, do: version)}
+    else
+      {Enum.sort(carried_versions(path)), []}
+    end
   end
 
   # Ecto names an applied version with no file after a placeholder marker. The
@@ -217,26 +241,10 @@ defmodule Regents.Release do
 
   defp unapplied_shared_migrations(repo) do
     for {app, schema, _migrator} <- carried_shared(),
-        version <-
-          unapplied_versions(repo, schema, Application.app_dir(app, "priv/repo/migrations")),
+        {pending, _without} =
+          disagreements(repo, schema, Application.app_dir(app, "priv/repo/migrations")),
+        version <- pending,
         do: "#{schema} #{version}"
-  end
-
-  # A read only: with its table creation skipped and no migration lock the
-  # migrator just selects the schema's ledger. A library whose ledger does not
-  # exist yet has had none of its changes applied.
-  defp unapplied_versions(repo, schema, path) do
-    if table_exists?(repo, schema, "schema_migrations") do
-      for {:down, version, _name} <-
-            Ecto.Migrator.migrations(repo, [path],
-              prefix: schema,
-              skip_table_creation: true,
-              migration_lock: false
-            ),
-          do: version
-    else
-      Enum.sort(carried_versions(path))
-    end
   end
 
   defp apply_shared(repo), do: Enum.each(carried_shared(), fn {_, _, m} -> m.up(repo) end)
@@ -248,11 +256,10 @@ defmodule Regents.Release do
   end
 
   defp refuse_existing_state!(repo) do
-    prefix = repo.default_prefix()
     source = migration_source(repo)
 
-    if table_exists?(repo, prefix, source) do
-      raise "#{prefix}.#{source} already exists: destroy and recreate the staging database"
+    for {schema, _path} <- areas(repo), table_exists?(repo, schema, source) do
+      raise "#{schema}.#{source} already exists: destroy and recreate the staging database"
     end
 
     if schema_exists?(repo, @platform_schema) do
@@ -281,5 +288,17 @@ defmodule Regents.Release do
     result
   end
 
-  defp migrations_path, do: Application.app_dir(@app, "priv/repo/migrations")
+  # This site's own schema and migrations first, then each folded product's.
+  defp areas(repo) do
+    [
+      {repo.default_prefix(), Application.app_dir(@app, "priv/repo/migrations")}
+      | for(
+          {product, schema} <- @products,
+          do: {schema, Application.app_dir(@app, "priv/#{product}/migrations")}
+        )
+    ]
+  end
+
+  defp migrate_areas!(repo),
+    do: Enum.each(areas(repo), fn {schema, path} -> repo.migrate!(path, schema) end)
 end

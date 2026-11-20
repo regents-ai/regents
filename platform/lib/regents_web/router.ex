@@ -222,6 +222,15 @@ defmodule RegentsWeb.Router do
     get "/points", Account.AgentReadsController, :points
   end
 
+  # Model Climb proofs: a paired agent sends its person's signed proofs and reads
+  # them back; each is private to that person.
+  scope "/api/v1/techtree/model-climb", RegentsWeb.Techtree do
+    pipe_through [:api, :paired_agent]
+    post "/reports", ModelClimbReportController, :create
+    get "/reports", ModelClimbReportController, :index
+    get "/reports/:digest", ModelClimbReportController, :show
+  end
+
   scope "/api/agents/v1" do
     pipe_through :api
     forward "/", RegentAgents.HTTP

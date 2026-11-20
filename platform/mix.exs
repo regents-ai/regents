@@ -151,11 +151,15 @@ defmodule Regents.MixProject do
         "phx.digest"
       ],
       # Regents' migration ledger is regents_app.schema_migrations, the one
-      # Regents.Repo.migrate!/1 and the release use. The stock commands read and
-      # write that ledger, and run each migration in that schema, only with this prefix.
+      # Regents.Repo.migrate!/2 and the release use. The stock commands read and
+      # write that ledger, and run each migration in that schema, only with this
+      # prefix. A folded product's migrations are applied locally by
+      # `mix regents.setup_local_auth`.
       "ecto.migrate": ["ecto.migrate --prefix regents_app"],
       "ecto.rollback": ["ecto.rollback --prefix regents_app"],
       "ecto.migrations": ["ecto.migrations --prefix regents_app"],
+      # Each folded product's migrations and snapshots go to its own folders.
+      "ash.codegen": ["regents.codegen"],
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --check-unused",
@@ -167,8 +171,8 @@ defmodule Regents.MixProject do
         # ErrorTracker's dashboard route adds one link: the router reads its on_mount at compile time.
         # Messages adds four, as every Ash domain does: the domain reads its resource, and the
         # resource its two policy checks and its `run` module. Updates adds one: the domain
-        # reads its resource.
-        "xref graph --label compile-connected --fail-above 43",
+        # reads its resource. Techtree's Model Climb adds one the same way.
+        "xref graph --label compile-connected --fail-above 44",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

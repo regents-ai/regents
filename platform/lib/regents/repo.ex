@@ -24,11 +24,14 @@ defmodule Regents.Repo do
   def prepare_query(_operation, query, opts), do: {query, opts}
 
   @doc """
-  Creates the product schema if needed and runs every migration in `path`
-  against it, with the ledger at `regents_app.schema_migrations`.
+  Creates `schema` if needed and runs every migration in `path` against it, with
+  the ledger at `<schema>.schema_migrations`: this site's own area and each folded
+  product's (`Regents.Release`).
   """
-  def migrate!(path) do
-    Ecto.Adapters.SQL.query!(__MODULE__, "CREATE SCHEMA IF NOT EXISTS #{@schema}", [])
-    Ecto.Migrator.run(__MODULE__, path, :up, all: true, prefix: @schema)
+  # The schema is one of the release's own fixed names, never input.
+  # sobelow_skip ["SQL.Query"]
+  def migrate!(path, schema) do
+    Ecto.Adapters.SQL.query!(__MODULE__, "CREATE SCHEMA IF NOT EXISTS #{schema}", [])
+    Ecto.Migrator.run(__MODULE__, path, :up, all: true, prefix: schema)
   end
 end

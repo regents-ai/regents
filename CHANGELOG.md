@@ -7414,3 +7414,30 @@ seasons), on the shared Points library regents.sh was already on.
 - No migration, resource, Ash domain or Oban change; sign-in, session and wallet code
   unchanged; the compile-connected gate stays at 43. "Adding a product" in
   platform/AGENTS.md now covers a product with its own look.
+
+## 2026-11-19 — Techtree's tables beside regents.sh's, and Model Climb's API
+
+- Second slice of folding Techtree (regents-ai/techtree c6dba424), on branch
+  one-site. Not released.
+- A folded product keeps its tables in its own schema of the one database
+  (Techtree's `techtree_app`), with its own migrations
+  (platform/priv/techtree/migrations/), snapshots
+  (platform/priv/techtree/resource_snapshots/) and ledger
+  (`techtree_app.schema_migrations`), all on `Regents.Repo`. The product list is
+  `@products` in platform/lib/regents/release.ex; `bin/migrate`,
+  `bootstrap-staging`, `mix regents.setup_local_auth` and `bin/pending-migrations`
+  walk it after `regents_app`. `bin/pending-migrations` now lists every entry as
+  schema and version (platform/docs/operations/staging-venue.md).
+- Techtree's 44 migrations are carried with their versions. Five needed more than a
+  new module name: three named `public` or no schema and now use `prefix()`, and
+  two called the RegentOAuth library, whose statements are inlined. Every Techtree
+  table is created, read or not.
+- `mix ash.codegen` and `--check` run once for regents.sh's domains and once for
+  Techtree's, each into its own folders.
+- Model Climb (`Regents.Techtree.ModelClimb`) is an Ash domain here, and a paired
+  agent sends and reads its person's proofs at `/api/v1/techtree/model-climb/reports`.
+  The climbs page is not brought: it needs Techtree's catalog.
+- No Oban queue or cron, no secret, and no change to regents.sh's migrations,
+  snapshots or ledger; sign-in, session and wallet code unchanged. The
+  compile-connected gate moves from 43 to 44 for the new domain. "A product's
+  tables" in platform/AGENTS.md describes the rule.

@@ -4,7 +4,7 @@ defmodule RegentsWeb.Techtree do
   own live session. The scope marks the page `data-brand="techtree"`, which
   selects Techtree's palette and its stylesheets (`assets/css/techtree`), and
   each page is read inside Techtree's own header and footer
-  (`RegentsWeb.Techtree.Layouts`).
+  (`RegentsWeb.Techtree.Layouts`). Its API is under `/api/v1/techtree`.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Techtree],
@@ -13,6 +13,7 @@ defmodule RegentsWeb.Techtree do
       FormalLive,
       HomeLive,
       Layouts,
+      ModelClimbReportController,
       PublicPagesController,
       ServiceLive,
       TrainLive.Show

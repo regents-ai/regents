@@ -92,7 +92,8 @@ config :regents,
     Regents.Account.Points,
     Regents.Blog,
     Regents.Messages,
-    Regents.Updates
+    Regents.Updates,
+    Regents.Techtree.ModelClimb
   ],
   generators: [timestamp_type: :utc_datetime]
 
