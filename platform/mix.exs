@@ -104,6 +104,8 @@ defmodule Regents.MixProject do
       {:ex_image_info, "~> 1.0"},
       # Patchbay's: works out a site's main address (shop.example.co.uk belongs to example.co.uk).
       {:domainatrex, "~> 3.2"},
+      # Patchbay's search room; already in the lock through the web request library.
+      {:nimble_pool, "~> 1.1"},
       {:decimal, "== 3.2.0"},
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},
