@@ -3,10 +3,16 @@
    frame and the footer on every page (`RegentsWeb.Techtree.Layouts`). The site's bar
    draws itself; these style only what Techtree puts in it and under it. */
 /* The site's bar: 4rem tall, 3.5rem at 48rem and below (Regent UI's site.css), where
-   Menu's strip sits under it. A link reached from the keyboard is never left under
-   either. */
-:scope { --tt-bar: 4rem; --tt-strip: 0rem; scroll-padding-top: calc(var(--tt-bar) + var(--tt-strip) + var(--space-2)); }
+   Menu's strip sits under it. */
+:scope { --tt-bar: 4rem; --tt-strip: 0rem; }
 @media (max-width: 48rem) { :scope { --tt-bar: 3.5rem; --tt-strip: 2.75rem; } }
+
+/* Whatever in the page a Tab or an in-page link brings into view stops clear of the
+   bar and the strip. Only the page's own content: a bar control already on screen
+   moves nothing when it takes focus. */
+.techtree-frame :is(a[href], button, input, select, textarea, summary, [tabindex], [id]) {
+  scroll-margin-top: calc(var(--tt-bar) + var(--tt-strip) + var(--space-2));
+}
 
 .techtree-frame { min-height: calc(100vh - var(--tt-bar) - var(--tt-strip)); display: flex; flex-direction: column; }
 
