@@ -174,7 +174,9 @@ Autolaunch's pages under `/autolaunch/...` wear its own frame
   `PublicDocuments.document/1` returns `%{markdown: text}` for its pages and nil for every
   other address, `RegentsWeb.PublicDocuments.document/1` hands it `/<product>/…`, and its
   `paths/0` joins the site's list. An address it answers nil for and the router serves
-  answers a Markdown request 406, as every page without a Markdown form does.
+  answers a Markdown request 406, as every page without a Markdown form does, except
+  Patchbay's: its pages' pipeline (`:patchbay_browser`) accepts Markdown, so there the
+  page's own controller answers it, as on patchbay.help, and a missing record answers 404.
 - A part of a header or page that reads or writes tables (a search box, an account menu,
   a message button) is left out whole until its tables come: no stub, placeholder or
   disabled control. The bar carries only links whose pages are here, so a product with

@@ -98,6 +98,19 @@ defmodule RegentsWeb.Plugs.LaunchGate do
       |> unavailable()
       |> HoldingController.call(:show)
 
+  # The holding page's words, for a page that also answers Markdown (Patchbay's).
+  defp closed(conn, "md"),
+    do:
+      conn
+      |> put_secure_browser_headers(@browser_headers)
+      |> unavailable()
+      |> put_resp_content_type("text/markdown")
+      |> send_resp(
+        :service_unavailable,
+        "# Not open yet\n\nThis part of Regent isn't open to visitors yet. " <>
+          "Everything we have shown so far is on the homepage: [/](/).\n"
+      )
+
   defp unavailable(conn) do
     conn
     |> put_status(:service_unavailable)

@@ -24,6 +24,29 @@ defmodule RegentsWeb.Router do
     }
   end
 
+  # Patchbay's pages: the browser pipeline, also answering Markdown, so a Patchbay
+  # page asked for as Markdown is answered by its own controller, as on
+  # patchbay.help, and a missing record answers 404.
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
+  pipeline :patchbay_browser do
+    plug :accepts, ["html", "md"]
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :fetch_live_flash
+    plug RegentsWeb.Plugs.RequireArticleAdmin
+    plug RegentsWeb.Plugs.Theme
+    plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+    plug :put_product, "regents"
+    plug RegentsWeb.Plugs.LaunchGate
+    plug :protect_from_forgery
+
+    # These pages can start wallet sign-in.
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.sign_in()
+    }
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
     plug RegentsWeb.Plugs.LaunchGate
@@ -396,7 +419,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/patchbay", RegentsWeb.Patchbay do
-    pipe_through [:browser, :patchbay]
+    pipe_through [:patchbay_browser, :patchbay]
 
     get "/help", PagesController, :help
     get "/about", PagesController, :about
