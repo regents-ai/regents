@@ -60,16 +60,19 @@ defmodule RegentsWeb.CloakLive do
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
       </header>
 
-      <section class="cloak-show" aria-label="Modes">
-        <ol class="cloak-modes">
-          <li :for={{{name, sentence}, n} <- @modes}>
-            <span class="cloak-badge" aria-hidden="true">{n}</span>
-            <div>
-              <h2>{name}</h2>
-              <p>{sentence}</p>
-            </div>
-          </li>
-        </ol>
+      <section class="cloak-show" aria-labelledby="cloak-modes-heading">
+        <div>
+          <h2 id="cloak-modes-heading" class="cloak-show__title">{Cloak.modes_title()}</h2>
+          <ol class="cloak-modes">
+            <li :for={{{name, aside, sentence}, n} <- @modes}>
+              <span class="cloak-badge" aria-hidden="true">{n}</span>
+              <div>
+                <h3>{name} <span :if={aside}>{aside}</span></h3>
+                <p>{sentence}</p>
+              </div>
+            </li>
+          </ol>
+        </div>
 
         <div
           class="cloak-window"

@@ -214,12 +214,27 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cloak-modes h2 {
+.cloak-show__title {
+  margin: 0 0 var(--space-5);
+  font-family: var(--cloak-sans);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.cloak-modes h3 {
   margin: 2px 0 var(--space-1);
   font-family: var(--cloak-sans);
   font-size: 1.3125rem;
   font-weight: 600;
   line-height: 1.25;
+}
+
+.cloak-modes h3 span {
+  color: var(--cloak-panel-muted);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .cloak-modes p {
@@ -489,6 +504,10 @@
     margin-block-start: 44px;
     padding: var(--space-5) var(--space-2) var(--space-2);
     border-radius: 22px;
+  }
+
+  .cloak-show__title {
+    margin-block-end: 28px;
   }
 
   .cloak-modes {

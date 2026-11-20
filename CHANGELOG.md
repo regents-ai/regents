@@ -7352,3 +7352,8 @@ seasons), on the shared Points library regents.sh was already on.
 - The heading is the design system's sans, Geist, at its heaviest weight (600), declared by the page.
 - A page can now be drawn on the whole width: the route catalog's `rail: false` hides the side menu on a wide screen and keeps it behind Menu on a phone. Only /cloak uses it; every other page is unchanged.
 - /cloak's Markdown carries the new words, the Download link and the film. No migration.
+
+## 2026-11-20 — Cloak page: panel title and mode names (not released)
+
+- The blue panel on /cloak gets the title "3 modes of operation"; its three points are named Anon “paranoid mode” – Inspired by Vitalik, NEAR AI Gateway and Local Llama, as the founder asked. The Needs note says "Modes 1 and 2". The drawn chat window keeps the app's own labels.
+- The page's search and share description is now its subtitle.

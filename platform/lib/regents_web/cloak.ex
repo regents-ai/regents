@@ -25,10 +25,14 @@ defmodule RegentsWeb.Cloak do
   @film "/images/cloak/intro.mp4"
   @facts "Early test build · 130 MB · Apple silicon · macOS 26"
 
+  @modes_title "3 modes of operation"
+
+  # Each mode: its name, the quieter words after the name (or nil), its sentence.
   @modes [
-    {"Anon V", "Reworded on your Mac, then sent through Tor."},
-    {"NEAR Privacy", "Proof of NEAR's servers is checked before anything is sent."},
-    {"Llama Normal", "Answered on your Mac. Nothing is sent."}
+    {"Anon “paranoid mode”", "– Inspired by Vitalik",
+     "Reworded on your Mac, then sent through Tor."},
+    {"NEAR AI Gateway", nil, "Proof of NEAR's servers is checked before anything is sent."},
+    {"Local Llama", nil, "Answered on your Mac. Nothing is sent."}
   ]
 
   # The drawn chat window: the app's own words and one sample exchange.
@@ -44,7 +48,7 @@ defmodule RegentsWeb.Cloak do
     hint: "The model on this Mac answers. Nothing is sent."
   }
 
-  @needs "16 GB of memory and 10 GB free; the app downloads a 6.5 GB model on first run. Anon V and NEAR Privacy also need about 1 USDC.e on Tempo, or a NEAR AI Cloud key."
+  @needs "16 GB of memory and 10 GB free; the app downloads a 6.5 GB model on first run. Modes 1 and 2 also need about 1 USDC.e on Tempo, or a NEAR AI Cloud key."
   @caution "This build is for testing. Its protections have not been independently checked, so don't rely on it for anything sensitive yet."
   @feedback "Something broke? Tell Sean what you did and what you saw."
 
@@ -57,6 +61,7 @@ defmodule RegentsWeb.Cloak do
   def watch_time, do: @watch_time
   def film, do: @film
   def facts, do: @facts
+  def modes_title, do: @modes_title
   def modes, do: @modes
   def window, do: @window
   def needs, do: @needs
@@ -68,7 +73,9 @@ defmodule RegentsWeb.Cloak do
     modes =
       @modes
       |> Enum.with_index(1)
-      |> Enum.map_join("\n", fn {{name, sentence}, n} -> "#{n}. **#{name}.** #{sentence}" end)
+      |> Enum.map_join("\n", fn {{name, aside, sentence}, n} ->
+        "#{n}. **#{Enum.join(Enum.reject([name, aside], &is_nil/1), " ")}.** #{sentence}"
+      end)
 
     film = RegentsWeb.Endpoint.static_url() <> RegentsWeb.Endpoint.static_path(@film)
 
@@ -82,6 +89,8 @@ defmodule RegentsWeb.Cloak do
     [#{@download_label}](#{@download}) · [#{@watch_label} #{@watch_time}](#{film})
 
     #{@facts}
+
+    ## #{@modes_title}
 
     #{modes}
 
