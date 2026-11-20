@@ -95,7 +95,13 @@ config :regents,
     Regents.Updates,
     Regents.Techtree.ModelClimb,
     Regents.Techtree.Catalog,
-    Regents.Techtree.Network
+    Regents.Techtree.Network,
+    Regents.Patchbay.Forum,
+    Regents.Patchbay.Members,
+    Regents.Patchbay.Assist,
+    Regents.Patchbay.AnswerWatch,
+    Regents.Patchbay.Messages,
+    Regents.Patchbay.Offers
   ],
   generators: [timestamp_type: :utc_datetime]
 
