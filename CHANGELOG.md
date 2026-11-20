@@ -7405,6 +7405,11 @@ seasons), on the shared Points library regents.sh was already on.
   platform/assets/js/techtree/, platform/lib/regents/techtree/,
   platform/lib/regents_web/techtree/, platform/priv/techtree/. What was taken is
   listed in platform/lib/regents/techtree/SOURCE.json.
+- regents.sh's page font, full-height page, footer and document table rules now apply
+  only on `platform` pages (platform/assets/css/app.css,
+  platform/assets/css/pages/legal.css), so Techtree's footer, sample report table,
+  font and page height match techtree.sh. Every element on regents.sh's pages computes
+  the same style as before.
 - Book Call reads `TECHTREE_BOOK_CALL_URL`; unset, the button is left out.
 - No migration, resource, Ash domain or Oban change; sign-in, session and wallet code
   unchanged; the compile-connected gate stays at 43. "Adding a product" in

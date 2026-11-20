@@ -2,6 +2,7 @@
   "repository": "regents-ai/techtree",
   "commit": "c6dba424",
   "taken": "2026-11-19",
+  "stylesheets": "Kept whole on purpose: platform/assets/css/techtree/ also holds the rules for Techtree pages not brought yet (results, watchdog, docs, the enquiry form). They are not dead code; they go only if those pages are dropped.",
   "files": [
     {"from": "platform/lib/techtree.ex", "to": "platform/lib/regents/techtree.ex", "changes": "Boundary root for Regents.Techtree; exports only Train.Comparisons"},
     {"from": "platform/lib/techtree.ex", "to": "platform/lib/regents_web/techtree.ex", "changes": "Boundary root for RegentsWeb.Techtree; depends on RegentsWeb and Regents.Techtree"},

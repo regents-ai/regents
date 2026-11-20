@@ -1,48 +1,51 @@
 @layer regents-product {
-.public-document .legal-header,
-.public-document .legal-nav {
-  flex-wrap: wrap;
-}
+/* Only regents.sh's own documents: Techtree's pages share the class name. */
+:where([data-brand="platform"]) {
+  .public-document .legal-header,
+  .public-document .legal-nav {
+    flex-wrap: wrap;
+  }
 
-.public-document .legal-nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-}
+  .public-document .legal-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 
-.public-document .legal-page {
-  overflow-wrap: anywhere;
-}
+  .public-document .legal-page {
+    overflow-wrap: anywhere;
+  }
 
-.public-document pre {
-  max-width: 100%;
-  overflow-x: auto;
-  padding: 1rem;
-  margin-block: 1rem;
-  border: 1px solid var(--rl-line);
-}
+  .public-document pre {
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 1rem;
+    margin-block: 1rem;
+    border: 1px solid var(--rl-line);
+  }
 
-.public-document table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  margin-block: 1rem;
-  border-collapse: collapse;
-}
+  .public-document table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    margin-block: 1rem;
+    border-collapse: collapse;
+  }
 
-.public-document th,
-.public-document td {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--rl-line);
-  text-align: left;
-  vertical-align: top;
-  overflow-wrap: normal;
-}
+  .public-document th,
+  .public-document td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--rl-line);
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: normal;
+  }
 
-/* A table's last column holds the values (a web address, a contract address), so a long
-   one wraps there rather than pushing the table past a phone screen. */
-.public-document td:last-child {
-  overflow-wrap: anywhere;
+  /* A table's last column holds the values (a web address, a contract address), so a long
+     one wraps there rather than pushing the table past a phone screen. */
+  .public-document td:last-child {
+    overflow-wrap: anywhere;
+  }
 }
 
 .legal-header {
