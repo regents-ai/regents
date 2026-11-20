@@ -82,7 +82,7 @@
 .cloak-hero h1 {
   margin: var(--space-4) 0 0;
   font-family: var(--cloak-sans);
-  font-size: clamp(3.25rem, 9.2vw, 8.25rem);
+  font-size: clamp(2.5rem, 5.1vw, 4.75rem);
   font-weight: 600;
   line-height: 0.98;
   letter-spacing: -0.05em;
@@ -94,18 +94,18 @@
   display: block;
 }
 
-/* The heading's second sentence: the same face, a little under half the size. */
+/* The heading's second sentence: the same face, half the size. */
 .cloak-hero__second {
   margin-block-start: 0.35em;
-  font-size: 0.42em;
+  font-size: 0.5em;
   line-height: 1.08;
   letter-spacing: -0.035em;
 }
 
 .cloak-hero__subtitle {
-  max-width: 35em;
+  max-width: 40em;
   margin: var(--space-4) 0 0;
-  font-size: clamp(1.0625rem, 1.75vw, 1.5625rem);
+  font-size: clamp(1rem, 1.5vw, 1.375rem);
   line-height: 1.45;
   letter-spacing: -0.01em;
   text-wrap: balance;
