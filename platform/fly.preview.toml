@@ -25,6 +25,7 @@ kill_timeout = "60s"
   SIWA_SERVER_URL = "https://siwa-server.fly.dev"
   SIWA_AUDIENCE = "regents"
   TECHTREE_BOOK_CALL_URL = "https://calendly.com/techtree/agent-env-intro"
+  TECHTREE_BOOTSTRAP_CHANNEL = "stable"
 
 [metrics]
   port = 9091
