@@ -95,6 +95,8 @@ defmodule Regents.MixProject do
       {:jason, "~> 1.2"},
       # Ethereum Keccak-256 for EIP-55, which OTP's NIST `:sha3_256` is not.
       {:jose, "~> 1.11.13"},
+      {:ex_keccak, "~> 0.7.8"},
+      {:yaml_elixir, "== 2.12.2"},
       {:decimal, "== 3.2.0"},
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},

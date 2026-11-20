@@ -120,6 +120,37 @@ config :regents,
          fn {_key, value} -> is_nil(value) end
        )
 
+# Autolaunch's deployment descriptions: for each network, the path of the file
+# naming its contracts. Each is optional; an unset or blank variable leaves its
+# setting out. The Base description needs its label beside it, and the Base
+# Stocks description extends the Base one, so it needs the Base description.
+base_deployment = String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT", ""))
+base_deployment_id = String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT_ID", ""))
+base_stocks_deployment = String.trim(System.get_env("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT", ""))
+robinhood_deployment = String.trim(System.get_env("AUTOLAUNCH_ROBINHOOD_DEPLOYMENT", ""))
+
+if base_deployment != "" do
+  if base_deployment_id == "" do
+    raise "AUTOLAUNCH_BASE_DEPLOYMENT_ID must be set alongside AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :regents,
+    autolaunch_base_deployment: base_deployment,
+    autolaunch_base_deployment_id: base_deployment_id
+end
+
+if base_stocks_deployment != "" do
+  if base_deployment == "" do
+    raise "AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT needs AUTOLAUNCH_BASE_DEPLOYMENT"
+  end
+
+  config :regents, :autolaunch_base_stocks_deployment, base_stocks_deployment
+end
+
+if robinhood_deployment != "" do
+  config :regents, :autolaunch_robinhood_deployment, robinhood_deployment
+end
+
 # The Privy accounts that run this site, comma separated (config/config.exs).
 if admins = System.get_env("REGENTS_ADMINS") do
   admins = admins |> String.split(",", trim: true) |> Enum.map(&String.trim/1)

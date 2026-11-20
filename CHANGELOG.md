@@ -7933,3 +7933,10 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-20 — Home page is Blue by default (not released)
 
 - On the founder's "362 c" the one site's home colour default is Blue. `?home=ink` and `?home=tangerine` still show the other two for one page.
+
+## 2026-11-20 — One site: three things Autolaunch's move needs (not released)
+
+- The database gains pg_trgm, the extension Autolaunch's search uses to score how closely a search matches, typos included. The migration installs it only where it is missing, so a database that already has it is left as it is, and a rollback never removes it. Codegen writes the change once for regents.sh's own area and once for Techtree's; Techtree's copy is named after Techtree, as every product migration is.
+- `ex_keccak` and `yaml_elixir` become the site's own dependencies, at the versions the lock already held through other packages (0.7.8 and 2.12.2); nothing new is downloaded.
+- Four optional settings name Autolaunch's deployment description files: `AUTOLAUNCH_BASE_DEPLOYMENT`, `AUTOLAUNCH_BASE_DEPLOYMENT_ID` (its label, required with it), `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` (refused without the Base one) and `AUTOLAUNCH_ROBINHOOD_DEPLOYMENT`. Unset or empty, each is left out. Nothing reads them yet, and no venue sets them.
+- Not released: on the `one-site` branch only. One migration, which only adds the extension; no secret, sign-in or page change.

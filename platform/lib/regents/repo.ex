@@ -7,7 +7,8 @@ defmodule Regents.Repo do
   @schema "regents_app"
 
   def min_pg_version, do: %Version{major: 14, minor: 0, patch: 0}
-  def installed_extensions, do: ["ash-functions"]
+  # pg_trgm scores how closely a search matches, typos included, for Autolaunch's search.
+  def installed_extensions, do: ["ash-functions", "pg_trgm"]
   def default_prefix, do: @schema
 
   # Ash qualifies reads with `default_prefix/0`; writes and plain Ecto queries take
