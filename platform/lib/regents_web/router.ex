@@ -238,15 +238,20 @@ defmodule RegentsWeb.Router do
     get "/reports/:digest", ModelClimbReportController, :show
   end
 
-  # Techtree's catalog, read by anyone: the exact bytes the catalog and its
-  # bootstrap release were generated as, each object by its digest, and one
-  # Climb's summary (RegentsWeb.Techtree.ExactResponse).
+  # Techtree's catalog and public run log, read by anyone: the exact bytes the
+  # catalog and its bootstrap release were generated as, each object by its
+  # digest, one Climb's summary, the published Results with each one's submitted
+  # bundle, and a published Skill (RegentsWeb.Techtree.ExactResponse).
   scope "/api/v1/techtree", RegentsWeb.Techtree do
     pipe_through :api
     get "/catalog", CatalogController, :index
     get "/bootstrap", BootstrapController, :show
     get "/objects/:digest", ObjectController, :show
     get "/climbs/:slug", ClimbController, :show
+    get "/publications", PublicationController, :index
+    get "/publications/:bundle_digest", PublicationController, :show
+    get "/publications/:bundle_digest/bundle", PublicationController, :bundle
+    get "/skills/:root_digest", PublishedSkillController, :show
   end
 
   scope "/api/agents/v1" do
@@ -326,16 +331,22 @@ defmodule RegentsWeb.Router do
       live "/services/swarm-verify", ServiceLive, :swarm_verify
       live "/formal", FormalLive
       live "/train/:slug", TrainLive.Show
+      live "/results", RunsLive.Index
+      live "/results/:bundle_digest", RunsLive.Show
+      live "/examples/tdd", TddShowcaseLive
+      live "/climbs/:slug", ClimbsLive.Show
       live "/docs", DocsLive
       live "/docs/:slug", DocsLive
     end
   end
 
   # Techtree's agent guide, Markdown to any caller, as the site's own /agents.md is,
-  # and each Skill comparison's report, the exact committed bytes.
+  # each Skill comparison's report, the exact committed bytes, and a published
+  # Result's share picture, for whoever asks, a site making a link preview included.
   scope "/techtree", RegentsWeb.Techtree do
     get "/agents.md", AgentsController, :show
     get "/train/:slug/report.json", TrainController, :report
+    get "/results/:bundle_digest/share.png", ResultShareCardController, :show
   end
 
   # Every Skill comparison, for agents and other sites.

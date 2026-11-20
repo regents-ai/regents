@@ -55,8 +55,9 @@ import {VerifiedConnections} from "./hooks/verified_connections"
 import {installVisitLog} from "./visit_log"
 import {syncTheme} from "./theme"
 // Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
-// in and figures that count up, the header's Services menu and Menu sheet, and
-// the Docs' Copy page control.
+// in and figures that count up, the header's Services menu and Menu sheet, the
+// Docs' Copy page control, and the Results page's agent-version strip.
+import {AgentVersions} from "./techtree/agent_versions"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {installSiteMenu} from "./techtree/site_menu"
@@ -286,6 +287,7 @@ const hooks = {
   ...labHooks,
   ...colocatedHooks,
   ...marketingHooks,
+  AgentVersions,
   CopyCommandPage,
   CopyCommandPageView,
   Datascape,

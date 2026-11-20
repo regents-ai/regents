@@ -68,6 +68,17 @@ defmodule Regents.Techtree.Canonical do
     {__MODULE__, reason} -> {:error, reason}
   end
 
+  @doc """
+  The canonical bytes, or a raise when the value has none.
+  """
+  @spec encode!(term()) :: binary()
+  def encode!(value) do
+    case encode(value) do
+      {:ok, bytes} -> bytes
+      {:error, reason} -> raise ArgumentError, "value has no canonical JSON form: #{reason}"
+    end
+  end
+
   # -- Values ---------------------------------------------------------------
 
   defp write(nil), do: "null"

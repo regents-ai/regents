@@ -400,7 +400,8 @@ defmodule RegentsWeb.Techtree.DocsLive do
         Both runs use the same provider and model. The comparison calls no model: it pairs
         every task across the two runs and says whether the Skill improved, regressed, was
         mixed or made no difference, overall and on the held-out tasks alone. It writes a
-        report you can open in a browser. The tdd example
+        report you can open in a browser. The
+        <.link navigate={~p"/techtree/examples/tdd"}>tdd example</.link>
         shows a finished one.
       </p>
       <h2 id="two-versions">Two versions</h2>

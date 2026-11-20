@@ -5,8 +5,10 @@ defmodule Regents.Techtree do
   (`SOURCE.json` beside this module names what came from where). Its tables
   stay in Techtree's own schema, `techtree_app`, with their own migrations and
   ledger (`priv/techtree`); so far Model Climb's reports
-  (`Regents.Techtree.ModelClimb`) and the catalog's releases and entries
-  (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`). The
+  (`Regents.Techtree.ModelClimb`), the catalog's releases and entries
+  (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`) and the
+  public run log of published Results (`Regents.Techtree.Network`, read only
+  here: nothing publishes to it yet). The
   published Skill comparisons are committed files
   (`Regents.Techtree.Train.Comparisons`), and so are the starter Skills
   (`Regents.Techtree.Release.StarterSkill`, `priv/techtree/release`). Its pages
@@ -17,12 +19,19 @@ defmodule Regents.Techtree do
     top_level?: true,
     deps: [Regents],
     exports: [
+      Canonical,
       Catalog.Bundle,
       Catalog.Digest,
       Catalog.Error,
       Catalog.Query,
       Catalog.Route,
       ModelClimb,
+      Network.AgentVersions,
+      Network.Assessment,
+      Network.Projection,
+      Network.Query,
+      Network.ResultFilters,
+      Network.Verdict,
       Release,
       Release.StarterSkill,
       Train.Comparisons

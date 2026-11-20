@@ -1,0 +1,139 @@
+defmodule Regents.Techtree.Network.Projection do
+  @moduledoc """
+  What the read addresses say about a published run.
+
+  This is a projection and not a bundle. Every member of it was recomputed from
+  bytes that verified or copied out of a document whose signature was checked
+  first, and none of it is the submitted bytes themselves. Those are stored
+  immutably, every field here is derived from them, and they are handed back
+  unaltered at their own address — the `/bundle` child of the entry's — rather
+  than folded into this document, so that what a reader checks signatures
+  against is what the participant signed and not our rendering of it.
+
+  Two shapes, and the detail one is the list one with more in it, so a caller
+  who has read a page of the log does not have to learn a second vocabulary to
+  read one entry.
+
+  The words are fixed. It is a **log sequence**, never a position, a rank or a
+  place — a sequence is handed out in arrival order, may have gaps, and says
+  nothing about how good a result is. There is no ordering here but arrival,
+  and no argument that would produce one.
+
+  A withdrawn entry appears exactly like any other, with `withdrawn_at` set. It
+  keeps its sequence and it keeps its address, because withdrawal is an event
+  appended to the log rather than a hole punched in it.
+  """
+
+  alias Regents.Techtree.Canonical
+  alias Regents.Techtree.Network.PublicationEntry
+  alias Regents.Techtree.Network.Query
+  alias Regents.Techtree.Network.Verdict
+
+  @list_schema_version "techtree.publication-log.v1alpha1"
+  @entry_schema_version "techtree.publication-entry.v1alpha1"
+
+  @doc """
+  One page of the log, as the bytes `GET /api/v1/techtree/publications` returns.
+  """
+  @spec log(Query.page(), String.t()) :: binary()
+  def log(%{entries: entries, next_before_sequence: next, runs: runs}, origin) do
+    Canonical.encode!(%{
+      "schema_version" => @list_schema_version,
+      "entries" => Enum.map(entries, &summary(&1, Map.fetch!(runs, &1.bundle_digest), origin)),
+      "next_before_sequence" => next
+    })
+  end
+
+  @doc """
+  One entry, as the bytes `GET /api/v1/techtree/publications/:bundle_digest` returns,
+  with how many runs stand behind it.
+  """
+  @spec entry(PublicationEntry.t(), pos_integer(), String.t()) :: binary()
+  def entry(%PublicationEntry{} = entry, runs, origin) do
+    entry
+    |> summary(runs, origin)
+    |> Map.merge(%{
+      "schema_version" => @entry_schema_version,
+      "task_deltas" => entry.task_deltas,
+      "receipt" => %{
+        "payload_digest" => entry.receipt_digest,
+        "key_id" => entry.network_key_id
+      }
+    })
+    |> Canonical.encode!()
+  end
+
+  @doc """
+  One published Skill, as the bytes `GET /api/v1/techtree/skills/:root_digest` returns.
+  """
+  @spec skill(%{String.t() => term()}) :: binary()
+  def skill(answer), do: Canonical.encode!(answer)
+
+  @doc """
+  The address one entry is read at by a person rather than by a program.
+  """
+  @spec entry_url(PublicationEntry.t(), String.t()) :: String.t()
+  def entry_url(%PublicationEntry{bundle_digest: digest}, origin),
+    do: origin <> "/techtree/results/" <> digest
+
+  # The three claims a Result can make, kept apart. Every published Result is
+  # signed by its participant. Integrity is the checks this site ran when it
+  # accepted the Result, which were fewer for older Results. Nothing on this
+  # site can establish that anyone independent ran the comparison again.
+  defp claims(%PublicationEntry{} = entry) do
+    %{
+      "participant_attested" => true,
+      "integrity_checked" => entry.verification_checks_passed == entry.verification_checks_run,
+      "independently_reproduced" => false
+    }
+  end
+
+  defp summary(%PublicationEntry{} = entry, runs, origin) do
+    %{
+      "log_sequence" => entry.log_sequence,
+      "bundle_digest" => entry.bundle_digest,
+      "run_id" => entry.run_id,
+      "accepted_at" => DateTime.to_iso8601(entry.accepted_at),
+      "withdrawn_at" => entry.withdrawn_at && DateTime.to_iso8601(entry.withdrawn_at),
+      "entry_url" => entry_url(entry, origin),
+      "participant" => %{
+        "kind" => to_string(entry.participant_kind),
+        "key_id" => entry.participant_key_id,
+        "public_key" => entry.participant_public_key
+      },
+      "climb" => entry.climb_reference,
+      "campaign_spec_digest" => entry.campaign_spec_digest,
+      "campaign_name" => entry.campaign_name,
+      "data_policy_digest" => entry.data_policy_digest,
+      "skill_digest" => entry.skill_digest,
+      "skill_name" => entry.skill_name,
+      "skill_github_url" => entry.skill_github_url,
+      "rerun_of" => entry.assessment.rerun_of,
+      "subject" => %{
+        "harness" => entry.subject_harness,
+        "harness_version" => entry.subject_harness_version,
+        "provider" => entry.subject_provider,
+        "model" => entry.subject_model
+      },
+      "result" => %{
+        "baseline_mean" => entry.baseline_mean,
+        "candidate_mean" => entry.candidate_mean,
+        "absolute_delta" => entry.absolute_delta,
+        "wins" => entry.wins,
+        "losses" => entry.losses,
+        "ties" => entry.ties,
+        "task_count" => entry.task_count,
+        "verdict" => entry.assessment |> Verdict.of() |> Atom.to_string(),
+        "runs" => runs
+      },
+      "statuses" => entry.statuses,
+      "decision" => entry.decision,
+      "proof_grade" => entry.proof_grade,
+      "checks" => %{
+        "run" => entry.verification_checks_run,
+        "passed" => entry.verification_checks_passed
+      },
+      "claims" => claims(entry)
+    }
+  end
+end

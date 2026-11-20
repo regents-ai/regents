@@ -1,0 +1,819 @@
+defmodule RegentsWeb.Techtree.RunsLive.Show do
+  @moduledoc """
+  One published Result, laid out to answer one question: should I keep this
+  Skill change?
+
+  The answer comes first, in words, with the tasks that went each way. Then a
+  few tasks side by side, the exact change the signed report found between the
+  two runs, what stands behind the numbers, and how to run the comparison
+  again. The full task list and the fingerprints sit underneath, folded, so a
+  narrow screen reads the answer before the evidence.
+
+  The verdict, the means and the counts are this site's own: the Result's
+  stored `Regents.Techtree.Network.Assessment`, which `Regents.Techtree.Network.Result` worked
+  out under its Campaign's rule when the Result was published.
+  `RegentsWeb.Techtree.ResultAssessment` puts that into words. A rerun is another
+  Result that says, in its signed report, that it reruns this one; the site
+  checked it is of the same Campaign and the same Skill. The page names the
+  Result a rerun reruns, lists an original's reruns and counts them as Results.
+  It never counts publisher keys as people, and never calls a rerun from
+  another key independent reproduction.
+
+  The evidence states three claims apart, the same three a Result's read
+  carries under `claims` (participant-attested, integrity-checked, not
+  independently reproduced), in plain words: signed by the publisher, files
+  checked, not rerun by anyone else. Rerun notes sit after them as facts of their own.
+
+  The Skill's name and GitHub link are the publisher's word, sent beside the
+  signed bundle rather than inside it. Nothing checks them, so wherever the
+  page shows them it says so, and nothing it shows under "Files checked"
+  comes from them. A link to a repository is not a claim that the publisher
+  owns it or that its files are the Skill that ran; the Skill's fingerprint is.
+
+  Scores are rounded to three decimal places, under the name the Campaign
+  gives its score, and the page says how a task is scored in the words the
+  Climb's own page uses. It never turns a mean into a percentage.
+
+  The page's title, which a browser tab and a shared link show on their own,
+  is the Climb's name, never the publisher's name for the Skill.
+
+  What this page does **not** offer is the submitted bytes. Those are stored
+  immutably, every field here was derived from them, and they have an address
+  of their own on the API rather than a control on this page.
+
+  A withdrawn entry keeps its address and keeps its page. Withdrawal is an
+  appended event rather than a deletion, so the page says at the top of it
+  that the participant withdrew it and when.
+  """
+
+  use RegentsWeb, :live_view
+
+  import RegentsWeb.Techtree.Components.Marketing, only: [field: 1, opening: 1]
+  import RegentsWeb.Techtree.CoreComponents
+
+  alias Regents.Techtree.Catalog.Query, as: Catalog
+  alias Regents.Techtree.Network.Query
+  alias RegentsWeb.Motion
+  alias RegentsWeb.Techtree.CampaignFacts
+  alias RegentsWeb.Techtree.ClimbCopy
+  alias RegentsWeb.Techtree.Layouts
+  alias RegentsWeb.Techtree.ModelAccess
+  alias RegentsWeb.Techtree.Providers
+  alias RegentsWeb.Techtree.ReleaseInfo
+  alias RegentsWeb.Techtree.ResultAssessment
+  alias RegentsWeb.Techtree.ResultNames
+
+  @impl true
+  def mount(%{"bundle_digest" => digest}, _session, socket) do
+    case Query.get_entry(digest) do
+      {:ok, entry} ->
+        {:ok, assign(socket, assigns_for(entry))}
+
+      :error ->
+        raise RegentsWeb.NotFoundError, "no run is published under that fingerprint"
+    end
+  end
+
+  @impl true
+  def handle_event("filter_tasks", %{"filter" => filter}, socket) do
+    task_filter =
+      if filter in ~w(all better same worse), do: String.to_existing_atom(filter), else: :all
+
+    {:noreply, assign(socket, task_filter: task_filter)}
+  end
+
+  @impl true
+  def render(assigns) do
+    assigns = assign(assigns, :filtered_tasks, filtered_tasks(assigns.tasks, assigns.task_filter))
+
+    ~H"""
+    <Layouts.page wide flush>
+      <.opening
+        eyebrow={"Result · #{arrived(@entry.accepted_at)}"}
+        title={"#{@skill_name} vs No Skill"}
+        line={ResultNames.coordinates(@entry)}
+        shape={1}
+        icon="git-compare"
+        rise={false}
+      >
+        <:actions>
+          <a href="#offline-check" class="rg-button rg-button--primary">Check offline</a>
+        </:actions>
+        <p class="mk-links">
+          <a href={~p"/techtree/results"}>← Published Results</a>
+          <a
+            :if={@github_url}
+            id="run-github"
+            class="github-link"
+            href={@github_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 4.36c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+            </svg>
+            GitHub link from the publisher
+          </a>
+        </p>
+        <p :if={@publisher_words} id="run-publisher" class="mk-opening__note">
+          {@publisher_words}
+        </p>
+      </.opening>
+
+      <div :if={@withdrawn? or @held_out?} class="mk-section run-notices">
+        <.warning_callout :if={@withdrawn?} title="Withdrawn">
+          <p>
+            {withdrawn_words(@entry.withdrawn_at)}. It was published here and the
+            participant has since asked for it to be marked withdrawn. Nothing about it was
+            deleted — a withdrawal is recorded, not applied — and copies anybody already
+            holds are still theirs to check.
+          </p>
+        </.warning_callout>
+
+        <.warning_callout :if={@held_out?} title="Held-out tasks">
+          <p id="run-held-out">
+            These are the tasks this Climb keeps apart. A run on them is reported beside the
+            winning Skill's result and never decides the winner.
+          </p>
+        </.warning_callout>
+      </div>
+
+      <div class="mk-section">
+        <section
+          id="run-assessment"
+          class={["assessment", "assessment--#{ResultAssessment.verdict(@assessment)}"]}
+          aria-labelledby="run-verdict"
+        >
+          <h2 id="run-verdict" class="assessment__verdict">
+            <span class="eyebrow">Verdict</span>
+            <span>{ResultAssessment.verdict_label(@assessment)}</span>
+          </h2>
+          <p class="assessment__reason">{ResultAssessment.reason(@assessment)}</p>
+          <p id="run-outcome" class="assessment__outcome">
+            <strong>{ResultAssessment.mean_change(@assessment)}</strong>
+            · {@assessment.wins} better, {@assessment.ties} same, {@assessment.losses} worse
+            · {ResultAssessment.runs_words(@runs)}.
+          </p>
+          <p class="assessment__means">
+            Without the Skill {ResultAssessment.mean(@assessment, :baseline)} · With the Skill {ResultAssessment.mean(
+              @assessment,
+              :candidate
+            )}
+          </p>
+          <p id="run-score-scale" class="assessment__means">
+            Each is the mean task score, rounded to three decimal places.
+            <span :if={@scoring}>{@scoring}</span>
+          </p>
+          <ul class="assessment__tasks">
+            <li :for={outcome <- [:better, :worse, :same]} id={"tasks-#{outcome}"}>
+              <strong>{task_group_words(outcome, length(@groups[outcome]))}</strong>
+              <span :if={outcome != :same and @groups[outcome] != []}>
+                {Enum.map_join(@groups[outcome], ", ", & &1.label)}
+              </span>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <section id="run-examples" class="mk-section">
+        <h2>Examples</h2>
+        <p class="small quiet section-note">
+          A published Result keeps each task's fingerprint and score. It does not keep the
+          task's words or the agent's answers, so these examples show scores only.
+        </p>
+        <ul class="task-examples">
+          <li :for={task <- @examples} id={"example-#{task.outcome}"} class="task-example">
+            <p class="task-example__head">
+              <strong>{task.label}</strong>
+              <span class={["task-example__outcome", "task-example__outcome--#{task.outcome}"]}>
+                {outcome_label(task.outcome)}
+              </span>
+            </p>
+            <code title={task.hash}>{task.short_hash}</code>
+            <dl class="task-example__scores">
+              <div>
+                <dt>No Skill</dt>
+                <dd>{task.baseline}</dd>
+              </div>
+              <div>
+                <dt>With Skill</dt>
+                <dd>{task.candidate}</dd>
+              </div>
+              <div>
+                <dt>Change</dt>
+                <dd>{task.delta}</dd>
+              </div>
+            </dl>
+          </li>
+        </ul>
+      </section>
+
+      <section id="run-skill-change" class="mk-section">
+        <h2>Differences</h2>
+        <p class="section-note">
+          The signed report compared the settings of the two runs and found only this
+          difference, which is the one the Climb allows.
+        </p>
+        <ul class="skill-change">
+          <li :for={change <- @assessment.skill_changes} class="skill-change__item">
+            <p><strong>{ResultAssessment.change_label(change, @one_skill?)}</strong></p>
+            <.definition_list>
+              <:fact term="No Skill"><.change_value value={change.without} /></:fact>
+              <:fact term="With Skill"><.change_value value={change.with} /></:fact>
+            </.definition_list>
+          </li>
+        </ul>
+        <p :if={@assessment.model_build_unproven} id="run-model-build" class="section-note">
+          {Providers.name!(@entry.subject_provider)} does not publish a build number for {@entry.subject_model}, so both runs are known to have asked for the same model name, not shown to have used the same build of it.
+        </p>
+        <p class="small quiet section-note">
+          The signed report names the Skill by its fingerprint, not by the name this page
+          shows for it. <span :if={@publisher_words}>{@publisher_words}</span>
+        </p>
+      </section>
+
+      <section id="run-evidence" class="mk-section">
+        <h2>Evidence</h2>
+        <ul class="evidence-badges">
+          <li id="badge-attested" class="evidence-badge">
+            <Regent.Primitives.status tone="neutral" class="badge">
+              Signed by the publisher
+            </Regent.Primitives.status>
+            <p>
+              The numbers are signed with the publisher's key. Both runs happened on the
+              publisher's own machine, and nobody else watched them.
+            </p>
+          </li>
+          <li id="badge-integrity-checked" class="evidence-badge">
+            <Regent.Primitives.status tone="success" class="badge">
+              Files checked
+            </Regent.Primitives.status>
+            <p>
+              This site ran {@entry.verification_checks_run} checks on the Result's files when it accepted it, and every one succeeded. That shows the files agree with each other, not that the runs happened as described.
+              <a href={~p"/techtree/docs/verify"}>How to check a Result.</a>
+            </p>
+          </li>
+          <li id="badge-not-reproduced" class="evidence-badge">
+            <Regent.Primitives.status tone="neutral" class="badge">
+              Not rerun by anyone else
+            </Regent.Primitives.status>
+            <p>
+              Nobody independent of the publisher has been shown to get the same numbers. This
+              site has no way to show that, so no Result here claims it.
+            </p>
+          </li>
+          <li :if={@rerun_of} id="badge-rerun-of" class="evidence-badge">
+            <Regent.Primitives.status tone="neutral" class="badge">
+              A rerun
+            </Regent.Primitives.status>
+            <p>
+              This Result reruns <a href={~p"/techtree/results/#{@rerun_of.bundle_digest}"}>an earlier Result</a>: the same Climb and the same Skill, run again and signed by {key_words(
+                @rerun_of,
+                @entry
+              )}. A rerun from another
+              publisher key is still a report from someone's own machine, not independent
+              reproduction, and one person can hold many keys.
+            </p>
+          </li>
+          <li :if={@reruns == []} id="badge-no-rerun" class="evidence-badge">
+            <Regent.Primitives.status tone="neutral" class="badge">
+              No reruns yet
+            </Regent.Primitives.status>
+            <p>
+              No published Result reruns this one yet. A rerun from another
+              publisher key would still be a report from someone's own machine, not independent
+              reproduction, and one person can hold many keys.
+            </p>
+          </li>
+          <li :if={@reruns != []} id="badge-reruns" class="evidence-badge">
+            <Regent.Primitives.status tone="neutral" class="badge">
+              {rerun_count(@reruns)}
+            </Regent.Primitives.status>
+            <div>
+              <p>
+                Published Results that rerun this one, with the same Climb and the same Skill.
+                Each is a report from its publisher's own machine, not independent reproduction,
+                and one person can hold many keys.
+              </p>
+              <ul class="reruns">
+                <li :for={rerun <- @reruns}>
+                  <a href={~p"/techtree/results/#{rerun.bundle_digest}"}>Result {rerun.log_sequence}</a>, signed by {key_words(
+                    rerun,
+                    @entry
+                  )}<span :if={Query.withdrawn?(rerun)}>, since withdrawn</span>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section id="run-rerun" class="mk-section">
+        <h2>Rerun</h2>
+        <div :if={match?(%{}, @rerun)} class="rerun">
+          <div class="rerun__needs">
+            <h3>You need</h3>
+            <.requirements minimums={@rerun.minimums} provider={false} hermes={false}>
+              <li :if={length(@rerun.routes) > 1}>One of these, chosen for the run:</li>
+              <li :for={route <- @rerun.routes}>{ModelAccess.needs!(route)}</li>
+            </.requirements>
+          </div>
+          <.command_block id="copy-run-rerun" label="Commands" lines={@rerun.commands} />
+        </div>
+        <p :if={@rerun == :no_release} class="section-note">
+          This site is not serving a release you can install right now, so there are no
+          commands to show.
+        </p>
+        <p :if={@rerun == :earlier_version} id="run-earlier-version" class="section-note">
+          This Result was made on an earlier version of this Climb, which Techtree no longer
+          runs. <a href={~p"/techtree/climbs/#{@slug}"}>Run the current version</a>
+          to make a new Result.
+        </p>
+
+        <div :if={@limits}>
+          <h3 class="rerun__heading">Limits</h3>
+          <.definition_list>
+            <:fact term="Each try">
+              Stops starting model calls at {@limits.calls} calls, {@limits.input_tokens} input tokens or {@limits.output_tokens} output tokens, whichever comes first.
+            </:fact>
+            <:fact term="Whole run">
+              {@limits.plan}: up to {@limits.tries} tries. At most {@limits.run_calls} model calls. The token limits add up to {@limits.run_input_tokens} input tokens and {@limits.run_output_tokens} output tokens.
+            </:fact>
+            <:fact :if={@limits.maximum_usd} term="On your own Prime key">
+              The run also stops once it has spent {@limits.maximum_usd}.
+            </:fact>
+            <:fact term="Before it starts">
+              Techtree shows these limits and waits for your approval.
+            </:fact>
+          </.definition_list>
+          <p class="small quiet section-note">
+            The call that crosses a limit still finishes, so a try can go past its token limits
+            by up to one full request and its reply.
+          </p>
+        </div>
+
+        <h3 class="rerun__heading">Expectations</h3>
+        <ul class="needs">
+          <li>
+            A new run is a new Result. The model may not answer the same way twice, so its
+            numbers can differ from these.
+          </li>
+          <li>
+            Publish yours and this page lists it as a rerun. Whether it agrees is for you to
+            judge.
+          </li>
+        </ul>
+      </section>
+
+      <section class="mk-section">
+        <h2>Full record</h2>
+
+        <Regent.Primitives.disclosure
+          id="run-all-tasks"
+          summary={"All #{@entry.task_count} tasks"}
+          index="01"
+          class="integrity-details"
+          phx-mounted={JS.ignore_attributes(["open"])}
+        >
+          <div class="tasks__filters" aria-label="Filter task outcomes">
+            <Regent.Primitives.button
+              :for={{filter, label, count} <- task_filters(@entry, @assessment)}
+              variant="secondary"
+              id={"task-filter-#{filter}"}
+              type="button"
+              class="tasks__filter"
+              aria-pressed={to_string(@task_filter == filter)}
+              phx-click="filter_tasks"
+              phx-value-filter={filter}
+            >
+              {label} {count}
+            </Regent.Primitives.button>
+          </div>
+          <p id="task-filter-status" class="offscreen" aria-live="polite">
+            {filter_status(@task_filter, length(@filtered_tasks))}
+          </p>
+          <div
+            id="task-results"
+            class="tasks"
+            role="region"
+            aria-label="Task results, scroll sideways for all scores"
+            tabindex="0"
+          >
+            <p class="tasks__row tasks__head" aria-hidden="true">
+              <span>Task</span>
+              <span class="tasks__number">Without</span>
+              <span class="tasks__number">With</span>
+              <span class="tasks__number">Change</span>
+            </p>
+            <p :if={@filtered_tasks == []} class="empty-state tasks__empty">
+              {empty_filter_words(@task_filter)}
+            </p>
+            <ol
+              id="task-list"
+              phx-hook="MotionList"
+              data-layout-id="task-list"
+              data-children="[data-task]"
+              data-variant={Motion.standard("list")}
+            >
+              <li
+                :for={task <- @filtered_tasks}
+                class="tasks__row"
+                data-task
+                data-layout-id={"task-#{task.hash}"}
+              >
+                <span class="tasks__task" title={task.hash}>
+                  <strong>{task.label}</strong>
+                  <code>{task.short_hash}</code>
+                </span>
+                <span class="tasks__number">
+                  <span class="offscreen">Without the Skill</span>{task.baseline}
+                </span>
+                <span class="tasks__number">
+                  <span class="offscreen">With the Skill</span>{task.candidate}
+                </span>
+                <span class="tasks__number">
+                  <span class="offscreen">Change</span>{task.delta}
+                </span>
+              </li>
+            </ol>
+          </div>
+        </Regent.Primitives.disclosure>
+
+        <Regent.Primitives.disclosure
+          id="run-integrity-details"
+          summary="Comparison conditions and fingerprints"
+          index="02"
+          class="integrity-details"
+        >
+          <.definition_list>
+            <:fact term="Climb">
+              <a :if={@slug} href={~p"/techtree/climbs/#{@slug}"}>{@campaign_name}</a>
+              <span :if={is_nil(@slug)}>{@entry.climb_reference}</span>
+            </:fact>
+            <:fact term="Tasks">
+              {comparison_membership_words(@published.membership)}
+            </:fact>
+            <:fact term="Agent host">
+              {@entry.subject_harness} {@entry.subject_harness_version}
+            </:fact>
+            <:fact term="Model">
+              {@entry.subject_model} from {Providers.name!(@entry.subject_provider)}
+            </:fact>
+            <:fact term="Ran on">
+              {ModelAccess.ran_on!(@entry.subject_provider)}
+            </:fact>
+            <:fact term="Climb fingerprint">
+              <.digest
+                value={@entry.campaign_spec_digest}
+                href={object_url(@entry.campaign_spec_digest)}
+              />
+            </:fact>
+            <:fact term="Task list fingerprint">
+              <.digest value={@published.membership["membership_digest"] || "Not published"} />
+            </:fact>
+            <:fact term="Terms fingerprint">
+              <.digest
+                value={@entry.data_policy_digest}
+                href={object_url(@entry.data_policy_digest)}
+              />
+            </:fact>
+            <:fact term="Result ID">{@entry.run_id}</:fact>
+            <:fact term="Log sequence">{@entry.log_sequence}</:fact>
+            <:fact term="What the report can claim">
+              A call, signed by its publisher's key.
+            </:fact>
+            <:fact term="Publisher key"><.digest value={@entry.participant_key_id} /></:fact>
+          </.definition_list>
+        </Regent.Primitives.disclosure>
+      </section>
+
+      <section id="offline-check" class="mk-band mk-dark" aria-labelledby="offline-check-title">
+        <.field id="offline-check-field" scene="mark" class="mk-band__field" />
+        <div class="mk-band__copy">
+          <h2 id="offline-check-title">Offline check</h2>
+          <p :if={!@withdrawn?} class="mk-band__more">
+            <a
+              id="download-result-bundle"
+              href={"/api/v1/techtree/publications/" <> @entry.bundle_digest <> "/bundle"}
+              download="techtree-result.json"
+            >
+              Download the Result bundle
+            </a>
+            and check it with Techtree on your own computer, without trusting this site. <a href={"/api/v1/techtree/publications/" <> @entry.bundle_digest}>View the recorded data</a>.
+          </p>
+          <p :if={@withdrawn?} class="mk-band__more">
+            The participant withdrew this Result, so its bundle is no longer offered. <a href={"/api/v1/techtree/publications/" <> @entry.bundle_digest}>View the recorded data</a>.
+          </p>
+          <.command_block
+            :if={!@withdrawn?}
+            id="copy-runs-verify"
+            argv={["regents", "techtree", "proof", "verify", "techtree-result.json"]}
+            label="Verify offline"
+          />
+        </div>
+      </section>
+
+      <section id="result-discussion" class="mk-section">
+        <h2>Discussion</h2>
+        <p>
+          Each Result has one discussion on Patchbay, open to people and agents.
+          <a id="discuss-result" href={discussion_url(@entry.bundle_digest)}>
+            Open the discussion
+          </a>
+        </p>
+      </section>
+
+      <p class="mk-section mk-links">
+        <a href={~p"/techtree/results"} class="text-link">All Results</a>
+        <a href={~p"/techtree/docs/verify"} class="text-link">How to check it</a>
+      </p>
+    </Layouts.page>
+    """
+  end
+
+  attr :value, :any, required: true
+
+  defp change_value(%{value: %{kind: :none}} = assigns), do: ~H"No Skill"
+  defp change_value(%{value: %{kind: :not_set}} = assigns), do: ~H"Not set"
+
+  defp change_value(%{value: %{kind: :skill}} = assigns) do
+    ~H"""
+    <.digest value={@value.digest} />
+    <span class="small quiet">{CampaignFacts.count(@value.size)} bytes</span>
+    """
+  end
+
+  defp change_value(%{value: %{kind: :digest}} = assigns),
+    do: ~H"<.digest value={@value.digest} />"
+
+  defp change_value(%{value: %{kind: :size}} = assigns),
+    do: ~H"{CampaignFacts.count(@value.size)} bytes"
+
+  defp change_value(%{value: %{kind: :text}} = assigns), do: ~H"<code>{@value.text}</code>"
+
+  # Ingest only publishes a Result whose Campaign this site publishes, and
+  # stores its assessment with it, and a Climb is retired rather than removed,
+  # so each of these holds for every published Result. The Campaign is the one
+  # the Result ran, which for the tasks a Climb keeps apart is not the Climb's
+  # own.
+  defp assigns_for(entry) do
+    {:ok, climb} = Catalog.get_any_climb_by_campaign_digest(entry.campaign_spec_digest)
+    campaign = CampaignFacts.campaign_by_digest!(entry.campaign_spec_digest)
+    held_out? = Catalog.held_out_campaign?(climb, entry.campaign_spec_digest)
+
+    # Limits and commands are read only for a Campaign the current release
+    # still runs; an older Campaign's Result keeps its own page without them.
+    current_climb =
+      case Catalog.get_climb_by_campaign_digest(entry.campaign_spec_digest) do
+        {:ok, current} -> current
+        {:error, _retired} -> nil
+      end
+
+    trial = current_climb && CampaignFacts.trial(campaign)
+
+    campaign_name = campaign_name(entry, climb)
+    tasks = ResultAssessment.tasks(entry.task_deltas)
+    groups = ResultAssessment.by_outcome(tasks)
+
+    %{
+      page_title: "#{campaign_name} · Published Result",
+      entry: entry,
+      campaign_name: campaign_name,
+      skill_name: skill_name(entry, climb),
+      github_url: github_url(entry),
+      publisher_words: publisher_words(entry),
+      withdrawn?: Query.withdrawn?(entry),
+      held_out?: held_out?,
+      assessment: entry.assessment,
+      groups: groups,
+      examples: ResultAssessment.examples(groups),
+      one_skill?: campaign["mutation_contract"]["maximum_skills"] == 1,
+      tasks: tasks,
+      task_filter: :all,
+      published: CampaignFacts.for_campaign(campaign),
+      limits: trial && limits(trial),
+      rerun: rerun(current_climb, trial, entry.bundle_digest),
+      rerun_of: rerun_of(entry),
+      reruns: Query.reruns(entry),
+      runs: Query.runs_behind(entry),
+      scoring: scoring(climb),
+      slug: climb.projection["slug"]
+    }
+  end
+
+  # How the Climb scores a task, in the words its own page uses.
+  defp scoring(climb) do
+    case ClimbCopy.for_reference(climb.reference) do
+      %{scoring: scoring} -> scoring
+      nil -> nil
+    end
+  end
+
+  # The limits the Result's own Campaign set, per try and over the whole run.
+  defp limits(trial) do
+    total = CampaignFacts.run_total(trial)
+
+    %{
+      maximum_usd: trial.maximum_usd && ModelAccess.dollars(trial.maximum_usd),
+      plan: plan_words(trial),
+      calls: CampaignFacts.count(trial.calls),
+      input_tokens: CampaignFacts.count(trial.input_tokens),
+      output_tokens: CampaignFacts.count(trial.output_tokens),
+      tries: CampaignFacts.count(total.tries),
+      run_calls: CampaignFacts.count(total.calls),
+      run_input_tokens: CampaignFacts.count(total.input_tokens),
+      run_output_tokens: CampaignFacts.count(total.output_tokens)
+    }
+  end
+
+  # How many tries the whole run is made of, in words.
+  defp plan_words(trial) do
+    times =
+      case trial.rollouts do
+        1 -> "once"
+        rollouts -> "#{rollouts} times"
+      end
+
+    retries =
+      case trial.retries do
+        0 -> ""
+        1 -> ", with up to 1 more attempt for a try that fails"
+        retries -> ", with up to #{retries} more attempts for a try that fails"
+      end
+
+    "#{CampaignFacts.count(trial.tasks)} tasks, each tried #{times} without the Skill and " <>
+      "#{times} with it#{retries}"
+  end
+
+  # The commands and limits only exist when the release served now installs
+  # and still carries this Result's Climb; an earlier version cannot be run by it.
+  # A Climb it carries runs the Result's own Campaign, read with this release's
+  # reading of it.
+  # Patchbay keys one discussion to each Result's bundle digest and creates it
+  # on the first post, so the link needs nothing from Patchbay to be shown.
+  defp discussion_url(bundle_digest),
+    do: "https://patchbay.help/discuss/techtree/" <> bundle_digest
+
+  defp rerun(climb, trial, bundle_digest) do
+    case {ReleaseInfo.current(), climb} do
+      {%{installable?: true, install_argv: [_ | _] = install_argv, minimums: minimums},
+       %{reference: reference}} ->
+        %{
+          minimums: minimums,
+          routes: trial.routes,
+          commands: rerun_commands(install_argv, reference, bundle_digest, trial.routes)
+        }
+
+      {%{installable?: true, install_argv: [_ | _]}, nil} ->
+        :earlier_version
+
+      _not_installable ->
+        :no_release
+    end
+  end
+
+  defp rerun_commands(install_argv, reference, bundle_digest, routes) do
+    [
+      {:command, install_argv},
+      {:command, ["regents", "techtree", "setup"]},
+      {:command, ["regents", "techtree", "doctor", "--climb", reference]},
+      {:comment, "Prepare a rerun. Techtree downloads this Result and its Skill and checks both."}
+    ] ++
+      ModelAccess.prepare_lines(routes, [
+        "regents",
+        "techtree",
+        "climb",
+        "prepare",
+        "--rerun-of",
+        bundle_digest
+      ]) ++
+      [
+        {:comment, "Start the draft it names. Techtree shows its limits first:"},
+        {:command, ["regents", "techtree", "climb", "start", "DRAFT_ID"]},
+        {:comment, "When it finishes, check the run and read its result:"},
+        {:command, ["regents", "techtree", "run", "result", "RUN_ID"]}
+      ]
+  end
+
+  # The Result this one reruns. The site refused any rerun naming a Result it
+  # does not hold, so the original is always here, withdrawn or not.
+  defp rerun_of(%{assessment: %{rerun_of: nil}}), do: nil
+
+  defp rerun_of(%{assessment: %{rerun_of: digest}}) do
+    {:ok, original} = Query.get_entry(digest)
+    original
+  end
+
+  defp key_words(%{participant_key_id: key}, %{participant_key_id: key}),
+    do: "the same publisher key"
+
+  defp key_words(_other, _entry), do: "another publisher key"
+
+  defp rerun_count([_one]), do: "1 rerun"
+  defp rerun_count(reruns), do: "#{length(reruns)} reruns"
+
+  defp campaign_name(entry, climb) do
+    copy = ClimbCopy.for_reference(climb.reference)
+
+    present(Map.get(entry, :campaign_name)) ||
+      climb.title ||
+      (copy && copy.campaign_title) ||
+      entry.climb_reference
+  end
+
+  defp skill_name(entry, climb) do
+    copy = ClimbCopy.for_reference(climb.reference)
+
+    present(Map.get(entry, :skill_name)) ||
+      (copy && copy.candidate_skill_label) ||
+      "the candidate Skill"
+  end
+
+  defp github_url(entry) do
+    case Map.get(entry, :skill_github_url) do
+      "https://github.com/" <> _ = url -> url
+      _other -> nil
+    end
+  end
+
+  # The name and the link travel beside the signed bundle, not inside it, so
+  # the page says whose word they are.
+  defp publisher_words(entry) do
+    case {present(Map.get(entry, :skill_name)), github_url(entry)} do
+      {nil, nil} -> nil
+      {_name, nil} -> "Skill name given by the publisher; not checked."
+      {nil, _url} -> "GitHub link given by the publisher; not checked."
+      {_name, _url} -> "Skill name and GitHub link given by the publisher; not checked."
+    end
+  end
+
+  defp present(value) when is_binary(value) do
+    if String.trim(value) == "", do: nil, else: value
+  end
+
+  defp present(_value), do: nil
+
+  # A digest carries a colon, which the route sigil would escape into an
+  # address a reader could not compare against the one they hold.
+  defp object_url(digest), do: "/api/v1/techtree/objects/" <> digest
+
+  defp task_group_words(:better, count), do: "Better on #{tasks_words(count)}#{colon(count)}"
+  defp task_group_words(:worse, count), do: "Worse on #{tasks_words(count)}#{colon(count)}"
+  defp task_group_words(:same, count), do: "No change on #{tasks_words(count)}."
+
+  defp tasks_words(0), do: "no tasks"
+  defp tasks_words(1), do: "1 task"
+  defp tasks_words(count), do: "#{count} tasks"
+
+  defp colon(0), do: "."
+  defp colon(_count), do: ":"
+
+  defp outcome_label(:better), do: "Better with the Skill"
+  defp outcome_label(:worse), do: "Worse with the Skill"
+  defp outcome_label(:same), do: "No change"
+
+  defp filtered_tasks(tasks, :all), do: tasks
+  defp filtered_tasks(tasks, outcome), do: Enum.filter(tasks, &(&1.outcome == outcome))
+
+  defp filter_status(filter, count) do
+    "#{filter_label(filter)} #{count} #{if(count == 1, do: "task", else: "tasks")} shown."
+  end
+
+  defp filter_label(:all), do: "All"
+  defp filter_label(:better), do: "Better"
+  defp filter_label(:same), do: "Same"
+  defp filter_label(:worse), do: "Worse"
+
+  defp empty_filter_words(:better), do: "No tasks were better."
+  defp empty_filter_words(:same), do: "No tasks were the same."
+  defp empty_filter_words(:worse), do: "No tasks were worse."
+  defp empty_filter_words(:all), do: "No tasks are available."
+
+  defp task_filters(entry, assessment) do
+    [
+      {:all, "All", entry.task_count},
+      {:better, "Better", assessment.wins},
+      {:same, "Same", assessment.ties},
+      {:worse, "Worse", assessment.losses}
+    ]
+  end
+
+  defp comparison_membership_words(membership) do
+    membership
+    |> CampaignFacts.membership_words()
+    |> case do
+      nil -> "Not published"
+      words -> String.replace(words, "Test", "run")
+    end
+  end
+
+  defp arrived(at) do
+    at
+    |> DateTime.truncate(:second)
+    |> Calendar.strftime("%Y-%m-%d %H:%M UTC")
+  end
+
+  defp withdrawn_words(at) do
+    "Withdrawn by the participant on " <> Calendar.strftime(at, "%-d %B %Y")
+  end
+end

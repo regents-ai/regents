@@ -17,6 +17,28 @@ defmodule RegentsWeb.Techtree.CoreComponents do
   use Phoenix.Component
 
   @doc """
+  Show the fingerprint a document is filed under, optionally linking to it.
+
+  The value wraps rather than overflowing: on a phone a fingerprint is four
+  lines of characters, and a reader comparing one against another needs to see
+  all of it.
+  """
+  attr :value, :string, required: true
+  attr :href, :string, default: nil
+
+  def digest(assigns) do
+    ~H"""
+    <span class="digest">
+      <%= if @href do %>
+        <a href={@href}>{@value}</a>
+      <% else %>
+        {@value}
+      <% end %>
+    </span>
+    """
+  end
+
+  @doc """
   Show one command, built from the arguments that make it up.
 
   The copy control hands over exactly the characters shown, and nothing on this
@@ -139,6 +161,50 @@ defmodule RegentsWeb.Techtree.CoreComponents do
     </dl>
     """
   end
+
+  @doc """
+  Say something the reader would be worse off for missing.
+  """
+  attr :title, :string, required: true
+  attr :attention, :boolean, default: false
+  slot :inner_block, required: true
+
+  def warning_callout(assigns) do
+    ~H"""
+    <aside class={["callout", @attention && "callout--attention"]}>
+      <p class="callout__title">{@title}</p>
+      {render_slot(@inner_block)}
+    </aside>
+    """
+  end
+
+  @doc """
+  What a Climb is measuring, said as a question a reader can answer.
+  """
+  @spec purpose_words(String.t()) :: String.t()
+  def purpose_words("component_uplift"), do: "Does one added component make the agent better?"
+  def purpose_words("harness_comparison"), do: "Does one harness do better than another?"
+  def purpose_words(other), do: plain_words(other)
+
+  @doc """
+  What is allowed to differ between the two runs.
+  """
+  @spec mutation_words(String.t()) :: String.t()
+  def mutation_words("skill_insertion"), do: "One skill is added. Nothing else may differ."
+
+  def mutation_words("skill_replacement"),
+    do: "One skill is replaced by another. Nothing else may differ."
+
+  def mutation_words("model_substitution"),
+    do: "Only the model's weights change. Nothing else may differ."
+
+  def mutation_words(other), do: plain_words(other)
+
+  defp plain_words(value) when is_binary(value) do
+    value |> String.replace("_", " ") |> String.capitalize()
+  end
+
+  defp plain_words(value), do: to_string(value)
 
   # Display only. An argument that would need quoting in a shell is shown
   # quoted, so that what a reader copies is what the argument list means.

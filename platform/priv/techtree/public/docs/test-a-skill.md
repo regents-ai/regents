@@ -11,4 +11,4 @@ regents techtree forge run --arm candidate --collection COLLECTION_ID --provider
 regents techtree forge compare BASELINE_RUN_ID CANDIDATE_RUN_ID
 ```
 
-Both runs use the same provider and model. The comparison calls no model: it pairs every task across the two runs and says whether the Skill improved, regressed, was mixed or made no difference, overall and on the held-out tasks alone. To compare two versions of a Skill, give the baseline run the earlier version with `--skill path/to/earlier-skill`. The [tdd example](/examples/tdd) shows a finished comparison.
+Both runs use the same provider and model. The comparison calls no model: it pairs every task across the two runs and says whether the Skill improved, regressed, was mixed or made no difference, overall and on the held-out tasks alone. To compare two versions of a Skill, give the baseline run the earlier version with `--skill path/to/earlier-skill`. The [tdd example](/techtree/examples/tdd) shows a finished comparison.

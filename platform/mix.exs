@@ -172,8 +172,10 @@ defmodule Regents.MixProject do
         # Messages adds four, as every Ash domain does: the domain reads its resource, and the
         # resource its two policy checks and its `run` module. Updates adds one: the domain
         # reads its resource. Techtree's Model Climb adds one the same way, and Techtree's
-        # catalog three: its domain reads its three resources.
-        "xref graph --label compile-connected --fail-above 47",
+        # catalog three: its domain reads its three resources. Techtree's run log adds five:
+        # its domain reads its three resources, an entry its embedded assessment, and the
+        # assessment its embedded Skill change.
+        "xref graph --label compile-connected --fail-above 52",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

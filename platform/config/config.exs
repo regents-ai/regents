@@ -94,7 +94,8 @@ config :regents,
     Regents.Messages,
     Regents.Updates,
     Regents.Techtree.ModelClimb,
-    Regents.Techtree.Catalog
+    Regents.Techtree.Catalog,
+    Regents.Techtree.Network
   ],
   generators: [timestamp_type: :utc_datetime]
 
@@ -189,6 +190,24 @@ config :regents, Regents.Chain.Refresh, readers: [Regents.Stake.SnapshotCache]
 config :regents, Regents.Techtree.Catalog,
   catalog_root: {:priv, "techtree/catalog"},
   channel: "development"
+
+# Techtree's public run log: the largest submission it reads, and how often one
+# address, or one paired agent across every address it sends from, may publish.
+# A proof bundle carries digests and scores and no transcripts, so two mebibytes
+# is generous by a factor of six and still small enough that an oversized body is
+# refused before it is read.
+config :regents, Regents.Techtree.Network,
+  maximum_body_bytes: 2_097_152,
+  rate_limit: [limit: 10, window_seconds: 60],
+  agent_rate_limit: [limit: 10, window_seconds: 60]
+
+# The example comparison at /techtree/examples/tdd: the files one local `techtree
+# forge` comparison wrote, committed as they are (RegentsWeb.Techtree.TddShowcase).
+# The export link names the techtree repository at the commit that added them.
+config :regents, RegentsWeb.Techtree.TddShowcase,
+  folder: {:priv, "techtree/examples/tdd-showcase"},
+  repository_url: "https://github.com/regents-ai/techtree",
+  export_revision: "808c280608a0599bbd5825e61534de8570992715"
 
 # The public addresses Keyfleet's agent guides give an agent: the sign-in
 # server, a fleet's code, and a fleet's notebooks at https://<fleet>.<suffix>

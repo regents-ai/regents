@@ -5,9 +5,10 @@ defmodule RegentsWeb.Techtree do
   selects Techtree's palette and its stylesheets (`assets/css/techtree`), and
   each page is read inside Techtree's own header and footer
   (`RegentsWeb.Techtree.Layouts`). Its API is under `/api/v1/techtree`; its
-  agent guide, `/techtree/agents.md`, and the Skill comparisons,
-  `/techtree/train.json` and each comparison's report, are answered outside the
-  page scope.
+  agent guide, `/techtree/agents.md`, the Skill comparisons,
+  `/techtree/train.json` and each comparison's report, and each published
+  Result's share picture, `/techtree/results/:bundle_digest/share.png`, are
+  answered outside the page scope.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Techtree],
@@ -17,15 +18,22 @@ defmodule RegentsWeb.Techtree do
       CatalogController,
       ChangelogLive,
       ClimbController,
+      ClimbsLive.Show,
       DocsLive,
       FormalLive,
       HomeLive,
       Layouts,
       ModelClimbReportController,
       ObjectController,
+      PublicationController,
       PublicDocuments,
       PublicPagesController,
+      PublishedSkillController,
+      ResultShareCardController,
+      RunsLive.Index,
+      RunsLive.Show,
       ServiceLive,
+      TddShowcaseLive,
       TrainController,
       TrainLive.Show
     ]

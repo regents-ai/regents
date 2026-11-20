@@ -1,10 +1,10 @@
 defmodule RegentsWeb.Techtree.Layouts do
   @moduledoc """
   The frame every Techtree page is read inside, within the site's one root
-  document. The header holds the name, the Services menu and the Docs link
-  (`RegentsWeb.Techtree.SiteMenu`), the project source, the theme switch with
+  document. The header holds the name, the Services menu and the Results and
+  Docs links (`RegentsWeb.Techtree.SiteMenu`), the project source, the theme switch with
   the site's account control (`RegentsWeb.Components.Shell`), and Book Call;
-  below a wide screen the menu and the link fold into one Menu sheet. Signed in,
+  below a wide screen the menu and the links fold into one Menu sheet. Signed in,
   the account control is the person's picture and name with Sign out, as the
   site draws it where there is no account menu, and the theme switch stays
   beside it. The footer lists the services, the site's pages and the agent
@@ -254,6 +254,15 @@ defmodule RegentsWeb.Techtree.Layouts do
 
   @doc "The search description of the Techtree page at `path`."
   @spec description(String.t()) :: String.t()
+  def description("/techtree/results"),
+    do: "Browse published Results: the same agent on the same tasks, with and without a Skill."
+
+  def description("/techtree/results/" <> _digest),
+    do: "Inspect one published Techtree Result and its task-level evidence."
+
+  def description("/techtree/climbs/" <> _slug),
+    do: "Inspect the fixed task contract for a published Techtree Climb."
+
   def description("/techtree/services/security/sample-report"),
     do:
       "A sample security review: one validated finding on the Agent Wallet Bench, fixed, verified and released."
@@ -286,7 +295,7 @@ defmodule RegentsWeb.Techtree.Layouts do
     end
   end
 
-  def description("/techtree"),
+  def description(path) when path in ["/techtree", "/techtree/examples/tdd"],
     do:
       "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure."
 

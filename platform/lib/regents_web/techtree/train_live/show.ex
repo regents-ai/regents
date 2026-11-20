@@ -1,6 +1,6 @@
 defmodule RegentsWeb.Techtree.TrainLive.Show do
   @moduledoc """
-  One comparison, reached from the home page's demonstrations and the
+  One comparison, reached from Results, the home page's demonstrations and the
   services' tools: the Skill with its links, the task, the original and
   improved Skill's attempts solved on the final test as two bars with the
   verdict, the method with the choosing step's figures, every final-test case,
@@ -33,6 +33,8 @@ defmodule RegentsWeb.Techtree.TrainLive.Show do
     ~H"""
     <Layouts.page wide>
       <div class="train">
+        <p class="back-link"><.link navigate={~p"/techtree/results"}>← Results</.link></p>
+
         <header class="page-heading">
           <p class="eyebrow">Demonstration · {Copy.date(@comparison.date)}</p>
           <h1>{@comparison.skill.name}</h1>

@@ -10,7 +10,7 @@ Every published Result is a signed record you can download and check on your own
 
 ## Checks
 
-Give the command the run's ID, the bundle's folder, or a bundle downloaded from a published Result's page on [Results](/results). It checks that:
+Give the command the run's ID, the bundle's folder, or a bundle downloaded from a published Result's page on [Results](/techtree/results). It checks that:
 
 - the files still match their recorded fingerprints;
 - the signatures are valid;

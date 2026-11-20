@@ -1,0 +1,566 @@
+defmodule Regents.Techtree.Network.PublicationEntry do
+  @moduledoc """
+  One run somebody published, and everything the site is willing to say about
+  it.
+
+  Every column here was either recomputed from bytes that verify or copied out
+  of a document whose signature was checked first. Nothing a submitter wrote in
+  prose is stored, because there is nowhere for prose to arrive: the submission
+  is a proof bundle, and a proof bundle carries digests, scores and task
+  hashes. That is not a moderation policy that has to be applied — it is the
+  absence of anything to moderate.
+
+  The identity of the publisher is the fingerprint of the key that signed the
+  bundle and nothing else. `participant_kind` says which sort of key that is;
+  today the only sort is a local Ed25519 key a participant made on their own
+  machine. A later release may let somebody sign for an account on a chain
+  instead, and that will be another value of this column rather than another
+  column.
+
+  ## The row is written once and never rewritten
+
+  There are two update actions here: the one that records that a signed
+  withdrawal arrived, together with the withdrawal receipt this site handed back
+  for it, and one that stores an assessment for an entry written before entries
+  carried one. There is no destroy action at all.
+  Everything else an entry will ever say is written in the single insert that
+  creates it — including its own log sequence, when it was accepted, and the
+  receipt this site handed back — because a row that is completed by a second
+  write is a row that can exist half-written.
+
+  A withdrawal is written once too, in one statement: `withdrawn_at`, the
+  withdrawal receipt and the fingerprint of the key that signed it arrive
+  together, and the database refuses a withdrawn entry without its receipt. It
+  is written once because it follows the entry's one withdrawal event, which a
+  unique index keeps to one per entry (`Regents.Techtree.Network.PublicationEvent`).
+  A retry of the
+  same withdrawal, after a lost response, a restart or a new signing key, is
+  handed the stored receipt, which still verifies under the key it names.
+
+  That is also what makes the retry safe. `log_sequence`, `id` and `accepted_at`
+  are chosen before the insert, the receipt is built and signed over them, and
+  the whole of it goes in at once. If two identical publications race, the one
+  that loses the unique index on `bundle_digest` throws away the receipt it
+  built and hands back the receipt the winner stored. Nobody gets a second row
+  and nobody gets a second receipt.
+
+  ## What is stored, and how it is handed back
+
+  `submission_bytes` is the exact bytes this site was handed. They are kept so
+  that every published field can be re-derived from them, and they are served
+  back unaltered at `/api/v1/techtree/publications/<digest>/bundle` while the entry
+  stands, so that a reader can check the run against the participant's own
+  signatures instead of against our reading of them. They are never parsed and
+  written out again on the way out: a re-encoding is a different string of
+  bytes saying the same thing, and a signature can see that difference.
+  `submission_digest` is the digest of the canonical form of that document, and
+  it is the one thing that tells a lost-response retry apart from a different
+  submission wearing the same bundle digest.
+
+  A withdrawn entry keeps these bytes and stops handing them out. The row, the
+  appended withdrawal event and the receipt all stay; the download answers
+  `410 Gone`.
+
+  `bundle_digest` is not the digest of those bytes: it is the bundle's own
+  `payload_digest`, recomputed from the payload's canonical form, which is what
+  makes the same proof submitted twice the same entry however it was wrapped
+  for transport. It is also the address the entry lives at, so the URL is
+  derivable from the proof itself and two people publishing the same bundle
+  land on the same page.
+
+  `task_deltas` is a list rather than a scalar because its order is the
+  Campaign's committed task order, checked against the Campaign this site
+  publishes. It is stored as one document column and read with the row, the way
+  a catalog entry's projection is: the detail page needs all of it or none of
+  it, and there is no query that would ever ask about one task.
+
+  A withdrawn entry keeps every column it had, and keeps its place on the log.
+  `withdrawn_at` is written from an appended `Regents.Techtree.Network.PublicationEvent`,
+  so a published entry cannot be unpublished even by something holding a
+  connection to the database through Ash.
+  """
+
+  use Ash.Resource,
+    otp_app: :regents,
+    domain: Regents.Techtree.Network,
+    data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer]
+
+  # Techtree's own area of the shared database, where its rows already are.
+  postgres do
+    table "network_publication_entries"
+    schema("techtree_app")
+    repo(Regents.Repo)
+
+    check_constraints do
+      check_constraint(:withdrawn_at, "withdrawn_with_receipt",
+        check:
+          "withdrawn_at IS NULL OR (withdrawal_receipt_bytes IS NOT NULL AND withdrawal_receipt_digest IS NOT NULL AND withdrawal_network_key_id IS NOT NULL)",
+        message: "a withdrawn entry carries the receipt it was withdrawn with"
+      )
+    end
+
+    custom_statements do
+      # The log sequence is handed out by the database rather than counted in
+      # Elixir, so two submissions arriving at once cannot be given the same
+      # one. It may have gaps — a publication that loses a race has already
+      # taken a number — and a sequence with gaps is still a sequence. It is
+      # not a position and it is not a rank.
+      statement :network_publication_sequence do
+        up("CREATE SEQUENCE network_publication_sequence")
+        down("DROP SEQUENCE network_publication_sequence")
+      end
+    end
+  end
+
+  actions do
+    defaults [:read]
+
+    read :list_log do
+      description "The log, newest arrival first, from a sequence the caller already holds."
+
+      argument :before_sequence, :integer, allow_nil?: true
+      argument :agent, :string, allow_nil?: true, constraints: [trim?: false, allow_empty?: true]
+
+      argument :agent_version, :string,
+        allow_nil?: true,
+        constraints: [trim?: false, allow_empty?: true]
+
+      argument :model, :string, allow_nil?: true, constraints: [trim?: false, allow_empty?: true]
+
+      argument :challenge, :string,
+        allow_nil?: true,
+        constraints: [trim?: false, allow_empty?: true]
+
+      argument :provider, :string, allow_nil?: true
+
+      filter expr(is_nil(^arg(:before_sequence)) or log_sequence < ^arg(:before_sequence))
+      filter expr(is_nil(^arg(:agent)) or subject_harness == ^arg(:agent))
+      filter expr(is_nil(^arg(:agent_version)) or subject_harness_version == ^arg(:agent_version))
+      filter expr(is_nil(^arg(:model)) or subject_model == ^arg(:model))
+      filter expr(is_nil(^arg(:challenge)) or campaign_spec_digest == ^arg(:challenge))
+      filter expr(is_nil(^arg(:provider)) or subject_provider == ^arg(:provider))
+
+      prepare build(sort: [log_sequence: :desc])
+    end
+
+    read :agent_versions do
+      description "Version coordinates across the entire accepted log, without proof bytes."
+      prepare build(select: [:subject_harness, :subject_harness_version, :log_sequence])
+    end
+
+    read :get_by_digest do
+      description "One entry, by the digest of the bundle it published."
+      get? true
+
+      argument :bundle_digest, :string, allow_nil?: false
+
+      filter expr(bundle_digest == ^arg(:bundle_digest))
+    end
+
+    read :for_campaign do
+      description "Published proofs for one Campaign, newest arrival first."
+
+      argument :campaign_spec_digest, :string, allow_nil?: false
+
+      filter expr(campaign_spec_digest == ^arg(:campaign_spec_digest))
+
+      prepare build(
+                limit: 13,
+                sort: [log_sequence: :desc],
+                select: [
+                  :bundle_digest,
+                  :log_sequence,
+                  :proof_grade,
+                  :wins,
+                  :ties,
+                  :losses,
+                  :task_count,
+                  :withdrawn_at
+                ]
+              )
+    end
+
+    read :for_skill do
+      description "The Results still standing that measured one Skill, newest arrival first."
+
+      argument :skill_digest, :string, allow_nil?: false
+
+      filter expr(skill_digest == ^arg(:skill_digest) and is_nil(withdrawn_at))
+
+      prepare build(sort: [log_sequence: :desc], select: [:bundle_digest, :log_sequence])
+    end
+
+    read :reruns_of do
+      description "The Results that say they rerun one published Result, in arrival order."
+
+      argument :bundle_digest, :string, allow_nil?: false
+
+      filter expr(assessment[:rerun_of] == ^arg(:bundle_digest))
+
+      prepare build(
+                sort: [log_sequence: :asc],
+                select: [:bundle_digest, :log_sequence, :participant_key_id, :withdrawn_at]
+              )
+    end
+
+    read :standing_reruns_of_any do
+      description "The Results still standing that rerun any of several published Results."
+
+      argument :bundle_digests, {:array, :string}, allow_nil?: false
+
+      filter expr(assessment[:rerun_of] in ^arg(:bundle_digests) and is_nil(withdrawn_at))
+
+      prepare build(select: [:assessment])
+    end
+
+    read :get_by_run do
+      description "One entry, by the participant and run it belongs to."
+      get? true
+
+      argument :participant_key_id, :string, allow_nil?: false
+      argument :run_id, :string, allow_nil?: false
+
+      filter expr(participant_key_id == ^arg(:participant_key_id) and run_id == ^arg(:run_id))
+    end
+
+    create :record do
+      description "Append one verified publication, whole. Ingest only."
+
+      accept [
+        :id,
+        :log_sequence,
+        :accepted_at,
+        :bundle_digest,
+        :submission_bytes,
+        :submission_digest,
+        :run_id,
+        :campaign_spec_digest,
+        :campaign_name,
+        :data_policy_digest,
+        :climb_reference,
+        :participant_kind,
+        :participant_key_id,
+        :participant_public_key,
+        :subject_provider,
+        :subject_model,
+        :subject_harness,
+        :subject_harness_version,
+        :skill_digest,
+        :skill_name,
+        :skill_github_url,
+        :baseline_mean,
+        :candidate_mean,
+        :absolute_delta,
+        :wins,
+        :losses,
+        :ties,
+        :task_count,
+        :statuses,
+        :decision,
+        :proof_grade,
+        :verification_checks_run,
+        :verification_checks_passed,
+        :task_deltas,
+        :assessment,
+        :receipt_bytes,
+        :receipt_digest,
+        :network_key_id
+      ]
+
+      require_attributes [:assessment]
+    end
+
+    update :mark_withdrawn do
+      description "Record that an appended withdrawal took this entry off the log, with its receipt."
+
+      accept [
+        :withdrawn_at,
+        :withdrawal_receipt_bytes,
+        :withdrawal_receipt_digest,
+        :withdrawal_network_key_id
+      ]
+
+      require_attributes [
+        :withdrawn_at,
+        :withdrawal_receipt_bytes,
+        :withdrawal_receipt_digest,
+        :withdrawal_network_key_id
+      ]
+    end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if always()
+    end
+
+    policy action_type([:create, :update, :destroy, :action]) do
+      forbid_if always()
+    end
+  end
+
+  attributes do
+    uuid_primary_key :id, writable?: true
+
+    attribute :log_sequence, :integer do
+      description "Where this entry landed in the append-only log."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :accepted_at, :utc_datetime_usec do
+      description "When this log accepted the publication."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :bundle_digest, :string do
+      description "The proof bundle's own payload digest, recomputed on arrival."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :submission_bytes, :binary do
+      description "The exact bytes this site was handed. Stored, and served back unaltered."
+      allow_nil? false
+      public? false
+    end
+
+    attribute :submission_digest, :string do
+      description "The digest of the canonical form of the submitted document."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :run_id, :string do
+      description "The run identifier the signed bundle carries."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :campaign_spec_digest, :string do
+      description "The Campaign this run was of, which this site publishes."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :campaign_name, :string do
+      description "The verified title of the Campaign this run was of."
+      public? true
+    end
+
+    attribute :data_policy_digest, :string do
+      description "The data policy the run was carried out under."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :climb_reference, :string do
+      description "The public `slug@version` of the Climb that Campaign belongs to."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :participant_kind, :atom do
+      description "What sort of key signed this bundle."
+      allow_nil? false
+      public? true
+      constraints one_of: [:local_ed25519]
+    end
+
+    attribute :participant_key_id, :string do
+      description "The fingerprint of the signing key, which is its public half hashed."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :participant_public_key, :string do
+      description "The public half of the signing key, as the bundle spells it."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :subject_provider, :string do
+      description "The inference provider the Campaign pins for the agent under test."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :subject_model, :string do
+      description "The model the Campaign pins for the agent under test."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :subject_harness, :string do
+      description "The agent host the Campaign pins."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :subject_harness_version, :string do
+      description "The version of that agent host the Campaign pins."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :skill_digest, :string do
+      description "The content digest of the Skill in the verified candidate experiment."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :skill_name, :string do
+      description "The label the publisher sent beside the signed bundle; not signed, not checked."
+      public? true
+    end
+
+    attribute :skill_github_url, :string do
+      description "The GitHub URL the publisher sent beside the signed bundle; not signed, not checked."
+      public? true
+    end
+
+    attribute :baseline_mean, :float do
+      description "The mean reward of the run without the Skill, recomputed from the task list."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :candidate_mean, :float do
+      description "The mean reward of the run with the Skill, recomputed from the task list."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :absolute_delta, :float do
+      description "The mean with the Skill less the mean without it, recomputed from the task list."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :wins, :integer do
+      description "Tasks the candidate scored higher on, recomputed from the task list."
+      allow_nil? false
+      public? true
+      constraints min: 0
+    end
+
+    attribute :losses, :integer do
+      description "Tasks the candidate scored lower on, recomputed from the task list."
+      allow_nil? false
+      public? true
+      constraints min: 0
+    end
+
+    attribute :ties, :integer do
+      description "Tasks the two runs scored the same on, recomputed from the task list."
+      allow_nil? false
+      public? true
+      constraints min: 0
+    end
+
+    attribute :task_count, :integer do
+      description "How many tasks both runs covered."
+      allow_nil? false
+      public? true
+      constraints min: 0
+    end
+
+    attribute :statuses, :map do
+      description "The five statuses the signed report closed with."
+      allow_nil? false
+      default %{}
+      public? true
+    end
+
+    attribute :decision, :string do
+      description "What the signed report concluded, which the Campaign's rule gives for its tasks."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :proof_grade, :string do
+      description "What a result from this Climb may be presented as."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :verification_checks_run, :integer do
+      description "How many checks this site ran before accepting the submission."
+      allow_nil? false
+      public? true
+      constraints min: 1
+    end
+
+    attribute :verification_checks_passed, :integer do
+      description "How many of those checks passed."
+      allow_nil? false
+      public? true
+      constraints min: 1
+    end
+
+    attribute :task_deltas, {:array, :map} do
+      description "Both sides' reward for every task, in the Campaign's committed order."
+      allow_nil? false
+      default []
+      public? true
+    end
+
+    attribute :assessment, Regents.Techtree.Network.Assessment do
+      description "The result and the Skill change as this site worked them out, for the page."
+      public? true
+    end
+
+    attribute :receipt_bytes, :binary do
+      description "The countersigned receipt this site handed back, byte for byte."
+      allow_nil? false
+      public? false
+    end
+
+    attribute :receipt_digest, :string do
+      description "The digest of that receipt's own signed payload."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :network_key_id, :string do
+      description "The fingerprint of the key this site countersigned with."
+      allow_nil? false
+      public? true
+    end
+
+    attribute :withdrawn_at, :utc_datetime_usec do
+      description "When an appended withdrawal marked this entry withdrawn."
+      public? true
+    end
+
+    attribute :withdrawal_receipt_bytes, :binary do
+      description "The countersigned withdrawal receipt this site handed back, byte for byte."
+      public? false
+    end
+
+    attribute :withdrawal_receipt_digest, :string do
+      description "The digest of that withdrawal receipt's own signed payload."
+      public? true
+    end
+
+    attribute :withdrawal_network_key_id, :string do
+      description "The fingerprint of the key this site countersigned the withdrawal with."
+      public? true
+    end
+  end
+
+  relationships do
+    has_many :events, Regents.Techtree.Network.PublicationEvent do
+      description "The events appended against this entry, acceptance first."
+      public? true
+    end
+  end
+
+  identities do
+    identity :unique_bundle_digest, [:bundle_digest]
+    identity :unique_log_sequence, [:log_sequence]
+    identity :unique_participant_run, [:participant_key_id, :run_id]
+  end
+end

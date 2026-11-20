@@ -7639,3 +7639,28 @@ seasons), on the shared Points library regents.sh was already on.
 - The palette blocks Keyfleet's pages copy are the same at both commits, so
   `assets/css/keyfleet/tokens/palette.css` is unchanged. No route, migration,
   setting, secret or wallet code changed.
+
+## 2026-11-20 — one-site branch: Techtree's Results, climbs pages and tdd example (not released)
+
+- Techtree's published Results are on this site at `/techtree/results` and
+  `/techtree/results/:bundle_digest`, with the filters and the agent-version strip,
+  carried from techtree.sh at `c6dba424` with links under `/techtree`.
+  They read Techtree's public run log, whose rows stay in Techtree's own
+  `techtree_app` schema; nothing on this site publishes to it yet.
+- The three climbs pages (`/techtree/climbs/:slug`) and the tdd example
+  (`/techtree/examples/tdd`, from platform/priv/techtree/examples/tdd-showcase/)
+  came with them, and each Result's share picture is at
+  `/techtree/results/:bundle_digest/share.png`.
+- The log's reads answer under `/api/v1/techtree/`: `publications`, one entry,
+  its submitted bundle byte for byte as stored, and `skills/:root_digest`. An
+  entry's `entry_url` names `/techtree/results/<digest>`; the bytes of every
+  bundle and stored receipt are unchanged.
+- Techtree's header and footer gain the Results link, the training page its
+  "← Results", and the Docs' Results and tdd example links now lead somewhere.
+- Not here yet: publishing and withdrawing (and the receipts key address), the
+  Results list's Wallet Bench tile, a Result's own share picture in the page
+  head, and the Markdown and sitemap entries for these pages.
+- The API reads count against this site's 120 requests per 60 seconds; the pages
+  and the share picture are not counted. Two settings came over (the run log's
+  size and publishing limits, and the tdd example's folder). No migration, queue,
+  scheduled job, secret, key or wallet code changed.
