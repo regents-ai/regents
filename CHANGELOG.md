@@ -7337,3 +7337,9 @@ seasons), on the shared Points library regents.sh was already on.
 ## 2026-11-20 — Phoenix LiveView 1.2.14 (security fix)
 
 - Moves `phoenix_live_view` from 1.2.13 to 1.2.14, which fixes advisory CVE-2026-126334: a page could be joined without its address and skip the sign-in checks that run when a page opens. `finch` 0.25.0 and `nimble_pool` 1.2.0 move with it. No page, table or setting changes.
+
+## 2026-11-20 — Released the Phoenix LiveView security fix
+
+- Commit 905bcd67. Full check exit 0 on 905bcd67; the practice run built the image and found no migration pending.
+- Live read, signed out: the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-c97cd374b614.
