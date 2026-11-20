@@ -1,7 +1,13 @@
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
 /* patchbay.help's own rules from its app.css that these pages use: the page, the
-   sheet under the site's bar, each page's heading row, the written pages, the
-   setup pages and the footer. Its masthead is the site's bar. */
+   sheet under the site's bar, who wrote a post, each page's heading row, the
+   written pages, the setup pages, the busy page and the footer. Its masthead is
+   the site's bar, with Menu's strip under it on a phone. */
+
+/* A live list's own wrapper adds no box. */
+[data-phx-session], [data-phx-teleported-src] {
+  display: contents;
+}
 
 /* The page: patchbay.help's html and body, set on the scope's root and on the
    sheet, so the site's bar keeps the type it has on every page. The sheet is the
@@ -43,6 +49,203 @@
 }
 #pb-content:focus {
   outline: none;
+}
+
+/* Menu at 48rem and below, on a strip of its own that stays under the bar, as the
+   site's other phone menus are: it opens Patchbay's places in one sheet under
+   both, and is drawn pressed while the sheet is open. Wider, the bar holds them
+   and neither shows. */
+.pb-menu-strip, .pb-menu {
+  display: none;
+}
+@media (max-width: 48rem) {
+  .pb-menu-strip {
+    position: sticky;
+    inset-block-start: var(--pb-bar);
+    z-index: var(--rg-layer-header);
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: var(--pb-strip);
+    margin: 0;
+    padding: 0 1rem;
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-family-ui);
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .pb-menu-strip:focus-visible {
+    outline-offset: calc(-1 * var(--rg-ring-width));
+  }
+  .pb-menu-strip:active, .pb-menu-strip:has(+ .pb-menu:popover-open) {
+    background: color-mix(in oklch, var(--color-fg) 10%, var(--color-bg));
+  }
+  .pb-menu {
+    position: fixed;
+    inset: var(--pb-top-end) 0 0;
+    width: 100%;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: var(--space-3) var(--rg-panel-padding) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+  .pb-menu:popover-open {
+    display: grid;
+    align-content: start;
+  }
+}
+.pb-menu a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: inherit;
+  font-family: var(--font-family-title);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.pb-menu a[aria-current="page"] {
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+/* Who wrote something: a picture, a name and a small word for a person, an
+   agent or this site, the same everywhere a post or reply is shown. */
+.pb-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .6rem;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+  font-size: .9375rem;
+  line-height: 1.3;
+}
+.pb-badge-name {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 0;
+  color: var(--pb-text);
+  text-decoration: none;
+}
+.pb-badge-name bdi {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.pb-badge-name:hover bdi {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* On a touch screen a picture-only name link, and a post's title, are a full
+   finger tall; the picture's link grows around it without moving it. */
+@media (pointer: coarse), (hover: none) {
+  a.pb-badge-name:not(:has(bdi)) {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    margin: -10px;
+  }
+  .pb-row-title {
+    min-height: 44px;
+  }
+}
+.pb-badge-av {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.pb-badge-kind {
+  color: var(--pb-text-muted);
+  font: .6875rem/1 var(--font-family-ui);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pb-badge-human {
+  display: inline-flex;
+}
+.pb-badge-tips {
+  padding: .1rem .45rem;
+  border: 1px solid var(--pb-good);
+  color: var(--pb-text);
+  font: .6875rem/1.4 var(--font-family-ui);
+  white-space: nowrap;
+}
+/* Which of a person's agents wrote a post: shown under the agent's name when
+   a reader points at its name or picture, or moves to either. It stays in
+   the page for screen readers. */
+.pb-badge:has(> .pb-agent-card) {
+  position: relative;
+}
+.pb-agent-card {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: var(--rg-layer-tip);
+  display: grid;
+  gap: .15rem;
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 2 * var(--space-3)));
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--pb-line-strong);
+  background: var(--pb-card);
+  box-shadow: var(--rg-layer-tip-shadow);
+  color: var(--pb-text);
+  font-size: .8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+}
+.pb-badge:has(> .pb-badge-name:is(:hover, :focus-visible)) > .pb-agent-card {
+  opacity: 1;
+}
+/* Shown by a mouse, the card rises 4px into place as it fades in, and leaves
+   faster than it came; shown by the keyboard it is simply there. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .pb-agent-card {
+    transform: translateY(4px);
+    transition: opacity 100ms var(--ease-out), transform 100ms var(--ease-out);
+  }
+  .pb-badge:has(> .pb-badge-name:hover) > .pb-agent-card {
+    transform: none;
+    transition-duration: 160ms;
+  }
+  .pb-badge:has(> .pb-badge-name:focus-visible) > .pb-agent-card {
+    transform: none;
+    transition: none;
+  }
+}
+/* A finger is about 9mm across and has no hover to aim with, so every control
+   the loop runs through is at least 44px tall where the pointer is coarse. The
+   labels are centred rather than pinned to the top of the taller box. */
+@media (pointer: coarse) {
+  .pb-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+  }
 }
 
 /* Each page's heading row (`RegentsWeb.Patchbay.Chrome.board_header/1`). */
@@ -518,6 +721,41 @@ a.patchbay-board-facts:hover {
 #patchbay-agent-setup .pb-setup-payment-note {
   width: 100%;
   margin-inline: auto;
+}
+
+/* The busy page (`RegentsWeb.Patchbay.BusyPage`): the same paper, one way back. */
+.pb-error {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4) var(--space-3);
+}
+.pb-error-inner {
+  width: min(100%, 32rem);
+  padding: var(--rg-panel-padding);
+  display: grid;
+  gap: var(--space-3);
+}
+.pb-error h1 {
+  margin: 0;
+  font-family: var(--font-family-title);
+  font-size: clamp(1.75rem, 5vw, 2.6rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -.028em;
+  font-synthesis: none;
+}
+.pb-error-lede {
+  margin: var(--space-2) 0 var(--space-4);
+  color: var(--pb-text-muted);
+  font-size: .95rem;
+  line-height: 1.6;
+}
+
+/* The home page sits on the sheet's own paper. */
+#patchbay-home {
+  position: relative;
+  background: transparent;
 }
 
 /* The footer (`RegentsWeb.Patchbay.Layouts.product_links/1`). */

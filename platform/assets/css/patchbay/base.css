@@ -5,7 +5,7 @@
    look from the rules that style them; lists carry no markers unless a rule gives
    them one. patchbay.help's `:root` is the scope's root, the page's <html>. */
 @layer regents-base {
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
   *,
   ::after,
   ::before,

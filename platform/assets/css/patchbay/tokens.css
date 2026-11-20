@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
 /* patchbay.help's own main button, links, focus ring and chosen tab: the patchbay
    palette's, as Regent UI 69dbfface (which patchbay.help at da7b217b wears, with no
    product named) states them. Regent UI's product colours (`data-product`) draw a
@@ -80,11 +80,14 @@
   --pb-fs-md: .96rem;
   --pb-fs-lg: 1.08rem;
   --pb-fs-xl: clamp(1.15rem, 2vw, 1.5rem);
-  /* Where the site's bar ends: 4rem, 3.5rem at 48rem and below (Regent.Site.bar). */
-  --pb-top-end: 4rem;
+  /* Where the top of the screen ends: the site's bar, 4rem tall (Regent.Site.bar),
+     and at 48rem and below its 3.5rem with Menu's strip under it. */
+  --pb-bar: 4rem;
+  --pb-strip: 0rem;
+  --pb-top-end: calc(var(--pb-bar) + var(--pb-strip));
 }
 
 @media (max-width: 48rem) {
-  :scope { --pb-top-end: 3.5rem; }
+  :scope { --pb-bar: 3.5rem; --pb-strip: 2.75rem; }
 }
 }

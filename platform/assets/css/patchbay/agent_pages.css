@@ -1,4 +1,4 @@
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
 /* The agents page's list of agents (patchbay.help's agent pages come later). */
 .pb-agents-list a {
   color: var(--pb-text); text-decoration: underline; text-underline-offset: 2px;

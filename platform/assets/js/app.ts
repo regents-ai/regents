@@ -63,9 +63,12 @@ import {installSiteMenu} from "./techtree/site_menu"
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
 // Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
 import {installShellMenu} from "./autolaunch/shell_menu"
-// Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, and the
-// WebMCP guide's status line. Their copy buttons and motion are the site's own above.
+// Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, the
+// home page's live list and its counting times, and the WebMCP guide's status line.
+// Their copy buttons and other motion are the site's own above.
 import {installEscape} from "./patchbay/escape"
+import {MotionArrivals} from "./patchbay/motion_arrivals"
+import {PatchbayRelativeTime} from "./patchbay/relative_time"
 import {mountWebMCPStatus} from "./patchbay/webmcp_status"
 
 // First, so an error anywhere below is reported too.
@@ -296,6 +299,7 @@ const hooks = {
   InfoDialog,
   KeyfleetShell,
   LabBlocks,
+  MotionArrivals,
   MotionCascade,
   MotionCount,
   MotionList,
@@ -306,6 +310,7 @@ const hooks = {
   MenuAgents,
   OnchainSteps,
   PaperPicks,
+  PatchbayRelativeTime,
   PublicName,
   ResearchScrollCue,
   SentList,

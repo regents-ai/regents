@@ -178,13 +178,6 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :autolaunch
     },
     %Entry{
-      path_pattern: "/patchbay",
-      live_action: :patchbay,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :patchbay
-    },
-    %Entry{
       path_pattern: "/keyfleet",
       live_action: :keyfleet,
       parameter_schema: %{},
@@ -275,9 +268,6 @@ defmodule RegentsWeb.RouteCatalog do
     autolaunch:
       {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
        :regents_labs, %{}},
-    patchbay:
-      {:patchbay, :regent_ops, "Regents Labs", "Patchbay", "/app", [:profile_actions],
-       :regents_labs, %{}},
     keyfleet:
       {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/app", [:profile_actions],
        :regents_labs, %{}},
@@ -294,7 +284,6 @@ defmodule RegentsWeb.RouteCatalog do
     stake: "protocol",
     keyfleet: "keyfleet",
     autolaunch: "autolaunch",
-    patchbay: "patchbay",
     cloak: "cloak",
     siwa: "siwa"
   }

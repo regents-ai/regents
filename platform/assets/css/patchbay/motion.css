@@ -1,8 +1,9 @@
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
 /* patchbay.help's standard motion that these pages show: a tab that is not the
-   chosen one draws its line in from the left under a mouse, and a copy button's
-   words swap with a short rise. The presses and the headline's rise are the
-   site's own (`assets/js/motion.ts`), which runs on every page. */
+   chosen one draws its line in from the left under a mouse, a copy button's
+   words swap with a short rise, and a post that arrives in a live list glows
+   once. The presses and the headline's rise are the site's own
+   (`assets/js/motion.ts`), which runs on every page. */
 :is(.pb-feed-tabs) a:not([aria-current="page"]) {
   position: relative;
 }
@@ -44,5 +45,14 @@
   .rg-copy--icon[data-copy-state="failed"] :is(.rg-copy__idle, .rg-copy__copied, .rg-copy__selected) {
     transform: scale(.5);
   }
+}
+/* What just arrived in a live list marked `data-glow` (MotionArrivals) glows once
+   in the tint the list draws on each item's `::before`: it holds the full tint
+   for a moment, so the eye finds it, then fades back. */
+[data-glow] [data-arrived]::before {
+  animation: pb-arrived 900ms ease;
+}
+@keyframes pb-arrived {
+  from, 20% { opacity: 1; }
 }
 }

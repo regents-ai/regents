@@ -1,0 +1,137 @@
+defmodule RegentsWeb.Patchbay.Forum.Discussions do
+  @moduledoc """
+  The home page's question lists, read from the stored threads
+  (`Regents.Patchbay.Forum.Feed`): the filters a list is read with, one page
+  of it, and how many threads it holds. Reading a list writes nothing.
+  """
+
+  alias Regents.Patchbay.Forum
+  alias Regents.Patchbay.Forum.Feed
+  alias Regents.Patchbay.Forum.FeedCount
+  alias Regents.Patchbay.Forum.Origin
+  alias RegentsWeb.Endpoint
+
+  @salt "discussion-pages-v1"
+  # Ten rows a page keeps the home page short on a phone; older posts are a
+  # link away.
+  @page_size 10
+  # A site's status links to "open", beside "solved"; it is no home page tab.
+  @scopes ~w(newest unanswered open solved following)
+  @loads [
+    :author,
+    :person,
+    :reply_count,
+    :solved,
+    :view_count,
+    :post_like_count,
+    :bounty_open,
+    :verified_paid_usdc_atomic,
+    :post_kind,
+    :address,
+    :site
+  ]
+
+  @doc "How many threads one page of a question list holds."
+  @spec page_size() :: pos_integer()
+  def page_size, do: @page_size
+
+  @doc """
+  The filters a question list is read with. `site` narrows the list to one
+  site, named exactly by the domain Patchbay files it under; any other value
+  is refused as `{:error, :unknown_site}`. Whether Patchbay has a record of
+  that site is read with the list itself (`page/2`).
+  """
+  @spec filters(map()) :: {:ok, map()} | {:error, :unknown_site}
+  def filters(params) do
+    with {:ok, site} <- site(params["site"]) do
+      {:ok,
+       %{
+         q: text(params["q"], 200),
+         site: site,
+         tool: text(params["tool"], 64),
+         tag: text(params["tag"], 64),
+         scope: if(params["scope"] in @scopes, do: params["scope"], else: "newest"),
+         sort: if(params["sort"] == "popular", do: "popular", else: "recent"),
+         source_kind: source_kind(params["source_kind"])
+       }}
+    end
+  end
+
+  # The Advisories tab lists what was copied from cve.now; any other value
+  # is the list it would be without one.
+  defp source_kind("advisory"), do: :advisory
+  defp source_kind("original"), do: :original
+  defp source_kind(_none), do: nil
+
+  defp site(absent) when absent in [nil, ""], do: {:ok, ""}
+
+  defp site(domain) when is_binary(domain) do
+    case Origin.normalize(domain) do
+      {:ok, ^domain} -> {:ok, domain}
+      _not_a_domain -> {:error, :unknown_site}
+    end
+  end
+
+  defp site(_not_text), do: {:error, :unknown_site}
+
+  @doc """
+  One page of the question list, after the page `token` names (nil for the
+  first). A list narrowed to a site Patchbay has no record of is
+  `{:error, :unknown_site}`, a token signed for other filters
+  `{:error, :invalid_cursor}`; a list that could not be read is the read's
+  own error.
+  """
+  @spec page(map(), String.t() | nil) ::
+          {:ok, [Forum.Report.t()], String.t() | nil} | {:error, term()}
+  def page(filters, token) do
+    with :ok <- on_record(filters.site),
+         {:ok, keyset} <- verify(token, filters),
+         {:ok, page} <-
+           Forum.list_feed_reports(
+             query: Feed.query(filters),
+             page: if(keyset, do: [limit: @page_size, after: keyset], else: [limit: @page_size])
+           ),
+         {:ok, page} <- Ash.load(page, @loads) do
+      {:ok, page.results, continuation(page, filters)}
+    end
+  end
+
+  @doc """
+  How many threads a question list holds, across all its pages, kept a minute
+  (`Regents.Patchbay.Forum.FeedCount`).
+  """
+  @spec count(map()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(filters), do: FeedCount.count(filters)
+
+  defp on_record(""), do: :ok
+
+  defp on_record(domain) do
+    case Forum.get_site_by_origin(domain, not_found_error?: false) do
+      {:ok, nil} -> {:error, :unknown_site}
+      {:ok, _site} -> :ok
+      {:error, failure} -> {:error, failure}
+    end
+  end
+
+  defp continuation(%{more?: true, results: results}, filters) do
+    Phoenix.Token.sign(Endpoint, @salt, {filters, List.last(results).__metadata__.keyset})
+  end
+
+  defp continuation(_page, _filters), do: nil
+
+  defp verify(nil, _filters), do: {:ok, nil}
+
+  defp verify(token, filters) when is_binary(token) and byte_size(token) <= 8192 do
+    case Phoenix.Token.verify(Endpoint, @salt, token, max_age: :infinity) do
+      {:ok, {^filters, keyset}} when is_binary(keyset) -> {:ok, keyset}
+      _ -> {:error, :invalid_cursor}
+    end
+  end
+
+  defp verify(_token, _filters), do: {:error, :invalid_cursor}
+
+  defp text(value, limit) when is_binary(value),
+    do: value |> String.trim() |> String.slice(0, limit)
+
+  defp text(_value, _limit), do: ""
+end

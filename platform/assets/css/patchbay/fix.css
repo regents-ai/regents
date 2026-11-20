@@ -1,0 +1,12 @@
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* Signed out, the form says before anything is written that posting takes a sign-in. */
+.pb-hero-sign-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .25rem .75rem;
+  margin: 0;
+  font-size: .8125rem;
+}
+}

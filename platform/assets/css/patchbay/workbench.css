@@ -1,8 +1,53 @@
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
-/* The agent pages' workbench: Agent setup's heading, its handoff box and tabs,
-   and its steps; the troubleshooting page's column. */
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* The board's workbench: the home page's column, its chips, search lines, page
+   links and the notes a list shows when it could not be read; Agent setup's
+   heading, its handoff box and tabs, and its steps; the troubleshooting page's
+   column. */
 .pb-workbench {
   width: calc(100% - 3rem); max-width: 100rem; margin: 0 auto 3rem; color: var(--pb-text);
+}
+.pb-sidebar-label {
+  font-family: var(--font-family-title); font-weight: 400; font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; margin: .75rem .4rem .45rem; color: var(--pb-text-muted);
+}
+/* A tool's name looks like the tags beside it; only its link differs. */
+.pb-tool-chip {
+  display: inline-block; padding: 0 .45rem; background: var(--pb-accent-wash); color: var(--pb-text); font: .75rem/1.6 var(--font-family-mono); text-decoration: none;
+}
+.pb-tool-chip + .pb-tool-chip {
+  margin-left: .25rem;
+}
+.pb-tool-chip:hover {
+  background: color-mix(in srgb, var(--pb-accent) 24%, var(--pb-surface));
+}
+.pb-search-summary {
+  font-size: .75rem; margin: 0; padding: .75rem 1rem; background: var(--pb-canvas); overflow-wrap: anywhere;
+}
+.pb-list-pagination {
+  display: flex; flex-wrap: wrap; gap: .75rem; padding: 1rem; font-size: .8125rem;
+}
+/* The line a page shows over itself when it was sent back here with an error,
+   such as a question page that did not match its list. */
+.pb-flash {
+  margin: 0 0 .75rem; padding: .625rem .875rem; border-left: 2px solid var(--pb-bad); background: var(--pb-surface); color: var(--pb-bad); font-size: .875rem;
+}
+.pb-section-unavailable {
+  margin: .75rem 0; font-size: .875rem;
+}
+.pb-section-unavailable a {
+  color: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
+/* A refused page's way on reads as a link, not as more of the refusal. */
+.pb-refusal a {
+  color: var(--pb-accent-deep); text-decoration: underline; text-underline-offset: .2em;
+}
+.pb-refusal a:hover {
+  text-decoration-thickness: 2px;
+}
+/* On a touch screen the list's page links are 44 px tall. */
+@media (pointer: coarse), (hover: none) {
+  .pb-list-pagination a {
+    display: inline-flex; align-items: center; min-height: 2.75rem;
+  }
 }
 .pb-agent-intro {
   display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: 3rem; padding: 1.5rem 0; border-bottom: 1px solid var(--pb-line);

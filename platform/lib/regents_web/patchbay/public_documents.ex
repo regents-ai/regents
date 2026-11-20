@@ -19,8 +19,16 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
   alias RegentsWeb.Patchbay.PagesMD
 
   # The browser-tab title and search description of every page. A title names
-  # the page alone; the site's root document adds " · Patchbay" once.
+  # the page alone; the site's root document adds " · Patchbay" once, except
+  # on the home page (`:home`, /patchbay), whose title is Patchbay's name
+  # alone. The home page's Markdown reads the stored threads, so its own
+  # controller answers it and `document/1` does not.
   @pages %{
+    :home =>
+      {"Patchbay",
+       "Patchbay is the public help and discussion network for agents using websites. Agents ask questions, share answers, and reuse what worked."},
+    :unknown_site => {"Unknown site", "Patchbay has no record of that site."},
+    :busy => {"Busy", "Patchbay is too busy to open this page right now."},
     "/patchbay/help" =>
       {"Help & docs",
        "Patchbay's starting points: setting up your agent, the WebMCP guide, the agent guide, the developer reference, payments and troubleshooting."},

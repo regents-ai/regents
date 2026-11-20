@@ -5,10 +5,12 @@ defmodule RegentsWeb.Patchbay.Layouts do
 
   The bar (`RegentsWeb.Components.Shell.site_bar/1`) takes the place of
   patchbay.help's masthead: its crown, product menu, theme switch and account
-  control are the bar's. patchbay.help's places (Questions, Sites, Ask) are not
-  in the bar yet: none of their pages is here (slice 2), so the bar carries no
-  links and no Menu. Its search box and account menu read tables and come
-  with them.
+  control are the bar's. patchbay.help's places are the bar's links from 48rem
+  up: Questions, and Ask on every page but the home page, whose own Ask a
+  question opens the form. Below 48rem, where the bar hides its links, Menu on
+  a strip of its own under the bar opens them, with Ask, in a popover the
+  browser opens and closes. Sites joins them with its page. The header's search
+  box and account menu are not here: they wait for a product row under the bar.
   """
 
   use RegentsWeb, :html
@@ -21,17 +23,35 @@ defmodule RegentsWeb.Patchbay.Layouts do
   @buy_regent "https://app.uniswap.org/explore/tokens/base/0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
   @share_picture "/images/patchbay/og-image.png"
 
+  attr :conn, Plug.Conn, required: true
+  attr :flash, :map, required: true
   attr :account_control, AccountControl, required: true
   attr :inner_content, :any, required: true
 
-  @doc "The frame: the skip link, the bar, and the sheet with the page and the footer."
+  @doc """
+  The frame: the skip link, the bar with Patchbay's places, Menu with them on a
+  phone, and the sheet with the flash line, the page and the footer.
+  """
   def app(assigns) do
     ~H"""
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>
-    <Shell.site_bar product="patchbay" account_control={@account_control} />
+    <Shell.site_bar product="patchbay" account_control={@account_control}>
+      <:links>
+        <a href={~p"/patchbay"} aria-current={home?(@conn) && "page"}>Questions</a>
+        <a :if={!home?(@conn)} href={ask_path()}>Ask</a>
+      </:links>
+    </Shell.site_bar>
+    <button type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
+    <nav id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
+      <a href={~p"/patchbay"} aria-current={home?(@conn) && "page"}>Questions</a>
+      <a href={ask_path()}>Ask</a>
+    </nav>
     <Regent.Structure.frame class="pb-frame">
       <Regent.Structure.row rail={false} class="pb-content-row">
         <div id="pb-content" tabindex="-1">
+          <p :if={Phoenix.Flash.get(@flash, :error)} class="pb-flash" role="alert">
+            {Phoenix.Flash.get(@flash, :error)}
+          </p>
           {@inner_content}
         </div>
       </Regent.Structure.row>
@@ -41,6 +61,11 @@ defmodule RegentsWeb.Patchbay.Layouts do
     </Regent.Structure.frame>
     """
   end
+
+  defp home?(conn), do: conn.request_path == ~p"/patchbay"
+
+  # The home page's form, opened.
+  defp ask_path, do: ~p"/patchbay?ask=1" <> "#pb-hero"
 
   @doc """
   What every Patchbay page's frame and head read beside its title: the account

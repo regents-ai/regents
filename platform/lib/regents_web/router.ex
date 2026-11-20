@@ -343,7 +343,6 @@ defmodule RegentsWeb.Router do
       live "/redeem", ShellLive, :redeem
       live "/redeem/gallery", ShellLive, :redeem_gallery
       live "/autolaunch", ShellLive, :autolaunch
-      live "/patchbay", ShellLive, :patchbay
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
       live "/siwa", ShellLive, :siwa
@@ -421,6 +420,7 @@ defmodule RegentsWeb.Router do
   scope "/patchbay", RegentsWeb.Patchbay do
     pipe_through [:patchbay_browser, :patchbay]
 
+    get "/", Forum.BoardController, :home
     get "/help", PagesController, :help
     get "/about", PagesController, :about
     get "/privacy", PagesController, :privacy

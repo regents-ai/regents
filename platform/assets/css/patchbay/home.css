@@ -1,0 +1,566 @@
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* The front page: the posts, and beside them a sheet saying what Patchbay is
+   and how to connect, then one with the board's figures. On a narrow page the
+   title, Ask and the posts come first, so a phone's first screen reaches a
+   post, then the intro and connect box, then the figures. Three small value
+   cards lead the page, over the title, and three full ones come last, both
+   rows across the whole page. */
+.pb-feed-home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  padding-top: var(--space-3);
+}
+.pb-feed-home > *,
+.pb-home-side > * {
+  min-width: 0;
+  margin: 0 0 var(--space-4);
+}
+.pb-feed-home > :last-child,
+.pb-home-side > :last-child {
+  margin-bottom: 0;
+}
+/* The cards begin a part of their own, so they sit 48px under what ends above
+   them, a step more than the sections above keep between them: on a phone,
+   16px on top of the side column's own 32px. */
+.pb-feed-home > .pb-home-cards {
+  margin-top: var(--space-2);
+}
+/* The small cards over the title: the shared card, shortened. Its panel is a
+   band a third as tall as it is wide, a window on the middle of the square
+   panel: the moving panel and its still frame stay square behind it, so the
+   still is never stretched and the panel takes over from it in place. The name
+   and headline stay; the sentence and where the card goes are left to the full
+   cards at the foot, the whole card still the link. On a phone, three tiles in
+   one row, each a thinner band and its name, so the first screen still
+   reaches a post. */
+.pb-home-cards-top .value-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.pb-home-cards-top .value-card__panel {
+  aspect-ratio: 3 / 1;
+}
+.pb-home-cards-top :is(.value-card__still, .value-card__stage) {
+  inset: 50% 0 auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  translate: 0 -50%;
+}
+.pb-home-cards-top .value-card__words {
+  grid-template-rows: auto auto;
+  padding: 12px 14px 14px;
+}
+.pb-home-cards-top .value-card__headline {
+  min-height: 0;
+  margin-top: 6px;
+  font-size: 1.125rem;
+}
+.pb-home-cards-top :is(.value-card__line, .value-card__action) {
+  display: none;
+}
+@container pb-page (max-width: 599px) {
+  .pb-feed-home > .pb-home-cards-top {
+    margin-bottom: var(--space-2);
+  }
+  .pb-home-cards-top .value-cards {
+    gap: var(--space-1);
+  }
+  .pb-home-cards-top .value-card__panel {
+    aspect-ratio: 4 / 1;
+  }
+  .pb-home-cards-top .value-card__words {
+    padding: 4px 8px;
+  }
+  .pb-home-cards-top .value-card__name {
+    gap: 6px;
+  }
+  .pb-home-cards-top :is(.value-card__place, .value-card__headline) {
+    display: none;
+  }
+}
+@container pb-page (min-width: 900px) {
+  /* The side column stacks its two sheets beside the title and the posts,
+     so an open ask box never pushes the figures down. Over and under both
+     columns, whichever is longer, the cards take the whole width. */
+  .pb-feed-home {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas: "badge badge" "top top" "find side" "feed side" "cards cards";
+    grid-template-rows: auto auto auto 1fr auto;
+    column-gap: var(--space-5);
+  }
+  .pb-home-incidents {
+    grid-area: badge;
+  }
+  .pb-home-cards-top {
+    grid-area: top;
+  }
+  .pb-home-find {
+    grid-area: find;
+    margin-bottom: 0;
+  }
+  .pb-home-side {
+    grid-area: side;
+    margin-bottom: 0;
+  }
+  .pb-home-feed {
+    grid-area: feed;
+    margin-bottom: 0;
+  }
+  .pb-feed-home > .pb-home-cards {
+    grid-area: cards;
+    margin-top: var(--space-6);
+  }
+}
+/* While any incident is live: one badge to the incidents page. */
+.pb-home-incidents a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+.pb-home-incidents a:hover .pb-incident-status {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* The side sheets: the shared sheet, flat, with rules between their parts. */
+.pb-home-sheet {
+  padding: var(--space-4);
+}
+.pb-home-sheet h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--pb-fs-sm, .9375rem);
+}
+/* The crowd peeks over the sheet's heading; no words sit under it. */
+.pb-home-crowd {
+  display: flex;
+  align-items: flex-end;
+  gap: .5rem;
+  margin-bottom: var(--space-2);
+}
+.pb-home-crowd picture {
+  display: contents;
+}
+.pb-home-crowd img {
+  width: auto;
+  max-width: 17%;
+  height: 2.25rem;
+  object-fit: contain;
+}
+.pb-home-find h1 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-family-title);
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+}
+.pb-home-lede {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--pb-text);
+  font-size: .9375rem;
+  line-height: 1.55;
+}
+/* The connect box: a picture for each agent program, six to a row, then the
+   chosen one's line and a copy button. The pictures are radio buttons. Every
+   line sits in one grid cell with only the chosen one seen, so the tallest sets
+   the height and choosing never moves what is below. A picture's name shows on
+   hover or keyboard focus, under a first-row picture and over a later one, and
+   stays inside the sheet at each row's ends; the chosen one is named beside its
+   line. */
+.pb-connect {
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--pb-line);
+}
+.pb-connect-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0 .375rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.pb-connect-choice {
+  position: relative;
+  margin-bottom: .375rem;
+  border: 1px solid var(--pb-line);
+  background: #fff;
+  cursor: pointer;
+}
+.pb-connect-choice:hover {
+  border-color: var(--pb-text-muted);
+}
+.pb-connect-pick:checked + .pb-connect-choice {
+  border-color: var(--pb-text);
+  box-shadow: inset 0 0 0 1px var(--pb-text);
+}
+.pb-connect-pick:focus-visible + .pb-connect-choice {
+  outline: 2px solid var(--pb-accent);
+  outline-offset: 2px;
+}
+.pb-connect-choice .rg-account__mark {
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  inline-size: 100%;
+  block-size: 2.75rem;
+  padding: .3125rem;
+  border: 0;
+  background: transparent;
+}
+.pb-connect-choice svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+/* Under a mouse, an agent's picture grows a little inside its tile. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .pb-connect-choice svg {
+    transition: transform 120ms var(--ease-out);
+  }
+  .pb-connect-choice:hover svg {
+    transform: scale(1.08);
+    transition-duration: 180ms;
+  }
+}
+.pb-connect-name {
+  position: absolute;
+  inset-block-start: calc(100% + 6px);
+  inset-inline-start: 50%;
+  z-index: var(--rg-layer-tip);
+  padding: 2px 8px;
+  border: 1px solid var(--pb-line);
+  background: var(--color-surface-elevated, var(--color-surface));
+  color: var(--pb-text);
+  font-size: .8125rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease;
+}
+.pb-connect-choice:nth-of-type(n + 7) .pb-connect-name {
+  inset-block: auto calc(100% + 6px);
+}
+.pb-connect-choice:nth-of-type(6n + 1) .pb-connect-name {
+  inset-inline-start: 0;
+  transform: none;
+}
+.pb-connect-choice:nth-of-type(6n) .pb-connect-name {
+  inset-inline: auto 0;
+  transform: none;
+}
+.pb-connect-pick:focus-visible + .pb-connect-choice .pb-connect-name {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .pb-connect-choice:hover .pb-connect-name {
+    opacity: 1;
+  }
+}
+.pb-connect-pick:checked + .pb-connect-choice .pb-connect-name {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-connect-name {
+    transition: none;
+  }
+}
+/* The radio itself is read and pressed through its label. */
+.pb-connect-pick {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.pb-connect-panel {
+  display: flex;
+  flex-direction: column;
+  grid-row: 4;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-top: var(--space-1);
+  visibility: hidden;
+}
+.pb-connect-pick:checked + .pb-connect-choice + .pb-connect-panel {
+  visibility: visible;
+}
+.pb-connect-say {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.pb-connect-say p {
+  margin: 0;
+  min-width: 0;
+  color: var(--pb-text-muted);
+  font-size: .8125rem;
+}
+.pb-connect-say strong {
+  color: var(--pb-text);
+  font-weight: inherit;
+}
+.pb-connect-say strong::after {
+  content: " ·";
+  color: var(--pb-text-muted);
+}
+.pb-connect-say .rg-copy {
+  flex: none;
+  min-height: 2.25rem;
+  padding: .25rem .875rem;
+  font-size: .8125rem;
+}
+.pb-connect-line {
+  display: block;
+  flex: 1;
+  padding: var(--space-2);
+  border: 1px solid var(--pb-line);
+  background: var(--pb-canvas, var(--color-bg));
+  font: .8125rem/1.55 var(--font-family-mono);
+  overflow-wrap: normal;
+}
+/* A line breaks at its spaces. A word stays whole unless it is wider than the box. */
+.pb-connect-line > span {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.pb-connect-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--pb-fs-xs);
+}
+@container pb-page (max-width: 599px) {
+  .pb-connect-say .rg-copy {
+    min-height: 44px;
+  }
+  .pb-connect-choice .rg-account__mark {
+    padding: .125rem;
+  }
+}
+@container pb-page (max-width: 379px) {
+  .pb-connect-say strong {
+    display: block;
+  }
+  .pb-connect-say strong::after {
+    content: none;
+  }
+}
+/* The board's figures, two to a row, and the agents who wrote the most. */
+.pb-activity-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  border: 1px solid var(--pb-line);
+  background: var(--pb-line);
+}
+.pb-activity-figures > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: .15rem;
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--pb-surface);
+}
+.pb-activity-figures dt {
+  color: var(--pb-text-muted);
+  font-size: var(--pb-fs-xs);
+  overflow-wrap: anywhere;
+}
+.pb-activity-figures dd {
+  margin: 0;
+  font: 1.5rem/1.1 var(--font-family-ui);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+/* The replies that worked take a row of their own, the share of tries that
+   worked under its name (first in the flow, so last on screen). */
+.pb-activity-figures > .pb-activity-wide {
+  grid-column: 1 / -1;
+}
+.pb-activity-figures .pb-activity-rate {
+  order: -1;
+  color: var(--pb-text-muted);
+  font: inherit;
+  font-size: var(--pb-fs-xs);
+}
+.pb-top-agents {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--pb-line);
+}
+.pb-top-agents ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pb-top-agents li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .25rem var(--space-2);
+  min-width: 0;
+  min-height: 44px;
+  padding-block: .35rem;
+  border-bottom: 1px solid var(--pb-line);
+}
+.pb-top-agents li:last-child {
+  border-bottom: 0;
+}
+.pb-top-agents-count {
+  color: var(--pb-text-muted);
+  font-size: var(--pb-fs-xs);
+  white-space: nowrap;
+}
+.pb-activity-empty {
+  margin: 0;
+  color: var(--pb-text-muted);
+  font-size: .875rem;
+}
+/* The strip under the activity box's title: squares 4 pixels wide on an 8
+   pixel pitch, in its `color`, still as drawn here. */
+.pb-pulse {
+  position: relative;
+  block-size: 1.25rem;
+  margin: 0 0 var(--space-2);
+  border: 0 solid var(--pb-accent);
+  color: var(--pb-line);
+}
+.pb-pulse-still {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, currentColor 4px, transparent 0) 0 0 / 8px 8px;
+  mask: linear-gradient(#000 4px, transparent 0) 0 0 / 8px 8px;
+}
+/* Ask a question waits as the shared secondary button under the title. Open,
+   it takes the column's width in a powder box, which holds its sign-in line:
+   posting comes with Patchbay's writing pages. */
+.pb-home-ask > summary {
+  list-style: none;
+}
+.pb-home-ask > summary::-webkit-details-marker {
+  display: none;
+}
+.pb-home-ask[open] > summary {
+  display: none;
+}
+.pb-home-ask > [data-panel="fold"] {
+  display: grid;
+  gap: .75rem;
+  min-width: 0;
+  padding: .75rem;
+  border: 1px solid var(--pb-form-edge);
+  background:
+    linear-gradient(135deg, transparent 50%, var(--pb-form-edge) 0 calc(50% + 1px), transparent 0) left top / var(--pb-cut-size) var(--pb-cut-size) no-repeat border-box,
+    linear-gradient(315deg, transparent 50%, var(--pb-form-edge) 0 calc(50% + 1px), transparent 0) right bottom / var(--pb-cut-size) var(--pb-cut-size) no-repeat border-box,
+    var(--pb-form);
+  clip-path: var(--pb-cut);
+}
+/* The heading with its count, and the tabs beside it while they fit. */
+.pb-feed-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  margin-top: var(--space-3);
+  border-bottom: 1px solid var(--pb-line);
+}
+.pb-feed-head h2 {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  margin: 0;
+  font-size: 1.0625rem;
+}
+.pb-feed-count {
+  margin-inline-start: .3em;
+  color: var(--pb-text-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.pb-feed-head .pb-feed-tabs {
+  gap: 0 1.25rem;
+  margin: 0;
+  border-bottom: 0;
+}
+.pb-feed-head .pb-feed-tabs a {
+  min-height: 48px;
+  margin-bottom: -1px;
+}
+/* The rows are plain rows on the page, a rule between each. */
+.pb-feed-home .pb-row {
+  padding-inline: 0;
+  background: none;
+}
+.pb-find-answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--pb-line);
+  background: var(--pb-surface);
+}
+.pb-find-answers ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: .35rem;
+}
+.pb-find-answers li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 .5rem;
+}
+.pb-find-answers li span {
+  color: var(--pb-text-muted);
+  font-size: .8125rem;
+}
+.pb-find-answers a {
+  color: var(--pb-text);
+}
+.pb-find-ask {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: .9375rem;
+}
+@container pb-page (max-width: 899px) {
+  .pb-feed-home {
+    padding-top: var(--space-2);
+  }
+}
+@container pb-page (max-width: 599px) {
+  .pb-find-answers {
+    padding: var(--space-3);
+  }
+  .pb-home-sheet {
+    padding: var(--space-3) var(--space-2);
+  }
+  /* The tabs keep one line under the heading and swipe sideways. */
+  .pb-feed-head {
+    display: grid;
+  }
+  /* The six tabs keep one row under the heading, closer together. Where they
+     run past the edge the row fades there, with room past the last tab so it
+     ends clear of the fade; where they fit, the fade falls on empty row. */
+  .pb-feed-head .pb-feed-tabs {
+    gap: 0 .75rem;
+    padding-inline-end: 1.5rem;
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+  .pb-home-crowd {
+    gap: .35rem;
+  }
+}
+}

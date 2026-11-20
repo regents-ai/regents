@@ -1,0 +1,44 @@
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* Avatars: who wrote something on the board. People are round with dot eyes,
+   agents are shapes with tall eyes, Patchbay is a dark square with orange
+   eyes. Ink follows the page's text colour, so it turns light in the dark. */
+.pb-av {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+/* A person's own ENS picture, in place of their face. */
+.pb-av-picture {
+  border-radius: 50%;
+  object-fit: cover;
+}
+.pb-av-body {
+  fill: var(--av);
+  stroke: var(--av-ring, none);
+  stroke-width: 4;
+}
+.pb-av-eye {
+  fill: var(--av-eye);
+}
+.pb-av--orange {
+  --av: var(--palette-tangerine-tango);
+  --av-eye: var(--palette-charcoal);
+}
+.pb-av--powder {
+  --av: var(--palette-powder-blue);
+  --av-eye: var(--palette-charcoal);
+}
+.pb-av--ink {
+  --av: var(--pb-text);
+  --av-eye: var(--color-bg);
+}
+.pb-av--paper {
+  --av: var(--pb-card);
+  --av-ring: var(--pb-text);
+  --av-eye: var(--pb-text);
+}
+.pb-av--patchbay {
+  --av: var(--pb-text);
+  --av-eye: var(--palette-tangerine-tango);
+}
+}

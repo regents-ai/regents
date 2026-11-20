@@ -1,19 +1,23 @@
 /* Patchbay's stylesheets, as patchbay.help orders them (regents-ai/patchbay
    platform/assets/css/app.css, SOURCE.json), cut to the rules the pages brought so
    far use. Each file is wrapped in
-   `@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame)`, so it
-   applies only to a page in Patchbay's own sheet (`.pb-frame`) and never to the
-   /patchbay overview, which is regents.sh's frame and keeps the shared product
-   colours; a scoped rule keeps its own specificity and wins over an unscoped rule of
-   the same specificity. Regent UI's tokens and primitives, with the patchbay palette
-   the page wears (`data-brand="patchbay"`), come from the site's own app.css, and
-   patchbay.help's app.css rules come last, after its imports, as there. */
+   `@scope (:root[data-product="patchbay"]) to (.regents-frame)`, so it applies only
+   to Patchbay's pages and never inside regents.sh's frame, which keeps the shared
+   product colours; a scoped rule keeps its own specificity and wins over an
+   unscoped rule of the same specificity.
+   Regent UI's tokens and primitives, with the patchbay palette the page wears
+   (`data-brand="patchbay"`), come from the site's own app.css, and patchbay.help's
+   app.css rules come last, after its imports, as there. */
 @import "./tokens.css";
 @import "./base.css";
 @import "./motion.css";
+@import "./faces.css";
 @import "./workbench.css";
 @import "./feed.css";
+@import "./fix.css";
+@import "./home.css";
 @import "./changelog.css";
 @import "./agent_pages.css";
 @import "./troubleshooting.css";
+@import "./incidents.css";
 @import "./app.css";

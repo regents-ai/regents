@@ -1,0 +1,53 @@
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* A CVE's badges, the same on every page that lists or opens one: a quiet
+   CVE, its severity with its score in the level's colour (the level is
+   always written out), Exploited, and Fix available. Each is the colour of
+   its tone over a light wash of it, so it reads on any ground. Critical
+   takes the palette's purple, drawn toward the text colour so it keeps its
+   contrast in both themes. */
+:scope {
+  --pb-cve-critical: color-mix(in srgb, var(--color-category-4) 60%, var(--color-fg));
+}
+.pb-cve-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.pb-cve-badge {
+  --pb-cve-tone: var(--pb-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--pb-cve-tone) 14%, transparent);
+  color: var(--pb-cve-tone);
+  font: 500 .75rem/1.5 var(--font-family-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pb-cve-badge[data-severity="critical"] {
+  --pb-cve-tone: var(--pb-cve-critical);
+}
+.pb-cve-badge[data-severity="critical"]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pb-cve-badge[data-severity="high"],
+.pb-cve-badge[data-tone="exploited"] {
+  --pb-cve-tone: var(--color-error);
+}
+.pb-cve-badge[data-severity="medium"] {
+  --pb-cve-tone: var(--color-warning);
+}
+.pb-cve-badge[data-severity="low"] {
+  --pb-cve-tone: var(--color-info);
+}
+.pb-cve-badge[data-tone="fix"] {
+  --pb-cve-tone: var(--color-success);
+}
+}

@@ -1,5 +1,6 @@
-@scope (:root[data-product="patchbay"]:has(.pb-frame)) to (.regents-frame) {
-/* The row of tabs: on these pages, Agent setup's tab for each agent. */
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* The row of tabs: the home page's question lists, and Agent setup's tab for each
+   agent. */
 .pb-feed-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -28,7 +29,248 @@
   outline: 2px solid var(--pb-accent);
   outline-offset: 3px;
 }
+.pb-feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* One question per row: a round badge with the opening post's likes and the
+   reply count under it, in a column of fixed width so every title starts at
+   the same place; then who asked, the title, a few lines of the post and its
+   chips. The same row on every list. */
+.pb-row {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: .5rem 1rem;
+  min-width: 0;
+  padding: 1rem;
+  border-bottom: 1px solid var(--pb-card-line);
+  background: var(--pb-card);
+}
+.pb-row:last-child {
+  border-bottom: 0;
+}
+/* A row a mouse is over takes a light tint and underlines its title; a row
+   that has just arrived glows once in the full tint (MotionArrivals). The tint
+   sits under the row's words, and a row whose agent card is open stands above
+   the rows after it, so the card is never under them. */
+.pb-row {
+  position: relative;
+  z-index: 0;
+}
+.pb-row:is(:hover, :focus-within) {
+  z-index: 1;
+}
+.pb-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--pb-accent-wash);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pb-row:hover::before {
+    opacity: .5;
+    transition-duration: 160ms;
+  }
+  .pb-row:hover .pb-row-title {
+    text-decoration: underline;
+  }
+}
+.pb-row-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .4rem;
+  width: 3.5rem;
+  margin: 0;
+  color: var(--pb-text-muted);
+  font-size: .75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.pb-row-stats strong {
+  color: var(--pb-text);
+  font-variant-numeric: tabular-nums;
+}
+.pb-row-likes {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  --pill-h: 2.75rem;
+  min-width: var(--pill-h);
+  height: var(--pill-h);
+  padding-inline: .35rem;
+  border: 2px solid var(--pb-line);
+  border-radius: calc(var(--pill-h) / 2);
+  font: .875rem/1 var(--font-family-ui);
+}
+.pb-row-replies {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .1rem .35rem;
+  border: 1px solid transparent;
+}
+/* The asker marked an answer: the count is filled green. */
+.pb-row-replies.is-solved {
+  border-color: var(--pb-good);
+  background: var(--pb-good);
+  color: var(--color-bg);
+}
+.pb-row-replies.is-solved strong {
+  color: inherit;
+}
+.pb-row-main {
+  display: grid;
+  gap: .35rem;
+  min-width: 0;
+}
+/* Who asked, for whom and when. The kind of author is a chip of one width. */
+.pb-row-by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .2rem .5rem;
+  min-width: 0;
+  margin: 0;
+  color: var(--pb-text-muted);
+  font-size: .8125rem;
+  line-height: 1.4;
+}
+.pb-row-by .pb-badge {
+  font-size: .8125rem;
+}
+.pb-row-by .pb-badge-name bdi {
+  max-width: min(18rem, 60vw);
+}
+.pb-row-by .pb-badge-kind {
+  display: inline-block;
+  min-width: 3.25rem;
+  padding: .2rem .3rem;
+  border: 1px solid var(--pb-line);
+  text-align: center;
+}
+.pb-badge-for {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pb-badge-for bdi {
+  color: var(--pb-text);
+}
+.pb-row-title {
+  color: var(--pb-text);
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.pb-row-title:hover {
+  text-decoration: underline;
+}
+.pb-row-excerpt {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--pb-text-muted);
+  font-size: .875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+.pb-row-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem .5rem;
+  min-width: 0;
+  color: var(--pb-text-muted);
+  font-size: .75rem;
+  line-height: 1.6;
+}
+.pb-tag {
+  display: inline-block;
+  padding: 0 .45rem;
+  background: var(--pb-accent-wash);
+  color: var(--pb-text);
+  font: .75rem/1.6 var(--font-family-ui);
+  text-decoration: none;
+}
+a.pb-tag:hover {
+  background: color-mix(in srgb, var(--pb-accent) 24%, var(--pb-surface));
+}
+/* A tag or tool name under a mouse lifts a little; pressed, it settles back. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  a:is(.pb-tag, .pb-tool-chip) {
+    transition: transform 150ms var(--ease-out);
+  }
+  a:is(.pb-tag, .pb-tool-chip):hover {
+    transform: translateY(-2px);
+  }
+  a:is(.pb-tag, .pb-tool-chip):active {
+    transform: none;
+    transition-duration: 80ms;
+  }
+}
+.pb-site-chip {
+  color: var(--pb-text);
+}
+.pb-row-foot .pb-feed-bounty {
+  color: var(--pb-text);
+}
+.pb-row-foot .pb-tag {
+  overflow-wrap: anywhere;
+}
+/* On a phone each chip is a full finger tall; only its band is drawn. */
 @container pb-page (max-width: 599px) {
+  .pb-row-foot :is(.pb-tag, .pb-tool-chip) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    background: linear-gradient(var(--pb-accent-wash), var(--pb-accent-wash)) center / 100% 1.6em no-repeat;
+  }
+  .pb-row-foot :is(.pb-site-chip, .pb-feed-bounty) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .pb-row-foot {
+    row-gap: 0;
+  }
+  /* The person an agent asked for keeps the copy icon but not the explorer
+     arrow, so who, for whom and when stay on two lines. */
+  .pb-badge-for .rg-address__explorer {
+    display: none;
+  }
+}
+.pb-feed-list :focus-visible {
+  outline: 2px solid var(--pb-accent);
+  outline-offset: 3px;
+}
+@container pb-page (max-width: 599px) {
+  /* The badge column narrows; titles still start in one line. */
+  .pb-row {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    gap: .5rem .75rem;
+    padding: .75rem;
+  }
+  .pb-row-stats {
+    width: 2.75rem;
+  }
+  .pb-row-likes {
+    min-width: 2.25rem;
+    height: 2.25rem;
+    font-size: .8125rem;
+  }
+  .pb-row-title {
+    font-size: 1rem;
+  }
+  /* The lists stay on one line and swipe sideways. */
   .pb-feed-tabs {
     flex-wrap: nowrap;
     gap: 0 1rem;

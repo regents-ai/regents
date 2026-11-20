@@ -351,7 +351,7 @@ defmodule RegentsWeb.ShellLive do
         />
 
         <ProductLive.page
-          :if={@route_spec.route_id in [:patchbay, :keyfleet]}
+          :if={@route_spec.route_id == :keyfleet}
           product={@route_spec.route_id}
         />
 
