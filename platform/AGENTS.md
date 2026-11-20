@@ -230,6 +230,12 @@ A folded product's tables stay in its own schema of the one database (Techtree's
   keeps its version and does nothing (`def up, do: :ok`, the Ash functions); one that
   installs only where missing (`CREATE EXTENSION IF NOT EXISTS pg_trgm`) stays as carried.
   `extensions.json` names each extension as `Regents.Repo` does (`"pg_trgm"`).
+- A product's resources may come before anything reads them, as their data shape only:
+  the postgres block, attributes, relationships and identities, with no action and one
+  policy refusing every action (Patchbay's 39). Their snapshots generated here then match
+  the product's own except
+  `has_create_action`; an identity that checked before a write (`eager_check?: true`) is a
+  plain one until a read action comes with it.
 - Locally, `mix regents.setup_local_auth` applies a product's new migrations; the stock
   `mix ecto.migrate` covers `regents_app` only.
 

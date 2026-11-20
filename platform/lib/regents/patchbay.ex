@@ -6,11 +6,16 @@ defmodule Regents.Patchbay do
   `priv/patchbay`: About, the Terms of Use and the agent guide
   (`WrittenPages`), the changelog (`Changelog`), the tool manifest
   (`Forum.Capabilities`) and the words-with-addresses cutter (`AddressText`).
-  It has no tables yet.
+
+  Its tables, in the `patchbay_app` schema, are carried as resources in six
+  domains (`Forum`, `Members`, `Assist`, `AnswerWatch`, `Messages`, `Offers`):
+  every attribute, relationship and identity as patchbay.help has them, no
+  action yet and one policy refusing every action, so nothing here reads or
+  writes a row.
   """
   use Boundary,
     top_level?: true,
-    deps: [],
+    deps: [Regents],
     exports: [AddressText, Changelog, Forum.Capabilities, WrittenPages]
 
   @doc "`:ok`: nothing Patchbay serves yet reads anything that could be unavailable."

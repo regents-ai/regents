@@ -1,0 +1,66 @@
+defmodule Regents.Patchbay.Offers.Pool do
+  @moduledoc """
+  A pool: a saved filter and a membership list over the one campaign catalog,
+  owned by Patchbay as the publisher, such as Developer Tools or Approved
+  Partners. A campaign is in a pool when it targets at least one of the
+  pool's topic tags (any campaign, when the pool names none) and its wallet
+  is one of the pool's members (any wallet Patchbay accepts, when the pool
+  has none).
+
+  A placement shows campaigns from the pools Patchbay chose for it
+  (`Regents.Patchbay.Offers.PlacementPool`); a placement with none chosen shows any
+  campaign Patchbay accepts. A new pool is a row: no contract changes.
+
+  The table and its rows as patchbay.help keeps them; nothing here reads or
+  writes them yet.
+  """
+
+  use Ash.Resource,
+    otp_app: :regents,
+    domain: Regents.Patchbay.Offers,
+    data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer]
+
+  postgres do
+    table("agent_offer_pools")
+    schema("patchbay_app")
+    repo(Regents.Repo)
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+
+    attribute(:name, :string,
+      allow_nil?: false,
+      public?: true,
+      constraints: [min_length: 2, max_length: 40]
+    )
+
+    attribute(:tags, {:array, :string},
+      allow_nil?: false,
+      default: [],
+      public?: true,
+      constraints: [max_length: 20]
+    )
+
+    create_timestamp(:inserted_at)
+  end
+
+  relationships do
+    has_many :members, Regents.Patchbay.Offers.PoolMember do
+      public?(true)
+    end
+  end
+
+  identities do
+    identity(:unique_name, [:name], message: "A pool has that name already.")
+  end
+
+  # No action is carried yet, so every action is refused; each comes with its own
+  # policies.
+  policies do
+    policy always() do
+      forbid_if(always())
+    end
+  end
+end
