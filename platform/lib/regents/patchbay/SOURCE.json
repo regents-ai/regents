@@ -50,5 +50,87 @@
     "The theme switch (ThemeSwitch and its scripts, theme_switch.css), the phone menu (nav_menu.ts), copy buttons (copy_buttons.ts) and motion (motion.ts): the bar's and this site's own are used.",
     "The payment funding script, the flash line and the motion lab script: no brought page uses them.",
     "The agent documents (llms.txt, agents.md, skill.md, openapi.json, sitemap, capabilities.json) and cli/commands.json: one per site, regents.sh's; Patchbay's section comes with a later slice."
-  ]
+  ],
+  "migrations": {
+    "from": "platform/priv/repo/migrations/*.exs (124 files, 20260901055740 to 20261118230218), platform/priv/repo/migrations/.formatter.exs, platform/priv/resource_snapshots/repo/extensions.json",
+    "to": "platform/priv/patchbay/migrations/, platform/priv/patchbay/resource_snapshots/repo/extensions.json",
+    "applied": "into patchbay_app with its own ledger patchbay_app.schema_migrations, after regents_app and techtree_app (Regents.Products, schema \"patchbay_app\")",
+    "module_names": "Patchbay.Repo.Migrations.<Name> became Regents.Repo.Migrations.Patchbay<Name> in every file",
+    "imported_history": "patchbay.help's release (lib/patchbay/release.ex, @imported_through 20260904074137) does not skip the early versions: it refuses to migrate an area other than public until every version up to that one is already in the area's ledger, and refuses to roll back past it, because production's patchbay_app was filled by an import of the public schema with its ledger, and the early files name public. Production's ledger therefore already holds them and nothing runs there. Here the early files that named public name the area being migrated instead (prefix()), so on a fresh database they build the same tables in patchbay_app that the import moved there, and no guard is carried.",
+    "edits": [
+      {
+        "files": [
+          "20260901061346_*.exs",
+          "20260901065425_*.exs",
+          "20260901075257_*.exs",
+          "20260901223124_*.exs",
+          "20260901223343_*.exs",
+          "20260902011455_*.exs",
+          "20260902123853_*.exs",
+          "20260903002612_*.exs",
+          "20260903074544_*.exs",
+          "20260903083548_*.exs",
+          "20260929052637_*.exs"
+        ],
+        "edit": "prefix: \"public\" became prefix: prefix() in every references(...) (69 in all; in 20260929052637 only in its down)",
+        "reason": "each names one of Patchbay's own tables, which live in patchbay_app"
+      },
+      {
+        "files": [
+          "20260903191331_two_names_and_author_kind.exs"
+        ],
+        "edit": "UPDATE agent_profiles became UPDATE #{prefix()}.agent_profiles",
+        "reason": "the statement named no schema, so on a fresh database it looked in public, where the table is not"
+      },
+      {
+        "files": [
+          "20260901055740_bootstrap_patchbay_extensions_1.exs",
+          "20261026194903_ash_functions_v7_extensions_1.exs"
+        ],
+        "edit": "up and down do nothing; the moduledoc says why",
+        "reason": "the Ash functions are already in public, put there by regents.sh's own migrations, which run before any product's; the first file's CREATE OR REPLACE would rewrite them (ash_required back to version 6 until the second file) and its down would drop them. Both versions stay so the ledger holds what production's does"
+      },
+      {
+        "files": [
+          "20261012182458_add_error_tracker.exs",
+          "20261028223253_agent_repairs_start_running.exs"
+        ],
+        "edit": "Patchbay.Repo.default_prefix() became prefix() (and the comment naming it)",
+        "reason": "the area being migrated is the migrator's prefix here; Regents.Repo.default_prefix() is regents_app"
+      },
+      {
+        "files": [
+          "20261018200242_copy_patchbay_names_to_regents_names.exs"
+        ],
+        "edit": "Application.fetch_env!(:patchbay, :privy) became Application.fetch_env!(:regents, :privy)",
+        "reason": "this site's one Privy app; :patchbay has no settings here. On a fresh database its copy table is empty, so the update changes no profile"
+      },
+      {
+        "files": [
+          "20261014170000_add_oauth_provider.exs",
+          "20261101090000_oauth_hashed_tokens.exs",
+          "20261114120000_oauth_client_documents.exs",
+          "20261114180000_oauth_connector_scopes.exs",
+          "20261118230000_oauth_long_values.exs"
+        ],
+        "edit": "RegentOAuth.Migration's up, V2, V3, ClientScopes and V4 written out as regent_oauth holds them at elixir-utils 6d98a113 (Patchbay da7b217b's pin), naming the area with prefix(); ClientScopes' name check left out, its three names being fixed in the file",
+        "reason": "this site does not carry regent_oauth (as Techtree's carried OAuth migrations)"
+      },
+      {
+        "files": [
+          "extensions.json"
+        ],
+        "edit": "\"pg_trgm_v1\" became \"pg_trgm\"",
+        "reason": "patchbay.help named the extension through its own module (Patchbay.Repo.PgTrgm, version 1); this site's Regents.Repo names the same extension \"pg_trgm\", so codegen would otherwise ask to install it again"
+      }
+    ],
+    "unchanged_on_purpose": [
+      "20261027233519_install_pg_trgm_v1_extension.exs: CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public leaves regents.sh's install where and as it is",
+      "20261014022202_add_ens_identities.exs: its reference to regent_names.platform_human_users names that schema itself; the table is made, nobody reads it",
+      "20261002033450_add_oban.exs and 20261012182458_add_error_tracker.exs: Patchbay's old job and saved-error tables in patchbay_app, read by nobody",
+      "20261008224950_wallet_bench_techtree_views.exs: two views of Patchbay's own tables, none of Techtree's",
+      "20261029120000_oauth_on_open_address.exs and the other oauth_* files: tables made, rows not read",
+      "20261028223253 and 20261029203941 keep their statement for public beside the one for patchbay_app, as carried; here the area is always patchbay_app"
+    ]
+  }
 }

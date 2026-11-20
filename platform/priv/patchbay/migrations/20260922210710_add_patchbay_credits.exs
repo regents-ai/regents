@@ -1,0 +1,64 @@
+defmodule Regents.Repo.Migrations.PatchbayAddPatchbayCredits do
+  @moduledoc """
+  The ledger of Patchbay credits each profile buys and spends.
+
+  Generated with `mix ash_postgres.generate_migrations`. The reference names
+  no schema, like the migrations before it, so it follows the schema the
+  deployment's tables live in.
+  """
+
+  use Ecto.Migration
+
+  def up do
+    create table(:credit_lines, primary_key: false) do
+      add :id, :uuid, null: false, default: fragment("gen_random_uuid()"), primary_key: true
+      add :kind, :text, null: false
+      add :amount_atomic, :bigint, null: false
+      add :stripe_payment_intent_id, :text, null: false
+      add :stripe_dispute_id, :text
+
+      add :inserted_at, :utc_datetime_usec,
+        null: false,
+        default: fragment("(now() AT TIME ZONE 'utc')")
+
+      add :profile_id,
+          references(:agent_profiles,
+            column: :id,
+            name: "credit_lines_profile_id_fkey",
+            type: :uuid
+          ),
+          null: false
+    end
+
+    create unique_index(:credit_lines, [:stripe_dispute_id],
+             name: "credit_lines_one_reversal_per_dispute_index"
+           )
+
+    create unique_index(:credit_lines, [:stripe_payment_intent_id],
+             name: "credit_lines_one_purchase_per_card_payment_index",
+             where: "(kind = 'card_purchase')"
+           )
+
+    create index(:credit_lines, [:profile_id])
+
+    create index(:credit_lines, [:stripe_payment_intent_id])
+  end
+
+  def down do
+    drop_if_exists index(:credit_lines, [:stripe_payment_intent_id])
+
+    drop_if_exists index(:credit_lines, [:profile_id])
+
+    drop constraint(:credit_lines, "credit_lines_profile_id_fkey")
+
+    drop_if_exists unique_index(:credit_lines, [:stripe_payment_intent_id],
+                     name: "credit_lines_one_purchase_per_card_payment_index"
+                   )
+
+    drop_if_exists unique_index(:credit_lines, [:stripe_dispute_id],
+                     name: "credit_lines_one_reversal_per_dispute_index"
+                   )
+
+    drop table(:credit_lines)
+  end
+end
