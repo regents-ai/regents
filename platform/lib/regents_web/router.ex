@@ -324,9 +324,17 @@ defmodule RegentsWeb.Router do
     end
   end
 
-  # Techtree's agent guide, Markdown to any caller, as the site's own /agents.md is.
+  # Techtree's agent guide, Markdown to any caller, as the site's own /agents.md is,
+  # and each Skill comparison's report, the exact committed bytes.
   scope "/techtree", RegentsWeb.Techtree do
     get "/agents.md", AgentsController, :show
+    get "/train/:slug/report.json", TrainController, :report
+  end
+
+  # Every Skill comparison, for agents and other sites.
+  scope "/techtree", RegentsWeb.Techtree do
+    pipe_through :api
+    get "/train.json", TrainController, :index
   end
 
   scope "/admin" do

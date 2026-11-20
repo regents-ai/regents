@@ -3,8 +3,8 @@ defmodule RegentsWeb.Techtree.TrainLive.Show do
   One comparison, reached from the home page's demonstrations and the
   services' tools: the Skill with its links, the task, the original and
   improved Skill's attempts solved on the final test as two bars with the
-  verdict, the method with the choosing step's figures, every final-test case
-  and the tools.
+  verdict, the method with the choosing step's figures, every final-test case,
+  the tools, and the report to download.
 
   The comparison is one committed file (`Regents.Techtree.Train.Comparisons`); a slug
   the folder has no file for is a 404.
@@ -148,6 +148,31 @@ defmodule RegentsWeb.Techtree.TrainLive.Show do
               <dd>{words}</dd>
             </div>
           </dl>
+        </section>
+
+        <section id="report" class="section" aria-labelledby="report-title">
+          <h2 id="report-title">Report</h2>
+          <p class="train-reading">
+            The report lists every final-test case with the attempts each version solved, so the
+            figures above can be counted again from it.
+          </p>
+          <div class="train-downloads">
+            <a
+              class="rg-button rg-button--primary rg-button--no-arrow"
+              href={~p"/techtree/train/#{@comparison.slug}/report.json"}
+              download={"#{@comparison.slug}.json"}
+            >
+              <Regent.Icons.icon name="download" /> Report
+            </a>
+          </div>
+          <p class="mk-links">
+            <.link
+              navigate={~p"/techtree/docs/verify" <> "#blog-section-skill-comparisons"}
+              class="text-link"
+            >
+              How to check it <span aria-hidden="true">→</span>
+            </.link>
+          </p>
         </section>
       </div>
     </Layouts.page>

@@ -23,6 +23,8 @@ defmodule Regents.Techtree.Train.Comparisons do
   `chance_level`), Inconclusive when it is not.
   """
 
+  alias Regents.Techtree.Catalog.Digest
+
   @schema_version "techtree.train.v1alpha3"
   @kind "Comparison"
   @revisions %{"rewrite" => :rewrite, "revision" => :revision}
@@ -95,6 +97,16 @@ defmodule Regents.Techtree.Train.Comparisons do
   def fetch(slug, folder \\ folder()) do
     with {:ok, slug} <- listed(folder, slug),
          do: {:ok, comparison(slug, report(folder, slug))}
+  end
+
+  @doc "The exact bytes of one comparison's file with the digest of those bytes."
+  @spec download(String.t(), Path.t()) :: {:ok, binary(), String.t()} | :error
+  def download(slug, folder \\ folder()) do
+    with {:ok, slug} <- listed(folder, slug) do
+      bytes = report(folder, slug)
+      %{slug: ^slug} = comparison(slug, bytes)
+      {:ok, bytes, Digest.hash_bytes(bytes)}
+    end
   end
 
   defp listed(folder, slug) do
