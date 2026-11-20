@@ -28,7 +28,7 @@ defmodule RegentsWeb.Components.LabBlocks.Scene do
     "Patchbay" => 16.0,
     "Protocol" => 13.6,
     "Techtree" => 14.6,
-    "Sign-in with Agent" => 16.6
+    "SIWA" => 16.6
   }
 
   # Where each block lands, in % across and down, and where its name sits.
@@ -39,11 +39,11 @@ defmodule RegentsWeb.Components.LabBlocks.Scene do
     "Patchbay" => {{9, 59}, "below"},
     "Protocol" => {{68, 60}, "below-end"},
     "Techtree" => {{39, 85}, "below-end"},
-    "Sign-in with Agent" => {{92, 86}, "below-end"}
+    "SIWA" => {{92, 86}, "below-end"}
   }
 
   # On a narrow stage the blocks ring the crown, so every line crosses open space
-  # wide enough to press, and Sign-in with Agent keeps the bottom right corner.
+  # wide enough to press, and SIWA keeps the bottom right corner.
   @narrow %{
     "Cloak" => {{9, 86}, "above-start"},
     "Autolaunch" => {{41, 79}, "below"},
@@ -51,7 +51,7 @@ defmodule RegentsWeb.Components.LabBlocks.Scene do
     "Patchbay" => {{92, 39}, "left"},
     "Protocol" => {{58, 13}, "above"},
     "Techtree" => {{18, 60}, "below"},
-    "Sign-in with Agent" => {{92, 87}, "below-end"}
+    "SIWA" => {{92, 87}, "below-end"}
   }
 
   # Each composition: the stage's proportions, where its blocks land, half a
@@ -107,7 +107,7 @@ defmodule RegentsWeb.Components.LabBlocks.Scene do
 
         %{
           node: place.name,
-          base: place.base,
+          base: place.tint,
           side: side,
           center: Camera.unproject(camera, spot, Map.fetch!(@depth, place.name)),
           half: {half, half, half},

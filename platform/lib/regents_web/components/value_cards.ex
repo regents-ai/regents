@@ -26,8 +26,8 @@ defmodule RegentsWeb.Components.ValueCards do
     * `:line` - one sentence
     * `:tint` - the colour the name takes, reading at 4.5:1 on the card
     * `:action` - two words for where the card goes
-    * `:href` - another page of the app shell the row sits in, reached without
-      leaving the shell, or another site's address, which opens in a new tab
+    * `:href` - a page of this site, opened in the same tab as a plain page
+      load, or another site's address, which opens in a new tab
   """
 
   use Phoenix.Component
@@ -54,22 +54,18 @@ defmodule RegentsWeb.Components.ValueCards do
         data-value-card={card.id}
       >
         <a
-          :if={away?(card.href)}
           href={card.href}
-          target="_blank"
-          rel="noopener noreferrer"
+          target={away?(card.href) && "_blank"}
+          rel={away?(card.href) && "noopener noreferrer"}
           class="value-card__face"
         >
           <.face
             id={"#{@id}-#{Path.basename(card.id)}"}
             card={card}
             place={place(number, @count)}
-            away
+            away={away?(card.href)}
           />
         </a>
-        <.link :if={!away?(card.href)} patch={card.href} class="value-card__face">
-          <.face id={"#{@id}-#{Path.basename(card.id)}"} card={card} place={place(number, @count)} />
-        </.link>
       </li>
     </ul>
     """

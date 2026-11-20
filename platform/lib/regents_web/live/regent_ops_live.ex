@@ -5,17 +5,25 @@ defmodule RegentsWeb.RegentOpsLive do
   alias RegentsWeb.Chain.TokenDisplay
   alias RegentsWeb.Components.{LabBlocks, Loading, ValueCards}
 
-  # One card for each product, each with its template panel in its product's
-  # colours (assets/js/value_cards/panels/).
-  @cards [
+  # Each product's words, by its name in the product menu: its card here, its name in
+  # the hero's picture and its row on the home page. Each card's panel is in its
+  # product's colours (assets/js/value_cards/panels/).
+  @words [
+    %{
+      id: "compare",
+      name: "Techtree",
+      headline: "Change one Skill. Compare.",
+      line: "Everything else stays fixed, so the difference is the Skill.",
+      tint: "#2fa866",
+      action: "Open Techtree"
+    },
     %{
       id: "fleet",
       name: "Keyfleet",
       headline: "A lasting team for agents.",
       line: "Agents and people join a fleet, pick their own work and share results.",
       tint: "#ff5b19",
-      action: "Open Keyfleet",
-      href: "https://keyfleet.ai"
+      action: "Open Keyfleet"
     },
     %{
       id: "level",
@@ -23,17 +31,7 @@ defmodule RegentsWeb.RegentOpsLive do
       headline: "One price for everyone.",
       line: "Bids set a single clearing price, and every winner pays it.",
       tint: "#ffb188",
-      action: "Open Autolaunch",
-      href: "https://autolaunch.sh"
-    },
-    %{
-      id: "prorata",
-      name: "Protocol",
-      headline: "Stake $REGENT on Base.",
-      line: "Your part of each deposit follows your part of the stake.",
-      tint: "#e5e3d2",
-      action: "Stake REGENT",
-      href: "/stake"
+      action: "Open Autolaunch"
     },
     %{
       id: "blob",
@@ -41,17 +39,24 @@ defmodule RegentsWeb.RegentOpsLive do
       headline: "Find the fix that worked.",
       line: "Paste an error or search, and read known fixes with no sign-in.",
       tint: "#9bb4ff",
-      action: "Open Patchbay",
-      href: "https://patchbay.help"
+      action: "Open Patchbay"
     },
     %{
-      id: "compare",
-      name: "Techtree",
-      headline: "Change one Skill. Compare.",
-      line: "Everything else stays fixed, so the difference is the Skill.",
-      tint: "#2fa866",
-      action: "Open Techtree",
-      href: "https://techtree.sh"
+      id: "prorata",
+      name: "Protocol",
+      headline: "Stake $REGENT on Base.",
+      line: "Your part of each deposit follows your part of the stake.",
+      tint: "#e5e3d2",
+      action: "Stake REGENT"
+    },
+    # In /siwa's own claims (the design chief's words, 20 Nov).
+    %{
+      id: "siwa/pair",
+      name: "SIWA",
+      headline: "Pair your agent once.",
+      line: "It pairs with its own SIWA key and needs no API key or wallet balance.",
+      tint: "#aecacd",
+      action: "Open SIWA"
     },
     %{
       id: "cloak/rewrite",
@@ -59,22 +64,22 @@ defmodule RegentsWeb.RegentOpsLive do
       headline: "Rewritten before it leaves.",
       line: "A model on your Mac rewrites each message before it leaves.",
       tint: "#a97bf0",
-      action: "Open Cloak",
-      href: "/cloak"
+      action: "Open Cloak"
     }
   ]
 
-  # The cards in the product menu's order, the site's one list of its products.
-  @products for %{name: name} <- Regent.Site.products(), %{name: ^name} = card <- @cards, do: card
+  # The site's one list of its products: the product menu's (`Regent.Site.products/0`),
+  # in its order and each landing where it lands, with the product's words.
+  @products for %{name: name, href: href} <- Regent.Site.products(),
+                %{name: ^name} = words <- @words,
+                do: Map.put(words, :href, href)
 
-  @doc "The products' cards, in the product menu's order; the home page shows the same words."
+  @doc """
+  The products in the product menu's order, each with its words and the page the menu
+  opens (`:href`): the Overview's cards and the names in its picture, and the home
+  page's rows.
+  """
   def products, do: @products
-
-  # The hero (RegentsWeb.Components.LabBlocks) places each product and Sign-in
-  # with Agent in its scene itself.
-  @map_products Enum.map(@products, &Map.take(&1, [:name, :tint, :href]))
-
-  @sign_in %{name: "Sign-in with Agent", href: "https://siwa.regents.sh/skill.md"}
 
   # One line for each way an agent on one product uses another, as the products'
   # own guides describe it. Cloak works on its own. Where two lines meet, the later
@@ -82,12 +87,12 @@ defmodule RegentsWeb.RegentOpsLive do
   # last: every line keeps enough of its length free to tap, even on a narrow phone.
   @map_links [
     %{
-      from: "Sign-in with Agent",
+      from: "SIWA",
       to: "Autolaunch",
       sentence: "An agent signs every Autolaunch request beyond the public ones with its key."
     },
     %{
-      from: "Sign-in with Agent",
+      from: "SIWA",
       to: "Keyfleet",
       sentence: "An agent signs everything it does in a Keyfleet fleet with its key."
     },
@@ -103,7 +108,7 @@ defmodule RegentsWeb.RegentOpsLive do
         "Tokens agents launch on Autolaunch send part of their trading fees to $REGENT staking."
     },
     %{
-      from: "Sign-in with Agent",
+      from: "SIWA",
       to: "Patchbay",
       sentence: "An agent uses its one sign-in key to post and reply on Patchbay."
     },
@@ -118,7 +123,7 @@ defmodule RegentsWeb.RegentOpsLive do
       sentence: "An agent stuck on Keyfleet asks for help in Keyfleet's forum on Patchbay."
     },
     %{
-      from: "Sign-in with Agent",
+      from: "SIWA",
       to: "Techtree",
       sentence: "An agent proves who it is to Techtree with a fresh signature each time."
     },
@@ -134,7 +139,7 @@ defmodule RegentsWeb.RegentOpsLive do
         "An agent stuck on Autolaunch reads Autolaunch's troubleshooting page on Patchbay."
     },
     %{
-      from: "Sign-in with Agent",
+      from: "SIWA",
       to: "Protocol",
       sentence: "A paired agent signs in to read its person's $REGENT stake."
     },
@@ -163,8 +168,7 @@ defmodule RegentsWeb.RegentOpsLive do
   def page(assigns) do
     assigns =
       assigns
-      |> assign(:products, @products)
-      |> assign(map_products: @map_products, sign_in: @sign_in, map_links: @map_links)
+      |> assign(products: @products, map_links: @map_links)
       |> assign(
         :wallet_loading,
         assigns.reading ||
@@ -183,12 +187,7 @@ defmodule RegentsWeb.RegentOpsLive do
             company equity, giving the community ownership of what the lab makes.
           </p>
         </div>
-        <LabBlocks.hero
-          id="regent-ops-map"
-          products={@map_products}
-          sign_in={@sign_in}
-          links={@map_links}
-        />
+        <LabBlocks.hero id="regent-ops-map" products={@products} links={@map_links} />
       </header>
 
       <Regent.Structure.section_bar class="rg-support-band">

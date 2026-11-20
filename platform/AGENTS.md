@@ -63,6 +63,11 @@ again from it and moving that commit.
   between products.
 - The root layout is not redrawn by live navigation, so a link from one product's
   pages to another's is a plain `href` load, never `navigate` or `patch`.
+- Anything that names a product lands where the product menu lands, in the same tab.
+  The home page's rows, the Overview's cards and the names in its picture all read
+  `RegentsWeb.RegentOpsLive.products/0`: the menu's list (`Regent.Site.products/0`),
+  its order and addresses, with each product's words. The way out to a product's
+  older site is on that product's own overview page, not on these.
 - Core, `lib/regents/<product>.ex`:
   `use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [...]`
   (drop `Regents.Chain` if it reads no chain). It may use the site core and, through

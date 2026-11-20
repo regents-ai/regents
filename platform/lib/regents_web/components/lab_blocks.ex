@@ -36,8 +36,10 @@ defmodule RegentsWeb.Components.LabBlocks do
   @layouts [:wide, :narrow]
 
   attr :id, :string, required: true
-  attr :products, :list, required: true, doc: "maps of `:name`, `:tint` and `:href`"
-  attr :sign_in, :map, required: true, doc: "`:name` and `:href`"
+
+  attr :products, :list,
+    required: true,
+    doc: "maps of `:name`, `:tint` and `:href`, the page of this site the product menu opens"
 
   attr :links, :list,
     required: true,
@@ -45,17 +47,7 @@ defmodule RegentsWeb.Components.LabBlocks do
       "maps of `:from` and `:to` names and a `:sentence`, in tab order; a later beam takes the press where two cross"
 
   def hero(assigns) do
-    places =
-      Enum.map(
-        assigns.products,
-        &Map.merge(Map.take(&1, [:name, :tint, :href]), %{base: &1.tint})
-      ) ++
-        [
-          Map.merge(Map.take(assigns.sign_in, [:name, :href]), %{
-            tint: nil,
-            base: "var(--lab-blocks-quiet)"
-          })
-        ]
+    places = Enum.map(assigns.products, &Map.take(&1, [:name, :tint, :href]))
 
     scenes = Map.new(@layouts, &{&1, Scene.compose(&1, places, assigns.links)})
     # What is the same on every stage is taken from the wide one.
@@ -262,29 +254,17 @@ defmodule RegentsWeb.Components.LabBlocks do
 
   attr :place, :map, required: true
 
-  # A product's block and name go where its value card goes: another site in a new
-  # tab, or a page of this shell without leaving it. The link covers the stage and
-  # takes no press itself; only its block and its name do.
+  # A product's block and name open the page the product menu opens, as a plain
+  # page load, so the page arrives with its own product's bar. The link covers the
+  # stage and takes no press itself; only its block and its name do.
   defp place_link(assigns) do
-    assigns = assign(assigns, away: String.starts_with?(assigns.place.href, "https://"))
-
     ~H"""
     <a
-      :if={@away}
       href={@place.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      class={["lab-blocks__place", !@place.tint && "lab-blocks__place--quiet"]}
-      data-node={@place.name}
-      style={@place.style}
-    ><span class="lab-blocks__block"></span><span class="lab-blocks__name">{@place.name}</span><span class="visually-hidden">, opens in a new tab</span></a>
-    <.link
-      :if={!@away}
-      patch={@place.href}
       class="lab-blocks__place"
       data-node={@place.name}
       style={@place.style}
-    ><span class="lab-blocks__block"></span><span class="lab-blocks__name">{@place.name}</span></.link>
+    ><span class="lab-blocks__block"></span><span class="lab-blocks__name">{@place.name}</span></a>
     """
   end
 
@@ -311,8 +291,7 @@ defmodule RegentsWeb.Components.LabBlocks do
         ]
       end)
 
-    tint = if place.tint, do: ["--tint:#{place.tint}"], else: []
-    Map.put(place, :style, Enum.join(tint ++ vars, ";"))
+    Map.put(place, :style, Enum.join(["--tint:#{place.tint}" | vars], ";"))
   end
 
   # A block's outline as whole percentages of the box round it.

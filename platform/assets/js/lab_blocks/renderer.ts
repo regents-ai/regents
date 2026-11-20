@@ -23,7 +23,7 @@ export type Palette = {
   readonly crownFoot: Vec3
   readonly beamTone: Vec3
   readonly litTone: Vec3
-  /** Each place's colour, in the places' order: a product's own, Sign-in with Agent's the theme's quiet one. */
+  /** Each place's colour, its product's own, in the places' order. */
   readonly places: readonly Vec3[]
 }
 

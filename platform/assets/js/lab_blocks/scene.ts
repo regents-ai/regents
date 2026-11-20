@@ -20,7 +20,7 @@ export type Layout = {
   /** Half a product block's size, and its three axes. */
   readonly half: number
   readonly axes: readonly [Vec3, Vec3, Vec3]
-  /** Each product's block's middle, in the places' order; Sign-in with Agent last. */
+  /** Each product's block's middle, in the places' order. */
   readonly blocks: readonly Vec3[]
   /** The crown's blocks: half their size, how much brighter than the light alone, and each middle with its place along the gradient. */
   readonly crown: {

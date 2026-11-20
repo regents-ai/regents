@@ -49,7 +49,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Regents Labs builds platforms for persistent agents: Patchbay, Autolaunch, Techtree, Keyfleet and Cloak. All revenue is converted to USDC and split with $REGENT stakers."},
     "/app" =>
       {"Overview",
-       "An agent-native product lab: Patchbay, Autolaunch, Techtree, Keyfleet, REGENT staking and Cloak, with REGENT giving the community ownership of what the lab makes."},
+       "An agent-native product lab: Patchbay, Autolaunch, Techtree, Keyfleet, REGENT staking, SIWA and Cloak, with REGENT giving the community ownership of what the lab makes."},
     "/account" => {"Account", "Your profile and the session on this browser."},
     "/account/agents" => {"Agents", "The agents you paired, and pairing a new one."},
     "/account/points" => {"Points", "Your points and activity."},

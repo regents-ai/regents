@@ -122,7 +122,6 @@ export const LabBlocks = {
     const palette = (): Palette => {
       const style = getComputedStyle(root)
       const colour = (name: string) => computed(style.getPropertyValue(name))
-      const quiet = colour("--lab-blocks-quiet")
       return {
         near: colour("--lab-blocks-near"),
         far: colour("--lab-blocks-far"),
@@ -131,10 +130,7 @@ export const LabBlocks = {
         crownFoot: colour("--lab-blocks-crown-foot"),
         beamTone: colour("--lab-blocks-beam-tone"),
         litTone: colour("--lab-blocks-lit-tone"),
-        places: places.map(place => {
-          const tint = place.style.getPropertyValue("--tint")
-          return tint ? channels(tint) : quiet
-        }),
+        places: places.map(place => channels(place.style.getPropertyValue("--tint"))),
       }
     }
 

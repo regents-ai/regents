@@ -7823,3 +7823,18 @@ seasons), on the shared Points library regents.sh was already on.
   regents.sh's overview page.
 - regents.sh's, Techtree's and Keyfleet's pages and the site's agent documents answer as
   before; `/api/v1/health` also lists Autolaunch.
+
+## 2026-11-20 — one-site branch: the Overview's cards and picture land where the product menu lands (not released)
+
+- Not released: on the `one-site` branch only. No migration, secret, sign-in, session,
+  wallet or pairing change.
+- On the app's Overview, every product card and every product name in the picture above
+  them opens the page the product menu opens (/techtree, /keyfleet, /autolaunch,
+  /patchbay, /stake, /siwa, /cloak), in the same tab, with that product's bar on
+  arrival. None says "opens in a new tab" any more.
+- The Overview gains a SIWA card between Protocol and Cloak, "Pair your agent once.",
+  with a panel in SIWA's blue-grey. In the picture, "Sign-in with Agent" is now SIWA, in
+  the same corner, in SIWA's colour, and opens /siwa.
+- The cards, the picture's names and the home page's rows read one list: the product
+  menu's, with each product's words. The way out to a product's older site stays only
+  on that product's own overview page.

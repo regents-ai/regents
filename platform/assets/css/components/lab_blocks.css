@@ -5,7 +5,6 @@
 @property --lab-blocks-seam { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
 @property --lab-blocks-crown-top { syntax: "<color>"; inherits: true; initial-value: #3966ff; }
 @property --lab-blocks-crown-foot { syntax: "<color>"; inherits: true; initial-value: #1e42dc; }
-@property --lab-blocks-quiet { syntax: "<color>"; inherits: true; initial-value: #77756d; }
 @property --lab-blocks-beam-tone { syntax: "<color>"; inherits: true; initial-value: #0b0b0b; }
 @property --lab-blocks-lit-tone { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
 
@@ -27,7 +26,6 @@
   --lab-blocks-seam: light-dark(#cbd0e1, #1b2450);
   --lab-blocks-crown-top: light-dark(#7f98ff, var(--ash-action-light));
   --lab-blocks-crown-foot: light-dark(#3a5ef0, var(--ash-action-deep));
-  --lab-blocks-quiet: light-dark(#8f8d82, #77756d);
   --lab-blocks-beam-tone: light-dark(#a19f94, #0b0b0b);
   --lab-blocks-lit-tone: light-dark(#161616, #ffffff);
   container: lab-blocks / inline-size;
@@ -248,11 +246,7 @@
   flex: none;
   width: 7px;
   height: 7px;
-  background: var(--tint, var(--lab-blocks-quiet));
-}
-
-.lab-blocks__place--quiet .lab-blocks__name {
-  color: var(--color-fg-muted);
+  background: var(--tint);
 }
 
 .lab-blocks[data-lab-blocks-pick] .lab-blocks__place:not([data-picked]) .lab-blocks__name {
