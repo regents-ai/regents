@@ -8092,6 +8092,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Gone: the Menu strip and its sheet on a phone, and Services, Results, Docs and Book Call in the bar.
 - Not released: on the `fold/techtree` branch only. No migration, secret, sign-in or wallet change.
 
+## 2026-11-21 — One site: two shared reads for products (not released)
+
+- A product can ask, as the system, which of a list of agent wallets are paired, and gets each one's wallet, name and what it runs on; the person behind a pairing is never part of the answer (`Regents.Account.Agents.pairings_by_wallets`).
+- A shared reading's own producer can list the ids it holds (`Regents.SharedReading.ids/1`).
+- No page, table, migration or setting. On the `one-site` branch only.
+
 ## 2026-11-21 — Keyfleet's tables and core in the one site (not released)
 
 - Keyfleet's 130 migrations now build its tables in their own part of the database, `keyfleet_app`, with their own record of what has run, after regents.sh's and Techtree's and before Patchbay's. A fresh database comes out with Keyfleet's 74 tables, its old job, saved-error and connected-app tables among them; regents.sh's, Techtree's, Patchbay's and the shared parts are left exactly as they were, and a second run changes nothing.
