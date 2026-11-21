@@ -187,7 +187,8 @@ defmodule Regents.MixProject do
         # its domain reads its three resources, an entry its embedded assessment, and the
         # assessment its embedded Skill change. Patchbay's tables add forty: its six domains
         # read their thirty-nine resources, and a report its embedded cve.now facts.
-        "xref graph --label compile-connected --fail-above 92",
+        # Keyfleet's core adds one hundred: 61 a domain reading its resource, 34 a resource its policy check, 5 others.
+        "xref graph --label compile-connected --fail-above 192",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"
