@@ -102,7 +102,7 @@
     ]
   },
   "core": {
-    "from": "platform/lib/keyfleet/ (351 .ex files, 46,345 lines, and fleets/classic_key_prices.txt), less the parts listed under not_carried and stopped",
+    "from": "platform/lib/keyfleet/ (351 .ex files, 46,345 lines, and fleets/classic_key_prices.txt), less the parts listed under not_carried",
     "to": "platform/lib/regents/keyfleet/",
     "files": [
       "platform/lib/keyfleet/access/check.ex",
@@ -124,6 +124,7 @@
       "platform/lib/keyfleet/agents/checkpoint.ex",
       "platform/lib/keyfleet/agents/checks/own_profile.ex",
       "platform/lib/keyfleet/agents/delete_avatar.ex",
+      "platform/lib/keyfleet/agents/here.ex",
       "platform/lib/keyfleet/agents/upkeep.ex",
       "platform/lib/keyfleet/agents.ex",
       "platform/lib/keyfleet/atlas/bucket.ex",
@@ -396,6 +397,7 @@
       "platform/lib/keyfleet/wallet_steps/typed.ex",
       "platform/lib/keyfleet/wallet_steps/vote_steps.ex",
       "platform/lib/keyfleet/wallet_steps.ex",
+      "platform/lib/keyfleet/workspace_pulse.ex",
       "platform/lib/keyfleet/fleets/classic_key_prices.txt"
     ],
     "files_note": "each to the same path under platform/lib/regents/keyfleet/; three more are in files above: goal_ideas.ex, whole since slice 2, and authority.ex and capabilities.ex, as slice 1 brought them; classic_key_prices.txt byte for byte (fleets/presets.ex reads it at compile time)",
@@ -467,6 +469,20 @@
         ],
         "edit": "the moduledoc's priv/public/goal-ideas.md became priv/keyfleet/public/goal-ideas.md",
         "reason": "the file it reads is there"
+      },
+      {
+        "files": [
+          "workspace_pulse.ex"
+        ],
+        "edit": "the names' read Agents.pairings!(wallets, actor: system) became Regents.Account.Agents.pairings_by_wallets!(wallets, actor: %Regents.Account.Actors.System{}); Agents left the alias group, as nothing else here names it; the moduledoc names Regents.Account.Agents.Pairing",
+        "reason": "keyfleet.ai's own pairing resource (agents/pairing.ex) is not carried; the site's read of pairings by wallets is Regents.Account's, as the system, with each record's wallet and name, and it raises on a failed read as keyfleet.ai's did"
+      },
+      {
+        "files": [
+          "agents/here.ex"
+        ],
+        "edit": "kinds :fleet_agents and :key_agents became :keyfleet_fleet_agents and :keyfleet_key_agents (six places); SharedReading left the Regents.Keyfleet alias group for an alias of its own, Regents.SharedReading; the longer held/1 line formatted again",
+        "reason": "Regents.SharedReading's kinds are named <product>_<kind>; the naming rule turns the group's Keyfleet.SharedReading into Regents.Keyfleet.SharedReading, which is no module"
       }
     ],
     "not_carried": {
@@ -474,7 +490,7 @@
       "accounts/, accounts.ex": "Regents.Account.Accounts (accounts_by_ids/2, accounts_holding_wallets!/2, get_by_privy_did, HumanAccount, SessionAuthority)",
       "accounts/request_rate_limiter.ex": "Regents.RateLimiter",
       "agents/activity_reading.ex": "Regents.Account.Agents.ActivityReading",
-      "agents/pairing.ex": "RegentAgents (pairing_histories/1, list_my_agents, Authority)",
+      "agents/pairing.ex": "RegentAgents (pairing_histories/1, list_my_agents, Authority); Regents.Account.Agents.pairings_by_wallets!/2 for the names WorkspacePulse tells",
       "public_identity.ex": "Regents.Account.PublicIdentity",
       "alert.ex": "Regents.Alert",
       "limits.ex": "Regents.Limits",
@@ -518,20 +534,6 @@
       "shared_reading.ex",
       "shared_reading/",
       "siwa_broker.ex"
-    ],
-    "stopped": [
-      {
-        "file": "platform/lib/keyfleet/workspace_pulse.ex",
-        "call": "Agents.pairings!/2 (line 121), the not-carried Agents.Pairing's read of pairings by wallets",
-        "needs": "a pairing read by wallet addresses that Regents.Account or RegentAgents exports",
-        "callers": "none in the carried core"
-      },
-      {
-        "file": "platform/lib/keyfleet/agents/here.ex",
-        "call": "SharedReading.ids/1 (line 184)",
-        "needs": "Regents.SharedReading.ids/1, the ids a kind holds; its two kinds (fleet and Key agents here) are not added with it",
-        "callers": "none in the carried core"
-      }
     ],
     "not_brought": [
       "The Claude connector: agents/connection.ex, agents/connection/caller.ex, listing.ex, refused.ex, agents/hosted_address.ex, extensions: [AshAi] and the tools blocks in agents.ex and graph.ex: they need ash_ai, regent_mcp_agents and regent_oauth, which come with the one /mcp slice",
@@ -636,7 +638,7 @@
     "not_started": {
       "Graph.Client, the graph writers, projectors, registry and listener": "slice 3, the graph machine",
       "Chain.RewardsWaiting": "the slice that reads the chain in the background",
-      "Agents.Here": "stopped (stopped above); the pages slice that shows who is here",
+      "Agents.Here": "the pages slice that shows who is here, with its child under Regents.Keyfleet.Supervisor and a schedule line each minute for keyfleet_fleet_agents and keyfleet_key_agents (Regents.SharedReading.Heal), as keyfleet.ai runs it where pages are served",
       "Seasons.CoinList": "the seasons slice"
     },
     "queues": {
@@ -654,7 +656,7 @@
       "schedule": "none: PresenceTimer, the chain watcher and every other timed job are scheduled by nothing",
       "triggers": "Keys.KeyPicture close_up and small_card, Dms.Message remove-expired: AshOban is given the site's domains without Keyfleet's (Regents.Application), so none sweeps"
     },
-    "shared_reading_kinds": "keyfleet_season_coins (Seasons.CoinList), with keyfleet.ai's audience, keys and bytes; its within field is not a field here",
+    "shared_reading_kinds": "keyfleet_season_coins (Seasons.CoinList), keyfleet_fleet_agents and keyfleet_key_agents (Agents.Here), each with keyfleet.ai's audience, keys and bytes; their within field is not a field here",
     "snapshots": "59 generated with mix ash.codegen --snapshots-only into platform/priv/keyfleet/resource_snapshots/repo/, each matching keyfleet.ai's newest apart from repo, schema and \"temporal\": null; keyfleet.ai's other four (account_ens_identities, left_messages, linked_identities, session_authorities) are tables with no resource here",
     "extension_record": "platform/priv/keyfleet/migrations/20261121225741_pg_trgm_extensions_1.exs (KeyfleetPgTrgmExtensions1) and pg_trgm in extensions.json, as Techtree's folder got them: Regents.Repo installs pg_trgm; CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public creates nothing, since regents.sh's own migration installs it first"
   }
