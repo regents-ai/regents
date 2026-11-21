@@ -7467,3 +7467,9 @@ seasons), on the shared Points library regents.sh was already on.
 - On the founder's letter (his "1. a", confirmed by his "43. b" in the Cloak thread) /cloak lists four modes as the app does: V, Token Inference, NEAR Private AI, Local Llama. Token Inference is new on the page and links Boundless's post; the drawn chat window's switch follows, and takes two lines per name on a phone.
 - Needs now says what each paid mode takes (ETH for V, USDC.e on Tempo for Token Inference, a NEAR AI Cloud key for NEAR Private AI) and that cards are not accepted. No price is named for V.
 - No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak page with four modes
+
+- Commit 125cd264, /cloak lists the app's four modes on the founder's letter. Full check exit 0 on 125cd264; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows four modes with Token Inference as a page and as Markdown, no old mode name, no Download button, and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-8427095db335.
