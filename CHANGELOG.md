@@ -8091,3 +8091,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The page you are on is underlined in the row. Book Call opens the booking page in a new tab and shows only where that page is set.
 - Gone: the Menu strip and its sheet on a phone, and Services, Results, Docs and Book Call in the bar.
 - Not released: on the `fold/techtree` branch only. No migration, secret, sign-in or wallet change.
+
+## 2026-11-21 — One site: two shared reads for products (not released)
+
+- A product can ask, as the system, which of a list of agent wallets are paired, and gets each one's wallet, name and what it runs on; the person behind a pairing is never part of the answer (`Regents.Account.Agents.pairings_by_wallets`).
+- A shared reading's own producer can list the ids it holds (`Regents.SharedReading.ids/1`).
+- No page, table, migration or setting. On the `one-site` branch only.

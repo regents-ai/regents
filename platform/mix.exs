@@ -186,7 +186,8 @@ defmodule Regents.MixProject do
         # catalog three: its domain reads its three resources. Techtree's run log adds five:
         # its domain reads its three resources, an entry its embedded assessment, and the
         # assessment its embedded Skill change. Patchbay's tables add forty: its six domains
-        # read their thirty-nine resources, and a report its embedded cve.now facts.
+        # read their thirty-nine resources, and a report its embedded cve.now facts. The
+        # pairing read adds two: its domain reads its resource, and the resource its check.
         "xref graph --label compile-connected --fail-above 94",
         "ash.codegen --check",
         "usage_rules.sync --check",
