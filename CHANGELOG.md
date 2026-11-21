@@ -7439,3 +7439,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 5d108b14, the install page corrected against the build by the app's chief, with two pictures from the app. Full check exit 0 on 5d108b14; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-9b42a10644c3.
+
+## 2026-11-21 — Phoenix 1.8.17
+
+- Phoenix moves from 1.8.16 to 1.8.17, closing two advisories published today (a Presence key crash and a crash in the older message format on binary broadcasts). The site uses neither, and the full check refuses a lock that carries an open advisory.
+- One line of the lock file. No page, table, setting or migration.
