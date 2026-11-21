@@ -1,0 +1,73 @@
+defmodule Regents.Autolaunch.CoveredCalls.Sale do
+  @moduledoc """
+  One covered call changing hands on a market's contract, saved from its log
+  exactly as the chain gave it:
+
+    * `:filled`: a buyer bought calls from a listing (`Filled`). The buyer is
+      the wallet the log names, the one that called `fill`; the seller is the
+      listing's.
+    * `:sold_to_bid`: a seller sold calls into a standing bid (`SoldToBid`),
+      which opened listing `listing_id` held by the bidder. The seller is the
+      wallet the log names, the one that called `sellToBid`; the buyer is the
+      bid's bidder.
+
+  A listing or bid nobody has bought from or sold into is no sale and is not
+  saved. Amounts are raw units: the stock's for `amount`, USDC's for `premium`
+  (what the buyer paid) and `fee` (the part of it the seller did not get).
+
+  A row is written once and never changed, kept as first saved even when the
+  chain later moves or drops its log.
+
+  The table and its rows as autolaunch.sh keeps them; nothing here reads or
+  writes them yet.
+  """
+  use Ash.Resource,
+    otp_app: :regents,
+    domain: Regents.Autolaunch.CoveredCalls,
+    data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer]
+
+  @address ~r/\A0x[0-9a-f]{40}\z/
+  @hash ~r/\A0x[0-9a-f]{64}\z/
+
+  postgres do
+    table "covered_call_sales"
+    schema("autolaunch_app")
+    repo(Regents.Repo)
+  end
+
+  attributes do
+    uuid_primary_key :id
+    attribute :chain_id, :integer, allow_nil?: false, constraints: [min: 1]
+    # The market's covered-calls contract, and the stock its calls are on.
+    attribute :contract, :string, allow_nil?: false, constraints: [match: @address]
+    attribute :stock, :string, allow_nil?: false, constraints: [match: @address]
+    attribute :event, :atom, allow_nil?: false, constraints: [one_of: [:filled, :sold_to_bid]]
+    attribute :listing_id, :integer, allow_nil?: false, constraints: [min: 1]
+    # The bid sold into, for `:sold_to_bid` only.
+    attribute :bid_id, :integer, constraints: [min: 1]
+    attribute :seller, :string, allow_nil?: false, constraints: [match: @address]
+    attribute :buyer, :string, allow_nil?: false, constraints: [match: @address]
+    attribute :amount, :decimal, allow_nil?: false, constraints: [min: 0]
+    attribute :premium, :decimal, allow_nil?: false, constraints: [min: 0]
+    attribute :fee, :decimal, allow_nil?: false, constraints: [min: 0]
+    attribute :transaction_hash, :string, allow_nil?: false, constraints: [match: @hash]
+    attribute :log_index, :integer, allow_nil?: false, constraints: [min: 0]
+    attribute :block_number, :integer, allow_nil?: false, constraints: [min: 0]
+    attribute :block_hash, :string, allow_nil?: false, constraints: [match: @hash]
+    attribute :occurred_at, :utc_datetime_usec, allow_nil?: false
+    create_timestamp :inserted_at
+  end
+
+  identities do
+    identity :chain_log, [:chain_id, :transaction_hash, :log_index]
+  end
+
+  # No action is carried yet, so every action is refused; each comes with its own
+  # policies.
+  policies do
+    policy always() do
+      forbid_if always()
+    end
+  end
+end
