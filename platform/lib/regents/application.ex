@@ -82,11 +82,13 @@ defmodule Regents.Application do
       do: Regents.SharedChanges
   end
 
-  # AshOban adds a queue and a sweep for every trigger in the site's domains.
-  # Keyfleet's are left out: none of their triggers sweeps until the slice that
-  # puts their jobs to use.
+  # AshOban adds a queue and a sweep for every trigger in the site's domains. Every
+  # job writes, so the read-only venue (`Regents.read_only?/0`) runs none.
+  # Keyfleet's domains are left out: none of their triggers sweeps until the slice
+  # that puts their jobs to use.
   defp oban_child do
-    if Application.get_env(:regents, :database_startup_enabled, false) do
+    if Application.get_env(:regents, :database_startup_enabled, false) and
+         not Regents.read_only?() do
       {Oban,
        AshOban.config(
          Application.fetch_env!(:regents, :ash_domains) -- Regents.Keyfleet.domains(),
@@ -105,9 +107,10 @@ defmodule Regents.Application do
     do: Enum.reject(entries, &match?({_, Regents.Stake.SnapshotRefresh}, &1))
 
   # The Points board is read only where pages are served, so a task never reads
-  # the database before it asks to.
+  # the database before it asks to. The read-only venue has no one signed in to
+  # show it to, and no grant on the Points tables.
   defp points_board_child do
-    if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint),
+    if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint) and not Regents.read_only?(),
       do: Regents.Account.Points.Board
   end
 

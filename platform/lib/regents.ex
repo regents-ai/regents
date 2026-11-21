@@ -58,4 +58,13 @@ defmodule Regents do
   """
   def admin?(%{privy_user_id: id}), do: id in Application.fetch_env!(:regents, :admins)
   def admin?(_nobody), do: false
+
+  @doc """
+  Whether this site only reads its database: the read-only venue, the `reader`
+  role (`Regents.DatabaseConfig`), whose login the database holds to reading a
+  short list of tables. There the site starts no background work and no Points
+  board, nobody signs in (no sign-in is read), and every request that signs in,
+  pairs, checks in or saves is refused plainly (`RegentsWeb.Plugs.ReadOnly`).
+  """
+  def read_only?, do: Application.fetch_env!(:regents, :read_only)
 end

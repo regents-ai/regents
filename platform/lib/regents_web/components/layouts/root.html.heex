@@ -46,6 +46,8 @@
     <meta name="agent-request-origin" content={RegentsWeb.Endpoint.url()} />
     <meta name="csrf-token" content={get_csrf_token()} />
     <meta :if={assigns[:session_refused]} name="session-refused" content="true" />
+    <%!-- Where the site only reads, Sign in says sign-in opens later (app.ts). --%>
+    <meta :if={Regents.read_only?()} name="sign-in" content="later" />
     <meta name="privy-app-id" content={Application.get_env(:regents, :privy, [])[:app_id]} />
     <meta name="wallet-chain-id" content={Regents.Chain.Client.base().chain_id} />
     <meta :if={assigns[:visit]} name="regent-visit" content={assigns[:visit]} />

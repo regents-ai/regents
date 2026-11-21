@@ -8041,6 +8041,57 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-9b42a10644c3.
 
+## 2026-11-21 — One site: the read-only venue for the preview (not released)
+
+- A third deployment role, `reader`, for the one-site preview (founder decisions 368 a and 369 a). It reads the live database only through the login `regents_preview_reader`: any other login stops the boot, and it never migrates. `platform/fly.preview.toml` now names that role and has no release command.
+- In that role the site only reads: no background jobs, timed sweeps, error saving or Points board; no session is checked, so no sign-in or linked-account table is read; Sign in says "Sign-in opens later." and loads no sign-in; sign-in addresses, every agent request, the profile API and signed-in reads answer 403 `read_only` with a short message. `/healthz` reads a table the login is granted, and the public Regent page and agent pictures read only the two columns granted on each of their three tables.
+- `platform/priv/reader/grants.sql` gives an existing login exactly that list and may be run again; `platform/priv/reader/granted.sql` reads back what the login holds. Both were run on a local copy, where every write, every ungranted read and every new table was refused by the database.
+- After an independent security read: the read-only site keeps two connections for pages and one listening (three in all), and the grants file now also limits the login to four connections, stops any query after ten seconds, and refuses to finish if the login could run a function that acts with its owner's rights or advance a counter.
+- Not released: on the `one-site` branch only. No migration, secret or wallet change; the login does not exist on the live database yet.
+
+## 2026-11-21 — Phoenix 1.8.17
+
+- Phoenix moves from 1.8.16 to 1.8.17, closing two advisories published today (a Presence key crash and a crash in the older message format on binary broadcasts). The site uses neither, and the full check refuses a lock that carries an open advisory.
+- One line of the lock file. No page, table, setting or migration.
+
+## 2026-11-21 — Released the Phoenix 1.8.17 update
+
+- Commit 08bbe66f, Phoenix 1.8.17, closing two advisories published the same day. Full check exit 0 on 08bbe66f; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-5d108b14424d.
+
+## 2026-11-21 — Cloak page: Download button taken off for now
+
+- On the founder's word (Cloak thread, 21 Nov 22:47Z) /cloak no longer shows Download for Mac, as a page or as Markdown. Watch the intro is the one button. /cloak/install is unchanged and still answers.
+- No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak page without its Download button
+
+- Commit 8427095d, the Download button taken off /cloak on the founder's word. Full check exit 0 on 8427095d; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows no Download button as a page or as Markdown and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-08bbe66f2cb5.
+
+## 2026-11-21 — Cloak page: four modes, in the app's order
+
+- On the founder's letter (his "1. a", confirmed by his "43. b" in the Cloak thread) /cloak lists four modes as the app does: V, Token Inference, NEAR Private AI, Local Llama. Token Inference is new on the page and links Boundless's post; the drawn chat window's switch follows, and takes two lines per name on a phone.
+- Needs now says what each paid mode takes (ETH for V, USDC.e on Tempo for Token Inference, a NEAR AI Cloud key for NEAR Private AI) and that cards are not accepted. No price is named for V.
+- No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak page with four modes
+
+- Commit 125cd264, /cloak lists the app's four modes on the founder's letter. Full check exit 0 on 125cd264; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows four modes with Token Inference as a page and as Markdown, no old mode name, no Download button, and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-8427095db335.
+
+## 2026-11-21 — One site: Techtree's row under the bar (not released)
+
+- On every Techtree page, Techtree's own links now sit in a slim row directly under the site's bar: **Services**, Results and Docs on the left, Book Call on the right. The row is the same at every width, down to a 320-pixel phone, and stays under the bar as the page scrolls. The bar keeps only the product menu, the theme switch and Sign in.
+- Services opens the six services under the row, across the page. On a wide screen the four services sit two by two with Security and Swarm Verify beside them, so no service is left alone on a line (techtree.sh leaves Models alone); on a phone, one column. A panel taller than the screen scrolls on its own.
+- Enter, Space or the down arrow on Services opens it with Skills chosen; Tab walks the six and leaving them closes it; Escape closes it and returns to Services; a press outside closes it. It and the product menu are never open together. A pointer opens it with a short fade; from the keyboard, or with less motion asked for, it is simply there.
+- The page you are on is underlined in the row. Book Call opens the booking page in a new tab and shows only where that page is set.
+- Gone: the Menu strip and its sheet on a phone, and Services, Results, Docs and Book Call in the bar.
+- Not released: on the `fold/techtree` branch only. No migration, secret, sign-in or wallet change.
+
 ## 2026-11-21 — Keyfleet's tables and core in the one site (not released)
 
 - Keyfleet's 130 migrations now build its tables in their own part of the database, `keyfleet_app`, with their own record of what has run, after regents.sh's and Techtree's and before Patchbay's. A fresh database comes out with Keyfleet's 74 tables, its old job, saved-error and connected-app tables among them; regents.sh's, Techtree's, Patchbay's and the shared parts are left exactly as they were, and a second run changes nothing.

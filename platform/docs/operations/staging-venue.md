@@ -13,14 +13,15 @@ production, what it does not reproduce, and recovery.
 ## Deployment role
 
 Every production-mode boot must say which venue it is. `Regents.DatabaseConfig`
-reads `REGENTS_DEPLOYMENT_ROLE` and accepts exactly two values:
+reads `REGENTS_DEPLOYMENT_ROLE` and accepts exactly three values:
 
 | Role | Database hosts it will accept |
 | --- | --- |
 | `production` | `direct.dzx6qo6xqzvojpv5.flympg.net` |
 | `staging` | `regents-staging-db.flycast` or `regents-staging-db.internal` |
+| `reader` | `direct.dzx6qo6xqzvojpv5.flympg.net`, signed in as `regents_preview_reader` only |
 
-There is no default and no fallback between the two. A missing or unrecognized
+There is no default and no fallback between them. A missing or unrecognized
 value stops the boot before any database URL is read, so a deployment that forgets
 to name itself fails closed instead of guessing.
 
@@ -31,7 +32,9 @@ they appear in the URL — host, database name, or credentials. The rehearsal-mo
 ceremony that guards production migrations does not apply to staging, because the
 staging role can only ever reach the staging database.
 
-The development and test environments never read the role.
+The test environment never reads the role. In development only `reader` matters:
+it signs the local database in as `regents_preview_reader` and runs the site
+read-only, so the read-only venue can be tried on a Mac.
 
 ## Bootstrap
 
@@ -362,10 +365,16 @@ whole recovery story:
 
 The `one-site` branch has its own online preview, the Fly app
 `regents-one-site-preview` at https://regents-one-site-preview.fly.dev, described by
-`platform/fly.preview.toml`. It runs under the staging role against the database app
-`regents-staging-db`, so everything above about what the staging role may reach holds
-for it. It is not a release venue: nothing is promoted from it and it runs only that
-branch. The first build is bootstrapped with `bin/bootstrap-staging`; later builds
-deploy with `platform/fly.preview.toml` and migrate through the release command.
-Privy sign-in works there only once the founder has added the preview address to the
-Privy app.
+`platform/fly.preview.toml`. It is not a release venue: nothing is promoted from it
+and it runs only that branch. It runs under the `reader` role (founder decisions
+368 a and 369 a): it reads the live database through the login
+`regents_preview_reader`, which the database holds to the tables and columns in
+`platform/priv/reader/grants.sql`, and any other login stops the boot. It has no
+release command and never migrates. The site runs read-only there: no background
+jobs or error saving, nobody signs in (Sign in says sign-in opens later), and
+sign-in addresses, agents' requests and signed-in reads answer 403 `read_only`.
+Pages of areas the login is not granted, such as Patchbay's board, show their own
+could-not-read answer.
+
+`grants.sql` gives an existing login exactly that list and may be run again;
+`platform/priv/reader/granted.sql` reads back from the database what the login holds.

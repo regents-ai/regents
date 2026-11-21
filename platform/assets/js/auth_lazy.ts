@@ -583,6 +583,28 @@ function positionAccountStatus(documentRoot: Document, status: HTMLElement): voi
   status.style.translate = `${shift}px 0`
 }
 
+// The root layout marks a site that only reads (`Regents.read_only?/0`).
+export function signInOpensLater(documentRoot: Document = document): boolean {
+  return documentRoot.querySelector("meta[name='sign-in']")?.getAttribute("content") === "later"
+}
+
+// Where nobody can sign in, every Sign in press says so beside the bar's control
+// and nothing else happens: Privy is never loaded.
+export function installSignInLater(documentRoot: Document = document): () => void {
+  const onClick = (event: Event) => {
+    const target = event.target instanceof Element ? event.target : null
+    if (target?.closest<HTMLElement>("[data-account-target]")?.dataset.accountTarget !== "sign-in") return
+    event.preventDefault()
+    const status = documentRoot.querySelector<HTMLElement>("#account-auth-status")
+    if (!status) return
+    status.textContent = "Sign-in opens later."
+    status.hidden = false
+    positionAccountStatus(documentRoot, status)
+  }
+  documentRoot.addEventListener("click", onClick)
+  return () => documentRoot.removeEventListener("click", onClick)
+}
+
 function disableSignInControls(documentRoot: Document): void {
   documentRoot
     .querySelectorAll<HTMLElement>("[data-account-target='sign-in']")

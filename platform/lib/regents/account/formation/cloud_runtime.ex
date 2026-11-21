@@ -66,11 +66,14 @@ defmodule Regents.Account.Formation.CloudRuntime do
       prepare build(sort: [inserted_at: :asc, id: :asc])
     end
 
+    # Whether the Regent has one, for its public page: its id and Regent only,
+    # the two columns the read-only venue's login may read.
     read :public_profile_source do
       public? false
       get? true
       argument :regent_id, :uuid, allow_nil?: false
       filter expr(regent_id == ^arg(:regent_id))
+      prepare build(select: [:id, :regent_id])
     end
 
     update :refresh_status do

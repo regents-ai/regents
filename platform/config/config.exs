@@ -129,6 +129,9 @@ config :regents,
 
 config :regents, ecto_repos: [Regents.Repo]
 
+# The read-only venue turns this on at boot (config/runtime.exs, `Regents.read_only?/0`).
+config :regents, :read_only, false
+
 # The commit and Fly image a deployed machine runs; production sets both at boot.
 config :regents, :build, %{commit: nil, release: nil}
 

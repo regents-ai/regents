@@ -1,9 +1,9 @@
 defmodule RegentsWeb.Cloak.CloakLive do
   @moduledoc """
   The `/cloak` product page, with the words from `RegentsWeb.Cloak`: the app's
-  icon, the heading and subtitle, Download (which opens the install page) and
-  Watch, which plays the intro film in a dialog, then the three modes beside a
-  drawn picture of the chat window, and the notes.
+  icon, the heading and subtitle, Watch, which plays the intro film in a
+  dialog, then the four modes beside a drawn picture of the chat window, and
+  the notes.
 
   `install/1` is `/cloak/install`, the page Download opens: it starts the
   download of the newest signed build and shows the steps that follow beside
@@ -34,17 +34,9 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </h1>
         <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
         <div class="cloak-hero__actions">
-          <.link
-            id="cloak-download"
-            class="cloak-button cloak-button--main"
-            navigate={Cloak.install_path() <> "?download=1"}
-          >
-            <.apple_logo />
-            <span>{Cloak.download_label()}</span>
-          </.link>
           <button
             id="cloak-watch"
-            class="cloak-button"
+            class="cloak-button cloak-button--main"
             type="button"
             aria-haspopup="dialog"
             aria-controls="cloak-intro"
@@ -87,7 +79,7 @@ defmodule RegentsWeb.Cloak.CloakLive do
         <div
           class="cloak-window"
           role="img"
-          aria-label="The Cloak chat window with its mode switch: Anon, NEAR Private AI, Local Llama and Agent."
+          aria-label="The Cloak chat window with its mode switch: V, Token Inference, NEAR Private AI, Local Llama and Agent."
         >
           <div class="cloak-window__bar"><i></i><i></i><i></i><span>{@window.title}</span></div>
           <div class="cloak-window__state"><b>{@window.mode}</b>{@window.mode_note}</div>
