@@ -87,6 +87,7 @@ config :regents,
   ash_domains: [
     Regents.Account.Names,
     Regents.Account.Accounts,
+    Regents.Account.Agents,
     Regents.Account.Formation,
     Regents.OpenSea,
     Regents.Redeem,

@@ -43,6 +43,7 @@ defmodule Regents do
       Account.Actors.Human,
       Account.Actors.System,
       Account.AgentPicture,
+      Account.Agents,
       Account.Agents.ActivityReading,
       Account.Ens,
       Account.Formation,
