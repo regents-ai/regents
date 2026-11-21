@@ -17,7 +17,7 @@ defmodule RegentsWeb.RouteCatalog do
 
   # Pages drawn on the whole width: on a wide screen they show no side menu, which
   # stays behind the header's Menu button on a phone.
-  @without_rail [:cloak]
+  @without_rail [:cloak, :cloak_install]
 
   @entries [
     %Entry{
@@ -210,6 +210,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :cloak
     },
     %Entry{
+      path_pattern: "/cloak/install",
+      live_action: :cloak_install,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :cloak_install
+    },
+    %Entry{
       path_pattern: "/admin/articles",
       live_action: :articles_admin,
       parameter_schema: %{},
@@ -290,7 +297,10 @@ defmodule RegentsWeb.RouteCatalog do
        :regents_labs, %{}},
     cloak:
       {:cloak, :regent_ops, "Regents Labs", "Cloak", "/app", [:profile_actions], :regents_labs,
-       %{}}
+       %{}},
+    cloak_install:
+      {:cloak_install, :regent_ops, "Regents Labs", "Install", "/app", [:profile_actions],
+       :regents_labs, %{}}
   }
 
   # The Account pages are tabs of one another.

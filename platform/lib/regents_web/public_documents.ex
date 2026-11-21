@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /changelog /privacy /terms /start /cloak) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start /cloak /cloak/install) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.PaperProDaily.Reading
@@ -81,6 +81,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/cloak" =>
       {"Cloak",
        "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
+    "/cloak/install" =>
+      {"Install Cloak",
+       "Install Cloak on your Mac in three steps: drag it onto Applications, open it, and press Start from the menu bar."},
     "/admin/articles" => {"New Article", "Write and publish a Regents Labs article."},
     "/docs" =>
       {"Docs",
@@ -162,6 +165,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.AgentStart.markdown()}
   def document("/cloak"), do: %{markdown: RegentsWeb.Cloak.markdown()}
+  def document("/cloak/install"), do: %{markdown: RegentsWeb.Cloak.install_markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
@@ -355,7 +359,7 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak) ++
+        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/install) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
         fn path ->

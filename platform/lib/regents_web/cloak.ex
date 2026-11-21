@@ -65,6 +65,25 @@ defmodule RegentsWeb.Cloak do
     after: "."
   }
 
+  # The page after Download, at `/cloak/install`: the download starts there and
+  # the page says what to do with it. Each step: its one-word title, its sentence.
+  @install_path "/cloak/install"
+  @install_heading "Install Cloak"
+  @install_started %{
+    before: "Your download has started. If it hasn't, ",
+    link: "download it again",
+    after: "."
+  }
+  @install_steps [
+    {"Drag",
+     "Open Regents-Cloak.dmg from your Downloads folder and drag Cloak onto Applications."},
+    {"Open",
+     "Open Cloak from Applications. Apple has checked and signed it, so your Mac only asks its usual question about apps from the internet."},
+    {"Start",
+     "Cloak lives in the menu bar, not the Dock. Click the small crown at the top right of your screen and press Start."}
+  ]
+  @first_run "The first Start downloads a 6.5 GB model. When it finishes, Local Llama answers on your Mac with nothing to pay. After that, Cloak keeps itself up to date."
+
   def heading, do: @heading
   def subtitle, do: @subtitle
   def pill, do: @pill
@@ -80,6 +99,11 @@ defmodule RegentsWeb.Cloak do
   def needs, do: @needs
   def caution, do: @caution
   def feedback, do: @feedback
+  def install_path, do: @install_path
+  def install_heading, do: @install_heading
+  def install_started, do: @install_started
+  def install_steps, do: @install_steps
+  def first_run, do: @first_run
 
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
@@ -114,6 +138,34 @@ defmodule RegentsWeb.Cloak do
     ## Needs
 
     #{@needs}
+
+    ## Caution
+
+    #{@caution}
+
+    #{@feedback.before}[#{@feedback.link}](#{@feedback.href})#{@feedback.after}
+    """
+  end
+
+  @doc "The install page as Markdown, what `/cloak/install` answers when Markdown is asked for."
+  def install_markdown do
+    steps =
+      @install_steps
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {{title, sentence}, n} -> "#{n}. **#{title}.** #{sentence}" end)
+
+    """
+    # #{@install_heading}
+
+    [#{@download_label}](#{@download})
+
+    #{@facts}
+
+    #{steps}
+
+    ## First run
+
+    #{@first_run}
 
     ## Caution
 

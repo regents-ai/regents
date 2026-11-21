@@ -377,6 +377,10 @@ defmodule RegentsWeb.ShellLive do
         />
 
         <CloakLive.page :if={@route_spec.route_id == :cloak} />
+        <CloakLive.install
+          :if={@route_spec.route_id == :cloak_install}
+          started={@route_params["download"] == "1"}
+        />
 
         <.live_component
           :if={

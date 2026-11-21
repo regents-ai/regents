@@ -262,6 +262,7 @@ defmodule RegentsWeb.Router do
       live "/patchbay", ShellLive, :patchbay
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
+      live "/cloak/install", ShellLive, :cloak_install
       live "/admin/articles", ShellLive, :articles_admin
     end
   end
