@@ -1,0 +1,707 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"gen_random_uuid()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "kind",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "asset",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "account",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "by",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "share",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "amount",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "balance",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "per_key",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "keys",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "bps",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "advance_id",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "outstanding",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "threshold",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "launch_id",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "usdc_in",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "weth_mid",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "regent_out",
+      "type": "decimal"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "voted",
+      "type": "boolean"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "purpose_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "signed_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "token_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "block_number",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "log_index",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "block_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "transaction_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "record_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "observed_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "treasury_events_fleet_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "fleets"
+      },
+      "scale": null,
+      "size": null,
+      "source": "fleet_id",
+      "type": "text"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "kind"
+      ],
+      "base_filter": null,
+      "check": "(kind = 'advance_returned' AND num_nonnulls(advance_id, by, amount, outstanding) = 4 AND num_nulls(asset, account, share, balance, per_key, keys, bps, voted, purpose_hash, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 16)\nOR (kind = 'advanced' AND num_nonnulls(advance_id, account, asset, share, amount, purpose_hash) = 6 AND num_nulls(by, balance, per_key, keys, bps, voted, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 14)\nOR (kind = 'claimed' AND num_nonnulls(asset, account, by, amount) = 4 AND num_nulls(share, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 16)\nOR (kind = 'daily_split_rate_set' AND num_nonnulls(bps) = 1 AND num_nulls(asset, account, by, share, amount, balance, per_key, keys, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 19)\nOR (kind = 'daily_split_run' AND num_nonnulls(voted, keys, bps) = 3 AND num_nulls(asset, account, by, share, amount, balance, per_key, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 17)\nOR (kind = 'forwarded' AND num_nonnulls(asset, by, amount) = 3 AND num_nulls(account, share, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 17)\nOR (kind = 'launch_token_bound' AND num_nonnulls(launch_id, asset, threshold) = 3 AND num_nulls(account, by, share, amount, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 17)\nOR (kind = 'ousd_admitted' AND num_nonnulls(asset, threshold) = 2 AND num_nulls(account, by, share, amount, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 18)\nOR (kind = 'paid' AND num_nonnulls(asset, account, share, amount) = 4 AND num_nulls(by, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 16)\nOR (kind = 'protocol_share_sent' AND num_nonnulls(by, amount) = 2 AND num_nulls(asset, account, share, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 18)\nOR (kind = 'regent_bought' AND num_nonnulls(usdc_in, weth_mid, regent_out) = 3 AND num_nulls(asset, account, by, share, amount, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash) = 17)\nOR (kind = 'settled' AND num_nonnulls(token_id, asset, account, amount) = 4 AND num_nulls(by, share, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, signed_hash, usdc_in, weth_mid, regent_out) = 16)\nOR (kind = 'signature_approved' AND num_nonnulls(signed_hash) = 1 AND num_nulls(asset, account, by, share, amount, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, usdc_in, weth_mid, regent_out) = 19)\nOR (kind = 'signature_revoked' AND num_nonnulls(signed_hash) = 1 AND num_nulls(asset, account, by, share, amount, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, usdc_in, weth_mid, regent_out) = 19)\nOR (kind = 'split_allocated' AND num_nonnulls(asset, balance, per_key, keys) = 4 AND num_nulls(account, by, share, amount, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 16)\nOR (kind = 'split_skipped' AND num_nonnulls(asset, balance) = 2 AND num_nulls(account, by, share, amount, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 18)\nOR (kind = 'split_transfer_failed' AND num_nonnulls(asset, amount) = 2 AND num_nulls(account, by, share, balance, per_key, keys, bps, voted, advance_id, purpose_hash, outstanding, threshold, launch_id, token_id, signed_hash, usdc_in, weth_mid, regent_out) = 18)",
+      "name": "treasury_events_shape"
+    },
+    {
+      "attribute": [
+        "asset"
+      ],
+      "base_filter": null,
+      "check": "asset ~ '^0x[0-9a-f]{40}$'",
+      "name": "treasury_events_asset_shape"
+    },
+    {
+      "attribute": [
+        "account"
+      ],
+      "base_filter": null,
+      "check": "account ~ '^0x[0-9a-f]{40}$'",
+      "name": "treasury_events_account_shape"
+    },
+    {
+      "attribute": [
+        "by"
+      ],
+      "base_filter": null,
+      "check": "by ~ '^0x[0-9a-f]{40}$'",
+      "name": "treasury_events_by_shape"
+    },
+    {
+      "attribute": [
+        "purpose_hash"
+      ],
+      "base_filter": null,
+      "check": "purpose_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "treasury_events_purpose_hash_shape"
+    },
+    {
+      "attribute": [
+        "signed_hash"
+      ],
+      "base_filter": null,
+      "check": "signed_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "treasury_events_signed_hash_shape"
+    },
+    {
+      "attribute": [
+        "block_hash"
+      ],
+      "base_filter": null,
+      "check": "block_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "treasury_events_block_hash_shape"
+    },
+    {
+      "attribute": [
+        "transaction_hash"
+      ],
+      "base_filter": null,
+      "check": "transaction_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "treasury_events_transaction_hash_shape"
+    },
+    {
+      "attribute": [
+        "share"
+      ],
+      "base_filter": null,
+      "check": "share >= 0",
+      "name": "treasury_events_nonnegative_share"
+    },
+    {
+      "attribute": [
+        "amount"
+      ],
+      "base_filter": null,
+      "check": "amount >= 0",
+      "name": "treasury_events_nonnegative_amount"
+    },
+    {
+      "attribute": [
+        "balance"
+      ],
+      "base_filter": null,
+      "check": "balance >= 0",
+      "name": "treasury_events_nonnegative_balance"
+    },
+    {
+      "attribute": [
+        "per_key"
+      ],
+      "base_filter": null,
+      "check": "per_key >= 0",
+      "name": "treasury_events_nonnegative_per_key"
+    },
+    {
+      "attribute": [
+        "keys"
+      ],
+      "base_filter": null,
+      "check": "keys >= 0",
+      "name": "treasury_events_nonnegative_keys"
+    },
+    {
+      "attribute": [
+        "bps"
+      ],
+      "base_filter": null,
+      "check": "bps >= 0",
+      "name": "treasury_events_nonnegative_bps"
+    },
+    {
+      "attribute": [
+        "advance_id"
+      ],
+      "base_filter": null,
+      "check": "advance_id >= 0",
+      "name": "treasury_events_nonnegative_advance_id"
+    },
+    {
+      "attribute": [
+        "outstanding"
+      ],
+      "base_filter": null,
+      "check": "outstanding >= 0",
+      "name": "treasury_events_nonnegative_outstanding"
+    },
+    {
+      "attribute": [
+        "threshold"
+      ],
+      "base_filter": null,
+      "check": "threshold >= 0",
+      "name": "treasury_events_nonnegative_threshold"
+    },
+    {
+      "attribute": [
+        "launch_id"
+      ],
+      "base_filter": null,
+      "check": "launch_id >= 0",
+      "name": "treasury_events_nonnegative_launch_id"
+    },
+    {
+      "attribute": [
+        "usdc_in"
+      ],
+      "base_filter": null,
+      "check": "usdc_in >= 0",
+      "name": "treasury_events_nonnegative_usdc_in"
+    },
+    {
+      "attribute": [
+        "weth_mid"
+      ],
+      "base_filter": null,
+      "check": "weth_mid >= 0",
+      "name": "treasury_events_nonnegative_weth_mid"
+    },
+    {
+      "attribute": [
+        "regent_out"
+      ],
+      "base_filter": null,
+      "check": "regent_out >= 0",
+      "name": "treasury_events_nonnegative_regent_out"
+    },
+    {
+      "attribute": [
+        "block_number"
+      ],
+      "base_filter": null,
+      "check": "block_number >= 0",
+      "name": "treasury_events_nonnegative_block_number"
+    },
+    {
+      "attribute": [
+        "log_index"
+      ],
+      "base_filter": null,
+      "check": "log_index >= 0",
+      "name": "treasury_events_nonnegative_log_index"
+    },
+    {
+      "attribute": [
+        "token_id"
+      ],
+      "base_filter": null,
+      "check": "token_id > 0",
+      "name": "treasury_events_positive_token_id"
+    },
+    {
+      "attribute": [
+        "record_seq"
+      ],
+      "base_filter": null,
+      "check": "record_seq > 0",
+      "name": "treasury_events_positive_record_seq"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "block_number"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "block_number"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "kind",
+        "record_seq"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "kind"
+        },
+        {
+          "type": "atom",
+          "value": "record_seq"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    }
+  ],
+  "custom_statements": [
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER immutable_treasury_events ON keyfleet_app.treasury_events;",
+      "global?": false,
+      "name": "immutable_treasury_events_trigger",
+      "up": "CREATE TRIGGER immutable_treasury_events BEFORE UPDATE OR DELETE ON keyfleet_app.treasury_events\nFOR EACH ROW EXECUTE FUNCTION keyfleet_app.refuse_proposal_record_change();\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER untruncatable_treasury_events ON keyfleet_app.treasury_events;",
+      "global?": false,
+      "name": "untruncatable_treasury_events_trigger",
+      "up": "CREATE TRIGGER untruncatable_treasury_events BEFORE TRUNCATE ON keyfleet_app.treasury_events\nFOR EACH STATEMENT EXECUTE FUNCTION keyfleet_app.refuse_proposal_record_change();\n"
+    }
+  ],
+  "has_create_action": true,
+  "hash": "3D4B07DF58ED99ECAB54B888B7E15A392A62A29C0D808283833F7434480B689C",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "treasury_events_unique_chain_event_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "transaction_hash"
+        },
+        {
+          "type": "atom",
+          "value": "log_index"
+        }
+      ],
+      "name": "unique_chain_event",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "treasury_events_unique_record_seq_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "record_seq"
+        }
+      ],
+      "name": "unique_record_seq",
+      "nils_distinct?": true,
+      "where": null
+    }
+  ],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "treasury_events",
+  "temporal": null
+}
