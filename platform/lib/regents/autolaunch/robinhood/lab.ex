@@ -1,0 +1,242 @@
+defmodule Regents.Autolaunch.Robinhood.Lab do
+  @moduledoc """
+  The Robinhood deployment description: `site-config.json` as regents-ai/autolaunch's
+  `contracts/robinhood-v2/bin/local-robinhood-lab.py start` writes it, and as the
+  contracts thread writes it for the Robinhood chain. `AUTOLAUNCH_ROBINHOOD_DEPLOYMENT`
+  names the file, which is read once and kept as the Base one is
+  (`Regents.Autolaunch.Lab.loaded!/2`); its chain id comes from it.
+
+  It is refused unless it answers on an admitted RPC door
+  (`Regents.Autolaunch.LabRpcUrl`), names every address the site depends on (with the
+  swap router and quoter together or not at all), and declares every function
+  and event the site prepares against. The stocks the launchpad admits are not
+  listed here: the site reads them from the chain (`Regents.Autolaunch.Stocks.Stock`).
+  Chain 31338 is the local lab, a blank Anvil chain with fixture stocks;
+  `test_chain?/0` is what the lab-only features key off.
+
+  A deployment with launches on the first Robinhood launchpad (RDOG) names
+  that launchpad, its hook and its locker in a `v1` section with their ABIs;
+  those launches read only those contracts.
+  """
+
+  alias Regents.Autolaunch.{Lab, LabRpcUrl}
+  alias Regents.Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias Regents.Chain.Address
+
+  @test_chain_id 31_338
+  @address_keys ~w(
+    stocks_launchpad stocks_hook stocks_locker stocks_splitter_implementation bid_adapter usdg
+    inbox hook_factory pool_manager position_manager cca_factory uerc20_factory permit2 admin_safe
+  )
+  # A deployment that supports swapping on the site names Uniswap's Universal
+  # Router and V4 Quoter together; one without the other is refused.
+  @swap_address_keys ~w(swap_router quoter)
+  @abi_keys ~w(stocks_launchpad stocks_hook stocks_locker splitter bid_adapter stock_route auction erc20)
+  @contract_keys ~w(hook launchpad locker)
+  # A v1 section also names the bid adapter that version's USDG bids went through.
+  @v1_address_keys ~w(bid_adapter hook launchpad locker)
+
+  @type t :: %{
+          path: String.t(),
+          rpc_url: String.t(),
+          public_rpc_url: String.t(),
+          chain_id: pos_integer(),
+          run_id: String.t(),
+          addresses: %{required(String.t()) => String.t()},
+          abis: %{required(String.t()) => [map()]},
+          v1: map() | nil
+        }
+
+  @doc "Whether this site was given a Robinhood deployment description."
+  def configured?, do: match?({:ok, _path}, path())
+
+  @doc "Whether the Robinhood deployment is the local lab: fixture stocks with no value."
+  def test_chain?, do: chain_id() == @test_chain_id
+
+  @doc "Whether a reviewed chain id is the local lab's."
+  def test_chain?(chain_id), do: chain_id == @test_chain_id
+
+  @doc "The network a reviewed chain id names."
+  def network_name(chain_id),
+    do: if(test_chain?(chain_id), do: "Robinhood test network", else: "Robinhood Chain")
+
+  @doc "The configured Robinhood deployment's chain id, or `nil` without one."
+  def chain_id do
+    case current() do
+      {:ok, config} -> config.chain_id
+      {:error, :robinhood_deployment_missing} -> nil
+    end
+  end
+
+  @doc "Whether a stored record's chain id is Robinhood's."
+  def chain?(chain_id), do: not is_nil(chain_id) and chain_id == chain_id()
+
+  def current do
+    case path() do
+      {:ok, path} -> {:ok, Lab.loaded!(__MODULE__, path)}
+      :error -> {:error, :robinhood_deployment_missing}
+    end
+  end
+
+  defp path, do: Application.fetch_env(:regents, :autolaunch_robinhood_deployment)
+
+  def load!(path) do
+    case load(path) do
+      {:ok, config} ->
+        config
+
+      {:error, reason} ->
+        raise "Autolaunch Robinhood deployment description is invalid: #{reason}"
+    end
+  end
+
+  # Founder-supplied startup input; this path never comes from an HTTP request.
+  # sobelow_skip ["Traversal.FileModule"]
+  def load(path) when is_binary(path) do
+    with true <- Path.type(path) == :absolute,
+         {:ok, body} <- File.read(path),
+         {:ok, decoded} <- Jason.decode(body),
+         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
+         {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
+         {:ok, run_id} <- run_id(decoded["run_id"]),
+         {:ok, addresses} <- exact_addresses(decoded["addresses"]),
+         {:ok, abis} <- exact_abis(decoded["abis"]),
+         :ok <- RobinhoodLabAbi.validate(abis),
+         {:ok, v1} <- v1_section(decoded["v1"]) do
+      {:ok,
+       %{
+         path: path,
+         rpc_url: rpc_url,
+         public_rpc_url: public_rpc_url,
+         chain_id: chain_id,
+         run_id: run_id,
+         addresses: addresses,
+         abis: abis,
+         v1: v1
+       }}
+    else
+      false -> {:error, :absolute_path_required}
+      {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}
+      {:error, :enoent} -> {:error, :missing_file}
+      {:error, reason} when is_atom(reason) -> {:error, reason}
+      _ -> {:error, :invalid_shape}
+    end
+  end
+
+  def load(_path), do: {:error, :absolute_path_required}
+
+  def address!(config, key), do: Map.fetch!(config.addresses, to_string(key))
+
+  @doc "The router and quoter a deployment trades through, or `:error` when it names none."
+  @spec swap_addresses(t()) :: {:ok, %{router: String.t(), quoter: String.t()}} | :error
+  def swap_addresses(%{addresses: addresses}) do
+    case addresses do
+      %{"swap_router" => router, "quoter" => quoter} -> {:ok, %{router: router, quoter: quoter}}
+      _none -> :error
+    end
+  end
+
+  @doc "Whether this site trades Robinhood tokens: its deployment names a router and quoter."
+  def swap_configured? do
+    case current() do
+      {:ok, config} -> match?({:ok, _addresses}, swap_addresses(config))
+      {:error, _reason} -> false
+    end
+  end
+
+  def abi!(config, key), do: Map.fetch!(config.abis, to_string(key))
+
+  @doc """
+  The launchpad, hook, locker and bid adapter a launch on `version` runs on,
+  the ABIs of the first three (keyed `"launchpad"`, `"hook"` and `"locker"`)
+  and the shape of that version's hook (`Regents.Autolaunch.Robinhood.LabAbi.shape/1`).
+  """
+  def contracts(config, :v2) do
+    {:ok,
+     :v2
+     |> RobinhoodLabAbi.shape()
+     |> Map.merge(%{
+       version: :v2,
+       launchpad: address!(config, :stocks_launchpad),
+       hook: address!(config, :stocks_hook),
+       locker: address!(config, :stocks_locker),
+       bid_adapter: address!(config, :bid_adapter),
+       abis: %{
+         "launchpad" => abi!(config, :stocks_launchpad),
+         "hook" => abi!(config, :stocks_hook),
+         "locker" => abi!(config, :stocks_locker)
+       }
+     })}
+  end
+
+  def contracts(%{v1: %{} = v1}, :v1),
+    do: {:ok, :v1 |> RobinhoodLabAbi.shape() |> Map.merge(v1) |> Map.put(:version, :v1)}
+
+  def contracts(_config, :v1), do: {:error, :v1_contracts_missing}
+
+  @doc "Every launchpad version this deployment names, the current one first."
+  def versions(%{v1: nil}), do: [:v2]
+  def versions(_config), do: [:v2, :v1]
+
+  def rpc_opts(config) do
+    [
+      rpc_url: config.rpc_url,
+      expected_chain_id: config.chain_id,
+      log_scope: "autolaunch robinhood lab"
+    ]
+  end
+
+  defp run_id(value) when is_binary(value) and value != "", do: {:ok, value}
+  defp run_id(_value), do: {:error, :invalid_run_id}
+
+  defp exact_addresses(addresses) when is_map(addresses) do
+    with true <- Enum.sort(Map.keys(addresses)) in address_key_sets(),
+         true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end) do
+      {:ok, Map.new(addresses, fn {key, value} -> {key, String.downcase(value)} end)}
+    else
+      _ -> {:error, :invalid_addresses}
+    end
+  end
+
+  defp exact_addresses(_addresses), do: {:error, :invalid_addresses}
+
+  defp address_key_sets,
+    do: [Enum.sort(@address_keys), Enum.sort(@address_keys ++ @swap_address_keys)]
+
+  defp v1_section(nil), do: {:ok, nil}
+
+  defp v1_section(%{"addresses" => addresses, "abis" => abis} = v1) when map_size(v1) == 2 do
+    with true <- is_map(addresses) and Enum.sort(Map.keys(addresses)) == @v1_address_keys,
+         true <- Enum.all?(addresses, fn {_key, value} -> valid_address?(value) end),
+         true <- is_map(abis) and Enum.sort(Map.keys(abis)) == @contract_keys,
+         true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end),
+         :ok <- RobinhoodLabAbi.validate_v1(abis) do
+      {:ok,
+       %{
+         launchpad: String.downcase(addresses["launchpad"]),
+         hook: String.downcase(addresses["hook"]),
+         locker: String.downcase(addresses["locker"]),
+         bid_adapter: String.downcase(addresses["bid_adapter"]),
+         abis: abis
+       }}
+    else
+      _ -> {:error, :invalid_v1}
+    end
+  end
+
+  defp v1_section(_v1), do: {:error, :invalid_v1}
+
+  defp exact_abis(abis) when is_map(abis) do
+    with true <- Enum.sort(Map.keys(abis)) == Enum.sort(@abi_keys),
+         true <- Enum.all?(abis, fn {_key, value} -> is_list(value) and value != [] end) do
+      {:ok, abis}
+    else
+      _ -> {:error, :invalid_abis}
+    end
+  end
+
+  defp exact_abis(_abis), do: {:error, :invalid_abis}
+
+  defp valid_address?(value), do: match?({:ok, _address}, Address.normalize(value))
+end

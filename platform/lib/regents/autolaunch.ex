@@ -12,10 +12,17 @@ defmodule Regents.Autolaunch do
   `Regents.Autolaunch.CoveredCalls`. Every attribute, relationship and identity
   is as autolaunch.sh has it, with no action yet and one policy refusing every
   action, so nothing here reads or writes a row.
+
+  It also reads the deployment descriptions, the files that say which
+  contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
+  (`Stocks.Lab`) and Robinhood's (`Robinhood.Lab`), each named by a path
+  setting and read once (`load_deployments!/0`).
   """
-  use Boundary, top_level?: true, deps: [Regents], exports: []
+  use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: [Lab]
 
   use Ash.Domain, otp_app: :regents
+
+  alias Regents.Autolaunch.{Lab, Robinhood, Stocks}
 
   resources do
     resource Regents.Autolaunch.BidActivity
@@ -51,4 +58,25 @@ defmodule Regents.Autolaunch do
 
   @doc "`:ok`: nothing Autolaunch serves yet reads anything that could be unavailable."
   def health, do: :ok
+
+  @doc """
+  Reads each deployment description this site was given and keeps it
+  (`Lab.loaded!/2`), as autolaunch.sh's `config/runtime.exs` loaded them at
+  boot: Base's, Base Stocks' and Robinhood's. One that does not load raises its
+  loader's error. A network whose setting is unset has no deployment, and
+  nothing is read for it. Run at start, it stops the boot on a malformed file
+  as autolaunch.sh did, and every later read is answered from memory.
+  """
+  def load_deployments! do
+    for {setting, loader} <- [
+          autolaunch_base_deployment: Lab,
+          autolaunch_base_stocks_deployment: Stocks.Lab,
+          autolaunch_robinhood_deployment: Robinhood.Lab
+        ],
+        {:ok, path} <- [Application.fetch_env(:regents, setting)] do
+      Lab.loaded!(loader, path)
+    end
+
+    :ok
+  end
 end
