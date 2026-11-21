@@ -26,17 +26,25 @@ defmodule RegentsWeb.Cloak do
   @film "/images/cloak/intro.mp4"
   @facts "130 MB · Apple silicon · macOS 26"
 
-  @modes_title "3 modes of operation"
+  @modes_title "4 modes of operation"
 
-  # Each mode: its name, the quieter line under the name with its link (or nil), its sentence.
+  # Each mode, in the app's order: its name, the quieter line under the name with
+  # its link (or nil), its sentence.
   @modes [
-    {"Anon “paranoid mode”",
+    {"V",
      %{
        before: "Inspired by Vitalik's ",
        link: "X post",
        href: "https://x.com/VitalikButerin/status/2111046730959433793",
        after: " about his preferred AI usage."
      }, "Tor routing, cover traffic, prompt rewording, and zkAPI inference"},
+    {"Token Inference",
+     %{
+       before: "Served by ",
+       link: "Boundless",
+       href: "https://boundless.network/news/mpp-payments",
+       after: "."
+     }, "Reworded on your Mac and sent through Tor. Pay per request with USDC.e on Tempo."},
     {"NEAR Private AI", nil,
      "Verifiably private AI models. See where your tokens go, and opt-in to earn NEAR AI Cloud inference credits for the traces you choose to share."},
     {"Local Llama", nil,
@@ -52,11 +60,11 @@ defmodule RegentsWeb.Cloak do
     answered:
       "Start with a slow morning in Alfama, then take the tram up to the viewpoint before lunch.",
     field: "Message",
-    switch: ["Anon", "NEAR Private AI", "Local Llama", "Agent"],
+    switch: ["V", "Token Inference", "NEAR Private AI", "Local Llama", "Agent"],
     hint: "The model on this Mac answers. Nothing is sent."
   }
 
-  @needs "16 GB of memory and 10 GB free; the app downloads a 5.7 GB model on first run. Modes 1 and 2 also need about 1 USDC.e on Tempo, or a NEAR AI Cloud key."
+  @needs "16 GB of memory and 10 GB free; the app downloads a 5.7 GB model on first run. V takes a deposit of ETH, Token Inference takes USDC.e on Tempo, and NEAR Private AI takes a NEAR AI Cloud key. Cards are not accepted."
   @caution "This build is for testing. Its protections have not been independently checked, so don't rely on it for anything sensitive yet."
   @feedback %{
     before: "Something broke? Tell us at ",
