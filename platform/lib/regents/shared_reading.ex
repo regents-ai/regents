@@ -66,6 +66,33 @@ defmodule Regents.SharedReading do
       # US dollars on 18 Nov 2026, were every one of them open to picks, is
       # about 10 KB.
       bytes: 16_384
+    },
+    keyfleet_fleet_agents: %{
+      audience:
+        "every visitor: the agents here and what their check-ins say are open to a signed-out read " <>
+          "(Regents.Keyfleet.Agents.AgentProfile :here_in_fleet, Regents.Keyfleet.Agents.CheckIn read policy) " <>
+          "and in the open fleet directory; if either policy tightens, this kind changes with it. " <>
+          "Its two holder counts are numbers only: how many addresses hold a Key, which the " <>
+          "chain shows anyone, and how many of them acted in the last hour, naming nobody. " <>
+          "Its faces name the holder of each of the agents' Keys, the Key they write as and " <>
+          "how many Keys they hold (Regents.Keyfleet.Keys.faces/2): the chain shows who holds each Key, " <>
+          "every address an account links is public as the Member List shows, and the Key a " <>
+          "person writes as shows beside everything they write",
+      # One for each fleet in Regents.Keyfleet.Fleets' catalog: a sixth fleet raises
+      # it, or its Here now is refused and shown as not counted.
+      keys: 5,
+      # 26,881 bytes measured at its fullest before faces, which add about
+      # 120 bytes for each of up to 50 Keys; the rest leaves room for a longer
+      # picture address in production.
+      bytes: 40_960
+    },
+    keyfleet_key_agents: %{
+      audience:
+        "every visitor: a Key's active shards and their agents are open to a signed-out read " <>
+          "(Regents.Keyfleet.Keys.ShardEvent and Regents.Keyfleet.Agents.CheckIn read policies); " <>
+          "if either policy tightens, this kind changes with it",
+      keys: 10_000,
+      bytes: 20_480
     }
   }
 
