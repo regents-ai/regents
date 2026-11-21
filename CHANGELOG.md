@@ -7455,3 +7455,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - On the founder's word (Cloak thread, 21 Nov 22:47Z) /cloak no longer shows Download for Mac, as a page or as Markdown. Watch the intro is the one button. /cloak/install is unchanged and still answers.
 - No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak page without its Download button
+
+- Commit 8427095d, the Download button taken off /cloak on the founder's word. Full check exit 0 on 8427095d; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows no Download button as a page or as Markdown and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-08bbe66f2cb5.
