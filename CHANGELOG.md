@@ -8028,3 +8028,15 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 9b42a106, on the founder's words in the Cloak thread: Download now opens /cloak/install, with the download and three steps. Full check exit 0 on 9b42a106; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install answers as a page and as Markdown, Download on /cloak opens it, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-55065e462fbd.
+
+## 2026-11-21 — Cloak install page: corrected against the build, with two pictures
+
+- The app's chief checked the page against the build and found two faults, now fixed: Start does not download the model (its own Download Model button does), and Local Llama needs no Start. The steps are now Drag, Open, Model, Start, and the model's size reads 5.7 GB here and in the Needs line on /cloak.
+- Two pictures from the app sit beside the steps: the window the download opens, and the crown's menu (cut above its build label).
+- No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak install page corrections
+
+- Commit 5d108b14, the install page corrected against the build by the app's chief, with two pictures from the app. Full check exit 0 on 5d108b14; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-9b42a10644c3.

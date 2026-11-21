@@ -81,7 +81,7 @@ defmodule RegentsWeb.PublicDocuments do
        "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
     "/cloak/install" =>
       {"Install Cloak",
-       "Install Cloak on your Mac in three steps: drag it onto Applications, open it, and press Start from the menu bar."},
+       "Install Cloak on your Mac: drag it onto Applications, open it, download the model, and press Start from the menu bar."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
