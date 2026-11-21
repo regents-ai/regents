@@ -8082,3 +8082,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 125cd264, /cloak lists the app's four modes on the founder's letter. Full check exit 0 on 125cd264; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows four modes with Token Inference as a page and as Markdown, no old mode name, no Download button, and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-8427095db335.
+
+## 2026-11-21 — One site: Techtree's row under the bar (not released)
+
+- On every Techtree page, Techtree's own links now sit in a slim row directly under the site's bar: **Services**, Results and Docs on the left, Book Call on the right. The row is the same at every width, down to a 320-pixel phone, and stays under the bar as the page scrolls. The bar keeps only the product menu, the theme switch and Sign in.
+- Services opens the six services under the row, across the page. On a wide screen the four services sit two by two with Security and Swarm Verify beside them, so no service is left alone on a line (techtree.sh leaves Models alone); on a phone, one column. A panel taller than the screen scrolls on its own.
+- Enter, Space or the down arrow on Services opens it with Skills chosen; Tab walks the six and leaving them closes it; Escape closes it and returns to Services; a press outside closes it. It and the product menu are never open together. A pointer opens it with a short fade; from the keyboard, or with less motion asked for, it is simply there.
+- The page you are on is underlined in the row. Book Call opens the booking page in a new tab and shows only where that page is set.
+- Gone: the Menu strip and its sheet on a phone, and Services, Results, Docs and Book Call in the bar.
+- Not released: on the `fold/techtree` branch only. No migration, secret, sign-in or wallet change.

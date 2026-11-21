@@ -1,8 +1,8 @@
 defmodule RegentsWeb.Techtree.SiteMenu do
   @moduledoc """
-  The site's pages for the bar and the footer (`RegentsWeb.Techtree.Layouts`).
+  The site's pages for Techtree's row and the footer (`RegentsWeb.Techtree.Layouts`).
 
-  The bar has one menu, Services: the four services (`RegentsWeb.Techtree.Services`)
+  The row has one menu, Services: the four services (`RegentsWeb.Techtree.Services`)
   with Security and Swarm Verify set apart beside them, each with a Lucide icon and
   one short line. Results and Docs are plain links beside it. The footer lists the services
   (`RegentsWeb.Techtree.Services`), Techtree's Results, Docs, changelog and code on
@@ -30,11 +30,7 @@ defmodule RegentsWeb.Techtree.SiteMenu do
     ]
   end
 
-  @doc "Techtree's code on GitHub."
-  @spec repository() :: String.t()
-  def repository, do: @repository
-
-  @doc "The bar's links after Services, by name and address."
+  @doc "The row's links after Services, by name and address."
   @spec links() :: [link()]
   def links, do: [link("Results", ~p"/techtree/results"), link("Docs", ~p"/techtree/docs")]
 

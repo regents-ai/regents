@@ -1,17 +1,16 @@
 defmodule RegentsWeb.Techtree.Layouts do
   @moduledoc """
   The frame every Techtree page is read inside, within the site's one root
-  document. The site's bar (`RegentsWeb.Components.Shell.site_bar/1`) holds
-  Techtree's links (`RegentsWeb.Techtree.SiteMenu`): the Services menu, Results,
-  Docs and Book Call, then the theme switch and the site's account control. At 48rem
-  and below, where the bar hides its links, they are in one Menu sheet, opened by Menu
-  on a strip of its own under the bar. Signed in, the account control
-  is the person's picture and name with Sign out, as the site draws it where there
-  is no account menu. The footer lists the services, the site's pages and the
-  agent links in columns, with the legal pages.
+  document. The site's bar (`RegentsWeb.Components.Shell.site_bar/1`) carries no
+  Techtree links; Techtree's row sits under it on every page and at every width
+  (`RegentsWeb.Techtree.SiteMenu`): Services, opening the six services, Results and
+  Docs, with Book Call at its end. Signed in, the bar's account control is the
+  person's picture and name with Sign out, as the site draws it where there is no
+  account menu. The footer lists the services, the site's pages and the agent links
+  in columns, with the legal pages.
 
   `app/1` is the layout of the Techtree scope's pages; `on_mount(:page, ...)`
-  gives each live page the address the bar marks and the description the
+  gives each live page the address the row marks and the description the
   root document carries.
   """
 
@@ -29,27 +28,23 @@ defmodule RegentsWeb.Techtree.Layouts do
   attr :inner_content, :any, required: true
 
   @doc """
-  The frame: the skip link, the bar, Menu with its sheet on a phone, and the page
-  under them. While the sheet is open the page is inert (`assets/js/techtree/site_menu.ts`).
+  The frame: the skip link, the site's bar, Techtree's row and the page under them.
   """
   def app(assigns) do
     ~H"""
     <a class="skip-link" href="#main-content">
       Skip to main content
     </a>
-    <.bar current_path={@current_path} account_control={@account_control} />
-    <.menu_sheet current_path={@current_path} />
-    <Regent.Structure.frame
-      class="techtree-frame"
-      phx-mounted={JS.ignore_attributes(["inert"])}
-    >
+    <Shell.site_bar product="techtree" account_control={@account_control} />
+    <.row current_path={@current_path} />
+    <Regent.Structure.frame class="techtree-frame">
       {@inner_content}
     </Regent.Structure.frame>
     """
   end
 
   @doc """
-  Each live page's address, for the bar's current link, and its
+  Each live page's address, for the row's current link, and its
   description, for the root document's head, as the router hands it over.
   """
   def on_mount(:page, _params, _session, socket) do
@@ -80,111 +75,70 @@ defmodule RegentsWeb.Techtree.Layouts do
   end
 
   attr(:current_path, :string, required: true)
-  attr(:account_control, AccountControl, required: true)
 
-  # Services is a button and the popover it opens, under the bar rather than in its
-  # links, which style every link inside them: the browser closes it on Escape or a
-  # press outside it, hands focus back to the button, and puts its links next in the
-  # Tab order. Book Call is Techtree's own main button, shown only where its
-  # booking page is set.
-  defp bar(assigns) do
+  # Techtree's row under the site's bar. Services is a button and the browser's popover
+  # under the row: the browser opens it on Enter or Space and puts focus on the first
+  # service, closes it on Escape or a press outside, hands focus back to Services, and
+  # closes the site's product menu as it opens; `assets/js/techtree/site_menu.ts` adds
+  # the rest. Services is never the current page. Book Call is Techtree's own main
+  # button, shown only where its booking page is set.
+  defp row(assigns) do
     assigns = assign(assigns, services: SiteMenu.services(), links: SiteMenu.links())
 
     ~H"""
-    <Shell.site_bar product="techtree" account_control={@account_control}>
-      <:links>
-        <button
-          type="button"
-          id="techtree-services-button"
-          class="bar-services"
-          popovertarget="techtree-services"
-          aria-expanded="false"
-          phx-mounted={JS.ignore_attributes(["aria-expanded"])}
-        >
-          Services <Regent.Icons.icon name="chevron-down" class="bar-services__chevron" />
-        </button>
-        <a
-          :for={link <- @links}
-          href={link.href}
-          aria-current={current?(link.href, @current_path) && "page"}
-        >
-          {link.name}
-        </a>
-        <BookCall.book_call class="bar-book" />
-      </:links>
-    </Shell.site_bar>
-    <nav id="techtree-services" class="mega" popover aria-label="Services">
-      <.menu_columns columns={@services} place="menu" current_path={@current_path} />
+    <nav class="tt-row" aria-label="Techtree">
+      <ul class="tt-row__links">
+        <li class="tt-row__services">
+          <button
+            type="button"
+            id="techtree-services-button"
+            class="tt-row__link"
+            popovertarget="techtree-services"
+            aria-controls="techtree-services"
+            aria-expanded="false"
+            phx-mounted={JS.ignore_attributes(["aria-expanded", "data-instant"])}
+          >
+            Services<Regent.Icons.icon name="chevron-down" class="tt-row__caret" />
+          </button>
+          <div id="techtree-services" class="tt-panel" popover>
+            <.menu_columns columns={@services} current_path={@current_path} />
+          </div>
+        </li>
+        <li :for={link <- @links}>
+          <a
+            class="tt-row__link"
+            href={link.href}
+            aria-current={current?(link.href, @current_path) && "page"}
+          >
+            {link.name}
+          </a>
+        </li>
+      </ul>
+      <BookCall.book_call class="tt-book" says_new_tab />
     </nav>
     """
   end
 
-  attr(:current_path, :string, required: true)
-
-  # At 48rem and below the bar hides its links: Menu, on a strip of its own under
-  # the bar, opens them in one sheet: the services, Results and Docs, then GitHub
-  # and Book Call.
-  defp menu_sheet(assigns) do
-    assigns =
-      assign(assigns,
-        services: SiteMenu.services(),
-        links: SiteMenu.links(),
-        repository: SiteMenu.repository()
-      )
-
-    ~H"""
-    <button
-      type="button"
-      id="techtree-menu-button"
-      class="menu-strip"
-      popovertarget="techtree-menu"
-      aria-expanded="false"
-      phx-mounted={JS.ignore_attributes(["aria-expanded"])}
-    >
-      Menu
-    </button>
-    <div id="techtree-menu" class="sheet" popover>
-      <nav class="sheet__nav" aria-label="Pages">
-        <div class="sheet__group">
-          <.menu_columns columns={@services} place="sheet" current_path={@current_path} />
-        </div>
-        <ul class="sheet__group sheet__links">
-          <li :for={link <- @links}>
-            <a
-              class="sheet__link"
-              href={link.href}
-              aria-current={current?(link.href, @current_path) && "page"}
-            >
-              {link.name}
-            </a>
-          </li>
-        </ul>
-        <div class="sheet__end">
-          <a href={@repository} target="_blank" rel="noopener noreferrer">GitHub</a>
-          <BookCall.book_call />
-        </div>
-      </nav>
-    </div>
-    """
-  end
-
   attr :columns, :list, required: true
-  attr :place, :string, required: true, doc: "menu or sheet, so each list keeps an id of its own"
   attr :current_path, :string, required: true
 
+  # The six services in their two columns; the first takes focus as the panel opens.
   defp menu_columns(assigns) do
+    assigns = assign(assigns, :first, assigns.columns |> hd() |> Map.fetch!(:pages) |> hd())
+
     ~H"""
     <div class="menu-columns">
       <div
         :for={column <- @columns}
         class={["menu-columns__column", "menu-columns__column--#{column.id}"]}
       >
-        <p class="menu-columns__title" id={"#{@place}-#{column.id}-title"}>{column.title}</p>
-        <ul aria-labelledby={"#{@place}-#{column.id}-title"}>
+        <p class="menu-columns__title" id={"menu-#{column.id}-title"}>{column.title}</p>
+        <ul aria-labelledby={"menu-#{column.id}-title"}>
           <li :for={page <- column.pages}>
             <a
               class="menu-page"
               href={page.href}
+              autofocus={page == @first}
               aria-current={current?(page.href, @current_path) && "page"}
             >
               <Regent.Icons.icon name={page.icon} class="menu-page__icon" />
