@@ -55,6 +55,17 @@ defmodule Regents.SharedReading do
           "(Regents.Account.Points.Board)",
       keys: 1,
       bytes: 65_536
+    },
+    keyfleet_season_coins: %{
+      audience:
+        "every visitor: which Coinbase products a season's pick may name is read from " <>
+          "Coinbase's own public list of products, which anyone may read " <>
+          "(Regents.Keyfleet.Seasons.CoinList)",
+      keys: 1,
+      # One id of at most 14 characters for each of the 406 products quoted in
+      # US dollars on 18 Nov 2026, were every one of them open to picks, is
+      # about 10 KB.
+      bytes: 16_384
     }
   }
 
