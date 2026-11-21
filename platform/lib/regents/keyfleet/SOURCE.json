@@ -63,7 +63,7 @@
     "from": "platform/priv/repo/migrations/*.exs (130 files, 20260921234643 to 20261119232542), platform/priv/resource_snapshots/repo/extensions.json",
     "to": "platform/priv/keyfleet/migrations/, platform/priv/keyfleet/resource_snapshots/repo/extensions.json",
     "applied": "into keyfleet_app with its own ledger keyfleet_app.schema_migrations, after regents_app and techtree_app and before patchbay_app (Regents.Products, schema \"keyfleet_app\")",
-    "module_names": "Keyfleet.Repo.Migrations.<Name> became Regents.Repo.Migrations.Keyfleet<Name> in every file; no source name starts with Keyfleet",
+    "module_names": "keyfleet.ai's Repo.Migrations.<Name> became Regents.Repo.Migrations.Keyfleet<Name> in every file; no source name starts with Keyfleet",
     "schema": "keyfleet.ai's Repo had keyfleet_app as its default schema and ran every file with it as the migrator's prefix, as Regents.Repo.migrate!/2 runs this folder. Every raw statement that names a table or function already names its schema, keyfleet_app (51 files name it) or public, apart from the first Ash-function install (below), and every table, index and reference the Ecto commands make without a prefix takes the migrator's, so no file needed prefix() for that. On a fresh database everything these files make is in keyfleet_app; five tables' foreign keys to regent_names.platform_human_users name that schema themselves.",
     "edits": [
       {
@@ -78,7 +78,7 @@
         "files": [
           "20261012191300_add_error_tracker.exs"
         ],
-        "edit": "Keyfleet.Repo.default_prefix() became prefix(), and its comment's \"the site's own tables\" became \"Keyfleet's own tables\"",
+        "edit": "keyfleet.ai's Repo.default_prefix() became prefix(), and its comment's \"the site's own tables\" became \"Keyfleet's own tables\"",
         "reason": "the area being migrated is the migrator's prefix here, keyfleet_app; Regents.Repo.default_prefix() is regents_app"
       },
       {
@@ -406,7 +406,7 @@
       "Keyfleet.X became Regents.Keyfleet.X, KeyfleetWeb.X RegentsWeb.Keyfleet.X (docs only: no carried module calls the web side)",
       "the source's Repo became Regents.Repo; every resource names schema \"keyfleet_app\" and keeps its table; the source Repo's default_prefix() became Regents.Keyfleet.schema()",
       "PubSub topics gain keyfleet: where they are built: each topic function, the access cache's topic and each Ash notifier's prefix (prefix \"keyfleet\" where it had none); the check-in notifier keeps prefix \"regent_agents\", the shared library's topic regents.sh's account pages hear",
-      "settings: config :keyfleet, :x became config :regents, :keyfleet_x; module-keyed ones config :regents, Regents.Keyfleet.X; the chain's config :regents, :keyfleet_chain",
+      "settings: the keyfleet application's setting x became config :regents, :keyfleet_x; module-keyed ones config :regents, Regents.Keyfleet.X; the chain's config :regents, :keyfleet_chain",
       "queues: keyfleet_<name>; telemetry events [:regents, :keyfleet_<name>, ...]",
       "the sign-in audience \"keyfleet\" became \"regents\"",
       "actors, accounts, sessions, public identity, alerts, limits and shared readings: the site's own (not_carried)",
