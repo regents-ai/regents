@@ -8040,3 +8040,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 5d108b14, the install page corrected against the build by the app's chief, with two pictures from the app. Full check exit 0 on 5d108b14; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-9b42a10644c3.
+
+## 2026-11-21 — Keyfleet's tables in the one database (not released)
+
+- Keyfleet's 130 migrations now build its tables in their own part of the database, `keyfleet_app`, with their own record of what has run, after regents.sh's and Techtree's and before Patchbay's. A fresh database comes out with Keyfleet's 74 tables, its old job, saved-error and connected-app tables among them; regents.sh's, Techtree's, Patchbay's and the shared parts are left exactly as they were, and a second run changes nothing.
+- Every file keeps its SQL. The two files that install the database functions every product uses do nothing here, since regents.sh's own migrations install those first; the three connected-app files spell out what a library this site does not carry used to add; the saved-error file names Keyfleet's own part. Every change is listed in Keyfleet's `SOURCE.json`.
+- Nothing reads the tables yet: no page, resource or job is added.
+- Not released: on the `fold/keyfleet` branch only. 130 migrations, all in Keyfleet's own part; production's `keyfleet_app` should already hold all 130 versions, so none would run there; that is to be confirmed before release. No secret, sign-in or page change.
