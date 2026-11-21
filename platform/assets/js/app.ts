@@ -53,7 +53,7 @@ import {installVisitLog} from "./visit_log"
 import {syncTheme} from "./theme"
 // Techtree's pages (`RegentsWeb.Techtree`): their moving pictures, rows that rise
 // in and figures that count up, the Docs' Copy page control, the Results page's
-// agent-version strip, and the bar's Services menu with the phone Menu sheet.
+// agent-version strip, and the Services panel in Techtree's row under the bar.
 import {AgentVersions} from "./techtree/agent_versions"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
