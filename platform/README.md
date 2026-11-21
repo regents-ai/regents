@@ -93,7 +93,7 @@ development and from the deployment's secret store in production.
 | `SECRET_KEY_BASE` | Yes in production | Session signing secret; must be at least 64 bytes. |
 | `PORT` | No | HTTP port. Defaults to `4000`. |
 | `REGENTS_DEV_DATABASE` | No | Local only: the loopback database a local copy uses. Defaults to `regents_dev`; the name must end in `_dev`. With `PORT`, a branch runs beside the main checkout. |
-| `REGENTS_DEPLOYMENT_ROLE` | Yes in production | `production` or `staging`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. |
+| `REGENTS_DEPLOYMENT_ROLE` | Yes in production | `production`, `staging` or `reader`, naming which venue this deployment is. There is no default: boot fails in production if it is unset or anything else. Each role admits only its own database hosts. `reader` is the read-only venue (the one-site preview): it admits production's host only when the address signs in as `regents_preview_reader`, never migrates, and runs the site read-only. Locally, `reader` signs the dev database in as that login. |
 | `DATABASE_POOLED_URL` | Yes in production | Pooled Postgres connection string. Rejected unless it is a well-formed PostgreSQL URL for an approved target. |
 | `DATABASE_DIRECT_URL` | Only when migrating | Direct Postgres connection string, used by the migration release command. |
 | `REGENTS_DATABASE_TARGET_MODE` | When migrating under the `production` role | Must be `production`. Any other value refuses the migration. |
@@ -177,7 +177,8 @@ are up to date.
 > [!WARNING]
 > Deploying runs `/app/bin/migrate` as its release command, so a deploy writes database
 > migrations. Every deployment must name its venue in `REGENTS_DEPLOYMENT_ROLE`, and
-> each role admits only its own database hosts. Under the `production` role the migration
+> each role admits only its own database hosts. The `reader` role (the one-site
+> preview, `fly.preview.toml`) has no release command and refuses to migrate. Under the `production` role the migration
 > path refuses to run unless `REGENTS_DATABASE_TARGET_MODE` is `production`, both
 > cluster settings name the approved production cluster, and `FLY_APP_NAME` is not a
 > retired application. Production boot

@@ -160,6 +160,12 @@ end
 
 migrating? = System.get_env("REGENTS_RELEASE_COMMAND") == "migrate"
 
+# The read-only venue, the `reader` role (Regents.DatabaseConfig): the site only
+# reads (`Regents.read_only?/0`), and saves no crash, as its login may not write.
+read_only? = Regents.DatabaseConfig.reader?()
+config :regents, :read_only, read_only?
+config :error_tracker, :enabled, not read_only?
+
 database_config =
   if config_env() == :prod and migrating? do
     Regents.DatabaseConfig.release_config!()

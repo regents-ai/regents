@@ -131,15 +131,21 @@ defmodule Regents.Account.Accounts.SessionAuthority do
   is the exact unpadded base64url encoding of 32 bytes, the generation is inside
   the column's range, and the signed socket topic is the one this lineage
   determines. Anything else is malformed, never a weaker claim.
+
+  Where the site only reads (`Regents.read_only?/0`) nobody is signed in: every
+  session carries no claim and none is read, so no request or mount reads these
+  rows or an account.
   """
   @spec claim(map() | nil) :: claim() | nil
-  def claim(%{
-        "session_lineage" => lineage,
-        "session_generation" => generation,
-        "live_socket_id" => socket_topic
-      })
-      when is_binary(lineage) and is_integer(generation) and generation >= 0 and
-             generation <= @maximum_generation do
+  def claim(session), do: if(Regents.read_only?(), do: nil, else: minted(session))
+
+  defp minted(%{
+         "session_lineage" => lineage,
+         "session_generation" => generation,
+         "live_socket_id" => socket_topic
+       })
+       when is_binary(lineage) and is_integer(generation) and generation >= 0 and
+              generation <= @maximum_generation do
     with true <- canonical_lineage?(lineage),
          ^socket_topic <- topic(lineage) do
       %{lineage: lineage, generation: generation}
@@ -148,17 +154,18 @@ defmodule Regents.Account.Accounts.SessionAuthority do
     end
   end
 
-  def claim(_session), do: nil
+  defp minted(_session), do: nil
 
   @doc """
   Whether `session` is trying to carry a claim at all.
 
   A session holding any canonical field is making an authority statement, so a
-  malformed one is refused rather than read as the absence of a claim.
+  malformed one is refused rather than read as the absence of a claim. Where the
+  site only reads, no session makes one (`claim/1`).
   """
   @spec claim_shaped?(map() | nil) :: boolean()
   def claim_shaped?(session) when is_map(session),
-    do: Enum.any?(@canonical_keys, &Map.has_key?(session, &1))
+    do: not Regents.read_only?() and Enum.any?(@canonical_keys, &Map.has_key?(session, &1))
 
   def claim_shaped?(_session), do: false
 

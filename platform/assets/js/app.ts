@@ -18,7 +18,9 @@ import {
   holdSocketDuringCookieRotation,
   installAccountAuthLazyLoader,
   installCrossTabCsrf,
+  installSignInLater,
   retireRefusedSession,
+  signInOpensLater,
   type PinnedSocket,
 } from "./auth_lazy"
 import {
@@ -339,7 +341,9 @@ holdAdoptionWhileLeaving()
 // holds its socket until that cookie is retired.
 void retireRefusedSession()
 liveSocket.connect()
-installAccountAuthLazyLoader()
+// Where the site only reads, nobody signs in: Sign in says so, and Privy never loads.
+if (signInOpensLater()) installSignInLater()
+else installAccountAuthLazyLoader()
 installPublicTools()
 installCrossTabCsrf()
 installCopyButtons()
