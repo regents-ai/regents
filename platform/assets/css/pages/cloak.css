@@ -351,7 +351,8 @@
 
 .cloak-switch {
   display: grid;
-  grid-template-columns: repeat(4, minmax(max-content, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(max-content, 1fr);
   margin-block-start: 12px;
   padding: 3px;
   border-radius: 9px;
@@ -583,9 +584,19 @@
     padding-inline: 12px;
   }
 
+  /* Five labels do not fit one line on a phone: the longer names take two. */
+  .cloak-switch {
+    display: flex;
+  }
+
   .cloak-switch > span {
+    display: grid;
+    flex: 1 1 auto;
+    place-items: center;
     padding-inline: 6px;
     font-size: 0.75rem;
+    line-height: 1.2;
+    white-space: normal;
   }
 
   .cloak-modes p {
