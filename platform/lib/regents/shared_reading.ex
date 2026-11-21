@@ -76,6 +76,19 @@ defmodule Regents.SharedReading do
     ArgumentError -> :error
   end
 
+  @doc """
+  The id of every key held for `kind`. For a kind's own producer on its pass
+  only, never a page's mount or each event, since it walks the whole table;
+  never count with it.
+  """
+  @spec ids(atom()) :: [integer() | String.t()]
+  def ids(kind) when is_map_key(@kinds, kind) do
+    :ets.select(@table, [{{{kind, :"$1"}, :_}, [], [:"$1"]}])
+  rescue
+    # No table for the instant its owner restarts: the same as no keys.
+    ArgumentError -> []
+  end
+
   @doc "Hear `{:shared_reading, key}` whenever the reading for `key` changes."
   @spec subscribe(key()) :: :ok
   def subscribe(key), do: Phoenix.PubSub.subscribe(Regents.PubSub, topic(checked(key)))
