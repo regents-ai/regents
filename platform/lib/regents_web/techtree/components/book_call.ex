@@ -2,8 +2,8 @@ defmodule RegentsWeb.Techtree.Components.BookCall do
   @moduledoc """
   The Book Call button: the header, the home page and every service's page
   show this one. It opens the booking page set in `TECHTREE_BOOK_CALL_URL`
-  (`config/runtime.exs`) in a new tab. With no address set it is not shown at
-  all.
+  (`config/runtime.exs`) in a new tab, and says so aloud after its name. With no
+  address set it is not shown at all.
   """
 
   use Phoenix.Component
@@ -14,10 +14,6 @@ defmodule RegentsWeb.Techtree.Components.BookCall do
 
   attr :variant, :atom, values: [:primary, :secondary], default: :primary
   attr :class, :any, default: nil
-
-  attr :says_new_tab, :boolean,
-    default: false,
-    doc: "read aloud after the name: it opens in a new tab"
 
   attr :rest, :global
 
@@ -33,7 +29,7 @@ defmodule RegentsWeb.Techtree.Components.BookCall do
       rel="noopener"
       {@rest}
     >
-      Book Call<span :if={@says_new_tab} class="visually-hidden">, opens in a new tab</span>
+      Book Call<span class="visually-hidden">, opens in a new tab</span>
     </a>
     """
   end

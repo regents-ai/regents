@@ -114,7 +114,7 @@ defmodule RegentsWeb.Techtree.Layouts do
           </a>
         </li>
       </ul>
-      <BookCall.book_call class="tt-book" says_new_tab />
+      <BookCall.book_call class="tt-book" />
     </nav>
     """
   end
