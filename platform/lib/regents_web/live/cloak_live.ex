@@ -6,7 +6,8 @@ defmodule RegentsWeb.CloakLive do
   drawn picture of the chat window, and the notes.
 
   `install/1` is `/cloak/install`, the page Download opens: it starts the
-  download of the newest signed build and shows the three steps that follow.
+  download of the newest signed build and shows the steps that follow beside
+  two pictures from the app: the window the download opens and the menu.
   """
   use RegentsWeb, :html
 
@@ -208,18 +209,39 @@ defmodule RegentsWeb.CloakLive do
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
       </header>
 
-      <ol class="cloak-steps">
-        <li :for={{{title, sentence}, n} <- @steps}>
-          <span class="cloak-badge" aria-hidden="true">{n}</span>
-          <h2>{title}</h2>
-          <p>{sentence}</p>
-        </li>
-      </ol>
+      <section class="cloak-show cloak-show--steps" aria-label="Steps">
+        <ol class="cloak-modes">
+          <li :for={{{title, sentence}, n} <- @steps}>
+            <span class="cloak-badge" aria-hidden="true">{n}</span>
+            <div>
+              <h2>{title}</h2>
+              <p>{sentence}</p>
+            </div>
+          </li>
+        </ol>
+        <div class="cloak-pictures">
+          <img
+            src={~p"/images/cloak/install-window.png"}
+            width="640"
+            height="388"
+            loading="lazy"
+            alt="The window the download opens: Cloak, an arrow, and Applications."
+          />
+          <img
+            class="cloak-pictures__menu"
+            src={~p"/images/cloak/menu-bar.png"}
+            width="460"
+            height="270"
+            loading="lazy"
+            alt="Cloak's crown in the menu bar with its menu open: Paused, then Start, Chat, Agents, Details and Settings."
+          />
+        </div>
+      </section>
 
       <section class="cloak-notes" aria-label="Details">
         <div>
-          <h2>First run</h2>
-          <p>{Cloak.first_run()}</p>
+          <h2>Updates</h2>
+          <p>{Cloak.updates()}</p>
         </div>
         <div>
           <h2>Caution</h2>

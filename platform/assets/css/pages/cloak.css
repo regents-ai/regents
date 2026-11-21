@@ -401,33 +401,38 @@
   text-underline-offset: 0.18em;
 }
 
-.cloak-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-6);
-  max-width: 1240px;
-  margin: var(--space-7) auto 0;
-  padding: 56px var(--space-8);
-  border-radius: var(--cloak-round-panel);
-  background: radial-gradient(120% 140% at 0% 0%, var(--cloak-panel-a) 0%, var(--cloak-panel-b) 62%);
-  color: var(--cloak-panel-text);
-  list-style: none;
+/* The steps use the modes' panel and list: the steps on the left, two pictures
+   from the app on the right. */
+.cloak-show--steps {
+  margin-block-start: var(--space-7);
 }
 
-.cloak-steps h2 {
-  margin: var(--space-3) 0 var(--space-1);
+.cloak-modes h2 {
+  margin: 2px 0 var(--space-1);
   font-family: var(--cloak-sans);
   font-size: 1.3125rem;
   font-weight: 600;
   line-height: 1.25;
 }
 
-.cloak-steps p {
-  margin: 0;
-  color: var(--cloak-panel-muted);
-  font-size: 1.0625rem;
-  line-height: 1.5;
-  text-wrap: pretty;
+.cloak-pictures {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+}
+
+.cloak-pictures img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+/* The menu is cut above its last line, the build's own label, and fades out there. */
+.cloak-pictures .cloak-pictures__menu {
+  border-radius: 0;
+  -webkit-mask-image: linear-gradient(#000 82%, transparent);
+  mask-image: linear-gradient(#000 82%, transparent);
 }
 
 /* ---- Notes ---- */
@@ -587,12 +592,8 @@
     font-size: 1.0625rem;
   }
 
-  .cloak-steps {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
+  .cloak-show--steps {
     margin-block-start: 44px;
-    padding: var(--space-5) var(--space-3);
-    border-radius: 22px;
   }
 
   .cloak-notes {

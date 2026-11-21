@@ -56,7 +56,7 @@ defmodule RegentsWeb.Cloak do
     hint: "The model on this Mac answers. Nothing is sent."
   }
 
-  @needs "16 GB of memory and 10 GB free; the app downloads a 6.5 GB model on first run. Modes 1 and 2 also need about 1 USDC.e on Tempo, or a NEAR AI Cloud key."
+  @needs "16 GB of memory and 10 GB free; the app downloads a 5.7 GB model on first run. Modes 1 and 2 also need about 1 USDC.e on Tempo, or a NEAR AI Cloud key."
   @caution "This build is for testing. Its protections have not been independently checked, so don't rely on it for anything sensitive yet."
   @feedback %{
     before: "Something broke? Tell us at ",
@@ -67,6 +67,7 @@ defmodule RegentsWeb.Cloak do
 
   # The page after Download, at `/cloak/install`: the download starts there and
   # the page says what to do with it. Each step: its one-word title, its sentence.
+  # The app's chief checks these against each build.
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
   @install_started %{
@@ -79,10 +80,12 @@ defmodule RegentsWeb.Cloak do
      "Open Regents-Cloak.dmg from your Downloads folder and drag Cloak onto Applications."},
     {"Open",
      "Open Cloak from Applications. Apple has checked and signed it, so your Mac only asks its usual question about apps from the internet."},
+    {"Model",
+     "Cloak opens its Chat window and shows its modes once. Press Download Model and let the 5.7 GB model finish. Local Llama then answers on your Mac with nothing to pay."},
     {"Start",
-     "Cloak lives in the menu bar, not the Dock. Click the small crown at the top right of your screen and press Start."}
+     "Cloak lives in the menu bar and stays paused until you press Start. Click the small crown at the top right of your screen. Start is for the modes that send through Tor; Local Llama doesn't need it."}
   ]
-  @first_run "The first Start downloads a 6.5 GB model. When it finishes, Local Llama answers on your Mac with nothing to pay. After that, Cloak keeps itself up to date."
+  @updates "Cloak keeps itself up to date, unless you turn that off in Settings."
 
   def heading, do: @heading
   def subtitle, do: @subtitle
@@ -103,7 +106,7 @@ defmodule RegentsWeb.Cloak do
   def install_heading, do: @install_heading
   def install_started, do: @install_started
   def install_steps, do: @install_steps
-  def first_run, do: @first_run
+  def updates, do: @updates
 
   @doc "The page as Markdown, what `/cloak` answers when Markdown is asked for."
   def markdown do
@@ -163,9 +166,9 @@ defmodule RegentsWeb.Cloak do
 
     #{steps}
 
-    ## First run
+    ## Updates
 
-    #{@first_run}
+    #{@updates}
 
     ## Caution
 
