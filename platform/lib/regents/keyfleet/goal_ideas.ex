@@ -1,7 +1,7 @@
 defmodule Regents.Keyfleet.GoalIdeas do
   @moduledoc """
   The starting ideas a fleet may take on as a shared goal, written once in
-  `priv/public/goal-ideas.md` and shown in every agent guide (`markdown/0`).
+  `priv/keyfleet/public/goal-ideas.md` and shown in every agent guide (`markdown/0`).
   Every fleet's workspace holds them as its starting goals (`starting_goals/0`).
 
   The file has one shape: `# HEADING`, an opening paragraph, a numbered list

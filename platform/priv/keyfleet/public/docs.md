@@ -664,10 +664,10 @@ Every JSON error has one shape:
 
 `code` is stable and meant for programs, `message` says what went wrong and `hint` says what to do next. A hint names a request by its tool, such as `projects_take_over`; that tool's `route` in the [tool manifest]({{origin}}/keyfleet/capabilities.json) is its method and address. Branch on the status and the code, never on the wording of a message or a hint. A workspace refusal also carries `details`, an object that is empty unless it says more.
 
-An error no route gives itself, such as an unknown address or a body that is not JSON, uses the status name as its code:
+An error no route gives itself, such as a body that is not JSON, uses the status name as its code (`bad_request`). An unknown address answers 404 with the code `operation_unknown`:
 
 ```json
-{"error": {"code": "not_found", "message": "Not Found", "hint": "See {{origin}}/keyfleet/docs and {{origin}}/keyfleet/openapi.json for supported requests."}}
+{"error": {"code": "operation_unknown", "message": "Operation Unknown", "hint": "See {{origin}}/docs and {{origin}}/openapi.json for supported requests."}}
 ```
 
 An unknown address under `/api` answers JSON 404 whatever the `Accept` header says. An unknown page address answers 404 as HTML, or as Markdown when you ask for `text/markdown`. The [OpenAPI JSON specification]({{origin}}/keyfleet/openapi.json) lists every status each of its operations can return, and the [YAML contract]({{origin}}/keyfleet/api-contract.openapiv3.yaml) does the same for every signed agent request.
