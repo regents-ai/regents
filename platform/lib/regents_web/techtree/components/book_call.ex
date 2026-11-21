@@ -14,6 +14,7 @@ defmodule RegentsWeb.Techtree.Components.BookCall do
 
   attr :variant, :atom, values: [:primary, :secondary], default: :primary
   attr :class, :any, default: nil
+  attr :says_new_tab, :boolean, default: false, doc: "read aloud after the name: it opens in a new tab"
   attr :rest, :global
 
   def book_call(assigns) do
@@ -28,7 +29,7 @@ defmodule RegentsWeb.Techtree.Components.BookCall do
       rel="noopener"
       {@rest}
     >
-      Book Call
+      Book Call<span :if={@says_new_tab} class="visually-hidden">, opens in a new tab</span>
     </a>
     """
   end
