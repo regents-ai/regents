@@ -4,7 +4,7 @@ defmodule Regents.Application do
   @moduledoc false
   use Boundary,
     top_level?: true,
-    deps: [Regents, RegentsWeb, Regents.Stake]
+    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Keyfleet]
 
   use Application
 
@@ -80,11 +80,13 @@ defmodule Regents.Application do
   end
 
   # AshOban adds a queue and a sweep for every trigger in the site's domains.
+  # Keyfleet's are left out: none of their triggers sweeps until the slice that
+  # puts their jobs to use.
   defp oban_child do
     if Application.get_env(:regents, :database_startup_enabled, false) do
       {Oban,
        AshOban.config(
-         Application.fetch_env!(:regents, :ash_domains),
+         Application.fetch_env!(:regents, :ash_domains) -- Regents.Keyfleet.domains(),
          staking_jobs(Application.fetch_env!(:regents, Oban))
        )}
     end
