@@ -55,6 +55,9 @@ defmodule Regents.Application do
         # Points board read once for all of them.
         Regents.SharedReading,
         points_board_child(),
+        # After PubSub and SharedReading: Keyfleet's processes that keep what they
+        # are given in memory and write nothing.
+        Regents.Keyfleet.Supervisor,
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
