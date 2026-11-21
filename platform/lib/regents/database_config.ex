@@ -25,6 +25,9 @@ defmodule Regents.DatabaseConfig do
   @reader_login "regents_preview_reader"
   # Connections one running site keeps open to the shared database.
   @server_pool_size 5
+  # The read-only venue keeps fewer: with its one listening connection it holds
+  # three, under the login's own limit of four (priv/reader/grants.sql).
+  @reader_pool_size 2
   @deployment_role_variable "REGENTS_DEPLOYMENT_ROLE"
   @deployment_role_error ~s(REGENTS_DEPLOYMENT_ROLE must be set to "production", "staging" or "reader")
   @reader_login_error "DATABASE_POOLED_URL must sign in as #{@reader_login} in the reader role"
@@ -32,28 +35,30 @@ defmodule Regents.DatabaseConfig do
   @production_target_error "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod"
 
   def runtime_config!(:prod) do
-    config =
-      case deployment_role!() do
-        :production ->
-          database_url!("DATABASE_POOLED_URL", @production_hosts, @production_identities)
+    case deployment_role!() do
+      :production ->
+        "DATABASE_POOLED_URL"
+        |> database_url!(@production_hosts, @production_identities)
+        |> Keyword.put(:pool_size, @server_pool_size)
 
-        :staging ->
-          database_url!("DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
+      :staging ->
+        "DATABASE_POOLED_URL"
+        |> database_url!(@staging_hosts, @staging_refusals)
+        |> Keyword.put(:pool_size, @server_pool_size)
 
-        # Production's database, through the one login that only reads it.
-        :reader ->
-          "DATABASE_POOLED_URL"
-          |> database_url!(@production_hosts, @production_identities)
-          |> reader_login!()
-      end
-
-    Keyword.put(config, :pool_size, @server_pool_size)
+      # Production's database, through the one login that only reads it.
+      :reader ->
+        "DATABASE_POOLED_URL"
+        |> database_url!(@production_hosts, @production_identities)
+        |> reader_login!()
+        |> Keyword.put(:pool_size, @reader_pool_size)
+    end
   end
 
   def runtime_config!(:dev) do
     case remote_target() do
       :local -> local_config()
-      :remote -> database_url!("DATABASE_POOLED_URL")
+      :remote -> remote_config()
     end
   end
 
@@ -263,6 +268,13 @@ defmodule Regents.DatabaseConfig do
 
   # A local run in the reader role signs in as the reader login, which a local
   # database holds to the same grants as the live one.
+  # A local run against the shared database in the reader role is held to the
+  # reader login too.
+  defp remote_config do
+    config = database_url!("DATABASE_POOLED_URL")
+    if reader?(), do: reader_login!(config), else: config
+  end
+
   defp local_config do
     [
       username: if(reader?(), do: @reader_login, else: System.get_env("USER")),

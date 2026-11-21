@@ -55,6 +55,13 @@ $$;
 -- Every session the login opens is read-only.
 ALTER ROLE regents_preview_reader SET default_transaction_read_only = on;
 
+-- It may not hold the database: a query is stopped after ten seconds, an open
+-- transaction left idle after ten, and it keeps at most four connections (the
+-- site holds three: two for pages and one listening).
+ALTER ROLE regents_preview_reader SET statement_timeout = '10s';
+ALTER ROLE regents_preview_reader SET idle_in_transaction_session_timeout = '10s';
+ALTER ROLE regents_preview_reader CONNECTION LIMIT 4;
+
 -- The areas it reads.
 GRANT USAGE ON SCHEMA
   public, regents_app, regent_names, regent_agents, techtree_app, patchbay_app
@@ -153,6 +160,27 @@ BEGIN
       AND has_schema_privilege(reader, n.oid, 'USAGE')
       AND (has_column_privilege(reader, c.oid, a.attnum, 'INSERT')
         OR has_column_privilege(reader, c.oid, a.attnum, 'UPDATE'))
+    UNION ALL
+    SELECT 'may run ' || p.oid::regprocedure::text || ', which runs with its owner''s rights'
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE p.prosecdef
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND has_schema_privilege(reader, n.oid, 'USAGE')
+      AND has_function_privilege(reader, p.oid, 'EXECUTE')
+    UNION ALL
+    SELECT 'may advance the counter ' || n.nspname || '.' || c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'S'
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND has_schema_privilege(reader, n.oid, 'USAGE')
+      AND (has_sequence_privilege(reader, c.oid, 'USAGE')
+        OR has_sequence_privilege(reader, c.oid, 'UPDATE'))
+    UNION ALL
+    SELECT 'may keep more than four connections'
+    FROM pg_roles
+    WHERE oid = reader AND (rolconnlimit < 0 OR rolconnlimit > 4)
   ) AS rights_to_change;
 
   IF found IS NOT NULL THEN
