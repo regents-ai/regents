@@ -130,7 +130,7 @@ defmodule RegentsWeb.Cloak do
 
     #{@subtitle}
 
-    [#{@download_label}](#{@download}) · [#{@watch_label} #{@watch_time}](#{film})
+    [#{@watch_label} #{@watch_time}](#{film})
 
     #{@facts}
 

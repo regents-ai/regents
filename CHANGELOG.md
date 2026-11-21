@@ -7450,3 +7450,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 08bbe66f, Phoenix 1.8.17, closing two advisories published the same day. Full check exit 0 on 08bbe66f; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-5d108b14424d.
+
+## 2026-11-21 — Cloak page: Download button taken off for now
+
+- On the founder's word (Cloak thread, 21 Nov 22:47Z) /cloak no longer shows Download for Mac, as a page or as Markdown. Watch the intro is the one button. /cloak/install is unchanged and still answers.
+- No table, setting or migration.

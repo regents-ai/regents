@@ -34,17 +34,9 @@ defmodule RegentsWeb.CloakLive do
         </h1>
         <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
         <div class="cloak-hero__actions">
-          <.link
-            id="cloak-download"
-            class="cloak-button cloak-button--main"
-            navigate={Cloak.install_path() <> "?download=1"}
-          >
-            <.apple_logo />
-            <span>{Cloak.download_label()}</span>
-          </.link>
           <button
             id="cloak-watch"
-            class="cloak-button"
+            class="cloak-button cloak-button--main"
             type="button"
             aria-haspopup="dialog"
             aria-controls="cloak-intro"
