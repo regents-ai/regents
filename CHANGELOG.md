@@ -8047,3 +8047,25 @@ seasons), on the shared Points library regents.sh was already on.
 - In that role the site only reads: no background jobs, timed sweeps, error saving or Points board; no session is checked, so no sign-in or linked-account table is read; Sign in says "Sign-in opens later." and loads no sign-in; sign-in addresses, every agent request, the profile API and signed-in reads answer 403 `read_only` with a short message. `/healthz` reads a table the login is granted, and the public Regent page and agent pictures read only the two columns granted on each of their three tables.
 - `platform/priv/reader/grants.sql` gives an existing login exactly that list and may be run again; `platform/priv/reader/granted.sql` reads back what the login holds. Both were run on a local copy, where every write, every ungranted read and every new table was refused by the database.
 - Not released: on the `one-site` branch only. No migration, secret or wallet change; the login does not exist on the live database yet.
+
+## 2026-11-21 — Phoenix 1.8.17
+
+- Phoenix moves from 1.8.16 to 1.8.17, closing two advisories published today (a Presence key crash and a crash in the older message format on binary broadcasts). The site uses neither, and the full check refuses a lock that carries an open advisory.
+- One line of the lock file. No page, table, setting or migration.
+
+## 2026-11-21 — Released the Phoenix 1.8.17 update
+
+- Commit 08bbe66f, Phoenix 1.8.17, closing two advisories published the same day. Full check exit 0 on 08bbe66f; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-5d108b14424d.
+
+## 2026-11-21 — Cloak page: Download button taken off for now
+
+- On the founder's word (Cloak thread, 21 Nov 22:47Z) /cloak no longer shows Download for Mac, as a page or as Markdown. Watch the intro is the one button. /cloak/install is unchanged and still answers.
+- No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak page without its Download button
+
+- Commit 8427095d, the Download button taken off /cloak on the founder's word. Full check exit 0 on 8427095d; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak shows no Download button as a page or as Markdown and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-08bbe66f2cb5.
