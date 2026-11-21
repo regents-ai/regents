@@ -19,6 +19,7 @@ defmodule Regents.Account do
       Actors.Human,
       Actors.System,
       AgentPicture,
+      Agents,
       Agents.ActivityReading,
       Ens,
       Formation,

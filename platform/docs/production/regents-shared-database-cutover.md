@@ -14,6 +14,16 @@ The Fly app `regents-sh-web` is the last product still on the old cluster:
 | Database | `regent_marketing_web` | `regents_prod` |
 | Attached apps | `regents-sh-web`, `regent-shadow-web` | `patchbay-regents`, `platform-phx`, `autolaunch-sh`, `techtree-sh`, `autolaunch-sh-migrations` |
 
+**Two ids for the shared cluster (read from Fly's records, 21 Nov 2026).** Fly
+holds two records named `regents-platform-prod`. `dzx6qo6xqzvojpv5` is the id in
+the database address and in this code; Fly no longer lists it and shows that
+record as paused. `kzpwm0j91dgr4nv3` is the id `fly mpg list` shows as ready,
+with the apps attached. The address with the older id is the one every site
+connects through and it answers. Name the cluster by the id from Fly's list in
+any `fly mpg` command; a command naming the older id is refused as paused. Fly's
+documentation does not say how long the older address is kept. Changing an
+address is a secrets and production change and needs its own decision.
+
 The committed code on `main` (commit `39d1db7` and later) already refuses the old
 cluster: production boots only against `direct.dzx6qo6xqzvojpv5.flympg.net`, and
 the release migrator additionally requires the secrets
