@@ -58,5 +58,47 @@
     "/metadata/ and hub-jwks.json: the keyfleet.ai host, at the move.",
     "Keyfleet's root and early layouts, the launch gate and the early-access page, sign-in, sessions, accounts, actors, agents and pairing, Points, messages, endpoint, router, release and database setup, telemetry, vitals, visit log, steps, error tracking and rate limiting: this site's own serve every page.",
     "priv/static/images/home/hex.svg: only Keyfleet's home stylesheet names it; it comes with the home page."
-  ]
+  ],
+  "migrations": {
+    "from": "platform/priv/repo/migrations/*.exs (130 files, 20260921234643 to 20261119232542), platform/priv/resource_snapshots/repo/extensions.json",
+    "to": "platform/priv/keyfleet/migrations/, platform/priv/keyfleet/resource_snapshots/repo/extensions.json",
+    "applied": "into keyfleet_app with its own ledger keyfleet_app.schema_migrations, after regents_app and techtree_app and before patchbay_app (Regents.Products, schema \"keyfleet_app\")",
+    "module_names": "Keyfleet.Repo.Migrations.<Name> became Regents.Repo.Migrations.Keyfleet<Name> in every file; no source name starts with Keyfleet",
+    "schema": "keyfleet.ai's Repo had keyfleet_app as its default schema and ran every file with it as the migrator's prefix, as Regents.Repo.migrate!/2 runs this folder. Every raw statement that names a table or function already names its schema, keyfleet_app (51 files name it) or public, apart from the first Ash-function install (below), and every table, index and reference the Ecto commands make without a prefix takes the migrator's, so no file needed prefix() for that. On a fresh database everything these files make is in keyfleet_app; five tables' foreign keys to regent_names.platform_human_users name that schema themselves.",
+    "edits": [
+      {
+        "files": [
+          "20260921234643_initial_app_extensions_1.exs",
+          "20261026194845_ash_functions_v7_extensions_1.exs"
+        ],
+        "edit": "up and down do nothing; the moduledoc says why",
+        "reason": "the Ash functions are already in public, put there by regents.sh's own 20260911204813 and 20261027045129, which run before any product's and carry the same SQL; the first file's CREATE OR REPLACE names no schema, so it would rewrite them in public (ash_required back to version 6 until the second file) and its down would drop them. Both versions stay so the ledger holds what production's does"
+      },
+      {
+        "files": [
+          "20261012191300_add_error_tracker.exs"
+        ],
+        "edit": "Keyfleet.Repo.default_prefix() became prefix(), and its comment's \"the site's own tables\" became \"Keyfleet's own tables\"",
+        "reason": "the area being migrated is the migrator's prefix here, keyfleet_app; Regents.Repo.default_prefix() is regents_app"
+      },
+      {
+        "files": [
+          "20261028180000_add_oauth_provider.exs",
+          "20261114120000_oauth_client_documents.exs",
+          "20261119120000_oauth_long_values.exs"
+        ],
+        "edit": "RegentOAuth.Migration's up and V2 (the first file), V3 and V4 written out as regent_oauth holds them at elixir-utils b9d530d4 (Keyfleet 03eb26813's pin, the same files as at 6d98a113, Patchbay's), V2's two statements naming oauth_tokens with prefix()",
+        "reason": "this site does not carry regent_oauth (as Patchbay's and Techtree's carried OAuth migrations)"
+      }
+    ],
+    "unchanged_on_purpose": [
+      "Every file naming keyfleet_app itself, in a reference, a statement or Oban's prefix, keeps it: the area here is always keyfleet_app",
+      "20261002170000_add_oban.exs: Keyfleet's old job tables (oban_jobs, oban_peers and the oban_job_state type) in keyfleet_app, at Oban 2.24.2 here as on keyfleet.ai; no job is queued into them here",
+      "20261012191300_add_error_tracker.exs: Keyfleet's old saved-error tables in keyfleet_app, read by nobody",
+      "20260921234644_initial_app.exs, 20261012180958_add_ens_identities.exs, 20261013080809_add_quote_requests.exs and 20261112090918_add_left_messages.exs: their references to regent_names.platform_human_users name that schema themselves",
+      "linked_identities, session_authorities, account_ens_identities, left_messages and the oauth_* tables: areas the core will not carry; the tables are made, nobody reads them",
+      "20261008223900_drop_fast_poll_sessions.exs: its DELETE FROM keyfleet_app.oban_jobs finds an empty table on a fresh database",
+      "extensions.json: byte for byte; its one extension, ash-functions at version 7, is already named as Regents.Repo names it"
+    ]
+  }
 }
