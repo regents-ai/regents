@@ -346,6 +346,7 @@ defmodule RegentsWeb.Router do
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
       live "/siwa", ShellLive, :siwa
+      live "/cloak/install", ShellLive, :cloak_install
       live "/admin/articles", ShellLive, :articles_admin
     end
   end

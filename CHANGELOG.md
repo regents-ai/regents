@@ -8016,3 +8016,15 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 55065e46, on the founder's words in the Cloak thread: his sentence under NEAR Private AI, as written. Full check exit 0 on 55065e46; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows the new sentence, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-53daab6b32a8.
+
+## 2026-11-21 — Cloak: a page after Download with the install steps
+
+- Download for Mac on /cloak now opens /cloak/install, which starts the download and shows three steps (Drag, Open, Start), what the first run does, and the Caution. Opened directly, the page shows the Download button and starts nothing. The download address is unchanged.
+- The page answers as Markdown and is in the sitemap; the agent index names it and no longer says "Early test build".
+- On the founder's words in the Cloak thread (21 Nov 06:44Z): the Cloak page and the page after the download click, ahead of a friends' test release. No table, setting or migration.
+
+## 2026-11-21 — Released the Cloak install page
+
+- Commit 9b42a106, on the founder's words in the Cloak thread: Download now opens /cloak/install, with the download and three steps. Full check exit 0 on 9b42a106; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install answers as a page and as Markdown, Download on /cloak opens it, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-55065e462fbd.

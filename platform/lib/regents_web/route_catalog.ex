@@ -192,6 +192,13 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :cloak
     },
     %Entry{
+      path_pattern: "/cloak/install",
+      live_action: :cloak_install,
+      parameter_schema: %{},
+      reserved_values: %{},
+      route_spec_id: :cloak_install
+    },
+    %Entry{
       path_pattern: "/siwa",
       live_action: :siwa,
       parameter_schema: %{},
@@ -274,6 +281,9 @@ defmodule RegentsWeb.RouteCatalog do
     cloak:
       {:cloak, :regent_ops, "Regents Labs", "Cloak", "/app", [:profile_actions], :regents_labs,
        %{}},
+    cloak_install:
+      {:cloak_install, :regent_ops, "Regents Labs", "Install", "/app", [:profile_actions],
+       :regents_labs, %{}},
     siwa: {:siwa, :regent_ops, "Regents Labs", "SIWA", "/app", [], :regents_labs, %{}}
   }
 

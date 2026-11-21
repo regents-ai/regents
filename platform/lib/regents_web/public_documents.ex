@@ -29,7 +29,7 @@ defmodule RegentsWeb.PublicDocuments do
   | --- | --- | --- |
   #{Enum.map_join(@tools, "\n", &"| `#{&1["name"]}` | #{Map.fetch!(@needs, &1["requires"])} | #{&1["description"]} |")}\
   """
-  @documents ~w(/ /about /changelog /privacy /terms /start /cloak /siwa) ++
+  @documents ~w(/ /about /changelog /privacy /terms /start /cloak /cloak/install /siwa) ++
                RegentsWeb.Docs.Pages.paths()
   alias RegentsWeb.AgentGuides
   alias RegentsWeb.Autolaunch.PublicDocuments, as: AutolaunchDocuments
@@ -79,6 +79,9 @@ defmodule RegentsWeb.PublicDocuments do
     "/cloak" =>
       {"Cloak",
        "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
+    "/cloak/install" =>
+      {"Install Cloak",
+       "Install Cloak on your Mac in three steps: drag it onto Applications, open it, and press Start from the menu bar."},
     "/siwa" =>
       {"SIWA",
        "Pair an agent with a person's account using a one-time code and its own SIWA key."},
@@ -163,6 +166,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/terms"), do: %{markdown: Regents.Legal.markdown(:terms)}
   def document("/start"), do: %{markdown: RegentsWeb.Account.AgentStart.markdown()}
   def document("/cloak"), do: %{markdown: RegentsWeb.Cloak.markdown()}
+  def document("/cloak/install"), do: %{markdown: RegentsWeb.Cloak.install_markdown()}
   def document("/siwa"), do: %{markdown: RegentsWeb.SiwaLive.markdown()}
 
   def document("/about"), do: %{markdown: source("about")}
@@ -379,7 +383,7 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /siwa) ++
+        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/install /siwa) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
         fn path ->

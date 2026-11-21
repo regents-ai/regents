@@ -1,9 +1,12 @@
 defmodule RegentsWeb.Cloak.CloakLive do
   @moduledoc """
   The `/cloak` product page, with the words from `RegentsWeb.Cloak`: the app's
-  icon, the heading and subtitle, Download (a plain link to the newest signed
-  build) and Watch, which plays the intro film in a dialog, then the three modes
-  beside a drawn picture of the chat window, and the notes.
+  icon, the heading and subtitle, Download (which opens the install page) and
+  Watch, which plays the intro film in a dialog, then the three modes beside a
+  drawn picture of the chat window, and the notes.
+
+  `install/1` is `/cloak/install`, the page Download opens: it starts the
+  download of the newest signed build and shows the three steps that follow.
   """
   use RegentsWeb, :html
 
@@ -30,10 +33,14 @@ defmodule RegentsWeb.Cloak.CloakLive do
         </h1>
         <p class="cloak-hero__subtitle">{Cloak.subtitle()}</p>
         <div class="cloak-hero__actions">
-          <a id="cloak-download" class="cloak-button cloak-button--main" href={Cloak.download()}>
+          <.link
+            id="cloak-download"
+            class="cloak-button cloak-button--main"
+            navigate={Cloak.install_path() <> "?download=1"}
+          >
             <.apple_logo />
             <span>{Cloak.download_label()}</span>
-          </a>
+          </.link>
           <button
             id="cloak-watch"
             class="cloak-button"
@@ -156,6 +163,82 @@ defmodule RegentsWeb.Cloak.CloakLive do
           },
           destroyed() {
             this.trigger.removeEventListener("click", this.open)
+          }
+        }
+      </script>
+    </section>
+    """
+  end
+
+  attr :started, :boolean, required: true
+
+  def install(assigns) do
+    assigns =
+      assign(assigns,
+        started_words: Cloak.install_started(),
+        steps: Enum.with_index(Cloak.install_steps(), 1)
+      )
+
+    ~H"""
+    <section id="cloak-install" class="cloak" aria-labelledby="cloak-install-heading">
+      <header class="cloak-hero">
+        <img class="cloak-hero__icon" src={~p"/images/cloak/icon.png"} width="72" height="72" alt="" />
+        <h1 id="cloak-install-heading" class="cloak-hero__small" tabindex="-1">
+          {Cloak.install_heading()}
+        </h1>
+        <p
+          :if={@started}
+          id="cloak-install-started"
+          class="cloak-hero__subtitle"
+          phx-hook=".StartDownload"
+          data-download={Cloak.download()}
+        >
+          {@started_words.before}<a href={Cloak.download()}>{@started_words.link}</a>{@started_words.after}
+        </p>
+        <div :if={!@started} class="cloak-hero__actions">
+          <a
+            id="cloak-install-download"
+            class="cloak-button cloak-button--main"
+            href={Cloak.download()}
+          >
+            <.apple_logo />
+            <span>{Cloak.download_label()}</span>
+          </a>
+        </div>
+        <p class="cloak-hero__facts">{Cloak.facts()}</p>
+      </header>
+
+      <ol class="cloak-steps">
+        <li :for={{{title, sentence}, n} <- @steps}>
+          <span class="cloak-badge" aria-hidden="true">{n}</span>
+          <h2>{title}</h2>
+          <p>{sentence}</p>
+        </li>
+      </ol>
+
+      <section class="cloak-notes" aria-label="Details">
+        <div>
+          <h2>First run</h2>
+          <p>{Cloak.first_run()}</p>
+        </div>
+        <div>
+          <h2>Caution</h2>
+          <p>{Cloak.caution()}</p>
+        </div>
+        <p class="cloak-notes__last">
+          {Cloak.feedback().before}<a
+            href={Cloak.feedback().href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{Cloak.feedback().link}</a>{Cloak.feedback().after}
+        </p>
+      </section>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".StartDownload">
+        // Arriving from Download starts the file. The address answers with a
+        // file to save, so the browser stays on this page.
+        export default {
+          mounted() {
+            window.location.assign(this.el.dataset.download)
           }
         }
       </script>
