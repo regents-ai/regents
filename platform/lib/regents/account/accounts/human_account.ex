@@ -87,11 +87,14 @@ defmodule Regents.Account.Accounts.HumanAccount do
       public? false
     end
 
+    # The one wallet a public Regent page shows: the id and that wallet only, the
+    # two columns the read-only venue's login may read.
     read :public_profile_source do
       public? false
       get? true
       argument :id, :integer, allow_nil?: false
       filter expr(id == ^arg(:id))
+      prepare build(select: [:id, :wallet_address])
     end
 
     create :register_verified do

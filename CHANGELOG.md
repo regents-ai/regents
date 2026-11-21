@@ -8040,3 +8040,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 5d108b14, the install page corrected against the build by the app's chief, with two pictures from the app. Full check exit 0 on 5d108b14; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-9b42a10644c3.
+
+## 2026-11-21 — One site: the read-only venue for the preview (not released)
+
+- A third deployment role, `reader`, for the one-site preview (founder decisions 368 a and 369 a). It reads the live database only through the login `regents_preview_reader`: any other login stops the boot, and it never migrates. `platform/fly.preview.toml` now names that role and has no release command.
+- In that role the site only reads: no background jobs, timed sweeps, error saving or Points board; no session is checked, so no sign-in or linked-account table is read; Sign in says "Sign-in opens later." and loads no sign-in; sign-in addresses, every agent request, the profile API and signed-in reads answer 403 `read_only` with a short message. `/healthz` reads a table the login is granted, and the public Regent page and agent pictures read only the two columns granted on each of their three tables.
+- `platform/priv/reader/grants.sql` gives an existing login exactly that list and may be run again; `platform/priv/reader/granted.sql` reads back what the login holds. Both were run on a local copy, where every write, every ungranted read and every new table was refused by the database.
+- Not released: on the `one-site` branch only. No migration, secret or wallet change; the login does not exist on the live database yet.

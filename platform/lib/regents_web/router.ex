@@ -52,8 +52,17 @@ defmodule RegentsWeb.Router do
     plug RegentsWeb.Plugs.LaunchGate
   end
 
+  # Where the site only reads, no agent is paired here, so a signed request is
+  # refused plainly before the sign-in service is asked.
   pipeline :paired_agent do
+    plug RegentsWeb.Plugs.ReadOnly
     plug RegentsWeb.Account.PairedAgent
+  end
+
+  # Signing in, agents' own requests and signed-in reads, refused plainly where
+  # the site only reads (`Regents.read_only?/0`).
+  pipeline :read_only do
+    plug RegentsWeb.Plugs.ReadOnly
   end
 
   # The profile API's owner: the person signed in here, with the forms token on a
@@ -224,18 +233,23 @@ defmodule RegentsWeb.Router do
     pipe_through :api
     get "/health", RegentsWeb.HealthController, :status
     get "/docs", RegentsWeb.PublicPagesController, :document, assigns: %{document: "/docs"}
-    get "/claims", RegentsWeb.Account.OwnedClaimsController, :index
     get "/products", RegentsWeb.ProductsController, :index
     get "/products/:slug", RegentsWeb.ProductsController, :show
     get "/site-tools", RegentsWeb.SiteToolsController, :index
     get "/regents/:slug", RegentsWeb.Account.PublicRegentController, :show
     get "/site-tools/:site", RegentsWeb.SiteToolsController, :show
+  end
+
+  # Reads for the person a Privy sign-in names.
+  scope "/api/v1" do
+    pipe_through [:api, :read_only]
+    get "/claims", RegentsWeb.Account.OwnedClaimsController, :index
     get "/staking/position", RegentsWeb.Stake.StakingPositionController, :show
   end
 
   # The person's own shared profile (RegentIdentity.HTTP), for its owner.
   scope "/api/v1" do
-    pipe_through [:api, :profile_owner]
+    pipe_through [:api, :read_only, :profile_owner]
     forward "/profile", RegentIdentity.HTTP
   end
 
@@ -293,7 +307,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/api/agents/v1" do
-    pipe_through :api
+    pipe_through [:api, :read_only]
     forward "/", RegentAgents.HTTP
   end
 
@@ -307,12 +321,7 @@ defmodule RegentsWeb.Router do
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
 
-    get "/auth/csrf", Account.PrivySessionController, :csrf
-    post "/auth/privy/failure", Account.PrivySessionController, :failure
     post "/visit-log", VisitLogController, :create, log: false
-    post "/auth/privy/session", Account.PrivySessionController, :create
-    get "/auth/session", Account.PrivySessionController, :show
-    delete "/auth/privy/session", Account.PrivySessionController, :delete
 
     live_session :product_shell,
       session: {RegentsWeb.Live.Session, :render_context, []},
@@ -349,6 +358,18 @@ defmodule RegentsWeb.Router do
       live "/cloak/install", ShellLive, :cloak_install
       live "/admin/articles", ShellLive, :articles_admin
     end
+  end
+
+  # Sign-in's own addresses. The read-only refusal comes first, so it answers
+  # before the forms token is checked.
+  scope "/auth", RegentsWeb.Account do
+    pipe_through [:read_only, :browser]
+
+    get "/csrf", PrivySessionController, :csrf
+    post "/privy/failure", PrivySessionController, :failure
+    post "/privy/session", PrivySessionController, :create
+    get "/session", PrivySessionController, :show
+    delete "/privy/session", PrivySessionController, :delete
   end
 
   scope "/techtree", RegentsWeb.Techtree do
