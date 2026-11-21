@@ -7444,3 +7444,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - Phoenix moves from 1.8.16 to 1.8.17, closing two advisories published today (a Presence key crash and a crash in the older message format on binary broadcasts). The site uses neither, and the full check refuses a lock that carries an open advisory.
 - One line of the lock file. No page, table, setting or migration.
+
+## 2026-11-21 — Released the Phoenix 1.8.17 update
+
+- Commit 08bbe66f, Phoenix 1.8.17, closing two advisories published the same day. Full check exit 0 on 08bbe66f; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install shows the Model step and no old words, both pictures answer, /cloak reads 5.7 GB, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-5d108b14424d.
