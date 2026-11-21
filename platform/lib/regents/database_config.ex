@@ -20,33 +20,56 @@ defmodule Regents.DatabaseConfig do
     @production_database_host,
     "regents-sh-web" | @production_identities
   ]
+  # The read-only venue's one login. The live database holds it to reading a short
+  # list of tables (priv/reader/grants.sql), so a site given it cannot write.
+  @reader_login "regents_preview_reader"
   # Connections one running site keeps open to the shared database.
   @server_pool_size 5
+  # The read-only venue keeps fewer: with its one listening connection it holds
+  # three, under the login's own limit of four (priv/reader/grants.sql).
+  @reader_pool_size 2
   @deployment_role_variable "REGENTS_DEPLOYMENT_ROLE"
-  @deployment_role_error ~s(REGENTS_DEPLOYMENT_ROLE must be set to "production" or "staging")
+  @deployment_role_error ~s(REGENTS_DEPLOYMENT_ROLE must be set to "production", "staging" or "reader")
+  @reader_login_error "DATABASE_POOLED_URL must sign in as #{@reader_login} in the reader role"
+  @reader_migration_error "the reader role only reads: it never migrates"
   @production_target_error "database migration requires production mode for cluster dzx6qo6xqzvojpv5 named regents-platform-prod"
 
   def runtime_config!(:prod) do
-    config =
-      case deployment_role!() do
-        :production ->
-          database_url!("DATABASE_POOLED_URL", @production_hosts, @production_identities)
+    case deployment_role!() do
+      :production ->
+        "DATABASE_POOLED_URL"
+        |> database_url!(@production_hosts, @production_identities)
+        |> Keyword.put(:pool_size, @server_pool_size)
 
-        :staging ->
-          database_url!("DATABASE_POOLED_URL", @staging_hosts, @staging_refusals)
-      end
+      :staging ->
+        "DATABASE_POOLED_URL"
+        |> database_url!(@staging_hosts, @staging_refusals)
+        |> Keyword.put(:pool_size, @server_pool_size)
 
-    Keyword.put(config, :pool_size, @server_pool_size)
+      # Production's database, through the one login that only reads it.
+      :reader ->
+        "DATABASE_POOLED_URL"
+        |> database_url!(@production_hosts, @production_identities)
+        |> reader_login!()
+        |> Keyword.put(:pool_size, @reader_pool_size)
+    end
   end
 
   def runtime_config!(:dev) do
     case remote_target() do
       :local -> local_config()
-      :remote -> database_url!("DATABASE_POOLED_URL")
+      :remote -> remote_config()
     end
   end
 
   def runtime_config!(_environment), do: nil
+
+  @doc """
+  Whether this deployment is the read-only venue, the `reader` role. The site
+  then only reads (`Regents.read_only?/0`); a local run in that role signs in to
+  its local database as the reader login.
+  """
+  def reader?, do: System.get_env(@deployment_role_variable) == "reader"
 
   @doc """
   The connection the site's listeners share (`Regents.SharedChanges`): the
@@ -76,6 +99,9 @@ defmodule Regents.DatabaseConfig do
 
       :staging ->
         database_url!("DATABASE_DIRECT_URL", @staging_hosts, @staging_refusals)
+
+      :reader ->
+        raise @reader_migration_error
     end
   end
 
@@ -86,7 +112,20 @@ defmodule Regents.DatabaseConfig do
     case System.get_env(@deployment_role_variable) do
       "production" -> :production
       "staging" -> :staging
+      "reader" -> :reader
       _unset_or_unknown -> raise @deployment_role_error
+    end
+  end
+
+  # The reader signs in as its own login and no other, so it can never be handed
+  # one that writes.
+  defp reader_login!(config) do
+    with %URI{userinfo: userinfo} when is_binary(userinfo) <- URI.parse(config[:url]),
+         [username, _password] <- String.split(userinfo, ":", parts: 2),
+         @reader_login <- decode(username) do
+      config
+    else
+      _other_login -> raise @reader_login_error
     end
   end
 
@@ -227,9 +266,18 @@ defmodule Regents.DatabaseConfig do
     end
   end
 
+  # A local run in the reader role signs in as the reader login, which a local
+  # database holds to the same grants as the live one.
+  # A local run against the shared database in the reader role is held to the
+  # reader login too.
+  defp remote_config do
+    config = database_url!("DATABASE_POOLED_URL")
+    if reader?(), do: reader_login!(config), else: config
+  end
+
   defp local_config do
     [
-      username: System.get_env("USER"),
+      username: if(reader?(), do: @reader_login, else: System.get_env("USER")),
       password: nil,
       hostname: "127.0.0.1",
       port: 5432,
