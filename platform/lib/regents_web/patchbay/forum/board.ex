@@ -251,6 +251,20 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   end
 
   @doc """
+  One page of the funded questions, largest confirmed amount first, and the
+  cursor of the page after it when there is one.
+  """
+  @spec priority_queue(String.t() | nil) ::
+          {:ok, [Forum.Report.t()], String.t() | nil}
+          | {:error, :invalid_posts_cursor}
+          | {:error, term()}
+  def priority_queue(cursor) do
+    [load: @post_loads, page: post_page(cursor)]
+    |> Forum.list_priority_queue()
+    |> post_page_result()
+  end
+
+  @doc """
   One page of every published thread about one tool on a site, in the
   site's order (`site_threads/3`), and the cursor of the page after it when
   there is one.

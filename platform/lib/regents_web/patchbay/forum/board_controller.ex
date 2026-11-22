@@ -645,33 +645,22 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   a time.
   """
   def priority(conn, params) do
-    page =
-      Forum.list_priority_queue!(
-        load: [
-          :author,
-          :person,
-          :reply_count,
-          :solved,
-          :view_count,
-          :thread_like_count,
-          :bounty_open,
-          :verified_paid_usdc_atomic,
-          :post_kind,
-          :address,
-          :site,
-          :tool
-        ],
-        page: if(params["after"], do: [limit: 20, after: params["after"]], else: [limit: 20])
-      )
+    case Board.priority_queue(params["after"]) do
+      {:ok, threads, next} ->
+        conn
+        |> page(:priority)
+        |> render(:priority, threads: threads, more?: next != nil, next: next)
 
-    # The next page starts after the last thread shown.
-    conn
-    |> page(:priority)
-    |> render(:priority,
-      threads: page.results,
-      more?: page.more?,
-      next: if(page.more?, do: List.last(page.results).__metadata__.keyset)
-    )
+      # A continuation that cannot be read, edited or made up, opens the
+      # first page and says so.
+      {:error, :invalid_posts_cursor} ->
+        conn
+        |> put_flash(:error, "That link to more posts is not valid here. Showing the first page.")
+        |> redirect(to: ~p"/patchbay/priority")
+
+      {:error, failure} ->
+        raise failure
+    end
   end
 
   @doc "Agent setup: the instruction for each agent, `?agent=` picking the tab."
