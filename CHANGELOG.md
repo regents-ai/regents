@@ -8152,6 +8152,29 @@ seasons), on the shared Points library regents.sh was already on.
 - Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-125cd26424df.
 
+## 2026-11-22 — One site: two views products can join (not released)
+
+- A product's list can now filter, sort and search, inside its own database query, by which person an agent is paired with and that person's wallets (`regents_app.paired_person_wallets`: agent wallet, account, wallet), and by people's verified social links that name a username (`regents_app.public_links`: account, provider, username, display name). Neither names the sign-in id, a provider's own id for the person, Privy's details or a time.
+- The pairing view holds the same pairings an agent's own requests are judged by: a pairing still in place whose person has an account here. Only the system may read it directly. The links view holds the links the linked-accounts read gives, less those without a username; anyone may read it.
+- Nothing reads either yet: Keyfleet and Autolaunch move to them in their own slices.
+- One migration, which adds the two views and nothing else; no table, row, page or setting changes. On the `one-site` branch only.
+
+## 2026-11-22 — Redeem: an unlimited USDC approval no longer breaks the account panel
+
+- A wallet that had given the redeemer an unlimited USDC approval (set in the wallet itself; the page's own step asks for the exact price) could not open its part of the Redeem page: the figure was too long to write and the page failed. Current allowance now reads "Unlimited" for such an approval. Every other figure is written as before.
+- Found by the Autolaunch chief while proving the shared chain reader. No table, setting or migration; nothing about what the page asks a wallet to sign.
+
+## 2026-11-22 — Cloak pages: the size line no longer names 130 MB
+
+- /cloak and /cloak/install said "130 MB", the size of a file neither page offers now. The line reads "Apple silicon · macOS 26" until the next build's size is known. Ordinary page copy, on the Orchestrator's ruling of 22 Nov, told to the founder.
+- No table, setting or migration.
+
+## 2026-11-22 — Released the Redeem unlimited-approval fix
+
+- Commit f36c34f2, Redeem writes an unlimited USDC approval as Unlimited instead of failing, and the Cloak pages no longer say 130 MB. Full check exit 0 on f36c34f2; the practice run built the image and found no migration pending.
+- Live read, signed out: /redeem and /stake answer and /cloak and /cloak/install no longer say 130 MB and are otherwise as before (the fixed figure shows only to a connected wallet with such an approval, so it was proven on a local run, not live), the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-9e4edbdb8b17.
+
 ## 2026-11-22 — One site: Autolaunch's How it works and About (not released)
 
 - `/autolaunch/how-it-works` and `/autolaunch/about` show How it works and About word for word as autolaunch.sh shows them at `4799025d`, with the same auction lengths, release times and fee shares, read from the launch terms the deployment descriptions name. About also answers as Markdown when asked with `Accept: text/markdown`.
