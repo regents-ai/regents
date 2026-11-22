@@ -164,6 +164,10 @@ defmodule RegentsWeb.Keyfleet.OnchainSteps do
   def failure_note("wallet_declined", _linked, _active, _chain_name),
     do: "Your wallet declined this. Nothing was sent."
 
+  # The wallet refused the request outright.
+  def failure_note("wallet_refused", _linked, _active, _chain_name),
+    do: "Your wallet refused this. Nothing was sent."
+
   def failure_note("insufficient_funds", _linked, _active, chain_name),
     do:
       "Your wallet doesn't have enough on #{chain_name} to pay the network fee. Nothing was sent."
