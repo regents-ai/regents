@@ -290,9 +290,14 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
 
   # The agent holding a shard, as its check-ins say, or its wallet while no
   # agent has signed in with it.
-  defp shard_agent(%{shard: %{agent: nil}} = assigns),
-    do:
-      ~H|<Regent.Primitives.address id={"key-profile-shard-address-#{@shard.wallet}"} address={@shard.wallet} />|
+  defp shard_agent(%{shard: %{agent: nil}} = assigns) do
+    ~H"""
+    <Regent.Primitives.address
+      id={"key-profile-shard-address-#{@shard.wallet}"}
+      address={@shard.wallet}
+    />
+    """
+  end
 
   defp shard_agent(assigns) do
     ~H"""
