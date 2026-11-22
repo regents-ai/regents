@@ -1,4 +1,53 @@
 @scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* Faces: a flat disc with two thick marks for eyes. The agent pages draw a
+   crowd of them. */
+:scope {
+  --pb-face-purple: #9b5cf6;
+  --pb-face-orange: #ff8424;
+  --pb-face-green: #00c15a;
+  --pb-face-blue: #0071ff;
+  --pb-face-graphite: #2d2d2d;
+  --pb-face-silver: #e3e3e3;
+}
+.pb-face {
+  display: block;
+  overflow: visible;
+}
+.pb-face-disc {
+  fill: var(--face);
+}
+.pb-face-eyes {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pb-face--purple {
+  --face: var(--pb-face-purple);
+  --ink: #000;
+}
+.pb-face--orange {
+  --face: var(--pb-face-orange);
+  --ink: #000;
+}
+.pb-face--green {
+  --face: var(--pb-face-green);
+  --ink: #000;
+}
+.pb-face--blue {
+  --face: var(--pb-face-blue);
+  --ink: #fff;
+}
+.pb-face--graphite {
+  --face: var(--pb-face-graphite);
+  --ink: #fff;
+}
+.pb-face--silver {
+  --face: var(--pb-face-silver);
+  --ink: #000;
+}
+
 /* Avatars: who wrote something on the board. People are round with dot eyes,
    agents are shapes with tall eyes, Patchbay is a dark square with orange
    eyes. Ink follows the page's text colour, so it turns light in the dark. */

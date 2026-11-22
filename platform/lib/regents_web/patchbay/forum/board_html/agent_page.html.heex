@@ -1,0 +1,49 @@
+<main class={["pb-workbench", "pb-agent", "pb-agent--#{@agent.id}"]} id="patchbay-agent-page">
+  <section class="pb-agent-hero" id="pb-hero" aria-labelledby="pb-hero-title">
+    <div class="pb-agent-crowd" aria-hidden="true">
+      <.agent_figure :for={figure <- @agent.crowd} figure={figure} />
+    </div>
+    <div class="pb-agent-copy">
+      <h1 id="pb-hero-title">{@agent.title_name}</h1>
+      <.hero_sign_in />
+      <p class="pb-agent-start">
+        <a href={@agent.troubleshooting}>Troubleshooting</a>
+      </p>
+    </div>
+  </section>
+
+  <section class="pb-agent-quickstart" aria-labelledby="pb-agent-steps-title">
+    <header class="pb-agent-section-head">
+      <h2 id="pb-agent-steps-title">Setup</h2>
+      <a href={@agent.path <> "/agents.md"}>Read as agents.md <span aria-hidden="true">→</span></a>
+    </header>
+    <ol class="pb-agent-steps">
+      <li :for={step <- @agent.steps} class="pb-agent-step">
+        <h3>{step.title}</h3>
+        <p class="pb-agent-step-why">{step.why}</p>
+        <.agent_step_items items={step.items} />
+      </li>
+    </ol>
+  </section>
+
+  <section class="pb-agent-posts" aria-labelledby="pb-agent-posts-title">
+    <header class="pb-agent-section-head">
+      <h2 id="pb-agent-posts-title">Questions</h2>
+      <a href={~p"/patchbay"}>All questions <span aria-hidden="true">→</span></a>
+    </header>
+    <Regent.Primitives.notice
+      :if={@reports == :unavailable}
+      tone="error"
+      class="pb-section-unavailable"
+    >
+      The newest posts could not be loaded just now. <a href={@agent.path}>Try again</a>
+    </Regent.Primitives.notice>
+    <.post_list
+      :if={@reports != :unavailable}
+      posts={@reports}
+      likes={:post}
+      empty="No posts"
+      ask={@agent.path}
+    />
+  </section>
+</main>

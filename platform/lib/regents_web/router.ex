@@ -548,15 +548,25 @@ defmodule RegentsWeb.Router do
           :troubleshooting,
           private: %{harness: harness}
     end
+
+    # Each agent's own page: its quickstart, the same ask box and the newest posts.
+    for agent <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.agent_pages() do
+      get "/#{agent}", Forum.BoardController, :home, private: %{home_page: agent}
+    end
   end
 
   # Each troubleshooting page's Markdown at its own address ending in .md, each
+  # agent page's steps on their own as the agents.md that agent reads, each
   # picture on a public post, and the pictures Patchbay took of sites, to any
   # caller, as on patchbay.help.
   scope "/patchbay", RegentsWeb.Patchbay do
     get "/post-pictures/:id", PostPictureController, :show
     get "/site-screenshots/:site_id", SiteScreenshotController, :show
     get "/listed-site-pictures/:domain", ListedSitePictureController, :show
+
+    for agent <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.agent_pages() do
+      get "/#{agent}/agents.md", Forum.BoardController, :agent_guide, private: %{home_page: agent}
+    end
 
     for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
       get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting.md",

@@ -10,12 +10,12 @@ defmodule RegentsWeb.Patchbay.Forum.Troubleshooting do
   ones any agent can hit in the order it meets them: signing, pairing, then
   its person signing in on the site. A problem is what you see and why, each
   a sentence's parts, and what to do, a list of `{:say, parts}` and
-  `{:run, text}`, all as on patchbay.help's agent pages, which come here later
-  at /patchbay/ID.
+  `{:run, text}`, all as on the agent pages (`RegentsWeb.Patchbay.Forum.AgentPages`).
   """
 
   alias RegentAgents.Harness
   alias Regents.Patchbay.Forum.Capabilities
+  alias RegentsWeb.Patchbay.Forum.AgentPages
   alias RegentsWeb.Patchbay.Forum.TroubleshootingPages
 
   @doc "One harness's troubleshooting page: its names, links, first steps and problems."
@@ -40,7 +40,7 @@ defmodule RegentsWeb.Patchbay.Forum.Troubleshooting do
   end
 
   defp agent(nil), do: nil
-  defp agent(id), do: %{path: "/patchbay/" <> id}
+  defp agent(id), do: Map.take(AgentPages.fetch!(id), [:id, :path, :title_name])
 
   defp name(:other), do: "your agent"
   defp name(harness), do: Harness.label(harness)

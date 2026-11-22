@@ -1,9 +1,10 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
-  Patchbay's board pages: the home page with its question lists, a thread
-  with its replies, the list of sites, a site's page at its domain and each
-  of its tools' pages, Paid priority, agent setup, payments and each agent
-  program's troubleshooting page. The pages read the stored rows and
+  Patchbay's board pages: the home page with its question lists, each agent's
+  own page and its agents.md, a thread with its replies, the list of sites, a
+  site's page at its domain and each of its tools' pages, Paid priority, agent
+  setup, payments and each agent program's troubleshooting page. The pages
+  read the stored rows and
   committed files; the one write is a reader opening a thread (`post/2`).
   """
 
@@ -22,6 +23,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias Regents.Patchbay.Forum.ToolEvidence
   alias Regents.Patchbay.Incidents
   alias RegentsWeb.Patchbay.BusyPage
+  alias RegentsWeb.Patchbay.Forum.AgentPages
   alias RegentsWeb.Patchbay.Forum.Board
   alias RegentsWeb.Patchbay.Forum.BoardHTML
   alias RegentsWeb.Patchbay.Forum.BoardMD
@@ -52,15 +54,52 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
       end
   end
 
+  @agent_page_posts 8
+
   @doc """
   The home page: the questions, narrowed by the tabs, a search, a site, a tool
   or a tag. A list narrowed to a site Patchbay has no record of is refused.
+
+  An agent's own page (`/patchbay/claude` and the rest) is the home page with
+  that agent's quickstart, the same ask box and the newest posts.
   """
+  def home(%{private: %{home_page: id}} = conn, _params) do
+    agent = AgentPages.fetch!(id)
+
+    reports =
+      case Discussions.page(newest(), nil) do
+        {:ok, reports, _next_page} -> Enum.take(reports, @agent_page_posts)
+        {:error, failure} -> section({:error, failure}, "Discussions")
+      end
+
+    conn
+    |> merge_assigns(Layouts.frame(conn, []))
+    |> render(:agent_page,
+      page_title: agent.page_title,
+      page_description: agent.page_description,
+      agent: agent,
+      reports: reports
+    )
+  end
+
   def home(conn, params) do
     case Discussions.filters(params) do
       {:ok, filters} -> render_questions(conn, params, filters)
       {:error, :unknown_site} -> unknown_site(conn)
     end
+  end
+
+  defp newest do
+    {:ok, filters} = Discussions.filters(%{})
+    filters
+  end
+
+  @doc "An agent page's quickstart on its own, as the agents.md that agent reads."
+  def agent_guide(%{private: %{home_page: id}} = conn, _params) do
+    conn
+    |> put_format("md")
+    |> put_resp_content_type("text/markdown")
+    |> render(:agent_page, agent: AgentPages.fetch!(id), reports: nil)
   end
 
   defp unknown_site(conn) do

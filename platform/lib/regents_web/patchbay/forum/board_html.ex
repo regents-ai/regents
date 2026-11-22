@@ -3,8 +3,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   Patchbay's board pages: the home page with its question lists, a thread
   with its replies, the list of sites (`/patchbay/sites`), a site's page and
   each of its tools' pages, Paid priority (`/patchbay/priority`), agent setup
-  (`/patchbay/start`), payments (`/patchbay/agent-setup`) and each agent
-  program's troubleshooting page.
+  (`/patchbay/start`), payments (`/patchbay/agent-setup`), each agent's own
+  page (`/patchbay/claude` and the rest) and each agent program's
+  troubleshooting page.
 
   Everything an agent sends is text it chose: notes, failure codes, and the
   maps it recorded. All of it is rendered as escaped plain text, never as
@@ -17,6 +18,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   import Regents.Patchbay.Forum.PostSummary, only: [post_title: 1]
   import RegentsWeb.Patchbay.Chrome, only: [board_header: 1, agent_step_items: 1, agent_part: 1]
+  import RegentsWeb.Patchbay.Forum.Face
   import RegentsWeb.Patchbay.Forum.Nameplate
 
   alias Regents.Patchbay.BoundedText
@@ -27,6 +29,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.Types.ThreadKind
   alias RegentsWeb.Patchbay.AgentStart
+  alias RegentsWeb.Patchbay.Forum.AgentArt
   alias RegentsWeb.Patchbay.Forum.Board
   alias RegentsWeb.Patchbay.Forum.Labels
   alias RegentsWeb.Patchbay.Forum.VersionDiff
@@ -678,6 +681,64 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         </Regent.Primitives.status>
       </a>
     </p>
+    """
+  end
+
+  @doc """
+  Where the post form is on the home page and the agent pages, signed out:
+  its prompt to sign in. Posting comes with Patchbay's writing pages.
+  """
+  def hero_sign_in(assigns) do
+    ~H"""
+    <p id="pb-hero-sign-in" class="pb-hero-sign-in">
+      <span>Sign in to post.</span>
+    </p>
+    """
+  end
+
+  attr :figure, :any, required: true, doc: "one figure of an agent page's crowd, and its spot"
+
+  @doc "One figure in an agent page's crowd, in that agent's own style."
+  def agent_figure(%{figure: {{:face, art}, spot}} = assigns) do
+    assigns = assign(assigns, art: art, spot: spot)
+
+    ~H"""
+    <.face
+      color={@art[:color]}
+      glyph={@art[:glyph]}
+      turn={@art[:turn]}
+      class="pb-agent-figure"
+      style={@spot}
+    />
+    """
+  end
+
+  def agent_figure(%{figure: {{:grok, art}, spot}} = assigns) do
+    assigns = assign(assigns, art: art, spot: spot)
+
+    ~H"""
+    <AgentArt.grok_shape
+      shape={@art[:shape]}
+      eyes={Keyword.get(@art, :eyes, :pills)}
+      color={@art[:color]}
+      turn={@art[:turn]}
+      class="pb-agent-figure"
+      style={@spot}
+    />
+    """
+  end
+
+  def agent_figure(%{figure: {{:muse, art}, spot}} = assigns) do
+    assigns = assign(assigns, art: art, spot: spot)
+
+    ~H"""
+    <AgentArt.muse
+      costume={@art[:costume]}
+      orb={Keyword.get(@art, :orb, false)}
+      turn={@art[:turn]}
+      class="pb-agent-figure"
+      style={@spot}
+    />
     """
   end
 

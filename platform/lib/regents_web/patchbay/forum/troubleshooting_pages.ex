@@ -37,6 +37,9 @@ defmodule RegentsWeb.Patchbay.Forum.TroubleshootingPages do
   def label(:other), do: "Any agent"
   def label(harness), do: Harness.label(harness)
 
+  @doc "Each agent page's id, which is also its address (`/patchbay/dots` and so on), in the shared harness order."
+  def agent_pages, do: harnesses() |> Enum.map(&@agent_pages[&1]) |> Enum.reject(&is_nil/1)
+
   @doc "The id of a harness's own Patchbay agent page (`/patchbay/ID`), or nil."
   def agent_page(harness), do: Map.fetch!(@agent_pages, harness)
 
