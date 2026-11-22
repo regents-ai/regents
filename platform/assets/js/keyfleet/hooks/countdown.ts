@@ -50,6 +50,9 @@ function draw(hook: CountdownHook) {
   }
 
   const remaining = Number(closesAt) - (Date.now() + hook.gap)
+  // A closing time or a page clock that is not a number leaves the words the
+  // page wrote, and nothing is counted.
+  if (!Number.isFinite(remaining)) return
   const seconds = Math.trunc(remaining / 1000)
   const written = words(seconds, hook.el.dataset)
   if (hook.el.textContent !== written) hook.el.textContent = written
