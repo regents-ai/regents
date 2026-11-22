@@ -100,6 +100,7 @@ config :regents,
     Regents.Techtree.ModelClimb,
     Regents.Techtree.Catalog,
     Regents.Techtree.Network,
+    Regents.Techtree.WalletBench,
     Regents.Patchbay.Forum,
     Regents.Patchbay.Members,
     Regents.Patchbay.Assist,
@@ -170,6 +171,7 @@ config :regents, RegentsWeb.PaperProDaily.Feed,
 
 # Patchbay's home page board figures: one reading, kept a minute.
 config :regents, Regents.Patchbay.Forum.BoardActivity, gc_interval: :timer.minutes(10)
+config :regents, Regents.Techtree.WalletBench.Reading, gc_interval: :timer.minutes(10)
 
 # Each Patchbay question list's thread count, kept a minute. Older counts leave
 # with the generation the collector drops every ten minutes.

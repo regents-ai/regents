@@ -189,7 +189,8 @@ defmodule Regents.MixProject do
         # read their thirty-nine resources, and a report its embedded cve.now facts. The
         # pairing read adds two: its domain reads its resource, and the resource its check.
         # Autolaunch's tables add thirty-one: its two domains read their thirty-one resources.
-        "xref graph --label compile-connected --fail-above 125",
+        # Techtree's Wallet Bench adds six: its domain reads its six resources.
+        "xref graph --label compile-connected --fail-above 131",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

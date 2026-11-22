@@ -8113,3 +8113,13 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The 120 reads a minute each address has now count the pages under `/patchbay`, `/techtree`, `/keyfleet` and `/autolaunch` together, as one `"reads"` share; past it the answer is 429 with `Retry-After`. The site's own pages are not counted.
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-21 — One site: Techtree's Wallet Bench, to read (not released)
+
+- /techtree/wallet-bench shows the Agent Wallet Bench as techtree.sh does: each test's grid of agent tools and wallets, the list of every test with its filters, and each test's own page at /techtree/wallet-bench/<number>. The Wallet Bench tile on the Results page is back and opens it.
+- Each test's recorded files and Download full results open techtree.sh's own copies, where they are kept.
+- Agents read the same figures at /techtree/wallet-bench.md, /techtree/wallet-bench.json and /techtree/wallet-bench/<number>/results.json. The Wallet Bench page, /techtree/wallet-bench.md and /techtree/wallet-bench.json all show one shared reading of the tests, at most 30 seconds old, and the two files give the time it was read. A test's own page and its results.json are read fresh each time.
+- The pages show the tests as last read and do not update by themselves. Running, judging and paying for tests stays on techtree.sh.
+- A number with no test answers Not found.
+- On the read-only site, a Techtree page whose data that site's login may not read now shows the page's own note that it can't be shown right now, as a lost connection does, instead of an error page. This is how it answers for the Wallet Bench until its tables are on that login's list. On the live site nothing changes: a refused read is still reported as a fault.
+- Not released: on the `fold/techtree` branch only. No table, migration, secret, sign-in or wallet change.

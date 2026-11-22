@@ -6,9 +6,10 @@ defmodule RegentsWeb.Techtree do
   each page is read under the site's bar, above Techtree's own footer
   (`RegentsWeb.Techtree.Layouts`). Its API is under `/api/v1/techtree`; its
   agent guide, `/techtree/agents.md`, the Skill comparisons,
-  `/techtree/train.json` and each comparison's report, and each published
-  Result's share picture, `/techtree/results/:bundle_digest/share.png`, are
-  answered outside the page scope.
+  `/techtree/train.json` and each comparison's report, each published
+  Result's share picture, `/techtree/results/:bundle_digest/share.png`, and the
+  Wallet Bench's `/techtree/wallet-bench.md`, `/techtree/wallet-bench.json` and
+  each test's `results.json` are answered outside the page scope.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Techtree],
@@ -35,6 +36,10 @@ defmodule RegentsWeb.Techtree do
       ServiceLive,
       TddShowcaseLive,
       TrainController,
-      TrainLive.Show
+      TrainLive.Show,
+      WalletBenchController,
+      WalletBenchEvidenceController,
+      WalletBenchLive.Index,
+      WalletBenchLive.Show
     ]
 end
