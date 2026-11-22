@@ -104,13 +104,6 @@ export const OnchainSteps: Hook = {
       const tell: Push = agent ? (event, payload) => push(event, {...(payload as object), agent: true}) : push
       const release = mark(button)
       const wallet = activeEthereumWallet()
-      const asks =
-        (button as HTMLButtonElement).disabled === true ||
-        asksServer(this.review, name, form) ||
-        // Steps held for another wallet than the one open at the press are asked
-        // for again, built for the open one: the steps sent always go to the
-        // wallet they were built for.
-        this.review?.signer.toLowerCase() !== wallet?.address.toLowerCase()
       // The lost line speaks for the person's own presses alone.
       if (!agent) lost(this.el, false)
       // The server hears the press, and the form it was made from, just before
@@ -123,6 +116,13 @@ export const OnchainSteps: Hook = {
 
       try {
         if (!wallet) return await press(this.review, name, null, tell)
+        const asks =
+          (button as HTMLButtonElement).disabled === true ||
+          asksServer(this.review, name, form) ||
+          // Steps held for another wallet than the one open at the press are asked
+          // for again, built for the open one: the steps sent always go to the
+          // wallet they were built for.
+          this.review?.signer.toLowerCase() !== wallet.address.toLowerCase()
         if (!asks) {
           heard()
           return await press(this.review, name, wallet, tell)
