@@ -8121,5 +8121,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Agents read the same figures at /techtree/wallet-bench.md, /techtree/wallet-bench.json and /techtree/wallet-bench/<number>/results.json; the scores are read again at most every 30 seconds.
 - The pages show the tests as they stand when the page opens and do not update by themselves. Running, judging and paying for tests stays on techtree.sh.
 - A number with no test answers Not found.
-- On every Techtree page, a read the database refuses to this site's login now shows the page's own note that it can't be shown right now, as a lost connection does, instead of an error page. This is how the read-only site, whose login may not read the Wallet Bench's tables, answers.
+- On the read-only site, a Techtree page whose data that site's login may not read now shows the page's own note that it can't be shown right now, as a lost connection does, instead of an error page. This is how it answers for the Wallet Bench until its tables are on that login's list. On the live site nothing changes: a refused read is still reported as a fault.
 - Not released: on the `fold/techtree` branch only. No table, migration, secret, sign-in or wallet change.

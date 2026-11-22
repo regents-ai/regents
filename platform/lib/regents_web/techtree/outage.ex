@@ -7,12 +7,14 @@ defmodule RegentsWeb.Techtree.Outage do
   database: the pool couldn't reach it, or Postgres ended the connection. That is
   never the page's own fault, so the page says it can't show its data right now
   instead of failing whole. It covers the seconds after a restart too, when each
-  pooled connection fails once before the pool replaces it. A read Postgres
-  refused this login counts too: the read-only venue's login reads only the
-  tables on its list (`priv/reader/grants.sql`), so a page whose tables are not
-  on it says the same. Anything else, a bug or a query error, is raised again
-  unchanged, so it still shows as what it is. The failure is logged here, since
-  the error tracker keeps its records in that same database.
+  pooled connection fails once before the pool replaces it. On the read-only
+  venue (`Regents.read_only?/0`) a read Postgres refused this login counts too:
+  that login reads only the tables on its list (`priv/reader/grants.sql`), so a
+  page whose tables are not on it says the same. On the live site a refused read
+  is a missing grant and is raised as the fault it is. Anything else, a bug or a
+  query error, is raised again unchanged, so it still shows as what it is. The
+  failure is logged here, since the error tracker keeps its records in that same
+  database.
   """
 
   require Logger
@@ -37,7 +39,7 @@ defmodule RegentsWeb.Techtree.Outage do
   # connection itself fails (SQLSTATE class 08), or when Postgres ends it: a
   # restart or failover answers first with a shutdown, and a server still
   # starting with "cannot connect now" (class 57P). A read is refused with
-  # insufficient_privilege (42501).
+  # insufficient_privilege (42501), an outage on the read-only venue alone.
   defp outage?(%DBConnection.ConnectionError{}), do: true
   defp outage?(%Postgrex.Error{postgres: %{pg_code: state}}), do: outage_state?(state)
 
@@ -61,5 +63,6 @@ defmodule RegentsWeb.Techtree.Outage do
   defp outage?(_error), do: false
 
   defp outage_state?("08" <> _connection_exception), do: true
-  defp outage_state?(state), do: state in ["57P01", "57P02", "57P03", "42501"]
+  defp outage_state?("42501"), do: Regents.read_only?()
+  defp outage_state?(state), do: state in ["57P01", "57P02", "57P03"]
 end
