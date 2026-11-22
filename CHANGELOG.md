@@ -8287,3 +8287,14 @@ seasons), on the shared Points library regents.sh was already on.
 
 - In production the site reads Autolaunch's Base and Base Stocks descriptions from the two files it ships, under the label `base-mainnet`; a missing or malformed file stops the start. The `AUTOLAUNCH_BASE_DEPLOYMENT`, `AUTOLAUNCH_BASE_DEPLOYMENT_ID` and `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` variables now count only outside production, where a local lab names its own files.
 - Not released: on the `one-site` branch only. No new deploy setting or secret. Not yet proven on a built release: the start reading the two files from inside the image.
+
+## 2026-11-22 — One site: Techtree's Projects, to read (not released)
+
+- A signed-in person sees the work Techtree's team delivered to them at /techtree/account/projects, newest first, and each project's own page at /techtree/account/projects/<id>: the verdict, the agreed goal, the before and after on the final test, each case, the candidates tried, how the work was set up, the report, and the package to download with its checksum. The words are techtree.sh's.
+- Each person sees only their own projects. Someone else's project, a withdrawn one or one that never was shows the not-found page, the same for each.
+- Signed out, the pages show the site's sign-in and nothing else; once signed in, the same page opens.
+- A paired agent reads its person's projects at /api/v1/techtree/account/projects, each one at /<id> and its package at /<id>/package, with the same refusals as every agent address. Its answers never carry the work's cost.
+- Links and pictures in a report open only at an `https` address; any other is shown as its words alone.
+- One address's open Projects pages can read 120 times a minute; past that, and when the site can't reach its data, the page says the projects couldn't be read.
+- The team still delivers and withdraws projects on techtree.sh; this site shows what it delivered, as both read the same table.
+- Not released: on the `fold/techtree` branch only. One new named allowance in the site's settings (`techtree_project_reads`) and Techtree's Projects in the site's list of domains. No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.

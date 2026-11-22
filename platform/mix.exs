@@ -196,7 +196,8 @@ defmodule Regents.MixProject do
         # Keyfleet's page layer adds one: its route catalog builds its list from the fleet
         # catalog as it compiles.
         # Keyfleet's fleet pages add one: the router reads that route catalog as it compiles.
-        "xref graph --label compile-connected --fail-above 236",
+        # Techtree's Projects add one: its domain reads its resource.
+        "xref graph --label compile-connected --fail-above 237",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"
