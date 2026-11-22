@@ -20,7 +20,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   import RegentsWeb.Keyfleet.Components.Countdown
 
   import Phoenix.LiveView,
-    only: [push_patch: 2, start_async: 3, stream: 4, stream_delete_by_dom_id: 3]
+    only: [connected?: 1, push_patch: 2, start_async: 3, stream: 4, stream_delete_by_dom_id: 3]
 
   alias Phoenix.Socket.Broadcast
   alias Regents.Keyfleet.Agents.Here
@@ -1002,12 +1002,18 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
 
   # A read of the chain for the open key, its rewards or its slice, spends one
   # of the page's address's `keyfleet_wallet_reads` (`Regents.Limits`) before
-  # it starts. Past them nothing is read and it shows it isn't showing right
-  # now, as when the chain does not answer, until it is asked for again.
+  # it starts, once the page is connected: its first, unconnected render
+  # starts no read and spends nothing. Past them nothing is read and it shows
+  # it isn't showing right now, as when the chain does not answer, until it
+  # is asked for again.
   defp read_chain(socket, figure, read) do
-    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
-      :ok -> start_async(socket, figure, read)
-      :limited -> update(socket, :key_profile, &Map.put(&1, figure, :failed))
+    if connected?(socket) do
+      case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
+        :ok -> start_async(socket, figure, read)
+        :limited -> update(socket, :key_profile, &Map.put(&1, figure, :failed))
+      end
+    else
+      socket
     end
   end
 
