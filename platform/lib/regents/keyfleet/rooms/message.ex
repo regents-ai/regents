@@ -259,7 +259,11 @@ defmodule Regents.Keyfleet.Rooms.Message do
       validate Regents.Keyfleet.Graph.Validations.KnownFleet
       filter expr(seq > ^arg(:after_seq))
 
-      prepare build(load: [:agent_profile, :via_agent_profile])
+      prepare build(
+                load: [:agent_profile, :via_agent_profile],
+                deselect: [:beneficiary_privy_user_id]
+              )
+
       prepare {Regents.Keyfleet.Rooms.Preparations.OneRoom, in: :room}
       metadata :more_after, :boolean, allow_nil?: false
     end
@@ -366,7 +370,11 @@ defmodule Regents.Keyfleet.Rooms.Message do
       # A post its Key's holder took off the wall is left out for everyone.
       filter expr(seq > ^arg(:after_seq) and not exists(wall_removal, true))
 
-      prepare build(load: [:agent_profile, :via_agent_profile])
+      prepare build(
+                load: [:agent_profile, :via_agent_profile],
+                deselect: [:beneficiary_privy_user_id]
+              )
+
       prepare {Regents.Keyfleet.Rooms.Preparations.OneRoom, in: :key}
       metadata :more_after, :boolean, allow_nil?: false
     end
@@ -386,7 +394,10 @@ defmodule Regents.Keyfleet.Rooms.Message do
                  not in_key_thread
              )
 
-      prepare build(load: [:room, :agent_profile, :via_agent_profile])
+      prepare build(
+                load: [:room, :agent_profile, :via_agent_profile],
+                deselect: [:beneficiary_privy_user_id]
+              )
 
       prepare {Regents.Keyfleet.Preparations.NewestFirst,
                sort: [inserted_at: :desc, id: :asc], before: []}
@@ -574,7 +585,8 @@ defmodule Regents.Keyfleet.Rooms.Message do
              )
 
       prepare build(
-                load: [:room, :agent_profile, :via_agent_profile, match: [query: arg(:query)]]
+                load: [:room, :agent_profile, :via_agent_profile, match: [query: arg(:query)]],
+                deselect: [:beneficiary_privy_user_id]
               )
 
       prepare {Regents.Keyfleet.Preparations.SearchPage, kind: "post", at: :inserted_at, id: :id}
@@ -848,6 +860,8 @@ defmodule Regents.Keyfleet.Rooms.Message do
 
   attributes do
     attribute :acting_agent_wallet, :string, writable?: false
+    # The person an agent wrote the post for. No page shows it, so the reads
+    # pages show posts from leave it out.
     attribute :beneficiary_privy_user_id, :string, writable?: false, sensitive?: true
     attribute :agent_pairing_id, :uuid, writable?: false
 

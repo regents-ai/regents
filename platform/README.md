@@ -106,7 +106,7 @@ development and from the deployment's secret store in production.
 | `TECHTREE_BOOTSTRAP_CHANNEL` | To serve Techtree's catalog | The channel Techtree's catalog is imported on and served from (`Regents.Techtree.Catalog`). Unset, it is `development`; every carried snapshot is `stable`, the channel techtree.sh serves. |
 | `TECHTREE_CATALOG_ROOT` | No | A folder holding a generated catalog bundle outside the release. Unset, the bundle in `priv/techtree/catalog` is used. |
 | `TECHTREE_CATALOG_CHANNEL` | No | For a staged rehearsal: sets the channel and the bundle in `priv/techtree/catalog` together. `TECHTREE_BOOTSTRAP_CHANNEL` and `TECHTREE_CATALOG_ROOT` win when set. |
-| `AUTOLAUNCH_BASE_DEPLOYMENT` | No | Absolute path of the file describing Autolaunch's Base deployment. Unset or empty, there is none. |
+| `AUTOLAUNCH_BASE_DEPLOYMENT` | No | Outside production only: absolute path of the file describing Autolaunch's Base deployment. Unset or empty, there is none. Production ignores it and reads `priv/autolaunch/deployment/base.json` from the release, labelled `base-mainnet`, with `base-stocks.json` beside it. |
 | `AUTOLAUNCH_BASE_DEPLOYMENT_ID` | With `AUTOLAUNCH_BASE_DEPLOYMENT` | A label for that Base deployment. Boot fails when the Base deployment is set without it. |
 | `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` | No | Absolute path of the file describing Autolaunch's Base Stocks deployment, which extends the Base one. Boot fails when it is set without `AUTOLAUNCH_BASE_DEPLOYMENT`. |
 | `AUTOLAUNCH_ROBINHOOD_DEPLOYMENT` | No | Absolute path of the file describing Autolaunch's Robinhood deployment. Unset or empty, there is none. |

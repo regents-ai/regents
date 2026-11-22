@@ -377,15 +377,18 @@ defmodule Regents.Keyfleet.Keys do
     end
   end
 
-  # The accounts of the people who put those agents on their Keys, a hundred
-  # to a read.
+  # The wallets of the people who put those agents on their Keys, a hundred
+  # accounts to a read.
   defp accounts_of(placed, system) do
     placed
     |> Enum.map(& &1.human_account_id)
     |> Enum.uniq()
     |> Enum.chunk_every(100)
     |> Enum.reduce_while({:ok, []}, fn ids, {:ok, read} ->
-      case Regents.Account.Accounts.accounts_by_ids(ids, system) do
+      case Regents.Account.Accounts.accounts_by_ids(
+             ids,
+             system ++ [query: [select: [:wallet_address, :wallet_addresses]]]
+           ) do
         {:ok, accounts} -> {:cont, {:ok, accounts ++ read}}
         {:error, error} -> {:halt, {:error, error}}
       end
@@ -956,7 +959,10 @@ defmodule Regents.Keyfleet.Keys do
 
   defp main_addresses(account_ids) do
     account_ids
-    |> Regents.Account.Accounts.accounts_by_ids!(actor: %Regents.Account.Actors.System{})
+    |> Regents.Account.Accounts.accounts_by_ids!(
+      actor: %Regents.Account.Actors.System{},
+      query: [select: [:wallet_address]]
+    )
     |> Map.new(&{&1.id, &1.wallet_address && String.downcase(&1.wallet_address)})
   end
 

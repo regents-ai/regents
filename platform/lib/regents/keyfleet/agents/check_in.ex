@@ -88,7 +88,7 @@ defmodule Regents.Keyfleet.Agents.CheckIn do
         constraints: [max_length: 100]
 
       filter expr(fleet_id == ^arg(:fleet_id) and agent_profile_id in ^arg(:agent_profile_ids))
-      prepare build(load: [:last_seen_at])
+      prepare build(load: [:last_seen_at], deselect: [:beneficiary_privy_user_id])
     end
 
     # What these agents last said was blocking them, in each fleet where they
@@ -294,6 +294,10 @@ defmodule Regents.Keyfleet.Agents.CheckIn do
 
   attributes do
     attribute :acting_agent_wallet, :string, writable?: false
+    # The person the agent checked in for. No page shows it, so the reads the
+    # fleet's agents are shown from (`:in_fleet`, and the check-ins
+    # `Regents.Keyfleet.Agents.AgentProfile`'s `:here_in_fleet` loads) leave it
+    # out.
     attribute :beneficiary_privy_user_id, :string, writable?: false, sensitive?: true
     attribute :agent_pairing_id, :uuid, writable?: false
 

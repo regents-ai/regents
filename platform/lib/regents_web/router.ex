@@ -290,6 +290,15 @@ defmodule RegentsWeb.Router do
     get "/reports/:digest", ModelClimbReportController, :show
   end
 
+  # A paired agent's reads of the projects Techtree's team delivered to its
+  # person; each is private to that person.
+  scope "/api/v1/techtree/account", RegentsWeb.Techtree do
+    pipe_through [:api, :paired_agent]
+    get "/projects", AgentAccountController, :projects
+    get "/projects/:id", AgentAccountController, :project
+    get "/projects/:id/package", AgentAccountController, :package
+  end
+
   # Techtree's catalog and public run log, read by anyone: the exact bytes the
   # catalog and its bootstrap release were generated as, each object by its
   # digest, one Climb's summary, the published Results with each one's submitted
@@ -378,6 +387,7 @@ defmodule RegentsWeb.Router do
     get "/agents", PublicPagesController, :show
     get "/agents/:agent", PublicPagesController, :show
     get "/services/security/sample-report", PublicPagesController, :show
+    get "/account/projects/:id/package", ProjectPackageController, :show
 
     live_session :techtree,
       session: {RegentsWeb.Live.Session, :render_context, []},
@@ -401,6 +411,8 @@ defmodule RegentsWeb.Router do
       live "/docs/:slug", DocsLive
       live "/wallet-bench", WalletBenchLive.Index
       live "/wallet-bench/:id", WalletBenchLive.Show
+      live "/account/projects", ProjectsLive, :index
+      live "/account/projects/:id", ProjectsLive, :show
     end
   end
 
