@@ -399,7 +399,9 @@ defmodule Regents.Patchbay.Forum.Report do
 
     count(:view_count, :views)
 
+    count(:thread_like_count, :likes)
     count(:post_like_count, :post_likes)
+    count(:picture_count, :pictures)
 
     # How many different people say a published reply here worked for them,
     # counting only a reply at least 2 people say worked (`@worked_by_at_least`):
@@ -476,6 +478,22 @@ defmodule Regents.Patchbay.Forum.Report do
       expr(
         if not is_nil(priority_amount_atomic) and
              escrow_status in [:credited, :released] do
+          priority_amount_atomic
+        else
+          0
+        end
+      )
+    )
+
+    # What a list ranks by: a bounty that is funded and still waiting for its
+    # answer. Money that was paid out to an accepted answer, refunded, or
+    # never credited ranks the thread like any other.
+    calculate(
+      :open_bounty_usdc_atomic,
+      :integer,
+      expr(
+        if not is_nil(priority_amount_atomic) and escrow_status == :credited and
+             is_nil(accepted_reply_id) do
           priority_amount_atomic
         else
           0
@@ -590,6 +608,35 @@ defmodule Regents.Patchbay.Forum.Report do
       filter(expr(visibility == :published))
       modify_query({Regents.Patchbay.Forum.SearchWords, :narrow, []})
       pagination(keyset?: true, offset?: true, default_limit: 20, max_page_size: 50)
+    end
+
+    read :ranked_for_site do
+      description("""
+      Every published thread on one site — site-wide questions and posts about
+      any of its tools — as patchbay.help ranks them: the largest funded,
+      unanswered bounty leads, and the rest follow by how many say a reply
+      worked for them, then the latest who said so, then newest. Pending,
+      failed, refunded or paid-out escrow does not promote a thread. With
+      `address`, only the threads about that address (`:address`).
+      """)
+
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:address, :string, allow_nil?: true)
+      filter(expr(site_id == ^arg(:site_id) and visibility == :published))
+      filter(expr(is_nil(^arg(:address)) or address == ^arg(:address)))
+      pagination(keyset?: true, default_limit: 20, max_page_size: 20)
+
+      prepare(
+        build(
+          sort: [
+            open_bounty_usdc_atomic: :desc,
+            worked_count: :desc,
+            last_worked_at: :desc_nils_last,
+            inserted_at: :desc,
+            id: :desc
+          ]
+        )
+      )
     end
   end
 

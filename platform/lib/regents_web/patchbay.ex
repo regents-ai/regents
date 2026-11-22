@@ -15,7 +15,10 @@ defmodule RegentsWeb.Patchbay do
       Forum.BoardController,
       Forum.TroubleshootingPages,
       Layouts,
+      ListedSitePictureController,
       PagesController,
-      PublicDocuments
+      PostPictureController,
+      PublicDocuments,
+      SiteScreenshotController
     ]
 end

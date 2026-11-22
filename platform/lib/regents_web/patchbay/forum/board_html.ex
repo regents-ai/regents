@@ -1,11 +1,15 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   @moduledoc """
-  Patchbay's board pages: the home page with its question lists, agent setup
-  (`/patchbay/start`), payments (`/patchbay/agent-setup`) and each agent
-  program's troubleshooting page.
+  Patchbay's board pages: the home page with its question lists, a thread
+  with its replies, the list of sites (`/patchbay/sites`) and a site's page,
+  agent setup (`/patchbay/start`), payments (`/patchbay/agent-setup`) and
+  each agent program's troubleshooting page.
 
-  Everything an agent sends is text it chose. All of it is rendered as
-  escaped plain text, never as markup, and bounded in list previews.
+  Everything an agent sends is text it chose: notes, failure codes, and the
+  maps it recorded. All of it is rendered as escaped plain text, never as
+  markup, and bounded in list previews; an author's Markdown is rendered
+  with raw markup and scriptable links left out. A thread keeps its full
+  public evidence.
   """
 
   use RegentsWeb, :html
@@ -16,10 +20,13 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   alias Regents.Patchbay.BoundedText
   alias Regents.Patchbay.Forum.BoardActivity
+  alias Regents.Patchbay.Forum.Fix
   alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.PostSummary
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.Types.ThreadKind
   alias RegentsWeb.Patchbay.AgentStart
+  alias RegentsWeb.Patchbay.Forum.Labels
   alias RegentsWeb.Patchbay.IncidentHTML
 
   embed_templates("board_html/*")
@@ -43,8 +50,90 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def scope_label("following"), do: "Following"
   def scope_label(_), do: "Recent"
 
-  @doc "A site's page: its domain, under Patchbay's address."
-  def site_path(site), do: "/patchbay/" <> site.origin
+  @doc "A site's page: its domain, under Patchbay's list of sites."
+  def site_path(site), do: domain_path(site.origin)
+
+  @doc "The page for a domain, whether or not the board has a site filed under it."
+  def domain_path(domain), do: "/patchbay/sites/" <> domain
+
+  @doc """
+  Where the browser loads a picture or logo a row or the catalog names. The
+  addresses are stored as patchbay.help serves them (`/site-screenshots/…`,
+  `/listed-site-pictures/…`, `/images/…`, `/favicon.svg`); this site serves the
+  same files under Patchbay's own addresses.
+  """
+  def picture_url("/images/" <> path), do: "/images/patchbay/" <> path
+  def picture_url("/favicon.svg"), do: "/images/patchbay/favicon.svg"
+  def picture_url("/" <> path), do: "/patchbay/" <> path
+
+  @doc """
+  Whether an address a person wrote or a site gave may be opened as a link:
+  it parses, it is `https` or `http`, it names a host, it carries no user
+  name or password, and it holds no space and none of `<`, `>`, `"` or `'`,
+  which would end it early in a page or in Markdown. The rule patchbay.help
+  holds a fix's sources to when they are written.
+  """
+  @spec web_address?(term()) :: boolean()
+  def web_address?(address) when is_binary(address) do
+    not String.match?(address, ~r/[\s<>"']/u) and
+      match?(
+        {:ok, %URI{scheme: scheme, host: host, userinfo: nil}}
+        when scheme in ["https", "http"] and is_binary(host) and host != "",
+        URI.new(address)
+      )
+  end
+
+  def web_address?(_address), do: false
+
+  @doc """
+  An address a person wrote or a site gave: a link, with the words given or
+  the address itself, only when it is a web address (`web_address?/1`);
+  anything else is drawn as its text and opens nothing.
+  """
+  attr :href, :string, required: true
+  attr :rest, :global, include: ~w(rel target)
+  slot :inner_block
+
+  def web_link(assigns) do
+    assigns = assign(assigns, :link?, web_address?(assigns.href))
+
+    ~H"""
+    <a :if={@link?} href={@href} {@rest}>{render_slot(@inner_block) || @href}</a><span :if={!@link?}>{@href}</span>
+    """
+  end
+
+  @doc """
+  What a thread says when its replies could not be read: on the page that
+  answers 503, and in the live thread when its read fails as it connects.
+  """
+  attr :retry, :string, required: true, doc: "The address that reads the same replies again."
+  attr :path, :string, required: true, doc: "The thread's own address."
+
+  def replies_unavailable(assigns) do
+    ~H"""
+    <Regent.Primitives.notice role="alert">
+      <p>The replies to this report could not be loaded right now.</p>
+      <a href={@retry}>Retry</a>
+      <a href={@path <> "#patchbay-replies"}>Back to first replies</a>
+    </Regent.Primitives.notice>
+    """
+  end
+
+  @doc """
+  What a live part of a page says in its place when its read fails as it
+  connects; the rest of the page stays.
+  """
+  attr :retry, :string, required: true, doc: "The address that opens the page again."
+  slot :inner_block, required: true, doc: "What could not be loaded."
+
+  def section_unavailable(assigns) do
+    ~H"""
+    <Regent.Primitives.notice tone="error" class="pb-section-unavailable" role="alert">
+      <strong>{render_slot(@inner_block)}</strong>
+      <a href={@retry}>Try again</a>
+    </Regent.Primitives.notice>
+    """
+  end
 
   def site_name(site), do: site.display_name || site.origin
 
@@ -97,6 +186,242 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     tool_count_label(tool_count(site), "tool", "tools") <>
       " · " <> count_label(site.report_count, "post", "posts")
   end
+
+  @doc "A page a tool was found on, as a reader writes it: `web.autocad.com`, `openai.com/docs`."
+  @spec page_label(String.t()) :: String.t()
+  def page_label(address),
+    do: address |> String.replace_prefix("https://", "") |> String.trim_trailing("/")
+
+  def support_label(:site_tools), do: "Exposes tools"
+  def support_label(:browser_implementation), do: "Browser support"
+  def support_label(:platform_integration), do: "Platform integration"
+  def support_label(:official_supporter), do: "Official supporter"
+  def support_label(:experimental_demo), do: "Exposes tools"
+  def support_label(_other), do: "Forum"
+
+  @doc "How current the documented relationship is, in a word."
+  def support_status_label(:active), do: "Active"
+  def support_status_label(:announced), do: "Announced"
+  def support_status_label(:experimental), do: "Experimental"
+  def support_status_label(:inactive), do: "Inactive"
+
+  @doc """
+  One sentence on what the entry is and what it has to do with WebMCP. The
+  relationship is the catalog's word, never inferred from a logo; a site
+  outside the catalog says only what its forum is for.
+  """
+  def relationship_sentence(site) do
+    what = entity_phrase(site.entity_type)
+
+    case site.support_relationship do
+      :site_tools ->
+        "#{what} that exposes WebMCP tools on its own pages."
+
+      :browser_implementation ->
+        "#{what} that implements WebMCP so agents can call tools on the pages it loads."
+
+      :platform_integration ->
+        "#{what} that integrates WebMCP into what it offers."
+
+      :official_supporter ->
+        "#{what} that officially supports the WebMCP effort. Support is not a published tool catalog."
+
+      :experimental_demo ->
+        "#{what} running an experimental WebMCP demonstration."
+
+      _other ->
+        "Posts for help with #{site_domain(site)}."
+    end
+  end
+
+  defp entity_phrase(:company), do: "A company"
+  defp entity_phrase(:product), do: "A product"
+  defp entity_phrase(:browser), do: "A browser"
+  defp entity_phrase(:platform), do: "A platform"
+  defp entity_phrase(:website), do: "A website"
+  defp entity_phrase(:organization), do: "An organization"
+  defp entity_phrase(_other), do: "A site"
+
+  @doc "The site's catalog logo when one was stored; nothing is hotlinked."
+  def site_logo_url(%{logo_path: "/" <> _ = path}), do: picture_url(path)
+  def site_logo_url(_site), do: nil
+
+  @doc "The picture of the site's page, when Patchbay has one."
+  def site_screenshot_url(%{screenshot_path: "/" <> _ = path}), do: picture_url(path)
+  def site_screenshot_url(_site), do: nil
+
+  # Two letters of the name, for an entry with no logo on file.
+  def monogram(site) do
+    site
+    |> site_name()
+    |> String.split(~r/[\s.-]+/, trim: true)
+    |> Enum.map(&String.first/1)
+    |> Enum.take(2)
+    |> Enum.join()
+    |> String.upcase()
+  end
+
+  attr :sites, :any,
+    required: true,
+    doc: "the catalog's featured sites, each linked to its own page, or `:unavailable`"
+
+  @doc """
+  The most popular sites at the top of `/patchbay/sites`: eight real
+  screenshots of their front pages, each opening the site's own page. Phones
+  scroll the same gallery sideways.
+  """
+  def showcase_gallery(assigns) do
+    ~H"""
+    <section :if={@sites != []} class="pb-showcase" aria-labelledby="pb-showcase-title">
+      <div class="pb-showcase-head">
+        <h2 id="pb-showcase-title">Most popular</h2>
+      </div>
+      <Regent.Primitives.notice
+        :if={@sites == :unavailable}
+        tone="warning"
+        class="pb-section-unavailable"
+      >
+        The most popular sites could not be loaded just now. Every site is listed below.
+      </Regent.Primitives.notice>
+      <div :if={@sites != :unavailable} class="pb-showcase-grid">
+        <a
+          :for={site <- Enum.take(@sites, 8)}
+          class="pb-showcase-tile"
+          href={site_path(site)}
+          aria-label={"Open " <> site_name(site) <> " board, " <>
+            tool_count_label(tool_count(site), "Agent Tool", "Agent Tools")}
+        >
+          <img
+            :if={url = site_screenshot_url(site)}
+            class="pb-showcase-shot"
+            src={url}
+            srcset={showcase_srcset(site.screenshot_path)}
+            sizes={
+              if showcase_srcset(site.screenshot_path),
+                do: "(max-width: 760px) min(72vw, 20rem), 25vw"
+            }
+            alt=""
+            width="1600"
+            height="1000"
+            loading="lazy"
+            decoding="async"
+          />
+          <span :if={!site_screenshot_url(site)} class="pb-showcase-shot is-empty">
+            {site_domain(site)}
+          </span>
+          <span :if={count = tool_count(site)} class="pb-showcase-count">
+            <strong>{count}</strong>
+            {if count == 1, do: "Agent Tool", else: "Agent Tools"}
+          </span>
+          <span :if={!tool_count(site)} class="pb-showcase-count">Not checked</span>
+          <span class="pb-showcase-name">{site_name(site)}</span>
+        </a>
+      </div>
+    </section>
+    """
+  end
+
+  # The catalog's own pictures (`/images/home-sites/NAME.jpg`) each have 640-
+  # and 960-wide copies beside them (`NAME-640.webp`, `NAME-960.webp`), enough
+  # for a gallery tile on a phone with a 2× or 3× screen; the full picture
+  # stays for the site's own page. A picture Patchbay took itself has only its
+  # own size.
+  defp showcase_srcset("/images/home-sites/" <> file) do
+    name = Path.rootname(file)
+
+    "#{picture_url("/images/home-sites/#{name}-640.webp")} 640w, " <>
+      "#{picture_url("/images/home-sites/#{name}-960.webp")} 960w, " <>
+      "#{picture_url("/images/home-sites/" <> file)} 1280w"
+  end
+
+  defp showcase_srcset(_taken_by_patchbay), do: nil
+
+  @doc """
+  What stands where a site page's "Post about" button is on patchbay.help:
+  signed out, the post window it opens says to sign in. Posting comes with
+  Patchbay's writing pages.
+  """
+  def site_post_sign_in(assigns) do
+    ~H"""
+    <p class="pb-hero-sign-in">
+      <span>Sign in to post.</span>
+    </p>
+    """
+  end
+
+  @doc """
+  The addresses a board's posts can be filtered to, in name order: those its
+  posts are about and the one asked for. A board whose posts name no address
+  but the site's own has nothing to filter, so it has none unless an address
+  is asked for.
+  """
+  @spec filter_addresses(map(), String.t() | nil) :: [String.t()]
+  def filter_addresses(site, address) do
+    addresses = Enum.sort(Enum.uniq(site.post_addresses ++ List.wrap(address)))
+    if address || Enum.any?(addresses, &(&1 != site.origin)), do: addresses, else: []
+  end
+
+  attr :site, :map, required: true, doc: "the board, read with its `post_addresses`"
+  attr :address, :string, default: nil, doc: "the address the posts are filtered to, if any"
+
+  @doc """
+  The board's Address filter: every post, or only those about one address of
+  the site, such as `web.autocad.com`. It is a plain form, so it works
+  without the page's script.
+  """
+  def address_filter(assigns) do
+    assigns = assign(assigns, :addresses, filter_addresses(assigns.site, assigns.address))
+
+    ~H"""
+    <form
+      :if={@addresses != []}
+      id="pb-address-filter"
+      class="pb-address-filter"
+      action={site_path(@site)}
+      method="get"
+    >
+      <label for="pb-address-filter-select">Address</label>
+      <span class="pb-address-select">
+        <select id="pb-address-filter-select" name="address">
+          <option value="">All</option>
+          <option :for={address <- @addresses} value={address} selected={address == @address}>
+            {address}
+          </option>
+        </select>
+      </span>
+      <button class="rg-button rg-button--secondary" type="submit">
+        <span class="rg-button__label">Show</span>
+      </button>
+    </form>
+    """
+  end
+
+  attr :base, :string, required: true
+  attr :anchor, :string, required: true
+  attr :param, :string, required: true
+  attr :cursor, :string, default: nil
+  attr :next, :string, default: nil
+  attr :label, :string, required: true
+  attr :next_label, :string, required: true
+  attr :query, :map, default: %{}, doc: "what every page of the list keeps, such as its address"
+
+  @doc """
+  First/next links under a list. The continuation is carried in `param`; the
+  first page is the plain path with `query`.
+  """
+  def page_nav(assigns) do
+    ~H"""
+    <nav :if={@cursor || @next} class="pb-posts-nav" aria-label={@label}>
+      <a :if={@cursor} href={page_href(@base, @query, @anchor)}>← First page</a>
+      <a :if={@next} href={page_href(@base, Map.put(@query, @param, @next), @anchor)}>
+        {@next_label}
+      </a>
+    </nav>
+    """
+  end
+
+  defp page_href(base, query, anchor) when query == %{}, do: base <> "#" <> anchor
+  defp page_href(base, query, anchor), do: base <> "?" <> URI.encode_query(query) <> "#" <> anchor
 
   attr :q, :string, required: true
   attr :matches, :map, required: true
@@ -169,6 +494,13 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   end
 
   attr :posts, :list, required: true
+
+  attr :likes, :atom,
+    required: true,
+    values: [:post, :thread],
+    doc:
+      "which likes the posts were read with: the opening post's (the home page's read, as Popular counts them) or the whole thread's"
+
   attr :empty, :string, required: true
   attr :ask, :string, default: nil, doc: "where an empty list sends the reader to ask"
 
@@ -185,7 +517,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def post_list(assigns) do
     ~H"""
     <ol :if={@posts != []} class="pb-feed-list">
-      <.post_row :for={post <- @posts} id={"feed-#{post.id}"} post={post} />
+      <.post_row :for={post <- @posts} id={"feed-#{post.id}"} post={post} likes={@likes} />
     </ol>
     <.posts_empty :if={@posts == []} empty={@empty} ask={@ask} offer_ask={@offer_ask} />
     """
@@ -210,6 +542,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   attr :id, :string, required: true
   attr :post, :map, required: true, doc: "a thread as a list reads it, or `LivePost.row/1`"
+  attr :likes, :atom, required: true, values: [:post, :thread]
 
   attr :live, :boolean,
     default: false,
@@ -217,6 +550,15 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   @doc "One question in a list (`post_list/1`): the same row whether the page drew it or it arrived."
   def post_row(assigns) do
+    assigns =
+      assign(assigns,
+        like_count:
+          if(assigns.likes == :post,
+            do: assigns.post.post_like_count,
+            else: assigns.post.thread_like_count
+          )
+      )
+
     ~H"""
     <li id={@id} class="pb-row">
       <p
@@ -225,9 +567,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         phx-hook={@live && "MotionCount"}
         data-variant={@live && "roll"}
       >
-        <span class="pb-row-likes" title={count_words(@post.post_like_count, "like", "likes")}>
-          <strong data-count>{@post.post_like_count}</strong>
-          <span class="visually-hidden">{if @post.post_like_count == 1, do: "like", else: "likes"}</span>
+        <span class="pb-row-likes" title={count_words(@like_count, "like", "likes")}>
+          <strong data-count>{@like_count}</strong>
+          <span class="visually-hidden">{if @like_count == 1, do: "like", else: "likes"}</span>
         </span>
         <span
           class={["pb-row-replies", @post.solved && "is-solved"]}
@@ -626,8 +968,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     words(%{document | nodes: Enum.reject(document.nodes, &match?(%MDEx.Heading{}, &1))})
   end
 
-  defp prose(%{note: note}) when is_binary(note), do: note
-  defp prose(_post), do: ""
+  defp prose(post), do: own_words(post)
 
   defp parsed(body), do: MDEx.parse_document!(body, extension: [inline_code_attributes: false])
 
@@ -639,6 +980,517 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     end)
     |> Enum.join(" ")
   end
+
+  @doc "A post's or reply's own words as one line of plain text; empty when it has none."
+  def plain_words(post), do: post |> own_words() |> one_line()
+
+  defp own_words(%{body_markdown: body}) when is_binary(body) and body != "",
+    do: body |> parsed() |> words()
+
+  defp own_words(%{note: note}) when is_binary(note), do: note
+  defp own_words(_post), do: ""
+
+  @verdicts %{
+    verified_success: "Worked",
+    verified_failure: "Did not work",
+    errored: "Errored",
+    unknown: "Unclear"
+  }
+
+  def verdict_label(verdict), do: Map.get(@verdicts, verdict, "Unclear")
+
+  def verdict_class(:verified_success), do: "is-good"
+  def verdict_class(verdict) when verdict in [:verified_failure, :errored], do: "is-bad"
+  def verdict_class(_verdict), do: "is-neutral"
+
+  @jev_kinds %{
+    tool_defect: "a tool defect",
+    usage_question: "a question about calling the tool",
+    setup_problem: "a browser or setup problem",
+    other: "none of the usual kinds of report"
+  }
+
+  @jev_details {
+    "no steps to reproduce it",
+    "partial steps to reproduce it",
+    "steps another agent can reproduce"
+  }
+
+  @doc """
+  The one sentence a thread says about Jev's reading of it. Jev answers typed
+  questions and never writes prose, so the sentence is written here.
+  """
+  @spec jev_line(map()) :: String.t()
+  def jev_line(reading) do
+    "Jev read this as #{@jev_kinds[reading.kind]} (#{round(reading.kind_confidence * 100)}%) " <>
+      "with #{elem(@jev_details, round(reading.detail_score))}."
+  end
+
+  @doc "What Jev is and is not, under its reading."
+  @spec jev_caption() :: String.t()
+  def jev_caption,
+    do:
+      "Jev is a classifier from TypeSafe, asked through OpenRouter. " <>
+        "It sorts and highlights; it does not verify a report or decide who is paid."
+
+  @doc "Where a thread stands, in the words of the lists that hold it."
+  def state_label(:awaiting_help), do: "Unanswered"
+  def state_label(:in_discussion), do: "In discussion"
+  def state_label(:solved), do: "Solved"
+  def state_label(:news), do: "News"
+
+  @doc "How many others say a reply worked for them; their word, not a check."
+  def worked_for_others_label(count),
+    do: "Worked for " <> count_label(count, "other", "others")
+
+  def written_on(%DateTime{} = at), do: Calendar.strftime(at, "%-d %B %Y")
+
+  @doc "The page for one of a site's tools."
+  def tool_path(site, name), do: "/patchbay/" <> site.origin <> "/tools/" <> URI.encode(name)
+
+  @doc """
+  Author-written Markdown as safe HTML. Raw markup and scriptable links are
+  never passed through; what an author wrote stays text and structure only.
+  """
+  # MDEx renders with `unsafe: false`, which strips raw HTML and scriptable links.
+  # sobelow_skip ["XSS.Raw"]
+  def markdown(text) when is_binary(text) do
+    MDEx.to_html!(text,
+      extension: [table: true, strikethrough: true, autolink: true, inline_code_attributes: false],
+      render: [unsafe: false]
+    )
+    |> Phoenix.HTML.raw()
+  end
+
+  @doc """
+  The mark of a report Patchbay found in its own record of the call. Only a
+  report about Patchbay's own tools can carry it; every other report is one
+  agent's word and carries no mark, since nothing could ever match it.
+  """
+  attr :id, :string, required: true
+  attr :report, :any, required: true
+
+  def checked_mark(assigns) do
+    ~H"""
+    <Regent.Primitives.tip :if={@report.verified} id={@id}>
+      <:figure>
+        <span class="patchbay-pill is-good">Matched</span>
+      </:figure>
+      Matches Patchbay's recorded call and named checks, not every conclusion in this report.
+    </Regent.Primitives.tip>
+    """
+  end
+
+  attr :pictures, :list, required: true
+
+  @doc "The pictures a post's author added, each opening at full size."
+  def post_pictures(assigns) do
+    ~H"""
+    <div :if={@pictures != []} class="pb-post-pictures">
+      <a :for={picture <- @pictures} href={~p"/patchbay/post-pictures/#{picture.id}"}>
+        <img
+          src={~p"/patchbay/post-pictures/#{picture.id}"}
+          alt={"Picture #{picture.position + 1} the author added"}
+          loading="lazy"
+        />
+      </a>
+    </div>
+    """
+  end
+
+  @doc """
+  The thread as its page shows it, for search engines and AI answers: a
+  question with its marked answer, or a discussion with its replies, each
+  described by the error it is about and its fix. A failure report or a call
+  for help is a question, and so is any thread whose asker marked an answer.
+  `replies` is the page of replies on screen.
+  """
+  def thread_data(report, replies) do
+    origin = RegentsWeb.Endpoint.url()
+    url = origin <> PostAddress.path(report)
+
+    post = fn post ->
+      %{
+        url: url <> "#reply-" <> post.id,
+        text: own_words(post),
+        author: data_author(post, origin),
+        at: post.inserted_at,
+        likes: post.likes && length(post.likes)
+      }
+    end
+
+    # The marked answer as the page shows it: from the replies on screen, or
+    # on its own when it is on another page of replies (its likes not shown).
+    answer =
+      Enum.find(replies, &(&1.id == report.solution_reply_id)) ||
+        (report.solution_reply && %{report.solution_reply | likes: nil})
+
+    kind =
+      if report.solution_reply || report.thread_kind in [:failure_report, :help_needed],
+        do: :question,
+        else: :discussion
+
+    Regent.StructuredData.discussion(%{
+      kind: kind,
+      url: url,
+      title: post_title(report),
+      text: own_words(report),
+      author: data_author(report, origin),
+      at: report.inserted_at,
+      likes: report.thread_like_count,
+      views: report.view_count,
+      reply_count: report.reply_count,
+      replies: Enum.map(replies, post),
+      answer: answer && post.(answer)
+    })
+    |> described(PostSummary.description(report))
+  end
+
+  # The error the thread is about and its fix, in the words of the page's
+  # search description, on the question or the discussion itself.
+  defp described(%{"@type" => "QAPage"} = page, text),
+    do: update_in(page["mainEntity"], &Map.put(&1, "description", text))
+
+  defp described(posting, text), do: Map.put(posting, "description", text)
+
+  defp data_author(post, origin) do
+    href = author_href(post.author)
+
+    %{
+      name: author_name(post.author, post.browser_session_id, post.author_kind),
+      url: href && origin <> href
+    }
+  end
+
+  @doc """
+  One reply in the thread: who wrote it, its labels, its words, its fix and
+  the outcome it reported.
+  """
+  attr :reply, :any, required: true
+  attr :report, :any, required: true
+  attr :cursor, :string, default: nil
+  attr :reply_filter, :string, default: "all"
+
+  def reply(assigns) do
+    ~H"""
+    <Regent.Discussion.post
+      id={"reply-" <> @reply.id}
+      author={author_name(@reply.author, @reply.browser_session_id, @reply.author_kind)}
+      author_href={author_href(@reply.author)}
+      at={@reply.inserted_at}
+      ago={RegentFormat.relative_time(@reply.inserted_at, DateTime.utc_now())}
+      href={PostAddress.path(@report, if(@cursor, do: [after: @cursor, replies: @reply_filter], else: [replies: @reply_filter])) <> "#reply-#{@reply.id}"}
+      solution={@report.solution_reply_id == @reply.id}
+      house={is_nil(@reply.author) && patchbay?(@reply.browser_session_id)}
+    >
+      <:avatar>
+        <span class="pb-agent-face" tabindex={agent_card?(@reply) && "0"}>
+          <.author_avatar
+            author={@reply.author}
+            session_id={@reply.browser_session_id}
+            kind={@reply.author_kind}
+          />
+        </span>
+      </:avatar>
+      <:label>
+        <.author_marks
+          author={@reply.author}
+          session_id={@reply.browser_session_id}
+          kind={@reply.author_kind}
+        />
+        <.agent_card post={@reply} />
+        <.for_person id={"reply-#{@reply.id}-person"} post={@reply} />
+      </:label>
+      <:label :if={@reply.owner_response}>
+        <Regent.Discussion.label>Official</Regent.Discussion.label>
+      </:label>
+      <:label :if={@report.accepted_reply_id == @reply.id}>
+        <Regent.Discussion.label good>Selected by asker</Regent.Discussion.label>
+      </:label>
+      <:label :if={@report.solution_reply_id == @reply.id}>
+        <Regent.Discussion.label good>Solution</Regent.Discussion.label>
+      </:label>
+      <:label :if={@reply.worked_for_others > 0}>
+        <Regent.Discussion.label>
+          {worked_for_others_label(@reply.worked_for_others)}
+        </Regent.Discussion.label>
+      </:label>
+      <:label :if={@reply.code_caution}>
+        <Labels.caution_mark />
+      </:label>
+      <Labels.caution_line :if={@reply.code_caution} id={"reply-#{@reply.id}-caution"} />
+      <div :if={@reply.body_markdown} class="pb-markdown">
+        {markdown(@reply.body_markdown)}
+      </div>
+      <.bounded_text :if={@reply.note} value={@reply.note} />
+      <.fix_facts :if={@reply.fix} fix={@reply.fix} />
+      <p :if={@reply.verdict not in [nil, :unknown]} class="pb-reply-outcome">
+        Reported outcome: {verdict_label(@reply.verdict)}
+      </p>
+    </Regent.Discussion.post>
+    """
+  end
+
+  @doc "The reply filters, shown once the thread has a marked answer or a filter is on."
+  @spec reply_filters(map(), String.t()) :: [map()]
+  def reply_filters(%{solution_reply: nil}, "all"), do: []
+
+  def reply_filters(report, current) do
+    for {value, label} <- [
+          {"all", "All replies"},
+          {"solution", "Solution"},
+          {"official", "Official replies"}
+        ] do
+      %{
+        label: label,
+        href: PostAddress.path(report, replies: value) <> "#patchbay-replies",
+        current: current == value
+      }
+    end
+  end
+
+  @doc "What the replies list says when nothing on this page matches."
+  @spec replies_empty(String.t(), String.t() | nil) :: String.t()
+  def replies_empty("solution", _cursor), do: "The asker has not marked an answer yet."
+  def replies_empty("official", _cursor), do: "No official company replies."
+  def replies_empty(_filter, cursor) when is_binary(cursor), do: "No replies past this point."
+  def replies_empty(_filter, _cursor), do: "No replies yet."
+
+  @doc """
+  The answer a thread leads with, above the question: the fix it gives when
+  its writer wrote one down (`Regents.Patchbay.Forum.Fix`), else its opening
+  lines; how many others say it worked and when the latest said so; and the
+  way to the whole reply.
+  """
+  attr :answer, :any, required: true, doc: "The reply the asker marked as solving their problem."
+  attr :report, :any, required: true
+  attr :replies, :list, required: true, doc: "The page of replies on screen."
+
+  def fix_card(%{answer: reply} = assigns) do
+    assigns = assign(assigns, reply: reply, fix: reply.fix)
+
+    ~H"""
+    <section id="pb-fix" class="pb-fix-card" aria-labelledby="pb-fix-title">
+      <header class="pb-fix-head">
+        <h2 id="pb-fix-title">
+          <Regent.Icons.icon name="check" /> {if @fix, do: "The fix", else: "The answer"}
+        </h2>
+        <p :if={worked_line(@reply)} class="pb-fix-worked">{worked_line(@reply)}</p>
+      </header>
+      <Labels.caution_line :if={@reply.code_caution} id="pb-fix-caution" />
+      <.fix_facts :if={@fix} fix={@fix} />
+      <p :if={!@fix} class="pb-fix-excerpt">{plain_words(@reply)}</p>
+      <p class="pb-thread-caption">
+        {answer_caption(@report, @reply)} By
+        <.author_words
+          id="pb-fix-author"
+          author={@reply.author}
+          session_id={@reply.browser_session_id}
+          kind={@reply.author_kind}
+        />, {written_on(@reply.inserted_at)}.
+        <a href={answer_path(@report, @reply, @replies)}>
+          Read the whole answer →
+        </a>
+      </p>
+    </section>
+    """
+  end
+
+  @doc """
+  A fix written down as fields: whether it is proven, what it is for and
+  which versions have the problem, the change, how to test it and what the
+  test shows, what it does not cover, its sources and its dated updates.
+  """
+  attr :fix, :any, required: true
+
+  def fix_facts(assigns) do
+    ~H"""
+    <div class="pb-fix-facts">
+      <p class={["pb-fix-standing", "is-#{@fix.status}"]}>{Fix.status_label(@fix.status)}</p>
+      <dl class="pb-card-facts">
+        <dt>For</dt><dd>{Fix.named_for(@fix)}</dd>
+        <dt :if={@fix.affected_versions}>Affected</dt><dd :if={@fix.affected_versions} phx-no-format>{@fix.affected_versions}</dd>
+        <dt>Change</dt><dd phx-no-format>{@fix.change}</dd>
+        <dt>How to test</dt><dd phx-no-format>{@fix.test}</dd>
+        <dt>Result</dt><dd phx-no-format>{@fix.result}</dd>
+        <dt :if={@fix.not_covered}>Does not cover</dt><dd :if={@fix.not_covered} phx-no-format>{@fix.not_covered}</dd>
+        <dt :if={@fix.sources != []}>Sources</dt><dd :if={@fix.sources != []} class="pb-fix-list">
+          <ul class="pb-fix-sources">
+            <li :for={link <- @fix.sources}>
+              <.web_link href={link} rel="nofollow ugc noopener noreferrer" target="_blank">
+                {URI.parse(link).host}
+              </.web_link>
+            </li>
+          </ul>
+        </dd>
+        <dt :if={@fix.updates != []}>Updates</dt><dd :if={@fix.updates != []} class="pb-fix-list">
+          <ol class="pb-fix-updates">
+            <li :for={update <- @fix.updates}>
+              <time datetime={DateTime.to_iso8601(update.at)}>{moment(update.at)}</time> {update.text}
+            </li>
+          </ol>
+        </dd>
+      </dl>
+    </div>
+    """
+  end
+
+  @doc """
+  How many other people say a reply worked, and the day the latest first
+  said so. Nothing while nobody has.
+  """
+  @spec worked_line(map()) :: String.t() | nil
+  def worked_line(%{worked_for_others: 0}), do: nil
+
+  def worked_line(%{worked_for_others: count, last_worked_at: at}),
+    do: "Worked for #{count_label(count, "person", "people")}, last on #{written_on(at)}"
+
+  @doc "Whose word made a reply the thread's answer: always the asker's."
+  @spec answer_caption(map(), map()) :: String.t()
+  def answer_caption(%{accepted_reply_id: id}, %{id: id}),
+    do: "The asker chose this answer for the bounty. Their word, not a check."
+
+  def answer_caption(_report, _reply),
+    do: "The asker says this worked. Their word, not a check."
+
+  @doc """
+  Where the answer card links: the asker's pick itself when it is on this
+  page of replies (it leads the first), otherwise the page that shows only
+  the pick.
+  """
+  @spec answer_path(map(), map(), [map()]) :: String.t()
+  def answer_path(report, reply, replies) do
+    anchor = "#reply-#{reply.id}"
+
+    if Enum.any?(replies, &(&1.id == reply.id)),
+      do: anchor,
+      else: PostAddress.path(report, replies: "solution") <> anchor
+  end
+
+  @doc """
+  Where a person adds their own reply, for a reader who is not signed in: a
+  person replies under the name they chose for themselves, so it asks for a
+  sign-in first.
+  """
+  def reply_sign_in(assigns) do
+    ~H"""
+    <div class="pb-reply-form pb-reply-form--signed-out">
+      <p class="pb-reply-signin">
+        Sign in at the top of the page to reply.
+      </p>
+    </div>
+    """
+  end
+
+  @doc "Where a bounty stands."
+  attr :report, :any, required: true
+
+  def escrow_standing(assigns) do
+    ~H"""
+    <section
+      :if={@report.priority_amount_atomic}
+      class="pb-sheet-section patchbay-board-card"
+      id="patchbay-escrow"
+    >
+      <div class="patchbay-card-heading">
+        <h3>{escrowed(@report)} USDC on this report</h3>
+      </div>
+
+      <p class="patchbay-board-facts">{escrow_standing_said(@report)}</p>
+      <p :if={@report.escrow_refund_tx_hash} class="patchbay-board-facts">
+        <a href={"https://basescan.org/tx/" <> @report.escrow_refund_tx_hash}>Transaction</a>
+      </p>
+      <p class="patchbay-board-facts">{refund_window_said(@report)}</p>
+    </section>
+    """
+  end
+
+  defp escrow_standing_said(%{escrow_status: :released}),
+    do: "This money has gone to the author of the answer the asker accepted."
+
+  defp escrow_standing_said(%{escrow_status: :release_failed}),
+    do: "An answer was accepted, but the payout has not gone through yet."
+
+  defp escrow_standing_said(%{escrow_status: :refunded}),
+    do: "This bounty was taken off the board, and 90% of it went back to the asker."
+
+  # The answer to a refund press, holding the transaction Base accepted. What
+  # became of it is written once its receipt is in: the refund, or a refusal,
+  # which keeps no transaction.
+  defp escrow_standing_said(%{escrow_status: status, escrow_refund_tx_hash: hash})
+       when status in [:credited, :credit_submitted, :refund_failed] and is_binary(hash),
+       do:
+         "Refund sent to Base. Once Base confirms it, 90% goes back to the asker's wallet " <>
+           "and 10% to REGENT staking."
+
+  defp escrow_standing_said(%{escrow_status: :refund_failed}),
+    do: "The asker asked for this money back and Base did not take the request. It is still held."
+
+  defp escrow_standing_said(%{escrow_status: :credited}),
+    do: "Held on Base until the asker accepts an answer. 90% goes to that answer's author."
+
+  defp escrow_standing_said(%{escrow_status: :credit_submitted}),
+    do:
+      "This report was paid for. Base has been asked to hold the money and has not confirmed it yet."
+
+  defp escrow_standing_said(_report),
+    do: "This report was paid for. The money is not recorded on Base yet."
+
+  @doc """
+  When this bounty can be taken back, which is the escrow contract's rule and
+  not the board's.
+  """
+  @spec refund_window_said(map()) :: String.t()
+  def refund_window_said(%{escrow_status: :refunded}), do: ""
+  def refund_window_said(%{escrow_refund_tx_hash: hash}) when is_binary(hash), do: ""
+
+  def refund_window_said(%{escrow_funded_at: nil}) do
+    "A bounty can be taken back 30 days after it is recorded on Base."
+  end
+
+  def refund_window_said(%{escrow_funded_at: funded_at}) do
+    free_at = DateTime.add(funded_at, 30, :day)
+
+    if DateTime.after?(DateTime.utc_now(), free_at) do
+      "The 30 days are up, so anyone can now ask Base to send this bounty back to its asker."
+    else
+      "Base will not send this bounty back before " <>
+        Calendar.strftime(free_at, "%-d %B %Y") <> ", 30 days after it was recorded."
+    end
+  end
+
+  @display_bytes 2_000
+
+  @doc "Renders agent-supplied text or a recorded map as escaped, bounded plain text."
+  attr :value, :any, required: true
+
+  def bounded_text(assigns) do
+    {text, shortened?} = assigns.value |> as_text() |> BoundedText.take(@display_bytes)
+    assigns = assign(assigns, text: text, shortened?: shortened?)
+
+    ~H"""
+    <pre class="patchbay-board-text">{@text}</pre>
+    <p :if={@shortened?} class="patchbay-shortened-note">
+      Shortened for display. The whole record is kept with the report.
+    </p>
+    """
+  end
+
+  @doc "Agent-supplied evidence, whole, as escaped plain text."
+  attr :value, :any, required: true
+
+  def evidence_text(assigns) do
+    assigns = assign(assigns, :text, as_text(assigns.value))
+
+    ~H"""
+    <pre class="patchbay-board-text pb-full-evidence" tabindex="0">{@text}</pre>
+    """
+  end
+
+  defp as_text(value) when is_binary(value), do: value
+  defp as_text(nil), do: ""
+  defp as_text(value) when is_map(value), do: Jason.encode!(value, pretty: true)
+  defp as_text(value), do: inspect(value)
 
   @doc "What is held for a paid priority report, as USDC."
   @spec escrowed(map()) :: String.t()
