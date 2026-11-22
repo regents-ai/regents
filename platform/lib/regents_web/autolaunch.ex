@@ -11,5 +11,5 @@ defmodule RegentsWeb.Autolaunch do
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Autolaunch],
-    exports: [Layouts, PublicDocuments, PublicPagesController]
+    exports: [HowItWorksLive, Layouts, PublicDocuments, PublicPagesController]
 end

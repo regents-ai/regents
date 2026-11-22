@@ -86,6 +86,15 @@ defmodule Regents.Redeem.RpcClient do
     end
   end
 
+  # An approval of 2^96 units or more is beyond any USDC a wallet could hold: it
+  # is unlimited in all but name, and its digits are more than a figure can be
+  # written with. Wallets set such an approval themselves; the page's own step
+  # asks for the exact price.
+  @unlimited_from Integer.pow(2, 96)
+
+  defp allowance(raw) when raw >= @unlimited_from, do: :unlimited
+  defp allowance(raw), do: Rpc.format_units(raw, 6)
+
   defp account_facts([], nil, _collection), do: blank_account()
 
   defp account_facts(
@@ -99,7 +108,7 @@ defmodule Regents.Redeem.RpcClient do
       usdc_balance_raw: Integer.to_string(usdc_balance),
       usdc_balance: Rpc.format_units(usdc_balance, 6),
       usdc_allowance_raw: Integer.to_string(usdc_allowance),
-      usdc_allowance: Rpc.format_units(usdc_allowance, 6),
+      usdc_allowance: allowance(usdc_allowance),
       claimable_raw: Integer.to_string(claimable),
       claimable: Rpc.format_units(claimable, 18),
       vest_pool_raw: Integer.to_string(pool),

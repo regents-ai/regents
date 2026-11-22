@@ -119,6 +119,11 @@ defmodule RegentsWeb.Telemetry do
         tags: [:method, :class, :chain_id, :scope],
         description: "Chain requests that got no answer"
       ),
+      counter("health.wallet_send_failures.total",
+        event_name: [:regents, :keyfleet_wallet, :failure],
+        tags: [:flow, :reason],
+        description: "Keyfleet wallet presses that were not sent, not confirmed or refused"
+      ),
       last_value("health.points_tally_finished.seconds",
         event_name: [:regent_points, :tally_periods, :finished],
         measurement: fn _measurements -> System.system_time(:second) end,

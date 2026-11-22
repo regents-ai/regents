@@ -8151,3 +8151,49 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 9e4edbdb, /cloak/install offers no file on the founder's letter 379 a. Full check exit 0 on 9e4edbdb; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-125cd26424df.
+
+## 2026-11-22 — One site: two views products can join (not released)
+
+- A product's list can now filter, sort and search, inside its own database query, by which person an agent is paired with and that person's wallets (`regents_app.paired_person_wallets`: agent wallet, account, wallet), and by people's verified social links that name a username (`regents_app.public_links`: account, provider, username, display name). Neither names the sign-in id, a provider's own id for the person, Privy's details or a time.
+- The pairing view holds the same pairings an agent's own requests are judged by: a pairing still in place whose person has an account here. Only the system may read it directly. The links view holds the links the linked-accounts read gives, less those without a username; anyone may read it.
+- Nothing reads either yet: Keyfleet and Autolaunch move to them in their own slices.
+- One migration, which adds the two views and nothing else; no table, row, page or setting changes. On the `one-site` branch only.
+
+## 2026-11-22 — Redeem: an unlimited USDC approval no longer breaks the account panel
+
+- A wallet that had given the redeemer an unlimited USDC approval (set in the wallet itself; the page's own step asks for the exact price) could not open its part of the Redeem page: the figure was too long to write and the page failed. Current allowance now reads "Unlimited" for such an approval. Every other figure is written as before.
+- Found by the Autolaunch chief while proving the shared chain reader. No table, setting or migration; nothing about what the page asks a wallet to sign.
+
+## 2026-11-22 — Cloak pages: the size line no longer names 130 MB
+
+- /cloak and /cloak/install said "130 MB", the size of a file neither page offers now. The line reads "Apple silicon · macOS 26" until the next build's size is known. Ordinary page copy, on the Orchestrator's ruling of 22 Nov, told to the founder.
+- No table, setting or migration.
+
+## 2026-11-22 — Released the Redeem unlimited-approval fix
+
+- Commit f36c34f2, Redeem writes an unlimited USDC approval as Unlimited instead of failing, and the Cloak pages no longer say 130 MB. Full check exit 0 on f36c34f2; the practice run built the image and found no migration pending.
+- Live read, signed out: /redeem and /stake answer and /cloak and /cloak/install no longer say 130 MB and are otherwise as before (the fixed figure shows only to a connected wallet with such an approval, so it was proven on a local run, not live), the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-9e4edbdb8b17.
+
+## 2026-11-22 — One site: Autolaunch's How it works and About (not released)
+
+- `/autolaunch/how-it-works` and `/autolaunch/about` show How it works and About word for word as autolaunch.sh shows them at `4799025d`, with the same auction lengths, release times and fee shares, read from the launch terms the deployment descriptions name. About also answers as Markdown when asked with `Accept: text/markdown`.
+- Learn now lists How it works, About, Changelog, Privacy and Terms, and the footer gains About after Buy $REGENT, in autolaunch.sh's order. The bar and the phone menu are unchanged: on autolaunch.sh these pages are reached from Docs, which is not here yet.
+- Copy to Agent on How it works copies this site's agent guide. How it works' link to About REGENT points at `/autolaunch/regent`, which is not here yet.
+- Left out for now: Docs and the REGENT page (they read the agent tools and live chain figures), and the JSON answers for About and Docs.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — Keyfleet's fleet pages in the one site, not yet open (not released)
+
+- Keyfleet's fleet pages are now part of this site: each fleet's page with its Key map and harbour, its Keys and their profiles, rooms and direct messages, the workspace and its projects, polls, proposals, the treasury, seasons, search, the worldline and the atlas, with the wallet steps they offer. They read the same records and show the same words as keyfleet.ai.
+- None of them opens yet: no new address answers. The reading pages and guides already under `/keyfleet` look and read as before.
+- When they open, three things differ from keyfleet.ai: Pair New Agent opens this site's own pairing page; the account pages are this site's; and a Key holder's wallet that is not a real address would print as written where keyfleet.ai printed "Account" (no stored holder is like that).
+- Six shared readings are ready for these pages: a fleet's activity, its proposals, its treasury, its share picture, each project's picture and each proposal, so that visitors will share one recent read instead of each reading the database. Nothing reads them yet.
+- A failure a Keyfleet page catches is saved to the site's error list, at most twenty at a time; past that it is only logged.
+- Not released: on the `fold/keyfleet` branch only. No route, table, migration, secret, sign-in or wallet change.
+
+## 2026-11-22 — One site: Keyfleet wallet failures counted, and a quieter log line (not released)
+
+- A Keyfleet wallet press that was not sent, not confirmed or refused is counted with the site's other health figures, by flow and reason, as keyfleet.ai counts it.
+- When an error cannot be saved with the site's errors, the log line now names only what kind of error it was and what kind of failure stopped the save, never their words, which can carry a query and its values.
+- On the `one-site` branch only. No table, setting or migration.

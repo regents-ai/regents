@@ -8,6 +8,7 @@
    palette the page wears (`data-brand="autolaunch"`), come from the site's own app.css. */
 @import "./tokens/autolaunch.css";
 @import "./base.css";
+@import "./components/figures.css";
 @import "./shell/layout.css";
 @import "./pages/autolaunch.css";
 @import "./pages/facts.css";

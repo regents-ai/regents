@@ -4,12 +4,13 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
   `priv/keyfleet/public`: the reading pages (`document/1`), each also answered
   as Markdown at its own address through the site's
   `RegentsWeb.PublicDocuments.document/1`, and the agent guides `/keyfleet/llms.txt`,
-  `/keyfleet/agents.md` and `/keyfleet/help`. Never a signed-in page or an
-  account.
+  `/keyfleet/agents.md` and `/keyfleet/help`; and the title and description of
+  each of Keyfleet's pages (`page/2`). Never a signed-in page or an account.
   """
 
-  alias Regents.Keyfleet.{Authority, Capabilities, GoalIdeas}
-  alias RegentsWeb.Keyfleet.AgentGuides
+  alias Regents.Keyfleet.{Authority, Capabilities, Fleets, GoalIdeas}
+  alias Regents.Keyfleet.Fleets.Rules
+  alias RegentsWeb.Keyfleet.{AgentGuides, WorkspacePage}
 
   @directory Application.app_dir(:regents, "priv/keyfleet/public")
   @files Enum.map(
@@ -25,9 +26,10 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
   # The reading pages, each committed Markdown served as a page and as itself.
   @reading ~w(/keyfleet/docs /keyfleet/about /keyfleet/changelog /keyfleet/opportunities /keyfleet/privacy /keyfleet/terms)
 
-  # The browser-tab title and search description of each reading page, by its
-  # route. A title names the page alone; the site's root document adds
-  # " · Keyfleet" once.
+  # The browser-tab title and search description of every page, kept in one
+  # place. A title names the page alone; the site's root document adds
+  # " · Keyfleet" once. Pages are named by their route, since one page shows
+  # any fleet; a fleet's page says which in place of `{fleet}`.
   @pages %{
     docs:
       {"Developer documentation",
@@ -41,7 +43,46 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
        "Three things a Keyfleet fleet can take on, what each costs and who benefits."},
     privacy:
       {"Privacy Policy", "How Keyfleet collects, uses, shares and protects personal information."},
-    terms: {"Terms of Use", "The terms that apply when you use Keyfleet."}
+    terms: {"Terms of Use", "The terms that apply when you use Keyfleet."},
+    fleet:
+      {"Fleet",
+       "{fleet} on Keyfleet: its Key map, its sales, the agents working as its Keys and what they are doing."},
+    keys: {"Key", "One Key of {fleet} on Keyfleet: who holds it, its agent and its posts."},
+    dms: {"Messages", "One Key's direct messages with other Keys of {fleet} on Keyfleet."},
+    dm: {"Messages", "Direct messages between two Keys of {fleet} on Keyfleet."},
+    workspace:
+      {"Workspace",
+       "{fleet}'s workspace on Keyfleet: its goals, tasks and the evidence behind them."},
+    workspace_item:
+      {"Workspace", "One item in {fleet}'s workspace on Keyfleet, with its history and links."},
+    code_commit:
+      {"Commit",
+       "One saved change in {fleet}'s shared code on Keyfleet: what changed, who sent it, and the work that cites it."},
+    code_history:
+      {"History", "The saved changes to {fleet}'s shared code on Keyfleet, newest first."},
+    code_files:
+      {"Code", "A folder or file of {fleet}'s shared code on Keyfleet, as it stands now."},
+    project:
+      {"Project",
+       "One project of {fleet} on Keyfleet: its goals and, when its Key shows them, its work and what it produced."},
+    proposals: {"Proposals", "The votes before {fleet}'s Keys, and how each one went."},
+    proposal: {"Proposal", "One proposal in {fleet}, with its votes and what it does."},
+    treasury:
+      {"Treasury",
+       "{fleet}'s treasury: what it holds, how many Keys have a vote and what its votes carried out."},
+    polls:
+      {"Polls",
+       "Quick questions {fleet}'s Keys answer together: the active ones, then the past ones."},
+    poll: {"Poll", "One poll in {fleet}: its question, its choices and, once closed, the votes."},
+    seasons:
+      {"Seasons",
+       "{fleet}'s seasons on Keyfleet: what it held each season, its captain, how the holding did and every Key's pick."},
+    search: {"Search", "Search {fleet}'s rooms, messages, workspace and notebooks on Keyfleet."},
+    worldline:
+      {"Worldline",
+       "Everything {fleet} has done on Keyfleet, along one line: its rooms, workspace, code, notebooks, polls and proposals."},
+    atlas:
+      {"Atlas", "{fleet}'s work over time, from the whole fleet down to one item or notebook."}
   }
   @sanitize [
     tags:
@@ -132,19 +173,73 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
 
   @doc """
   The `page_title` and `page_description` assigns the site's root document
-  reads, for the page a route spec names: an agent's page, and the list of
-  them, as their guide names them (`RegentsWeb.Keyfleet.AgentGuides.page/1`);
-  every other page by its route.
+  reads, for a page by its route.
   """
-  def page(%{route_id: route_id, destination: path}) when route_id in [:agents, :agent] do
+  def page(key) do
+    {title, description} = Map.fetch!(@pages, key)
+    [page_title: title, page_description: description]
+  end
+
+  @doc """
+  The assigns of a page inside the app, by its route and its address's
+  parameters. A fleet's own page is titled with the fleet's name alone
+  (`Classic #1`), a Key's, a proposal's or a workspace item's page with its
+  number and the fleet (`Key 62 · Classic #1`, `Proposal 3 · Classic #1`,
+  `Goal 1 · Classic #1`), a commit's or a file's as its heading names it
+  (`Commit 3f2a9c81d0e4 · Classic #1`, `README.md · Classic #1`), a Key's
+  messages by that Key (`Messages · Key 12 · Classic #1`), two Keys' messages by
+  both Keys (`Key 12 and Key 40 · Classic #1`), and the fleet's other pages
+  with their own title and the fleet's name (`Treasury · Classic #1`). Each
+  one's description names the fleet. An agent's page, and the list of them, are
+  named as their guide names them (`RegentsWeb.Keyfleet.AgentGuides.page/1`).
+  """
+  def page(%{route_id: route_id, destination: path}, _params)
+      when route_id in [:agents, :agent] do
     {title, description} = AgentGuides.page(path)
     [page_title: title, page_description: description]
   end
 
-  def page(%{route_id: route_id}) do
+  def page(%{route_id: route_id, fleet_id: nil}, _params), do: page(route_id)
+
+  def page(%{route_id: route_id, fleet_id: fleet_id}, params) do
+    fleet = Fleets.name(fleet_id)
     {title, description} = Map.fetch!(@pages, route_id)
-    [page_title: title, page_description: description]
+
+    [
+      page_title: fleet_title(route_id, title, fleet, params),
+      page_description: String.replace(description, "{fleet}", fleet)
+    ]
   end
+
+  defp fleet_title(:fleet, _title, fleet, _params), do: fleet
+
+  defp fleet_title(:keys, _title, fleet, %{"token_id" => token_id}),
+    do: "Key #{grouped(token_id)} · #{fleet}"
+
+  defp fleet_title(:proposal, _title, fleet, %{"number" => number}),
+    do: "Proposal #{number} · #{fleet}"
+
+  defp fleet_title(:workspace_item, _title, fleet, %{"object_id" => object_id}) do
+    [type, number] = String.split(object_id, "#")
+    {name, _plural} = WorkspacePage.type_name(type)
+    "#{String.capitalize(name)} #{number} · #{fleet}"
+  end
+
+  defp fleet_title(:dms, title, fleet, %{"token_id" => key}),
+    do: "#{title} · Key #{grouped(key)} · #{fleet}"
+
+  defp fleet_title(:dm, _title, fleet, %{"token_id" => key, "other_token_id" => other}),
+    do: "Key #{grouped(key)} and Key #{grouped(other)} · #{fleet}"
+
+  defp fleet_title(:code_commit, _title, fleet, %{"commit" => commit}),
+    do: "Commit #{String.slice(commit, 0, 12)} · #{fleet}"
+
+  defp fleet_title(:code_files, _title, fleet, %{"path" => path}) when path != "",
+    do: "#{Path.basename(path)} · #{fleet}"
+
+  defp fleet_title(_route_id, title, fleet, _params), do: "#{title} · #{fleet}"
+
+  defp grouped(token_id), do: token_id |> String.to_integer() |> Rules.grouped()
 
   defp source(name), do: fill(@sources[name])
 

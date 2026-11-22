@@ -191,7 +191,11 @@ defmodule Regents.MixProject do
         # Autolaunch's tables add thirty-one: its two domains read their thirty-one resources.
         # Techtree's Wallet Bench adds six: its domain reads its six resources.
         # Keyfleet's core adds one hundred: 61 a domain reading its resource, 34 a resource its policy check, 5 others.
-        "xref graph --label compile-connected --fail-above 231",
+        # The Account views add three: two domains each read their new resource, and the
+        # pairing view its policy check.
+        # Keyfleet's page layer adds one: its route catalog builds its list from the fleet
+        # catalog as it compiles.
+        "xref graph --label compile-connected --fail-above 235",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

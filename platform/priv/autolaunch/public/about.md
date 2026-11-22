@@ -1,0 +1,135 @@
+# About Autolaunch
+
+Autolaunch is a token launch site that runs fair-price auctions on Base and Robinhood Chain for agents, services and communities that want long-term backers.
+
+## The team behind Autolaunch
+
+Autolaunch is built and run by Regents Labs, an agentic product lab whose products share one token, REGENT, instead of equity. Part of what Autolaunch earns goes to REGENT stakers.
+
+- **Sean Brennan**, founder. [X](https://x.com/seanwbren) · [LinkedIn](https://www.linkedin.com/in/seanwbren)
+
+## How Autolaunch works
+
+- **Getting started:** [explore the auctions]({{origin}}/autolaunch/auctions) and sign in with your wallet to bid, launch or stake. There is no password, and we never ask for a recovery phrase.
+- **The rules:** [How Autolaunch works]({{origin}}/autolaunch/how-it-works) lists every fee, split and step.
+- **Getting help:** email [build@regents.sh](mailto:build@regents.sh) or see Contact below.
+- **For agents:** start with [/llms.txt]({{origin}}/llms.txt) and the [developer guide]({{origin}}/autolaunch/docs).
+
+## Key facts
+
+| Fact | Detail |
+| --- | --- |
+| Company name | Regents Labs, Inc. |
+| Type | Token launch and auction site |
+| Founder | Sean Brennan |
+| Website | {{origin}}/autolaunch |
+| Core offering | Fair-price token auctions for agents, services and communities, with staking for backers |
+| Pricing | Launching is free apart from the network fee. From v2 on, Revstake pools charge a 3% trading fee: 2% goes to the token's staking and 1% goes to Regent. From v2 on, Memestock pools charge 4.3% of the stock amount of every trade, before fees: 3% goes to the token's staking, 1% goes to Regent and 0.3% pays the creator in stock. Both add a separate 0.30% pool fee; the token's staking sends 2% of the revenue it receives to Regent |
+| Networks | Base (Revstake and Memestock) and Robinhood Chain (Memestock) |
+| Services | Revstake launches, Memestock launches, auctions, token staking |
+| Communication | [build@regents.sh](mailto:build@regents.sh) |
+| Social | [X @regents_sh](https://x.com/regents_sh) · [GitHub](https://github.com/regents-ai/autolaunch) · Founder: [X](https://x.com/seanwbren), [LinkedIn](https://www.linkedin.com/in/seanwbren) |
+| Token | REGENT, on Base. Revstake auctions are priced in REGENT |
+| Token contract | `0x6f89bcA4eA5931EdFCB09786267b251DeE752b07` |
+| Staking | Base Memestock's REGENT stakers' fee, paid in stock, converts to USDC for REGENT staking. Revstake's 1% Regent fee goes directly to REGENT staking when collected in REGENT, or to the Regent Safe when collected in the launch token. Robinhood's REGENT stakers' fee, in USDG, is held on Robinhood Chain until the transfer to Base is set up |
+
+Bidding, trading and staking involve contract, network and financial risk. No return is guaranteed.
+
+## What Autolaunch does
+
+### Revstake tokens
+
+An agent, or any service that earns stablecoins, raises early backing in an auction of {{revstake_auction}} priced in REGENT, on Base. The launcher promises to pass the revenue it earns through the token's staking contract, where stakers receive a share; that promise is a trust assumption. Whatever is sent is shared out automatically: stakers receive a share in line with how much of the supply is staked, and the rest goes to the token's treasury.
+
+### Memestock tokens
+
+A memecoin paired with a real onchain stock, on Base or Robinhood Chain. A new auction runs for {{memestock_auction_base}} on Base and {{memestock_auction_robinhood}} on Robinhood Chain and sells 49.75% of the supply; another 49.75% is reserved for permanently locked liquidity. The stock raised and the tokens it needs become liquidity at every price, and any remaining reserve becomes liquidity in the token alone, for prices above the opening token price. Any stock left over from rounding is added to the REGENT stakers' fee. The creator's 0.5% of the supply is released {{memestock_release_base}} on Base and {{memestock_release_robinhood}} on Robinhood Chain from graduation, and the creator earns 0.3% of the stock amount of every trade, before fees.
+
+The four existing v1 Memestock auctions retain their original allocations and fees, with withdrawals, claims, trading and staking supported.
+
+### Token staking
+
+Stake a launched token on its page to earn a share of everything that reaches its staking pot: trading fees, locked liquidity fees and, for Revstake tokens, customer payments. Earnings arrive in the currencies that came in.
+
+## What makes Autolaunch different
+
+### One price for every bidder
+
+Autolaunch uses Uniswap's continuous clearing auction, which sells tokens a little at a time. Bids above the clearing price buy at that price, not at their own limit, so there are no early snipers: if you are in the auction, you are early.
+
+### A minimum raise, or everyone gets their money back
+
+From v2 on, each auction must reach its minimum before it can graduate. It opens at the lowest price it accepts, and its minimum is the whole sale allocation at that price, rounded up. The launcher chooses neither. If it falls short, every bidder takes back their full bid, and the refunds are paid by the Uniswap auction contract itself.
+
+### Liquidity that can't be pulled
+
+The trading pool's liquidity is locked in a contract that can only collect trading fees. Anyone can press "Settle contract" on the token's page, and the fees always go into the token's staking pot.
+
+### Free to launch
+
+Launching costs nothing apart from the network fee. Trading fees and staking rewards are fixed in the contracts.
+
+### Your wallet signs everything
+
+Autolaunch never holds your keys. Every bid, claim, launch, trade and stake is signed by your own wallet.
+
+## Who uses Autolaunch
+
+- Agents and services that earn stablecoins and want backers who share in that revenue.
+- Communities launching a memecoin backed by a real onchain stock.
+- People who want to back an agent or project early at the same price as everyone else.
+- Stakers who earn from a launched token's trading fees and revenue.
+
+## Frequently asked questions
+
+### What's the difference between Revstake and Memestock?
+
+Revstake is for agents and services that earn stablecoins: 20% of the supply is sold in an auction of {{revstake_auction}} priced in REGENT, and stakers share the revenue the launcher sends. Memestock pairs a memecoin with an onchain stock: 49.75% is sold in an auction of {{memestock_auction_base}} on Base or {{memestock_auction_robinhood}} on Robinhood Chain, and 0.5% is released to the creator {{memestock_release_base}} on Base or {{memestock_release_robinhood}} on Robinhood Chain from graduation.
+
+### Why does everyone pay the same price?
+
+The auction has one clearing price at any moment, set by the bids competing for the tokens released so far. Bids above it buy at that price, so nobody pays more than anyone else buying at the same moment.
+
+### What happens if an auction doesn't reach its minimum?
+
+It fails: every bidder takes back their full bid, and every token, including a Memestock creator allocation, is retired to the dead address. Retirement does not reduce reported total supply. The Uniswap auction contract pays the refunds directly.
+
+### What does it cost to launch?
+
+Nothing apart from the network fee.
+
+### Is Revstake revenue guaranteed?
+
+No. The launcher promises to send revenue to the staking contract, but can stop, send only part of it or go out of business. Whatever does arrive is shared out automatically: stakers receive a share in line with how much of the supply is staked, and the rest goes to the token's treasury.
+
+### Does Autolaunch hold my money or keys?
+
+No. Every bid, claim, launch, trade and stake is signed by your own wallet, and refunds come from the auction contract.
+
+## Who operates the service
+
+Regents Labs, Inc. is the operator named in the [Privacy Policy]({{origin}}/privacy) and [Terms of Use]({{origin}}/terms). The source code is public at [github.com/regents-ai/autolaunch](https://github.com/regents-ai/autolaunch).
+
+## Contact
+
+### Help
+
+Ask on [the Autolaunch page at Patchbay](https://patchbay.help/autolaunch.sh), where people and agents answer in the open: a launch, an auction, a listing that looks wrong, or anything on the site. For anything private, email [build@regents.sh](mailto:build@regents.sh).
+
+### Privacy requests
+
+Email [privacy@regents.sh](mailto:privacy@regents.sh) with the subject **Privacy Request**. Give only the information needed to find what you are asking about.
+
+### Legal questions
+
+Email [legal@regents.sh](mailto:legal@regents.sh) about the [Terms of Use]({{origin}}/terms) or other legal matters.
+
+### Security reports
+
+Email [build@regents.sh](mailto:build@regents.sh) to report a suspected vulnerability. Include the affected page, a short description and safe steps to reproduce it. Please do not publish details before we have had a chance to fix it.
+
+Never send a private key or recovery phrase. We will never ask for one, and we do not need it to look into a problem.
+
+### Product information
+
+Read the [developer guide]({{origin}}/autolaunch/docs). Source code and issues are at [github.com/regents-ai/autolaunch](https://github.com/regents-ai/autolaunch), and news at [@regents_sh on X](https://x.com/regents_sh).

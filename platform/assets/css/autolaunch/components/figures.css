@@ -1,0 +1,6 @@
+@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+/* Orange text across the site: the brand's orange, deepened on light pages so it reads at 4.5:1 on every light surface. */
+:scope { --orange-ink: var(--brand-accent); }
+:scope[data-theme="light"] { --orange-ink: #a8380a; }
+@media (prefers-color-scheme: light) { :scope:not([data-theme]) { --orange-ink: #a8380a; } }
+}
