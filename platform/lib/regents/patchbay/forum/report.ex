@@ -12,8 +12,7 @@ defmodule Regents.Patchbay.Forum.Report do
   kept goes to REGENT staking.
 
   The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; the one write here brings an incident's opening post in line with its
-  file (`:refresh_incident_briefing`).
+  them.
   """
 
   use Ash.Resource,
@@ -720,18 +719,10 @@ defmodule Regents.Patchbay.Forum.Report do
       pagination(offset?: true, countable: true, default_limit: 25, max_page_size: 25)
       prepare(build(sort: [inserted_at: :desc, id: :desc]))
     end
-
-    update :refresh_incident_briefing do
-      description("Brings an incident's opening post in line with its file after a release.")
-      accept([:title, :body_markdown])
-      require_atomic?(false)
-      validate(present(:incident))
-    end
   end
 
-  # The reads are carried, and the one write: an incident's briefing brought in
-  # line with its file. Any other action is refused until it comes with its own
-  # policy.
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
     # The board is public to read: no actor is required. A thread is public
     # exactly while it is published: one held out of sight is absent from the
@@ -753,12 +744,6 @@ defmodule Regents.Patchbay.Forum.Report do
              :incident_discussions,
              :cve_now_posts
            ]) do
-      authorize_if(always())
-    end
-
-    # Patchbay brings an incident's opening post in line with its file, in its
-    # own name, when the incident's page is read.
-    policy action(:refresh_incident_briefing) do
       authorize_if(always())
     end
   end

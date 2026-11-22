@@ -56,7 +56,6 @@ defmodule Regents.Patchbay.Forum do
         not_found_error?: false
       )
 
-      define(:refresh_incident_briefing, action: :refresh_incident_briefing)
       define(:list_cve_now_posts, action: :cve_now_posts)
       define(:get_report, action: :read, get_by: [:id])
     end
