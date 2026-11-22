@@ -318,7 +318,8 @@
       "changes": [
         "need: Regents.Limits names every allowance <product>_<name>; the site's budget is :keyfleet_treasury_refresh, one press every 30 seconds, as keyfleet.ai's :treasury_refresh",
         "need: the site has a venue that only reads (Regents.read_only?/0), where no job runs; there a press of the Treasury's refresh asks for no reading and reads the kept figures again (K3 b)",
-        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
+        "the regents chief's review of K3 (b): refresh_treasury/2's doc names a visitor's client address as who is counted (K3 b fixes)"
       ]
     },
     {
@@ -364,7 +365,8 @@
         "the regents chief's review of the carry (K3 a findings, hand-made events): open_notebooks, get_code_password and every workspace press reach their handlers only with a workspace on show; from any other page they fall to the press no page sends, which changes nothing (K3 b)",
         "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing, where the source's split it and the page crashed (K3 b)",
         "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
-        "the regents chief's review of K3 (b): the page keeps the client_tag its render was signed with (RegentsWeb.Live.Session.render_context/1), and gives it beside its session_lease to each page that holds a wallet panel (K3 b fixes)"
+        "the regents chief's review of K3 (b): the page keeps the client_tag its render was signed with (RegentsWeb.Live.Session.render_context/1), and gives it beside its session_lease to each page that holds a wallet panel (K3 b fixes)",
+        "the regents chief's review of K3 (b): a visitor's presses of the Treasury's refresh are counted by the page's client address ({:address, client_tag}) where the source's counted them by visit, so a reload does not start the 30 seconds again; a signed-in person's stay counted by account (K3 b fixes)"
       ]
     },
     {

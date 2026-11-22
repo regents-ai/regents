@@ -1541,7 +1541,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   @doc """
   A press of the Treasury's refresh: the open fleet's balances are read at
   once, and the figures its wallet buttons show are read again. Each person,
-  `who` (their account, or a visitor's visit), may press it once every 30
+  `who` (their account, or a visitor's client address), may press it once every 30
   seconds (`:keyfleet_treasury_refresh` in `Regents.Limits`); the button rests
   until then, and a press it refuses rests it for what is left. Where the site
   only reads (`Regents.read_only?/0`) no reading is asked for: the figures

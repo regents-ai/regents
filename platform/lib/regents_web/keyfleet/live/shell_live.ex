@@ -436,11 +436,12 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
     do: SeasonsLive.handle_event(event, params, socket)
 
   # The Treasury's refresh, once every 30 seconds for each person: by
-  # account when signed in, by visit when not.
+  # account when signed in, by the page's client address when not, so a
+  # reload does not start it again.
   defp press("refresh_treasury", _params, socket) do
     who =
       case current_account(socket.assigns.access_context) do
-        nil -> {:visit, socket.id}
+        nil -> {:address, socket.assigns.client_tag}
         account -> {:account, account.id}
       end
 
