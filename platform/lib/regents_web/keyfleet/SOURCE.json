@@ -3,12 +3,12 @@
   "commit": "03eb26813",
   "taken": "2026-11-21",
   "rules": "K2's naming rules plus the web side's: KeyfleetWeb.X is RegentsWeb.Keyfleet.X at the same path under platform/lib/regents_web/keyfleet/, the endpoint and router are the site's, use RegentsWeb.Keyfleet as slice 1 has it, addresses under /keyfleet. The difference report (the reviewer's script) compares each file with the source after the rules",
-  "reachable": "Only slice 1's reading pages and guides are routed. Every other carried page compiles but has no route yet",
+  "reachable": "Slice 1's reading pages and guides, and since K3 (b) each of the five catalog fleets' own pages, signed out: its hall (:fleet), a Key (:keys), Seasons, Proposals, a proposal, Treasury, Polls, a poll and Search, under /keyfleet (the router reads RouteCatalog.entries/0). Every other carried page compiles but has no route yet: the workspace and its item, the three code pages, a project, the worldline and the atlas (they need the graph machine and the code store), and the DMs (signed in only)",
   "files": [
     {
       "from": "platform/lib/keyfleet_web.ex",
       "to": "platform/lib/regents_web/keyfleet.ex",
-      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet, unchanged by K3: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive"
+      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive, and since K3 (b) RouteCatalog, whose entries/0 the router's fleet routes read"
     },
     {
       "from": "platform/lib/keyfleet_web/activity_lines.ex",
@@ -56,7 +56,10 @@
     {
       "from": "platform/lib/keyfleet_web/components/buy_key.ex",
       "to": "platform/lib/regents_web/keyfleet/components/buy_key.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
+        "need: Keyfleet's images are under /images/keyfleet/ here; the card sheet is brought byte for byte to priv/static/images/keyfleet/home/key-cards.webp (K3 b)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/components/count.ex",
@@ -66,7 +69,9 @@
     {
       "from": "platform/lib/keyfleet_web/components/countdown.ex",
       "to": "platform/lib/regents_web/keyfleet/components/countdown.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/components/fleet_figures.ex",
@@ -94,7 +99,8 @@
       "from": "platform/lib/keyfleet_web/components/layouts.ex",
       "to": "platform/lib/regents_web/keyfleet/layouts.ex",
       "changes": [
-        "slice 1's file, kept as it is: app/1 and product_links/1 only, links under /keyfleet; no root or early layout (the site's root document serves every page); no footer theme switch, as under keyfleet.ai's header"
+        "slice 1's file, kept as it is: app/1 and product_links/1 only, links under /keyfleet; no root or early layout (the site's root document serves every page); no footer theme switch, as under keyfleet.ai's header",
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)"
       ]
     },
     {
@@ -140,7 +146,8 @@
       "to": "platform/lib/regents_web/keyfleet/components/schedule_card.ex",
       "changes": [
         "need: the Agents page it named (agents_panel.ex) is the site's now; the moduledoc names the variant by its attribute",
-        "need: the check-in words came from pairing_box.ex (not carried); they are kept here, word for word, as @check_in"
+        "need: the check-in words came from pairing_box.ex (not carried); they are kept here, word for word, as @check_in",
+        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)"
       ]
     },
     {
@@ -159,13 +166,17 @@
       "changes": [
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
         "slice 1's difference that holds: the frame sits under the site's bar (RegentsWeb.Components.Shell.site_bar/1), which holds the crown, product menu, theme switch and account control; Keyfleet's header with its Get Key, account menu (agents slot) and pairing window goes",
-        "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go; the account tabs were their only use"
+        "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go; the account tabs were their only use",
+        "need: the site's account page is another live session's, which a patch cannot reach, so the sidebar's Account entry is a plain link to /account, as the brief rules (K3 b)"
       ]
     },
     {
       "from": "platform/lib/keyfleet_web/components/tour.ex",
       "to": "platform/lib/regents_web/keyfleet/components/tour.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
+        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/components/vote_tally.ex",
@@ -235,13 +246,16 @@
     {
       "from": "platform/lib/keyfleet_web/live/dms_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/dms_live.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/fleet_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/fleet_live.ex",
       "changes": [
-        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)"
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)",
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)"
       ]
     },
     {
@@ -265,7 +279,10 @@
     {
       "from": "platform/lib/keyfleet_web/live/key_profile_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/key_profile_live.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
+        "a shard lent to a wallet no agent has signed in with drew its row and the row's address under one id; the address's is its own here, so the page's ids stay unique (K3 b)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/keys_live.ex",
@@ -333,7 +350,10 @@
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the lineage it assigned is the site's session_lease.lineage",
         "need: the site's hook (RegentsWeb.Live.Session) passes {:ens_lookup_finished, account_id} on to the page after reading the account again, where the source's hook kept it, so the page answers it with nothing to change, as the site's own ShellLive does; without it a signed-in page crashes when the person's ENS lookup finishes",
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
-        "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change"
+        "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change",
+        "the regents chief's review of the carry (K3 a findings, hand-made events): open_notebooks, get_code_password and every workspace press reach their handlers only with a workspace on show; from any other page they fall to the press no page sends, which changes nothing (K3 b)",
+        "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing, where the source's split it and the page crashed (K3 b)",
+        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)"
       ]
     },
     {
@@ -345,7 +365,8 @@
       "from": "platform/lib/keyfleet_web/live/workspace_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/workspace_live.ex",
       "changes": [
-        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)"
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)",
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)"
       ]
     },
     {
@@ -549,7 +570,7 @@
   "policy_sources": [
     {
       "directive": "img-src",
-      "source": "the public origin of the agents' picture bucket (Regents.Keyfleet.Agents.AvatarBucket.public_origin/0, from :regents, :keyfleet_avatar_bucket, public_url, which this site's config does not set yet); the source added it to sign_in/0, built per response. Key cards (KeyArt.origin/0, https://media.regents.sh) are already in the site's sign_in/0"
+      "source": "the public origin of the agents' picture bucket (Regents.Keyfleet.Agents.AvatarBucket.public_origin/0, from :regents, :keyfleet_avatar_bucket, public_url): the source added it to sign_in/0, built per response; here, since K3 (b), config sets public_url and the site's sign_in/0 lists the same origin. Key cards (KeyArt.origin/0, https://media.regents.sh) are already in the site's sign_in/0"
     },
     {
       "directive": "script-src and form-action",
@@ -586,14 +607,15 @@
     "On Agents, beside each agent, the Keys it is on and those its wallet holds an active shard of, each linking to the Key's page, or Assign a Key leading to Your Keys when it is on none and the person holds a Key (AgentKeys)"
   ],
   "left_for_later": [
-    "Routes for the fleet pages, under Keyfleet's scope: until they land nothing carried beyond slice 1's reading pages is reachable. Fleets.path/1 and Fleets.catalog/0 still name the source's addresses (/classic/1, /app/fleets/...), and the product sidebar's Account entry patches to /account, which is another live session's page: both change when those routes land",
+    "Routes for the rest of the fleet pages: the workspace and its item, the three code pages, a project, the worldline and the atlas (the graph machine and the code store), and the DMs (signed in only). The routed pages' links to them keep their addresses under /keyfleet, which answer the site's not-found page until those routes land",
     "The sea (HarbourSeaLive.sea/1) is not placed by the site's root layout",
     "ShareCard.image/2 is not wired: the site's root document reads share_image",
     "The header's Buy Key offer goes with Keyfleet's header (the site's bar has no place for it); the Buy Key window and the fleet pages' Buy Key stay. A request for the next slice",
     "The Schedule card's page: :agents variant has no caller here (the Agents page it sat on is the site's)",
-    "Settings the carried pages read that config does not set: :regents, :keyfleet_fleet_feed_wait_ms and :keyfleet_first_read_ms",
+    "Settings the carried pages read that config does not set: :regents, :keyfleet_first_read_ms (the shared readings' first read, set with them), and :regents, :keyfleet_chain's rpc_url (asked of the regents chief in K3 b)",
     "The design handoff (RouteCatalog.design_handoff/0) is kept; its caller, the mix task keyfleet.route_handoff, is not carried",
-    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below"
+    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below",
+    "The shared readings the routed pages wait on are not started (a stop of K3 b, the regents chief's): FleetNow and FleetProposals here, and Agents.Here (the core's not_started). Until they are, a fleet's hall, Proposals, a proposal and Treasury show \"This page couldn't be loaded\""
   ],
   "not_reached": {
     "why": "no carried page reaches them (the walk of the Keyfleet chief's measure, reach.py, which never enters a file not carried): the agents' API and tools, the JSON and agent controllers, plugs and gateways, OAuth, the early page, health, metrics and vitals, the showcase and admin pages; each comes with its own slice or is the site's",

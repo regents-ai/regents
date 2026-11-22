@@ -8,8 +8,15 @@
     {"from": "platform/lib/keyfleet/authority.ex", "to": "platform/lib/regents/keyfleet/authority.ex", "changes": "renamed; the rows, markdown_table/0, and since K3 treasury_rows/0 and needs/1 (each fleet's Treasury page), every row open (the launch gate is not brought); rows/0 left out, unused here; the moduledoc names the agent guide and each fleet's page"},
     {"from": "platform/lib/keyfleet/capabilities.ex", "to": "platform/lib/regents/keyfleet/capabilities.ex", "changes": "renamed; markdown_table/0 only, read from priv/keyfleet/tool_manifest.json; manifest/0, versions/0, tools/0, request/2 and may/0 come with capabilities.json and the API"},
     {"from": "platform/lib/keyfleet/goal_ideas.ex", "to": "platform/lib/regents/keyfleet/goal_ideas.ex", "changes": "renamed; read from priv/keyfleet/public/goal-ideas.md; slice 2 brought the whole module, starting_goals/0 included, since the graph's start reads it"},
-    {"from": "platform/assets/js/app.ts (the ShellBehavior hook)", "to": "platform/assets/js/keyfleet/shell_behavior.ts", "changes": "the frame's hook as KeyfleetShell, composed with this site's ShellViews and registered in the one app.ts; it never sets the page's brand, which the scope sets; it brings in the page progress bar and takes it away; Keyfleet's own fragmentId and hashTarget, with this site's arriveAt, reconcileShellState and shellDestinationChanged"},
+    {"from": "platform/assets/js/app.ts (the ShellBehavior hook)", "to": "platform/assets/js/keyfleet/shell_behavior.ts", "changes": "the frame's hook as KeyfleetShell, composed with Keyfleet's own ShellViews (assets/js/keyfleet/hooks/motion/reveals.ts, brought in K3 b) and registered in the one app.ts; it never sets the page's brand, which the scope sets; it brings in the page progress bar and takes it away; Keyfleet's own fragmentId and hashTarget, with this site's arriveAt, reconcileShellState and shellDestinationChanged"},
     {"from": "platform/assets/js/page_progress.ts", "to": "platform/assets/js/keyfleet/page_progress.ts", "changes": "mountPageProgress/0 returns what takes the bar away, so the frame's hook owns it; without the first-landing flag, as the frame mounts once its first page has landed"},
+    {"from": "platform/assets/js/camera.ts, hooks/key_card.ts, hooks/key_map/ (its 7 files), hooks/motion/press.ts and hooks/motion/shared.ts", "to": "platform/assets/js/keyfleet/ (the same paths)", "changes": "none, byte for byte (K3 b: the hooks the routed fleet pages name, with the modules they import)"},
+    {"from": "platform/assets/js/hooks/countdown.ts, fleet_preview.ts, fleet_tabs.ts, key_cards.ts, key_map.ts, local_time.ts, motion/moments.ts, motion/reveals.ts, room_posts.ts, room_thread.ts, schedule_card.ts and scroll_row.ts", "to": "platform/assets/js/keyfleet/hooks/", "changes": "one line each: the import of the site's hook_composition is one folder further up (K3 b)"},
+    {"from": "platform/assets/js/hooks/tour.ts", "to": "platform/assets/js/keyfleet/hooks/tour.ts", "changes": "its imports only: the site's canvas_island, theme, tour/place, tour/renderer, hooks/motion/slides and hooks/theme_switch, one or two folders further up (K3 b)"},
+    {"from": "platform/assets/js/hooks/modal_dialog.ts", "to": "platform/assets/js/keyfleet/hooks/modal_dialog.ts", "changes": "the site's sign-in sends no sign-in-closed event (the source's auth_lazy.ts SIGN_IN_CLOSED_EVENT), so the step back up when sign-in closes without signing in goes, with the control it focused and its comment; a press back inside a dialog still makes every dialog a modal again; hook_composition one folder further up (K3 b)"},
+    {"from": "platform/assets/js/app.ts (its hooks list and document watchers, for the hooks the fleet pages name)", "to": "platform/assets/js/keyfleet/index.ts", "changes": "written here (K3 b): keyfleetHooks, the brought hooks by the names the markup gives them, spread into the one app.ts list; installKeyfleet/0, the source app.ts's watchInput, watchPresses and the room name's focus after a patch"},
+    {"from": "platform/priv/static/images/home/key-cards.webp", "to": "platform/priv/static/images/keyfleet/home/key-cards.webp", "changes": "none, byte for byte (K3 b, the Buy Key window's card sheet)"},
+    {"from": "platform/priv/decks/ (5 decks and README.md) and platform/priv/trait_tables/ (1)", "to": "platform/priv/keyfleet/decks/ and platform/priv/keyfleet/trait_tables/", "changes": "none, byte for byte, but the README's one module name, Regents.Keyfleet.Keys.card_seed/2 (K3 b: a Key's page and every small Key card read them)"},
     {"from": "platform/assets/css/app.css", "to": "platform/assets/css/keyfleet/app.css", "changes": "its own rules only, wrapped in the Keyfleet scope; the html and :root rules point at :scope; its layer statement is the one this site's app.css makes"},
     {"from": "platform/assets/css/app.css (its imports)", "to": "platform/assets/css/keyfleet/index.css", "changes": "the 54 imports in keyfleet.ai's order, before app.css; Regent UI's tokens and primitives are imported once, by this site's app.css"},
     {"from": "platform/assets/css/tokens/root.css", "to": "platform/assets/css/keyfleet/tokens/root.css", "changes": "wrapped in the Keyfleet scope; :root[data-brand=\"platform\"] and :root rules point at :scope; the platform palette's main button, link, focus and chosen colours restated per theme from Regent UI 69dbfface, so they win over Regent UI's product colours"},
@@ -487,6 +494,13 @@
         ],
         "edit": "actor/2 rebuilds an agent through Regents.Account.Actors.Agent.with_pairing/1 and answers it only while its pairing is a Human in the episode and with the owner the reference names; any other pairing is {:ok, nil}, an agent acting as nobody, and a pairing that can't be read is the read's error; the moduledoc and the clause's comment say so (K2d)",
         "reason": "regents.sh's Agent.refresh/1, which the graph's KeyActor calls at the write's turn, admits only an agent whose pairing is already a Human; the agent keyfleet.ai rebuilt from identifiers alone had pairing :none, so every agent's graph write would be refused there. keyfleet.ai's refresh turned a pairing it could not read into not a key holder; here the write is unavailable and logged, as for a person whose account can't be read"
+      },
+      {
+        "files": [
+          "fleets.ex"
+        ],
+        "edit": "each catalog fleet's path gains /keyfleet (/keyfleet/classic/1, /keyfleet/app/fleets/regents_club), as do the comment and path/1's doc that name one (K3 b)",
+        "reason": "Keyfleet's pages are under /keyfleet on this site, and every link to a fleet the pages draw is built from Fleets.path/1"
       }
     ],
     "not_carried": {
@@ -551,26 +565,19 @@
       "keyfleet_graph": "enabled false and the host's timeouts, catch-up, projection wait and pass length",
       "keyfleet_notebooks": "the access, editor, hand-off and session times, sizes, timeouts and max_sessions",
       "keyfleet_code": "the pass, access and password times, sizes and timeouts",
-      "limits": "keyfleet_agent_posts (300 an hour), keyfleet_graph_writes (120 a minute)"
+      "limits": "keyfleet_agent_posts (300 an hour), keyfleet_graph_writes (120 a minute), keyfleet_treasury_refresh (one press every 30 seconds, by the regents chief)",
+      "keyfleet_fleet_feed_wait_ms": 2000,
+      "keyfleet_avatar_bucket": "public_url https://keyfleet-pictures.fly.storage.tigris.dev only (K3 b); nothing here writes to the bucket",
+      "keyfleet_wallet_chains": "8453: Base, https://mainnet.base.org, the source's (K3 b)",
+      "keyfleet_chain_nodes": "8453: https://mainnet.base.org, the source's (K3 b)",
+      "Regents.Keyfleet.Decks directory, Regents.Keyfleet.Traits directory": "priv/keyfleet/decks and priv/keyfleet/trait_tables in the release (runtime.exs, K3 b)"
     },
     "settings_unset": [
       {
         "setting": "keyfleet_chain rpc_url",
-        "read_by": "chain/json_rpc.ex, chain/watch.ex",
+        "read_by": "chain/json_rpc.ex (through chain/rpc_client.ex: the Buy Key window's figures, a deployed fleet's FleetProposals reading and a proposal page's head block), chain/watch.ex",
         "why": "the address of a JSON-RPC node (keyfleet.ai: KEYFLEET_RPC_URL at runtime)",
-        "set_by": "the slice that reads the chain in the background, after Sean's \"writes\""
-      },
-      {
-        "setting": "keyfleet_chain_nodes",
-        "read_by": "chain_client.ex",
-        "why": "addresses of another service",
-        "set_by": "the slice that reads chains for a page or a job"
-      },
-      {
-        "setting": "keyfleet_wallet_chains",
-        "read_by": "wallet_steps.ex, chain/rpc_client.ex",
-        "why": "names a public node address for wallets",
-        "set_by": "the pages slice with wallet steps"
+        "set_by": "asked of the regents chief in K3 (b): keyfleet.ai's KEYFLEET_RPC_URL, or the site's BASE_READ_RPC_URL (a stop of K3 b)"
       },
       {
         "setting": "keyfleet_graph data_dir, python, url; keyfleet_graph_listener",
@@ -591,9 +598,9 @@
         "set_by": "the code slice"
       },
       {
-        "setting": "keyfleet_avatar_bucket",
+        "setting": "keyfleet_avatar_bucket, all but public_url",
         "read_by": "agents/avatar_bucket.ex",
-        "why": "a storage bucket's address and keys",
+        "why": "a storage bucket's address and keys, for writing pictures",
         "set_by": "the agents' pictures slice, with fold rules slice 4"
       },
       {
@@ -627,13 +634,7 @@
         "set_by": "the pages slice with on-chain presses"
       },
       {
-        "setting": "Regents.Keyfleet.Decks directory, Regents.Keyfleet.Traits directory",
-        "read_by": "decks.ex, traits.ex",
-        "why": "keyfleet.ai's priv/decks and priv/trait_tables, not brought",
-        "set_by": "the reveal slice"
-      },
-      {
-        "setting": "limits keyfleet_avatar_uploads, keyfleet_notebook_requests, keyfleet_notebook_run_starts, keyfleet_code_pushes, keyfleet_treasury_refresh, keyfleet_wallet_read",
+        "setting": "limits keyfleet_avatar_uploads, keyfleet_notebook_requests, keyfleet_notebook_run_starts, keyfleet_code_pushes, keyfleet_wallet_read",
         "read_by": "KeyfleetWeb parts not brought",
         "why": "nothing carried spends them",
         "set_by": "the slice that brings their spender"
@@ -641,8 +642,8 @@
     ],
     "not_started": {
       "Graph.Client, the graph writers, projectors, registry and listener": "slice 3, the graph machine",
-      "Chain.RewardsWaiting": "the slice that reads the chain in the background",
-      "Agents.Here": "the pages slice that shows who is here, with its child under Regents.Keyfleet.Supervisor and a schedule line each minute for keyfleet_fleet_agents and keyfleet_key_agents (Regents.SharedReading.Heal), as keyfleet.ai runs it where pages are served",
+      "Chain.RewardsWaiting": "the slice that reads the chain in the background; until then a Key page's rewards box shows its failed state (a stop of K3 b, the regents chief's)",
+      "Agents.Here": "the pages slice that shows who is here, with its child under Regents.Keyfleet.Supervisor and a schedule line each minute for keyfleet_fleet_agents and keyfleet_key_agents (Regents.SharedReading.Heal), as keyfleet.ai runs it where pages are served; K3 (b) routed the pages that wait on it, with RegentsWeb.Keyfleet.FleetNow and FleetProposals, and started none of them (a stop, the regents chief's)",
       "Seasons.CoinList": "the seasons slice"
     },
     "for_later_slices": [
