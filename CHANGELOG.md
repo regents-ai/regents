@@ -7473,3 +7473,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 125cd264, /cloak lists the app's four modes on the founder's letter. Full check exit 0 on 125cd264; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak shows four modes with Token Inference as a page and as Markdown, no old mode name, no Download button, and still shows Watch, /cloak/install still answers, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-8427095db335.
+
+## 2026-11-22 — Install page: no file offered for now
+
+- On the founder's letter (379 a) /cloak/install no longer offers Download for Mac and no longer starts a download, as a page or as Markdown. The four steps, the two pictures, Updates and Caution stay.
+- No table, setting or migration.

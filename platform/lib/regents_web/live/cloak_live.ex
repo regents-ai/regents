@@ -5,9 +5,9 @@ defmodule RegentsWeb.CloakLive do
   dialog, then the four modes beside a drawn picture of the chat window, and
   the notes.
 
-  `install/1` is `/cloak/install`, the page Download opens: it starts the
-  download of the newest signed build and shows the steps that follow beside
-  two pictures from the app: the window the download opens and the menu.
+  `install/1` is `/cloak/install`: the steps that follow a download, beside two
+  pictures from the app, the window the download opens and the menu. It offers
+  no file.
   """
   use RegentsWeb, :html
 
@@ -163,14 +163,8 @@ defmodule RegentsWeb.CloakLive do
     """
   end
 
-  attr :started, :boolean, required: true
-
   def install(assigns) do
-    assigns =
-      assign(assigns,
-        started_words: Cloak.install_started(),
-        steps: Enum.with_index(Cloak.install_steps(), 1)
-      )
+    assigns = assign(assigns, steps: Enum.with_index(Cloak.install_steps(), 1))
 
     ~H"""
     <section id="cloak-install" class="cloak" aria-labelledby="cloak-install-heading">
@@ -179,25 +173,6 @@ defmodule RegentsWeb.CloakLive do
         <h1 id="cloak-install-heading" class="cloak-hero__small" tabindex="-1">
           {Cloak.install_heading()}
         </h1>
-        <p
-          :if={@started}
-          id="cloak-install-started"
-          class="cloak-hero__subtitle"
-          phx-hook=".StartDownload"
-          data-download={Cloak.download()}
-        >
-          {@started_words.before}<a href={Cloak.download()}>{@started_words.link}</a>{@started_words.after}
-        </p>
-        <div :if={!@started} class="cloak-hero__actions">
-          <a
-            id="cloak-install-download"
-            class="cloak-button cloak-button--main"
-            href={Cloak.download()}
-          >
-            <.apple_logo />
-            <span>{Cloak.download_label()}</span>
-          </a>
-        </div>
         <p class="cloak-hero__facts">{Cloak.facts()}</p>
       </header>
 
@@ -247,26 +222,7 @@ defmodule RegentsWeb.CloakLive do
           >{Cloak.feedback().link}</a>{Cloak.feedback().after}
         </p>
       </section>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".StartDownload">
-        // Arriving from Download starts the file. The address answers with a
-        // file to save, so the browser stays on this page.
-        export default {
-          mounted() {
-            window.location.assign(this.el.dataset.download)
-          }
-        }
-      </script>
     </section>
-    """
-  end
-
-  # The Apple mark, filled in the button's ink. The site's icon set (Lucide) has
-  # only the fruit.
-  defp apple_logo(assigns) do
-    ~H"""
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
-      <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
-    </svg>
     """
   end
 end
