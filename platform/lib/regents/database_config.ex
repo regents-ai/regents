@@ -39,19 +39,19 @@ defmodule Regents.DatabaseConfig do
       :production ->
         "DATABASE_POOLED_URL"
         |> database_url!(@production_hosts, @production_identities)
-        |> Keyword.put(:pool_size, @server_pool_size)
+        |> serving(@server_pool_size)
 
       :staging ->
         "DATABASE_POOLED_URL"
         |> database_url!(@staging_hosts, @staging_refusals)
-        |> Keyword.put(:pool_size, @server_pool_size)
+        |> serving(@server_pool_size)
 
       # Production's database, through the one login that only reads it.
       :reader ->
         "DATABASE_POOLED_URL"
         |> database_url!(@production_hosts, @production_identities)
         |> reader_login!()
-        |> Keyword.put(:pool_size, @reader_pool_size)
+        |> serving(@reader_pool_size)
     end
   end
 
@@ -103,6 +103,23 @@ defmodule Regents.DatabaseConfig do
       :reader ->
         raise @reader_migration_error
     end
+  end
+
+  # The serving connections share one database with every other site, so each
+  # names itself in pg_stat_activity, keeps connection details out of its errors,
+  # and gives up on a statement, a lock wait or an idle open transaction before it
+  # can stall anyone else. Release commands connect with none of these limits.
+  defp serving(options, pool_size) do
+    Keyword.merge(options,
+      pool_size: pool_size,
+      show_sensitive_data_on_connection_error: false,
+      parameters: [
+        application_name: "regents-web",
+        statement_timeout: "15000",
+        lock_timeout: "5000",
+        idle_in_transaction_session_timeout: "15000"
+      ]
+    )
   end
 
   # Deployments say which venue they are. There is no default and no fallback
