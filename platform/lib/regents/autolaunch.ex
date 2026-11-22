@@ -18,12 +18,13 @@ defmodule Regents.Autolaunch do
   It also reads the deployment descriptions, the files that say which
   contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
   (`Stocks.Lab`) and Robinhood's (`Robinhood.Lab`), each named by a path
-  setting and read once (`load_deployments!/0`).
+  setting and read once, as the site starts (`Regents.Autolaunch.Supervisor`
+  calls `load_deployments!/0`).
   """
   use Boundary,
     top_level?: true,
     deps: [Regents, Regents.Chain],
-    exports: [HomeMarket, Search]
+    exports: [HomeMarket, Search, Supervisor]
 
   use Ash.Domain, otp_app: :regents
 
@@ -73,8 +74,9 @@ defmodule Regents.Autolaunch do
   (`Lab.loaded!/2`), as autolaunch.sh's `config/runtime.exs` loaded them at
   boot: Base's, Base Stocks' and Robinhood's. One that does not load raises its
   loader's error. A network whose setting is unset has no deployment, and
-  nothing is read for it. Run at start, it stops the boot on a malformed file
-  as autolaunch.sh did, and every later read is answered from memory.
+  nothing is read for it. `Regents.Autolaunch.Supervisor` calls it as it
+  starts, so a malformed file stops the site's start as it stopped
+  autolaunch.sh's, and every later read is answered from memory.
   """
   def load_deployments! do
     for {setting, loader} <- [
