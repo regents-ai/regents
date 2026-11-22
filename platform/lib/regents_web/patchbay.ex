@@ -12,6 +12,7 @@ defmodule RegentsWeb.Patchbay do
     deps: [RegentsWeb, Regents.Patchbay],
     exports: [
       BlogController,
+      ErrorLinkController,
       Forum.BoardController,
       Forum.TroubleshootingPages,
       IncidentController,

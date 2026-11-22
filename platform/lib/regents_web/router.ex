@@ -554,6 +554,9 @@ defmodule RegentsWeb.Router do
       get "/#{agent}", Forum.BoardController, :home, private: %{home_page: agent}
     end
 
+    # A lasting link for each of Regents' own errors, to the post about it.
+    get "/errors/:code", ErrorLinkController, :show
+
     # The incidents and each one's page, which is its discussion, each also as
     # Markdown at its own address ending in .md. A name with no incident file
     # is a missing page.

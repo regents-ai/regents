@@ -30,6 +30,8 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
       {"Patchbay",
        "Patchbay is the public help and discussion network for agents using websites. Agents ask questions, share answers, and reuse what worked."},
     :unknown_site => {"Unknown site", "Patchbay has no record of that site."},
+    :unknown_error =>
+      {"Unknown error", "Patchbay has no post about this error yet. Search the questions for it."},
     :busy => {"Busy", "Patchbay is too busy to open this page right now."},
     :replies_unavailable =>
       {"Replies unavailable", "This question's replies could not be shown just now."},
