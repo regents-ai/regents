@@ -685,11 +685,6 @@
         "record": "carried: after a scheduled check-in that was saved, the notifier publishes :agents_changed on regent_agents:<beneficiary_privy_user_id> (Regents.PubSub, prefix regent_agents), the shared agents library's topic (RegentAgents.topic/1); regents.sh's shell page (RegentsWeb.Account.Pages subscribes, RegentsWeb.ShellLive handles :agents_changed) then reads the menu's agents, the pairing box and the Account page's agents panel again"
       },
       {
-        "slice": "the pages slice that serves the feed's missed events",
-        "where": "feed.ex:85-97 (@settling_seconds)",
-        "record": "the settling time counts on the database cutting a statement at 15 seconds and a lock wait at 5: keyfleet.ai's serving connection set statement_timeout 15000, lock_timeout 5000 and idle_in_transaction_session_timeout 15000 (database_config.ex serving/2); regents.sh's Regents.DatabaseConfig sets none, so nothing holds a post's statement or lock wait under the 30 seconds, and a post committed later than that behind its id is passed by a reader that reads on from the settled moment, until a sync. Asked of the regents chief (K2d)"
-      },
-      {
         "slice": "the notebooks slice",
         "where": "notebooks.ex:115-122 (hub_run/2)",
         "record": "the doc says a job that fails with HubSilentError is not saved again (Regents.ErrorIgnorer): keyfleet.ai's ignorer left out an Oban.PerformError whose whole reason was the hub client's wait; regents.sh's leaves out each attempt Oban will retry and nothing else, so a hub job whose last attempt fails on the wait is saved twice, by HubSilentError.report/1 and by ErrorTracker. Asked of the regents chief (K2d)"
