@@ -393,10 +393,12 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   end
 
   # The ships of the fleets the visitor is a member of are read beside the
-  # page, as the visitor with the class already read, after listening to
-  # those fleets, so a change that lands while they load still reaches them.
-  # One read runs at a time: asked again while one loads, they are read once
-  # more when it lands (`handle_async/3`).
+  # page, as the visitor, after listening to those fleets, so a change that
+  # lands while they load still reaches them. Each fleet's class is read again
+  # first, since the one held since it came on show may have lapsed: a fleet
+  # the visitor is no longer a member of is read as anyone sees it. One read
+  # runs at a time: asked again while one loads, they are read once more when
+  # it lands (`handle_async/3`).
   defp read_crew(%{assigns: %{crew: %Read{state: :loading}}} = socket),
     do: assign(socket, :crew_again?, true)
 
@@ -414,7 +416,7 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
              %{items: items} =
                Activity.page(fleet_id, nil,
                  actor: actor,
-                 context: Access.context(actor, fleet_id, :member)
+                 context: Access.context(actor, fleet_id, Access.class(actor, fleet_id))
                )
 
              {agents, here_faces} = here(fleet_id)
