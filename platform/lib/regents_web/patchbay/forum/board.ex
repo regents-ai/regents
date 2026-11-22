@@ -259,14 +259,12 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   """
   @spec fetch_report(String.t()) :: {:ok, Forum.Report.t()} | :error | {:error, term()}
   def fetch_report(id) do
-    with {:ok, %{visibility: :published} = report} <-
-           Forum.get_report(id, load: @report_loads),
+    with {:ok, report} <- Forum.get_report(id, load: @report_loads),
          {:ok, report} <- Ash.load(report, parts(report), reuse_values?: true) do
       {:ok, without_parts(report)}
     else
-      # An address that names no report, or names one held out of sight, is
-      # not on the board.
-      {:ok, _held} -> :error
+      # An address that names no report, or names one held out of sight
+      # (`Report`'s read leaves it out), is not on the board.
       {:error, %Ash.Error.Invalid{}} -> :error
       {:error, failure} -> {:error, failure}
     end

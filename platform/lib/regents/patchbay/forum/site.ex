@@ -243,7 +243,9 @@ defmodule Regents.Patchbay.Forum.Site do
   # Only reads are carried; any other action is refused until it comes with its
   # own policy.
   policies do
-    # The directory is a public board: reads are open.
+    # The directory is a public board: reads are open. No site is held out
+    # of sight and none names an account, so the plain read needs no
+    # published rule.
     policy action_type(:read) do
       authorize_if(always())
     end
