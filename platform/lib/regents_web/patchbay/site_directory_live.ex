@@ -12,6 +12,9 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
   it reads it itself once when it joins. A read that fails as it joins says
   so in the directory's place, with a link that opens the page again; one
   that fails loading more sites says so by the button and keeps the list.
+  Each further page spends one of its address's directory reads
+  (`patchbay_directory_reads`, `Regents.Limits`); past them the button says
+  so in the same words, and nothing is read.
   """
   use RegentsWeb, :live_view
 
@@ -20,12 +23,13 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
   import RegentsWeb.Patchbay.Forum.BoardHTML,
     only: [domain_path: 1, picture_url: 1, section_unavailable: 1, web_link: 1]
 
+  alias Regents.Limits
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
   alias RegentsWeb.Patchbay.Forum.Board
 
   @impl true
-  def mount(_params, %{"filters" => filters}, socket) do
+  def mount(_params, %{"filters" => filters, "client_tag" => client_tag}, socket) do
     socket = assign_new(socket, :directory, fn -> read_directory(filters) end)
 
     case socket.assigns.directory do
@@ -36,6 +40,7 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
         {:ok,
          socket
          |> assign(
+           client_tag: client_tag,
            directory: nil,
            page: page,
            more_failed: false,
@@ -74,9 +79,7 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
     page = socket.assigns.page
 
     if page.page < page.pages do
-      %{"q" => page.q, "category" => page.category, "page" => to_string(page.page + 1)}
-      |> read_directory()
-      |> more(socket)
+      socket |> read_next(page) |> more(socket)
     else
       {:noreply, socket}
     end
@@ -99,8 +102,24 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  # The next page joins the list; one that could not be read says so by the
-  # button, which reads it again.
+  # The page after `page`, spending one of the address's directory reads.
+  # Past them nothing is read, and the refusal is not logged.
+  defp read_next(socket, page) do
+    case Limits.spend(:patchbay_directory_reads, socket.assigns.client_tag) do
+      :ok ->
+        read_directory(%{
+          "q" => page.q,
+          "category" => page.category,
+          "page" => to_string(page.page + 1)
+        })
+
+      :limited ->
+        :unavailable
+    end
+  end
+
+  # The next page joins the list; one that could not be read, or was past the
+  # address's reads, says so by the button, which reads it again.
   defp more(:unavailable, socket), do: {:noreply, assign(socket, more_failed: true)}
 
   defp more(next, socket) do
