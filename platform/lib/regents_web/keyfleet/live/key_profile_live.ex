@@ -311,7 +311,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
       <span class="key-profile-muted">{AgentGuides.runtime(@shard.agent.harness)}</span>
     </span>
     <a
-      :if={@shard.agent.registry_url}
+      :if={https?(@shard.agent.registry_url)}
       id={"key-profile-registry-#{@shard.wallet}"}
       href={@shard.agent.registry_url}
       target="_blank"
@@ -330,6 +330,13 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
     </span>
     """
   end
+
+  # An agent's registry listing is a link only at an https address with a
+  # host; any other is left out, as a listing not given is.
+  defp https?(url) when is_binary(url),
+    do: match?(%URI{scheme: "https", host: host} when host not in [nil, ""], URI.parse(url))
+
+  defp https?(_url), do: false
 
   attr :wallet, :string, required: true
   attr :agent, :map, required: true
