@@ -127,7 +127,8 @@ export const OnchainSteps: Hook = {
         }
         // The ask names the open wallet: a page that has just joined again can ask
         // before the server has heard which wallet is open. The steps that come
-        // back go to that same wallet.
+        // back are built for that wallet, and are sent only while it is still
+        // the one open.
         const [result] = await this.pushEventTo(this.el, ask, {form, step: name, address: wallet.address})
         if (result?.status !== "fulfilled") return lostPress(this.el, name, agent)
         const reply = result.value.reply as {review: Review; send: string} | Refused
@@ -197,10 +198,11 @@ export const OnchainSteps: Hook = {
 }
 
 /**
- * Sends or signs the named step through `wallet`, the wallet that was open at
- * the press (Privy's active wallet then, the only wallet that acts), even when
- * another is open by the time the steps arrive. With no wallet open at the
- * press, it sends nothing and reports why. Reports only what the
+ * Sends or signs the named step from the review's signer, through the wallet
+ * open when the wallet is asked: Privy's active wallet, read then, while it is
+ * the review's signer. When another wallet, or none, is open by then, the
+ * site's own checks send nothing and say why. With no wallet open at the press
+ * (`wallet` is null), it sends nothing and reports why. Reports only what the
  * wallet answered, against the review it sent from: the hash or signature, or
  * why nothing was sent, and returns the same answer. The server decides what
  * the hash did.
@@ -216,21 +218,25 @@ export async function press(
   const started = () => {
     sending = true
   }
-  // The site's send reads its wallet through a function; it is given the wallet
-  // captured at the press, so a wallet opened while the steps are on their way
-  // is not the one asked.
-  const pressed = () => wallet
 
   try {
     if (!wallet) throw new NothingSent("wallet_unavailable")
     if (!review || !step) throw new NothingSent("step_unknown")
+    // The site's send reads its wallet each time it asks, as the site's own
+    // hook gives it: the open wallet while it is the review's signer, and none
+    // otherwise.
+    const signer = review.signer.toLowerCase()
+    const open = () => {
+      const active = activeEthereumWallet()
+      return active?.address.toLowerCase() === signer ? active : null
+    }
 
     if (step.kind === "signature") {
-      const signature = await signStep(review.chain, review.signer, step, pressed, started)
+      const signature = await signStep(review.chain, review.signer, step, open, started)
       push("step_signed", {review_id: review.id, step: name, signature})
       return {signature}
     }
-    const transaction_hash = await sendStep(review.chain, review.signer, step, pressed, started)
+    const transaction_hash = await sendStep(review.chain, review.signer, step, open, started)
     push("step_sent", {review_id: review.id, step: name, transaction_hash})
     return {transaction_hash}
   } catch (error) {
