@@ -51,7 +51,8 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       past them a signed-in press is answered with the steps the panel holds
       when they were built for exactly what it asks for, the wallet, whether
       that wallet sends, the fields of the form the steps read, the proposal,
-      Key and advance, and otherwise with steps built then);
+      Key and advance, and otherwise with steps built then, and a signed-out
+      one reads nothing and keeps the figures shown);
     * `inputs`, each field the steps read with its first value; `proposal`,
       `token_id` or `advance_id` when the flow acts on one; `refresh`, anything whose
       change means the steps are built again; `names_sender`, false where
@@ -468,12 +469,13 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   # As `sync/1`, but built before it returns. A build still being read lands
   # later with the same steps, and the page keeps every review a press was
-  # sent from. A press's read is counted, and no press is held back for it
-  # (`press_built/2`).
+  # sent from. A press's read is counted, and no press is held back for it:
+  # signed in, as `press_built/2` says; signed out, past the allowance, the
+  # figures shown stay.
   defp sync_now(socket) do
     case follow_signer(socket) do
       {socket, nil} ->
-        build(socket, nil, :counted)
+        build(socket, nil, :pressed)
 
       {socket, wallet} ->
         socket
@@ -561,17 +563,19 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     |> read_figures(spend, fn -> {wallet, build_steps!(request)} end)
   end
 
-  # A counted read spends one of the page's address's `keyfleet_wallet_reads`
-  # (`Regents.Limits`); past them nothing is read and the group shows its
-  # figures could not be read, trying again as it does then.
-  defp read_figures(socket, :counted, read) do
-    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
-      :ok -> start_async(socket, :build, read)
-      :limited -> show(socket, @unread)
+  # A counted read, and a signed-out press's, spends one of the page's
+  # address's `keyfleet_wallet_reads` (`Regents.Limits`); past them nothing is
+  # read: the group shows its figures could not be read, trying again as it
+  # does then, and for a signed-out press keeps the figures it shows.
+  defp read_figures(socket, :uncounted, read), do: start_async(socket, :build, read)
+
+  defp read_figures(socket, spend, read) do
+    case {Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag), spend} do
+      {:ok, _spend} -> start_async(socket, :build, read)
+      {:limited, :counted} -> show(socket, @unread)
+      {:limited, :pressed} -> socket
     end
   end
-
-  defp read_figures(socket, :uncounted, read), do: start_async(socket, :build, read)
 
   defp request(socket, wallet, inputs) do
     %{assigns: assigns} = socket
