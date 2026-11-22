@@ -105,6 +105,12 @@ again from it and moving that commit.
   `regents_app.public_links` (`Accounts.PublicLink`: `human_account_id`, `provider`,
   `username`, `display_name`), the verified links that name a username; anyone may
   read it.
+  A value a caller sent (a page's params, an event, a request body) never goes into a
+  filter, sort or search through `paired_person_wallets`: the product's own code alone
+  decides what is asked of it, and nothing read through it returns the person's account
+  id or wallets beyond what the product already shows. Both views read Account's tables
+  from the product's own schema, so a migration that changes the columns they name
+  changes the view in the same migration.
 - `Regents.Alert.report/1` saves what a person must act on with the site's errors, and
   `Regents.Limits.admit/2` and `spend/2` spend a named allowance from the one list,
   `config :regents, :limits`, named `<product>_<name>`: the prefix is required, as the
