@@ -126,15 +126,28 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   # again first. The hook also watches navigation, which this LiveView never
   # has and LiveView refuses to a LiveView the router did not mount, so the
   # sign-in is taken as if routed and the watch on navigation is taken off again.
+  # A sign-in found ended stops the sea's own callbacks there and then, so what
+  # was heard as the visitor is dropped as the page renders signed out
+  # (`unheard/1`).
   defp admit(params, session, socket) do
     case Session.on_mount(:load_human, params, session, %{socket | router: Router}) do
       {:cont, socket} ->
-        {:cont, %{detach_hook(socket, :session_authority_params, :handle_params) | router: nil}}
+        socket = %{detach_hook(socket, :session_authority_params, :handle_params) | router: nil}
+        {:cont, attach_hook(socket, :sea_unheard, :after_render, &unheard/1)}
 
       {:halt, socket} ->
         {:halt, %{socket | router: nil}}
     end
   end
+
+  # The fleets' topics the visitor heard as themselves, once their sign-in has
+  # ended: a signed-out visitor hears none.
+  defp unheard(%{assigns: %{signed_out_reason: :expired, topics: [_ | _] = topics}} = socket) do
+    Enum.each(topics, &Phoenix.PubSub.unsubscribe(Regents.PubSub, &1))
+    assign(socket, :topics, [])
+  end
+
+  defp unheard(socket), do: socket
 
   # The page on show, by its address. A new address closes the card; a new
   # fleet brings its ships.
