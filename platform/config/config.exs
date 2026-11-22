@@ -207,6 +207,14 @@ config :regents, Regents.Patchbay.Forum.FeedCount,
   gc_interval: :timer.minutes(10),
   max_size: 10_000
 
+# Keyfleet's share pictures drawn for link previews
+# (`RegentsWeb.Keyfleet.SharePictures`), swept of expired ones every ten
+# minutes. Each is a PNG of up to a few hundred kilobytes, so at most 64 are
+# kept.
+config :regents, RegentsWeb.Keyfleet.SharePictures,
+  gc_interval: :timer.minutes(10),
+  max_size: 64
+
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 # Messages left for the team (`Regents.Messages`): each person, with their paired
