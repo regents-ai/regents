@@ -16,8 +16,8 @@ defmodule RegentsWeb.ContentSecurityPolicy do
   Club Pass artwork on this site's picture store and Keyfleet agents' pictures
   from their bucket.
 
-  Every page may show ENS pictures, which the ENS service draws for each name,
-  and the launch pictures autolaunch.sh stores (`Regents.Autolaunch.StoredImage`).
+  Every page may show ENS pictures, which the ENS service draws for each name.
+  Launch pictures are this site's own (`Regents.Autolaunch.StoredImage`).
 
   `showcase/0` is `sign_in/0` for the local showcase, which frames its own
   preview page. `errors/1` is the baseline plus one request's nonce, for the
@@ -41,7 +41,7 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     # `JS.ignore_attributes(["style"])` keeps the one Anime.js wrote. Rising
     # words clip by class (`.split-clip`).
     {"style-src-attr", ["'unsafe-inline'"]},
-    {"img-src", ["'self'", "data:", "https://metadata.ens.domains", "https://autolaunch.sh"]},
+    {"img-src", ["'self'", "data:", "https://metadata.ens.domains"]},
     {"font-src", ["'self'"]},
     # Redeem's artwork video is served from this site.
     {"media-src", ["'self'"]},

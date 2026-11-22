@@ -8,8 +8,8 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraftImage do
   unguessable UUID and the full SHA-256 digest carried by the
   content-addressed `/stock-images/...` URL.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as autolaunch.sh keeps them; the public read is the only
+  action here (`Regents.Autolaunch.StoredImage`), and nothing writes a row.
   """
 
   use Ash.Resource,
@@ -85,11 +85,21 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraftImage do
     identity :one_version_per_stock_draft, [:stock_launch_draft_id, :digest]
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    read :public_by_id_and_digest do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      argument :digest, :string, allow_nil?: false
+      filter expr(id == ^arg(:id) and digest == ^arg(:digest))
+      prepare build(select: [:id, :digest, :content_type, :byte_size, :bytes])
+    end
+  end
+
+  # Anyone may read a picture by its address; any other action has no policy and
+  # is refused.
   policies do
-    policy always() do
-      forbid_if always()
+    policy action(:public_by_id_and_digest) do
+      authorize_if always()
     end
   end
 end

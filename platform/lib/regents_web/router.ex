@@ -219,6 +219,10 @@ defmodule RegentsWeb.Router do
     get "/articles/covers/:slug", BlogCoverController, :show
     get "/agents/:wallet/picture", Account.AgentPictureController, :show
     get "/agents/:agent/skill.md", PublicPagesController, :agent_skill
+    get "/autolaunch/images/:id/:digest", Autolaunch.StoredImageController, :launch
+    get "/autolaunch/images/:id/:digest/:size", Autolaunch.StoredImageController, :launch
+    get "/autolaunch/stock-images/:id/:digest", Autolaunch.StoredImageController, :stock
+    get "/autolaunch/stock-images/:id/:digest/:size", Autolaunch.StoredImageController, :stock
   end
 
   scope "/", RegentsWeb do
@@ -486,6 +490,8 @@ defmodule RegentsWeb.Router do
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
       live "/", HomeLive, :show
       live "/how-it-works", HowItWorksLive, :show
+      live "/auctions", AuctionsLive, :index
+      live "/tokens", TokensLive, :index
     end
   end
 

@@ -117,8 +117,27 @@ defmodule RegentsWeb.Endpoint do
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 
+  # Autolaunch's stored launch pictures: a page shows many sized copies, so each
+  # address has a share of 600 of them a minute; no page shows a picture as
+  # stored, which can be 2 MiB, so each address has a share of 60 of those.
+  defp limit_rate(
+         %Plug.Conn{method: method, path_info: ["autolaunch", lane, _id, _digest]} = conn,
+         _opts
+       )
+       when method in ["GET", "HEAD"] and lane in ["images", "stock-images"],
+       do: RegentAgentAccess.RateLimit.call(conn, rate_limit("originals", 60))
+
+  defp limit_rate(
+         %Plug.Conn{method: method, path_info: ["autolaunch", lane, _id, _digest | _]} = conn,
+         _opts
+       )
+       when method in ["GET", "HEAD"] and lane in ["images", "stock-images"],
+       do: RegentAgentAccess.RateLimit.call(conn, rate_limit("pictures", 600))
+
   # The products' pages read the database on every visit, so each address has
-  # one share of them a minute, apart from the budget above.
+  # one share of them a minute, apart from the API's budget; Autolaunch's
+  # pictures have their own two shares, just above, and spend neither this one
+  # nor each other's.
   defp limit_rate(%Plug.Conn{method: method, path_info: [product | _]} = conn, _opts)
        when method in ["GET", "HEAD"] and
               product in ["patchbay", "techtree", "keyfleet", "autolaunch"],

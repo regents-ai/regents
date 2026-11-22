@@ -28,6 +28,10 @@ defmodule RegentsWeb.Techtree.TrainLive.Show do
     end
   end
 
+  # The page takes no presses; one sent by hand changes nothing.
+  @impl true
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def render(assigns) do
     ~H"""

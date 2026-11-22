@@ -66,6 +66,10 @@ defmodule RegentsWeb.Techtree.ServiceLive do
   defp mailto(service),
     do: "mailto:build@regents.sh?" <> URI.encode_query([subject: service.name], :rfc3986)
 
+  # The page takes no presses; one sent by hand changes nothing.
+  @impl true
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def render(%{live_action: :security} = assigns) do
     ~H"""

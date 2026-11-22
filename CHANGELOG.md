@@ -8276,6 +8276,7 @@ seasons), on the shared Points library regents.sh was already on.
 
 - `/autolaunch` shows prices, FDVs and market caps in dollars, as autolaunch.sh shows them when it knows the dollar price of an auction's currency: REGENT's from the staking page's own price reading while that reading is at most fifteen minutes old, and each Base stock's from its Chainlink price feed, kept ten minutes. Without a price a figure stays in its own currency, with the line saying why, as before. On a test network every figure stays in its own currency, as on autolaunch.sh.
 - Robinhood auctions stay in their own currency until Robinhood's prices come.
+- A stock price feed that gives no price is asked again after a minute, not on every page opening.
 - The prices are read once as the page opens, under the same allowance as its listings. When the stock list or a price feed cannot be read, only those figures stay in their own currency and the page shows as usual; autolaunch.sh lost every dollar figure when its stock list could not be read.
 - Coming next and Bid volume are left out when they cannot be read or the page's allowance is spent. "No auction is taking bids" shows only when none is taking bids or opening soon; autolaunch.sh showed that line when the read failed too.
 - The Base and Base Stocks deployment descriptions no longer give the site an address to read the chain through: it reads Base through its own Base read setting. Each must name the address wallets use (`public_rpc_url`): an `https` address, or a local lab's own `http://127.0.0.1` one.
@@ -8298,6 +8299,39 @@ seasons), on the shared Points library regents.sh was already on.
 - One address's open Projects pages can read 120 times a minute; past that, and when the site can't reach its data, the page says the projects couldn't be read.
 - The team still delivers and withdraws projects on techtree.sh; this site shows what it delivered, as both read the same table.
 - Not released: on the `fold/techtree` branch only. One new named allowance in the site's settings (`techtree_project_reads`) and Techtree's Projects in the site's list of domains. No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's Auctions and Tokens lists (not released)
+
+- `/autolaunch/auctions` and `/autolaunch/tokens` show Autolaunch's two lists as autolaunch.sh shows them at `4799025d`: every auction or launched token as a table row, with the same chain, status, Verified and search choices, the All, Live and Graduated pills on Auctions, Load more, the same empty states and the same words. A choice changes the list without reloading the page, and back and forward bring it back.
+- Auctions shows the Revstake and Memestock counts above the list, live and graduated, from the stored auctions. Hidden auctions stay out of the counts and the lists.
+- Prices, FDVs and market caps are in dollars as on the home page. The counts and the prices are read once as the page opens, under the same allowance as its listings; when it is spent the counts say they are unavailable and every figure stays in its own currency.
+- Each listing either page reads (its first, a changed choice, a search, Load more, Retry) counts against the same allowance as the home page's. Past it the page says the list is unavailable, with Retry. Retry reads the list only after a read has failed; a press at any other time does nothing.
+- Launch auction keeps its future address under `/autolaunch` and answers "not found" until the launch form comes; on the preview it stays switched off with "Opens soon", as before launches open. The home page's See auctions card now opens the Auctions list.
+- Left out for now: the Claim and Refund presses on a finished auction, the notices about reading the chains, and the lists and counts updating themselves while open. The bar still lists Explore alone, without Auctions and Tokens under it.
+- Not released: on the `fold/autolaunch` branch only. Two routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Techtree's Wallet Bench findings for Articles (not released)
+
+- Techtree's post "Every coding agent that set up a wallet left the key to it in a plain file" is ready for the site's Articles, at /articles/agent-wallet-bench-first-findings, with its picture as the cover. Its words are techtree.sh's; its links to Wallet Bench results open this site's Wallet Bench (/techtree/wallet-bench) on the same test and result.
+- The post shows in Articles only once the operator saves it with put-post, a write to the live database that waits for its own go.
+- Techtree's footer links Blog again, after Changelog, to the site's Articles (/articles).
+- A press sent by hand to a Techtree page that the page does not take now changes nothing, as on the Projects pages; before, it stopped the page and the server's log held what the page was showing.
+- Not released: on the `fold/techtree` branch only. No table, migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's launch pictures come from this site (not released)
+
+- The launch pictures autolaunch.sh stored now come from regents.sh, at `/autolaunch/images/<id>/<digest>` and `/autolaunch/stock-images/<id>/<digest>` as stored, and 96, 320 or 640 wide at `<address>/<width>.webp`, with the same bytes, type and caching autolaunch.sh gives them. A browser keeps each one for good.
+- The home page and the Auctions and Tokens lists draw every stored picture from this site and ask autolaunch.sh for none. Each launch keeps the autolaunch.sh address it was given; nothing stored is rewritten.
+- A picture that is not stored here is shown as it is when its address is a secure web address; otherwise the card shows the launch's first letter.
+- Each sized copy is made the first time it is asked for, one at a time, and kept in memory, about 300 at most. The picture is read only when its copy's turn comes, so requests waiting in line hold no picture, and the maker gives back its memory a second after it goes quiet.
+- Any other address under these paths answers "Not found": a wrong digest, another width, another kind of file, or a picture stored as anything but PNG, JPEG or WebP.
+- Pictures have allowances of their own from one address: 600 sized copies a minute, and 60 pictures as stored, which no page shows and which can be 2 MiB each. A page's pictures no longer count against the 120 page reads a minute.
+- Not released: on the `fold/autolaunch` branch only. Four routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: pages no longer allow pictures from autolaunch.sh (not released)
+
+- With launch pictures served by this site, the pages' picture rule no longer names autolaunch.sh. Pictures may come from this site, from the page itself and from the ENS picture service.
+- Not released: on the `one-site` branch only. No table, migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
 
 ## 2026-11-22 — One site: Keyfleet's readings start with the site, and the city behind its pages comes (not released)
 

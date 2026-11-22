@@ -1,77 +1,87 @@
 defmodule Regents.Autolaunch.StoredImage do
   @moduledoc """
-  The launch images autolaunch.sh stores, named by the address it gave each
+  The launch images autolaunch.sh stored, named by the address it gave each
   one: `/images/<id>/<digest>` for a Revstake draft's image and
-  `/stock-images/<id>/<digest>` for a Memestock draft's, on the host that
-  stored it, which the address names.
+  `/stock-images/<id>/<digest>` for a Memestock draft's, on any host. A
+  launch's record keeps that address as autolaunch.sh gave it; this site reads
+  the lane, id and digest from it (`key/1`) and serves the image itself.
 
-  Pages show each image at the size they draw it, from
-  `<address>/<width>.webp`: a square of that width cut from the image's
-  centre, made and served by that host. The large pictures offer two widths
-  and the browser takes the one the screen needs.
-
-  A launch's image is whatever address its record holds. A page draws one
-  only from an `https` address with a host; for anything else it shows the
-  name's first letter.
+  Pages show each image at the size they draw it: a square of that width cut
+  from the image's centre, never enlarged, made the first time it is asked
+  for (one at a time, by `Regents.Autolaunch.StoredImage.Resizer`) and kept in
+  memory (`Regents.Autolaunch.StoredImage.SizeCache`). The large pictures offer
+  two widths and the browser takes the one the screen needs.
   """
 
+  alias Regents.Autolaunch.StoredImage.{Resizer, SizeCache}
+
+  @lanes ["images", "stock-images"]
   @digest ~r/\A[0-9a-f]{64}\z/
   # Twice the largest size a page draws each kind of picture at: 96 for the
   # list icons (up to 48 pixels), 640 for the cards (up to about 320), and 320
   # for those on a phone, where they are drawn at about 150 to 200.
   @widths [96, 320, 640]
-  @choices [320, 640]
 
+  @type key :: {String.t(), String.t(), String.t()}
   @type width :: 96 | 320 | 640
 
-  @doc """
-  Where a page shows the image at `width`: a stored image's sized copy, and
-  any other address a page may draw, such as one on another site, as it is.
-  Nil for a launch with no image and for an address a page does not draw.
-  """
-  @spec sized(String.t() | nil, width()) :: String.t() | nil
-  def sized(url, width) when width in @widths do
-    case drawn(url) do
-      nil -> nil
-      uri -> if stored?(uri), do: copy(uri, width), else: url
-    end
-  end
+  @doc "The width a sized copy's file name asks for, as 320 for `320.webp`, or `:error`."
+  @spec width(String.t()) :: {:ok, width()} | :error
+  def width(name), do: Enum.find_value(@widths, :error, &(name == "#{&1}.webp" && {:ok, &1}))
 
-  @doc """
-  The widths a large picture's browser chooses from, as an `<img>`'s
-  `srcset`, beside `sized(url, 640)` as its `src`; nil for an address that
-  is not a stored image.
-  """
-  @spec choices(String.t() | nil) :: String.t() | nil
-  def choices(url) do
-    uri = drawn(url)
-    if uri && stored?(uri), do: Enum.map_join(@choices, ", ", &"#{copy(uri, &1)} #{&1}w")
-  end
-
-  # The address as a page may draw it: `https`, with a host.
-  defp drawn(url) when is_binary(url) do
-    case URI.new(url) do
-      {:ok, %URI{scheme: "https", host: host} = uri} when is_binary(host) and host != "" -> uri
-      _other -> nil
-    end
-  end
-
-  defp drawn(_url), do: nil
-
-  defp copy(%URI{path: path} = uri, width),
-    do: URI.to_string(%{uri | path: path <> "/#{width}.webp"})
-
-  # Whether an address names a stored image by its lane, id and digest, and
-  # nothing after them: a query or a fragment would end up inside `srcset`.
-  defp stored?(%URI{path: path, query: nil, fragment: nil}) when is_binary(path) do
-    with [lane, id, digest] when lane in ["images", "stock-images"] <-
-           String.split(path, "/", trim: true),
-         {:ok, _id} <- Ecto.UUID.cast(id) do
-      Regex.match?(@digest, digest)
+  @doc "The lane, id and digest an address names, or `:error` for any other address."
+  @spec key(String.t()) :: {:ok, key()} | :error
+  def key(url) when is_binary(url) do
+    with %URI{path: path} when is_binary(path) <- URI.parse(url),
+         [lane, id, digest] <- String.split(path, "/", trim: true) do
+      key(lane, id, digest)
     else
-      _other -> false
+      _other -> :error
     end
   end
 
-  defp stored?(_uri), do: false
+  @doc """
+  The key of the image stored in `lane` (`images` or `stock-images`) under
+  `id`, a UUID, and `digest`, 64 lowercase hex digits; `:error` for anything
+  else.
+  """
+  @spec key(String.t(), String.t(), String.t()) :: {:ok, key()} | :error
+  def key(lane, id, digest) when lane in @lanes do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         true <- Regex.match?(@digest, digest) do
+      {:ok, {lane, id, digest}}
+    else
+      _other -> :error
+    end
+  end
+
+  def key(_lane, _id, _digest), do: :error
+
+  @doc "The image `key` names as stored: its type and bytes, or `:error` when none is."
+  @spec original(key()) :: {:ok, %{content_type: String.t(), bytes: binary()}} | :error
+  def original({lane, id, digest}) do
+    case read(lane, id, digest) do
+      {:ok, %{content_type: type, bytes: bytes}} -> {:ok, %{content_type: type, bytes: bytes}}
+      _missing -> :error
+    end
+  end
+
+  @doc "The WebP square `width` pixels wide of the stored image `key` names, or `:error`."
+  @spec sized_bytes(key(), width()) :: {:ok, binary()} | :error
+  def sized_bytes({_lane, _id, _digest} = key, width) when width in @widths do
+    case SizeCache.copy(key, width) do
+      nil -> Resizer.webp(key, width, fn -> stored_bytes(key) end)
+      webp -> {:ok, webp}
+    end
+  end
+
+  defp stored_bytes(key) do
+    with {:ok, %{bytes: bytes}} <- original(key), do: {:ok, bytes}
+  end
+
+  defp read("images", id, digest),
+    do: Regents.Autolaunch.get_public_launch_draft_image(id, digest, actor: nil)
+
+  defp read("stock-images", id, digest),
+    do: Regents.Autolaunch.get_public_stock_launch_draft_image(id, digest, actor: nil)
 end
