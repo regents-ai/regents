@@ -8215,3 +8215,8 @@ seasons), on the shared Points library regents.sh was already on.
 - One address's open pages can read 120 listings a minute (a changed option, a search, Load more). Past that the page says the launches can't be shown, with Try again.
 - A search is cut at 320 bytes as well as at eighty characters.
 - Not released: on the `fold/autolaunch` branch only. One new named allowance in the site's settings (`autolaunch_list_reads`); no migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: launch pictures from autolaunch.sh may be shown (not released)
+
+- Pages may show the launch pictures autolaunch.sh stores. Pictures on any other host stay blocked and show the first letter of the launch's name.
+- Not released: on the `one-site` branch only. No migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
