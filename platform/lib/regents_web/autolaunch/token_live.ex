@@ -8,9 +8,14 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
   Once the page is open it reads, in the background and under one spend of
   the address's list reads (`RegentsWeb.Autolaunch.LiveListings.spend/2`),
   the token (`Regents.Autolaunch.TokenPage.read/2`), the dollar prices
-  (`Regents.Autolaunch.UsdRates`) and the token's revenue
-  (`Regents.Autolaunch.TokenPage.revenue/2`). The token's answer lands in
-  `handle_async/3`, which shows the token and names the tab for it, as the
+  (`Regents.Autolaunch.UsdRates`), the token's revenue
+  (`Regents.Autolaunch.TokenPage.revenue/2`) and, on a site given a Base
+  deployment, the token's pool from the chain
+  (`Regents.Autolaunch.TokenPage.pool/2`): its move, change and trades, its
+  locker and pool id among the contracts, and its Uniswap button on Base.
+  While the pool is being read, and when it could not be read, its figures
+  show "…" and the rest of the page is shown as it is. The token's answer
+  lands in `handle_async/3`, which shows the token and names the tab for it, as the
   page's first render does, so a token opened from a Tokens row or a Buy is
   named too; a page that shows no token is named "Token not found" or
   "Token unavailable". When the allowance is spent none of them is read and
@@ -19,14 +24,14 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
   Until the dollar prices arrive, and when they could not be read, every
   figure is in the token's own currency.
 
-  Still to come, each with its own part: the pool read from the chain, with
-  its figures and its trade and chart links; the price chart; the trade,
-  stake and claim panel beside the figures; Share; the page rereading itself
-  while open; the notices about reading the chain.
+  Still to come, each with its own part: the price chart and its chart link;
+  the trade, stake and claim panel beside the figures; Share; the page
+  rereading itself while open; the notices about reading the chain.
   """
   use RegentsWeb, :live_view
 
-  alias Regents.Autolaunch.{Token, TokenPage, UsdRates}
+  alias Phoenix.LiveView.AsyncResult
+  alias Regents.Autolaunch.{Lab, Token, TokenPage, UsdRates}
   alias RegentsWeb.Autolaunch.{LiveListings, PublicDocuments}
 
   alias RegentsWeb.Autolaunch.Components.{
@@ -40,9 +45,8 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
     TokenHeading
   }
 
-  # What the page reads once it is open, each in the background: the token,
-  # the dollar prices and the token's revenue.
-  @parts [:page, :rates, :revenue]
+  # What the page reads in the background besides the token, once it is open.
+  @reads [:rates, :revenue, :pool]
 
   def mount(%{"symbol" => symbol, "tail" => tail}, session, socket),
     do:
@@ -56,9 +60,10 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
          record: nil,
          presentation: nil,
          connections: nil,
-         unit: nil
+         unit: nil,
+         pool: %AsyncResult{}
        )
-       |> read(@parts)}
+       |> read(parts())}
 
   # Retry reads only what failed: a press with nothing failed, or while a read
   # is under way, starts none.
@@ -92,10 +97,9 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
 
   def render(assigns) do
     assigns =
-      assign(
-        assigns,
-        :rate,
-        assigns.record && MarketCard.figure_rate(assigns.rates, assigns.record.auction)
+      assign(assigns,
+        rate: assigns.record && MarketCard.figure_rate(assigns.rates, assigns.record.auction),
+        facts: if(assigns.pool.ok?, do: assigns.pool.result)
       )
 
     ~H"""
@@ -109,6 +113,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
           currency={@unit}
           chain_id={@record.auction.chain_id}
           address={@record.auction.token_address}
+          pool={@facts}
         >
           <:tags>
             <ChainIcon.chain_chip chain="Base" label="Base" />
@@ -126,6 +131,7 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
             price={@record.price_quote}
             unit={@unit}
             rate={@rate}
+            pool={@pool}
           />
           <TokenFigures.market_stats
             id="token-market"
@@ -134,11 +140,16 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
             market_cap={@record.market_cap}
             unit={@unit}
             rate={@rate}
+            pool={@pool}
           />
         </div>
         <div class="token-page__details">
           <RevenueHistory.revenue_history :if={@record.auction.kind == :agent} revenue={@revenue} />
-          <LaunchTrust.token_facts auction={@record.auction} connections={@connections} />
+          <LaunchTrust.token_facts
+            auction={@record.auction}
+            connections={@connections}
+            pool={@facts}
+          />
         </div>
       </div>
     </article>
@@ -199,8 +210,16 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
     end
   end
 
+  # The token and its background reads; a site without a Base deployment has
+  # no pool to read, and its pool's figures stay "…".
+  defp parts do
+    reads = if Lab.configured?(), do: @reads, else: List.delete(@reads, :pool)
+    [:page | reads]
+  end
+
   defp part(:rates, _symbol, _tail), do: fn -> {:ok, UsdRates.rates()} end
   defp part(:revenue, symbol, tail), do: fn -> TokenPage.revenue(symbol, tail) end
+  defp part(:pool, symbol, tail), do: fn -> TokenPage.pool(symbol, tail) end
 
   # A page that shows no token, with the tab named for what it shows.
   defp shown(socket, :empty),
@@ -212,11 +231,9 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
 
   defp failed(socket) do
     page = if socket.assigns.status == :error, do: [:page], else: []
-    page ++ Enum.filter([:rates, :revenue], &socket.assigns[&1].failed)
+    page ++ Enum.filter(@reads, &socket.assigns[&1].failed)
   end
 
   defp loading?(socket),
-    do:
-      socket.assigns.status == :loading or
-        Enum.any?([:rates, :revenue], &socket.assigns[&1].loading)
+    do: socket.assigns.status == :loading or Enum.any?(@reads, &socket.assigns[&1].loading)
 end

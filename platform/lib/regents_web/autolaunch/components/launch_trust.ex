@@ -6,10 +6,8 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
   unchecked. Then the launch's contracts; a Memestock launch's paired stock is
   named with its issuer, chain and address. A token's page shows both
   (`token_facts/1`) and its launch type among its market figures
-  (`launch_type/1`).
-
-  The locker that holds the pool's position, and the pool itself, come with
-  the pool, which this page does not read yet.
+  (`launch_type/1`). Once the token's pool is read, the contracts end with the
+  locker that holds its positions and the pool's id.
   """
   use Phoenix.Component
 
@@ -18,11 +16,12 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
 
   attr :auction, :map, required: true, doc: "the launch's auction record"
   attr :connections, :map, required: true, doc: "the creator's connected accounts"
+  attr :pool, :map, default: nil, doc: "the launched pool as read from the chain, once read"
 
   @doc """
   A launched token's facts on its own page: who launched it, then its
-  contracts, each shortened with its copy icon and its arrow to the chain's
-  explorer.
+  contracts and its pool, each shortened with its copy icon and, for a
+  contract, its arrow to the chain's explorer.
   """
   def token_facts(assigns) do
     auction = assigns.auction
@@ -30,7 +29,7 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
     assigns =
       assign(assigns,
         address_chain: address_chain(auction),
-        contracts: contracts(auction)
+        contracts: contracts(auction, assigns.pool)
       )
 
     ~H"""
@@ -59,6 +58,15 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
                 explorer={@address_chain}
               />
             </span>
+          </li>
+          <li :if={@pool}>
+            <span class="token-facts__label">Pool</span>
+            <Regent.Primitives.address
+              id="token-facts-pool"
+              address={@pool.pool_id}
+              kind="id"
+              chain={@address_chain}
+            />
           </li>
         </ul>
       </section>
@@ -174,9 +182,15 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
     end)
   end
 
-  # The launch's own contracts the record names.
-  defp contracts(auction) do
+  # The launch's own contracts the record names, then the locker that holds
+  # its pool position once the pool has been read.
+  defp contracts(auction, pool) do
     treasury = if auction.kind == :agent, do: auction.treasury_address
+
+    lockers =
+      for %{locked?: true, owner: owner} <- (pool && pool.positions) || [],
+          uniq: true,
+          do: {"Locker", owner}
 
     Enum.filter(
       [
@@ -185,6 +199,6 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
         {"Treasury", treasury}
       ],
       fn {_label, address} -> is_binary(address) end
-    )
+    ) ++ lockers
   end
 end

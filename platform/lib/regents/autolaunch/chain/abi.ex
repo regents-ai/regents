@@ -3,6 +3,8 @@ defmodule Regents.Autolaunch.Chain.Abi do
 
   alias Regents.Chain.Address
 
+  @address_bound Integer.pow(2, 160)
+
   @doc """
   The one log in this receipt that is exactly this event.
 
@@ -18,6 +20,15 @@ defmodule Regents.Autolaunch.Chain.Abi do
   end
 
   def one_event(_logs, _topic, _emitter, _indexed_count, _data_words), do: :error
+
+  @doc "The address a 32-byte word names, which requires its leading twelve bytes to be zero."
+  def word_address(value) when is_integer(value) and value > 0 and value < @address_bound,
+    do:
+      {:ok,
+       "0x" <>
+         (value |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(40, "0"))}
+
+  def word_address(_value), do: :error
 
   defp emitted?(%{"address" => address, "topics" => [topic | _indexed]}, expected, emitter)
        when is_binary(topic),

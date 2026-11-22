@@ -3,10 +3,12 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
   A launched token's page heading: its picture, its name and the pair it
   trades as, a line of tags (its chain, its launch type and who made it), and
   its address through `Regent.Primitives.address` (short form, copy icon,
-  explorer arrow). On Base, the trade and chart buttons hold their place,
-  closed: they open on the pool, which this page does not read yet. They and
-  the explorer arrow name public networks only, so a local fork's token shows
-  its address and copy icon without them.
+  explorer arrow), and where to trade and chart it. On Base, the trade and
+  chart buttons hold their place from the first paint, closed: the trade
+  button opens the token's pool on Uniswap once the pool is read, and the
+  chart button stays closed (its chart comes with its own part). They and the
+  explorer arrow name public networks only, so a local fork's token shows its
+  address and copy icon without them.
 
   The picture is a stored one's sized copy (`RegentsWeb.Autolaunch.Paths`);
   any other address, like none, shows the ticker's first letter.
@@ -19,6 +21,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
   attr :currency, :string, default: nil, doc: "the token the pool pairs it with"
   attr :chain_id, :integer, required: true
   attr :address, :string, required: true, doc: "the token's contract address"
+  attr :pool, :map, default: nil, doc: "the token's pool facts, once read"
 
   slot :tags, doc: "the chain, the launch type and the creator, under the name"
 
@@ -56,8 +59,17 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
           address={@address}
           chain={@network || "test"}
         />
+        <a
+          :if={@network && @pool}
+          class="rg-button rg-button--secondary token-heading__link"
+          href={uniswap_url(@network, @pool)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <.uniswap_icon /> Uniswap Pool
+        </a>
         <Regent.Primitives.button
-          :if={@network}
+          :if={@network && !@pool}
           variant="secondary"
           disabled
           class="token-heading__link"
@@ -73,6 +85,11 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
     </div>
     """
   end
+
+  # The button opens the token's pool on Uniswap: a fixed https address and
+  # the pool id the chain gave, 64 hex digits.
+  defp uniswap_url(network, pool),
+    do: "https://app.uniswap.org/explore/pools/#{network}/#{pool.pool_id}"
 
   # The name Uniswap and the chart site give the token's public network; nil on a fork.
   defp network(8453), do: "base"
