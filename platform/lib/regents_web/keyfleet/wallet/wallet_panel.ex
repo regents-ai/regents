@@ -10,7 +10,9 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   links it. The page receives them before anyone presses. With another wallet
   active, or none, the figures are built for the account's own wallet without
   its network fee, which no press pays, and a press sends nothing and names
-  the wallet to open; another wallet active is named in a note too. Signed
+  the wallet to open; another wallet active is named in a note too. Those
+  figures never bring steps to the page, even when that wallet opens before
+  they land: they show without steps, and a press has its steps built. Signed
   out, nothing is built; the Key on sale, the daily split's preview, presence
   and the launch still show their figures, read from the chain the same way,
   and all but Buy without their buttons.
@@ -630,8 +632,16 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     |> rebuild_later(built)
   end
 
-  # The review of `built` when it is for the wallet that may send it, or nil.
-  defp sendable(%{review: %{signer: signer} = review}, %{assigns: %{signer: signer}}), do: review
+  # The review of `built` when it was built to be sent by the wallet that may
+  # send it now (`built_for/1`), or nil. Steps read for a wallet's figures
+  # while it was not the one sending, with no network fee judged, show their
+  # figures and no steps; a press then builds its own.
+  defp sendable(
+         %{review: %{} = review, built_for: %{signer: signer, sending: true}},
+         %{assigns: %{signer: signer}}
+       ),
+       do: review
+
   defp sendable(_built, _socket), do: nil
 
   defp rebuild_later(socket, %{problem: :unread}), do: rebuild_in(socket, @reread_ms)
