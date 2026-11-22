@@ -243,6 +243,9 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
 
   def handle_event("retry", _params, socket), do: {:noreply, socket}
 
+  # An event no control on this page sends changes nothing.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   # A listing counts only while the page is waiting for one. A change the
   # allowance refused since the read began has already answered for the list
   # the page now names, so that read's late answer is dropped.

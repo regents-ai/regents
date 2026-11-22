@@ -37,6 +37,9 @@ defmodule RegentsWeb.Autolaunch.HowItWorksLive do
          release: %{base: creator_release(:base), robinhood: creator_release(:robinhood)}
        )}
 
+  # The page has no control that sends an event; one sent by hand changes nothing.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   def render(assigns) do
     ~H"""
     <div class="fact-page">

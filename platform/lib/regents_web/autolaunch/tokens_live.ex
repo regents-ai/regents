@@ -57,6 +57,9 @@ defmodule RegentsWeb.Autolaunch.TokensLive do
 
   def handle_event("retry", _params, socket), do: {:noreply, socket}
 
+  # An event no control on this page sends changes nothing.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   defp patch(socket, changes),
     do: push_patch(socket, to: list_path(socket.assigns.options, changes))
 
