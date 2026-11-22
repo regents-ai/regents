@@ -184,7 +184,6 @@
       "platform/lib/keyfleet/dms/read_mark.ex",
       "platform/lib/keyfleet/dms/validations/two_keys.ex",
       "platform/lib/keyfleet/dms.ex",
-      "platform/lib/keyfleet/early/signup/stored_email.ex",
       "platform/lib/keyfleet/early/signup.ex",
       "platform/lib/keyfleet/early.ex",
       "platform/lib/keyfleet/feed.ex",
@@ -543,6 +542,14 @@
         ],
         "edit": "AgentProfile's paired_key calculation became the module Regents.Keyfleet.Agents.Calculations.PairedKey, keyfleet.ai's expression and comment whole in it, with one branch: where Regents.read_only?(), its expression is nil and names none of the person's wallets, so there an agent is here and acts as a Key only by its own wallet, a Key its person put it on or its shard (K4)",
         "reason": "need: the read-only venue's login is not granted regents_app.paired_person_wallets (the regents chief's ruling: keep a read-only branch), and the agents here (Agents.Here, the agents count and the holders online) are read there through here and key, which reach that view only through paired_key; the venue is set as the site starts, as Autolaunch's CreatorIdentities asks it (K4)"
+      },
+      {
+        "files": [
+          "early/signup.ex",
+          "early.ex"
+        ],
+        "edit": "Signup loses its create action sign_up and that action's policy, its moduledoc's account of how an address is stored and the email attribute comment's last clause; Early loses the sign_up interface (K4)",
+        "reason": "the early-access list's add is not brought until its page is (not_brought)"
       }
     ],
     "not_carried": {
@@ -598,7 +605,8 @@
     "not_brought": [
       "The Claude connector: agents/connection.ex, agents/connection/caller.ex, listing.ex, refused.ex, agents/hosted_address.ex, extensions: [AshAi] and the tools blocks in agents.ex and graph.ex: they need ash_ai, regent_mcp_agents and regent_oauth, which come with the one /mcp slice",
       "KeyfleetWeb.AgentTools and every other KeyfleetWeb module: no page, API route, controller, plug or LiveView",
-      "The ens and Points queues and their workers"
+      "The ens and Points queues and their workers",
+      "The early-access list's add (K4): early/signup.ex's create action sign_up and its policy, Early's sign_up interface, and early/signup/stored_email.ex, the change only that action ran; Signup's moduledoc and the email attribute's comment lose what they said of it. Nothing here calls it and no page limits it; it comes back with the early-access page. The table, the resource and its read (the site itself only) stay"
     ],
     "settings_set": {
       "keyfleet_agent_wait_ms": 20000,
