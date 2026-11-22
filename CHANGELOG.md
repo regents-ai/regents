@@ -8140,3 +8140,12 @@ seasons), on the shared Points library regents.sh was already on.
 - The read-only login's list now names Keyfleet's and Autolaunch's lists of applied versions too (the founder's 378 a), so that site's health answer can report all five. Version numbers only. The login does not exist yet; this is the file it will be given.
 - One lint setting no longer names a file that is not in this site.
 - No page, table or migration. On the `one-site` branch only.
+
+## 2026-11-22 — Keyfleet's fleet pages in the one site, not yet open (not released)
+
+- Keyfleet's fleet pages are now part of this site: each fleet's page with its Key map and harbour, its Keys and their profiles, rooms and direct messages, the workspace and its projects, polls, proposals, the treasury, seasons, search, the worldline and the atlas, with the wallet steps they offer. They read the same records and show the same words as keyfleet.ai.
+- None of them opens yet: no new address answers. The reading pages and guides already under `/keyfleet` look and read as before.
+- When they open, three things differ from keyfleet.ai: Pair New Agent opens this site's own pairing page; the account pages are this site's; and a Key holder's wallet that is not a real address would print as written where keyfleet.ai printed "Account" (no stored holder is like that).
+- Six shared readings are ready for these pages: a fleet's activity, its proposals, its treasury, its share picture, each project's picture and each proposal, so that visitors will share one recent read instead of each reading the database. Nothing reads them yet.
+- A failure a Keyfleet page catches is saved to the site's error list, at most twenty at a time; past that it is only logged.
+- Not released: on the `fold/keyfleet` branch only. No route, table, migration, secret, sign-in or wallet change.
