@@ -15,6 +15,7 @@ defmodule Regents.Autolaunch.Token do
     primary_read_warning?: false
 
   require Ash.Query
+  alias Regents.Autolaunch.LinkedCreators
 
   # A subject id occupies one public URL segment, the identifier format the
   # public route catalog accepts.
@@ -146,6 +147,8 @@ defmodule Regents.Autolaunch.Token do
 
     read :home_market do
       argument :x, :boolean, default: false
+      argument :ens, :boolean, default: false
+      argument :github, :boolean, default: false
       argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
       argument :chain, :string, default: "all", constraints: [match: ~r/\A(all|base|robinhood)\z/]
 
@@ -190,7 +193,26 @@ defmodule Regents.Autolaunch.Token do
               do:
                 Ash.Query.filter(
                   query,
-                  exists(auction.creator_x_connections, not is_nil(verified_at))
+                  exists(auction.creator_x_connections, not is_nil(verified_at)) or
+                    auction.creator_human_account_id in ^LinkedCreators.holding!(:x)
+                ),
+              else: query
+
+          query =
+            if query.arguments.ens,
+              do:
+                Ash.Query.filter(
+                  query,
+                  auction.creator_human_account_id in ^LinkedCreators.holding!(:ens)
+                ),
+              else: query
+
+          query =
+            if query.arguments.github,
+              do:
+                Ash.Query.filter(
+                  query,
+                  auction.creator_human_account_id in ^LinkedCreators.holding!(:github)
                 ),
               else: query
 

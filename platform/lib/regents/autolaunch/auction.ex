@@ -16,6 +16,7 @@ defmodule Regents.Autolaunch.Auction do
     primary_read_warning?: false
 
   require Ash.Query
+  alias Regents.Autolaunch.LinkedCreators
 
   postgres do
     table "auctions"
@@ -362,6 +363,8 @@ defmodule Regents.Autolaunch.Auction do
 
     read :home_market do
       argument :x, :boolean, default: false
+      argument :ens, :boolean, default: false
+      argument :github, :boolean, default: false
       argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
       argument :view, :string, default: "active", constraints: [match: ~r/\A(active|new)\z/]
 
@@ -422,7 +425,30 @@ defmodule Regents.Autolaunch.Auction do
 
           query =
             if query.arguments.x,
-              do: Ash.Query.filter(query, exists(creator_x_connections, not is_nil(verified_at))),
+              do:
+                Ash.Query.filter(
+                  query,
+                  exists(creator_x_connections, not is_nil(verified_at)) or
+                    creator_human_account_id in ^LinkedCreators.holding!(:x)
+                ),
+              else: query
+
+          query =
+            if query.arguments.ens,
+              do:
+                Ash.Query.filter(
+                  query,
+                  creator_human_account_id in ^LinkedCreators.holding!(:ens)
+                ),
+              else: query
+
+          query =
+            if query.arguments.github,
+              do:
+                Ash.Query.filter(
+                  query,
+                  creator_human_account_id in ^LinkedCreators.holding!(:github)
+                ),
               else: query
 
           order =
@@ -453,12 +479,20 @@ defmodule Regents.Autolaunch.Auction do
       prepare Regents.Autolaunch.Auction.Preparations.Listed
       prepare Regents.Autolaunch.Auction.Preparations.Shown
     end
+
+    # Every auction the public lists may show, on both chains, whose creators
+    # the lists' linked-account filters ask about
+    # (`Regents.Autolaunch.LinkedCreators`).
+    read :listed_shown do
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+    end
   end
 
   # Only the reads the lists use are carried; any other action is refused until
   # it comes with its own policy.
   policies do
-    policy action([:read, :listed, :path_peers, :home_market]) do
+    policy action([:read, :listed, :path_peers, :home_market, :listed_shown]) do
       authorize_if always()
     end
   end

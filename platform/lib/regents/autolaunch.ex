@@ -20,7 +20,10 @@ defmodule Regents.Autolaunch do
   (`Stocks.Lab`) and Robinhood's (`Robinhood.Lab`), each named by a path
   setting and read once (`load_deployments!/0`).
   """
-  use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: []
+  use Boundary,
+    top_level?: true,
+    deps: [Regents, Regents.Chain],
+    exports: [HomeMarket, Search]
 
   use Ash.Domain, otp_app: :regents
 
