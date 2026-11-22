@@ -6,6 +6,7 @@
 import {Countdown} from "./hooks/countdown"
 import {FleetPreview} from "./hooks/fleet_preview"
 import {FleetTabs} from "./hooks/fleet_tabs"
+import {HarbourSea} from "./hooks/harbour_sea"
 import {KeyCardTurn} from "./hooks/key_card"
 import {KeyCards} from "./hooks/key_cards"
 import {KeyMap} from "./hooks/key_map"
@@ -23,6 +24,7 @@ export const keyfleetHooks = {
   Countdown,
   FleetPreview,
   FleetTabs,
+  HarbourSea,
   KeyCards,
   KeyCardTurn,
   KeyfleetMotionList: MotionList,

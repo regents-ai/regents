@@ -36,12 +36,29 @@ defmodule RegentsWeb.Techtree.PublicationController do
   use RegentsWeb, :controller
 
   alias Regents.Techtree.Catalog.Digest
+  alias Regents.Techtree.Network
+  alias Regents.Techtree.Network.Document
+  alias Regents.Techtree.Network.Error
+  alias Regents.Techtree.Network.Ingest
+  alias Regents.Techtree.Network.Key
   alias Regents.Techtree.Network.Projection
   alias Regents.Techtree.Network.Query
   alias RegentsWeb.Techtree.ExactResponse
+  alias RegentsWeb.Techtree.PublicationRate
 
   # Every answer here is data, never a page, as on techtree.sh's API.
   plug :put_api_headers
+  plug :limit_agent when action == :create
+
+  @doc """
+  Publish one finished run, or withdraw one already published.
+  """
+  def create(conn, _params) do
+    case conn.assigns[:submitted_bytes] do
+      bytes when is_binary(bytes) -> received(conn, bytes)
+      nil -> refuse_content_type(conn)
+    end
+  end
 
   @doc """
   One page of the log, newest arrival first.
@@ -175,6 +192,139 @@ defmodule RegentsWeb.Techtree.PublicationController do
   end
 
   defp put_api_headers(conn, _options), do: ExactResponse.put_api_headers(conn)
+
+  defp limit_agent(conn, _options) do
+    PublicationRate.admit(
+      conn,
+      "publication-agent",
+      {:publication_agent, conn.assigns.actor.wallet_address},
+      Network.agent_rate_limit()
+    )
+  end
+
+  defp received(conn, bytes) do
+    case Document.kind(bytes) do
+      {:ok, :submission} -> record(conn, bytes, Key.load())
+      {:ok, :withdrawal} -> withdraw(conn, bytes, Key.load())
+      {:error, %Error{} = error} -> refuse(conn, error)
+    end
+  end
+
+  defp record(conn, bytes, loaded) do
+    options = [
+      actor: conn.assigns.actor,
+      contributor_address: volunteered(conn),
+      skill_name: header(conn, "x-techtree-skill-name"),
+      skill_github_url: header(conn, "x-techtree-skill-github-url"),
+      origin: origin()
+    ]
+
+    accepted =
+      case loaded do
+        {:ok, key} -> Ingest.accept(bytes, key, options)
+        :error -> Ingest.recall(bytes, options)
+      end
+
+    case accepted do
+      {:ok, entry, :recorded} -> receipt(conn, entry, 201)
+      {:ok, entry, :existing} -> receipt(conn, entry, 200)
+      :unrecorded -> refuse_uncountersignable(conn)
+      {:error, %Error{} = error} -> refuse(conn, error)
+    end
+  end
+
+  defp withdraw(conn, bytes, loaded) do
+    withdrawn =
+      case loaded do
+        {:ok, key} -> Ingest.withdraw(bytes, key, origin(), actor: conn.assigns.actor)
+        :error -> Ingest.recall_withdrawal(bytes, actor: conn.assigns.actor)
+      end
+
+    case withdrawn do
+      {:ok, entry, _outcome} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> put_resp_header("cache-control", "no-store")
+        |> send_resp(200, entry.withdrawal_receipt_bytes)
+
+      :unrecorded ->
+        refuse_uncountersignable(conn)
+
+      {:error, %Error{} = error} ->
+        refuse(conn, error)
+    end
+  end
+
+  defp receipt(conn, entry, status) do
+    location = "/api/v1/techtree/publications/" <> entry.bundle_digest
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> put_resp_header("cache-control", "no-store")
+    |> put_resp_header("location", location)
+    |> send_resp(status, entry.receipt_bytes)
+  end
+
+  defp volunteered(conn) do
+    case get_req_header(conn, "x-techtree-contributor-address") do
+      [address | _rest] -> address
+      [] -> nil
+    end
+  end
+
+  defp header(conn, name) do
+    case get_req_header(conn, name) do
+      [value] -> value
+      [] -> nil
+      _values -> :multiple
+    end
+  end
+
+  defp refuse(conn, %Error{} = error) do
+    ExactResponse.send_error(
+      conn,
+      Error.status_for(error.code),
+      error.code,
+      error.message,
+      hint(Error.status_for(error.code))
+    )
+  end
+
+  defp hint(404), do: find_a_run()
+
+  defp hint(409),
+    do:
+      "This log already holds a different document for this run; " <>
+        "read it at #{url(~p"/api/v1/techtree/publications")}."
+
+  defp hint(_status),
+    do:
+      "Correct what the message names and send it again; " <>
+        "#{url(~p"/techtree/docs/publish")} shows how to publish and withdraw a Result."
+
+  defp refuse_uncountersignable(conn) do
+    ExactResponse.send_error(
+      conn,
+      503,
+      :network_key_unavailable,
+      "this site signs a receipt for every run it publishes or withdraws and " <>
+        "cannot sign one right now, so nothing was recorded; the same document " <>
+        "can be sent again unchanged",
+      "Send the same document again later."
+    )
+  end
+
+  defp refuse_content_type(conn) do
+    ExactResponse.send_error(
+      conn,
+      400,
+      :submission_malformed,
+      "what this address takes is sent as application/json, at most " <>
+        "#{Network.maximum_body_bytes()} bytes: the files of one proof " <>
+        "bundle, or a signed request to withdraw one already published",
+      hint(400)
+    )
+  end
 
   defp origin, do: RegentsWeb.Endpoint.url()
 

@@ -106,6 +106,8 @@ defmodule Regents.MixProject do
       {:domainatrex, "~> 3.2"},
       # Patchbay's search room; already in the lock through the web request library.
       {:nimble_pool, "~> 1.1"},
+      # Techtree's Wallet Bench results.zip streaming downloads.
+      {:zstream, "~> 0.6.7"},
       {:decimal, "== 3.2.0"},
       {:req, "== 0.7.5"},
       {:vix, "~> 0.42.0"},
@@ -197,7 +199,9 @@ defmodule Regents.MixProject do
         # catalog as it compiles.
         # Keyfleet's fleet pages add one: the router reads that route catalog as it compiles.
         # Techtree's Projects add one: its domain reads its resource.
-        "xref graph --label compile-connected --fail-above 237",
+        # Techtree's Enquiries and Watchdog add three (domains reading resources), and
+        # AgentBodyReader sizing Techtree publications adds one in Endpoint.
+        "xref graph --label compile-connected --fail-above 241",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

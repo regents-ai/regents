@@ -8,8 +8,10 @@ defmodule Regents.Patchbay.Forum.ListedSitePicture do
   A domain whose page gave no picture keeps a row without one, so it is not
   asked for again.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. A picture is read to
+  be served (`/patchbay/listed-site-pictures/:domain`) and for its row on the
+  directory; nothing here takes one: that comes with Patchbay's background
+  work.
   """
 
   alias Regents.Patchbay.Forum.Origin
@@ -39,11 +41,38 @@ defmodule Regents.Patchbay.Forum.ListedSitePicture do
     attribute(:taken_at, :utc_datetime_usec, allow_nil?: false, public?: true)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if(always())
+  actions do
+    read :pictured do
+      description("The listed sites' pictures that came back.")
+      filter(expr(not is_nil(image)))
+    end
+
+    read :shown do
+      description(
+        "When the pictures of the home pages of `domains` were taken, without the images."
+      )
+
+      argument(:domains, {:array, :string}, allow_nil?: false)
+      filter(expr(domain in ^arg(:domains) and not is_nil(image)))
+      prepare(build(select: [:domain, :taken_at]))
     end
   end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
+  policies do
+    # The picture is shown on the public list.
+    policy action_type(:read) do
+      authorize_if(always())
+    end
+  end
+
+  @doc """
+  Where the site's row loads the picture from, as patchbay.help names it;
+  `at` changes with each picture. A page draws it through
+  `RegentsWeb.Patchbay.Forum.BoardHTML.picture_url/1`.
+  """
+  @spec path(Ash.Resource.record()) :: String.t()
+  def path(picture),
+    do: "/listed-site-pictures/#{picture.domain}?at=#{DateTime.to_unix(picture.taken_at)}"
 end

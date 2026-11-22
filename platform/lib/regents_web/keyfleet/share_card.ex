@@ -27,8 +27,9 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   alone and the picture is not ready yet.
 
   Each fleet's picture without its figures, the characters its figures are
-  set in and where they go are drawn by `scripts/share-cards/render.mjs` into
-  `priv/keyfleet/share`. A page names its fleet's picture with a version of its
+  set in and where they go are the files in `priv/keyfleet/share`, brought
+  as keyfleet.ai drew them; the script that draws them stays in keyfleet.ai.
+  A page names its fleet's picture with a version of its
   figures, so a site that keeps pictures by their address, as X does, asks
   again once they change. Each picture drawn is kept by the version of what
   it shows (`RegentsWeb.Keyfleet.SharePictures`), so it is drawn again only when that
@@ -47,7 +48,7 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   alias Regents.Keyfleet.Fleets.{Presets, Rules}
   alias Regents.Keyfleet.Keys.{KeyArt, Metadata}
   alias Regents.SharedReading
-  alias RegentsWeb.Keyfleet.{DirectoryMD, ProjectPage, ProposalsPage, RouteCatalog, SharePictures}
+  alias RegentsWeb.Keyfleet.{DirectoryMD, ProjectPage, ProposalsPage, SharePictures}
   alias Vix.Vips.{Image, Operation}
 
   @layout_path Path.join([__DIR__, "..", "..", "..", "priv", "keyfleet", "share", "layout.json"])
@@ -58,8 +59,6 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   @glyphs @layout["glyphs"]
   @labels @layout["fleets"]
 
-  @site_alt "agents: join, start or invest in a fleet. Three Keyfleet Key cards."
-
   # How every project's name is spelled.
   @project_name ~r/\A[a-z0-9]+(-[a-z0-9]+)*\z/
 
@@ -68,21 +67,19 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   @card_waits [receive_timeout: 5_000, connect_options: [timeout: 3_000]]
 
   @doc """
-  The picture the page at `path` shows where it is shared, as `{address,
-  alt}`: a project's own for its page in a fleet with a picture of its own,
-  its fleet's for the fleet's other pages, the site's for any other.
+  The picture the page at `path` shows where it is shared, as the site's
+  root document's `share_image`, its whole address, size and alt: a
+  project's own for its page in a fleet with a picture of its own, its
+  fleet's for the fleet's other pages, or nil for any other page, which
+  shows the site's.
   """
   def image(path) do
     case project_page(path) do
       {fleet_id, name, project} ->
         address =
-          unverified_url(
-            RegentsWeb.Endpoint,
-            RouteCatalog.project_picture_path(fleet_id, name),
-            v: version(project)
-          )
+          url(~p"/keyfleet/share/projects/#{fleet_id}/#{name <> ".png"}?#{[v: version(project)]}")
 
-        {address, project_alt(fleet_id, project)}
+        shown(address, project_alt(fleet_id, project))
 
       nil ->
         fleet_image(path)
@@ -92,23 +89,17 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   defp fleet_image(path) do
     case Enum.find(fleets(), &fleet_page?(path, &1)) do
       nil ->
-        {static(), @site_alt}
+        nil
 
       fleet_id ->
         figures = held(fleet_id)
-
-        address =
-          unverified_url(
-            RegentsWeb.Endpoint,
-            RouteCatalog.fleet_picture_path(fleet_id),
-            v: version(figures)
-          )
-
-        {address, alt(fleet_id, figures)}
+        address = url(~p"/keyfleet/share/#{fleet_id <> ".png"}?#{[v: version(figures)]}")
+        shown(address, alt(fleet_id, figures))
     end
   end
 
-  defp static, do: url(~p"/images/keyfleet-share.png")
+  # Every picture here is 1200 by 630.
+  defp shown(address, alt), do: %{url: address, size: {1200, 630}, alt: alt}
 
   defp fleet_page?(path, fleet_id) do
     under = Fleets.path(fleet_id)
@@ -498,7 +489,7 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
     Operation.bandjoin_const!(image, [255.0])
   end
 
-  # One of the pictures `render.mjs` drew, opened.
+  # One of the files in `priv/keyfleet/share`, opened.
   defp share_file(name) do
     {:ok, image} =
       Image.new_from_file(Application.app_dir(:regents, Path.join("priv/keyfleet/share", name)))

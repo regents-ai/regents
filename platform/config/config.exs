@@ -102,6 +102,8 @@ config :regents,
     Regents.Techtree.Network,
     Regents.Techtree.WalletBench,
     Regents.Techtree.Projects,
+    Regents.Techtree.Enquiries,
+    Regents.Techtree.Watchdog,
     Regents.Patchbay.Forum,
     Regents.Patchbay.Members,
     Regents.Patchbay.Assist,
@@ -152,7 +154,7 @@ config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
-  queues: [default: 1, points: 5, points_chain: 2, stake_reads: 1],
+  queues: [default: 1, points: 5, points_chain: 2, stake_reads: 1, techtree_watchdog: 2],
   cron: [
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
@@ -164,7 +166,15 @@ config :regents, Oban,
       # From the Points start, the one-time points for what accounts already had.
       {"@hourly", RegentPoints.StartAwards},
       # One line for each kind of shared reading a producer rereads on notice.
-      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}}
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "points_board"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_agents"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_key_agents"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_now"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_proposals"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_fleet_treasury"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_share_card"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_project_cards"}},
+      {"* * * * *", Regents.SharedReading.Heal, args: %{kind: "keyfleet_proposal"}}
     ]
   ],
   pruner: [max_age: {7, :days}],
@@ -199,6 +209,14 @@ config :regents, Regents.Patchbay.Forum.FeedCount,
   gc_interval: :timer.minutes(10),
   max_size: 10_000
 
+# Keyfleet's share pictures drawn for link previews
+# (`RegentsWeb.Keyfleet.SharePictures`), swept of expired ones every ten
+# minutes. Each is a PNG of up to a few hundred kilobytes, so at most 64 are
+# kept.
+config :regents, RegentsWeb.Keyfleet.SharePictures,
+  gc_interval: :timer.minutes(10),
+  max_size: 64
+
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 # Messages left for the team (`Regents.Messages`): each person, with their paired
@@ -222,17 +240,34 @@ config :regents, :limits,
   # A person's presses of Keyfleet's Treasury refresh: one every 30 seconds
   # (Sean, 20 October 2026).
   keyfleet_treasury_refresh: [limit: 1, window_seconds: 30],
-  # Figures one address's open Keyfleet wallet panels read when a form changes
-  # or the open wallet is reported: as many a minute as Autolaunch's lists. No
+  # Chain figures one address's open Keyfleet pages read: a wallet panel's
+  # first read, one a changed form or the open wallet starts, and the panel's
+  # own rereads on its timer; the Key window's rewards, when not read in the
+  # last 30 seconds, and its slice. As many a minute as Autolaunch's lists. No
   # press is counted.
   keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
+  # Moves of the sea behind one address's open Keyfleet pages to another fleet,
+  # or to every fleet: twice what a quick visit spends (22 a minute, reading
+  # each page for 2 seconds), so two people behind one address are not held.
+  # Past them the sea stays as it is drawn.
+  keyfleet_sea_moves: [limit: 45, window_seconds: 60],
+  # Reads of a member's own ships by the sea behind one address's open
+  # Keyfleet pages, one on coming to a fleet they are a member of and one a
+  # burst of that fleet's news: twice what three open pages read in a busy
+  # fleet's minute (81, news every half second), so two members behind one
+  # address are not held. Past them the sea keeps the ships it has until the
+  # next news.
+  keyfleet_sea_crew_reads: [limit: 180, window_seconds: 60],
   # Searches one address's open Keyfleet pages run, Show more included: one a
   # second.
   keyfleet_searches: [limit: 60, window_seconds: 60],
   # Reads one address's open Techtree Projects pages make as they connect and
   # move between the list and a project: as many a minute as the address has
   # reads of the site.
-  techtree_project_reads: [limit: 120, window_seconds: 60]
+  techtree_project_reads: [limit: 120, window_seconds: 60],
+  # Contact form enquiries on Techtree's home and service pages: five an hour
+  # per client address.
+  techtree_enquiries: [limit: 5, window_seconds: 3600]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
@@ -276,6 +311,10 @@ config :regents, Regents.Techtree.Network,
   rate_limit: [limit: 10, window_seconds: 60],
   agent_rate_limit: [limit: 10, window_seconds: 60]
 
+config :regents, Regents.Techtree.Watchdog,
+  max_hosts_per_account: 20,
+  max_routes_per_account: 100
+
 # The example comparison at /techtree/examples/tdd: the files one local `techtree
 # forge` comparison wrote, committed as they are (RegentsWeb.Techtree.TddShowcase).
 # The export link names the techtree repository at the commit that added them.
@@ -305,6 +344,11 @@ config :regents, :keyfleet_agent_wait_ms, 20_000
 # happened in the fleet before it reads the hall's feed again, so a burst of
 # changes is read once.
 config :regents, :keyfleet_fleet_feed_wait_ms, 2_000
+
+# The longest the first read of every fleet's shared reading of what it is doing
+# now and of its proposals may take as the site starts; a fleet not read by then
+# shows as not read until its next notice or the minute's heal.
+config :regents, :keyfleet_first_read_ms, 5_000
 
 # The public address agents' pictures are read from: keyfleet.ai's picture
 # bucket (Regents.Keyfleet.Agents.AvatarBucket). Nothing here writes to it.

@@ -131,4 +131,17 @@ defmodule Regents.Patchbay.Forum.Fix do
       )
     end
   end
+
+  @doc "What a fix is for, as the page names it: the software and its versions."
+  @spec named_for(map()) :: String.t()
+  def named_for(%{software: software, versions: []}), do: software
+
+  def named_for(%{software: software, versions: versions}),
+    do: software <> " " <> Enum.join(versions, ", ")
+
+  @doc "A fix's status in a few words, as the page shows it."
+  @spec status_label(atom()) :: String.t()
+  def status_label(:confirmed_fix), do: "Confirmed fix"
+  def status_label(:interim_mitigation), do: "Interim step"
+  def status_label(:not_proven), do: "Not proven"
 end

@@ -1,0 +1,162 @@
+<main class="patchbay-shell patchbay-board" id="patchbay-site">
+  <.board_header>
+    <:title>{if @site, do: site_name(@site), else: @domain}</:title>
+    <:meta>
+      <span class="patchbay-generation">{@domain}</span>
+    </:meta>
+  </.board_header>
+
+  <section :if={@site} class="pb-sheet-section patchbay-board-card" id="pb-site-posts">
+    <div class="patchbay-card-heading">
+      <h2>Posts</h2>
+      <.site_post_sign_in />
+    </div>
+    <.address_filter site={@site} address={@address} />
+    <%!-- The first page of every post stays current while it is open. --%>
+    {if is_nil(@posts_cursor) and is_nil(@address),
+      do:
+        live_render(@conn, RegentsWeb.Patchbay.PostListLive,
+          id: "pb-site-posts-live",
+          session:
+            Map.merge(RegentsWeb.Live.Session.render_context(@conn), %{
+              "list" => "site",
+              "site_id" => @site.id,
+              "origin" => @site.origin,
+              "empty" => "No posts"
+            })
+        )}
+    <.post_list
+      :if={@posts_cursor || @address}
+      posts={@posts}
+      likes={:thread}
+      empty="No posts"
+      offer_ask={false}
+    />
+    <.page_nav
+      base={site_path(@site)}
+      anchor="pb-site-posts"
+      param="posts_after"
+      cursor={@posts_cursor}
+      next={@next_posts}
+      label="More posts"
+      next_label="Next page →"
+      query={if @address, do: %{"address" => @address}, else: %{}}
+    />
+  </section>
+
+  <section :if={!@site} class="pb-sheet-section patchbay-board-card" id="pb-site-ask">
+    <div class="patchbay-card-heading">
+      <h2>No posts</h2>
+      <.site_post_sign_in />
+    </div>
+  </section>
+
+  <%!-- The posts lead. Their status, what the site is with its picture, and
+  its tools for agents follow them. --%>
+  <section
+    :if={@standing}
+    class="pb-standing"
+    id="pb-site-standing"
+    aria-labelledby="pb-standing-title"
+  >
+    <h2 id="pb-standing-title">Status</h2>
+    <%!-- One clock: when Patchbay last checked the site. A check that could
+    not be done says nothing; the count stays the last finished check's. --%>
+    <p class="pb-standing-tools">
+      {tool_count_label(@standing.tool_count, "tool", "tools")}
+      <span :if={match?(%DateTime{}, @standing.checked)}>
+        · checked
+        <time datetime={DateTime.to_iso8601(@standing.checked)} title={moment(@standing.checked)}>
+          {RegentFormat.relative_time(@standing.checked, DateTime.utc_now())}
+        </time>
+      </span>
+    </p>
+    <div class="pb-standing-lists">
+      <div :for={
+        {key, label, scope, empty} <- [
+          {:solved, "Solved", "solved", "Nothing solved here yet."},
+          {:open, "Still open", "open", "No open questions."}
+        ]
+      }>
+        <h3>
+          <a href={~p"/patchbay?#{[site: @domain, scope: scope]}"}>
+            {label} <span class="pb-standing-count">{Map.fetch!(@standing, key).count}</span>
+          </a>
+        </h3>
+        <ol :if={Map.fetch!(@standing, key).threads != []}>
+          <li :for={thread <- Map.fetch!(@standing, key).threads}>
+            <a href={PostAddress.path(thread)}>{post_title(thread)}</a>
+          </li>
+        </ol>
+        <p :if={Map.fetch!(@standing, key).threads == []} class="patchbay-muted">{empty}</p>
+      </div>
+    </div>
+  </section>
+
+  <section :if={@site} class="pb-entry-head" id="pb-site-about" aria-label="About">
+    <div class="pb-entry-mark">
+      <img
+        :if={url = site_logo_url(@site)}
+        src={url}
+        alt={site_name(@site) <> " logo"}
+        width="120"
+        height="28"
+      />
+      <span :if={!site_logo_url(@site)} aria-hidden="true">{monogram(@site)}</span>
+    </div>
+    <div class="pb-entry-copy">
+      <p class="pb-dir-support">
+        {support_label(@site.support_relationship)}
+        <span class="pb-entry-dot" aria-hidden="true">·</span>
+        <span class="pb-entry-domain">{site_domain(@site)}</span>
+      </p>
+      <p class="patchbay-muted">{relationship_sentence(@site)}</p>
+      <%!-- Only an official source can verify a site, so a site without one
+      says so once and claims nothing more. --%>
+      <dl class="pb-entry-facts">
+        <dt :if={@site.support_status}>Support status</dt>
+        <dd :if={@site.support_status}>{support_status_label(@site.support_status)}</dd>
+        <dt>Source</dt>
+        <dd>
+          <.web_link
+            :if={@site.support_evidence_url}
+            href={@site.support_evidence_url}
+            rel="noreferrer"
+          >
+            {@site.support_evidence_label || @site.support_evidence_url}
+          </.web_link>
+          <span :if={!@site.support_evidence_url}>No official source on file</span>
+        </dd>
+        <dt :if={@site.support_evidence_url}>Verified</dt>
+        <dd :if={@site.support_evidence_url}>
+          <time
+            :if={@site.last_verified_at}
+            datetime={DateTime.to_iso8601(@site.last_verified_at)}
+          >
+            {Calendar.strftime(@site.last_verified_at, "%-d %b %Y")}
+          </time>
+          <span :if={!@site.last_verified_at}>Not yet verified against an official source</span>
+        </dd>
+      </dl>
+    </div>
+    <%!-- The site's picture, where patchbay.help also has "Refresh this
+    site": refreshing comes with Patchbay's writing pages. --%>
+    <div class="pb-entry-refresh">
+      <figure :if={url = site_screenshot_url(@site)} class="pb-entry-shot">
+        <img
+          src={url}
+          alt={"Screenshot of " <> site_domain(@site)}
+          width="1600"
+          height="1000"
+          loading="lazy"
+          decoding="async"
+        />
+      </figure>
+    </div>
+  </section>
+
+  {live_render(@conn, RegentsWeb.Patchbay.SiteCheckLive,
+    id: "pb-site-check-live",
+    session: Map.merge(RegentsWeb.Live.Session.render_context(@conn), @check_session)
+  )}
+</main>

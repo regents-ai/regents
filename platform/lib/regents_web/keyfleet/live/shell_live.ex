@@ -40,6 +40,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
     SearchLive,
     SeasonPanel,
     SeasonsLive,
+    ShareCard,
     SharedFigures,
     TreasuryLive,
     WorkspaceLive,
@@ -199,7 +200,8 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
         {:noreply,
          socket
          |> assign(route_spec: route_spec, load_failed?: true)
-         |> assign(PublicDocuments.page(route_spec, params))}
+         |> assign(PublicDocuments.page(route_spec, params))
+         |> assign(share_image: ShareCard.image(route_spec.destination))}
     end
   end
 
@@ -215,6 +217,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
        |> DmsLive.leave()
        |> assign(route_spec: route_spec)
        |> assign(PublicDocuments.page(route_spec, params))
+       |> assign(share_image: ShareCard.image(route_spec.destination))
        |> load_project(route_spec, params)
        |> read_class(params)
        |> follow_keys(keys_fleets(route_spec, params))

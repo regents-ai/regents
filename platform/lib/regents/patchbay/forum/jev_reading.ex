@@ -10,8 +10,7 @@ defmodule Regents.Patchbay.Forum.JevReading do
 
   One row stands for one report, and a report is read once.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  A post's thread reads its reading; Jev's writing it comes with Jev.
   """
 
   use Ash.Resource,
@@ -63,11 +62,14 @@ defmodule Regents.Patchbay.Forum.JevReading do
     belongs_to(:report, Regents.Patchbay.Forum.Report, allow_nil?: false, public?: true)
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
   policies do
-    policy always() do
-      forbid_if(always())
+    # A reading is as public as the report it is about.
+    policy action_type(:read) do
+      authorize_if(expr(report.visibility == :published))
     end
   end
 end

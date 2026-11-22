@@ -19,7 +19,10 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   (`RegentsWeb.Router` marks the pages that have it), so it keeps running
   while the visitor moves between pages; the page tells it where it is with
   "show_page". It takes the shell's own sign-in check and shows nothing the
-  page itself would not.
+  page itself would not. Each move to another fleet, or to every fleet, spends
+  one of the page's address's `keyfleet_sea_moves` (`Regents.Limits`, keyed by
+  the page's `client_tag`); past them the sea stays as it is drawn until the
+  allowance starts again. An address longer than any page's moves nothing.
 
   A fleet's ships are drawn from what every visitor who isn't a member sees
   alike, `RegentsWeb.Keyfleet.FleetNow` and `Regents.Keyfleet.Agents.Here`, read once for every
@@ -27,7 +30,9 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   member's ships are read as the visitor, since a member sees more (rooms
   other than the Public room, every item's title). Which ships are the visitor's own
   is read as the visitor, when the fleet comes on show and when its Keys
-  change hands.
+  change hands. Each read of a member's ships spends one of the page's
+  address's `keyfleet_sea_crew_reads`; past them the sea keeps the ships it
+  has until a notice about those fleets comes once the allowance starts again.
   """
 
   use RegentsWeb, :live_view
@@ -40,6 +45,7 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   alias Regents.Keyfleet.Keys
   alias Regents.Keyfleet.Proposals
   alias Regents.Keyfleet.Rooms
+  alias Regents.Limits
   alias Regents.SharedReading
 
   alias RegentsWeb.Endpoint
@@ -67,6 +73,9 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   @reread_after 1_000
   @spread 2_000
 
+  # The longest page address the sea reads, in bytes.
+  @longest_path 2_048
+
   @doc """
   The sea, as the root layout places it on the page `conn` draws. The page's
   live session is the page's own: its hooks watch navigation, which LiveView
@@ -86,19 +95,23 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   # `own` the visitor's Keys in each, under the account they were read for.
   # `public` holds each fleet's ships as anyone who isn't a member sees them,
   # `crew` the ships of the fleets the visitor is a member of, read as them.
-  # `due` is what the next read for the visitor must read again.
+  # `due` is what the next read for the visitor must read again, and
+  # `crew_again?` whether their ships are read again once the read under way
+  # lands.
   @impl true
-  def mount(params, session, socket) do
+  def mount(params, %{"client_tag" => client_tag} = session, socket) do
     case admit(params, session, socket) do
       {:cont, socket} ->
         {:ok,
          assign(socket,
+           client_tag: client_tag,
            path: nil,
            shown: nil,
            fleets: [],
            own: {nil, %{}},
            public: %{},
            crew: %Read{},
+           crew_again?: false,
            topics: [],
            watched: [],
            due: MapSet.new(),
@@ -115,20 +128,34 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   # again first. The hook also watches navigation, which this LiveView never
   # has and LiveView refuses to a LiveView the router did not mount, so the
   # sign-in is taken as if routed and the watch on navigation is taken off again.
+  # A sign-in found ended stops the sea's own callbacks there and then, so what
+  # was heard as the visitor is dropped as the page renders signed out
+  # (`unheard/1`).
   defp admit(params, session, socket) do
     case Session.on_mount(:load_human, params, session, %{socket | router: Router}) do
       {:cont, socket} ->
-        {:cont, %{detach_hook(socket, :session_authority_params, :handle_params) | router: nil}}
+        socket = %{detach_hook(socket, :session_authority_params, :handle_params) | router: nil}
+        {:cont, attach_hook(socket, :sea_unheard, :after_render, &unheard/1)}
 
       {:halt, socket} ->
         {:halt, %{socket | router: nil}}
     end
   end
 
+  # The fleets' topics the visitor heard as themselves, once their sign-in has
+  # ended: a signed-out visitor hears none.
+  defp unheard(%{assigns: %{signed_out_reason: :expired, topics: [_ | _] = topics}} = socket) do
+    Enum.each(topics, &Phoenix.PubSub.unsubscribe(Regents.PubSub, &1))
+    assign(socket, :topics, [])
+  end
+
+  defp unheard(socket), do: socket
+
   # The page on show, by its address. A new address closes the card; a new
   # fleet brings its ships.
   @impl true
-  def handle_event("show_page", %{"path" => path}, socket) when is_binary(path) do
+  def handle_event("show_page", %{"path" => path}, socket)
+      when is_binary(path) and byte_size(path) <= @longest_path do
     socket =
       if path == socket.assigns.path, do: socket, else: assign(socket, path: path, agent: nil)
 
@@ -143,7 +170,8 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
 
   def handle_event("close_agent", _params, socket), do: {:noreply, assign(socket, :agent, nil)}
 
-  # A page or ship sent without its address or name.
+  # A page or ship sent without its address or name, or a page's address
+  # longer than any page's.
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # A new reading of a fleet the visitor isn't a member of redraws its ships.
@@ -183,9 +211,16 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
 
   def handle_info(_notice, socket), do: {:noreply, socket}
 
+  # The visitor's ships land; when more was asked of them while they loaded,
+  # they are read once more.
   @impl true
-  def handle_async({Read, _name, _generation} = name, result, socket),
-    do: {:noreply, socket |> Read.settle(name, result) |> close_sailed()}
+  def handle_async({Read, :crew, _generation} = name, result, socket) do
+    socket = socket |> Read.settle(name, result) |> close_sailed()
+
+    if socket.assigns.crew_again?,
+      do: {:noreply, socket |> assign(:crew_again?, false) |> read_crew()},
+      else: {:noreply, socket}
+  end
 
   # The card of a Key that has sailed off the sea closes with it.
   defp close_sailed(%{assigns: %{agent: nil}} = socket), do: socket
@@ -198,9 +233,18 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
 
   defp show(%{assigns: %{shown: shown}} = socket, shown), do: socket
 
+  # A move to another fleet, or to every fleet, spends one of the page's
+  # address's moves; past them the sea stays as it is drawn.
+  defp show(socket, shown) do
+    case Limits.spend(:keyfleet_sea_moves, socket.assigns.client_tag) do
+      :ok -> bring(socket, shown)
+      :limited -> socket
+    end
+  end
+
   # The visitor's class and Keys in each fleet are read before anything is
   # heard, so a read that fails leaves the sea, and what it hears, as it was.
-  defp show(socket, shown) do
+  defp bring(socket, shown) do
     actor = ShellLive.human_actor(socket)
     fleets = Enum.map(fleets(shown), &{&1, Access.class(actor, &1)})
     own = Map.new(fleets, fn {fleet_id, _class} -> {fleet_id, owned(actor, fleet_id)} end)
@@ -364,32 +408,57 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   end
 
   # The ships of the fleets the visitor is a member of are read beside the
-  # page, as the visitor with the class already read, after listening to
-  # those fleets, so a change that lands while they load still reaches them.
-  defp read_crew(socket) do
-    actor = ShellLive.human_actor(socket)
+  # page, as the visitor, after listening to those fleets, so a change that
+  # lands while they load still reaches them. Each fleet's class is read again
+  # first, since the one held since it came on show may have lapsed: a fleet
+  # the visitor is no longer a member of is read as anyone sees it. A read
+  # that fails is logged by its kind only (`PageRead`), and the sea keeps the
+  # ships it has. One read runs at a time: asked again while one loads, they
+  # are read once more when it lands (`handle_async/3`). Each read spends one
+  # of the page's address's `keyfleet_sea_crew_reads` before it starts; past
+  # them nothing is read and the sea keeps the ships it has, until the next
+  # notice about those fleets asks again.
+  defp read_crew(%{assigns: %{crew: %Read{state: :loading}}} = socket),
+    do: assign(socket, :crew_again?, true)
 
+  defp read_crew(socket) do
     case for({fleet_id, :member} <- socket.assigns.fleets, do: fleet_id) do
       [] ->
         socket
 
       fleet_ids ->
-        Read.start(socket, :crew, reader(socket.assigns.access_context), fn ->
-          {:ok,
-           Map.new(fleet_ids, fn fleet_id ->
-             %{items: items} =
-               Activity.page(fleet_id, nil,
-                 actor: actor,
-                 context: Access.context(actor, fleet_id, :member)
-               )
+        case Limits.spend(:keyfleet_sea_crew_reads, socket.assigns.client_tag) do
+          :ok ->
+            Read.start(
+              socket,
+              :crew,
+              reader(socket.assigns.access_context),
+              crew(ShellLive.human_actor(socket), fleet_ids)
+            )
 
-             {agents, here_faces} = here(fleet_id)
-             faces = Keys.faces(fleet_id, HarbourCrew.keys(items))
-
-             {fleet_id, HarbourCrew.ships(fleet_id, items, agents, Map.merge(here_faces, faces))}
-           end)}
-        end)
+          :limited ->
+            socket
+        end
     end
+  end
+
+  # The read of the visitor's ships in `fleet_ids`.
+  defp crew(actor, fleet_ids),
+    do: fn -> PageRead.run("harbour", fn -> Map.new(fleet_ids, &crew_ships(actor, &1)) end) end
+
+  # One fleet's ships as the visitor sees them there, with their class read
+  # again.
+  defp crew_ships(actor, fleet_id) do
+    %{items: items} =
+      Activity.page(fleet_id, nil,
+        actor: actor,
+        context: Access.context(actor, fleet_id, Access.class(actor, fleet_id))
+      )
+
+    {agents, here_faces} = here(fleet_id)
+    faces = Keys.faces(fleet_id, HarbourCrew.keys(items))
+
+    {fleet_id, HarbourCrew.ships(fleet_id, items, agents, Map.merge(here_faces, faces))}
   end
 
   # The agents here in a fleet and who holds their Keys and writes as which, from the reading every
@@ -491,7 +560,7 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   The button beside a fleet's name that lifts the page away to show the city,
   handing focus to the bar's first button, which brings it back (`land/0`). A
   press on the margin around the fleet's panel does the same
-  (`assets/js/hooks/harbour_sea.ts`).
+  (`assets/js/keyfleet/hooks/harbour_sea.ts`).
 
   The page is lifted while the body has `data-sea-lifted`. An attribute is set
   at once, where a class waits for the next frame, so the button that takes

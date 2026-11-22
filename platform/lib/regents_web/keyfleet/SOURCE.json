@@ -3,12 +3,12 @@
   "commit": "03eb26813",
   "taken": "2026-11-21",
   "rules": "K2's naming rules plus the web side's: KeyfleetWeb.X is RegentsWeb.Keyfleet.X at the same path under platform/lib/regents_web/keyfleet/, the endpoint and router are the site's, use RegentsWeb.Keyfleet as slice 1 has it, addresses under /keyfleet. The difference report (the reviewer's script) compares each file with the source after the rules",
-  "reachable": "Slice 1's reading pages and guides, and since K3 (b) each of the five catalog fleets' own pages, signed out: its hall (:fleet), a Key (:keys), Seasons, Proposals, a proposal, Treasury, Polls, a poll and Search, under /keyfleet (the router reads RouteCatalog.entries/0). Every other carried page compiles but has no route yet: the workspace and its item, the three code pages, a project, the worldline and the atlas (they need the graph machine and the code store), and the DMs (signed in only)",
+  "reachable": "Slice 1's reading pages and guides, and since K3 (b) each of the five catalog fleets' own pages, signed out: its hall (:fleet), a Key (:keys), Seasons, Proposals, a proposal, Treasury, Polls, a poll and Search, under /keyfleet (the router reads RouteCatalog.entries/0), and since K5 the share pictures of Classic #1 and the Regents Club and of their projects, under /keyfleet/share (ShareCardController). Every other carried page compiles but has no route yet: the workspace and its item, the three code pages, a project, the worldline and the atlas (they need the graph machine and the code store), and the DMs (signed in only)",
   "files": [
     {
       "from": "platform/lib/keyfleet_web.ex",
       "to": "platform/lib/regents_web/keyfleet.ex",
-      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive, and since K3 (b) RouteCatalog, whose entries/0 the router's fleet routes read"
+      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive, and since K3 (b) RouteCatalog, whose entries/0 the router's fleet routes read, and since K5 ShareCardController, which the router's share picture routes name"
     },
     {
       "from": "platform/lib/keyfleet_web/activity_lines.ex",
@@ -114,8 +114,8 @@
       "from": "platform/lib/keyfleet_web/components/member_list.ex",
       "to": "platform/lib/regents_web/keyfleet/components/member_list.ex",
       "changes": [
-        "need: the read-only venue's login is granted only what pages show; the site has no list_shown_linked_identities!/1, so connections/1 reads Regents.Account.Accounts.PublicLink, the view regents_app.public_links, for the accounts in the list: each link's username, with its account and provider as its key, the three fields the source's read selected, of the links that name a username (the only ones the list shows), sorted by account then provider, so each account's links come in the same order; the linked accounts' table itself is never read (K3 c)",
-        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer, where the source's page number reading crashed on it (K3 b fixes)",
+        "need: the read-only venue's login is granted only what pages show; the site has no list_shown_linked_identities!/1, so connections/1 calls Regents.Account.Accounts.public_links_for_accounts!/1 (PublicLink's for_accounts read, the regents chief's, over the view regents_app.public_links, up to 100 accounts; a page of the list holds 20) for the accounts in the list: each link's username, with its account and provider as its key, the three fields the source's read selected, of the links that name a username (the only ones the list shows), sorted by account then provider, so each account's links come in the same order; the linked accounts' table itself is never read (K3 c; the call since one-site b3131034)",
+        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer (K3 b fixes)",
         "need: the read-only venue's login is granted only what pages show; the accounts are read with query: [select: [:wallet_address]] beside their display_name and ens_name, so a person's sign-in id is read only as the shared profile name's key, and no other wallet, World ID, picture or time (K3 c)"
       ]
     },
@@ -154,7 +154,7 @@
         "need: the Agents page it named (agents_panel.ex) is the site's now; the moduledoc names the variant by its attribute",
         "need: the check-in words came from pairing_box.ex (not carried); they are kept here, word for word, as @check_in",
         "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
-        "the regents chief's review of K3 (b): put_away/1 keeps only the catalog's fleets from the cookie, each once, for the page as it is requested and for the press alike, where the source's kept every id the cookie held (K3 b fixes)"
+        "the regents chief's review of K3 (b): put_away/1 keeps only the catalog's fleets from the cookie, each once, for the page as it is requested and for the press alike (K3 b fixes)"
       ]
     },
     {
@@ -264,7 +264,7 @@
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)",
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
         "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
-        "the regents chief's review of K3 (b): the Search box shows the address's words only when they are text, and is otherwise empty as for an empty search, where the source's page crashed drawing them (K3 b fixes)"
+        "the regents chief's review of K3 (b): the Search box shows the address's words only when they are text, and is otherwise empty as for an empty search (K3 b fixes)"
       ]
     },
     {
@@ -277,14 +277,20 @@
       "to": "platform/lib/regents_web/keyfleet/live/harbour_sea_live.ex",
       "changes": [
         "need: Keyfleet's launch gate (plugs/launch_gate.ex) is not carried; the site's own (RegentsWeb.Plugs.LaunchGate) closes every /keyfleet page while closed, so here the open state stands, as slice 1 has every row open",
-        "need: the site has no PublicIdentity.short_wallet/1; PublicIdentity.label(%{wallet_address: owner}) stands in, as the Keyfleet chief ruled (decision a). The one case that differs: a text that is not an address prints as itself where the source printed \"Account\" (label/1 hands it to RegentFormat.short_address/1, which passes a non-address through); an address and nil print the same (0x6f89..2b07; Account). The owner drawn here is a stored lowercase address, and the line is not drawn when it is nil. Proof: /tmp/kf-chief/k3/label_proof.txt"
+        "need: the site has no PublicIdentity.short_wallet/1; PublicIdentity.label(%{wallet_address: owner}) stands in, as the Keyfleet chief ruled (decision a). An address prints shortened (0x6f89..2b07), nil prints \"Account\", and a text that is not an address prints as itself (label/1 hands it to RegentFormat.short_address/1, which passes a non-address through). The owner drawn here is a stored lowercase address, and the line is not drawn when it is nil. Proof: /tmp/kf-chief/k3/label_proof.txt",
+        "the regents chief's read of the sea (K4): show_page reads an address of at most 2,048 bytes, and a longer one moves nothing; each move to another fleet, or to every fleet, spends one of the page's address's keyfleet_sea_moves (Regents.Limits, 45 a minute, keyed by the page's client_tag, which the sea now keeps from its session), and past them the sea stays as it is drawn; one read of the visitor's ships runs at a time, and one asked for while another loads runs once when it lands",
+        "the regents chief's read of the sea (K4): the read of the visitor's ships reads each fleet's class again first and reads a fleet the visitor is no longer a member of as anyone sees it",
+        "the regents chief's read of the sea (K4): the read of the visitor's ships runs inside RegentsWeb.Keyfleet.PageRead.run(\"harbour\", …), so a failed database read is logged by its kind and the database's code only and saved with the site's errors, and the sea keeps the ships it has",
+        "the regents chief's read of the sea (K4): an after-render hook (unheard/1) stops hearing every fleet topic the visitor heard as themselves once the shell's sign-in check finds the sign-in ended (signed_out_reason :expired)",
+        "the regents chief's ruling on K4: each read of a member's ships spends one of the page's address's keyfleet_sea_crew_reads (Regents.Limits, 180 a minute, keyed by the page's client_tag) before it starts; past them nothing is read, the sea keeps the ships it has and does not ask again by itself, and the next notice about those fleets asks again (K5)",
+        "lift/1's doc names where the sea's hook is here, assets/js/keyfleet/hooks/harbour_sea.ts (K4)"
       ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/key_map.ex",
       "to": "platform/lib/regents_web/keyfleet/live/key_map.ex",
       "changes": [
-        "the regents chief's review of K3 (b): the map's search words longer than the fleet's search takes (Regents.Keyfleet.Search.max_query/0, 200 characters) are answered as words it can't read, where the source's read them at any length; an ask for close-ups naming more than 100 Keys is answered with none, as in the source (K3 b fixes)"
+        "the regents chief's review of K3 (b): the map's search words longer than the fleet's search takes (Regents.Keyfleet.Search.max_query/0, 200 characters) are answered as words it can't read; an ask for close-ups naming more than 100 Keys is answered with none, as in the source (K3 b fixes)"
       ]
     },
     {
@@ -294,7 +300,9 @@
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
         "a shard lent to a wallet no agent has signed in with drew its row and the row's address under one id; the address's is its own here, so the page's ids stay unique (K3 b)",
         "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
-        "the regents chief's review of K3 (b): an agent's registry listing is drawn as a link only at an https address with a host, and is otherwise left out, as a listing not given is, where the source's linked any value (K3 b fixes)"
+        "the regents chief's review of K3 (b): an agent's registry listing is drawn as a link only at an https address with a host, and is otherwise left out, as a listing not given is (K3 b fixes)",
+        "the regents chief's ruling on K4: each read of the chain the Key window starts, its rewards when the 30 second keep does not answer them and its slice, spends one of the page's address's keyfleet_wallet_reads before it starts, once the page is connected (its first, unconnected render reads nothing and spends nothing); past them that box reads nothing and shows it isn't showing right now, as when the chain does not answer, and rewards the keep answers spend nothing (K5)",
+        "the Keyfleet chief's answer on K5 (B): the slice has no keep, so every opening of the Key window once its page is connected reads the slice and spends one of keyfleet_wallet_reads, a second opening inside 30 s included (K5)"
       ]
     },
     {
@@ -344,7 +352,7 @@
       "from": "platform/lib/keyfleet_web/live/search_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/search_live.ex",
       "changes": [
-        "the regents chief's review of K3 (b): every search the open page runs after the visit's own request, each Show more too, spends one of its address's keyfleet_searches (Regents.Limits, 60 a minute, keyed by the page's client_tag; the visit's own request is counted with the address's reads of the site), and past them nothing is searched and the search shows the page's own couldn't-be-loaded state (LoadFailed), where the source had no bound of its own; a known bound, as in the source: Show more keeps every match read in the page's memory (measured in the lab on made-up matches of each kind, as the throwaway database holds none: about 1 KiB a match), accepted while a fleet's searches find few, and to be changed to a stream before one search's list can hold 1,000 matches; the moduledoc says so (K3 b fixes)"
+        "the regents chief's review of K3 (b): every search the open page runs after the visit's own request, each Show more too, spends one of its address's keyfleet_searches (Regents.Limits, 60 a minute, keyed by the page's client_tag; the visit's own request is counted with the address's reads of the site), and past them nothing is searched and the search shows the page's own couldn't-be-loaded state (LoadFailed); a known bound, as in the source: Show more keeps every match read in the page's memory (measured in the lab on made-up matches of each kind, as the throwaway database holds none: about 1 KiB a match), accepted while a fleet's searches find few, and to be changed to a stream before one search's list can hold 1,000 matches; the moduledoc says so (K3 b fixes)"
       ]
     },
     {
@@ -369,14 +377,15 @@
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the source's second mount drew again a page whose token predated client_key and schedule_put_away (an old shape); the site's tokens carry this page's context from the first",
         "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands",
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the lineage it assigned is the site's session_lease.lineage",
-        "need: the site's hook (RegentsWeb.Live.Session) passes {:ens_lookup_finished, account_id} on to the page after reading the account again, where the source's hook kept it, so the page answers it with nothing to change, as the site's own ShellLive does; without it a signed-in page crashes when the person's ENS lookup finishes",
+        "need: the site's hook (RegentsWeb.Live.Session) passes {:ens_lookup_finished, account_id} on to the page after reading the account again, and the page answers it with nothing to change, as the site's own ShellLive does",
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
         "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change",
         "the regents chief's review of the carry (K3 a findings, hand-made events): open_notebooks, get_code_password and every workspace press reach their handlers only with a workspace on show; from any other page they fall to the press no page sends, which changes nothing (K3 b)",
-        "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing, where the source's split it and the page crashed (K3 b)",
+        "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing (K3 b)",
         "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
         "the regents chief's review of K3 (b): the page keeps the client_tag its render was signed with (RegentsWeb.Live.Session.render_context/1), and gives it beside its session_lease to each page that holds a wallet panel (K3 b fixes)",
-        "the regents chief's review of K3 (b): a visitor's presses of the Treasury's refresh are counted by the page's client address ({:address, client_tag}) where the source's counted them by visit, so a reload does not start the 30 seconds again; a signed-in person's stay counted by account (K3 b fixes)"
+        "the regents chief's review of K3 (b): a visitor's presses of the Treasury's refresh are counted by the page's client address ({:address, client_tag}), so a reload does not start the 30 seconds again; a signed-in person's stay counted by account (K3 b fixes)",
+        "need: each page assigns share_image, its share picture as ShareCard.image/1 gives it for the page's address, which the site's root document names in the page's head; keyfleet.ai's root document asked ShareCard for it itself (K5)"
       ]
     },
     {
@@ -445,7 +454,7 @@
       "changes": [
         "need: Keyfleet's home (\"/\") is not here (/keyfleet is the site's product page, as slice 1 rules); its entry and spec go",
         "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go",
-        "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands"
+        "need: the notebook opening's route is not here yet, so its address is a plain path through Keyfleet's route catalog (notebooks_path/1), to be put back as ~p when its route lands; since K5 the share pictures' addresses are ShareCard's ~p again"
       ]
     },
     {
@@ -464,8 +473,34 @@
       "from": "platform/lib/keyfleet_web/share_card.ex",
       "to": "platform/lib/regents_web/keyfleet/share_card.ex",
       "changes": [
-        "need: Keyfleet's other files are under priv/keyfleet/ here (the port rules' place for a product's files); layout.json is brought byte for byte to priv/keyfleet/share/layout.json, as K2 brought classic_key_prices.txt, because ShareCard reads it at compile time; the pictures beside it come with the share pictures' route",
-        "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands (the share pictures' controller is not carried; /keyfleet/share/... is where Keyfleet's scope puts it)"
+        "need: Keyfleet's other files are under priv/keyfleet/ here (the port rules' place for a product's files); layout.json is brought byte for byte to priv/keyfleet/share/layout.json, as K2 brought classic_key_prices.txt, because ShareCard reads it at compile time; the eight pictures beside it are brought byte for byte too, with the share pictures' route (platform/priv/share/, below; K5)",
+        "the Keyfleet chief's answer on K5 (2b): the script that draws the files in priv/keyfleet/share stays in keyfleet.ai; the moduledoc and share_file/1's comment say so and name no script here (K5)",
+        "need: the share pictures' addresses are the source's, url(~p\"/keyfleet/share/...?v=...\"), whole on this site's own address, under /keyfleet where the site's router serves them (ShareCardController, K5)",
+        "need: this site has no /images/keyfleet-share.png, so image/1 gives nil for a page without a picture of its own, and the site's root document names the site's own picture for it; image/1 gives the root document's share_image, its address, size (1200 by 630) and alt, which ShellLive assigns (K5)"
+      ]
+    },
+    {
+      "from": "platform/priv/share/ (all but layout.json, which is above)",
+      "to": "platform/priv/keyfleet/share/",
+      "changes": [
+        "the Keyfleet chief's answer on K5 (1a): the pictures ShareCard draws on, brought byte for byte, each written from 03eb26813's git object (git show 03eb26813:platform/priv/share/<file>); eight files, 316,012 bytes (K5)",
+        "fleet_tech_classic.png: 56,136 bytes, SHA-256 12662f28511e85261b0929e3330155727c9ddfdb8ebc72eef278c12defe293ab",
+        "regents_club.png: 60,286 bytes, SHA-256 2b5cb7847b0dea45be4b4cbc92ab9cf1d67e819577b2588c68ccd3aca85c5c45",
+        "project_fleet_tech_classic.png: 59,815 bytes, SHA-256 5284dccb5a0bb007b47b9795abf9c74fb91ff9ecc0a1724d68a312836f0989ac",
+        "project_regents_club.png: 62,937 bytes, SHA-256 f9ced327fb229cadcdfd8c5064aec5c0e027399d30381996571e349616dc939c",
+        "glyphs-amount.png: 13,610 bytes, SHA-256 7a68da3e6d06d6f955cbbb1ea1e14bc7fdc3ef4071b3f1296e39db868dcb746e",
+        "glyphs-name.png: 10,884 bytes, SHA-256 a475df702481b5e66d264c95043b332fd540c700f406a2c4c19a2b79bddace9c",
+        "glyphs-title.png: 41,044 bytes, SHA-256 04b4d501509c72c5a74bb023f583259086251c591107e07519f0b7db4a979715",
+        "glyphs-value.png: 11,300 bytes, SHA-256 a492acccc88b65223804d66cdbf8e3e78bd9200be885d10828757956bb59f773",
+        "layout.json is not brought again: the fold's is the same git object (ae09eade) and byte for byte the same, 12,658 bytes, SHA-256 3b1b5fd5c268367fc8fbc5259879dff0759407ace93977208d301eb1dc2d7747"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/controllers/share_card_controller.ex",
+      "to": "platform/lib/regents_web/keyfleet/controllers/share_card_controller.ex",
+      "changes": [
+        "the naming rules, the addresses in the moduledoc under /keyfleet (K5)",
+        "need: the moduledoc names the share these addresses spend, keyfleet_share_pictures, 60 a minute an address, which the endpoint (RegentsWeb.Endpoint, the regents chief's) spends before anything is read and refuses past with its 429; every answer and header as carried (K5)"
       ]
     },
     {
@@ -477,6 +512,14 @@
       "from": "platform/lib/keyfleet_web/shared_figures.ex",
       "to": "platform/lib/regents_web/keyfleet/shared_figures.ex",
       "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet/application.ex (fleet_now_child/0 and fleet_proposals_child/0)",
+      "to": "platform/lib/regents_web/keyfleet/supervisor.ex",
+      "changes": [
+        "written here (K4): keyfleet.ai's application started FleetNow and FleetProposals itself, each only where pages are served; here one supervisor of Keyfleet's own, RegentsWeb.Keyfleet.Supervisor, holds both, so the site's application names one module and makes the one decision where pages are served (Regents.Application, the regents chief's file)",
+        "written here (K5): keyfleet.ai's application started RegentsWeb.Keyfleet.SharePictures (its KeyfleetWeb.SharePictures) too; here this supervisor holds it, first, beside the readings its pictures are drawn from, where pages and so the share pictures' route are served; its config is keyfleet.ai's (config.exs, gc_interval ten minutes, max_size 64)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/telemetry.ex (wallet_failed/2 and its reasons only)",
@@ -499,8 +542,11 @@
       "from": "platform/lib/keyfleet_web/wallet/wallet_panel.ex",
       "to": "platform/lib/regents_web/keyfleet/wallet/wallet_panel.ex",
       "changes": [
-        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer, where the source read without a bound of its own; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)",
-        "the regents chief's review of K3 (b): Check again reads the step named only when it is named as text, and any other value changes nothing, where the source's read it as given (K3 b fixes)"
+        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)",
+        "the regents chief's review of K3 (b): Check again reads the step named only when it is named as text, and any other value changes nothing (K3 b fixes)",
+        "the regents chief's ruling on K4: a panel's first figures read once its page is connected spends one of the page's address's keyfleet_wallet_reads, as a changed form's or the open wallet's does; the unconnected first render reads nothing and spends nothing (K5)",
+        "the regents chief's ruling on K4: every read the panel starts again by itself on its own timer spends one of keyfleet_wallet_reads too: 10 seconds after figures it could not read, whatever the cause, 15 seconds while a button is held back, and Buy's every 5 minutes; turned away, it waits and counts again. A rebuild the page causes (a landed step, a changed refresh), the account changing under the lease and every press stay uncounted (K5)",
+        "the Keyfleet chief's answer on K5 (4b): the page's report of the open wallet, when it names the wallet the panel already holds (none included), starts no read and spends nothing; a report of another wallet is taken and its figures read once, counted (K5)"
       ]
     },
     {
@@ -570,7 +616,7 @@
       "replaced_by": "the site's own; no carried page calls one"
     },
     {
-      "source": "controllers/notebook_open_controller.ex, controllers/notebook_open_html.ex, controllers/share_card_controller.ex",
+      "source": "controllers/notebook_open_controller.ex, controllers/notebook_open_html.ex",
       "replaced_by": "not carried: their routes are not here; the pages build their addresses as plain paths through RouteCatalog (plain_paths)"
     },
     {
@@ -583,16 +629,6 @@
       "function": "RouteCatalog.notebooks_path/1",
       "address": "/keyfleet/fleets/:fleet_id/notebooks/open?to=/",
       "put_back_as": "the source's ~p\"/fleets/#{fleet_id}/notebooks/open?#{[to: \"/\"]}\" (ShellLive's open_notebooks press)"
-    },
-    {
-      "function": "RouteCatalog.fleet_picture_path/1",
-      "address": "/keyfleet/share/:fleet_id.png",
-      "put_back_as": "the source's ~p\"/share/#{file}\" (ShareCard)"
-    },
-    {
-      "function": "RouteCatalog.project_picture_path/2",
-      "address": "/keyfleet/share/projects/:fleet_id/:name.png",
-      "put_back_as": "the source's ~p\"/share/projects/#{fleet_id}/#{file}\" (ShareCard)"
     }
   ],
   "policy_sources": [
@@ -637,13 +673,10 @@
   "left_for_later": [
     "Routes for the rest of the fleet pages: the workspace and its item, the three code pages, a project, the worldline and the atlas (the graph machine and the code store), and the DMs (signed in only). The routed pages' links to them keep their addresses under /keyfleet, which answer the site's not-found page until those routes land",
     "The sea (HarbourSeaLive.sea/1) is not placed by the site's root layout",
-    "ShareCard.image/2 is not wired: the site's root document reads share_image",
     "The header's Buy Key offer goes with Keyfleet's header (the site's bar has no place for it); the Buy Key window and the fleet pages' Buy Key stay. A request for the next slice",
     "The Schedule card's page: :agents variant has no caller here (the Agents page it sat on is the site's)",
-    "Settings the carried pages read that config does not set: :regents, :keyfleet_first_read_ms (the shared readings' first read, set with them)",
     "The design handoff (RouteCatalog.design_handoff/0) is kept; its caller, the mix task keyfleet.route_handoff, is not carried",
-    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below",
-    "The shared readings the routed pages wait on are not started (a stop of K3 b, the regents chief's): FleetNow and FleetProposals here, and Agents.Here (the core's not_started). Until they are, a fleet's hall, Proposals, a proposal and Treasury show \"This page couldn't be loaded\""
+    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below"
   ],
   "not_reached": {
     "why": "no carried page reaches them (the walk of the Keyfleet chief's measure, reach.py, which never enters a file not carried): the agents' API and tools, the JSON and agent controllers, plugs and gateways, OAuth, the early page, health, metrics and vitals, the showcase and admin pages; each comes with its own slice or is the site's",

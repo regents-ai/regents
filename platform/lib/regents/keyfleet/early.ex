@@ -6,8 +6,6 @@ defmodule Regents.Keyfleet.Early do
   use Ash.Domain
 
   resources do
-    resource Regents.Keyfleet.Early.Signup do
-      define :sign_up, action: :sign_up, args: [:email]
-    end
+    resource Regents.Keyfleet.Early.Signup
   end
 end

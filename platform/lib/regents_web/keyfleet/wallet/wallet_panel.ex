@@ -40,10 +40,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       (the page's `session_lease`, which each of the panel's events and
       results checks first, taking the account as it reads now:
       `RegentsWeb.Live.Session.check_component_lease/2`) and `client_tag`
-      (the page's: each figures read a changed form or the open wallet
-      starts spends one of its address's `keyfleet_wallet_reads`, and past
-      them the panel shows it could not read its figures, as when the chain
-      does not answer; no press is counted);
+      (the page's: the panel's first figures read once it is mounted, each
+      one a changed form or a change of open wallet starts, and each one the panel
+      starts again by itself, after figures it could not read, while a
+      button is held back and Buy's every few minutes, spends one of its
+      address's `keyfleet_wallet_reads`, and past them the panel shows it
+      could not read its figures, as when the chain does not answer, and
+      tries again, counted; a rebuild the page itself causes and the account
+      changing are not counted, and no press is);
     * `inputs`, each field the steps read with its first value; `proposal`,
       `token_id` or `advance_id` when the flow acts on one; `refresh`, anything whose
       change means the steps are built again; `names_sender`, false where
@@ -83,7 +87,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # A purchase is good for ten minutes from the block it was built at, so
   # the steps are built again well before that.
   @rebuild_buy_ms 300_000
-  # How soon a group whose figures couldn't be read from the chain tries again.
+  # How soon a group whose figures couldn't be read tries again.
   @reread_ms 10_000
   # How soon a group with a button the chain's state holds back reads it again.
   @blocked_ms 15_000
@@ -202,15 +206,23 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   end
 
   @impl true
-  # The group's own timer: only the latest one builds the steps again.
+  # The group's own timer: only the latest one builds the steps again, and
+  # its read is counted, whatever it follows.
   def update(%{rebuild: timer}, socket) do
-    {:ok, if(timer == socket.assigns.rebuild, do: sync(socket), else: socket)}
+    {:ok, if(timer == socket.assigns.rebuild, do: sync(socket, :counted), else: socket)}
   end
 
   def update(assigns, socket) do
     changed? = &(Map.get(assigns, &1) != Map.get(socket.assigns, &1))
     moved? = Enum.any?([:actor, :fleet, :proposal, :token_id, :advance_id], changed?)
     rebuild? = moved? or changed?.(:refresh)
+    # The page gives `fleet` on every render, so a group without one has just
+    # mounted. Once the page is connected, when a read can start, that first
+    # read is counted, since one page mounts many groups.
+    spend =
+      if connected?(socket) and not Map.has_key?(socket.assigns, :fleet),
+        do: :counted,
+        else: :uncounted
 
     # What was typed stays; a field the page gives later starts from the
     # value it gives.
@@ -218,12 +230,19 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     socket = socket |> assign(Map.delete(assigns, :inputs)) |> assign(inputs: inputs)
     socket = if moved?, do: drop_built(socket), else: socket
 
-    {:ok, if(rebuild?, do: sync(socket), else: socket)}
+    {:ok, if(rebuild?, do: sync(socket, spend), else: socket)}
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket),
-    do: {:noreply, socket |> take_active(params) |> sync(:counted)}
+  # The page reports the open wallet whenever Privy's state moves. The wallet
+  # the group already holds, none included, starts no read and spends
+  # nothing; another one is taken and its figures read, counted.
+  def handle_event("onchain_active_wallet", params, %{assigns: %{active: held}} = socket) do
+    case OnchainSteps.active_wallet(params) do
+      ^held -> {:noreply, socket}
+      _other -> {:noreply, socket |> take_active(params) |> sync(:counted)}
+    end
+  end
 
   def handle_event("change", params, socket),
     do: {:noreply, socket |> take_inputs(params) |> sync(:counted)}
@@ -250,12 +269,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # they are. What is sent from them is followed as any other press, and a
   # proposal's words are saved as its steps are handed over. A refusal is
   # counted and goes only in the reply: the note below the buttons speaks for
-  # the person's own presses.
+  # the person's own presses. Over the address's wallet-read allowance, a press
+  # for the wallet and form already built reuses those steps; a press is never
+  # refused for rate.
   def handle_event("prepare_for_agent", %{"form" => form, "step" => step} = params, socket)
       when is_map(form) and is_binary(step) do
     {socket, wallet} = socket |> take_active(params) |> follow_signer()
     inputs = over(socket.assigns.inputs, form)
-    built = if wallet, do: build_steps!(request(socket, wallet, inputs))
+    built = build_for_press(socket, wallet, inputs)
     pressed = %{socket.assigns | inputs: inputs, built: built, review: sendable(built, socket)}
 
     case refusal(socket, pressed, step) do
@@ -432,7 +453,8 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # The steps follow the wallet that may send them and the form. The figures
   # are built for that wallet, or for the account's own while another is
   # active; the page is given steps only for the wallet that may send them.
-  # A read the page's changed form or open wallet starts is `:counted`.
+  # A group's first read, one the page's changed form or open wallet starts,
+  # and one its own timer starts, is `:counted`.
   defp sync(socket, spend \\ :uncounted) do
     {socket, figures_wallet} = follow_signer(socket)
     build(socket, figures_wallet, spend)
@@ -440,18 +462,43 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   # As `sync/1`, but built before it returns. A build still being read lands
   # later with the same steps, and the page keeps every review a press was
-  # sent from.
+  # sent from. Signed-out reads share `keyfleet_wallet_reads`; for a signed-in
+  # press over the rate, the last built steps for this wallet are reused so no
+  # press is refused.
   defp sync_now(socket) do
-    {socket, figures_wallet} = follow_signer(socket)
-
-    if figures_wallet do
-      socket
-      |> assign(shown: figures_wallet)
-      |> show(build_steps!(request(socket, figures_wallet, socket.assigns.inputs)))
-    else
-      build(socket, nil, :uncounted)
+    case follow_signer(socket) do
+      {socket, nil} -> build(socket, nil, :counted)
+      {socket, wallet} -> sync_now_for_wallet(socket, wallet)
     end
   end
+
+  defp sync_now_for_wallet(socket, wallet) do
+    if Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) == :limited and
+         reusable_built?(socket.assigns, wallet) do
+      socket
+    else
+      socket
+      |> assign(shown: wallet)
+      |> show(build_steps!(request(socket, wallet, socket.assigns.inputs)))
+    end
+  end
+
+  defp build_for_press(_socket, nil, _inputs), do: nil
+
+  defp build_for_press(socket, wallet, inputs) do
+    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
+      :ok ->
+        build_steps!(request(socket, wallet, inputs))
+
+      :limited ->
+        if reusable_built?(socket.assigns, wallet) and inputs == socket.assigns.inputs,
+          do: socket.assigns.built,
+          else: build_steps!(request(socket, wallet, inputs))
+    end
+  end
+
+  defp reusable_built?(%{built: %{review: %{signer: wallet}}, shown: wallet}, wallet), do: true
+  defp reusable_built?(_assigns, _wallet), do: false
 
   defp follow_signer(socket) do
     linked = linked(socket)

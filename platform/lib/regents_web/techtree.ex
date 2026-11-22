@@ -33,6 +33,8 @@ defmodule RegentsWeb.Techtree do
       ProjectPackageController,
       ProjectsLive,
       PublicationController,
+      PublicationKeyController,
+      PublicationRate,
       PublicDocuments,
       PublicPagesController,
       PublishedSkillController,
@@ -46,6 +48,7 @@ defmodule RegentsWeb.Techtree do
       WalletBenchController,
       WalletBenchEvidenceController,
       WalletBenchLive.Index,
-      WalletBenchLive.Show
+      WalletBenchLive.Show,
+      WatchdogLive
     ]
 end
