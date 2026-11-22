@@ -18,6 +18,8 @@ defmodule RegentsWeb.Keyfleet.Supervisor do
   def init(nil) do
     Supervisor.init(
       [
+        RegentsWeb.Keyfleet.AgentWaits,
+        RegentsWeb.Keyfleet.FeedController,
         RegentsWeb.Keyfleet.SharePictures,
         RegentsWeb.Keyfleet.FleetNow,
         RegentsWeb.Keyfleet.FleetProposals

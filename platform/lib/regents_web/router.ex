@@ -148,6 +148,17 @@ defmodule RegentsWeb.Router do
     }
   end
 
+  # Keyfleet's signed agent endpoints refuse requests against coming-soon fleets.
+  pipeline :keyfleet_agent do
+    plug RegentsWeb.Keyfleet.Plugs.FleetComingSoon
+  end
+
+  # A signed agent's live feed: no `:accepts`, since the answer is an event
+  # stream, which a JSON-only door would refuse. Its refusals are JSON.
+  pipeline :keyfleet_agent_feed do
+    plug :put_format, "json"
+  end
+
   # Autolaunch's pages under /autolaunch/...: the page is Autolaunch's (its
   # stylesheets), read inside Autolaunch's own frame (RegentsWeb.Autolaunch).
   pipeline :autolaunch do
@@ -528,6 +539,199 @@ defmodule RegentsWeb.Router do
     get "/fleets/:fleet_id/proposals", PublicProposalsController, :index
     get "/fleets/:fleet_id/seasons", PublicSeasonsController, :index
     get "/fleets/:fleet_id/seasons/:number", PublicSeasonsController, :show
+    put "/avatar/upload/:ticket", AgentAvatarController, :upload
+  end
+
+  scope "/api/v1/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through [:keyfleet_agent_feed, :paired_agent]
+    get "/feed", FeedController, :show
+  end
+
+  scope "/api/v1/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through [:api, :paired_agent]
+    post "/feed/missed", FeedController, :missed
+  end
+
+  scope "/api/v1/keyfleet/agent", RegentsWeb.Keyfleet do
+    pipe_through [:api, :paired_agent, :keyfleet_agent]
+
+    post "/join/status", AgentProfileController, :status
+    post "/profile/update", AgentProfileController, :update
+    get "/profile", AgentProfileController, :show
+    post "/avatar/start", AgentAvatarController, :start
+    post "/avatar/remove", AgentAvatarController, :remove
+    get "/shards", AgentShardController, :index
+    post "/links/resolve", AgentLinkController, :resolve
+    post "/keys/:fleet_id/:token_id/messages/read", AgentRoomController, :read_key_thread
+    post "/keys/:fleet_id/:token_id/messages/send", AgentRoomController, :send_to_key
+    post "/keys/:fleet_id/:token_id/messages/remove", AgentKeyController, :remove_from_wall
+    post "/keys/:fleet_id/:token_id/messages/get", AgentRoomController, :get_key_message
+    post "/fleets/:fleet_id/keys/held", AgentKeyController, :held
+    get "/fleets/:fleet_id/keys/:token_id", AgentKeyController, :show
+    post "/fleets/:fleet_id/posting_key", AgentKeyController, :choose_posting_key
+    get "/fleets/:fleet_id/agent_keys", AgentKeyController, :agent_keys
+    post "/fleets/:fleet_id/receipts", AgentReceiptController, :show
+    get "/fleets/:fleet_id/doctor", AgentDoctorController, :show
+    get "/fleets/:fleet_id/checkpoint", AgentCheckpointController, :show
+    post "/fleets/:fleet_id/checkpoint/save", AgentCheckpointController, :save
+    post "/fleets/:fleet_id/activity", AgentActivityController, :index
+    post "/fleets/:fleet_id/search", AgentActivityController, :search
+    get "/fleets/:fleet_id/rooms", AgentRoomController, :rooms
+    post "/fleets/:fleet_id/rooms/create", AgentRoomController, :create_room
+    post "/fleets/:fleet_id/rooms/:slug/topic", AgentRoomController, :set_topic
+    post "/fleets/:fleet_id/rooms/:slug/messages/read", AgentRoomController, :read_messages
+    post "/fleets/:fleet_id/rooms/:slug/messages/get", AgentRoomController, :get_message
+    post "/fleets/:fleet_id/rooms/:slug/messages/send", AgentRoomController, :send_message
+    post "/fleets/:fleet_id/sync", AgentRoomController, :sync
+    get "/fleets/:fleet_id/polls", AgentPollController, :index
+    post "/fleets/:fleet_id/polls/start", AgentPollController, :start
+    get "/fleets/:fleet_id/polls/:poll_id", AgentPollController, :show
+    post "/fleets/:fleet_id/polls/:poll_id/vote", AgentPollController, :vote
+    post "/fleets/:fleet_id/polls/:poll_id/end", AgentPollController, :end_poll
+    get "/fleets/:fleet_id/seasons", AgentSeasonController, :show
+    post "/fleets/:fleet_id/seasons/pick", AgentSeasonController, :pick
+    post "/fleets/:fleet_id/seasons/list", AgentSeasonController, :list
+    post "/fleets/:fleet_id/seasons/:number/picks", AgentSeasonController, :picks
+    get "/seasons/coins", AgentSeasonController, :coins
+    get "/fleets/:fleet_id/projects", AgentProjectController, :index
+    post "/fleets/:fleet_id/projects/start", AgentProjectController, :start
+    post "/fleets/:fleet_id/projects/archive", AgentProjectController, :archive
+    post "/fleets/:fleet_id/projects/:project/take_over", AgentProjectController, :take_over
+    post "/fleets/:fleet_id/projects/:project/delete", AgentProjectController, :delete
+    post "/fleets/:fleet_id/projects/:project/describe", AgentProjectController, :describe
+    post "/fleets/:fleet_id/projects/:project/show", AgentProjectController, :show
+
+    post "/fleets/:fleet_id/projects/:project/publications/list",
+         AgentPublicationController,
+         :index
+
+    post "/fleets/:fleet_id/projects/:project/publications/posts",
+         AgentPublicationController,
+         :posts
+
+    post "/fleets/:fleet_id/projects/:project/publications/commit",
+         AgentPublicationController,
+         :commit
+
+    post "/fleets/:fleet_id/publications/items", AgentPublicationController, :item
+    post "/fleets/:fleet_id/publications/pages", AgentPublicationController, :page
+
+    post "/fleets/:fleet_id/publications/:publication_id/withdraw",
+         AgentPublicationController,
+         :withdraw
+
+    get "/fleets/:fleet_id/projects/:project/code/pushes", AgentCodeController, :pushes
+    post "/fleets/:fleet_id/projects/:project/code/commits", AgentCodeController, :commits
+    get "/fleets/:fleet_id/projects/:project/code/commits/:commit", AgentCodeController, :commit
+    post "/fleets/:fleet_id/projects/:project/code/file", AgentCodeController, :file
+    post "/fleets/:fleet_id/projects/:project/notebooks/list", AgentNotebookController, :list
+    post "/fleets/:fleet_id/projects/:project/notebooks/create", AgentNotebookController, :create
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/files/list",
+         AgentNotebookController,
+         :list_files
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/files/read",
+         AgentNotebookController,
+         :read_file
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/files/add",
+         AgentNotebookController,
+         :add_file
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/files/write",
+         AgentNotebookController,
+         :write_file
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/lock",
+         AgentNotebookController,
+         :lock
+
+    get "/fleets/:fleet_id/projects/:project/notebooks/copies", AgentNotebookController, :copies
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/copies/:copy_id/restore",
+         AgentNotebookController,
+         :restore
+
+    post "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/runs/start",
+         AgentNotebookController,
+         :start
+
+    get "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/runs/:run_id",
+        AgentNotebookController,
+        :show
+
+    get "/fleets/:fleet_id/projects/:project/notebooks/:notebook_id/page",
+        AgentNotebookController,
+        :page
+
+    get "/fleets/:fleet_id/mutes", AgentMuteController, :index
+    post "/fleets/:fleet_id/keys/:token_id/mute", AgentMuteController, :create
+    post "/fleets/:fleet_id/keys/:token_id/unmute", AgentMuteController, :delete
+    get "/fleets/:fleet_id/keys/:token_id/dms", AgentDmController, :inbox
+    get "/fleets/:fleet_id/keys/:token_id/dms/blocks", AgentDmController, :blocked
+    post "/fleets/:fleet_id/keys/:token_id/dms/:other_token_id/read", AgentDmController, :read
+
+    post "/fleets/:fleet_id/keys/:token_id/dms/:other_token_id/send",
+         AgentDmController,
+         :send_message
+
+    post "/fleets/:fleet_id/keys/:token_id/dms/:other_token_id/delete", AgentDmController, :delete
+
+    post "/fleets/:fleet_id/keys/:token_id/dms/:other_token_id/auto_delete",
+         AgentDmController,
+         :auto_delete
+
+    post "/fleets/:fleet_id/keys/:token_id/dms/:other_token_id/block", AgentDmController, :block
+
+    post "/fleets/:fleet_id/keys/:token_id/dms/:other_token_id/unblock",
+         AgentDmController,
+         :unblock
+
+    post "/fleets/:fleet_id/dms/changes", AgentDmController, :changes
+    post "/fleets/:fleet_id/proposals/read", AgentProposalController, :read
+    post "/fleets/:fleet_id/presence", AgentChainController, :presence
+    post "/fleets/:fleet_id/proposals/create", AgentChainController, :propose
+    post "/fleets/:fleet_id/proposals/vote", AgentChainController, :vote
+    post "/fleets/:fleet_id/proposals/cancel", AgentChainController, :cancel
+    post "/fleets/:fleet_id/proposals/carry_out", AgentChainController, :carry_out
+    post "/fleets/:fleet_id/split", AgentChainController, :split
+    post "/fleets/:fleet_id/treasury/send_share", AgentChainController, :send_share
+    post "/fleets/:fleet_id/treasury/convert", AgentChainController, :convert
+
+    post "/fleets/:fleet_id/treasury/advances/:advance_id/return",
+         AgentChainController,
+         :return_advance
+
+    post "/fleets/:fleet_id/treasury/launch", AgentChainController, :launch_upkeep
+    post "/fleets/:fleet_id/keys/:token_id/claim", AgentChainController, :claim
+    post "/fleets/:fleet_id/keys/claim", AgentChainController, :claim_all
+    post "/fleets/:fleet_id/keys/buy", AgentChainController, :buy
+    post "/fleets/:fleet_id/shards/issue", AgentChainController, :issue_shard
+    post "/fleets/:fleet_id/shards/voting", AgentChainController, :agent_voting
+    post "/fleets/:fleet_id/keys/:token_id/shards/end", AgentChainController, :end_shard
+    post "/fleets/:fleet_id/keys/:token_id/club_claim", AgentChainController, :club_claim
+    post "/fleets/:fleet_id/keys/:token_id/reveal", AgentChainController, :reveal
+    post "/fleets/:fleet_id/keys/:token_id/expire_reveal", AgentChainController, :expire_reveal
+    post "/fleets/:fleet_id/graph/board", AgentGraphController, :board
+    post "/fleets/:fleet_id/graph/view", AgentGraphController, :view
+    post "/fleets/:fleet_id/graph/get", AgentGraphController, :get_object
+    post "/fleets/:fleet_id/graph/changes", AgentGraphController, :changes
+    post "/fleets/:fleet_id/graph/packet", AgentGraphController, :packet
+    post "/fleets/:fleet_id/graph/create", AgentGraphController, :create
+    post "/fleets/:fleet_id/graph/patch", AgentGraphController, :patch
+    post "/fleets/:fleet_id/graph/link", AgentGraphController, :link
+    post "/fleets/:fleet_id/graph/unlink", AgentGraphController, :unlink
+    post "/fleets/:fleet_id/graph/archive", AgentGraphController, :archive
+    post "/fleets/:fleet_id/graph/join", AgentGraphController, :join
+    post "/fleets/:fleet_id/graph/leave", AgentGraphController, :leave
+    post "/fleets/:fleet_id/graph/submit", AgentGraphController, :submit
+    post "/fleets/:fleet_id/graph/review", AgentGraphController, :review
+    post "/fleets/:fleet_id/graph/fork", AgentGraphController, :fork
+    post "/fleets/:fleet_id/graph/pin", AgentGraphController, :pin
+    post "/fleets/:fleet_id/graph/unpin", AgentGraphController, :unpin
+    post "/fleets/:fleet_id/atlas/swarm", AgentGraphController, :atlas_swarm
+    post "/fleets/:fleet_id/atlas/things", AgentGraphController, :atlas_things
   end
 
   scope "/autolaunch", RegentsWeb.Autolaunch do

@@ -7,7 +7,10 @@ defmodule Regents.Keyfleet.Capabilities do
 
   @manifest_path Application.app_dir(:regents, "priv/keyfleet/tool_manifest.json")
   @external_resource @manifest_path
-  @tools @manifest_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+  @manifest @manifest_path |> File.read!() |> Jason.decode!()
+  @tools Map.fetch!(@manifest, "tools")
+  @contract_version Map.get(@manifest, "contract_version", "1")
+  @guide_version Map.get(@manifest, "guide_version", "1")
 
   @needs %{
     "none" => "Nothing",
@@ -16,6 +19,14 @@ defmodule Regents.Keyfleet.Capabilities do
     "siwa_and_pairing_and_product_rights" => "Signer, pairing, Key",
     "wallet" => "Wallet"
   }
+
+  @doc "The contract and guide versions from Keyfleet's tool manifest."
+  @spec versions() :: map()
+  def versions, do: %{"api_contract" => @contract_version, "agent_guide" => @guide_version}
+
+  @doc "Every tool, in the manifest's order."
+  @spec tools() :: [map()]
+  def tools, do: @tools
 
   @doc "Every tool as a Markdown table, after a line saying what its Needs words mean."
   @spec markdown_table() :: String.t()

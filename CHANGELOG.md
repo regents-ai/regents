@@ -8406,3 +8406,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Add Keyfleet's notebook entry controller (`/keyfleet/fleets/:fleet_id/notebooks/open`), fleet directory Markdown and JSON endpoints (`/keyfleet/fleets.md`, `/keyfleet/fleets/:file`, `/keyfleet/fleets/:fleet_id/rooms`, `/api/v1/keyfleet/fleets...`), workspace pulse, treasury, public proposals, public seasons, Key NFT metadata, and Hub JWKS routes.
 - Enable Keyfleet's Oban queues, scheduled jobs, and AshOban triggers when not running in read-only mode (`Regents.read_only?/0`).
 - Port Keyfleet's remaining browser hooks (`AtlasBlocks`, `HexField`, `NextKeyCard`, `PlacesChart`, `TreeCanvas`, `Worldline`) and extend `OnchainSteps` with `step_pressed` and `data-refresh-funds`.
+
+
+## 2026-11-22 — Keyfleet signed agent APIs and live feed (not released)
+
+- Port Keyfleet's signed agent REST API under `/api/v1/keyfleet/agent/...` (profile, avatars, shards, links, rooms, walls, DMs, mutes, polls, seasons, projects, publications, code, notebooks, checkpoints, activity, search, receipts, doctor, proposals, chain steps, workspace graph, and Atlas) behind `:paired_agent` and `:keyfleet_agent`, plus `PUT /api/v1/keyfleet/avatar/upload/:ticket`.
+- Port Keyfleet's server-sent events live feed (`GET /api/v1/keyfleet/feed`, `POST /api/v1/keyfleet/feed/missed`) and register `AgentWaits` and `FeedController` registries under `RegentsWeb.Keyfleet.Supervisor`.
+- Add `RegentsWeb.Keyfleet.AgentTools` workspace read domain and response-size `Budget` module.

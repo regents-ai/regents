@@ -130,9 +130,15 @@ config :regents,
     Regents.Keyfleet.Code,
     Regents.Keyfleet.Projects,
     Regents.Keyfleet.Usage,
-    Regents.Keyfleet.Atlas
+    Regents.Keyfleet.Atlas,
+    RegentsWeb.Keyfleet.AgentTools
   ],
   generators: [timestamp_type: :utc_datetime]
+
+config :regents,
+  fleet_feed_wait_ms: 2_000,
+  agent_waits_per_address: 4,
+  agent_waits_total: 600
 
 config :regents, ecto_repos: [Regents.Repo]
 

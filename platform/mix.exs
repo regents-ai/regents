@@ -201,7 +201,8 @@ defmodule Regents.MixProject do
         # Techtree's Projects add one: its domain reads its resource.
         # Techtree's Enquiries and Watchdog add three (domains reading resources), and
         # AgentBodyReader sizing Techtree publications adds one in Endpoint.
-        "xref graph --label compile-connected --fail-above 241",
+        # Keyfleet's AgentTools workspace read domain adds two (domain -> workspace -> read).
+        "xref graph --label compile-connected --fail-above 243",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"
