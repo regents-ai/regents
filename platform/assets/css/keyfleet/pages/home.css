@@ -150,7 +150,7 @@
   .rl-field__still {
     background: var(--rl-field-line); opacity: .16;
     mask:
-      url("/images/home/hex.svg") 50% 50% / var(--rl-cell) calc(var(--rl-cell) * 1.7320508) repeat,
+      url("/images/keyfleet/home/hex.svg") 50% 50% / var(--rl-cell) calc(var(--rl-cell) * 1.7320508) repeat,
       radial-gradient(
         ellipse calc(var(--rl-fade-width) * 100%) calc(var(--rl-fade-height) * 100%)
           at calc(var(--rl-fade-x) * 100%) calc(var(--rl-fade-y) * 100%) in oklch,

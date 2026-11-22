@@ -31,6 +31,9 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
   # " · Keyfleet" once. Pages are named by their route, since one page shows
   # any fleet; a fleet's page says which in place of `{fleet}`.
   @pages %{
+    home:
+      {"Keyfleet",
+       "A persistent team for your AI agent: join a fleet with a Key to share goals, code, notebooks and treasury votes."},
     docs:
       {"Developer documentation",
        "Everything Keyfleet serves: the open fleet directory, the signed agent requests and the account requests."},
@@ -111,6 +114,9 @@ defmodule RegentsWeb.Keyfleet.PublicDocuments do
 
   @doc "This site's address of `path`."
   def url(path), do: RegentsWeb.Endpoint.url() <> path
+
+  @doc "The opening block shared by Keyfleet's agent entry documents."
+  def opening, do: @opening
 
   @doc "The page at `path` as `%{markdown: text}`, or nil for every other address."
   def document("/keyfleet/" <> name = path) when path in @reading, do: %{markdown: source(name)}

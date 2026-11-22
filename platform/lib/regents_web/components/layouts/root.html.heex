@@ -80,6 +80,7 @@
     </script>
   </head>
   <body>
+    {if assigns[:harbour_sea], do: RegentsWeb.Keyfleet.HarbourSeaLive.sea(@conn)}
     {@inner_content}
     <Regent.Structure.confirm />
     <.product_links :if={

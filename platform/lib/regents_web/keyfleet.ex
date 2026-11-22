@@ -15,11 +15,21 @@ defmodule RegentsWeb.Keyfleet do
     deps: [RegentsWeb, Regents.Keyfleet],
     exports: [
       AgentFilesController,
+      DirectoryController,
+      HarbourSeaLive,
+      HomeLive,
+      HubJwksController,
       Layouts,
+      MetadataController,
+      NotebookOpenController,
       PublicDocuments,
       PublicPagesController,
+      PublicProposalsController,
+      PublicSeasonsController,
       RouteCatalog,
       ShareCardController,
-      ShellLive
+      ShellLive,
+      TreasuryController,
+      WorkspacePulseController
     ]
 end

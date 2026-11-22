@@ -8397,3 +8397,12 @@ seasons), on the shared Points library regents.sh was already on.
 - A creator's website shows as a link, on the cards and on the token page, only when it is an https address; autolaunch.sh linked http addresses too. A Telegram or Discord link shows only when it is a whole https address with a site in it.
 - Left out for now: the price chart; the pool's fees and the rest of the trading panel's figures; trading, staking and claiming; Share; and the page updating itself while open.
 - Not released: on the `fold/autolaunch` branch only. One route added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+
+## 2026-11-22 — Keyfleet home, Harbour Sea, all fleet routes, public APIs, Oban queues and hooks (not released)
+
+- Replace the Regents overview placeholder at `/keyfleet` with Keyfleet's live homepage (`RegentsWeb.Keyfleet.HomeLive`) using shared `SiteShell.site_bar` and `ValueCards` panels, plus static home artwork under `/images/keyfleet/home/`.
+- Open all remaining fleet routes under `/keyfleet` (workspace, workspace items, code commits/history/files, projects, worldline, atlas, direct messages) with `HarbourSeaLive` mounted behind Keyfleet shell pages.
+- Add Keyfleet's notebook entry controller (`/keyfleet/fleets/:fleet_id/notebooks/open`), fleet directory Markdown and JSON endpoints (`/keyfleet/fleets.md`, `/keyfleet/fleets/:file`, `/keyfleet/fleets/:fleet_id/rooms`, `/api/v1/keyfleet/fleets...`), workspace pulse, treasury, public proposals, public seasons, Key NFT metadata, and Hub JWKS routes.
+- Enable Keyfleet's Oban queues, scheduled jobs, and AshOban triggers when not running in read-only mode (`Regents.read_only?/0`).
+- Port Keyfleet's remaining browser hooks (`AtlasBlocks`, `HexField`, `NextKeyCard`, `PlacesChart`, `TreeCanvas`, `Worldline`) and extend `OnchainSteps` with `step_pressed` and `data-refresh-funds`.

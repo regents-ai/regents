@@ -94,14 +94,12 @@ defmodule Regents.Application do
 
   # AshOban adds a queue and a sweep for every trigger in the site's domains. Every
   # job writes, so the read-only venue (`Regents.read_only?/0`) runs none.
-  # Keyfleet's domains are left out: none of their triggers sweeps until the slice
-  # that puts their jobs to use.
   defp oban_child do
     if Application.get_env(:regents, :database_startup_enabled, false) and
          not Regents.read_only?() do
       {Oban,
        AshOban.config(
-         Application.fetch_env!(:regents, :ash_domains) -- Regents.Keyfleet.domains(),
+         Application.fetch_env!(:regents, :ash_domains),
          staking_jobs(Application.fetch_env!(:regents, Oban))
        )}
     end

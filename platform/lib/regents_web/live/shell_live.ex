@@ -31,7 +31,6 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
   alias RegentsWeb.PaperProDailyLive
-  alias RegentsWeb.ProductLive
   alias RegentsWeb.PublicDocuments
   alias RegentsWeb.Read
   alias RegentsWeb.Redeem.RedeemGalleryLive
@@ -346,11 +345,6 @@ defmodule RegentsWeb.ShellLive do
         <AgentStartLive.page
           :if={@route_spec.route_id == :agent_start}
           agent={@route_params["agent"]}
-        />
-
-        <ProductLive.page
-          :if={@route_spec.route_id == :keyfleet}
-          product={@route_spec.route_id}
         />
 
         <CloakLive.page :if={@route_spec.route_id == :cloak} />

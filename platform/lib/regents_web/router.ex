@@ -131,6 +131,23 @@ defmodule RegentsWeb.Router do
     plug :put_layout, html: {RegentsWeb.Keyfleet.Layouts, :app}
   end
 
+  # The root layout draws the harbour's sea (`RegentsWeb.Keyfleet.HarbourSeaLive`)
+  # behind Keyfleet's shell pages.
+  pipeline :keyfleet_sea do
+    plug :put_harbour_sea
+  end
+
+  # Keyfleet's open fleet directory in Markdown.
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
+  pipeline :keyfleet_directory do
+    plug :put_format, "md"
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.reading()
+    }
+  end
+
   # Autolaunch's pages under /autolaunch/...: the page is Autolaunch's (its
   # stylesheets), read inside Autolaunch's own frame (RegentsWeb.Autolaunch).
   pipeline :autolaunch do
@@ -153,6 +170,8 @@ defmodule RegentsWeb.Router do
   # layout puts it on the page as `data-product`, with its brand (`data-brand`) and
   # the home colour (`data-home`). A shell page names its own (`RouteCatalog`).
   def put_product(conn, product), do: assign(conn, :site_product, product)
+
+  def put_harbour_sea(conn, _opts), do: assign(conn, :harbour_sea, true)
 
   if Application.compile_env(:regents, :local_showcase, false) do
     # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
@@ -374,7 +393,6 @@ defmodule RegentsWeb.Router do
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
       live "/redeem/gallery", ShellLive, :redeem_gallery
-      live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
       live "/siwa", ShellLive, :siwa
       live "/cloak/install", ShellLive, :cloak_install
@@ -458,6 +476,20 @@ defmodule RegentsWeb.Router do
   scope "/keyfleet", RegentsWeb.Keyfleet do
     pipe_through [:browser, :keyfleet]
 
+    live_session :keyfleet_home,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      layout: {RegentsWeb.Keyfleet.Layouts, :app},
+      on_mount: [{RegentsWeb.Live.Session, :load_human}] do
+      live "/", HomeLive, :home
+    end
+
+    # A Key holder's way into the fleet's notebooks, or to one saved output.
+    get "/fleets/:fleet_id/notebooks/open", NotebookOpenController, :open
+  end
+
+  scope "/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through [:browser, :keyfleet, :keyfleet_sea]
+
     live_session :keyfleet,
       session: {RegentsWeb.Keyfleet.ShellLive, :render_context, []},
       layout: {RegentsWeb.Keyfleet.Layouts, :app},
@@ -471,24 +503,31 @@ defmodule RegentsWeb.Router do
       live "/privacy", ShellLive, :privacy
       live "/terms", ShellLive, :terms
 
-      # Each fleet's pages, at the fleet's own address (RouteCatalog). Its
-      # workspace, code, projects, worldline, atlas and messages are not open yet.
+      # Every fleet's pages, at the fleet's own address (RouteCatalog).
       for %{fleet_id: fleet_id, live_action: action, path_pattern: "/keyfleet" <> path}
-          when fleet_id != nil and
-                 action in [
-                   :fleet,
-                   :keys,
-                   :seasons,
-                   :proposals,
-                   :proposal,
-                   :treasury,
-                   :polls,
-                   :poll,
-                   :search
-                 ] <- RegentsWeb.Keyfleet.RouteCatalog.entries() do
+          when fleet_id != nil <- RegentsWeb.Keyfleet.RouteCatalog.entries() do
         live path, ShellLive, action
       end
     end
+  end
+
+  scope "/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through :keyfleet_directory
+
+    get "/fleets.md", DirectoryController, :index_md
+    get "/fleets/:file", DirectoryController, :show_md
+  end
+
+  scope "/api/v1/keyfleet", RegentsWeb.Keyfleet do
+    pipe_through :api
+
+    get "/fleets", DirectoryController, :index_json
+    get "/fleets/:fleet_id", DirectoryController, :show_json
+    get "/fleets/:fleet_id/workspace/pulse", WorkspacePulseController, :show
+    get "/fleets/:fleet_id/treasury", TreasuryController, :show
+    get "/fleets/:fleet_id/proposals", PublicProposalsController, :index
+    get "/fleets/:fleet_id/seasons", PublicSeasonsController, :index
+    get "/fleets/:fleet_id/seasons/:number", PublicSeasonsController, :show
   end
 
   scope "/autolaunch", RegentsWeb.Autolaunch do
@@ -575,7 +614,7 @@ defmodule RegentsWeb.Router do
     get "/:host/tools/:name", Forum.BoardController, :tool
   end
 
-  # Keyfleet's agent guides, to any caller, as the site's own are.
+  # Keyfleet's agent guides, metadata, hub JWKS and fleet rooms redirect, to any caller.
   scope "/keyfleet", RegentsWeb.Keyfleet do
     get "/skill.md", AgentFilesController, :skill
     get "/skill/:part", AgentFilesController, :part
@@ -584,6 +623,10 @@ defmodule RegentsWeb.Router do
     get "/llms.txt", PublicPagesController, :llms
     get "/agents.md", PublicPagesController, :agents
     get "/help", PublicPagesController, :help
+    get "/fleets/:fleet_id/rooms", DirectoryController, :rooms
+    get "/metadata/collection.json", MetadataController, :collection
+    get "/metadata/keys/:token_id", MetadataController, :show
+    get "/.well-known/hub-jwks.json", HubJwksController, :show
   end
 
   scope "/admin" do

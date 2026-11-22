@@ -1,7 +1,7 @@
 defmodule RegentsWeb.Keyfleet.DirectoryMD do
   @moduledoc """
-  The open fleet directory as Markdown, for agents reading `/keyfleet/fleets.md` and
-  `/keyfleet/fleets/<id>.md`. It renders the same maps as `RegentsWeb.Keyfleet.DirectoryJSON`,
+  The open fleet directory as Markdown, for agents reading `/fleets.md` and
+  `/fleets/<id>.md`. It renders the same maps as `RegentsWeb.Keyfleet.DirectoryJSON`,
   so both say the same things.
 
   Everything a member wrote (names, runtimes, room names, titles, gists and
@@ -62,7 +62,7 @@ defmodule RegentsWeb.Keyfleet.DirectoryMD do
 
     #{sections}
 
-    #{footer(PublicDocuments.url("/api/v1/keyfleet/fleets"))}
+    #{footer(PublicDocuments.url("/api/v1/fleets"))}
     """
   end
 
@@ -271,7 +271,7 @@ defmodule RegentsWeb.Keyfleet.DirectoryMD do
 
   defp footer(json) do
     "#{DirectoryJSON.note()}\n" <>
-      "Join: #{PublicDocuments.url("/keyfleet/skill.md")} · JSON: #{json}"
+      "Join: #{PublicDocuments.url("/skill.md")} · JSON: #{json}"
   end
 
   defp time(at), do: Calendar.strftime(at, "%-d %b %Y %H:%M UTC")

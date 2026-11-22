@@ -171,13 +171,6 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :redeem_gallery
     },
     %Entry{
-      path_pattern: "/keyfleet",
-      live_action: :keyfleet,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :keyfleet
-    },
-    %Entry{
       path_pattern: "/cloak",
       live_action: :cloak,
       parameter_schema: %{},
@@ -265,9 +258,6 @@ defmodule RegentsWeb.RouteCatalog do
     redeem_gallery:
       {:redeem_gallery, :regent_ops, "Regents Labs", "Regents Club passes", "/app",
        [:profile_actions], :regents_labs, %{}},
-    keyfleet:
-      {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/app", [:profile_actions],
-       :regents_labs, %{}},
     cloak:
       {:cloak, :regent_ops, "Regents Labs", "Cloak", "/app", [:profile_actions], :regents_labs,
        %{}},
@@ -282,7 +272,6 @@ defmodule RegentsWeb.RouteCatalog do
   # page with it, and a sidebar link to another product's page loads that page in full.
   @products %{
     stake: "protocol",
-    keyfleet: "keyfleet",
     cloak: "cloak",
     siwa: "siwa"
   }

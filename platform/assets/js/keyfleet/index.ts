@@ -3,10 +3,12 @@
 // name that moves differently, Keyfleet's is named for Keyfleet (its list,
 // its tick and its tour); the rest of the site's motion is shared.
 
+import {AtlasBlocks} from "./hooks/atlas_blocks"
 import {Countdown} from "./hooks/countdown"
 import {FleetPreview} from "./hooks/fleet_preview"
 import {FleetTabs} from "./hooks/fleet_tabs"
 import {HarbourSea} from "./hooks/harbour_sea"
+import {HexField, NextKeyCard} from "./hooks/home_hero"
 import {KeyCardTurn} from "./hooks/key_card"
 import {KeyCards} from "./hooks/key_cards"
 import {KeyMap} from "./hooks/key_map"
@@ -14,17 +16,22 @@ import {LocalTime} from "./hooks/local_time"
 import {ModalDialog, watchPresses} from "./hooks/modal_dialog"
 import {MotionList, MotionStamp, MotionTick} from "./hooks/motion/moments"
 import {watchInput} from "./hooks/motion/shared"
+import {PlacesChart} from "./hooks/places_chart"
 import {RoomPosts} from "./hooks/room_posts"
 import {RoomThread} from "./hooks/room_thread"
 import {ScheduleCard} from "./hooks/schedule_card"
 import {ScrollRow} from "./hooks/scroll_row"
 import {Tour} from "./hooks/tour"
+import {TreeCanvas} from "./hooks/tree_canvas"
+import {Worldline} from "./hooks/worldline"
 
 export const keyfleetHooks = {
+  AtlasBlocks,
   Countdown,
   FleetPreview,
   FleetTabs,
   HarbourSea,
+  HexField,
   KeyCards,
   KeyCardTurn,
   KeyfleetMotionList: MotionList,
@@ -34,10 +41,14 @@ export const keyfleetHooks = {
   LocalTime,
   ModalDialog,
   MotionStamp,
+  NextKeyCard,
+  PlacesChart,
   RoomPosts,
   RoomThread,
   ScheduleCard,
   ScrollRow,
+  TreeCanvas,
+  Worldline,
 }
 
 // A room opened from its fleet's hall takes the keyboard to its name, so a

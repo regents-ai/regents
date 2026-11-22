@@ -38,6 +38,7 @@ type OnchainStepsHook = Hook & {
   pushEventTo(target: HTMLElement, event: string, payload?: unknown): Promise<PromiseSettledResult<{reply: unknown}>[]>
   review?: Review
   clicked?: (event: Event) => void
+  refresh?: () => void
   walletChanged?: () => void
 }
 
@@ -75,7 +76,10 @@ export const OnchainSteps: Hook = {
       this.js().ignoreAttributes(button, ["data-awaiting-wallet"])
       const release = mark(button)
       const form = formInputs(this.el)
-      const asks = Object.keys(form).length > 0 && (!this.review || !sameInputs(this.review.inputs, form))
+      const wallet = activeEthereumWallet()
+      const asks =
+        !this.review?.steps.some(step => step.step === name) ||
+        (Object.keys(form).length > 0 && !sameInputs(this.review.inputs, form))
       lost(this.el, false)
       // The server never heard the press, so it cannot say why; the page does, and
       // reports it.
@@ -83,20 +87,37 @@ export const OnchainSteps: Hook = {
         lost(this.el, true)
         report({name: "press.unsent", where: name, outcome: "lost"})
       }
+      const refreshAfter = () => {
+        if ("refreshFunds" in this.el.dataset) {
+          void push("refresh_funds", {address: activeEthereumWallet()?.address ?? null})
+        }
+      }
 
-      if (activeEthereumWallet() && asks) {
-        void this.pushEventTo(this.el, "prepare_and_send", {form, step: name})
+      if (wallet && asks) {
+        void this.pushEventTo(this.el, "prepare_and_send", {
+          form,
+          step: name,
+          wallet: wallet.address,
+        })
           .then(([result]) => {
             if (result?.status !== "fulfilled") return unheard()
-            const reply = result.value.reply as {review?: Review; send?: string}
+            const reply = result.value.reply as {review?: Review; send?: string; reason?: string}
             if (reply.review && reply.send) return press(reply.review, reply.send, push)
+            if (reply.reason === "blocked") return undefined
             return push("step_failed", {step: name, reason: "step_unknown"})
           })
           // A lost connection drops the question; the button comes back to press again.
           .catch(unheard)
-          .finally(release)
+          .finally(() => {
+            release()
+            refreshAfter()
+          })
       } else {
-        void press(this.review, name, push).finally(release)
+        void push("step_pressed", {step: name, form})
+        void press(this.review, name, push).finally(() => {
+          release()
+          refreshAfter()
+        })
       }
     }
     this.el.addEventListener("click", this.clicked)
@@ -104,8 +125,21 @@ export const OnchainSteps: Hook = {
     // The server hears every change of the wallet Privy has active, to name it
     // beside the buttons while it is not the account's main wallet and, signed
     // out, to show its figures.
-    this.walletChanged = () => push("onchain_active_wallet", {address: activeEthereumWallet()?.address ?? null})
+    this.walletChanged = () => {
+      const address = activeEthereumWallet()?.address ?? null
+      void push("onchain_active_wallet", {address})
+      if ("refreshFunds" in this.el.dataset) void push("refresh_funds", {address})
+    }
     window.addEventListener("ash:wallet-state", this.walletChanged)
+
+    if ("refreshFunds" in this.el.dataset) {
+      this.refresh = () => {
+        if (document.visibilityState === "hidden") return
+        void push("refresh_funds", {address: activeEthereumWallet()?.address ?? null})
+      }
+      document.addEventListener("visibilitychange", this.refresh)
+      this.el.addEventListener("ash:refresh-funds", this.refresh)
+    }
 
     this.walletChanged()
     window.dispatchEvent(new CustomEvent("ash:wallet-sync"))
@@ -114,6 +148,10 @@ export const OnchainSteps: Hook = {
   destroyed(this: OnchainStepsHook) {
     if (this.clicked) this.el.removeEventListener("click", this.clicked)
     if (this.walletChanged) window.removeEventListener("ash:wallet-state", this.walletChanged)
+    if (this.refresh) {
+      document.removeEventListener("visibilitychange", this.refresh)
+      this.el.removeEventListener("ash:refresh-funds", this.refresh)
+    }
   },
 }
 
