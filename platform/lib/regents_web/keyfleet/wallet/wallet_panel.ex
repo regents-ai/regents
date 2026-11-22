@@ -309,8 +309,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     end
   end
 
-  def handle_event("check_again", %{"hash" => hash}, socket),
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  def handle_event("check_again", _params, socket), do: {:noreply, socket}
 
   @impl true
   # A step that has landed changes what the next one needs (an approval, a

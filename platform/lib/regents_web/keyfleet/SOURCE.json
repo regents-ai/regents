@@ -497,7 +497,8 @@
       "from": "platform/lib/keyfleet_web/wallet/wallet_panel.ex",
       "to": "platform/lib/regents_web/keyfleet/wallet/wallet_panel.ex",
       "changes": [
-        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer, where the source read without a bound of its own; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)"
+        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer, where the source read without a bound of its own; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)",
+        "the regents chief's review of K3 (b): Check again reads the step named only when it is named as text, and any other value changes nothing, where the source's read it as given (K3 b fixes)"
       ]
     },
     {
