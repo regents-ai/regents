@@ -6,6 +6,8 @@ defmodule RegentsWeb.Autolaunch do
   (`assets/css/autolaunch`), and every page is read under the site's bar inside
   Autolaunch's frame (`RegentsWeb.Autolaunch.Layouts`). Each written page also
   answers as Markdown at its own address (`RegentsWeb.Autolaunch.PublicDocuments`).
+  The launch pictures are served outside the scope, as the site's other
+  pictures are (`RegentsWeb.Autolaunch.StoredImageController`).
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Autolaunch],
@@ -16,6 +18,7 @@ defmodule RegentsWeb.Autolaunch do
       Layouts,
       PublicDocuments,
       PublicPagesController,
+      StoredImageController,
       TokensLive
     ]
 end

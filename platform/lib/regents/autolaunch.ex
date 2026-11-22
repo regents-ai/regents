@@ -18,9 +18,10 @@ defmodule Regents.Autolaunch do
   (`Regents.Autolaunch.HomeMarket`) are here with their policies, with what
   their cards show of a record (`AuctionFigures`, `StoredImage` and
   `Token.presentation/1`), the dollar prices their figures are shown in
-  (`UsdRates`) and the Auctions page's counts (`AuctionStats`); every other
-  resource has no action yet and one policy refusing
-  every action, so nothing here writes a row.
+  (`UsdRates`) and the Auctions page's counts (`AuctionStats`), and the public
+  read of the two launch picture tables (`StoredImage`); every other resource
+  has no action yet and one policy refusing every action, so nothing here
+  writes a row.
 
   It also reads the deployment descriptions, the files that say which
   contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
@@ -62,7 +63,13 @@ defmodule Regents.Autolaunch do
     resource Regents.Autolaunch.AuctionReading
     resource Regents.Autolaunch.AuctionPricePoint
     resource Regents.Autolaunch.LaunchDraft
-    resource Regents.Autolaunch.LaunchDraftImage
+
+    resource Regents.Autolaunch.LaunchDraftImage do
+      define :get_public_launch_draft_image,
+        action: :public_by_id_and_digest,
+        args: [:id, :digest],
+        not_found_error?: false
+    end
 
     resource Regents.Autolaunch.Auction do
       define :list_path_peers, action: :path_peers, args: [:symbols]
@@ -70,7 +77,14 @@ defmodule Regents.Autolaunch do
 
     resource Regents.Autolaunch.LaunchOperation
     resource Regents.Autolaunch.Stocks.LaunchDraft
-    resource Regents.Autolaunch.Stocks.LaunchDraftImage
+
+    resource Regents.Autolaunch.Stocks.LaunchDraftImage do
+      define :get_public_stock_launch_draft_image,
+        action: :public_by_id_and_digest,
+        args: [:id, :digest],
+        not_found_error?: false
+    end
+
     resource Regents.Autolaunch.Stocks.LaunchOperation
 
     resource Regents.Autolaunch.Stocks.Stock do

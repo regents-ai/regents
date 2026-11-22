@@ -16,7 +16,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   import RegentsWeb.Autolaunch.Components.LinkIcon
   import RegentsWeb.Autolaunch.Components.MinimumWarning
 
-  alias Regents.Autolaunch.{AuctionFigures, Lab, StoredImage, Token, UsdRates}
+  alias Regents.Autolaunch.{AuctionFigures, Lab, Token, UsdRates}
   alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias RegentsWeb.Autolaunch.Components.{BidPlaced, ChainIcon, CreatorLabel}
   alias RegentsWeb.Autolaunch.{Paths, TokenDisplay, UsdValue}
@@ -203,7 +203,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     assigns =
       assign(assigns,
         view: view,
-        picture: StoredImage.sized(view.image, 640),
+        picture: Paths.sized(view.image, 640),
         volume: volume(assigns.auction),
         status: state_label(assigns.auction.state)
       )
@@ -214,7 +214,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
         <img
           :if={@picture}
           src={@picture}
-          srcset={StoredImage.choices(@view.image)}
+          srcset={Paths.choices(@view.image)}
           sizes="(max-width: 42rem) calc(40vw - 32px), 320px"
           alt=""
           loading={@rank > 1 && "lazy"}
@@ -297,14 +297,14 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   attr :lead, :boolean, required: true
 
   defp coin_art(assigns) do
-    assigns = assign(assigns, :picture, StoredImage.sized(assigns.view.image, 640))
+    assigns = assign(assigns, :picture, Paths.sized(assigns.view.image, 640))
 
     ~H"""
     <div class="home-coin__art">
       <img
         :if={@picture}
         src={@picture}
-        srcset={StoredImage.choices(@view.image)}
+        srcset={Paths.choices(@view.image)}
         sizes="(max-width: 22rem) calc(100vw - 76px), (max-width: 42rem) calc(50vw - 47px), 320px"
         alt={"#{@view.name} token"}
         loading={!@lead && "lazy"}
@@ -651,7 +651,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   # paired currency when one is given, and `detail` under them when given. It
   # opens `path`.
   defp list_token(assigns) do
-    assigns = assign(assigns, :picture, StoredImage.sized(assigns.image, 96))
+    assigns = assign(assigns, :picture, Paths.sized(assigns.image, 96))
 
     ~H"""
     <th scope="row">

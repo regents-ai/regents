@@ -8309,3 +8309,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Launch auction keeps its future address under `/autolaunch` and answers "not found" until the launch form comes; on the preview it stays switched off with "Opens soon", as before launches open. The home page's See auctions card now opens the Auctions list.
 - Left out for now: the Claim and Refund presses on a finished auction, the notices about reading the chains, and the lists and counts updating themselves while open. The bar still lists Explore alone, without Auctions and Tokens under it.
 - Not released: on the `fold/autolaunch` branch only. Two routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's launch pictures come from this site (not released)
+
+- The launch pictures autolaunch.sh stored now come from regents.sh, at `/autolaunch/images/<id>/<digest>` and `/autolaunch/stock-images/<id>/<digest>` as stored, and 96, 320 or 640 wide at `<address>/<width>.webp`, with the same bytes, type and caching autolaunch.sh gives them. A browser keeps each one for good.
+- The home page and the Auctions and Tokens lists draw every stored picture from this site and ask autolaunch.sh for none. Each launch keeps the autolaunch.sh address it was given; nothing stored is rewritten.
+- A picture that is not stored here is shown as it is when its address is a secure web address; otherwise the card shows the launch's first letter.
+- Each sized copy is made the first time it is asked for, one at a time, and kept in memory, about 300 at most. The picture is read only when its copy's turn comes, so requests waiting in line hold no picture, and the maker gives back its memory a second after it goes quiet.
+- Any other address under these paths answers "Not found": a wrong digest, another width, another kind of file, or a picture stored as anything but PNG, JPEG or WebP.
+- Pictures have allowances of their own from one address: 600 sized copies a minute, and 60 pictures as stored, which no page shows and which can be 2 MiB each. A page's pictures no longer count against the 120 page reads a minute.
+- Not released: on the `fold/autolaunch` branch only. Four routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
