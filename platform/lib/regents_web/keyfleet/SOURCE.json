@@ -494,6 +494,14 @@
       ]
     },
     {
+      "from": "platform/lib/keyfleet_web/controllers/share_card_controller.ex",
+      "to": "platform/lib/regents_web/keyfleet/controllers/share_card_controller.ex",
+      "changes": [
+        "the naming rules, the addresses in the moduledoc under /keyfleet (K5)",
+        "need: the moduledoc names the share these addresses spend, keyfleet_share_pictures, 60 a minute an address, which the endpoint (RegentsWeb.Endpoint, the regents chief's) spends before anything is read and refuses past with its 429; every answer and header as carried (K5)"
+      ]
+    },
+    {
       "from": "platform/lib/keyfleet_web/share_pictures.ex",
       "to": "platform/lib/regents_web/keyfleet/share_pictures.ex",
       "changes": "the source's file after the naming rules, line for line"
@@ -507,7 +515,8 @@
       "from": "platform/lib/keyfleet/application.ex (fleet_now_child/0 and fleet_proposals_child/0)",
       "to": "platform/lib/regents_web/keyfleet/supervisor.ex",
       "changes": [
-        "written here (K4): keyfleet.ai's application started FleetNow and FleetProposals itself, each only where pages are served; here one supervisor of Keyfleet's own, RegentsWeb.Keyfleet.Supervisor, holds both, so the site's application names one module and makes the one decision where pages are served (Regents.Application, the regents chief's file)"
+        "written here (K4): keyfleet.ai's application started FleetNow and FleetProposals itself, each only where pages are served; here one supervisor of Keyfleet's own, RegentsWeb.Keyfleet.Supervisor, holds both, so the site's application names one module and makes the one decision where pages are served (Regents.Application, the regents chief's file)",
+        "written here (K5): keyfleet.ai's application started RegentsWeb.Keyfleet.SharePictures (its KeyfleetWeb.SharePictures) too; here this supervisor holds it, first, beside the readings its pictures are drawn from, where pages and so the share pictures' route are served; its config is keyfleet.ai's (config.exs, gc_interval ten minutes, max_size 64)"
       ]
     },
     {
@@ -605,7 +614,7 @@
       "replaced_by": "the site's own; no carried page calls one"
     },
     {
-      "source": "controllers/notebook_open_controller.ex, controllers/notebook_open_html.ex, controllers/share_card_controller.ex",
+      "source": "controllers/notebook_open_controller.ex, controllers/notebook_open_html.ex",
       "replaced_by": "not carried: their routes are not here; the pages build their addresses as plain paths through RouteCatalog (plain_paths)"
     },
     {
