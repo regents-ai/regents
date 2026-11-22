@@ -21,6 +21,7 @@ defmodule RegentsWeb.Patchbay do
       PagesController,
       PostPictureController,
       PublicDocuments,
-      SiteScreenshotController
+      SiteScreenshotController,
+      SolvedController
     ]
 end

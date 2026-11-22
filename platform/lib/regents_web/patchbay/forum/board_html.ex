@@ -1048,6 +1048,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   @doc "A post's or reply's own words as one line of plain text; empty when it has none."
   def plain_words(post), do: post |> own_words() |> one_line()
 
+  @doc "A post's or reply's own words as one short line, as a row shows them."
+  def snippet(post), do: post |> plain_words() |> shortened()
+
   defp own_words(%{body_markdown: body}) when is_binary(body) and body != "",
     do: body |> parsed() |> words()
 

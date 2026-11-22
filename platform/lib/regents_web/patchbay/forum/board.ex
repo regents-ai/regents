@@ -426,6 +426,25 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   end
 
   @doc """
+  The newest threads whose asker has picked an answer, newest first, with
+  the answer and its fix: the public feed of solved fixes reads them. At most
+  `limit`, and never more than a page of the feed holds.
+  """
+  @spec solved_fixes(pos_integer()) :: {:ok, [Forum.Report.t()]} | {:error, term()}
+  def solved_fixes(limit) do
+    {:ok, filters} = Discussions.filters(%{"scope" => "solved"})
+
+    with {:ok, page} <-
+           Forum.list_feed_reports(
+             query: Feed.query(filters),
+             page: [limit: limit],
+             load: [:site, :solution_reply]
+           ) do
+      {:ok, page.results}
+    end
+  end
+
+  @doc """
   What a post's page shows under the post: the page of replies `cursor` and
   `filter` name, with the continuation after it, the asker's pick, and the
   incident when the post is one's discussion. The page and its live thread

@@ -574,9 +574,11 @@ defmodule RegentsWeb.Router do
 
   # Each troubleshooting page's Markdown at its own address ending in .md, each
   # agent page's steps on their own as the agents.md that agent reads, each
-  # picture on a public post, and the pictures Patchbay took of sites, to any
-  # caller, as on patchbay.help.
+  # picture on a public post, the pictures Patchbay took of sites and the
+  # solved fixes as JSON Feed and RSS, to any caller, as on patchbay.help.
   scope "/patchbay", RegentsWeb.Patchbay do
+    get "/solved.json", SolvedController, :feed
+    get "/solved.rss", SolvedController, :rss
     get "/post-pictures/:id", PostPictureController, :show
     get "/site-screenshots/:site_id", SiteScreenshotController, :show
     get "/listed-site-pictures/:domain", ListedSitePictureController, :show
