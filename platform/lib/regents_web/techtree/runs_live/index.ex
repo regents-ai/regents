@@ -533,6 +533,11 @@ defmodule RegentsWeb.Techtree.RunsLive.Index do
           <h2 id="more-title">More</h2>
         </header>
         <nav class="mk-paths" aria-labelledby="more-title">
+          <.link navigate={~p"/techtree/wallet-bench"} class="mk-tile">
+            <span class="mk-tile__name">Wallet Bench</span>
+            <span class="mk-tile__line">Which agent can use which wallet?</span>
+            <Regent.Icons.icon name="arrow-right" class="mk-tile__arrow" />
+          </.link>
           <.link navigate={~p"/techtree/formal"} class="mk-tile">
             <span class="mk-tile__name">Formal</span>
             <span class="mk-tile__line">

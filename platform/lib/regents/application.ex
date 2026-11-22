@@ -4,7 +4,7 @@ defmodule Regents.Application do
   @moduledoc false
   use Boundary,
     top_level?: true,
-    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Autolaunch]
+    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Keyfleet, Regents.Autolaunch]
 
   use Application
 
@@ -37,6 +37,8 @@ defmodule Regents.Application do
         Regents.Patchbay.Forum.FeedCount,
         # Room for two Patchbay word searches at once.
         Regents.Patchbay.Forum.SearchSlots,
+        # Techtree's Wallet Bench reading, kept 30 seconds.
+        Regents.Techtree.WalletBench.Reading,
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
         # Each product's health read for /api/v1/health, unlinked from the request.
@@ -55,6 +57,9 @@ defmodule Regents.Application do
         # Points board read once for all of them.
         Regents.SharedReading,
         points_board_child(),
+        # After PubSub and SharedReading: Keyfleet's processes that keep what they
+        # are given in memory and write nothing.
+        Regents.Keyfleet.Supervisor,
         # Autolaunch's part, which reads its deployment files as it starts.
         Regents.Autolaunch.Supervisor,
         # Start a worker by calling: Regents.Worker.start_link(arg)
@@ -83,12 +88,14 @@ defmodule Regents.Application do
 
   # AshOban adds a queue and a sweep for every trigger in the site's domains. Every
   # job writes, so the read-only venue (`Regents.read_only?/0`) runs none.
+  # Keyfleet's domains are left out: none of their triggers sweeps until the slice
+  # that puts their jobs to use.
   defp oban_child do
     if Application.get_env(:regents, :database_startup_enabled, false) and
          not Regents.read_only?() do
       {Oban,
        AshOban.config(
-         Application.fetch_env!(:regents, :ash_domains),
+         Application.fetch_env!(:regents, :ash_domains) -- Regents.Keyfleet.domains(),
          staking_jobs(Application.fetch_env!(:regents, Oban))
        )}
     end

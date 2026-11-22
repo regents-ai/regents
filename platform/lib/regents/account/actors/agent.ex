@@ -118,9 +118,12 @@ defmodule Regents.Account.Actors.Agent do
   The agent with its pairing filled from the shared pairing record and this
   site's account: `{:ok, agent}` with `pairing` a `Human`, `:person_not_here`
   or `:none`, or `{:error, reason}` when either could not be read. The only
-  place that decides the pairing. Only the site's plug
-  (`RegentsWeb.Account.PairedAgent`) calls it, on a request it verified: the
-  pairing check proves the pairing, never the signature.
+  place that decides the pairing. The site's plug
+  (`RegentsWeb.Account.PairedAgent`) calls it on a request it verified, and so
+  do `refresh/1`, Keyfleet's graph when it rebuilds a queued write's agent
+  (`Regents.Keyfleet.Graph.ActorRef`) and its notebook roster
+  (`Regents.Keyfleet.Notebooks.Roster`): the pairing check proves the pairing,
+  never the signature.
   """
   @spec with_pairing(t()) :: {:ok, t()} | {:error, term()}
   def with_pairing(%__MODULE__{} = agent) do

@@ -4,11 +4,11 @@
   "taken": "2026-11-20",
   "stylesheets": "All 55 of keyfleet.ai's stylesheets (13,836 lines), whether or not a page here uses them yet, so later pages add only markup. Each file is wrapped in @scope (:root[data-product=\"keyfleet\"]) to (.regents-frame), so it stops at regents.sh's frame on Keyfleet's overview page; inside it :root[data-brand=\"platform\"] reads :scope[data-brand] and :root reads :scope, each at the same weight, and html reads :scope, one step heavier, as Techtree's. keyfleet.ai's pages wear Regent UI's platform palette, and so do these: the page carries data-brand=\"platform\".",
   "files": [
-    {"from": "platform/lib/keyfleet.ex", "to": "platform/lib/regents/keyfleet.ex", "changes": "Boundary root for Regents.Keyfleet; exports Authority, Capabilities and GoalIdeas; health/0 answers :ok"},
+    {"from": "platform/lib/keyfleet.ex", "to": "platform/lib/regents/keyfleet.ex", "changes": "Boundary root for Regents.Keyfleet; exports Authority, Capabilities, GoalIdeas and Supervisor; schema/0 (keyfleet_app) and domains/0 (its domains in ash_domains) added in slice 2; health/0 answers :ok"},
     {"from": "platform/lib/keyfleet_web.ex", "to": "platform/lib/regents_web/keyfleet.ex", "changes": "Boundary root for RegentsWeb.Keyfleet; depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive"},
     {"from": "platform/lib/keyfleet/authority.ex", "to": "platform/lib/regents/keyfleet/authority.ex", "changes": "renamed; the rows and markdown_table/0 only, every row open (the launch gate is not brought); rows/0, treasury_rows/0 and needs/1 left out, unused here"},
     {"from": "platform/lib/keyfleet/capabilities.ex", "to": "platform/lib/regents/keyfleet/capabilities.ex", "changes": "renamed; markdown_table/0 only, read from priv/keyfleet/tool_manifest.json; manifest/0, versions/0, tools/0, request/2 and may/0 come with capabilities.json and the API"},
-    {"from": "platform/lib/keyfleet/goal_ideas.ex", "to": "platform/lib/regents/keyfleet/goal_ideas.ex", "changes": "renamed; markdown/0 only, read from priv/keyfleet/public/goal-ideas.md; starting_goals/0 left out, unused here"},
+    {"from": "platform/lib/keyfleet/goal_ideas.ex", "to": "platform/lib/regents/keyfleet/goal_ideas.ex", "changes": "renamed; read from priv/keyfleet/public/goal-ideas.md; slice 2 brought the whole module, starting_goals/0 included, since the graph's start reads it"},
     {"from": "platform/lib/keyfleet_web/live/shell_live.ex", "to": "platform/lib/regents_web/keyfleet/shell_live.ex", "changes": "renamed; the reading pages only, named by their live action: mount, handle_params and render; who is signed in comes from this site's session (RegentsWeb.Live.Session); no fleet reads, sea, Buy Key, pairing window, account menu, sign-in events, mutes or session lease re-checks"},
     {"from": "platform/lib/keyfleet_web/route_catalog.ex", "to": "platform/lib/regents_web/keyfleet/route_catalog.ex", "changes": "renamed; only the reading pages' entries, under /keyfleet and keyed by live action; each page's sidebar lists the reading pages; no fleet entries, tabs, header controls, canonical roots or scroll policy"},
     {"from": "platform/lib/keyfleet_web/route_catalog_types.ex", "to": "platform/lib/regents_web/keyfleet/route_catalog_types.ex", "changes": "renamed; Entry and Spec hold only the fields the reading pages use"},
@@ -33,7 +33,7 @@
     {"from": "platform/priv/public/about.md", "to": "platform/priv/keyfleet/public/about.md", "changes": "lines 18, 20 and 59: page and guide addresses gain /keyfleet"},
     {"from": "platform/priv/public/agents.md", "to": "platform/priv/keyfleet/public/agents.md", "changes": "13 lines (17, 19, 27, 31, 41 to 49, 51): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; line 17: the sign-in audience is regents"},
     {"from": "platform/priv/public/changelog.md", "to": "platform/priv/keyfleet/public/changelog.md", "changes": "lines 24 and 88: page addresses gain /keyfleet; lines 82 and 83: /api/v1/ addresses gain keyfleet/"},
-    {"from": "platform/priv/public/docs.md", "to": "platform/priv/keyfleet/public/docs.md", "changes": "140 lines: page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; lines 54 and 486: the sign-in audience is regents; line 74's {{origin}}/pair?to=PAGE stays as it is"},
+    {"from": "platform/priv/public/docs.md", "to": "platform/priv/keyfleet/public/docs.md", "changes": "140 lines: page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/; lines 54 and 486: the sign-in audience is regents; line 74's {{origin}}/pair?to=PAGE stays as it is; slice 2: lines 667-671, an unknown address answers 404 operation_unknown with the site's hint, not not_found"},
     {"from": "platform/priv/public/help.md", "to": "platform/priv/keyfleet/public/help.md", "changes": "lines 5 to 11: guide addresses gain /keyfleet"},
     {"from": "platform/priv/public/llms.md", "to": "platform/priv/keyfleet/public/llms.md", "changes": "20 lines (9 to 12, 14 to 16, 20 to 22, 26 to 30, 34, 35, 41 to 43): page and guide addresses gain /keyfleet, /api/v1/ addresses gain keyfleet/"},
     {"from": "platform/priv/public/opening.md", "to": "platform/priv/keyfleet/public/opening.md", "changes": "line 20: /skill.md gains /keyfleet"},
@@ -58,5 +58,670 @@
     "/metadata/ and hub-jwks.json: the keyfleet.ai host, at the move.",
     "Keyfleet's root and early layouts, the launch gate and the early-access page, sign-in, sessions, accounts, actors, agents and pairing, Points, messages, endpoint, router, release and database setup, telemetry, vitals, visit log, steps, error tracking and rate limiting: this site's own serve every page.",
     "priv/static/images/home/hex.svg: only Keyfleet's home stylesheet names it; it comes with the home page."
-  ]
+  ],
+  "migrations": {
+    "from": "platform/priv/repo/migrations/*.exs (130 files, 20260921234643 to 20261119232542), platform/priv/resource_snapshots/repo/extensions.json",
+    "to": "platform/priv/keyfleet/migrations/, platform/priv/keyfleet/resource_snapshots/repo/extensions.json",
+    "applied": "into keyfleet_app with its own ledger keyfleet_app.schema_migrations, after regents_app and techtree_app and before patchbay_app (Regents.Products, schema \"keyfleet_app\")",
+    "module_names": "keyfleet.ai's Repo.Migrations.<Name> became Regents.Repo.Migrations.Keyfleet<Name> in every file; no source name starts with Keyfleet",
+    "schema": "keyfleet.ai's Repo had keyfleet_app as its default schema and ran every file with it as the migrator's prefix, as Regents.Repo.migrate!/2 runs this folder. Every raw statement that names a table or function already names its schema, keyfleet_app (51 files name it) or public, apart from the first Ash-function install (below), and every table, index and reference the Ecto commands make without a prefix takes the migrator's, so no file needed prefix() for that. On a fresh database everything these files make is in keyfleet_app; five tables' foreign keys to regent_names.platform_human_users name that schema themselves.",
+    "edits": [
+      {
+        "files": [
+          "20260921234643_initial_app_extensions_1.exs",
+          "20261026194845_ash_functions_v7_extensions_1.exs"
+        ],
+        "edit": "up and down do nothing; the moduledoc says why",
+        "reason": "the Ash functions are already in public, put there by regents.sh's own 20260911204813 and 20261027045129, which run before any product's and carry the same SQL; the first file's CREATE OR REPLACE names no schema, so it would rewrite them in public (ash_required back to version 6 until the second file) and its down would drop them. Both versions stay so the ledger holds what production's does"
+      },
+      {
+        "files": [
+          "20261012191300_add_error_tracker.exs"
+        ],
+        "edit": "keyfleet.ai's Repo.default_prefix() became prefix(), and its comment's \"the site's own tables\" became \"Keyfleet's own tables\"",
+        "reason": "the area being migrated is the migrator's prefix here, keyfleet_app; Regents.Repo.default_prefix() is regents_app"
+      },
+      {
+        "files": [
+          "20261028180000_add_oauth_provider.exs",
+          "20261114120000_oauth_client_documents.exs",
+          "20261119120000_oauth_long_values.exs"
+        ],
+        "edit": "RegentOAuth.Migration's up and V2 (the first file), V3 and V4 written out as regent_oauth holds them at elixir-utils b9d530d4 (Keyfleet 03eb26813's pin, the same files as at 6d98a113, Patchbay's), V2's two statements naming oauth_tokens with prefix()",
+        "reason": "this site does not carry regent_oauth (as Patchbay's and Techtree's carried OAuth migrations)"
+      }
+    ],
+    "unchanged_on_purpose": [
+      "Every file naming keyfleet_app itself, in a reference, a statement or Oban's prefix, keeps it: the area here is always keyfleet_app",
+      "20261002170000_add_oban.exs: Keyfleet's old job tables (oban_jobs, oban_peers and the oban_job_state type) in keyfleet_app, at Oban 2.24.2 here as on keyfleet.ai; no job is queued into them here",
+      "20261012191300_add_error_tracker.exs: Keyfleet's old saved-error tables in keyfleet_app, read by nobody",
+      "20260921234644_initial_app.exs, 20261012180958_add_ens_identities.exs, 20261013080809_add_quote_requests.exs and 20261112090918_add_left_messages.exs: their references to regent_names.platform_human_users name that schema themselves",
+      "linked_identities, session_authorities, account_ens_identities, left_messages and the oauth_* tables: areas the core will not carry; the tables are made, nobody reads them",
+      "20261008223900_drop_fast_poll_sessions.exs: its DELETE FROM keyfleet_app.oban_jobs finds an empty table on a fresh database",
+      "extensions.json: carried byte for byte, its one extension ash-functions at version 7, named as Regents.Repo names it; slice 2's mix ash.codegen added pg_trgm to it, with the record migration under core.extension_record"
+    ]
+  },
+  "core": {
+    "from": "platform/lib/keyfleet/ (351 .ex files, 46,345 lines, and fleets/classic_key_prices.txt), less the parts listed under not_carried",
+    "to": "platform/lib/regents/keyfleet/",
+    "files": [
+      "platform/lib/keyfleet/access/check.ex",
+      "platform/lib/keyfleet/access.ex",
+      "platform/lib/keyfleet/access_cache.ex",
+      "platform/lib/keyfleet/activity.ex",
+      "platform/lib/keyfleet/agents/agent_profile.ex",
+      "platform/lib/keyfleet/agents/avatar.ex",
+      "platform/lib/keyfleet/agents/avatar_bucket.ex",
+      "platform/lib/keyfleet/agents/calculations/avatar_src.ex",
+      "platform/lib/keyfleet/agents/calculations/key.ex",
+      "platform/lib/keyfleet/agents/changes/note_contribution.ex",
+      "platform/lib/keyfleet/agents/changes/record_authority.ex",
+      "platform/lib/keyfleet/agents/changes/replace_avatar.ex",
+      "platform/lib/keyfleet/agents/changes/scheduled_check_in.ex",
+      "platform/lib/keyfleet/agents/changes/track_profile_activity.ex",
+      "platform/lib/keyfleet/agents/check_in.ex",
+      "platform/lib/keyfleet/agents/check_in_status.ex",
+      "platform/lib/keyfleet/agents/checkpoint.ex",
+      "platform/lib/keyfleet/agents/checks/own_profile.ex",
+      "platform/lib/keyfleet/agents/delete_avatar.ex",
+      "platform/lib/keyfleet/agents/here.ex",
+      "platform/lib/keyfleet/agents/upkeep.ex",
+      "platform/lib/keyfleet/agents.ex",
+      "platform/lib/keyfleet/atlas/bucket.ex",
+      "platform/lib/keyfleet/atlas/count.ex",
+      "platform/lib/keyfleet/atlas/fill.ex",
+      "platform/lib/keyfleet/atlas/named.ex",
+      "platform/lib/keyfleet/atlas/notebook.ex",
+      "platform/lib/keyfleet/atlas/read_hub.ex",
+      "platform/lib/keyfleet/atlas/read_hubs.ex",
+      "platform/lib/keyfleet/atlas/source.ex",
+      "platform/lib/keyfleet/atlas/span.ex",
+      "platform/lib/keyfleet/atlas/swarm.ex",
+      "platform/lib/keyfleet/atlas/thing.ex",
+      "platform/lib/keyfleet/atlas/validations/stretch.ex",
+      "platform/lib/keyfleet/atlas/window.ex",
+      "platform/lib/keyfleet/atlas.ex",
+      "platform/lib/keyfleet/chain/changes/record_once.ex",
+      "platform/lib/keyfleet/chain/cursor.ex",
+      "platform/lib/keyfleet/chain/json_rpc.ex",
+      "platform/lib/keyfleet/chain/logs.ex",
+      "platform/lib/keyfleet/chain/money_log.ex",
+      "platform/lib/keyfleet/chain/ownership_log.ex",
+      "platform/lib/keyfleet/chain/read_balances.ex",
+      "platform/lib/keyfleet/chain/read_fleet.ex",
+      "platform/lib/keyfleet/chain/reading_stopped_error.ex",
+      "platform/lib/keyfleet/chain/reveal_log.ex",
+      "platform/lib/keyfleet/chain/rewards_waiting.ex",
+      "platform/lib/keyfleet/chain/rpc_client.ex",
+      "platform/lib/keyfleet/chain/scanner.ex",
+      "platform/lib/keyfleet/chain/shards_log.ex",
+      "platform/lib/keyfleet/chain/treasury_reader.ex",
+      "platform/lib/keyfleet/chain/votes_log.ex",
+      "platform/lib/keyfleet/chain/watch.ex",
+      "platform/lib/keyfleet/chain.ex",
+      "platform/lib/keyfleet/chain_client.ex",
+      "platform/lib/keyfleet/chain_refresh.ex",
+      "platform/lib/keyfleet/checks/agent_actor.ex",
+      "platform/lib/keyfleet/code/changes/make_repository.ex",
+      "platform/lib/keyfleet/code/commit.ex",
+      "platform/lib/keyfleet/code/delete_repository.ex",
+      "platform/lib/keyfleet/code/node_client.ex",
+      "platform/lib/keyfleet/code/pass.ex",
+      "platform/lib/keyfleet/code/push.ex",
+      "platform/lib/keyfleet/code/receive_pack.ex",
+      "platform/lib/keyfleet/code/records_down_error.ex",
+      "platform/lib/keyfleet/code/repository.ex",
+      "platform/lib/keyfleet/code/sent.ex",
+      "platform/lib/keyfleet/code/setup.ex",
+      "platform/lib/keyfleet/code/store_down_error.ex",
+      "platform/lib/keyfleet/code.ex",
+      "platform/lib/keyfleet/count.ex",
+      "platform/lib/keyfleet/decks.ex",
+      "platform/lib/keyfleet/directory.ex",
+      "platform/lib/keyfleet/dms/block.ex",
+      "platform/lib/keyfleet/dms/changes/limit_sends.ex",
+      "platform/lib/keyfleet/dms/changes/load_side.ex",
+      "platform/lib/keyfleet/dms/changes/send_message.ex",
+      "platform/lib/keyfleet/dms/checks/key_holder.ex",
+      "platform/lib/keyfleet/dms/conversation.ex",
+      "platform/lib/keyfleet/dms/errors.ex",
+      "platform/lib/keyfleet/dms/message.ex",
+      "platform/lib/keyfleet/dms/part.ex",
+      "platform/lib/keyfleet/dms/preparations/in_order.ex",
+      "platform/lib/keyfleet/dms/preparations/last_shown.ex",
+      "platform/lib/keyfleet/dms/read_mark.ex",
+      "platform/lib/keyfleet/dms/validations/two_keys.ex",
+      "platform/lib/keyfleet/dms.ex",
+      "platform/lib/keyfleet/early/signup/stored_email.ex",
+      "platform/lib/keyfleet/early/signup.ex",
+      "platform/lib/keyfleet/early.ex",
+      "platform/lib/keyfleet/feed.ex",
+      "platform/lib/keyfleet/fleets/fleet.ex",
+      "platform/lib/keyfleet/fleets/presets.ex",
+      "platform/lib/keyfleet/fleets/rules.ex",
+      "platform/lib/keyfleet/fleets/validations/same_deployment.ex",
+      "platform/lib/keyfleet/fleets/validations/shared_wiring.ex",
+      "platform/lib/keyfleet/fleets.ex",
+      "platform/lib/keyfleet/graph/actor_ref.ex",
+      "platform/lib/keyfleet/graph/authority.ex",
+      "platform/lib/keyfleet/graph/checks/key_actor.ex",
+      "platform/lib/keyfleet/graph/checks/key_reader.ex",
+      "platform/lib/keyfleet/graph/client.ex",
+      "platform/lib/keyfleet/graph/cursor.ex",
+      "platform/lib/keyfleet/graph/errors.ex",
+      "platform/lib/keyfleet/graph/event.ex",
+      "platform/lib/keyfleet/graph/listener.ex",
+      "platform/lib/keyfleet/graph/notices.ex",
+      "platform/lib/keyfleet/graph/object.ex",
+      "platform/lib/keyfleet/graph/pass.ex",
+      "platform/lib/keyfleet/graph/pin.ex",
+      "platform/lib/keyfleet/graph/projection.ex",
+      "platform/lib/keyfleet/graph/projector.ex",
+      "platform/lib/keyfleet/graph/projectors.ex",
+      "platform/lib/keyfleet/graph/relation.ex",
+      "platform/lib/keyfleet/graph/rerun_check.ex",
+      "platform/lib/keyfleet/graph/seq.ex",
+      "platform/lib/keyfleet/graph/stalled_error.ex",
+      "platform/lib/keyfleet/graph/supervisor.ex",
+      "platform/lib/keyfleet/graph/validations/distinct_ids.ex",
+      "platform/lib/keyfleet/graph/validations/fresh_ownership.ex",
+      "platform/lib/keyfleet/graph/validations/known_fleet.ex",
+      "platform/lib/keyfleet/graph/validations/unrestricted.ex",
+      "platform/lib/keyfleet/graph/validations/write_allowance.ex",
+      "platform/lib/keyfleet/graph/workspace/read.ex",
+      "platform/lib/keyfleet/graph/workspace/relay.ex",
+      "platform/lib/keyfleet/graph/workspace.ex",
+      "platform/lib/keyfleet/graph/writer.ex",
+      "platform/lib/keyfleet/graph.ex",
+      "platform/lib/keyfleet/keys/agent_key.ex",
+      "platform/lib/keyfleet/keys/agent_voting.ex",
+      "platform/lib/keyfleet/keys/changes/put_agent.ex",
+      "platform/lib/keyfleet/keys/changes/queue_picture.ex",
+      "platform/lib/keyfleet/keys/changes/tell_keys_changed.ex",
+      "platform/lib/keyfleet/keys/checks/acts_for_person.ex",
+      "platform/lib/keyfleet/keys/classic_check.ex",
+      "platform/lib/keyfleet/keys/deck_end_check.ex",
+      "platform/lib/keyfleet/keys/deck_ending_error.ex",
+      "platform/lib/keyfleet/keys/draw_picture.ex",
+      "platform/lib/keyfleet/keys/edits_restriction.ex",
+      "platform/lib/keyfleet/keys/errors.ex",
+      "platform/lib/keyfleet/keys/key_art.ex",
+      "platform/lib/keyfleet/keys/key_attachment.ex",
+      "platform/lib/keyfleet/keys/key_picture/make_small_picture.ex",
+      "platform/lib/keyfleet/keys/key_picture.ex",
+      "platform/lib/keyfleet/keys/key_reveal.ex",
+      "platform/lib/keyfleet/keys/key_reveal_expiry.ex",
+      "platform/lib/keyfleet/keys/metadata.ex",
+      "platform/lib/keyfleet/keys/posting_key.ex",
+      "platform/lib/keyfleet/keys/presence.ex",
+      "platform/lib/keyfleet/keys/presence_timer.ex",
+      "platform/lib/keyfleet/keys/presence_timer_error.ex",
+      "platform/lib/keyfleet/keys/profile.ex",
+      "platform/lib/keyfleet/keys/shard_event.ex",
+      "platform/lib/keyfleet/keys/validations/held_by_person.ex",
+      "platform/lib/keyfleet/keys.ex",
+      "platform/lib/keyfleet/lighthouse.ex",
+      "platform/lib/keyfleet/notebooks/backup.ex",
+      "platform/lib/keyfleet/notebooks/backups.ex",
+      "platform/lib/keyfleet/notebooks/changes/forget_scratchpads.ex",
+      "platform/lib/keyfleet/notebooks/changes/make_space.ex",
+      "platform/lib/keyfleet/notebooks/changes/queue_roster.ex",
+      "platform/lib/keyfleet/notebooks/changes/update_roster.ex",
+      "platform/lib/keyfleet/notebooks/daily_backup.ex",
+      "platform/lib/keyfleet/notebooks/delete_space.ex",
+      "platform/lib/keyfleet/notebooks/file_maker.ex",
+      "platform/lib/keyfleet/notebooks/files.ex",
+      "platform/lib/keyfleet/notebooks/handoff.ex",
+      "platform/lib/keyfleet/notebooks/hub_client.ex",
+      "platform/lib/keyfleet/notebooks/hub_silent_error.ex",
+      "platform/lib/keyfleet/notebooks/makers.ex",
+      "platform/lib/keyfleet/notebooks/mark_succeeded.ex",
+      "platform/lib/keyfleet/notebooks/member_request.ex",
+      "platform/lib/keyfleet/notebooks/page.ex",
+      "platform/lib/keyfleet/notebooks/pass.ex",
+      "platform/lib/keyfleet/notebooks/reconcile.ex",
+      "platform/lib/keyfleet/notebooks/records_down_error.ex",
+      "platform/lib/keyfleet/notebooks/result_not_kept_error.ex",
+      "platform/lib/keyfleet/notebooks/roster.ex",
+      "platform/lib/keyfleet/notebooks/run_page_pruner.ex",
+      "platform/lib/keyfleet/notebooks/run_source.ex",
+      "platform/lib/keyfleet/notebooks/runs.ex",
+      "platform/lib/keyfleet/notebooks/saved_output.ex",
+      "platform/lib/keyfleet/notebooks/scratchpads.ex",
+      "platform/lib/keyfleet/notebooks/setting.ex",
+      "platform/lib/keyfleet/notebooks/space.ex",
+      "platform/lib/keyfleet/notebooks/understanding_page.ex",
+      "platform/lib/keyfleet/notebooks.ex",
+      "platform/lib/keyfleet/polls/calculations/totals.ex",
+      "platform/lib/keyfleet/polls/changes/cast_vote.ex",
+      "platform/lib/keyfleet/polls/changes/end_poll.ex",
+      "platform/lib/keyfleet/polls/changes/start_poll.ex",
+      "platform/lib/keyfleet/polls/checks/standing.ex",
+      "platform/lib/keyfleet/polls/errors.ex",
+      "platform/lib/keyfleet/polls/poll.ex",
+      "platform/lib/keyfleet/polls/preparations/own_vote.ex",
+      "platform/lib/keyfleet/polls/validations/agent_voting.ex",
+      "platform/lib/keyfleet/polls/validations/distinct_choices.ex",
+      "platform/lib/keyfleet/polls/vote.ex",
+      "platform/lib/keyfleet/polls.ex",
+      "platform/lib/keyfleet/preparations/done_by.ex",
+      "platform/lib/keyfleet/preparations/newest_first.ex",
+      "platform/lib/keyfleet/preparations/search_page.ex",
+      "platform/lib/keyfleet/projects/changes/forget.ex",
+      "platform/lib/keyfleet/projects/errors.ex",
+      "platform/lib/keyfleet/projects/hold.ex",
+      "platform/lib/keyfleet/projects/project.ex",
+      "platform/lib/keyfleet/projects/publication.ex",
+      "platform/lib/keyfleet/projects/publish.ex",
+      "platform/lib/keyfleet/projects/validations/active.ex",
+      "platform/lib/keyfleet/projects/validations/not_general.ex",
+      "platform/lib/keyfleet/projects.ex",
+      "platform/lib/keyfleet/proposals/actions.ex",
+      "platform/lib/keyfleet/proposals/calculations/key_ballots.ex",
+      "platform/lib/keyfleet/proposals/calculations/late_keys.ex",
+      "platform/lib/keyfleet/proposals/calculations/latest_votes.ex",
+      "platform/lib/keyfleet/proposals/call.ex",
+      "platform/lib/keyfleet/proposals/cancellation.ex",
+      "platform/lib/keyfleet/proposals/changes/find_proposal.ex",
+      "platform/lib/keyfleet/proposals/changes/fingerprint.ex",
+      "platform/lib/keyfleet/proposals/changes/limit_words.ex",
+      "platform/lib/keyfleet/proposals/errors.ex",
+      "platform/lib/keyfleet/proposals/execution.ex",
+      "platform/lib/keyfleet/proposals/proposal.ex",
+      "platform/lib/keyfleet/proposals/vote.ex",
+      "platform/lib/keyfleet/proposals/words.ex",
+      "platform/lib/keyfleet/proposals.ex",
+      "platform/lib/keyfleet/rooms/changes/limit_created_rooms.ex",
+      "platform/lib/keyfleet/rooms/changes/limit_mutes.ex",
+      "platform/lib/keyfleet/rooms/changes/limit_posts.ex",
+      "platform/lib/keyfleet/rooms/changes/limit_quote_requests.ex",
+      "platform/lib/keyfleet/rooms/changes/limit_renames.ex",
+      "platform/lib/keyfleet/rooms/changes/name_room.ex",
+      "platform/lib/keyfleet/rooms/changes/next_quote_place.ex",
+      "platform/lib/keyfleet/rooms/changes/normalize_name.ex",
+      "platform/lib/keyfleet/rooms/changes/off_its_wall.ex",
+      "platform/lib/keyfleet/rooms/changes/post_message.ex",
+      "platform/lib/keyfleet/rooms/changes/set_muter.ex",
+      "platform/lib/keyfleet/rooms/checks/in_rooms_anyone_reads.ex",
+      "platform/lib/keyfleet/rooms/checks/own_mute.ex",
+      "platform/lib/keyfleet/rooms/checks/people_room_writer.ex",
+      "platform/lib/keyfleet/rooms/checks/rooms_anyone_reads.ex",
+      "platform/lib/keyfleet/rooms/errors.ex",
+      "platform/lib/keyfleet/rooms/mentions.ex",
+      "platform/lib/keyfleet/rooms/message.ex",
+      "platform/lib/keyfleet/rooms/mute.ex",
+      "platform/lib/keyfleet/rooms/muter.ex",
+      "platform/lib/keyfleet/rooms/preparations/one_room.ex",
+      "platform/lib/keyfleet/rooms/quote_request.ex",
+      "platform/lib/keyfleet/rooms/read_mark.ex",
+      "platform/lib/keyfleet/rooms/room.ex",
+      "platform/lib/keyfleet/rooms/sequence.ex",
+      "platform/lib/keyfleet/rooms/validations/has_paired_agent.ex",
+      "platform/lib/keyfleet/rooms/validations/issued_key.ex",
+      "platform/lib/keyfleet/rooms/validations/quotes_its_person.ex",
+      "platform/lib/keyfleet/rooms/wall_removal.ex",
+      "platform/lib/keyfleet/rooms.ex",
+      "platform/lib/keyfleet/search.ex",
+      "platform/lib/keyfleet/seasons/changes/pick.ex",
+      "platform/lib/keyfleet/seasons/changes/season_end.ex",
+      "platform/lib/keyfleet/seasons/coin_list.ex",
+      "platform/lib/keyfleet/seasons/coinbase.ex",
+      "platform/lib/keyfleet/seasons/errors.ex",
+      "platform/lib/keyfleet/seasons/preparations/own_pick.ex",
+      "platform/lib/keyfleet/seasons/rules.ex",
+      "platform/lib/keyfleet/seasons/season.ex",
+      "platform/lib/keyfleet/seasons/season_pick.ex",
+      "platform/lib/keyfleet/seasons/turn.ex",
+      "platform/lib/keyfleet/seasons/turns.ex",
+      "platform/lib/keyfleet/seasons/validations/reason.ex",
+      "platform/lib/keyfleet/seasons.ex",
+      "platform/lib/keyfleet/traits.ex",
+      "platform/lib/keyfleet/treasury/asset_balance.ex",
+      "platform/lib/keyfleet/treasury/asset_details.ex",
+      "platform/lib/keyfleet/treasury/event.ex",
+      "platform/lib/keyfleet/treasury/reading.ex",
+      "platform/lib/keyfleet/treasury.ex",
+      "platform/lib/keyfleet/usage/count.ex",
+      "platform/lib/keyfleet/usage/machine.ex",
+      "platform/lib/keyfleet/usage/month.ex",
+      "platform/lib/keyfleet/usage/read_hub.ex",
+      "platform/lib/keyfleet/usage.ex",
+      "platform/lib/keyfleet/wallet_steps/build.ex",
+      "platform/lib/keyfleet/wallet_steps/figures.ex",
+      "platform/lib/keyfleet/wallet_steps/key_steps.ex",
+      "platform/lib/keyfleet/wallet_steps/launch_steps.ex",
+      "platform/lib/keyfleet/wallet_steps/linked_signer.ex",
+      "platform/lib/keyfleet/wallet_steps/money_steps.ex",
+      "platform/lib/keyfleet/wallet_steps/reads.ex",
+      "platform/lib/keyfleet/wallet_steps/steps.ex",
+      "platform/lib/keyfleet/wallet_steps/typed.ex",
+      "platform/lib/keyfleet/wallet_steps/vote_steps.ex",
+      "platform/lib/keyfleet/wallet_steps.ex",
+      "platform/lib/keyfleet/workspace_pulse.ex",
+      "platform/lib/keyfleet/fleets/classic_key_prices.txt"
+    ],
+    "files_note": "each to the same path under platform/lib/regents/keyfleet/; three more are in files above: goal_ideas.ex, whole since slice 2, and authority.ex and capabilities.ex, as slice 1 brought them; classic_key_prices.txt byte for byte (fleets/presets.ex reads it at compile time)",
+    "written_here": [
+      "platform/lib/regents/keyfleet/supervisor.ex: Regents.Keyfleet.Supervisor, the access cache alone"
+    ],
+    "naming": [
+      "Keyfleet.X became Regents.Keyfleet.X, KeyfleetWeb.X RegentsWeb.Keyfleet.X (docs only: no carried module calls the web side)",
+      "the source's Repo became Regents.Repo; every resource names schema \"keyfleet_app\" and keeps its table; the source Repo's default_prefix() became Regents.Keyfleet.schema()",
+      "PubSub topics gain keyfleet: where they are built: each topic function, the access cache's topic and each Ash notifier's prefix (prefix \"keyfleet\" where it had none); the check-in notifier keeps prefix \"regent_agents\", the shared library's topic regents.sh's account pages hear",
+      "settings: the keyfleet application's setting x became config :regents, :keyfleet_x; module-keyed ones config :regents, Regents.Keyfleet.X; the chain's config :regents, :keyfleet_chain",
+      "queues: keyfleet_<name>; telemetry events [:regents, :keyfleet_<name>, ...]",
+      "the sign-in audience \"keyfleet\" became \"regents\"",
+      "actors, accounts, sessions, public identity, alerts, limits and shared readings: the site's own (not_carried)",
+      "alias groups sorted again where the new names sort differently, and long lines formatted again"
+    ],
+    "line_changes": [
+      {
+        "files": [
+          "keys.ex",
+          "rooms.ex",
+          "atlas/swarm.ex",
+          "chain/changes/record_once.ex"
+        ],
+        "edit": "17 plain Ecto queries on a table name (and record_once.ex's one on a resource module) name prefix: ^Regents.Keyfleet.schema()",
+        "reason": "keyfleet.ai's Repo defaulted plain queries to keyfleet_app; Regents.Repo defaults them to regents_app, and an Ash resource's Ecto schema names no prefix"
+      },
+      {
+        "files": [
+          "agents.ex",
+          "graph.ex",
+          "graph/workspace.ex"
+        ],
+        "edit": "no AshAi extension, tools blocks, @identity, @browser_tools or @workspace_writes; Agents loses the Pairing and Connection resources; the workspace's policy loses authorize_if Agents.Connection.Listing; the two moduledocs lose their connector sentence",
+        "reason": "the Claude connector is not brought (not_brought)"
+      },
+      {
+        "files": [
+          "proposals/changes/limit_words.ex"
+        ],
+        "edit": "RequestRateLimiter.admit became RateLimiter.admit (Regents.RateLimiter)",
+        "reason": "the alias the naming rule made is Regents.RateLimiter"
+      },
+      {
+        "files": [
+          "graph/validations/write_allowance.ex",
+          "rooms/changes/limit_posts.ex"
+        ],
+        "edit": "allowances :graph_writes and :agent_posts became :keyfleet_graph_writes and :keyfleet_agent_posts",
+        "reason": "Regents.Limits names every allowance <product>_<name>"
+      },
+      {
+        "files": [
+          "seasons/coin_list.ex"
+        ],
+        "edit": "@kind :season_coins became :keyfleet_season_coins",
+        "reason": "Regents.SharedReading's kinds are named <product>_<kind>"
+      },
+      {
+        "files": [
+          "agents/agent_profile.ex"
+        ],
+        "edit": "a comment names RegentAgents.PairedAgent for the not-carried Agents.Pairing",
+        "reason": "the calculation reads regent_agents.paired_agents, the shared library's"
+      },
+      {
+        "files": [
+          "goal_ideas.ex"
+        ],
+        "edit": "the moduledoc's priv/public/goal-ideas.md became priv/keyfleet/public/goal-ideas.md",
+        "reason": "the file it reads is there"
+      },
+      {
+        "files": [
+          "workspace_pulse.ex"
+        ],
+        "edit": "the names' read Agents.pairings!(wallets, actor: system) became Regents.Account.Agents.pairings_by_wallets!(wallets, actor: %Regents.Account.Actors.System{}); Agents left the alias group, as nothing else here names it; the moduledoc names Regents.Account.Agents.Pairing",
+        "reason": "keyfleet.ai's own pairing resource (agents/pairing.ex) is not carried; the site's read of pairings by wallets is Regents.Account's, as the system, with each record's wallet and name, and it raises on a failed read as keyfleet.ai's did"
+      },
+      {
+        "files": [
+          "agents/here.ex"
+        ],
+        "edit": "kinds :fleet_agents and :key_agents became :keyfleet_fleet_agents and :keyfleet_key_agents (six places); SharedReading left the Regents.Keyfleet alias group for an alias of its own, Regents.SharedReading; the longer held/1 line formatted again",
+        "reason": "Regents.SharedReading's kinds are named <product>_<kind>; the naming rule turns the group's Keyfleet.SharedReading into Regents.Keyfleet.SharedReading, which is no module"
+      },
+      {
+        "files": [
+          "agents.ex"
+        ],
+        "edit": "account/1 and person/1 are not brought (K2d)",
+        "reason": "keyfleet.ai's config named them as RegentAgents' account and person callbacks; regents.sh names Regents.Account.AgentAccount's instead, and nothing else calls them. account/1 would also have read display_name and ens_name unloaded: regents.sh's get_by_privy_did loads neither, where keyfleet.ai's by_privy_did loaded both. regents.sh's Regents.Account.AgentAccount.account/1 answers display_name and ens_name alone; keyfleet.ai's account/1 also answered wallet_address and wallet_addresses, which RegentAgents puts in GET /api/agents/v1/me's account and keyfleet.ai's agents.md and docs.md promised, so an agent's check-in here does not list its person's wallets. Asked of the regents chief for the slice that brings Keyfleet's agent docs (K2d)"
+      },
+      {
+        "files": [
+          "agents.ex",
+          "notebooks/roster.ex"
+        ],
+        "edit": "Agents.with_pairing/1 is not brought; the roster's holders/1 reads an agent's pairing with Regents.Account.Actors.Agent.with_pairing/1 and keeps an agent only while it is paired with a person who has an account here (pairing a Human); any other answer is no holder (K2d)",
+        "reason": "the site's Agent.with_pairing/1 is the one place that decides a pairing, and Agent.refresh/1, which the roster's Notebooks.member?/2 reaches through Keys.identity/2, reads it again and admits only a Human pairing; keyfleet.ai's with_pairing returned :not_paired as an error and kept the pairing episode for a person not here, which no caller here reads"
+      },
+      {
+        "files": [
+          "graph/actor_ref.ex"
+        ],
+        "edit": "actor/2 rebuilds an agent through Regents.Account.Actors.Agent.with_pairing/1 and answers it only while its pairing is a Human in the episode and with the owner the reference names; any other pairing is {:ok, nil}, an agent acting as nobody, and a pairing that can't be read is the read's error; the moduledoc and the clause's comment say so (K2d)",
+        "reason": "regents.sh's Agent.refresh/1, which the graph's KeyActor calls at the write's turn, admits only an agent whose pairing is already a Human; the agent keyfleet.ai rebuilt from identifiers alone had pairing :none, so every agent's graph write would be refused there. keyfleet.ai's refresh turned a pairing it could not read into not a key holder; here the write is unavailable and logged, as for a person whose account can't be read"
+      }
+    ],
+    "not_carried": {
+      "actors/, Actors.*": "Regents.Account.Actors.*",
+      "accounts/, accounts.ex": "Regents.Account.Accounts (accounts_by_ids/2, accounts_holding_wallets!/2, get_by_privy_did, HumanAccount, SessionAuthority)",
+      "accounts/request_rate_limiter.ex": "Regents.RateLimiter",
+      "agents/activity_reading.ex": "Regents.Account.Agents.ActivityReading",
+      "agents/pairing.ex": "RegentAgents (pairing_histories/1, list_my_agents, Authority); Regents.Account.Agents.pairings_by_wallets!/2 for the names WorkspacePulse tells",
+      "public_identity.ex": "Regents.Account.PublicIdentity",
+      "alert.ex": "Regents.Alert",
+      "limits.ex": "Regents.Limits",
+      "shared_reading.ex, shared_reading/": "Regents.SharedReading",
+      "shared_changes.ex": "Regents.SharedChanges",
+      "error_filter.ex, error_ignorer.ex, error_pruner.ex": "the site's error handling",
+      "left_messages.ex, left_messages/": "Regents.Messages",
+      "points.ex, points/": "nothing: Points is the site's",
+      "agents/connection.ex, agents/connection/, agents/hosted_address.ex": "nothing: the /mcp slice",
+      "access_context.ex, access_context/, application.ex, repo.ex, release.ex, database_config.ex, local_database_fixture.ex, health.ex, oauth.ex, siwa_broker.ex": "nothing: the site's own"
+    },
+    "not_carried_paths": [
+      "access_context.ex",
+      "access_context/",
+      "accounts.ex",
+      "accounts/",
+      "actors/",
+      "agents/activity_reading.ex",
+      "agents/connection.ex",
+      "agents/connection/",
+      "agents/hosted_address.ex",
+      "agents/pairing.ex",
+      "alert.ex",
+      "application.ex",
+      "database_config.ex",
+      "error_filter.ex",
+      "error_ignorer.ex",
+      "error_pruner.ex",
+      "health.ex",
+      "left_messages.ex",
+      "left_messages/",
+      "limits.ex",
+      "local_database_fixture.ex",
+      "oauth.ex",
+      "points.ex",
+      "points/",
+      "public_identity.ex",
+      "release.ex",
+      "repo.ex",
+      "shared_changes.ex",
+      "shared_reading.ex",
+      "shared_reading/",
+      "siwa_broker.ex"
+    ],
+    "not_brought": [
+      "The Claude connector: agents/connection.ex, agents/connection/caller.ex, listing.ex, refused.ex, agents/hosted_address.ex, extensions: [AshAi] and the tools blocks in agents.ex and graph.ex: they need ash_ai, regent_mcp_agents and regent_oauth, which come with the one /mcp slice",
+      "KeyfleetWeb.AgentTools and every other KeyfleetWeb module: no page, API route, controller, plug or LiveView",
+      "The ens and Points queues and their workers"
+    ],
+    "settings_set": {
+      "keyfleet_agent_wait_ms": 20000,
+      "keyfleet_proposal_words_rate_limit": "limit 20, window_seconds 3600",
+      "keyfleet_chain": "pass_interval_seconds 300",
+      "keyfleet_graph": "enabled false and the host's timeouts, catch-up, projection wait and pass length",
+      "keyfleet_notebooks": "the access, editor, hand-off and session times, sizes, timeouts and max_sessions",
+      "keyfleet_code": "the pass, access and password times, sizes and timeouts",
+      "limits": "keyfleet_agent_posts (300 an hour), keyfleet_graph_writes (120 a minute)"
+    },
+    "settings_unset": [
+      {
+        "setting": "keyfleet_chain rpc_url",
+        "read_by": "chain/json_rpc.ex, chain/watch.ex",
+        "why": "the address of a JSON-RPC node (keyfleet.ai: KEYFLEET_RPC_URL at runtime)",
+        "set_by": "the slice that reads the chain in the background, after Sean's \"writes\""
+      },
+      {
+        "setting": "keyfleet_chain_nodes",
+        "read_by": "chain_client.ex",
+        "why": "addresses of another service",
+        "set_by": "the slice that reads chains for a page or a job"
+      },
+      {
+        "setting": "keyfleet_wallet_chains",
+        "read_by": "wallet_steps.ex, chain/rpc_client.ex",
+        "why": "names a public node address for wallets",
+        "set_by": "the pages slice with wallet steps"
+      },
+      {
+        "setting": "keyfleet_graph data_dir, python, url; keyfleet_graph_listener",
+        "read_by": "graph/",
+        "why": "the graph host's paths and the graph machine's address",
+        "set_by": "slice 3, the graph machine"
+      },
+      {
+        "setting": "keyfleet_notebooks issuer, host_suffix, public_port, fleets, signing_keys",
+        "read_by": "notebooks.ex, notebooks/",
+        "why": "addresses of the hubs and the signing keys; with issuer unset, notebooks/pass.ex's sign/2 writes \"iss\" nil into every pass (the code store's and the graph's too) and verify/2 accepts \"iss\" nil, so a pass is signed and checked with no issuer; jwks/0 publishes JOSE.JWK.to_public/1 of every key in signing_keys, which for a symmetric (oct) key is the key itself, so a set holding one would publish its secret whole (K2d)",
+        "set_by": "the notebooks slice, with the issuer; the keys with fold rules slice 4, EC P-256 keys only"
+      },
+      {
+        "setting": "keyfleet_code host, public_port, node",
+        "read_by": "code.ex, code/",
+        "why": "the code store's addresses",
+        "set_by": "the code slice"
+      },
+      {
+        "setting": "keyfleet_avatar_bucket",
+        "read_by": "agents/avatar_bucket.ex",
+        "why": "a storage bucket's address and keys",
+        "set_by": "the agents' pictures slice, with fold rules slice 4"
+      },
+      {
+        "setting": "Regents.Keyfleet.Lighthouse (url, api_key)",
+        "read_by": "lighthouse.ex",
+        "why": "another service's address and a key",
+        "set_by": "the Key pictures slice, with fold rules slice 4"
+      },
+      {
+        "setting": "Regents.Keyfleet.Seasons.Coinbase url",
+        "read_by": "seasons/coinbase.ex",
+        "why": "another service's address",
+        "set_by": "the seasons slice that starts CoinList"
+      },
+      {
+        "setting": "Regents.Keyfleet.Keys.KeyArt url",
+        "read_by": "keys/key_art.ex",
+        "why": "another service's address",
+        "set_by": "the Key pictures slice"
+      },
+      {
+        "setting": "Regents.Keyfleet.Keys.PresenceTimer key",
+        "read_by": "keys/presence_timer.ex",
+        "why": "a signer key",
+        "set_by": "fold rules slice 4"
+      },
+      {
+        "setting": "Regents.Keyfleet.ChainRefresh readers",
+        "read_by": "chain_refresh.ex",
+        "why": "turns on chain reads after a press",
+        "set_by": "the pages slice with on-chain presses"
+      },
+      {
+        "setting": "Regents.Keyfleet.Decks directory, Regents.Keyfleet.Traits directory",
+        "read_by": "decks.ex, traits.ex",
+        "why": "keyfleet.ai's priv/decks and priv/trait_tables, not brought",
+        "set_by": "the reveal slice"
+      },
+      {
+        "setting": "limits keyfleet_avatar_uploads, keyfleet_notebook_requests, keyfleet_notebook_run_starts, keyfleet_code_pushes, keyfleet_treasury_refresh, keyfleet_wallet_read",
+        "read_by": "KeyfleetWeb parts not brought",
+        "why": "nothing carried spends them",
+        "set_by": "the slice that brings their spender"
+      }
+    ],
+    "not_started": {
+      "Graph.Client, the graph writers, projectors, registry and listener": "slice 3, the graph machine",
+      "Chain.RewardsWaiting": "the slice that reads the chain in the background",
+      "Agents.Here": "the pages slice that shows who is here, with its child under Regents.Keyfleet.Supervisor and a schedule line each minute for keyfleet_fleet_agents and keyfleet_key_agents (Regents.SharedReading.Heal), as keyfleet.ai runs it where pages are served",
+      "Seasons.CoinList": "the seasons slice"
+    },
+    "for_later_slices": [
+      {
+        "slice": "the slice that lets agents act here (the first signed agent request)",
+        "where": "graph/actor_ref.ex from_actor/1; every Agent.refresh/1 and Agent.valid?/1 caller",
+        "record": "regents.sh's plug (RegentsWeb.Account.PairedAgent) builds every agent with chain_id and verification_method nil, since the SIWA answer it reads keeps neither, and Regents.Account.Actors.Agent.authenticated?/1 refuses that agent, so refresh/1 and valid?/1 refuse every agent the site builds today, and from_actor/1 would send \"verification\" \"nil\", which valid?/1 refuses. keyfleet.ai's plug set both"
+      },
+      {
+        "slice": "the slice that lets agents act here (the first signed agent request)",
+        "where": "Agent.refresh/1 and Agent.valid?/1 callers: keys.ex identity/2 and held_keys/2, graph/checks/key_actor.ex, agents/checks/own_profile.ex, checks/agent_actor.ex, rooms/muter.ex, wallet_steps/linked_signer.ex; notebooks/roster.ex holders/1",
+        "record": "keyfleet.ai let an agent whose person had never signed in there (pairing :person_not_here) act as its own Key or shard: its refresh and valid? asked only for the pairing episode and owner, its sign-in (KeyfleetWeb.Plugs.SignedAgent admit/2) let such an agent in, and its config :regent_agents told a person_not_here agent it may \"Work as a Key you own or hold a shard of\". regents.sh's refresh/1, valid?/1 and plug admit only a Human pairing, so such an agent does nothing in Keyfleet here and the notebook roster leaves it out. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "the slice that brings the Account page's agents panel (the caller of blocked_check_ins)",
+        "where": "agents/check_in.ex:101, :268, :285-286",
+        "record": "the :blocked read's policy (actor_attribute_equals(:role, :person)), its filter and the blocker field policy read an actor with role :person and privy_user_id. No Regents.Account.Actors struct has either: Human is role :human with no privy_user_id. keyfleet.ai's caller, KeyfleetWeb.Components.AgentsPanel.blocked/3 (agents_panel.ex:419), passed %RegentAgents.Person{privy_user_id: account.privy_user_id}, the shared agents library's person (role :person), which regents.sh has as well; nothing carried calls blocked_check_ins today"
+      },
+      {
+        "slice": "the slice that brings the agents' scheduled check-ins",
+        "where": "agents/check_in.ex:252-259",
+        "record": "carried: after a scheduled check-in that was saved, the notifier publishes :agents_changed on regent_agents:<beneficiary_privy_user_id> (Regents.PubSub, prefix regent_agents), the shared agents library's topic (RegentAgents.topic/1); regents.sh's shell page (RegentsWeb.Account.Pages subscribes, RegentsWeb.ShellLive handles :agents_changed) then reads the menu's agents, the pairing box and the Account page's agents panel again"
+      },
+      {
+        "slice": "the notebooks slice",
+        "where": "notebooks.ex:115-122 (hub_run/2)",
+        "record": "the doc says a job that fails with HubSilentError is not saved again (Regents.ErrorIgnorer): keyfleet.ai's ignorer left out an Oban.PerformError whose whole reason was the hub client's wait; regents.sh's leaves out each attempt Oban will retry and nothing else, so a hub job whose last attempt fails on the wait is saved twice, by HubSilentError.report/1 and by ErrorTracker. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "slice 3, the graph machine",
+        "where": "graph/notices.ex",
+        "record": "Graph.Notices listens on Regents.Notifications once, in init/1, so it starts after that connection under Regents.SharedChanges (rest_for_one), as RegentAgents.Listener does; Regents.SharedChanges is regents.sh's file. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "now: the access cache runs under Regents.Keyfleet.Supervisor",
+        "where": "access_cache.ex moduledoc",
+        "record": "\"on this machine only\" holds on regents.sh: nothing joins its machines (no dns_cluster or libcluster, no Node.connect, no rel/env.sh), so a broadcast on Regents.PubSub, Phoenix.PubSub's default adapter (lib/regents/application.ex:45), reaches only the machine that sends it; fly.toml keeps one machine, and its blue-green release runs a second, not joined, for the overlap the comment describes. Its :public table is that machine's alone. Joining the machines would change both (K2d)"
+      },
+      {
+        "slice": "before one-site is released",
+        "where": "platform/priv/keyfleet/migrations/20261121225741_pg_trgm_extensions_1.exs",
+        "record": "the one migration here that would run on production's keyfleet_app: before one-site is ever released, production's migration ledger is compared with these versions, a production read that needs the founder (K2d)"
+      }
+    ],
+    "queues": {
+      "sizes_keyfleet_ai_runs": {
+        "keyfleet_default": 5,
+        "keyfleet_notebook_hubs": 1,
+        "keyfleet_notebook_backups": 1,
+        "keyfleet_code_store": 2,
+        "keyfleet_avatars": 2,
+        "keyfleet_key_art": 1,
+        "keyfleet_chain": 10,
+        "keyfleet_seasons": 1
+      },
+      "declared": "none: each by the slice that puts its worker to use, after Sean's \"writes\"",
+      "schedule": "none: PresenceTimer, the chain watcher and every other timed job are scheduled by nothing",
+      "triggers": "Keys.KeyPicture close_up and small_card, Dms.Message remove-expired: AshOban is given the site's domains without Keyfleet's (Regents.Application), so none sweeps"
+    },
+    "shared_reading_kinds": "keyfleet_season_coins (Seasons.CoinList), keyfleet_fleet_agents and keyfleet_key_agents (Agents.Here), each with keyfleet.ai's audience, keys and bytes; their within field is not a field here",
+    "snapshots": "59 generated with mix ash.codegen --snapshots-only into platform/priv/keyfleet/resource_snapshots/repo/, each matching keyfleet.ai's newest apart from repo, schema and \"temporal\": null; keyfleet.ai's other four (account_ens_identities, left_messages, linked_identities, session_authorities) are tables with no resource here",
+    "extension_record": "platform/priv/keyfleet/migrations/20261121225741_pg_trgm_extensions_1.exs (KeyfleetPgTrgmExtensions1) and pg_trgm in extensions.json, as Techtree's folder got them: Regents.Repo installs pg_trgm; CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public creates nothing, since regents.sh's own migration installs it first"
+  }
 }

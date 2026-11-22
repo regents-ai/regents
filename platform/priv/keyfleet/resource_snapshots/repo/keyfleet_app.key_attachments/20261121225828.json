@@ -1,0 +1,416 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"gen_random_uuid()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "token_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "ownership_epoch",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "block_number",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "log_index",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "owner_wallet",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "block_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "transaction_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "record_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "observed_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "key_attachments_fleet_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "fleets"
+      },
+      "scale": null,
+      "size": null,
+      "source": "fleet_id",
+      "type": "text"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "token_id"
+      ],
+      "base_filter": null,
+      "check": "token_id > 0",
+      "name": "key_attachments_positive_token"
+    },
+    {
+      "attribute": [
+        "ownership_epoch"
+      ],
+      "base_filter": null,
+      "check": "ownership_epoch >= 1",
+      "name": "key_attachments_positive_epoch"
+    },
+    {
+      "attribute": [
+        "block_number"
+      ],
+      "base_filter": null,
+      "check": "block_number >= 0",
+      "name": "key_attachments_nonnegative_block"
+    },
+    {
+      "attribute": [
+        "log_index"
+      ],
+      "base_filter": null,
+      "check": "log_index >= 0",
+      "name": "key_attachments_nonnegative_log"
+    },
+    {
+      "attribute": [
+        "record_seq"
+      ],
+      "base_filter": null,
+      "check": "record_seq > 0",
+      "name": "key_attachments_positive_record_seq"
+    },
+    {
+      "attribute": [
+        "owner_wallet"
+      ],
+      "base_filter": null,
+      "check": "owner_wallet ~ '^0x[0-9a-f]{40}$'",
+      "name": "key_attachments_owner_shape"
+    },
+    {
+      "attribute": [
+        "block_hash"
+      ],
+      "base_filter": null,
+      "check": "block_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "key_attachments_block_hash_shape"
+    },
+    {
+      "attribute": [
+        "transaction_hash"
+      ],
+      "base_filter": null,
+      "check": "transaction_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "key_attachments_transaction_hash_shape"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "owner_wallet",
+        "token_id"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "owner_wallet"
+        },
+        {
+          "type": "atom",
+          "value": "token_id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "block_number"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "block_number"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "owner_wallet"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "owner_wallet"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    }
+  ],
+  "custom_statements": [
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP FUNCTION keyfleet_app.protect_key_epoch();",
+      "global?": false,
+      "name": "immutable_epochs_function",
+      "up": "CREATE FUNCTION keyfleet_app.protect_key_epoch() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  IF TG_OP = 'DELETE' THEN\n    RAISE EXCEPTION 'key ownership epochs cannot be deleted' USING ERRCODE = '23514';\n  END IF;\n  IF ROW(NEW.id, NEW.fleet_id, NEW.token_id, NEW.ownership_epoch, NEW.owner_wallet,\n         NEW.block_number, NEW.block_hash, NEW.transaction_hash, NEW.log_index, NEW.observed_at,\n         NEW.record_seq)\n     IS DISTINCT FROM\n     ROW(OLD.id, OLD.fleet_id, OLD.token_id, OLD.ownership_epoch, OLD.owner_wallet,\n         OLD.block_number, OLD.block_hash, OLD.transaction_hash, OLD.log_index, OLD.observed_at,\n         OLD.record_seq) THEN\n    RAISE EXCEPTION 'key ownership projection fields are immutable' USING ERRCODE = '23514';\n  END IF;\n  RETURN NEW;\nEND;\n$$;\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER immutable_key_epochs ON keyfleet_app.key_attachments;\n",
+      "global?": false,
+      "name": "immutable_epochs_trigger",
+      "up": "CREATE TRIGGER immutable_key_epochs BEFORE UPDATE OR DELETE ON keyfleet_app.key_attachments\nFOR EACH ROW EXECUTE FUNCTION keyfleet_app.protect_key_epoch();\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP FUNCTION keyfleet_app.refuse_key_epoch_truncate();",
+      "global?": false,
+      "name": "untruncatable_epochs_function",
+      "up": "CREATE FUNCTION keyfleet_app.refuse_key_epoch_truncate() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  RAISE EXCEPTION 'key ownership epochs cannot be deleted' USING ERRCODE = '23514';\nEND;\n$$;\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER untruncatable_key_epochs ON keyfleet_app.key_attachments;\n",
+      "global?": false,
+      "name": "untruncatable_epochs_trigger",
+      "up": "CREATE TRIGGER untruncatable_key_epochs BEFORE TRUNCATE ON keyfleet_app.key_attachments\nFOR EACH STATEMENT EXECUTE FUNCTION keyfleet_app.refuse_key_epoch_truncate();\n"
+    }
+  ],
+  "has_create_action": true,
+  "hash": "9AF260465207803044C69A389CBF13EDE55B7B83BE64329F2A2DBA2EA2233D6B",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "key_attachments_unique_chain_event_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "transaction_hash"
+        },
+        {
+          "type": "atom",
+          "value": "log_index"
+        }
+      ],
+      "name": "unique_chain_event",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "key_attachments_unique_key_epoch_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "token_id"
+        },
+        {
+          "type": "atom",
+          "value": "ownership_epoch"
+        }
+      ],
+      "name": "unique_key_epoch",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "key_attachments_unique_record_seq_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "record_seq"
+        }
+      ],
+      "name": "unique_record_seq",
+      "nils_distinct?": true,
+      "where": null
+    }
+  ],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "key_attachments",
+  "temporal": null
+}

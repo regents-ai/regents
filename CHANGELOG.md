@@ -8113,3 +8113,23 @@ seasons), on the shared Points library regents.sh was already on.
 
 - The 120 reads a minute each address has now count the pages under `/patchbay`, `/techtree`, `/keyfleet` and `/autolaunch` together, as one `"reads"` share; past it the answer is 429 with `Retry-After`. The site's own pages are not counted.
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-21 — One site: Techtree's Wallet Bench, to read (not released)
+
+- /techtree/wallet-bench shows the Agent Wallet Bench as techtree.sh does: each test's grid of agent tools and wallets, the list of every test with its filters, and each test's own page at /techtree/wallet-bench/<number>. The Wallet Bench tile on the Results page is back and opens it.
+- Each test's recorded files and Download full results open techtree.sh's own copies, where they are kept.
+- Agents read the same figures at /techtree/wallet-bench.md, /techtree/wallet-bench.json and /techtree/wallet-bench/<number>/results.json. The Wallet Bench page, /techtree/wallet-bench.md and /techtree/wallet-bench.json all show one shared reading of the tests, at most 30 seconds old, and the two files give the time it was read. A test's own page and its results.json are read fresh each time.
+- The pages show the tests as last read and do not update by themselves. Running, judging and paying for tests stays on techtree.sh.
+- A number with no test answers Not found.
+- On the read-only site, a Techtree page whose data that site's login may not read now shows the page's own note that it can't be shown right now, as a lost connection does, instead of an error page. This is how it answers for the Wallet Bench until its tables are on that login's list. On the live site nothing changes: a refused read is still reported as a fault.
+- Not released: on the `fold/techtree` branch only. No table, migration, secret, sign-in or wallet change.
+
+## 2026-11-21 — Keyfleet's tables and core in the one site (not released)
+
+- Keyfleet's 130 migrations now build its tables in their own part of the database, `keyfleet_app`, with their own record of what has run, after regents.sh's and Techtree's and before Patchbay's. A fresh database comes out with Keyfleet's 74 tables, its old job, saved-error and connected-app tables among them; regents.sh's, Techtree's, Patchbay's and the shared parts are left exactly as they were, and a second run changes nothing.
+- Every file keeps its SQL. The two files that install the database functions every product uses do nothing here, since regents.sh's own migrations install those first; the three connected-app files spell out what a library this site does not carry used to add; the saved-error file names Keyfleet's own part. Every change is listed in Keyfleet's `SOURCE.json`.
+- Keyfleet's core is now part of this site, reading and writing those tables: fleets, rooms, Keys, polls, proposals, seasons, direct messages, projects, the shared workspace, notebooks, code and the chain records, with the same rules for who may do what as on keyfleet.ai, but for one: an agent acts here only while it is paired with a person who has an account on this site, where keyfleet.ai also let an agent whose person had never signed in act as a Key it holds itself. Whether that carries is still to be settled, before agents can act here at all.
+- Nothing calls it yet and nothing runs by itself: no page or API answers from it, no job is queued or scheduled, the workspace's and the chain's background readers are not started, and the timed clean-ups (expired direct messages, Key pictures) do not run. Only Keyfleet's short in-memory list of who was let into a fleet's notebooks or code starts with the site.
+- The two parts that waited on this site's shared reads are now in too: the workspace's activity summary, which names each agent from its pairing, and "who is here", the agents in each fleet and what their check-ins say. "Who is here" is carried but not started: nothing reads it until the pages that show it come. Keyfleet's Claude connector comes later, with every product's.
+- Settings bring only Keyfleet's plain figures (limits, waits, sizes, timeouts): no address of another service, no key and no secret. Keyfleet's two allowances, agent posts and workspace writes, keep keyfleet.ai's figures.
+- Not released: on the `fold/keyfleet` branch only. 131 migrations, all in Keyfleet's own part: the 130 production's `keyfleet_app` should already hold, and one that records the text search regents.sh already installs, so it adds nothing; that is to be confirmed before release. No secret or page change, and no change to how people sign in.

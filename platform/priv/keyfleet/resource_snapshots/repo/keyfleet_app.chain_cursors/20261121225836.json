@@ -1,0 +1,207 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "next_block",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "head_block",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "head_block_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "observed_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "0",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "proposal_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "0",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "reveal_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "0",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "ownership_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "0",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "shard_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "chain_cursors_fleet_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "fleets"
+      },
+      "scale": null,
+      "size": null,
+      "source": "fleet_id",
+      "type": "text"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "next_block"
+      ],
+      "base_filter": null,
+      "check": "next_block >= 0",
+      "name": "chain_cursors_nonnegative_next_block"
+    },
+    {
+      "attribute": [
+        "head_block"
+      ],
+      "base_filter": null,
+      "check": "head_block >= 0",
+      "name": "chain_cursors_nonnegative_head_block"
+    },
+    {
+      "attribute": [
+        "proposal_seq"
+      ],
+      "base_filter": null,
+      "check": "proposal_seq >= 0",
+      "name": "chain_cursors_nonnegative_proposal_seq"
+    },
+    {
+      "attribute": [
+        "reveal_seq"
+      ],
+      "base_filter": null,
+      "check": "reveal_seq >= 0",
+      "name": "chain_cursors_nonnegative_reveal_seq"
+    },
+    {
+      "attribute": [
+        "ownership_seq"
+      ],
+      "base_filter": null,
+      "check": "ownership_seq >= 0",
+      "name": "chain_cursors_nonnegative_ownership_seq"
+    },
+    {
+      "attribute": [
+        "shard_seq"
+      ],
+      "base_filter": null,
+      "check": "shard_seq >= 0",
+      "name": "chain_cursors_nonnegative_shard_seq"
+    },
+    {
+      "attribute": [
+        "head_block_hash"
+      ],
+      "base_filter": null,
+      "check": "head_block_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "chain_cursors_head_hash_shape"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true,
+  "hash": "BE73D4849E053D3FCE6C4A5289292FC0038FB725A0B3096490EEA4F1613F1A2B",
+  "identities": [],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "chain_cursors",
+  "temporal": null
+}

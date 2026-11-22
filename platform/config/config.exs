@@ -100,6 +100,7 @@ config :regents,
     Regents.Techtree.ModelClimb,
     Regents.Techtree.Catalog,
     Regents.Techtree.Network,
+    Regents.Techtree.WalletBench,
     Regents.Patchbay.Forum,
     Regents.Patchbay.Members,
     Regents.Patchbay.Assist,
@@ -107,7 +108,26 @@ config :regents,
     Regents.Patchbay.Messages,
     Regents.Patchbay.Offers,
     Regents.Autolaunch,
-    Regents.Autolaunch.CoveredCalls
+    Regents.Autolaunch.CoveredCalls,
+    # Keyfleet's, which Regents.Keyfleet.domains/0 names.
+    Regents.Keyfleet.Fleets,
+    Regents.Keyfleet.Rooms,
+    Regents.Keyfleet.Polls,
+    Regents.Keyfleet.Seasons,
+    Regents.Keyfleet.Dms,
+    Regents.Keyfleet.Agents,
+    Regents.Keyfleet.Keys,
+    Regents.Keyfleet.Chain,
+    Regents.Keyfleet.Proposals,
+    Regents.Keyfleet.Treasury,
+    Regents.Keyfleet.Graph,
+    Regents.Keyfleet.WalletSteps,
+    Regents.Keyfleet.Early,
+    Regents.Keyfleet.Notebooks,
+    Regents.Keyfleet.Code,
+    Regents.Keyfleet.Projects,
+    Regents.Keyfleet.Usage,
+    Regents.Keyfleet.Atlas
   ],
   generators: [timestamp_type: :utc_datetime]
 
@@ -170,6 +190,7 @@ config :regents, RegentsWeb.PaperProDaily.Feed,
 
 # Patchbay's home page board figures: one reading, kept a minute.
 config :regents, Regents.Patchbay.Forum.BoardActivity, gc_interval: :timer.minutes(10)
+config :regents, Regents.Techtree.WalletBench.Reading, gc_interval: :timer.minutes(10)
 
 # Each Patchbay question list's thread count, kept a minute. Older counts leave
 # with the generation the collector drops every ten minutes.
@@ -186,8 +207,14 @@ config :regents, :message_address_rate_limit, limit: 30, window_seconds: 3600
 # Email addresses left for updates (`Regents.Updates`): each network leaves a few a minute.
 config :regents, :updates_rate_limit, limit: 5, window_seconds: 60
 # The site's named allowances (`Regents.Limits`), `<product>_<name>: [limit:,
-# window_seconds:]`. None is named yet.
-config :regents, :limits, []
+# window_seconds:]`.
+config :regents, :limits,
+  # Posts one agent wallet writes as one Keyfleet Key, in rooms and on its thread:
+  # as many as people get.
+  keyfleet_agent_posts: [limit: 300, window_seconds: 3600],
+  # Keyfleet workspace writes per wallet in each fleet: two a second, more than
+  # real agent work needs.
+  keyfleet_graph_writes: [limit: 120, window_seconds: 60]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
@@ -246,6 +273,89 @@ config :regents,
   keyfleet_siwa_origin: "https://siwa.regents.sh",
   keyfleet_code_origin: "https://code.keyfleet.ai",
   keyfleet_notebooks_host_suffix: "notebooks.keyfleet.ai"
+
+# Keyfleet's core (Regents.Keyfleet), with keyfleet.ai's own figures. No address of
+# another service, key or secret is set here: each is set by the slice that puts
+# its reader to use (lib/regents/keyfleet/SOURCE.json, "settings_unset").
+#
+# How long an agent's waiting request is held open with nothing new, before it
+# answers and the agent asks again: well inside the 60 seconds the proxy keeps an
+# idle request open.
+config :regents, :keyfleet_agent_wait_ms, 20_000
+
+# Saves of proposal words per signed-in person: twenty an hour. Each press of
+# Propose saves once, so this leaves room to redo a proposal many times while
+# keeping one account to about 80 KB of words an hour.
+config :regents, :keyfleet_proposal_words_rate_limit, limit: 20, window_seconds: 3600
+
+# Each deployed fleet's history is read every five minutes
+# (Regents.Keyfleet.Chain.ReadFleet).
+config :regents, :keyfleet_chain, pass_interval_seconds: 300
+
+# Each fleet's work graph lives in a host of its own; a new host replays its
+# fleet's whole log before it answers, so it gets far longer than a command does.
+# Each fleet's read tables are copied from its log after every write, and every
+# `catch_up_interval` anyway; a write waits up to `projection_wait` for its change
+# to be readable. The site asks the graph machine under a pass lasting
+# `pass_ttl_seconds` (Regents.Keyfleet.Graph.Client). `enabled: false`: no writer
+# runs beside the site.
+config :regents, :keyfleet_graph,
+  enabled: false,
+  hello_timeout: 60_000,
+  reply_timeout: 5_000,
+  check_timeout: 1_000,
+  restart_min: 1_000,
+  restart_max: 30_000,
+  catch_up_interval: 5_000,
+  projection_wait: 2_000,
+  pass_ttl_seconds: 30
+
+# Each fleet's private notebook hub (Regents.Keyfleet.Notebooks). `fleets` maps a
+# fleet id to its hub's private address: none here, so no fleet has a hub. A person is
+# checked again at most every `access_ttl_ms`; a Key changing hands ends their
+# access at once. Someone made an editor of the fleet's hub projects is not asked
+# of the hub again for `editor_ttl_ms`. An "Open notebooks" link works once, for
+# `handoff_ttl_seconds`, and the notebook sign-in it sets lasts `session_max_age`
+# seconds. A kept page is copied up to `saved_page_max_bytes`; an agent reads one
+# in an answer of at most `page_answer_max_bytes`, each text in it cut at
+# `page_value_max_bytes`. A workspace page waits `page_timeout_ms` for the hub, a
+# fleet's search `search_timeout_ms`, and a new session `session_start_timeout_ms`
+# (the runner allows 120 seconds to boot, plus creation and notebook setup). A
+# fleet may have `max_sessions` notebook sessions open at once.
+config :regents, :keyfleet_notebooks,
+  fleets: %{},
+  pass_ttl_seconds: 120,
+  access_ttl_ms: 30_000,
+  editor_ttl_ms: 10 * 60 * 1000,
+  handoff_ttl_seconds: 60,
+  session_max_age: 12 * 60 * 60,
+  max_request_bytes: 32 * 1024 * 1024,
+  saved_page_max_bytes: 16 * 1024 * 1024,
+  page_answer_max_bytes: 256 * 1024,
+  page_value_max_bytes: 16 * 1024,
+  hub_timeout_ms: 30_000,
+  page_timeout_ms: 5_000,
+  search_timeout_ms: 3_000,
+  session_start_timeout_ms: 180_000,
+  max_sessions: 10
+
+# Each fleet's code, in Keyfleet's own code store (Regents.Keyfleet.Code). Requests
+# to the store carry a pass lasting `pass_ttl_seconds`. A person holding a Key is
+# checked again at most every `access_ttl_ms` (an agent on every request), a
+# person's git password lasts `password_ttl_seconds`, and one request carries at
+# most `max_pack_bytes`, each read waiting at most `body_idle_ms` and the whole
+# body at most `body_timeout_ms`. A workspace page waits `page_timeout_ms` for the
+# store, and shows files up to `file_max_bytes`.
+config :regents, :keyfleet_code,
+  pass_ttl_seconds: 120,
+  access_ttl_ms: 30_000,
+  password_ttl_seconds: 12 * 60 * 60,
+  max_pack_bytes: 100 * 1024 * 1024,
+  body_idle_ms: 15_000,
+  body_timeout_ms: 600_000,
+  node_timeout_ms: 120_000,
+  page_timeout_ms: 5_000,
+  file_max_bytes: 512 * 1024
 
 config :regents, :session_options,
   store: :cookie,

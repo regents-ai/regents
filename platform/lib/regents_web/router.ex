@@ -397,22 +397,29 @@ defmodule RegentsWeb.Router do
       live "/climbs/:slug", ClimbsLive.Show
       live "/docs", DocsLive
       live "/docs/:slug", DocsLive
+      live "/wallet-bench", WalletBenchLive.Index
+      live "/wallet-bench/:id", WalletBenchLive.Show
     end
   end
 
   # Techtree's agent guide, Markdown to any caller, as the site's own /agents.md is,
-  # each Skill comparison's report, the exact committed bytes, and a published
-  # Result's share picture, for whoever asks, a site making a link preview included.
+  # each Skill comparison's report, the exact committed bytes, a published
+  # Result's share picture, for whoever asks, a site making a link preview included,
+  # and the Wallet Bench as Markdown.
   scope "/techtree", RegentsWeb.Techtree do
     get "/agents.md", AgentsController, :show
     get "/train/:slug/report.json", TrainController, :report
     get "/results/:bundle_digest/share.png", ResultShareCardController, :show
+    get "/wallet-bench.md", WalletBenchController, :markdown
   end
 
-  # Every Skill comparison, for agents and other sites.
+  # Every Skill comparison, the Wallet Bench scores and one wallet test's record,
+  # for agents and other sites.
   scope "/techtree", RegentsWeb.Techtree do
     pipe_through :api
     get "/train.json", TrainController, :index
+    get "/wallet-bench.json", WalletBenchController, :scores
+    get "/wallet-bench/:id/results.json", WalletBenchEvidenceController, :summary
   end
 
   scope "/keyfleet", RegentsWeb.Keyfleet do

@@ -1,0 +1,386 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "name",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "chain_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "chain_fleet_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "keys_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "manager_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "rewards_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "votes_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "treasury_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "shards_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "usdc_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "regent_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "regent_staking_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "autolaunch_factory_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "club_claims_address",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "deployed_block",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "trait_table_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "deck_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "deck_size",
+      "type": "bigint"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "id"
+      ],
+      "base_filter": null,
+      "check": "id IN ('fibonacci_syndicate', 'fibonacci_cascade', 'fleet_tech_classic', 'fleet_tech_accelerant', 'regents_club')",
+      "name": "fleets_fixed_catalog"
+    },
+    {
+      "attribute": [
+        "manager_address"
+      ],
+      "base_filter": null,
+      "check": "num_nulls(chain_id, chain_fleet_id, keys_address, manager_address, rewards_address, votes_address, treasury_address, shards_address, usdc_address, regent_address, regent_staking_address, autolaunch_factory_address, club_claims_address, deployed_block, trait_table_hash, deck_hash, deck_size) IN (0, 17)",
+      "name": "fleets_deployment_whole"
+    },
+    {
+      "attribute": [
+        "keys_address"
+      ],
+      "base_filter": null,
+      "check": "keys_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_keys_address_shape"
+    },
+    {
+      "attribute": [
+        "manager_address"
+      ],
+      "base_filter": null,
+      "check": "manager_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_manager_address_shape"
+    },
+    {
+      "attribute": [
+        "rewards_address"
+      ],
+      "base_filter": null,
+      "check": "rewards_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_rewards_address_shape"
+    },
+    {
+      "attribute": [
+        "votes_address"
+      ],
+      "base_filter": null,
+      "check": "votes_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_votes_address_shape"
+    },
+    {
+      "attribute": [
+        "treasury_address"
+      ],
+      "base_filter": null,
+      "check": "treasury_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_treasury_address_shape"
+    },
+    {
+      "attribute": [
+        "shards_address"
+      ],
+      "base_filter": null,
+      "check": "shards_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_shards_address_shape"
+    },
+    {
+      "attribute": [
+        "usdc_address"
+      ],
+      "base_filter": null,
+      "check": "usdc_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_usdc_address_shape"
+    },
+    {
+      "attribute": [
+        "regent_address"
+      ],
+      "base_filter": null,
+      "check": "regent_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_regent_address_shape"
+    },
+    {
+      "attribute": [
+        "regent_staking_address"
+      ],
+      "base_filter": null,
+      "check": "regent_staking_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_regent_staking_address_shape"
+    },
+    {
+      "attribute": [
+        "autolaunch_factory_address"
+      ],
+      "base_filter": null,
+      "check": "autolaunch_factory_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_autolaunch_factory_address_shape"
+    },
+    {
+      "attribute": [
+        "club_claims_address"
+      ],
+      "base_filter": null,
+      "check": "club_claims_address ~ '^0x[0-9a-f]{40}$'",
+      "name": "fleets_club_claims_address_shape"
+    },
+    {
+      "attribute": [
+        "chain_fleet_id"
+      ],
+      "base_filter": null,
+      "check": "chain_fleet_id > 0",
+      "name": "fleets_chain_fleet_id_positive"
+    },
+    {
+      "attribute": [
+        "deck_hash"
+      ],
+      "base_filter": null,
+      "check": "deck_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "fleets_deck_hash_shape"
+    },
+    {
+      "attribute": [
+        "deck_size"
+      ],
+      "base_filter": null,
+      "check": "deck_size > 0",
+      "name": "fleets_deck_size_positive"
+    },
+    {
+      "attribute": [
+        "trait_table_hash"
+      ],
+      "base_filter": null,
+      "check": "trait_table_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "fleets_trait_table_hash_shape"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true,
+  "hash": "DB48C226896AD88785E1E30BC46CD4BE8F78BC18EBE763D644100718F31320C1",
+  "identities": [],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "fleets",
+  "temporal": null
+}
