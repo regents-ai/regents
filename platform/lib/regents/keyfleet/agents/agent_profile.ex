@@ -426,62 +426,9 @@ defmodule Regents.Keyfleet.Agents.AgentProfile do
       argument :fleet_ids, {:array, :string}, allow_nil?: false
     end
 
-    # The key the person this agent is paired with writes as
-    # (`RegentAgents.PairedAgent`): the one they chose on the Account page while
-    # any of their wallets holds it (`Regents.Keyfleet.Keys.PostingKey`), else the
-    # lowest-numbered of the fleets' keys their wallets hold now. The person's
-    # wallets are for trusted code only (their read admits the system actor
-    # alone), so they are reached here through `person_wallets` without that
-    # read, by the agent's own wallet alone, and only the key's number leaves.
-    # Each wallet's keys are read in SQL, as `held_key`'s are, and each wallet
-    # is looked up on its own: matched as a set, every key in the fleet was
-    # read for every agent, 7 seconds for a full Regents Club.
-    calculate :paired_key,
-              :integer,
-              expr(
-                min(person_wallets,
-                  expr:
-                    fragment(
-                      """
-                      (SELECT min(held.token_id)
-                       FROM keyfleet_app.key_attachments AS held
-                       JOIN keyfleet_app.posting_keys AS chosen
-                         ON chosen.fleet_id = held.fleet_id AND chosen.token_id = held.token_id
-                       WHERE held.owner_wallet = ? AND chosen.human_account_id = ?
-                         AND held.fleet_id = ANY(?)
-                         AND held.ownership_epoch = (
-                           SELECT max(epoch.ownership_epoch)
-                           FROM keyfleet_app.key_attachments AS epoch
-                           WHERE epoch.fleet_id = held.fleet_id AND epoch.token_id = held.token_id
-                         ))
-                      """,
-                      wallet,
-                      human_account_id,
-                      ^arg(:fleet_ids)
-                    ),
-                  expr_type: :integer,
-                  authorize?: false
-                ) ||
-                  min(person_wallets,
-                    expr:
-                      fragment(
-                        """
-                        (SELECT min(held.token_id)
-                         FROM keyfleet_app.key_attachments AS held
-                         WHERE held.owner_wallet = ? AND held.fleet_id = ANY(?)
-                           AND held.ownership_epoch = (
-                             SELECT max(epoch.ownership_epoch)
-                             FROM keyfleet_app.key_attachments AS epoch
-                             WHERE epoch.fleet_id = held.fleet_id AND epoch.token_id = held.token_id
-                           ))
-                        """,
-                        wallet,
-                        ^arg(:fleet_ids)
-                      ),
-                    expr_type: :integer,
-                    authorize?: false
-                  )
-              ) do
+    # The key the person this agent is paired with writes as, read only where
+    # the site writes (`Regents.Keyfleet.Agents.Calculations.PairedKey`).
+    calculate :paired_key, :integer, Regents.Keyfleet.Agents.Calculations.PairedKey do
       argument :fleet_ids, {:array, :string}, allow_nil?: false
     end
   end

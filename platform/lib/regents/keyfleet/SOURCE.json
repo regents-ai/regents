@@ -394,7 +394,8 @@
     ],
     "files_note": "each to the same path under platform/lib/regents/keyfleet/; three more are in files above: goal_ideas.ex, whole since slice 2, and authority.ex and capabilities.ex, as slice 1 brought them; classic_key_prices.txt byte for byte (fleets/presets.ex reads it at compile time)",
     "written_here": [
-      "platform/lib/regents/keyfleet/supervisor.ex: Regents.Keyfleet.Supervisor: since K3 the task supervisor Regents.Keyfleet.ErrorSaves (keyfleet.ai's {Task.Supervisor, name: Keyfleet.ErrorSaves, max_children: 20}, under which RegentsWeb.Keyfleet.PageRead saves a page read's rescued failure), then the access cache"
+      "platform/lib/regents/keyfleet/supervisor.ex: Regents.Keyfleet.Supervisor: since K3 the task supervisor Regents.Keyfleet.ErrorSaves (keyfleet.ai's {Task.Supervisor, name: Keyfleet.ErrorSaves, max_children: 20}, under which RegentsWeb.Keyfleet.PageRead saves a page read's rescued failure), then the access cache",
+      "platform/lib/regents/keyfleet/agents/calculations/paired_key.ex: Regents.Keyfleet.Agents.Calculations.PairedKey: keyfleet.ai's AgentProfile paired_key expression and comment, moved whole into a calculation module so the read-only venue can build it without the person's wallets (line_changes, K4)"
     ],
     "naming": [
       "Keyfleet.X became Regents.Keyfleet.X, KeyfleetWeb.X RegentsWeb.Keyfleet.X (docs only: no carried module calls the web side)",
@@ -534,6 +535,14 @@
         ],
         "edit": "Room's read, for_fleet, in_fleet and key_thread, Message's read_messages, read_key_thread, posts_as_key and search, SeasonPick's settled and in_settled_season, CheckIn's in_fleet and the check-ins AgentProfile's here_in_fleet loads leave out beneficiary_privy_user_id (prepare build(deselect: ...), and Ash.Query.deselect/2 in the load), each resource's attribute saying so; Room's primary read so has a preparation (primary_read_warning?: false, its comment says why); AgentKey's of_agents leaves out paired_agent_id, still its filter's and agent_wallet's key in SQL (K3 c)",
         "reason": "need: the read-only venue's login is granted only what pages show; no page shows the person an agent acts for or the pairing an agent's Key is found by, so the reads that serve pages leave them out (K3 c)"
+      },
+      {
+        "files": [
+          "agents/agent_profile.ex",
+          "agents/calculations/paired_key.ex"
+        ],
+        "edit": "AgentProfile's paired_key calculation became the module Regents.Keyfleet.Agents.Calculations.PairedKey, keyfleet.ai's expression and comment whole in it, with one branch: where Regents.read_only?(), its expression is nil and names none of the person's wallets, so there an agent is here and acts as a Key only by its own wallet, a Key its person put it on or its shard (K4)",
+        "reason": "need: the read-only venue's login is not granted regents_app.paired_person_wallets (the regents chief's ruling: keep a read-only branch), and the agents here (Agents.Here, the agents count and the holders online) are read there through here and key, which reach that view only through paired_key; the venue is set as the site starts, as Autolaunch's CreatorIdentities asks it (K4)"
       }
     ],
     "not_carried": {
