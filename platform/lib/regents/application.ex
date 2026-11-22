@@ -4,7 +4,7 @@ defmodule Regents.Application do
   @moduledoc false
   use Boundary,
     top_level?: true,
-    deps: [Regents, RegentsWeb, Regents.Stake]
+    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Autolaunch]
 
   use Application
 
@@ -55,6 +55,8 @@ defmodule Regents.Application do
         # Points board read once for all of them.
         Regents.SharedReading,
         points_board_child(),
+        # Autolaunch's part, which reads its deployment files as it starts.
+        Regents.Autolaunch.Supervisor,
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
