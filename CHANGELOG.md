@@ -8228,3 +8228,13 @@ seasons), on the shared Points library regents.sh was already on.
 - The Principles cards open their pages as a full page load. See stocks, See portfolio, See auctions and each auction's page keep their future addresses under `/autolaunch` and answer "not found" until those pages come; Pair agent opens this site's own pairing page.
 - Both rows are read once, as the page opens; they do not yet update while it stays open.
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Techtree's About and agent guides (not released)
+
+- /techtree/about shows Techtree's About page as techtree.sh does, in the same words. Its links open Techtree's pages here; Terms of Use and Privacy open techtree.sh's.
+- /techtree/agents lists the agents that pair with Techtree, and /techtree/agents/<agent> is each one's guide, as on techtree.sh: how to set it up, answers to common questions and where to get help, for Any agent, Codex, Grok Bot, Muse, Hermes, Dots, IronClaw, OpenClaw, Claude Code and Pi. Pair opens this site's own Agents page.
+- An agent with no guide answers Not found. Claude has none, as on techtree.sh while the Claude connector is off.
+- Agents can read the Techtree skill at /techtree/skill.md, each agent's own skill at /techtree/agents/<agent>/skill.md, and each of these pages as Markdown.
+- The pairing and account commands in the Grok Bot, Muse and Dots guides still name techtree.sh, where those agents sign in and pair.
+- Techtree's footer links About, Agents and agents.md to these pages.
+- Not released: on the `fold/techtree` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

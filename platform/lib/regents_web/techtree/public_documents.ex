@@ -1,22 +1,30 @@
 defmodule RegentsWeb.Techtree.PublicDocuments do
   @moduledoc """
-  Techtree's Docs, published to people and to agents at the same address.
+  Techtree's Docs, About and agents' pages, published to people and to agents at
+  the same address.
 
   Each Docs guide is `priv/techtree/public/docs/<slug>.md`, answered at
   `/techtree/docs/<slug>`; the guides without commands to copy show these words
   as their page (`guide/1`), and `/techtree/docs` lists them all
-  (`RegentsWeb.Techtree.DocsGuides`). An agent that asks one of those addresses
-  for `text/markdown` receives it with one closing line, answered before the
-  router by `RegentAgentAccess.Plug` through the site's own
+  (`RegentsWeb.Techtree.DocsGuides`). About is `priv/techtree/public/about.md`,
+  at `/techtree/about`, and each agent's page under `/techtree/agents` is
+  `RegentsWeb.Techtree.AgentGuides`; both show the same words as pages
+  (`RegentsWeb.Techtree.PublicPagesHTML`). An agent that asks one of these
+  addresses for `text/markdown` receives it with one closing line, answered
+  before the router by `RegentAgentAccess.Plug` through the site's own
   `RegentsWeb.PublicDocuments.document/1`. The agent guide
   (`RegentsWeb.Techtree.AgentsController`) says what Techtree charges in
   `payment/0`'s words.
   """
 
+  alias RegentsWeb.Techtree.AgentGuides
   alias RegentsWeb.Techtree.DocsGuides
 
   @directory Application.app_dir(:regents, "priv/techtree/public/docs")
   for slug <- DocsGuides.slugs(), do: @external_resource(Path.join(@directory, slug <> ".md"))
+
+  @about_file Application.app_dir(:regents, "priv/techtree/public/about.md")
+  @external_resource @about_file
 
   @sources DocsGuides.slugs()
            |> Map.new(&{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
@@ -24,6 +32,7 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
   @paths @sources
          |> Map.new(fn {slug, source} -> {"/techtree/docs/" <> slug, source} end)
          |> Map.put("/techtree/docs", DocsGuides.index_markdown())
+         |> Map.put("/techtree/about", File.read!(@about_file))
 
   @trailer "\n---\n\nEvery Techtree page answers as Markdown when asked with " <>
              "`Accept: text/markdown`. Public API: [/openapi.json](/openapi.json). " <>
@@ -35,8 +44,15 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
              "Security, Swarm Verify and Techtree Formal are paid custom projects from Regents Labs, " <>
              "scoped with each team."
 
-  @doc "The Docs page at `path` as `%{title: text, markdown: text}`, or nil for every other address."
+  @doc "The page at `path` as `%{title: text, markdown: text}`, or nil for every other address."
   @spec document(String.t()) :: %{title: String.t(), markdown: String.t()} | nil
+  def document("/techtree/agents" <> _rest = path) do
+    case AgentGuides.document(path) do
+      %{} = document -> %{document | markdown: document.markdown <> @trailer}
+      nil -> nil
+    end
+  end
+
   def document(path) do
     case @paths do
       %{^path => source} -> %{title: title(source), markdown: source <> @trailer}
@@ -48,7 +64,7 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
 
   @doc "Every address `document/1` answers."
   @spec paths() :: [String.t()]
-  def paths, do: Map.keys(@paths)
+  def paths, do: Map.keys(@paths) ++ AgentGuides.paths()
 
   @doc "The words on what Techtree charges, as the agent documents say them."
   @spec payment() :: String.t()
