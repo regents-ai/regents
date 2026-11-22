@@ -250,7 +250,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     end
   end
 
-  def handle_event("change", params, socket),
+  def handle_event("change", params, socket) when is_map(params),
     do: {:noreply, socket |> take_inputs(params) |> sync(:counted)}
 
   # A press made before its step reached the page, before the steps caught up
@@ -322,8 +322,6 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
         {:noreply,
          socket |> assign(inputs: %{socket.assigns.inputs | "amount" => ""}) |> sync(:counted)}
 
-  def handle_event("step_pressed", _params, socket), do: {:noreply, socket}
-
   def handle_event("step_sent", params, socket), do: {:noreply, OnchainSteps.sent(socket, params)}
 
   # The wallet sent nothing, or may have: counted, and for the person's own
@@ -343,7 +341,9 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
 
-  def handle_event("check_again", _params, socket), do: {:noreply, socket}
+  # Any other event, and any of these sent without the values it takes,
+  # changes nothing and has no reply.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   # A step that has landed changes what the next one needs (an approval, a
