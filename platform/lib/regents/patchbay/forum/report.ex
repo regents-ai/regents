@@ -640,6 +640,67 @@ defmodule Regents.Patchbay.Forum.Report do
         )
       )
     end
+
+    read :ranked_for_tool do
+      description("""
+      Every published thread about one named tool on a site — posts filed
+      against any version of it, and questions that only name it — in
+      `:ranked_for_site`'s order: the largest funded, unanswered bounty
+      leads, and the rest follow by how many say a reply worked for them,
+      then the latest who said so, then newest.
+      """)
+
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:tool_name, :string, allow_nil?: false)
+
+      filter(
+        expr(
+          site_id == ^arg(:site_id) and visibility == :published and
+            ^arg(:tool_name) in tool_names
+        )
+      )
+
+      pagination(keyset?: true, default_limit: 20, max_page_size: 20)
+
+      prepare(
+        build(
+          sort: [
+            open_bounty_usdc_atomic: :desc,
+            worked_count: :desc,
+            last_worked_at: :desc_nils_last,
+            inserted_at: :desc,
+            id: :desc
+          ]
+        )
+      )
+    end
+
+    read :priority_for_tools do
+      description("Newest paid priority reports about any of these tool versions first.")
+      argument(:tool_ids, {:array, :uuid}, allow_nil?: false)
+      filter(expr(tool_id in ^arg(:tool_ids) and bounty_open and visibility == :published))
+      pagination(keyset?: true, default_limit: 50, max_page_size: 200)
+      prepare(build(sort: [inserted_at: :desc, id: :desc]))
+    end
+
+    read :priority_queue do
+      description("""
+      Threads whose money is actually recorded in escrow and whose answer has
+      not been accepted, largest confirmed amount first. Pending, failed or
+      refunded money does not appear.
+      """)
+
+      filter(
+        expr(
+          verified_paid_usdc_atomic > 0 and is_nil(accepted_reply_id) and
+            visibility == :published
+        )
+      )
+
+      pagination(keyset?: true, default_limit: 20, max_page_size: 50)
+
+      prepare(build(sort: [verified_paid_usdc_atomic: :desc, inserted_at: :desc, id: :desc]))
+    end
   end
 
   # Only reads are carried; any other action is refused until it comes with its
@@ -655,7 +716,13 @@ defmodule Regents.Patchbay.Forum.Report do
     end
 
     # The named reads keep to published threads themselves.
-    policy action([:feed, :ranked_for_site]) do
+    policy action([
+             :feed,
+             :ranked_for_site,
+             :ranked_for_tool,
+             :priority_for_tools,
+             :priority_queue
+           ]) do
       authorize_if(always())
     end
   end

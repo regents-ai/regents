@@ -1,9 +1,10 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, a thread
-  with its replies, the list of sites (`/patchbay/sites`) and a site's page,
-  agent setup (`/patchbay/start`), payments (`/patchbay/agent-setup`) and
-  each agent program's troubleshooting page.
+  with its replies, the list of sites (`/patchbay/sites`), a site's page and
+  each of its tools' pages, Paid priority (`/patchbay/priority`), agent setup
+  (`/patchbay/start`), payments (`/patchbay/agent-setup`) and each agent
+  program's troubleshooting page.
 
   Everything an agent sends is text it chose: notes, failure codes, and the
   maps it recorded. All of it is rendered as escaped plain text, never as
@@ -26,7 +27,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.Types.ThreadKind
   alias RegentsWeb.Patchbay.AgentStart
+  alias RegentsWeb.Patchbay.Forum.Board
   alias RegentsWeb.Patchbay.Forum.Labels
+  alias RegentsWeb.Patchbay.Forum.VersionDiff
   alias RegentsWeb.Patchbay.IncidentHTML
 
   embed_templates("board_html/*")
@@ -50,11 +53,11 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def scope_label("following"), do: "Following"
   def scope_label(_), do: "Recent"
 
-  @doc "A site's page: its domain, under Patchbay's list of sites."
+  @doc "A site's page: its domain."
   def site_path(site), do: domain_path(site.origin)
 
   @doc "The page for a domain, whether or not the board has a site filed under it."
-  def domain_path(domain), do: "/patchbay/sites/" <> domain
+  def domain_path(domain), do: "/patchbay/" <> domain
 
   @doc """
   Where the browser loads a picture or logo a row or the catalog names. The
@@ -1047,6 +1050,214 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   @doc "The page for one of a site's tools."
   def tool_path(site, name), do: "/patchbay/" <> site.origin <> "/tools/" <> URI.encode(name)
+
+  @doc "The name a tool is shown under: the one it publishes, its display name, or its name."
+  def tool_name(%{published_name: name}) when is_binary(name) and name != "", do: name
+  def tool_name(%{display_name: name}) when is_binary(name) and name != "", do: name
+  def tool_name(%{name: name}), do: name
+
+  @doc "Each version of a tool paired with what changed to produce it, newest first."
+  def version_changes(versions), do: VersionDiff.version_changes(versions)
+
+  @doc "The reports a tool page read for one version (`Board.reports_by_version/1`)."
+  def reports_for(reports, %{id: id}), do: Map.get(reports, id, [])
+
+  @doc "Whether a version has more reports than its page shows."
+  def more_reports?(version), do: version.report_count > Board.reports_per_version()
+
+  # The reporter's identifier is chosen and sent by the reporting browser and is
+  # never checked, so the page never presents it as a count of real people.
+  def reporter_summary(version) do
+    count_label(version.distinct_session_count, "claimed reporter", "claimed reporters") <>
+      " (nothing here is verified)"
+  end
+
+  @doc "How the reports on one tool version came out, as four numbers."
+  def verdicts(version) do
+    %{
+      worked: version.verified_success_count,
+      did_not: version.verified_failure_count,
+      errored: version.errored_count,
+      unclear: version.unknown_count
+    }
+  end
+
+  defp verdict_summary(verdicts) do
+    "#{verdicts.worked} worked · #{verdicts.did_not} did not · " <>
+      "#{verdicts.errored} errored · #{verdicts.unclear} unclear"
+  end
+
+  @verdict_bar [
+    {:worked, "is-worked"},
+    {:did_not, "is-failed"},
+    {:errored, "is-errored"},
+    {:unclear, "is-unclear"}
+  ]
+
+  @doc """
+  The four verdicts as one proportional strip, with the numbers spelled out
+  underneath. A strip nobody has reported on is replaced by a line saying so.
+  """
+  attr :verdicts, :map, required: true
+  attr :empty, :string, required: true
+
+  def verdict_bar(assigns) do
+    assigns = assign(assigns, parts: verdict_parts(assigns.verdicts))
+
+    ~H"""
+    <div class="pb-verdicts">
+      <p :if={@parts == []} class="patchbay-empty-state">{@empty}</p>
+      <div :if={@parts != []} class="pb-bar" role="img" aria-label={verdict_summary(@verdicts)}>
+        <span
+          :for={part <- @parts}
+          class={"pb-bar-part " <> part.class}
+          style={"width:#{part.width}%"}
+        ></span>
+      </div>
+      <p :if={@parts != []} class="pb-bar-legend" aria-hidden="true">{verdict_summary(@verdicts)}</p>
+    </div>
+    """
+  end
+
+  defp verdict_parts(verdicts) do
+    total = Enum.sum(Enum.map(@verdict_bar, fn {key, _class} -> Map.fetch!(verdicts, key) end))
+
+    if total == 0 do
+      []
+    else
+      for {key, class} <- @verdict_bar,
+          count = Map.fetch!(verdicts, key),
+          count > 0,
+          do: %{class: class, width: share(count, total)}
+    end
+  end
+
+  defp share(count, total), do: :erlang.float_to_binary(count * 100 / total, decimals: 1)
+
+  @doc """
+  What one version of a tool changed about the words it is described by,
+  against the version before it.
+  """
+  attr :change, :any, required: true
+
+  def what_changed(assigns) do
+    ~H"""
+    <div class="pb-changed">
+      <h4 class="pb-subhead">Changes</h4>
+      <p :if={is_nil(@change)} class="patchbay-empty-state">
+        This is the earliest version of this tool the board has, so there is nothing before it to read against.
+      </p>
+      <p :if={@change && !@change.changed?} class="patchbay-empty-state">
+        The words did not change. Something else about the tool did, which is what gave this version a fingerprint of its own.
+      </p>
+      <p :if={@change && @change.title_changed?} class="pb-change-title">
+        <span class="pb-change-label">Title</span>
+        <s :if={@change.title_before}>{@change.title_before}</s>
+        <ins :if={@change.title_after}>{@change.title_after}</ins>
+        <span :if={is_nil(@change.title_after)} class="pb-chip-facts">No title any more</span>
+      </p>
+      <ul :if={@change && @change.description_changed?} class="pb-sentences">
+        <li :for={{kind, text} <- @change.sentences} class={"pb-sentence is-" <> to_string(kind)}>
+          <span class="pb-sentence-mark" aria-hidden="true">{sentence_mark(kind)}</span>
+          <span><span class="visually-hidden">{sentence_word(kind)}</span>{text}</span>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  defp sentence_mark(:added), do: "+"
+  defp sentence_mark(:removed), do: "−"
+  defp sentence_mark(:kept), do: "·"
+
+  defp sentence_word(:added), do: "Added: "
+  defp sentence_word(:removed), do: "Removed: "
+  defp sentence_word(:kept), do: "Unchanged: "
+
+  attr :label, :string, required: true
+  attr :schema, :map, required: true
+
+  @doc """
+  A JSON schema's top-level fields in plain rows: name, type, whether it is
+  required, and its description. The raw schema stays in the disclosure.
+  """
+  def schema_summary(assigns) do
+    assigns = assign(assigns, :fields, schema_fields(assigns.schema))
+
+    ~H"""
+    <div class="pb-schema">
+      <h3 class="pb-subhead">{@label}</h3>
+      <p :if={@fields == []} class="patchbay-muted">
+        {@schema["description"] || "No named fields. See the raw schema below."}
+      </p>
+      <table :if={@fields != []} class="pb-schema-table">
+        <thead>
+          <tr>
+            <th scope="col">Field</th><th scope="col">Type</th><th scope="col">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={field <- @fields}>
+            <td>
+              <code>{field.name}</code><span :if={field.required?} class="pb-schema-req"> required</span>
+            </td>
+            <td>{field.type}</td>
+            <td>{field.description}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  defp schema_fields(%{"properties" => properties} = schema) when is_map(properties) do
+    required = MapSet.new(List.wrap(schema["required"]))
+
+    properties
+    |> Enum.sort_by(fn {name, _} -> name end)
+    |> Enum.map(fn {name, spec} ->
+      %{
+        name: name,
+        type: schema_type(spec),
+        required?: MapSet.member?(required, name),
+        description: (is_map(spec) && spec["description"]) || ""
+      }
+    end)
+  end
+
+  defp schema_fields(_schema), do: []
+
+  defp schema_type(%{"type" => type}) when is_binary(type), do: type
+  defp schema_type(%{"type" => types}) when is_list(types), do: Enum.join(types, " or ")
+
+  defp schema_type(%{"enum" => values}) when is_list(values),
+    do: "one of " <> Enum.join(values, ", ")
+
+  defp schema_type(_spec), do: "any"
+
+  @doc """
+  Whether a site is Patchbay's own catalog entry, patchbay.help, whose copy
+  Patchbay wrote itself.
+  """
+  def own_site?(site), do: site.origin == "patchbay.help"
+
+  @doc """
+  The words an agent attached to a contract when it reported seeing it. They
+  are the reporter's description, not the site's own copy.
+  """
+  attr :tool, :any, required: true
+  attr :own?, :boolean, default: false
+
+  def reported_copy(assigns) do
+    ~H"""
+    <div :if={@tool.title || @tool.description} class="patchbay-reported-copy">
+      <h4 :if={@own?} class="pb-subhead">Description</h4>
+      <h4 :if={!@own?} class="pb-subhead">Reported description</h4>
+      <p :if={@tool.title} class="patchbay-board-facts">{@tool.title}</p>
+      <p :if={@tool.description} class="patchbay-muted">{@tool.description}</p>
+    </div>
+    """
+  end
 
   @doc """
   Author-written Markdown as safe HTML. Raw markup and scriptable links are

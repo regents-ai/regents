@@ -66,11 +66,15 @@ defmodule RegentsWeb.Patchbay.Layouts do
 
   defp home?(conn), do: conn.request_path == ~p"/patchbay"
 
-  # The list of sites and every site's own page.
-  defp sites?(conn),
-    do:
-      conn.request_path == ~p"/patchbay/sites" or
-        String.starts_with?(conn.request_path, "/patchbay/sites/")
+  # The list of sites and every site's own page: a site's page is its domain,
+  # the only first part of an address under /patchbay/ with a dot.
+  defp sites?(conn) do
+    case conn.path_info do
+      ["patchbay", "sites"] -> true
+      ["patchbay", name | _rest] -> String.contains?(name, ".")
+      _elsewhere -> false
+    end
+  end
 
   # The home page's form, opened.
   defp ask_path, do: ~p"/patchbay?ask=1" <> "#pb-hero"
@@ -78,7 +82,8 @@ defmodule RegentsWeb.Patchbay.Layouts do
   @doc """
   What every Patchbay page's frame and head read beside its title: the account
   the session pipeline found, for the bar, as the site's other pages do
-  (`RegentsWeb.Live.Session`); Patchbay's share picture; and Patchbay's
+  (`RegentsWeb.Live.Session`); that the page also answers as Markdown, as
+  every Patchbay page does; Patchbay's share picture; and Patchbay's
   structured data with the page's own nodes (`page_nodes`, built with
   `Regent.StructuredData`).
   """
@@ -86,6 +91,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
   def frame(conn, page_nodes) do
     [
       account_control: conn |> Plug.Conn.get_session() |> Session.account_control(),
+      markdown?: true,
       share_image: %{
         url: share_picture(),
         size: {1200, 630},

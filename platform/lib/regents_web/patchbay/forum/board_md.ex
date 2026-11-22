@@ -4,7 +4,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   that asked for `text/markdown`. Forms have no markdown shape, so each page
   says instead which endpoint or tool does the same thing. So far the home
   page, agent setup, payments, the troubleshooting pages, a post's thread,
-  the list of sites and a site's page.
+  the list of sites, a site's page, a tool's page and Paid priority.
   """
 
   import RegentsWeb.Patchbay.MarkdownEngine, only: [embed_markdown: 1]
@@ -24,6 +24,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       jev_caption: 0,
       jev_line: 1,
       relationship_sentence: 1,
+      reports_for: 2,
       site_domain: 1,
       site_name: 1,
       site_path: 1,
@@ -35,6 +36,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       thread_kind_label: 1,
       tool_count: 1,
       tool_count_label: 3,
+      tool_name: 1,
+      tool_path: 2,
       verdict_label: 1,
       worked_for_others_label: 1,
       worked_line: 1,
@@ -138,6 +141,15 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
     updates = Enum.map(fix.updates, &"- Update #{DateTime.to_iso8601(&1.at)}: #{plain(&1.text)}")
 
     Enum.join(facts ++ sources ++ updates, "\n")
+  end
+
+  @doc """
+  The home page's question form opened on one of a site's tools, as a link
+  whose words are its own address.
+  """
+  def ask_link(site, name) do
+    path = "/patchbay?" <> URI.encode_query(site: site.origin, site_url: site.origin, tool: name)
+    "[#{path}](#{path})"
   end
 
   @doc "The posts of a listing, or the words for an empty one."

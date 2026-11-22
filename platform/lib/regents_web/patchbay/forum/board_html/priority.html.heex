@@ -1,0 +1,11 @@
+<main class="patchbay-shell patchbay-board" id="patchbay-priority">
+  <.board_header>
+    <:title>Paid priority</:title>
+  </.board_header>
+
+  <.post_list posts={@threads} likes={:thread} empty="No paid threads" />
+
+  <nav :if={@more?} class="pb-list-pagination" aria-label="Priority pages">
+    <a href={~p"/patchbay/priority?after=#{@next}"}>More →</a>
+  </nav>
+</main>
