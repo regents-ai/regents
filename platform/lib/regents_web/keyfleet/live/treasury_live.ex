@@ -18,6 +18,7 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
   attr :page, :any, required: true, doc: "the Treasury page as read, or `:unreadable`"
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
   attr :reread, :integer, required: true, doc: "counts the times its figures were asked for again"
   attr :resting?, :boolean, required: true, doc: "whether its refresh waits to be pressed again"
 
@@ -53,6 +54,7 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
         page={@page}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         reread={@reread}
         resting?={@resting?}
       />
@@ -130,7 +132,13 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
         >
           <p>{Rules.pricing(@page.fleet_id)}</p>
           <.progress :if={@page.deployed?} page={@page} />
-          <.launch_upkeep :if={@page.deployed?} page={@page} actor={@actor} lease={@lease} />
+          <.launch_upkeep
+            :if={@page.deployed?}
+            page={@page}
+            actor={@actor}
+            lease={@lease}
+            client_tag={@client_tag}
+          />
         </Regent.Primitives.disclosure>
       </section>
     </article>
@@ -251,6 +259,7 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
   attr :page, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # The fleet's token launch, once an approved proposal has made one: four
   # buttons anyone may press to settle its sale, add its token to the daily
@@ -272,6 +281,7 @@ defmodule RegentsWeb.Keyfleet.TreasuryLive do
         fleet={%{fleet_id: @page.fleet_id, chain_id: @page.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
       >
         <:notes :let={panel}>
           <dl

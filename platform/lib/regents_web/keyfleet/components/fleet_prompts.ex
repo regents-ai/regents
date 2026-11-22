@@ -87,6 +87,7 @@ defmodule RegentsWeb.Keyfleet.Components.FleetPrompts do
           fleet={@fleet}
           actor={@actor}
           lease={@lease}
+          client_tag={@client_tag}
           names_sender={false}
           refresh={@idle}
         >

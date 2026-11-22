@@ -58,6 +58,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :thread, :any, required: true, doc: "the messages written to the key, oldest first"
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   def dialog(assigns) do
     ~H"""
@@ -108,6 +109,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           <.club_claim
             :if={@profile.held_for_pass?}
@@ -115,6 +117,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           <.claim
             :if={@profile.yours? or shard_yours?(@profile, @actor)}
@@ -122,6 +125,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           <.thread profile={@profile} fleet={@fleet} params={@params} thread={@thread} />
           <.facts profile={@profile} />
@@ -375,6 +379,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :fleet, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # What the key has earned and not yet been paid, each token claimed with its
   # own button and always paid to the wallet that holds the key, whether its
@@ -401,6 +406,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@profile.token_id}
         refresh={@profile.rewards}
       >
@@ -423,6 +429,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :fleet, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # A key whose request for its random draw was turned down has no traits
   # until someone asks again, which anyone may do. A draw that hasn't come 24
@@ -451,6 +458,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@profile.token_id}
       >
         <:buttons :let={panel}>
@@ -475,6 +483,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :fleet, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # A Regents Club Key waiting for whoever holds the Pass of its number, who
   # takes it with everything it has earned. The chain says whether the signer
@@ -500,6 +509,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@profile.token_id}
       >
         <:buttons :let={panel}>

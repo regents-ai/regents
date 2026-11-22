@@ -91,7 +91,11 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
       |> Map.put("schedule_put_away", Map.get(conn.req_cookies, @schedule_cookie, ""))
 
   @impl true
-  def mount(_params, %{"schedule_put_away" => schedule_put_away}, socket) do
+  def mount(
+        _params,
+        %{"schedule_put_away" => schedule_put_away, "client_tag" => client_tag},
+        socket
+      ) do
     {:ok,
      socket
      |> follow_mutes()
@@ -115,6 +119,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
      |> stream(:season_picks, [])
      |> assign(
        route_spec: nil,
+       # The client address the page was rendered for, which the page's
+       # allowances count against (`Regents.Limits`).
+       client_tag: client_tag,
        schedule_put_away: ScheduleCard.put_away(schedule_put_away),
        shell_instance: System.unique_integer([:positive, :monotonic]),
        load_failed?: false,
@@ -700,7 +707,12 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
       shell_instance={@shell_instance}
     >
       <:buy_key :if={@buy_key}>
-        <BuyKey.window sale={@buy_key} actor={actor(@access_context)} lease={@session_lease} />
+        <BuyKey.window
+          sale={@buy_key}
+          actor={actor(@access_context)}
+          lease={@session_lease}
+          client_tag={@client_tag}
+        />
       </:buy_key>
       <:content :if={@load_failed?}>
         <article id="page-load-failed" class="fleet-page">
@@ -729,6 +741,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
           actor={actor(@access_context)}
           account={current_account(@access_context)}
           lease={@session_lease}
+          client_tag={@client_tag}
           params={@fleet_params}
           profile={@key_profile}
           thread={@streams.key_thread}
@@ -781,6 +794,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
             page={@proposals}
             actor={actor(@access_context)}
             lease={@session_lease}
+            client_tag={@client_tag}
             reread={@treasury_reread}
             resting?={@treasury_resting != nil}
           />
@@ -806,12 +820,14 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
             page={@proposals}
             actor={actor(@access_context)}
             lease={@session_lease}
+            client_tag={@client_tag}
           />
           <ProposalsLive.detail
             :if={@route_spec.route_id == :proposal}
             page={@proposals}
             actor={actor(@access_context)}
             lease={@session_lease}
+            client_tag={@client_tag}
           />
         </FleetLive.page>
 
@@ -820,6 +836,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
           key={@key}
           actor={actor(@access_context)}
           lease={@session_lease}
+          client_tag={@client_tag}
         />
 
         <DmsLive.inbox :if={@route_spec.route_id == :dms} dms={@dms} />

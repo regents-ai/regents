@@ -44,6 +44,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
   attr :key, :map, required: true
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   def page(assigns) do
     ~H"""
@@ -114,6 +115,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
           fleet={@key.fleet}
           actor={@actor}
           lease={@lease}
+          client_tag={@client_tag}
           token_id={@key.token_id}
         />
 
@@ -159,6 +161,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
             fleet={@key.fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             token_id={@key.token_id}
             refresh={@key.shards}
           >
@@ -198,6 +201,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
                 fleet={@key.fleet}
                 actor={@actor}
                 lease={@lease}
+                client_tag={@client_tag}
                 inputs={%{"keys" => "#{@key.token_id}", "wallet" => agent.wallet, "days" => "30"}}
               >
                 <:buttons :let={panel}>
@@ -230,6 +234,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
               fleet={@key.fleet}
               actor={@actor}
               lease={@lease}
+              client_tag={@client_tag}
               inputs={%{"keys" => "#{@key.token_id}", "wallet" => "", "days" => "30"}}
             >
               <:fields :let={panel}>
@@ -279,6 +284,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
             fleet={@key.fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             refresh={@key.shards}
             inputs={%{"keys" => "#{@key.token_id}"}}
           >

@@ -58,7 +58,8 @@
       "to": "platform/lib/regents_web/keyfleet/components/buy_key.ex",
       "changes": [
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
-        "need: Keyfleet's images are under /images/keyfleet/ here; the card sheet is brought byte for byte to priv/static/images/keyfleet/home/key-cards.webp (K3 b)"
+        "need: Keyfleet's images are under /images/keyfleet/ here; the card sheet is brought byte for byte to priv/static/images/keyfleet/home/key-cards.webp (K3 b)",
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
       ]
     },
     {
@@ -82,7 +83,8 @@
       "from": "platform/lib/keyfleet_web/components/fleet_prompts.ex",
       "to": "platform/lib/regents_web/keyfleet/components/fleet_prompts.ex",
       "changes": [
-        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had"
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
       ]
     },
     {
@@ -123,7 +125,9 @@
     {
       "from": "platform/lib/keyfleet_web/components/presence_card.ex",
       "to": "platform/lib/regents_web/keyfleet/components/presence_card.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/components/reading.ex",
@@ -255,7 +259,8 @@
       "to": "platform/lib/regents_web/keyfleet/live/fleet_live.ex",
       "changes": [
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)",
-        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)"
+        "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
       ]
     },
     {
@@ -281,13 +286,16 @@
       "to": "platform/lib/regents_web/keyfleet/live/key_profile_live.ex",
       "changes": [
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
-        "a shard lent to a wallet no agent has signed in with drew its row and the row's address under one id; the address's is its own here, so the page's ids stay unique (K3 b)"
+        "a shard lent to a wallet no agent has signed in with drew its row and the row's address under one id; the address's is its own here, so the page's ids stay unique (K3 b)",
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
       ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/keys_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/keys_live.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/polls_live.ex",
@@ -309,7 +317,8 @@
       "to": "platform/lib/regents_web/keyfleet/live/proposals_live.ex",
       "changes": [
         "need: Regents.Limits names every allowance <product>_<name>; the site's budget is :keyfleet_treasury_refresh, one press every 30 seconds, as keyfleet.ai's :treasury_refresh",
-        "need: the site has a venue that only reads (Regents.read_only?/0), where no job runs; there a press of the Treasury's refresh asks for no reading and reads the kept figures again (K3 b)"
+        "need: the site has a venue that only reads (Regents.read_only?/0), where no job runs; there a press of the Treasury's refresh asks for no reading and reads the kept figures again (K3 b)",
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
       ]
     },
     {
@@ -354,13 +363,16 @@
         "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change",
         "the regents chief's review of the carry (K3 a findings, hand-made events): open_notebooks, get_code_password and every workspace press reach their handlers only with a workspace on show; from any other page they fall to the press no page sends, which changes nothing (K3 b)",
         "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing, where the source's split it and the page crashed (K3 b)",
-        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)"
+        "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
+        "the regents chief's review of K3 (b): the page keeps the client_tag its render was signed with (RegentsWeb.Live.Session.render_context/1), and gives it beside its session_lease to each page that holds a wallet panel (K3 b fixes)"
       ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/treasury_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/treasury_live.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/workspace_live.ex",
@@ -474,7 +486,9 @@
     {
       "from": "platform/lib/keyfleet_web/wallet/wallet_panel.ex",
       "to": "platform/lib/regents_web/keyfleet/wallet/wallet_panel.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer, where the source read without a bound of its own; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/wallet/wallet_words.ex",

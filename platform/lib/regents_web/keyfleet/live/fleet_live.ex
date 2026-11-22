@@ -226,6 +226,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :account, :map, default: nil, doc: "the signed-in account, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
   attr :params, :map, required: true, doc: "the page's address"
 
   attr :place, :atom,
@@ -443,6 +444,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           actor={@actor}
           account={@account}
           lease={@lease}
+          client_tag={@client_tag}
           schedule_put_away?={@fleet.fleet_id in @schedule_put_away}
         />
 
@@ -452,6 +454,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           {render_slot(@inner_block)}
           <.hall
@@ -493,6 +496,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
         fleet={@fleet}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         params={@params}
         thread={@thread}
       />
