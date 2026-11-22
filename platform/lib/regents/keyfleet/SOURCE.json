@@ -490,6 +490,14 @@
         ],
         "edit": "account/1 and person/1 are not brought (K2d)",
         "reason": "keyfleet.ai's config named them as RegentAgents' account and person callbacks; regents.sh names Regents.Account.AgentAccount's instead, and nothing else calls them. account/1 would also have read display_name and ens_name unloaded: regents.sh's get_by_privy_did loads neither, where keyfleet.ai's by_privy_did loaded both"
+      },
+      {
+        "files": [
+          "agents.ex",
+          "notebooks/roster.ex"
+        ],
+        "edit": "Agents.with_pairing/1 is not brought; the roster's holders/1 reads an agent's pairing with Regents.Account.Actors.Agent.with_pairing/1 and keeps an agent only while it is paired with a person who has an account here (pairing a Human); any other answer is no holder (K2d)",
+        "reason": "the site's Agent.with_pairing/1 is the one place that decides a pairing, and Agent.refresh/1, which the roster's Notebooks.member?/2 reaches through Keys.identity/2, reads it again and admits only a Human pairing; keyfleet.ai's with_pairing returned :not_paired as an error and kept the pairing episode for a person not here, which no caller here reads"
       }
     ],
     "not_carried": {

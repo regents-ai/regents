@@ -189,28 +189,6 @@ defmodule Regents.Keyfleet.Agents do
   def unpaired?(%Ash.Error.Changes.InvalidChanges{message: "active pairing required"}), do: true
   def unpaired?(_error), do: false
 
-  @doc "Resolve current delegation from the shared pairing authority."
-  def with_pairing(%Regents.Account.Actors.Agent{} = agent) do
-    with {:ok, pairing} <- RegentAgents.Authority.resolve(Regents.Repo, agent.wallet_address),
-         {:ok, account} <-
-           Regents.Account.Accounts.get_by_privy_did(pairing.privy_user_id,
-             actor: %Regents.Account.Actors.System{}
-           ) do
-      {:ok,
-       %{
-         agent
-         | pairing_id: pairing.id,
-           privy_user_id: pairing.privy_user_id,
-           human_account_id: account && account.id,
-           pairing:
-             if(account,
-               do: Regents.Account.Actors.Human.for_account(account),
-               else: :person_not_here
-             )
-       }}
-    end
-  end
-
   @doc """
   Records that the agent checked in with the fleet, as `run` says: in a
   conversation (`%{"kind" => "session"}`) or on its schedule

@@ -110,16 +110,21 @@ defmodule Regents.Keyfleet.Notebooks.Roster do
       [fleet_id]
       |> Regents.Keyfleet.Agents.agents_here_in!(actor: %System{})
       |> Enum.flat_map(fn profile ->
-        case Regents.Keyfleet.Agents.with_pairing(%Agent{
+        case Agent.with_pairing(%Agent{
                wallet_address: profile.wallet_address,
                chain_id: 8453,
                verification_method: :eoa_recovery,
                audience: "regents",
                human_id: profile.human_id
              }) do
-          {:ok, actor} -> [{Notebooks.agent_subject(profile.id), actor}]
-          {:error, :not_paired} -> []
-          {:error, error} -> raise "notebook pairing check failed: #{inspect(error.__struct__)}"
+          {:ok, %Agent{pairing: %Human{}} = actor} ->
+            [{Notebooks.agent_subject(profile.id), actor}]
+
+          {:ok, _unpaired} ->
+            []
+
+          {:error, error} ->
+            raise "notebook pairing check failed: #{inspect(error.__struct__)}"
         end
       end)
 
