@@ -8238,3 +8238,9 @@ seasons), on the shared Points library regents.sh was already on.
 - The pairing and account commands in the Grok Bot, Muse and Dots guides still name techtree.sh, where those agents sign in and pair.
 - Techtree's footer links About, Agents and agents.md to these pages.
 - Not released: on the `fold/techtree` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Techtree's agent guide points at this site's skills (not released)
+
+- /techtree/agents.md now links the Techtree skill and each agent's own skill on this site, where those pages now are. The commands an agent runs still name techtree.sh.
+- When the site can't reach its data, /techtree/agents.md asks the caller to try again in a minute instead of showing an error page.
+- Not released: on the `fold/techtree` branch only. No table, migration, secret, sign-in or wallet change.
