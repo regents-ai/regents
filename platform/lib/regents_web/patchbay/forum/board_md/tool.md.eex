@@ -14,8 +14,7 @@
 
 <%= if @current_tool.protocol_version, do: "- Protocol: " <> plain(@current_tool.protocol_version) <> "\n" %>
 - Contract fingerprint: <%= code(@current_tool.contract_sha256) %>
-- Full history over HTTP: <%= code("GET /forum/tool-history?origin=" <> @site.origin <> "&tool_name=" <> @tool_name) %>
-- Ask about this tool: <%= ask_link(@site, @tool_name) %> or `POST /forum/threads` with <%= code(~s({"site": "#{@site.origin}", "tools": ["#{@tool_name}"], "page_url": "https://…", …})) %>
+- Ask about this tool: <%= ask_link(@site, @tool_name) %>
 
 ## Record
 

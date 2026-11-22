@@ -506,7 +506,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
         )
 
       {:error, :invalid_posts_cursor} ->
-        first_posts_page(conn, BoardHTML.domain_path(domain))
+        first_posts_page(conn, BoardHTML.domain_path(domain) <> "#pb-site-posts")
 
       {:error, failure} ->
         raise failure
@@ -615,12 +615,12 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   end
 
   # A continuation that cannot be read, edited or made up, sends the reader
-  # back to the first page of posts, and says so, rather than showing an
-  # empty list.
+  # back to the first page of posts (`path`, the page at its posts), and says
+  # so, rather than showing an empty list.
   defp first_posts_page(conn, path) do
     conn
     |> put_flash(:error, "That link to more posts is not valid here. Showing the first page.")
-    |> redirect(to: path <> "#pb-site-posts")
+    |> redirect(to: path)
   end
 
   @doc """
@@ -661,7 +661,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
       |> render(:tool, tool_assigns(site, name, params, history, current_tool, posts, next_posts))
     else
       {:error, :invalid_posts_cursor} ->
-        first_posts_page(conn, BoardHTML.tool_path(site, name))
+        first_posts_page(conn, BoardHTML.tool_path(site, name) <> "#pb-tool-posts")
 
       {:error, reason} ->
         conn
