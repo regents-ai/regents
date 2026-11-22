@@ -240,11 +240,13 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   attr :lead, :boolean, required: true
 
   defp coin_art(assigns) do
+    assigns = assign(assigns, :picture, StoredImage.sized(assigns.view.image, 640))
+
     ~H"""
     <div class="home-coin__art">
       <img
-        :if={present?(@view.image)}
-        src={StoredImage.sized(@view.image, 640)}
+        :if={@picture}
+        src={@picture}
         srcset={StoredImage.choices(@view.image)}
         sizes="(max-width: 22rem) calc(100vw - 76px), (max-width: 42rem) calc(50vw - 47px), 320px"
         alt={"#{@view.name} token"}
@@ -254,7 +256,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
         width="320"
         height="320"
       />
-      <span :if={!present?(@view.image)} class="home-coin__fallback" aria-label="No token image">{String.first(
+      <span :if={!@picture} class="home-coin__fallback" aria-label="No token image">{String.first(
         @view.name || "?"
       )}</span>
     </div>
@@ -483,20 +485,22 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   # paired currency when one is given, and `detail` under them when given. It
   # opens `path`.
   defp list_token(assigns) do
+    assigns = assign(assigns, :picture, StoredImage.sized(assigns.image, 96))
+
     ~H"""
     <th scope="row">
       <.link navigate={@path} class="market-list__token">
         <span class="market-list__art">
           <img
-            :if={present?(@image)}
-            src={StoredImage.sized(@image, 96)}
+            :if={@picture}
+            src={@picture}
             alt=""
             loading="lazy"
             decoding="async"
             width="40"
             height="40"
           />
-          <span :if={!present?(@image)} aria-hidden="true">{String.first(@name || "?")}</span>
+          <span :if={!@picture} aria-hidden="true">{String.first(@name || "?")}</span>
           <ChainIcon.chain_icon
             chain={if @chain == "Robinhood", do: :robinhood, else: :base}
             class="market-list__chain"

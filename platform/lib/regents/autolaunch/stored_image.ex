@@ -9,6 +9,10 @@ defmodule Regents.Autolaunch.StoredImage do
   `<address>/<width>.webp`: a square of that width cut from the image's
   centre, made and served by that host. The large pictures offer two widths
   and the browser takes the one the screen needs.
+
+  A launch's image is whatever address its record holds. A page draws one
+  only from an `https` address with a host; for anything else it shows the
+  name's first letter.
   """
 
   @digest ~r/\A[0-9a-f]{64}\z/
@@ -22,32 +26,45 @@ defmodule Regents.Autolaunch.StoredImage do
 
   @doc """
   Where a page shows the image at `width`: a stored image's sized copy, and
-  any other address, such as one on IPFS or another site, as it is.
+  any other address a page may draw, such as one on another site, as it is.
+  Nil for a launch with no image and for an address a page does not draw.
   """
-  @spec sized(String.t(), width()) :: String.t()
-  def sized(url, width) when is_binary(url) and width in @widths do
-    if stored?(url) do
-      uri = URI.parse(url)
-      URI.to_string(%URI{uri | path: uri.path <> "/#{width}.webp"})
-    else
-      url
+  @spec sized(String.t() | nil, width()) :: String.t() | nil
+  def sized(url, width) when width in @widths do
+    case drawn(url) do
+      nil -> nil
+      uri -> if stored?(uri), do: copy(uri, width), else: url
     end
   end
 
   @doc """
   The widths a large picture's browser chooses from, as an `<img>`'s
   `srcset`, beside `sized(url, 640)` as its `src`; nil for an address that
-  is not a stored image, which is shown as it is.
+  is not a stored image.
   """
-  @spec choices(String.t()) :: String.t() | nil
-  def choices(url) when is_binary(url) do
-    if stored?(url), do: Enum.map_join(@choices, ", ", &"#{sized(url, &1)} #{&1}w")
+  @spec choices(String.t() | nil) :: String.t() | nil
+  def choices(url) do
+    uri = drawn(url)
+    if uri && stored?(uri), do: Enum.map_join(@choices, ", ", &"#{copy(uri, &1)} #{&1}w")
   end
 
-  # Whether an address names a stored image by its lane, id and digest.
-  defp stored?(url) do
-    with %URI{path: path} when is_binary(path) <- URI.parse(url),
-         [lane, id, digest] when lane in ["images", "stock-images"] <-
+  # The address as a page may draw it: `https`, with a host.
+  defp drawn(url) when is_binary(url) do
+    case URI.new(url) do
+      {:ok, %URI{scheme: "https", host: host} = uri} when is_binary(host) and host != "" -> uri
+      _other -> nil
+    end
+  end
+
+  defp drawn(_url), do: nil
+
+  defp copy(%URI{path: path} = uri, width),
+    do: URI.to_string(%{uri | path: path <> "/#{width}.webp"})
+
+  # Whether an address names a stored image by its lane, id and digest, and
+  # nothing after them: a query or a fragment would end up inside `srcset`.
+  defp stored?(%URI{path: path, query: nil, fragment: nil}) when is_binary(path) do
+    with [lane, id, digest] when lane in ["images", "stock-images"] <-
            String.split(path, "/", trim: true),
          {:ok, _id} <- Ecto.UUID.cast(id) do
       Regex.match?(@digest, digest)
@@ -55,4 +72,6 @@ defmodule Regents.Autolaunch.StoredImage do
       _other -> false
     end
   end
+
+  defp stored?(_uri), do: false
 end
