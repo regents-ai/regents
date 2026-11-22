@@ -4,7 +4,7 @@ defmodule RegentsWeb.Keyfleet.Components.Countdown do
   the time until something starts, such as a new Key's share of the Treasury
   slice. The page writes it as of `now`; the browser writes it again as it changes, from
   the closing time and the gap between its own clock and the site's
-  (`assets/js/hooks/countdown.ts`), in the same words, so a phone whose clock
+  (`assets/js/keyfleet/hooks/countdown.ts`), in the same words, so a phone whose clock
   is wrong still counts down to the right moment.
   """
   use Phoenix.Component

@@ -103,7 +103,7 @@ defmodule RegentsWeb.Keyfleet.Components.ScheduleCard do
 
   @doc """
   The fleets whose Schedule this browser put away, from the cookie the
-  `ScheduleCard` hook writes (`assets/js/hooks/schedule_card.ts`): their ids,
+  `ScheduleCard` hook writes (`assets/js/keyfleet/hooks/schedule_card.ts`): their ids,
   joined by dots.
   """
   def put_away(cookie), do: String.split(cookie, ".", trim: true)
