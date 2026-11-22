@@ -19,9 +19,6 @@ defmodule RegentsWeb.Cloak do
     after: ", Tor and NEAR AI"
   }
 
-  # Always the newest signed build.
-  @download "https://github.com/regents-ai/cloak-releases/releases/latest/download/Regents-Cloak.dmg"
-  @download_label "Download for Mac"
   @watch_label "Watch the intro"
   @watch_time "0:20"
   @film "/images/cloak/intro.mp4"
@@ -74,16 +71,12 @@ defmodule RegentsWeb.Cloak do
     after: "."
   }
 
-  # The page after Download, at `/cloak/install`: the download starts there and
-  # the page says what to do with it. Each step: its one-word title, its sentence.
+  # The install page, at `/cloak/install`: what to do with the app's file once a
+  # person has it. The page offers no file. Each step: its one-word title, its
+  # sentence.
   # The app's chief checks these against each build.
   @install_path "/cloak/install"
   @install_heading "Install Cloak"
-  @install_started %{
-    before: "Your download has started. If it hasn't, ",
-    link: "download it again",
-    after: "."
-  }
   @install_steps [
     {"Drag",
      "Open Regents-Cloak.dmg from your Downloads folder and drag Cloak onto Applications."},
@@ -99,8 +92,6 @@ defmodule RegentsWeb.Cloak do
   def heading, do: @heading
   def subtitle, do: @subtitle
   def pill, do: @pill
-  def download, do: @download
-  def download_label, do: @download_label
   def watch_label, do: @watch_label
   def watch_time, do: @watch_time
   def film, do: @film
@@ -113,7 +104,6 @@ defmodule RegentsWeb.Cloak do
   def feedback, do: @feedback
   def install_path, do: @install_path
   def install_heading, do: @install_heading
-  def install_started, do: @install_started
   def install_steps, do: @install_steps
   def updates, do: @updates
 
@@ -168,8 +158,6 @@ defmodule RegentsWeb.Cloak do
 
     """
     # #{@install_heading}
-
-    [#{@download_label}](#{@download})
 
     #{@facts}
 

@@ -8141,6 +8141,17 @@ seasons), on the shared Points library regents.sh was already on.
 - One lint setting no longer names a file that is not in this site.
 - No page, table or migration. On the `one-site` branch only.
 
+## 2026-11-22 — Install page: no file offered for now
+
+- On the founder's letter (379 a) /cloak/install no longer offers Download for Mac and no longer starts a download, as a page or as Markdown. The four steps, the two pictures, Updates and Caution stay.
+- No table, setting or migration.
+
+## 2026-11-22 — Released the install page with no file offered
+
+- Commit 9e4edbdb, /cloak/install offers no file on the founder's letter 379 a. Full check exit 0 on 9e4edbdb; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-125cd26424df.
+
 ## 2026-11-22 — Keyfleet's fleet pages in the one site, not yet open (not released)
 
 - Keyfleet's fleet pages are now part of this site: each fleet's page with its Key map and harbour, its Keys and their profiles, rooms and direct messages, the workspace and its projects, polls, proposals, the treasury, seasons, search, the worldline and the atlas, with the wallet steps they offer. They read the same records and show the same words as keyfleet.ai.
