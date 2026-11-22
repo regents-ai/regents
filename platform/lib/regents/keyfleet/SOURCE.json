@@ -483,6 +483,13 @@
         ],
         "edit": "kinds :fleet_agents and :key_agents became :keyfleet_fleet_agents and :keyfleet_key_agents (six places); SharedReading left the Regents.Keyfleet alias group for an alias of its own, Regents.SharedReading; the longer held/1 line formatted again",
         "reason": "Regents.SharedReading's kinds are named <product>_<kind>; the naming rule turns the group's Keyfleet.SharedReading into Regents.Keyfleet.SharedReading, which is no module"
+      },
+      {
+        "files": [
+          "agents.ex"
+        ],
+        "edit": "account/1 and person/1 are not brought (K2d)",
+        "reason": "keyfleet.ai's config named them as RegentAgents' account and person callbacks; regents.sh names Regents.Account.AgentAccount's instead, and nothing else calls them. account/1 would also have read display_name and ens_name unloaded: regents.sh's get_by_privy_did loads neither, where keyfleet.ai's by_privy_did loaded both"
       }
     ],
     "not_carried": {

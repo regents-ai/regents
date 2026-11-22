@@ -181,46 +181,6 @@ defmodule Regents.Keyfleet.Agents do
   end
 
   @doc """
-  How a check-in from an agent paired with a person's Regent account
-  (`regent_agents`) names that person's Keyfleet account: by its display name
-  and its wallet's ENS name, plus its saved verified wallet fields, or nil when
-  that person has no Keyfleet account. The shared signed check-in runs first;
-  wallet facts grant no signing authority.
-  """
-  def account(privy_user_id) do
-    case Regents.Account.Accounts.get_by_privy_did(privy_user_id,
-           actor: %Regents.Account.Actors.System{}
-         ) do
-      {:ok, %{} = account} ->
-        %{
-          display_name: account.display_name,
-          ens_name: account.ens_name,
-          wallet_address: account.wallet_address,
-          wallet_addresses: account.wallet_addresses || []
-        }
-
-      {:ok, nil} ->
-        nil
-    end
-  end
-
-  @doc """
-  The person's profile code: the ID of their shared Regent profile
-  (`RegentIdentity.profile_id/2`), which a hello card names as its `person` when
-  the SIWA service asks whether an agent is paired here
-  (`POST /api/agents/v1/pairing`). Nil until they have a profile, which their
-  first sign-in with a wallet makes; the pairing read then answers
-  `person_has_no_profile`. A profile that can't be read raises, so the service
-  hears the site failed, never that the agent is not paired.
-  """
-  @spec person(String.t()) :: String.t() | nil
-  def person(privy_user_id) do
-    app_id = :regents |> Application.fetch_env!(:privy) |> Keyword.fetch!(:app_id)
-    {:ok, profile_id} = RegentIdentity.profile_id(app_id, privy_user_id)
-    profile_id
-  end
-
-  @doc """
   Whether `error` refused an agent's write because its pairing ended while
   the write was on its way (`RegentAgents.RequirePairing`, which names it in
   words only).
