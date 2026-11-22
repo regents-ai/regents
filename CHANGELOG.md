@@ -8403,6 +8403,7 @@ seasons), on the shared Points library regents.sh was already on.
 - On Keyfleet's pages, Buy Key, a new proposal, a vote, carrying out or cancelling a proposal, Treasury's buttons and Buy REGENT open your wallet on regents.sh, through the same wallet connection as the rest of the site. Each press opens the wallet once, and a second press opens it again, even while the wallet still shows the first.
 - Your wallet is asked to send only what was made for the wallet open when you press. If you disconnect, or change to another wallet, before your wallet is asked, nothing is sent. With no wallet open, or one your account does not link, nothing is sent and the note under the buttons says which wallet to open.
 - When the network can't be reached, a press says so within moments and nothing is sent.
+- When a press can't be made ready for any other reason, it says "That didn't work. Nothing was sent. Press again."
 - Signed out, a wallet button opens sign-in, as Sign in does.
 - A wallet box whose figures were read before your wallet opened shows those figures without its buttons' steps until they are read for your wallet; a press in the meantime has them made on the spot.
 - Not yet tried with a real wallet: so far it has run only signed out, and with a stand-in wallet on a test page.

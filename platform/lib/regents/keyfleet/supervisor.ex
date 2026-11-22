@@ -11,7 +11,9 @@ defmodule Regents.Keyfleet.Supervisor do
   the steps a press on a wallet button asks for are built
   (`RegentsWeb.Keyfleet.WalletPanel`), with no cap: a page's own process
   runs one build at a time and each build is bounded, so there are never
-  more of these tasks than open pages; the access cache
+  more of these tasks than open pages, but for a page ended from outside
+  while it waits, whose build runs on until it finishes or its reads time
+  out; the access cache
   (`Regents.Keyfleet.AccessCache`): who was let into a fleet's notebooks or
   code lately, cleared at once through PubSub when a Key changes hands; the
   keep of what waits for each Key's holder
