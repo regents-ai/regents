@@ -8276,6 +8276,7 @@ seasons), on the shared Points library regents.sh was already on.
 
 - `/autolaunch` shows prices, FDVs and market caps in dollars, as autolaunch.sh shows them when it knows the dollar price of an auction's currency: REGENT's from the staking page's own price reading while that reading is at most fifteen minutes old, and each Base stock's from its Chainlink price feed, kept ten minutes. Without a price a figure stays in its own currency, with the line saying why, as before. On a test network every figure stays in its own currency, as on autolaunch.sh.
 - Robinhood auctions stay in their own currency until Robinhood's prices come.
+- A stock price feed that gives no price is asked again after a minute, not on every page opening.
 - The prices are read once as the page opens, under the same allowance as its listings. When the stock list or a price feed cannot be read, only those figures stay in their own currency and the page shows as usual; autolaunch.sh lost every dollar figure when its stock list could not be read.
 - Coming next and Bid volume are left out when they cannot be read or the page's allowance is spent. "No auction is taking bids" shows only when none is taking bids or opening soon; autolaunch.sh showed that line when the read failed too.
 - The Base and Base Stocks deployment descriptions no longer give the site an address to read the chain through: it reads Base through its own Base read setting. Each must name the address wallets use (`public_rpc_url`): an `https` address, or a local lab's own `http://127.0.0.1` one.
@@ -8298,6 +8299,16 @@ seasons), on the shared Points library regents.sh was already on.
 - One address's open Projects pages can read 120 times a minute; past that, and when the site can't reach its data, the page says the projects couldn't be read.
 - The team still delivers and withdraws projects on techtree.sh; this site shows what it delivered, as both read the same table.
 - Not released: on the `fold/techtree` branch only. One new named allowance in the site's settings (`techtree_project_reads`) and Techtree's Projects in the site's list of domains. No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's Auctions and Tokens lists (not released)
+
+- `/autolaunch/auctions` and `/autolaunch/tokens` show Autolaunch's two lists as autolaunch.sh shows them at `4799025d`: every auction or launched token as a table row, with the same chain, status, Verified and search choices, the All, Live and Graduated pills on Auctions, Load more, the same empty states and the same words. A choice changes the list without reloading the page, and back and forward bring it back.
+- Auctions shows the Revstake and Memestock counts above the list, live and graduated, from the stored auctions. Hidden auctions stay out of the counts and the lists.
+- Prices, FDVs and market caps are in dollars as on the home page. The counts and the prices are read once as the page opens, under the same allowance as its listings; when it is spent the counts say they are unavailable and every figure stays in its own currency.
+- Each listing either page reads (its first, a changed choice, a search, Load more, Retry) counts against the same allowance as the home page's. Past it the page says the list is unavailable, with Retry. Retry reads the list only after a read has failed; a press at any other time does nothing.
+- Launch auction keeps its future address under `/autolaunch` and answers "not found" until the launch form comes; on the preview it stays switched off with "Opens soon", as before launches open. The home page's See auctions card now opens the Auctions list.
+- Left out for now: the Claim and Refund presses on a finished auction, the notices about reading the chains, and the lists and counts updating themselves while open. The bar still lists Explore alone, without Auctions and Tokens under it.
+- Not released: on the `fold/autolaunch` branch only. Two routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
 
 ## 2026-11-22 — One site: Techtree's Wallet Bench findings for Articles (not released)
 

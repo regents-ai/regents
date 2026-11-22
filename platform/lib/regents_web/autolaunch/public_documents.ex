@@ -33,6 +33,10 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
     "/autolaunch/how-it-works" =>
       {"How it works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
+    "/autolaunch/auctions" =>
+      {"Auctions", "Every Revstake and Memestock auction on Autolaunch, live and graduated."},
+    "/autolaunch/tokens" =>
+      {"Tokens", "Every token launched through Autolaunch, on Base and Robinhood Chain."},
     "/autolaunch/about" =>
       {"About",
        "What Autolaunch does, how it differs, who uses it, the team behind it, key facts, common questions and how to reach us."},

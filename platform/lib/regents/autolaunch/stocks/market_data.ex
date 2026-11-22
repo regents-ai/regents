@@ -5,9 +5,11 @@ defmodule Regents.Autolaunch.Stocks.MarketData do
   through the site's own Base address (`Regents.Chain.Rpc`, failures counted
   under the scope "autolaunch stock prices").
 
-  Each feed's answer is kept for ten minutes (`Regents.Autolaunch.Stocks.PriceCache`).
-  A feed that did not answer is not kept: the next page to open asks it again.
-  The answers are read straight from their cache, never through one process.
+  Each feed's price is kept for ten minutes (`Regents.Autolaunch.Stocks.PriceCache`).
+  A feed that gave none, by not answering or by an answer too old, is kept a
+  minute as having none, so it is asked at most once a minute whoever opens
+  the page. The answers are read straight from their cache, never through one
+  process.
 
   Robinhood's stock prices come with Robinhood's part.
   """
@@ -44,8 +46,8 @@ defmodule Regents.Autolaunch.Stocks.MarketData do
         do: {Assets.ticker(symbol), feed}
   end
 
-  # One `latestRoundData()` per feed not kept, read concurrently; a feed that
-  # does not answer leaves its ticker out.
+  # One `latestRoundData()` per feed not kept, read concurrently; a feed with
+  # no price leaves its ticker out.
   defp read_prices(feeds) do
     feeds
     |> Task.async_stream(

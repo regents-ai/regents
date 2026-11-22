@@ -17,8 +17,9 @@ defmodule Regents.Autolaunch do
   is as autolaunch.sh has it. The reads behind the Auctions and Tokens lists
   (`Regents.Autolaunch.HomeMarket`) are here with their policies, with what
   their cards show of a record (`AuctionFigures`, `StoredImage` and
-  `Token.presentation/1`) and the dollar prices their figures are shown in
-  (`UsdRates`); every other resource has no action yet and one policy refusing
+  `Token.presentation/1`), the dollar prices their figures are shown in
+  (`UsdRates`) and the Auctions page's counts (`AuctionStats`); every other
+  resource has no action yet and one policy refusing
   every action, so nothing here writes a row.
 
   It also reads the deployment descriptions, the files that say which
@@ -32,6 +33,7 @@ defmodule Regents.Autolaunch do
     deps: [Regents, Regents.Chain, Regents.Stake],
     exports: [
       AuctionFigures,
+      AuctionStats,
       HomeMarket,
       Lab,
       LaunchActions,
