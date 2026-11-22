@@ -22,7 +22,8 @@ defmodule Regents.Techtree.Projects.Project do
     otp_app: :regents,
     domain: Regents.Techtree.Projects,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   alias Regents.Account.Accounts.HumanAccount
 
@@ -46,8 +47,10 @@ defmodule Regents.Techtree.Projects.Project do
       prepare build(select: @listed, sort: [delivered_at: :desc, id: :desc])
     end
 
-    # One of the customer's projects, as its page shows it.
+    # One of the customer's projects, as its page shows it. Primary, with its
+    # filter, as field policies need a primary read to run through.
     read :own do
+      primary? true
       filter expr(is_nil(withdrawn_at))
     end
 
@@ -67,6 +70,21 @@ defmodule Regents.Techtree.Projects.Project do
     # Their own projects only, so another person's reads as not found.
     policy action([:mine, :own, :own_package]) do
       authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+  end
+
+  field_policies do
+    # The package is private, so it is held to its field policy too.
+    private_fields :include
+
+    # Its bytes come only through the download read, whatever else a read
+    # loads or selects.
+    field_policy :package do
+      authorize_if action(:own_package)
+    end
+
+    field_policy :* do
+      authorize_if always()
     end
   end
 
