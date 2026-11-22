@@ -101,6 +101,18 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     @baseline |> add(%{"script-src" => [nonce], "style-src" => [nonce]}) |> render()
   end
 
+  @doc """
+  The baseline plus the one inline script that sends a fleet's notebook entry
+  form to `notebook_origin`, admitted by this request's nonce
+  (`RegentsWeb.Keyfleet.NotebookOpenController`).
+  """
+  def notebook_entry(nonce, notebook_origin) do
+    @baseline
+    |> add(%{"script-src" => ["'nonce-#{nonce}'"]})
+    |> List.keyreplace("form-action", 0, {"form-action", [notebook_origin]})
+    |> render()
+  end
+
   @doc "Sign-in plus framing its own pages, for the local showcase's preview."
   def showcase do
     @baseline
