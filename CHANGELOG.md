@@ -8282,3 +8282,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Base's and Base Stocks' descriptions are now part of the site's own files (`platform/priv/autolaunch/deployment/base.json` and `base-stocks.json`): the contract addresses, the contract interfaces and Base's public address for wallets, as autolaunch.sh runs with today, and nothing private.
 - A list change refused because the page's allowance is spent now keeps its "can't be shown" notice. Before, a listing still being read when the change was refused could arrive afterwards, take the notice away and show the earlier list.
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: production reads Autolaunch's Base descriptions from its own files (not released)
+
+- In production the site reads Autolaunch's Base and Base Stocks descriptions from the two files it ships, under the label `base-mainnet`; a missing or malformed file stops the start. The `AUTOLAUNCH_BASE_DEPLOYMENT`, `AUTOLAUNCH_BASE_DEPLOYMENT_ID` and `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` variables now count only outside production, where a local lab names its own files.
+- Not released: on the `one-site` branch only. No new deploy setting or secret. Not yet proven on a built release: the start reading the two files from inside the image.

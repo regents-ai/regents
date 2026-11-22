@@ -121,12 +121,23 @@ config :regents,
        )
 
 # Autolaunch's deployment descriptions: for each network, the path of the file
-# naming its contracts. Each is optional; an unset or blank variable leaves its
+# naming its contracts. Production reads Base's and Base Stocks' from the files
+# the release ships (`priv/autolaunch/deployment`), under the label autolaunch.sh
+# keeps its rows by; a file that is missing or malformed stops the start
+# (`Regents.Autolaunch.Supervisor`). Elsewhere each is optional and named by its
+# variable, as a local lab names its own; an unset or blank variable leaves its
 # setting out. The Base description needs its label beside it, and the Base
 # Stocks description extends the Base one, so it needs the Base description.
-base_deployment = String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT", ""))
-base_deployment_id = String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT_ID", ""))
-base_stocks_deployment = String.trim(System.get_env("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT", ""))
+{base_deployment, base_deployment_id, base_stocks_deployment} =
+  if config_env() == :prod do
+    {Application.app_dir(:regents, "priv/autolaunch/deployment/base.json"), "base-mainnet",
+     Application.app_dir(:regents, "priv/autolaunch/deployment/base-stocks.json")}
+  else
+    {String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT", "")),
+     String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT_ID", "")),
+     String.trim(System.get_env("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT", ""))}
+  end
+
 robinhood_deployment = String.trim(System.get_env("AUTOLAUNCH_ROBINHOOD_DEPLOYMENT", ""))
 
 if base_deployment != "" do
