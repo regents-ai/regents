@@ -8109,6 +8109,11 @@ seasons), on the shared Points library regents.sh was already on.
 - Each address has 120 reads a minute of the pages under `/patchbay`, counted apart from the site's other budget, with the standard `RateLimit` headers for the `"reads"` share; past it the answer is 429 with `Retry-After`.
 - No page, table, migration or setting. On the `one-site` branch only.
 
+## 2026-11-22 — One site: the share of page reads covers every product (not released)
+
+- The 120 reads a minute each address has now count the pages under `/patchbay`, `/techtree`, `/keyfleet` and `/autolaunch` together, as one `"reads"` share; past it the answer is 429 with `Retry-After`. The site's own pages are not counted.
+- No page, table, migration or setting. On the `one-site` branch only.
+
 ## 2026-11-21 — One site: Techtree's Wallet Bench, to read (not released)
 
 - /techtree/wallet-bench shows the Agent Wallet Bench as techtree.sh does: each test's grid of agent tools and wallets, the list of every test with its filters, and each test's own page at /techtree/wallet-bench/<number>. The Wallet Bench tile on the Results page is back and opens it.
