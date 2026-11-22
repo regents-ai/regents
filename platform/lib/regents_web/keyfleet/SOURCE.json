@@ -506,7 +506,9 @@
     {
       "from": "platform/lib/keyfleet_web/share_pictures.ex",
       "to": "platform/lib/regents_web/keyfleet/share_pictures.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's read on K5 (addition 5): a picture not kept yet is drawn by one request at a time, under the keep's own lock on its key (the cache's transaction); requests asking for it meanwhile wait for that drawing and take what it kept, a picture or the failure kept for a minute (K5)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/shared_figures.ex",
