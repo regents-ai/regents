@@ -4,6 +4,9 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   what a press sends, the buttons, and every step sent from them with how it
   landed. The ash-template repository's `skills/onchain-buttons` has the
   rules; `RegentsWeb.Keyfleet.OnchainSteps` holds the parts every group shares.
+  In the page, Keyfleet's own hook `KeyfleetOnchainSteps`
+  (`assets/js/keyfleet/hooks/onchain_steps.ts`) sends its steps through the
+  site's one wallet connection.
 
   The steps are built on the server by `Regents.Keyfleet.WalletSteps` for the one
   wallet that may send them: Privy's active wallet, when the signed-in account
@@ -60,9 +63,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       `token_id` or `advance_id` when the flow acts on one; `refresh`, anything whose
       change means the steps are built again; `names_sender`, false where
       the page leaves out the line naming the wallet a press is sent from;
-      `tool`, the browser tool in
-      `priv/tool_manifest.json` that presses these buttons for a browser's own
-      agent (`assets/js/page_tools.ts`), if any; and `class`;
+      `tool`, the browser tool in Keyfleet's
+      `priv/keyfleet/tool_manifest.json` that presses these buttons for a
+      browser's own agent, if any, which the page names on the panel's root
+      (the page's tool itself comes with its own slice); and `class`;
     * the slots `heading`, `fields`, `notes`, `buttons` and `details` (the
       last under what was sent), each given the panel's state (`inputs`,
       `built`, `review`, `presses`, `signer`, `signed_out`) to read.
@@ -820,7 +824,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     <section
       id={@id}
       class={["wallet-panel", @class]}
-      phx-hook="OnchainSteps"
+      phx-hook="KeyfleetOnchainSteps"
       data-webmcp-tool={@tool}
       data-webmcp-fleet={@tool && @fleet.fleet_id}
     >
