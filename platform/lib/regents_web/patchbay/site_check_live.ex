@@ -26,7 +26,8 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
       moment: 1,
       page_label: 1,
       page_nav: 1,
-      tool_path: 2
+      tool_path: 2,
+      web_link: 1
     ]
 
   alias Regents.Patchbay.BoundedText
@@ -282,7 +283,9 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
       <h3>Agent files</h3>
       <ul class="pb-site-check-list">
         <li :for={file <- @findings["files"]}>
-          <a href={file["url"]} rel="nofollow noreferrer">{SiteChecks.file_label(file["kind"])}</a>
+          <.web_link href={file["url"]} rel="nofollow noreferrer">
+            {SiteChecks.file_label(file["kind"])}
+          </.web_link>
           <span :if={file["title"]} class="pb-site-check-note">{file["title"]}</span>
         </li>
       </ul>

@@ -228,10 +228,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       SiteChecks.nothing?(check) && "_Nothing for agents found on #{domain}._",
       group("MCP servers", findings["servers"], fn server ->
         names = Enum.map_join(server["tools"], ", ", &code(&1["name"]))
-        "<#{server["url"]}> — #{SiteChecks.server_label(server)}" <> note(names)
+        web_link(server["url"]) <> " — " <> SiteChecks.server_label(server) <> note(names)
       end),
       group("Files for agents", findings["files"], fn file ->
-        "[#{SiteChecks.file_label(file["kind"])}](#{file["url"]})" <> note(plain(file["title"]))
+        web_link(file["url"], SiteChecks.file_label(file["kind"])) <> note(plain(file["title"]))
       end)
     ]
     |> Enum.reject(&(&1 in [nil, false]))

@@ -10,7 +10,7 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
   """
   use RegentsWeb, :live_view
 
-  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [domain_path: 1, picture_url: 1]
+  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [domain_path: 1, picture_url: 1, web_link: 1]
 
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
@@ -164,7 +164,7 @@ defmodule RegentsWeb.Patchbay.SiteDirectoryLive do
                     <span class="pb-directory-name">{site.name}</span>
                   </button>
                   <div class="pb-directory-url">
-                    <a href={site.page_url} rel="noopener noreferrer" target="_blank">{site.host}<span class="visually-hidden"> (opens website)</span></a>
+                    <.web_link href={site.page_url} rel="noopener noreferrer" target="_blank">{site.host}<span class="visually-hidden"> (opens website)</span></.web_link>
                   </div>
                   <a class="pb-directory-forum" href={domain_path(site.domain)}>
                     <span>View Forum</span><span class="visually-hidden"> for {site.name}</span>

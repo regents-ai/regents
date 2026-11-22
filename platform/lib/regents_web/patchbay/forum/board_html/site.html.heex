@@ -118,9 +118,13 @@
         <dd :if={@site.support_status}>{support_status_label(@site.support_status)}</dd>
         <dt>Source</dt>
         <dd>
-          <a :if={@site.support_evidence_url} href={@site.support_evidence_url} rel="noreferrer">
+          <.web_link
+            :if={@site.support_evidence_url}
+            href={@site.support_evidence_url}
+            rel="noreferrer"
+          >
             {@site.support_evidence_label || @site.support_evidence_url}
-          </a>
+          </.web_link>
           <span :if={!@site.support_evidence_url}>No official source on file</span>
         </dd>
         <dt :if={@site.support_evidence_url}>Verified</dt>
