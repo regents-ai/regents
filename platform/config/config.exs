@@ -230,8 +230,10 @@ config :regents, :limits,
   # A person's presses of Keyfleet's Treasury refresh: one every 30 seconds
   # (Sean, 20 October 2026).
   keyfleet_treasury_refresh: [limit: 1, window_seconds: 30],
-  # Figures one address's open Keyfleet wallet panels read when a form changes
-  # or the open wallet is reported: as many a minute as Autolaunch's lists. No
+  # Chain figures one address's open Keyfleet pages read: a wallet panel's
+  # first read, one a changed form or the open wallet starts, and the panel's
+  # own rereads on its timer; the Key window's rewards, when not read in the
+  # last 30 seconds, and its slice. As many a minute as Autolaunch's lists. No
   # press is counted.
   keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
   # Moves of the sea behind one address's open Keyfleet pages to another fleet,
