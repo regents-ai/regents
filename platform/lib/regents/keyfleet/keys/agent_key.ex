@@ -95,9 +95,9 @@ defmodule Regents.Keyfleet.Keys.AgentKey do
     end
 
     # The Keys the agents with these wallets are on in a fleet, each by its
-    # wallet's current pairing, with that wallet (`:agent_wallet`). Whether
-    # the person still holds each Key is `Regents.Keyfleet.Keys.assigned_keys/3`'s,
-    # the one reader.
+    # wallet's current pairing, with that wallet (`:agent_wallet`), the
+    # pairing itself left out. Whether the person still holds each Key is
+    # `Regents.Keyfleet.Keys.assigned_keys/3`'s, the one reader.
     read :of_agents do
       argument :fleet_id, :string, allow_nil?: false
       argument :wallets, {:array, :string}, allow_nil?: false
@@ -111,7 +111,7 @@ defmodule Regents.Keyfleet.Keys.AgentKey do
                  )
              )
 
-      prepare build(load: [:agent_wallet])
+      prepare build(load: [:agent_wallet], deselect: [:paired_agent_id])
     end
   end
 

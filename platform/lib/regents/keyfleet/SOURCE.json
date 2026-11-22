@@ -522,6 +522,18 @@
         ],
         "edit": "the account reads the routed fleet pages and the three shared readings make take only the fields of a person's account they use: accounts_of/2 reads each account's wallet_address and wallet_addresses, and main_addresses/1 its wallet_address (query: [select: ...] on Regents.Account.Accounts.accounts_by_ids), each account's id always with them (K3 c)",
         "reason": "need: the read-only venue's login is granted only what pages show; no page shows a person's sign-in id, World ID, picture or account times, so the account reads that serve pages take none of them (K3 c)"
+      },
+      {
+        "files": [
+          "rooms/room.ex",
+          "rooms/message.ex",
+          "seasons/season_pick.ex",
+          "agents/check_in.ex",
+          "agents/agent_profile.ex",
+          "keys/agent_key.ex"
+        ],
+        "edit": "Room's read, for_fleet, in_fleet and key_thread, Message's read_messages, read_key_thread, posts_as_key and search, SeasonPick's settled and in_settled_season, CheckIn's in_fleet and the check-ins AgentProfile's here_in_fleet loads leave out beneficiary_privy_user_id (prepare build(deselect: ...), and Ash.Query.deselect/2 in the load), each resource's attribute saying so; Room's primary read so has a preparation (primary_read_warning?: false, its comment says why); AgentKey's of_agents leaves out paired_agent_id, still its filter's and agent_wallet's key in SQL (K3 c)",
+        "reason": "need: the read-only venue's login is granted only what pages show; no page shows the person an agent acts for or the pairing an agent's Key is found by, so the reads that serve pages leave them out (K3 c)"
       }
     ],
     "not_carried": {
