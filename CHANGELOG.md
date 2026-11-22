@@ -8158,3 +8158,19 @@ seasons), on the shared Points library regents.sh was already on.
 - The pairing view holds the same pairings an agent's own requests are judged by: a pairing still in place whose person has an account here. Only the system may read it directly. The links view holds the links the linked-accounts read gives, less those without a username; anyone may read it.
 - Nothing reads either yet: Keyfleet and Autolaunch move to them in their own slices.
 - One migration, which adds the two views and nothing else; no table, row, page or setting changes. On the `one-site` branch only.
+
+## 2026-11-22 — Redeem: an unlimited USDC approval no longer breaks the account panel
+
+- A wallet that had given the redeemer an unlimited USDC approval (set in the wallet itself; the page's own step asks for the exact price) could not open its part of the Redeem page: the figure was too long to write and the page failed. Current allowance now reads "Unlimited" for such an approval. Every other figure is written as before.
+- Found by the Autolaunch chief while proving the shared chain reader. No table, setting or migration; nothing about what the page asks a wallet to sign.
+
+## 2026-11-22 — Cloak pages: the size line no longer names 130 MB
+
+- /cloak and /cloak/install said "130 MB", the size of a file neither page offers now. The line reads "Apple silicon · macOS 26" until the next build's size is known. Ordinary page copy, on the Orchestrator's ruling of 22 Nov, told to the founder.
+- No table, setting or migration.
+
+## 2026-11-22 — Released the Redeem unlimited-approval fix
+
+- Commit f36c34f2, Redeem writes an unlimited USDC approval as Unlimited instead of failing, and the Cloak pages no longer say 130 MB. Full check exit 0 on f36c34f2; the practice run built the image and found no migration pending.
+- Live read, signed out: /redeem and /stake answer and /cloak and /cloak/install no longer say 130 MB and are otherwise as before (the fixed figure shows only to a connected wallet with such an approval, so it was proven on a local run, not live), the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-9e4edbdb8b17.
