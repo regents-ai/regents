@@ -224,7 +224,10 @@ config :regents, :limits,
   # Figures one address's open Keyfleet wallet panels read when a form changes
   # or the open wallet is reported: as many a minute as Autolaunch's lists. No
   # press is counted.
-  keyfleet_wallet_reads: [limit: 120, window_seconds: 60]
+  keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
+  # Searches one address's open Keyfleet pages run, Show more included: one a
+  # second.
+  keyfleet_searches: [limit: 60, window_seconds: 60]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
