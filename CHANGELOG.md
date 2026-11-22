@@ -8348,7 +8348,7 @@ seasons), on the shared Points library regents.sh was already on.
 - One address may ask for 60 of these pictures a minute; past that it is asked to wait.
 - Every read of a wallet box's figures counts against its address's 120 a minute: its first, each changed amount, choice or wallet, and each time it reads again by itself; a Key's window reads its rewards and its Treasury slice under the same share, and shows rewards read in the last 30 seconds again without a read. Past its share of the minute a wallet window shows its figures could not be read and tries again, and a Key's window says its rewards or its slice aren't showing right now. Pressing a wallet button is never counted or held back.
 - When the city behind Keyfleet's pages comes, one address's open pages read a member's own ships at most 180 times a minute; past that the city keeps the ships it has until the fleet's next news. No page shows the city yet.
-- Not released: on the `fold/keyfleet` branch only. One new named allowance in the site's settings (`keyfleet_sea_crew_reads`). No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+- Not released: on the `fold/keyfleet` branch only. Two routes added, one new named allowance in the site's settings (`keyfleet_sea_crew_reads`) and one new setting for how many share pictures are kept. No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
 
 
 ## 2026-11-22 — One site: Autolaunch token pages, Patchbay threads and sites, Keyfleet share pictures, and founder decisions (not released)
@@ -8368,5 +8368,3 @@ seasons), on the shared Points library regents.sh was already on.
 - Added Techtree's contact inquiry form (`Regents.Techtree.Enquiries`, `/techtree` and `/techtree/services/*`, rate-limited via `:techtree_enquiries`, hidden on the read-only venue).
 - Added Techtree's Watchdog host & route verification domain (`Regents.Techtree.Watchdog`) and `/techtree/watchdog` page, with Oban queue `techtree_watchdog` (disabled on the read-only venue) and Monitoring link from `/techtree/services/security`.
 - Not released: on the `one-site` branch only.
-
-- Not released: on the `fold/keyfleet` branch only. Two routes added, one new named allowance in the site's settings (`keyfleet_sea_crew_reads`) and one new setting for how many share pictures are kept. No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
