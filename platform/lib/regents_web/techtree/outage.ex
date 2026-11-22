@@ -14,7 +14,8 @@ defmodule RegentsWeb.Techtree.Outage do
   is a missing grant and is raised as the fault it is. Anything else, a bug or a
   query error, is raised again unchanged, so it still shows as what it is. The
   failure is logged here, since the error tracker keeps its records in that same
-  database.
+  database: its kind and the database's code only, never the database's message,
+  which can quote a query's values.
   """
 
   require Logger
@@ -25,9 +26,7 @@ defmodule RegentsWeb.Techtree.Outage do
   rescue
     error ->
       if outage?(error) do
-        Logger.warning(
-          "Database read failed; page shows its outage note: " <> Exception.message(error)
-        )
+        Logger.warning("Database read failed; page shows its outage note: " <> summary(error))
 
         :database_down
       else
@@ -61,6 +60,24 @@ defmodule RegentsWeb.Techtree.Outage do
   end
 
   defp outage?(_error), do: false
+
+  # What is logged of an outage: the kind of failure and the SQLSTATE. A lost
+  # connection's message is the pool's own words, which name no value.
+  defp summary(%DBConnection.ConnectionError{message: message}),
+    do: "DBConnection.ConnectionError: #{message}"
+
+  defp summary(%Postgrex.Error{postgres: %{pg_code: state}}), do: "Postgrex.Error #{state}"
+
+  defp summary(%Ash.Error.Unknown{errors: errors}),
+    do: errors |> Enum.find(&outage?/1) |> summary()
+
+  defp summary(%Ash.Error.Unknown.UnknownError{error: "** (DBConnection.ConnectionError)" <> _}),
+    do: "DBConnection.ConnectionError"
+
+  defp summary(%Ash.Error.Unknown.UnknownError{error: "** (Postgrex.Error) " <> text}) do
+    [_severity, state | _message] = String.split(text, " ", parts: 3)
+    "Postgrex.Error #{state}"
+  end
 
   defp outage_state?("08" <> _connection_exception), do: true
   defp outage_state?("42501"), do: Regents.read_only?()

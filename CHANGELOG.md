@@ -8266,3 +8266,8 @@ seasons), on the shared Points library regents.sh was already on.
 - A countdown whose closing time isn't a number keeps its words and stops.
 - Every read of Base uses the site's own Base read setting, so the Buy Key figures no longer wait on a chain node setting of their own, and the node setting the entry above names is gone.
 - Not released: on the `fold/keyfleet` branch only. Two new named allowances in the site's settings (`keyfleet_wallet_reads`, `keyfleet_searches`) and one Keyfleet setting removed (its Base node address). No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Techtree's outage record keeps no query values (not released)
+
+- When a Techtree page can't reach its data, the site's own record of it now holds only the kind of failure, never the text of what was being read.
+- Not released: on the `fold/techtree` branch only. No page, table, migration or setting.
