@@ -8197,3 +8197,13 @@ seasons), on the shared Points library regents.sh was already on.
 - A Keyfleet wallet press that was not sent, not confirmed or refused is counted with the site's other health figures, by flow and reason, as keyfleet.ai counts it.
 - When an error cannot be saved with the site's errors, the log line now names only what kind of error it was and what kind of failure stopped the save, never their words, which can carry a query and its values.
 - On the `one-site` branch only. No table, setting or migration.
+
+## 2026-11-22 — One site: Keyfleet's fleet pages open under /keyfleet, signed out (not released)
+
+- Each of the five Keyfleet fleets opens under `/keyfleet` (`/keyfleet/classic/1`, `/keyfleet/app/fleets/regents_club` and the other three): its own page with the members, the map and the rooms, a Key's page, Seasons, Proposals and each proposal, Treasury, Polls and each poll, and Search, with the words keyfleet.ai shows.
+- The browser behaviour these pages use (the Key cards, the map, the countdowns, the Schedule card, the tour, the rooms' posts) comes from keyfleet.ai unchanged, as do the Buy Key card sheet, the card decks and the trait table.
+- Links to the workspace, the worldline and the atlas keep the addresses those pages will have under `/keyfleet`; until they open, they answer the site's not-found page. The sidebar's Account is a plain link to the site's account page.
+- A fleet's own page, Proposals, a proposal and Treasury say "This page couldn't be loaded" until the shared readings behind them run. A Key's rewards box shows its failed state until the rewards reading runs, and the Buy Key figures wait on a chain node setting.
+- A Key's card no longer draws a shard's row and its address under one id.
+- Settings now set: how long a fleet's feed waits, the agents' picture address, the Base wallet chain and node, and the decks' and trait table's folders.
+- Not released: on the `fold/keyfleet` branch only. 45 routes added. No table, migration, queue, scheduled job, secret, sign-in or wallet change.
