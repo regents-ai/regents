@@ -66,10 +66,12 @@ import {KeyfleetShell} from "./keyfleet/shell_behavior"
 // Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
 import {installShellMenu} from "./autolaunch/shell_menu"
 // Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, the
-// home page's live list and its counting times, and the WebMCP guide's status line.
+// home page's live list, a post's live thread and its counting times, and the
+// WebMCP guide's status line.
 // Their copy buttons and other motion are the site's own above.
 import {installEscape} from "./patchbay/escape"
 import {MotionArrivals} from "./patchbay/motion_arrivals"
+import {MotionThread} from "./patchbay/motion_thread"
 import {PatchbayRelativeTime} from "./patchbay/relative_time"
 import {mountWebMCPStatus} from "./patchbay/webmcp_status"
 
@@ -309,6 +311,7 @@ const hooks = {
   MotionRefusal,
   MotionTabs,
   MotionTick,
+  MotionThread,
   MenuAgents,
   OnchainSteps,
   PaperPicks,
