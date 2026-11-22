@@ -103,6 +103,8 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   @reread_ms 10_000
   # How soon a group with a button the chain's state holds back reads it again.
   @blocked_ms 15_000
+  # How long a press waits on its own steps before it is answered without them.
+  @press_build_ms 12_000
   # The groups whose figures a visitor sees.
   @shown_to_visitors [:buy, :run_split, :present, :launch_upkeep]
   # The groups a visitor sees without their buttons: Buy stays, and a press
@@ -503,7 +505,21 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
     case {Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag), socket.assigns} do
       {:limited, %{built: %{review: %{}, built_for: ^wanted} = built}} -> built
-      _read_now -> build_steps!(request)
+      _read_now -> bounded_build(request, wanted)
+    end
+  end
+
+  # A press's steps are built under `Regents.Keyfleet.PressBuilds` while the
+  # page waits up to `@press_build_ms`. A build that raises, or is not done by
+  # then, answers the press as one the chain could not be read for, built for
+  # what it asks for.
+  defp bounded_build(request, wanted) do
+    task =
+      Task.Supervisor.async_nolink(Regents.Keyfleet.PressBuilds, fn -> build_steps!(request) end)
+
+    case Task.yield(task, @press_build_ms) || Task.shutdown(task) do
+      {:ok, built} -> built
+      _unanswered -> Map.put(@unread, :built_for, wanted)
     end
   end
 
