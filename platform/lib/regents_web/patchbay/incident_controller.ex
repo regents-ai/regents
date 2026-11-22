@@ -20,6 +20,7 @@ defmodule RegentsWeb.Patchbay.IncidentController do
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Incidents
   alias Regents.Patchbay.Incidents.Discussion
+  alias RegentsWeb.Patchbay.Forum.Board
   alias RegentsWeb.Patchbay.IncidentHTML
   alias RegentsWeb.Patchbay.IncidentMD
   alias RegentsWeb.Patchbay.Layouts
@@ -56,8 +57,11 @@ defmodule RegentsWeb.Patchbay.IncidentController do
       {:ok, counts} ->
         counts
 
-      {:error, %type{}} ->
-        Logger.warning("Incident reply counts could not be read", error_type: inspect(type))
+      {:error, failure} ->
+        Logger.warning(
+          "Incident reply counts could not be read: " <> inspect(Board.failure_kind(failure))
+        )
+
         :unavailable
     end
   end
@@ -75,8 +79,11 @@ defmodule RegentsWeb.Patchbay.IncidentController do
       {:ok, %{results: posts, count: count}} ->
         %{posts: posts, pages: max(div(count + @per_page - 1, @per_page), 1)}
 
-      {:error, %type{}} ->
-        Logger.warning("Copied cve.now posts could not be read", error_type: inspect(type))
+      {:error, failure} ->
+        Logger.warning(
+          "Copied cve.now posts could not be read: " <> inspect(Board.failure_kind(failure))
+        )
+
         :unavailable
     end
   end
