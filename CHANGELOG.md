@@ -7494,3 +7494,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - /cloak and /cloak/install said "130 MB", the size of a file neither page offers now. The line reads "Apple silicon · macOS 26" until the next build's size is known. Ordinary page copy, on the Orchestrator's ruling of 22 Nov, told to the founder.
 - No table, setting or migration.
+
+## 2026-11-22 — Released the Redeem unlimited-approval fix
+
+- Commit f36c34f2, Redeem writes an unlimited USDC approval as Unlimited instead of failing, and the Cloak pages no longer say 130 MB. Full check exit 0 on f36c34f2; the practice run built the image and found no migration pending.
+- Live read, signed out: /redeem and /stake answer and /cloak and /cloak/install no longer say 130 MB and are otherwise as before (the fixed figure shows only to a connected wallet with such an approval, so it was proven on a local run, not live), the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-9e4edbdb8b17.
