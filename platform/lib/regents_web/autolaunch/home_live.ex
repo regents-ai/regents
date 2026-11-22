@@ -9,7 +9,8 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   Opening the page is one of its address's reads of the site, as any page is.
   Each listing the open page then reads (its first, a changed option, a
   search, Load more) spends one of that address's `:autolaunch_list_reads`
-  (`Regents.Limits`); past the allowance the page says the launches can't be
+  (`RegentsWeb.Autolaunch.LiveListings.admit/1`, the list pages' rule too);
+  past the allowance the page says the launches can't be
   shown, with Try again. Load more keeps every row it has read in the page's
   memory, to be changed before either list holds 1,000 rows: see SOURCE.json.
 
@@ -51,8 +52,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   import RegentsWeb.Autolaunch.Components.LinkIcon
   alias Phoenix.LiveView.AsyncResult
   alias Regents.Autolaunch.{Lab, UsdRates}
-  alias Regents.Limits
-  alias RegentsWeb.Autolaunch.{HomeMarket, PublicDocuments}
+  alias RegentsWeb.Autolaunch.{HomeMarket, LiveListings, PublicDocuments}
 
   # What the list shows: auctions or launched tokens. Tokens choose a type
   # below it.
@@ -143,8 +143,8 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
         action: "See fees",
         href: ~p"/autolaunch/how-it-works#how-it-works-fees"
       },
-      # The stocks, portfolio and auctions pages keep their addresses under
-      # /autolaunch, written out until they come (they answer 404 until then).
+      # The stocks and portfolio pages keep their addresses under /autolaunch,
+      # written out until they come (they answer 404 until then).
       %{
         id: "autolaunch/address",
         name: "Stock tokens",
@@ -179,7 +179,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
         line: "Auction prices, bids and amounts raised come from the auction contracts.",
         tint: "#aecacd",
         action: "See auctions",
-        href: "/autolaunch/auctions"
+        href: ~p"/autolaunch/auctions"
       }
     ]
   end
@@ -261,23 +261,15 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
     cursor = if append?, do: socket.assigns.next_cursor
     socket = assign(socket, listed: options, market_append: append?)
 
-    case admit(socket) do
+    case LiveListings.admit(socket) do
       :ok ->
         socket
         |> assign(market_loading: true, market_failed: false)
-        |> start_async(:home_market, fn -> read_market(options, cursor) end)
+        |> start_async(:home_market, fn -> LiveListings.read(options, cursor) end)
 
       :limited ->
         market_failed(socket)
     end
-  end
-
-  # The visit's own request is counted with the address's reads of the site.
-  # Every listing the open page reads after it spends one of the lists' own.
-  defp admit(socket) do
-    if connected?(socket),
-      do: Limits.spend(:autolaunch_list_reads, socket.assigns.client_tag),
-      else: :ok
   end
 
   # The page's first listing is read before it is shown, so the coins are in
@@ -288,7 +280,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   defp first_market(socket) do
     socket = assign(socket, market_append: false, listed: socket.assigns.market_options)
 
-    case admit(socket) do
+    case LiveListings.admit(socket) do
       :ok ->
         socket
         |> assign(backed: row(read_backed()), coming: row(read_coming()))
@@ -301,16 +293,9 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   end
 
   defp read_first(socket) do
-    case read_market(socket.assigns.market_options, nil) do
+    case LiveListings.read(socket.assigns.market_options, nil) do
       {:ok, page} -> put_market(socket, page)
       _failure -> market_failed(socket)
-    end
-  end
-
-  defp read_market(options, cursor) do
-    with {:ok, page} <- HomeMarket.read(options, cursor),
-         {:ok, creators} <- Regents.Autolaunch.HomeMarket.creators(page.records) do
-      {:ok, Map.put(page, :creators, creators)}
     end
   end
 

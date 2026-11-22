@@ -4,7 +4,7 @@
    design system's panels are (STYLE.md, "Shape and spacing"). Each page's own
    rule sets only what sits inside. Pills are the shared ones: the status pill
    (`Regent.Primitives.status`, styled once in figures.css) for a state, a tag or a
-   chain. */
+   chain, and the rounded filter pill (`rg-pill-select`) for a filter. */
 :scope {
   --card-padding: 1.25rem;
 }
@@ -19,7 +19,8 @@
 :where(
   .market-list__scroll,
   .home-coin,
-  .home-empty
+  .home-empty,
+  .market-list__empty
 ) {
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
@@ -28,7 +29,7 @@
 
 /* Empty states: what is missing, why in a line, and where to go next, centred
    in a card. */
-:where(.home-empty) {
+:where(.home-empty, .market-list__empty) {
   display: grid;
   justify-items: center;
   gap: var(--space-2);
@@ -37,14 +38,25 @@
   text-align: center;
 }
 
-:where(.home-empty) > :where(h2, h3, p) {
+:where(.home-empty, .market-list__empty) > :where(h2, h3, p) {
   max-width: 30rem;
   margin: 0;
 }
 
-:where(.home-empty) > :where(h2, h3) {
+:where(.home-empty, .market-list__empty) > :where(h2, h3) {
   color: var(--color-fg);
   font-size: 1.125rem;
+}
+
+/* A choice and its words are one press: a full 44px one on a touch screen, by the
+   design system's touch rule; a mouse keeps the line's own height. */
+:where(label:has(> input:is([type="radio"], [type="checkbox"]))) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+@media (hover: none), (pointer: coarse) {
+  :where(label:has(> input:is([type="radio"], [type="checkbox"]))) { min-height: 2.75rem; }
 }
 
 /* Loading: the shape of what is coming, in a faint block that breathes, so the

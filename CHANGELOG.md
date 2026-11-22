@@ -8283,3 +8283,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Base's and Base Stocks' descriptions are now part of the site's own files (`platform/priv/autolaunch/deployment/base.json` and `base-stocks.json`): the contract addresses, the contract interfaces and Base's public address for wallets, as autolaunch.sh runs with today, and nothing private.
 - A list change refused because the page's allowance is spent now keeps its "can't be shown" notice. Before, a listing still being read when the change was refused could arrive afterwards, take the notice away and show the earlier list.
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's Auctions and Tokens lists (not released)
+
+- `/autolaunch/auctions` and `/autolaunch/tokens` show Autolaunch's two lists as autolaunch.sh shows them at `4799025d`: every auction or launched token as a table row, with the same chain, status, Verified and search choices, the All, Live and Graduated pills on Auctions, Load more, the same empty states and the same words. A choice changes the list without reloading the page, and back and forward bring it back.
+- Auctions shows the Revstake and Memestock counts above the list, live and graduated, from the stored auctions. Hidden auctions stay out of the counts and the lists.
+- Prices, FDVs and market caps are in dollars as on the home page. The counts and the prices are read once as the page opens, under the same allowance as its listings; when it is spent the counts say they are unavailable and every figure stays in its own currency.
+- Each listing either page reads (its first, a changed choice, a search, Load more, Retry) counts against the same allowance as the home page's. Past it the page says the list is unavailable, with Retry. Retry reads the list only after a read has failed; a press at any other time does nothing.
+- Launch auction keeps its future address under `/autolaunch` and answers "not found" until the launch form comes; on the preview it stays switched off with "Opens soon", as before launches open. The home page's See auctions card now opens the Auctions list.
+- Left out for now: the Claim and Refund presses on a finished auction, the notices about reading the chains, and the lists and counts updating themselves while open. The bar still lists Explore alone, without Auctions and Tokens under it.
+- Not released: on the `fold/autolaunch` branch only. Two routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

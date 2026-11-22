@@ -9,5 +9,13 @@ defmodule RegentsWeb.Autolaunch do
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Autolaunch],
-    exports: [HomeLive, HowItWorksLive, Layouts, PublicDocuments, PublicPagesController]
+    exports: [
+      AuctionsLive,
+      HomeLive,
+      HowItWorksLive,
+      Layouts,
+      PublicDocuments,
+      PublicPagesController,
+      TokensLive
+    ]
 end

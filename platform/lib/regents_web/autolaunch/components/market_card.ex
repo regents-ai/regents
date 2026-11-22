@@ -1,8 +1,9 @@
 defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   @moduledoc """
-  The home page's auctions and tokens, as autolaunch.sh's market cards and
-  list rows draw them, from stored records and the dollar prices of their
-  currencies (`Regents.Autolaunch.UsdRates`).
+  The auctions and tokens of the home page and the Auctions and Tokens lists,
+  as autolaunch.sh's market cards, list rows and list filters draw them, from
+  stored records and the dollar prices of their currencies
+  (`Regents.Autolaunch.UsdRates`).
 
   A price, an FDV and a market cap are shown in dollars where the dollar price
   of the auction's currency is known, otherwise in that currency itself, as
@@ -315,6 +316,108 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
       <span :if={!@picture} class="home-coin__fallback" aria-label="No token image">{String.first(
         @view.name || "?"
       )}</span>
+    </div>
+    """
+  end
+
+  attr :kind, :string, required: true, values: ["auctions", "tokens"]
+
+  attr :options, :map,
+    required: true,
+    doc: "the list's `RegentsWeb.Autolaunch.HomeMarket` options"
+
+  @doc """
+  The filters above a list page's table: chain, status (auctions only), the
+  creator's verified connections, and search. They send "filter" and "search".
+  """
+  def list_tools(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :verified,
+        assigns.options.x or assigns.options.ens or assigns.options.github
+      )
+
+    ~H"""
+    <div class="market-list__tools">
+      <form
+        id={"#{@kind}-filter-form"}
+        class="market-list__filters"
+        phx-change="filter"
+        phx-submit="filter"
+      >
+        <label class="rg-pill-select">
+          <span class="visually-hidden">Chain</span>
+          <select name="chain" aria-label="Chain">
+            <option
+              :for={
+                {value, label} <- [
+                  {"all", "All chains"},
+                  {"base", "Base"},
+                  {"robinhood", "Robinhood"}
+                ]
+              }
+              value={value}
+              selected={@options.chain == value}
+            >
+              {label}
+            </option>
+          </select>
+        </label>
+        <label :if={@kind == "auctions"} class="rg-pill-select">
+          <span class="visually-hidden">Status</span>
+          <select name="state" aria-label="Status">
+            <option
+              :for={
+                {value, label} <- [
+                  {"all", "Any status"},
+                  {"created", "Opening soon"},
+                  {"active", "Live"},
+                  {"ended", "Waiting to finish"},
+                  {"graduated", "Graduated"},
+                  {"failed", "Minimum not met"}
+                ]
+              }
+              value={value}
+              selected={@options.state == value}
+            >
+              {label}
+            </option>
+          </select>
+        </label>
+        <details
+          id={"#{@kind}-verified"}
+          class={["rg-pill-select market-list__verified-menu", @verified && "is-active"]}
+          phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+        >
+          <summary>Verified</summary>
+          <fieldset
+            data-panel="menu"
+            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["style"])}
+          >
+            <legend>Creator has verified</legend>
+            <label :for={{key, label} <- [x: "X", ens: "ENS", github: "GitHub"]}>
+              <input type="hidden" name={key} value="false" />
+              <input type="checkbox" name={key} value="true" checked={Map.fetch!(@options, key)} />
+              {label}
+            </label>
+            <small>Shows {@kind} whose creator has every one you tick.</small>
+          </fieldset>
+        </details>
+      </form>
+      <form id={"#{@kind}-search"} class="market-list__search" phx-submit="search" phx-change="search">
+        <label>
+          <span class="visually-hidden">Search {@kind}</span>
+          <input
+            type="search"
+            name="q"
+            value={@options.q}
+            placeholder="Search name, ticker, stock, creator or address"
+            phx-debounce="300"
+            autocomplete="off"
+          />
+        </label>
+      </form>
     </div>
     """
   end
