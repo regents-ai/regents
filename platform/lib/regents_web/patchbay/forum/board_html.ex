@@ -68,17 +68,17 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   @doc """
   Whether an address a person wrote or a site gave may be opened as a link:
-  it parses, it is `https` or `http`, it names a host, it carries no user
-  name or password, and it holds no space and none of `<`, `>`, `"` or `'`,
-  which would end it early in a page or in Markdown. The rule patchbay.help
-  holds a fix's sources to when they are written.
+  it parses, it is `https`, it names a host, it carries no user name or
+  password, and it holds no space and none of `<`, `>`, `"` or `'`, which
+  would end it early in a page or in Markdown. Anything else, an `http`
+  address included, is drawn as its text.
   """
   @spec web_address?(term()) :: boolean()
   def web_address?(address) when is_binary(address) do
     not String.match?(address, ~r/[\s<>"']/u) and
       match?(
-        {:ok, %URI{scheme: scheme, host: host, userinfo: nil}}
-        when scheme in ["https", "http"] and is_binary(host) and host != "",
+        {:ok, %URI{scheme: "https", host: host, userinfo: nil}}
+        when is_binary(host) and host != "",
         URI.new(address)
       )
   end
