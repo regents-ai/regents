@@ -396,9 +396,10 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   # page, as the visitor, after listening to those fleets, so a change that
   # lands while they load still reaches them. Each fleet's class is read again
   # first, since the one held since it came on show may have lapsed: a fleet
-  # the visitor is no longer a member of is read as anyone sees it. One read
-  # runs at a time: asked again while one loads, they are read once more when
-  # it lands (`handle_async/3`).
+  # the visitor is no longer a member of is read as anyone sees it. A read
+  # that fails is logged by its kind only (`PageRead`), and the sea keeps the
+  # ships it has. One read runs at a time: asked again while one loads, they
+  # are read once more when it lands (`handle_async/3`).
   defp read_crew(%{assigns: %{crew: %Read{state: :loading}}} = socket),
     do: assign(socket, :crew_again?, true)
 
@@ -411,19 +412,20 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
 
       fleet_ids ->
         Read.start(socket, :crew, reader(socket.assigns.access_context), fn ->
-          {:ok,
-           Map.new(fleet_ids, fn fleet_id ->
-             %{items: items} =
-               Activity.page(fleet_id, nil,
-                 actor: actor,
-                 context: Access.context(actor, fleet_id, Access.class(actor, fleet_id))
-               )
+          PageRead.run("harbour", fn ->
+            Map.new(fleet_ids, fn fleet_id ->
+              %{items: items} =
+                Activity.page(fleet_id, nil,
+                  actor: actor,
+                  context: Access.context(actor, fleet_id, Access.class(actor, fleet_id))
+                )
 
-             {agents, here_faces} = here(fleet_id)
-             faces = Keys.faces(fleet_id, HarbourCrew.keys(items))
+              {agents, here_faces} = here(fleet_id)
+              faces = Keys.faces(fleet_id, HarbourCrew.keys(items))
 
-             {fleet_id, HarbourCrew.ships(fleet_id, items, agents, Map.merge(here_faces, faces))}
-           end)}
+              {fleet_id, HarbourCrew.ships(fleet_id, items, agents, Map.merge(here_faces, faces))}
+            end)
+          end)
         end)
     end
   end
