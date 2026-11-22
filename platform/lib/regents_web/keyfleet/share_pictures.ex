@@ -5,7 +5,10 @@ defmodule RegentsWeb.Keyfleet.SharePictures do
   name `:fleet`, a project's under its name, and the version of what the
   picture shows. A new version is a new key, so a picture is drawn once for
   each version however often it is asked for, and one whose version has moved
-  on is never read again and goes when the cache is swept.
+  on is never read again and goes when the cache is swept. One picture is
+  drawn by one request at a time, under the cache's own lock on its key
+  (`transaction/2`): those asking for it meanwhile wait and take what that
+  drawing kept.
 
   A picture is kept for an hour. A draw that failed, such as a Key's card that
   couldn't be read, is kept for a minute, so while the card's host doesn't
@@ -28,9 +31,22 @@ defmodule RegentsWeb.Keyfleet.SharePictures do
   @spec drawn(place(), (-> drawing())) :: drawing()
   def drawn(key, draw) do
     case get!(key) do
-      nil -> draw_and_keep(key, draw)
+      nil -> drawn_once(key, draw)
       drawn -> drawn
     end
+  end
+
+  # Under the lock on `key`, which a request asking meanwhile waits on for as
+  # long as the drawing takes, the picture is drawn only if it is still not
+  # kept.
+  defp drawn_once(key, draw) do
+    {:ok, drawn} =
+      transaction(fn -> get!(key) || draw_and_keep(key, draw) end,
+        keys: [key],
+        retries: :infinity
+      )
+
+    drawn
   end
 
   defp draw_and_keep(key, draw) do
