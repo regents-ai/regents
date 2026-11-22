@@ -419,7 +419,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
       <div class="key-cards__rows">
         <img
           class="key-cards__sheet"
-          src={~p"/images/home/key-cards.webp"}
+          src={~p"/images/keyfleet/home/key-cards.webp"}
           width="1920"
           height="2000"
           alt=""
