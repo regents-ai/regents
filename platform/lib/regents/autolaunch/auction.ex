@@ -423,32 +423,28 @@ defmodule Regents.Autolaunch.Auction do
               "all" -> query
             end
 
+          # The creators holding each linked account the filters ask about, read once.
+          holders =
+            LinkedCreators.holding!(Enum.filter([:x, :ens, :github], &query.arguments[&1]))
+
           query =
             if query.arguments.x,
               do:
                 Ash.Query.filter(
                   query,
                   exists(creator_x_connections, not is_nil(verified_at)) or
-                    creator_human_account_id in ^LinkedCreators.holding!(:x)
+                    creator_human_account_id in ^holders.x
                 ),
               else: query
 
           query =
             if query.arguments.ens,
-              do:
-                Ash.Query.filter(
-                  query,
-                  creator_human_account_id in ^LinkedCreators.holding!(:ens)
-                ),
+              do: Ash.Query.filter(query, creator_human_account_id in ^holders.ens),
               else: query
 
           query =
             if query.arguments.github,
-              do:
-                Ash.Query.filter(
-                  query,
-                  creator_human_account_id in ^LinkedCreators.holding!(:github)
-                ),
+              do: Ash.Query.filter(query, creator_human_account_id in ^holders.github),
               else: query
 
           order =
