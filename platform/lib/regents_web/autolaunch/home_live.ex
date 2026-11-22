@@ -6,6 +6,13 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   (`RegentsWeb.Autolaunch.HomeMarket`), so a choice changes the list without
   a full load and back and forward restore it.
 
+  Opening the page is one of its address's reads of the site, as any page is.
+  Each listing the open page then reads (its first, a changed option, a
+  search, Load more) spends one of that address's `:autolaunch_list_reads`
+  (`Regents.Limits`); past the allowance the page says the launches can't be
+  shown, with Try again. Load more keeps every row it has read in the page's
+  memory, which suits lists of a few thousand rows at most: see SOURCE.json.
+
   Still to come, each with its own part: the product cards above the lists,
   Coming next, Bid volume and Principles below them, the Calls list, the
   notices about reading the chains, the lists rereading themselves while the
@@ -19,6 +26,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   import RegentsWeb.Autolaunch.Components.ChainIcon
   import RegentsWeb.Autolaunch.Components.LinkIcon
   alias Regents.Autolaunch.Lab
+  alias Regents.Limits
   alias RegentsWeb.Autolaunch.{HomeMarket, PublicDocuments}
 
   # What the list shows: auctions or launched tokens. Tokens choose a type
@@ -37,11 +45,12 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
 
   @no_connection %{x: false, ens: false, github: false}
 
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     {:ok,
      socket
      |> assign(PublicDocuments.page("/autolaunch"))
      |> assign(
+       client_tag: Map.fetch!(session, "client_tag"),
        market_options: nil,
        records: [],
        records_kind: :auction,
@@ -124,15 +133,25 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   defp load_market(socket, append?) do
     options = socket.assigns.market_options
     cursor = if append?, do: socket.assigns.next_cursor
+    socket = assign(socket, listed: options, market_append: append?)
 
-    socket
-    |> assign(
-      listed: options,
-      market_loading: true,
-      market_failed: false,
-      market_append: append?
-    )
-    |> start_async(:home_market, fn -> read_market(options, cursor) end)
+    case admit(socket) do
+      :ok ->
+        socket
+        |> assign(market_loading: true, market_failed: false)
+        |> start_async(:home_market, fn -> read_market(options, cursor) end)
+
+      :limited ->
+        market_failed(socket)
+    end
+  end
+
+  # The visit's own request is counted with the address's reads of the site.
+  # Every listing the open page reads after it spends one of the lists' own.
+  defp admit(socket) do
+    if connected?(socket),
+      do: Limits.spend(:autolaunch_list_reads, socket.assigns.client_tag),
+      else: :ok
   end
 
   # The page's first listing is read before it is shown, so the coins are in
@@ -141,8 +160,10 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   defp first_market(socket) do
     socket = assign(socket, market_append: false, listed: socket.assigns.market_options)
 
-    case read_market(socket.assigns.market_options, nil) do
-      {:ok, page} -> put_market(socket, page)
+    with :ok <- admit(socket),
+         {:ok, page} <- read_market(socket.assigns.market_options, nil) do
+      put_market(socket, page)
+    else
       _failure -> market_failed(socket)
     end
   end
