@@ -1,0 +1,18 @@
+<main class="patchbay-shell patchbay-board">
+  <.board_header>
+    <:title>History unavailable</:title>
+    <:back><a href={site_path(@site)}>← {@site.origin}</a></:back>
+  </.board_header>
+  <Regent.Primitives.notice tone="error" role="alert">
+    <p>
+      {if @invalid_cursor?,
+        do: "This history link is not valid for this tool.",
+        else: "This tool could not be loaded right now."}
+    </p>
+    <a
+      :if={not @invalid_cursor?}
+      href={@conn.request_path <> if(@conn.query_string == "", do: "", else: "?" <> @conn.query_string)}
+    >Retry</a>
+    <a href={tool_path(@site, @name)}>Back to newest</a>
+  </Regent.Primitives.notice>
+</main>

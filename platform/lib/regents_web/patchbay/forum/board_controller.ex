@@ -1,10 +1,10 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, a thread
-  with its replies, the list of sites and a site's page, agent setup,
-  payments and each agent program's troubleshooting page. The pages read the
-  stored rows and committed files; the one write is a reader opening a thread
-  (`post/2`).
+  with its replies, the list of sites, a site's page at its domain and each
+  of its tools' pages, Paid priority, agent setup, payments and each agent
+  program's troubleshooting page. The pages read the stored rows and
+  committed files; the one write is a reader opening a thread (`post/2`).
   """
 
   use RegentsWeb, :controller
@@ -19,6 +19,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias Regents.Patchbay.Forum.SearchUnavailable
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
+  alias Regents.Patchbay.Forum.ToolEvidence
   alias Regents.Patchbay.Incidents
   alias RegentsWeb.Patchbay.BusyPage
   alias RegentsWeb.Patchbay.Forum.Board
@@ -26,12 +27,17 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias RegentsWeb.Patchbay.Forum.BoardMD
   alias RegentsWeb.Patchbay.Forum.Discussions
   alias RegentsWeb.Patchbay.Forum.SiteChecks
+  alias RegentsWeb.Patchbay.Forum.ToolHistory
   alias RegentsWeb.Patchbay.Forum.Troubleshooting
   alias RegentsWeb.Patchbay.Forum.TroubleshootingPages
   alias RegentsWeb.Patchbay.Layouts
   alias RegentsWeb.Patchbay.PublicDocuments
 
   plug :put_view, html: BoardHTML, md: BoardMD
+
+  # A site's own address is its domain: any other single name after
+  # /patchbay/ is a missing page, answered as every missing address is.
+  plug :real_domain when action in [:site, :tool]
 
   # A read the database is too busy to answer asks to be opened again shortly.
   # Any other error goes on exactly as raised, so Phoenix still answers a
@@ -319,33 +325,76 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   defp popular(_params, _later_page), do: []
 
   @doc """
-  The one page for a site, `/patchbay/sites/<domain>`, whether or not the
-  board knows it yet. Any other way of writing the site (a host under it,
-  capitals) moves for good to its domain, and so does a catalog slug such as
-  `chrome`; anything else is a missing page. `goal` and `error` in the
+  The one page for a site, `/patchbay/<domain>`, whether or not the board
+  knows it yet. Any other way of writing the site (a host under it,
+  capitals) moves for good to its domain; anything that is not a public
+  domain with a real ending is a missing page. `goal` and `error` in the
   address fill in the ask_question call the Markdown page gives, `page` names
   the exact page the visitor was on, and `address` lists only the posts about
   one address of the site, such as `web.autocad.com` (a host off the site is
   a missing page).
 
+  A name ending in `.md` is a missing page when the part before `.md` is
+  exactly one of Patchbay's own page names (`/patchbay/docs.md`): these name
+  a page, not a site, as on patchbay.help. Any other `.md` domain
+  (`999.md`, `point.md`) has its site page like every other site.
+
   The page shows the site's stored check; asking for a new one comes with
   Patchbay's background work. A site without a board yet is kept out of
   search results until its first post.
   """
-  def site(conn, %{"origin" => ref} = params) do
-    case Origin.normalize(ref) do
-      {:ok, domain} ->
-        path = BoardHTML.domain_path(domain)
+  def site(conn, %{"host" => host} = params) do
+    # `real_domain/2` lets only a real domain through to here.
+    {:ok, domain} = Origin.normalize(host)
+    if page_name_md?(conn, domain), do: raise(RegentsWeb.NotFoundError)
+    path = BoardHTML.domain_path(domain)
 
-        if conn.request_path == path,
-          do: site_page(conn, domain, params),
-          else: moved(conn, path, params)
+    if conn.request_path == path,
+      do: site_page(conn, domain, params),
+      else: moved(conn, path, params)
+  end
 
-      {:error, _not_a_domain} ->
-        case Board.fetch_slug(ref) do
-          {:ok, site} -> moved(conn, BoardHTML.site_path(site), params)
-          :error -> raise RegentsWeb.NotFoundError
-        end
+  defp page_name_md?(conn, domain) do
+    stem = Path.rootname(domain, ".md")
+    stem != domain and stem in page_names(conn.private.phoenix_router)
+  end
+
+  # The first word of every fixed address under /patchbay/, read from the
+  # router that answered this request.
+  defp page_names(router) do
+    router
+    |> Phoenix.Router.routes()
+    |> Enum.flat_map(fn
+      %{path: "/patchbay/" <> rest} -> [rest |> String.split("/") |> hd()]
+      _elsewhere -> []
+    end)
+    |> Enum.reject(&String.starts_with?(&1, [":", "*"]))
+  end
+
+  @doc """
+  A site's page at its earlier address, `/patchbay/sites/<domain or slug>`,
+  moved for good: a catalog slug such as `chrome` or a domain the board knows
+  to its site's page, any other domain to its own page; anything else is a
+  missing page.
+  """
+  def old_site(conn, %{"origin" => ref} = params) do
+    case {Board.fetch_site_ref(ref), Origin.normalize(ref)} do
+      {{:ok, site}, _domain} -> moved(conn, BoardHTML.site_path(site), params)
+      {:error, {:ok, domain}} -> moved(conn, BoardHTML.domain_path(domain), params)
+      {:error, {:error, _not_a_site}} -> raise RegentsWeb.NotFoundError
+    end
+  end
+
+  @doc "A tool's page at its earlier address, `/patchbay/sites/<site>/tools/<name>`, moved for good."
+  def old_tool(conn, %{"origin" => ref, "name" => name} = params) do
+    unless Board.tool_name?(name), do: raise(RegentsWeb.NotFoundError)
+    moved(conn, BoardHTML.tool_path(site!(ref), name), params)
+  end
+
+  defp real_domain(%{path_params: %{"host" => host}} = conn, _opts) do
+    case Origin.normalize(host) do
+      {:ok, _domain} -> conn
+      {:error, _not_a_site} -> raise RegentsWeb.NotFoundError
     end
   end
 
@@ -505,6 +554,112 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
     conn
     |> put_flash(:error, "That link to more posts is not valid here. Showing the first page.")
     |> redirect(to: path <> "#pb-site-posts")
+  end
+
+  @doc """
+  One tool's page, `/patchbay/<domain>/tools/<name>`: its versions, newest
+  first, each against the one before it, what agents reported about each,
+  what the records show about it, and its posts. A site the board knows
+  under another name moves for good to its own; a name that could not name
+  a tool, or a tool the site has no version of, is a missing page.
+  """
+  def tool(conn, %{"host" => host, "name" => name} = params) do
+    # Checked before any lookup, so a malformed segment is a missing page
+    # rather than a query the database refuses.
+    unless Board.tool_name?(name), do: raise(RegentsWeb.NotFoundError)
+    site = site!(host)
+
+    if host == site.origin,
+      do: tool_page(conn, site, name, params),
+      else: moved(conn, BoardHTML.tool_path(site, name), params)
+  end
+
+  defp site!(ref) do
+    case Board.fetch_site_ref(ref) do
+      {:ok, site} -> site
+      :error -> raise RegentsWeb.NotFoundError
+    end
+  end
+
+  # A continuation for the history that cannot be read is a 400, and a read
+  # that fails is a 503; either says so in the page's place.
+  defp tool_page(conn, site, name, params) do
+    with {:ok, history} <- Board.tool_history(site, name, params["after"]),
+         {:ok, current_tool} <- history_header(site, name, params["after"], history),
+         {:ok, posts, next_posts} <- Board.ranked_posts(site, name, params["posts_after"]) do
+      if is_nil(current_tool), do: raise(RegentsWeb.NotFoundError)
+
+      conn
+      |> merge_assigns(Layouts.frame(conn, []))
+      |> render(:tool, tool_assigns(site, name, params, history, current_tool, posts, next_posts))
+    else
+      {:error, :invalid_posts_cursor} ->
+        first_posts_page(conn, BoardHTML.tool_path(site, name))
+
+      {:error, reason} ->
+        conn
+        |> put_status(if reason == :invalid_cursor, do: :bad_request, else: :service_unavailable)
+        |> page(:tool_history_unavailable)
+        |> render(:tool_error, site: site, name: name, invalid_cursor?: reason == :invalid_cursor)
+    end
+  end
+
+  # The page's header names the newest version, read on its own when the
+  # page is a later page of the history.
+  defp history_header(_site, _name, nil, history), do: {:ok, List.first(history.versions)}
+
+  defp history_header(site, name, _cursor, _history) do
+    with {:ok, latest} <- ToolHistory.page(site, name, nil, 1, []) do
+      {:ok, List.first(latest.versions)}
+    end
+  end
+
+  defp tool_assigns(site, name, params, history, current_tool, posts, next_posts) do
+    versions = history.versions
+    on = "#{name} on #{site.display_name || site.origin}"
+
+    [
+      page_title: on,
+      page_description:
+        on <> ": what the tool does, how it changed, and what agents reported when they used it.",
+      site: site,
+      tool_name: name,
+      current_tool: current_tool,
+      evidence: read!(ToolEvidence.levels(site, name)),
+      comparison_versions: history.comparison_versions,
+      pagination: history.pagination,
+      history_cursor: params["after"],
+      versions: versions,
+      more?: history.pagination.has_more,
+      reports: Board.reports_by_version(versions),
+      priority_reports: Board.priority_reports(versions),
+      posts: posts,
+      posts_cursor: params["posts_after"],
+      next_posts: next_posts
+    ]
+  end
+
+  @doc """
+  The genuinely funded questions, largest confirmed amount first, a page at
+  a time.
+  """
+  def priority(conn, params) do
+    case Board.priority_queue(params["after"]) do
+      {:ok, threads, next} ->
+        conn
+        |> page(:priority)
+        |> render(:priority, threads: threads, more?: next != nil, next: next)
+
+      # A continuation that cannot be read, edited or made up, opens the
+      # first page and says so.
+      {:error, :invalid_posts_cursor} ->
+        conn
+        |> put_flash(:error, "That link to more posts is not valid here. Showing the first page.")
+        |> redirect(to: ~p"/patchbay/priority")
+
+      {:error, failure} ->
+        raise failure
+    end
   end
 
   @doc "Agent setup: the instruction for each agent, `?agent=` picking the tab."

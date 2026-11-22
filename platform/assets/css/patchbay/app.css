@@ -1126,4 +1126,132 @@ a.patchbay-board-facts:hover {
   .pb-entry-refresh { grid-column: 2; }
   .pb-entry-shot { max-width: 8rem; }
 }
+
+/* A tool's page: its raw schemas, its versions read top to bottom like a log of
+   edits, each against the one before it, with the reports filed against it. */
+.patchbay-muted { color: var(--pb-text-muted); font-family: var(--font-family-ui); font-size: var(--pb-fs-sm); line-height: 1.55; }
+.patchbay-result-box { margin-top: var(--space-2); border-radius: var(--radius); padding: var(--rg-panel-padding); background: var(--pb-ink); color: var(--pb-text-on-ink); }
+.patchbay-result-box pre { max-height: 10rem; overflow: auto; margin: 0; font-family: var(--font-family-mono); font-size: var(--pb-fs-micro); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* A small heading inside a section. */
+.pb-subhead { margin: 0 0 var(--space-1); color: var(--pb-text-muted); font-family: var(--font-family-ui); font-size: var(--pb-fs-xs); }
+.patchbay-board-list { display: grid; gap: 0; margin: var(--space-1) 0 0; padding: 0; list-style: none; }
+.patchbay-board-list > li { padding: var(--space-1) 0; border-top: 1px solid var(--pb-line); }
+.patchbay-reported-copy { margin: var(--space-1) 0 0; }
+.patchbay-reported-copy p { margin: 0; }
+/* One report, wherever it is read. */
+.patchbay-report-row .patchbay-card-heading { gap: var(--space-1); justify-content: flex-start; }
+.patchbay-board .patchbay-report-row .patchbay-card-heading { flex-wrap: wrap; align-items: center; }
+
+/* Verdict bars: one thin proportional strip, read with the line beneath it. */
+.pb-verdicts { margin-top: var(--space-2); }
+.pb-bar {
+  display: flex;
+  height: .4rem;
+
+  border-radius: var(--radius);
+  background: var(--pb-canvas-deep);
+}
+.pb-bar-part { display: block; height: 100%; }
+.pb-bar-part.is-worked { background: var(--pb-good); }
+.pb-bar-part.is-failed { background: var(--pb-accent); }
+.pb-bar-part.is-errored { background: var(--pb-bad); }
+.pb-bar-part.is-unclear { background: var(--pb-text-muted); }
+.pb-bar-legend { margin: var(--space-1) 0 0; color: var(--pb-text-muted); font-size: .8125rem; letter-spacing: .01em; }
+
+/* Chips: short, quiet labels that carry one fact each. */
+.pb-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  border: 1px solid var(--pb-line);
+  border-radius: var(--radius);
+  padding: var(--space-0) var(--space-1);
+  background: var(--pb-surface-sunk);
+  color: var(--pb-text-muted);
+  font-size: .62rem;
+  letter-spacing: .05em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.pb-chip.is-current { color: var(--pb-good); background: var(--pb-good-wash); border-color: var(--pb-good); }
+.pb-chip-facts { color: var(--pb-text-muted); font-size: .8125rem; }
+
+.pb-log { width: 100%; display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.pb-version-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.pb-version-head h3 { margin: 0; font-size: 1rem; letter-spacing: 0;  font-family: var(--font-family-title); font-weight: 400; font-synthesis: none; }
+.pb-version-marks { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.pb-version-address { margin: var(--space-1) 0 0; color: var(--pb-text-muted); font-size: .8125rem; overflow-wrap: anywhere; }
+
+.pb-changed {
+  margin: var(--space-2) 0 0;
+  border-left: 2px solid var(--pb-accent);
+  border-radius: var(--radius);
+  padding: var(--rg-panel-padding);
+  background: var(--pb-accent-wash);
+}
+.pb-changed .patchbay-empty-state { margin: 0; color: var(--pb-text-muted); font-size: .8125rem; }
+.pb-change-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); margin: 0 0 var(--space-1); font-size: .8125rem; }
+.pb-change-title s { color: var(--pb-bad); text-decoration-thickness: 1px; }
+.pb-change-title ins { color: var(--pb-good); text-decoration: none; }
+.pb-change-label { color: var(--pb-text-muted); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; }
+
+.pb-sentences { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.pb-sentences > li { display: grid; grid-template-columns: .9rem minmax(0, 1fr); gap: var(--space-1); font-size: .8125rem; line-height: 1.5; }
+.pb-sentence-mark { color: var(--pb-text-muted); font: .8125rem/1.5 var(--font-family-ui); }
+.pb-sentence.is-kept { color: var(--pb-text-muted); }
+.pb-sentence.is-added { color: var(--pb-good); }
+.pb-sentence.is-added .pb-sentence-mark { color: var(--pb-good); }
+.pb-sentence.is-added span:last-child { background: var(--pb-good-wash); border-radius: var(--radius);  }
+.pb-sentence.is-removed { color: var(--pb-bad); }
+.pb-sentence.is-removed .pb-sentence-mark { color: var(--pb-bad); }
+.pb-sentence.is-removed span:last-child { background: var(--pb-bad-wash); border-radius: var(--radius);  text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--pb-bad) 45%, transparent); }
+
+/* A digest: four swatches, then the opening characters. Each swatch carries
+   both of its colours, from RegentsWeb.Patchbay.Forum.Fingerprint: one deep
+   enough to be seen on paper, one light enough to be seen after dark. A
+   fingerprint is one object: the swatches and the characters never come
+   apart, and never break across two lines. In a narrow row the label beside it
+   gives way instead. */
+.pb-fingerprint {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: var(--space-1);
+}
+/* The swatch strip is a glyph, not a rounded surface. Keep every chip visible. */
+.pb-fingerprint-chips {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+.pb-fingerprint-chip {
+  display: block;
+  width: .42rem;
+  height: .8rem;
+  background-color: light-dark(var(--pb-chip-light), var(--pb-chip-dark));
+}
+.pb-fingerprint-hex {
+  color: var(--pb-text-muted);
+  font: .68rem/1.2 var(--font-family-ui);
+  white-space: nowrap;
+}
+/* On a version's own heading the hex is the heading, so it is set at heading
+   size and the swatches grow to match it. */
+.pb-version-head h3 .pb-fingerprint-hex { font-size: .86rem; }
+.pb-version-head h3 .pb-fingerprint-chip { width: .5rem; height: 1rem; }
+
+/* A schema's top-level fields, in plain rows. */
+.pb-schema { margin-top: var(--space-2); }
+.pb-schema-table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
+.pb-schema-table th,
+.pb-schema-table td { padding: 6px 0; border-bottom: 1px solid var(--pb-line); text-align: left; vertical-align: top; }
+.pb-schema-table th { color: var(--pb-text-muted); font-weight: 400; }
+.pb-schema-table td:first-child { white-space: nowrap; padding-right: var(--space-2); }
+.pb-schema-table td:nth-child(2) { padding-right: var(--space-2); color: var(--pb-text-muted); }
+.pb-schema-req { color: var(--pb-text-muted); font-size: .72rem; }
+/* Complete public schemas stay contained on narrow tool pages. */
+.pb-complete-schema { max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 }

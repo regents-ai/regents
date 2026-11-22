@@ -1,13 +1,15 @@
 defmodule RegentsWeb.Patchbay.Forum.Board do
   @moduledoc """
   Every read the board pages make beside their question lists, in one place:
-  the home page's search matches, a thread with a page of its replies, and a
-  site with its posts, its status and the tools its check found. The one
-  write is a reader opening a thread (`record_view/2`).
+  the home page's search matches, a thread with a page of its replies, a
+  site with its posts, its status and the tools its check found, and a tool
+  with its versions, their reports and its posts. The one write is a reader
+  opening a thread (`record_view/2`).
   """
 
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.Feed
+  alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostPicture
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
@@ -15,18 +17,21 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   alias RegentsWeb.Patchbay.Forum.Discussions
   alias RegentsWeb.Patchbay.Forum.ReplyCursor
   alias RegentsWeb.Patchbay.Forum.SiteChecks
+  alias RegentsWeb.Patchbay.Forum.ToolHistory
 
   @replies_per_page 100
   @tools_per_page 20
   @ranked_posts 20
+  @priority_reports 20
+  @reports_per_version 10
+  @replies_per_report 10
 
   # A site card's tool count is what Patchbay's own check found
   # (`Regents.Patchbay.Forum.SiteCheck.tools/1`), so every card is read with
   # its check. A site's own page reads its check itself, board or not.
   @card_loads [:site_check, :report_count]
 
-  # A site's own page puts the site on its posts itself (`on_site/2`).
-  @site_post_loads [
+  @post_loads [
     :author,
     :person,
     :reply_count,
@@ -37,7 +42,22 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
     :verified_paid_usdc_atomic,
     :post_kind,
     :address,
-    :tool
+    :site,
+    tool: [:site]
+  ]
+
+  # A site's own page puts the site on its posts itself (`on_site/2`).
+  @site_post_loads (@post_loads -- [:site, tool: [:site]]) ++ [:tool]
+
+  @tool_loads [
+    :report_count,
+    :distinct_session_count,
+    :verified_success_count,
+    :verified_failure_count,
+    :errored_count,
+    :unknown_count,
+    :latest_report_at,
+    :current?
   ]
 
   @report_loads [
@@ -120,11 +140,31 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   end
 
   @doc """
-  The site a catalog slug names, such as `chrome` for the Chrome row. A read
-  that fails is raised, never taken for a slug the board does not have.
+  The directory entry a name points to: a catalog slug first, then a domain,
+  so `chrome` and `google.com` name the same Chrome row, and
+  `developers.openai.com` names `openai.com`. A read that fails is raised,
+  never taken for a site the board does not have.
   """
-  @spec fetch_slug(String.t()) :: {:ok, Forum.Site.t()} | :error
-  def fetch_slug(ref) do
+  @spec fetch_site_ref(String.t()) :: {:ok, Forum.Site.t()} | :error
+  def fetch_site_ref(ref) do
+    if Regex.match?(~r/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/, ref) do
+      with :error <- fetch_slug(ref), do: fetch_normalized_origin(ref)
+    else
+      with :error <- fetch_normalized_origin(ref), do: fetch_slug(ref)
+    end
+  end
+
+  defp fetch_normalized_origin(ref) do
+    case Origin.normalize(ref) do
+      {:ok, domain} -> domain |> fetch_site() |> found()
+      {:error, _not_a_site} -> :error
+    end
+  end
+
+  defp found({:error, failure}), do: raise(failure)
+  defp found(site_or_none), do: site_or_none
+
+  defp fetch_slug(ref) do
     case Forum.get_site_by_slug(ref) do
       {:ok, site} -> {:ok, site}
       {:error, %Ash.Error.Invalid{}} -> :error
@@ -166,6 +206,94 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   @doc "Whether an address segment could name a tool at all; anything else is not on the board."
   @spec tool_name?(term()) :: boolean()
   def tool_name?(name), do: ToolName.valid?(name)
+
+  @doc """
+  A page of the versions of one tool, newest first, each with its report
+  counts, from `cursor` (`RegentsWeb.Patchbay.Forum.ToolHistory`).
+  """
+  @spec tool_history(Forum.Site.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, :invalid_cursor} | {:error, term()}
+  def tool_history(site, name, cursor),
+    do: ToolHistory.page(site, name, cursor, 25, @tool_loads)
+
+  @doc """
+  The newest reports filed against each of the given tool versions, keyed by
+  version, each carrying its first few replies.
+  """
+  @spec reports_by_version([Forum.Tool.t()]) :: %{optional(Ash.UUID.t()) => [Forum.Report.t()]}
+  def reports_by_version(versions) do
+    versions
+    |> Ash.load!(reports: newest_reports())
+    |> Map.new(&{&1.id, &1.reports})
+  end
+
+  @doc "How many reports a version shows before it says there are more."
+  @spec reports_per_version() :: pos_integer()
+  def reports_per_version, do: @reports_per_version
+
+  # Anyone can file a report, so a version listed among many others carries
+  # only its newest few, cut down alongside the versions themselves in one
+  # read.
+  defp newest_reports do
+    Forum.Report
+    |> Ash.Query.sort(inserted_at: :desc, id: :desc)
+    |> Ash.Query.limit(@reports_per_version)
+    |> Ash.Query.load([:author, :person, :site, replies: first_replies()])
+  end
+
+  # Anyone can reply to a report, so a report listed among many others shows
+  # only its opening replies and links on for the rest.
+  defp first_replies do
+    Forum.Reply
+    |> Ash.Query.sort(inserted_at: :asc, id: :asc)
+    |> Ash.Query.limit(@replies_per_report)
+    |> Ash.Query.load([:author, :person, :worked_for_others])
+  end
+
+  @doc """
+  One page of the funded questions, largest confirmed amount first, and the
+  cursor of the page after it when there is one.
+  """
+  @spec priority_queue(String.t() | nil) ::
+          {:ok, [Forum.Report.t()], String.t() | nil}
+          | {:error, :invalid_posts_cursor}
+          | {:error, term()}
+  def priority_queue(cursor) do
+    [load: @post_loads, page: post_page(cursor)]
+    |> Forum.list_priority_queue()
+    |> post_page_result()
+  end
+
+  @doc """
+  One page of every published thread about one tool on a site, in the
+  site's order (`site_threads/3`), and the cursor of the page after it when
+  there is one.
+  """
+  @spec ranked_posts(Forum.Site.t(), String.t(), String.t() | nil) ::
+          {:ok, [Forum.Report.t()], String.t() | nil}
+          | {:error, :invalid_posts_cursor}
+          | {:error, term()}
+  def ranked_posts(site, name, cursor) do
+    site.id
+    |> Forum.list_ranked_posts_for_tool(name, load: @post_loads, page: post_page(cursor))
+    |> post_page_result()
+  end
+
+  @doc """
+  The paid priority reports about any version of one tool, newest first: the
+  ones an asker has put money behind, listed on their own so a reader can see
+  what is worth answering, each loaded as every other listed post is.
+  """
+  @spec priority_reports([Forum.Tool.t()]) :: [Forum.Report.t()]
+  def priority_reports(versions) do
+    versions
+    |> Enum.map(& &1.id)
+    |> Forum.list_priority_reports_for_tools!(
+      load: @post_loads,
+      page: [limit: @priority_reports]
+    )
+    |> Map.fetch!(:results)
+  end
 
   @doc """
   Solved and open on a site: how many tools Patchbay's check found there, nil

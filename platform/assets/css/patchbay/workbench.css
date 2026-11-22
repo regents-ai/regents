@@ -204,6 +204,10 @@
 .rg-discussion__body .pb-post-page {
   display: flex; align-items: center; gap: .35rem; margin: .75rem 0 0; color: var(--pb-text-muted);
 }
+/* A report's replies on its tool's history, in the thread's look, under the report. */
+.rg-discussion.pb-tool-replies {
+  max-inline-size: none; margin: 0; padding: 0;
+}
 /* Compact replies: a note written as plain text shrinks with the rest. */
 .rg-discussion:has([data-rg-discussion-compact]:checked) .rg-discussion__replies .patchbay-board-text {
   margin-block: .2rem; font-size: .75rem; line-height: 1.55;
