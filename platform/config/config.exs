@@ -306,7 +306,8 @@ config :regents, :keyfleet_graph,
   projection_wait: 2_000,
   pass_ttl_seconds: 30
 
-# Each fleet's private notebook hub (Regents.Keyfleet.Notebooks). A person is
+# Each fleet's private notebook hub (Regents.Keyfleet.Notebooks). `fleets` maps a
+# fleet id to its hub's private address: none here, so no fleet has a hub. A person is
 # checked again at most every `access_ttl_ms`; a Key changing hands ends their
 # access at once. Someone made an editor of the fleet's hub projects is not asked
 # of the hub again for `editor_ttl_ms`. An "Open notebooks" link works once, for
@@ -318,6 +319,7 @@ config :regents, :keyfleet_graph,
 # (the runner allows 120 seconds to boot, plus creation and notebook setup). A
 # fleet may have `max_sessions` notebook sessions open at once.
 config :regents, :keyfleet_notebooks,
+  fleets: %{},
   pass_ttl_seconds: 120,
   access_ttl_ms: 30_000,
   editor_ttl_ms: 10 * 60 * 1000,
