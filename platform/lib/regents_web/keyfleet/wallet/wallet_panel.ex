@@ -705,7 +705,8 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # the form, or else the note for the wallet the press named. The chain's
   # state makes it certain to fail: the words beside its button. The steps
   # have none of that name, as when the form can't be built from: what is
-  # wrong with the form, or else that it can't be sent as it stands.
+  # wrong with the form, that the network can't be reached when the chain
+  # could not be read for them, or else that it can't be sent as it stands.
   defp refusal(socket, pressed, step) do
     reason = blocked(pressed, step)
 
@@ -727,6 +728,16 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
         nil
     end
   end
+
+  # Steps the chain could not be read for, for a wallet that may send them:
+  # the network can't be reached, and the same press may go through later.
+  defp unknown(%{assigns: %{signer: signer}}, %{built: %{problem: :unread}})
+       when is_binary(signer),
+       do: %{
+         reason: "step_unknown",
+         cause: "state",
+         note: "Can’t reach the network right now. Nothing was sent. Press again."
+       }
 
   defp unknown(socket, pressed) do
     case form_problem(pressed) do
