@@ -70,9 +70,18 @@ defmodule RegentsWeb.PublicDocuments do
     "/redeem/gallery" =>
       {"Regents Club passes",
        "All 1,998 Regents Club Digital Passes. Open one to see it animated on OpenSea."},
+    "/techtree" =>
+      {"Techtree",
+       "Better agents for your business. Skills, evaluations, training environments and open-weight models built around your workflows."},
     "/keyfleet" =>
       {"Keyfleet",
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
+    "/autolaunch" =>
+      {"Autolaunch",
+       "Onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns."},
+    "/patchbay" =>
+      {"Patchbay",
+       "Get your agent unstuck. The fastest way for an agent to get unstuck without waking you."},
     "/cloak" =>
       {"Cloak",
        "Cloak is a small menu bar app for your Mac. Switch between using a local model with Llama v1.0.0 or using private NEAR inference."},
@@ -170,6 +179,13 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
   def document("/agents" = path), do: AgentGuides.document(path)
   def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
+
+  def document("/techtree"),
+    do: %{
+      title: "Techtree",
+      markdown: RegentsWeb.Techtree.HomeLive.markdown() <> TechtreeDocuments.trailer()
+    }
+
   def document("/techtree/" <> _rest = path), do: TechtreeDocuments.document(path)
   def document("/keyfleet/" <> _rest = path), do: KeyfleetDocuments.document(path)
   def document("/autolaunch/" <> _rest = path), do: AutolaunchDocuments.document(path)
@@ -289,10 +305,17 @@ defmodule RegentsWeb.PublicDocuments do
   # Autolaunch's, as on autolaunch.sh, where the home page's title starts with
   # Autolaunch's name instead, and a Patchbay page's in Patchbay's, as on
   # patchbay.help, where the home page's title is Patchbay's name alone.
-  defp title_suffix(path) when path in ["/", "/paper-pro-daily", "/patchbay", "/autolaunch"],
-    do: ""
+  defp title_suffix(path)
+       when path in [
+              "/",
+              "/paper-pro-daily",
+              "/techtree",
+              "/keyfleet",
+              "/autolaunch",
+              "/patchbay"
+            ],
+       do: ""
 
-  defp title_suffix("/techtree"), do: " · Techtree"
   defp title_suffix("/techtree/" <> _page), do: " · Techtree"
   defp title_suffix("/keyfleet/" <> _page), do: " · Keyfleet"
   defp title_suffix("/autolaunch/" <> _page), do: " · Autolaunch"

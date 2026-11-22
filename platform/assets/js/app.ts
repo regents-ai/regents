@@ -29,6 +29,8 @@ import {
   type ShellState,
 } from "./shell_state"
 import {InfiniteScroll} from "./hooks/infinite_scroll"
+import {DatascapeHero} from "./hooks/datascape_hero"
+import {MarketingPage} from "./hooks/marketing_page"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
 import {InfoDialog} from "./hooks/info_dialog"
@@ -303,12 +305,14 @@ const hooks = {
   AgentVersions,
   CopyCommandPage,
   CopyCommandPageView,
+  DatascapeHero,
   Docs,
   EnquiryForm,
   InfiniteScroll,
   InfoDialog,
   KeyfleetShell,
   LabBlocks,
+  MarketingPage,
   MotionArrivals,
   MotionCascade,
   MotionCount,

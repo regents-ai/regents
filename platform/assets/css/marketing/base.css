@@ -1,0 +1,279 @@
+/* Shared ground rules for marketing pages: measures, Geist Serif weight 400,
+   cut-corner buttons, panels and focus rings. Strictly scoped to :root[data-marketing]. */
+
+:root[data-marketing] {
+  --gutter: var(--space-4);
+  --measure: min(100% - 2 * var(--gutter), var(--rg-frame-max));
+  --bar-h: 4rem;
+  --bar-pad: var(--space-3);
+  --bar-crown: 1.5rem;
+  --page-max: 80rem;
+  --cut-panel: var(--rg-cut-panel);
+  --cut-control: var(--rg-cut-control);
+  --rule: color-mix(in oklab, var(--color-fg) 14%, var(--color-bg));
+  --rule-strong: color-mix(in oklab, var(--color-fg) 26%, var(--color-bg));
+  --press: 2.5rem;
+  --font-family-title: var(--font-family-serif);
+  --font-family-ui: var(--font-family-serif);
+  --font-family-paragraph: var(--font-family-serif);
+  scroll-padding-block-start: calc(var(--bar-h) + var(--space-2));
+}
+
+@media (max-width: 64rem) {
+  :root[data-marketing] {
+    --bar-pad: var(--space-2);
+  }
+}
+
+@media (max-width: 48rem) {
+  :root[data-marketing] {
+    --gutter: var(--space-2);
+    --bar-h: 3.5rem;
+    --bar-pad: 12px;
+    --cut-panel: 12px;
+    --cut-control: 8px;
+    --press: 2.75rem;
+  }
+}
+
+:root[data-marketing],
+:root[data-marketing] body {
+  height: auto;
+  min-block-size: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-family-serif);
+  font-size: var(--type-body-size);
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+}
+
+@scope (:root[data-marketing]) {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-serif);
+    font-weight: 400;
+    font-synthesis: none;
+  }
+
+  h1, h2, h3, h4, p, ol, ul, dl, dd, figure, pre {
+    margin: 0;
+  }
+  ol, ul {
+    padding: 0;
+    list-style: none;
+  }
+  img, svg {
+    display: block;
+  }
+  button {
+    color: inherit;
+    font-family: var(--font-family-serif);
+  }
+  code {
+    font-family: var(--font-family-mono);
+    font-size: 0.875em;
+    line-height: inherit;
+  }
+  strong {
+    font-weight: 400;
+    color: var(--color-fg);
+  }
+  a {
+    color: var(--accent-ink);
+    text-decoration-thickness: from-font;
+    text-underline-offset: 0.2em;
+  }
+
+  .symbols {
+    position: absolute;
+    inline-size: 0;
+    block-size: 0;
+    overflow: hidden;
+  }
+
+  .skip {
+    position: fixed;
+    inset-block-start: var(--space-1);
+    inset-inline-start: var(--space-1);
+    z-index: var(--rg-layer-skip);
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-surface);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+  }
+  .skip:not(:focus) {
+    clip-path: inset(50%);
+  }
+
+  :focus-visible {
+    outline: var(--rg-ring-width) solid var(--focus);
+    outline-offset: var(--rg-ring-offset);
+  }
+  :is(h1, section)[tabindex="-1"]:focus {
+    outline: none;
+  }
+
+  .icon {
+    inline-size: 1em;
+    block-size: 1em;
+    flex: none;
+  }
+
+  .label {
+    font-family: var(--font-family-mono);
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .muted {
+    color: var(--color-fg-muted);
+  }
+  .small {
+    font-size: var(--type-caption-size);
+    line-height: var(--type-caption-line);
+    color: var(--color-fg-muted);
+  }
+
+  /* Buttons: primary cut at two opposite corners; secondary bordered square. */
+  .btn {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-block-size: var(--press);
+    padding: var(--space-1) var(--space-2);
+    border: 0;
+    background: none;
+    font-family: var(--font-family-serif);
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+  .btn--primary {
+    color: var(--btn-on);
+  }
+  .btn--primary::before {
+    background: var(--btn-fill);
+    clip-path: polygon(
+      var(--cut-control) 0,
+      100% 0,
+      100% calc(100% - var(--cut-control)),
+      calc(100% - var(--cut-control)) 100%,
+      0 100%,
+      0 var(--cut-control)
+    );
+  }
+  .btn--secondary {
+    color: var(--color-fg);
+  }
+  .btn--secondary::before {
+    background: var(--color-surface);
+    border: 1px solid var(--rule-strong);
+  }
+  .btn--small {
+    --press: 2rem;
+    padding-inline: var(--space-2);
+    font-size: var(--type-label-size);
+  }
+  @media (max-width: 48rem) {
+    .btn--small {
+      --press: 2.75rem;
+    }
+  }
+  .btn:disabled {
+    cursor: default;
+    color: var(--color-fg-muted);
+  }
+  .btn--primary:disabled::before {
+    background: var(--rule);
+  }
+
+  .btn--primary:focus-visible {
+    outline: none;
+  }
+  .btn--primary::after {
+    --reach: calc(var(--rg-ring-width) + var(--rg-ring-offset));
+    --outer: calc(var(--cut-control) + var(--rg-cut-nest) * var(--reach));
+    --inner: calc(var(--cut-control) + var(--rg-cut-nest) * var(--rg-ring-offset));
+    --w: var(--rg-ring-width);
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--reach));
+    pointer-events: none;
+    background: var(--focus);
+    visibility: hidden;
+    clip-path: polygon(
+      evenodd,
+      var(--outer) 0,
+      100% 0,
+      100% calc(100% - var(--outer)),
+      calc(100% - var(--outer)) 100%,
+      0 100%,
+      0 var(--outer),
+      var(--outer) 0,
+      calc(var(--w) + var(--inner)) var(--w),
+      calc(100% - var(--w)) var(--w),
+      calc(100% - var(--w)) calc(100% - var(--w) - var(--inner)),
+      calc(100% - var(--w) - var(--inner)) calc(100% - var(--w)),
+      var(--w) calc(100% - var(--w)),
+      var(--w) calc(var(--w) + var(--inner)),
+      calc(var(--w) + var(--inner)) var(--w),
+      var(--outer) 0
+    );
+  }
+  .btn--primary:focus-visible::after {
+    visibility: visible;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn {
+      transition: transform var(--duration-fast) var(--ease-out);
+    }
+    .btn:active:not(:disabled) {
+      transform: scale(var(--active-scale));
+    }
+  }
+
+  .copy {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-block-size: var(--press);
+    padding: 0 var(--space-1);
+    border: 0;
+    background: none;
+    font-family: var(--font-family-serif);
+    font-size: var(--type-label-size);
+    cursor: pointer;
+  }
+  .copy__words {
+    display: inline-grid;
+    text-align: start;
+  }
+  .copy__words > * {
+    grid-area: 1 / 1;
+  }
+  .copy:not([data-copy-state]) :is(.copy__done, .copy__failed),
+  .copy[data-copy-state="done"] :is(.copy__idle, .copy__failed),
+  .copy[data-copy-state="failed"] :is(.copy__idle, .copy__done) {
+    visibility: hidden;
+  }
+}

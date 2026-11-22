@@ -19,6 +19,9 @@ defmodule RegentsWeb.Components.AgentTools do
   @count "#{length(@tools)} WebMCP Tools"
   @label "Agents see #{@count}"
 
+  @doc "The list of WebMCP tools from `priv/tool_manifest.json`."
+  def tools, do: @tools
+
   @markdown """
   # Regents Labs: #{@label}
 

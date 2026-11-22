@@ -268,6 +268,37 @@ defmodule RegentsWeb.Router do
     plug :put_layout, html: {RegentsWeb.Patchbay.Layouts, :app}
   end
 
+  # Marketing pages: mark the root document with `data-marketing`, `data-page`,
+  # and the page's product identity so the marketing bar, framed layout, and
+  # product palettes apply strictly on `/`, `/techtree`, `/keyfleet`,
+  # `/autolaunch`, and `/patchbay`.
+  pipeline :marketing_home do
+    plug :put_product, "regents"
+    plug :put_marketing_page, "home"
+  end
+
+  pipeline :marketing_techtree do
+    plug :put_product, "techtree"
+    plug :put_marketing_page, "product"
+  end
+
+  pipeline :marketing_keyfleet do
+    plug :put_product, "keyfleet"
+    plug :put_marketing_page, "product"
+  end
+
+  pipeline :marketing_autolaunch do
+    plug :put_product, "autolaunch"
+    plug :put_marketing_page, "product"
+  end
+
+  pipeline :marketing_patchbay do
+    plug :put_product, "patchbay"
+    plug :put_marketing_page, "product"
+  end
+
+  def put_marketing_page(conn, page), do: assign(conn, :marketing_page, page)
+
   def enforce_session_authority(conn, _opts) do
     RegentsWeb.Account.PrivySessionController.enforce_authority(conn)
   end
@@ -573,11 +604,47 @@ defmodule RegentsWeb.Router do
     do: RegentsWeb.Autolaunch.ToolErrors.check_input(tool, args, ctx)
 
   scope "/", RegentsWeb do
-    pipe_through :browser
+    pipe_through [:browser, :marketing_home]
 
     live_session :home, session: {RegentsWeb.Live.Session, :render_context, []} do
       live "/", HomeLive, :home
     end
+  end
+
+  scope "/", RegentsWeb do
+    pipe_through [:browser, :marketing_techtree]
+
+    live_session :marketing_techtree, session: {RegentsWeb.Live.Session, :render_context, []} do
+      live "/techtree", MarketingProductLive, :techtree
+    end
+  end
+
+  scope "/", RegentsWeb do
+    pipe_through [:browser, :marketing_keyfleet]
+
+    live_session :marketing_keyfleet, session: {RegentsWeb.Live.Session, :render_context, []} do
+      live "/keyfleet", MarketingProductLive, :keyfleet
+    end
+  end
+
+  scope "/", RegentsWeb do
+    pipe_through [:browser, :marketing_autolaunch]
+
+    live_session :marketing_autolaunch, session: {RegentsWeb.Live.Session, :render_context, []} do
+      live "/autolaunch", MarketingProductLive, :autolaunch
+    end
+  end
+
+  scope "/", RegentsWeb do
+    pipe_through [:browser, :marketing_patchbay]
+
+    live_session :marketing_patchbay, session: {RegentsWeb.Live.Session, :render_context, []} do
+      live "/patchbay", MarketingProductLive, :patchbay
+    end
+  end
+
+  scope "/", RegentsWeb do
+    pipe_through :browser
 
     get "/privacy", LegalController, :privacy
     get "/terms", LegalController, :terms
@@ -655,7 +722,7 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Techtree.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Techtree.Layouts, :page}] do
-      live "/", HomeLive
+      live "/app", HomeLive
       live "/changelog", ChangelogLive
       live "/services/skills", ServiceLive, :skills
       live "/services/evals", ServiceLive, :evals
@@ -708,7 +775,7 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Keyfleet.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}] do
-      live "/", HomeLive, :home
+      live "/app", HomeLive, :home
     end
 
     # A Key holder's way into the fleet's notebooks, or to one saved output.
@@ -1019,7 +1086,7 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Autolaunch.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
-      live "/", HomeLive, :show
+      live "/app", HomeLive, :show
     end
 
     live_session :autolaunch,
@@ -1048,7 +1115,7 @@ defmodule RegentsWeb.Router do
   scope "/patchbay", RegentsWeb.Patchbay do
     pipe_through [:patchbay_browser, :patchbay]
 
-    get "/", Forum.BoardController, :home
+    get "/forum", Forum.BoardController, :home
     get "/help", PagesController, :help
     get "/about", PagesController, :about
     get "/privacy", PagesController, :privacy

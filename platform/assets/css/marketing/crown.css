@@ -1,0 +1,54 @@
+/* Crown hero mode: live crown gathered from Datascape panels above the hero words,
+   with still fallback. Scoped to :root[data-marketing]. */
+
+:root[data-marketing] .hero__mark {
+  display: none;
+}
+:root[data-marketing] .hero__ground--crown {
+  display: none;
+}
+
+:root[data-marketing][data-hero-mode="crown"] .hero {
+  grid-template-rows: minmax(4.5rem, 33svh) auto;
+  align-content: center;
+  row-gap: var(--space-6);
+  block-size: 100svh;
+  min-block-size: 36rem;
+}
+:root[data-marketing][data-hero-mode="crown"] .hero__mark {
+  position: relative;
+  display: block;
+  place-self: stretch center;
+  inline-size: min(100%, 40rem);
+  container-type: size;
+  pointer-events: none;
+}
+:root[data-marketing][data-hero-mode="crown"] .hero__ground {
+  display: none;
+}
+:root[data-marketing][data-hero-mode="crown"] .hero__ground--crown {
+  display: inline;
+}
+
+@media (max-width: 48rem) {
+  :root[data-marketing][data-hero-mode="crown"] .hero {
+    grid-template-rows: minmax(3.5rem, 15svh) auto;
+    row-gap: var(--space-4);
+    min-block-size: 32rem;
+  }
+}
+
+:root[data-marketing] .hero__mark-still {
+  --unit: min(100cqw / 178, 100cqh / 106);
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: calc(var(--unit) * 222);
+  block-size: auto;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+}
+:root[data-marketing] .hero__stage[data-datascape-ready="true"] ~ .hero__mark .hero__mark-still,
+:root[data-marketing][data-hero="gathering"] .hero__mark-still {
+  visibility: hidden;
+}

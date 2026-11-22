@@ -18,8 +18,12 @@
 <%!-- The page's product (`Regent.Site`), from the router or the shell page: its look,
      its brand's ground, and the home colour. A link to another product loads the page,
      as these are written only here. --%>
+<% marketing_page = assigns[:marketing_page] %>
 <html
   lang="en"
+  data-marketing={marketing_page && ""}
+  data-page={marketing_page}
+  data-hero-mode={if(marketing_page == "home", do: hero_mode(@conn))}
   data-product={@site_product}
   data-brand={Regent.Site.brand(@site_product)}
   data-home={home_colour(@conn)}
@@ -84,7 +88,8 @@
     {@inner_content}
     <Regent.Structure.confirm />
     <.product_links :if={
-      !home? and !shell? and @site_product not in ~w(techtree keyfleet autolaunch patchbay)
+      !home? and !marketing_page and !shell? and
+        @site_product not in ~w(techtree keyfleet autolaunch patchbay)
     } />
   </body>
 </html>

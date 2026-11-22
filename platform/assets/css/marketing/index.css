@@ -1,0 +1,9 @@
+/* Marketing pages CSS bundle, strictly scoped to :root[data-marketing] so
+   product app shells and frames are never affected. */
+@import "./identities.css";
+@import "./base.css";
+@import "./bar.css";
+@import "./marketing.css";
+@import "./hero.css";
+@import "./crown.css";
+@import "./product.css";

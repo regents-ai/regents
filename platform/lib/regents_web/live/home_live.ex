@@ -1,13 +1,20 @@
 defmodule RegentsWeb.HomeLive do
+  @moduledoc """
+  Regents Labs marketing homepage (`/`): Stripe-style solid inverse top bar,
+  full-viewport dark Datascape vgpu island hero (supporting Open, Canvas, and
+  Crown modes via `?hero=open|canvas|crown`), Products, Agents with the 22-tool
+  WebMCP modal dialog, `$REGENT`, Reading, closing band, huge `Regents` footer,
+  and the small product picker opened by clicking a Datascape panel or crown.
+  """
+
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Components.{AgentTools, RegentLinks, Shell}
+  alias Phoenix.LiveView.JS
+  alias RegentsWeb.Components.{AgentTools, Marketing}
   alias RegentsWeb.Live.Session
   alias RegentsWeb.{PublicDocuments, RegentOpsLive, RouteCatalog}
   alias RegentsWeb.Stake.TokenLinks
 
-  # The lab's one plain line under its name, and the quieter line under that, on
-  # the page and in the agent copy.
   @mission "We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers."
   @mission_note "Agent-built and designed to be agent-owned through the token."
 
@@ -56,165 +63,450 @@ defmodule RegentsWeb.HomeLive do
       "After that, help me use one of the apps: Patchbay, Autolaunch or Keyfleet."
   end
 
+  @impl true
   def mount(_params, session, socket) do
+    tools = AgentTools.tools()
+
+    preview_tools =
+      tools
+      |> Enum.take(4)
+      |> Enum.with_index(1)
+      |> Enum.map(fn {tool, idx} ->
+        Map.put(tool, :index, String.pad_leading(Integer.to_string(idx), 2, "0"))
+      end)
+
     {:ok,
      socket
      |> assign(route_spec: RouteCatalog.fetch!(:home))
      |> assign(account_control: Session.account_control(session))
+     |> assign(
+       agent_prompt: agent_prompt(),
+       tool_count: length(tools),
+       preview_tools: preview_tools,
+       buy_url: TokenLinks.buy(),
+       chart_url: TokenLinks.chart()
+     )
      |> assign(PublicDocuments.page("/"))}
   end
 
-  # The page in its window frame: the name as large as the window allows, the two
-  # lines and the two ways in beside it, the opening picture, the agent prompt, a row
-  # for each product on the home colour's slab, $REGENT and the foot. Every colour
-  # is the home colour's (`--rg-home-*`); each picture is a field of dots painted in
-  # it (`pages/home_pictures.css`).
+  @impl true
   def render(assigns) do
-    assigns =
-      assign(assigns,
-        mission: @mission,
-        mission_note: @mission_note,
-        agent_prompt: agent_prompt(),
-        products: RegentOpsLive.products()
-      )
-
     ~H"""
-    <div id="public-home" class="home">
-      <a class="shell-skip" href="#home-content">Skip to content</a>
-      <Shell.site_bar product="regents" account_control={@account_control} />
-      <div class="home-frame" aria-hidden="true"></div>
+    <div id="marketing-home" data-marketing-page phx-hook="MarketingPage">
+      <Marketing.symbols />
+      <a class="skip" href="#main">Skip to content</a>
 
-      <main id="home-content" class="home__main">
-        <div class="home__hero">
-          <h1 id="home-title" class="home__name" tabindex="-1">Regents Labs</h1>
-          <div class="home__lead">
-            <div class="home__words">
-              <p>{@mission}</p>
-              <p>{@mission_note}</p>
-            </div>
-            <div class="home__actions">
-              <a id="home-enter" href={~p"/app"} class="rg-button rg-button--no-arrow home__enter">
-                <span class="rg-button__label">Enter App</span>
-              </a>
-              <AgentTools.button
-                id="home-agent-tools-button"
-                dialog="home-agent-tools"
-                class="rg-button rg-button--secondary rg-button--no-arrow home__tools"
+      <Marketing.bar current="regents" over_hero />
+      <Marketing.sheet />
+
+      <main id="main">
+        <section
+          class="hero"
+          id="home-hero"
+          data-hero-section
+          phx-hook="DatascapeHero"
+          aria-labelledby="hero-title"
+        >
+          <div
+            id="datascape-stage"
+            class="hero__stage"
+            data-datascape
+            phx-update="ignore"
+            phx-mounted={JS.ignore_attributes(["data-datascape-ready", "data-datascape-dragging"])}
+          >
+            <picture class="hero__ground">
+              <source
+                media="(max-aspect-ratio: 4/5)"
+                srcset="/images/marketing/datascape-tall.webp"
+                width="780"
+                height="1688"
+              />
+              <img
+                class="hero__still"
+                src="/images/marketing/datascape.webp"
+                alt=""
+                width="1600"
+                height="900"
+              />
+            </picture>
+            <picture class="hero__ground hero__ground--crown">
+              <source
+                media="(max-aspect-ratio: 4/5)"
+                srcset="/images/marketing/datascape-crown-tall.webp"
+                width="780"
+                height="1688"
+              />
+              <img
+                class="hero__still"
+                src="/images/marketing/datascape-crown.webp"
+                alt=""
+                width="1600"
+                height="900"
+                loading="lazy"
+              />
+            </picture>
+            <canvas class="hero__canvas" data-datascape-canvas aria-hidden="true"></canvas>
+          </div>
+          <div class="hero__crown" aria-hidden="true">
+            <svg><use href="#mark-crown" /></svg>
+          </div>
+          <div class="hero__mark" data-crown aria-hidden="true">
+            <img
+              class="hero__mark-still"
+              src="/images/marketing/crown.webp"
+              alt=""
+              width="1244"
+              height="841"
+              loading="lazy"
+            />
+          </div>
+          <div class="hero__words">
+            <p class="hero__label label">Regents Labs</p>
+            <h1 class="hero__title" id="hero-title">Agent-native</h1>
+            <p class="hero__sentence">
+              A product lab that builds what agents use themselves. It uses $REGENT instead of company equity, giving the community ownership of what the lab makes.
+            </p>
+            <div class="hero__actions actions">
+              <Marketing.cta_button label="Enter App" href="/app" />
+              <button
+                class="btn btn--secondary"
+                type="button"
+                aria-haspopup="dialog"
+                aria-controls="tools"
+                data-window-open
               >
-                <span class="rg-button__label">Agent Tools</span>
-              </AgentTools.button>
+                Agent Tools
+              </button>
             </div>
           </div>
+        </section>
+
+        <div class="frame">
+          <section class="section" id="products" aria-labelledby="products-title">
+            <div class="shead">
+              <h2 class="shead__title" id="products-title">Products</h2>
+            </div>
+            <ul class="cards">
+              <li class="card-slot">
+                <a class="card" data-id="techtree" href="/techtree">
+                  <Marketing.motif product="techtree" id_prefix="card-motif" class="card__motif" />
+                  <div class="card__body">
+                    <h3 class="card__name">Techtree</h3>
+                    <span class="card__title">Change one Skill. Compare.</span>
+                    <span class="card__line">
+                      Everything else stays fixed, so the difference is the Skill.
+                    </span>
+                  </div>
+                  <div class="card__foot">
+                    <span class="label">techtree.sh</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </div>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="card" data-id="keyfleet" href="/keyfleet">
+                  <Marketing.motif product="keyfleet" id_prefix="card-motif" class="card__motif" />
+                  <div class="card__body">
+                    <h3 class="card__name">Keyfleet</h3>
+                    <span class="card__title">A lasting team for agents.</span>
+                    <span class="card__line">
+                      Agents and people join a fleet, pick their own work and share results.
+                    </span>
+                  </div>
+                  <div class="card__foot">
+                    <span class="label">keyfleet.ai</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </div>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="card" data-id="autolaunch" href="/autolaunch">
+                  <Marketing.motif product="autolaunch" id_prefix="card-motif" class="card__motif" />
+                  <div class="card__body">
+                    <h3 class="card__name">Autolaunch</h3>
+                    <span class="card__title">One price for everyone.</span>
+                    <span class="card__line">
+                      Bids set a single clearing price, and every winner pays it.
+                    </span>
+                  </div>
+                  <div class="card__foot">
+                    <span class="label">autolaunch.sh</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </div>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="card" data-id="patchbay" href="/patchbay">
+                  <Marketing.motif product="patchbay" id_prefix="card-motif" class="card__motif" />
+                  <div class="card__body">
+                    <h3 class="card__name">Patchbay</h3>
+                    <span class="card__title">Find the fix that worked.</span>
+                    <span class="card__line">
+                      Paste an error or search, and read known fixes with no sign-in.
+                    </span>
+                  </div>
+                  <div class="card__foot">
+                    <span class="label">patchbay.help</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </div>
+                </a>
+              </li>
+            </ul>
+            <ul class="quiet-cards">
+              <li class="card-slot">
+                <a class="quiet-card" href="/stake">
+                  <span class="tile" data-id="protocol" aria-hidden="true">
+                    <svg><use href="#mark-crown" /></svg>
+                  </span>
+                  <div class="quiet-card__words">
+                    <h3 class="quiet-card__name">Protocol</h3>
+                    <span class="quiet-card__title">Stake $REGENT on Base.</span>
+                    <span class="quiet-card__line">
+                      Your part of each deposit follows your part of the stake.
+                    </span>
+                  </div>
+                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="quiet-card" href="/siwa">
+                  <span class="tile" data-id="siwa" aria-hidden="true">
+                    <svg><use href="#mark-crown" /></svg>
+                  </span>
+                  <div class="quiet-card__words">
+                    <h3 class="quiet-card__name">SIWA</h3>
+                    <span class="quiet-card__title">Sign-in with Agent</span>
+                  </div>
+                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="quiet-card" href="/cloak">
+                  <span class="tile" data-id="cloak" aria-hidden="true">
+                    <svg><use href="#mark-crown" /></svg>
+                  </span>
+                  <div class="quiet-card__words">
+                    <h3 class="quiet-card__name">Cloak</h3>
+                    <span class="quiet-card__title">Rewritten before it leaves.</span>
+                    <span class="quiet-card__line">
+                      A model on your Mac rewrites each message before it leaves.
+                    </span>
+                  </div>
+                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section class="section" id="agents" aria-labelledby="agents-title">
+            <div class="split">
+              <div class="shead">
+                <h2 class="shead__title" id="agents-title">Agents</h2>
+                <p class="shead__lede">Give your agent one of these.</p>
+                <div class="shead__links">
+                  <a class="go" href="/agents.md">
+                    Setup steps <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </a>
+                  <a class="go" href="/llms.txt">
+                    Site summary <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </a>
+                  <a class="go" href="/docs">
+                    Developer docs
+                    <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                  </a>
+                </div>
+              </div>
+              <div class="prompt">
+                <div class="prompt__head">
+                  <p class="label">Agent prompt</p>
+                  <button class="copy" type="button" data-copy-from="agent-prompt">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-copy" /></svg>
+                    <span class="copy__words">
+                      <span class="copy__idle">Copy</span>
+                      <span class="copy__done">Copied</span>
+                      <span class="copy__failed">Couldn't copy</span>
+                    </span>
+                  </button>
+                </div>
+                <p class="prompt__text" id="agent-prompt">{@agent_prompt}</p>
+              </div>
+            </div>
+
+            <div class="subhead" id="agent-tools">
+              <h3 class="subhead__title">Agent Tools</h3>
+              <p class="label muted">{@tool_count} WebMCP Tools</p>
+            </div>
+            <ol class="steps">
+              <li :for={tool <- @preview_tools} class="step">
+                <span class="step__index">{tool.index}</span>
+                <h4 class="step__title">{tool.title}</h4>
+                <p class="step__line"><code>{tool.name}</code></p>
+              </li>
+            </ol>
+            <div class="actions actions--after">
+              <button
+                class="btn btn--secondary"
+                type="button"
+                aria-haspopup="dialog"
+                aria-controls="tools"
+                data-window-open
+              >
+                Agent Tools
+              </button>
+            </div>
+          </section>
+
+          <section class="section" id="regent" aria-labelledby="regent-title">
+            <div class="shead">
+              <p class="eyebrow">REGENT staking · Base</p>
+              <h2 class="shead__title" id="regent-title">$REGENT</h2>
+              <p class="shead__lede">
+                Stake REGENT to get a slice of all revenue from any Regents Labs product.
+              </p>
+            </div>
+            <div class="split">
+              <div>
+                <p class="label muted">Payouts</p>
+                <ol class="lines">
+                  <li>
+                    <span class="lines__index">01</span>
+                    <p>
+                      Each USDC payment is split as it arrives. You earn the payment × your staked REGENT ÷ 100 billion.
+                    </p>
+                  </li>
+                  <li>
+                    <span class="lines__index">02</span>
+                    <p>The business keeps the share of REGENT that isn't staked.</p>
+                  </li>
+                  <li>
+                    <span class="lines__index">03</span>
+                    <p>
+                      Revenue comes from every Regents Labs product: Keyfleet, Autolaunch, Patchbay and Techtree. The 80 USDC from each Animata redemption goes to the staking contract too.
+                    </p>
+                  </li>
+                  <li>
+                    <span class="lines__index">04</span>
+                    <p>Claim USDC at any time. There is no lock-up.</p>
+                  </li>
+                </ol>
+              </div>
+              <div class="stack">
+                <div class="tallies">
+                  <div class="tally">
+                    <span class="label muted">Total</span>
+                    <span class="tally__figure">100 billion REGENT</span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <Marketing.cta_button label="Stake REGENT" href="/stake" />
+                  <a class="btn btn--secondary" href="/redeem">
+                    Redeem Animata
+                    <svg class="btn__arrow" viewBox="0 0 16 16" aria-hidden="true">
+                      <path class="btn__shaft" d="M3 8h10" />
+                      <path class="btn__head" d="m7 4 4 4-4 4" />
+                    </svg>
+                  </a>
+                </div>
+                <div class="shead__links">
+                  <a class="go" href={@buy_url} target="_blank" rel="noopener noreferrer">
+                    Buy $REGENT<span class="visually-hidden">, opens in a new tab</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
+                  </a>
+                  <a class="go" href={@chart_url} target="_blank" rel="noopener noreferrer">
+                    View Chart<span class="visually-hidden">, opens in a new tab</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" id="reading" aria-labelledby="reading-title">
+            <div class="shead">
+              <h2 class="shead__title" id="reading-title">Reading</h2>
+            </div>
+            <ul class="plates">
+              <li class="card-slot">
+                <a class="plate" href="/paper-pro-daily">
+                  <span class="plate__index">01</span>
+                  <span class="plate__name">Daily Research</span>
+                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="plate" href="/literature">
+                  <span class="plate__index">02</span>
+                  <span class="plate__name">AI &amp; SCIFI</span>
+                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                </a>
+              </li>
+              <li class="card-slot">
+                <a class="plate" href="/about">
+                  <span class="plate__index">03</span>
+                  <span class="plate__name">About</span>
+                  <svg class="icon" aria-hidden="true"><use href="#icon-next" /></svg>
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          <section class="band" aria-labelledby="band-title">
+            <h2 class="band__line" id="band-title">Regents Labs</h2>
+            <p class="band__sentence">
+              We build platforms for persistent agents. All revenue is converted to USDC and split with $REGENT stakers.
+            </p>
+            <div class="actions">
+              <Marketing.cta_button label="Enter App" href="/app" />
+              <button
+                class="btn btn--secondary"
+                type="button"
+                aria-haspopup="dialog"
+                aria-controls="tools"
+                data-window-open
+              >
+                Agent Tools
+              </button>
+            </div>
+          </section>
+
+          <Marketing.footer current="regents" huge="Regents" />
         </div>
-
-        <div class="home__picture pic pic--hero" aria-hidden="true"></div>
-
-        <%!-- The words a person pastes to their agent; the whole prompt is copied, or
-             shown in its own window. --%>
-        <section class="home__prompt" aria-labelledby="home-prompt-title">
-          <h2 id="home-prompt-title" class="home__label">Agent prompt</h2>
-          <p id="home-prompt-text" class="home__prompt-text">{@agent_prompt}</p>
-          <div class="home__prompt-tools">
-            <Regent.Primitives.copy_icon id="home-prompt-copy" target="home-prompt-text" label="Copy" />
-            <button
-              id="home-prompt-view"
-              type="button"
-              class="home__prompt-view"
-              aria-label="View"
-              title="View"
-              aria-haspopup="dialog"
-              aria-controls="home-prompt-dialog"
-              phx-click={JS.dispatch("regents:open", to: "#home-prompt-dialog")}
-            >
-              <Regent.Icons.icon name="maximize-2" />
-            </button>
-          </div>
-        </section>
-
-        <.slab products={@products} />
-
-        <section class="home__token" aria-labelledby="home-token-title">
-          <h2 id="home-token-title" class="home__label">$REGENT</h2>
-          <Regent.Primitives.address id="home-token-address" address={TokenLinks.address()} />
-          <a class="home__link" href={TokenLinks.buy()} target="_blank" rel="noopener noreferrer">
-            Buy on Uniswap<span class="visually-hidden">, opens in a new tab</span>
-          </a>
-          <a class="home__link" href={TokenLinks.chart()} target="_blank" rel="noopener noreferrer">
-            View Chart<span class="visually-hidden">, opens in a new tab</span>
-          </a>
-        </section>
-
-        <footer class="home__footer">
-          <p>© 2026 Regents Labs</p>
-          <div class="home__social"><RegentLinks.social_links /></div>
-        </footer>
       </main>
 
-      <AgentTools.dialog id="home-agent-tools" />
-      <.prompt_dialog agent_prompt={@agent_prompt} />
+      <nav class="pick" id="pick" aria-label="Products" tabindex="-1">
+        <p class="pick__heading label">Products</p>
+        <a class="pick__link" href="/techtree">
+          <span class="tile" data-id="techtree" aria-hidden="true">
+            <svg><use href="#mark-techtree" /></svg>
+          </span>
+          Techtree
+        </a>
+        <a class="pick__link" href="/keyfleet">
+          <span class="tile" data-id="keyfleet" aria-hidden="true">
+            <svg><use href="#mark-crown" /></svg>
+          </span>
+          Keyfleet
+        </a>
+        <a class="pick__link" href="/autolaunch">
+          <span class="tile" data-id="autolaunch" aria-hidden="true">
+            <svg><use href="#mark-autolaunch" /></svg>
+          </span>
+          Autolaunch
+        </a>
+        <a class="pick__link" href="/patchbay">
+          <span class="tile" data-id="patchbay" aria-hidden="true">
+            <svg><use href="#mark-crown" /></svg>
+          </span>
+          Patchbay
+        </a>
+      </nav>
+
+      <Marketing.agent_tools_dialog />
+      <div class="visually-hidden" id="announce" role="status"></div>
     </div>
     """
   end
 
-  # The whole agent prompt in a window of its own, in the Agent Tools window's
-  # colours, closed with its X, Escape or a press beside it.
-  defp prompt_dialog(assigns) do
-    ~H"""
-    <Regent.Structure.dialog
-      id="home-prompt-dialog"
-      class="agent-tools rl-prompt-dialog"
-      aria-labelledby="home-prompt-dialog-title"
-      phx-hook="InfoDialog"
-      {%{"closedby" => "any"}}
-    >
-      <header class="agent-tools__head">
-        <h2 id="home-prompt-dialog-title">Agent prompt</h2>
-        <form method="dialog">
-          <button class="agent-tools__close" aria-label="Close">
-            <Regent.Icons.icon name="x" />
-          </button>
-        </form>
-        <div class="agent-tools__copies">
-          <Regent.Primitives.copy_button id="home-prompt-dialog-copy" target="home-prompt-full">
-            Copy
-          </Regent.Primitives.copy_button>
-        </div>
-      </header>
-      <div class="agent-tools__body">
-        <p id="home-prompt-full" class="rl-prompt-dialog__text">{@agent_prompt}</p>
-      </div>
-    </Regent.Structure.dialog>
-    """
-  end
-
-  attr :products, :list, required: true
-
-  # The products in the product menu's order, each with its words and its picture, on
-  # the home colour's slab. Each link loads the page the menu lands on, in the same tab.
-  defp slab(assigns) do
-    ~H"""
-    <section class="slab" aria-labelledby="home-products-title">
-      <h2 id="home-products-title" class="visually-hidden">Products</h2>
-      <article :for={product <- @products} id={"home-#{picture(product)}"} class="slab__row">
-        <div class="slab__text">
-          <p class="home__label">{product.name}</p>
-          <h3 class="slab__headline">{product.headline}</h3>
-          <p class="slab__line">{product.line}</p>
-          <a class="slab__link" href={product.href}>
-            {product.action}
-            <Regent.Icons.icon name="arrow-right" />
-          </a>
-        </div>
-        <div class={["slab__pic pic", "pic--#{picture(product)}"]} aria-hidden="true"></div>
-      </article>
-    </section>
-    """
-  end
-
-  defp picture(product), do: String.downcase(product.name)
-
-  # What a proof's product offers today, in the product's own words, and where to
-  # try it when it can be tried.
   attr :proof, :map, required: true
 
   def proof_status(assigns) do
@@ -228,9 +520,11 @@ defmodule RegentsWeb.HomeLive do
       target="_blank"
       rel="noopener noreferrer"
       class="rg-button rg-button--secondary"
-    ><span class="rg-button__label">
-      {@proof.link.label}<span class="visually-hidden">, opens in a new tab</span>
-    </span></a>
+    >
+      <span class="rg-button__label">
+        {@proof.link.label}<span class="visually-hidden">, opens in a new tab</span>
+      </span>
+    </a>
     """
   end
 
@@ -238,8 +532,6 @@ defmodule RegentsWeb.HomeLive do
   defp status_label(:experimental), do: "Experimental"
   defp status_label(:planned), do: "Planned"
 
-  # The four products and their public website destinations. The product pages
-  # in the app read the same list, so the copy lives once.
   @doc false
   def hero_products do
     [
@@ -273,9 +565,6 @@ defmodule RegentsWeb.HomeLive do
     ]
   end
 
-  # Each product page reads its own chapter. Every proof says what
-  # its product offers today: :live, :experimental or :planned, as the product's
-  # own site labels it, with a link only to something that can be tried now.
   @doc false
   def products do
     summaries = Map.new(hero_products(), &{&1.name, &1.line})
@@ -360,14 +649,14 @@ defmodule RegentsWeb.HomeLive do
             copy:
               "Evaluate the same tasks with and without a Skill using Prime Intellect's Verifiers. Share results others can check.",
             status: :live,
-            link: %{label: "Run locally", href: "https://techtree.sh/docs/run-locally"}
+            link: %{label: "Run locally", href: "/techtree/docs/run-locally"}
           },
           %{
             title: "NVIDIA Skill2Env.",
             copy:
               "Create frozen task environments from Skills using the NVlabs Skill2Env format, then run, verify and export them.",
             status: :experimental,
-            link: %{label: "See Environments", href: "https://techtree.sh/services/environments"}
+            link: %{label: "See Environments", href: "/techtree/services/environments"}
           },
           %{
             title: "NVIDIA NeMo harnesses.",

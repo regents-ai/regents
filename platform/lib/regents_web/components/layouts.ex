@@ -18,6 +18,18 @@ defmodule RegentsWeb.Layouts do
     end
   end
 
+  @doc """
+  The home hero mode written as `data-hero-mode` on `/` (`open`, `canvas`, or
+  `crown`). Defaults to `open` and accepts `?hero=open|canvas|crown` so all
+  three versions can be tested live locally.
+  """
+  def hero_mode(conn) do
+    case conn.query_params do
+      %{"hero" => mode} when mode in ~w(open canvas crown) -> mode
+      _query -> "open"
+    end
+  end
+
   attr(:flash, :map, required: true)
   attr(:inner_content, :any, required: true)
 

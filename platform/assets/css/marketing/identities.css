@@ -1,0 +1,191 @@
+/* Product identities and home colour for the five marketing pages.
+   Scoped to :root[data-marketing] so app shells keep their own tokens. */
+
+:root[data-marketing],
+:root[data-marketing] [data-id] {
+  --id-fill-l: var(--id-ink-l);
+  --id-on-l: #FFFFFF;
+  --id-fill-d: var(--id-tile);
+  --id-on-d: var(--id-mark);
+}
+
+:root[data-marketing][data-product="regents"],
+:root[data-marketing] [data-id="regents"] {
+  --id-tile: var(--home-tile);
+  --id-mark: var(--home-tile-mark);
+  --id-ink-l: var(--home-ink-l);
+  --id-ink-d: var(--home-ink-d);
+  --id-line-l: var(--home-line-l);
+  --id-line-d: var(--home-line-d);
+}
+:root[data-marketing][data-home="ink"][data-product="regents"],
+:root[data-marketing][data-home="ink"] [data-id="regents"] {
+  --id-fill-d: #E5E3D2;
+  --id-on-d: #161616;
+}
+:root[data-marketing][data-product="patchbay"],
+:root[data-marketing] [data-id="patchbay"] {
+  --id-tile: #9BB4FF;
+  --id-mark: #142247;
+  --id-ink-l: #294EC3;
+  --id-ink-d: #9BB4FF;
+  --id-line-l: #294EC3;
+  --id-line-d: #9BB4FF;
+}
+:root[data-marketing][data-product="keyfleet"],
+:root[data-marketing] [data-id="keyfleet"] {
+  --id-tile: #FF5B19;
+  --id-mark: #161616;
+  --id-ink-l: #B33902;
+  --id-ink-d: #FF5B19;
+  --id-line-l: #E24900;
+  --id-line-d: #FF5B19;
+}
+:root[data-marketing][data-product="autolaunch"],
+:root[data-marketing] [data-id="autolaunch"] {
+  --id-tile: #FFB188;
+  --id-mark: #161616;
+  --id-ink-l: #965129;
+  --id-ink-d: #FFB188;
+  --id-line-l: #B56D46;
+  --id-line-d: #FFB188;
+}
+:root[data-marketing][data-product="techtree"],
+:root[data-marketing] [data-id="techtree"] {
+  --id-tile: #2FA866;
+  --id-mark: #0F1B14;
+  --id-ink-l: #1E6B45;
+  --id-ink-d: #2FA866;
+  --id-line-l: #238450;
+  --id-line-d: #2FA866;
+}
+:root[data-marketing][data-product="protocol"],
+:root[data-marketing] [data-id="protocol"] {
+  --id-tile: #E5E3D2;
+  --id-mark: #161616;
+  --id-ink-l: #161616;
+  --id-ink-d: #E5E3D2;
+  --id-line-l: #161616;
+  --id-line-d: #E5E3D2;
+  --id-fill-l: #161616;
+  --id-on-l: #E5E3D2;
+}
+:root[data-marketing][data-product="siwa"],
+:root[data-marketing] [data-id="siwa"] {
+  --id-tile: #AECACD;
+  --id-mark: #161616;
+  --id-ink-l: #4F686B;
+  --id-ink-d: #AECACD;
+  --id-line-l: #698386;
+  --id-line-d: #AECACD;
+}
+:root[data-marketing][data-product="cloak"],
+:root[data-marketing] [data-id="cloak"] {
+  --id-tile: #A97BF0;
+  --id-mark: #161616;
+  --id-ink-l: #794ABA;
+  --id-ink-d: #A97BF0;
+  --id-line-l: #9466D9;
+  --id-line-d: #A97BF0;
+}
+
+/* Light/dark resolution (also default dark when no theme attribute is yet written). */
+:root[data-marketing],
+:root[data-marketing] [data-id],
+:root[data-marketing][data-theme="dark"],
+:root[data-marketing][data-theme="dark"] [data-id] {
+  --id-ink: var(--id-ink-d);
+  --id-line: var(--id-line-d);
+  --id-fill: var(--id-fill-d);
+  --id-on: var(--id-on-d);
+}
+:root[data-marketing][data-theme="light"],
+:root[data-marketing][data-theme="light"] [data-id] {
+  --id-ink: var(--id-ink-l);
+  --id-line: var(--id-line-l);
+  --id-fill: var(--id-fill-l);
+  --id-on: var(--id-on-l);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-marketing]:not([data-theme]),
+  :root[data-marketing]:not([data-theme]) [data-id] {
+    --id-ink: var(--id-ink-l);
+    --id-line: var(--id-line-l);
+    --id-fill: var(--id-fill-l);
+    --id-on: var(--id-on-l);
+  }
+}
+
+:root[data-marketing][data-home="ink"] {
+  --home-tile: #161616;
+  --home-tile-mark: #E5E3D2;
+  --home-ink-l: #161616;
+  --home-ink-d: #E5E3D2;
+  --home-large-l: #161616;
+  --home-large-d: #E5E3D2;
+  --home-line-l: #161616;
+  --home-line-d: #E5E3D2;
+  --home-pic-l: #161616;
+  --home-pic-d: #E5E3D2;
+  --home-fill: #FF5B19;
+  --home-on-fill: #161616;
+}
+:root[data-marketing][data-home="tangerine"] {
+  --home-tile: #FF5B19;
+  --home-tile-mark: #161616;
+  --home-ink-l: #B33902;
+  --home-ink-d: #FF5B19;
+  --home-large-l: #E24900;
+  --home-large-d: #FF5B19;
+  --home-line-l: #E24900;
+  --home-line-d: #FF5B19;
+  --home-pic-l: #FF5B19;
+  --home-pic-d: #FF5B19;
+  --home-fill: #FF5B19;
+  --home-on-fill: #161616;
+}
+:root[data-marketing][data-home="blue"] {
+  --home-tile: #3361FF;
+  --home-tile-mark: #FFFFFF;
+  --home-ink-l: #2750EE;
+  --home-ink-d: #6B95FF;
+  --home-large-l: #3361FF;
+  --home-large-d: #3361FF;
+  --home-line-l: #3361FF;
+  --home-line-d: #3361FF;
+  --home-pic-l: #3361FF;
+  --home-pic-d: #3361FF;
+  --home-fill: #3361FF;
+  --home-on-fill: #FFFFFF;
+}
+
+:root[data-marketing] {
+  --accent-ink: var(--id-ink);
+  --btn-fill: var(--id-fill);
+  --btn-on: var(--id-on);
+  --focus: var(--id-ink);
+}
+:root[data-marketing][data-brand][data-theme] {
+  --color-chosen: var(--id-fill);
+  --color-fg-on-chosen: var(--id-on);
+}
+
+:root[data-marketing] .tile {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  background: var(--id-tile);
+  color: var(--id-mark);
+}
+:root[data-marketing] .tile svg {
+  inline-size: 72%;
+  block-size: 72%;
+  fill: currentColor;
+}
+:root[data-marketing][data-theme="light"] .tile[data-id="protocol"],
+:root[data-marketing][data-theme="dark"][data-home="ink"] .tile[data-id="regents"] {
+  outline: 1px solid var(--rule-strong);
+  outline-offset: -1px;
+}

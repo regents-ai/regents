@@ -1,0 +1,259 @@
+/* Home hero: full viewport, dark Datascape vgpu island + still fallback +
+   Open opening sequence + clickable #pick product menu. Scoped to :root[data-marketing]. */
+
+:root[data-marketing][data-hero-mode="open"]:is([data-hero="closed"], [data-hero="opening"])
+  .hero__crown {
+  visibility: visible;
+}
+:root[data-marketing][data-hero-mode="open"]:is([data-hero="closed"], [data-hero="opening"])
+  .bar__brand
+  svg {
+  visibility: hidden;
+}
+:root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"])
+  :is(.hero__label, .hero__title, .hero__sentence, .hero__actions) {
+  opacity: 0;
+}
+:root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__actions {
+  visibility: hidden;
+}
+:root[data-marketing][data-hero="closed"] .bar {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__label {
+    transform: translateY(8px);
+  }
+  :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__title {
+    transform: translateY(12px);
+  }
+  :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__sentence {
+    transform: translateY(8px);
+  }
+  :root[data-marketing]:is([data-hero="closed"], [data-hero="gathering"]) .hero__actions {
+    transform: translateY(6px);
+  }
+
+  :root[data-marketing][data-hero="opening"] .bar {
+    transition: opacity 300ms var(--ease-out) 200ms;
+  }
+  :root[data-marketing][data-hero="opening"] .hero__label {
+    transition:
+      opacity 400ms var(--ease-out) 250ms,
+      transform 400ms var(--ease-out) 250ms;
+  }
+  :root[data-marketing][data-hero="opening"] .hero__title {
+    transition:
+      opacity 500ms var(--ease-out) 320ms,
+      transform 500ms var(--ease-out) 320ms;
+  }
+  :root[data-marketing][data-hero="opening"] .hero__sentence {
+    transition:
+      opacity 450ms var(--ease-out) 400ms,
+      transform 450ms var(--ease-out) 400ms;
+  }
+  :root[data-marketing][data-hero="opening"] .hero__actions {
+    transition:
+      opacity 400ms var(--ease-out) 460ms,
+      transform 400ms var(--ease-out) 460ms;
+  }
+}
+
+@scope (:root[data-marketing]) {
+  .hero {
+    --color-fg: #E5E3D2;
+    --color-fg-muted: #A9A79A;
+    --color-bg: #0B0B0B;
+    --color-surface: #141414;
+    --rule-strong: #57564F;
+    --btn-fill: #E5E3D2;
+    --btn-on: #161616;
+    --focus: #E5E3D2;
+
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    min-block-size: 100svh;
+    padding: calc(var(--bar-h) + var(--space-5)) var(--gutter) var(--space-6);
+    overflow: hidden;
+    background: #020307;
+    color: var(--color-fg);
+    color-scheme: dark;
+  }
+
+  .hero__stage {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+  .hero__still,
+  .hero__canvas {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+  .hero__still {
+    object-fit: cover;
+  }
+  .hero__canvas {
+    opacity: 0;
+    cursor: grab;
+    touch-action: pan-y pinch-zoom;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .hero__stage[data-datascape-ready="true"] .hero__canvas {
+    opacity: 1;
+  }
+  .hero__stage[data-datascape-ready="true"] .hero__still {
+    visibility: hidden;
+  }
+  .hero__stage[data-datascape-dragging] .hero__canvas {
+    cursor: grabbing;
+  }
+
+  .hero__words {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-3);
+    max-inline-size: 46rem;
+    text-align: center;
+  }
+  .hero__label {
+    color: var(--color-fg-muted);
+  }
+  .hero__title {
+    font-size: clamp(3rem, 9vw, 7.5rem);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.045em;
+  }
+  .hero__sentence {
+    max-inline-size: 36rem;
+    color: var(--color-fg-muted);
+    font-size: clamp(1.0625rem, 1.5vw, 1.25rem);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .hero__actions {
+    justify-content: center;
+    margin-block-start: var(--space-1);
+  }
+  .hero .btn {
+    --press: 2.75rem;
+    padding-inline: var(--space-3);
+    font-size: 1rem;
+  }
+  .hero .btn--secondary::before {
+    background: none;
+    border-color: var(--color-fg);
+  }
+
+  .hero__crown {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    display: flex;
+    align-items: center;
+    inline-size: var(--measure);
+    block-size: var(--bar-h);
+    margin-inline: auto;
+    padding-inline: var(--bar-pad);
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .hero__crown svg {
+    inline-size: var(--bar-crown);
+    block-size: auto;
+    aspect-ratio: 178 / 106;
+    fill: currentColor;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__canvas {
+      transition: opacity 200ms var(--ease-out);
+    }
+  }
+
+  .pick {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    z-index: var(--rg-layer-tip);
+    display: grid;
+    gap: 2px;
+    inline-size: 14rem;
+    padding: var(--space-1);
+    background: #F6F4EA;
+    color: #161616;
+    border: 1px solid #DAD8C7;
+    --focus: #161616;
+    opacity: 0;
+    transform: scale(0.96);
+    visibility: hidden;
+  }
+  .pick[data-open] {
+    opacity: 1;
+    transform: none;
+    visibility: visible;
+  }
+  .pick__heading {
+    padding: 4px var(--space-1) 6px;
+    color: #5E5D57;
+  }
+  .pick__link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-block-size: 2.75rem;
+    padding: 0 var(--space-1);
+    color: inherit;
+    font-size: 0.9375rem;
+    text-decoration: none;
+  }
+  .pick__link:focus-visible {
+    outline-offset: -2px;
+  }
+  .pick .tile {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .pick__link:hover {
+      background: #ECEADD;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .pick {
+      transition:
+        opacity 120ms var(--ease-out),
+        transform 120ms var(--ease-out),
+        visibility 0s linear 120ms;
+    }
+    .pick[data-open] {
+      transition:
+        opacity 160ms var(--ease-out),
+        transform 160ms var(--ease-out),
+        visibility 0s;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pick {
+      transform: none;
+      transition:
+        opacity 120ms var(--ease-out),
+        visibility 0s linear 120ms;
+    }
+    .pick[data-open] {
+      transition:
+        opacity 160ms var(--ease-out),
+        visibility 0s;
+    }
+  }
+  .pick[data-instant] {
+    transition: none;
+  }
+}
