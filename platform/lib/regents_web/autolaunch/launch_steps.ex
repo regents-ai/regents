@@ -1,0 +1,655 @@
+defmodule RegentsWeb.Autolaunch.LaunchSteps do
+  @moduledoc """
+  What the three launch cards share (`RegentsWeb.Autolaunch.LaunchWalletComponent`,
+  `RegentsWeb.Autolaunch.StocksLaunchWalletComponent` and
+  `RegentsWeb.Autolaunch.RobinhoodStocksLaunchComponent`): the wallet that may act,
+  "Review launch" and "Continue Editing", the review on the page with its one
+  "Create the launch" step, and the lines and buttons under it
+  (`review_button/1`, `review_panel/1`).
+
+  A card sits in its page's form place, where its review takes the form's
+  place while it is open; its buttons and notes are shown in the page's side
+  column, at the `side` selector the page names, through a portal.
+
+  "Review launch" prepares the review on the server for Privy's active wallet
+  when the signed-in account links it (`RegentsWeb.Autolaunch.OnchainSteps`); with no
+  such wallet open it names the account's wallets instead. The review lives on the
+  page. The step's button has no server round trip: the `OnchainSteps` hook
+  sends it, every press reaches the wallet, and every outcome is the server's
+  own read of the hash against the review it was sent from. A review nothing
+  was sent from is dropped when another wallet on the account becomes active.
+
+  The review on the page is checked against the chain again once it is ten
+  minutes old (`refreshed/4`) and once its step reverts (`reverted/4`), and
+  built again when what it was built against has changed.
+
+  The lines above the button stay in the page and are only hidden, so one
+  appearing never moves the button a person is pressing.
+
+  Once the page sees its launch confirmed, the review comes off the page, the
+  form starts over blank, and the card says the launch is made, with its
+  transaction and, once the site has it, its auction page (`launched/4`).
+  The page is looked for once at once, and again each time the site lists
+  something new while the card is showing (`relisted/2`).
+  """
+
+  use Phoenix.Component
+
+  import RegentsWeb.Autolaunch.Components.StepState
+  import Phoenix.LiveView, only: [start_async: 3]
+
+  alias Phoenix.LiveView.JS
+  alias RegentChain.Review
+  alias Regents.Autolaunch.{LaunchedDrafts, LaunchReviews}
+  alias RegentsWeb.Autolaunch.Components.{AgentSetFields, MarketCard, SwapForm}
+  alias RegentsWeb.Autolaunch.{OnchainSteps, Paths}
+
+  @reverted "That launch did not go through, so nothing was created. Only the network fee was spent. Press again."
+  @rebuilt "That launch did not go through, so nothing was created. Only the network fee was spent. The review now matches the network as it is: press again."
+  @refreshed "Something in this launch changed since you opened the review, so it now shows the launch as it is. Check it again before you press."
+
+  @doc "The assigns a launch card starts with."
+  def init(socket) do
+    socket
+    |> OnchainSteps.init()
+    |> assign(
+      signer: nil,
+      mismatch: nil,
+      prepared: nil,
+      reviews: %{},
+      launched: nil,
+      notice: nil,
+      listings: nil
+    )
+  end
+
+  @doc """
+  Follows the wallet that may act. A review is built for one signer, so an
+  unsent review is dropped when another wallet on the account becomes active.
+  With no wallet on the account active it stays, and the note beside its
+  button names both wallets.
+  """
+  def followed(socket) do
+    %{linked: linked, active: active, presses: presses, review: review} = socket.assigns
+    signer = OnchainSteps.signer(linked, active)
+    socket = assign(socket, signer: signer, mismatch: OnchainSteps.mismatch_note(linked, active))
+
+    cond do
+      is_nil(review) or is_nil(signer) -> socket
+      review.signer == signer -> socket
+      started?(presses, review) -> socket
+      true -> withdrawn(socket)
+    end
+  end
+
+  @doc "Privy's active wallet as the page reported it."
+  def activated(socket, params) do
+    active = OnchainSteps.active_wallet(params)
+
+    if active == socket.assigns.active,
+      do: socket,
+      else: socket |> assign(active: active, press_note: nil) |> followed()
+  end
+
+  @doc """
+  "Review launch": `prepare` is called with the wallet that may act and answers
+  `{:ok, prepared}` or `{:error, message}`. With no such wallet nothing is
+  prepared: signed out the card says so, and otherwise it names the account's
+  wallets and asks for one of them.
+  """
+  def review(socket, prepare) do
+    %{linked: linked, active: active, signer: signer} = socket.assigns
+
+    cond do
+      is_nil(linked) ->
+        assign(socket, notice: "Sign in to launch from your wallet.")
+
+      is_nil(signer) ->
+        assign(socket,
+          notice: OnchainSteps.failure_note("wallet_unavailable", linked, active, nil)
+        )
+
+      true ->
+        case prepare.(signer) do
+          {:ok, prepared} -> reviewed(socket, prepared)
+          {:error, message} -> assign(socket, notice: message)
+        end
+    end
+  end
+
+  # The review on the page, and what each review was prepared with, so an
+  # outcome is read against the launch it belongs to.
+  defp reviewed(socket, prepared) do
+    review = Review.new(socket.assigns.id, prepared.signer, prepared.chain, prepared.steps)
+    send(self(), {:launch_review, :open})
+
+    socket
+    |> assign(
+      prepared: prepared,
+      notice: nil,
+      press_note: nil,
+      launched: nil,
+      reviews: Map.put(socket.assigns.reviews, review.id, prepared)
+    )
+    |> OnchainSteps.put_review(review)
+    |> OnchainSteps.refresh_later()
+  end
+
+  # Reads the chain again for the review on the page: `current` answers
+  # `:current`, `:changed` or `:unread` for what the review was prepared with.
+  # On `:changed` the review is built again with `prepare`, called with the
+  # review's signer, and `note` goes beside the new review's button; a review
+  # that can't be built again stays, with the reason beside its button. While
+  # its step is on its way the review stays, and a timer asks again later. The
+  # button is never held for this: it sends whatever review is on the page.
+  defp rechecked(socket, current, prepare, note) do
+    %{review: review, presses: presses, prepared: prepared} = socket.assigns
+
+    cond do
+      OnchainSteps.pending?(presses, review) ->
+        OnchainSteps.refresh_later(socket)
+
+      current.(prepared) == :changed ->
+        case prepare.(review.signer) do
+          {:ok, prepared} ->
+            socket |> reviewed(prepared) |> assign(press_note: note)
+
+          {:error, message} ->
+            socket |> assign(press_note: message) |> OnchainSteps.refresh_later()
+        end
+
+      true ->
+        OnchainSteps.refresh_later(socket)
+    end
+  end
+
+  @doc """
+  The card's `update(%{refresh_review: review_id}, socket)`: when `review_id`
+  is the review on the page, the chain is read again for it. `current`
+  answers `:current`, `:changed` or `:unread` for what the review was
+  prepared with, and a changed review is built again with `prepare`, called
+  with the review's signer. A review built again here can carry what a paired
+  agent changed while it was open, the treasury among them, so its button
+  says to check it again.
+  """
+  def refreshed(%{assigns: %{review: %{id: id}}} = socket, id, current, prepare),
+    do: rechecked(socket, current, prepare, @refreshed)
+
+  def refreshed(socket, _earlier_review, _current, _prepare), do: socket
+
+  @doc "A launch step that reverted: the review on the page is checked again, as `refreshed/4` does."
+  def reverted(%{assigns: %{review: %{id: id}}} = socket, %{review: %{id: id}}, current, prepare),
+    do: rechecked(socket, current, prepare, @rebuilt)
+
+  def reverted(socket, _earlier_review, _current, _prepare), do: socket
+
+  @doc """
+  Takes the review off the page. The page's form, which gave the review its
+  place while it was open (`{:launch_review, :open}`), comes back as it was
+  (`{:launch_review, :closed}`).
+  """
+  def withdrawn(socket), do: off_page(socket, :closed)
+
+  # `{:launch_review, :launched}` also tells the page to keep the card while
+  # it says the launch is made, though the draft below it is now blank.
+  defp off_page(socket, news) do
+    send(self(), {:launch_review, news})
+    socket |> assign(prepared: nil) |> OnchainSteps.put_review(nil)
+  end
+
+  # What the review a sent step came from was prepared with.
+  defp prepared(socket, %{review: %{id: id}}), do: Map.get(socket.assigns.reviews, id)
+
+  @doc """
+  A launch step the page saw confirmed. The review comes off the page and the
+  account's draft starts over (`Regents.Autolaunch.LaunchedDrafts`), so the form below
+  opens blank and the same launch can't be sent again by mistake; the card
+  says the launch is made, with its transaction. `draft_kind` is `:revstake`
+  or `:memestock`. `find` answers in the background, with what the review was
+  prepared with and the hash, `{:ok, path}` for the auction page or `:not_yet`;
+  the answer arrives as `handle_async({:launch_page, hash}, ...)`, for
+  `found/3`. Until it finds the page, `relisted/2` asks `find` again.
+  """
+  def launched(socket, entry, draft_kind, find) do
+    case prepared(socket, entry) do
+      nil ->
+        socket
+
+      prepared ->
+        # The listing clears the same draft again, so a draft this cannot
+        # clear just now still starts over within a minute.
+        LaunchedDrafts.clear(
+          draft_kind,
+          socket.assigns.current_human_id,
+          prepared.facts["name"],
+          prepared.facts["symbol"]
+        )
+
+        socket
+        |> assign(
+          launched: %{
+            hash: entry.hash,
+            symbol: prepared.facts["symbol"],
+            prepared: prepared,
+            find: find,
+            path: nil,
+            finding?: true
+          }
+        )
+        |> off_page(:launched)
+        |> find_page()
+    end
+  end
+
+  @doc "One answer of `find` for the launch on the card, as `launched/4` describes."
+  def found(%{assigns: %{launched: %{hash: hash} = launched}} = socket, hash, answer) do
+    case answer do
+      {:ok, {:ok, path}} -> assign(socket, launched: %{launched | path: path, finding?: false})
+      _not_yet -> assign(socket, launched: %{launched | finding?: false})
+    end
+  end
+
+  def found(socket, _earlier_hash, _answer), do: socket
+
+  @doc """
+  The card's `listings`, the page's count of what the site has newly listed
+  since a launch was made here, against `seen`, the count before this update:
+  a new count looks for the launch's auction page again until it is found.
+  """
+  def relisted(%{assigns: %{listings: seen}} = socket, seen), do: socket
+  def relisted(%{assigns: %{launched: %{path: nil}}} = socket, _seen), do: find_page(socket)
+  def relisted(socket, _seen), do: socket
+
+  defp find_page(%{assigns: %{launched: launched}} = socket) do
+    %{hash: hash, prepared: prepared, find: find} = launched
+    start_async(socket, {:launch_page, hash}, fn -> find.(prepared, hash) end)
+  end
+
+  @doc """
+  `find` for a Base launch sent from a saved review (`kind` as
+  `Regents.Autolaunch.LaunchReviews` names it): lists it at once rather than when
+  discovery next finds it, and answers its auction page.
+  """
+  def base_page(kind) do
+    fn %{action_id: action_id, chain: %{chain_id: chain_id}}, hash ->
+      with {:listed, _account_id, result} <- LaunchReviews.confirm(kind, action_id, hash),
+           path when is_binary(path) <- auction_path(chain_id, result["auction"]) do
+        {:ok, path}
+      else
+        _not_yet -> :not_yet
+      end
+    end
+  end
+
+  defp auction_path(chain_id, address) do
+    case Regents.Autolaunch.get_auction_by_chain_address(chain_id, address,
+           actor: %Regents.Account.Actors.System{},
+           load: [:path_tail]
+         ) do
+      {:ok, %{} = auction} -> Paths.auction(auction)
+      _unlisted -> nil
+    end
+  end
+
+  defp steps(%{review: %{} = review, presses: presses}),
+    do: Enum.map(review.steps, &OnchainSteps.step(presses, review, &1.step, "Create the launch"))
+
+  defp steps(_assigns), do: []
+
+  @doc "The digest of the exact bytes the launch step asks the wallet to sign."
+  def digest(%{steps: [%{data: data}]}),
+    do: :crypto.hash(:sha256, data) |> Base.encode16(case: :lower)
+
+  defp started?(presses, review),
+    do: Enum.any?(review.steps, &OnchainSteps.entry(presses, review, &1.step))
+
+  attr :id, :string, required: true
+  attr :hidden, :boolean, required: true
+  attr :review, :map, default: nil
+  attr :presses, :any, required: true
+  attr :signer, :string, default: nil
+  attr :mismatch, :string, default: nil
+  attr :disabled, :boolean, default: false, doc: "Review launch only; Continue Editing never is"
+  attr :target, :any, required: true
+
+  @doc """
+  "Review launch", with the wallet the launch goes from, or the note naming
+  the account's wallets while another one is open (`followed/1`). While the
+  review is open the same button reads "Continue Editing" and takes the review
+  off the page, which brings the form back; it steps aside while the launch
+  is on its way or made. Each time the review opens or closes, the form's
+  place comes into view from its top when that top is out of view.
+  """
+  def review_button(assigns) do
+    assigns = assign(assigns, editable: editable?(steps(assigns)))
+
+    ~H"""
+    <div
+      id={"#{@id}-open"}
+      class="launch-wallet-open"
+      hidden={@hidden}
+      phx-hook=".FormPlace"
+      data-review={!!@review}
+    >
+      <p class="launch-wallet-from" hidden={!@signer || !!@review}>
+        Launching from
+        <Regent.Primitives.address
+          :if={@signer}
+          id={"#{@id}-launcher"}
+          address={@signer}
+          variant="compact"
+        />
+      </p>
+      <p class="onchain-note" role="status" hidden={!@mismatch || !!@review}>{@mismatch}</p>
+      <Regent.Primitives.button
+        class="launch-wallet-primary"
+        type="button"
+        phx-click={if @review, do: "cancel_review", else: "review_launch"}
+        phx-target={@target}
+        variant={if @review, do: "secondary", else: "primary"}
+        disabled={!@review && @disabled}
+        hidden={!!@review && !@editable}
+      >
+        {if @review, do: "Continue Editing", else: "Review launch"}
+      </Regent.Primitives.button>
+    </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".FormPlace">
+      // The form's place shows the open review, or the form while none is
+      // open. When the review opens or closes, the place comes into view from
+      // its top if that top is out of view, so the review, or the form
+      // Continue Editing brings back, reads from its start. A made launch
+      // hides this button as its review closes, and the page stays where the
+      // person is, beside the card that says the launch is made.
+      export default {
+        mounted() {
+          this.open = this.el.hasAttribute("data-review")
+        },
+        updated() {
+          const open = this.el.hasAttribute("data-review")
+          if (open === this.open) return
+          this.open = open
+          if (this.el.hidden) return
+          const place = this.el.closest(".create-page__layout").querySelector(".create-page__main")
+          const {top} = place.getBoundingClientRect()
+          const margin = parseFloat(getComputedStyle(place).scrollMarginBlockStart)
+          if (top < margin || top > window.innerHeight) place.scrollIntoView({block: "start"})
+        }
+      }
+    </script>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :review, :map, default: nil
+  attr :prepared, :map, default: nil
+  attr :presses, :any, required: true
+  attr :chain, :atom, default: nil, doc: "the explorer's chain; nil on a test network"
+  attr :network, :string, default: nil, doc: "the Network row; the review's chain name when nil"
+  attr :mismatch, :string, default: nil
+  attr :press_note, :string, default: nil
+  attr :target, :any, required: true
+  slot :rows, doc: "the card's own rows, between the token's and the wallet's"
+  slot :inner_block, doc: "what follows the launch's risk"
+
+  @doc """
+  The review on the page: the token as it will read, the card's own rows, the
+  wallet, the network and the one transaction, the launch's risk, then the
+  review's progress and its wallet button.
+  """
+  def review_panel(assigns) do
+    assigns = assign(assigns, steps: steps(assigns))
+
+    ~H"""
+    <%!-- The review stays in the page and is only hidden, so its wallet
+         button is never replaced while a person presses it. --%>
+    <section
+      id={"#{@id}-review"}
+      class="launch-wallet-review"
+      aria-label="Launch review"
+      hidden={!@review}
+    >
+      <%= if @review do %>
+        <h4>Review this launch</h4>
+        <dl>
+          <div>
+            <dt>Token</dt>
+            <dd>{@prepared.facts["name"]} · {@prepared.facts["symbol"]}</dd>
+          </div>
+          <.token_rows facts={@prepared.facts} />
+          {render_slot(@rows)}
+          <div>
+            <dt>Wallet</dt>
+            <dd>
+              <Regent.Primitives.address
+                id={"#{@id}-signer"}
+                address={@review.signer}
+                chain={address_chain(@chain)}
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Network</dt>
+            <dd>{@network || @review.chain.name}</dd>
+          </div>
+          <div>
+            <dt>Transactions</dt>
+            <dd>One transaction</dd>
+          </div>
+        </dl>
+
+        <p class="launch-wallet-risk">{@prepared.facts["risk"]}</p>
+        {render_slot(@inner_block)}
+      <% end %>
+
+      <.progress
+        id={"#{@id}-progress"}
+        steps={@steps}
+        review={@review}
+        chain={@chain}
+        mismatch={@mismatch}
+        press_note={@press_note}
+        target={@target}
+      />
+    </section>
+    """
+  end
+
+  attr :facts, :map, required: true
+
+  # What the token itself will say, as the review on the page was built from
+  # the draft as it stood at that moment: the fields the person's agent set,
+  # named first; its description, its website, its community links and its
+  # picture. A launch without a website of the creator's own names this site,
+  # which is not shown as a website.
+  defp token_rows(assigns) do
+    assigns =
+      assign(assigns,
+        website: MarketCard.web_link(assigns.facts["website"]),
+        agent_set: AgentSetFields.labels(assigns.facts["agent_set_fields"]),
+        links:
+          Enum.reject(
+            [assigns.facts["telegram"], assigns.facts["discord"] | assigns.facts["links"] || []],
+            &(&1 in [nil, ""])
+          )
+      )
+
+    ~H"""
+    <div :if={@agent_set != []} class="launch-wallet-agent-set">
+      <dt>Set by your agent</dt>
+      <dd>{Enum.join(@agent_set, ", ")}. Check each one below before you sign.</dd>
+    </div>
+    <div>
+      <dt>Description</dt>
+      <dd class="launch-wallet-text">{@facts["description"]}</dd>
+    </div>
+    <div>
+      <dt>Website</dt>
+      <dd :if={@website}>{@website.label}</dd>
+      <dd :if={!@website}>None given</dd>
+    </div>
+    <div :if={@links != []}>
+      <dt>Community links</dt>
+      <dd :for={link <- @links} class="launch-wallet-text">{link}</dd>
+    </div>
+    <div>
+      <dt>Picture</dt>
+      <dd><img class="launch-wallet-picture" src={@facts["image"]} alt="" /></dd>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :steps, :list, required: true
+  attr :review, :map, default: nil
+  attr :chain, :atom, default: nil, doc: "the explorer's chain; nil on a test network"
+  attr :mismatch, :string, default: nil
+  attr :press_note, :string, default: nil
+  attr :target, :any, required: true
+
+  # The review's progress, with each sent step's transaction on the explorer
+  # and a button to copy its hash, then the wallet button, last in the review.
+  defp progress(assigns) do
+    assigns =
+      assign(assigns,
+        next_step: Enum.find(assigns.steps, &(&1.state in [:ready, :reverted, :other])),
+        chain_name: assigns.review && assigns.review.chain.name
+      )
+
+    ~H"""
+    <%!-- The list styling drops list semantics, so the role is stated. --%>
+    <ol class="launch-wallet-steps" role="list" aria-label="Launch progress">
+      <li :for={step <- @steps} data-step={step.name}>
+        <span>{step.label}</span>
+        <.step_state state={chip(step)} />
+        <span class="launch-wallet-hash" hidden={!step.entry}>
+          <Regent.Primitives.address
+            :if={step.entry}
+            id={"#{@id}-#{step.name}-hash"}
+            address={step.entry.hash}
+            kind="tx"
+            chain={address_chain(@chain)}
+          />
+        </span>
+      </li>
+    </ol>
+    <p
+      class="launch-wallet-settled"
+      role="status"
+      aria-live="polite"
+      hidden={!progress_copy(@steps, @chain_name)}
+    >
+      {progress_copy(@steps, @chain_name)}
+    </p>
+    <p class="launch-wallet-notice" role="status" hidden={!@press_note}>{@press_note}</p>
+    <SwapForm.wallet_step
+      id={@id <> "-sender"}
+      next_step={@next_step}
+      steps={@steps}
+      reverted={reverted_copy(@steps)}
+      signer={@review && @review.signer}
+      chain_name={@chain_name}
+      mismatch={@mismatch}
+      check_event="check_again"
+      target={@target}
+    />
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :launched, :map, default: nil
+  attr :chain, :atom, default: nil, doc: "the explorer's chain; nil on a test network"
+  attr :target, :any, required: true
+
+  @doc """
+  What the card says once its launch is confirmed (`launched/4`): the launch,
+  its transaction, and its auction page once the site has it. It takes the
+  person's focus, so it is in view however far down they pressed.
+  """
+  def launched_panel(assigns) do
+    ~H"""
+    <div
+      :if={@launched}
+      id={@id}
+      class="bid-placed launch-placed"
+      role="status"
+      tabindex="-1"
+      phx-mounted={JS.focus()}
+    >
+      <p class="bid-placed__news">
+        Your token <span class="ticker">{@launched.symbol}</span> is launched.
+      </p>
+      <p :if={!@chain} class="bid-form__note">
+        This was on a test network. Test assets have no real value.
+      </p>
+      <p>
+        <Regent.Primitives.address
+          id={"#{@id}-hash"}
+          address={@launched.hash}
+          kind="tx"
+          chain={address_chain(@chain)}
+        />
+      </p>
+      <p>{explore_copy(@launched)}</p>
+      <div class="bid-placed__actions">
+        <.link
+          :if={@launched.path}
+          navigate={@launched.path}
+          class="rg-button rg-button--primary"
+        >
+          <span class="rg-button__label">Open the auction</span>
+        </.link>
+        <Regent.Primitives.button
+          type="button"
+          phx-click="clear_launch"
+          phx-target={@target}
+          variant="secondary"
+        >
+          Launch another
+        </Regent.Primitives.button>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  The chain `Regent.Primitives.address` opens a launch card's addresses and
+  hashes on, from the card's explorer chain: a test network (nil) has no explorer.
+  """
+  def address_chain(nil), do: "test"
+  def address_chain(chain) when chain in [:base, :robinhood], do: Atom.to_string(chain)
+
+  defp explore_copy(%{path: path}) when is_binary(path), do: "It's on Explore now."
+  defp explore_copy(%{finding?: true}), do: "Adding it to Explore…"
+  defp explore_copy(_launched), do: "It appears on Explore within a minute."
+
+  defp chip(%{state: :ready}), do: "Ready"
+  defp chip(%{state: state}) when state in [:sent, :stalled], do: "Sent"
+  defp chip(%{state: :done}), do: "Confirmed"
+  defp chip(%{state: :reverted}), do: "Reverted"
+  defp chip(%{state: :other}), do: "Unresolved"
+
+  # Continue Editing takes the review away only while nothing from it is on
+  # its way or confirmed.
+  defp editable?([]), do: false
+  defp editable?(steps), do: not Enum.any?(steps, &(&1.state in [:sent, :stalled, :done]))
+
+  defp progress_copy(steps, chain_name) do
+    case Enum.find(steps, &(&1.state in [:sent, :stalled, :other])) do
+      %{state: :other} ->
+        "That transaction is not the one this page prepared, so it can't be followed here. Check it in your wallet activity."
+
+      %{state: :stalled} ->
+        "#{chain_name} has not confirmed this yet. Check again, or look in your wallet activity."
+
+      %{state: :sent} ->
+        "Creating the launch…"
+
+      nil ->
+        nil
+    end
+  end
+
+  defp reverted_copy(steps) do
+    if Enum.any?(steps, &(&1.state == :reverted)), do: @reverted
+  end
+end

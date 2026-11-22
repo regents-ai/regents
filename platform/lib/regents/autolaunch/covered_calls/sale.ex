@@ -1,7 +1,7 @@
 defmodule Regents.Autolaunch.CoveredCalls.Sale do
   @moduledoc """
-  One covered call changing hands on a market's contract, saved from its log
-  exactly as the chain gave it:
+  One covered call changing hands on a market's contract, saved by
+  `Regents.Autolaunch.CoveredCalls.Sales` from its log, exactly as the chain gave it:
 
     * `:filled`: a buyer bought calls from a listing (`Filled`). The buyer is
       the wallet the log names, the one that called `fill`; the seller is the
@@ -16,10 +16,7 @@ defmodule Regents.Autolaunch.CoveredCalls.Sale do
   (what the buyer paid) and `fee` (the part of it the seller did not get).
 
   A row is written once and never changed, kept as first saved even when the
-  chain later moves or drops its log.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  chain later moves or drops its log: the reader warns and carries on.
   """
   use Ash.Resource,
     otp_app: :regents,
@@ -29,11 +26,91 @@ defmodule Regents.Autolaunch.CoveredCalls.Sale do
 
   @address ~r/\A0x[0-9a-f]{40}\z/
   @hash ~r/\A0x[0-9a-f]{64}\z/
+  @facts [
+    :chain_id,
+    :contract,
+    :stock,
+    :event,
+    :listing_id,
+    :bid_id,
+    :seller,
+    :buyer,
+    :amount,
+    :premium,
+    :fee,
+    :transaction_hash,
+    :log_index,
+    :block_number,
+    :block_hash,
+    :occurred_at
+  ]
 
   postgres do
     table "covered_call_sales"
     schema("autolaunch_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    # One sale, for the site's own check of it (`Regents.Autolaunch.Points.CoveredCall`).
+    read :by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
+    # The sales already saved from one contract that a pass reads again: those
+    # in its blocks `from` to `to`, and any in the `transactions` it read.
+    read :seen do
+      argument :chain_id, :integer, allow_nil?: false
+      argument :contract, :string, allow_nil?: false
+      argument :from, :integer, allow_nil?: false
+      argument :to, :integer, allow_nil?: false
+      argument :transactions, {:array, :string}, allow_nil?: false
+
+      filter expr(
+               chain_id == ^arg(:chain_id) and contract == ^arg(:contract) and
+                 ((block_number >= ^arg(:from) and block_number <= ^arg(:to)) or
+                    transaction_hash in ^arg(:transactions))
+             )
+    end
+
+    create :record do
+      accept @facts
+      upsert? true
+      upsert_identity :chain_log
+      upsert_fields []
+      upsert_condition expr(false)
+      return_skipped_upsert? true
+
+      emit Regents.Autolaunch.Signals, :covered_call_recorded,
+        dynamic?: true,
+        description: "Only when this write saved the sale."
+
+      # A sale already saved skips the upsert and comes back as first saved.
+      change after_action(fn changeset, sale, _context ->
+               if Ash.Resource.get_metadata(sale, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(
+                          changeset,
+                          Regents.Autolaunch.Signals,
+                          :covered_call_recorded,
+                          %{
+                            sale_id: sale.id
+                          }
+                        ),
+                      do: {:ok, sale}
+               else
+                 {:ok, sale}
+               end
+             end)
+    end
+  end
+
+  policies do
+    policy action([:by_id, :seen, :record]) do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -61,13 +138,5 @@ defmodule Regents.Autolaunch.CoveredCalls.Sale do
 
   identities do
     identity :chain_log, [:chain_id, :transaction_hash, :log_index]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

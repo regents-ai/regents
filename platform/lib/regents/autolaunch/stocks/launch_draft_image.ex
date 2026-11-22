@@ -2,21 +2,19 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraftImage do
   @moduledoc """
   One immutable image uploaded by a signed-in Stocks launch creator.
 
-  The same provenance model as `Regents.Autolaunch.LaunchDraftImage`, on the
-  Stocks lane's own table: bytes never change or disappear after a URL has been
+  The same provenance model as `Regents.Autolaunch.LaunchDraftImage`, on the Stocks
+  lane's own table: bytes never change or disappear after a URL has been
   issued, owner reads are private, and the only public read requires both the
   unguessable UUID and the full SHA-256 digest carried by the
   content-addressed `/stock-images/...` URL.
-
-  The table and its rows as autolaunch.sh keeps them; the public read is the only
-  action here (`Regents.Autolaunch.StoredImage`), and nothing writes a row.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   postgres do
     table "stock_launch_draft_images"
@@ -26,6 +24,104 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraftImage do
     references do
       reference(:human_account, on_delete: :restrict)
       reference(:stock_launch_draft, on_delete: :restrict)
+    end
+  end
+
+  actions do
+    create :store_for_owner do
+      accept [:bytes, :content_type, :original_filename, :stock_launch_draft_id]
+      change Regents.Autolaunch.LaunchDraftImage.Changes.AssignOwner
+      change Regents.Autolaunch.Stocks.LaunchDraftImage.Changes.PrepareImmutableImage
+    end
+
+    read :read do
+      primary? true
+      filter expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    read :mine do
+      get? true
+      argument :stock_launch_draft_id, :uuid, allow_nil?: false
+
+      filter expr(
+               human_account_id == ^actor(:human_account_id) and
+                 stock_launch_draft_id == ^arg(:stock_launch_draft_id)
+             )
+
+      filter expr(stock_launch_draft.stock_launch_draft_image_id == id)
+    end
+
+    read :mine_by_id do
+      get? true
+      argument :stock_launch_draft_id, :uuid, allow_nil?: false
+      argument :id, :uuid, allow_nil?: false
+
+      filter expr(
+               human_account_id == ^actor(:human_account_id) and
+                 stock_launch_draft_id == ^arg(:stock_launch_draft_id) and id == ^arg(:id)
+             )
+    end
+
+    read :mine_for_reuse do
+      get? true
+      argument :stock_launch_draft_id, :uuid, allow_nil?: false
+      argument :digest, :string, allow_nil?: false
+
+      filter expr(
+               human_account_id == ^actor(:human_account_id) and
+                 stock_launch_draft_id == ^arg(:stock_launch_draft_id) and
+                 digest == ^arg(:digest)
+             )
+
+      prepare build(
+                select: [
+                  :id,
+                  :digest,
+                  :content_type,
+                  :byte_size,
+                  :bytes,
+                  :original_filename,
+                  :human_account_id,
+                  :stock_launch_draft_id
+                ]
+              )
+    end
+
+    read :public_by_id_and_digest do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      argument :digest, :string, allow_nil?: false
+      filter expr(id == ^arg(:id) and digest == ^arg(:digest))
+      prepare build(select: [:id, :digest, :content_type, :byte_size, :bytes])
+    end
+
+    # The colours of stored images, for cards that show them; an image's
+    # colour is public exactly as its address is.
+    read :public_colors do
+      argument :ids, {:array, :uuid}, allow_nil?: false
+      filter expr(id in ^arg(:ids))
+      prepare build(select: [:id, :digest, :color])
+    end
+  end
+
+  policies do
+    policy action([:store_for_owner, :mine, :mine_by_id, :mine_for_reuse]) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+    end
+
+    # A paired agent reads its person's draft with its picture, to review the
+    # launch (`Regents.Autolaunch.AgentLaunch`).
+    policy action(:read) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
+    end
+
+    policy action([:read, :mine, :mine_by_id, :mine_for_reuse]) do
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action([:public_by_id_and_digest, :public_colors]) do
+      authorize_if always()
     end
   end
 
@@ -78,28 +174,11 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraftImage do
 
     belongs_to :stock_launch_draft, Regents.Autolaunch.Stocks.LaunchDraft do
       allow_nil? false
+      read_action :mine
     end
   end
 
   identities do
     identity :one_version_per_stock_draft, [:stock_launch_draft_id, :digest]
-  end
-
-  actions do
-    read :public_by_id_and_digest do
-      get? true
-      argument :id, :uuid, allow_nil?: false
-      argument :digest, :string, allow_nil?: false
-      filter expr(id == ^arg(:id) and digest == ^arg(:digest))
-      prepare build(select: [:id, :digest, :content_type, :byte_size, :bytes])
-    end
-  end
-
-  # Anyone may read a picture by its address; any other action has no policy and
-  # is refused.
-  policies do
-    policy action(:public_by_id_and_digest) do
-      authorize_if always()
-    end
   end
 end

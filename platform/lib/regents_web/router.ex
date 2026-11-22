@@ -253,6 +253,68 @@ defmodule RegentsWeb.Router do
     get "/autolaunch/images/:id/:digest/:size", Autolaunch.StoredImageController, :launch
     get "/autolaunch/stock-images/:id/:digest", Autolaunch.StoredImageController, :stock
     get "/autolaunch/stock-images/:id/:digest/:size", Autolaunch.StoredImageController, :stock
+    get "/autolaunch/auctions/:symbol/:tail/share.png", Autolaunch.ShareCardController, :auction
+
+    get "/autolaunch/auctions/:symbol/:tail/share.mp4",
+        Autolaunch.ShareCardController,
+        :auction_video
+
+    get "/autolaunch/tokens/:symbol/:tail/share.png", Autolaunch.ShareCardController, :token
+
+    get "/autolaunch/tokens/:symbol/:tail/share.mp4",
+        Autolaunch.ShareCardController,
+        :token_video
+
+    get "/autolaunch/tokens/:symbol/:tail/wallets/:wallet/share.mp4",
+        Autolaunch.ShareCardController,
+        :wallet_video
+
+    get "/autolaunch/auctions/:symbol/:tail/wallets/:wallet/share.mp4",
+        Autolaunch.ShareCardController,
+        :auction_wallet_video
+
+    get "/autolaunch/stock/isolated-afters/terms/:hash", Autolaunch.ExposureController, :terms
+
+    get "/autolaunch/stock/isolated-afters/:series/share.png",
+        Autolaunch.ShareCardController,
+        :exposure
+
+    get "/autolaunch/stock/isolated-afters/:series/share.mp4",
+        Autolaunch.ShareCardController,
+        :exposure_video
+
+    get "/autolaunch/stock/isolated-afters/:series/wallets/:wallet/share.mp4",
+        Autolaunch.ShareCardController,
+        :exposure_wallet_video
+
+    get "/autolaunch/stock/covered-call/:symbol/share.png",
+        Autolaunch.ShareCardController,
+        :covered_calls
+
+    get "/autolaunch/stock/covered-call/:symbol/share.mp4",
+        Autolaunch.ShareCardController,
+        :covered_calls_video
+
+    get "/autolaunch/stock/covered-call/:symbol/wallets/:wallet/share.mp4",
+        Autolaunch.ShareCardController,
+        :covered_calls_wallet_video
+
+    get "/autolaunch/auctions/:auction_id/share.png",
+        Autolaunch.OldLinkController,
+        :base_auction_image
+
+    get "/autolaunch/robinhood/auctions/:auction/share.png",
+        Autolaunch.OldLinkController,
+        :robinhood_auction_image
+
+    get "/autolaunch/auctions/:auction_id", Autolaunch.OldLinkController, :base_auction
+
+    get "/autolaunch/robinhood/auctions/:auction",
+        Autolaunch.OldLinkController,
+        :robinhood_auction
+
+    get "/autolaunch/tokens/:token_id", Autolaunch.OldLinkController, :base_token
+    get "/autolaunch/robinhood/tokens/:token", Autolaunch.OldLinkController, :robinhood_token
     get "/keyfleet/share/:file", Keyfleet.ShareCardController, :show
     get "/keyfleet/share/projects/:fleet_id/:file", Keyfleet.ShareCardController, :project
   end
@@ -421,6 +483,15 @@ defmodule RegentsWeb.Router do
     post "/privy/session", PrivySessionController, :create
     get "/session", PrivySessionController, :show
     delete "/privy/session", PrivySessionController, :delete
+  end
+
+  scope "/auth/x", RegentsWeb.Autolaunch do
+    pipe_through [:read_only, :browser]
+
+    get "/callback", XOAuthController, :callback, log: false
+    post "/connections/:role", XOAuthController, :create
+    delete "/connections/:role", XOAuthController, :delete
+    delete "/connections/:role/attempt", XOAuthController, :cancel
   end
 
   scope "/techtree", RegentsWeb.Techtree do
@@ -734,11 +805,67 @@ defmodule RegentsWeb.Router do
     post "/fleets/:fleet_id/atlas/things", AgentGraphController, :atlas_things
   end
 
+  scope "/api/v1/autolaunch", RegentsWeb.Autolaunch do
+    pipe_through :api
+
+    get "/auctions", AuctionController, :index
+    get "/auction-counts", AuctionController, :counts
+    get "/auctions/:id", AuctionController, :show
+    post "/auctions/:id/bid-quote", AuctionController, :bid_quote
+    get "/tokens", TokenController, :index
+    get "/tokens/:id", TokenController, :show
+    get "/treasury-security/:address", TreasuryController, :show
+    get "/after-hour-stocks", ExposureController, :index
+    get "/after-hour-stocks/:series", ExposureController, :show
+    get "/earn/products", EarnController, :products
+    get "/covered-calls/:symbol", CoveredCallsController, :book
+    post "/covered-calls/:symbol/quote", CoveredCallsController, :quote
+  end
+
+  scope "/api/v1/autolaunch", RegentsWeb.Autolaunch do
+    pipe_through [:api, :read_only]
+
+    get "/me/positions", MyPositionsController, :show
+    get "/me/covered-calls/:symbol", CoveredCallsController, :mine
+    get "/me/after-hour-stocks/:series", ExposureController, :mine
+    get "/me/earn", EarnController, :mine
+  end
+
+  scope "/api/agent/v1/autolaunch", RegentsWeb.Autolaunch do
+    pipe_through [:api, :paired_agent]
+
+    get "/drafts/:kind", AgentAccountController, :draft
+    patch "/drafts/:kind", AgentAccountController, :save_draft
+    get "/positions", AgentAccountController, :positions
+    get "/covered-calls/:symbol/positions", CoveredCallsAgentController, :positions
+    post "/covered-calls/:symbol/steps", CoveredCallsAgentController, :prepare
+    get "/after-hour-stocks/:series/holdings", ExposureAgentController, :holdings
+    post "/after-hour-stocks/:series/steps", ExposureAgentController, :prepare
+    post "/earn/quote", EarnAgentController, :quote
+    get "/earn/positions", EarnAgentController, :positions
+    post "/earn/steps", EarnAgentController, :prepare
+    post "/bids/steps", AgentBidController, :prepare
+    post "/bids/:bid/steps", AgentBidController, :settle
+    post "/robinhood/bids/steps", AgentRobinhoodBidController, :prepare
+    post "/robinhood/bids/:bid/steps", AgentRobinhoodBidController, :settle
+    post "/launches/:draft/steps", AgentLaunchController, :prepare
+    post "/auctions/:auction_id/finish/steps", AgentFinishController, :prepare
+    post "/tokens/:token_id/stake/steps", AgentStakeController, :prepare
+  end
+
   scope "/autolaunch", RegentsWeb.Autolaunch do
     pipe_through [:browser, :autolaunch]
 
     get "/about", PublicPagesController, :show
     get "/changelog", PublicPagesController, :show
+    get "/docs", PublicPagesController, :show
+    get "/agents", PublicPagesController, :show
+    get "/agents/:agent", PublicPagesController, :show
+    get "/privacy", PublicPagesController, :show
+    get "/terms", PublicPagesController, :show
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
+    get "/unavailable", UnavailableController, :show
 
     # The home page's tab title has no " · Autolaunch" ending, so a page
     # reached from it is loaded fresh, as on autolaunch.sh: its own session.
@@ -753,10 +880,22 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Autolaunch.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
+      live "/create", StocksCreateLive, :create
+      live "/agent-business", CreateLive, :create
       live "/how-it-works", HowItWorksLive, :show
       live "/auctions", AuctionsLive, :index
+      live "/auctions/:symbol/:tail", MarketPageLive, :auction
       live "/tokens", TokensLive, :index
       live "/tokens/:symbol/:tail", MarketPageLive, :token
+      live "/stocks", UpcomingLive, :show
+      live "/stocks/:symbol", StockLive, :show
+      live "/portfolio", PortfolioLive, :portfolio
+      live "/portfolio/bids/:id", BidLive, :bid
+      live "/regent", RegentLive, :regent
+      live "/convert", ConvertLive, :index
+      live "/stock/covered-call", CoveredCallsLive, :index
+      live "/stock/isolated-afters", ExposureLive, :show
+      live "/earn", EarnLive, :index
     end
   end
 

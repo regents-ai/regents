@@ -1,0 +1,226 @@
+defmodule RegentsWeb.Autolaunch.Components.SwapModal do
+  @moduledoc false
+  use Phoenix.Component
+
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.StoredImage
+  alias RegentsWeb.Autolaunch.SwapComponent
+
+  attr :id, :string, required: true
+  attr :token, :map, required: true, doc: "a launched token with its auction loaded"
+  attr :direction, :atom, default: :buy, values: [:buy, :sell], doc: "the side the form opens on"
+  attr :authenticated, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
+  attr :portfolio, :boolean, default: true, doc: "false on the portfolio itself"
+
+  def swap_modal(assigns) do
+    assigns =
+      assign(assigns,
+        presentation: Regents.Autolaunch.Token.presentation(assigns.token),
+        pool: pool(assigns.token.auction)
+      )
+
+    ~H"""
+    <.window id={@id} record_id={@token.id} close_label="Close swap form">
+      <:title>
+        <h2 id={@id <> "-title"}>Trade <span class="ticker">{@presentation.symbol}</span></h2>
+      </:title>
+      <%!-- The swap's Review button dips as the token page's does (`SiteButtons`). --%>
+      <div
+        id={@id <> "-buttons"}
+        phx-hook="SiteButtons"
+        phx-mounted={Phoenix.LiveView.JS.ignore_attributes("data-input")}
+      >
+        <.live_component
+          module={SwapComponent}
+          id={@id <> "-input"}
+          launch={@pool.launch}
+          symbol={@presentation.symbol}
+          image={@presentation.image}
+          currency={@pool.currency}
+          start_direction={@direction}
+          authenticated={@authenticated}
+          current_human_id={@current_human_id}
+          session_lease={@session_lease}
+          portfolio={@portfolio}
+        />
+      </div>
+    </.window>
+    """
+  end
+
+  # The pool a token trades in and the currency it is entered with: a
+  # Robinhood token's pool is named by its auction's address.
+  defp pool(auction) do
+    if RobinhoodLab.chain?(auction.chain_id),
+      do: %{
+        launch: %{chain: :robinhood, auction: auction},
+        currency: auction.quote_token_symbol
+      },
+      else: %{
+        launch: %{chain: :base, auction: auction},
+        currency: SwapComponent.entry_symbol(auction)
+      }
+  end
+
+  @doc """
+  Whether a launched token, with its auction loaded, can be swapped from this
+  site; `robinhood_swap?` is `RobinhoodLab.swap_configured?/0`, read once by the page.
+  """
+  def tradable?(%{auction: auction}, robinhood_swap?) do
+    if RobinhoodLab.chain?(auction.chain_id),
+      do: robinhood_swap?,
+      else: not is_nil(SwapComponent.entry_symbol(auction))
+  end
+
+  attr :id, :string, required: true
+  attr :auction, :map, required: true
+  attr :authenticated, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
+  attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
+
+  def bid_modal(assigns) do
+    ~H"""
+    <.window id={@id} record_id={@auction.id} close_label="Close bid form">
+      <:title>
+        <.auction_title id={@id <> "-title"} auction={@auction}>Bid on</.auction_title>
+      </:title>
+      <.live_component
+        module={RegentsWeb.Autolaunch.BidComponent}
+        id={@id <> "-input"}
+        auction={@auction}
+        page={@page}
+        authenticated={@authenticated}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+      />
+    </.window>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :auction, :map, required: true, doc: "a listed Robinhood auction row"
+
+  attr :ended, :string,
+    default: nil,
+    doc: "what the auction's end means for bidders; the dialog then settles the wallet's bids"
+
+  attr :stake_path, :string, default: nil, doc: "where claimed tokens are staked"
+  attr :authenticated, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
+  attr :page, :atom, default: nil, values: [nil, :portfolio], doc: "the page the dialog sits on"
+
+  attr :observed, :integer,
+    required: true,
+    doc:
+      "Robinhood's clock as the page last read it (`Regents.Autolaunch.ChainHead.block/1`), nil before then"
+
+  def robinhood_bid_modal(assigns) do
+    ~H"""
+    <.window id={@id} record_id={@auction.id} close_label="Close bid form">
+      <:title>
+        <.auction_title id={@id <> "-title"} auction={@auction}>
+          {if @ended, do: "Your bids on", else: "Bid on"}
+        </.auction_title>
+      </:title>
+      <.live_component
+        module={RegentsWeb.Autolaunch.RobinhoodStockBidComponent}
+        id={@id <> "-input"}
+        auction={@auction.auction_address}
+        launch={@auction}
+        ended={@ended}
+        stake_path={@stake_path}
+        token_symbol={@auction.token_symbol}
+        page={@page}
+        observed={@observed}
+        authenticated={@authenticated}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+      />
+    </.window>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :position, :map, required: true, doc: "a stored Base bid with its auction loaded"
+  attr :authenticated, :boolean, default: false
+  attr :current_human_id, :integer, default: nil
+  attr :session_lease, :map, default: nil
+
+  @doc "One ended Base bid's settlement card, for withdrawing its money or claiming its tokens."
+  def settlement_modal(assigns) do
+    ~H"""
+    <.window id={@id} record_id={@position.id} close_label="Close">
+      <:title>
+        <.auction_title id={@id <> "-title"} auction={@position.auction}>Your bid on</.auction_title>
+      </:title>
+      <.live_component
+        module={RegentsWeb.Autolaunch.BidSettlementComponent}
+        id={@id <> "-input"}
+        position={@position}
+        authenticated={@authenticated}
+        current_human_id={@current_human_id}
+        session_lease={@session_lease}
+      />
+    </.window>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :record_id, :any, required: true
+  attr :close_label, :string, required: true
+  slot :title, required: true
+  slot :inner_block, required: true
+
+  # The browser's own dialog every trade and bid opens in: its title and
+  # Close in the header, then the panel it is for.
+  defp window(assigns) do
+    ~H"""
+    <dialog
+      id={@id}
+      class="token-swap-modal"
+      phx-hook="AutolaunchSwapDialog"
+      {RegentsWeb.Motion.panel("sheet", ["open"])}
+      data-record-id={@record_id}
+      aria-labelledby={@id <> "-title"}
+      aria-modal="true"
+    >
+      <header class="token-swap-modal__header">
+        {render_slot(@title)}
+        <Regent.Primitives.button variant="quiet" data-close-swap aria-label={@close_label}>
+          Close
+        </Regent.Primitives.button>
+      </header>
+      {render_slot(@inner_block)}
+    </dialog>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :auction, :map, required: true
+  slot :inner_block, required: true, doc: "the words before the auction's name"
+
+  # A bid window's title: the auction's picture, then what the window is for
+  # and the auction's name.
+  defp auction_title(assigns) do
+    ~H"""
+    <div class="token-swap-modal__title">
+      <span class="token-swap-modal__art">
+        <img
+          :if={@auction.image}
+          src={StoredImage.sized(@auction.image, 160)}
+          alt=""
+          decoding="async"
+          width="56"
+          height="56"
+        />
+        <span :if={!@auction.image} aria-hidden="true">{String.first(@auction.title)}</span>
+      </span>
+      <h2 id={@id}>{render_slot(@inner_block)} <span class="token-name">{@auction.title}</span></h2>
+    </div>
+    """
+  end
+end

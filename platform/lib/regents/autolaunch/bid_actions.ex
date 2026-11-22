@@ -1,0 +1,746 @@
+defmodule Regents.Autolaunch.BidActions do
+  @moduledoc """
+  The one boundary between a bidder and a Base auction.
+
+  A review reads Base once, proves the auction really raises for the treasury
+  this site recorded, and returns the steps the wallet sends in turn. Nothing
+  is written: the review lives on the page, the wallet sends its steps, and
+  the page reads what the bid placed from its receipt. The chain watcher
+  records every bid an auction announces as its bidder's position.
+
+  Every review binds to one of the wallets of the account the session lease
+  names, read at call time: the page's active wallet must be one the account
+  links, never a guess.
+  """
+
+  alias Regents.Account.Actors.Human
+  alias Regents.Autolaunch.Chain.{Abi, Client, Rpc}
+
+  alias Regents.Autolaunch.{
+    AuctionFigures,
+    BidPrice,
+    BidSlippage,
+    Lab,
+    LabAbi,
+    LabBidChainClient,
+    TreasurySecurity
+  }
+
+  alias RegentChain.{Address, Review}
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Stocks.Lab, as: StocksLab
+  alias Regents.Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+  alias Regents.Autolaunch.Stocks.LaunchOperations
+
+  # A bid amount is denominated in the auction's own currency, whose decimals
+  # the stored auction row records: REGENT's eighteen, or the admitted stock's.
+  @usdc_decimals 6
+  @new_decimals 18
+  @usdc_deadline_seconds 900
+  @q96 79_228_162_514_264_337_593_543_950_336
+  @uint128_max Integer.pow(2, 128) - 1
+  @uint256_max Integer.pow(2, 256) - 1
+  # Every token an auction on this site sells has eighteen decimals.
+  @token_decimals 18
+
+  # A Permit2 allowance is granted for thirty minutes, and one that would
+  # lapse within ten, the longest a review stays on the page before it is
+  # built again, is granted again rather than relied on.
+  @permit2_seconds 1800
+  @reuse_seconds 600
+
+  # A Base read that may answer differently later never settles anything.
+  @transient [
+    :chain_unavailable,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :transaction_missing
+  ]
+
+  @doc """
+  The public estimate for one auction, from its stored snapshot.
+
+  A refusal names the first thing that stopped it, checked in this order:
+  `:auction_not_found` (the id names no Base auction this site lists),
+  `:estimate_not_offered` (a listed Robinhood auction), `:invalid_amount`, `:invalid_max_price`,
+  `:database_unavailable` when the stored auction could not be read, or
+  `:price_unreadable` when its stored clearing price is not a plain decimal.
+  """
+  def quote(auction_id, amount, max_price, opts \\ []) do
+    with {:ok, auction} <- quoted_auction(auction_id, opts),
+         {:ok, amount} <- positive_decimal(amount, :invalid_amount),
+         {:ok, max_price} <- positive_decimal(max_price, :invalid_max_price),
+         {:ok, current_price} <- stored_price(auction.current_clearing_price) do
+      projected_price = if Decimal.gt?(current_price, 0), do: current_price, else: max_price
+      price_reaches? = Decimal.compare(max_price, current_price) != :lt
+      active? = auction.state == :active and price_reaches?
+
+      estimated_tokens =
+        if active? and Decimal.gt?(projected_price, 0),
+          do: tokens_at(amount, projected_price),
+          else: Decimal.new(0)
+
+      {:ok,
+       %{
+         auction_id: auction.id,
+         amount: decimal_string(amount),
+         max_price: decimal_string(max_price),
+         quote_token: %{
+           address: auction.quote_token_address,
+           symbol: auction.quote_token_symbol,
+           decimals: auction.quote_token_decimals
+         },
+         current_clearing_price: AuctionFigures.stated(current_price),
+         projected_clearing_price: AuctionFigures.stated(projected_price),
+         would_be_active_now: active?,
+         status_band: status_band(active?, max_price, projected_price),
+         estimated_tokens_if_end_now: decimal_string(estimated_tokens),
+         warnings: quote_warnings(auction, price_reaches?)
+       }}
+    end
+  end
+
+  @doc """
+  What one of the signed-in account's wallets may spend on this auction: its
+  balance of each currency the auction takes, read whether or not bidding has
+  opened.
+
+  The address is proved against the account the mounted lease resolves to before
+  any private fact is read, so a wallet the account does not link is refused
+  rather than answered about.
+  """
+  def position(input, %{actor: %Human{}} = context) do
+    with {:ok, %{signer: signer}} <-
+           LaunchOperations.signed_in_wallet(
+             input.arguments.expected_signer,
+             [actor: context.actor, context: context.source_context],
+             Regents.Autolaunch.Auction
+           ),
+         {:ok, auction} <- auction(input.arguments.auction_id),
+         {:ok, auction_address} <- normalize(auction.auction_address),
+         {:ok, balances} <-
+           chain(
+             LabBidChainClient.balances(%{
+               auction: auction_address,
+               signer: signer,
+               usdc: usdc_bids?(auction)
+             })
+           ),
+         :ok <- bound_currency(balances, auction) do
+      {:ok, %{signer: signer, balances: shown_balances(balances, auction)}}
+    end
+  end
+
+  def position(_input, _context), do: {:error, :authentication_required}
+
+  # What the wallet can bid with, by currency, in whole units: the auction's
+  # own currency and, where it takes USDC, USDC.
+  defp shown_balances(%{currency_balance: own, usdc_balance: usdc}, auction) do
+    own = %{auction.quote_token_symbol => Rpc.format_units(own, auction.quote_token_decimals)}
+    if usdc, do: Map.put(own, "USDC", Rpc.format_units(usdc, @usdc_decimals)), else: own
+  end
+
+  @doc """
+  The steps of one bid for `address`, one of the signed-in account's wallets,
+  with the facts the page shows beside them and what the page needs to read
+  the bid from its receipt. `request` names the auction, the amount typed, the
+  most per token and the currency paid (`"USDC"` on a Stocks auction that takes
+  it, otherwise the auction's own).
+
+  A bid in the auction's own currency carries only the transactions this
+  wallet still needs: an exact approval to canonical Permit2, an exact
+  short-lived Permit2 allowance for this auction, then the canonical
+  five-argument bid. A USDC bid carries the exact USDC allowance to the bid
+  adapter it still needs, then the adapter call that buys the stock through
+  the admitted route and places the bid as this wallet; the route's estimate is
+  shown and never trusted, as the adapter is told to deliver at least the
+  estimate less the chosen slippage (5% by default) or revert, and to refuse the call after fifteen
+  minutes.
+  """
+  @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def prepare(request, address, opts) do
+    with {:ok, %{signer: signer}} <-
+           LaunchOperations.signed_in_wallet(address, opts, Regents.Autolaunch.Auction),
+         do: review(request, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes once `signer` is proved to be one of the acting
+  account's own wallets, with the latest block it read (`block`) and
+  `blocked: :bidding_ended` once the block after it, the earliest a step can
+  land in, has reached the auction's end block, read from the auction at that
+  same block; otherwise `nil`.
+
+  What was typed is read before anything is asked of Base, so input this refuses
+  never reaches the chain.
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{auction_id: auction_id, amount: amount, max_price: max_price} = request, signer) do
+    with {:ok, auction} <- auction(auction_id),
+         {:ok, max_price_q96} <-
+           refusable(price_q96(max_price, auction.quote_token_decimals)),
+         {:ok, payment} <- payment(request, amount, auction),
+         :ok <- verified_treasury(auction),
+         {:ok, auction_address} <- normalize(auction.auction_address),
+         {:ok, snapshot} <-
+           chain(
+             LabBidChainClient.snapshot(%{
+               auction: auction_address,
+               signer: signer,
+               max_price_q96: max_price_q96
+             })
+           ),
+         {:ok, max_price_q96} <- refusable(BidPrice.align(max_price_q96, snapshot)),
+         :ok <- bound_currency(snapshot, auction),
+         :ok <- bounded_predecessor(snapshot, max_price_q96),
+         bid = %{
+           auction: auction,
+           auction_address: auction_address,
+           signer: signer,
+           max_price_q96: max_price_q96,
+           snapshot: Map.put(snapshot, :auction, auction_address)
+         },
+         {:ok, reviewed} <- review_bid(bid, payment) do
+      {:ok,
+       Map.merge(reviewed, %{
+         block: snapshot.block.number,
+         blocked: if(bidding_ended?(snapshot), do: :bidding_ended)
+       })}
+    end
+  end
+
+  # What the bid pays with, read from what was typed: the auction's own
+  # currency in its decimals, or USDC on a Stocks auction that takes it, with
+  # its slippage.
+  defp payment(%{pay_with: "USDC"} = request, typed, auction) do
+    with {:ok, bps} <-
+           refusable(
+             BidSlippage.parse(Map.get(request, :slippage_percent, BidSlippage.default()))
+           ),
+         :ok <- stocks_auction(auction),
+         {:ok, usdc_amount} <- refusable(atomic_amount(typed, @usdc_decimals)),
+         do: {:ok, {:usdc, usdc_amount, bps}}
+  end
+
+  defp payment(_request, typed, auction) do
+    with {:ok, amount} <- refusable(atomic_amount(typed, auction.quote_token_decimals)),
+         do: {:ok, {:currency, amount}}
+  end
+
+  defp review_bid(bid, {:currency, amount}), do: currency_bid(bid, amount)
+  defp review_bid(bid, {:usdc, usdc_amount, bps}), do: usdc_bid(bid, usdc_amount, bps)
+
+  # The auction's own rule: it refuses a bid at its end block or after, and a
+  # step prepared at the latest block lands in the next one at the earliest.
+  defp bidding_ended?(%{block: %{number: number}, end_block: end_block}),
+    do: number + 1 >= end_block
+
+  @doc """
+  What a confirmed step of a bid placed, read from its receipt's logs: the
+  on-chain bid id and the amount it committed in the auction's currency, or
+  `nil` for an approval, or for logs that do not record this very bid.
+  """
+  @spec result(map(), String.t(), [map()]) :: map() | nil
+  def result(context, "bid", logs) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, {[bid_id, owner_word], [price, amount]}} <-
+           LabAbi.event_words(
+             Lab.abi!(config, :auction),
+             "BidSubmitted(uint256,address,uint256,uint128)",
+             logs,
+             context.auction_address
+           ),
+         {:ok, owner} <- Abi.word_address(owner_word),
+         true <- Address.equal?(owner, context.signer),
+         true <- price == context.max_price_q96 and amount == context.amount_atomic do
+      placed(context, bid_id, amount)
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  # Only the adapter's own `StockBidPlaced` for this auction and this owner
+  # records a USDC bid; its bid id and committed stock are read from it.
+  def result(context, "usdc_bid", logs) do
+    with {:ok, stocks} <- StocksLab.current(),
+         {:ok, {[auction_word, owner_word, bid_id], [usdc_spent, stock_committed, price]}} <-
+           LabAbi.event_words(
+             StocksLab.abi!(stocks, :bid_adapter),
+             StocksLabAbi.bid_placed_signature(),
+             logs,
+             context.adapter
+           ),
+         {:ok, auction} <- Abi.word_address(auction_word),
+         {:ok, owner} <- Abi.word_address(owner_word),
+         true <- Address.equal?(auction, context.auction_address),
+         true <- Address.equal?(owner, context.signer),
+         true <- price == context.max_price_q96 and usdc_spent == context.usdc_atomic do
+      placed(context, bid_id, stock_committed)
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  def result(_context, _approval, _logs), do: nil
+
+  defp placed(context, bid_id, committed),
+    do: %{
+      "onchain_bid_id" => Integer.to_string(bid_id),
+      "amount" => Rpc.format_units(committed, context.currency_decimals)
+    }
+
+  # Reviews
+
+  defp currency_bid(bid, amount) do
+    %{auction: auction, auction_address: address, signer: signer, snapshot: snapshot} = bid
+
+    with :ok <- affordable(snapshot, amount),
+         {:ok, config} <- lab(Lab) do
+      expiration = DateTime.to_unix(DateTime.utc_now()) + @permit2_seconds
+
+      data =
+        LabAbi.encode(
+          Lab.abi!(config, :auction),
+          "submitBid(uint256,uint128,address,uint256,bytes)",
+          [bid.max_price_q96, amount, signer, snapshot.prev_tick_price_q96, "0x"]
+        )
+
+      steps =
+        token_approval(config, snapshot, amount) ++
+          permit2_approval(config, snapshot, amount, expiration) ++
+          [Review.step("bid", address, data)]
+
+      {:ok,
+       %{
+         chain: Client.chain(config),
+         steps: steps,
+         facts:
+           facts(
+             bid,
+             Rpc.format_units(amount, auction.quote_token_decimals),
+             auction.quote_token_symbol,
+             nil
+           ),
+         context:
+           context(bid, %{
+             currency_symbol: auction.quote_token_symbol,
+             amount_atomic: amount
+           })
+       }}
+    end
+  end
+
+  defp usdc_bid(%{auction: auction, snapshot: snapshot, signer: signer} = bid, usdc_amount, bps) do
+    with {:ok, usdc} <-
+           chain(
+             LabBidChainClient.usdc_snapshot(%{
+               stock: snapshot.currency,
+               signer: signer,
+               usdc_amount: usdc_amount,
+               version: auction.contracts_version
+             })
+           ),
+         :ok <- usdc_affordable(usdc, usdc_amount),
+         {:ok, min_stock_out} <- min_stock_out(usdc.stock_quote, bps),
+         minimum_units = Rpc.format_units(min_stock_out, auction.quote_token_decimals),
+         {:ok, config} <- lab(StocksLab) do
+      deadline = DateTime.to_unix(DateTime.utc_now()) + @usdc_deadline_seconds
+
+      data =
+        LabAbi.encode(
+          StocksLab.abi!(config, :bid_adapter),
+          "bidWithUsdc(address,uint256,uint128,uint256,uint256,uint256)",
+          [
+            bid.auction_address,
+            usdc_amount,
+            min_stock_out,
+            bid.max_price_q96,
+            snapshot.prev_tick_price_q96,
+            deadline
+          ]
+        )
+
+      steps =
+        usdc_approval(config, usdc, usdc_amount) ++
+          [Review.step("usdc_bid", usdc.adapter, data)]
+
+      {:ok,
+       %{
+         chain: Client.chain(config),
+         steps: steps,
+         facts:
+           facts(
+             bid,
+             Rpc.format_units(usdc_amount, @usdc_decimals),
+             "USDC",
+             minimum_units
+           )
+           |> Map.put(:slippage_percent, BidSlippage.percent(bps)),
+         context:
+           context(bid, %{
+             currency_symbol: "USDC",
+             adapter: usdc.adapter,
+             usdc_atomic: usdc_amount
+           })
+       }}
+    end
+  end
+
+  # What the page shows beside the button: what the bid spends, the most it
+  # pays per token and, for a USDC bid, the least stock the USDC must buy.
+  defp facts(%{auction: auction, max_price_q96: max_price_q96}, pay, pay_symbol, min_stock_out),
+    do: %{
+      pay: pay,
+      pay_symbol: pay_symbol,
+      max_price: BidPrice.decimal(max_price_q96, auction.quote_token_decimals),
+      currency_symbol: auction.quote_token_symbol,
+      token_symbol: auction.token_symbol,
+      min_stock_out: min_stock_out
+    }
+
+  defp context(bid, fields),
+    do:
+      Map.merge(
+        %{
+          auction_id: bid.auction.id,
+          auction_address: bid.auction_address,
+          signer: bid.signer,
+          max_price_q96: bid.max_price_q96,
+          max_price: BidPrice.decimal(bid.max_price_q96, bid.auction.quote_token_decimals),
+          currency_decimals: bid.auction.quote_token_decimals
+        },
+        fields
+      )
+
+  defp usdc_approval(_config, %{usdc_allowance: allowance}, amount) when allowance >= amount,
+    do: []
+
+  defp usdc_approval(config, usdc, amount),
+    do: [
+      Review.step(
+        "usdc_approval",
+        usdc.usdc,
+        LabAbi.encode(StocksLab.abi!(config, :erc20), "approve(address,uint256)", [
+          usdc.adapter,
+          amount
+        ])
+      )
+    ]
+
+  defp usdc_affordable(%{usdc_balance: balance}, amount) when balance >= amount, do: :ok
+  defp usdc_affordable(_usdc, _amount), do: unavailable(:amount_above_balance)
+
+  defp min_stock_out(quote, bps) when quote > 0 do
+    minimum = BidSlippage.minimum(quote, bps)
+    if minimum in 1..@uint128_max, do: {:ok, minimum}, else: unavailable(:usdc_route_unavailable)
+  end
+
+  defp min_stock_out(_quote, _bps), do: unavailable(:usdc_route_unavailable)
+
+  defp stocks_auction(%{kind: :stocks}), do: :ok
+  defp stocks_auction(_auction), do: unavailable(:usdc_bids_unavailable)
+
+  # Only the transactions this wallet still needs. An allowance that already
+  # covers the amount and outlives the next ten minutes is spent as it stands.
+  defp token_approval(_config, %{token_allowance: allowance}, amount) when allowance >= amount,
+    do: []
+
+  defp token_approval(config, snapshot, amount),
+    do: [
+      Review.step(
+        "token_approval",
+        snapshot.currency,
+        LabAbi.encode(Lab.abi!(config, :token), "approve(address,uint256)", [
+          snapshot.permit2,
+          amount
+        ])
+      )
+    ]
+
+  defp permit2_approval(config, snapshot, amount, expiration) do
+    if permit2_current?(snapshot, amount),
+      do: [],
+      else: [
+        Review.step(
+          "permit2_approval",
+          snapshot.permit2,
+          LabAbi.encode(
+            Lab.abi!(config, :permit2),
+            "approve(address,address,uint160,uint48)",
+            [snapshot.currency, snapshot.auction, amount, expiration]
+          )
+        )
+      ]
+  end
+
+  # Its expiry stays a plain integer: a canonical `uint48` maximum is a
+  # perfectly good allowance and no calendar can hold it.
+  defp permit2_current?(%{permit2_amount: allowed, permit2_expiration: expires}, amount),
+    do: allowed >= amount and expires >= DateTime.to_unix(DateTime.utc_now()) + @reuse_seconds
+
+  defp lab(module) do
+    case module.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:bid_preparation_unavailable)
+    end
+  end
+
+  # Chain snapshot
+
+  # A Stocks auction takes USDC wherever this site has the Stocks deployment.
+  defp usdc_bids?(%{kind: :stocks}), do: StocksLab.configured?()
+  defp usdc_bids?(_auction), do: false
+
+  defp chain({:ok, value}), do: {:ok, value}
+  defp chain({:error, reason}) when reason in @transient, do: unavailable(:chain_unavailable)
+  defp chain({:error, reason}), do: unavailable(reason)
+
+  # The auction's own currency has to be the one this site recorded for it, so
+  # an amount is never read in one token and spent in another.
+  defp bound_currency(%{currency: currency}, %{quote_token_address: recorded}) do
+    if Address.equal?(currency, recorded),
+      do: :ok,
+      else: unavailable(:auction_currency_changed)
+  end
+
+  # The predecessor tick is the one argument no reviewed production source
+  # supplies yet, so it has to be a word the auction could really hold below
+  # this bid's own price, and it has to come from a source that names itself.
+  defp bounded_predecessor(%{prev_tick_price_q96: hint} = snapshot, max_price_q96)
+       when hint in 0..@uint256_max and hint < max_price_q96,
+       do: reviewed_source(snapshot)
+
+  defp bounded_predecessor(_snapshot, _max_price_q96),
+    do: unavailable(:bid_preparation_unavailable)
+
+  defp reviewed_source(%{predecessor_source: source}) when is_binary(source) and source != "",
+    do: :ok
+
+  defp reviewed_source(_unnamed), do: unavailable(:bid_preparation_unavailable)
+
+  defp affordable(%{currency_balance: balance}, amount) when balance >= amount, do: :ok
+  defp affordable(_snapshot, _amount), do: unavailable(:amount_above_balance)
+
+  # Stored auctions
+
+  defp auction(auction_id) do
+    case Regents.Autolaunch.get_public_auction(auction_id, actor: nil) do
+      {:ok, nil} -> unavailable(:auction_not_found)
+      result -> result
+    end
+  end
+
+  # Only an id can name an auction, so anything else is simply not found; a
+  # read that fails for a real id is the database's, not the caller's. A listed
+  # Robinhood auction stores no clearing price to estimate from, so it is named
+  # as such rather than called missing.
+  defp quoted_auction(auction_id, opts) do
+    opts = Keyword.put(opts, :actor, nil)
+
+    case Ash.Type.UUID.cast_input(auction_id, []) do
+      {:ok, id} when is_binary(id) ->
+        quoted_auction(Regents.Autolaunch.get_public_auction(id, opts), id, opts)
+
+      _not_an_id ->
+        {:error, :auction_not_found}
+    end
+  end
+
+  defp quoted_auction({:ok, %Regents.Autolaunch.Auction{} = auction}, _id, _opts),
+    do: {:ok, auction}
+
+  defp quoted_auction({:ok, nil}, id, opts),
+    do: unquoted_auction(Regents.Autolaunch.get_listed_auction(id, opts))
+
+  defp quoted_auction({:error, _error}, _id, _opts), do: {:error, :database_unavailable}
+
+  defp unquoted_auction({:ok, %Regents.Autolaunch.Auction{chain_id: chain_id}}) do
+    if RobinhoodLab.chain?(chain_id),
+      do: {:error, :estimate_not_offered},
+      else: {:error, :auction_not_found}
+  end
+
+  defp unquoted_auction({:ok, nil}), do: {:error, :auction_not_found}
+  defp unquoted_auction({:error, _error}), do: {:error, :database_unavailable}
+
+  # The auction must raise for the treasury this site recorded for it: a
+  # verified report on Base, the admitted launchpad for a Base memestock
+  # auction, and the recorded addresses on a local fork.
+  defp verified_treasury(auction) do
+    cond do
+      Lab.test_chain?() -> lab_treasury(auction)
+      auction.kind == :stocks -> launchpad_treasury(auction)
+      true -> verified_production_treasury(auction)
+    end
+  end
+
+  defp launchpad_treasury(%{treasury_address: treasury_address} = auction) do
+    with {:ok, launchpad} <- admitted_launchpad(auction) do
+      if Address.equal?(treasury_address, launchpad),
+        do: :ok,
+        else: unavailable(:treasury_security_changed)
+    end
+  end
+
+  # The launchpad of the auction's own contracts version.
+  defp admitted_launchpad(%{contracts_version: version}) do
+    with {:ok, config} <- StocksLab.current(),
+         {:ok, contracts} <- StocksLab.contracts(config, version) do
+      normalize(contracts.launchpad)
+    else
+      {:error, _reason} -> unavailable(:bid_preparation_unavailable)
+    end
+  end
+
+  defp lab_treasury(%{treasury_address: treasury_address}) do
+    with {:ok, _treasury} <- normalize(treasury_address), do: :ok
+  end
+
+  defp verified_production_treasury(%{treasury_security_report: nil}),
+    do: unavailable(:treasury_report_missing)
+
+  defp verified_production_treasury(%{treasury_security_report: %Ash.NotLoaded{}}),
+    do: unavailable(:treasury_report_missing)
+
+  defp verified_production_treasury(%{
+         treasury_address: address,
+         treasury_security_report: %{address: address} = report
+       }) do
+    with {:ok, _report} <- TreasurySecurity.revalidate_bound(report), do: :ok
+  end
+
+  defp verified_production_treasury(_auction), do: unavailable(:treasury_security_changed)
+
+  # Amounts and prices
+
+  @doc """
+  The one typed-amount language, for bids and for the Revstake wallet: exact
+  decimal digits, at most `decimals` places, read straight into an integer.
+  """
+  @spec atomic_amount(term(), non_neg_integer()) :: {:ok, pos_integer()} | {:error, atom()}
+  def atomic_amount(value, decimals) when is_binary(value) and is_integer(decimals) do
+    value = String.trim(value)
+
+    with true <- byte_size(value) <= 100,
+         true <- String.match?(value, ~r/^\d+(?:\.\d{1,#{decimals}})?$/),
+         [whole | fraction] <- String.split(value, "."),
+         fraction <- String.pad_trailing(List.first(fraction) || "", decimals, "0"),
+         amount when amount in 1..@uint128_max <- String.to_integer(whole <> fraction) do
+      {:ok, amount}
+    else
+      _refused -> {:error, :invalid_amount}
+    end
+  end
+
+  def atomic_amount(_value, _decimals), do: {:error, :invalid_amount}
+
+  @doc """
+  The exact Q96 price a decimal maximum price names, in currency base units per
+  NEW base unit: `price * 10^currency_decimals / 10^18`, scaled by 2^96.
+  """
+  @spec price_q96(term(), non_neg_integer()) :: {:ok, pos_integer()} | {:error, atom()}
+  def price_q96(value, currency_decimals)
+      when is_binary(value) and is_integer(currency_decimals) do
+    value = String.trim(value)
+
+    with true <- byte_size(value) <= 100 and String.match?(value, ~r/^(?:\d+(?:\.\d+)?|\.\d+)\z/),
+         [whole | fraction] <- String.split(value, "."),
+         fraction <- List.first(fraction) || "",
+         numerator when numerator > 0 <- String.to_integer(whole <> fraction) do
+      scaled = numerator * @q96 * Integer.pow(10, currency_decimals)
+      quotient = div(scaled, Integer.pow(10, byte_size(fraction) + @new_decimals))
+      if quotient in 1..@uint256_max, do: {:ok, quotient}, else: {:error, :invalid_price}
+    else
+      _ -> {:error, :invalid_decimal}
+    end
+  end
+
+  def price_q96(_, _), do: {:error, :invalid_decimal}
+
+  defp positive_decimal(value, refusal) when is_binary(value) do
+    value = String.trim(value)
+
+    with true <- byte_size(value) <= 100,
+         true <- String.match?(value, ~r/^(?:\d+(?:\.\d+)?|\.\d+)$/),
+         {decimal, ""} <- Decimal.parse(value, max_digits: :infinity),
+         :gt <- Decimal.compare(decimal, 0) do
+      {:ok, decimal}
+    else
+      _refused -> {:error, refusal}
+    end
+  end
+
+  defp positive_decimal(_value, refusal), do: {:error, refusal}
+
+  # The clearing price the auction's reading job stored, read whole: a stored price is
+  # far longer than Decimal's default 34 digits.
+  defp stored_price(value) when is_binary(value) do
+    with true <- String.match?(value, ~r/^\d+(?:\.\d+)?$/),
+         {decimal, ""} <- Decimal.parse(value, max_digits: :infinity) do
+      {:ok, decimal}
+    else
+      _unreadable -> {:error, :price_unreadable}
+    end
+  end
+
+  defp stored_price(_value), do: {:error, :price_unreadable}
+
+  # The tokens `amount` buys at `price`, rounded down to the token's last unit
+  # with whole numbers, so no digit of a long amount or price is rounded away.
+  defp tokens_at(%Decimal{coef: amount, exp: amount_exp}, %Decimal{coef: price, exp: price_exp}) do
+    shift = amount_exp + @token_decimals - price_exp
+
+    units =
+      if shift >= 0,
+        do: div(amount * Integer.pow(10, shift), price),
+        else: div(amount, price * Integer.pow(10, -shift))
+
+    Decimal.new(1, units, -@token_decimals)
+  end
+
+  # Drops trailing zeros by hand: `Decimal.normalize/1` would round a stored
+  # price to the context precision.
+  defp decimal_string(%Decimal{coef: coef, exp: exp} = decimal)
+       when exp < 0 and rem(coef, 10) == 0,
+       do: decimal_string(%{decimal | coef: div(coef, 10), exp: exp + 1})
+
+  defp decimal_string(decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp status_band(false, _max_price, _projected_price), do: "inactive"
+
+  defp status_band(true, max_price, projected_price) do
+    if Decimal.equal?(max_price, projected_price), do: "borderline", else: "active"
+  end
+
+  defp quote_warnings(auction, price_reaches?) do
+    for {true, warning} <- [
+          {auction.state != :active, "auction_not_biddable"},
+          {not price_reaches?, "max_price_below_current_clearing_price"}
+        ],
+        do: warning
+  end
+
+  # Shared helpers
+
+  defp normalize(value) do
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> unavailable(:invalid_address)
+    end
+  end
+
+  # The form asks the amount and price helpers the same question the page does,
+  # so their plain answers become the one typed refusal here.
+  defp refusable({:error, reason}), do: unavailable(reason)
+  defp refusable(result), do: result
+
+  # A typed Ash error, so the refusal survives the action's error class and the
+  # presenter can name the fact that actually stopped the bid.
+  defp unavailable(reason),
+    do:
+      {:error,
+       Ash.Error.Invalid.Unavailable.exception(
+         resource: Regents.Autolaunch.Auction,
+         reason: reason
+       )}
+end

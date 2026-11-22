@@ -1,0 +1,1322 @@
+defmodule RegentsWeb.Autolaunch.Components.AuctionNext do
+  @moduledoc """
+  The pieces of the auction page (`/auctions/<TICKER>/<tail>`), all
+  drawn from one chain reading (`Regents.Autolaunch.AuctionSnapshot`) and the
+  auction's recorded prices:
+
+    * `stage_rail/1` - where the auction is, from creation to its pool;
+    * `figures/1` - the price now, on a Revstake auction the amount raised, and
+      a live countdown to the end of bidding;
+    * `filmstrip/1` - the recorded prices over the bidding window with the
+      release schedule under them, a replay of each recorded price, and the
+      drafted maximum;
+    * `ladder/1` - the prices bids are waiting at, how much is bidding at
+      each, and how much more bidding it takes to reach it;
+    * `receipt/1` and `check_bid/1` - one bid as the auction holds it.
+
+  Prices are shown per million tokens, since one token costs a tiny fraction
+  of the currency; the exact price per token stays beside them. Every figure
+  says where it comes from: read from the chain at a block, worked out from
+  the auction's state at a block, or an estimate.
+  """
+  use Phoenix.Component
+
+  import RegentsWeb.Autolaunch.Components.MinimumWarning
+
+  alias Regents.Autolaunch.{
+    AuctionBook,
+    AuctionFigures,
+    AuctionSnapshot,
+    BidActions,
+    BidPrice,
+    LaunchChain
+  }
+
+  alias Phoenix.LiveView.JS
+  alias Regents.Autolaunch.Stocks.Amounts
+  alias RegentsWeb.Autolaunch.TokenDisplay
+
+  @million Decimal.new(1_000_000)
+  @all_mps 10_000_000
+  # The ladder shows this many prices above the price now; the rest are in its table.
+  @rungs 8
+  # The chart's height takes in bids' maximum prices up to this many times the
+  # highest recorded or drafted price; higher ones sit on its top edge.
+  @bid_reach Decimal.new(4)
+
+  @steps [
+    created: "Created",
+    open: "Bidding open",
+    ended: "Bidding ended",
+    finishing: "Finishing",
+    pool_ready: "Pool ready"
+  ]
+
+  attr :stage, :atom, required: true
+  attr :facts, :map, required: true, doc: "`Regents.Autolaunch.AuctionStage` facts"
+
+  @doc """
+  Where the auction is: each step done, current or still to come, and beside
+  it the three things a bidder acts on, each its own fact: whether refunds are
+  open, whether claims are open, and whether the pool's liquidity is locked.
+  """
+  def stage_rail(assigns) do
+    assigns = assign(assigns, :steps, rail(assigns.stage))
+
+    ~H"""
+    <div class="auction-next-stage">
+      <ol class="auction-next-rail" aria-label="Where this auction is">
+        <li
+          :for={{{_key, label, status}, index} <- Enum.with_index(@steps, 1)}
+          class="auction-next-rail__step"
+          data-status={status}
+          aria-current={status == :current && "step"}
+        >
+          <span class="auction-next-rail__mark" aria-hidden="true">
+            {mark(status, index)}
+          </span>
+          <span class="auction-next-rail__label">
+            {label}<span class="visually-hidden">{status_words(status)}</span>
+          </span>
+        </li>
+      </ol>
+      <dl class="auction-next-facts" aria-label="What bidders can do now">
+        <div data-on={to_string(@facts.refunds_open == true)}>
+          <dt>Refunds</dt>
+          <dd>{if @facts.refunds_open, do: "Open", else: "Not open"}</dd>
+        </div>
+        <div data-on={to_string(@facts.claims_open == true)}>
+          <dt>Claims</dt>
+          <dd>{if @facts.claims_open, do: "Open", else: "Not yet"}</dd>
+        </div>
+        <div data-on={to_string(@facts.liquidity_locked == true)}>
+          <dt>
+            Pool liquidity
+            <Regent.Primitives.tip id="auction-next-locked-tip" label="About pool liquidity">
+              Whether every position of the auction's pool is held by the locker, so its liquidity cannot be pulled.
+            </Regent.Primitives.tip>
+          </dt>
+          <dd>{locked_word(@facts.liquidity_locked)}</dd>
+        </div>
+      </dl>
+    </div>
+    """
+  end
+
+  defp locked_word(true), do: "Locked"
+  defp locked_word(false), do: "Not locked"
+  defp locked_word(nil), do: "No pool yet"
+
+  defp rail(:failed) do
+    done = @steps |> Enum.take(3) |> Enum.map(fn {key, label} -> {key, label, :done} end)
+    done ++ [{:failed, "Minimum not reached", :failed}]
+  end
+
+  defp rail(stage) do
+    current = Enum.find_index(@steps, fn {key, _label} -> key == stage end)
+
+    @steps
+    |> Enum.with_index()
+    |> Enum.map(fn {{key, label}, index} ->
+      {key, label, status(index, current, stage)}
+    end)
+  end
+
+  defp status(index, current, :pool_ready) when index == current, do: :current
+  defp status(index, current, _stage) when index < current, do: :done
+  defp status(index, current, _stage) when index == current, do: :current
+  defp status(_index, _current, _stage), do: :next
+
+  defp mark(:done, _index), do: "✓"
+  defp mark(:failed, _index), do: "!"
+  defp mark(_status, index), do: index
+
+  defp status_words(:done), do: ", done"
+  defp status_words(:current), do: ", now"
+  defp status_words(:failed), do: ", the auction ended here"
+  defp status_words(:next), do: ", still to come"
+
+  attr :snapshot, :map, required: true
+
+  attr :auction, :map, required: true, doc: "the auction's stored record"
+
+  attr :raised, :string,
+    default: nil,
+    doc: "a Revstake auction's currency raised in whole currency; a Memestock auction shows none"
+
+  attr :symbol, :string, required: true
+  attr :token_symbol, :string, required: true
+  attr :chain, :atom, required: true
+
+  @doc """
+  The price now per million tokens, on a Revstake auction the amount raised,
+  and a live countdown to the end of bidding. The countdown runs to a time
+  worked out from the blocks left and the chain's block time, so it is an
+  estimate; the end block it counts to is shown under it. The last line of the
+  countdown names the minimum, only in the last 30 minutes of bidding and only
+  while the bids are short of it; its space is always kept.
+  """
+  def figures(assigns) do
+    assigns =
+      assign(assigns,
+        ends_at: ends_at(assigns.snapshot, assigns.chain),
+        short_from: AuctionFigures.minimum_warning_from(assigns.auction)
+      )
+
+    ~H"""
+    <dl class="auction-next-figures">
+      <div class="auction-next-figure">
+        <dt>
+          {if @ends_at, do: "Price now", else: "Final price"} · per 1M {@token_symbol}
+          <Regent.Primitives.tip id="auction-next-price-tip" label="About the price">
+            {if @ends_at,
+              do:
+                "The auction starts at a floor price and goes up over time, with each block clearing at the highest price where demand exceeds supply.",
+              else:
+                "The price the last block of bidding cleared at. Every winning bid pays this price for its tokens."}
+          </Regent.Primitives.tip>
+        </dt>
+        <dd>
+          <strong
+            id="auction-next-price"
+            class="auction-next-figure__value"
+            phx-hook="MotionCount"
+            data-variant={RegentsWeb.Motion.standard("count")}
+          >
+            <TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} />
+          </strong>
+          <Regent.Primitives.disclosure
+            id="auction-next-exact"
+            summary="Exact"
+            class="auction-next-figure__note"
+            phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["open"])}
+          >
+            <p><TokenDisplay.price amount={@snapshot.clearing} unit={@symbol} /> per token.</p>
+            <p>Read from the chain at block {grouped(@snapshot.block.number)}.</p>
+            <p>{ending(@snapshot)}</p>
+          </Regent.Primitives.disclosure>
+        </dd>
+      </div>
+      <div :if={@raised} class="auction-next-figure">
+        <dt>Raised</dt>
+        <dd>
+          <strong
+            id="auction-next-raised"
+            class="auction-next-figure__value"
+            phx-hook="MotionCount"
+            data-variant={RegentsWeb.Motion.standard("count")}
+          >
+            <TokenDisplay.price amount={@raised} unit={@symbol} />
+          </strong>
+          <span class="auction-next-figure__note">Spent by bids so far.</span>
+        </dd>
+      </div>
+      <div class="auction-next-figure">
+        <dt>{if @ends_at, do: "Bidding ends", else: "Bidding ended"}</dt>
+        <dd>
+          <strong
+            :if={@ends_at}
+            id="auction-next-countdown"
+            class="auction-next-figure__value"
+            phx-hook=".Countdown"
+            phx-update="ignore"
+            data-ends-at={@ends_at}
+          >
+            {countdown(@ends_at - System.os_time(:millisecond))}
+          </strong>
+          <strong :if={!@ends_at} class="auction-next-figure__value">Ended</strong>
+          <span class="auction-next-figure__block">Block {grouped(@snapshot.blocks.end)}</span>
+          <span class="auction-next-figure__short">
+            <.minimum_warning id="auction-next-minimum" from={@short_from}>
+              Below the
+              <TokenDisplay.price amount={AuctionFigures.minimum_units(@auction)} unit={@symbol} />
+              minimum
+              <Regent.Primitives.tip id="auction-next-minimum-tip" label="About the minimum">
+                If bidding ends below the minimum, every bidder can withdraw their whole bid.
+              </Regent.Primitives.tip>
+            </.minimum_warning>
+          </span>
+        </dd>
+      </div>
+    </dl>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".Countdown">
+      // Counts down to the end time the server worked out, in days, hours and
+      // minutes, written the same way as the server's first render.
+      const pad = (value) => String(value).padStart(2, "0")
+
+      const words = (left) => {
+        if (left <= 0) return "Ending now"
+        const minutes = Math.floor(left / 60000)
+        if (minutes < 1) return "Under 1m"
+        const days = Math.floor(minutes / 1440)
+        const hours = Math.floor((minutes % 1440) / 60)
+        const rest = minutes % 60
+        if (days > 0) return `${days}d ${pad(hours)}h ${pad(rest)}m`
+        if (hours > 0) return `${hours}h ${pad(rest)}m`
+        return `${rest}m`
+      }
+
+      export default {
+        mounted() {
+          this.tick()
+          this.timer = setInterval(() => this.tick(), 1000)
+        },
+        destroyed() {
+          clearInterval(this.timer)
+        },
+        tick() {
+          const text = words(Number(this.el.dataset.endsAt) - Date.now())
+          if (this.el.textContent !== text) this.el.textContent = text
+        }
+      }
+    </script>
+    """
+  end
+
+  defp ends_at(%{clock: clock, blocks: %{end: finish}}, _chain) when clock >= finish, do: nil
+
+  defp ends_at(%{clock: clock, blocks: %{end: finish}}, chain),
+    do: System.os_time(:millisecond) + round(LaunchChain.seconds(chain, finish - clock) * 1000)
+
+  defp countdown(left) when left <= 0, do: "Ending now"
+
+  defp countdown(left) do
+    minutes = div(left, 60_000)
+    {days, hours, rest} = {div(minutes, 1440), div(rem(minutes, 1440), 60), rem(minutes, 60)}
+
+    cond do
+      minutes < 1 -> "Under 1m"
+      days > 0 -> "#{days}d #{pad(hours)}h #{pad(rest)}m"
+      hours > 0 -> "#{hours}h #{pad(rest)}m"
+      true -> "#{rest}m"
+    end
+  end
+
+  defp pad(value), do: value |> Integer.to_string() |> String.pad_leading(2, "0")
+
+  defp ending(%{clock: clock, blocks: %{end: finish}}) when clock >= finish,
+    do: "The auction's clock is at block #{grouped(clock)}."
+
+  defp ending(%{clock: clock, blocks: %{end: finish}}),
+    do: "#{grouped(finish - clock)} blocks away. The time is estimated from block times."
+
+  attr :id, :string, required: true
+
+  @doc "How to bid in a continuous clearing auction, beside the bid form."
+  def how_to_bid(assigns) do
+    ~H"""
+    <section id={@id} class="auction-next-card auction-next-howto" aria-labelledby={"#{@id}-title"}>
+      <header class="auction-next-card__head">
+        <h2 id={"#{@id}-title"}>Bidding</h2>
+      </header>
+      <ul class="auction-next-howto__list">
+        <li>You set a total budget and the max price you would pay for a token.</li>
+        <li>Your budget is spread across all remaining blocks and spent over time, like a TWAP.</li>
+        <li>
+          Each block where the price is below your max price, part of your budget buys tokens.
+          Once the price passes your max price, the rest stops buying.
+        </li>
+      </ul>
+      <p class="auction-next-howto__advice">
+        <strong>Bid early with your real max budget and your real max price.</strong>
+        Your max price means you never buy a single token above what you are willing to pay, and
+        waiting only gets you a worse average price. Everyone buys at the same rates, with no
+        advantage for advanced users or MEV bots.
+      </p>
+      <.link navigate="/how-it-works#how-it-works-auction" class="auction-next-link">
+        How the auction works
+      </.link>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :snapshot, :map, required: true
+  attr :points, :list, required: true, doc: "the auction's recorded prices, oldest first"
+  attr :bids, :list, default: [], doc: "the auction's placed bids, each marked at its maximum"
+  attr :draft, :string, default: nil, doc: "the maximum price per token being drafted"
+  attr :at, :integer, default: nil, doc: "the recorded price being replayed; nil for the latest"
+  attr :symbol, :string, required: true
+  attr :token_symbol, :string, required: true
+
+  @doc """
+  The recorded prices across the whole bidding window, with nothing drawn past
+  now, the release schedule under them, each placed bid's maximum price as a
+  short mark at the block it was placed, and the drafted maximum as a dashed
+  line. The slider replays the recorded prices one at a time, saying what the
+  auction had recorded by then; it sends `scrub` with `checkpoint` and
+  `scrub_now` to the page.
+  """
+  def filmstrip(assigns) do
+    assigns =
+      assign(assigns,
+        film: film(assigns),
+        ended: assigns.snapshot.clock >= assigns.snapshot.blocks.end
+      )
+
+    ~H"""
+    <section id={@id} class="auction-next-card auction-next-film" aria-labelledby={"#{@id}-title"}>
+      <header class="auction-next-film__head">
+        <h2 id={"#{@id}-title"}>Price</h2>
+        <p class="auction-next-film__subtitle">Per 1M {@token_symbol}</p>
+      </header>
+      <p class="auction-next-lead">
+        {if @ended,
+          do:
+            "The line is the price each block recorded; the bars are the supply each stage releases.",
+          else:
+            "The line is the price each block recorded, the dashed line is your max price, and the bars are the supply each stage releases."}
+      </p>
+      <div class="auction-next-film__plot">
+        <span class="auction-next-film__axis auction-next-film__axis--top">
+          <TokenDisplay.price amount={per_million(@film.top)} unit={@symbol} />
+        </span>
+        <span class="auction-next-film__axis auction-next-film__axis--zero">0</span>
+        <div class="auction-next-film__canvas">
+          <svg
+            viewBox="0 0 600 200"
+            preserveAspectRatio="none"
+            role="img"
+            aria-labelledby={"#{@id}-summary"}
+          >
+            <rect
+              class="auction-next-film__future"
+              x={@film.now_x}
+              y="0"
+              width={600 - @film.now_x}
+              height="200"
+            />
+            <path :if={@film.area} class="auction-next-film__area" d={@film.area} />
+            <path
+              :if={@film.line}
+              class="auction-next-film__price"
+              d={@film.line}
+              vector-effect="non-scaling-stroke"
+            />
+            <line
+              :for={mark <- @film.marks}
+              class="auction-next-film__bid"
+              data-above={to_string(mark.above)}
+              x1={mark.x1}
+              x2={mark.x2}
+              y1={mark.y}
+              y2={mark.y}
+              vector-effect="non-scaling-stroke"
+            />
+            <line
+              :if={@film.draft_y}
+              class="auction-next-film__draft"
+              x1="0"
+              x2="600"
+              y1={@film.draft_y}
+              y2={@film.draft_y}
+              vector-effect="non-scaling-stroke"
+            />
+            <line
+              class="auction-next-film__now"
+              x1={@film.now_x}
+              x2={@film.now_x}
+              y1="0"
+              y2="200"
+              vector-effect="non-scaling-stroke"
+            />
+            <line
+              :if={@film.scrub}
+              class="auction-next-film__scrub"
+              x1={@film.scrub.x}
+              x2={@film.scrub.x}
+              y1="0"
+              y2="200"
+              vector-effect="non-scaling-stroke"
+            />
+          </svg>
+          <span
+            :if={@film.scrub}
+            class="auction-next-film__dot"
+            style={"left: #{@film.scrub.x / 6}%; top: #{@film.scrub.y / 2}%"}
+            aria-hidden="true"
+          ></span>
+        </div>
+      </div>
+      <p class="auction-next-film__band-label">
+        Supply released per block, by schedule stage
+        <Regent.Primitives.tip id={"#{@id}-band-tip"} label="About the supply schedule">
+          Every CCA bid is split across all blocks for the remaining auction, in step with how much of the supply each block releases.
+        </Regent.Primitives.tip>
+      </p>
+      <svg
+        class="auction-next-film__band"
+        viewBox="0 0 600 48"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <rect
+          :for={bar <- @film.bars}
+          class={"auction-next-film__bar auction-next-film__bar--#{bar.kind}"}
+          x={bar.x}
+          y={48 - bar.h}
+          width={bar.w}
+          height={bar.h}
+        />
+      </svg>
+      <p :for={lump <- @film.lumps} class="auction-next-source">
+        Block {grouped(lump.block)} releases {lump.share} of the supply at once.
+      </p>
+      <div class="auction-next-film__ends">
+        <span>Opened · block {grouped(@snapshot.blocks.start)}</span>
+        <span>{if @ended, do: "Ended", else: "Ends"} · block {grouped(@snapshot.blocks.end)}</span>
+      </div>
+      <ul class="auction-next-legend" role="list">
+        <li class="auction-next-legend__price">Recorded price</li>
+        <li :if={@film.marks != []} class="auction-next-legend__bid">
+          Bids' maximum prices
+          <Regent.Primitives.tip id={"#{@id}-bids-tip"} label="About the bid marks">
+            Each mark is one placed bid's maximum price, at the block it was placed. A mark on the top edge is above the chart.
+          </Regent.Primitives.tip>
+        </li>
+        <li :if={@film.draft_y} class="auction-next-legend__draft">Your draft maximum</li>
+        <li
+          :if={!@film.draft_y && !@ended}
+          class="auction-next-legend__draft auction-next-legend--off"
+        >
+          Your draft maximum (type one in the bid form)
+        </li>
+        <li class="auction-next-legend__released">Released so far</li>
+        <li :if={!@ended} class="auction-next-legend__upcoming">Still to release</li>
+      </ul>
+
+      <form
+        :if={@film.count > 0}
+        id={"#{@id}-scrub"}
+        class="auction-next-film__scrubber"
+        phx-change="scrub"
+        phx-submit="scrub"
+      >
+        <label for={"#{@id}-checkpoint"}>
+          Replay the recorded prices <span>Price {@film.index + 1} of {@film.count}</span>
+        </label>
+        <input
+          id={"#{@id}-checkpoint"}
+          type="range"
+          name="checkpoint"
+          min="0"
+          max={@film.count - 1}
+          step="1"
+          value={@film.index}
+          aria-valuetext={"Price #{@film.index + 1} of #{@film.count}, block #{grouped(@film.scrub.block)}"}
+        />
+      </form>
+      <p id={"#{@id}-summary"} class="auction-next-film__reading" aria-live="polite">
+        {summary(@film, @symbol, @token_symbol)}
+      </p>
+      <p :if={@draft && @film.draft_note} class="auction-next-note" data-tone={@film.draft_note.tone}>
+        {@film.draft_note.text}
+      </p>
+      <button
+        :if={@at}
+        type="button"
+        class="auction-next-link"
+        phx-click="scrub_now"
+      >
+        Back to the latest price
+      </button>
+      <p class="auction-next-source">
+        Prices: each one the auction recorded, from its events on the chain. Schedule: read
+        from the auction at block {grouped(@snapshot.block.number)}. No future price is drawn.
+      </p>
+
+      <Regent.Primitives.disclosure id={"#{@id}-table"} summary="Table">
+        <table class="auction-next-table">
+          <caption>Recorded prices, per 1M {@token_symbol}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Block</th>
+              <th scope="col">Price per 1M</th>
+              <th scope="col">Sold so far</th>
+              <th scope="col">Supply released by then</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={point <- @points}>
+              <td>{grouped(point.clock_block)}</td>
+              <td>
+                <TokenDisplay.price amount={per_million(point.clearing_price)} unit={@symbol} />
+              </td>
+              <td><TokenDisplay.price amount={plain(point.sold)} unit={@symbol} /></td>
+              <td>{released_percent(@snapshot.schedule, point.clock_block)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <table class="auction-next-table">
+          <caption>Release schedule</caption>
+          <thead>
+            <tr>
+              <th scope="col">Blocks</th>
+              <th scope="col">Share of supply per block</th>
+              <th scope="col">Share of supply in this stage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={step <- @snapshot.schedule}>
+              <td>{grouped(step.from)} to {grouped(step.to)}</td>
+              <td>{share(step.mps)}</td>
+              <td>{share(step.mps * (step.to - step.from))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Regent.Primitives.disclosure>
+    </section>
+    """
+  end
+
+  # Everything the chart draws, on a 600 by 200 box for prices and 600 by 48
+  # for the schedule, over the whole bidding window.
+  defp film(%{snapshot: snapshot, points: points, bids: bids, draft: draft, at: at}) do
+    %{start: start, end: finish} = snapshot.blocks
+    span = max(finish - start, 1)
+    x = fn block -> Float.round(min(max(block - start, 0), span) * 600 / span, 2) end
+    now = snapshot.clock |> max(start) |> min(finish)
+    steps = Enum.map(points, &{&1.clock_block, &1.clearing_price})
+    draft = draft_decimal(draft)
+
+    base =
+      [exact(snapshot.clearing) | Enum.map(steps, &elem(&1, 1))]
+      |> then(&if(draft, do: [draft | &1], else: &1))
+      |> Enum.max(Decimal)
+
+    top =
+      bids
+      |> Enum.map(& &1.max_price)
+      |> Enum.filter(&Decimal.lt?(&1, Decimal.mult(base, @bid_reach)))
+      |> Enum.max(Decimal, fn -> base end)
+      |> Decimal.max(base)
+      |> Decimal.mult(Decimal.new("1.15"))
+      |> then(&if(Decimal.gt?(&1, 0), do: &1, else: Decimal.new(1)))
+
+    y = fn value ->
+      Float.round(200 - Decimal.to_float(Decimal.div(Decimal.mult(value, 200), top)), 2)
+    end
+
+    tallest = tallest_rate(snapshot.schedule)
+    count = length(points)
+    index = if at, do: min(at, count - 1), else: count - 1
+
+    %{
+      top: plain(top),
+      now_x: x.(now),
+      line: price_line(steps, x, y, now),
+      area: price_area(steps, x, y, now),
+      draft_y: draft && y.(draft),
+      marks: marks(bids, x, y, top),
+      draft_note: draft && draft_note(draft, snapshot),
+      bars: bars(snapshot.schedule, x, snapshot.clock, tallest),
+      lumps: lumps(snapshot.schedule, tallest),
+      count: count,
+      index: index,
+      scrub: scrub(points, index, x, y, snapshot.schedule)
+    }
+  end
+
+  # Each placed bid's maximum as a short level mark at its block; a maximum
+  # above the chart sits on its top edge.
+  defp marks(bids, x, y, top) do
+    Enum.map(bids, fn %{clock_block: block, max_price: max_price} ->
+      at = x.(block)
+      above = Decimal.gt?(max_price, top)
+
+      %{
+        x1: Float.round(max(at - 4, 0.0), 2),
+        x2: Float.round(min(at + 4, 600.0), 2),
+        y: if(above, do: 1.0, else: y.(max_price)),
+        above: above
+      }
+    end)
+  end
+
+  defp price_line([], _x, _y, _now), do: nil
+
+  defp price_line(steps, x, y, now) do
+    {segments, last_y} =
+      Enum.map_reduce(steps, nil, fn {block, price}, previous ->
+        {px, py} = {x.(block), y.(price)}
+
+        segment =
+          case previous do
+            nil -> "M#{px},#{py}"
+            before -> "L#{px},#{before} L#{px},#{py}"
+          end
+
+        {segment, py}
+      end)
+
+    Enum.join(segments, " ") <> " L#{x.(now)},#{last_y}"
+  end
+
+  defp price_area([], _x, _y, _now), do: nil
+
+  defp price_area([{first, _price} | _rest] = steps, x, y, now),
+    do: price_line(steps, x, y, now) <> " L#{x.(now)},200 L#{x.(first)},200 Z"
+
+  # The bars are scaled to the fastest stage lasting more than one block. A
+  # one-block stage can release a large share at once; it is drawn full height
+  # and named beneath the bars, so it does not flatten every other stage.
+  defp tallest_rate(schedule) do
+    schedule
+    |> Enum.reject(&(&1.to - &1.from == 1))
+    |> Enum.map(& &1.mps)
+    |> Enum.max(fn -> 1 end)
+    |> max(1)
+  end
+
+  defp lumps(schedule, tallest) do
+    for %{from: from, to: to, mps: mps} <- schedule,
+        to - from == 1,
+        mps > tallest,
+        do: %{block: from, share: share(mps)}
+  end
+
+  # Each schedule stage as a bar as tall as its rate per block, split where
+  # the auction's clock is now into what it has released and what it has not.
+  defp bars(schedule, x, clock, tallest) do
+    Enum.flat_map(schedule, fn %{from: from, to: to, mps: mps} ->
+      h = Float.round(min(max(mps * 44 / tallest, if(mps > 0, do: 2.0, else: 0.0)), 44.0), 2)
+
+      [
+        {:released, from, min(to, clock)},
+        {:upcoming, max(from, clock), to}
+      ]
+      |> Enum.filter(fn {_kind, a, b} -> b > a end)
+      |> Enum.map(fn {kind, a, b} ->
+        w = max(Float.round(x.(b) - x.(a) - 0.6, 2), 2.0)
+        %{kind: kind, x: min(x.(a), 600 - w), w: w, h: h}
+      end)
+    end)
+  end
+
+  defp scrub([], _index, _x, _y, _schedule), do: nil
+
+  defp scrub(points, index, x, y, schedule) do
+    point = Enum.at(points, index)
+
+    %{
+      block: point.clock_block,
+      x: x.(point.clock_block),
+      y: y.(point.clearing_price),
+      price: plain(point.clearing_price),
+      sold: plain(point.sold),
+      released: released_percent(schedule, point.clock_block)
+    }
+  end
+
+  defp summary(%{scrub: nil}, _symbol, _token_symbol),
+    do: "No price recorded yet. The first one appears once the auction records a bid."
+
+  defp summary(%{scrub: scrub}, symbol, token_symbol),
+    do:
+      "At block #{grouped(scrub.block)} the price was #{TokenDisplay.short(per_million(scrub.price))} #{symbol} per 1M #{token_symbol}, " <>
+        "#{TokenDisplay.short(scrub.sold)} #{symbol} had been spent on tokens, and the schedule had released #{scrub.released} of the supply."
+
+  defp draft_note(draft, %{clearing: clearing}) do
+    if Decimal.gt?(draft, exact(clearing)),
+      do: %{
+        tone: "above",
+        text:
+          "Your draft maximum is above the price now. What it buys still depends on how bidding goes from here."
+      },
+      else: %{
+        tone: "below",
+        text:
+          "Your draft maximum is at or below the price now, so a bid at it would not buy tokens."
+      }
+  end
+
+  attr :id, :string, required: true
+  attr :snapshot, :map, required: true
+  attr :draft, :string, default: nil, doc: "the maximum price per token being drafted"
+  attr :symbol, :string, required: true
+  attr :token_symbol, :string, required: true
+  attr :bid_form, :string, required: true, doc: "the bid form's DOM id, for \"Use this price\""
+
+  @doc """
+  The prices bids are waiting at above the price now, lowest nearest the
+  price: the bidding at each, and the further bidding it takes before the
+  price reaches it, worked out as the auction's own lens does. The drafted
+  maximum sits among them with its own figure.
+
+  Above them, a handle sets the drafted maximum one allowed price at a time,
+  by dragging or with the arrow keys: it sends `price_handle` with `step` to
+  the page, which hands the price to the bid form (`handle_price/2`). It only
+  fills in the form's maximum; nothing is sent from it. Beside it, the allowed
+  price the drafted maximum works out to and the next allowed prices above.
+  """
+  def ladder(assigns) do
+    assigns = assign(assigns, view: ladder_view(assigns), handle: handle_view(assigns))
+
+    ~H"""
+    <section id={@id} class="auction-next-card auction-next-ladder" aria-labelledby={"#{@id}-title"}>
+      <header class="auction-next-card__head">
+        <h2 id={"#{@id}-title"}>Waiting bids</h2>
+        <Regent.Primitives.status>Price per 1M {@token_symbol}</Regent.Primitives.status>
+      </header>
+      <p class="auction-next-lead">
+        Each row is a maximum price bids are waiting at. "More bidding needed" is how much
+        more would have to be bid before the price reaches that row. It is a picture of now,
+        not a forecast.
+      </p>
+      <p class="auction-next-lead">
+        The price stays at the floor until there is enough demand to buy out the entire auction
+        at the floor or higher. At that point every bid above the floor pushes the clearing
+        price up, again spread across all remaining blocks. Simple supply and demand.
+      </p>
+      <div :if={@snapshot.price_to_beat} class="auction-next-ladder__beat">
+        <span>
+          To start buying now, bid at least
+          <strong><TokenDisplay.price amount={per_million(@snapshot.price_to_beat)} unit={@symbol} /></strong>
+          per 1M
+        </span>
+        <Regent.Primitives.button
+          type="button"
+          variant="secondary"
+          phx-click={
+            "use_price"
+            |> JS.push(value: %{price: @snapshot.price_to_beat}, target: "##{@bid_form}")
+            |> JS.focus(to: "##{@bid_form}-max-fdv")
+          }
+        >
+          Use this price
+        </Regent.Primitives.button>
+      </div>
+      <form
+        :if={@handle}
+        id={"#{@id}-handle"}
+        class="auction-next-handle"
+        phx-change="price_handle"
+        phx-submit="price_handle"
+      >
+        <label for={"#{@id}-handle-step"}>Your price limit</label>
+        <input
+          id={"#{@id}-handle-step"}
+          type="range"
+          name="step"
+          min="0"
+          max={@handle.steps}
+          step="1"
+          value={@handle.at}
+          phx-throttle="120"
+          aria-describedby={"#{@id}-handle-reading"}
+          aria-valuetext={@handle.words}
+        />
+        <dl id={"#{@id}-handle-reading"} class="auction-next-handle__reading">
+          <div>
+            <dt>
+              Counts as
+              <Regent.Primitives.tip id={"#{@id}-handle-tip"} label="About the price grid">
+                The auction only takes prices on its grid. A maximum between two grid prices counts as the lower one.
+              </Regent.Primitives.tip>
+            </dt>
+            <dd>
+              <span :if={@handle.effective}>
+                <TokenDisplay.price amount={per_million(@handle.effective)} unit={@symbol} /> per 1M
+              </span>
+              <span :if={!@handle.effective}>Drag or use the arrow keys</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Next allowed prices</dt>
+            <dd>
+              <span :for={price <- @handle.next} class="auction-next-handle__next">
+                <TokenDisplay.price amount={per_million(price)} unit={@symbol} />
+              </span>
+            </dd>
+          </div>
+          <div data-tone={@handle.buys && "on"}>
+            <dt>At this limit</dt>
+            <dd>{handle_buys(@handle.buys)}</dd>
+          </div>
+        </dl>
+      </form>
+      <ol class="auction-next-ladder__rows" role="list">
+        <li :if={@view.hidden > 0} class="auction-next-ladder__more">
+          {@view.hidden} higher {if @view.hidden == 1, do: "price", else: "prices"} in the table below
+        </li>
+        <li class="auction-next-ladder__head" aria-hidden="true">
+          <span>Price per 1M</span><span>Bidding here</span><span>More bidding needed</span>
+        </li>
+        <li
+          :for={row <- @view.rows}
+          class="auction-next-ladder__row"
+          data-kind={row.kind}
+        >
+          <span class="auction-next-ladder__price">
+            <TokenDisplay.price amount={per_million(row.price)} unit={@symbol} />
+            <small :if={row.kind == :draft}>Your draft maximum</small>
+          </span>
+          <span class="auction-next-ladder__bidding">
+            <span class="auction-next-ladder__bar" aria-hidden="true">
+              <span style={"width: #{row.width}%"}></span>
+            </span>
+            <span :if={row.bidding}><TokenDisplay.price amount={row.bidding} unit={@symbol} /></span>
+            <span :if={!row.bidding}>—</span>
+          </span>
+          <span class="auction-next-ladder__needed">
+            <small class="auction-next-ladder__needed-label">More bidding needed</small>
+            <TokenDisplay.price amount={row.needed} unit={@symbol} fallback="Reached" />
+          </span>
+        </li>
+        <li class="auction-next-ladder__now">
+          <span>Price now</span>
+          <span><TokenDisplay.price amount={per_million(@snapshot.clearing)} unit={@symbol} /></span>
+        </li>
+      </ol>
+      <p :if={@view.rows == []} class="auction-next-note">
+        No bids are waiting above the price now.
+      </p>
+      <p :if={@view.draft_below} class="auction-next-note" data-tone="below">
+        Your draft maximum is at or below the price now, so it is not on the ladder.
+      </p>
+      <p :if={!@snapshot.ladder.complete?} class="auction-next-note">
+        Only the lowest 1,000 prices were read; higher ones are not shown.
+      </p>
+      <p class="auction-next-source">
+        Worked out from the auction's state as it last recorded it, at block {grouped(
+          @snapshot.ladder.state.checkpoint_block
+        )}. Bids placed since then count once the
+        auction records again.
+      </p>
+      <Regent.Primitives.disclosure
+        :if={@snapshot.ladder.rungs != []}
+        id={"#{@id}-table"}
+        summary="Table"
+      >
+        <table class="auction-next-table">
+          <caption>Prices bids are waiting at, lowest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">Price per 1M</th>
+              <th scope="col">Bidding here</th>
+              <th scope="col">More bidding needed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={rung <- @snapshot.ladder.rungs}>
+              <td><TokenDisplay.price amount={per_million(rung.price)} unit={@symbol} /></td>
+              <td><TokenDisplay.price amount={rung.bidding} unit={@symbol} /></td>
+              <td><TokenDisplay.price amount={rung.needed} unit={@symbol} fallback="Reached" /></td>
+            </tr>
+          </tbody>
+        </table>
+        <p :if={@snapshot.ladder.more > 0} class="auction-next-note">
+          {grouped(@snapshot.ladder.more)} more {if @snapshot.ladder.more == 1,
+            do: "price is",
+            else: "prices are"} higher than these.
+        </p>
+      </Regent.Primitives.disclosure>
+    </section>
+    """
+  end
+
+  defp ladder_view(%{snapshot: snapshot, draft: draft}) do
+    rungs = snapshot.ladder.rungs
+    shown = Enum.take(rungs, @rungs)
+    draft_q96 = draft_q96(draft, snapshot.decimals)
+    above? = is_integer(draft_q96) and draft_q96 > snapshot.ladder.state.clearing_q96
+
+    rows =
+      Enum.map(
+        shown,
+        &%{
+          kind: :rung,
+          price_q96: &1.price_q96,
+          price: &1.price,
+          bidding: &1.bidding,
+          needed: zero_nil(&1.needed)
+        }
+      )
+
+    rows =
+      if above?,
+        do: [
+          %{
+            kind: :draft,
+            price_q96: draft_q96,
+            price: draft,
+            bidding: nil,
+            needed: zero_nil(AuctionSnapshot.needed_at(draft_q96, snapshot))
+          }
+          | rows
+        ],
+        else: rows
+
+    widest =
+      rows
+      |> Enum.map(&(&1.bidding && exact(&1.bidding)))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.max(Decimal, fn -> Decimal.new(0) end)
+
+    %{
+      hidden: length(rungs) - length(shown),
+      draft_below: is_integer(draft_q96) and not above?,
+      rows:
+        rows
+        |> Enum.sort_by(& &1.price_q96, :desc)
+        |> Enum.map(&Map.put(&1, :width, width(&1.bidding, widest)))
+    }
+  end
+
+  # The handle steps along the auction's price grid from the lowest price that
+  # buys now, as far as a quarter above the highest of the waiting prices and
+  # the drafted maximum, and never past the auction's highest allowed price.
+  @handle_floor_steps 24
+  @next_prices 3
+
+  defp handle_view(%{snapshot: %{price_to_beat_q96: nil}}), do: nil
+
+  defp handle_view(%{snapshot: snapshot, draft: draft}) do
+    %{price_to_beat_q96: low, tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
+    effective = draft |> draft_q96(snapshot.decimals) |> on_grid(snapshot)
+    steps = handle_steps(snapshot, effective)
+    at = if effective && effective >= low, do: min(div(effective - low, spacing), steps), else: 0
+    above = if effective, do: max(effective + spacing, low), else: low
+    price = effective && BidPrice.decimal(effective, snapshot.decimals)
+
+    %{
+      steps: steps,
+      at: at,
+      effective: price,
+      next:
+        for(
+          n <- 0..(@next_prices - 1),
+          above + n * spacing <= cap,
+          do: BidPrice.decimal(above + n * spacing, snapshot.decimals)
+        ),
+      buys: effective && effective >= low,
+      words: handle_words(price, at, steps)
+    }
+  end
+
+  defp on_grid(nil, _snapshot), do: nil
+
+  defp on_grid(q96, %{tick_spacing_q96: spacing, max_bid_price_q96: cap}),
+    do: div(min(q96, cap), spacing) * spacing
+
+  defp handle_steps(snapshot, effective) do
+    %{price_to_beat_q96: low, tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
+
+    high =
+      [snapshot.ladder.highest_q96, effective, low]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.max()
+
+    ((high - low) * 5)
+    |> div(4 * spacing)
+    |> max(@handle_floor_steps)
+    |> min(div(cap - low, spacing))
+  end
+
+  defp handle_words(nil, _at, _steps), do: "No limit drafted yet"
+
+  defp handle_words(price, at, steps),
+    do: "#{TokenDisplay.short(per_million(price))} per 1M, step #{at} of #{steps}"
+
+  defp handle_buys(nil), do: "No limit set yet"
+  defp handle_buys(true), do: "Buys while the price is below it"
+  defp handle_buys(false), do: "Would not buy: not above the price now"
+
+  @doc """
+  The price the handle's `step` names, as the bid form takes it: that many
+  grid steps above the lowest price that buys now, never past the auction's
+  highest allowed price.
+  """
+  @spec handle_price(map(), String.t()) :: {:ok, String.t()} | :error
+  def handle_price(%{price_to_beat_q96: low} = snapshot, step) when is_integer(low) do
+    %{tick_spacing_q96: spacing, max_bid_price_q96: cap} = snapshot
+
+    case Integer.parse(step) do
+      {step, ""} when step >= 0 and low + step * spacing <= cap ->
+        {:ok, AuctionBook.typed(low + step * spacing, snapshot)}
+
+      _unreadable ->
+        :error
+    end
+  end
+
+  def handle_price(_snapshot, _step), do: :error
+
+  defp width(nil, _widest), do: 0
+
+  defp width(amount, widest) do
+    if Decimal.gt?(widest, 0),
+      do:
+        amount
+        |> exact()
+        |> Decimal.mult(100)
+        |> Decimal.div(widest)
+        |> Decimal.round(1)
+        |> Decimal.to_float(),
+      else: 0
+  end
+
+  defp zero_nil(nil), do: nil
+  defp zero_nil(amount), do: if(Decimal.eq?(exact(amount), 0), do: nil, else: amount)
+
+  attr :id, :string, required: true
+  attr :receipt, :map, required: true, doc: "`Regents.Autolaunch.BidReceipt`"
+  attr :wallet, :string, default: nil, doc: "the signed-in wallet, if any"
+  attr :symbol, :string, required: true
+  attr :token_symbol, :string, required: true
+  attr :claim_block, :integer, required: true
+
+  @doc """
+  One bid as the auction holds it: what went in, how much the auction has
+  used and what is left, the tokens so far, and who owns it. Unspent money is
+  never called withdrawable: it comes back when the bid is withdrawn.
+  """
+  def receipt(assigns) do
+    assigns = assign(assigns, :used_share, used_share(assigns.receipt))
+
+    ~H"""
+    <article id={@id} class="auction-next-receipt" aria-label={"Bid #{@receipt.id}"}>
+      <header class="auction-next-receipt__head">
+        <strong>
+          <TokenDisplay.price amount={@receipt.deposited} unit={@symbol} /> put in
+        </strong>
+        <span class="auction-next-receipt__id">Bid #{@receipt.id}</span>
+      </header>
+
+      <div :if={@receipt.state == :buying}>
+        <div
+          class="auction-next-receipt__bar"
+          role="img"
+          aria-label={"#{@used_share}% used on tokens, the rest unspent"}
+        >
+          <span style={"width: #{@used_share}%"}></span>
+        </div>
+        <dl class="auction-next-receipt__split">
+          <div>
+            <dt>Used on tokens so far</dt>
+            <dd><TokenDisplay.price amount={@receipt.used} unit={@symbol} /></dd>
+          </div>
+          <div>
+            <dt>
+              Unspent
+              <Regent.Primitives.tip id={"#{@id}-unspent-tip"} label="About unspent">
+                Each block where the clearing price is lower than your max price, you receive tokens for a portion of your budget. If your max price is exceeded, the rest of your budget stops buying.
+              </Regent.Primitives.tip>
+            </dt>
+            <dd>
+              <TokenDisplay.price amount={@receipt.unspent} unit={@symbol} />
+              <small>Not automatically withdrawable</small>
+            </dd>
+          </div>
+        </dl>
+        <p :if={@receipt.outcome == :open} class="auction-next-note">
+          This counts only if the auction reaches its minimum. If it doesn't, the whole bid comes
+          back.
+        </p>
+      </div>
+      <p :if={@receipt.state == :sharing} class="auction-next-note">
+        This bid's maximum is the price now, so it shares what higher bids leave. Its exact split
+        is settled when it is withdrawn.
+      </p>
+      <p :if={@receipt.state == :stopped} class="auction-next-note" data-tone="below">
+        This bid's maximum is below the price now, so it has stopped buying. How much of it was
+        used is settled when it is withdrawn.
+      </p>
+      <p :if={@receipt.state == :refund} class="auction-next-note">
+        The auction ended below its minimum, so this bid bought no tokens. All of it comes back
+        when it is withdrawn.
+      </p>
+      <p :if={@receipt.state == :withdrawn} class="auction-next-note">
+        This bid was withdrawn at block {grouped(@receipt.exited_block)}.
+      </p>
+
+      <dl class="auction-next-receipt__rows">
+        <div :if={@receipt.state == :buying}>
+          <dt>Tokens so far</dt>
+          <dd><TokenDisplay.tokens amount={@receipt.tokens} unit={@token_symbol} /></dd>
+        </div>
+        <div>
+          <dt>Maximum price per 1M</dt>
+          <dd><TokenDisplay.price amount={per_million(@receipt.max_price)} unit={@symbol} /></dd>
+        </div>
+        <div :if={@receipt.outcome != :failed}>
+          <dt>Standing</dt>
+          <dd>{standing(@receipt.standing, @receipt.bidding_ended?)}</dd>
+        </div>
+        <div>
+          <dt>Owner</dt>
+          <dd>
+            <Regent.Primitives.address id={"#{@id}-owner"} address={@receipt.owner} variant="compact" />
+            <small>{owner_note(@receipt.owner, @wallet)}</small>
+          </dd>
+        </div>
+        <div :if={@receipt.outcome != :failed}>
+          <dt>Claiming tokens</dt>
+          <dd>{claiming(@receipt.outcome, @claim_block)}</dd>
+        </div>
+        <div :if={@receipt.outcome != :failed}>
+          <dt>Getting unspent money back</dt>
+          <dd :if={@receipt.state == :withdrawn}>
+            Already returned when the bid was withdrawn.
+          </dd>
+          <dd :if={@receipt.state != :withdrawn}>
+            When the bid is withdrawn: after bidding ends, or earlier once the price passes
+            this bid's maximum.
+          </dd>
+        </div>
+      </dl>
+      <p class="auction-next-source">Read from the chain at block {grouped(@receipt.block)}.</p>
+    </article>
+    """
+  end
+
+  defp used_share(%{state: :buying, used: used, deposited: deposited}) do
+    deposited = exact(deposited)
+
+    if Decimal.gt?(deposited, 0),
+      do:
+        used
+        |> exact()
+        |> Decimal.mult(100)
+        |> Decimal.div(deposited)
+        |> Decimal.round(1)
+        |> Decimal.to_float(),
+      else: 0
+  end
+
+  defp used_share(_receipt), do: 0
+
+  defp claiming(:open, block),
+    do: "If the minimum is reached, once the pool is ready, from block #{grouped(block)}"
+
+  defp claiming(_graduated, block), do: "Once the pool is ready, from block #{grouped(block)}"
+
+  defp standing(:in, false), do: "Above the price: buying at the price every block"
+  defp standing(:sharing, false), do: "At the price: shares what higher bids leave"
+  defp standing(:outbid, false), do: "Below the price: no longer buying"
+  defp standing(:in, true), do: "Above the final price: bought every block"
+  defp standing(:sharing, true), do: "At the final price: shared what higher bids left"
+  defp standing(:outbid, true), do: "Below the final price: stopped buying"
+
+  defp owner_note(_owner, nil), do: "Only this wallet can claim or withdraw this bid."
+
+  defp owner_note(owner, wallet) do
+    if String.downcase(owner) == String.downcase(wallet),
+      do: "Your signed-in wallet.",
+      else: "Not your signed-in wallet: only this wallet can claim or withdraw this bid."
+  end
+
+  attr :id, :string, required: true
+  attr :checked, :any, required: true, doc: "an AsyncResult of the bid checked, or nil"
+  attr :number, :string, default: "", doc: "the bid number as typed"
+  attr :symbol, :string, required: true
+  attr :token_symbol, :string, required: true
+  attr :wallet, :string, default: nil
+  attr :claim_block, :integer, required: true
+
+  @doc """
+  Look up any bid on this auction by its number, which the auction gives
+  each bid in order from 0. Sends `check_bid` with `bid` to the page.
+  """
+  def check_bid(assigns) do
+    ~H"""
+    <section id={@id} class="auction-next-card" aria-labelledby={"#{@id}-title"}>
+      <header class="auction-next-card__head">
+        <h2 id={"#{@id}-title"}>Bid lookup</h2>
+      </header>
+      <p class="auction-next-lead">
+        A bid is a total budget with a max price, not a fixed number of tokens. Enter a bid's
+        number to see how much of it the auction has used and what is left.
+      </p>
+      <form id={"#{@id}-form"} class="auction-next-check" phx-submit="check_bid">
+        <label for={"#{@id}-number"}>Bid number</label>
+        <input
+          id={"#{@id}-number"}
+          type="number"
+          name="bid"
+          min="0"
+          step="1"
+          inputmode="numeric"
+          value={@number}
+          required
+        />
+        <Regent.Primitives.button type="submit" variant="secondary">Check</Regent.Primitives.button>
+      </form>
+      <p :if={@checked && @checked.loading} class="auction-next-note" role="status">
+        Reading the bid…
+      </p>
+      <p :if={@checked && @checked.failed} class="auction-next-note" role="status">
+        {check_failed(@checked.failed, @number)}
+      </p>
+      <.receipt
+        :if={@checked && @checked.ok? && @checked.result}
+        id={"#{@id}-receipt"}
+        receipt={@checked.result}
+        wallet={@wallet}
+        symbol={@symbol}
+        token_symbol={@token_symbol}
+        claim_block={@claim_block}
+      />
+    </section>
+    """
+  end
+
+  defp check_failed({:error, :bid_not_found}, number),
+    do: "This auction has no bid #{number} yet."
+
+  defp check_failed({:error, :invalid_bid_number}, _number),
+    do: "Enter a whole number, such as 0."
+
+  defp check_failed(_reason, _number), do: "This bid could not be read just now. Try again."
+
+  # A price per token as a price per million tokens.
+  defp per_million(nil), do: nil
+
+  defp per_million(price),
+    do: price |> exact() |> Decimal.mult(@million) |> Decimal.normalize() |> plain()
+
+  defp draft_decimal(nil), do: nil
+
+  defp draft_decimal(draft) do
+    case Decimal.parse(draft) do
+      {decimal, ""} -> if Decimal.gt?(decimal, 0), do: decimal
+      _unreadable -> nil
+    end
+  end
+
+  defp draft_q96(nil, _decimals), do: nil
+
+  defp draft_q96(draft, decimals) do
+    case BidActions.price_q96(draft, decimals) do
+      {:ok, q96} -> q96
+      {:error, _unreadable} -> nil
+    end
+  end
+
+  defp released_percent(schedule, block),
+    do: share(AuctionSnapshot.released_mps(schedule, block))
+
+  # A part of the supply, counted as the schedule counts it (ten million in all).
+  defp share(mps), do: percent(mps, @all_mps)
+
+  defp percent(part, whole) do
+    value = part * 100 / whole
+
+    cond do
+      value == 0 -> "0%"
+      value < 0.01 -> "under 0.01%"
+      true -> "#{:erlang.float_to_binary(value, decimals: 2)}%"
+    end
+  end
+
+  # An amount as the chain gives it, with every digit: an exact price can run
+  # past the default precision Decimal reads.
+  defp exact(%Decimal{} = decimal), do: decimal
+  defp exact(text) when is_binary(text), do: Decimal.new(text, max_digits: :infinity)
+
+  defp plain(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+  defp plain(text) when is_binary(text), do: text
+
+  defp grouped(nil), do: "—"
+  defp grouped(block), do: block |> Integer.to_string() |> Amounts.grouped()
+end

@@ -162,8 +162,8 @@ defmodule RegentsWeb.Autolaunch.Layouts do
         </span>
         <a href={~p"/autolaunch/changelog"}>Changelog</a>
         <span class="regent-footer__legal">
-          <a href={~p"/privacy"}>Privacy policy</a>
-          <a href={~p"/terms"}>Terms of use</a>
+          <a href={~p"/autolaunch/privacy"}>Privacy policy</a>
+          <a href={~p"/autolaunch/terms"}>Terms of use</a>
         </span>
       </nav>
       <p class="regent-footer__copyright">© 2026 Regents Labs</p>

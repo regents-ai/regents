@@ -1,10 +1,10 @@
 defmodule Regents.Autolaunch.CoveredCalls.Cursor do
   @moduledoc """
-  How far the site has read one market's covered-calls contract, at the latest
-  block: the first block not read yet, and the head and when it was last seen.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  How far `Regents.Autolaunch.CoveredCalls.Sales` has read one market's covered-calls
+  contract, at the latest block: the first block not read yet, and the head
+  and when it was last seen. It moves only from where its pass found it
+  (`Regents.Autolaunch.CoveredCalls.CursorUnmoved`), in the transaction that saves the
+  sales it read.
   """
   use Ash.Resource,
     otp_app: :regents,
@@ -21,6 +21,33 @@ defmodule Regents.Autolaunch.CoveredCalls.Cursor do
     repo(Regents.Repo)
   end
 
+  actions do
+    defaults [:read]
+
+    # A cursor already opened, by another pass, is returned as it is.
+    create :open do
+      accept [:chain_id, :contract, :next_block]
+      upsert? true
+      upsert_identity :contract
+      upsert_fields []
+      upsert_condition expr(false)
+      return_skipped_upsert? true
+    end
+
+    update :advance do
+      accept [:next_block, :head_block, :head_block_hash, :observed_at]
+      require_attributes [:next_block, :head_block, :head_block_hash, :observed_at]
+      argument :from, :integer, allow_nil?: false
+      validate Regents.Autolaunch.CoveredCalls.CursorUnmoved
+    end
+  end
+
+  policies do
+    policy action([:read, :open, :advance]) do
+      authorize_if Regents.Checks.SystemActor
+    end
+  end
+
   attributes do
     uuid_primary_key :id
     attribute :chain_id, :integer, allow_nil?: false, constraints: [min: 1]
@@ -35,13 +62,5 @@ defmodule Regents.Autolaunch.CoveredCalls.Cursor do
 
   identities do
     identity :contract, [:chain_id, :contract]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

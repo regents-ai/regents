@@ -1,0 +1,214 @@
+defmodule RegentsWeb.Autolaunch.ShareCard.Draw do
+  @moduledoc """
+  What the share picture and the share video draw alike: the words in the
+  card's fonts, the token's round logo, the chain's mark, the ticker line and
+  the figures in dollars or in the launch's own currency.
+
+  Names and tickers are the creator's own words, so they are drawn as plain
+  text, without the symbols the fonts cannot draw, and cut short to fit.
+  """
+
+  alias Regents.Autolaunch.Lab
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Stocks.MarketData
+  alias Regents.Autolaunch.StoredImage
+  alias RegentsWeb.Autolaunch.Components.MarketCard
+  alias RegentsWeb.Autolaunch.{TokenDisplay, UsdValue}
+  alias Vix.Vips.{Image, Operation}
+
+  @tangerine "#ff5b19"
+  @platinum "#e5e3d2"
+  @chains %{
+    base: %{name: "Base", width: 1280, height: 323.84},
+    robinhood: %{name: "Robinhood Chain", width: 1576, height: 207}
+  }
+
+  @doc "The chain a launch is on: `:base` or `:robinhood`."
+  def chain(auction),
+    do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)
+
+  @doc "The chain's name as people know it."
+  def chain_name(chain), do: @chains[chain].name
+
+  @doc "How wide the chain's mark is drawn at `height`."
+  def mark_width(chain, height), do: round(height * @chains[chain].width / @chains[chain].height)
+
+  @doc "The chain's mark, as the SVG shipped with the site."
+  # The chain is :base or :robinhood, never a request's input.
+  # sobelow_skip ["Traversal.FileModule"]
+  def chain_mark(chain), do: File.read!(share_file("#{chain}.svg"))
+
+  @doc """
+  The ticker line: `$TOKEN / STOCK` for a launch paired with a stock token,
+  `$TOKEN` for one paired with none.
+  """
+  def ticker(%{kind: :stocks} = auction),
+    do: "$" <> plain(auction.token_symbol) <> " / " <> plain(auction.quote_token_symbol)
+
+  def ticker(auction), do: "$" <> plain(auction.token_symbol)
+
+  @doc "Dollars per whole unit of the launch's currency, or nil where none is known."
+  # No dollar value is shown for a test network's coins.
+  def rate(auction) do
+    case chain(auction) do
+      :robinhood ->
+        if RobinhoodLab.test_chain?(),
+          do: nil,
+          else: UsdValue.stock_rate(MarketData.prices(:robinhood), auction.quote_token_symbol)
+
+      :base ->
+        if Lab.test_chain?(), do: nil, else: UsdValue.rate(auction)
+    end
+  end
+
+  @doc """
+  An amount of the launch's currency in dollars at its market price, or in
+  the currency itself where no price is known.
+  """
+  def money(nil, _rate, _auction), do: nil
+  def money(amount, %Decimal{} = rate, _auction), do: UsdValue.dollars(Decimal.mult(amount, rate))
+
+  def money(amount, _rate, auction),
+    do: TokenDisplay.short(amount) <> " " <> auction.quote_token_symbol
+
+  @doc """
+  How long bidding has left at `now`, or where the auction stands once that
+  cannot be told: `{label, value, colour}`.
+  """
+  def standing(%{state: :active, estimated_end_at: %DateTime{} = ends} = auction, now) do
+    case DateTime.diff(ends, now) do
+      left when left > 0 -> {"Time left", duration(left), @tangerine}
+      _over -> {"Status", MarketCard.state_label(auction.state), @platinum}
+    end
+  end
+
+  def standing(auction, _now), do: {"Status", MarketCard.state_label(auction.state), @platinum}
+
+  defp duration(seconds) when seconds >= 86_400,
+    do: "#{div(seconds, 86_400)}d #{div(rem(seconds, 86_400), 3_600)}h"
+
+  defp duration(seconds) when seconds >= 3_600,
+    do: "#{div(seconds, 3_600)}h #{div(rem(seconds, 3_600), 60)}m"
+
+  defp duration(seconds), do: "#{max(div(seconds, 60), 1)}m"
+
+  @doc "A stored colour in its one shape, `#rrggbb`, or the card's tangerine."
+  def color(color) when is_binary(color) do
+    if Regex.match?(~r/\A#[0-9a-fA-F]{6}\z/, color), do: color, else: @tangerine
+  end
+
+  def color(_color), do: @tangerine
+
+  @doc "The launch's image as a square PNG `size` wide, or nil when it has none."
+  def logo(auction, size) do
+    case StoredImage.bytes(auction.image) do
+      {:ok, bytes} ->
+        with {:ok, image} <-
+               Operation.thumbnail_buffer(bytes, size,
+                 height: size,
+                 crop: :VIPS_INTERESTING_CENTRE
+               ),
+             do: Image.write_to_buffer(image, ".png")
+
+      :error ->
+        {:ok, nil}
+    end
+  end
+
+  @doc """
+  A stock's mark as the site shows it (`priv/static/images/stocks`), on a light
+  disc, as a square PNG `size` wide, or nil when the site has no mark for
+  `ticker`.
+  """
+  # The ticker names a file the site ships, never a request's input.
+  # sobelow_skip ["Traversal.FileModule"]
+  def stock_logo(ticker, size) do
+    folder = Application.app_dir(:regents, "priv/static/images/autolaunch/stocks")
+
+    found =
+      Enum.find_value([{".svg", "image/svg+xml"}, {".png", "image/png"}], fn {extension, type} ->
+        case File.read(Path.join(folder, ticker <> extension)) do
+          {:ok, bytes} -> {type, bytes}
+          {:error, _none} -> nil
+        end
+      end)
+
+    case found do
+      nil -> {:ok, nil}
+      {type, bytes} -> disc(type, bytes, size)
+    end
+  end
+
+  defp disc(type, bytes, size) do
+    inner = round(size * 0.62)
+    edge = div(size - inner, 2)
+
+    svg = """
+    <svg xmlns="http://www.w3.org/2000/svg" width="#{size}" height="#{size}">
+      <circle cx="#{size / 2}" cy="#{size / 2}" r="#{size / 2}" fill="#{@platinum}"/>
+      <image x="#{edge}" y="#{edge}" width="#{inner}" height="#{inner}" href="data:#{type};base64,#{Base.encode64(bytes)}"/>
+    </svg>
+    """
+
+    with {:ok, {image, _flags}} <- Operation.svgload_buffer(svg),
+         do: Image.write_to_buffer(image, ".png")
+  end
+
+  @doc """
+  A creator's words without control characters or the pictographs the fonts
+  cannot draw, on one line.
+  """
+  def plain(words) do
+    words
+    |> String.replace(
+      ~r/[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{So}\x{FE00}-\x{FE0F}\x{1F3FB}-\x{1F3FF}]/u,
+      ""
+    )
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  @doc """
+  The words on one line no wider than `max`, cut short with an ellipsis where
+  they run over.
+  """
+  def fit(words, size, color, max) do
+    with {:ok, layer} <- layer(words, size, color) do
+      if Image.width(layer) <= max or String.length(words) <= 1,
+        do: {:ok, layer},
+        else: shorter(words, size, color, max, Image.width(layer))
+    end
+  end
+
+  defp shorter(words, size, color, max, width) do
+    graphemes = String.graphemes(words)
+    keep = min(floor(length(graphemes) * max / width), length(graphemes) - 1)
+    cut(graphemes, keep, size, color, max)
+  end
+
+  defp cut(graphemes, keep, size, color, max) do
+    words = (graphemes |> Enum.take(max(keep, 1)) |> Enum.join() |> String.trim_trailing()) <> "…"
+
+    with {:ok, layer} <- layer(words, size, color) do
+      if Image.width(layer) <= max or keep <= 1,
+        do: {:ok, layer},
+        else: cut(graphemes, keep - 1, size, color, max)
+    end
+  end
+
+  @doc "The words drawn in the card's face, at a size and in a colour."
+  def layer(words, size, color) do
+    with {:ok, {layer, _flags}} <-
+           Operation.text(~s|<span foreground="#{color}">#{escape(words)}</span>|,
+             font: "Geist Serif #{size}",
+             fontfile: share_file("GeistSerif-Regular.ttf"),
+             rgba: true,
+             dpi: 72
+           ),
+         do: {:ok, layer}
+  end
+
+  defp share_file(name), do: Application.app_dir(:regents, ["priv", "share_card", name])
+
+  defp escape(words), do: words |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+end

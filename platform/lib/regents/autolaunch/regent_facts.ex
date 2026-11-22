@@ -1,0 +1,391 @@
+defmodule Regents.Autolaunch.RegentFacts do
+  @moduledoc """
+  What the REGENT page shows: supply, staking and USDC revenue, read from Base
+  mainnet at one `safe` block, plus the REGENT price for the circulating market
+  cap. It is the same count regents.sh/stake shows.
+
+  Circulating supply is the total less the four holdings nobody can spend
+  today: the Clanker vault, the treasury the staking contract names, the Animata
+  redeemer and the staking contract's REGENT reward inventory.
+
+  One reading is kept for five minutes and shared by every visitor; a landed
+  press on Base (`Regents.Autolaunch.ChainRefresh`) shortens that to ten seconds from
+  when it was taken, so the next visit after a person acts reads again. It is
+  taken inside this process, so visitors who ask while it is being taken wait for that
+  one reading instead of each starting their own. The seven days of USDC and
+  the price are read beside the rest; either one that does not answer is
+  `:unavailable` and the rest of the reading stands. A new reading asks only for
+  the blocks after the last one, and drops the deposits now older than seven days.
+
+  The seven days of deposits are also kept as each deposit's own split, as
+  the staking contract recorded it (to stakers, to the treasury), grouped by
+  the source tag the depositor gave it: the Memestock REGENT lane on Base
+  (`autolaunch-stocks`), the Robinhood Chain lane once it reaches Base
+  (`autolaunch-robinhood`), a token splitter's 2% (the tag is the token's
+  address), another tag written as text (kept as written, such as
+  `clanker`), or a tag that is none of these, which stays unattributed.
+  """
+
+  use GenServer
+
+  @behaviour Regents.Autolaunch.ChainRefresh
+
+  require Logger
+
+  alias RegentChain.Address
+  alias Regents.Autolaunch.Chain.Abi
+  alias Regents.Autolaunch.Chain.Rpc
+
+  @manifest_path Application.app_dir(:regents, "priv/autolaunch/contracts/chain-contracts.yaml")
+  @external_resource @manifest_path
+
+  @manifest YamlElixir.read_from_file!(@manifest_path)
+  @staking Enum.find(
+             get_in(@manifest, ["contracts", Access.at(0), "reviewed_action_evidence"]),
+             &(&1["contract_id"] == "regent_revenue_staking")
+           )
+
+  @clanker_vault "0x8e845ead15737bf71904a30bddd3aee76d6adf6c"
+  @animata_redeemer "0x71065b775a590c43933F10c0055dc7d74AfAbb0e"
+  # The Uniswap pool REGENT trades in, as DexScreener names it.
+  @pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
+
+  @regent_decimals 18
+  @usdc_decimals 6
+
+  # totalSupply()
+  @total_supply "0x18160ddd"
+  # totalUsdcReceived()
+  @total_usdc_received "0xcf51bfdd"
+  # totalUsdcCreditedToStakers()
+  @total_usdc_credited "0x98460766"
+  # revenueShareSupplyDenominator()
+  @revenue_share_denominator "0xe3961f2a"
+  # emissionAprBps()
+  @emission_apr_bps "0x8ba7fda0"
+  # treasuryRecipient()
+  @treasury_recipient "0xeb4eebc7"
+  # availableRegentRewardInventory()
+  @reward_inventory "0xe2cfe6b9"
+  # allocation(address): token, amount, claimed, lockedUntil, vestedBy, admin
+  @vault_allocation "0xb81b8630"
+  # USDCRevenueDeposited(uint256,uint256,uint256,uint8,address,bytes32,bytes32):
+  # three indexed topics, then four data words: amountReceived,
+  # stakerRewardsCredited, treasuryResidualIncrease and sourceTag.
+  @usdc_deposited "0x1a150e3db61cdcdf841d24acf00159c2e184f84c02c7ec5ab3507766dae59e51"
+
+  # Seven days by each block's own time, counted back from the block the rest of
+  # the reading was taken at: Base makes up to five blocks a second, so no count of
+  # blocks stands for them, and blocks older than that rate reaches are never asked
+  # for. A public Base endpoint answers `eth_getLogs` over at most ten thousand
+  # blocks, so the window is asked for in that many at a time, a few at a time.
+  @window_seconds 604_800
+  @most_blocks 5 * @window_seconds
+  @chunk_blocks 10_000
+  @chunk_concurrency 8
+
+  @base_chain_id 8453
+  @ttl_ms 300_000
+  @read_timeout 30_000
+  @reading_timeout 120_000
+
+  def start_link(options \\ []),
+    do: GenServer.start_link(__MODULE__, nil, name: Keyword.get(options, :name, __MODULE__))
+
+  @doc "The Uniswap pool REGENT trades in."
+  def pool, do: @pool
+
+  @doc "The shared REGENT reading, at most five minutes old."
+  @spec read() :: {:ok, map()} | {:error, atom()}
+  def read, do: GenServer.call(__MODULE__, :read, @reading_timeout)
+
+  @impl Regents.Autolaunch.ChainRefresh
+  def refresh(@base_chain_id), do: GenServer.cast(__MODULE__, :refresh)
+  def refresh(_chain_id), do: :ok
+
+  @impl GenServer
+  def init(nil), do: {:ok, nil}
+
+  @impl GenServer
+  def handle_cast(:refresh, {reading, read_at}),
+    do:
+      {:noreply,
+       {reading,
+        min(read_at, read_at + Regents.Autolaunch.ChainRefresh.gap_s() * 1_000 - @ttl_ms)}}
+
+  def handle_cast(:refresh, nil), do: {:noreply, nil}
+
+  @impl GenServer
+  def handle_call(:read, _from, {reading, read_at} = kept) when is_map(reading) do
+    if read_at + @ttl_ms > now(), do: {:reply, {:ok, reading}, kept}, else: reread(kept)
+  end
+
+  def handle_call(:read, _from, nil), do: reread(nil)
+
+  defp reread(kept) do
+    case read_base(kept_deposits(kept)) do
+      {:ok, reading} -> {:reply, {:ok, reading}, {reading, now()}}
+      {:error, reason} -> {:reply, {:error, reason}, kept}
+    end
+  end
+
+  defp kept_deposits({%{deposits_7d: %{} = deposits}, _read_at}), do: deposits
+  defp kept_deposits(_kept), do: nil
+
+  defp read_base(kept) do
+    token = Abi.regent_address()
+    staking = @staking["address"]
+
+    with {:ok, block} <- Rpc.safe_block(),
+         {:ok, stake_token} <- Rpc.call_address(staking, staking_selector("stake_token"), block),
+         :ok <- match_stake_token(stake_token, token),
+         {:ok, total_supply} <- Rpc.call_uint(token, @total_supply, block),
+         {:ok, total_staked} <- Rpc.call_uint(staking, staking_selector("total_staked"), block),
+         {:ok, usdc_received} <- Rpc.call_uint(staking, @total_usdc_received, block),
+         {:ok, usdc_credited} <- Rpc.call_uint(staking, @total_usdc_credited, block),
+         {:ok, denominator} <- Rpc.call_uint(staking, @revenue_share_denominator, block),
+         {:ok, apr_bps} <- Rpc.call_uint(staking, @emission_apr_bps, block),
+         {:ok, treasury} <- Rpc.call_address(staking, @treasury_recipient, block),
+         {:ok, treasury_held} <- balance_of(token, treasury, block),
+         {:ok, inventory} <- Rpc.call_uint(staking, @reward_inventory, block),
+         {:ok, redeemer_held} <- balance_of(token, @animata_redeemer, block),
+         {:ok, vault_held} <- balance_of(token, @clanker_vault, block),
+         {:ok, [_token, _amount, _claimed, locked_until, vested_by, _admin]} <-
+           Rpc.call_words(@clanker_vault, @vault_allocation <> address_word(token), block, 6) do
+      circulating =
+        max(total_supply - vault_held - treasury_held - redeemer_held - inventory, 0)
+
+      deposits_7d = deposits_7d(staking, block, kept)
+
+      {:ok,
+       %{
+         block_number: block.number,
+         token_address: token,
+         staking_address: staking,
+         total_supply: regent(total_supply),
+         total_staked: regent(total_staked),
+         circulating_supply: regent(circulating),
+         staked_share_bps: share_bps(total_staked, circulating),
+         usdc_received_lifetime: Rpc.format_units(usdc_received, @usdc_decimals),
+         usdc_credited_lifetime: Rpc.format_units(usdc_credited, @usdc_decimals),
+         usdc_treasury_lifetime: Rpc.format_units(usdc_received - usdc_credited, @usdc_decimals),
+         revenue_share_denominator: regent(denominator),
+         staked_denominator_share: share(total_staked, denominator),
+         deposits_7d: deposits_7d,
+         emission_apr_percent: Rpc.format_units(apr_bps, 2),
+         price_usd: price_usd(token),
+         clanker_vault: %{
+           address: @clanker_vault,
+           amount: regent(vault_held),
+           locked_until: DateTime.from_unix!(locked_until),
+           vested_by: DateTime.from_unix!(vested_by)
+         },
+         treasury: %{address: treasury, amount: regent(treasury_held)},
+         animata_redeemer: %{address: @animata_redeemer, amount: regent(redeemer_held)},
+         reward_inventory: %{address: staking, amount: regent(inventory)}
+       }}
+    end
+  end
+
+  defp regent(amount), do: Rpc.format_units(amount, @regent_decimals)
+
+  defp share_bps(part, whole) when whole > 0 and part <= whole, do: div(part * 10_000, whole)
+  defp share_bps(_part, _whole), do: :unavailable
+
+  defp share(part, whole) when whole > 0, do: Decimal.div(part, whole)
+  defp share(_part, _whole), do: :unavailable
+
+  defp balance_of(token, holder, block),
+    do: Rpc.call_uint(token, Abi.encode_erc20("balance_of", [holder]), block)
+
+  defp address_word("0x" <> hex), do: hex |> String.downcase() |> String.pad_leading(64, "0")
+
+  defp staking_selector(id) do
+    @staking["reads"]
+    |> Enum.find(&(&1["id"] == id))
+    |> Map.fetch!("selector")
+  end
+
+  defp match_stake_token(actual, expected) do
+    if Address.equal?(actual, expected), do: :ok, else: {:error, :stake_token_mismatch}
+  end
+
+  # Every USDC deposit the staking contract recorded over the seven days ending
+  # at `block`, added up from its own logs: what arrived, what was credited
+  # to stakers and what went to the treasury, in total and by source. The
+  # first stretch that fails ends the sum: a total made from the stretches that
+  # happened to answer would understate what the contract received. A `safe`
+  # block never changes, so what the last reading saw stands.
+  defp deposits_7d(staking, block, kept) do
+    since = block.timestamp - @window_seconds
+
+    with {:ok, first} <- first_after(lowest(kept, block), block.number, since),
+         {:ok, new} <- new_deposits(staking, next(kept, first), block.number) do
+      deposits = new ++ held(kept, first)
+
+      %{
+        from_block: first,
+        to_block: block.number,
+        deposits: deposits,
+        count: length(deposits),
+        total: allocation(deposits),
+        sources:
+          for source <- sources(deposits) do
+            {source, deposits |> Enum.filter(&(&1.source == source)) |> allocation()}
+          end
+      }
+    else
+      failed ->
+        Logger.warning("REGENT seven-day USDC unavailable: #{inspect(failed)}")
+        :unavailable
+    end
+  end
+
+  defp lowest(nil, block), do: max(block.number - @most_blocks + 1, 0)
+  defp lowest(kept, _block), do: kept.from_block
+
+  defp next(nil, first), do: first
+  defp next(kept, _first), do: kept.to_block + 1
+
+  defp held(nil, _first), do: []
+  defp held(kept, first), do: Enum.filter(kept.deposits, &(&1.block >= first))
+
+  # The first block stamped after `since`. Block times never go back and several
+  # blocks can share a second, so this finds the lowest of them by halving the range.
+  defp first_after(low, high, _since) when low >= high, do: {:ok, low}
+
+  defp first_after(low, high, since) do
+    middle = div(low + high, 2)
+
+    with {:ok, %{"timestamp" => "0x" <> stamp}} <-
+           Rpc.request("eth_getBlockByNumber", [quantity(middle), false]) do
+      if String.to_integer(stamp, 16) > since,
+        do: first_after(low, middle, since),
+        else: first_after(middle + 1, high, since)
+    end
+  end
+
+  defp new_deposits(staking, from_block, to_block) do
+    from_block
+    |> Stream.iterate(&(&1 + @chunk_blocks))
+    |> Stream.take_while(&(&1 <= to_block))
+    |> Task.async_stream(&stretch_deposits(staking, &1, min(&1 + @chunk_blocks - 1, to_block)),
+      max_concurrency: @chunk_concurrency,
+      timeout: @read_timeout,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while({:ok, []}, fn
+      {:ok, {:ok, deposits}}, {:ok, all} -> {:cont, {:ok, deposits ++ all}}
+      failed, _deposits -> {:halt, {:failed, failed}}
+    end)
+  end
+
+  # The three Autolaunch sources always, each other tag and the unattributed
+  # deposits only when the window has some.
+  defp sources(deposits) do
+    found = deposits |> Enum.map(& &1.source) |> Enum.uniq()
+    tags = found |> Enum.filter(&match?({:tag, _text}, &1)) |> Enum.sort()
+    unattributed = Enum.filter(found, &(&1 == :unattributed))
+
+    [:memestock_base, :token_splitters, :robinhood] ++ tags ++ unattributed
+  end
+
+  defp allocation(deposits) do
+    %{
+      received: usdc(deposits, :received),
+      stakers: usdc(deposits, :stakers),
+      treasury: usdc(deposits, :treasury)
+    }
+  end
+
+  defp usdc(deposits, key),
+    do:
+      deposits |> Enum.map(&Map.fetch!(&1, key)) |> Enum.sum() |> Rpc.format_units(@usdc_decimals)
+
+  defp stretch_deposits(staking, from_block, to_block) do
+    filter = %{
+      address: staking,
+      topics: [@usdc_deposited],
+      fromBlock: quantity(from_block),
+      toBlock: quantity(to_block)
+    }
+
+    case Rpc.request("eth_getLogs", [filter]) do
+      {:ok, logs} when is_list(logs) -> decode_deposits(logs, staking)
+      {:ok, _malformed} -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp decode_deposits(logs, staking) do
+    Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, deposits} ->
+      case Abi.one_event([log], @usdc_deposited, staking, 3, 4) do
+        {:ok, {_indexed, [received, stakers, treasury, tag]}} ->
+          "0x" <> number = log["blockNumber"]
+
+          deposit = %{
+            block: String.to_integer(number, 16),
+            received: received,
+            stakers: stakers,
+            treasury: treasury,
+            source: source(tag)
+          }
+
+          {:cont, {:ok, [deposit | deposits]}}
+
+        :error ->
+          {:halt, {:error, :invalid_chain_response}}
+      end
+    end)
+  end
+
+  @memestock_base_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-stocks", 32, <<0>>))
+  @robinhood_tag :binary.decode_unsigned(String.pad_trailing("autolaunch-robinhood", 32, <<0>>))
+
+  # The source a deposit's tag records. A token splitter tags its 2% with the
+  # token's address. Any other tag written as short plain text is kept as
+  # written; a tag that is neither stays unattributed.
+  defp source(@memestock_base_tag), do: :memestock_base
+  defp source(@robinhood_tag), do: :robinhood
+
+  defp source(tag) do
+    case Abi.word_address(tag) do
+      {:ok, _token} -> :token_splitters
+      :error -> text_tag(tag)
+    end
+  end
+
+  defp text_tag(tag) do
+    text = <<tag::256>> |> String.trim_trailing(<<0>>)
+
+    if text != "" and String.printable?(text) and not String.contains?(text, <<0>>),
+      do: {:tag, text},
+      else: :unattributed
+  end
+
+  defp quantity(value), do: "0x" <> String.downcase(Integer.to_string(value, 16))
+
+  # DexScreener's USD price for the REGENT pool, trusted only when the pool's
+  # base token is REGENT and the price is a plain decimal.
+  defp price_usd(token) do
+    with {:ok, %{status: 200, body: %{"pairs" => [pair | _]}}} <-
+           Req.get("https://api.dexscreener.com/latest/dex/pairs/base/#{@pool}",
+             connect_options: [timeout: 3_000],
+             receive_timeout: 5_000,
+             retry: false
+           ),
+         %{"baseToken" => %{"address" => base}, "priceUsd" => price} when is_binary(price) <-
+           pair,
+         true <- Address.equal?(base, token),
+         true <- byte_size(price) <= 100 and String.match?(price, ~r/^\d+(?:\.\d+)?$/) do
+      price
+    else
+      _unavailable -> :unavailable
+    end
+  rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
+    _error -> :unavailable
+  end
+
+  defp now, do: System.monotonic_time(:millisecond)
+end

@@ -1,0 +1,451 @@
+version: 1
+product: autolaunch-web
+contracts:
+  - id: base_mainnet_reviewed_evidence
+    chain_target: base-mainnet
+    authority: evidence_only
+    autolaunch_consumer_freeze:
+      repository: autolaunch-contracts
+      source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+      source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+      abi_surface_sha256: 8dc198f19bb55e76bcd6e81326a14203358717a9e74606bd280c8ce7be186e31
+      release_manifest_sha256: a9ea436c3a66f4f296a4d9759be842ab77992578950cb23c2d8996d7b73c4c04
+      fork_observations_sha256: 198a4ab782db2bcec4b02e2594ad3c96133867e56a5ccbea6570d224c4597b7c
+      deployment_status: deployment_pending
+      admission: disabled
+    admitted_prepared_actions: []
+    reviewed_action_evidence:
+      - contract_id: continuous_clearing_auction
+        contract_name: IContinuousClearingAuction
+        target: stored_auction_address
+        source_commit: 7d7602d257733315434570f2a0c2f94f1c7b207a
+        interface_note: >-
+          submit_bid is the canonical five-argument submitBid(uint256,uint128,address,uint256,bytes)
+          declared at Uniswap/continuous-clearing-auction src/interfaces/IContinuousClearingAuction.sol
+          lines 136-142 and implemented at src/ContinuousClearingAuction.sol lines 464-482, which
+          collects a non-native currency only through Permit2 at line 479. The four-argument overload
+          at lines 486-493 is not prepared: it defaults prevTickPriceQ96 to FLOOR_PRICE_Q96 and walks
+          every tick from the floor.
+        abi_path: abi/continuous-clearing-auction.json
+        abi_sha256: f687d42ad0fd981e38ba7f43baad6428014f5056a129a7bf13906f5704e5194b
+        confirmation_event_signature: BidSubmitted(uint256,address,uint256,uint128)
+        confirmation_event_topic0: "0x650baad5cd8ca09b8f580be220fa04ce2ba905a041f764b6a3fe2c848eb70540"
+        reads:
+          - id: currency
+            signature: currency()
+            selector: "0xe5a6b10f"
+        action_ids:
+          - submit_bid
+      - contract_id: permit2
+        contract_name: IAllowanceTransfer
+        target: canonical_permit2
+        address: "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+        source_commit: cc56ad0f3439c502c246fc5cfcc3db92bb8b7219
+        address_provenance: >-
+          The auction's own dependency closure names the address: Solady
+          2af06408b6a204824c2ecb245779ed400b535fb5 src/utils/SafeTransferLib.sol line 64 declares
+          PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3, and lines 458-484 of the same file
+          are the permit2TransferFrom the auction calls. Deployed-runtime admission is a C5 gate.
+        abi_path: abi/permit2.json
+        abi_sha256: ced6a1b558e80e4a80c5bc1920da8cca21fa63806ac379b5c1c8ab4b6c866832
+        reads:
+          - id: allowance
+            signature: allowance(address,address,address)
+            selector: "0x927da105"
+        action_ids:
+          - approve
+      - contract_id: quote_token_erc20
+        contract_name: IERC20
+        target: stored_quote_token_address
+        interface_note: >-
+          The only ERC-20 allowance a bid prepares is the canonical Permit2 spender; the auction
+          itself is never an ERC-20 spender.
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        action_ids:
+          - approve_exact
+      - contract_id: subject_token_erc20
+        contract_name: IERC20
+        target: stored_subject_token_address
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/revenue/SubjectSplitterV1.sol:65 declares the launch's own SUBJECT binding and
+          line 193 pulls exactly the staked amount through _pullExact, which lines 446-451
+          hold to an exact balance delta. The only SUBJECT allowance a stake prepares is the
+          exact splitter spender, using the standard nonpayable ERC-20 approve interface.
+        action_ids:
+          - approve_exact
+      - contract_id: subject_splitter_v1
+        contract_name: SubjectSplitterV1
+        target: stored_subject_splitter_address
+        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+        abi_path: abi/subject-splitter-v1.json
+        abi_sha256: f507fa80395283b722259f6da9dec0ab65b3f33f4b9d5a2a80399593561b3a66
+        runtime_keccak256: "0x4ba470d4c443ae5889f5e1f9095e07ed228853604762554437003ed115c56105"
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/revenue/SubjectSplitterV1.sol defines the four caller-only customer calls at
+          lines 189-236, each acting for msg.sender alone with no recipient argument, and the
+          reads this lane prepares against at lines 59-80 and 300-302. The ABI file is derived
+          from the artifact that pinned build produced, whose metadata keccak256 for that
+          source is 0xd411b2c4c69184ea684bfe63d118907c786fdad5a54cb3505488733161c58f4f.
+        interface_note: >-
+          stake and unstake take only uint256; there is no recipient-argument overload and no
+          claimUSDC. claim(address) and claimAll() settle for msg.sender alone and return early
+          when nothing is owed, so a canonical success with no Claimed log is a truthful no-op.
+          Line 391 divides each post-skim net by staked coverage of the complete 100-billion
+          SUBJECT supply declared at line 56 and line 392 leaves the treasury the exact
+          remainder, so the whole allocation is derived from totalStaked and the reviewed
+          amount. Line 213 refuses any unstake in the caller's own latest stake block; the
+          SameBlockUnstake error it reverts with is deliberately not derived, because
+          _lastStakeBlock has no getter and no browser behavior consumes it.
+        confirmation_event_signatures:
+          - Staked(address,uint256)
+          - Unstaked(address,uint256)
+          - Claimed(address,address,uint256)
+        action_ids:
+          - stake
+          - unstake
+          - claim
+          - claim_all
+      - contract_id: payment_receiver_v1
+        contract_name: PaymentReceiverV1
+        target: projected_canonical_receiver_address
+        source_commit: 5cf4a6b48388d54593b83230342542fee7c0f131
+        source_tree: 33b80348eab6e7ba9bfd4947327a3710981d2092
+        abi_path: abi/payment-receiver-v1.json
+        abi_sha256: 14e6ff28b277866ad60f97abbb89890b7d5168c0723f23b830aca598e14e84e2
+        runtime_keccak256: "0x96fa5c2a8dc2afb67752e6600a178c539661f93dc7615f4871f71bc8a24c6573"
+        implementation_provenance: >-
+          repos/autolaunch-contracts 5cf4a6b48388d54593b83230342542fee7c0f131
+          src/revenue/PaymentReceiverV1.sol defines pay at lines 143-153, sweep at lines
+          156-163 and setReceiverNote at lines 131-138, and the bindings this lane proves
+          canonical at lines 35-59. Line 125 defaults the note to the receiver's own address
+          encoded as bytes32. The ABI file is derived from the artifact that pinned build
+          produced, whose metadata keccak256 for that source is
+          0x9309839372d094bb14663c0559dad7983afddc893076c6a3dae1d515ea636f8c.
+        interface_note: >-
+          A receiver is canonical only when referralBps() is 0 and the splitter's treasury is
+          both beneficiary() and noteEditor(), which is the whole of the zero-referral
+          treasury-bound economics this lane reviews. Canonical provenance itself comes from
+          the projected canonical_receiver_address plus final C5 evidence; these reads
+          prove the economics, never the provenance.
+        confirmation_event_signatures:
+          - PaymentRouted(bytes32,bytes32,address,uint256,uint256,uint256)
+          - ReceiverNoteUpdated(bytes32,bytes32)
+        action_ids:
+          - pay
+          - sweep
+          - set_receiver_note
+      - contract_id: regent_erc20
+        contract_name: IERC20
+        address: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+        interface_note: >-
+          The only REGENT allowance a launch prepares is the exact current launch fee held by the
+          reviewed factory, including the exact zero a zero fee requires. There is no additive and
+          no unlimited approval, and no other spender.
+        abi_path: abi/erc20-approve.json
+        abi_sha256: c3b0ea0f4cb03cf09bee2ef0ea451c976bcfb13c658f5f6d37784699d567efec
+        runtime_code:
+          bytes: 12791
+          sha256: 8e9ac19be1f8016942a42e5808f723fb26a0f139dc7d00ba23099812128a44c7
+          keccak256: "0x780092a64f1f9280792aad406597d051e610e1a9ee0a57033187faf21a79a21f"
+        action_ids:
+          - approve_exact
+      - contract_id: regents_autolaunch_factory_v2
+        contract_name: RegentsAutolaunchFactoryV2
+        target: c5_admitted_factory_address
+        source_commit: 5030fb4f326054db1283884d6475f2fc64e7289c
+        abi_path: abi/regents-autolaunch-factory-v2.json
+        abi_sha256: c991a020081b28f6fcfe6287ee3eae9d37e4063d17622aedef43e8f70b335d9a
+        artifact_provenance: >-
+          The consumer ABI is the subset of contracts/revstake-v2/abi/RegentsAutolaunchFactoryV2.json
+          this site calls and decodes, from contracts/revstake-v2/src/factory/RegentsAutolaunchFactoryV2.sol
+          at source_commit.
+        interface_note: >-
+          launch takes one tuple: name, symbol, description, website, image and treasury. The
+          floor and the required raise are the strategy's fixed constants (FLOOR_PRICE_Q96,
+          REQUIRED_REGENT_RAISED). There is no launch fee and no REGENT allowance.
+          pauseLaunches and unpauseLaunches are deliberately not derived. On Base mainnet it is
+          0xf4F591E63f4B6d8240a150081C1CA7Edfaeb768E, paused since 30 October 2026; the launches
+          made through it keep reading through it, and new launches go to the third factory.
+        confirmation_event_signatures:
+          - LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)
+        action_ids:
+          - launch
+      - contract_id: regent_lbp_strategy_v2
+        contract_name: RegentLBPStrategyV2
+        target: reviewed_factory_bound_strategy_address
+        source_commit: 5030fb4f326054db1283884d6475f2fc64e7289c
+        abi_path: abi/regent-lbp-strategy-v2.json
+        abi_sha256: d13690359ed8bfe27c74bef3db2fa2f68422c0f75a767f2be6a8efe5f15eedda
+        artifact_provenance: >-
+          The consumer ABI is the subset of contracts/revstake-v2/abi/RegentLBPStrategyV2.json this
+          site reads, from contracts/revstake-v2/src/strategy/RegentLBPStrategyV2.sol at
+          source_commit.
+        interface_note: >-
+          Every term here is read for display only. FLOOR_PRICE_Q96, BID_TICK_SPACING_Q96 and
+          REQUIRED_REGENT_RAISED are the fixed auction terms. lpLocker() is created by the strategy's
+          constructor and must equal the configured locker. _requireAdmissibleTreasury refuses
+          exactly seven launch treasuries: the factory, this strategy, hook(), lpLocker(),
+          PoolManager, PositionManager and live staking. No strategy call is prepared.
+        reads:
+          - id: hook
+            signature: hook()
+            selector: "0x7f5a7c7b"
+          - id: lp_locker
+            signature: lpLocker()
+            selector: "0x03fc2013"
+          - id: floor_price_q96
+            signature: FLOOR_PRICE_Q96()
+            selector: "0x14ec99b0"
+          - id: bid_tick_spacing_q96
+            signature: BID_TICK_SPACING_Q96()
+            selector: "0xf54c506c"
+          - id: required_regent_raised
+            signature: REQUIRED_REGENT_RAISED()
+            selector: "0xcfc7e1db"
+        refused_launch_treasuries:
+          - id: pool_manager
+            address: "0x498581fF718922c3f8e6A244956aF099B2652b2b"
+          - id: position_manager
+            address: "0x7C5f5A4bBd8fD63184577525326123B519429bDc"
+          - id: live_staking
+            address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+        refused_launch_treasury_provenance: >-
+          The other four of the seven are read at the reviewed block: factory and strategy from
+          the launch snapshot, hook() and lpLocker() from the strategy reads above. These three
+          are frozen constants in contracts/revstake-v2/src/bindings/BaseBindings.sol at
+          source_commit.
+        action_ids: []
+      - contract_id: regents_autolaunch_factory_v3
+        contract_name: RegentsAutolaunchFactoryV3
+        target: c5_admitted_factory_address
+        source_commit: 5b7d7e3e8ce127917f89ffcfbb605c38dfe4a14d
+        abi_path: abi/regents-autolaunch-factory-v3.json
+        abi_sha256: 3988835d8a2ac56d3b965d78c0b6b5dcd653fac5c87114c6ce7ec64a1df78d96
+        artifact_provenance: >-
+          The consumer ABI is the subset of contracts/revstake-v3/abi/RegentsAutolaunchFactoryV3.json
+          this site calls and decodes, from contracts/revstake-v3/src/factory/RegentsAutolaunchFactoryV3.sol
+          at source_commit. It declares the same signatures as the second factory's.
+        interface_note: >-
+          The second factory's interface for Base's 0.2-second blocks: launch takes the same one
+          tuple, with no launch fee and no REGENT allowance. On Base mainnet it is
+          0xA738aa7c82324EE8fa17FbAaa34a227e90f67D48, deployed and opened on 12 November 2026
+          (contracts/revstake-v3/deployments/base-mainnet/deployed-manifest.json). New Base
+          launches go to this factory; launches made through the second factory keep reading
+          through it. pauseLaunches and unpauseLaunches are deliberately not derived.
+        confirmation_event_signatures:
+          - LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)
+        action_ids:
+          - launch
+      - contract_id: regent_lbp_strategy_v3
+        contract_name: RegentLBPStrategyV3
+        target: reviewed_factory_bound_strategy_address
+        source_commit: 5b7d7e3e8ce127917f89ffcfbb605c38dfe4a14d
+        abi_path: abi/regent-lbp-strategy-v3.json
+        abi_sha256: d13690359ed8bfe27c74bef3db2fa2f68422c0f75a767f2be6a8efe5f15eedda
+        artifact_provenance: >-
+          The consumer ABI is the subset of contracts/revstake-v3/abi/RegentLBPStrategyV3.json this
+          site reads, from contracts/revstake-v3/src/strategy/RegentLBPStrategyV3.sol at
+          source_commit. It is byte for byte the second strategy's subset.
+        interface_note: >-
+          The second strategy's reads and treasury refusals, with the schedule restated for
+          Base's 0.2-second blocks: START_DELAY_BLOCKS 3,000, AUCTION_DURATION_BLOCKS 864,001,
+          CLAIM_DELAY_BLOCKS 640 and MIGRATION_DELAY_BLOCKS 1,280. The three frozen refused
+          treasuries are the same constants in contracts/revstake-v3/src/bindings/BaseBindings.sol.
+          No strategy call is prepared.
+        reads:
+          - id: hook
+            signature: hook()
+            selector: "0x7f5a7c7b"
+          - id: lp_locker
+            signature: lpLocker()
+            selector: "0x03fc2013"
+          - id: floor_price_q96
+            signature: FLOOR_PRICE_Q96()
+            selector: "0x14ec99b0"
+          - id: bid_tick_spacing_q96
+            signature: BID_TICK_SPACING_Q96()
+            selector: "0xf54c506c"
+          - id: required_regent_raised
+            signature: REQUIRED_REGENT_RAISED()
+            selector: "0xcfc7e1db"
+        action_ids: []
+      - contract_id: regent_revenue_staking
+        address: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+        runtime_code:
+          bytes: 11757
+          sha256: 9e7d05378e4aeddb4db00bdaa88e6a466c3061d6514a760bbe93fa5d665129bb
+          keccak256: "0xcaef93094fa27d35f5ff9e619d5ee75528c7c18f19f4f31a0a5eaba62a976497"
+        onchain_constants:
+          stake_token: "0x6f89bcA4eA5931EdFCB09786267b251DeE752b07"
+          usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+        reads:
+          - id: stake_token
+            signature: stakeToken()
+            selector: "0x51ed6a30"
+          - id: usdc
+            signature: usdc()
+            selector: "0x3e413bee"
+          - id: total_staked
+            signature: totalStaked()
+            selector: "0x817b1cd2"
+      - contract_id: covered_calls_v2_amznc
+        contract_name: CoveredCallsV2
+        address: "0xee5B494B7974FeA38Add81a92eA3C794AdB8DDE6"
+        source_commit: 755e7ce2cd79c38c55c2a435848b402a67baa5f8
+        runtime_code:
+          bytes: 7735
+          sha256: 2e57d1799c932f83d6ea1b7540fe28684d6a47611568e9b26c6482510b95444a
+          keccak256: "0x96528893fe765ba369a54e616f68337d0a4d87689856f19baaca62c9621d51a8"
+        onchain_constants:
+          stock: "0xb200000000000000000000d9192b6B456483C2E8"
+          usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+          staking: "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+        interface_note: >-
+          The covered-calls contract for AMZNc: listings and standing buyer bids, paid in USDC, 1% of
+          each premium to REGENT staking, with no owner, admin, pause or upgrade. Deployed on 13
+          November 2026 in block 56,749,573 (contracts/covered-calls-v2/deploy/deployed.json). The
+          site reads it through the covered-calls description, which the release check requires to
+          name this address, and builds its steps in Autolaunch.CoveredCalls.Steps. The first
+          covered-calls contract, 0x0B2FE2810F9219bDd5e5e304DC8A1A4c84eA553E, is no longer read.
+        reads:
+          - id: unit
+            signature: unit()
+            selector: "0x907af6c0"
+          - id: listing_count
+            signature: listingCount()
+            selector: "0xa9b07c26"
+          - id: bid_count
+            signature: bidCount()
+            selector: "0xb40a5627"
+        action_ids: []
+  - id: stocks_local_lab
+    chain_target: base-mainnet
+    authority: interface_only
+    deployment_status: local_lab_only
+    admission: disabled
+    source_note: >-
+      Autolaunch Stocks versions 2 and 3. The ABIs below are the compiled ABIs of contracts/stocks-v2
+      (StocksLaunchpadV2, its StocksFeeHookV1 and StockBidAdapterV1) and of StocksLaunchpadV3 in
+      contracts/stocks-v3, whose fee hook and bid adapter ABIs are the second version's. The
+      website reads the deployment's ABIs from its stocks site config and validates them against
+      the shapes in Autolaunch.Stocks.LabAbi; this entry pins no address.
+    admitted_prepared_actions: []
+    reviewed_action_evidence:
+      - contract_id: stocks_launchpad_v2
+        contract_name: StocksLaunchpadV2
+        target: stocks_lab_launchpad_address
+        abi_path: abi/stocks-launchpad-v2.json
+        abi_sha256: b0a52fce7ee21aa013868296234d03a9e91fa00c6d0043acf0991f3c4b7823d8
+        interface_note: >-
+          launch takes one LaunchParams tuple (name, symbol, description, website, image, stock)
+          and nothing else. The floor is the fixed StocksPreset.FLOOR_PRICE_Q96, 4,294,967,300, and
+          the required raise is the fixed StocksPreset.REQUIRED_STOCK_RAISED. No launch fee. 0.5% of the
+          supply, 5 million tokens (StocksPreset.CREATOR_VESTING), vests to the launcher block by block
+          over StocksPreset.CREATOR_VESTING_BLOCKS, 1,296,000 blocks, from graduation
+          (releaseCreatorVesting, callable by anyone, pays the launcher). Graduation clones a memestock splitter per launch
+          (MemestockSplitterCreated) and locks a full-range position and a new-token-only position
+          in the launchpad's locker.
+        confirmation_event_signatures:
+          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint256,uint256)
+        reads:
+          - id: stock_admission
+            signature: stockAdmission(address)
+          - id: launches
+            signature: launches(uint256)
+          - id: launches_paused
+            signature: launchesPaused()
+          - id: creator_releasable
+            signature: creatorReleasable(uint256)
+          - id: launch_id_of_token
+            signature: launchIdOfToken(address)
+          - id: locker
+            signature: locker()
+          - id: splitter_implementation
+            signature: splitterImplementation()
+        action_ids:
+          - launch
+          - release_creator_vesting
+      - contract_id: stocks_launchpad_v3
+        contract_name: StocksLaunchpadV3
+        target: stocks_lab_launchpad_address
+        abi_path: abi/stocks-launchpad-v3.json
+        abi_sha256: 6f2f17063afeb60d650735c775d177df85da0bdcf0e14b3a917fa86270b7e625
+        interface_note: >-
+          The second launchpad's interface for Base's 0.2-second blocks; on Base mainnet
+          0x1db36b3BD9eC61c54B06a753FeC0b425237D7E7C, deployed and opened on 12 November 2026 with
+          its bid adapter 0xa28334dEbaeea58Cd0b12D6814219498293EE1fA
+          (contracts/stocks-v3/deployments/base-mainnet/deployed-manifest.json), where new Base
+          launches go. The second launchpad, 0x1d4bc582a9193061d53c4BFA429D366Ed38eEd0B, is
+          paused; its launches keep their own launchpad, hook, locker and bid adapter. Bidding opens
+          StocksPreset.START_LEAD_BLOCKS, 3,000 blocks, after the creation block and runs
+          AUCTION_DURATION_BLOCKS, 431,991 blocks; claims open 640 and the pool 1,280 blocks after
+          the end. The creator's 5 million tokens vest by the clock over
+          StocksPreset.CREATOR_VESTING_SECONDS, 30 days, from the graduation timestamp the launch
+          record holds as vestingStart (releaseCreatorVesting, callable by anyone, pays the
+          launcher).
+        confirmation_event_signatures:
+          - StockLaunchCreated(uint256,address,address,address,address,uint64,uint64,uint256,uint256,uint256)
+        reads:
+          - id: stock_admission
+            signature: stockAdmission(address)
+          - id: launches
+            signature: launches(uint256)
+          - id: launches_paused
+            signature: launchesPaused()
+          - id: creator_releasable
+            signature: creatorReleasable(uint256)
+          - id: launch_id_of_token
+            signature: launchIdOfToken(address)
+          - id: locker
+            signature: locker()
+          - id: splitter_implementation
+            signature: splitterImplementation()
+        action_ids:
+          - launch
+          - release_creator_vesting
+      - contract_id: stocks_bid_adapter_v2
+        contract_name: StockBidAdapterV1
+        target: stocks_lab_bid_adapter_address
+        abi_path: abi/stocks-bid-adapter-v2.json
+        abi_sha256: 24d60b5fc2d1132e983c98d0ecefaa6e5c1c69021770ab4c374b17a0abb395ad
+        interface_note: >-
+          bidWithUsdc(auction, usdcAmount, minStockOut, maxPriceQ96, prevTickPriceQ96, deadline)
+          pulls exactly usdcAmount through a standard ERC-20 allowance to the adapter and bids as
+          owner = msg.sender. The only USDC allowance a bid prepares is that exact amount.
+        confirmation_event_signatures:
+          - StockBidPlaced(address,address,uint256,uint256,uint128,uint256)
+        action_ids:
+          - bid_with_usdc
+      - contract_id: stock_route
+        contract_name: IStockRoute
+        target: launchpad_admitted_route_for_stock
+        abi_path: abi/stock-route.json
+        abi_sha256: 461b1c0990927cfee560b71700d60c15dd700c8d5551c3904e52f741e5de260f
+        interface_note: quoteExactIn is a read-only estimate for review copy and never binding.
+        reads:
+          - id: quote_exact_in
+            signature: quoteExactIn(address,address,uint256)
+        action_ids: []
+      - contract_id: stocks_fee_hook_v2
+        contract_name: StocksFeeHookV1
+        target: stocks_lab_hook_address
+        abi_path: abi/stocks-fee-hook-v2.json
+        abi_sha256: 8a0bf01a860c8c9c74a6f8415c3161492a348232f86267849e21bc7405db4ca6
+        interface_note: >-
+          Three accrual lanes per pool: the creator's (settleCreatorLane(poolId), callable by
+          anyone, pays the accrued STOCK to the launcher), REGENT (settled by the executor only)
+          and stakers (settleStakerLane(poolId), callable by anyone, deposits the accrued STOCK
+          into the launch's splitter). The website reads all three and prepares settleStakerLane.
+        reads:
+          - id: accrued
+            signature: accrued(bytes32)
+          - id: settled
+            signature: settled(bytes32)
+        action_ids:
+          - settle_staker_lane

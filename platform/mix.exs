@@ -74,7 +74,19 @@ defmodule Regents.MixProject do
       {:regent_agents, path: "../shared/ash_components/agents", override: true},
       {:regent_ui, git: @design_system, ref: @design_system_ref, sparse: "regent_ui"},
       {:regent_blog, path: "../shared/blog"},
-      {:regent_agent_access, path: "../shared/agent_access"},
+      {:regent_agent_access, path: "../shared/agent_access", override: true},
+      {:regent_oauth,
+       git: @elixir_utils, ref: @elixir_utils_ref, sparse: "oauth", override: true},
+      {:regent_mcp_agents, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "mcp_agents"},
+      {:regent_mcp_events, git: @elixir_utils, ref: @elixir_utils_ref, sparse: "mcp_events"},
+      {:ash_ai, "~> 1.5"},
+      {:assent, "== 0.3.2"},
+      {:ex_secp256k1, "~> 0.8.0"},
+      {:tz, "~> 0.28"},
+      {:cachex, "~> 4.1"},
+      {:jsv, "~> 0.27"},
+      {:x402, "0.9.0"},
+      {:ethers, "0.8.0"},
       {:regent_format, path: "../shared/format", override: true},
       # regent_payments names the same regent_chain pin.
       {:regent_chain,
@@ -202,7 +214,9 @@ defmodule Regents.MixProject do
         # Techtree's Enquiries and Watchdog add three (domains reading resources), and
         # AgentBodyReader sizing Techtree publications adds one in Endpoint.
         # Keyfleet's AgentTools workspace read domain adds two (domain -> workspace -> read).
-        "xref graph --label compile-connected --fail-above 243",
+        # Autolaunch's full write/agent/stocks/covered-calls/earn/exposure domains add 54
+        # (Ash domains reading resources and resources reading their policy checks/changes/validations).
+        "xref graph --label compile-connected --fail-above 297",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

@@ -11,9 +11,6 @@ defmodule Regents.Autolaunch.AuctionFinish.Transaction do
 
   The database holds both rules: one nonce per wallet on a chain, and at most
   one unsettled transaction per launch.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
   """
 
   use Ash.Resource,
@@ -37,6 +34,52 @@ defmodule Regents.Autolaunch.AuctionFinish.Transaction do
     )
 
     identity_wheres_to_sql(one_unsettled_per_launch: "state = 'signed'")
+  end
+
+  actions do
+    defaults [:read]
+
+    read :unsettled do
+      get? true
+      argument :auction_finish_id, :uuid, allow_nil?: false
+      filter expr(auction_finish_id == ^arg(:auction_finish_id) and state == :signed)
+    end
+
+    read :highest_nonce do
+      get? true
+      argument :chain_id, :integer, allow_nil?: false
+      argument :signer, :string, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and signer == ^arg(:signer))
+      prepare build(sort: [nonce: :desc], limit: 1)
+    end
+
+    create :record do
+      accept [
+        :auction_finish_id,
+        :chain_id,
+        :signer,
+        :nonce,
+        :transaction_hash,
+        :raw_transaction
+      ]
+    end
+
+    update :settle do
+      require_atomic? false
+
+      argument :outcome, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:mined, :reverted, :dropped]]
+
+      validate attribute_equals(:state, :signed)
+      change set_attribute(:state, arg(:outcome))
+    end
+  end
+
+  policies do
+    policy always() do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -73,14 +116,6 @@ defmodule Regents.Autolaunch.AuctionFinish.Transaction do
 
     identity :one_unsettled_per_launch, [:auction_finish_id] do
       where expr(state == :signed)
-    end
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
     end
   end
 end

@@ -1,0 +1,44 @@
+defmodule RegentsWeb.Autolaunch.AgentRobinhoodBidController do
+  @moduledoc """
+  Bids on Robinhood Chain auctions for a signed, paired agent, acting for the
+  person it is paired with: the wallet steps of one USDG bid, and of one of the
+  person's own bids' return and claim. The verified request names the agent
+  and so the account (`RegentsWeb.Autolaunch.Plugs.AgentAccess`); a signer named in the
+  body is used only when it is one of that account's own wallets, and with
+  none named the account's signed-in wallet is used. The site only prepares
+  the steps: the wallet's own key signs and sends each one on Robinhood Chain
+  (`Regents.Autolaunch.AgentRobinhoodBid`).
+  """
+
+  use RegentsWeb, :controller
+
+  alias RegentsWeb.Autolaunch.AgentRobinhoodBidAnswer, as: Answer
+
+  def prepare(conn, _params) do
+    case Answer.input(:prepare, conn.body_params) do
+      {:ok, input} ->
+        Answer.send(
+          conn,
+          Regents.Autolaunch.prepare_robinhood_bid(input, actor: conn.assigns.actor)
+        )
+
+      :error ->
+        Answer.refuse(conn, :invalid_request)
+    end
+  end
+
+  def settle(conn, %{"bid" => bid}) do
+    case Answer.input(:settle, conn.body_params) do
+      {:ok, input} ->
+        Answer.send(
+          conn,
+          Regents.Autolaunch.prepare_robinhood_bid_settlement(Map.put(input, "bid", bid),
+            actor: conn.assigns.actor
+          )
+        )
+
+      :error ->
+        Answer.refuse(conn, :invalid_request)
+    end
+  end
+end

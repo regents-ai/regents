@@ -1,13 +1,11 @@
 defmodule Regents.Autolaunch.Stocks.AdmissionScan do
   @moduledoc """
   How far the site has read one stock launchpad's `StockAdmitted` logs: the
-  next block to read from, and the stocks those logs named that it could not
-  read or save yet. One row per chain, launchpad and deployment run, so a local
-  chain deployed again, which puts the same launchpad address on a new
-  history, is read from its own first block.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  next block `Regents.Autolaunch.Stocks.Stock.SyncAdmissions` reads from, and the
+  stocks those logs named that it could not read or save yet, which it asks
+  the chain about again on every run. One row per chain, launchpad and
+  deployment run, so a local chain deployed again, which puts the same
+  launchpad address on a new history, is read from its own first block.
   """
 
   use Ash.Resource,
@@ -20,6 +18,35 @@ defmodule Regents.Autolaunch.Stocks.AdmissionScan do
     table "stock_admission_scans"
     schema("autolaunch_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    defaults [:read]
+
+    read :of_launchpad do
+      get? true
+      argument :chain_id, :integer, allow_nil?: false
+      argument :launchpad, :string, allow_nil?: false
+      argument :run_id, :string, allow_nil?: false
+
+      filter expr(
+               chain_id == ^arg(:chain_id) and launchpad == ^arg(:launchpad) and
+                 run_id == ^arg(:run_id)
+             )
+    end
+
+    create :advance do
+      accept [:chain_id, :launchpad, :run_id, :next_block, :unread]
+      upsert? true
+      upsert_identity :one_per_launchpad
+      upsert_fields [:next_block, :unread]
+    end
+  end
+
+  policies do
+    policy always() do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -44,13 +71,5 @@ defmodule Regents.Autolaunch.Stocks.AdmissionScan do
 
   identities do
     identity :one_per_launchpad, [:chain_id, :launchpad, :run_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

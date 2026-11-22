@@ -1,9 +1,16 @@
 defmodule Regents.Autolaunch.LaunchChain do
   @moduledoc """
-  How long a launch's blocks take on its chain, in words. Base is the live
-  launchpad; Robinhood is the second launchpad, prepared on the same memestock
-  form and launched once its contracts are live.
+  The chain a launch draft is prepared for. Base is the live launchpad; Robinhood
+  is the second launchpad, prepared on the same memestock form and launched once its
+  contracts are live.
   """
+
+  @chains [:base, :robinhood]
+
+  def chains, do: @chains
+
+  def label(:base), do: "Base"
+  def label(:robinhood), do: "Robinhood"
 
   @doc """
   How long a number of blocks takes on the chain, in words. Base makes five

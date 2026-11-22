@@ -10,6 +10,7 @@ defmodule RegentsWeb.Autolaunch.Components.RevenueHistory do
 
   alias Phoenix.LiveView.AsyncResult
   alias RegentsWeb.Autolaunch.Components.BidPlaced
+  alias RegentsWeb.Motion
 
   attr :revenue, AsyncResult, required: true, doc: "the token's recorded revenue, newest first"
 
@@ -29,7 +30,7 @@ defmodule RegentsWeb.Autolaunch.Components.RevenueHistory do
         id="revenue-history-rows"
         class="revenue-history__rows"
         phx-hook="MotionCascade"
-        data-variant={RegentsWeb.Motion.standard("grid")}
+        data-variant={Motion.standard("grid")}
       >
         <li :for={row <- @revenue.result}>
           <strong>{RegentFormat.amount(row.amount)} <span>{row.asset_symbol}</span></strong>

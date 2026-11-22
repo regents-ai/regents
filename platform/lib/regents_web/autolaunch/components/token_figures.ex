@@ -2,33 +2,37 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
   @moduledoc """
   A token page's figures. `token_figures/1` opens the page: the price, large,
   with how far it has moved since its pool opened beside it and the price in
-  the token's currency under it. `market_stats/1` follows: the market cap, the
-  price in the currency, the change, the total supply, the number of trades
-  and the launch type. Dollar figures are shown where the token's currency has
-  a dollar price; otherwise every figure is in the currency. The figures
-  settle in one after another as they arrive (`MotionCascade`).
-
-  The move, the change and the number of trades come from the token's pool
-  (`Regents.Autolaunch.Pool`): while it is being read, and when it could not
-  be read, the change and the trades show "…" and the move is left out.
+  the token's currency under it. `market_stats/1` follows the chart: the market
+  cap, the price in the currency, the change, the total supply, the number of
+  trades and the launch type. Dollar figures are shown where the token's
+  currency has a dollar price; otherwise every figure is in the currency. The
+  figures settle in one after another as they arrive (`MotionCascade`).
   """
   use Phoenix.Component
 
   alias Phoenix.LiveView.AsyncResult
   alias RegentsWeb.Autolaunch.Components.{LaunchTrust, MarketCard, PriceChart}
   alias RegentsWeb.Autolaunch.TokenDisplay
+  alias RegentsWeb.Motion
 
   attr :id, :string, required: true
   attr :price, :string, default: nil, doc: "the stored price per token, in the currency"
   attr :unit, :string, default: nil, doc: "the currency the token trades against"
-  attr :rate, :any, default: nil, doc: "the currency's dollar price, nil while none is known"
+
+  attr :rate, AsyncResult,
+    required: true,
+    doc: "the currency's dollar price, as `UsdValue` reads it"
+
   attr :pool, AsyncResult, required: true, doc: "the token's pool as the page reads it"
 
   def token_figures(assigns) do
+    rate = dollar_rate(assigns.rate)
+
     assigns =
       assign(assigns,
+        rate: rate,
         move: direction(assigns.pool),
-        length: MarketCard.price_length(assigns.price, assigns.unit, assigns.rate)
+        length: MarketCard.price_length(assigns.price, assigns.unit, rate)
       )
 
     ~H"""
@@ -36,7 +40,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
       id={@id}
       class="token-figures"
       phx-hook="MotionCascade"
-      data-variant={RegentsWeb.Motion.standard("grid")}
+      data-variant={Motion.standard("grid")}
     >
       <p class="token-figures__price">
         <strong style={@length && "--figure-length: #{@length}"}>
@@ -57,13 +61,15 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
   attr :price, :string, default: nil
   attr :market_cap, :any, default: nil, doc: "the price times the whole supply, in the currency"
   attr :unit, :string, default: nil
-  attr :rate, :any, default: nil
+  attr :rate, AsyncResult, required: true
   attr :pool, AsyncResult, required: true
 
   def market_stats(assigns) do
+    rate = dollar_rate(assigns.rate)
+
     assigns =
       assign(assigns,
-        market_cap: MarketCard.money(assigns.market_cap, assigns.rate, assigns.unit),
+        market_cap: MarketCard.money(assigns.market_cap, rate, assigns.unit),
         change: change(assigns.pool),
         trades: trades(assigns.pool),
         supply: assigns.auction.token_supply && RegentFormat.amount(assigns.auction.token_supply),
@@ -136,4 +142,9 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
   defp trades(%AsyncResult{ok?: true, result: %{prices: %{trades: trades}}}), do: trades
   defp trades(%AsyncResult{ok?: true}), do: 0
   defp trades(_reading), do: "…"
+
+  # A test network's coins, or a currency whose price is still being read,
+  # show in the currency itself.
+  defp dollar_rate(%AsyncResult{ok?: true, result: %Decimal{} = rate}), do: rate
+  defp dollar_rate(_rate), do: nil
 end

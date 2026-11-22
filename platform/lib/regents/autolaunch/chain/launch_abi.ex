@@ -1,0 +1,142 @@
+defmodule Regents.Autolaunch.Chain.LaunchAbi do
+  @moduledoc """
+  The Revstake launch terms and the `LaunchCreated` decoder for the Base launch
+  factory.
+
+  Every signature here is declared by an ABI file taken from the contract
+  source, and the module refuses to compile unless that file still declares it.
+  The files are the third factory's and strategy's; the second's declare the
+  same signatures.
+  Calldata is encoded from the deployment description (`Regents.Autolaunch.LabAbi`),
+  never here.
+  """
+
+  alias Regents.Autolaunch.Chain.Abi
+
+  @factory_abi_path Application.app_dir(
+                      :regents,
+                      "priv/autolaunch/abi/regents-autolaunch-factory-v3.json"
+                    )
+  @strategy_abi_path Application.app_dir(
+                       :regents,
+                       "priv/autolaunch/abi/regent-lbp-strategy-v3.json"
+                     )
+  @external_resource @factory_abi_path
+  @external_resource @strategy_abi_path
+
+  @factory_events %{
+    launch_created:
+      {"LaunchCreated(uint256,address,address,address,address,address,uint64,uint64)",
+       "0x98bf615dd919b6d317dc5bb1beac4c0f8b834256c7076d92cabb8a7e32136ce8"}
+  }
+
+  # The launch terms, read for display and never chosen, plus the three strategy
+  # identities a review compares a treasury against. The floor, the bid tick and
+  # the required raise are the strategy's fixed constants; launchers choose none.
+  @strategy_functions %{
+    factory: {"factory()", "0xc45a0155"},
+    hook: {"hook()", "0x7f5a7c7b"},
+    lp_locker: {"lpLocker()", "0x03fc2013"},
+    start_delay_blocks: {"START_DELAY_BLOCKS()", "0x48bd92bb"},
+    auction_duration_blocks: {"AUCTION_DURATION_BLOCKS()", "0x56586874"},
+    claim_delay_blocks: {"CLAIM_DELAY_BLOCKS()", "0x4a9923ac"},
+    migration_delay_blocks: {"MIGRATION_DELAY_BLOCKS()", "0xbfd822e1"},
+    auction_allocation: {"AUCTION_ALLOCATION()", "0x80ff9c38"},
+    reserve_allocation: {"RESERVE_ALLOCATION()", "0x7b5c7f03"},
+    pending_allocation: {"PENDING_ALLOCATION()", "0xebd6c243"},
+    pool_fee: {"POOL_FEE()", "0xdd1b9c4a"},
+    pool_tick_spacing: {"POOL_TICK_SPACING()", "0x7381527f"},
+    floor_price_q96: {"FLOOR_PRICE_Q96()", "0x14ec99b0"},
+    bid_tick_q96: {"BID_TICK_SPACING_Q96()", "0xf54c506c"},
+    required_regent_raised: {"REQUIRED_REGENT_RAISED()", "0xcfc7e1db"}
+  }
+
+  # The launch terms in the order a review presents them: the strategy reads
+  # other than the identity reads.
+  @terms [
+    :start_delay_blocks,
+    :auction_duration_blocks,
+    :claim_delay_blocks,
+    :migration_delay_blocks,
+    :auction_allocation,
+    :reserve_allocation,
+    :pending_allocation,
+    :floor_price_q96,
+    :bid_tick_q96,
+    :required_regent_raised,
+    :pool_fee,
+    :pool_tick_spacing
+  ]
+
+  Enum.sort(@terms) ==
+    Enum.sort(Map.keys(@strategy_functions) -- [:factory, :hook, :lp_locker]) ||
+    raise "the launch terms drifted from the declared strategy reads"
+
+  # A selector or topic is only evidence if the derived ABI really declares the
+  # signature it came from.
+  @after_compile __MODULE__
+
+  @doc false
+  # sobelow_skip ["Traversal.FileModule"]
+  def __after_compile__(_env, _bytecode) do
+    factory = @factory_abi_path |> File.read!() |> Jason.decode!()
+    strategy = @strategy_abi_path |> File.read!() |> Jason.decode!()
+
+    for {_id, {signature, _topic}} <- @factory_events,
+        do: Abi.declared!(factory, "event", signature)
+
+    for {_id, {signature, _selector}} <- @strategy_functions,
+        do: Abi.declared!(strategy, "function", signature)
+  end
+
+  @doc "The exact selector of one admitted read, or the `topic0` of one admitted event."
+  @spec selector(atom()) :: String.t()
+  def selector(id), do: id |> entry() |> elem(1)
+
+  @doc "The launch terms a review reads, in the order it presents them."
+  @spec terms() :: [atom()]
+  def terms, do: @terms
+
+  @doc "The strategy read behind one launch term."
+  @spec term_signature(atom()) :: String.t()
+  def term_signature(id), do: @strategy_functions |> Map.fetch!(id) |> elem(0)
+
+  # Events
+
+  @doc """
+  The one `LaunchCreated` this factory emitted, or `:error`.
+
+  Absent, duplicated, malformed and foreign-emitter are all `:error`: a launch is
+  proved by exactly one event from exactly the reviewed factory.
+  """
+  @spec launch_created([map()], String.t()) :: {:ok, map()} | :error
+  def launch_created(logs, factory) do
+    with {:ok, {[launch_id, launcher_word, subject_word], data}} <-
+           Abi.one_event(logs, selector(:launch_created), factory, 3, 5),
+         [auction, escrow, treasury, start_block, end_block] <- data,
+         {:ok, launcher} <- Abi.word_address(launcher_word),
+         {:ok, subject} <- Abi.word_address(subject_word),
+         {:ok, auction} <- Abi.word_address(auction),
+         {:ok, escrow} <- Abi.word_address(escrow),
+         {:ok, treasury} <- Abi.word_address(treasury),
+         true <- launch_id > 0 do
+      {:ok,
+       %{
+         launch_id: launch_id,
+         launcher: launcher,
+         subject: subject,
+         auction: auction,
+         escrow: escrow,
+         treasury: treasury,
+         start_block: start_block,
+         end_block: end_block
+       }}
+    else
+      _contradiction -> :error
+    end
+  end
+
+  @entries Map.merge(@factory_events, @strategy_functions)
+
+  defp entry(id), do: Map.fetch!(@entries, id)
+end

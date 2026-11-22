@@ -1,0 +1,102 @@
+defmodule RegentsWeb.Autolaunch.ToolManifest do
+  @moduledoc """
+  The WebMCP tools this site offers right now. `priv/tool_manifest.json` is the
+  site's own set, the one the pages' script is built with
+  (`assets/js/public_tools.ts`). While covered calls, Exposure, Earn, agent
+  bids, agent Robinhood bids, agent launches, agent finishes or agent staking
+  are on, the tools in `priv/covered_calls_tools.json`,
+  `priv/exposure_tools.json`, `priv/earn_tools.json`,
+  `priv/agent_bids_tools.json`, `priv/agent_robinhood_bids_tools.json`,
+  `priv/agent_launches_tools.json`, `priv/agent_finish_tools.json` or
+  `priv/agent_stake_tools.json` join it, and the root layout hands the page
+  those tools (`page_tools/0`), so the page registers exactly the tools
+  `/capabilities.json`, the agent guides and the tools dialog list. Off, nothing
+  about them reaches a page, the script or any document.
+  """
+
+  @path Application.app_dir(:regents, "priv/autolaunch/tool_manifest.json")
+  @external_resource @path
+  @manifest @path |> File.read!() |> Jason.decode!()
+
+  @covered_calls_path Application.app_dir(:regents, "priv/autolaunch/covered_calls_tools.json")
+  @external_resource @covered_calls_path
+  @covered_calls @covered_calls_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @exposure_path Application.app_dir(:regents, "priv/autolaunch/exposure_tools.json")
+  @external_resource @exposure_path
+  @exposure @exposure_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @earn_path Application.app_dir(:regents, "priv/autolaunch/earn_tools.json")
+  @external_resource @earn_path
+  @earn @earn_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @agent_bids_path Application.app_dir(:regents, "priv/autolaunch/agent_bids_tools.json")
+  @external_resource @agent_bids_path
+  @agent_bids @agent_bids_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @agent_robinhood_bids_path Application.app_dir(
+                               :regents,
+                               "priv/autolaunch/agent_robinhood_bids_tools.json"
+                             )
+  @external_resource @agent_robinhood_bids_path
+  @agent_robinhood_bids @agent_robinhood_bids_path
+                        |> File.read!()
+                        |> Jason.decode!()
+                        |> Map.fetch!("tools")
+
+  @agent_launches_path Application.app_dir(:regents, "priv/autolaunch/agent_launches_tools.json")
+  @external_resource @agent_launches_path
+  @agent_launches @agent_launches_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @agent_finish_path Application.app_dir(:regents, "priv/autolaunch/agent_finish_tools.json")
+  @external_resource @agent_finish_path
+  @agent_finish @agent_finish_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @agent_stake_path Application.app_dir(:regents, "priv/autolaunch/agent_stake_tools.json")
+  @external_resource @agent_stake_path
+  @agent_stake @agent_stake_path |> File.read!() |> Jason.decode!() |> Map.fetch!("tools")
+
+  @doc "The features that are on, by name."
+  def features do
+    [
+      {"covered_calls", Regents.Autolaunch.CoveredCalls.Deployment.enabled?()},
+      {"exposure", Regents.Autolaunch.Exposure.Deployment.enabled?()},
+      {"earn", Regents.Autolaunch.Earn.Catalog.enabled?()},
+      {"agent_bids", Regents.Autolaunch.AgentBid.enabled?()},
+      {"agent_robinhood_bids", Regents.Autolaunch.AgentRobinhoodBid.enabled?()},
+      {"agent_launches", Regents.Autolaunch.AgentLaunch.enabled?()},
+      {"agent_finish", Regents.Autolaunch.AgentFinish.enabled?()},
+      {"agent_staking", Regents.Autolaunch.AgentStake.enabled?()}
+    ]
+    |> Enum.filter(&elem(&1, 1))
+    |> Enum.map(&elem(&1, 0))
+  end
+
+  @doc "The manifest with the tools offered now: the site's own, exactly, while no feature is on."
+  def current do
+    case page_tools() do
+      [] ->
+        @manifest
+
+      added ->
+        %{@manifest | "tools" => @manifest["tools"] ++ added}
+    end
+  end
+
+  @doc "The tools offered now."
+  def tools, do: current()["tools"]
+
+  @doc "The tools the page is handed beside the ones its script already knows: none while every feature is off."
+  def page_tools do
+    on = features()
+
+    if("covered_calls" in on, do: @covered_calls, else: []) ++
+      if("exposure" in on, do: @exposure, else: []) ++
+      if("earn" in on, do: @earn, else: []) ++
+      if("agent_bids" in on, do: @agent_bids, else: []) ++
+      if("agent_robinhood_bids" in on, do: @agent_robinhood_bids, else: []) ++
+      if("agent_launches" in on, do: @agent_launches, else: []) ++
+      if("agent_finish" in on, do: @agent_finish, else: []) ++
+      if("agent_staking" in on, do: @agent_stake, else: [])
+  end
+end

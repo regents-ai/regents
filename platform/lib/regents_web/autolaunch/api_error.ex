@@ -1,0 +1,101 @@
+defmodule RegentsWeb.Autolaunch.ApiError do
+  @moduledoc """
+  The one error document the public API answers with, from a controller or
+  from an address no controller serves: a stable `code`, the words, and a
+  `hint` saying what to do next. A route sends an answer whole (`answer/2`);
+  its hosted MCP tool gives the answer's `data` (`data/1`).
+  """
+
+  import Plug.Conn, only: [put_status: 2]
+  import Phoenix.Controller, only: [json: 2]
+
+  alias RegentsWeb.Autolaunch.{PublicDocuments, Refusal}
+
+  @doc "Answers `conn` with `status` and the error document for `code`."
+  def send(conn, status, code, message, hint \\ nil),
+    do: conn |> put_status(status) |> json(body(code, message, hint))
+
+  @doc "Answers `conn` with an answer's document, or with the refusal it carries."
+  def answer(conn, {:ok, body}), do: json(conn, body)
+
+  def answer(conn, {:error, %Refusal{status: status, code: code, message: message, hint: hint}}),
+    do: send(conn, status, code, message, hint)
+
+  @doc """
+  An answer as its hosted MCP tool gives it: the document's `data`, or the
+  refusal it carries, which the tool gives as its error in this same shape
+  (`RegentsWeb.Autolaunch.ToolErrors`). The auction and token lists', one auction's
+  and Points' tools give their document whole instead.
+  """
+  def data({:ok, %{data: data}}), do: {:ok, data}
+  def data({:error, %Refusal{}} = refused), do: refused
+
+  @doc "The error document for `code`, with its hint."
+  def body(code, message, next_step \\ nil),
+    do: %{error: %{code: code, message: message, hint: next_step || hint(code)}}
+
+  defp hint("invalid_request"),
+    do:
+      "Check the request against #{PublicDocuments.url("/openapi.json")}. An unknown parameter or value is refused. Sending the same request again will not help."
+
+  defp hint("invalid_cursor"),
+    do:
+      "Send after as the previous page's pagination.next_cursor, unchanged, or omit it for the newest entries."
+
+  defp hint("not_found"),
+    do:
+      "List what exists with GET #{PublicDocuments.url("/api/v1/auctions")} or GET #{PublicDocuments.url("/api/v1/tokens")}. Every endpoint is described at #{PublicDocuments.url("/openapi.json")}. Sending the same request again will not help."
+
+  defp hint("invalid_amount"),
+    do:
+      "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."
+
+  defp hint("invalid_max_price"),
+    do:
+      "Send max_price as digits with at most one decimal point, no sign, exponent or thousands separator: the most you would pay per token, in the auction's quote token. Sending the same value again will not help."
+
+  defp hint("estimate_not_offered"),
+    do:
+      "Read the auction's figures with GET #{PublicDocuments.url("/api/v1/auctions/{id}")} or on its page (its url). Sending the same request again will not help."
+
+  defp hint(code) when code in ["unknown_listing", "unknown_bid"],
+    do:
+      "Read the current order book with GET /api/v1/covered-calls/{symbol} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP), then use an offer ID from that market. For a call you hold or a closed order, read your positions with GET /api/agent/v1/covered-calls/{symbol}/positions or the covered_call_positions hosted tool."
+
+  defp hint(code) when code in ["expiry_not_offered", "expiry_passed"],
+    do:
+      "Read expiries with GET /api/v1/covered-calls/{symbol} or the covered_call_book hosted tool (autolaunch_covered_call_listings in WebMCP). Choose an expiry from that answer and request a new quote."
+
+  defp hint("unknown_series"),
+    do:
+      "List the current series with GET /api/v1/after-hour-stocks or the autolaunch_after_hour_stocks_list tool. Use the series address from that answer."
+
+  defp hint("unknown_product"),
+    do:
+      "List the current products with GET /api/v1/earn/products or the earn_products hosted tool (autolaunch_earn_products in WebMCP). Use the product id from that answer."
+
+  defp hint("agent_not_paired"),
+    do:
+      "Ask your person to sign in on this site and pair you with Pair New Agent on their Agents page, then send the request again."
+
+  defp hint("wallet_required"),
+    do:
+      "Ask your person to sign in with their wallet on any Regent site, then send the request again."
+
+  defp hint("authentication_required"),
+    do:
+      "Ask the person to sign in at #{PublicDocuments.url("/")} in this browser, then call again."
+
+  defp hint("prelaunch_read_only"),
+    do: "Reading and pairing work now. Send the request again once Autolaunch opens."
+
+  defp hint("chain_unavailable"), do: "Try again in a moment."
+  defp hint("account_unavailable"), do: "Try again in a moment."
+
+  defp hint("internal_error"),
+    do: "Try again in a moment. If it keeps failing, tell us at #{PublicDocuments.url("/about")}."
+
+  defp hint(_code),
+    do:
+      "Every endpoint is described at #{PublicDocuments.url("/openapi.json")} and the agent guide is at #{PublicDocuments.url("/llms.txt")}."
+end

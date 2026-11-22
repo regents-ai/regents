@@ -1,74 +1,166 @@
 defmodule Regents.Autolaunch.Stocks.MarketData do
   @moduledoc """
-  The dollar price of each Base stock, for the figures of the auctions bid in
-  it. Stock prices come from the Chainlink feed each stock's route names, read
-  through the site's own Base address (`Regents.Chain.Rpc`, failures counted
-  under the scope "autolaunch stock prices").
+  The market prices the site shows: a stock's price and where it can be bought,
+  for the create page, and the dollar value of an auction's currency, REGENT or
+  a stock, for the auction pages.
 
-  Each feed's price is kept for ten minutes (`Regents.Autolaunch.Stocks.PriceCache`).
-  A feed that gave none, by not answering or by an answer too old, is kept a
-  minute as having none, so it is asked at most once a minute whoever opens
-  the page. The answers are read straight from their cache, never through one
-  process.
-
-  Robinhood's stock prices come with Robinhood's part.
+  Stock prices come from the Chainlink feed each stock's route names, and
+  REGENT's price is its Base Uniswap pool's, from DexScreener. A stock's venues
+  are the places holding more than $10,000 of its liquidity, the two deepest,
+  deepest first. On Base they are the stock token's deepest USDC pool on
+  Aerodrome and its deepest on Uniswap, each linked to that venue's swap page.
+  They come from GeckoTerminal's list of the token's twenty busiest pools:
+  DexScreener's listing leaves out Aerodrome's concentrated pools, where most
+  of a stock's trading is. On Robinhood they are each exchange's deepest
+  DexScreener pair of the stock token against USDG, both matched by address,
+  linked to the pair's DexScreener page; the site writes that link itself from
+  the pair's id. A pool whose venue or depth the source leaves out is not a
+  venue. A full answer is kept for ten minutes. A read that failed, or left a stock's price out, is tried again
+  after one second, then two, four and so on, up to ten minutes. One read
+  fills an answer however many ask for it at once (`Cachex.fetch/4`): the
+  others wait for that read, so a page asks from a background task. The kept
+  answers are read straight from their cache, never through one process.
   """
 
-  alias Regents.Autolaunch.Stocks.{Assets, PriceCache}
-  alias Regents.Chain.Rpc
+  require Logger
 
+  alias Regents.Autolaunch.Chain.{Abi, Rpc}
+
+  alias RegentChain.Address
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Stocks.Assets
+
+  @cache :autolaunch_stock_market_data
+  @ttl_ms 600_000
+  @first_retry_ms 1_000
   @latest_round_data "0xfeaf968c"
   # Every stock's Chainlink feed, which its route names, answers in USD with
   # eight decimals.
   @feed_decimals 8
   @feed_max_age_seconds 7 * 24 * 60 * 60
-  @rpc_opts [scope: "autolaunch stock prices"]
+  @usdc_base "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  @dexscreener "https://api.dexscreener.com"
+  @dexscreener_pages "https://dexscreener.com"
+  @geckoterminal "https://api.geckoterminal.com/api/v2"
+  @regent_pool "0x4ed3b69ac263ad86482f609b2c2105f64bcfd3a7e02e8e078ec9fec1f0324bed"
+  @base_venues [{"aerodrome", "Aerodrome"}, {"uniswap", "Uniswap"}]
+  @venue_floor_usd 10_000
+  @venue_limit 2
+
+  @doc "The cache the answers are kept in, for the application's supervisor."
+  def child_spec(_options), do: Supervisor.child_spec({Cachex, name: @cache}, id: __MODULE__)
+
+  @doc "The chain's stock prices and the venues that trade the chosen stock."
+  def overview(chain, stock), do: %{prices: prices(chain), venues: venues(chain, stock)}
 
   @doc """
-  USD prices by ticker for every saved Base stock whose feed answered; none
-  while the saved stocks cannot be read.
+  USD prices by ticker for every listed stock on the chain whose feed answered.
+  The answer is kept for the feeds it was read from, so a stock the launchpad
+  admits or revokes is priced, or dropped, on the next ask.
   """
-  @spec prices(:base) :: %{String.t() => Decimal.t()}
-  def prices(:base) do
-    case Assets.known(:base) do
-      {:ok, stocks} -> stocks |> feeds() |> read_prices()
-      {:error, _reason} -> %{}
+  def prices(chain) do
+    feeds = feeds(chain)
+    cached({:prices, chain, feeds}, fn -> read_prices(chain, feeds) end, %{})
+  end
+
+  @doc "One stock token's USD price on the chain; nil while its feed has not answered."
+  def stock_price(chain, symbol), do: prices(chain)[Assets.ticker(symbol)]
+
+  @doc "REGENT's USD price in its Base Uniswap pool; nil while DexScreener has not answered."
+  def regent_price, do: cached(:regent_price, &read_regent_price/0, nil)
+
+  @doc "Forgets every kept answer, so the next ask reads again."
+  def reset do
+    Cachex.clear!(@cache)
+    :ok
+  end
+
+  # The venues that trade the stock, deepest first; none for no stock.
+  defp venues(_chain, nil), do: []
+
+  defp venues(chain, stock),
+    do: cached({:venues, chain, stock.address}, fn -> read_venues(chain, stock) end, [])
+
+  # A full answer is kept for the whole ten minutes; a partial answer or none
+  # is kept only until the next try, each wait twice the last. The misses are
+  # counted beside the answer, so the count outlives each short-kept answer
+  # and the next wait doubles. A cache that cannot answer is no answer yet.
+  defp cached(key, read, empty) do
+    case Cachex.fetch(@cache, key, fn -> read_once(key, read, empty) end) do
+      {status, {:kept, value}} when status in [:ok, :commit] ->
+        value
+
+      {:error, reason} ->
+        Logger.warning("stock market data not read: #{inspect(reason)}")
+        empty
     end
   end
+
+  # Kept inside a tuple: the cache takes a bare nil for nothing kept.
+  defp read_once(key, read, empty) do
+    case read.() do
+      {:ok, value} ->
+        {:ok, _counted?} = Cachex.del(@cache, {:misses, key})
+        {:commit, {:kept, value}, expire: @ttl_ms}
+
+      {:partial, value} ->
+        missed(key, value)
+
+      :error ->
+        missed(key, empty)
+    end
+  end
+
+  defp missed(key, value) do
+    {:ok, misses} = Cachex.incr(@cache, {:misses, key})
+    {:commit, {:kept, value}, expire: retry_ms(misses - 1)}
+  end
+
+  defp retry_ms(misses), do: min(@first_retry_ms * Integer.pow(2, misses), @ttl_ms)
 
   # The feed of each saved stock whose route names one, by ticker, so an
   # auction in a revoked stock keeps its dollar figures. Where a chain has two
   # stocks under one ticker, the admitted one's feed.
-  defp feeds(stocks) do
-    for %{symbol: symbol, feed: feed} <- Enum.sort_by(stocks, & &1.admitted),
+  defp feeds(chain) do
+    for %{symbol: symbol, feed: feed} <- Enum.sort_by(Assets.known(chain), & &1.admitted),
         feed,
         into: %{},
         do: {Assets.ticker(symbol), feed}
   end
 
-  # One `latestRoundData()` per feed not kept, read concurrently; a feed with
-  # no price leaves its ticker out.
-  defp read_prices(feeds) do
-    feeds
-    |> Task.async_stream(
-      fn {ticker, feed} -> {ticker, PriceCache.price(feed, fn -> read_price(feed) end)} end,
-      max_concurrency: 4,
-      timeout: 10_000,
-      on_timeout: :kill_task
-    )
-    |> Enum.flat_map(fn
-      {:ok, {ticker, {:ok, price}}} -> [{ticker, price}]
-      _unanswered -> []
-    end)
-    |> Map.new()
+  # One `latestRoundData()` per feed, read concurrently; a feed that does not
+  # answer leaves its ticker out and makes the answer partial.
+  defp read_prices(chain, feeds) do
+    prices =
+      feeds
+      |> Task.async_stream(fn {ticker, feed} -> {ticker, read_price(chain, feed)} end,
+        max_concurrency: 4,
+        timeout: 10_000,
+        on_timeout: :kill_task
+      )
+      |> Enum.flat_map(fn
+        {:ok, {ticker, {:ok, price}}} -> [{ticker, price}]
+        _unanswered -> []
+      end)
+      |> Map.new()
+
+    cond do
+      feeds == %{} -> {:ok, %{}}
+      prices == %{} -> :error
+      map_size(prices) < map_size(feeds) -> {:partial, prices}
+      true -> {:ok, prices}
+    end
   end
 
-  defp read_price(feed) do
+  defp read_price(chain, feed) do
     now = System.os_time(:second)
 
     # roundId, signed answer, startedAt, updatedAt, answeredInRound
     with {:ok, "0x" <> hex} when byte_size(hex) == 320 <-
-           Rpc.request("eth_call", [%{to: feed, data: @latest_round_data}, "latest"], @rpc_opts),
+           Rpc.request("eth_call", [%{to: feed, data: @latest_round_data}, "latest"],
+             rpc_url: rpc_url(chain),
+             log_scope: "stocks market"
+           ),
          {:ok, <<_round::256, answer::signed-256, _started::256, updated::256, _answered::256>>} <-
            Base.decode16(hex, case: :mixed),
          true <-
@@ -76,7 +168,183 @@ defmodule Regents.Autolaunch.Stocks.MarketData do
              now - updated <= @feed_max_age_seconds do
       {:ok, Decimal.div(Decimal.new(answer), Integer.pow(10, @feed_decimals))}
     else
-      _unavailable -> {:error, :unavailable}
+      _unavailable -> :error
     end
+  end
+
+  # The pool must be the REGENT pool this site names; any other token's price
+  # in its place is no answer.
+  defp read_regent_price do
+    case get("#{@dexscreener}/latest/dex/pairs/base/#{@regent_pool}") do
+      {:ok, %{"pairs" => [%{"baseToken" => %{"address" => token}, "priceUsd" => price} | _]}}
+      when is_binary(price) ->
+        if Address.equal?(token, Abi.regent_address()), do: positive(price), else: :error
+
+      _unavailable ->
+        :error
+    end
+  end
+
+  defp positive(price) do
+    with true <- byte_size(price) <= 100 and String.match?(price, ~r/^\d+(?:\.\d+)?$/),
+         {decimal, ""} <- Decimal.parse(price, max_digits: :infinity),
+         true <- Decimal.gt?(decimal, 0) do
+      {:ok, decimal}
+    else
+      _unparsed -> :error
+    end
+  end
+
+  defp rpc_url(:base), do: Application.fetch_env!(:regents, :base_read_rpc_url)
+  defp rpc_url(:robinhood), do: Application.fetch_env!(:regents, :robinhood_read_rpc_url)
+
+  defp read_venues(:base, stock) do
+    token = String.downcase(stock.address)
+
+    case get("#{@geckoterminal}/networks/base/tokens/#{token}/pools?page=1") do
+      {:ok, %{"data" => pools}} when is_list(pools) ->
+        dollar_pools = Enum.filter(pools, &dollar_pool?(&1, token))
+
+        @base_venues
+        |> Enum.flat_map(&deepest_pool(dollar_pools, &1, stock.address))
+        |> deepest_venues()
+        |> then(&{:ok, &1})
+
+      _unavailable ->
+        :error
+    end
+  end
+
+  defp read_venues(:robinhood, stock) do
+    with {:ok, config} <- RobinhoodLab.current(),
+         {:ok, pairs} when is_list(pairs) <-
+           get("#{@dexscreener}/token-pairs/v1/robinhood/#{String.downcase(stock.address)}") do
+      usdg = RobinhoodLab.address!(config, :usdg)
+
+      pairs
+      |> Enum.filter(&dollar_pair?(&1, stock.address, usdg))
+      |> Enum.flat_map(&pair_venue/1)
+      |> Enum.group_by(& &1.name)
+      |> Enum.map(fn {_name, venues} -> Enum.max_by(venues, & &1.liquidity_usd, Decimal) end)
+      |> deepest_venues()
+      |> then(&{:ok, &1})
+    else
+      _unavailable -> :error
+    end
+  end
+
+  # The venues worth sending a buyer to: more than $10,000 of liquidity, the
+  # two deepest.
+  defp deepest_venues(venues) do
+    venues
+    |> Enum.filter(&Decimal.gt?(&1.liquidity_usd, @venue_floor_usd))
+    |> Enum.sort_by(& &1.liquidity_usd, {:desc, Decimal})
+    |> Enum.take(@venue_limit)
+  end
+
+  # A Robinhood pair of this stock token against USDG, either way round, both
+  # by address: another token can carry the same ticker.
+  defp dollar_pair?(
+         %{
+           "chainId" => "robinhood",
+           "baseToken" => %{"address" => base},
+           "quoteToken" => %{"address" => other}
+         },
+         stock,
+         usdg
+       )
+       when is_binary(base) and is_binary(other) do
+    (Address.equal?(base, stock) and Address.equal?(other, usdg)) or
+      (Address.equal?(base, usdg) and Address.equal?(other, stock))
+  end
+
+  defp dollar_pair?(_pair, _stock, _usdg), do: false
+
+  # A pair as a venue, as a single-item list; empty when DexScreener leaves out
+  # its exchange, its depth or a usable id. The link is to the pair's
+  # DexScreener page, written here from the pair's id: a pool address, or for a
+  # Uniswap v4 pool its 32-byte pool id.
+  defp pair_venue(%{"dexId" => dex, "pairAddress" => id, "liquidity" => %{"usd" => usd}})
+       when is_binary(dex) and dex != "" and is_binary(id) and is_number(usd) do
+    if String.match?(id, ~r/\A0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\z/),
+      do: [
+        %{name: venue_name(dex), url: pair_url(id), liquidity_usd: Decimal.from_float(usd / 1)}
+      ],
+      else: []
+  end
+
+  defp pair_venue(_pair), do: []
+
+  defp pair_url(id), do: "#{@dexscreener_pages}/robinhood/#{String.downcase(id)}"
+
+  # A pool of the stock against USDC, either way round: a pool against another
+  # token is that token's market, and the swap page it would link starts from
+  # USDC.
+  defp dollar_pool?(%{"relationships" => relationships}, token) do
+    sides =
+      Enum.map(~w(base_token quote_token), fn side ->
+        relationships |> get_in([side, "data", "id"]) |> to_string() |> String.downcase()
+      end)
+
+    Enum.sort(sides) == Enum.sort(["base_#{token}", "base_#{String.downcase(@usdc_base)}"])
+  end
+
+  defp dollar_pool?(_pool, _token), do: false
+
+  # The venue's deepest pool, as a single-item list; empty when the venue has
+  # none. GeckoTerminal names each of a venue's pool kinds apart, such as
+  # `aerodrome-slipstream-3` and `uniswap-v4-base`, all starting with the
+  # venue's name.
+  defp deepest_pool(pools, {dex, name}, stock) do
+    pools
+    |> Enum.flat_map(&pool_reserve(&1, dex))
+    |> Enum.max(Decimal, fn -> nil end)
+    |> List.wrap()
+    |> Enum.map(&%{name: name, url: swap_url(dex, stock), liquidity_usd: &1})
+  end
+
+  # The dollars a pool on this venue holds, as a single-item list; empty for
+  # another venue's pool and for one GeckoTerminal gives no depth for. It writes
+  # dollar amounts as decimal text.
+  defp pool_reserve(
+         %{
+           "relationships" => %{"dex" => %{"data" => %{"id" => pool_dex}}},
+           "attributes" => %{"reserve_in_usd" => text}
+         },
+         dex
+       )
+       when is_binary(pool_dex) and is_binary(text) do
+    with true <- String.starts_with?(pool_dex, dex),
+         {amount, ""} <- Float.parse(text) do
+      [Decimal.from_float(amount)]
+    else
+      _other -> []
+    end
+  end
+
+  defp pool_reserve(_pool, _dex), do: []
+
+  defp swap_url("aerodrome", stock),
+    do: "https://aerodrome.finance/swap?from=#{@usdc_base}&to=#{stock}"
+
+  defp swap_url("uniswap", stock),
+    do:
+      "https://app.uniswap.org/swap?chain=base&inputCurrency=#{@usdc_base}&outputCurrency=#{stock}"
+
+  defp venue_name(dex), do: String.capitalize(dex)
+
+  defp get(url) do
+    case Req.get(url,
+           headers: [accept: "application/json"],
+           connect_options: [timeout: 3_000],
+           receive_timeout: 5_000,
+           retry: false
+         ) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      _unavailable -> :error
+    end
+  rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
+    _error -> :error
   end
 end

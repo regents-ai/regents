@@ -2,18 +2,18 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
   @moduledoc """
   A launched token's page heading: its picture, its name and the pair it
   trades as, a line of tags (its chain, its launch type and who made it), and
-  its address through `Regent.Primitives.address` (short form, copy icon,
-  explorer arrow), and where to trade and chart it. On Base, the trade and
-  chart buttons hold their place from the first paint, closed: the trade
-  button opens the token's pool on Uniswap once the pool is read, and the
-  chart button stays closed (its chart comes with its own part). They and the
-  explorer arrow name public networks only, so a local fork's token shows its
-  address and copy icon without them.
-
-  The picture is a stored one's sized copy (`RegentsWeb.Autolaunch.Paths`);
-  any other address, like none, shows the ticker's first letter.
+  its actions: Share, its address through `Regent.Primitives.address` (short
+  form, copy icon, explorer arrow), and where to trade and chart it. The trade
+  and chart buttons hold their place from the first paint and open once the
+  pool is read, so nothing below them moves. They and the explorer arrow name
+  public networks only, so a local fork's token shows its address and copy
+  icon without them. Where the outside chart site has no chart for the pool, the
+  chart button opens the page's own price chart instead.
   """
   use Phoenix.Component
+
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.StoredImage
 
   attr :name, :string, required: true
   attr :symbol, :string, required: true
@@ -23,28 +23,29 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
   attr :address, :string, required: true, doc: "the token's contract address"
   attr :pool, :map, default: nil, doc: "the token's pool facts, once read"
 
+  attr :own_chart, :string,
+    default: nil,
+    doc: "the id of the page's own price chart, when it draws one"
+
   slot :tags, doc: "the chain, the launch type and the creator, under the name"
+  slot :actions, doc: "the actions before the address, such as Share"
 
   def token_heading(assigns) do
-    assigns =
-      assign(assigns,
-        network: network(assigns.chain_id),
-        picture: RegentsWeb.Autolaunch.Paths.sized(assigns.image, 160)
-      )
+    assigns = assign(assigns, :network, network(assigns.chain_id))
 
     ~H"""
     <div class="token-heading">
       <div class="token-heading__picture">
         <img
-          :if={@picture}
-          src={@picture}
+          :if={@image}
+          src={StoredImage.sized(@image, 160)}
           alt=""
           width="64"
           height="64"
           fetchpriority="high"
           decoding="async"
         />
-        <span :if={!@picture} aria-hidden="true">{String.first(@symbol)}</span>
+        <span :if={!@image} aria-hidden="true">{String.first(@symbol)}</span>
       </div>
       <div class="token-heading__title">
         <h1>
@@ -54,6 +55,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
         <div class="token-heading__tags">{render_slot(@tags)}</div>
       </div>
       <div class="token-heading__links">
+        {render_slot(@actions)}
         <Regent.Primitives.address
           id="token-heading-address"
           address={@address}
@@ -68,6 +70,14 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
         >
           <.uniswap_icon /> Uniswap Pool
         </a>
+        <.live_component
+          :if={@network && @pool}
+          module={RegentsWeb.Autolaunch.ChartLinkComponent}
+          id={"token-chart-#{@network}-#{@pool.pool_id}"}
+          network={@network}
+          pool_id={@pool.pool_id}
+          own_chart={@own_chart}
+        />
         <Regent.Primitives.button
           :if={@network && !@pool}
           variant="secondary"
@@ -76,7 +86,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
         >
           <.uniswap_icon /> Uniswap Pool
         </Regent.Primitives.button>
-        <span :if={@network} class="token-heading__chart">
+        <span :if={@network && !@pool} class="token-heading__chart">
           <Regent.Primitives.button variant="secondary" disabled class="token-heading__link">
             View Chart
           </Regent.Primitives.button>
@@ -86,14 +96,17 @@ defmodule RegentsWeb.Autolaunch.Components.TokenHeading do
     """
   end
 
-  # The button opens the token's pool on Uniswap: a fixed https address and
-  # the pool id the chain gave, 64 hex digits.
+  # The button opens the token's pool on Uniswap, on Base and Robinhood alike.
   defp uniswap_url(network, pool),
     do: "https://app.uniswap.org/explore/pools/#{network}/#{pool.pool_id}"
 
   # The name Uniswap and the chart site give the token's public network; nil on a fork.
   defp network(8453), do: "base"
-  defp network(_chain_id), do: nil
+
+  defp network(chain_id) do
+    if RobinhoodLab.chain?(chain_id) and not RobinhoodLab.test_chain?(chain_id),
+      do: "robinhood"
+  end
 
   # The Uniswap unicorn, from Web3 Icons (MIT).
   defp uniswap_icon(assigns) do

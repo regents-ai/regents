@@ -1,9 +1,67 @@
 defmodule Regents.Autolaunch.Chain.Abi do
   @moduledoc false
 
-  alias Regents.Chain.Address
+  alias RegentChain.Address
+
+  @manifest_path Application.app_dir(:regents, "priv/autolaunch/contracts/chain-contracts.yaml")
+  @external_resource @manifest_path
+
+  @manifest YamlElixir.read_from_file!(@manifest_path)
+  @evidence Map.new(
+              get_in(@manifest, ["contracts", Access.at(0), "reviewed_action_evidence"]),
+              &{&1["contract_id"], &1}
+            )
 
   @address_bound Integer.pow(2, 160)
+
+  # The evidence manifest pins contract identities, not the ERC-20 interface every
+  # token shares, so the standard calls this site prepares are declared here
+  # against their canonical signatures.
+  @erc20 %{
+    "approve" => {"approve(address,uint256)", "0x095ea7b3"},
+    "balance_of" => {"balanceOf(address)", "0x70a08231"},
+    "allowance" => {"allowance(address,address)", "0xdd62ed3e"}
+  }
+
+  @doc "Raises unless `abi` declares exactly this function or event signature."
+  def declared!(abi, kind, signature) do
+    [name] = Regex.run(~r/^(\w+)\(/, signature, capture: :all_but_first)
+
+    Enum.any?(abi, fn
+      %{"type" => ^kind, "name" => ^name, "inputs" => inputs} ->
+        "#{name}(#{Enum.map_join(inputs, ",", & &1["type"])})" == signature
+
+      _entry ->
+        false
+    end) || raise "pinned ABI is missing #{signature}"
+  end
+
+  def usdc_address,
+    do: get_in(@evidence, ["regent_revenue_staking", "onchain_constants", "usdc"])
+
+  @doc "The one REGENT address this site reads, quotes and approves against."
+  def regent_address, do: @evidence["regent_erc20"]["address"]
+
+  def encode_erc20(id, arguments) when is_map_key(@erc20, id) do
+    {signature, selector} = @erc20[id]
+    [types] = Regex.run(~r/^\w+\((.*)\)$/, signature, capture: :all_but_first)
+    types = String.split(types, ",")
+
+    if length(types) != length(arguments) do
+      raise ArgumentError, "ABI argument count does not match #{signature}"
+    end
+
+    encoded =
+      types
+      |> Enum.zip(arguments)
+      |> Enum.map_join(fn {type, arg} -> encode_static(type, arg) end)
+
+    String.downcase(selector <> encoded)
+  end
+
+  @doc "Ethereum Keccak-256 of an exact event signature, which is its `topic0`."
+  def topic0(signature),
+    do: "0x" <> Base.encode16(ExKeccak.hash_256(signature), case: :lower)
 
   @doc """
   The one log in this receipt that is exactly this event.
@@ -59,6 +117,22 @@ defmodule Regents.Autolaunch.Chain.Abi do
     case Base.decode16(hex, case: :mixed) do
       {:ok, bytes} -> words(rest, [:binary.decode_unsigned(bytes) | decoded])
       :error -> :error
+    end
+  end
+
+  defp encode_static("address", address), do: address_word(address)
+
+  defp encode_static("uint256", value) when is_integer(value) and value >= 0 do
+    value |> Integer.to_string(16) |> String.pad_leading(64, "0")
+  end
+
+  defp encode_static(type, _value), do: raise(ArgumentError, "unsupported ABI input #{type}")
+
+  @doc "An address as the 32-byte word calldata carries it; raises for anything that is not one."
+  def address_word(address) do
+    case Address.normalize(address) do
+      {:ok, "0x" <> hex} -> String.pad_leading(hex, 64, "0")
+      :error -> raise ArgumentError, "wallet address is invalid"
     end
   end
 end

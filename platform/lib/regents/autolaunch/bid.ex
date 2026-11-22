@@ -10,22 +10,32 @@ defmodule Regents.Autolaunch.Bid do
     * `:claimable` once it exited with tokens filled and the claim block has passed;
     * `:returned` once it exited with nothing filled (finished);
     * `:claimed` once its tokens have been claimed (finished).
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
   """
+
+  alias Regents.Autolaunch.BidIdentity
+
+  @statuses [:active, :returnable, :awaiting_claim, :claimable, :returned, :claimed]
+
+  @type status :: :active | :returnable | :awaiting_claim | :claimable | :returned | :claimed
+
+  # How far each status is along a bid's settlement. `returned` ranks below the
+  # three fill states: a reading names one of them only when the chain shows the
+  # bid filled, so a bid that filled nothing never leaves `returned`.
+  @rank %{active: 0, returnable: 1, returned: 2, awaiting_claim: 3, claimable: 4, claimed: 5}
+
+  @doc """
+  Whether a stored status may become `next`: only to a later step, never back
+  and never out of a finished one.
+  """
+  @spec forward?(status(), status()) :: boolean()
+  def forward?(current, next), do: @rank[next] > @rank[current]
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
-
-  @statuses [:active, :returnable, :awaiting_claim, :claimable, :returned, :claimed]
-
-  # A bid id occupies one URL-safe segment, the identifier format the route
-  # catalog accepts.
-  @bid_id_shape ~r/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table "bids"
@@ -47,13 +57,201 @@ defmodule Regents.Autolaunch.Bid do
     end
   end
 
+  actions do
+    read :mine do
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
+    # The bids of the wallets named: a page names every wallet the account
+    # links. The policies below still admit only the account's verified
+    # wallets. Every write stores the owner's address in lowercase, so the
+    # per-wallet reads compare it as stored and use its index.
+    read :mine_by_wallets do
+      argument :wallet_addresses, {:array, :string}, allow_nil?: false
+      filter expr(owner_address in ^arg(:wallet_addresses))
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
+    # Those wallets' ended bids with money to take back or tokens to claim.
+    read :to_settle_by_wallets do
+      argument :wallet_addresses, {:array, :string}, allow_nil?: false
+
+      filter expr(
+               owner_address in ^arg(:wallet_addresses) and
+                 status in [:returnable, :claimable]
+             )
+
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
+    read :agent_mine_by_wallet do
+      argument :wallet_address, :string, allow_nil?: false
+      filter expr(owner_address == ^arg(:wallet_address))
+      prepare build(sort: [inserted_at: :desc, id: :desc], load: [:auction, :token])
+    end
+
+    read :owned_by_bid_id do
+      get? true
+      argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
+      filter expr(bid_id == ^arg(:bid_id))
+      prepare build(load: [:auction, :token])
+    end
+
+    # One of the paired agent's person's own bids, by its id, for its return
+    # and claim (`Regents.Autolaunch.AgentBid`).
+    read :agent_by_bid_id do
+      get? true
+      argument :bid_id, :string, allow_nil?: false, constraints: BidIdentity.constraints()
+      filter expr(bid_id == ^arg(:bid_id))
+      prepare build(load: [:auction])
+    end
+
+    # A saved position by its row id, for the site's own checks of it
+    # (`Regents.Autolaunch.Points.Bid`).
+    read :by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
+    create :project_lab do
+      accept [
+        :bid_id,
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :current_clearing_price,
+        :estimated_tokens_if_end_now,
+        :status,
+        :exited_at,
+        :claimed_at,
+        :auction_address,
+        :onchain_bid_id,
+        :currency_refunded,
+        :tokens_filled,
+        :tokens_claimed
+      ]
+
+      change Regents.Autolaunch.Bid.Changes.NormalizeOwnerAddress
+      upsert? true
+      upsert_identity :unique_bid_id
+
+      upsert_fields [
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :current_clearing_price,
+        :estimated_tokens_if_end_now,
+        :status,
+        :exited_at,
+        :claimed_at,
+        :auction_address,
+        :onchain_bid_id,
+        :currency_refunded,
+        :tokens_filled,
+        :tokens_claimed
+      ]
+    end
+
+    # A bid the auction announced on chain, recorded by the auction's background
+    # reader. It carries only the bid's own facts, so recording it again never
+    # touches the position's status or settlement.
+    create :record_from_chain do
+      accept [
+        :bid_id,
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :auction_address,
+        :onchain_bid_id
+      ]
+
+      change Regents.Autolaunch.Bid.Changes.NormalizeOwnerAddress
+      upsert? true
+      upsert_identity :unique_bid_id
+
+      upsert_fields [
+        :auction_id,
+        :owner_address,
+        :amount,
+        :max_price,
+        :auction_address,
+        :onchain_bid_id
+      ]
+
+      emit Regents.Autolaunch.Signals, :bid_recorded,
+        dynamic?: true,
+        description: "Only when this write saved the bid."
+
+      # Recording a bid already saved updates its row, which Ash marks with an
+      # `upsert_action` of `:update`.
+      change after_action(fn changeset, bid, _context ->
+               if Ash.Resource.get_metadata(bid, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(changeset, Regents.Autolaunch.Signals, :bid_recorded, %{
+                          position_id: bid.id
+                        }),
+                      do: {:ok, bid}
+               else
+                 {:ok, bid}
+               end
+             end)
+    end
+  end
+
+  policies do
+    policy action([:agent_mine_by_wallet, :agent_by_bid_id]) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
+    end
+
+    policy action([:agent_mine_by_wallet, :agent_by_bid_id]) do
+      authorize_if Regents.Autolaunch.Bid.Checks.VerifiedWalletOwner
+    end
+
+    policy action([:mine, :mine_by_wallets, :to_settle_by_wallets, :owned_by_bid_id]) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+    end
+
+    policy action([:mine, :mine_by_wallets, :to_settle_by_wallets, :owned_by_bid_id]) do
+      authorize_if Regents.Autolaunch.Bid.Checks.VerifiedWalletOwner
+    end
+
+    policy action([:project_lab, :record_from_chain, :by_id]) do
+      authorize_if Regents.Checks.SystemActor
+    end
+  end
+
+  # A bid's standing is written only by `:project_lab`, and the bid itself is
+  # first recorded by `:record_from_chain`; its owner's open pages hear of each
+  # write (`subscribe_wallet/1`).
+  pub_sub do
+    module Phoenix.PubSub
+    name Regents.PubSub
+    transform fn notification -> {:autolaunch_bid_changed, notification.data.bid_id} end
+
+    publish :project_lab, ["wallet_bids", :owner_address]
+    publish :record_from_chain, ["wallet_bids", :owner_address]
+  end
+
+  @doc """
+  Subscribes the calling process to the bids of one lowercase wallet address:
+  `{:autolaunch_bid_changed, bid_id}` arrives each time one of its bids'
+  standing is written, when its auction ends, when it is withdrawn and when its
+  tokens become claimable or are claimed.
+  """
+  def subscribe_wallet("0x" <> _ = wallet),
+    do: Phoenix.PubSub.subscribe(Regents.PubSub, "wallet_bids:" <> wallet)
+
   attributes do
     uuid_primary_key :id, public?: false
 
     attribute :bid_id, :string do
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 128, trim?: false, match: @bid_id_shape
+      constraints BidIdentity.constraints()
     end
 
     attribute :owner_address, :string do
@@ -133,6 +331,7 @@ defmodule Regents.Autolaunch.Bid do
     belongs_to :auction, Regents.Autolaunch.Auction do
       allow_nil? false
       attribute_public? true
+      read_action :listed
     end
 
     has_one :token, Regents.Autolaunch.Token do
@@ -143,13 +342,5 @@ defmodule Regents.Autolaunch.Bid do
 
   identities do
     identity :unique_bid_id, [:bid_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

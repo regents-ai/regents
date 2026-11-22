@@ -6,19 +6,49 @@ defmodule Regents.Autolaunch.AuctionFinish do
   An auction does not finish itself. Once its migration block has passed,
   someone has to call `migrate`, which either graduates the launch (pool,
   locked liquidity, vesting) or fails it (bids become refundable). Anyone may
-  call it. Every `migrate` sent is an `AuctionFinish.Transaction`, recorded
-  before it is broadcast, and a launch is sent another only once the chain has
-  settled the last.
+  call it, so a site with the finisher switched on does, from its finishing
+  wallet (`config/runtime.exs`).
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  Every five minutes `:discover` records the launches created since its last
+  run, and the `:finish` trigger looks at each launch still running: once its migration
+  block has passed it sends `migrate`, and once the chain says the launch
+  graduated or failed the row is not looked at again. Every `migrate` sent is
+  an `AuctionFinish.Transaction`, recorded before it is broadcast, and a launch
+  is sent another only once the chain has settled the last.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
+    extensions: [AshOban],
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  oban do
+    triggers do
+      trigger :finish do
+        action :finish
+        read_action :read
+        worker_read_action(:read)
+        queue(:autolaunch_auction_finishing)
+        scheduler_cron("*/5 * * * *")
+        max_attempts(1)
+
+        where expr(state == :running)
+
+        worker_module_name(Regents.Autolaunch.AuctionFinish.Workers.Finish)
+        scheduler_module_name(Regents.Autolaunch.AuctionFinish.Schedulers.Finish)
+      end
+    end
+
+    scheduled_actions do
+      schedule :discover, "*/5 * * * *" do
+        action :discover
+        queue(:autolaunch_auction_finishing)
+        worker_module_name(Regents.Autolaunch.AuctionFinish.Workers.Discover)
+      end
+    end
+  end
 
   postgres do
     table "auction_finishes"
@@ -26,6 +56,48 @@ defmodule Regents.Autolaunch.AuctionFinish do
     repo(Regents.Repo)
 
     identity_index_names(one_per_launch: "auction_finishes_launch_index")
+  end
+
+  actions do
+    read :read do
+      primary? true
+      pagination keyset?: true, required?: false
+    end
+
+    # The launches of one launchpad already recorded, for discovery to find the
+    # ones still missing.
+    read :recorded do
+      argument :chain_id, :integer, allow_nil?: false
+      argument :contract, :string, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and contract == ^arg(:contract))
+      prepare build(select: [:launch_id])
+    end
+
+    create :record do
+      accept [:launchpad, :chain_id, :contract, :launch_id, :auction, :migration_block, :state]
+    end
+
+    action :discover do
+      run fn input, context -> Regents.Autolaunch.AuctionFinish.Discover.run(input, context) end
+    end
+
+    # Reads the chain and may send a transaction, so no database transaction
+    # is held open around it.
+    update :finish do
+      require_atomic? false
+      transaction? false
+      change Regents.Autolaunch.AuctionFinish.Finish
+    end
+  end
+
+  policies do
+    bypass AshOban.Checks.AshObanInteraction do
+      authorize_if always()
+    end
+
+    policy always() do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -60,13 +132,5 @@ defmodule Regents.Autolaunch.AuctionFinish do
 
   identities do
     identity :one_per_launch, [:chain_id, :contract, :launch_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

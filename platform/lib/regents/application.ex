@@ -67,7 +67,8 @@ defmodule Regents.Application do
         # read once for every open page, only where pages are served.
         keyfleet_readings_child(),
         # Autolaunch's part, which reads its deployment files as it starts.
-        Regents.Autolaunch.Supervisor,
+        {Regents.Autolaunch.Supervisor, serving?: serving?()},
+        autolaunch_web_child(),
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -125,6 +126,10 @@ defmodule Regents.Application do
   # never reads the database before it asks to.
   defp keyfleet_readings_child do
     if serving?(), do: RegentsWeb.Keyfleet.Supervisor
+  end
+
+  defp autolaunch_web_child do
+    if serving?(), do: RegentsWeb.Autolaunch.Supervisor
   end
 
   defp serving?, do: Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint)

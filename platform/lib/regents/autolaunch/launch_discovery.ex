@@ -3,23 +3,53 @@ defmodule Regents.Autolaunch.LaunchDiscovery do
   One launch the chain shows on a Base launchpad, and whether it is a launch
   this site's accounts reviewed.
 
-  A launch is listed from chain evidence alone: each Revstake factory and
-  Memestock launchpad launch is recorded with the transaction that created it.
-  A launch matched to the saved review it carried out is listed for that
-  review's account. A Memestock launch no review of this site carried out is
-  listed from the chain under the wallet that sent it; a Revstake one is
-  `unlisted`. A launch the chain cannot answer for yet stays `pending`, with
-  the reason, until it can. `listed` and `unlisted` are final.
+  A launch is listed from chain evidence alone. The creator's browser may never
+  report its hash, and nothing here waits for it: every five minutes, and at
+  once after a press on its chain, `:discover` records each new Revstake
+  factory and Memestock launchpad launch and the transaction that created it
+  (`Regents.Autolaunch.LaunchDiscovery.Discover`).
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  Every minute the `:resolve` trigger takes each launch still `pending` and
+  looks for the saved review it carried out (`Regents.Autolaunch.LaunchReviews`): one
+  whose signer is the launch's signer, whose exact target and calldata that
+  transaction sent. A match lists the launch for that review's account. A
+  Memestock launch no review of this site carried out is listed from the chain
+  under the wallet that sent it (`Regents.Autolaunch.Stocks.ChainLaunch`); a Revstake
+  one is `unlisted`. A launch the chain cannot answer for yet stays `pending`,
+  with the reason, until it can. `listed` and `unlisted` are final.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
+    extensions: [AshOban],
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  oban do
+    triggers do
+      trigger :resolve do
+        action :resolve
+        read_action :read
+        worker_read_action(:read)
+        queue(:autolaunch_launch_listing)
+        scheduler_cron("* * * * *")
+        max_attempts(1)
+        where expr(state == :pending)
+
+        worker_module_name(Regents.Autolaunch.LaunchDiscovery.Workers.Resolve)
+        scheduler_module_name(Regents.Autolaunch.LaunchDiscovery.Schedulers.Resolve)
+      end
+    end
+
+    scheduled_actions do
+      schedule :discover, "*/5 * * * *" do
+        action :discover
+        queue(:autolaunch_launch_listing)
+        worker_module_name(Regents.Autolaunch.LaunchDiscovery.Workers.Discover)
+      end
+    end
+  end
 
   postgres do
     table "launch_discoveries"
@@ -27,6 +57,64 @@ defmodule Regents.Autolaunch.LaunchDiscovery do
     repo(Regents.Repo)
 
     identity_index_names(one_per_launch: "launch_discoveries_launch_index")
+  end
+
+  actions do
+    read :read do
+      primary? true
+      pagination keyset?: true, required?: false
+    end
+
+    # The launches of one launchpad already recorded, for discovery to find the
+    # ones still missing.
+    read :recorded do
+      argument :chain_id, :integer, allow_nil?: false
+      argument :contract, :string, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and contract == ^arg(:contract))
+      prepare build(select: [:launch_id])
+    end
+
+    # A launch read again finds it already recorded and changes nothing about
+    # it, however far its resolution has got.
+    create :record do
+      accept [
+        :launchpad,
+        :chain_id,
+        :contract,
+        :launch_id,
+        :launcher,
+        :auction,
+        :transaction_hash
+      ]
+
+      upsert? true
+      upsert_identity :one_per_launch
+      upsert_fields []
+    end
+
+    action :discover do
+      run fn input, context ->
+        Regents.Autolaunch.LaunchDiscovery.Discover.run(input, context)
+      end
+    end
+
+    # Reads the chain, then records the match in its own transaction, so no
+    # database transaction is held open around the reads.
+    update :resolve do
+      require_atomic? false
+      transaction? false
+      change Regents.Autolaunch.LaunchDiscovery.Resolve
+    end
+  end
+
+  policies do
+    bypass AshOban.Checks.AshObanInteraction do
+      authorize_if always()
+    end
+
+    policy always() do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -75,13 +163,5 @@ defmodule Regents.Autolaunch.LaunchDiscovery do
 
   identities do
     identity :one_per_launch, [:chain_id, :contract, :launch_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

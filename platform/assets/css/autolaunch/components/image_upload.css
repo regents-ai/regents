@@ -1,0 +1,24 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* The token image: one square box that is the file button, and takes a dropped file too. */
+.image-upload { display: grid; gap: var(--space-1); min-width: 0; align-content: start; }
+.image-upload__label { color: var(--color-fg-muted); font-size: .8125rem; }
+.image-upload__box { position: relative; display: grid; place-items: center; align-content: center; gap: var(--space-2); aspect-ratio: 1; padding: var(--space-3); overflow: hidden; border: 1px dashed var(--hairline-strong); background: color-mix(in srgb, var(--color-fg) 3%, var(--color-surface)); color: var(--color-fg-muted); text-align: center; cursor: pointer; transition: border-color var(--duration-fast) ease, color var(--duration-fast) ease; }
+.image-upload__box:hover, .image-upload__box.phx-drop-target-active { border-color: var(--color-fg); color: var(--color-fg); }
+button.image-upload__box { width: 100%; font: inherit; }
+button.image-upload__box:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.image-upload__box:has(input:focus-visible) { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.image-upload__mark { font-size: 1.375rem; }
+/* A chosen picture fills the box; its words sit on a band along the bottom. */
+.image-upload__preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.image-upload__box:has(.image-upload__preview) .image-upload__text { position: absolute; inset: auto 0 0; padding: 6px; background: color-mix(in srgb, var(--color-surface) 88%, transparent); }
+.image-upload__box:has(.image-upload__preview) :is(.image-upload__mark, .image-upload__hint) { display: none; }
+.image-upload__text { display: grid; gap: 2px; min-width: 0; font-size: .6875rem; line-height: 1.4; }
+.image-upload__text strong { color: var(--color-fg); font-size: .8125rem; font-weight: 400; }
+.image-upload .autolaunch-draft-error { margin: 0; font-size: .8125rem; }
+
+/* A phone's box is small: the prompt alone, without the file rules. */
+@media (max-width: 30rem) {
+  .image-upload__hint { display: none; }
+}
+
+}

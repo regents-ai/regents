@@ -1,13 +1,12 @@
 defmodule Regents.Autolaunch.BidSettlement do
   @moduledoc """
   Confirmed public withdraws and claims: each auction's own `BidExited` and
-  `TokensClaimed` events, whoever sent them. No pending transactions.
+  `TokensClaimed` events, read by the same chain watcher pass as the bids
+  (`Regents.Autolaunch.AuctionActivity`) and replaced with them, whoever sent them.
+  No pending transactions.
 
   A withdraw states the auction currency that came back and the launch tokens
   the bid filled; a claim states the tokens it delivered.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
   """
   use Ash.Resource,
     otp_app: :regents,
@@ -24,6 +23,55 @@ defmodule Regents.Autolaunch.BidSettlement do
     # deletes; this one serves a bid's own page.
     custom_indexes do
       index([:auction_id, :bid_id])
+    end
+  end
+
+  actions do
+    read :for_bid do
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :bid_id, :string, allow_nil?: false
+      filter expr(auction_id == ^arg(:auction_id) and bid_id == ^arg(:bid_id))
+      prepare build(sort: [block_number: :asc, log_index: :asc])
+    end
+
+    create :record do
+      accept [
+        :auction_id,
+        :bid_id,
+        :kind,
+        :owner,
+        :transaction_hash,
+        :block_hash,
+        :block_number,
+        :log_index,
+        :occurred_at,
+        :currency,
+        :tokens
+      ]
+
+      upsert? true
+      upsert_identity :chain_position
+
+      upsert_fields [
+        :bid_id,
+        :kind,
+        :owner,
+        :transaction_hash,
+        :block_hash,
+        :occurred_at,
+        :currency,
+        :tokens
+      ]
+    end
+  end
+
+  policies do
+    policy action(:for_bid) do
+      authorize_if always()
+    end
+
+    policy action(:record) do
+      authorize_if Regents.Checks.SystemActor
     end
   end
 
@@ -54,18 +102,11 @@ defmodule Regents.Autolaunch.BidSettlement do
   relationships do
     belongs_to :auction, Regents.Autolaunch.Auction do
       allow_nil? false
+      read_action :listed
     end
   end
 
   identities do
     identity :chain_position, [:auction_id, :block_number, :log_index]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

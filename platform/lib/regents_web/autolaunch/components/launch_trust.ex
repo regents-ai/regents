@@ -1,21 +1,116 @@
 defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
   @moduledoc """
-  What a buyer can check about a launch. "Launch Creator": the launching
-  wallet and the accounts its creator proved they own, which says who they
-  are and nothing about the project's merits, with anything else they named,
-  unchecked. Then the launch's contracts; a Memestock launch's paired stock is
-  named with its issuer, chain and address. A token's page shows both
-  (`token_facts/1`) and its launch type among its market figures
-  (`launch_type/1`). Once the token's pool is read, the contracts end with the
-  locker that holds its positions and the pool's id.
+  What a buyer can check about a launch, in two separate parts. "Who's behind
+  it": the launching wallet and the accounts its creator proved they own,
+  which says who they are and nothing about the project's merits. "The launch
+  itself": its contracts, its launch type, how its supply is split and where
+  its liquidity stands; a Memestock launch's paired stock is named with its
+  issuer, chain and address. Liquidity reads as deposited only once the launch is
+  recorded as launched, and as locked only once the pool has been read from
+  the chain. Shown on auction pages on both chains (`launch_trust/1`); a
+  token's page shows the same creator and the launch's contracts
+  (`token_facts/1`), its launch type and supply among its market figures, and
+  the rest in the details its page copies for an agent (`supply_rows/1` and
+  `RegentsWeb.Autolaunch.TokenDetails`).
   """
   use Phoenix.Component
 
   alias Regents.Autolaunch.Lab
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Stocks.LaunchActions
   alias RegentsWeb.Autolaunch.Components.{MarketCard, StockIdentity}
 
   attr :auction, :map, required: true, doc: "the launch's auction record"
-  attr :connections, :map, required: true, doc: "the creator's connected accounts"
+
+  attr :connections, :map,
+    default: nil,
+    doc: "the creator's connected accounts; nil while they are still being read"
+
+  attr :token_path, :string, default: nil, doc: "the launched token's page, from an auction page"
+
+  attr :locked, :boolean,
+    default: nil,
+    doc: "whether every position of the pool is held by the locker, as the auction page read it"
+
+  def launch_trust(assigns) do
+    auction = assigns.auction
+
+    assigns =
+      assign(assigns,
+        address_chain: address_chain(auction),
+        contracts: contracts(auction, nil),
+        split: split(auction),
+        supply: supply(auction.token_supply),
+        liquidity: liquidity_state(auction.state)
+      )
+
+    ~H"""
+    <div class="launch-trust">
+      <.creator auction={@auction} connections={@connections} />
+
+      <section class="launch-trust__block" aria-labelledby="launch-trust-launch">
+        <h2 id="launch-trust-launch">
+          Additional Details
+        </h2>
+        <dl class="launch-trust__rows">
+          <div>
+            <dt>Launch type</dt>
+            <dd><strong>{@split.name}</strong> · {@split.about}</dd>
+          </div>
+        </dl>
+
+        <h3 class="autolaunch-micro">Contracts</h3>
+        <dl class="launch-trust__rows">
+          <div :for={{{label, address}, index} <- Enum.with_index(@contracts)}>
+            <dt>{label}</dt>
+            <dd>
+              <Regent.Primitives.address
+                id={"launch-trust-contract-#{index}"}
+                address={address}
+                chain={@address_chain}
+              />
+            </dd>
+          </div>
+          <div :if={paired_stock?(@auction)}>
+            <dt>Paired stock</dt>
+            <dd>
+              {@auction.quote_token_symbol}
+              <StockIdentity.stock_identity
+                id="launch-trust-stock"
+                chain={chain(@auction)}
+                address={@auction.quote_token_address}
+                explorer={@address_chain}
+              />
+            </dd>
+          </div>
+        </dl>
+
+        <h3 class="autolaunch-micro">Token supply</h3>
+        <dl class="launch-trust__rows">
+          <div :if={@supply}>
+            <dt>Total supply</dt>
+            <dd><span class="figure__value">{@supply}</span></dd>
+          </div>
+          <div :for={{label, amount, after_auction} <- @split.rows}>
+            <dt>{label}</dt>
+            <dd><strong>{amount}</strong> · {after_auction}</dd>
+          </div>
+        </dl>
+        <p class="launch-trust__note">
+          <.link navigate="/how-it-works" class="standalone-link">
+            How every {@split.name} token is split
+          </.link>
+        </p>
+
+        <h3 class="autolaunch-micro">Uniswap Liquidity Pool</h3>
+        <.liquidity liquidity={@liquidity} split={@split} token_path={@token_path} locked={@locked} />
+      </section>
+    </div>
+    """
+  end
+
+  attr :auction, :map, required: true, doc: "the launch's auction record"
+  attr :connections, :map, default: nil
   attr :pool, :map, default: nil, doc: "the launched pool as read from the chain, once read"
 
   @doc """
@@ -53,7 +148,7 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
               {@auction.quote_token_symbol}
               <StockIdentity.stock_identity
                 id="token-facts-stock"
-                chain={:base}
+                chain={chain(@auction)}
                 address={@auction.quote_token_address}
                 explorer={@address_chain}
               />
@@ -75,11 +170,19 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
   end
 
   @doc "A launch's type, Revstake or Memestock."
-  def launch_type(%{kind: :agent}), do: "Revstake"
-  def launch_type(%{kind: :stocks}), do: "Memestock"
+  def launch_type(auction), do: split(auction).name
+
+  @doc """
+  How a launch's supply is split, as `{label, amount, what happens to it}`
+  rows, with the launch type's name and where the whole split is explained.
+  """
+  def supply_rows(auction) do
+    split = split(auction)
+    %{name: split.name, rows: split.rows, explained_at: "/how-it-works"}
+  end
 
   attr :auction, :map, required: true
-  attr :connections, :map, required: true
+  attr :connections, :map, default: nil
 
   # Who launched it: the launching wallet and the accounts its creator proved
   # they own, with anything else they named, unchecked.
@@ -111,7 +214,7 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
             />
           </dd>
         </div>
-        <div :for={{label, account} <- @accounts}>
+        <div :for={{label, account} <- @accounts || []}>
           <dt>{label}</dt>
           <dd :if={account}>
             <a href={account.url} target="_blank" rel="noopener noreferrer">{account.handle}</a>
@@ -145,9 +248,14 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
           </dd>
         </div>
       </dl>
+      <p :if={!@accounts} class="launch-trust__muted" role="status">
+        Reading the creator's connected accounts…
+      </p>
     </section>
     """
   end
+
+  defp chain(auction), do: if(RobinhoodLab.chain?(auction.chain_id), do: :robinhood, else: :base)
 
   # A Memestock launch names the stock token it is priced and paid in.
   defp paired_stock?(%{kind: :stocks, quote_token_address: address}), do: is_binary(address)
@@ -155,21 +263,79 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
 
   # The chain `Regent.Primitives.address` opens the launch's addresses on; a local
   # test chain has no explorer.
-  defp address_chain(auction), do: if(Lab.test_chain?(auction.chain_id), do: "test", else: "base")
-
-  # A creator's Telegram group or Discord invite as a link, labelled by its
-  # address without https://: only an https address with a host.
-  defp named_link("https://" <> label = url) do
-    case URI.new(url) do
-      {:ok, %URI{host: host}} when host not in [nil, ""] -> %{url: url, label: label}
-      _invalid -> nil
-    end
+  defp address_chain(auction) do
+    if Lab.test_chain?(auction.chain_id) or RobinhoodLab.test_chain?(auction.chain_id),
+      do: "test",
+      else: Atom.to_string(chain(auction))
   end
 
+  attr :liquidity, :atom, required: true
+  attr :split, :map, required: true
+  attr :token_path, :string, default: nil
+  attr :locked, :boolean, default: nil
+
+  defp liquidity(%{liquidity: :reserved} = assigns) do
+    ~H"""
+    <p class="launch-trust__status">Reserved for liquidity, not yet deposited</p>
+    <p class="launch-trust__text">
+      {@split.reserve} is set aside for the pool. It goes into the pool, and is locked there,
+      only after a successful auction.
+    </p>
+    <p class="launch-trust__note">
+      Uniswap shows only what is already in a pool, so it shows nothing for this token until then.
+    </p>
+    """
+  end
+
+  defp liquidity(%{liquidity: :none} = assigns) do
+    ~H"""
+    <p class="launch-trust__status">Not deposited</p>
+    <p class="launch-trust__text">
+      The auction did not reach its minimum, so no pool was opened and every token was retired
+      to the dead address. Reported total supply stays unchanged.
+    </p>
+    """
+  end
+
+  defp liquidity(%{liquidity: :deposited} = assigns) do
+    ~H"""
+    <p class="launch-trust__status">{deposited_status(@locked)}</p>
+    <p :if={is_nil(@locked)} class="launch-trust__text">
+      Whether it is locked shows here once the pool has been read.
+      <.link :if={@token_path} navigate={@token_path}>See it on the token's page</.link>
+    </p>
+    <p :if={is_boolean(@locked) and is_binary(@token_path)} class="launch-trust__text">
+      <.link navigate={@token_path} class="standalone-link">See the amounts on the token's page</.link>
+    </p>
+    <.uniswap_note split={@split} />
+    """
+  end
+
+  defp deposited_status(true), do: "Deposited and locked"
+  defp deposited_status(false), do: "Deposited, not all of it locked"
+  defp deposited_status(nil), do: "Deposited when the auction launched"
+
+  attr :split, :map, required: true
+
+  defp uniswap_note(assigns) do
+    ~H"""
+    <p class="launch-trust__note">
+      Uniswap shows the pool as it is now. Trades move the amounts on each side, other people
+      can add their own liquidity, and any reserve the pool did not need {@split.unused}, so
+      Uniswap's numbers can differ from the reserve above.
+    </p>
+    """
+  end
+
+  # A creator's Telegram group or Discord invite as a link, labelled by its
+  # address without https://.
+  defp named_link("https://" <> label = url), do: %{url: url, label: label}
   defp named_link(_url), do: nil
 
   # Each account kind the creator could connect, with the matching accounts
   # or nil for a kind they have not connected; Company X only when there is one.
+  defp accounts(nil), do: nil
+
   defp accounts(connections) do
     connected = MarketCard.connection_list(connections)
 
@@ -201,4 +367,65 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
       fn {_label, address} -> is_binary(address) end
     ) ++ lockers
   end
+
+  # Each launch type's fixed split, as the How Autolaunch works page states it.
+  defp split(%{kind: :agent}),
+    do: %{
+      name: "Revstake",
+      about: "stakers share the revenue the project sends through its contract",
+      reserve: "Up to 10 billion tokens (10%)",
+      unused: "went to the treasury",
+      rows: [
+        {"Sold in the auction", "20 billion (20%)", "winning bidders claim what they bought"},
+        {"Reserved for liquidity", "Up to 10 billion (10%)",
+         "paired with up to half the REGENT raised in a permanently locked position"},
+        {"Treasury", "70 billion (70%)",
+         "released over 365 days from graduation with the unpaired reserve and auction rounding leftovers; the treasury also receives at least half the raise"}
+      ]
+    }
+
+  # The first four Memestock launches keep their original split.
+  defp split(%{kind: :stocks, contracts_version: :v1}),
+    do: %{
+      name: "Memestock",
+      about: "stakers earn the onchain stock from trading fees",
+      reserve: "Up to 200 million tokens (20%)",
+      unused: "was retired to the dead address",
+      rows: [
+        {"Sold in the auction", "Up to 800 million (80%)",
+         "winning bidders claim what they bought; unsold tokens are retired to the dead address"},
+        {"Reserved for liquidity", "Up to 200 million (20%)",
+         "paired with the stock raised in a permanently locked position; any unused reserve is retired to the dead address"},
+        {"Creator, team or treasury", "0", "no token allocation"}
+      ]
+    }
+
+  # The creator's release follows its own launchpad's schedule.
+  defp split(%{kind: :stocks, contracts_version: version} = auction) when version in [:v2, :v3] do
+    release = LaunchActions.release(chain(auction), version)
+
+    %{
+      name: "Memestock",
+      about: "stakers earn the onchain stock from trading fees",
+      reserve: "497.5 million tokens (49.75%)",
+      unused:
+        "is locked as liquidity in the token alone, for prices above the opening token price, apart from a tiny amount left over from rounding",
+      rows: [
+        {"Sold in the auction", "497.5 million (49.75%)",
+         "winning bidders claim what they bought"},
+        {"Reserved for liquidity", "497.5 million (49.75%)",
+         "the stock raised and the tokens it needs become liquidity at every price, apart from a tiny amount left over from rounding; remaining reserve is locked as liquidity in the token alone, for prices above the opening token price"},
+        {"Creator", "5 million (0.5%)",
+         "released to the creator #{release} from graduation; the creator also earns a share of trading fees"}
+      ]
+    }
+  end
+
+  defp supply(%Decimal{} = supply), do: RegentFormat.amount(supply)
+
+  defp supply(nil), do: nil
+
+  defp liquidity_state(:graduated), do: :deposited
+  defp liquidity_state(:failed), do: :none
+  defp liquidity_state(_state), do: :reserved
 end

@@ -214,6 +214,26 @@ defmodule RegentsWeb.Live.Session do
     end
   end
 
+  def transact(%{assigns: %{session_lease: %{lineage: lineage, account_id: id}}}, write),
+    do: SessionAuthority.transact_lease(lineage, id, fn _account -> write.() end)
+
+  def transact(_socket, _write), do: {:error, :session_lease_required}
+
+  def fresh(%{lineage: lineage, account_id: id}, write) do
+    case SessionAuthority.leased_account(lineage, id) do
+      %{} = account -> write.(account)
+      nil -> {:error, :session_unavailable}
+    end
+  end
+
+  def fresh(_lease, _write), do: {:error, :session_lease_required}
+
+  def lapse(socket) do
+    socket
+    |> assign_principal(nil)
+    |> Phoenix.Component.assign(session_lease: nil, signed_out_reason: :expired)
+  end
+
   defp leased(%{lineage: lineage, account_id: account_id}),
     do: SessionAuthority.leased_account(lineage, account_id)
 

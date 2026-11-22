@@ -1,0 +1,199 @@
+defmodule RegentsWeb.Autolaunch.Components.Rail do
+  @moduledoc false
+  use Phoenix.Component
+  use RegentsWeb, :verified_routes
+
+  alias RegentsWeb.Autolaunch.Components.SiteButtons
+
+  # Explore has two smaller links, to the auctions list and the tokens list. It
+  # also covers their search and detail pages; Docs covers the persistent
+  # information-page navigation. Stocks has one to covered calls and one to
+  # After-hours, each while the site offers it. Earn follows Stocks while the
+  # site offers it. Launch is the last, orange destination, and covers both
+  # Create pages.
+  @launch %{label: "Launch", path: "/create", covers: ["/agent-business"]}
+  @earn %{label: "Earn", path: "/earn", covers: []}
+
+  @items [
+    %{
+      label: "Explore",
+      path: "/",
+      covers: ["/auctions", "/tokens", "/robinhood"]
+    },
+    %{label: "Stocks", path: "/stocks", covers: []},
+    %{label: "Portfolio", path: "/portfolio", covers: []},
+    %{
+      label: "Docs",
+      path: "/docs",
+      covers: []
+    },
+    @launch
+  ]
+
+  attr :current_path, :string, required: true
+
+  @doc """
+  The rail: each destination is a quiet row, with Launch as the one orange
+  button at the end. The rows and Launch stand on one light shaped like the row
+  under the pointer, with keyboard focus or for the page you are on
+  (`SiteButtons.stage`).
+  """
+  def rail(assigns) do
+    assigns =
+      assign(assigns,
+        rows: rows(),
+        launch: @launch,
+        launch_current?: current?(assigns.current_path, @launch)
+      )
+
+    ~H"""
+    <nav class="shell-rail" aria-label="Site">
+      <SiteButtons.stage id="shell-rail-buttons" class="shell-rail__stage" shape="button">
+        <ul class="shell-rail__list">
+          <li :for={item <- @rows} class="shell-rail__item">
+            <.link
+              href={item.path}
+              class="shell-rail__link"
+              data-press="motion"
+              aria-current={if current?(@current_path, item), do: "page"}
+            >
+              {item.label}
+            </.link>
+            <ul
+              :if={views(item) != []}
+              class="shell-rail__sublist"
+              aria-label={"#{item.label} views"}
+            >
+              <li :for={view <- views(item)}>
+                <.link
+                  navigate={view.path}
+                  class="shell-rail__link shell-rail__sublink"
+                  data-press="motion"
+                  aria-current={if current?(@current_path, view), do: "page"}
+                >
+                  {view.label}
+                </.link>
+              </li>
+            </ul>
+          </li>
+          <li class="shell-rail__item">
+            <.link
+              href={@launch.path}
+              class="rg-button rg-button--primary shell-rail__launch"
+              data-press="motion"
+              aria-current={if @launch_current?, do: "page"}
+            >
+              <span class="site-glint" aria-hidden="true"></span>{@launch.label}
+            </.link>
+          </li>
+        </ul>
+      </SiteButtons.stage>
+    </nav>
+    """
+  end
+
+  attr :current_path, :string, required: true
+
+  @doc """
+  On a phone the rail folds into this drawer behind the top bar's Menu button,
+  as the template's rail and sidebar do (ash-template `Shell`, `#shell-drawer`):
+  the same destinations as plain rows, with Launch as the one main button. It
+  comes in from the left edge under the top bar, which stays in place, and its
+  Close navigation bar is its first row. The browser opens and closes it
+  (`assets/js/shell_menu.ts`), so the server always draws it closed.
+  """
+  def drawer(assigns) do
+    assigns =
+      assign(assigns,
+        rows: rows(),
+        launch_current?: current?(assigns.current_path, @launch)
+      )
+
+    ~H"""
+    <div id="shell-drawer" tabindex="-1">
+      <Regent.Primitives.button
+        variant="quiet"
+        type="button"
+        class="shell-menu-close"
+        data-shell-menu-close
+      >
+        Close navigation
+      </Regent.Primitives.button>
+      <nav class="shell-drawer__nav" aria-label="Site">
+        <ul>
+          <li :for={item <- @rows}>
+            <.link
+              href={item.path}
+              class="shell-drawer__row"
+              aria-current={if row_current?(@current_path, item), do: "page"}
+            >
+              {item.label}
+            </.link>
+            <ul :if={views(item) != []} aria-label={"#{item.label} views"}>
+              <li :for={view <- views(item)}>
+                <.link
+                  navigate={view.path}
+                  class="shell-drawer__row shell-drawer__row--sub"
+                  aria-current={if current?(@current_path, view), do: "page"}
+                >
+                  {view.label}
+                </.link>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <.link
+          href={~p"/autolaunch/create"}
+          class="rg-button rg-button--primary shell-rail__launch shell-drawer__launch"
+          aria-current={if @launch_current?, do: "page"}
+        >
+          Launch
+        </.link>
+      </nav>
+    </div>
+    """
+  end
+
+  defp rows do
+    rows = Enum.reject(@items, &(&1 == @launch))
+    if Regents.Autolaunch.Earn.Catalog.enabled?(), do: List.insert_at(rows, 2, @earn), else: rows
+  end
+
+  # A row marks only the page you are on: Explore is the home page, and its
+  # two views mark themselves.
+  defp row_current?(path, %{path: "/"}), do: path == "/"
+  defp row_current?(path, item), do: current?(path, item)
+
+  defp views(%{path: "/"}) do
+    [
+      %{label: "Auctions", path: ~p"/autolaunch/auctions", covers: ["/robinhood"]},
+      %{label: "Tokens", path: ~p"/autolaunch/tokens", covers: []}
+    ]
+  end
+
+  defp views(%{path: "/stocks"}) do
+    for {enabled?, label, path} <- [
+          {Regents.Autolaunch.CoveredCalls.Deployment.enabled?(), "Covered calls",
+           ~p"/autolaunch/stock/covered-call"},
+          {Regents.Autolaunch.Exposure.Deployment.enabled?(), "After-hours",
+           ~p"/autolaunch/stock/isolated-afters"}
+        ],
+        enabled?,
+        do: %{label: label, path: path, covers: []}
+  end
+
+  defp views(_item), do: []
+
+  defp current?(path, %{label: "Docs"}),
+    do: Enum.any?(RegentsWeb.Autolaunch.Components.LearnNavigation.paths(), &under?(path, &1))
+
+  defp current?(path, %{path: own, covers: covers}),
+    do: Enum.any?([own | covers], &under?(path, &1))
+
+  defp under?(path, "/"), do: path == "/"
+
+  defp under?(path, prefix) when is_binary(path),
+    do: path == prefix or String.starts_with?(path, prefix <> "/")
+
+  defp under?(_path, _prefix), do: false
+end

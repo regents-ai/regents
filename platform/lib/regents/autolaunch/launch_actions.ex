@@ -1,11 +1,178 @@
 defmodule Regents.Autolaunch.LaunchActions do
   @moduledoc """
-  A Revstake launch's fixed schedule, which the pages state in words. Only the
-  schedule is here: preparing a founder's launch for their wallet comes with
-  the page that launches.
+  The one boundary between a founder's wallet and the launch factory.
+
+  Preparation reads Base once and saves the review (`Regents.Autolaunch.LaunchOperation`):
+  the one `launch` step for the wallet that may act, and the facts the page
+  shows. The page sends that step as it stands; nothing about a press is
+  stored, and `Regents.Autolaunch.LaunchReviews` lists the launch from the chain.
+
+  The wallet is Privy's active wallet, proved to be one of the account the
+  mounted lease resolves to before any private fact is read. Provider reads
+  happen before the lease transaction; only the row write happens inside it.
   """
 
-  alias Regents.Autolaunch.Lab
+  alias RegentChain.{Address, Review}
+  alias Regents.Account.Accounts.SessionAuthority
+  alias Regents.Account.Actors.{Human, System}
+  alias Regents.Autolaunch.Chain.{Abi, Client, LaunchAbi, Rpc}
+  alias Regents.Autolaunch.ReadFailure
+  alias Regents.Autolaunch.Stocks.{Amounts, LaunchOperations}
+
+  alias Regents.Autolaunch.{
+    Lab,
+    LabAbi,
+    LabLaunchChainClient,
+    LaunchDraft,
+    LaunchLinks,
+    LaunchOperation,
+    TreasurySecurity
+  }
+
+  # The factory's own inclusive byte caps on the five metadata strings. Each must
+  # also be nonempty, which is what a historical draft can fail.
+  @metadata [name: 64, symbol: 16, description: 512, website: 256]
+
+  # Three of the exact seven treasuries the strategy refuses are frozen
+  # constants rather than reads (src/bindings/BaseBindings.sol, the same in
+  # contracts/revstake-v2 and contracts/revstake-v3), refused together with the
+  # factory, the strategy, its hook and its LP locker (`_requireAdmissibleTreasury`
+  # in RegentLBPStrategyV2.sol and RegentLBPStrategyV3.sol).
+  @frozen_refused_treasuries [
+    "0x498581fF718922c3f8e6A244956aF099B2652b2b",
+    "0x7C5f5A4bBd8fD63184577525326123B519429bDc",
+    "0xb027Dc261636E30Cbc0fE25b2F8e1ed273354AB5"
+  ]
+
+  # A Base read that may answer differently later never settles anything.
+  @transient [
+    :chain_unavailable,
+    :invalid_chain_response,
+    :invalid_block_header,
+    :transaction_missing
+  ]
+
+  @doc """
+  Reviews one saved draft for `address`, one of the account's own wallets: one
+  snapshot, one saved review. The result carries the review's chain, its one
+  step and the facts the page shows.
+  """
+  @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def prepare(draft_id, address, opts) do
+    with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
+           LaunchOperations.signed_in_wallet(address, opts, LaunchOperation),
+         {:ok, draft} <- owned_draft(draft_id, actor),
+         {:ok, review} <- draft |> review(signer) |> unread_logged(),
+         {:ok, operation} <- open(lease, draft, signer, review) do
+      {:ok, reviewed(operation)}
+    end
+  end
+
+  # A review the site could not finish because something it reads failed, such
+  # as the treasury's report, is the site's own fault, which the page answers
+  # only with its try-again words: logged once, by kind alone.
+  defp unread_logged({:error, %{errors: _errors} = error} = unread) do
+    ReadFailure.log("launch review read", error)
+    unread
+  end
+
+  defp unread_logged(answer), do: answer
+
+  @doc """
+  The review `prepare/3` saves, once `signer` is proved to be one of the
+  draft owner's own wallets: one snapshot of Base, and the chain, signer, one
+  step and facts, exactly as the saved review holds them. `draft` is read with
+  its image. A paired agent's launch of its person's draft is reviewed here
+  too (`Regents.Autolaunch.AgentLaunch`).
+  """
+  @spec review(Ash.Resource.record(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(draft, signer) do
+    with {:ok, fields} <- launchable(draft),
+         {:ok, snapshot} <- snapshot(signer),
+         :ok <- reviewable(fields, snapshot),
+         {:ok, treasury_report} <- review_treasury(draft),
+         do: {:ok, saved_review(draft, fields, signer, snapshot, treasury_report)}
+  end
+
+  @doc """
+  Whether the review on the page still stands on Base as it is now: launches
+  open, the strategy still bound to the factory, the factory, strategy and hook
+  it was built against, and the treasury security it was built with.
+  `:changed` means the page builds it again, as it does when the treasury
+  report cannot be read; `:unread` means the draft or Base could not be read,
+  and the review stays as it is.
+  """
+  @spec current(map(), keyword()) :: :current | :changed | :unread
+  def current(%{signer: signer, facts: facts}, opts) do
+    with %Human{} = actor <- Keyword.get(opts, :actor),
+         {:ok, draft} <- owned_draft(facts["draft_id"], actor),
+         {:ok, snapshot} <- snapshot(signer) do
+      if standing?(snapshot, facts) and treasury_standing?(draft, facts),
+        do: :current,
+        else: :changed
+    else
+      _unread -> :unread
+    end
+  end
+
+  defp standing?(snapshot, facts),
+    do:
+      not snapshot.paused and Address.equal?(snapshot.strategy_factory, snapshot.factory) and
+        Address.equal?(snapshot.factory, facts["factory"]) and
+        Address.equal?(snapshot.strategy, facts["strategy"]) and
+        Address.equal?(snapshot.hook, facts["hook"])
+
+  defp treasury_standing?(draft, facts) do
+    case review_treasury(draft) do
+      {:ok, report} -> stored(treasury_binding(report)) == facts["treasury_security"]
+      {:error, _changed} -> false
+    end
+  end
+
+  @doc "Whether the Base factory has new launches paused, as Base reads now."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused do
+    case LabLaunchChainClient.snapshot(%{signer: nil}) do
+      {:ok, %{paused: paused}} -> {:ok, paused}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  A saved review as the page uses it: its id, signer, chain, step and facts. The
+  step is the saved one exactly, so the wallet is asked for what was reviewed.
+  """
+  @spec reviewed(Ash.Resource.record()) :: map()
+  def reviewed(%{action_id: action_id, review: review}) do
+    %{"chain" => chain, "signer" => signer, "step" => step, "facts" => facts} = review
+
+    %{
+      action_id: action_id,
+      signer: signer,
+      chain: %{chain_id: chain["chain_id"], name: chain["name"], rpc_url: chain["rpc_url"]},
+      steps: [
+        %{
+          kind: step["kind"],
+          step: step["step"],
+          to: step["to"],
+          data: step["data"],
+          value: step["value"]
+        }
+      ],
+      facts: facts
+    }
+  end
+
+  @doc "The launch terms, in the order a review presents their exact values."
+  @spec terms() :: [String.t()]
+  def terms, do: Enum.map(LaunchAbi.terms(), &Atom.to_string/1)
+
+  # The fixed terms of every Revstake launch, as `RegentLBPStrategyV2` holds
+  # them: the auction's floor price and the supply. REGENT and the new token
+  # both have 18 decimals.
+  @floor_price_q96 4_294_967_300
+  @decimals 18
+  @total_supply 100_000_000_000
 
   @doc """
   A Revstake launch's fixed schedule in Base blocks on strategy `version`,
@@ -20,4 +187,337 @@ defmodule Regents.Autolaunch.LaunchActions do
 
   @doc "The schedule of a new launch: on the strategy the Base description names for new launches."
   def schedule, do: schedule(Lab.current!().version)
+
+  @doc """
+  What a launch opens at, in REGENT: the price of one token at the auction's
+  floor, exactly, and the whole supply at that price. Until a bid clears
+  higher, they are the auction's clearing price and FDV.
+  """
+  @spec opening() :: %{price: String.t(), fdv: Decimal.t()}
+  def opening do
+    price = Amounts.format_cca_price(@floor_price_q96, @decimals, @decimals)
+
+    %{
+      price: price,
+      fdv: price |> Decimal.new(max_digits: :infinity) |> Decimal.mult(@total_supply)
+    }
+  end
+
+  # Reviews
+
+  # The saved review: fixed once written, and read back exactly as stored.
+  defp saved_review(draft, fields, signer, snapshot, treasury_report) do
+    config = Lab.current!()
+
+    %{
+      "chain" => Client.chain(config),
+      "signer" => signer,
+      "step" => Review.step("launch", snapshot.factory, launch_data(config, fields)),
+      "facts" => facts(draft, fields, snapshot, treasury_report)
+    }
+    |> stored()
+  end
+
+  # A value as the saved review holds it.
+  defp stored(value), do: value |> Jason.encode!() |> Jason.decode!()
+
+  defp launch_data(config, fields) do
+    LabAbi.encode(
+      Lab.abi!(config, :factory),
+      "launch((string,string,string,string,string,address))",
+      [
+        [
+          fields.name,
+          fields.symbol,
+          fields.description,
+          fields.website,
+          fields.image,
+          fields.treasury
+        ]
+      ]
+    )
+  end
+
+  defp facts(draft, fields, snapshot, treasury_report) do
+    %{
+      "draft_id" => draft.id,
+      "name" => fields.name,
+      "symbol" => fields.symbol,
+      "description" => fields.description,
+      "website" => fields.website,
+      "telegram" => fields.telegram,
+      "discord" => fields.discord,
+      "links" => fields.links,
+      "image" => fields.image,
+      "treasury" => fields.treasury,
+      "treasury_path" => Atom.to_string(draft.treasury_path),
+      "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
+      "treasury_security" => treasury_binding(treasury_report),
+      "required_regent_raised" => minimum_regent(snapshot.terms.required_regent_raised),
+      "regent" => snapshot.regent,
+      "factory" => snapshot.factory,
+      "strategy" => snapshot.strategy,
+      "hook" => snapshot.hook,
+      "block_number" => snapshot.block.number,
+      "block_hash" => snapshot.block.hash,
+      "terms" => Map.new(snapshot.terms, fn {id, value} -> {to_string(id), to_string(value)} end),
+      "risk" => risk_copy()
+    }
+  end
+
+  # The smallest raise that graduates, in REGENT: one unit above the required
+  # raise, since the auction can count a bid up to one unit short.
+  defp minimum_regent(atomic), do: Rpc.format_units(atomic + 1, @decimals)
+
+  defp risk_copy do
+    if Lab.test_chain?(),
+      do:
+        "Your wallet creates this launch on a Base fork with test assets and no mainnet value. There is no launch fee.",
+      else:
+        "Your wallet creates this launch on Base. There is no launch fee, so no REGENT moves. A launch cannot be undone."
+  end
+
+  # Stored drafts
+
+  # The draft is read through the owner's own `mine` action, so a draft this
+  # account does not hold is never even named.
+  defp owned_draft(draft_id, actor) do
+    case Regents.Autolaunch.get_my_launch_draft(draft_id, actor: actor) do
+      {:ok, nil} -> unavailable(:launch_draft_not_found)
+      {:ok, draft} -> {:ok, draft}
+      {:error, _reason} -> unavailable(:launch_draft_unavailable)
+    end
+  end
+
+  # Everything the factory itself requires of a saved draft, refused here
+  # rather than reverting in the customer's wallet. A launch without a website
+  # names this site. Complete token details include the draft's own stored
+  # image at its address (`LaunchDraft.image_complete?/1`).
+  defp launchable(draft) do
+    fields = %{
+      name: draft.name,
+      symbol: draft.symbol,
+      description: draft.description,
+      website: LaunchDraft.onchain_website(draft)
+    }
+
+    with :ok <- metadata(draft, fields),
+         :ok <- treasury_confirmed(draft),
+         true <- LaunchDraft.treasury_complete?(draft),
+         {:ok, treasury} <- Address.normalize(draft.treasury) do
+      {:ok,
+       Map.merge(fields, %{
+         telegram: draft.telegram,
+         discord: draft.discord,
+         links: LaunchLinks.others(draft),
+         image: draft.image,
+         treasury: treasury
+       })}
+    else
+      invalid when invalid in [false, :error] -> unavailable(:launch_treasury_invalid)
+      error -> error
+    end
+  end
+
+  # A smart contract account the creator's agent chose takes the creator's own
+  # confirmation before anything is sent there.
+  defp treasury_confirmed(draft) do
+    if LaunchDraft.treasury_confirmation_needed?(draft),
+      do: unavailable(:agent_treasury_unconfirmed),
+      else: :ok
+  end
+
+  defp metadata(draft, fields) do
+    if LaunchDraft.token_details_complete?(draft) and
+         Enum.all?(@metadata, fn {field, limit} -> within?(Map.fetch!(fields, field), limit) end),
+       do: :ok,
+       else: unavailable(:launch_metadata_incomplete)
+  end
+
+  defp within?(value, limit),
+    do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
+
+  # Chain snapshot
+
+  defp snapshot(signer) do
+    case LabLaunchChainClient.snapshot(%{signer: signer}) do
+      {:ok, snapshot} -> complete(snapshot)
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
+      {:error, reason} -> unavailable(reason)
+    end
+  end
+
+  defp accepted_regent?(%{regent: regent}),
+    do: Address.equal?(regent, Abi.regent_address())
+
+  defp accepted_regent?(_snapshot), do: false
+
+  # A review is derived from one whole snapshot or from none, so a partial answer
+  # is refused before any of it is believed.
+  defp complete(snapshot) do
+    with %{factory: factory, strategy: strategy, strategy_factory: bound, hook: hook} <- snapshot,
+         %{lp_locker: lp_locker, paused: paused, terms: terms, block: block} <- snapshot,
+         true <-
+           Enum.all?(
+             [factory, strategy, bound, hook, lp_locker],
+             &match?({:ok, _}, Address.normalize(&1))
+           ),
+         true <- is_boolean(paused),
+         true <- match?(%{number: number, hash: _} when is_integer(number), block),
+         true <- Enum.sort(Map.keys(terms)) == Enum.sort(LaunchAbi.terms()),
+         true <- Enum.all?(Map.values(terms), &is_integer/1) do
+      {:ok, snapshot}
+    else
+      _partial -> unavailable(:launch_snapshot_incomplete)
+    end
+  end
+
+  # Every reason a launch is refused before a durable review can exist at all.
+  defp reviewable(fields, snapshot) do
+    cond do
+      not accepted_regent?(snapshot) ->
+        unavailable(:regent_address_mismatch)
+
+      snapshot.paused ->
+        unavailable(:launches_paused)
+
+      refused_treasury?(fields.treasury, snapshot) ->
+        unavailable(:launch_treasury_refused)
+
+      not Address.equal?(snapshot.strategy_factory, snapshot.factory) ->
+        unavailable(:strategy_not_bound)
+
+      true ->
+        :ok
+    end
+  end
+
+  # The exact seven the strategy refuses as a launch treasury: the factory, the
+  # strategy and the hook and LP locker it is bound to, all read at the reviewed
+  # block, plus the three frozen Base bindings.
+  defp refused_treasury?(treasury, snapshot) do
+    %{factory: factory, strategy: strategy, hook: hook, lp_locker: lp_locker} = snapshot
+
+    Enum.any?(
+      [factory, strategy, hook, lp_locker | @frozen_refused_treasuries],
+      &Address.equal?(treasury, &1)
+    )
+  end
+
+  # Saved reviews
+
+  # The write runs inside the mounted lease as the outermost transaction, so a
+  # review cannot outlive a concurrent logout, revocation or lapse of provider
+  # evidence. The owner is the account the lease locks, and the signer is
+  # proved to be one of its wallets again there, rather than taken from an
+  # actor read earlier.
+  defp open(%{lineage: lineage, account_id: account_id}, draft, signer, review) do
+    lineage
+    |> SessionAuthority.transact_lease(account_id, fn account ->
+      if Enum.any?(account.wallet_addresses, &Address.equal?(&1, signer)) do
+        LaunchOperation.prepare(
+          %{
+            action_id: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower),
+            human_account_id: account.id,
+            launch_draft_id: draft.id,
+            review: review,
+            signer: signer,
+            step: :launch
+          },
+          actor: %System{}
+        )
+      else
+        unavailable(:wrong_signer)
+      end
+    end)
+    |> case do
+      {:error, :stale_authority} -> unavailable(:session_unavailable)
+      result -> result
+    end
+  end
+
+  defp review_treasury(draft) do
+    if Lab.test_chain?() do
+      {:ok,
+       %{
+         "mode" => "local_lab",
+         "address" => draft.treasury,
+         "path" => Atom.to_string(draft.treasury_path)
+       }}
+    else
+      production_treasury(draft)
+    end
+  end
+
+  # The treasury's newest report: none yet is not checked yet, and a draft
+  # whose treasury is no longer an address (`current/2` reads it as saved
+  # since) names no treasury. A report that could not be read is that failure.
+  defp production_treasury(draft) do
+    case Regents.Autolaunch.current_treasury_security(draft.treasury, actor: nil) do
+      {:ok, nil} ->
+        unavailable(:treasury_report_missing)
+
+      :error ->
+        unavailable(:launch_treasury_invalid)
+
+      {:ok, report} ->
+        with {:ok, report} <-
+               TreasurySecurity.revalidate_bound(report, treasury_requirement(draft)),
+             :ok <- custody_address_matches(draft, report),
+             :ok <- custody_matches(draft, report),
+             do: {:ok, report}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  defp treasury_requirement(%{treasury_path: :safe}), do: :verified
+  defp treasury_requirement(_advanced), do: :observed
+
+  defp custody_matches(%{treasury_path: :safe}, %{classification: :supported_safe}), do: :ok
+  defp custody_matches(%{treasury_path: :eoa}, %{classification: :eoa}), do: :ok
+
+  defp custody_matches(%{treasury_path: :contract}, %{classification: classification})
+       when classification in [
+              :delegated_eoa,
+              :unknown_contract,
+              :safe_1_of_1,
+              :split,
+              :unsupported
+            ],
+       do: :ok
+
+  defp custody_matches(_draft, _report), do: unavailable(:treasury_security_changed)
+
+  defp custody_address_matches(%{treasury: address}, %{address: report_address}) do
+    if Address.equal?(address, report_address),
+      do: :ok,
+      else: unavailable(:treasury_security_changed)
+  end
+
+  defp treasury_binding(%{"mode" => "local_lab"} = binding), do: binding
+
+  defp treasury_binding(report) do
+    %{
+      "report_id" => report.id,
+      "address" => report.address,
+      "configuration_fingerprint" => report.configuration_fingerprint,
+      "source_block_hash" => report.source_block_hash,
+      "source_block_number" => report.source_block_number,
+      "classification" => Atom.to_string(report.classification),
+      "verification_state" => Atom.to_string(report.verification_state),
+      "evidence" => %{
+        "usdc" => report.usdc_evidence,
+        "regent" => report.regent_evidence,
+        "outbound" => report.outbound_evidence
+      }
+    }
+  end
+
+  # A typed Ash error, so the refusal survives the action's error class and the
+  # page can name the fact that actually stopped the launch.
+  defp unavailable(reason),
+    do:
+      {:error, Ash.Error.Invalid.Unavailable.exception(resource: LaunchOperation, reason: reason)}
 end

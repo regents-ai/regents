@@ -11,6 +11,10 @@ defmodule RegentsWeb.Motion do
   as every other site.
   """
 
+  use Phoenix.Component
+
+  alias Phoenix.LiveView.JS
+
   @standard %{
     "drawer" => "spring",
     "sheet" => "spring",
@@ -30,4 +34,23 @@ defmodule RegentsWeb.Motion do
 
   @doc "The standard version of one part, such as `\"list\"`."
   def standard(part), do: Map.fetch!(@standard, part)
+
+  @doc "Attributes for a moving panel (`menu` or `sheet`) keeping inline style."
+  def panel(kind, keep \\ []) when kind in ["menu", "sheet"] do
+    %{
+      "data-panel" => kind,
+      "phx-mounted" => JS.ignore_attributes(keep ++ ["style"])
+    }
+  end
+
+  attr :rest, :global
+
+  @doc "An animated SVG tick for live completion indicators."
+  def tick(assigns) do
+    ~H"""
+    <svg class="motion-tick" viewBox="0 0 24 24" aria-hidden="true" {@rest}>
+      <path pathLength="1" d="M4 12.5l5 5L20 6.5" phx-mounted={JS.ignore_attributes("style")} />
+    </svg>
+    """
+  end
 end

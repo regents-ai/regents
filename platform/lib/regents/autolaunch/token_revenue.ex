@@ -1,14 +1,10 @@
 defmodule Regents.Autolaunch.TokenRevenue do
   @moduledoc """
   Revenue a Revstake token's splitter recognized, one row per
-  `RevenueRecognized` log, read in the same pass and under the same cursor as
-  the token's trades. The amount is the gross the splitter took in, in its own
-  asset (USDC, REGENT or the launch token); the stakers' share is the part that
-  went to stakers.
-
-  The table and its rows as autolaunch.sh keeps them. A Revstake token's page
-  reads its latest fifty (`Regents.Autolaunch.TokenPage.revenue/2`); nothing
-  here writes them yet.
+  `RevenueRecognized` log, written by `Regents.Autolaunch.TokenTrades` in the same
+  pass and under the same cursor as the token's trades. The amount is the
+  gross the splitter took in, in its own asset (USDC, REGENT or the launch
+  token); the stakers' share is the part that went to stakers.
   """
   use Ash.Resource,
     otp_app: :regents,
@@ -23,6 +19,51 @@ defmodule Regents.Autolaunch.TokenRevenue do
 
     custom_indexes do
       index([:token_id, :block_number])
+    end
+  end
+
+  actions do
+    # A token's revenue, newest first, at most the latest fifty.
+    read :for_token do
+      argument :token_id, :uuid, allow_nil?: false
+      filter expr(token_id == ^arg(:token_id))
+      prepare build(sort: [block_number: :desc, log_index: :desc], limit: 50)
+    end
+
+    create :record do
+      accept [
+        :token_id,
+        :transaction_hash,
+        :block_hash,
+        :block_number,
+        :log_index,
+        :occurred_at,
+        :asset_symbol,
+        :amount,
+        :staker_share
+      ]
+
+      upsert? true
+      upsert_identity :splitter_log
+
+      upsert_fields [
+        :block_hash,
+        :block_number,
+        :occurred_at,
+        :asset_symbol,
+        :amount,
+        :staker_share
+      ]
+    end
+  end
+
+  policies do
+    policy action(:for_token) do
+      authorize_if always()
+    end
+
+    policy action(:record) do
+      authorize_if Regents.Checks.SystemActor
     end
   end
 
@@ -42,45 +83,11 @@ defmodule Regents.Autolaunch.TokenRevenue do
   relationships do
     belongs_to :token, Regents.Autolaunch.Token do
       allow_nil? false
+      read_action :listed
     end
   end
 
   identities do
     identity :splitter_log, [:token_id, :transaction_hash, :log_index]
-  end
-
-  actions do
-    # A token's revenue, newest first, at most the latest fifty, and only while
-    # its auction is a listed Base auction and shown, as the token's page finds
-    # it; only the columns the page shows or sorts by.
-    read :for_token do
-      argument :token_id, :uuid, allow_nil?: false
-      filter expr(token_id == ^arg(:token_id))
-      prepare {Regents.Autolaunch.Token.Preparations.BaseAuctionOnly, path: [:token, :auction]}
-      prepare {Regents.Autolaunch.Token.Preparations.ShownAuction, path: [:token, :auction]}
-
-      prepare build(
-                select: [
-                  :id,
-                  :token_id,
-                  :transaction_hash,
-                  :block_number,
-                  :log_index,
-                  :occurred_at,
-                  :asset_symbol,
-                  :amount
-                ],
-                sort: [block_number: :desc, log_index: :desc],
-                limit: 50
-              )
-    end
-  end
-
-  # Only the token page's read is carried; any other action is refused until it
-  # comes with its own policy.
-  policies do
-    policy action(:for_token) do
-      authorize_if always()
-    end
   end
 end

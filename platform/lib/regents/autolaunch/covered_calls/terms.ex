@@ -1,0 +1,279 @@
+defmodule Regents.Autolaunch.CoveredCalls.Terms do
+  @moduledoc """
+  The weekly expiries the site offers, and the arithmetic of a covered call
+  exactly as `CoveredCallsV2` does it: the premium and strike a fill or an
+  exercise pays, the 1% fee, what a bid escrows and what a sale into one pays,
+  a listing's or a bid's state at a moment, and the suggested premium a page
+  offers as a guide.
+
+  Stock amounts are raw token units; prices are USDC (6 decimals) per whole
+  token; every USDC amount rounds up, as the contract rounds it.
+  """
+
+  @day 86_400
+  @week 7 * @day
+  # Unix time began on a Thursday, so Friday 21:00 UTC is 1 day 21 hours into
+  # an epoch-aligned week: the contract's `WEEKLY_EXPIRY_OFFSET`.
+  @expiry_offset @day + 21 * 3_600
+  @window @day
+  @fee_bps 100
+  @bps 10_000
+  @usdc_unit 1_000_000
+  @year 365 * @day
+
+  def exercise_window, do: @window
+  def fee_bps, do: @fee_bps
+
+  @doc """
+  The next `count` expiries after `now` that a new listing or bid may take:
+  Fridays at 21:00 UTC, the only expiry the contract takes, leaving out every
+  Friday on which the New York Stock Exchange is shut or closes early. On those
+  the day's price is known hours or a day before 21:00 UTC, while the contract
+  still lets calls be bought and sold into until then.
+  """
+  def expiries(now, count \\ 4) when is_integer(now) and count > 0 do
+    first = now - rem(now, @week) + @expiry_offset
+    first = if first <= now, do: first + @week, else: first
+
+    first
+    |> Stream.iterate(&(&1 + @week))
+    |> Stream.reject(&(&1 |> DateTime.from_unix!() |> DateTime.to_date() |> short_friday?()))
+    |> Enum.take(count)
+  end
+
+  # The Fridays NYSE is shut or closes early, from its own rules (Rule 7.2 and
+  # its yearly early closes), so no year is ever added by hand: New Year's Day,
+  # Juneteenth, Independence Day and Christmas on a Friday, the last three also
+  # on the Friday before when they fall on a Saturday (NYSE trades the last day
+  # of the year, so a Saturday New Year's Day shuts no Friday); Good Friday,
+  # two days before Easter Sunday; and the day after Thanksgiving (the fourth
+  # Thursday of November, so that Friday is the 23rd to the 29th), when it
+  # closes at 13:00 New York time.
+  @shut_fridays [{1, 1}, {6, 18}, {6, 19}, {7, 3}, {7, 4}, {12, 24}, {12, 25}]
+
+  defp short_friday?(%Date{year: year, month: month, day: day} = friday),
+    do:
+      {month, day} in @shut_fridays or (month == 11 and day in 23..29) or
+        friday == Date.add(easter(year), -2)
+
+  # Easter Sunday in the Gregorian calendar: the anonymous Gregorian algorithm
+  # (Meeus, Astronomical Algorithms, chapter 8).
+  defp easter(year) do
+    {a, b, c} = {rem(year, 19), div(year, 100), rem(year, 100)}
+    g = div(b - div(b + 8, 25) + 1, 3)
+    h = rem(19 * a + b - div(b, 4) - g + 15, 30)
+    l = rem(32 + 2 * rem(b, 4) + 2 * div(c, 4) - h - rem(c, 4), 7)
+    m = div(a + 11 * h + 22 * l, 451)
+    n = h + l - 7 * m + 114
+    Date.new!(year, div(n, 31), rem(n, 31) + 1)
+  end
+
+  @doc """
+  A listing's term as a page names it: the whole days from `now` to `expiry`,
+  to the nearest day and never under one.
+  """
+  def term_days(expiry, now) when is_integer(expiry) and is_integer(now) and expiry > now,
+    do: max(div(expiry - now + div(@day, 2), @day), 1)
+
+  @doc "`amount` raw units at `per_token` USDC per whole token of `unit` raw units, rounded up."
+  def usdc_for(amount, per_token, unit), do: ceil_div(amount * per_token, unit)
+
+  @doc "The 1% of `premium` that goes to REGENT staking, rounded up, as the contract takes it."
+  def fee(premium), do: ceil_div(premium * @fee_bps, @bps)
+
+  @doc """
+  Where a listing stands at `now`: `:stopped` once its seller stopped it before
+  any was bought (`cancel` leaves its amount at the zero filled), `:open` while
+  it can be bought, `:sold` when it is open but nothing is left, `:exercise`
+  during the 24 hours after expiry, and `:closed` after them.
+
+  A listing stopped after some was bought keeps the bought part for its buyers
+  and reads as sold: the contract keeps no other record of the stop.
+  """
+  def stage(%{expiry: expiry} = listing, now) do
+    cond do
+      listing.amount == 0 -> :stopped
+      now < expiry and listing.amount > listing.filled -> :open
+      now < expiry -> :sold
+      now < expiry + @window -> :exercise
+      true -> :closed
+    end
+  end
+
+  @doc """
+  Whether a multiplier change scheduled at `effective_at` falls after `now`
+  and before the exercise window of `expiry` closes, so the contract refuses
+  to list or fill.
+  """
+  def corporate_action?(effective_at, expiry, now),
+    do: effective_at > now and effective_at < expiry + @window
+
+  @doc """
+  Seconds from `now` until the earliest of `times` still to come, at most a
+  week, or nil when none is: when a page reads again because a listing's
+  expiry or window closes, or a scheduled multiplier change takes effect.
+  """
+  def next_wait(times, now) do
+    case for(at <- times, at > now, do: at - now) do
+      [] -> nil
+      waits -> min(Enum.min(waits), @week)
+    end
+  end
+
+  @doc "Raw units still for sale on a listing, or still asked for on a bid."
+  def available(listing_or_bid), do: listing_or_bid.amount - listing_or_bid.filled
+
+  @doc """
+  Where a bid stands at `now`: `:cancelled` once its bidder stopped it before
+  any was sold into it (`cancelBid` leaves its amount at the zero filled),
+  `:open` while stock can be sold into it, `:sold` when nothing is left to sell
+  into it, and `:expired` when its expiry passed with part of it unsold.
+
+  A bid stopped after some was sold into it keeps the sold part as its bidder's
+  calls and reads as sold: the contract keeps no other record of the stop. A
+  refund after the expiry closes a bid the same way, so an expired bid reads as
+  cancelled or sold once its bidder has taken the refund.
+  """
+  def bid_stage(%{expiry: expiry} = bid, now) do
+    cond do
+      bid.amount == 0 -> :cancelled
+      bid.amount == bid.filled -> :sold
+      now < expiry -> :open
+      true -> :expired
+    end
+  end
+
+  @doc "How long after its window closes a holder's lapsed calls stay on the portfolio."
+  def lapsed_shown, do: 4 * @week
+
+  @doc """
+  Whether a listing or bid, as read at `now`, can never change again, so it is
+  read once and kept (`Regents.Autolaunch.CoveredCalls.Book`).
+
+  A bid is settled once its expiry has passed with nothing left to sell into
+  and nothing to refund: the contract then refuses `raiseBid`, `sellToBid`,
+  `cancelBid` and `refundBid` on it. Before the expiry a sold-out or stopped
+  bid can still be raised. A listing is settled once its window has closed,
+  its seller has taken back the stock not exercised and collected every
+  strike paid: `fill`, `exercise`, `cancel` and `collectStrike` are then
+  refused, and a `claim` only sends stock already counted.
+  """
+  def settled?(%{bidder: _bidder} = bid, now),
+    do: now >= bid.expiry and bid.amount == bid.filled and bid.refund_due == 0
+
+  def settled?(%{seller: _seller} = listing, now),
+    do:
+      now >= listing.expiry + @window and listing.stock_returned and
+        listing.strike_paid == listing.strike_collected
+
+  @doc """
+  Whether a listing or bid is dust: less than one whole token of `unit` raw
+  units is left to buy from it or sell into it, under the one whole token the
+  site asks a sale to be at least (`min_sale/2`). The site offers no purchase
+  from a dust listing and no sale into a dust bid; its maker still sees it in
+  their portfolio, to stop it and take back the stock or the refund.
+  """
+  def dust?(listing_or_bid, unit), do: available(listing_or_bid) < unit
+
+  @doc """
+  Where an open listing sits for a buyer, best first: the soonest expiry, then
+  the lowest break-even (strike plus premium), then the oldest listing.
+  """
+  def for_buyers(listing),
+    do: {listing.expiry, listing.strike_per_token + listing.premium_per_token, listing.id}
+
+  @doc """
+  Where an open bid sits for a seller, best first: the soonest expiry, then the
+  most a seller ends with per token at the reference price `spot` (USDC per
+  token; nil when there is none), then the highest premium, the highest strike
+  and the oldest bid.
+
+  What a seller ends with is the premium plus the strike, the strike counted
+  no higher than `spot`: above it the calls are not exercised and the seller
+  keeps stock worth `spot`. So a bid that pays a real premium comes before one
+  with a strike far above the price and a premium of nothing, which costs its
+  bidder nothing to post, and before one whose strike and premium together are
+  under the price, which sells the stock for less than it is worth. With no
+  reference price the order is by strike plus premium.
+  """
+  def for_sellers(bid, spot) do
+    strike = if spot, do: min(bid.strike_per_token, spot), else: bid.strike_per_token
+
+    {bid.expiry, -(strike + bid.premium_per_token), -bid.premium_per_token, -bid.strike_per_token,
+     bid.id}
+  end
+
+  @doc """
+  The smallest sale into a bid of `amount` raw units the site asks for: one
+  whole token of `unit` raw units, or the whole bid when it asks for less. The
+  contract still takes a sale of the bid's whole remainder below it.
+  """
+  def min_sale(amount, unit), do: min(amount, unit)
+
+  @doc """
+  The smallest sale `sellToBid` takes into `bid` now: its minimum sale, or all
+  that is left on it when less is left.
+  """
+  def least_sale(bid), do: min(bid.min_sale, available(bid))
+
+  @doc """
+  The USDC `raiseBid` takes to add `amount` raw units to `bid`, as the
+  contract's `raiseCostFor`: the premium for the raised amount less the
+  premium already escrowed, each rounded up once, so raising in small steps
+  never escrows more than bidding the total at once.
+  """
+  def raise_cost(bid, amount, unit),
+    do:
+      usdc_for(bid.amount + amount, bid.premium_per_token, unit) -
+        usdc_for(bid.amount, bid.premium_per_token, unit)
+
+  @doc """
+  What selling `amount` raw units into `bid` pays now, as the contract's
+  `salePremiumFor`: the sales into one bid are together paid the premium for
+  all that has been sold into it, rounded up once, and carry the 1% fee of that
+  total, rounded up once, so each sale takes the next slice of both. `receive`
+  is what lands in the seller's wallet, the premium less the fee.
+  """
+  def sale(bid, amount, unit) do
+    paid_before = usdc_for(bid.filled, bid.premium_per_token, unit)
+    paid_after = usdc_for(bid.filled + amount, bid.premium_per_token, unit)
+    premium = paid_after - paid_before
+    fee = fee(paid_after) - fee(paid_before)
+    %{premium: premium, fee: fee, receive: premium - fee}
+  end
+
+  @doc """
+  The escrow still standing behind `bid`'s unsold amount: what `cancelBid`
+  releases to its bidder's refund.
+  """
+  def escrow_left(bid, unit),
+    do:
+      usdc_for(bid.amount, bid.premium_per_token, unit) -
+        usdc_for(bid.filled, bid.premium_per_token, unit)
+
+  @doc "Strike USDC paid on a listing and not yet collected by its seller."
+  def strike_due(listing), do: listing.strike_paid - listing.strike_collected
+
+  @doc """
+  A suggested premium per whole token for a call struck at `strike` expiring
+  at `expiry`, from the reference price `spot` (both USDC per token, 6
+  decimals), with `volatility` a yearly fraction: the Black-Scholes price with
+  no interest. A guide for the seller only; the contract enforces nothing from
+  it. Never below one micro-USDC.
+  """
+  def suggested_premium(spot, strike, expiry, now, volatility)
+      when spot > 0 and strike > 0 and expiry > now and volatility > 0 do
+    s = spot / @usdc_unit
+    k = strike / @usdc_unit
+    t = (expiry - now) / @year
+    vt = volatility * :math.sqrt(t)
+    d1 = (:math.log(s / k) + vt * vt / 2) / vt
+    d2 = d1 - vt
+    price = s * normal_cdf(d1) - k * normal_cdf(d2)
+    max(round(price * @usdc_unit), 1)
+  end
+
+  defp normal_cdf(x), do: 0.5 * (1 + :math.erf(x / :math.sqrt(2)))
+
+  defp ceil_div(numerator, denominator), do: div(numerator + denominator - 1, denominator)
+end

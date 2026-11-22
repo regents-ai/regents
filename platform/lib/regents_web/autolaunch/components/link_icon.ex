@@ -21,8 +21,8 @@ defmodule RegentsWeb.Autolaunch.Components.LinkIcon do
   def link_icon(%{kind: :ens} = assigns) do
     ~H"""
     <span class="link-icon link-icon--ens" aria-hidden="true">
-      <img class="link-icon__ens--light" src="/images/autolaunch/ens-mark-dark-blue.svg" alt="" />
-      <img class="link-icon__ens--dark" src="/images/autolaunch/ens-mark-white.svg" alt="" />
+      <img class="link-icon__ens--light" src="/images/ens-mark-dark-blue.svg" alt="" />
+      <img class="link-icon__ens--dark" src="/images/ens-mark-white.svg" alt="" />
     </span>
     """
   end

@@ -1,0 +1,60 @@
+defmodule Regents.Autolaunch.Signals do
+  @moduledoc """
+  What launches, bids, trades, stakes and covered calls tell the rest of the
+  site, as Ash signals. Each is emitted in the transaction of the write that
+  saved it, so a listener with the default delivery commits or rolls back with
+  it. Points offers each to Regent Points (`Regents.Autolaunch.Points.Award`).
+
+    * `:launch_recorded`: a launch's auction row was saved for the first time
+      (`Regents.Autolaunch.Auction` `:record_launch`), by whichever of its writers came
+      first. A later write of the same launch emits nothing.
+    * `:token_graduated`: a graduated launch's token row was saved for the
+      first time (`Regents.Autolaunch.Token` `:project_lab`). Projecting the same
+      graduation again emits nothing.
+    * `:bid_recorded`: a Base bid's position row was saved for the first time
+      (`Regents.Autolaunch.Bid` `:record_from_chain`), by whichever came first, the
+      bidder's page reading its receipt or the auction's reader. A later write
+      of the same bid emits nothing, and `:project_lab` only writes a position
+      already saved.
+    * `:trade_recorded`: a trade in a listed token's pool was saved
+      (`Regents.Autolaunch.TokenTrade` `:record`), named by its pool log. Reading the
+      same block again keeps the saved trade and emits nothing; a rebuild
+      after the chain changed saves each trade again and emits it again.
+    * `:stake_recorded`: a stake of a listed token in its launch's splitter was
+      saved for the first time (`Regents.Autolaunch.TokenStake` `:record`). Reading
+      the same log again changes nothing and emits nothing.
+    * `:covered_call_recorded`: a covered call that changed hands was saved for
+      the first time (`Regents.Autolaunch.CoveredCalls.Sale` `:record`). Reading the
+      same log again changes nothing and emits nothing.
+  """
+
+  use Ash.Signals
+
+  signals do
+    signal :launch_recorded do
+      argument :auction_id, :uuid, allow_nil?: false
+    end
+
+    signal :token_graduated do
+      argument :token_id, :uuid, allow_nil?: false
+    end
+
+    signal :bid_recorded do
+      argument :position_id, :uuid, allow_nil?: false
+    end
+
+    signal :trade_recorded do
+      argument :token_id, :uuid, allow_nil?: false
+      argument :transaction_hash, :string, allow_nil?: false
+      argument :log_index, :integer, allow_nil?: false
+    end
+
+    signal :stake_recorded do
+      argument :stake_id, :uuid, allow_nil?: false
+    end
+
+    signal :covered_call_recorded do
+      argument :sale_id, :uuid, allow_nil?: false
+    end
+  end
+end

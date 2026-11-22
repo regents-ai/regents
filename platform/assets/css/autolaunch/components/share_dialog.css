@@ -1,0 +1,47 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* "Share on X": the button and the window it opens over a dimmed page
+   (`AutolaunchWeb.Components.ShareDialog`). */
+.share-x { display: grid; justify-items: start; min-width: 0; }
+.bid-placed__actions .share-x { justify-items: stretch; }
+
+.share-x__dialog {
+  width: min(34rem, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  overscroll-behavior: contain;
+}
+.share-x__dialog::backdrop { background: rgb(0 0 0 / .55); }
+
+.share-x__box { display: grid; gap: 12px; padding: 20px; }
+.share-x__title { margin: 0; font-size: 1.25rem; }
+.share-x__box p { margin: 0; }
+.share-x__account { display: grid; gap: 8px; color: var(--color-fg-muted); }
+.share-x__account > div { display: grid; gap: 8px; justify-items: start; }
+.share-x__preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200 / 630;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: #111110;
+}
+.share-x__message { width: 100%; min-width: 0; resize: vertical; }
+/* The window's buttons keep their own width and stay on one line each. */
+.share-x__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.share-x__note { color: var(--color-fg-muted); font-size: .875rem; }
+/* The switch that adds a person's own wallet to the video: a full press. */
+.share-x__mine { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.share-x__mine input { width: 20px; height: 20px; margin: 0; accent-color: var(--color-accent); }
+
+@media (max-width: 480px) {
+  .share-x__box { padding: 16px; }
+}
+
+}

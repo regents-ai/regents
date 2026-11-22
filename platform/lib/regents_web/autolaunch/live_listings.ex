@@ -155,4 +155,37 @@ defmodule RegentsWeb.Autolaunch.LiveListings do
     do: {:halt, assign(socket, loading: false, failed: true)}
 
   defp answered(_name, _answer, socket), do: {:cont, socket}
+
+  @doc "Subscribes a connected socket to live listing changes."
+  def subscribe(socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Regents.PubSub, "autolaunch:listings")
+    socket
+  end
+
+  @doc "Marks the listing as taken so no scheduled reread is pending."
+  def taken(socket), do: assign(socket, :listings_reread_timer, nil)
+
+  @doc "Schedules a debounced reread of the current listing."
+  def schedule(socket) do
+    if socket.assigns[:listings_reread_timer] do
+      socket
+    else
+      ref = Process.send_after(self(), :reread_listings, 500)
+      assign(socket, :listings_reread_timer, ref)
+    end
+  end
+
+  @doc "Rereads the currently shown listing page without resetting scroll."
+  def reread(%{assigns: %{options: nil}} = socket), do: socket
+
+  def reread(%{assigns: %{options: options, records: records}} = socket) do
+    count = max(length(records), 24)
+
+    start_async(socket, :listings, fn ->
+      with {:ok, page} <- HomeMarket.reread(options, count),
+           {:ok, creators} <- Regents.Autolaunch.HomeMarket.creators(page.records) do
+        {:ok, Map.put(page, :creators, creators)}
+      end
+    end)
+  end
 end

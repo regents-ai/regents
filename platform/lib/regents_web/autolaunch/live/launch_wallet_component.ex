@@ -1,0 +1,378 @@
+defmodule RegentsWeb.Autolaunch.LaunchWalletComponent do
+  @moduledoc """
+  One compact card that takes a saved draft through its launch on Base: one
+  review, then the one launch transaction. There is no launch fee.
+
+  The review, the step and its outcomes follow `RegentsWeb.Autolaunch.LaunchSteps`.
+  The review is saved (`Regents.Autolaunch.LaunchOperation`) so the launch it carries
+  out is listed for this account: as soon as this page sees it confirmed and
+  Base answers for it, otherwise when discovery finds it. Off the local lab, the draft's
+  treasury is verified here first.
+  """
+
+  use RegentsWeb, :live_component
+
+  alias Regents.Autolaunch.{Lab, LaunchActions, LaunchDraft}
+  alias RegentsWeb.Autolaunch.{LaunchSteps, OnchainSteps}
+  alias RegentsWeb.Live.Session
+
+  @copy %{
+    authentication_required: "Sign in to launch from your wallet.",
+    session_unavailable: "Sign in again to continue.",
+    session_lease_required: "Sign in again to continue.",
+    sign_in_unread: "That did not go through. Try again in a moment.",
+    wrong_signer: "Your wallet changed during the press, so nothing was sent. Press again.",
+    invalid_address: "Open one of your account's wallets in your wallet app, then press again.",
+    chain_unavailable: "Base could not be read just now. Try again in a moment.",
+    launch_preparation_unavailable: "Launching from your wallet is not open yet.",
+    launch_snapshot_incomplete: "Base gave an incomplete answer. Try again in a moment.",
+    launches_paused: "New launches are paused right now.",
+    launch_treasury_refused:
+      "This address cannot be used as a launch treasury. Choose a different one on this draft and try again.",
+    strategy_not_bound:
+      "This launch factory and its strategy do not match. Nothing was prepared.",
+    launch_metadata_incomplete:
+      "This draft is missing something the launch needs. Open it and save every field again.",
+    agent_treasury_unconfirmed:
+      "Your agent chose this treasury. Confirm it beside the launch, then review again.",
+    launch_treasury_invalid:
+      "This draft's treasury is not a usable address. Copy it from your wallet again and save the draft.",
+    launch_draft_not_found: "This draft is no longer available.",
+    launch_draft_unavailable: "This draft could not be read just now.",
+    treasury_not_verified: "This Safe is not currently verified as a 2-of-3 treasury.",
+    treasury_report_missing: "Verify the deployed treasury address before review.",
+    treasury_security_changed: "The treasury configuration changed. Verify it again.",
+    treasury_source_reorged: "The treasury proof block is no longer canonical. Verify it again.",
+    treasury_configuration_drift:
+      "These transactions were sent before the Safe's current setup. Send new ones from the Safe as it is now, then verify again.",
+    treasury_evidence_invalid:
+      "These transactions are not the Safe's own. Check each one, then verify again.",
+    treasury_observation_recorded: "Treasury observation recorded from canonical Base reads."
+  }
+
+  @generic "That did not go through. Try again in a moment."
+
+  @impl true
+  def mount(socket),
+    do:
+      {:ok,
+       socket
+       |> Session.check_component_lease(&take_account/2)
+       |> LaunchSteps.init()}
+
+  # The review on the page, checked against the chain again once it is ten
+  # minutes old (`RegentsWeb.Autolaunch.LaunchSteps.refreshed/4`).
+  @impl true
+  def update(%{refresh_review: review_id}, socket),
+    do: {:ok, LaunchSteps.refreshed(socket, review_id, current(socket), &prepare(socket, &1))}
+
+  def update(assigns, socket) do
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign(local_lab?: Lab.test_chain?(), treasury_report: current_report(assigns.draft))
+     |> OnchainSteps.adopt()
+     |> LaunchSteps.followed()
+     |> LaunchSteps.relisted(socket.assigns.listings)}
+  end
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &LaunchSteps.followed/1)
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <section
+      id={@id}
+      class="launch-wallet create-page__review rg-panel rg-panel--surface"
+      phx-hook="OnchainSteps"
+      hidden={!@review}
+    >
+      <.portal id={"#{@id}-side"} target={@side} class="launch-wallet">
+        <LaunchSteps.launched_panel
+          id={"#{@id}-launched"}
+          launched={@launched}
+          chain={explorer_chain(@local_lab?)}
+          target={@myself}
+        />
+        <p class="launch-wallet-notice" role="status" hidden={!@notice}>{@notice}</p>
+
+        <section
+          :if={!@local_lab?}
+          id={"#{@id}-treasury"}
+          class="treasury-verification"
+          aria-label="Treasury verification"
+        >
+          <h4>Verify immutable treasury</h4>
+          <%!-- The page offers the review as the treasury is typed; the
+               address shows once it is saved, as the person leaves its box. --%>
+          <p :if={LaunchDraft.treasury_address?(@draft.treasury)}>
+            <Regent.Primitives.address
+              id={"#{@id}-treasury-address"}
+              address={@draft.treasury}
+              chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
+            />
+          </p>
+          <p :if={verified?(@treasury_report)} data-treasury-verification-state="verified">
+            Verified 2-of-3 Safe at canonical Base block {@treasury_report.source_block_number}.
+          </p>
+          <p :if={!verified?(@treasury_report)} data-treasury-verification-state="unverified">
+            Unverified. No launch can be prepared on the official Safe path.
+          </p>
+          <form class="rg-field" phx-submit="verify_treasury" phx-target={@myself}>
+            <label>USDC receipt transaction <input name="usdc" autocomplete="off" /></label>
+            <label>REGENT receipt transaction <input name="regent" autocomplete="off" /></label>
+            <label>
+              Outbound Safe execution transaction <input name="outbound" autocomplete="off" />
+            </label>
+            <Regent.Primitives.button type="submit">Verify deployed address on Base</Regent.Primitives.button>
+          </form>
+        </section>
+
+        <p :if={!@authenticated} class="launch-wallet-empty">
+          <Regent.Primitives.button type="button" data-account-target="sign-in">Sign in to launch</Regent.Primitives.button>
+        </p>
+
+        <LaunchSteps.review_button
+          id={@id}
+          hidden={!@authenticated or !!@launched}
+          review={@review}
+          presses={@presses}
+          signer={@signer}
+          mismatch={@mismatch}
+          disabled={@launches_paused?}
+          target={@myself}
+        />
+      </.portal>
+
+      <LaunchSteps.review_panel
+        id={@id}
+        review={@review}
+        prepared={@prepared}
+        presses={@presses}
+        chain={explorer_chain(@local_lab?)}
+        mismatch={@mismatch}
+        press_note={@press_note}
+        target={@myself}
+      >
+        <:rows>
+          <div>
+            <dt>Minimum REGENT raised</dt>
+            <dd>{@prepared.facts["required_regent_raised"]} REGENT</dd>
+          </div>
+          <div>
+            <dt>Launch fee</dt>
+            <dd>None</dd>
+          </div>
+          <div>
+            <dt>Treasury</dt>
+            <dd>
+              <Regent.Primitives.address
+                id={"#{@id}-review-treasury"}
+                address={@prepared.facts["treasury"]}
+                variant="full"
+                chain={LaunchSteps.address_chain(explorer_chain(@local_lab?))}
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Treasury custody</dt>
+            <dd>{custody_label(@prepared.facts["treasury_path"])}</dd>
+          </div>
+        </:rows>
+        <dl class="launch-wallet-terms">
+          <div>
+            <dt>Supply</dt>
+            <dd>{allocation_display(@prepared.facts["terms"])}</dd>
+          </div>
+          <div>
+            <dt>Pool fee</dt>
+            <dd>{pool_fee(@prepared.facts["terms"])}</dd>
+          </div>
+          <div>
+            <dt>Network fee</dt>
+            <dd>Shown in your wallet before confirmation.</dd>
+          </div>
+        </dl>
+
+        <Regent.Primitives.disclosure
+          id={"#{@id}-exact-values"}
+          summary="Exact values"
+          class="launch-wallet-details"
+        >
+          <p>
+            Every launch uses these same terms. Bidding, claiming, and pool opening follow fixed block delays.
+          </p>
+          <dl>
+            <div :for={{label, value} <- exact_values(@prepared.facts, @review)}>
+              <dt>{label}</dt>
+              <dd class="launch-wallet-mono">{value}</dd>
+            </div>
+          </dl>
+        </Regent.Primitives.disclosure>
+      </LaunchSteps.review_panel>
+    </section>
+    """
+  end
+
+  @impl true
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, LaunchSteps.activated(socket, params)}
+
+  def handle_event("review_launch", _params, socket),
+    do: {:noreply, LaunchSteps.review(socket, &prepare(socket, &1))}
+
+  def handle_event("step_sent", params, socket),
+    do: {:noreply, OnchainSteps.sent(socket, params)}
+
+  def handle_event("step_failed", params, socket),
+    do: {:noreply, OnchainSteps.failed(socket, params, :launch, Lab.network_name(Lab.chain_id()))}
+
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  def handle_event("cancel_review", _params, socket),
+    do: {:noreply, LaunchSteps.withdrawn(socket)}
+
+  def handle_event("clear_launch", _params, socket),
+    do: {:noreply, socket |> assign(launched: nil) |> LaunchSteps.withdrawn()}
+
+  def handle_event("verify_treasury", hashes, socket) do
+    if socket.assigns.local_lab? do
+      {:noreply, socket}
+    else
+      {:noreply, verify_treasury(hashes, socket)}
+    end
+  end
+
+  @impl true
+  def handle_async({:onchain_step, hash}, result, socket),
+    do:
+      {:noreply,
+       OnchainSteps.checked(
+         socket,
+         hash,
+         result,
+         &LaunchSteps.launched(&1, &2, :revstake, LaunchSteps.base_page(:launch)),
+         &LaunchSteps.reverted(&1, &2, current(socket), fn signer -> prepare(socket, signer) end)
+       )}
+
+  def handle_async({:launch_page, hash}, answer, socket),
+    do: {:noreply, LaunchSteps.found(socket, hash, answer)}
+
+  defp prepare(socket, signer) do
+    case LaunchActions.prepare(socket.assigns.draft.id, signer, OnchainSteps.opts(socket)) do
+      {:ok, prepared} -> {:ok, prepared}
+      {:error, error} -> {:error, copy(OnchainSteps.refusal(error))}
+    end
+  end
+
+  defp current(socket), do: &LaunchActions.current(&1, OnchainSteps.opts(socket))
+
+  # Treasury verification
+
+  defp current_report(draft) do
+    if Lab.test_chain?(), do: nil, else: production_report(draft)
+  end
+
+  # The observation is saved as the person once the chain is read, so it runs
+  # only while the panel's lease reads as current now (`Session.fresh/2`).
+  defp verify_treasury(hashes, socket) do
+    result =
+      Session.fresh(socket.assigns.session_lease, fn _account ->
+        Regents.Autolaunch.observe_treasury_security(
+          socket.assigns.draft.treasury,
+          Map.take(hashes, ["usdc", "regent", "outbound"]),
+          actor: OnchainSteps.actor(socket)
+        )
+      end)
+
+    case result do
+      {:ok, report} ->
+        assign(socket, treasury_report: report, notice: copy(:treasury_observation_recorded))
+
+      {:error, error} ->
+        assign(socket, notice: copy(OnchainSteps.refusal(error)))
+    end
+  end
+
+  defp production_report(%{treasury: treasury}) when is_binary(treasury) do
+    case Regents.Autolaunch.current_treasury_security(treasury, actor: nil) do
+      {:ok, report} -> report
+      _error -> nil
+    end
+  end
+
+  defp production_report(_draft), do: nil
+
+  # The newest stored report's own answer; the review observes the treasury
+  # again before it prepares anything.
+  defp verified?(report), do: match?(%{verification_state: :verified}, report)
+
+  # The review
+
+  # A test network has no explorer.
+  defp explorer_chain(true), do: nil
+  defp explorer_chain(false), do: :base
+
+  defp allocation_display(terms) do
+    "#{share(terms, "auction_allocation")} auction · " <>
+      "up to #{share(terms, "reserve_allocation")} for the pool · " <>
+      "#{share(terms, "pending_allocation")} or more vests to the treasury over a year"
+  end
+
+  # The three allocations are the whole supply, so each share is read from the
+  # reviewed terms rather than restated as a literal here.
+  defp share(terms, key) do
+    total =
+      Enum.sum(
+        Enum.map(~w(auction_allocation reserve_allocation pending_allocation), &number(terms, &1))
+      )
+
+    "#{div(number(terms, key) * 100, total)}%"
+  end
+
+  # Uniswap states a static pool fee in hundredths of a basis point.
+  defp pool_fee(terms),
+    do: "#{:erlang.float_to_binary(number(terms, "pool_fee") / 10_000, decimals: 2)}%"
+
+  defp number(terms, key), do: terms |> Map.fetch!(key) |> String.to_integer()
+
+  # Everything technical, behind the one disclosure: raw addresses, the exact
+  # target, the reviewed block, the block counts and the digest of the exact
+  # bytes this wallet is being asked to sign.
+  defp exact_values(facts, review) do
+    terms = facts["terms"]
+
+    [
+      {"Factory", facts["factory"]},
+      {"Strategy", facts["strategy"]},
+      {"Treasury", facts["treasury"]},
+      {"Reviewed block", "#{facts["block_number"]} · #{facts["block_hash"]}"},
+      {"Calldata digest", LaunchSteps.digest(review)}
+    ] ++ Enum.map(LaunchActions.terms(), &{term_label(&1), Map.fetch!(terms, &1)})
+  end
+
+  defp term_label(key), do: key |> String.replace("_", " ") |> String.capitalize()
+
+  defp copy(:chain_unavailable) do
+    if Lab.test_chain?(),
+      do: "The Base fork could not be read just now. Check that it is still running.",
+      else: Map.fetch!(@copy, :chain_unavailable)
+  end
+
+  defp copy(:launch_snapshot_incomplete) do
+    if Lab.test_chain?(),
+      do: "The Base fork returned an incomplete answer. Check that it is still running.",
+      else: Map.fetch!(@copy, :launch_snapshot_incomplete)
+  end
+
+  defp copy(reason), do: Map.get(@copy, reason, @generic)
+
+  defp custody_label("safe"), do: "2-of-3 Safe"
+  defp custody_label("contract"), do: "Existing contract"
+  defp custody_label("eoa"), do: "Single-key EOA"
+end

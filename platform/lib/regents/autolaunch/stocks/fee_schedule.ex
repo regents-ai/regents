@@ -39,6 +39,10 @@ defmodule Regents.Autolaunch.Stocks.FeeSchedule do
           receiver: String.t()
         }
 
+  @doc "The pool's static fee as its pool key carries it: 3_000 is 0.30%."
+  @spec pool_fee(chain(), version()) :: pos_integer()
+  def pool_fee(chain, version), do: Map.fetch!(@schedules, {chain, version}).pool_fee
+
   @doc """
   Each fee a Memestock trade on `chain` pays on a launch of `version`: its
   rate, what it is charged on and who receives it.
@@ -75,6 +79,20 @@ defmodule Regents.Autolaunch.Stocks.FeeSchedule do
   @doc "One of the fees a Memestock trade on `chain` pays on a launch of `version`."
   @spec lane(chain(), version(), :pool | :creator | :regent | :stakers) :: lane() | nil
   def lane(chain, version, key), do: Enum.find(lanes(chain, version), &(&1.key == key))
+
+  @doc "What a fee is charged on, in words."
+  @spec charged_on(:paid | :stock) :: String.t()
+  def charged_on(:paid), do: "the token the trader pays with"
+  def charged_on(:stock), do: "the stock amount of every trade, before fees"
+
+  @doc "A new launch's fees as rows of its fixed terms."
+  @spec terms(chain()) :: [{String.t(), String.t()}]
+  def terms(chain),
+    do:
+      Enum.map(
+        lanes(chain, :v2),
+        &{&1.label, "#{&1.rate} of #{charged_on(&1.charged_on)}, to #{&1.receiver}"}
+      )
 
   defp receiver(:regent, :base, _default), do: "REGENT staking after conversion to USDC"
 

@@ -1,0 +1,760 @@
+defmodule Regents.Autolaunch.TokenTrades do
+  @moduledoc """
+  A bounded, browser-independent projection of the trades in each launched
+  token's pool, its stakes in the launch's splitter and, for a Revstake
+  token, the revenue its splitter recognized. Each pass reads one token and
+  at most 2,000 blocks of the PoolManager's `Swap` logs for that pool, and the
+  splitter's `Staked` and `RevenueRecognized` logs over the same blocks, in
+  one read. A span either read is refused for, or one holding more than 200
+  swaps, is read again as its first half, down to one block, and the next
+  pass reads on from there.
+
+  Each trade's trader is the wallet that sent its transaction, asked of the
+  node before anything is written, once for each transaction with a trade not
+  saved yet: a trade already saved keeps its trader and is not asked about
+  again, so a caught-up pass reading its head block again asks nothing. A
+  pass asks about at most 40 transactions at once: with more, or when its
+  lookups fail, it reads the first half of its blocks instead, down to one
+  block, and the next pass reads on, so a busy range is read in several
+  passes rather than not at all. A block that alone holds more than 40 is
+  asked about whole. The lookups run four at a time in a task of their own,
+  apart from the job, with three seconds for each round of four and sixty
+  for all of a pass's asks, except such a block, which gets all its rounds;
+  one lookup gets five seconds.
+
+  The cursor and rows commit together; a repeat range keeps the trades
+  already saved, with their traders, and replaces the revenue. A changed
+  cursor block drops the token's trades and revenue and rebuilds them, which
+  asks the node again for the sender of every trade in the token's history,
+  one lookup per transaction, four at a time, in the same narrowed passes. A
+  stake is saved once and kept through both (`Regents.Autolaunch.TokenStake`), even
+  one the chain later took back; a `Staked` log of nothing is skipped.
+
+  A trade or a stake offers Regent Points its award only when it is first
+  saved (`Regents.Autolaunch.Points.Award`), so one saved while its rule is not
+  approved is never offered later. The one exception is a rebuild: each trade
+  it saves again is offered again then, and earns if its rule is approved by
+  that time.
+
+  Each listed token has one job (`Regents.Autolaunch.ChainWatch` makes sure of it),
+  which runs a pass and then waits: a second while the token is behind the
+  head, five minutes once it has caught up. A press that lands on its chain
+  brings it forward to ten seconds away (`refresh/1`). A pass the node could
+  not answer, whose head moved under it, or whose trader lookups failed for
+  a single block, is one warning line and is read again a minute later; any
+  other failure is a fault, tried again a minute later.
+  """
+  use Oban.Worker,
+    queue: :autolaunch_chain,
+    max_attempts: 20,
+    unique: [keys: [:token_id], period: :infinity, states: :incomplete]
+
+  @behaviour Regents.Autolaunch.ChainRefresh
+  import Ecto.Query
+  require Ash.Query
+  require Logger
+  alias Regents.Account.Actors.System
+  alias Regents.Autolaunch.Chain.Rpc
+
+  alias Regents.Repo
+
+  alias Regents.Autolaunch.{
+    ChainRefresh,
+    ChainWatch,
+    LabAbi,
+    Token,
+    TokenRevenue,
+    TokenStake,
+    TokenTrade
+  }
+
+  alias RegentChain.Address
+  @actor %System{}
+  # The node did not answer, or answered for a head that has since moved.
+  @unavailable [
+    :chain_unavailable,
+    :logs_unavailable,
+    :header_unavailable,
+    :headers_unavailable,
+    :transactions_unavailable,
+    :history_unavailable,
+    :head_moved
+  ]
+  @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
+  @revenue "RevenueRecognized(address,address,bytes32,uint256,uint256,uint256,uint256,uint256)"
+  @staked "Staked(address,uint256)"
+  @range 2_000
+  # Trader lookups run four at a time, and an ask is given three seconds for
+  # each round of four. A pass asks about at most 40 transactions at once: ten
+  # rounds, thirty seconds, against a healthy node's fraction of a second a
+  # round. A pass's asks get sixty seconds together, except one block that
+  # alone holds more than 40 new transactions, which gets all its rounds. One
+  # lookup gets five seconds, under the node client's own eight.
+  @lookup_cap 40
+  @round_budget 3_000
+  @lookups_budget 60_000
+  @lookup_timeout 5_000
+  @token_decimals 18
+  @topic "token_trades"
+
+  @doc "Every recorded trade arrives as `{:autolaunch_trade, token_id}`."
+  def subscribe, do: Phoenix.PubSub.subscribe(Regents.PubSub, @topic)
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"token_id" => id}}) do
+    case Ash.get(Token, id, action: :trades, actor: @actor, not_found_error?: false) do
+      {:ok, nil} ->
+        {:cancel, :not_listed}
+
+      {:ok, token} ->
+        case read(token) do
+          {:ok, :behind} ->
+            {:snooze, 1}
+
+          {:ok, :caught_up} ->
+            {:snooze, 300}
+
+          {:error, reason} when reason in @unavailable ->
+            Logger.warning(
+              "Trades for token #{id} not read (#{reason}); reading again in a minute"
+            )
+
+            {:snooze, 60}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @impl Oban.Worker
+  def backoff(%Oban.Job{}), do: 60
+
+  @doc "Every listed token's reading job (`Regents.Autolaunch.ChainWatch`)."
+  def jobs, do: Enum.map(listed(), &new(%{token_id: &1.id}))
+
+  @doc """
+  A person's on-chain press on chain `chain_id` landed: every listed token on
+  it is read ten seconds from now, instead of at its next turn. One already due
+  sooner stays as it is.
+  """
+  # No job runs while the site is read-only before launch (`Regents.Autolaunch.Application`).
+  @impl ChainRefresh
+  def refresh(chain_id) do
+    if not Regents.Autolaunch.Prelaunch.read_only?() do
+      Token
+      |> Ash.Query.filter(auction.chain_id == ^chain_id)
+      |> listed()
+      |> Enum.each(&ChainWatch.soon(new(%{token_id: &1.id})))
+    end
+
+    :ok
+  end
+
+  defp listed(query \\ Token) do
+    query
+    |> Ash.Query.for_read(:trades, %{}, actor: @actor)
+    |> Ash.Query.select([:id])
+    |> Ash.read!()
+  end
+
+  def read(token) do
+    with {:ok, venue} <- venue(token.auction),
+         {:ok, head} <- Rpc.latest_block(venue.opts),
+         {:ok, pool} <- swap_source(venue, token.auction, head),
+         {:ok, first} <- first_block(token, pool, head, venue.opts),
+         :ok <- cursor_valid(token, head, venue.opts),
+         {:ok, last, logs, splitter_logs} <-
+           logs(pool, first, min(first + @range - 1, head.number), venue.opts),
+         {:ok, headers} <- headers(logs ++ splitter_logs, last, venue.opts),
+         {:ok, trades} <- map_ok(logs, &trade(token, pool, headers, &1)),
+         {stake_logs, revenue_logs} = Enum.split_with(splitter_logs, &staked?/1),
+         {:ok, revenue} <- map_ok(revenue_logs, &revenue(token, pool, headers, &1)),
+         {:ok, stakes} <- map_ok(stake_logs, &stake(token, pool, headers, &1)),
+         trades = Enum.reject(trades, &is_nil/1),
+         {:ok, last, senders} <- traders(token, first, last, trades, venue.opts),
+         {:ok, headers} <- headed(headers, last, venue.opts) do
+      trades =
+        for trade <- trades,
+            trade.block_number <= last,
+            do: Map.put(trade, :trader, senders[trade.transaction_hash])
+
+      revenue = Enum.filter(revenue, &(&1.block_number <= last))
+      stakes = for %{} = stake <- stakes, stake.block_number <= last, do: stake
+
+      token
+      |> commit(first, last, headers[last].hash, {trades, revenue, stakes})
+      |> indexed(token, trades, last, head.number)
+    else
+      {:error, :cursor_changed} -> invalidate(token)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # After a committed pass: how far the furthest-behind cursor among the
+  # chain's listed tokens trails the head, so a token that falls behind is not
+  # hidden by one that has caught up; and how long after its block each trade
+  # first seen by a pass that reached the head from an existing cursor got to
+  # the site. A first pass or a rebuild reads history rather than new trades,
+  # so it is left out. Answers whether the token has caught up with the head.
+  defp indexed(:ok, token, trades, last, head) do
+    chain_id = token.auction.chain_id
+
+    # A measurement never fails the pass it measures.
+    with {:ok, oldest} when is_integer(oldest) <- oldest_next_block(chain_id),
+         do:
+           :telemetry.execute(
+             [:autolaunch, :indexer, :lag],
+             %{blocks: max(head - (oldest - 1), 0)},
+             %{indexer: :token_trades, chain_id: chain_id}
+           )
+
+    if last == head and is_integer(token.trades_next_block) do
+      now = DateTime.utc_now()
+
+      for %{block_number: number, occurred_at: at} <- trades,
+          number >= token.trades_next_block,
+          do:
+            :telemetry.execute(
+              [:autolaunch, :chain_event, :recorded],
+              %{delay_ms: DateTime.diff(now, at, :millisecond)},
+              %{kind: :trade, chain_id: chain_id}
+            )
+    end
+
+    {:ok, if(last == head, do: :caught_up, else: :behind)}
+  end
+
+  defp indexed(error, _token, _trades, _last, _head), do: error
+
+  # Nil when no listed token on the chain has a cursor, as when the token just
+  # read was unlisted during its pass.
+  defp oldest_next_block(chain_id) do
+    Token
+    |> Ash.Query.for_read(:listed, %{}, actor: @actor)
+    |> Ash.Query.filter(auction.chain_id == ^chain_id)
+    |> Ash.min(:trades_next_block, actor: @actor)
+  end
+
+  @doc """
+  One `Swap` log's trade, in base units. The PoolManager reports each amount
+  from the swapper's side: negative was paid into the pool, positive was taken
+  out. The token coming out is a buy and going in is a sell; the currency
+  amount is what the buyer paid or the seller received. `nil` for a swap that
+  moved nothing on one side.
+  """
+  @spec decode_swap(map(), boolean()) ::
+          {:ok, %{side: :buy | :sell, token: pos_integer(), currency: pos_integer()} | nil}
+          | {:error, :invalid_swap}
+  def decode_swap(%{"data" => "0x" <> data}, token_is_currency0?) do
+    case Base.decode16(data, case: :mixed) do
+      {:ok, <<amount0::signed-256, amount1::signed-256, _rest::binary-size(128)>>} ->
+        {token, currency} =
+          if token_is_currency0?, do: {amount0, amount1}, else: {amount1, amount0}
+
+        cond do
+          token == 0 or currency == 0 -> {:ok, nil}
+          token > 0 -> {:ok, %{side: :buy, token: token, currency: -currency}}
+          true -> {:ok, %{side: :sell, token: -token, currency: currency}}
+        end
+
+      _ ->
+        {:error, :invalid_swap}
+    end
+  end
+
+  def decode_swap(_log, _token_is_currency0?), do: {:error, :invalid_swap}
+
+  @doc """
+  The deployment a launch is read from and the RPC options its chain is read
+  with: `%{module: lab_module, config: config, opts: opts}`.
+  """
+  def venue(%{chain_id: chain, kind: kind}) do
+    module =
+      cond do
+        Regents.Autolaunch.Robinhood.Lab.chain?(chain) -> Regents.Autolaunch.Robinhood.Lab
+        kind == :stocks -> Regents.Autolaunch.Stocks.Lab
+        true -> Regents.Autolaunch.Lab
+      end
+
+    with {:ok, config} <- module.current(),
+         true <- config.chain_id == chain do
+      opts =
+        if module == Regents.Autolaunch.Lab,
+          do: Regents.Autolaunch.LabRpc.opts(config, "token trades"),
+          else: module.rpc_opts(config)
+
+      {:ok, %{module: module, config: config, opts: opts}}
+    else
+      _unavailable -> {:error, :chain_unavailable}
+    end
+  end
+
+  defp swap_source(%{module: Regents.Autolaunch.Robinhood.Lab} = venue, auction, head),
+    do:
+      Regents.Autolaunch.Robinhood.Pool.swap_source(
+        auction,
+        venue.config,
+        head,
+        venue.opts
+      )
+
+  defp swap_source(venue, auction, head),
+    do: Regents.Autolaunch.Pool.swap_source(auction, venue.config, head, venue.opts)
+
+  defp first_block(%{trades_next_block: next}, _, head, _) when is_integer(next),
+    do: {:ok, min(next, head.number)}
+
+  defp first_block(_, %{from_block: from}, head, _) when is_integer(from),
+    do: {:ok, min(from, head.number)}
+
+  # The Robinhood launch's migration block is on the rollup clock, so the
+  # first pass starts where the launch deployed its auction, before the pool
+  # could trade, and walks forward in the same bounded ranges as every other.
+  defp first_block(token, _, head, opts),
+    do: Rpc.deployment_block(token.auction.auction_address, head.number, opts)
+
+  defp cursor_valid(%{trades_next_block: nil}, _, _), do: :ok
+
+  # A head below the cursor is a node answering behind the one that answered
+  # last time, not a reorg: the pass waits. Only a different hash at the last
+  # block read (below) shows the chain changed.
+  defp cursor_valid(%{trades_next_block: next}, %{number: head}, _) when next > head + 1,
+    do: {:error, :head_moved}
+
+  defp cursor_valid(token, _, opts) do
+    case header(token.trades_next_block - 1, opts) do
+      {:ok, %{hash: hash}} when hash == token.trades_last_hash -> :ok
+      {:ok, _} -> {:error, :cursor_changed}
+      _ -> {:error, :history_unavailable}
+    end
+  end
+
+  # The pool's swaps and the splitter's logs over the same blocks. A span
+  # either read is refused for, or one holding more than 200 swaps, is read
+  # again as its first half, so a node refusing a large answer narrows the
+  # pass instead of stopping it.
+  defp logs(pool, first, last, opts) do
+    filter = %{
+      address: pool.pool_manager,
+      fromBlock: hex(first),
+      toBlock: hex(last),
+      topics: [LabAbi.topic(@swap), pool.pool_id]
+    }
+
+    with {:ok, swaps} <- read_logs(filter, opts),
+         true <- first == last or Enum.count_until(swaps, 201) <= 200,
+         {:ok, splitter_logs} <- splitter_logs(pool, first, last, opts) do
+      {:ok, last, swaps, splitter_logs}
+    else
+      _narrower when first < last -> logs(pool, first, div(first + last, 2), opts)
+      error -> error
+    end
+  end
+
+  # Every launch's stakes, and a Revstake launch's revenue, which its source
+  # names the assets of. A Memestock launch's revenue is not read here.
+  defp splitter_logs(pool, first, last, opts) do
+    events = if Map.has_key?(pool, :revenue_assets), do: [@staked, @revenue], else: [@staked]
+
+    read_logs(
+      %{
+        address: pool.splitter,
+        fromBlock: hex(first),
+        toBlock: hex(last),
+        topics: [Enum.map(events, &LabAbi.topic/1)]
+      },
+      opts
+    )
+  end
+
+  defp staked?(%{"topics" => [event | _]}) when is_binary(event),
+    do: String.downcase(event) == LabAbi.topic(@staked)
+
+  defp staked?(_log), do: false
+
+  # One `Staked` log's stake: its one topic after the event names the wallet
+  # that called `stake`, its data the amount in raw units. A log from another
+  # block than the one read under its number is from a chain that moved
+  # between the two reads, and the pass is read again; a stake of nothing is
+  # skipped.
+  defp stake(token, pool, headers, log) do
+    with false <- log["removed"],
+         [_staked, "0x" <> account] <- log["topics"],
+         {:ok, <<0::96, staker::binary-size(20)>>} <- Base.decode16(account, case: :mixed),
+         "0x" <> data <- log["data"],
+         {:ok, <<amount::256>>} <- Base.decode16(data, case: :mixed),
+         {:ok, number} <- quantity(log["blockNumber"]),
+         {:ok, index} <- quantity(log["logIndex"]),
+         block_hash when is_binary(block_hash) <- log["blockHash"] do
+      cond do
+        String.downcase(block_hash) != headers[number].hash ->
+          {:error, :head_moved}
+
+        amount == 0 ->
+          {:ok, nil}
+
+        true ->
+          {:ok,
+           %{
+             token_id: token.id,
+             chain_id: token.auction.chain_id,
+             splitter: pool.splitter,
+             staker: "0x" <> Base.encode16(staker, case: :lower),
+             amount: Decimal.new(amount),
+             transaction_hash: String.downcase(log["transactionHash"]),
+             log_index: index,
+             block_number: number,
+             block_hash: headers[number].hash,
+             occurred_at: DateTime.from_unix!(headers[number].timestamp)
+           }}
+      end
+    else
+      _ -> {:error, :invalid_stake}
+    end
+  end
+
+  @doc """
+  One `RevenueRecognized` log's asset, gross amount and stakers' share, in
+  base units. Its topics name the asset, the payer and the payment's
+  reference; its data the gross, the skim, the net, the stakers' share and
+  the treasury's share.
+  """
+  @spec decode_revenue(map()) ::
+          {:ok, %{asset: String.t(), gross: non_neg_integer(), staker_share: non_neg_integer()}}
+          | {:error, :invalid_revenue}
+  def decode_revenue(%{"topics" => [_event, asset | _rest], "data" => "0x" <> data}) do
+    with {:ok, <<gross::256, _skim::256, _net::256, staker_share::256, _treasury::256>>} <-
+           Base.decode16(data, case: :mixed),
+         "0x" <> word when byte_size(word) == 64 <- asset do
+      {:ok,
+       %{
+         asset: "0x" <> String.downcase(String.slice(word, 24, 40)),
+         gross: gross,
+         staker_share: staker_share
+       }}
+    else
+      _ -> {:error, :invalid_revenue}
+    end
+  end
+
+  def decode_revenue(_log), do: {:error, :invalid_revenue}
+
+  defp revenue(token, pool, headers, log) do
+    with false <- log["removed"],
+         {:ok, number} <- quantity(log["blockNumber"]),
+         {:ok, index} <- quantity(log["logIndex"]),
+         true <- String.downcase(log["blockHash"]) == headers[number].hash,
+         {:ok, revenue} <- decode_revenue(log),
+         {symbol, decimals} <- Map.get(pool.revenue_assets, revenue.asset) do
+      {:ok,
+       %{
+         token_id: token.id,
+         transaction_hash: String.downcase(log["transactionHash"]),
+         block_hash: headers[number].hash,
+         block_number: number,
+         log_index: index,
+         occurred_at: DateTime.from_unix!(headers[number].timestamp),
+         asset_symbol: symbol,
+         amount: Decimal.new(Rpc.format_units(revenue.gross, decimals)),
+         staker_share: Decimal.new(Rpc.format_units(revenue.staker_share, decimals))
+       }}
+    else
+      _ -> {:error, :invalid_revenue}
+    end
+  end
+
+  defp read_logs(filter, opts) do
+    case Rpc.request("eth_getLogs", [filter], opts) do
+      {:ok, rows} when is_list(rows) -> {:ok, rows}
+      _ -> {:error, :logs_unavailable}
+    end
+  end
+
+  defp header(number, opts) do
+    with {:ok, %{"hash" => hash, "timestamp" => timestamp}} <-
+           Rpc.request("eth_getBlockByNumber", [hex(number), false], opts),
+         true <- Rpc.valid_hash?(hash),
+         {:ok, seconds} <- quantity(timestamp) do
+      {:ok, %{hash: String.downcase(hash), timestamp: seconds}}
+    else
+      _ -> {:error, :header_unavailable}
+    end
+  end
+
+  defp headers(logs, last, opts) do
+    with {:ok, numbers} <- map_ok(logs, &quantity(&1["blockNumber"])),
+         do:
+           read_each(numbers ++ [last], &numbered_header(&1, opts), 15_000, :headers_unavailable)
+  end
+
+  defp numbered_header(number, opts) do
+    with {:ok, value} <- header(number, opts), do: {:ok, {number, value}}
+  end
+
+  # The header of the block the pass ends at, read when the trader lookups
+  # narrowed the pass to a block no log was read in.
+  defp headed(headers, last, _opts) when is_map_key(headers, last), do: {:ok, headers}
+
+  defp headed(headers, last, opts) do
+    with {:ok, value} <- header(last, opts), do: {:ok, Map.put(headers, last, value)}
+  end
+
+  # Who made each trade not saved yet, by its transaction: the wallet that
+  # sent it. A saved trade keeps the trader it was saved with
+  # (`Regents.Autolaunch.TokenTrade`), so its transaction is asked about only when
+  # another trade in it is new. Answers `{:ok, last, senders}`, `last` the
+  # block the pass now ends at (`senders/5`).
+  defp traders(_token, _first, last, [], _opts), do: {:ok, last, %{}}
+
+  defp traders(token, first, last, trades, opts) do
+    saved = saved(token, trades)
+
+    fresh =
+      for trade <- trades,
+          {trade.transaction_hash, trade.log_index} not in saved,
+          do: {trade.block_number, trade.transaction_hash}
+
+    senders(fresh, first, last, :erlang.monotonic_time(:millisecond) + @lookups_budget, opts)
+  end
+
+  # The senders of the new transactions in blocks `first` to `last`. More
+  # transactions than the cap read the first half of the blocks instead,
+  # before anything is asked, and so do lookups that fail; the next pass reads
+  # on from there. A block that alone holds more than the cap is asked about
+  # whole. Lookups that fail for one block fail the pass, so a saved trade has
+  # its trader; a sender in any other form than an address is left unknown.
+  defp senders(fresh, first, last, deadline, opts) do
+    hashes = for {block, hash} <- fresh, block <= last, uniq: true, do: hash
+    narrower = div(first + last, 2)
+
+    cond do
+      hashes == [] ->
+        {:ok, last, %{}}
+
+      first < last and length(hashes) > @lookup_cap ->
+        senders(fresh, first, narrower, deadline, opts)
+
+      true ->
+        case lookups(hashes, budget(hashes, deadline), opts) do
+          {:ok, senders} -> {:ok, last, senders}
+          _failed when first < last -> senders(fresh, first, narrower, deadline, opts)
+          failed -> failed
+        end
+    end
+  end
+
+  # Three seconds for each round of four lookups. A block alone holding more
+  # than the cap is the pass's only ask and is given all its rounds; any other
+  # ask, no more than the pass has left of its sixty seconds.
+  defp budget(hashes, deadline) do
+    rounds = div(length(hashes) + 3, 4) * @round_budget
+
+    if length(hashes) > @lookup_cap,
+      do: rounds,
+      else: min(rounds, deadline - :erlang.monotonic_time(:millisecond))
+  end
+
+  # The pool logs among `trades` this token has saved, as `{transaction, index}`.
+  defp saved(token, trades) do
+    hashes = trades |> Enum.map(& &1.transaction_hash) |> Enum.uniq()
+
+    from(t in TokenTrade,
+      where: t.token_id == ^token.id and t.transaction_hash in ^hashes,
+      select: {t.transaction_hash, t.log_index}
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  # The lookups run in a task of their own under `Regents.Autolaunch.TaskSupervisor`,
+  # not linked to the job, so lookups that crash or outrun `budget` fail the
+  # ask and never the job.
+  defp lookups(_hashes, budget, _opts) when budget <= 0, do: {:error, :transactions_unavailable}
+
+  defp lookups(hashes, budget, opts) do
+    task =
+      Task.Supervisor.async_nolink(Regents.Autolaunch.TaskSupervisor, fn ->
+        read_each(hashes, &sender(&1, opts), @lookup_timeout, :transactions_unavailable)
+      end)
+
+    case Task.yield(task, budget) || Task.shutdown(task, :brutal_kill) do
+      {:ok, {:ok, senders}} -> {:ok, senders}
+      _failed -> {:error, :transactions_unavailable}
+    end
+  end
+
+  defp sender(hash, opts) do
+    case Rpc.request("eth_getTransactionByHash", [hash], opts) do
+      {:ok, %{"from" => from}} ->
+        case Address.normalize(from) do
+          {:ok, trader} -> {:ok, {hash, trader}}
+          :error -> {:ok, {hash, nil}}
+        end
+
+      _ ->
+        {:error, :transaction_unavailable}
+    end
+  end
+
+  # One node read per distinct key, four at a time, each given `timeout`
+  # milliseconds, into a map by key; any read that fails or runs out of time
+  # fails them all as `error`.
+  defp read_each(keys, read, timeout, error) do
+    keys
+    |> Enum.uniq()
+    |> Task.async_stream(read, max_concurrency: 4, timeout: timeout, on_timeout: :kill_task)
+    |> Enum.reduce_while({:ok, %{}}, fn
+      {:ok, {:ok, {key, value}}}, {:ok, acc} -> {:cont, {:ok, Map.put(acc, key, value)}}
+      _, _ -> {:halt, {:error, error}}
+    end)
+  end
+
+  defp trade(token, pool, headers, log) do
+    with false <- log["removed"],
+         [_swap, id | _] <- log["topics"],
+         true <- String.downcase(id) == String.downcase(pool.pool_id),
+         {:ok, number} <- quantity(log["blockNumber"]),
+         {:ok, index} <- quantity(log["logIndex"]),
+         true <- String.downcase(log["blockHash"]) == headers[number].hash,
+         {:ok, swap} <- decode_swap(log, pool.token_is_currency0?) do
+      {:ok, swap && row(token, pool, headers[number], number, index, log, swap)}
+    else
+      _ -> {:error, :invalid_swap}
+    end
+  end
+
+  defp row(token, pool, header, number, index, log, swap),
+    do: %{
+      token_id: token.id,
+      transaction_hash: String.downcase(log["transactionHash"]),
+      block_hash: header.hash,
+      block_number: number,
+      log_index: index,
+      occurred_at: DateTime.from_unix!(header.timestamp),
+      side: swap.side,
+      currency_amount: Decimal.new(Rpc.format_units(swap.currency, pool.currency_decimals)),
+      currency_symbol: pool.currency_symbol,
+      token_amount: Decimal.new(Rpc.format_units(swap.token, @token_decimals))
+    }
+
+  # This system projection locks its token before writing confirmed trades.
+  # A trade read again is written over its saved row, which keeps its trader
+  # and tells Points nothing; only a trade in the range the chain no longer
+  # has is removed. A stake read again keeps its row as first saved. Only
+  # trades in blocks past the old cursor announce themselves, after the
+  # transaction commits, so re-reading the head block stays quiet.
+  defp commit(token, first, last, hash, {trades, revenue, stakes}) do
+    Repo.transaction(fn ->
+      current = locked(token)
+      read = MapSet.new(trades, &{&1.transaction_hash, &1.log_index})
+
+      gone =
+        from(t in TokenTrade,
+          where: t.token_id == ^token.id and t.block_number >= ^first,
+          select: {t.id, t.transaction_hash, t.log_index}
+        )
+        |> Repo.all()
+        |> Enum.reject(fn {_id, transaction, index} -> {transaction, index} in read end)
+        |> Enum.map(&elem(&1, 0))
+
+      Repo.delete_all(from t in TokenTrade, where: t.id in ^gone)
+
+      Repo.delete_all(
+        from r in TokenRevenue, where: r.token_id == ^token.id and r.block_number >= ^first
+      )
+
+      Ash.bulk_create!(revenue, TokenRevenue, :record, actor: @actor, return_errors?: true)
+      Ash.bulk_create!(stakes, TokenStake, :record, actor: @actor, return_errors?: true)
+
+      %{notifications: notifications} =
+        Ash.bulk_create!(trades, TokenTrade, :record,
+          actor: @actor,
+          return_errors?: true,
+          return_notifications?: true
+        )
+
+      {_token, refreshed} =
+        Ash.update!(
+          current,
+          %{trades_next_block: last + 1, trades_last_hash: hash},
+          actor: @actor,
+          action: :refresh_trades,
+          return_notifications?: true
+        )
+
+      Enum.filter(notifications, &(&1.data.block_number >= (token.trades_next_block || 0))) ++
+        refreshed
+    end)
+    |> case do
+      {:ok, notifications} ->
+        Ash.Notifier.notify(notifications)
+        :ok
+
+      error ->
+        error
+    end
+  end
+
+  # Invalidation removes only this token's derived trades and revenue while
+  # holding the token's lock. The token is then behind, and the next pass,
+  # at once, rebuilds them from the chain's logs.
+  defp invalidate(token) do
+    Repo.transaction(fn ->
+      current = locked(token)
+      Repo.delete_all(from t in TokenTrade, where: t.token_id == ^token.id)
+      Repo.delete_all(from r in TokenRevenue, where: r.token_id == ^token.id)
+
+      Ash.update!(
+        current,
+        %{trades_next_block: nil, trades_last_hash: nil},
+        actor: @actor,
+        action: :refresh_trades,
+        return_notifications?: true
+      )
+    end)
+    |> case do
+      {:ok, {_token, notifications}} ->
+        Ash.Notifier.notify(notifications)
+        {:ok, :behind}
+
+      error ->
+        error
+    end
+  end
+
+  defp locked(token) do
+    current =
+      Token
+      |> Ash.Query.for_read(:listed, %{}, actor: @actor)
+      |> Ash.Query.filter(id == ^token.id)
+      |> Ash.Query.lock(:for_update)
+      |> Ash.read_one!()
+
+    if current.trades_next_block != token.trades_next_block,
+      do: Repo.rollback(:superseded),
+      else: current
+  end
+
+  defp map_ok(items, read) do
+    Enum.reduce_while(items, {:ok, []}, fn item, {:ok, acc} ->
+      case read.(item) do
+        {:ok, value} -> {:cont, {:ok, [value | acc]}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp quantity("0x" <> value) do
+    case Integer.parse(value, 16) do
+      {number, ""} -> {:ok, number}
+      _ -> {:error, :invalid_quantity}
+    end
+  end
+
+  defp quantity(_), do: {:error, :invalid_quantity}
+  defp hex(value), do: "0x" <> Integer.to_string(max(0, value), 16)
+end

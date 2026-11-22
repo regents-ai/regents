@@ -1,0 +1,49 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* The Create pages: supply, proceeds, auction, timeline and terms. */
+
+.create-next { display: grid; gap: 16px; min-width: 0; }
+.create-next__card { container-type: inline-size; display: grid; align-content: start; gap: 12px; min-width: 0; }
+.create-next__title { margin: 0; font-family: var(--font-family-title); font-size: 1.125rem; font-weight: 400; }
+.create-next__subtitle { margin: 4px 0 0; font-size: .875rem; }
+.create-next__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; line-height: 1.5; }
+
+/* Source on the left, where it goes on the right; stacked in a narrow card. */
+.create-next__flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: stretch; }
+@container (min-width: 30rem) { .create-next__flow { grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: 12px; } }
+.create-next__source { display: grid; align-content: center; gap: 2px; padding: 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); color: var(--color-fg-muted); font-size: .75rem; }
+.create-next__source strong { color: var(--color-fg); font-size: 1.25rem; line-height: 1.2; overflow-wrap: anywhere; }
+.create-next__parts { display: grid; min-width: 0; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.create-next__part { display: grid; gap: 4px; padding: 10px 12px; border-left: 4px solid var(--part); border-radius: var(--radius); background: color-mix(in srgb, var(--part) 10%, var(--color-surface)); }
+.create-next__part-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: .8125rem; }
+.create-next__part-head strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.create-next__part-note { color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
+.create-next__part--auction { --part: var(--brand-accent); }
+.create-next__part--pool { --part: var(--color-success); }
+.create-next__part--creator { --part: var(--color-fg-muted); }
+
+.create-next__bar { display: flex; height: 10px; overflow: hidden; border-radius: var(--radius); background: var(--hairline); }
+.create-next__bar-part { background: var(--part); }
+
+/* Each trading fee, with a bar against the largest. */
+.create-next__fees { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.create-next__fees li { display: grid; grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; font-size: .8125rem; }
+.create-next__fees li > .create-next__part-note { grid-column: 1 / -1; }
+.create-next__fee-track { height: 6px; overflow: hidden; border-radius: var(--radius); background: var(--hairline); }
+.create-next__fee-track > span { display: block; height: 100%; border-radius: inherit; background: var(--brand-accent); }
+.create-next__fees strong { font-variant-numeric: tabular-nums; }
+
+.create-next__facts { display: grid; margin: 0; }
+.create-next__facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding-block: 8px; border-top: 1px solid var(--hairline); font-size: .8125rem; }
+.create-next__facts dt { color: var(--color-fg-muted); }
+.create-next__facts dd { margin: 0; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* What happens when: a dot on a line for each milestone, its time above it. */
+.create-next__timeline { display: grid; margin: 0; padding: 0; list-style: none; }
+.create-next__milestone { position: relative; display: grid; gap: 2px; padding: 0 0 14px 22px; font-size: .8125rem; }
+.create-next__milestone::before { content: ""; position: absolute; top: 4px; left: 0; width: 10px; height: 10px; border: 2px solid var(--brand-accent); border-radius: 50%; background: var(--color-surface); box-sizing: border-box; }
+.create-next__milestone:not(:last-child)::after { content: ""; position: absolute; top: 16px; bottom: 0; left: 4px; width: 2px; background: var(--hairline-strong); }
+.create-next__milestone:last-child { padding-bottom: 0; }
+.create-next__milestone:last-child::before { background: var(--brand-accent); }
+.create-next__when { color: var(--color-fg-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+
+}

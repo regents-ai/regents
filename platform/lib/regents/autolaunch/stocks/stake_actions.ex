@@ -1,0 +1,731 @@
+defmodule Regents.Autolaunch.Stocks.StakeActions do
+  @moduledoc """
+  The one boundary between a wallet and a graduated launch's staking contract:
+  a Revstake launch's revenue splitter with its LP locker on Base, or a
+  memestock launch's memestock splitter with its fee hook and LP locker, on
+  Base or on Robinhood.
+
+  Six actions, each one review of the steps the wallet sends in turn: stake
+  (the wallet's whole token balance: the exact token allowance to the splitter
+  when it is short, then the stake), unstake, claim (settle's steps, then every
+  reward the splitter holds for the wallet, so the fees still waiting in the
+  pool are claimed too; a wallet that can send calls together sends them as one
+  atomic batch, see `RegentsWeb.Autolaunch.OnchainCalls`), settle (every trading fee
+  waiting for stakers moved into the splitter, open to anyone: a memestock
+  hook's staker lane, then each locked position's fees), convert (a memestock hook's REGENT lane sold
+  through the stock's route into REGENT's revenue, only by the wallet the Safe
+  named as the hook's executor) and release (the vested part of a
+  second-launchpad memestock launch's creator allocation, paid to its creator,
+  open to anyone). A Revstake splitter's hook lane is pulled on the trade
+  itself, so its settle only collects the locked position's fees, and it
+  offers no convert. Nothing is written anywhere: the chain is the only
+  record, and the page reads what each step did from its receipt.
+
+  `prepare/3` binds every review it makes to one of the wallets of the account
+  the session lease names, read inside the lease at call time: the page's
+  active wallet must be one the account links, never a guess. `review/2`
+  checks nothing about the wallet it is given, so its caller must already have
+  proved that wallet is one of the acting person's own.
+  """
+
+  import Regents.Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
+  alias RegentChain.{Address, Review}
+  alias Regents.Autolaunch.Chain.{Abi, Client, Rpc}
+  alias Regents.Autolaunch.{Lab, LabAbi, Pool, WalletHistory}
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias Regents.Autolaunch.Robinhood.Pool, as: RobinhoodPool
+  alias Regents.Autolaunch.Stocks.{Amounts, LaunchOperations}
+  alias Regents.Autolaunch.Stocks.Lab, as: StocksLab
+  alias Regents.Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+
+  @kinds [:stake, :unstake, :claim, :settle, :convert, :release]
+  # Where a launch lives, by its chain and kind: its deployment and that
+  # deployment's event signatures and the actions the staking contract offers.
+  # A memestock venue also names its stock route, the hook call that converts
+  # REGENT's lane and the event that records it; its launchpad, hook and
+  # locker are those of the launch's own contracts version.
+  @venues %{
+    {:base, :agent} => %{
+      lab: Lab,
+      abi: LabAbi,
+      kinds: [:stake, :unstake, :claim, :settle]
+    },
+    {:base, :stocks} => %{
+      lab: StocksLab,
+      abi: StocksLabAbi,
+      route: :route,
+      convert: "settleRegentLane(bytes32,uint256,uint256)",
+      converted: "RegentLaneSettled(bytes32,uint256,uint256)",
+      kinds: @kinds
+    },
+    {:robinhood, :stocks} => %{
+      lab: RobinhoodLab,
+      abi: RobinhoodLabAbi,
+      route: :stock_route,
+      convert: "settleProtocolLane(bytes32,uint256,uint256)",
+      converted: "ProtocolLaneSettled(bytes32,uint256,uint256)",
+      kinds: @kinds
+    }
+  }
+  @token_decimals 18
+  # The floor a conversion may ask for: the sale refuses less than 95% of the
+  # stock's worth at the Chainlink price. The routes themselves take any price
+  # above the minimum the sale names.
+  @floor_bps 9_500
+  @bps 10_000
+  @uint128_max Integer.pow(2, 128) - 1
+  @transient [:chain_unavailable, :invalid_chain_response, :transaction_missing]
+  # A pool the chain could not be read for just now, as the agent tools name
+  # it: also a node that answered as another chain or with a block header it
+  # cannot vouch for.
+  @unreadable @transient ++ [:invalid_block_header, :wrong_chain]
+
+  @doc """
+  What one wallet has in a launch's splitter, read at the block the pool facts
+  were read at: its token balance, its stake, its allowance to the splitter,
+  what it can claim in each of the three assets (the dollar, the launch's token
+  and the currency it trades against) and what it has already claimed of each
+  since the pool opened. A public read of public figures; nothing is bound to it.
+  """
+  @spec position(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def position(pool, address) do
+    with {:ok, holder} <- address(address),
+         {:ok, config} <- lab(venue(pool)),
+         {:ok, holding} <- holding(pool, holder, config),
+         {:ok, claimed} <- claimed_so_far(pool, holder, config),
+         do: {:ok, Map.put(holding, :claimed, claimed)}
+  end
+
+  @doc """
+  The steps of one action on a graduated launch's splitter for `address`, one
+  of the signed-in account's wallets, with the facts the page shows beside
+  them and what the page needs to read each step's result. The launch is
+  `%{chain: :base, auction: auction_record}` or
+  `%{chain: :robinhood, auction: auction_record}`. `:stake` stakes the
+  wallet's whole balance as read here; `:unstake` takes the token amount typed
+  and `:convert` the stock amount, with `floor: true` to refuse less than 95%
+  of the Chainlink price and `false` for no minimum; the other three take
+  nothing.
+  """
+  @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def prepare(request, address, opts) do
+    with {:ok, %{signer: signer}} <- LaunchOperations.signed_in_wallet(address, opts),
+         do: review(request, signer)
+  end
+
+  @doc """
+  The review `prepare/3` makes once it has proved `signer` is one of the
+  acting account's own wallets, with the latest block the pool was read at
+  (`block`) and what the wallet holds there (`position`: `position/2`'s
+  figures but what it has claimed so far, which no review needs). It checks
+  nothing about `signer` itself, so its caller must have proved it is one of
+  the acting person's own wallets. An unstake's amount that is no amount to
+  move is refused before any chain is read.
+  """
+  @spec review(map(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{kind: kind, launch: launch} = request, signer) when kind in @kinds do
+    with {:ok, typed} <- typed(kind, Map.get(request, :amount)),
+         {:ok, pool} <- pool(launch),
+         true <- kind in venue(pool).kinds || unavailable(:unknown_action),
+         :ok <- converter(kind, pool, signer),
+         :ok <- vests(kind, pool),
+         {:ok, config} <- lab(venue(pool)),
+         {:ok, contracts} <- contracts(pool, venue(pool), config),
+         {:ok, holder} <- address(signer),
+         {:ok, wallet} <- holding(pool, holder, config),
+         {:ok, amount} <- amount(kind, typed, wallet),
+         {:ok, amount} <-
+           conversion(kind, amount, Map.get(request, :floor), pool, config, contracts),
+         do: {:ok, build(kind, pool, config, contracts, wallet, amount)}
+  end
+
+  def review(_request, _signer), do: unavailable(:unknown_action)
+
+  @doc "A whole-percent share of an amount from `position/2`, as the exact amount to type."
+  @spec portion(%{atomic: non_neg_integer(), decimals: non_neg_integer()}, 1..100) :: String.t()
+  def portion(%{atomic: atomic, decimals: decimals}, percent) when percent in 1..100,
+    do: Rpc.format_units(div(atomic * percent, 100), decimals)
+
+  # Wallet reads
+
+  # What the wallet holds, has staked, has let the splitter take and can claim
+  # now, at the pool's block: everything a review reads of it.
+  defp holding(pool, holder, config) do
+    splitter = pool.fees.splitter.address
+    dollar = pool.fees.splitter.dollar
+    venue = venue(pool)
+    rpc = venue.lab.rpc_opts(config)
+    abi = venue.lab.abi!(config, :splitter)
+
+    with {:ok, balance} <- erc20(pool.token.address, "balance_of", [holder], pool.block, rpc),
+         {:ok, allowance} <-
+           erc20(pool.token.address, "allowance", [holder, splitter], pool.block, rpc),
+         {:ok, staked} <-
+           splitter_uint(splitter, abi, "stakedOf(address)", [holder], pool.block, rpc),
+         {:ok, dollar_owed} <- claimable(splitter, abi, dollar.address, holder, pool, rpc),
+         {:ok, token} <- claimable(splitter, abi, pool.token.address, holder, pool, rpc),
+         {:ok, stock} <- claimable(splitter, abi, pool.currency.address, holder, pool, rpc) do
+      {:ok,
+       %{
+         balance: amount(balance, @token_decimals),
+         staked: amount(staked, @token_decimals),
+         allowance: allowance,
+         claimable: %{
+           dollar: amount(dollar_owed, dollar.decimals),
+           token: amount(token, @token_decimals),
+           stock: amount(stock, pool.currency.decimals)
+         }
+       }}
+    end
+  end
+
+  # What the wallet has claimed of each asset since the pool opened, from the
+  # splitter's claim records: a scan from the pool's first block, which only
+  # the position's own readers show.
+  defp claimed_so_far(pool, holder, config) do
+    splitter = pool.fees.splitter.address
+    dollar = pool.fees.splitter.dollar
+    rpc = venue(pool).lab.rpc_opts(config)
+
+    with {:ok, claimed} <-
+           chain(WalletHistory.claimed(splitter, holder, pool.logs_from, pool.block, rpc)) do
+      claimed_of = &Map.get(claimed, String.downcase(&1), 0)
+
+      {:ok,
+       %{
+         dollar: amount(claimed_of.(dollar.address), dollar.decimals),
+         token: amount(claimed_of.(pool.token.address), @token_decimals),
+         stock: amount(claimed_of.(pool.currency.address), pool.currency.decimals)
+       }}
+    end
+  end
+
+  defp erc20(token, function, arguments, block, rpc),
+    do: chain(Rpc.call_uint(token, Abi.encode_erc20(function, arguments), block, rpc))
+
+  defp splitter_uint(splitter, abi, signature, arguments, block, rpc),
+    do: chain(Rpc.call_uint(splitter, LabAbi.encode(abi, signature, arguments), block, rpc))
+
+  defp claimable(splitter, abi, token, holder, pool, rpc),
+    do:
+      splitter_uint(splitter, abi, "claimable(address,address)", [token, holder], pool.block, rpc)
+
+  defp amount(atomic, decimals),
+    do: %{atomic: atomic, decimals: decimals, shown: Rpc.format_units(atomic, decimals)}
+
+  # An unstake's typed amount in the token's smallest units, refused for its
+  # own form (not a decimal, zero, finer than the token's 18 places or more
+  # than the splitter moves at once) before any chain is read. A conversion's
+  # amount is in the stock's decimals, which only the pool names, and no other
+  # action takes one.
+  defp typed(:unstake, value), do: parsed(value)
+  defp typed(_kind, value), do: {:ok, value}
+
+  # The amount an action moves, refused before any review exists when the
+  # splitter would refuse it too. A stake is the wallet's whole balance.
+  defp amount(:stake, _value, %{balance: %{atomic: 0}}), do: unavailable(:nothing_to_stake)
+  defp amount(:stake, _value, wallet), do: {:ok, wallet.balance.atomic}
+
+  defp amount(:unstake, amount, wallet) do
+    if amount <= wallet.staked.atomic,
+      do: {:ok, amount},
+      else: unavailable(:amount_above_stake)
+  end
+
+  defp amount(:convert, value, _wallet), do: {:ok, value}
+
+  defp amount(_kind, _value, _wallet), do: {:ok, nil}
+
+  defp parsed(value, decimals \\ @token_decimals)
+
+  defp parsed(value, decimals) when is_binary(value) do
+    case Amounts.parse_units(value, decimals) do
+      {:ok, amount} when amount in 1..@uint128_max -> {:ok, amount}
+      {:ok, 0} -> unavailable(:amount_required)
+      {:ok, _too_large} -> unavailable(:amount_too_large)
+      {:error, reason} -> unavailable(reason)
+    end
+  end
+
+  defp parsed(_value, _decimals), do: unavailable(:amount_required)
+
+  # Only the wallet the Safe named as the hook's executor may convert, and the
+  # hook refuses anyone else, so nobody else is offered the review.
+  defp converter(:convert, pool, signer) do
+    if Address.equal?(pool.fees.regent.converter, signer),
+      do: :ok,
+      else: unavailable(:not_converter)
+  end
+
+  defp converter(_kind, _pool, _signer), do: :ok
+
+  # Only a second-launchpad memestock launch vests anything to its creator.
+  defp vests(:release, %{vesting: nil}), do: unavailable(:unknown_action)
+  defp vests(_kind, _pool), do: :ok
+
+  # The hook refuses to settle an empty staker lane, so the lane is settled
+  # only while it holds something. A Revstake hook has no staker lane. A
+  # locker's collect with no fees waiting succeeds and moves nothing, so every
+  # position is collected.
+  defp settle_lane?(%{kind: :stocks} = pool), do: pool.fees.stakers.accrued_atomic > 0
+  defp settle_lane?(_pool), do: false
+
+  # The stock amount to sell from REGENT's lane and the least the sale may
+  # bring. With the floor, that is 95% of what the stock's route says it is
+  # worth at the Chainlink price right now; without it there is no minimum and
+  # Chainlink is not asked. The hook reads the stock's route from the launchpad
+  # when it sells, so the quote comes from that same route.
+  defp conversion(:convert, value, floor, pool, config, contracts) when is_boolean(floor) do
+    venue = venue(pool)
+    rpc = venue.lab.rpc_opts(config)
+
+    with {:ok, stock} <- parsed(value, pool.currency.decimals),
+         true <- stock <= pool.fees.regent.accrued_atomic || unavailable(:amount_above_share),
+         {:ok, route} <- route(contracts, pool, rpc) do
+      least(floor, stock, fn -> quote(venue, config, route, pool, stock, rpc) end)
+    end
+  end
+
+  defp conversion(:convert, _value, _floor, _pool, _config, _contracts),
+    do: unavailable(:unknown_action)
+
+  defp conversion(_kind, amount, _floor, _pool, _config, _contracts), do: {:ok, amount}
+
+  defp least(false, stock, _quote), do: {:ok, %{stock: stock, worth: nil, least: 0}}
+
+  defp least(true, stock, quote) do
+    with {:ok, worth} <- quote.(),
+         do: {:ok, %{stock: stock, worth: worth, least: div(worth * @floor_bps, @bps)}}
+  end
+
+  defp route(contracts, pool, rpc) do
+    abi = contracts.abis["launchpad"]
+    data = LabAbi.encode(abi, "stockAdmission(address)", [pool.currency.address])
+
+    with {:ok, [_admitted, _kind, route]} <-
+           chain(Rpc.call_words(contracts.launchpad, data, pool.block, 3, rpc)) do
+      case Abi.word_address(route) do
+        {:ok, route} -> {:ok, route}
+        :error -> unavailable(:no_route)
+      end
+    end
+  end
+
+  # The route refuses to quote while its Chainlink feed is stopped or stale;
+  # a sale without the floor does not ask it.
+  defp quote(venue, config, route, pool, stock, rpc) do
+    data =
+      LabAbi.encode(
+        venue.lab.abi!(config, venue.route),
+        "quoteExactIn(address,address,uint256)",
+        [
+          pool.currency.address,
+          pool.fees.splitter.dollar.address,
+          stock
+        ]
+      )
+
+    case Rpc.call_uint(route, data, pool.block, rpc) do
+      {:ok, worth} -> {:ok, worth}
+      {:error, reason} when reason in @transient -> unavailable(:chain_unavailable)
+    end
+  end
+
+  # The pool and its venue
+
+  defp pool(%{chain: :base, auction: auction}), do: auction |> Pool.read() |> pooled()
+
+  defp pool(%{chain: :robinhood, auction: auction}),
+    do: auction |> RobinhoodPool.read() |> pooled()
+
+  defp pooled({:ok, pool}), do: {:ok, pool}
+  defp pooled({:error, reason}) when reason in @unreadable, do: unavailable(:chain_unavailable)
+  defp pooled({:error, _reason}), do: unavailable(:stake_unavailable)
+
+  defp venue(%{chain: chain, kind: kind}), do: Map.fetch!(@venues, {chain, kind})
+
+  defp lab(venue) do
+    case venue.lab.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:stake_unavailable)
+    end
+  end
+
+  # The hook and locker the launch's actions go to, with their ABIs: those of
+  # the launch's own contracts version, a memestock launch's with its
+  # launchpad too. Each Revstake version's hook and locker take the same calls.
+  defp contracts(%{kind: :agent} = pool, venue, config),
+    do:
+      {:ok,
+       %{
+         hook: pool.hook,
+         locker: pool.locker,
+         abis: %{
+           "hook" => venue.lab.abi!(config, :hook),
+           "locker" => venue.lab.abi!(config, :lp_locker)
+         }
+       }}
+
+  defp contracts(%{kind: :stocks, version: version}, venue, config) do
+    case venue.lab.contracts(config, version) do
+      {:ok, contracts} -> {:ok, contracts}
+      {:error, _reason} -> unavailable(:stake_unavailable)
+    end
+  end
+
+  # The review
+
+  defp build(kind, pool, config, contracts, wallet, amount) do
+    venue = venue(pool)
+
+    %{
+      kind: kind,
+      chain: Client.chain(config),
+      block: pool.block.number,
+      position: wallet,
+      steps: reviewed_steps(kind, pool, {venue, config, contracts}, wallet, amount),
+      facts: facts(kind, pool, wallet, amount),
+      context: %{
+        venue: venue,
+        splitter: pool.fees.splitter.address,
+        hook: contracts.hook,
+        locker: contracts.locker,
+        token: pool.token.address,
+        token_symbol: pool.token.symbol,
+        currency: pool.currency.address,
+        currency_symbol: pool.currency.symbol,
+        currency_decimals: pool.currency.decimals,
+        dollar: pool.fees.splitter.dollar.address,
+        dollar_symbol: pool.fees.splitter.dollar.symbol,
+        dollar_decimals: pool.fees.splitter.dollar.decimals,
+        # A Revstake launch has no launchpad.
+        launchpad: contracts[:launchpad],
+        amount_atomic: amount_atomic(amount)
+      }
+    }
+  end
+
+  defp amount_atomic(nil), do: nil
+  defp amount_atomic(%{stock: stock}), do: stock
+  defp amount_atomic(amount), do: amount
+
+  # The plain facts the panel shows beside the wallet steps.
+  defp facts(:stake, pool, wallet, amount) do
+    [
+      ["You stake", "#{units(amount, @token_decimals)} #{pool.token.symbol}"],
+      [
+        "Your stake after",
+        "#{units(wallet.staked.atomic + amount, @token_decimals)} #{pool.token.symbol}"
+      ]
+    ]
+  end
+
+  defp facts(:unstake, pool, wallet, amount) do
+    [
+      ["You unstake", "#{units(amount, @token_decimals)} #{pool.token.symbol}"],
+      [
+        "Your stake after",
+        "#{units(wallet.staked.atomic - amount, @token_decimals)} #{pool.token.symbol}"
+      ]
+    ]
+  end
+
+  # What the wallet can claim now, then the fees the same review moves into
+  # the splitter first, which every staker shares.
+  defp facts(:claim, pool, wallet, amount) do
+    [
+      [pool.fees.splitter.dollar.symbol, wallet.claimable.dollar.shown],
+      [pool.token.symbol, wallet.claimable.token.shown],
+      [pool.currency.symbol, wallet.claimable.stock.shown]
+    ] ++ facts(:settle, pool, wallet, amount)
+  end
+
+  defp facts(:settle, pool, _wallet, _amount) do
+    lane =
+      if settle_lane?(pool),
+        do: [["Waiting in the pool", "#{pool.fees.stakers.accrued} #{pool.currency.symbol}"]],
+        else: []
+
+    lane ++
+      Enum.map(pool.positions, fn position ->
+        [position.label <> " position", uncollected_copy(position.uncollected, pool)]
+      end)
+  end
+
+  defp facts(:release, pool, _wallet, _amount) do
+    [
+      ["Paid to the creator", pool.vesting.creator],
+      ["Ready to release", "#{pool.vesting.releasable} #{pool.token.symbol}"],
+      ["Released so far", "#{pool.vesting.released} #{pool.token.symbol}"]
+    ]
+  end
+
+  defp facts(:convert, pool, _wallet, %{stock: stock, worth: nil}) do
+    currency = pool.currency
+
+    [
+      ["Waiting in REGENT's share", "#{pool.fees.regent.accrued} #{currency.symbol}"],
+      ["You convert", "#{units(stock, currency.decimals)} #{currency.symbol}"],
+      ["Least accepted", "No minimum"]
+    ]
+  end
+
+  defp facts(:convert, pool, _wallet, %{stock: stock, worth: worth, least: least}) do
+    currency = pool.currency
+    dollar = pool.fees.splitter.dollar
+
+    [
+      ["Waiting in REGENT's share", "#{pool.fees.regent.accrued} #{currency.symbol}"],
+      ["You convert", "#{units(stock, currency.decimals)} #{currency.symbol}"],
+      ["Worth at the Chainlink price", "#{units(worth, dollar.decimals)} #{dollar.symbol}"],
+      ["Least accepted", "#{units(least, dollar.decimals)} #{dollar.symbol}"]
+    ]
+  end
+
+  defp uncollected_copy(nil, _pool), do: "Not readable right now"
+
+  defp uncollected_copy(%{token_amount: token, currency_amount: currency}, pool),
+    do: "#{token} #{pool.token.symbol} · #{currency} #{pool.currency.symbol}"
+
+  # The steps, one calldata each, exactly what the wallet sends.
+  defp reviewed_steps(:stake, pool, {venue, config, _contracts}, wallet, amount) do
+    splitter = pool.fees.splitter.address
+
+    approval(pool.token.address, splitter, amount, wallet.allowance) ++
+      [Review.step("stake", splitter, splitter_data(venue, config, "stake(uint256)", [amount]))]
+  end
+
+  defp reviewed_steps(:unstake, pool, {venue, config, _contracts}, _wallet, amount),
+    do: [
+      Review.step(
+        "unstake",
+        pool.fees.splitter.address,
+        splitter_data(venue, config, "unstake(uint256)", [amount])
+      )
+    ]
+
+  # Settle's steps first, so the claim takes this wallet's share of them too.
+  # `claimAll()` pays the sender, the wallet the review is built for.
+  defp reviewed_steps(:claim, pool, {venue, config, contracts}, wallet, amount),
+    do:
+      reviewed_steps(:settle, pool, {venue, config, contracts}, wallet, amount) ++
+        [
+          Review.step(
+            "claim",
+            pool.fees.splitter.address,
+            splitter_data(venue, config, "claimAll()", [])
+          )
+        ]
+
+  # The staker lane first, then each locked position's fees, which the locker
+  # deposits into the launch's own splitter.
+  defp reviewed_steps(:settle, pool, {_venue, _config, contracts}, _wallet, _amount) do
+    lane =
+      if settle_lane?(pool),
+        do: [
+          Review.step(
+            "settle",
+            contracts.hook,
+            LabAbi.encode(contracts.abis["hook"], "settleStakerLane(bytes32)", [pool.pool_id])
+          )
+        ],
+        else: []
+
+    lane ++
+      Enum.map(pool.positions, fn position ->
+        Review.step(
+          "collect_" <> Atom.to_string(position.key),
+          contracts.locker,
+          LabAbi.encode(contracts.abis["locker"], "collect(uint256)", [position.token_id])
+        )
+      end)
+  end
+
+  defp reviewed_steps(:release, pool, {_venue, _config, contracts}, _wallet, _amount) do
+    data =
+      LabAbi.encode(contracts.abis["launchpad"], "releaseCreatorVesting(uint256)", [
+        pool.launch_id
+      ])
+
+    [Review.step("release", contracts.launchpad, data)]
+  end
+
+  defp reviewed_steps(:convert, pool, {venue, _config, contracts}, _wallet, %{
+         stock: stock,
+         least: least
+       }) do
+    data = LabAbi.encode(contracts.abis["hook"], venue.convert, [pool.pool_id, stock, least])
+
+    [Review.step("convert", contracts.hook, data)]
+  end
+
+  defp approval(_token, _spender, amount, allowance) when allowance >= amount, do: []
+
+  defp approval(token, spender, amount, _allowance),
+    do: [Review.step("token_approval", token, Abi.encode_erc20("approve", [spender, amount]))]
+
+  defp splitter_data(venue, config, signature, arguments),
+    do: LabAbi.encode(venue.lab.abi!(config, :splitter), signature, arguments)
+
+  @doc """
+  What one confirmed step moved, read from its receipt's logs, for the page to
+  show; `nil` for an approval. `context` and `name` are the prepared action's
+  and the step's own.
+  """
+  @spec result(map(), String.t(), [map()]) :: map() | nil
+  def result(_context, "token_approval", _logs), do: nil
+  def result(context, name, logs), do: moved(String.to_existing_atom(name), context, logs)
+
+  @doc """
+  What each step of a review sent as one batch moved, from the batch's one
+  receipt, in step order. The locker records one deposit per collect, in the
+  order the batch ran them; when that count is not the review's, the collects
+  are left out.
+  """
+  @spec results(map(), [String.t()], [map()]) :: [map() | nil]
+  def results(context, names, logs) do
+    deposits = emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
+    collects = Enum.filter(names, &String.starts_with?(&1, "collect_"))
+    deposits = if length(deposits) == length(collects), do: deposits, else: []
+
+    {results, _left} =
+      Enum.map_reduce(names, deposits, fn
+        "collect_" <> _position, [deposit | left] -> {collected(context, deposit), left}
+        "collect_" <> _position, [] -> {nil, []}
+        name, left -> {result(context, name, logs), left}
+      end)
+
+    results
+  end
+
+  defp moved(step, context, _logs) when step in [:stake, :unstake] do
+    %{
+      "kind" => Atom.to_string(step),
+      "amount_units" => units(context.amount_atomic, @token_decimals),
+      "token_symbol" => context.token_symbol
+    }
+  end
+
+  # What the splitter's own claim records paid out, one entry per asset.
+  defp moved(:claim, context, logs) do
+    paid = emitted(logs, context.splitter, context.venue.abi.claimed_signature())
+
+    per_token =
+      Enum.reduce(paid, %{}, fn {[_account, token], [amount]}, sums ->
+        Map.update(sums, token, amount, &(&1 + amount))
+      end)
+
+    %{
+      "kind" => "claim",
+      # A claim with nothing owed pays nothing and records nothing.
+      "paid" => per_token != %{},
+      "dollar_units" => units(claimed(per_token, context.dollar), context.dollar_decimals),
+      "token_units" => units(claimed(per_token, context.token), @token_decimals),
+      "stock_units" => units(claimed(per_token, context.currency), context.currency_decimals),
+      "dollar_symbol" => context.dollar_symbol,
+      "token_symbol" => context.token_symbol,
+      "currency_symbol" => context.currency_symbol
+    }
+  end
+
+  defp moved(:settle, context, logs) do
+    [{_topics, [amount]}] =
+      emitted(logs, context.hook, context.venue.abi.staker_lane_settled_signature())
+
+    %{
+      "kind" => "settle",
+      "settled_units" => units(amount, context.currency_decimals),
+      "currency_symbol" => context.currency_symbol
+    }
+  end
+
+  # A release with nothing vested yet succeeds and records nothing.
+  defp moved(:release, context, logs) do
+    amount =
+      logs
+      |> emitted(context.launchpad, context.venue.abi.creator_vesting_released_signature())
+      |> Enum.reduce(0, fn {_topics, [amount]}, sum -> sum + amount end)
+
+    %{
+      "kind" => "release",
+      "token_units" => units(amount, @token_decimals),
+      "token_symbol" => context.token_symbol
+    }
+  end
+
+  defp moved(step, context, logs)
+       when step in [:collect_full_range, :collect_stock_only, :collect_new_only] do
+    [deposit] = emitted(logs, context.locker, context.venue.abi.fees_deposited_signature())
+    collected(context, deposit)
+  end
+
+  defp moved(:convert, context, logs) do
+    [{_topics, [converted, deposited]}] = emitted(logs, context.hook, context.venue.converted)
+
+    %{
+      "kind" => "convert",
+      "converted_units" => units(converted, context.currency_decimals),
+      "currency_symbol" => context.currency_symbol,
+      "dollar_units" => units(deposited, context.dollar_decimals),
+      "dollar_symbol" => context.dollar_symbol
+    }
+  end
+
+  # One deposit the locker recorded for a collect: the token's and the
+  # currency's fees, whichever side of the pool each is on.
+  defp collected(context, {_topics, [currency0, _currency1, amount0, amount1]}) do
+    {:ok, currency0} = Abi.word_address(currency0)
+
+    {token, currency} =
+      if Address.equal?(currency0, context.token),
+        do: {amount0, amount1},
+        else: {amount1, amount0}
+
+    %{
+      "kind" => "collect",
+      "token_units" => units(token, @token_decimals),
+      "currency_units" => units(currency, context.currency_decimals),
+      "token_symbol" => context.token_symbol,
+      "currency_symbol" => context.currency_symbol
+    }
+  end
+
+  defp claimed(per_token, address), do: Map.get(per_token, String.downcase(address), 0)
+
+  # Every record of one event the named contract wrote into this receipt, as
+  # its indexed words (addresses lowercased) and its data words.
+  defp emitted(logs, emitter, signature) do
+    topic = LabAbi.topic(signature)
+
+    logs
+    |> Enum.filter(fn log ->
+      Address.equal?(log["address"], emitter) and
+        String.downcase(hd(log["topics"])) == topic
+    end)
+    |> Enum.map(fn log ->
+      indexed = log["topics"] |> tl() |> Enum.map(&topic_value/1)
+      {indexed, data_words(log)}
+    end)
+  end
+
+  defp topic_value("0x" <> hex) do
+    case Abi.word_address(String.to_integer(hex, 16)) do
+      {:ok, address} -> address
+      :error -> "0x" <> String.downcase(hex)
+    end
+  end
+
+  defp data_words(%{"data" => "0x" <> hex}),
+    do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
+
+  defp units(amount, decimals), do: Rpc.format_units(amount, decimals)
+
+  defp address(value) do
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> unavailable(:invalid_address)
+    end
+  end
+end

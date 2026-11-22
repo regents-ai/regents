@@ -34,11 +34,16 @@ defmodule Regents.Autolaunch.StoredImage do
   @doc "The lane, id and digest an address names, or `:error` for any other address."
   @spec key(String.t()) :: {:ok, key()} | :error
   def key(url) when is_binary(url) do
-    with %URI{path: path} when is_binary(path) <- URI.parse(url),
-         [lane, id, digest] <- String.split(path, "/", trim: true) do
-      key(lane, id, digest)
-    else
-      _other -> :error
+    case URI.parse(url) do
+      %URI{path: path} when is_binary(path) ->
+        case String.split(path, "/", trim: true) do
+          ["autolaunch", lane, id, digest | _] -> key(lane, id, digest)
+          [lane, id, digest | _] -> key(lane, id, digest)
+          _other -> :error
+        end
+
+      _other ->
+        :error
     end
   end
 
@@ -86,4 +91,42 @@ defmodule Regents.Autolaunch.StoredImage do
 
   defp read("stock-images", id, digest),
     do: Regents.Autolaunch.get_public_stock_launch_draft_image(id, digest, actor: nil)
+
+  @doc "The sized picture URL for `url` at `width` pixels, or `url` unchanged if not stored here."
+  def sized(url, width) when is_binary(url) and is_integer(width) do
+    case key(url) do
+      {:ok, {lane, id, digest}} -> sized_path(lane, id, digest, width)
+      :error -> url
+    end
+  end
+
+  def sized(url, _width), do: url
+
+  @doc "The `srcset` choices for `url`, or nil if not stored here."
+  def choices(url) when is_binary(url) do
+    case key(url) do
+      {:ok, {lane, id, digest}} ->
+        Enum.map_join(@widths, ", ", fn w -> "#{sized_path(lane, id, digest, w)} #{w}w" end)
+
+      :error ->
+        nil
+    end
+  end
+
+  def choices(_url), do: nil
+
+  @doc "Reads the stored original bytes for a local stored-image `url`."
+  def bytes(url) when is_binary(url) do
+    with {:ok, key} <- key(url),
+         {:ok, %{bytes: bytes}} <- original(key) do
+      {:ok, bytes}
+    else
+      _other -> :error
+    end
+  end
+
+  def bytes(_url), do: :error
+
+  defp sized_path(lane, id, digest, width),
+    do: "/autolaunch/#{lane}/#{id}/#{digest}/#{width}.webp"
 end

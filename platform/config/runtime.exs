@@ -42,6 +42,8 @@ config :regent_agents, :siwa,
   audience: System.get_env("SIWA_AUDIENCE"),
   origin: site_url
 
+if site_url, do: config(:regents, :site_origin, site_url)
+
 # The reader key for each paired agent's activity across the Regent sites.
 config :regent_agents, activity_read_token: System.get_env("SIWA_ACTIVITY_READ_TOKEN")
 
@@ -173,6 +175,75 @@ end
 
 if robinhood_deployment != "" do
   config :regents, :autolaunch_robinhood_deployment, robinhood_deployment
+end
+
+# Autolaunch optional feature flags & X OAuth.
+x_oauth_client_id =
+  case System.get_env("X_OAUTH_CLIENT_ID") do
+    value when is_binary(value) ->
+      case String.trim(value) do
+        "" -> nil
+        trimmed -> trimmed
+      end
+
+    _missing ->
+      nil
+  end
+
+config :regents, :x_oauth_client_id, x_oauth_client_id
+
+case System.get_env("AUTOLAUNCH_LAUNCHES_OPEN") do
+  nil -> :ok
+  "true" -> config :regents, :prelaunch_read_only, false
+  other -> raise "AUTOLAUNCH_LAUNCHES_OPEN must be true or unset, got #{inspect(other)}"
+end
+
+migrating_check? = System.get_env("REGENTS_RELEASE_COMMAND") == "migrate"
+
+if System.get_env("AUTOLAUNCH_COVERED_CALLS") == "true" and not migrating_check? do
+  path = String.trim(System.get_env("AUTOLAUNCH_BASE_COVERED_CALLS_DEPLOYMENT", ""))
+
+  if path != "" and base_deployment != "" do
+    config :regents,
+      covered_calls: :on,
+      autolaunch_base_covered_calls_deployment: path
+  end
+end
+
+if System.get_env("AUTOLAUNCH_EXPOSURE") == "true" and not migrating_check? do
+  path = String.trim(System.get_env("AUTOLAUNCH_BASE_EXPOSURE_DEPLOYMENT", ""))
+
+  if path != "" and base_deployment != "" do
+    config :regents,
+      exposure: :on,
+      autolaunch_base_exposure_deployment: path
+  end
+end
+
+if System.get_env("AUTOLAUNCH_EARN") == "true" and not migrating_check? and base_deployment != "" do
+  config :regents, earn: :on
+end
+
+for {env_name, key, required_dep} <- [
+      {"AUTOLAUNCH_AGENT_BIDS", :agent_bids, base_deployment},
+      {"AUTOLAUNCH_AGENT_ROBINHOOD_BIDS", :agent_robinhood_bids, robinhood_deployment},
+      {"AUTOLAUNCH_AGENT_LAUNCHES", :agent_launches, base_deployment},
+      {"AUTOLAUNCH_AGENT_FINISH", :agent_finish, base_deployment},
+      {"AUTOLAUNCH_AGENT_STAKING", :agent_staking, base_deployment}
+    ],
+    System.get_env(env_name) == "true" and not migrating_check? and required_dep != "" do
+  config :regents, key, :on
+end
+
+if System.get_env("AUTOLAUNCH_FINISHER_ON") == "true" and not migrating_check? do
+  finisher_key = System.fetch_env!("AUTOLAUNCH_FINISHER_KEY")
+
+  if Regents.Autolaunch.AuctionFinish.Wallet.private_key(finisher_key) == :error do
+    raise "AUTOLAUNCH_FINISHER_KEY must be 0x and the 64 hex digits of a private key"
+  end
+
+  config :regents, :auction_finisher_key, finisher_key
+  config :regents, Oban, queues: [autolaunch_auction_finishing: [limit: 1, paused: false]]
 end
 
 # The Privy accounts that run this site, comma separated (config/config.exs).

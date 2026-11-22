@@ -1,0 +1,1350 @@
+defmodule RegentsWeb.Autolaunch.StocksCreateLive do
+  @moduledoc """
+  Create a Memestock token, at /create: one form for the account's one Memestock
+  draft. The Base and Robinhood switch moves the draft between chains; every
+  field autosaves.
+
+  A signed-out visitor explores the same form against an unsaved draft that
+  follows the saved draft's rules. This browser tab keeps what they typed, and
+  once they sign in it is saved into their account's draft.
+  """
+
+  use RegentsWeb, :live_view
+
+  require Logger
+
+  alias Regents.Account.Actors.Human
+
+  alias Regents.SharedReading
+
+  alias Regents.Autolaunch.{
+    AgentDrafts,
+    ChainHead,
+    ImageColor,
+    LaunchChain,
+    Listings,
+    Stocks,
+    Ticker
+  }
+
+  alias Regents.Autolaunch.Stocks.{Assets, LaunchActions, LaunchDraft, LaunchDraftImageStorage}
+
+  alias RegentsWeb.Autolaunch.Components.{
+    AutolaunchHelpers,
+    MarketCard,
+    StockIdentity,
+    StockSelect
+  }
+
+  alias RegentChain.Address
+  alias Regents.Autolaunch.ReadFailure
+  alias RegentsWeb.Autolaunch.{DraftMarks, UsdValue}
+  alias RegentsWeb.Live.Session
+
+  import RegentsWeb.Autolaunch.Components.CreateForm
+  import RegentsWeb.Autolaunch.Components.CreateNext
+
+  import RegentsWeb.Autolaunch.Components.DraftCarryOver,
+    only: [draft_carry_over: 1, keep_draft: 2]
+
+  import RegentsWeb.Autolaunch.Components.ImagePicker
+  import RegentsWeb.Autolaunch.Components.LaunchKindChoice
+  import RegentsWeb.Autolaunch.Components.StockSelect, only: [stock_select: 1]
+
+  @link_params ~w(telegram discord other_link_1 other_link_2 other_link_3)
+  @token_detail_params ~w(name symbol description website) ++ @link_params
+
+  @sections %{
+    "autosave_stocks_token_details" => @token_detail_params,
+    "autosave_stocks_terms" => ~w(stock_address)
+  }
+
+  @stored_params ~w(name symbol description website) ++ @link_params ++ ~w(image stock_address)
+
+  @autosave_events ~w(autosave_stocks_token_details autosave_stocks_terms)
+  @actions %{
+    "autosave_stocks_token_details" => :autosave_token_details,
+    "autosave_stocks_terms" => :autosave_terms
+  }
+  @chains %{"base" => :base, "robinhood" => :robinhood}
+
+  # A completed sign-in reloads this route, so a signed-out visitor comes back
+  # to the same page, now with their account's draft.
+  def mount(params, _session, socket) do
+    socket =
+      socket
+      |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/create"))
+      |> assign(
+        launch_chain: :base,
+        linked_token: params["token"],
+        linked_pair: linked_pair(params),
+        suggested_stock: nil,
+        draft: nil,
+        draft_values: Map.new(@stored_params, &{&1, ""}),
+        draft_errors: %{},
+        draft_notice: nil,
+        image_notice: nil,
+        image_color: nil,
+        current_human_id: nil,
+        creator_connections: %{},
+        market: %{prices: %{}, venues: []},
+        market_loading?: false,
+        stock_sort: "alphabetical",
+        reviewing?: false,
+        launched?: false,
+        listings: 0,
+        ticker_taken?: false,
+        launches_paused?: false,
+        status: :loading
+      )
+      |> assign_stocks()
+      |> watch_launches_paused()
+
+    case human_actor(socket) do
+      nil ->
+        socket = assign_sketch(socket, %LaunchDraft{})
+
+        {:ok,
+         if connected?(socket) do
+           socket
+           |> choose_linked_stock()
+           |> assign_market()
+         else
+           socket
+         end}
+
+      actor ->
+        socket =
+          socket
+          |> allow_upload(:stocks_image,
+            accept: ~w(.png .jpg .jpeg .webp),
+            max_entries: 1,
+            max_file_size: 2_097_152,
+            auto_upload: true,
+            progress: &handle_stocks_image_progress/3
+          )
+          |> assign(current_human_id: actor.human_account_id)
+
+        {:ok,
+         if connected?(socket) do
+           Listings.subscribe()
+           AgentDrafts.subscribe("memestock", actor.human_account_id)
+
+           socket
+           |> load_draft(actor)
+           |> assign_connections()
+           |> choose_linked_stock()
+           |> assign_market()
+           |> assign_ticker_taken()
+         else
+           socket
+         end}
+    end
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  # The accounts the creator has connected and proved, as a listed auction's
+  # gallery card shows them, for the card's preview.
+  defp assign_connections(%{assigns: %{current_human_id: id}} = socket) do
+    creator = %{creator_human_account_id: id}
+
+    assign(socket,
+      creator_connections:
+        AutolaunchHelpers.connections_for(
+          creator,
+          AutolaunchHelpers.creator_connections_for([creator])
+        )
+    )
+  end
+
+  # Base's own answer, read as the page connects and again each time the site
+  # reads a new block of the Memestock deployment (`Regents.Autolaunch.ChainHead`:
+  # every five minutes on mainnet, every second on a lab, and within ten
+  # seconds of an on-chain press landing on Base): while the launchpad has new
+  # launches paused, the launch button stays greyed with the reason beside it,
+  # and it comes back with the first read that finds them open.
+  defp watch_launches_paused(socket) do
+    if connected?(socket) do
+      SharedReading.subscribe(ChainHead.key("stocks"))
+      read_launches_paused(socket)
+    else
+      socket
+    end
+  end
+
+  defp read_launches_paused(socket),
+    do: start_async(socket, :launches_paused, &LaunchActions.launches_paused/0)
+
+  # The chain's stock prices and the chosen stock's venues are read in the
+  # background: the page renders without them and fills them in when they land.
+  defp assign_market(socket) do
+    chain = socket.assigns.launch_chain
+    stock = stock_for(socket.assigns.stocks, socket.assigns.draft_values["stock_address"])
+
+    socket
+    |> assign(market_loading?: true)
+    |> start_async(:market, fn -> Stocks.MarketData.overview(chain, stock) end)
+  end
+
+  # The draft's chain's stock list, read again each time the draft is, or
+  # `:unread` when it couldn't be read: the picker then says so, with Try
+  # again. A failed read is logged by kind and module only.
+  defp assign_stocks(socket) do
+    stocks =
+      case Assets.read(socket.assigns.launch_chain) do
+        {:ok, stocks} ->
+          stocks
+
+        {:error, error} ->
+          ReadFailure.log("stock list read", error)
+          :unread
+      end
+
+    assign(socket, stocks: stocks)
+  end
+
+  defp refresh_market(%{assigns: %{draft_values: %{"stock_address" => same}}} = socket, same),
+    do: socket
+
+  # Another stock's venues are not this one's, so they come down at once.
+  defp refresh_market(socket, _before),
+    do: socket |> assign(:market, %{socket.assigns.market | venues: []}) |> assign_market()
+
+  def handle_event(event, params, socket) when event in @autosave_events do
+    values = Map.take(params["stock_draft"] || %{}, Map.fetch!(@sections, event))
+    {:noreply, autosaved(socket, event, values)}
+  end
+
+  # The token's details reach the page as they are typed, so the card, the
+  # field marks and the Still needed line follow them at once. Each is saved
+  # when the person leaves its field (`autosave_stocks_field`).
+  def handle_event("type_stocks_token_details", params, socket) do
+    values = Map.take(params["stock_draft"] || %{}, @token_detail_params)
+    {:noreply, assign(socket, draft_values: Map.merge(socket.assigns.draft_values, values))}
+  end
+
+  # A field the person left, saved as its section's save saves it. One left
+  # as it is saved, with no refusal to clear, is not saved again.
+  def handle_event("autosave_stocks_field", %{"field" => field, "value" => value}, socket)
+      when field in @token_detail_params and is_binary(value) do
+    if value == saved_value(socket, field) and not is_map_key(socket.assigns.draft_errors, field),
+      do: {:noreply, socket},
+      else: {:noreply, autosaved(socket, "autosave_stocks_token_details", %{field => value})}
+  end
+
+  def handle_event("use_linked_stock", _params, %{assigns: %{suggested_stock: stock}} = socket)
+      when not is_nil(stock),
+      do: {:noreply, socket |> select_linked_pair(stock) |> assign_market()}
+
+  def handle_event("read_stocks", _params, socket),
+    do: {:noreply, socket |> assign_stocks() |> assign_market()}
+
+  def handle_event("sort_stocks", %{"by" => by}, socket) do
+    if by in StockSelect.sorts(),
+      do: {:noreply, assign(socket, :stock_sort, by)},
+      else: {:noreply, socket}
+  end
+
+  def handle_event("choose_chain", %{"chain" => chain}, socket) when is_map_key(@chains, chain) do
+    case chosen_chain(socket, Map.fetch!(@chains, chain)) do
+      {:ok, socket} ->
+        {:noreply, socket}
+
+      :error ->
+        {:noreply,
+         assign(socket,
+           draft_notice: %{tone: :error, message: "The chain could not be changed. Try again."}
+         )}
+    end
+  end
+
+  # What a visitor typed while signed out, handed back by this tab. Signed in,
+  # it goes into the account's draft through the same saves as typing it
+  # would; signed out, it refills the unsaved form after a reload. When the
+  # draft could not be read, nothing is taken and the tab keeps the values for
+  # a later visit.
+  def handle_event("restore_draft", %{"values" => values}, socket) when is_map(values) do
+    if socket.assigns.status == :error,
+      do: {:reply, %{taken: false}, socket},
+      else: {:reply, %{taken: true}, restore(socket, values)}
+  end
+
+  # The X connect button reloads the socials panel once the account is linked.
+  def handle_event("refresh_x_connections", _params, %{assigns: %{current_human_id: id}} = socket)
+      when is_integer(id) do
+    send_update(RegentsWeb.Autolaunch.CreatorConnectionsComponent,
+      id: "creator-connections",
+      current_human_id: socket.assigns.current_human_id,
+      session_lease: socket.assigns.session_lease
+    )
+
+    {:noreply, socket}
+  end
+
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # A launch card opened its review, which takes the form's place, so the
+  # review always matches the details; the saved note no longer describes
+  # what this page is doing and comes down. Once the review closes the form
+  # comes back, read anew, blank when the launch was listed. A launch just
+  # made keeps its card, which says so, until the person dismisses it.
+  def handle_info({:launch_review, :open}, socket),
+    do: {:noreply, assign(socket, reviewing?: true, draft_notice: nil)}
+
+  def handle_info({:launch_review, news}, socket) when news in [:closed, :launched] do
+    socket = assign(socket, reviewing?: false, launched?: news == :launched)
+
+    case human_actor(socket) do
+      nil -> {:noreply, socket}
+      actor -> {:noreply, socket |> load_draft(actor) |> assign_ticker_taken()}
+    end
+  end
+
+  # Something new is listed: a launch card still looking for the auction page
+  # of a launch made here looks again (`RegentsWeb.Autolaunch.LaunchSteps.relisted/2`).
+  def handle_info({:autolaunch_listings_changed, _auction_id}, socket),
+    do: {:noreply, update(socket, :listings, &(&1 + 1))}
+
+  def handle_info({:creator_connections, :changed}, socket),
+    do: {:noreply, assign_connections(socket)}
+
+  # The site read a new block: the launchpad may have paused or reopened new
+  # launches.
+  def handle_info({:shared_reading, {:chain_head, "stocks"}}, socket),
+    do: {:noreply, read_launches_paused(socket)}
+
+  # The person's paired agent saved this draft: the form and the list of what
+  # the agent filled in show it, and what the person typed that could not be
+  # saved stays in its box with its mark. During a review the form is put
+  # away; it is read anew when the review closes.
+  def handle_info({:agent_draft_saved, "memestock"}, %{assigns: %{reviewing?: true}} = socket),
+    do: {:noreply, socket}
+
+  def handle_info({:agent_draft_saved, "memestock"}, socket) do
+    unsaved = Map.take(socket.assigns.draft_values, Map.keys(socket.assigns.draft_errors))
+
+    case saved_draft(human_actor(socket)) do
+      {:ok, draft} ->
+        socket = assign_draft(socket, draft)
+
+        {:noreply,
+         socket
+         |> assign(draft_values: Map.merge(socket.assigns.draft_values, unsaved))
+         |> assign_ticker_taken()}
+
+      {:error, _error} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_async(:market, {:ok, market}, socket),
+    do: {:noreply, assign(socket, market: market, market_loading?: false)}
+
+  def handle_async(:market, _unavailable, socket),
+    do: {:noreply, assign(socket, market: %{prices: %{}, venues: []}, market_loading?: false)}
+
+  def handle_async(:launches_paused, {:ok, {:ok, paused}}, socket),
+    do: {:noreply, assign(socket, launches_paused?: paused)}
+
+  def handle_async(:launches_paused, _unread, socket), do: {:noreply, socket}
+
+  def render(assigns) do
+    draft =
+      assigns.draft && DraftMarks.typed(assigns.draft, assigns.draft_values, @token_detail_params)
+
+    stock = stock_for(assigns.stocks, assigns.draft_values["stock_address"])
+
+    assigns =
+      assign(assigns,
+        stocks_image_upload: assigns[:uploads][:stocks_image],
+        launch_ready?: draft && LaunchDraft.launch_ready?(draft),
+        missing: LaunchDraft.missing(draft || %{}),
+        detail_errors: DraftMarks.marked(assigns.draft_errors, assigns.draft_values),
+        links_given?: Enum.any?(@link_params, &(assigns.draft_values[&1] != "")),
+        robinhood_open?: Regents.Autolaunch.Robinhood.Lab.configured?(),
+        stock: stock,
+        opening: opening(stock, assigns.market.prices),
+        fixed_terms:
+          LaunchActions.terms(assigns.launch_chain, ticker(assigns.draft_values["symbol"]))
+      )
+
+    ~H"""
+    <div class="create-page">
+      <header class="create-page__header">
+        <h1>Create Memestock</h1>
+        <.launch_kind_choice current={:memestock} />
+      </header>
+      <div :if={@status == :error} class="autolaunch-empty" role="alert">
+        <h2>Your draft didn’t open</h2>
+        <p>It could not be read just now. Nothing you saved is lost.</p>
+        <a href="/create" class="rg-button rg-button--primary">
+          <span class="rg-button__label">Try again</span>
+        </a>
+      </div>
+
+      <div :if={@status != :error} class="create-page__layout">
+        <%!-- The launch card's review takes the form's place while it is open. --%>
+        <div class="create-page__main">
+          <section
+            id="memestock-form"
+            class="create-page__form memestock rg-panel rg-panel--surface"
+            data-chain={@launch_chain}
+            aria-label="Your memestock"
+          >
+            <RegentsWeb.Autolaunch.Components.AgentSetFields.agent_set_fields
+              :if={@draft}
+              draft={@draft}
+            />
+            <form
+              id="stocks-token-details"
+              class="create-page__fields"
+              phx-change="type_stocks_token_details"
+              phx-submit="autosave_stocks_token_details"
+            >
+              <div class="create-page__identity">
+                <.image_upload
+                  upload={@stocks_image_upload}
+                  image={@draft_values["image"]}
+                  notice={@image_notice}
+                />
+                <div class="create-page__stack">
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="name"
+                    label="Name"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="symbol"
+                    label="Ticker"
+                    hint={@ticker_taken? && "Another launch already uses this ticker."}
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                  <.menu id="stocks-chain" label="Chain">
+                    <:current>
+                      <span class={"create-chain create-chain--#{@launch_chain}"} aria-hidden="true"></span>
+                      <span class="create-menu__value">{LaunchChain.label(@launch_chain)}</span>
+                    </:current>
+                    <button
+                      :for={chain <- LaunchChain.chains()}
+                      type="button"
+                      class="create-menu__option"
+                      aria-pressed={to_string(@launch_chain == chain)}
+                      phx-click={
+                        JS.push("choose_chain", value: %{chain: chain})
+                        |> close_menu("stocks-chain")
+                        |> JS.transition("memestock__form--to-#{chain}",
+                          to: "#memestock-form",
+                          time: 700
+                        )
+                      }
+                    >
+                      <span class={"create-chain create-chain--#{chain}"} aria-hidden="true"></span>
+                      <span class="create-menu__name">{LaunchChain.label(chain)}</span>
+                      <Regent.Icons.icon name="check" class="create-menu__check" />
+                    </button>
+                  </.menu>
+                </div>
+              </div>
+              <div class="memestock__paired">
+                <span class="create-page__label">Paired stock</span>
+                <.stock_select
+                  id="stocks-terms-stock_address"
+                  name="stock_draft[stock_address]"
+                  value={@draft_values["stock_address"]}
+                  chain={@launch_chain}
+                  stocks={@stocks}
+                  sort={@stock_sort}
+                  sort_event="sort_stocks"
+                  retry_event="read_stocks"
+                  form="stocks-terms"
+                />
+                <p :if={@draft_errors["stock_address"]} class="autolaunch-draft-error" role="alert">
+                  {@draft_errors["stock_address"]}
+                </p>
+                <p
+                  :if={
+                    is_list(@stocks) and is_nil(@stock) and
+                      @draft_values["stock_address"] not in [nil, ""] and
+                      is_nil(@draft_errors["stock_address"])
+                  }
+                  class="autolaunch-draft-error"
+                  role="alert"
+                >
+                  The saved stock is no longer available to pair on this network. Choose another stock.
+                </p>
+                <p :if={@suggested_stock} class="create-page__hint" id="memestock-linked-stock">
+                  Keep your saved stock or replace it with {@suggested_stock.symbol} on {LaunchChain.label(
+                    elem(@linked_pair, 0)
+                  )}.
+                  <button class="standalone-link" type="button" phx-click="use_linked_stock">
+                    Replace paired stock
+                  </button>
+                </p>
+                <p class="create-page__hint">
+                  <.link navigate="/stocks" class="standalone-link">Onchain Stocks</.link>
+                </p>
+                <p
+                  :if={@stock && !@market_loading? && is_nil(@opening.rate)}
+                  class="create-page__hint"
+                  id="memestock-quote-unavailable"
+                  role="status"
+                >
+                  Stock quote unavailable.
+                  <button class="standalone-link" type="button" phx-click="read_stocks">Retry quote</button>
+                </p>
+                <p
+                  :if={@stock && @market.venues != []}
+                  id="stocks-terms-buy-at"
+                  class="create-page__hint"
+                >
+                  Buy {@stock.symbol} at
+                  <span :for={{venue, index} <- Enum.with_index(@market.venues)}>
+                    <span :if={index > 0}>or</span>
+                    <a href={venue.url} target="_blank" rel="noopener noreferrer">{venue.name}</a>
+                    ({UsdValue.dollars(venue.liquidity_usd)} liquidity)
+                  </span>
+                </p>
+                <p
+                  :if={!(@stock && @market.venues != [])}
+                  class="create-page__hint create-page__held"
+                  aria-hidden="true"
+                  inert
+                >
+                  Buy the stock at a market
+                </p>
+              </div>
+              <div class="create-page__folds">
+                <.fold id="stocks-token-about" icon="file-text" title="Description & website" open>
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="description"
+                    label="Description"
+                    kind={:long_text}
+                    placeholder="What is this token about?"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                  <.draft_field
+                    form_id="stocks-token-details"
+                    param="website"
+                    label="Website"
+                    optional
+                    placeholder="https://"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                </.fold>
+                <.fold id="stocks-token-links" icon="link" title="Links" open={@links_given?}>
+                  <div class="create-page__pair">
+                    <.draft_field
+                      form_id="stocks-token-details"
+                      param="telegram"
+                      label="Telegram"
+                      optional
+                      placeholder="https://t.me/yourgroup"
+                      values={@draft_values}
+                      errors={@detail_errors}
+                    />
+                    <.draft_field
+                      form_id="stocks-token-details"
+                      param="discord"
+                      label="Discord"
+                      optional
+                      placeholder="https://discord.gg/invite"
+                      values={@draft_values}
+                      errors={@detail_errors}
+                    />
+                  </div>
+                  <.draft_field
+                    :for={param <- ~w(other_link_1 other_link_2 other_link_3)}
+                    form_id="stocks-token-details"
+                    param={param}
+                    label="Other link"
+                    optional
+                    placeholder="https://"
+                    values={@draft_values}
+                    errors={@detail_errors}
+                  />
+                </.fold>
+              </div>
+            </form>
+
+            <.fold id="stocks-socials" icon="user" title="Socials">
+              <.live_component
+                :if={@current_human_id}
+                module={RegentsWeb.Autolaunch.CreatorConnectionsComponent}
+                id="creator-connections"
+                current_human_id={@current_human_id}
+                session_lease={@session_lease}
+                bare
+                notify
+              />
+              <.signed_out_socials :if={!@current_human_id} />
+            </.fold>
+
+            <%!-- The paired stock sits up with the name, inside the details
+                 form, and saves with this one through its fields' form
+                 attribute. --%>
+            <form
+              id="stocks-terms"
+              hidden
+              phx-change="autosave_stocks_terms"
+              phx-submit="autosave_stocks_terms"
+            >
+            </form>
+          </section>
+          <.live_component
+            :if={
+              @launch_chain == :robinhood && @robinhood_open? &&
+                (@launch_ready? || @reviewing? || @launched?)
+            }
+            module={RegentsWeb.Autolaunch.RobinhoodStocksLaunchComponent}
+            id={"autolaunch-robinhood-stocks-launch-#{@draft.id}"}
+            draft={@draft}
+            listings={@listings}
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            side="#stocks-launch-side"
+          />
+          <.live_component
+            :if={@launch_chain == :base && (@launch_ready? || @reviewing? || @launched?)}
+            module={RegentsWeb.Autolaunch.StocksLaunchWalletComponent}
+            id={"autolaunch-stocks-launch-wallet-#{@draft.id}"}
+            draft={@draft}
+            authenticated
+            launches_paused?={@launches_paused?}
+            listings={@listings}
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+            side="#stocks-launch-side"
+          />
+        </div>
+
+        <aside
+          id="create-preview"
+          class="create-page__side"
+          aria-label="Your launch"
+        >
+          <.summary_card
+            id="memestock-summary"
+            name={@draft_values["name"]}
+            symbol={@draft_values["symbol"]}
+            image={@draft_values["image"]}
+            color={@image_color}
+            pair={if @stock, do: @stock.symbol, else: "stock"}
+            chain={@launch_chain}
+            sold="49.75%"
+            connections={@creator_connections}
+            terms={@fixed_terms}
+          >
+            <:row label="Opening price">
+              <MarketCard.price_figure
+                :if={@stock}
+                amount={@opening.price}
+                unit={@stock.symbol}
+                rate={@opening.rate}
+              />
+              <span :if={!@stock}>Choose a stock</span>
+            </:row>
+            <:row label="FDV">
+              {MarketCard.money(@opening.fdv, @opening.rate, @stock && @stock.symbol) ||
+                "Choose a stock"}
+            </:row>
+            <:row label="Paired stock">
+              <span :if={@stock}>
+                {@stock.symbol}
+                <StockIdentity.stock_identity
+                  id="memestock-summary-stock"
+                  chain={@launch_chain}
+                  address={@stock.address}
+                />
+              </span>
+              <span :if={!@stock}>Choose one</span>
+            </:row>
+            <:row label="Creator share">0.5%</:row>
+          </.summary_card>
+
+          <div id="stocks-transactions" class="create-page__launch">
+            <%!-- One line above the button says why a launch cannot start; the
+                 Robinhood line holds its place on Base so switching chains
+                 never moves the button. --%>
+            <p
+              :if={!@robinhood_open? && !(@launch_chain == :base && @launches_paused?)}
+              class={@launch_chain != :robinhood && "create-page__held"}
+              role={@launch_chain == :robinhood && "status"}
+              aria-hidden={@launch_chain != :robinhood && "true"}
+              inert={@launch_chain != :robinhood}
+            >
+              Robinhood launches are not open yet.
+              <span :if={@current_human_id}>
+                Your draft is saved and will be ready to launch here when they open.
+              </span>
+            </p>
+            <p
+              :if={@launch_chain == :base && @launches_paused?}
+              class="create-page__notice"
+              role="status"
+            >
+              New launches are paused right now.
+            </p>
+            <Regent.Primitives.button
+              :if={!@current_human_id}
+              type="button"
+              class="create-page__launch-button"
+              data-account-target="sign-in"
+            >
+              Sign in to save and launch
+            </Regent.Primitives.button>
+            <div id="stocks-launch-side" class="create-page__launch-card"></div>
+            <%= if @current_human_id && (@launch_chain == :base || @robinhood_open?) &&
+                   !@launch_ready? && !@reviewing? && !@launched? do %>
+              <Regent.Primitives.button type="button" class="create-page__launch-button" disabled>
+                Review launch
+              </Regent.Primitives.button>
+              <p class="create-page__need">Still needed: {DraftMarks.still_needed(@missing)}</p>
+            <% end %>
+            <p
+              :if={@draft_notice}
+              class={"create-page__notice create-page__notice--#{@draft_notice.tone}"}
+              role={if @draft_notice.tone == :error, do: "alert", else: "status"}
+            >
+              {@draft_notice.message}
+            </p>
+          </div>
+
+          <.live_component
+            :if={
+              @current_human_id && @launch_chain == :base &&
+                Stocks.Faucet.available?()
+            }
+            module={RegentsWeb.Autolaunch.TestFundsComponent}
+            id="autolaunch-test-funds"
+            current_human_id={@current_human_id}
+            session_lease={@session_lease}
+          />
+        </aside>
+      </div>
+
+      <section
+        :if={@status != :error}
+        class="create-page__info"
+        aria-labelledby="create-info-title"
+      >
+        <h2 id="create-info-title" class="create-page__info-title">
+          Details
+        </h2>
+        <.launch_plan
+          id="memestock-plan"
+          kind={:memestock}
+          chain={@launch_chain}
+          ticker={ticker(@draft_values["symbol"])}
+          currency={@stock && @stock.symbol}
+          minimum={minimum_raise(@stock)}
+          chosen={[
+            {"Chain", LaunchChain.label(@launch_chain)},
+            {"Paired stock",
+             if(@stock,
+               do: "#{@stock.symbol} · #{StockIdentity.words(@launch_chain)}",
+               else: "Choose a stock"
+             )}
+          ]}
+        />
+      </section>
+      <.draft_carry_over
+        id="memestock-carry-over"
+        key="autolaunch:create:memestock"
+        signed_in={@current_human_id != nil}
+      />
+    </div>
+    """
+  end
+
+  # One section of the form saved as typing it would save it.
+  defp autosaved(socket, event, values) do
+    before = socket.assigns.draft_values["stock_address"]
+
+    socket =
+      case save_section(socket, event, values) do
+        {:ok, socket} ->
+          socket
+          |> refresh_market(before)
+          |> maybe_clear_linked_pair(before)
+          |> assign(draft_errors: %{}, draft_notice: saved_notice(socket))
+
+        {:error, errors} ->
+          assign(socket,
+            draft_values: Map.merge(socket.assigns.draft_values, values),
+            draft_errors: errors,
+            draft_notice: unsaved_notice(socket, errors)
+          )
+      end
+
+    socket |> assign_ticker_taken() |> keep()
+  end
+
+  defp chosen_chain(%{assigns: %{launch_chain: chain}} = socket, chain), do: {:ok, socket}
+
+  defp chosen_chain(socket, chain) do
+    with {:ok, socket} <- switch_chain(socket, chain) do
+      {:ok,
+       socket
+       |> assign(draft_errors: %{}, draft_notice: nil, market: %{prices: %{}, venues: []})
+       |> clear_linked_pair()
+       |> assign_market()
+       |> keep()}
+    end
+  end
+
+  # One section of the form, saved to the account's draft or, signed out,
+  # applied to the unsaved one under the same rules.
+  defp save_section(socket, event, values) do
+    case human_actor(socket) do
+      nil ->
+        case sketch(socket.assigns.sketch, Map.fetch!(@actions, event), values) do
+          {:ok, sketch} -> {:ok, assign_sketch(socket, sketch)}
+          error -> {:error, draft_field_errors(error)}
+        end
+
+      actor ->
+        case save_draft(socket, actor, &autosave(event, &1, values, actor)) do
+          {:ok, saved} -> {:ok, assign_draft(socket, saved)}
+          error -> {:error, draft_field_errors(error)}
+        end
+    end
+  end
+
+  defp switch_chain(socket, chain) do
+    result =
+      case human_actor(socket) do
+        nil ->
+          with {:ok, sketch} <- sketch(socket.assigns.sketch, :choose_chain, %{chain: chain}),
+               do: {:ok, assign_sketch(socket, sketch)}
+
+        actor ->
+          with {:ok, saved} <-
+                 save_draft(
+                   socket,
+                   actor,
+                   &Regents.Autolaunch.choose_stocks_launch_chain(&1, chain, actor: actor)
+                 ),
+               do: {:ok, assign_draft(socket, saved)}
+      end
+
+    with {:error, _error} <- result, do: :error
+  end
+
+  defp saved_notice(%{assigns: %{current_human_id: nil}}), do: nil
+  defp saved_notice(_socket), do: %{tone: :success, message: "Saved"}
+
+  defp unsaved_notice(%{assigns: %{current_human_id: nil}}, _errors), do: nil
+
+  # A save refused for a field marks that field; one that failed for any other
+  # reason marks nothing, so the note says to try again instead.
+  defp unsaved_notice(_socket, errors) when errors == %{},
+    do: %{
+      tone: :error,
+      message: "That change could not be saved just now. Try again in a moment."
+    }
+
+  defp unsaved_notice(_socket, _errors),
+    do: %{tone: :error, message: "That change could not be saved. Check the marked field."}
+
+  defp restore(socket, values) do
+    values = Map.filter(values, fn {_param, value} -> is_binary(value) end)
+
+    values =
+      if socket.assigns.linked_pair, do: Map.drop(values, ~w(chain stock_address)), else: values
+
+    {socket, values} = restore_chain(socket, values)
+
+    {socket, unsaved, errors} =
+      Enum.reduce(@autosave_events, {socket, %{}, %{}}, &restore_section(&1, &2, values))
+
+    socket
+    |> assign(
+      draft_values: Map.merge(socket.assigns.draft_values, unsaved),
+      draft_errors: errors,
+      draft_notice:
+        if(unsaved == %{}, do: saved_notice(socket), else: unsaved_notice(socket, errors))
+    )
+    |> choose_linked_stock()
+    |> assign_market()
+    |> assign_ticker_taken()
+    |> keep()
+  end
+
+  # The stock and its amounts belong to the chain they were chosen on, so
+  # they come across only once the draft is on that chain.
+  defp restore_chain(socket, values) do
+    case Map.fetch(@chains, values["chain"]) do
+      {:ok, chain} when chain != socket.assigns.launch_chain ->
+        case switch_chain(socket, chain) do
+          {:ok, switched} -> {switched, values}
+          :error -> {socket, Map.drop(values, @sections["autosave_stocks_terms"])}
+        end
+
+      _same_chain ->
+        {socket, values}
+    end
+  end
+
+  # A section that cannot be saved stays on the form as typed, marked.
+  defp restore_section(event, {socket, unsaved, errors} = restored, values) do
+    case Map.take(values, Map.fetch!(@sections, event)) do
+      section when map_size(section) == 0 ->
+        restored
+
+      section ->
+        case save_section(socket, event, section) do
+          {:ok, socket} -> {socket, unsaved, errors}
+          {:error, marked} -> {socket, Map.merge(unsaved, section), Map.merge(errors, marked)}
+        end
+    end
+  end
+
+  # Signed out, this tab keeps whatever differs from a new draft. The chain
+  # comes too whenever it was switched or a stock was chosen, since a stock
+  # belongs to its chain.
+  defp keep(%{assigns: %{current_human_id: nil}} = socket) do
+    fresh = draft_values(%LaunchDraft{})
+
+    values =
+      Map.reject(socket.assigns.draft_values, fn {param, value} -> fresh[param] == value end)
+
+    values =
+      if socket.assigns.launch_chain != :base or Map.has_key?(values, "stock_address"),
+        do: Map.put(values, "chain", socket.assigns.launch_chain),
+        else: values
+
+    keep_draft(socket, values)
+  end
+
+  defp keep(socket), do: socket
+
+  defp sketch(draft, action, values) do
+    case draft |> Ash.Changeset.for_update(action, values) |> Ash.Changeset.apply_attributes() do
+      {:ok, sketch} -> {:ok, sketch}
+      {:error, changeset} -> {:error, Ash.Error.to_error_class(changeset.errors)}
+    end
+  end
+
+  defp assign_sketch(socket, sketch) do
+    socket
+    |> assign(
+      sketch: sketch,
+      draft_values: draft_values(sketch),
+      launch_chain: sketch.chain,
+      status: :ready
+    )
+    |> assign_stocks()
+  end
+
+  defp autosave("autosave_stocks_token_details", draft, values, actor),
+    do: Regents.Autolaunch.autosave_stocks_token_details(draft, values, actor: actor)
+
+  defp autosave("autosave_stocks_terms", draft, values, actor),
+    do: Regents.Autolaunch.autosave_stocks_terms(draft, values, actor: actor)
+
+  defp handle_stocks_image_progress(:stocks_image, entry, socket) do
+    if entry.done?,
+      do: finish_stocks_image(entry, socket),
+      else: {:noreply, socket}
+  end
+
+  # Phoenix supplies the completed-upload temp path; it is never accepted from
+  # request parameters or other user-controlled path input.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp finish_stocks_image(entry, socket) do
+    with bytes when is_binary(bytes) <-
+           consume_uploaded_entry(socket, entry, fn %{path: path} -> File.read(path) end),
+         %Human{} = actor <- human_actor(socket),
+         {:ok, stored} <- attach_image(socket, actor, bytes, entry) do
+      {:noreply,
+       socket
+       |> assign_draft(stored.draft)
+       |> assign(draft_errors: %{}, image_notice: nil)}
+    else
+      {:error, :image_changed} ->
+        {:noreply,
+         assign(socket,
+           image_notice:
+             "The saved image changed while this one was uploading. Your newer image was kept; choose again to replace it."
+         )}
+
+      {:error, :too_many_pixels} ->
+        {:noreply,
+         assign(socket,
+           image_notice: "That picture is too big. Choose one no larger than 4096 by 4096 pixels."
+         )}
+
+      # Upload progress reaches the page without its event recheck, so the
+      # save's own lease check (`Session.transact/2`) answers for it: a lost
+      # connection is a try-again, and an ended sign-in lapses the page.
+      {:error, :sign_in_unread} ->
+        {:noreply,
+         assign(socket, image_notice: "That did not go through. Try again in a moment.")}
+
+      {:error, ended} when ended in [:stale_authority, :session_lease_required] ->
+        {:noreply, Session.lapse(socket)}
+
+      _error ->
+        {:noreply,
+         assign(socket,
+           image_notice: "That file is not a complete PNG, JPEG, or WebP image under 2 MB."
+         )}
+    end
+  end
+
+  # A listed launch's draft was already started over
+  # (`Regents.Autolaunch.LaunchedDrafts`).
+  defp load_draft(socket, %Human{} = actor) do
+    case current_or_new_draft(socket, actor) do
+      {:ok, draft} -> assign_draft(socket, draft)
+      {:error, _error} -> assign(socket, status: :error)
+    end
+  end
+
+  defp maybe_clear_linked_pair(socket, previous_address) do
+    if socket.assigns.draft_values["stock_address"] == previous_address,
+      do: socket,
+      else: clear_linked_pair(socket)
+  end
+
+  # A manual choice takes over from the stock link and survives sign-in through
+  # the normal draft carry-over.
+  defp clear_linked_pair(%{assigns: %{linked_pair: {_, _}}} = socket),
+    do:
+      socket
+      |> assign(linked_pair: nil, suggested_stock: nil)
+      |> push_patch(to: ~p"/autolaunch/create", replace: true)
+
+  defp clear_linked_pair(socket), do: socket
+
+  defp linked_pair(%{"stock_chain" => name, "stock" => address}) when is_binary(address) do
+    with {:ok, chain} <- Map.fetch(@chains, name),
+         {:ok, _bytes} <- Address.decode(address) do
+      {chain, address}
+    else
+      _invalid -> nil
+    end
+  end
+
+  defp linked_pair(_params), do: nil
+
+  # A directory link names one stock on one chain. An existing selection can
+  # only be replaced by the named button in the form.
+  defp choose_linked_stock(%{assigns: %{status: :ready, linked_pair: {chain, address}}} = socket) do
+    with {:ok, stocks} <- Assets.read(chain),
+         %{address: _} = stock <- stock_for(stocks, address) do
+      current = socket.assigns.draft_values["stock_address"]
+
+      cond do
+        socket.assigns.launch_chain == chain and Address.equal?(current, stock.address) ->
+          assign(socket, suggested_stock: nil)
+
+        current in [nil, ""] ->
+          select_linked_pair(socket, stock)
+
+        true ->
+          assign(socket, suggested_stock: stock)
+      end
+    else
+      _unavailable ->
+        assign(socket,
+          suggested_stock: nil,
+          draft_notice: %{tone: :error, message: "That stock is unavailable to pair right now."}
+        )
+    end
+  end
+
+  # A link can name the stock (`?token=<symbol or address>`): the choice is
+  # made exactly as choosing it in the form would make it, and a name the
+  # draft's chain does not list leaves the draft as it was. The link wins over
+  # a stock this tab carried over.
+  defp choose_linked_stock(%{assigns: %{status: :ready, linked_token: token}} = socket)
+       when is_binary(token) do
+    with stocks when is_list(stocks) <- socket.assigns.stocks,
+         {:ok, stock} <- Assets.named(stocks, token),
+         false <- Address.equal?(socket.assigns.draft_values["stock_address"], stock.address),
+         {:ok, socket} <-
+           save_section(socket, "autosave_stocks_terms", %{"stock_address" => stock.address}) do
+      keep(socket)
+    else
+      _unchanged -> socket
+    end
+  end
+
+  defp choose_linked_stock(socket), do: socket
+
+  defp select_linked_pair(socket, stock) do
+    {chain, _address} = socket.assigns.linked_pair
+    values = %{chain: chain, stock_address: stock.address}
+
+    result =
+      case human_actor(socket) do
+        nil ->
+          with {:ok, updated} <- sketch(socket.assigns.sketch, :autosave_terms, values),
+               do: {:ok, assign_sketch(socket, updated)}
+
+        actor ->
+          with {:ok, saved} <- save_linked_draft(socket, actor, values),
+               do: {:ok, assign_draft(socket, saved)}
+      end
+
+    case result do
+      {:ok, selected} ->
+        assign(selected, suggested_stock: nil, market: %{prices: %{}, venues: []})
+
+      {:error, {:selection_changed, draft}} ->
+        socket |> assign_draft(draft) |> assign(suggested_stock: stock)
+
+      {:error, _error} ->
+        assign(socket,
+          draft_notice: %{tone: :error, message: "That stock could not be selected. Try again."}
+        )
+    end
+  end
+
+  defp save_linked_draft(socket, actor, values) do
+    current = socket.assigns.draft
+
+    Session.transact(socket, fn ->
+      case Regents.Autolaunch.get_my_stocks_launch_draft_for_update(current.id, actor: actor) do
+        {:ok, %LaunchDraft{chain: chain, stock_address: address} = saved}
+        when chain == current.chain and address == current.stock_address ->
+          Regents.Autolaunch.autosave_stocks_terms(saved, values, actor: actor)
+
+        {:ok, %LaunchDraft{} = saved} ->
+          {:error, {:selection_changed, saved}}
+
+        {:ok, nil} ->
+          {:error, :draft_changed}
+
+        error ->
+          error
+      end
+    end)
+  end
+
+  defp assign_ticker_taken(socket),
+    do: assign(socket, ticker_taken?: Ticker.taken?(socket.assigns.draft_values["symbol"]))
+
+  defp assign_draft(socket, draft) do
+    socket
+    |> assign_image_color(draft.image)
+    |> assign(
+      draft: draft,
+      draft_values: draft_values(draft),
+      launch_chain: draft.chain,
+      status: :ready
+    )
+    |> assign_stocks()
+  end
+
+  # The colour the gallery tints the auction's card with, read again only when
+  # the draft's image changes.
+  defp assign_image_color(%{assigns: %{draft: %{image: image}}} = socket, image),
+    do: socket
+
+  defp assign_image_color(socket, image),
+    do: assign(socket, image_color: ImageColor.for_url(image))
+
+  # Draft writes run under the page's lease read again now
+  # (`RegentsWeb.Live.Session.transact/2`), so a page whose sign-in could not
+  # be read just then writes nothing.
+  defp save_draft(socket, actor, write),
+    do:
+      Session.transact(socket, fn ->
+        with {:ok, draft} <- found_or_new_draft(actor), do: write.(draft)
+      end)
+
+  defp attach_image(socket, actor, bytes, entry),
+    do:
+      save_draft(
+        socket,
+        actor,
+        &LaunchDraftImageStorage.store_and_attach(
+          &1,
+          bytes,
+          entry.client_type,
+          entry.client_name,
+          actor
+        )
+      )
+
+  # The account's draft; a first one is made only under the page's lease read
+  # again now, like every other draft write.
+  defp current_or_new_draft(socket, actor) do
+    case Regents.Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> Session.transact(socket, fn -> found_or_new_draft(actor) end)
+      read -> read
+    end
+  end
+
+  # Only ever run inside `Session.transact/2`.
+  defp found_or_new_draft(actor) do
+    case Regents.Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> Regents.Autolaunch.create_stocks_launch_draft(%{}, actor: actor)
+      read -> read
+    end
+  end
+
+  # The draft the person's agent just saved, read only: it exists already.
+  defp saved_draft(actor) do
+    case Regents.Autolaunch.get_my_stocks_launch_draft(actor: actor) do
+      {:ok, nil} -> {:error, :draft_missing}
+      read -> read
+    end
+  end
+
+  defp draft_field_errors({:error, %Ash.Changeset{errors: errors}}),
+    do: draft_field_errors({:error, Ash.Error.to_error_class(errors)})
+
+  defp draft_field_errors({:error, %Ash.Error.Invalid{errors: errors}} = failure) do
+    marked =
+      for %{field: field} = error <- errors,
+          to_string(field) in @stored_params,
+          into: %{},
+          do: {to_string(field), error_message(error)}
+
+    if marked == %{}, do: unmarked(failure), else: marked
+  end
+
+  # A lost connection was logged where the sign-in was read.
+  defp draft_field_errors({:error, :sign_in_unread}), do: %{}
+  defp draft_field_errors(failure), do: unmarked(failure)
+
+  # Anything but a refused field is not the creator's to fix: it is logged,
+  # and the page says to try again.
+  defp unmarked(failure) do
+    Logger.warning("launch draft could not be saved: #{inspect(failure)}")
+    %{}
+  end
+
+  defp error_message(%Ash.Error.Changes.Required{}), do: "Fill this in."
+  defp error_message(%{message: message}), do: message
+
+  defp human_actor(%{assigns: %{access_context: %{principal: {:human, %{id: id}}}}})
+       when is_integer(id),
+       do: %Human{human_account_id: id}
+
+  defp human_actor(_socket), do: nil
+
+  defp draft_values(draft),
+    do: Map.new(@stored_params, &{&1, Map.get(draft, String.to_existing_atom(&1)) || ""})
+
+  # A field's text as the account's draft, or signed out the unsaved one, holds it.
+  defp saved_value(socket, field),
+    do:
+      Map.get(socket.assigns.draft || socket.assigns.sketch, String.to_existing_atom(field)) || ""
+
+  attr :form_id, :string, required: true
+  attr :param, :string, required: true
+  attr :label, :string, required: true
+  attr :kind, :atom, default: :text
+  attr :optional, :boolean, default: false
+  attr :placeholder, :string, default: nil
+  attr :hint, :string, default: nil
+  attr :values, :map, required: true
+  attr :errors, :map, required: true
+
+  defp draft_field(assigns) do
+    id = "#{assigns.form_id}-#{assigns.param}"
+    error = assigns.errors[assigns.param]
+
+    described_by =
+      [assigns.hint && "#{id}-hint", error && "#{id}-error"]
+      |> Enum.filter(&is_binary/1)
+      |> Enum.join(" ")
+
+    assigns =
+      assign(assigns,
+        id: id,
+        error: error,
+        value: assigns.values[assigns.param],
+        described_by: if(described_by == "", do: nil, else: described_by)
+      )
+
+    ~H"""
+    <div class="rg-field create-field">
+      <label for={@id}>
+        {@label} <span :if={@optional} class="create-field__optional">optional</span>
+      </label>
+      <textarea
+        :if={@kind == :long_text}
+        id={@id}
+        name={"stock_draft[#{@param}]"}
+        form={@form_id}
+        rows="3"
+        placeholder={@placeholder}
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+        phx-debounce="150"
+        phx-blur="autosave_stocks_field"
+        phx-value-field={@param}
+      >{@value}</textarea>
+      <input
+        :if={@kind == :text}
+        type="text"
+        id={@id}
+        name={"stock_draft[#{@param}]"}
+        form={@form_id}
+        value={@value}
+        placeholder={@placeholder}
+        autocomplete="off"
+        aria-invalid={@error && "true"}
+        aria-describedby={@described_by}
+        phx-debounce="150"
+        phx-blur="autosave_stocks_field"
+        phx-value-field={@param}
+      />
+      <p :if={@hint} id={"#{@id}-hint"} class="create-page__hint">{@hint}</p>
+      <p :if={@error} id={"#{@id}-error"} class="autolaunch-draft-error" role="alert">{@error}</p>
+    </div>
+    """
+  end
+
+  # The chosen stock as the chain's launchpad admits it, with its decimals.
+  defp stock_for(:unread, _address), do: nil
+  defp stock_for(_stocks, address) when address in [nil, ""], do: nil
+
+  defp stock_for(stocks, address) do
+    case Assets.named(stocks, address) do
+      {:ok, stock} -> stock
+      :error -> nil
+    end
+  end
+
+  # What the gallery card shows of a launch no one has bid on yet: its price
+  # and FDV at the auction's floor, in the stock, and the stock's dollar price
+  # once its feed has answered.
+  defp opening(nil, _prices), do: %{price: nil, fdv: nil, rate: nil}
+
+  defp opening(stock, prices),
+    do:
+      Map.put(
+        LaunchActions.opening(stock.decimals),
+        :rate,
+        prices[Assets.ticker(stock.symbol)]
+      )
+
+  # The whole sale at the starting price, in the chosen stock.
+  defp minimum_raise(nil), do: "Choose a stock"
+
+  defp minimum_raise(stock) do
+    "#{RegentFormat.token_amount(LaunchActions.minimum_raise(), stock.decimals)} #{stock.symbol}"
+  end
+
+  # Until the creator names a symbol, the supply is counted in plain tokens.
+  defp ticker(symbol) do
+    case String.trim(symbol) do
+      "" -> "tokens"
+      symbol -> symbol
+    end
+  end
+end

@@ -3,8 +3,7 @@ defmodule Regents.Autolaunch.LabAbi do
 
   alias Regents.Autolaunch.Chain.Abi
 
-  alias Regents.Chain
-  alias Regents.Chain.Address
+  alias RegentChain.Address
 
   @swap_fee_settled "SwapFeeSettled(bytes32,address,address,uint256,uint256,uint256,bool)"
   @fees_deposited "FeesDeposited(uint256,address,address,address,uint256,uint256)"
@@ -210,8 +209,8 @@ defmodule Regents.Autolaunch.LabAbi do
       when is_list(inputs) and is_list(values) and length(inputs) == length(values),
       do: "0x" <> encode_sequence(inputs, values)
 
-  def selector(signature), do: String.slice(Chain.Abi.topic0(signature), 0, 10)
-  def topic(signature), do: Chain.Abi.topic0(signature)
+  def selector(signature), do: String.slice(Abi.topic0(signature), 0, 10)
+  def topic(signature), do: Abi.topic0(signature)
 
   def decode_words("0x" <> hex) when rem(byte_size(hex), 64) == 0 do
     case Base.decode16(hex, case: :mixed) do

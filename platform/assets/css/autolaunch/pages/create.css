@@ -1,0 +1,81 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* Creating launches, the Make a payment card on token pages, and the account page. */
+
+/* A single-key treasury: the warning, and the box it is typed into. */
+.autolaunch-custody-eoa { display: grid; gap: var(--space-2); }
+.autolaunch-custody-eoa > p { margin: 0; font-size: .875rem; line-height: 1.5; }
+.autolaunch-custody-eoa textarea { min-height: 8rem; resize: vertical; }
+/* Every text box on Create has its top-right corner cut, like the buttons. The
+   cut would hide an outside focus ring, so the ring draws just inside the box. */
+.create-page__form :is(input[type="text"], textarea) {
+  --text-box-cut: 10px;
+  clip-path: polygon(0 0, calc(100% - var(--text-box-cut)) 0, 100% var(--text-box-cut), 100% 100%, 0 100%);
+  background: linear-gradient(45deg in oklch, transparent calc(50% - 1px), var(--rg-p-control-border, var(--hairline-strong)) calc(50% - 1px) 50%, transparent 50%) right top / var(--text-box-cut) var(--text-box-cut) no-repeat border-box, var(--rg-p-surface, var(--color-surface));
+}
+.create-page__form :is(input[type="text"], textarea):focus-visible { outline: 2px solid var(--rg-p-text, var(--color-fg)); outline-offset: -2px; }
+/* Forced colours: the box drops its cut, so its system-colour border and focus ring show whole. */
+@media (forced-colors: active) {
+  .create-page__form :is(input[type="text"], textarea) { clip-path: none; background-image: none; }
+  .create-page__form :is(input[type="text"], textarea):focus-visible { outline-color: Highlight; outline-offset: 2px; }
+}
+/* Revstake with no accounts connected: a typed warning before launching. */
+.no-connections { display: grid; justify-items: start; gap: var(--space-2); }
+.no-connections > p { margin: 0; }
+.no-connections__dialog { width: min(34rem, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); color: var(--color-fg); }
+.no-connections__dialog::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+.no-connections__dialog form { display: grid; gap: var(--space-2); }
+.no-connections__dialog h2 { margin: 0; font-size: 1.25rem; }
+.no-connections__warning { margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); }
+.no-connections__dialog textarea { min-height: 7rem; resize: vertical; }
+.no-connections__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2); }
+/* A treasury the agent chose, ticked by the creator before the launch card opens. */
+.agent-treasury { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-2); border-left: 2px solid var(--color-warning, var(--hairline-strong)); }
+.agent-treasury > p { margin: 0; }
+.agent-treasury__address { font-family: var(--font-family-ui); overflow-wrap: anywhere; }
+.agent-treasury__confirm { display: flex; align-items: baseline; gap: var(--space-1); }
+.autolaunch-custody-eoa textarea.autolaunch-custody-ack--matched { border-color: var(--color-success); color: var(--color-success); }
+.autolaunch-custody-ack-matched { display: flex; align-items: center; gap: var(--space-1); color: var(--color-success); }
+/* Connected accounts: one row each, mark · account · buttons, all alike. */
+.connections { display: grid; gap: var(--space-2); }
+[data-x-connection-status] { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.connections__list { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
+.connection { display: grid; grid-template-columns: 2.5rem minmax(0,1fr) auto; align-items: center; column-gap: var(--space-3); padding-block: var(--space-3); border-bottom: 1px solid var(--hairline); min-width: 0; }
+.connection__mark { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; overflow: hidden; background: color-mix(in srgb, var(--color-fg) 6%, transparent); font-size: 1.125rem; }
+.connection__mark img { width: 100%; height: 100%; object-fit: cover; }
+.connection__text { display: grid; min-width: 0; line-height: 1.35; }
+.connection__text strong { font-size: var(--type-body-size); }
+.connection__text :is(a, span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection__text a { color: inherit; text-decoration: none; }
+.connection__text small { color: var(--color-fg-muted); font-size: var(--type-caption-size); }
+.connection__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-1); }
+.connection__form { grid-column: 1/-1; display: grid; gap: var(--space-1); margin-top: var(--space-3); }
+.connection__form[hidden] { display: none; }
+.connection__form small { color: var(--color-fg-muted); font-size: var(--type-caption-size); line-height: var(--type-label-line); }
+.connection__form-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: var(--space-2); align-items: center; }
+@media (max-width: 30rem) { .connection { grid-template-columns: 2.5rem minmax(0,1fr); row-gap: var(--space-2); } .connection__actions { grid-column: 2; justify-content: start; } .connection__form-row { grid-template-columns: minmax(0,1fr); } }
+[data-x-connection-status]:empty { display: none; }
+.subject-wallet-field { min-width: 0; }
+.subject-wallet-waiting { display: grid; justify-items: start; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
+.launch-wallet { padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
+
+
+/* What the person's agent filled in, above the wallet steps. */
+.agent-set { display: grid; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--color-warning, var(--orange-ink)); border-radius: var(--radius); background: color-mix(in srgb, var(--orange-ink) 6%, var(--color-surface)); }
+.agent-set h3 { margin: 0; font-size: 1rem; }
+.agent-set p { margin: 0; color: var(--color-fg-muted); font-size: .875rem; }
+.agent-set dl { display: grid; gap: 4px; margin: 0; }
+.agent-set dl > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: var(--space-2); font-size: .875rem; }
+.agent-set dt { color: var(--color-fg-muted); }
+.agent-set dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 30rem) { .agent-set dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+/* In the launch review: which of the values below the person's agent set. */
+.launch-wallet-agent-set dd { color: var(--orange-ink); }
+
+/* Memestock or Revstake: two words beside the title, the open one filled. */
+.launch-kind { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); background: var(--color-surface); }
+.launch-kind a { display: inline-grid; place-items: center; min-height: 2.75rem; padding: 0 var(--space-4); color: var(--color-fg-muted); text-decoration: none; transition: color var(--duration-fast) ease; }
+.launch-kind a:hover { color: var(--color-fg); }
+.launch-kind a:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.launch-kind a[aria-current="page"] { background: var(--color-fg); color: var(--color-bg); }
+
+}

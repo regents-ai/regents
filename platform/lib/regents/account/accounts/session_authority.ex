@@ -338,6 +338,38 @@ defmodule Regents.Account.Accounts.SessionAuthority do
   @spec topic(String.t()) :: String.t()
   def topic(lineage) when is_binary(lineage), do: lineage |> digest() |> digest_topic()
 
+  @doc "Runs `callback` inside a transaction while `claim` is still the exact live authority."
+  def transact_exact(%{lineage: lineage} = claim, callback) when is_binary(lineage),
+    do: guarded(lineage, &(state(&1, claim) == :exact), callback)
+
+  def transact_exact(_claim, _callback), do: {:error, :stale_authority}
+
+  @doc "Runs `callback` inside a transaction while `lineage` is still leased to `account_id`."
+  def transact_lease(lineage, account_id, callback)
+      when is_binary(lineage) and is_integer(account_id),
+      do: guarded(lineage, &current?(&1, account_id), callback)
+
+  def transact_lease(_lineage, _account_id, _callback), do: {:error, :stale_authority}
+
+  defp guarded(lineage, ok?, callback) do
+    Repo.transaction(fn ->
+      with %{} = row <- lineage |> digest() |> lock(),
+           true <- ok?.(row),
+           %{} = account <- verified(row.human_account_id) do
+        run_guarded_callback(callback, account)
+      else
+        _lapsed -> Repo.rollback(:stale_authority)
+      end
+    end)
+  end
+
+  defp run_guarded_callback(callback, account) do
+    case callback.(account) do
+      {:ok, value} -> value
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
   defp digest_topic(digest), do: @topic_prefix <> Base.url_encode64(digest, padding: false)
 
   # A sign-in bound to the account, neither revoked nor lapsed.

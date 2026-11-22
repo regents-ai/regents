@@ -2,30 +2,194 @@ defmodule Regents.Autolaunch.Stocks.Stock do
   @moduledoc """
   A stock token a launchpad has admitted as a launch currency, one row per
   chain and token address. This table is the site's one list of stocks: the
-  picker, search, prices and every action's stock facts read it.
+  picker, search, prices and every action's stock facts read it
+  (`Regents.Autolaunch.Stocks.Assets`).
 
-  Each row holds what the chain said of the stock at the last sync: whether it
-  is admitted, its decimals and route, the route's price feed, and the token's
-  own name and ticker. A row is not proof of admission at the moment of an
+  Every five minutes, and once when a server starts, `:sync_admissions` asks
+  each stock launchpad about every saved stock and about every stock its
+  `StockAdmitted` logs name since the last run, and writes what the chain says
+  of each at the latest block (`Regents.Autolaunch.Stocks.Stock.SyncAdmissions`):
+  whether it is admitted, its decimals and route, the route's price feed, and
+  the token's own name and ticker. A stock a launchpad admits therefore shows
+  here without a release. A row is not proof of admission at the moment of an
   action: the launchpad's `stockAdmission` is read again before every launch
-  and bid. A revoked stock keeps its row, so auctions already trading in it
-  stay findable by its name.
+  and bid.
 
-  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
-  the names a stock goes by, for search, and the home page's dollar figures
-  each Base stock's feed (`:launch_currencies`); nothing here writes them yet.
+  A stock's search words start from a set kept here and are ours to change
+  after that with `:set_search_words`. A revoked stock keeps its row, so
+  auctions already trading in it stay findable by its name.
+
+  Every half hour, each admitted stock on a chain GeckoTerminal reports on whose
+  volume has not been counted through yesterday is read again
+  (`Regents.Autolaunch.Stocks.Stock.ReadWeeklyVolume`), one stock at a time.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
+    extensions: [AshOban],
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  # Other names people search for, by plain ticker.
+  @starting_words %{
+    "AAPL" => ["Apple Inc", "iPhone"],
+    "AMD" => ["Advanced Micro Devices"],
+    "AMZN" => ["Amazon.com", "AWS"],
+    "BABA" => ["Alibaba"],
+    "COIN" => ["Coinbase"],
+    "CRCL" => ["Circle", "USDC"],
+    "DELL" => ["Dell Technologies"],
+    "GME" => ["GameStop"],
+    "GOOGL" => ["Alphabet", "Google"],
+    "INTC" => ["Intel"],
+    "META" => ["Meta Platforms", "Facebook", "Instagram"],
+    "MSFT" => ["Microsoft"],
+    "MSTR" => ["Strategy", "MicroStrategy"],
+    "MU" => ["Micron Technology"],
+    "NVDA" => ["NVIDIA"],
+    "PLTR" => ["Palantir"],
+    "QQQ" => ["Nasdaq 100", "Invesco QQQ"],
+    "SGOV" => ["Treasury bills", "T-bills"],
+    "SLV" => ["Silver", "iShares Silver Trust"],
+    "SNDK" => ["Sandisk"],
+    "SPCX" => ["SpaceX"],
+    "SPY" => ["S&P 500", "SPDR"],
+    "TSLA" => ["Tesla"],
+    "TSM" => ["TSMC", "Taiwan Semiconductor"],
+    "USAR" => ["USA Rare Earth"],
+    "USO" => ["Oil", "United States Oil Fund"]
+  }
+
+  oban do
+    scheduled_actions do
+      schedule :sync_admissions, "*/5 * * * *" do
+        action :sync_admissions
+        queue(:autolaunch_stock_admissions)
+        # A failed chain read is tried again in seconds, not at the next run.
+        max_attempts(3)
+        # One run at a time across every server, whether the schedule or a
+        # starting server asked for it: a second is not queued while one
+        # waits, runs or waits to be tried again.
+        worker_opts(unique: [fields: [:worker], period: :infinity, states: :incomplete])
+        worker_module_name(Regents.Autolaunch.Stocks.Stock.Workers.SyncAdmissions)
+      end
+    end
+
+    triggers do
+      trigger :read_weekly_volume do
+        action :read_weekly_volume
+        read_action :read
+        worker_read_action(:read)
+        queue(:autolaunch_stock_volume)
+        # The scheduler only picks the stocks to read; on the default queue it
+        # never waits behind a read that takes minutes.
+        scheduler_queue(:autolaunch_default)
+        scheduler_cron("*/30 * * * *")
+        max_attempts(1)
+        # Twice the longest read seen (7.7 minutes), and under the twenty
+        # minutes after which a running job counts as orphaned (config.exs).
+        timeout :timer.minutes(15)
+
+        where expr(
+                admitted == true and
+                  chain_id in ^Regents.Autolaunch.Stocks.GeckoTerminal.chain_ids() and
+                  (is_nil(weekly_volume_through) or
+                     weekly_volume_through < fragment("(now() AT TIME ZONE 'UTC')::date - 1"))
+              )
+
+        worker_module_name(Regents.Autolaunch.Stocks.Stock.Workers.ReadWeeklyVolume)
+        scheduler_module_name(Regents.Autolaunch.Stocks.Stock.Schedulers.ReadWeeklyVolume)
+      end
+    end
+  end
 
   postgres do
     table "stocks"
     schema("autolaunch_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    read :read do
+      primary? true
+      pagination keyset?: true, required?: false
+    end
+
+    # Every saved row of one chain, for the sync to ask the chain about again.
+    read :on_chain do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id))
+    end
+
+    # The stocks one chain's launchpad admits or once admitted, with every
+    # name each goes by: what `Regents.Autolaunch.Stocks.Assets` answers from.
+    read :launch_currencies do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and not is_nil(route))
+      prepare build(load: [:search_text], sort: [symbol: :asc])
+    end
+
+    # What the chain said of one stock at the latest block. Written again on
+    # every sync; the search words and offered time set when the row was first
+    # written are left alone.
+    create :record_admission do
+      accept [:chain_id, :address, :symbol, :name, :decimals, :route, :feed, :admitted]
+      upsert? true
+      upsert_identity :chain_address
+      upsert_fields [:symbol, :name, :decimals, :route, :feed, :admitted]
+      change set_attribute(:offered_at, &DateTime.utc_now/0)
+
+      change fn changeset, _context ->
+        ticker =
+          changeset
+          |> Ash.Changeset.get_attribute(:symbol)
+          |> Regents.Autolaunch.Stocks.Assets.ticker()
+
+        Ash.Changeset.force_change_attribute(changeset, :search_words, starting_words(ticker))
+      end
+    end
+
+    update :set_search_words do
+      accept [:search_words]
+    end
+
+    # A saved stock the chain's launchpad has never admitted.
+    update :withdraw_admission do
+      change set_attribute(:admitted, false)
+    end
+
+    action :sync_admissions do
+      run fn _input, _context -> Regents.Autolaunch.Stocks.Stock.SyncAdmissions.run() end
+    end
+
+    # Reads GeckoTerminal, then writes the answer, so no database transaction
+    # is held open around the reads.
+    update :read_weekly_volume do
+      require_atomic? false
+      transaction? false
+      change Regents.Autolaunch.Stocks.Stock.ReadWeeklyVolume
+    end
+  end
+
+  policies do
+    bypass AshOban.Checks.AshObanInteraction do
+      authorize_if always()
+    end
+
+    policy action_type(:read) do
+      authorize_if always()
+    end
+
+    policy action([
+             :record_admission,
+             :withdraw_admission,
+             :set_search_words,
+             :read_weekly_volume,
+             :sync_admissions
+           ]) do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -87,26 +251,5 @@ defmodule Regents.Autolaunch.Stocks.Stock do
     identity :chain_address, [:chain_id, :address]
   end
 
-  actions do
-    read :read do
-      primary? true
-      pagination keyset?: true, required?: false
-    end
-
-    # The stocks one chain's launchpad admits or once admitted, with every
-    # name each goes by: what `Regents.Autolaunch.Stocks.Assets` answers from.
-    read :launch_currencies do
-      argument :chain_id, :integer, allow_nil?: false
-      filter expr(chain_id == ^arg(:chain_id) and not is_nil(route))
-      prepare build(load: [:search_text], sort: [symbol: :asc])
-    end
-  end
-
-  # Only the two reads are carried; any other action is refused until it
-  # comes with its own policy.
-  policies do
-    policy action_type(:read) do
-      authorize_if always()
-    end
-  end
+  defp starting_words(ticker), do: Map.get(@starting_words, ticker, [])
 end

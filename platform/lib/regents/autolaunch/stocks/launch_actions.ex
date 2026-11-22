@@ -1,18 +1,46 @@
 defmodule Regents.Autolaunch.Stocks.LaunchActions do
   @moduledoc """
-  A Memestock launch's fixed schedule and how its creator's tokens are
-  released, which the pages state in words. Only these are here: preparing a
-  creator's launch for their wallet comes with the page that launches.
+  The one boundary between a creator's wallet and the Stocks launchpad.
+
+  Preparation reads the chain once and saves the review
+  (`Regents.Autolaunch.Stocks.LaunchOperation`): the one `launch(LaunchParams)` step for
+  the wallet that may act, and the facts the page shows. The page sends that
+  step as it stands; nothing about a press is stored, and
+  `Regents.Autolaunch.LaunchReviews` lists the launch from the chain. The row write runs
+  inside `SessionAuthority.transact_lease/3` against the account that callback
+  locked.
+
+  Every launch opens at the lowest price the auction accepts, and its minimum
+  raise is the whole sale at that price, as the launchpad derives it. The
+  creator chooses neither. Bidding opens a fixed number of blocks after the
+  block the launch is created in, so the schedule is the launchpad's own and
+  the receipt is the only source of the start and end blocks.
   """
 
-  alias Regents.Autolaunch.LaunchChain
-  alias Regents.Autolaunch.Stocks.Lab
+  import Regents.Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
 
-  # The presets' schedules, from StocksPreset.sol in contracts/stocks-v2
+  alias RegentChain.{Address, Review}
+  alias Regents.Autolaunch.Chain.{Client, Rpc}
+  alias Regents.Autolaunch.{LabAbi, LaunchChain, LaunchLinks}
+  alias Regents.Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+
+  alias Regents.Autolaunch.Stocks.{
+    Amounts,
+    Assets,
+    FeeSchedule,
+    Lab,
+    LabLaunchChainClient,
+    LaunchDraft,
+    LaunchOperations
+  }
+
+  # Preset terms the review states back, from StocksPreset.sol in contracts/stocks-v2
   # and contracts/stocks-v3 on Base and contracts/robinhood-v2/src/RobinhoodPreset.sol
   # on Robinhood Chain, where blocks are the rollup clock's. Only the schedule
   # differs: Base's third launchpad restates the second's for five blocks a
   # second and vests the creator by the clock.
+  @new_decimals 18
+  @auction_inventory 497_500_000 * Integer.pow(10, 18)
   @schedules %{
     {:base, :v2} => %{
       opens: 300,
@@ -36,6 +64,59 @@ defmodule Regents.Autolaunch.Stocks.LaunchActions do
       vesting: {:blocks, 25_920_000}
     }
   }
+  @tick_divisor 100
+  # The auction's lowest floor, 2^32 + 1, rounded up to the next multiple of
+  # the tick divisor so the bid tick spacing divides it exactly.
+  @floor_price_q96 4_294_967_300
+  @q96 Integer.pow(2, 96)
+  @total_supply 1_000_000_000
+
+  @metadata [name: 64, symbol: 16, description: 512, image: 256]
+
+  @doc "The fixed terms every Memestock launch on `chain` uses, for the review page, in the ticker of the token it creates."
+  def terms(chain, ticker) do
+    schedule = schedule(chain)
+
+    [
+      {"Launch fee", "None"},
+      {"Token decimals", Integer.to_string(@new_decimals)},
+      {"Initial supply", "1,000,000,000 #{ticker}"},
+      {"Sold at auction", "497,500,000 #{ticker} (49.75%)"},
+      {"Pool reserve", "497,500,000 #{ticker} (49.75%)"},
+      {"Starting price", "The lowest the auction accepts"},
+      {"Minimum raise", "The whole sale at the fixed floor, rounded up"},
+      {"Bidding opens", "#{schedule_copy(chain, schedule.opens)} after the launch is created"},
+      {"Auction length", schedule_copy(chain, schedule.length)},
+      {"Claims open", "#{schedule_copy(chain, schedule.claim)} after the auction ends"},
+      {"Pool opens", "#{schedule_copy(chain, schedule.pool)} after the auction ends"},
+      {"Creator allocation", "5,000,000 #{ticker} (0.5%)"},
+      {"Vesting",
+       "Released #{vesting_copy(chain, schedule.vesting)} from the pool opening; anyone can release it and it always goes to the creator"},
+      {"Treasury", "None"},
+      {"Pool pair", "#{ticker} and the stock it was launched against"}
+    ] ++
+      FeeSchedule.terms(chain) ++
+      [
+        {"Unsold tokens",
+         "Rounding leftovers retired to the dead address; total supply stays unchanged"},
+        {"Pool liquidity",
+         "Opens at the auction's final price as liquidity at every price; any stock left over from rounding is added to the REGENT stakers' fee. Remaining reserve is locked as liquidity in #{ticker} alone, for prices above the opening token price. The fees the liquidity collects go to the token's staking"},
+        {"If the minimum raise is not reached",
+         "Every bidder takes back their full bid and every token, including the creator allocation, is retired to the dead address"}
+      ]
+  end
+
+  @doc "How long one of `chain`'s schedule parts takes, as blocks with an estimated duration."
+  def schedule_copy(chain, blocks),
+    do:
+      "#{Amounts.grouped(Integer.to_string(blocks))} blocks, #{LaunchChain.time_estimate(chain, blocks)}"
+
+  # The creator's release as the terms state it: in blocks, with the blocks and
+  # an estimated duration, or by the clock.
+  defp vesting_copy(chain, {:blocks, blocks}),
+    do: "block by block over #{schedule_copy(chain, blocks)}"
+
+  defp vesting_copy(chain, vesting), do: release_words(chain, vesting)
 
   @doc """
   A Memestock launch's fixed schedule on `chain` for launchpad `version`, in
@@ -56,10 +137,12 @@ defmodule Regents.Autolaunch.Stocks.LaunchActions do
   def schedule(:robinhood), do: schedule(:robinhood, :v2)
 
   @doc """
-  How the creator's tokens of a new launch on `chain` are released, in words:
-  "block by block over about 3 days", or "steadily over 30 days" where the
-  launchpad vests by the clock. Pages say it from graduation.
+  How the creator's tokens of a launch on `chain` and launchpad `version` are
+  released, in words: "block by block over about 3 days", or "steadily over
+  30 days" where the launchpad vests by the clock. Pages say it from
+  graduation. `release/1` is a new launch's.
   """
+  def release(chain, version), do: release_words(chain, schedule(chain, version).vesting)
   def release(chain), do: release_words(chain, schedule(chain).vesting)
 
   defp release_words(chain, {:blocks, blocks}),
@@ -67,4 +150,291 @@ defmodule Regents.Autolaunch.Stocks.LaunchActions do
 
   defp release_words(_chain, {:seconds, seconds}),
     do: "steadily over #{div(seconds, 86_400)} days"
+
+  @doc "How long a creator's tokens vest by the clock on launchpad `version`, in seconds."
+  def vesting_seconds(chain, version) do
+    {:seconds, seconds} = schedule(chain, version).vesting
+    seconds
+  end
+
+  @doc """
+  What a launch opens at, in a stock of `stock_decimals`: the price of one
+  token at the auction's floor, exactly, and the whole supply at that price.
+  Until a bid clears higher, these are the auction's clearing price and FDV.
+  """
+  @spec opening(non_neg_integer()) :: %{price: String.t(), fdv: Decimal.t()}
+  def opening(stock_decimals) do
+    price = Amounts.format_cca_price(@floor_price_q96, stock_decimals, @new_decimals)
+
+    %{
+      price: price,
+      fdv: price |> Decimal.new(max_digits: :infinity) |> Decimal.mult(@total_supply)
+    }
+  end
+
+  @doc """
+  The stock a launch must raise to graduate: the whole sale at the floor,
+  rounded up, as `StocksPreset.REQUIRED_STOCK_RAISED` derives it.
+  """
+  def required_stock_raised,
+    do: div(@auction_inventory * @floor_price_q96 + @q96 - 1, @q96)
+
+  @doc """
+  The minimum the site shows: the required raise plus one base unit, because
+  the auction may count a bid placed after its first block one unit short.
+  """
+  def minimum_raise, do: required_stock_raised() + 1
+
+  @doc """
+  Reviews one saved draft for `address`, one of the account's own wallets: one
+  snapshot, one saved review. The result carries the review's chain, its one
+  step and the facts the page shows.
+  """
+  @spec prepare(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def prepare(draft_id, address, opts) do
+    with {:ok, %{actor: actor, signer: signer, lease: lease}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
+         {:ok, draft} <- owned_draft(draft_id, actor),
+         {:ok, review} <- review(draft, signer),
+         {:ok, operation} <- open(lease, draft, signer, review) do
+      {:ok, reviewed(operation)}
+    end
+  end
+
+  @doc """
+  The review `prepare/3` saves for a saved draft on Base, once `signer` is
+  proved to be one of the draft owner's own wallets: one snapshot of the
+  launchpad, and the chain, signer, one step and facts, exactly as the saved
+  review holds them. `draft` is read with its image. A paired agent's launch
+  of its person's draft is reviewed here too (`Regents.Autolaunch.AgentLaunch`).
+  """
+  @spec review(Ash.Resource.record(), String.t()) :: {:ok, map()} | {:error, term()}
+  def review(%{chain: :base} = draft, signer) do
+    with {:ok, fields} <- launchable(draft),
+         {:ok, config} <- stocks_lab(),
+         {:ok, snapshot} <- snapshot(fields),
+         {:ok, executable} <- executable(snapshot),
+         do: {:ok, saved_review(draft, fields, executable, signer, snapshot, config)}
+  end
+
+  @doc """
+  Whether the review on the page still stands on Base as it is now: launches
+  open, and the STOCK admitted on the launchpad it was built against with the
+  same decimals and route. `:changed` means the page builds it again;
+  `:unread` means Base could not be read, and the review stays as it is.
+  """
+  @spec current(map()) :: :current | :changed | :unread
+  def current(%{facts: facts}) do
+    case snapshot(%{stock: facts["stock"]}) do
+      {:ok, snapshot} -> if standing?(snapshot, facts), do: :current, else: :changed
+      {:error, _unread} -> :unread
+    end
+  end
+
+  @doc """
+  Whether a launchpad snapshot still stands behind a review's facts: launches
+  open, and the STOCK admitted on the same launchpad with the same decimals
+  and route.
+  """
+  def standing?(%{paused: paused, admission: admission} = snapshot, facts),
+    do:
+      not paused and admission.admitted and snapshot.launchpad == facts["launchpad"] and
+        Integer.to_string(admission.decimals) == facts["stock_decimals"] and
+        admission.route == facts["route"]
+
+  @doc "Whether the Base launchpad has new launches paused, as Base reads now."
+  @spec launches_paused() :: {:ok, boolean()} | {:error, atom()}
+  def launches_paused, do: LabLaunchChainClient.launches_paused()
+
+  @doc """
+  A saved review as the page uses it: its id, signer, chain, step and facts. The
+  step is the saved one exactly, so the wallet is asked for what was reviewed.
+  """
+  def reviewed(%{action_id: action_id, review: review}) do
+    %{"chain" => chain, "signer" => signer, "step" => step, "facts" => facts} = review
+
+    %{
+      action_id: action_id,
+      signer: signer,
+      chain: %{chain_id: chain["chain_id"], name: chain["name"], rpc_url: chain["rpc_url"]},
+      steps: [
+        %{
+          kind: step["kind"],
+          step: step["step"],
+          to: step["to"],
+          data: step["data"],
+          value: step["value"]
+        }
+      ],
+      facts: facts
+    }
+  end
+
+  # Executable values
+
+  @doc """
+  Everything the chain will execute, from the preset and the admitted STOCK's
+  decimals, on either chain's launchpad. Exposed so the review page can state
+  exactly the same numbers.
+  """
+  def executable(snapshot) do
+    with :ok <- admitted(snapshot) do
+      {:ok,
+       %{
+         floor_price_q96: @floor_price_q96,
+         tick_spacing_q96: div(@floor_price_q96, @tick_divisor),
+         required_stock_raised: required_stock_raised(),
+         stock_decimals: snapshot.admission.decimals
+       }}
+    end
+  end
+
+  defp admitted(%{paused: true}), do: unavailable(:launches_paused)
+  defp admitted(%{admission: %{admitted: false}}), do: unavailable(:stock_not_admitted)
+  defp admitted(_snapshot), do: :ok
+
+  # Reviews
+
+  # The saved review: fixed once written, and read back exactly as stored.
+  defp saved_review(draft, fields, executable, signer, snapshot, config) do
+    %{
+      "chain" => Client.chain(config),
+      "signer" => signer,
+      "step" => Review.step("launch", snapshot.launchpad, launch_data(fields, config)),
+      "facts" => %{
+        "draft_id" => draft.id,
+        "name" => fields.name,
+        "symbol" => fields.symbol,
+        "description" => fields.description,
+        "website" => fields.website,
+        "telegram" => fields.telegram,
+        "discord" => fields.discord,
+        "links" => fields.links,
+        "image" => fields.image,
+        "stock" => fields.stock,
+        "stock_symbol" => fields.stock_symbol,
+        "agent_set_fields" => Enum.map(draft.agent_set_fields, &Atom.to_string/1),
+        "stock_decimals" => Integer.to_string(executable.stock_decimals),
+        "start_lead_blocks" => Integer.to_string(schedule(:base, config.version).opens),
+        "auction_duration_blocks" => Integer.to_string(schedule(:base, config.version).length),
+        "required_stock_raised" => Integer.to_string(executable.required_stock_raised),
+        "minimum_raise_units" => Rpc.format_units(minimum_raise(), executable.stock_decimals),
+        "floor_price_q96" => Integer.to_string(executable.floor_price_q96),
+        "floor_price_executable" =>
+          Amounts.format_cca_price(
+            executable.floor_price_q96,
+            executable.stock_decimals,
+            @new_decimals
+          ),
+        "tick_spacing_q96" => Integer.to_string(executable.tick_spacing_q96),
+        "launchpad" => snapshot.launchpad,
+        "hook" => snapshot.hook,
+        "route" => snapshot.admission.route,
+        "block_number" => snapshot.block.number,
+        "block_hash" => snapshot.block.hash,
+        "terms" => Enum.map(terms(:base, fields.symbol), fn {label, value} -> [label, value] end),
+        "risk" => risk_copy()
+      }
+    }
+    |> Jason.encode!()
+    |> Jason.decode!()
+  end
+
+  @doc "The exact `launch(LaunchParams)` calldata for reviewed fields and executable values."
+  def launch_data(fields, config) do
+    LabAbi.encode(Lab.abi!(config, :launchpad), StocksLabAbi.launch_signature(), [
+      [
+        fields.name,
+        fields.symbol,
+        fields.description,
+        fields.website,
+        fields.image,
+        fields.stock
+      ]
+    ])
+  end
+
+  defp risk_copy do
+    if Regents.Autolaunch.Lab.test_chain?(),
+      do:
+        "Your wallet creates this launch on a Base fork with test assets and no mainnet value. There is no launch fee.",
+      else:
+        "Your wallet creates this launch on Base. There is no launch fee. A launch cannot be undone."
+  end
+
+  # Stored drafts
+
+  defp owned_draft(draft_id, actor) do
+    case Regents.Autolaunch.get_my_stocks_launch_draft_by_id(draft_id, actor: actor) do
+      {:ok, %{chain: :base} = draft} -> {:ok, draft}
+      {:ok, _missing_or_other_chain} -> unavailable(:launch_draft_not_found)
+      {:error, _reason} -> unavailable(:launch_draft_unavailable)
+    end
+  end
+
+  @doc "Everything the launchpad requires of a saved draft, refused here rather than in a wallet."
+  def launchable(draft) do
+    with true <-
+           LaunchDraft.token_details_complete?(draft) || unavailable(:launch_metadata_incomplete),
+         true <-
+           Enum.all?(@metadata, fn {field, limit} ->
+             byte_size(Map.fetch!(draft, field)) <= limit
+           end) || unavailable(:launch_metadata_incomplete),
+         {:ok, asset} <-
+           Assets.fetch(draft.stock_chain_id, draft.stock_address || "") |> refusable(),
+         {:ok, stock} <- address(asset.address, :stock_invalid) do
+      {:ok,
+       %{
+         name: draft.name,
+         symbol: draft.symbol,
+         description: draft.description,
+         website: LaunchDraft.onchain_website(draft),
+         telegram: draft.telegram,
+         discord: draft.discord,
+         links: LaunchLinks.others(draft),
+         image: draft.image,
+         stock: stock,
+         stock_symbol: asset.symbol
+       }}
+    end
+  end
+
+  defp address(value, reason) do
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> unavailable(reason)
+    end
+  end
+
+  # Chain snapshot
+
+  defp stocks_lab do
+    case Lab.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:stocks_unavailable)
+    end
+  end
+
+  defp snapshot(%{stock: stock}), do: chain(LabLaunchChainClient.snapshot(%{stock: stock}))
+
+  # Saved reviews
+
+  defp open(lease, draft, signer, review) do
+    LaunchOperations.transact(lease, fn account ->
+      with :ok <- LaunchOperations.signer_matches(account, signer) do
+        LaunchOperations.create(account, %{
+          action_id: action_id(),
+          launch_draft_id: draft.id,
+          review: review,
+          signer: signer,
+          step: :launch
+        })
+      end
+    end)
+  end
+
+  defp action_id, do: 32 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
+
+  defp refusable({:error, reason}), do: unavailable(reason)
+  defp refusable(result), do: result
 end

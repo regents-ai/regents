@@ -1,46 +1,95 @@
 defmodule RegentsWeb.Autolaunch.MarketPageLive do
   @moduledoc """
-  A launched Base token's page at `/autolaunch/tokens/<TICKER>/<tail>` (see
-  `RegentsWeb.Autolaunch.Paths`), which `RegentsWeb.Autolaunch.TokenLive`
-  shows and is handed every callback.
+  An auction's page at `/auctions/<TICKER>/<tail>` or its token's at
+  `/tokens/<TICKER>/<tail>` (see `RegentsWeb.Autolaunch.Paths`), on either chain.
 
-  The first render, the one link previews read, finds the token the address
-  names (`Regents.Autolaunch.TokenPage.find/3`) and gives the page its title
-  and description; the share picture is the site's own, as on Autolaunch's
-  other pages. An address that names nothing, a Robinhood market, or an
-  auction whose token has not launched is the site's not-found page, and a
-  read that fails is the site's error page. The open page reads the token
-  again itself, under the address's allowance, and names the tab where that
-  answer lands (`handle_async/3`), which a page opened from a Tokens row or a
-  Buy, having no first render, needs.
-
-  Still to come: an auction's page, and Robinhood's own pages.
+  Base and Robinhood keep their own pages. This finds the one listed auction
+  the address names, picks its chain's page, hands that page the record it
+  reads by, and passes every later callback straight to it. It also gives the
+  first render, the one link previews read, the page's share details
+  (`RegentsWeb.Autolaunch.ShareCard`). An address that names nothing, or an auction
+  whose token has not launched, is the site's 404.
   """
   use RegentsWeb, :live_view
 
-  alias RegentsWeb.Autolaunch.{PublicDocuments, TokenLive}
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
 
-  def mount(%{"symbol" => symbol, "tail" => tail} = params, session, socket) do
-    socket = if connected?(socket), do: socket, else: assign(socket, document(symbol, tail))
-    TokenLive.mount(params, session, socket)
+  alias RegentsWeb.Autolaunch.ShareCard
+  alias RegentsWeb.NotFoundError
+
+  alias RegentsWeb.Autolaunch.{
+    AuctionLive,
+    Paths,
+    PublicDocuments,
+    RobinhoodAuctionLive,
+    RobinhoodTokenLive,
+    TokenLive
+  }
+
+  # Each chain's page names its tab from its entry in `PublicDocuments`.
+  @pages %{
+    AuctionLive => :auction,
+    RobinhoodAuctionLive => :robinhood_auction,
+    TokenLive => :token,
+    RobinhoodTokenLive => :robinhood_token
+  }
+
+  def mount(%{"symbol" => symbol, "tail" => tail}, session, socket) do
+    {page, page_params, share, auction} = page!(socket.assigns.live_action, symbol, tail)
+
+    socket
+    |> assign(market_page: page, market_page_params: page_params)
+    |> assign(:share, if(connected?(socket), do: nil, else: share))
+    |> assign(PublicDocuments.market_page(@pages[page], auction.title, auction.token_symbol))
+    |> then(&page.mount(page_params, session, &1))
   end
 
-  def handle_event(event, params, socket), do: TokenLive.handle_event(event, params, socket)
+  def handle_params(params, uri, socket) do
+    %{market_page: page, market_page_params: page_params} = socket.assigns
+    page.handle_params(Map.merge(params, page_params), uri, socket)
+  end
 
-  def handle_async(name, answer, socket), do: TokenLive.handle_async(name, answer, socket)
+  def handle_event(event, params, socket),
+    do: socket.assigns.market_page.handle_event(event, params, socket)
 
-  def render(assigns), do: TokenLive.render(assigns)
+  def handle_info(message, socket), do: socket.assigns.market_page.handle_info(message, socket)
 
-  defp document(symbol, tail) do
-    case Regents.Autolaunch.TokenPage.find(symbol, tail) do
-      {:ok, auction, _token} ->
-        PublicDocuments.market_page(:token, auction.title, auction.token_symbol)
+  def render(assigns), do: assigns.market_page.render(assigns)
 
-      :error ->
-        raise RegentsWeb.NotFoundError
-
-      {:error, error} ->
-        raise error
+  # Each chain's page, the parameter it reads its record by, the page's share
+  # details and the auction it names.
+  defp page!(:auction, symbol, tail) do
+    case Paths.find_auction(symbol, tail) do
+      {:ok, auction} -> auction_page(auction)
+      :error -> raise NotFoundError
     end
+  end
+
+  defp page!(:token, symbol, tail) do
+    case Paths.find_token(symbol, tail) do
+      {:ok, auction, token} -> token_page(auction, token)
+      :error -> raise NotFoundError
+    end
+  end
+
+  defp auction_page(auction) do
+    if RobinhoodLab.chain?(auction.chain_id),
+      do:
+        {RobinhoodAuctionLive,
+         %{"auction_id" => auction.id, "auction" => auction.auction_address},
+         ShareCard.meta(auction), auction},
+      else:
+        {AuctionLive, %{"auction_id" => auction.id, "kind" => auction.kind},
+         ShareCard.meta(auction), auction}
+  end
+
+  defp token_page(auction, token) do
+    if RobinhoodLab.chain?(auction.chain_id),
+      do:
+        {RobinhoodTokenLive, %{"token" => auction.token_address, "auction_id" => auction.id},
+         ShareCard.token_meta(auction, token), auction},
+      else:
+        {TokenLive, %{"token_id" => token.id, "auction_id" => auction.id},
+         ShareCard.token_meta(auction, token), auction}
   end
 end

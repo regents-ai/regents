@@ -1,11 +1,5 @@
 defmodule Regents.Autolaunch.LaunchJob do
-  @moduledoc """
-  One agent launch job: the agent, the token it launched and the contracts its
-  launch made.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
-  """
+  alias Regents.Autolaunch.LaunchIdentity
 
   use Ash.Resource,
     otp_app: :regents,
@@ -13,14 +7,57 @@ defmodule Regents.Autolaunch.LaunchJob do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  # A job id occupies one public URL segment, the identifier format the public
-  # route catalog accepts.
-  @job_id_shape ~r/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/
-
   postgres do
     table "launch_jobs"
     schema("autolaunch_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    read :read do
+      primary? true
+    end
+
+    create :project_lab do
+      accept [
+        :job_id,
+        :agent_id,
+        :agent_name,
+        :token_name,
+        :token_symbol,
+        :chain_id,
+        :auction_id,
+        :agent_safe_address,
+        :auction_address,
+        :token_address,
+        :hook_address,
+        :revenue_share_splitter_address,
+        :treasury_address
+      ]
+
+      upsert? true
+      upsert_identity :unique_job_id
+
+      upsert_fields [
+        :auction_id,
+        :agent_safe_address,
+        :auction_address,
+        :token_address,
+        :hook_address,
+        :revenue_share_splitter_address,
+        :treasury_address
+      ]
+    end
+  end
+
+  policies do
+    policy action(:read) do
+      authorize_if always()
+    end
+
+    policy action(:project_lab) do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -29,7 +66,7 @@ defmodule Regents.Autolaunch.LaunchJob do
     attribute :job_id, :string do
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 128, trim?: false, match: @job_id_shape
+      constraints LaunchIdentity.constraints()
     end
 
     # Never advanced past what launch discovery first wrote, and read by
@@ -128,13 +165,5 @@ defmodule Regents.Autolaunch.LaunchJob do
 
   identities do
     identity :unique_job_id, [:job_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

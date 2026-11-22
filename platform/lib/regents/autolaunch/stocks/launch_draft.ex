@@ -4,11 +4,9 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraft do
   draft. The creator moves it between Base and Robinhood; the token details go
   with it, and the paired stock is chosen again from the new chain's list.
 
-  Every section autosaves partial text. The creator chooses no price or
-  minimum: every launch opens at the lowest price the auction accepts.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  Every section autosaves partial text. Completeness is decided here in one
+  place. The creator chooses no price or minimum: every launch opens at the
+  lowest price the auction accepts.
   """
 
   use Ash.Resource,
@@ -17,21 +15,111 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  # What a paired agent may set: the token's details and links, the chain and
-  # the paired stock, which must be one the chain lists.
-  @agent_fields [
-    :name,
-    :symbol,
-    :description,
-    :website,
-    :telegram,
-    :discord,
-    :other_link_1,
-    :other_link_2,
-    :other_link_3,
-    :chain,
-    :stock_address
-  ]
+  alias Regents.Autolaunch.{LaunchChain, LaunchLinks, Ticker}
+  alias Regents.Autolaunch.Stocks.{Assets, LaunchDraftImage, LaunchDraftImageStorage}
+
+  @link_fields LaunchLinks.fields()
+  @token_fields [:name, :symbol, :description, :website | @link_fields]
+  @terms_fields [:stock_address]
+
+  # What a paired agent may set: the token's details, the chain and the
+  # paired stock, which must be one the chain lists.
+  @agent_fields @token_fields ++ [:chain, :stock_address]
+
+  @doc "The fields a paired agent may set on a Memestock draft, besides its picture."
+  def agent_fields, do: @agent_fields
+
+  @metadata_limits [name: 64, description: 512]
+
+  # The launchpads require a website, so a launch without one names this site,
+  # which the site's pages never show as a creator's website.
+  @site_website "https://autolaunch.sh"
+
+  @doc "Whether the public token identity is complete."
+  def token_details_complete?(draft), do: missing_token_details(draft) == []
+
+  @doc "The fields a launch still needs, in the order the page shows them."
+  def missing(draft), do: missing_token_details(draft) ++ missing_terms(draft)
+
+  defp missing_token_details(draft) do
+    for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
+      if(Ticker.complete?(Map.get(draft, :symbol)), do: [], else: [:symbol]) ++
+      if(website_complete?(Map.get(draft, :website)), do: [], else: [:website]) ++
+      Keyword.keys(LaunchLinks.problems(draft)) ++
+      if(image_complete?(draft), do: [], else: [:image])
+  end
+
+  # The website is optional; one that is given is a full https:// link, as the
+  # token carries it.
+  defp website_complete?(website) when website in [nil, ""], do: true
+  defp website_complete?(website), do: LaunchLinks.web_link?(website)
+
+  @doc "The website a launch writes into its token: the creator's, or this site's."
+  def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
+  def onchain_website(%{website: website}), do: website
+
+  # Whether this draft carries the only image shape its provenance permits.
+  defp image_complete?(%{
+         id: draft_id,
+         human_account_id: human_account_id,
+         stock_launch_draft_image_id: image_id,
+         stock_launch_draft_image: %LaunchDraftImage{} = owned_image,
+         image: image
+       })
+       when is_binary(draft_id) and is_integer(human_account_id) and is_binary(image_id) and
+              is_binary(image) do
+    owned_image.id == image_id and
+      owned_image.human_account_id == human_account_id and
+      owned_image.stock_launch_draft_id == draft_id and
+      owned_image.digest =~ ~r/\A[0-9a-f]{64}\z/ and
+      image == LaunchDraftImageStorage.public_url(owned_image) and
+      byte_size(image) <= 256
+  end
+
+  defp image_complete?(_draft), do: false
+
+  # The paired stock, until one the chain lists is chosen. There is no
+  # schedule, price or minimum to enter: bidding opens a fixed number of
+  # blocks after the launch is created, at the lowest price the auction accepts.
+  defp missing_terms(draft) do
+    case Assets.fetch_admitted(
+           Map.get(draft, :stock_chain_id),
+           Map.get(draft, :stock_address) || ""
+         ) do
+      {:ok, _stock} -> []
+      _missing -> [:stock_address]
+    end
+  end
+
+  def launch_ready?(draft), do: token_details_complete?(draft) and missing_terms(draft) == []
+
+  defp within?(value, limit),
+    do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
+
+  defp validate_stock(changeset, allow_blank?) do
+    address = Ash.Changeset.get_attribute(changeset, :stock_address)
+
+    cond do
+      not (Ash.Changeset.changing_attribute?(changeset, :stock_address) or
+               Ash.Changeset.changing_attribute?(changeset, :chain)) ->
+        :ok
+
+      allow_blank? and address in [nil, ""] ->
+        :ok
+
+      match?(
+        {:ok, _stock},
+        Assets.fetch_admitted(
+          Assets.chain_id(Ash.Changeset.get_attribute(changeset, :chain)),
+          address
+        )
+      ) ->
+        :ok
+
+      true ->
+        {:error, field: :stock_address, message: "is not available to pair on this network"}
+    end
+  end
 
   postgres do
     table "stock_launch_drafts"
@@ -48,6 +136,195 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraft do
     end
   end
 
+  actions do
+    read :agent_read do
+      get? true
+      filter expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    create :agent_create do
+      accept []
+      change set_attribute(:human_account_id, actor(:human_account_id))
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+      upsert? true
+      upsert_identity :one_stocks_draft_per_human
+      upsert_fields []
+      return_skipped_upsert? true
+    end
+
+    update :agent_save do
+      accept @agent_fields
+      require_atomic? false
+      change Regents.Autolaunch.LaunchDraft.Changes.UpcaseTicker
+      validate Regents.Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.CarryStock,
+        where: [changing(:chain), negate(changing(:stock_address))]
+
+      validate fn changeset, _context -> validate_stock(changeset, false) end
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: @agent_fields, mark: true}
+
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
+    # The picture an agent sent is stored as the creator's own upload is
+    # (`Regents.Autolaunch.Stocks.LaunchDraftImageStorage`); this names it as the agent's.
+    update :agent_mark_image do
+      accept []
+      require_atomic? false
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields, set: [:image], mark: true}
+
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
+    create :create_for_owner do
+      change Regents.Autolaunch.LaunchDraft.Changes.AssignOwner
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+      upsert? true
+      upsert_identity :one_stocks_draft_per_human
+      upsert_fields []
+      return_skipped_upsert? true
+    end
+
+    read :mine_account_owned do
+      get? true
+      filter expr(human_account_id == ^actor(:human_account_id))
+      prepare build(load: [:stock_launch_draft_image])
+    end
+
+    read :mine_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:stock_launch_draft_image])
+    end
+
+    read :mine_by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:stock_launch_draft_image])
+      prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
+    end
+
+    update :autosave_token_details do
+      accept @token_fields
+      require_atomic? false
+      change Regents.Autolaunch.LaunchDraft.Changes.UpcaseTicker
+      validate Regents.Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: @token_fields, mark: false}
+    end
+
+    update :autosave_terms do
+      accept [:chain | @terms_fields]
+      require_atomic? false
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+      validate Regents.Autolaunch.Stocks.LaunchDraft.Validations.PartialFields
+      validate fn changeset, _context -> validate_stock(changeset, true) end, before_action?: true
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:chain | @terms_fields], mark: false}
+    end
+
+    update :choose_chain do
+      accept [:chain]
+      require_atomic? false
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.DeriveStockChainId
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.CarryStock, where: [changing(:chain)]
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:chain, :stock_address], mark: false}
+    end
+
+    update :attach_image do
+      argument :stock_launch_draft_image_id, :uuid, allow_nil?: false
+      require_atomic? false
+      change Regents.Autolaunch.Stocks.LaunchDraft.Changes.AttachOwnedImage
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:stock_launch_draft_image_id], mark: false}
+    end
+
+    # `Regents.Autolaunch.LaunchedDrafts`: the account's draft while it still names
+    # the launch just listed, which `:clear` blanks in the same statement.
+    read :naming_listed_launch do
+      argument :human_account_id, :integer, allow_nil?: false
+      argument :name, :string, allow_nil?: false, constraints: [trim?: false]
+      argument :symbol, :string, allow_nil?: false, constraints: [trim?: false]
+
+      filter expr(
+               human_account_id == ^arg(:human_account_id) and name == ^arg(:name) and
+                 symbol == ^arg(:symbol)
+             )
+    end
+
+    # A listed launch's draft starts over (`Regents.Autolaunch.LaunchedDrafts`), so the
+    # next memestock begins from a blank form on the same chain.
+    update :clear do
+      change set_attribute(:name, "")
+      change set_attribute(:symbol, "")
+      change set_attribute(:description, nil)
+      change set_attribute(:website, nil)
+      change set_attribute(:telegram, nil)
+      change set_attribute(:discord, nil)
+      change set_attribute(:other_link_1, nil)
+      change set_attribute(:other_link_2, nil)
+      change set_attribute(:other_link_3, nil)
+      change set_attribute(:image, nil)
+      change set_attribute(:stock_launch_draft_image_id, nil)
+      change set_attribute(:stock_address, nil)
+      change set_attribute(:agent_set_fields, [])
+    end
+  end
+
+  policies do
+    policy action([:agent_read, :agent_create, :agent_save, :agent_mark_image]) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
+    end
+
+    policy action([:agent_save, :agent_mark_image]) do
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action([
+             :create_for_owner,
+             :mine_account_owned,
+             :mine_by_id,
+             :mine_by_id_for_update,
+             :autosave_token_details,
+             :autosave_terms,
+             :choose_chain,
+             :attach_image
+           ]) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+    end
+
+    policy action([
+             :mine_account_owned,
+             :mine_by_id,
+             :mine_by_id_for_update,
+             :autosave_token_details,
+             :autosave_terms,
+             :choose_chain,
+             :attach_image
+           ]) do
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action([:naming_listed_launch, :clear]) do
+      authorize_if Regents.Checks.SystemActor
+    end
+  end
+
   attributes do
     attribute :last_agent_pairing_id, :uuid
     uuid_primary_key :id
@@ -56,7 +333,7 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraft do
       allow_nil? false
       public? true
       default :base
-      constraints one_of: [:base, :robinhood]
+      constraints one_of: LaunchChain.chains()
     end
 
     attribute :name, :string, allow_nil?: false, default: "", constraints: [allow_empty?: true]
@@ -97,13 +374,5 @@ defmodule Regents.Autolaunch.Stocks.LaunchDraft do
 
   identities do
     identity :one_stocks_draft_per_human, [:human_account_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

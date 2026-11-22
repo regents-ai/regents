@@ -1,0 +1,560 @@
+defmodule RegentsWeb.Autolaunch.OnchainSteps do
+  @moduledoc """
+  The server half of every wallet panel, as the template's `OnchainSteps`
+  (`skills/onchain-buttons` has the rules).
+
+  A panel builds a `RegentChain.Review` for the eligible signer and hands it to
+  `put_review/2`, which remembers it and pushes it to the page before anyone
+  presses. The page reports each press against the review it sent from. Every
+  sent step is then read at the latest block of the review's chain, every two
+  seconds, until it lands or the page stops asking. Nothing is kept beyond the
+  page. A step that lands asks every reader of its chain to read it again
+  (`Regents.Autolaunch.ChainRefresh`), so the site's shared figures show what it changed.
+
+  The only wallet that may act is Privy's active wallet when it is one of the
+  signed-in account's own (`signer/2`). Reads that show another wallet never
+  imply that wallet can send.
+  """
+
+  import Phoenix.Component, only: [assign: 2, assign_new: 3]
+  import Phoenix.LiveView, only: [push_event: 3, send_update_after: 4, start_async: 3]
+
+  alias RegentChain.{Address, Outcome, Presses, Review}
+  alias Regents.Account.Accounts.SessionAuthority
+  alias Regents.Account.Actors.Human
+  alias Regents.Autolaunch.Chain.Client
+  alias Regents.Autolaunch.{ReadFailedError, ReadFailure}
+
+  @recheck_ms 2_000
+
+  # A review's deadlines and allowance windows are fifteen minutes long, so one
+  # is built again once it is ten minutes old.
+  @stale_ms 10 * 60_000
+
+  @doc "The assigns a wallet panel starts with."
+  def init(socket),
+    do:
+      assign(socket,
+        presses: Presses.new(),
+        review: nil,
+        press_note: nil,
+        active: nil,
+        approved: [],
+        approves: nil
+      )
+
+  @doc """
+  Reads the signed-in account's wallets once for each session lease the panel
+  is given: `linked`, all of them lowercase (`nil` signed out, `:unread` while
+  they could not be read), and `signed_in`, the one it signed in with, whose
+  figures a panel shows until Privy reports its active wallet.
+  """
+  def adopt(%{assigns: assigns} = socket) do
+    lease = {assigns[:session_lease], assigns[:current_human_id]}
+
+    if Map.get(assigns, :linked_for) == lease,
+      do: socket,
+      else: adopt(socket, lease, leased_account(assigns))
+  end
+
+  defp adopt(socket, lease, {:ok, account}),
+    do: socket |> assign(linked_for: lease) |> assign_wallets(account)
+
+  # Wallets that could not be read because the connection was lost are unread,
+  # never signed out: nothing may act, a press says to try again, and the next
+  # update reads them again. Any other failure is a real error, as on a page
+  # (`Regents.Autolaunch.ReadFailure`). Either is logged where it was read
+  # (`SessionAuthority`).
+  defp adopt(socket, _lease, {:error, error}) do
+    unless ReadFailure.lost_connection?(error), do: raise(ReadFailedError)
+    socket |> assign(linked: :unread) |> assign_new(:signed_in, fn -> nil end)
+  end
+
+  @doc """
+  The account as it reads now, before each of the panel's events and
+  background results (`RegentsWeb.Live.Session.check_component_lease/2`).
+  When its wallets differ from the ones the panel holds, the panel takes them
+  and `follow` moves it onto them; otherwise nothing is built again.
+  """
+  def take_account(socket, account, follow) do
+    before = Map.take(socket.assigns, [:linked, :signed_in])
+    socket = assign_wallets(socket, account)
+
+    if Map.take(socket.assigns, [:linked, :signed_in]) == before,
+      do: socket,
+      else: follow.(socket)
+  end
+
+  defp leased_account(assigns) do
+    with %{lineage: lineage, account_id: id} <- assigns[:session_lease],
+         true <- assigns[:current_human_id] == id do
+      SessionAuthority.leased_account(lineage, id)
+    else
+      _signed_out -> {:ok, nil}
+    end
+  end
+
+  defp assign_wallets(socket, %{wallet_addresses: wallets, wallet_address: primary}) do
+    linked = wallets |> Enum.flat_map(&normalized/1) |> Enum.uniq()
+    assign(socket, linked: linked, signed_in: primary |> normalized() |> List.first())
+  end
+
+  defp assign_wallets(socket, nil), do: assign(socket, linked: nil, signed_in: nil)
+
+  defp normalized(wallet) do
+    case Address.normalize(wallet) do
+      {:ok, address} -> [address]
+      :error -> []
+    end
+  end
+
+  @doc """
+  The wallet that may act: Privy's `active` wallet when the signed-in account
+  links it, lowercased. Signed out (`linked` is `nil`), with the wallets unread,
+  with no active wallet, or with one the account does not link, nothing may act.
+  """
+  def signer(signed_out_or_unread, _active) when signed_out_or_unread in [nil, :unread],
+    do: nil
+
+  def signer(_linked, nil), do: nil
+
+  def signer(linked, active) do
+    active = String.downcase(active)
+    if active in Enum.map(linked, &String.downcase/1), do: active
+  end
+
+  @doc """
+  The wallet a panel shows figures for. Signed in, the wallet that may act, or
+  with none the account's own wallet (`own`), so a wrong or missing active wallet
+  never empties the panel. Signed out (`linked` is `nil`), Privy's active wallet.
+  With the wallets unread, the account's own wallet.
+  """
+  def shown_wallet(nil, _own, active), do: active
+  def shown_wallet(:unread, own, _active), do: own
+  def shown_wallet(linked, own, active), do: signer(linked, active) || own
+
+  @doc "Privy's active wallet as the page reported it, or `nil`."
+  def active_wallet(%{"address" => address}) do
+    case Address.normalize(address) do
+      {:ok, active} -> active
+      :error -> nil
+    end
+  end
+
+  def active_wallet(_params), do: nil
+
+  @doc """
+  Privy's active wallet as the page reported it (`onchain_active_wallet`): a
+  different one becomes the panel's `active` and clears the note beside the
+  buttons. The panel follows it from there.
+  """
+  def take_active(socket, params) do
+    active = active_wallet(params)
+
+    if active == socket.assigns.active,
+      do: socket,
+      else: assign(socket, active: active, press_note: nil)
+  end
+
+  @doc """
+  The options a panel's actions run with: the signed-in person as the actor
+  (`actor/1`) and the session lease the panel holds.
+  """
+  def opts(socket),
+    do: [actor: actor(socket), context: %{session_lease: socket.assigns.session_lease}]
+
+  @doc "The signed-in person as an actor, or `nil` signed out."
+  def actor(%{assigns: %{current_human_id: id}}) when is_integer(id),
+    do: %Human{human_account_id: id}
+
+  def actor(_socket), do: nil
+
+  @doc """
+  The reason an action refused, as a panel keys its words: the reason an
+  `Ash.Error.Invalid.Unavailable` names, a reason the action answered itself,
+  or `:unavailable` for anything else.
+  """
+  def refusal(%{errors: errors}), do: Enum.find_value(errors, :unavailable, &unavailable/1)
+  def refusal(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
+  def refusal(reason) when is_atom(reason), do: reason
+  def refusal(_other), do: :unavailable
+
+  defp unavailable(%Ash.Error.Invalid.Unavailable{reason: reason}), do: reason
+  defp unavailable(_other), do: nil
+
+  @doc """
+  Puts `review` (or none) on the page when it is not the one already there. A
+  review is fixed once built, so a new signer, chain or figure is a new review,
+  and the page drops the old one as soon as this arrives. With none, no
+  approval is kept for the next one (`with_approved/3`).
+  """
+  def put_review(socket, review) do
+    if review_id(review) == review_id(socket.assigns.review) do
+      socket
+    else
+      presses =
+        if review,
+          do: Presses.remember(socket.assigns.presses, review),
+          else: socket.assigns.presses
+
+      socket
+      |> assign(review: review, presses: presses)
+      |> then(&if review, do: &1, else: assign(&1, approved: [], approves: nil))
+      |> push_event("onchain-steps:review", %{component_id: socket.assigns.id, review: review})
+    end
+  end
+
+  @doc """
+  The steps of a new review, with the approvals that landed from the review it
+  replaces in front of them, and the socket that remembers which they are.
+  `approves` is the panel's own term for what its approvals allow (the
+  wallet, the spender's side and the amount): only a review that approves the
+  same keeps them. An approval the new steps carry again is left as built.
+
+  A kept approval sends the same transaction as before. It shows as done
+  (`approved?/2`) and a press on it still reaches the wallet, so Approve stays
+  on the page, grey with a green border, once the chain holds its allowance.
+  """
+  def with_approved(socket, approves, steps) do
+    %{approved: approved, approves: before} = socket.assigns
+    names = MapSet.new(steps, & &1.step)
+
+    kept =
+      if approves == before,
+        do: Enum.reject(approved, &MapSet.member?(names, &1.step)),
+        else: []
+
+    {kept ++ steps, assign(socket, approved: kept, approves: approves)}
+  end
+
+  @doc "Keeps the approval `entry` sent for the next review (`with_approved/3`), once it landed."
+  def approval_landed(%{assigns: %{approved: approved}} = socket, %{step: %{step: name} = step}) do
+    if approved?(socket.assigns, name),
+      do: socket,
+      else: assign(socket, approved: approved ++ [step])
+  end
+
+  @doc "Whether the step `name` is an approval kept from an earlier review, so it shows as done."
+  def approved?(%{approved: approved}, name), do: Enum.any?(approved, &(&1.step == name))
+
+  @doc """
+  Whether the review on the page still asks for the approval `entry` landed,
+  which the same wallet sent from a review the page has since built again: the
+  press reached the server after the new review, against the review it was
+  sent from. The panel then builds its review again from the chain, which now
+  holds the approval, so the button moves on.
+  """
+  def asked_again?(
+        %{review: %{signer: signer} = review} = assigns,
+        %{name: name, review: %{signer: signer}}
+      ),
+      do: Review.find(review, name) != nil and not approved?(assigns, name)
+
+  def asked_again?(_assigns, _another_wallets_entry), do: false
+
+  @doc """
+  The step a press sends when the server builds its review (`prepare_and_send`):
+  the first one the builder made, after any approval `with_approved/3` kept,
+  which the chain already holds.
+  """
+  def first_built(assigns, %{steps: steps}) do
+    %{step: name} = Enum.find(steps, &(not approved?(assigns, &1.step)))
+    name
+  end
+
+  @doc "The wallet sent a step; it is read from now on against the review it was sent from."
+  def sent(socket, params) do
+    case Presses.sent(socket.assigns.presses, params) do
+      {:ok, entry, presses} ->
+        socket |> assign(presses: presses, press_note: nil) |> check(entry)
+
+      :error ->
+        socket
+    end
+  end
+
+  @doc """
+  The wallet sent nothing, or may have sent something (the page's
+  `step_failed`): the reason is counted under `flow` and said beside the
+  buttons (`failure_note/3`, naming `network` while no review is on the page).
+  """
+  def failed(socket, params, flow, network) do
+    case Presses.failed(params) do
+      {:ok, _name, reason} ->
+        RegentsWeb.Autolaunch.Telemetry.wallet_failed(flow, reason)
+        assign(socket, press_note: failure_note(socket.assigns, reason, network))
+
+      :error ->
+        socket
+    end
+  end
+
+  @doc """
+  The newest press of step `name` of `review`, or `nil` when that step has not
+  been sent from it. A panel reads a step's state from it and never waits on it.
+  """
+  def entry(presses, %{id: id}, name) do
+    Enum.find(Presses.shown(presses), &(&1.name == name and match?(%{id: ^id}, &1.review)))
+  end
+
+  @doc """
+  Step `name` of `review` as a panel lists it, under `label`: its newest press
+  (`entry/3`) and its state, `:ready` until it is sent, then `:sent`,
+  `:stalled`, `:done`, `:reverted`, or `:other` for a transaction that is not
+  the one this page prepared.
+  """
+  def step(presses, review, name, label) do
+    entry = entry(presses, review, name)
+    %{name: name, label: label, state: step_state(entry), entry: entry}
+  end
+
+  defp step_state(nil), do: :ready
+
+  defp step_state(%{outcome: :pending} = entry),
+    do: if(Presses.stalled?(entry), do: :stalled, else: :sent)
+
+  defp step_state(%{outcome: :confirmed}), do: :done
+  defp step_state(%{outcome: :reverted}), do: :reverted
+  defp step_state(_not_this_step), do: :other
+
+  @doc """
+  Whether the page is still reading a step sent from `review`. A step the page
+  stopped reading (it offers "Check again") no longer holds the review, so the
+  ten-minute rebuild goes ahead.
+  """
+  def pending?(presses, %{steps: steps} = review) do
+    Enum.any?(steps, fn %{step: name} ->
+      case entry(presses, review, name) do
+        nil -> false
+        entry -> Presses.reading?(entry)
+      end
+    end)
+  end
+
+  @doc """
+  Asks the panel to look at the review on the page again once it is ten
+  minutes old, as `update(%{refresh_review: review_id}, socket)`. The panel
+  builds a fresh one when that review is still there and nothing sent from it
+  is on its way, and asks again otherwise; the new review reaches the page at
+  once, so a press always sends what is on the page.
+  """
+  def refresh_later(%{assigns: %{review: %{id: review_id}, myself: myself}} = socket) do
+    send_update_after(self(), myself, %{refresh_review: review_id}, @stale_ms)
+    socket
+  end
+
+  def refresh_later(socket), do: socket
+
+  @doc "Starts reading a step again after the page stopped on its own."
+  def check_again(socket, hash) do
+    case Presses.check_again(socket.assigns.presses, hash) do
+      {nil, _presses} -> socket
+      {entry, presses} -> socket |> assign(presses: presses) |> check(entry)
+    end
+  end
+
+  @doc """
+  One answer from `handle_async({:onchain_step, hash}, result, socket)`.
+  `confirmed` runs once, with the entry, when the step lands and succeeds, so
+  the panel can read its figures again; `reverted` runs once when it lands and
+  reverts, so the panel can build its review again.
+  """
+  def checked(
+        socket,
+        hash,
+        result,
+        confirmed \\ fn socket, _entry -> socket end,
+        reverted \\ fn socket, _entry -> socket end
+      ) do
+    answer =
+      case result do
+        {:ok, answer} -> answer
+        {:exit, _reason} -> :unanswered
+      end
+
+    case Presses.checked(socket.assigns.presses, hash, answer) do
+      {nil, _presses} ->
+        socket
+
+      {entry, presses} ->
+        socket = assign(socket, presses: presses)
+
+        cond do
+          Presses.reading?(entry) -> check(socket, entry)
+          entry.outcome == :confirmed -> socket |> refresh_chain(entry) |> confirmed.(entry)
+          entry.outcome == :reverted -> reverted.(socket, entry)
+          true -> socket
+        end
+    end
+  end
+
+  @doc """
+  A panel's `reverted` for `checked/5`: a step of the review on the page did
+  not go through. `note` says so beside the button at once, and once nothing
+  else sent from that review is on its way, `rebuild` builds the review again
+  from the chain as it is now, so the next press sends what the chain accepts
+  now, or the panel says why nothing can be done. A step from a review the page
+  has since left changes nothing.
+  """
+  def rebuild_reverted(
+        %{assigns: %{review: %{id: id} = review}} = socket,
+        %{review: %{id: id}},
+        note,
+        rebuild
+      ) do
+    socket = assign(socket, press_note: note)
+    if pending?(socket.assigns.presses, review), do: socket, else: rebuild.(socket)
+  end
+
+  def rebuild_reverted(socket, _earlier_review, _note, _rebuild), do: socket
+
+  @doc "The words beside the button of a review built again after `note`'s step did not go through."
+  def rebuilt_words(note),
+    do: note <> " This review now uses the latest figures: press again to send it."
+
+  @doc """
+  Where the words go once a panel built its review again in place
+  (`rebuild_reverted/4`): beside the new review's button, or before the
+  panel's own reason (`notice`) when the chain refuses the action now.
+  """
+  def rebuilt(%{assigns: %{review: %{}}} = socket, note),
+    do: assign(socket, press_note: rebuilt_words(note))
+
+  def rebuilt(%{assigns: %{notice: notice}} = socket, note),
+    do: assign(socket, notice: "#{note} #{notice}")
+
+  @doc """
+  A step that landed may have changed what the site's shared figures show, so
+  every reader of its chain reads it again (`Regents.Autolaunch.ChainRefresh`).
+  """
+  def refresh_chain(socket, %{review: %{chain: %{chain_id: chain_id}}}) do
+    Regents.Autolaunch.ChainRefresh.request(chain_id)
+    socket
+  end
+
+  @doc """
+  Reads the receipt of a step that landed, to say what it did; the answer
+  arrives as `handle_async({:result, hash}, result, socket)`, for
+  `receipt_logs/1`.
+  """
+  def read_receipt(socket, %{hash: hash, review: review}),
+    do: start_async(socket, {:result, hash}, fn -> Client.receipt(review.chain, hash) end)
+
+  @doc "A receipt's logs, from the answer of a receipt read, or `nil` when it could not be read."
+  def receipt_logs({:ok, {:ok, %{"logs" => logs}}}) when is_list(logs), do: logs
+  def receipt_logs(_unread), do: nil
+
+  @doc "What to say when a press could not be prepared just now, so nothing was sent."
+  def unsent_note, do: "That did not go through. Nothing was sent. Try again in a moment."
+
+  @doc """
+  What to say when a press sent nothing, or may have sent something, in words
+  for the person who pressed. `linked` and `active` are the account's wallets
+  (`nil` signed out) and Privy's active wallet, as for `signer/2`.
+  """
+  def failure_note(reason, linked, active, chain_name)
+
+  def failure_note(reason, :unread, _active, _chain_name)
+      when reason in ~w(step_unknown wallet_unavailable),
+      do: unsent_note()
+
+  def failure_note(reason, nil, _active, _chain_name)
+      when reason in ~w(step_unknown wallet_unavailable),
+      do: "Sign in to send this. Nothing was sent."
+
+  def failure_note(reason, linked, nil, _chain_name)
+      when reason in ~w(step_unknown wallet_unavailable),
+      do:
+        "You're signed in with #{wallets(linked, " and ")}, but your wallet app has no wallet open. Open #{wallets(linked, " or ")} there, then press again. Nothing was sent."
+
+  def failure_note(reason, linked, active, chain_name)
+      when reason in ~w(step_unknown wallet_unavailable) do
+    cond do
+      signer(linked, active) == nil ->
+        "#{mismatch_note(linked, active)} Nothing was sent."
+
+      reason == "step_unknown" ->
+        "This can't be sent as it stands. Check the details above, then press again. Nothing was sent."
+
+      # No wallet answered the press, as if none were open.
+      true ->
+        failure_note(reason, linked, nil, chain_name)
+    end
+  end
+
+  # The wallet declined or failed the switch; the next press asks again.
+  def failure_note("switch_declined", _linked, _active, chain_name),
+    do: "Press again to switch your wallet to #{chain_name}. Nothing was sent."
+
+  def failure_note("network_mismatch", _linked, _active, chain_name),
+    do: "Switch your wallet to #{chain_name}, then press again. Nothing was sent."
+
+  def failure_note("wallet_declined", _linked, _active, _chain_name),
+    do: "Your wallet declined this. Nothing was sent."
+
+  def failure_note("insufficient_funds", _linked, _active, chain_name),
+    do:
+      "Your wallet doesn't have enough on #{chain_name} to pay the network fee. Nothing was sent."
+
+  def failure_note("send_unconfirmed", _linked, _active, _chain_name),
+    do: "Your wallet may have sent this. Check your wallet activity."
+
+  def failure_note("sign_unconfirmed", _linked, _active, _chain_name),
+    do: "Your wallet may have signed this. Check your wallet before pressing again."
+
+  @doc """
+  `failure_note/4` for a panel's assigns: the review on the page names the
+  network, or `network` while there is none.
+  """
+  def failure_note(%{review: review, linked: linked, active: active}, reason, network),
+    do: failure_note(reason, linked, active, if(review, do: review.chain.name, else: network))
+
+  @doc """
+  The note beside the buttons while the wallet app has open a wallet the
+  signed-in account does not link, naming both and asking the person to switch.
+  """
+  def mismatch_note(linked, active) when is_list(linked) and is_binary(active) do
+    if signer(linked, active) == nil do
+      "Your wallet is on #{short(active)}, which isn't linked to this account. Switch to #{wallets(linked, " or ")}."
+    end
+  end
+
+  def mismatch_note(_linked, _active), do: nil
+
+  @doc """
+  One sent step as the page shows it: its state and generic words. A panel
+  names its steps and may say more about them.
+  """
+  def describe(entry, chain_name) do
+    state = if Presses.stalled?(entry), do: :stalled, else: entry.outcome
+    %{hash: entry.hash, state: state, words: words(state, chain_name)}
+  end
+
+  defp words(:pending, chain_name), do: "Sent. Waiting for #{chain_name}."
+
+  defp words(:stalled, chain_name),
+    do: "#{chain_name} has not confirmed this yet. Check again, or look in your wallet activity."
+
+  defp words(:confirmed, _chain_name), do: "Done."
+  defp words(:reverted, _chain_name), do: "This did not go through and nothing moved."
+
+  defp words(_not_this_step, _chain_name),
+    do:
+      "This transaction is not the one this page prepared, so it can't be followed here. Check it in your wallet activity."
+
+  defp check(socket, %{step: nil}), do: socket
+
+  defp check(socket, %{hash: hash, reads: reads, review: review, step: step}) do
+    start_async(socket, {:onchain_step, hash}, fn ->
+      if reads > 0, do: Process.sleep(@recheck_ms)
+      Outcome.of(Client, review, step, hash)
+    end)
+  end
+
+  defp review_id(nil), do: nil
+  defp review_id(%{id: id}), do: id
+
+  defp wallets(linked, joiner), do: Enum.map_join(linked, joiner, &short/1)
+
+  defp short(address), do: RegentFormat.short_address(address)
+end

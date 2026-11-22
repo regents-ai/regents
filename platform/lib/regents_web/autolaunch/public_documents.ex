@@ -42,8 +42,49 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
       {"About",
        "What Autolaunch does, how it differs, who uses it, the team behind it, key facts, common questions and how to reach us."},
     "/autolaunch/changelog" =>
-      {"Changelog", "What changed on autolaunch.sh for people and agents, newest first."}
+      {"Changelog", "What changed on autolaunch.sh for people and agents, newest first."},
+    "/autolaunch/docs" =>
+      {"Documentation",
+       "Public APIs, signed agent endpoints, and developer reference for Autolaunch."},
+    "/autolaunch/agents" => {"Agents", "Connect your AI agent to Autolaunch."},
+    "/autolaunch/privacy" =>
+      {"Privacy Policy", "How Regents Labs handles information on Autolaunch."},
+    "/autolaunch/terms" => {"Terms of Use", "Terms governing use of Autolaunch."},
+    "/autolaunch/create" =>
+      {"Create Memestock", "Launch a Memestock token auction on Base or Robinhood Chain."},
+    "/autolaunch/agent-business" =>
+      {"Launch Revstake", "Launch a Revstake AI agent token auction on Base."},
+    "/autolaunch/stocks" =>
+      {"Stocks", "Onchain stocks available for Autolaunch Memestock auctions."},
+    "/autolaunch/portfolio" =>
+      {"Portfolio", "Your Autolaunch bids, claims, refunds, and token positions."},
+    "/autolaunch/regent" =>
+      {"REGENT", "How REGENT connects to Autolaunch launches and staking rewards."},
+    "/autolaunch/convert" => {"Convert fees", "Convert accumulated launch fees into REGENT."},
+    "/autolaunch/stock/covered-call" =>
+      {"Covered Calls", "Onchain covered calls on Base stock tokens."},
+    "/autolaunch/stock/isolated-afters" =>
+      {"Isolated Afters", "After-hours stock price exposure on Base."},
+    "/autolaunch/earn" => {"Earn", "Lend USDC on Base through Autolaunch."}
   }
+
+  @doc "Full absolute URL for `path` on this site."
+  def url(path), do: RegentsWeb.Endpoint.url() <> path
+
+  @doc "Whether `path` has a public Markdown representation."
+  def markdown?(path), do: Map.has_key?(@documents, path)
+
+  @doc "Site-wide schema.org structured data."
+  def structured_data, do: RegentsWeb.PublicDocuments.structured_data()
+
+  @doc "The skill guide markdown for Autolaunch agents."
+  def skill_guide, do: RegentsWeb.PublicDocuments.skill()
+
+  @doc "Structured data for a single auction page."
+  def auction_data(_auction, _meta), do: structured_data()
+
+  @doc "Structured data for a single token page."
+  def token_data(_token, _meta), do: structured_data()
 
   @doc "The written page at `path` as `%{markdown: text}`, or nil for every other address."
   def document(path) do
@@ -82,6 +123,22 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
     named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
     [page_title: "#{named} token", page_description: @token_description]
   end
+
+  def market_page(:auction, name, ticker) do
+    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    [page_title: "#{named} auction", page_description: "A token auction on Autolaunch."]
+  end
+
+  def market_page(:stock, name, ticker) do
+    named = if same_name?(name, ticker), do: name, else: "#{name} (#{ticker})"
+    [page_title: "#{named} stock", page_description: "Onchain stock launches on Autolaunch."]
+  end
+
+  def market_page(:auction_not_found),
+    do: [page_title: "Auction not found", page_description: "A token auction on Autolaunch."]
+
+  def market_page(:auction_unavailable),
+    do: [page_title: "Auction unavailable", page_description: "A token auction on Autolaunch."]
 
   @doc """
   The `page_title` and `page_description` of a token's page that shows no

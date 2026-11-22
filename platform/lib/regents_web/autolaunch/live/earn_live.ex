@@ -1,0 +1,267 @@
+defmodule RegentsWeb.Autolaunch.EarnLive do
+  @moduledoc """
+  /earn: lend USDC on Base through Aave from your own wallet. Each product in
+  the catalog (`Regents.Autolaunch.Earn.Catalog`) has its terms (the rate now, what is
+  supplied, what can be withdrawn now and, under a supply cap, its capacity),
+  from the reading every visitor shares, at most ten seconds old, with the
+  block it was read at named (`Regents.Autolaunch.Earn.SharedTerms`), beside its
+  wallet panel (`RegentsWeb.Autolaunch.EarnComponent`) for a deposit or withdrawal,
+  and its risks in plain words.
+
+  The terms are read when the page opens, when Refresh is pressed and the
+  first time each transaction that landed a step on the product is heard of,
+  from this page or another on any of the site's machines. A Refresh while a
+  reading is under way starts nothing; a landed step starts a new reading at
+  once, stopping the one under way, and on a machine that heard of the step
+  from another one it is first counted there (`SharedTerms.heard/2`), so the
+  new reading is taken after it. While a reading is under way the figures
+  from the one before are not shown, so on a page open when a step lands a
+  figure from before it is never shown as current; a page opened just after
+  on a machine that had none open may show a reading up to ten seconds old,
+  its block named. A reading that fails says so. Each reading also has the
+  panel read its wallet and its preview again (`reads`); the panel is there
+  from the start, its decimals the catalog's, whether or not a reading has
+  arrived. Deposit and Withdraw are the page's tabs (`?tab=withdraw`).
+
+  With Earn switched off the address is the site's 404.
+  """
+  use RegentsWeb, :live_view
+
+  import RegentsWeb.Autolaunch.Components.AutolaunchHelpers, only: [current_human_id: 1]
+
+  alias Phoenix.LiveView.AsyncResult
+  alias Regent.Primitives, as: P
+  alias Regents.Autolaunch.Earn
+  alias Regents.Autolaunch.Earn.{Answer, Catalog, SharedTerms}
+  alias RegentsWeb.Autolaunch.EarnComponent
+  alias RegentsWeb.NotFoundError
+
+  def mount(_params, _session, socket) do
+    if Catalog.enabled?() do
+      products = Catalog.products()
+      ids = Enum.map(products, & &1.id)
+      if connected?(socket), do: Enum.each(ids, &SharedTerms.subscribe/1)
+
+      {:ok,
+       socket
+       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/earn"))
+       |> assign(
+         products: products,
+         terms: Map.new(ids, &{&1, AsyncResult.loading()}),
+         reads: Map.new(ids, &{&1, 0}),
+         kind: :deposit,
+         done: nil
+       )
+       |> read(ids)}
+    else
+      raise NotFoundError
+    end
+  end
+
+  def handle_params(params, _uri, socket),
+    do:
+      {:noreply,
+       assign(socket, kind: if(params["tab"] == "withdraw", do: :withdraw, else: :deposit))}
+
+  # A product whose reading is still under way is not read again.
+  def handle_event("refresh", _params, socket) do
+    idle = for %{id: id} <- socket.assigns.products, !socket.assigns.terms[id].loading, do: id
+    {:noreply, read(socket, idle)}
+  end
+
+  def handle_event("dismiss_done", _params, socket), do: {:noreply, assign(socket, done: nil)}
+
+  # A transaction landed a step on the product, here or on another page,
+  # perhaps on another machine: it is counted on this one before the reading.
+  def handle_info({:earn_changed, id, hash}, socket) do
+    :ok = SharedTerms.heard(id, hash)
+    {:noreply, read(socket, [id])}
+  end
+
+  def handle_info({:earn_done, done}, socket), do: {:noreply, assign(socket, done: done)}
+
+  def handle_async({:terms, id}, {:ok, {:ok, %{terms: terms}}}, socket),
+    do: {:noreply, update(socket, :terms, &Map.put(&1, id, AsyncResult.ok(terms)))}
+
+  def handle_async({:terms, id}, {:ok, {:error, error}}, socket),
+    do: {:noreply, failed(socket, id, Earn.reason(error))}
+
+  def handle_async({:terms, id}, {:exit, reason}, socket),
+    do: {:noreply, failed(socket, id, reason)}
+
+  # Each reading starts from nothing shown, so figures from before it, and
+  # from before a confirmed step, never pass for current ones. It stops the
+  # one still under way, and the product's panel reads its wallet again.
+  defp read(socket, ids) do
+    Enum.reduce(ids, socket, fn id, socket ->
+      socket
+      |> update(:terms, &Map.put(&1, id, AsyncResult.loading()))
+      |> update(:reads, &Map.update!(&1, id, fn reads -> reads + 1 end))
+      |> cancel_async({:terms, id})
+      |> start_async({:terms, id}, fn -> Earn.read_earn_terms(id) end)
+    end)
+  end
+
+  defp failed(socket, id, reason),
+    do:
+      update(
+        socket,
+        :terms,
+        &Map.update!(&1, id, fn read -> AsyncResult.failed(read, reason) end)
+      )
+
+  def render(assigns) do
+    assigns = assign(assigns, human_id: current_human_id(assigns.access_context))
+
+    ~H"""
+    <article class="earn">
+      <EarnComponent.toast :if={@done} id="earn-done" done={@done} dismiss="dismiss_done" />
+      <header class="earn__header">
+        <div class="earn__intro">
+          <h1>Earn</h1>
+          <p>Lend USDC on Base from your own wallet. Withdrawals depend on available liquidity.</p>
+        </div>
+        <P.last_read
+          id="earn-read"
+          at={read_at(@terms)}
+          phx-click="refresh"
+          label="Read the market again"
+        />
+      </header>
+
+      <section
+        :for={product <- @products}
+        id={"earn-#{product.id}"}
+        class="earn__product"
+        aria-labelledby={"earn-#{product.id}-title"}
+      >
+        <div class="earn__card">
+          <div class="earn__card-head">
+            <h2 id={"earn-#{product.id}-title"}>{product.asset}</h2>
+            <span class="earn__market">{product.market}</span>
+            <span
+              :if={@terms[product.id].ok?}
+              class="earn__status"
+              data-status={@terms[product.id].result.status}
+            >
+              {status_word(@terms[product.id].result.status)}
+            </span>
+          </div>
+
+          <p :if={@terms[product.id].failed} class="earn__note" role="alert">
+            The market couldn't be read just now. Try again in a moment.
+          </p>
+          <div
+            :if={@terms[product.id].loading}
+            class="earn__waiting"
+            aria-busy="true"
+            aria-label="Reading the market"
+          >
+            <span class="loading-block"></span>
+          </div>
+
+          <.terms
+            :if={@terms[product.id].ok?}
+            id={"earn-#{product.id}-terms"}
+            product={product}
+            terms={@terms[product.id].result}
+          />
+
+          <p class="earn__line">Borrowers on {product.protocol} pay interest on the USDC you lend.</p>
+        </div>
+
+        <div class="earn__act">
+          <nav class="earn__tabs" aria-label="Deposit or withdraw">
+            <.link patch={~p"/autolaunch/earn"} aria-current={@kind == :deposit && "page"}>Deposit</.link>
+            <.link
+              patch={~p"/autolaunch/earn?tab=withdraw"}
+              aria-current={@kind == :withdraw && "page"}
+            >
+              Withdraw
+            </.link>
+          </nav>
+          <.live_component
+            module={EarnComponent}
+            id={"earn-#{product.id}-panel"}
+            product={product}
+            decimals={product.decimals}
+            kind={@kind}
+            reads={@reads[product.id]}
+            session_lease={@session_lease}
+            current_human_id={@human_id}
+          />
+        </div>
+
+        <section class="earn__risks" aria-labelledby={"earn-#{product.id}-risks"}>
+          <h2 id={"earn-#{product.id}-risks"}>Risks</h2>
+          <ul>
+            <li :for={risk <- Catalog.risks(product)}>{risk}</li>
+          </ul>
+        </section>
+      </section>
+    </article>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :product, :map, required: true
+  attr :terms, :map, required: true
+
+  defp terms(assigns) do
+    ~H"""
+    <dl id={@id} class="earn__terms">
+      <div class="earn__rate">
+        <dt>Rate</dt>
+        <dd>
+          <strong>{Answer.yearly_percent(@terms.rate)}%</strong>
+          <small>a year at today's rate, before compounding. It changes.</small>
+        </dd>
+      </div>
+      <div>
+        <dt>Supplied</dt>
+        <dd>{EarnComponent.amount(@terms.supplied, @product.decimals, @product.asset)}</dd>
+      </div>
+      <div>
+        <dt>Available to withdraw</dt>
+        <dd>{EarnComponent.amount(@terms.available, @product.decimals, @product.asset)}</dd>
+      </div>
+      <div>
+        <dt>Remaining deposit capacity</dt>
+        <dd>{capacity(@terms, @product)}</dd>
+      </div>
+    </dl>
+    <p class="earn__block">
+      Read at block {Integer.to_string(@terms.block.number)}, {Calendar.strftime(
+        DateTime.from_unix!(@terms.block.timestamp),
+        "%-d %b %Y, %H:%M:%S UTC"
+      )}.
+    </p>
+    """
+  end
+
+  # The most one deposit can be before the market's supply cap.
+  defp capacity(%{capacity: :uncapped}, _product), do: "No cap"
+
+  defp capacity(%{capacity: {:left, left}}, product),
+    do: EarnComponent.amount(left, product.decimals, product.asset)
+
+  defp capacity(%{capacity: :full}, _product), do: "Full"
+
+  defp status_word(:open), do: "Open"
+  defp status_word(:frozen), do: "Frozen"
+  defp status_word(:paused), do: "Paused"
+  defp status_word(:inactive), do: "Closed"
+
+  # When the newest reading on the page was taken.
+  defp read_at(terms) do
+    terms
+    |> Map.values()
+    |> Enum.filter(& &1.ok?)
+    |> Enum.map(& &1.result.block.timestamp)
+    |> Enum.max(fn -> nil end)
+    |> case do
+      nil -> nil
+      at -> DateTime.from_unix!(at)
+    end
+  end
+end

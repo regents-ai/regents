@@ -1,0 +1,250 @@
+defmodule Regents.Autolaunch.LabPositions do
+  @moduledoc """
+  Keeps the site's bid positions truthful after an auction has ended.
+
+  An auction's reading job (`Regents.Autolaunch.AuctionMarket`) calls `read/6` once
+  its end block has passed: each position this site holds with an on-chain bid
+  id the auction has issued, below its `nextBidId()`, is read back from the
+  auction's own `bids(bidId)`, and its status follows the contract:
+  `returnable` while the bid can still be exited, `awaiting_claim` once exited
+  with fill before the claim block, `claimable` once exited with fill and the
+  claim block reached, `returned` when exited with no fill, `claimed` once the
+  fill has been taken. `project/1` writes the
+  statuses that changed inside the job's own transaction.
+  """
+
+  require Ash.Query
+  require Logger
+
+  alias Regents.Account.Actors.System
+  alias Regents.Autolaunch.Bid
+  alias Regents.Autolaunch.Chain.{Abi, Rpc}
+  alias Regents.Autolaunch.LabAbi
+
+  @actor %System{}
+  @domain Autolaunch
+  @q96 79_228_162_514_264_337_593_543_950_336
+
+  @type reading :: %{bid_id: String.t(), status: Bid.status(), position: Bid.t()}
+
+  @doc "The positions of one ended auction, read from the fork at one block."
+  @spec read([map()], [Bid.t()], String.t(), map(), map(), keyword()) ::
+          {:ok, [reading()]} | {:error, term()}
+  def read(abi, positions, auction_address, market, block, opts) do
+    if block.number >= market.end_block,
+      do: readings(abi, positions, auction_address, market, block, opts),
+      else: {:ok, []}
+  end
+
+  # A node that stops answering ends the pass's bid reads there: the bids
+  # already read are still written, and the rest are read on the next pass. A
+  # bid whose answer is bad is skipped and read again on the next pass, so it
+  # never holds back the bids after it. `bids(bidId)` reverts for an id the
+  # auction has not issued (`BidStorage._getBid`), which a read takes for a
+  # node that stopped answering, so the pass reads `nextBidId()` once, at its
+  # block, and skips every stored id at or above it in one warning line. None
+  # of these holds back the auction's own figures.
+  defp readings(_abi, [], _auction_address, _market, _block, _opts), do: {:ok, []}
+
+  defp readings(abi, positions, auction_address, market, block, opts) do
+    case Rpc.call_uint(auction_address, LabAbi.selector("nextBidId()"), block, opts) do
+      {:ok, next_bid_id} ->
+        issued_readings(abi, positions, auction_address, market, block, next_bid_id, opts)
+
+      {:error, reason} ->
+        Logger.warning(
+          "Next bid id not read (#{inspect(reason)}); " <>
+            "#{length(positions)} bids wait for the next pass"
+        )
+
+        {:ok, []}
+    end
+  end
+
+  defp issued_readings(abi, positions, auction_address, market, block, next_bid_id, opts) do
+    {issued, unissued} =
+      Enum.split_with(positions, &(String.to_integer(&1.onchain_bid_id) < next_bid_id))
+
+    skipped(unissued, auction_address, next_bid_id)
+
+    Enum.reduce_while(issued, {:ok, []}, fn position, {:ok, readings} ->
+      case chain_bid(abi, auction_address, position, block, opts) do
+        {:ok, bid} ->
+          {:cont, {:ok, [reading(position, bid, market, block) | readings]}}
+
+        {:error, :chain_unavailable} ->
+          Logger.warning(
+            "Bid #{position.bid_id} not read (chain_unavailable); " <>
+              "#{length(issued) - length(readings)} bids wait for the next pass"
+          )
+
+          {:halt, {:ok, readings}}
+
+        {:error, reason} ->
+          Logger.warning(
+            "Bid #{position.bid_id} not read (#{inspect(reason)}); skipped until the next pass"
+          )
+
+          {:cont, {:ok, readings}}
+      end
+    end)
+  end
+
+  @doc """
+  Every site position of one auction that names an on-chain bid id and is not
+  finished. A returned or claimed bid never changes on chain again, so it is
+  not read again.
+  """
+  @spec positions(String.t()) :: {:ok, [Bid.t()]} | {:error, term()}
+  def positions(auction_id) do
+    Bid
+    # System projection of the fork's own record; no actor.
+    |> Ash.Query.for_read(:mine, %{}, domain: @domain, authorize?: false)
+    |> Ash.Query.filter(
+      auction_id == ^auction_id and not is_nil(onchain_bid_id) and
+        status not in [:returned, :claimed]
+    )
+    |> Ash.read(domain: @domain, authorize?: false)
+  end
+
+  @doc "Writes the readings that move a stored status forward. Returns whether any was written."
+  @spec project([reading()]) :: {:ok, boolean()} | {:error, term()}
+  def project(readings) do
+    readings
+    |> Enum.filter(&Bid.forward?(&1.position.status, &1.status))
+    |> Enum.reduce_while({:ok, false}, fn reading, {:ok, _changed} ->
+      case write(reading) do
+        {:ok, _bid} -> {:cont, {:ok, true}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  # The feed's reading was taken before this write, and a wallet verification
+  # may have recorded a later step of the same settlement meanwhile. The row is
+  # re-read under a lock inside the write transaction and its recorded amounts
+  # are kept; the status only moves forward (`Regents.Autolaunch.Bid.forward?/2`), so a
+  # reading older than the page's own receipt never undoes it. One Ash
+  # transaction, so any notification of the write goes out once it is committed.
+  defp write(%{position: stale, status: status} = reading) do
+    Ash.transaction(Bid, fn ->
+      with {:ok, position} <- locked(stale.bid_id),
+           true <- Bid.forward?(position.status, status),
+           {:ok, bid} <- upsert(position, status, reading) do
+        bid
+      else
+        false -> stale
+        {:error, reason} -> Ash.DataLayer.rollback(Bid, reason)
+      end
+    end)
+  end
+
+  defp locked(bid_id) do
+    Bid
+    # System projection of the fork's own record; no actor.
+    |> Ash.Query.for_read(:mine, %{}, domain: @domain, authorize?: false)
+    |> Ash.Query.filter(bid_id == ^bid_id)
+    |> Ash.Query.lock(:for_update)
+    |> Ash.read_one(domain: @domain, authorize?: false)
+    |> case do
+      {:ok, nil} -> {:error, :bid_not_found}
+      other -> other
+    end
+  end
+
+  defp upsert(position, status, reading) do
+    Bid
+    |> Ash.Changeset.for_create(
+      :project_lab,
+      %{
+        bid_id: position.bid_id,
+        auction_id: position.auction_id,
+        owner_address: position.owner_address,
+        amount: position.amount,
+        max_price: position.max_price,
+        current_clearing_price: position.current_clearing_price,
+        estimated_tokens_if_end_now: position.estimated_tokens_if_end_now,
+        status: status,
+        exited_at: exited_at(position, reading),
+        claimed_at: claimed_at(position, status),
+        auction_address: position.auction_address,
+        onchain_bid_id: position.onchain_bid_id,
+        currency_refunded: position.currency_refunded,
+        tokens_filled: tokens_filled(position, reading),
+        tokens_claimed: position.tokens_claimed
+      },
+      domain: @domain,
+      actor: @actor
+    )
+    |> Ash.create(domain: @domain, actor: @actor)
+  end
+
+  defp exited_at(%{exited_at: nil}, %{exited: true}), do: DateTime.utc_now()
+  defp exited_at(position, _reading), do: position.exited_at
+
+  defp claimed_at(%{claimed_at: nil}, :claimed), do: DateTime.utc_now()
+  defp claimed_at(position, _status), do: position.claimed_at
+
+  # The fill the auction records survives the claim zeroing it on chain.
+  defp tokens_filled(_position, %{exited: true, tokens_filled: filled}) when filled > 0,
+    do: Rpc.format_units(filled, 18)
+
+  defp tokens_filled(position, _reading), do: position.tokens_filled
+
+  # The stored bids the auction has not issued: one line a pass, however many.
+  defp skipped([], _auction_address, _next_bid_id), do: :ok
+
+  defp skipped(unissued, auction_address, next_bid_id),
+    do:
+      Logger.warning(
+        "Auction #{auction_address} has not issued the stored bids " <>
+          "#{Enum.map_join(unissued, ", ", & &1.onchain_bid_id)} " <>
+          "(its next bid id is #{next_bid_id}); skipped"
+      )
+
+  defp chain_bid(abi, auction_address, position, block, opts) do
+    with {:ok, [_start, _mps, exited_block, _max_price, owner_word, amount_q96, filled]} <-
+           Rpc.call_words(
+             auction_address,
+             LabAbi.encode(abi, "bids(uint256)", [String.to_integer(position.onchain_bid_id)]),
+             block,
+             7,
+             opts
+           ),
+         {:ok, _owner} <- Abi.word_address(owner_word) do
+      {:ok, %{exited: exited_block != 0, tokens_filled: filled, amount: div(amount_q96, @q96)}}
+    else
+      :error -> {:error, :invalid_chain_response}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp reading(position, bid, market, block) do
+    %{
+      bid_id: position.bid_id,
+      position: position,
+      exited: bid.exited,
+      tokens_filled: bid.tokens_filled,
+      status: status(position, bid, market, block)
+    }
+  end
+
+  # The contract's own rules, in order: an unexited bid can be exited after the
+  # end block; an exited bid with fill can claim once the claim block passes;
+  # an exited bid whose recorded fill has gone to zero has been claimed.
+  defp status(_position, %{exited: false}, _market, _block), do: :returnable
+
+  defp status(_position, %{exited: true, tokens_filled: filled}, market, block) when filled > 0,
+    do: if(block.number >= market.claim_block, do: :claimable, else: :awaiting_claim)
+
+  defp status(position, %{exited: true, tokens_filled: 0}, _market, _block) do
+    if position.status in [:awaiting_claim, :claimable, :claimed] or recorded_fill?(position),
+      do: :claimed,
+      else: :returned
+  end
+
+  defp recorded_fill?(%{tokens_filled: filled}) when is_binary(filled) and filled != "",
+    do: Decimal.gt?(Decimal.new(filled), 0)
+
+  defp recorded_fill?(_position), do: false
+end

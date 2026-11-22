@@ -1,0 +1,452 @@
+defmodule Regents.Autolaunch.Chain.Rpc do
+  @moduledoc false
+
+  require Logger
+
+  alias RegentChain.{Address, BuilderCode}
+
+  @timeout 8_000
+  @chain_id 8453
+
+  @type block :: %{number: non_neg_integer(), hash: String.t(), timestamp: non_neg_integer()}
+
+  @doc """
+  One `safe` Base block, accepted only after the chain identity is proved.
+
+  Every read of a snapshot is then executed against this exact block hash, so a
+  page never mixes two histories and a moved block fails rather than answering.
+  """
+  @spec safe_block(keyword()) :: {:ok, block()} | {:error, atom()}
+  def safe_block(opts \\ []) do
+    with :ok <- verify_chain(@chain_id, opts),
+         {:ok, header} <- request("eth_getBlockByNumber", ["safe", false], opts),
+         do: block_identity(header)
+  end
+
+  @doc "The latest block from an explicitly selected chain endpoint."
+  @spec latest_block(keyword()) :: {:ok, block()} | {:error, atom()}
+  def latest_block(opts \\ []) do
+    expected_chain_id = Keyword.get(opts, :expected_chain_id, @chain_id)
+
+    with :ok <- verify_chain(expected_chain_id, opts),
+         {:ok, header} <- request("eth_getBlockByNumber", ["latest", false], opts),
+         do: block_identity(header)
+  end
+
+  @doc """
+  Whether `block` is still part of its chain: the block now at its number is
+  the same one. Newer blocks on top of it leave it so.
+  """
+  @spec canonical?(block(), keyword()) :: {:ok, boolean()} | {:error, atom()}
+  def canonical?(%{number: number, hash: hash}, opts \\ []) do
+    with {:ok, header} <- request("eth_getBlockByNumber", [hex_quantity(number), false], opts),
+         {:ok, now} <- block_identity(header),
+         do: {:ok, now.hash == hash}
+  end
+
+  @doc """
+  The exact canonical outcome of one submitted transaction against one safe head.
+
+  `:pending` is every state that may still resolve differently: a hash this RPC
+  has not observed yet, no receipt yet, a receipt above the safe head, and a
+  receipt whose block is no longer canonical. Success and revert are both read
+  only from a receipt that is already canonical, so neither can be reported from
+  a block this transaction may yet leave.
+
+  The safe block passed in already proved the chain identity, so nothing here
+  asks for it a second time.
+  """
+  @spec canonical_outcome(String.t(), String.t(), String.t(), String.t(), block(), keyword()) ::
+          {:ok, :pending | :reverted | {:success, [map()]}} | {:error, atom()}
+  def canonical_outcome(hash, signer, to, data, safe_block, opts \\ []) do
+    with {:ok, receipt} <- identified_receipt(hash, signer, to, data, opts),
+         {:ok, number, block_hash} <- receipt_block(receipt),
+         :ok <- canonical(number, block_hash, safe_block, opts) do
+      settled(receipt)
+    end
+  end
+
+  def call_uint(to, data, block, opts \\ []), do: call(to, data, block, &quantity/1, opts)
+
+  def call_bool(to, data, block, opts \\ []) do
+    call(
+      to,
+      data,
+      block,
+      fn result -> with {:ok, word} <- quantity(result), do: {:ok, word != 0} end,
+      opts
+    )
+  end
+
+  def call_address(to, data, block, opts \\ []),
+    do: call(to, data, block, &decode_address/1, opts)
+
+  def call_words(to, data, block, count, opts \\ []) when is_integer(count) and count > 0 do
+    call(to, data, block, &decode_words(&1, count), opts)
+  end
+
+  @doc "One ABI string answer, such as an ERC-20 `name()` or `symbol()`."
+  def call_string(to, data, block, opts \\ []), do: call(to, data, block, &decode_string/1, opts)
+
+  @doc """
+  One ABI string answer as the bytes the contract holds, which need not be
+  valid UTF-8: text someone else wrote, such as a launch's token name.
+  """
+  def call_bytes(to, data, block, opts \\ []), do: call(to, data, block, &decode_bytes/1, opts)
+
+  @doc "One answer as the bytes the contract returned, left undecoded."
+  def call_raw(to, data, block, opts \\ []), do: call(to, data, block, &decode_raw/1, opts)
+
+  def request(method, params, opts \\ []) do
+    case answer(method, params, opts) do
+      {:error, :refused} -> {:error, :chain_unavailable}
+      result -> result
+    end
+  end
+
+  @doc """
+  Every log `address` emitted with `topics` from block `from` to block `to`. A
+  span the node refuses, as too many blocks or too many logs, is read again as
+  its two halves, down to one block; a node that does not answer fails the read
+  at once.
+  """
+  @spec logs(String.t(), list(), non_neg_integer(), non_neg_integer(), keyword()) ::
+          {:ok, [map()]} | {:error, atom()}
+  def logs(address, topics, from, to, opts) do
+    filter = %{
+      address: address,
+      topics: topics,
+      fromBlock: hex_quantity(from),
+      toBlock: hex_quantity(to)
+    }
+
+    case answer("eth_getLogs", [filter], opts) do
+      {:ok, logs} when is_list(logs) -> {:ok, logs}
+      {:ok, _other} -> {:error, :invalid_chain_response}
+      {:error, :refused} when from < to -> halves(address, topics, from, to, opts)
+      {:error, _reason} -> {:error, :chain_unavailable}
+    end
+  end
+
+  defp halves(address, topics, from, to, opts) do
+    middle = div(from + to, 2)
+
+    with {:ok, low} <- logs(address, topics, from, middle, opts),
+         {:ok, high} <- logs(address, topics, middle + 1, to, opts),
+         do: {:ok, low ++ high}
+  end
+
+  # A node's error answer is a refusal of this request, which `logs/5` can ask
+  # again in smaller pieces; anything else means the node is not answering.
+  defp answer(method, params, opts) do
+    request = %{jsonrpc: "2.0", id: 1, method: method, params: params}
+
+    rpc_url =
+      Keyword.get_lazy(opts, :rpc_url, fn ->
+        Application.fetch_env!(:regents, :base_read_rpc_url)
+      end)
+
+    case Req.post(rpc_url,
+           json: request,
+           # Fly private-network names (.internal) publish only AAAA records;
+           # inet6 makes Mint try IPv6 first and still fall back to IPv4. Req
+           # takes a pool wait only inside `finch:`, which cannot sit beside
+           # `connect_options:`, so the connection settings live here too.
+           finch: [
+             pool_timeout: 3_000,
+             conn_opts: [transport_opts: [timeout: 3_000, inet6: true]]
+           ],
+           receive_timeout: @timeout,
+           retry: false
+         ) do
+      {:ok, %{status: 200, body: %{"result" => result}}} ->
+        {:ok, result}
+
+      {:ok, %{status: 200, body: %{"error" => _error}}} ->
+        failed(method, :rpc, opts)
+        {:error, :refused}
+
+      # A provider refusing the request (a 429 rate limit, a 5xx outage) is
+      # not an answer from the chain; it is logged like a transport failure.
+      {:ok, %{status: status}} ->
+        log_failure(method, {:http_status, status}, opts)
+        {:error, :chain_unavailable}
+
+      {:error, reason} ->
+        log_failure(method, reason, opts)
+        {:error, :chain_unavailable}
+    end
+  rescue
+    # Finch raises, not returns, when no pooled connection frees up in time.
+    error ->
+      log_failure(method, error, opts)
+      {:error, :chain_unavailable}
+  end
+
+  @doc """
+  A raw integer amount as a plain decimal with `decimals` places, exact at any
+  size: integer arithmetic only, no trailing zeros, "1.5" for 1500000 at 6.
+  """
+  @spec format_units(integer(), non_neg_integer()) :: String.t()
+  def format_units(value, decimals) when is_integer(value) and value < 0,
+    do: "-" <> format_units(-value, decimals)
+
+  def format_units(value, 0) when is_integer(value), do: Integer.to_string(value)
+
+  def format_units(value, decimals)
+      when is_integer(value) and is_integer(decimals) and decimals > 0 do
+    digits = value |> Integer.to_string() |> String.pad_leading(decimals + 1, "0")
+    {whole, fraction} = String.split_at(digits, -decimals)
+
+    case String.trim_trailing(fraction, "0") do
+      "" -> whole
+      fraction -> whole <> "." <> fraction
+    end
+  end
+
+  @doc """
+  The first block at or below `head` where `address` holds code, found by
+  halving the chain with `eth_getCode`: about log2(head) one-block requests,
+  never a log range a provider can refuse for its width.
+  """
+  @spec deployment_block(String.t(), non_neg_integer(), keyword()) ::
+          {:ok, non_neg_integer()} | {:error, :history_unavailable}
+  def deployment_block(address, head, opts), do: code_since(address, 0, head, opts)
+
+  defp code_since(_address, same, same, _opts), do: {:ok, same}
+
+  defp code_since(address, low, high, opts) do
+    middle = div(low + high, 2)
+
+    case request("eth_getCode", [address, hex_quantity(middle)], opts) do
+      {:ok, "0x"} -> code_since(address, middle + 1, high, opts)
+      {:ok, "0x" <> code} when byte_size(code) > 0 -> code_since(address, low, middle, opts)
+      _ -> {:error, :history_unavailable}
+    end
+  end
+
+  # `\z` and not `$`: `$` also matches before a trailing newline, which let
+  # "0x" <> 63 hex <> "\n" pass the 64-byte guard as a canonical hash.
+  def valid_hash?("0x" <> hash),
+    do: byte_size(hash) == 64 and String.match?(hash, ~r/^[0-9a-fA-F]+\z/)
+
+  def valid_hash?(_hash), do: false
+
+  # EIP-1898: the block hash owns the read and `requireCanonical` refuses an
+  # answer from a block that is no longer part of the chain.
+  defp call(to, data, %{hash: hash}, decode, opts) do
+    with {:ok, result} <-
+           request(
+             "eth_call",
+             [%{to: to, data: data}, %{blockHash: hash, requireCanonical: true}],
+             opts
+           ) do
+      case decode.(result) do
+        {:ok, value} -> {:ok, value}
+        :error -> {:error, :invalid_chain_response}
+      end
+    end
+  end
+
+  defp verify_chain(expected_chain_id, opts) do
+    with {:ok, result} <- request("eth_chainId", [], opts),
+         {:ok, chain_id} <- quantity(result),
+         true <- chain_id == expected_chain_id do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      false -> {:error, :wrong_chain}
+      _ -> {:error, :invalid_chain_response}
+    end
+  end
+
+  defp block_identity(%{"number" => number, "hash" => hash, "timestamp" => timestamp}) do
+    with {:ok, number} <- quantity(number),
+         {:ok, timestamp} <- quantity(timestamp),
+         true <- valid_hash?(hash) do
+      {:ok, %{number: number, hash: String.downcase(hash), timestamp: timestamp}}
+    else
+      _malformed -> {:error, :invalid_block_header}
+    end
+  end
+
+  defp block_identity(_header), do: {:error, :invalid_block_header}
+
+  defp identified_receipt(hash, signer, to, data, opts) do
+    with true <- valid_hash?(hash),
+         {:ok, receipt} <- request("eth_getTransactionReceipt", [hash], opts),
+         {:ok, transaction} <- request("eth_getTransactionByHash", [hash], opts),
+         :ok <- verify_receipt_hash(receipt, hash),
+         :ok <- observed_identity(receipt, transaction, hash, signer, to, data) do
+      {:ok, receipt}
+    else
+      false -> {:error, :invalid_confirmation}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # A hash the wallet has just broadcast may not have reached this read RPC yet.
+  # With neither a receipt nor the transaction itself, nothing has been observed
+  # about it: the same hash stays pending rather than becoming unverifiable.
+  defp observed_identity(nil, nil, _hash, _signer, _to, _data), do: :ok
+
+  defp observed_identity(_receipt, transaction, hash, signer, to, data),
+    do: verify_transaction(transaction, hash, signer, to, data)
+
+  # `{:ok, :pending}` here is the whole answer: the `with` above carries it out
+  # unchanged rather than reading a status this receipt does not have yet.
+  defp receipt_block(nil), do: {:ok, :pending}
+
+  defp receipt_block(%{"blockNumber" => number, "blockHash" => hash, "logs" => logs})
+       when is_list(logs) do
+    with {:ok, number} <- quantity(number),
+         true <- valid_hash?(hash) do
+      {:ok, number, String.downcase(hash)}
+    else
+      _malformed -> {:error, :invalid_receipt}
+    end
+  end
+
+  defp receipt_block(_receipt), do: {:error, :invalid_receipt}
+
+  # Above the safe head, and mined into a block that is no longer the canonical
+  # one, are both states this transaction may still leave: neither is an answer,
+  # whichever status the receipt carries right now.
+  defp canonical(number, _hash, %{number: safe}, _opts) when number > safe, do: {:ok, :pending}
+
+  defp canonical(number, hash, _safe, opts) do
+    with {:ok, header} <- request("eth_getBlockByNumber", [hex_quantity(number), false], opts),
+         {:ok, %{hash: ^hash}} <- block_identity(header) do
+      :ok
+    else
+      {:error, reason} -> {:error, reason}
+      _moved -> {:ok, :pending}
+    end
+  end
+
+  defp settled(%{"status" => "0x1", "logs" => logs}), do: {:ok, {:success, logs}}
+  defp settled(%{"status" => "0x0"}), do: {:ok, :reverted}
+  defp settled(_receipt), do: {:error, :invalid_receipt}
+
+  defp quantity("0x" <> hex) when hex != "" do
+    case Integer.parse(hex, 16) do
+      {value, ""} -> {:ok, value}
+      _malformed -> :error
+    end
+  end
+
+  defp quantity(_value), do: :error
+
+  defp hex_quantity(value), do: "0x" <> (value |> Integer.to_string(16) |> String.downcase())
+
+  defp verify_receipt_hash(nil, _hash), do: :ok
+
+  defp verify_receipt_hash(%{"transactionHash" => receipt_hash}, hash)
+       when is_binary(receipt_hash) do
+    if String.downcase(receipt_hash) == String.downcase(hash),
+      do: :ok,
+      else: {:error, :receipt_mismatch}
+  end
+
+  defp verify_receipt_hash(_receipt, _hash), do: {:error, :invalid_receipt}
+
+  defp verify_transaction(transaction, hash, signer, to, data) when is_map(transaction) do
+    with {:ok, actual_signer} <- Address.normalize(transaction["from"]),
+         {:ok, expected_signer} <- Address.normalize(signer),
+         {:ok, actual_target} <- Address.normalize(transaction["to"]),
+         {:ok, expected_target} <- Address.normalize(to),
+         transaction_hash when is_binary(transaction_hash) <- transaction["hash"],
+         true <- String.downcase(transaction_hash) == String.downcase(hash),
+         true <- actual_signer == expected_signer,
+         true <- actual_target == expected_target,
+         {:ok, sent} <- sent_call(transaction["input"]),
+         {:ok, reviewed} <- sent_call(data),
+         true <- sent == reviewed,
+         true <- zero_quantity?(transaction["value"]) do
+      :ok
+    else
+      _ -> {:error, :transaction_mismatch}
+    end
+  end
+
+  defp verify_transaction(_transaction, _hash, _signer, _to, _data),
+    do: {:error, :transaction_missing}
+
+  # The calldata without any Builder Code suffix, which a wallet may rewrite.
+  defp sent_call("0x" <> _hex = data), do: {:ok, data |> String.downcase() |> BuilderCode.call()}
+  defp sent_call(_input), do: :error
+
+  defp decode_address("0x" <> hex) when byte_size(hex) == 64,
+    do: Address.normalize("0x" <> String.slice(hex, -40, 40))
+
+  defp decode_address(_result), do: :error
+
+  defp decode_words("0x" <> hex, count) when byte_size(hex) == count * 64, do: words(hex, [])
+  defp decode_words(_result, _count), do: :error
+
+  defp words(<<>>, decoded), do: {:ok, Enum.reverse(decoded)}
+
+  defp words(<<word::binary-size(64), rest::binary>>, decoded) do
+    case Integer.parse(word, 16) do
+      {value, ""} -> words(rest, [value | decoded])
+      _malformed -> :error
+    end
+  end
+
+  # An ABI string is its offset word, its length word and its UTF-8 bytes.
+  defp decode_string(result) do
+    with {:ok, bytes} <- decode_bytes(result),
+         true <- String.valid?(bytes) do
+      {:ok, bytes}
+    else
+      _malformed -> :error
+    end
+  end
+
+  defp decode_bytes("0x" <> hex) when byte_size(hex) >= 128 do
+    with {:ok, [_offset, length]} <- decode_words("0x" <> binary_part(hex, 0, 128), 2),
+         true <- (128 + length * 2) in 0..byte_size(hex) do
+      Base.decode16(binary_part(hex, 128, length * 2), case: :mixed)
+    else
+      _malformed -> :error
+    end
+  end
+
+  defp decode_bytes(_result), do: :error
+
+  defp decode_raw("0x" <> hex), do: Base.decode16(hex, case: :mixed)
+  defp decode_raw(_result), do: :error
+
+  defp zero_quantity?(value) when value in ["0x0", "0x", "0"], do: true
+  defp zero_quantity?(_value), do: false
+
+  defp log_failure(method, reason, opts) do
+    scope = Keyword.get(opts, :log_scope, "wallet")
+
+    Logger.warning(
+      "#{scope} chain read failed #{inspect(%{method: method, class: error_class(reason)})}"
+    )
+
+    failed(method, error_class(reason), opts)
+  end
+
+  # Every unanswered request, logged or not: a JSON-RPC error (`:rpc`, which
+  # includes a refused log range and a reverted `eth_call`), a timeout, a
+  # transport failure or an HTTP status.
+  defp failed(method, class, opts) do
+    :telemetry.execute([:autolaunch, :rpc, :failure], %{count: 1}, %{
+      method: method,
+      class: class,
+      chain_id: Keyword.get(opts, :expected_chain_id, @chain_id),
+      scope: Keyword.get(opts, :log_scope, "wallet")
+    })
+  end
+
+  defp error_class(%Req.TransportError{reason: reason})
+       when reason in [:timeout, :connect_timeout],
+       do: :timeout
+
+  defp error_class(%Req.TransportError{}), do: :transport
+  defp error_class({:http_status, status}), do: {:http_status, status}
+  defp error_class(_reason), do: :transport
+end

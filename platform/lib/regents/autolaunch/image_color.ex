@@ -11,8 +11,12 @@ defmodule Regents.Autolaunch.ImageColor do
   neutral grey: a photo whose strongest colour is a dull patch of skin is grey,
   while a small vivid logo on black keeps its colour. Either way the lightness is kept in a band that reads against
   both the light and the dark theme.
+
+  Images are stored at `/images/<id>/<digest>` and `/stock-images/<id>/<digest>`;
+  `for_urls/1` reads the colours of such addresses in one query per table.
   """
 
+  alias Regents.Autolaunch.StoredImage
   alias Vix.Vips.{Image, Operation}
 
   @side 64
@@ -33,6 +37,41 @@ defmodule Regents.Autolaunch.ImageColor do
   def dominant(bytes) when is_binary(bytes) do
     with {:ok, pixels} <- pixels(bytes), do: {:ok, pixels |> pick() |> hex()}
   end
+
+  @doc """
+  The colours of stored images, keyed by the address each was asked for.
+  An address that names no stored image of the site is left out.
+  """
+  @spec for_urls([String.t() | nil]) :: %{String.t() => String.t()}
+  def for_urls(urls) do
+    named =
+      for url <- Enum.uniq(urls),
+          is_binary(url),
+          {:ok, key} <- [StoredImage.key(url)],
+          do: {url, key}
+
+    colours =
+      named
+      |> Enum.group_by(fn {_url, {lane, _id, _digest}} -> lane end, fn {_url, {_, id, _}} ->
+        id
+      end)
+      |> Enum.flat_map(fn {lane, ids} -> stored(lane, ids) end)
+      |> Map.new(fn image -> {{image.id, image.digest}, image.color} end)
+
+    for {url, {_lane, id, digest}} <- named,
+        colour = colours[{id, digest}],
+        into: %{},
+        do: {url, colour}
+  end
+
+  @doc "The colour of one stored image's address, or nil."
+  @spec for_url(String.t() | nil) :: String.t() | nil
+  def for_url(url), do: for_urls([url])[url]
+
+  defp stored("images", ids), do: Regents.Autolaunch.launch_draft_image_colors!(ids, actor: nil)
+
+  defp stored("stock-images", ids),
+    do: Regents.Autolaunch.stock_launch_draft_image_colors!(ids, actor: nil)
 
   # Every opaque pixel of the shrunk image as `{r, g, b}`, 8 bits each.
   defp pixels(bytes) do

@@ -1,0 +1,18 @@
+defmodule RegentsWeb.Autolaunch.Components.PortfolioLink do
+  @moduledoc """
+  The "View portfolio" button the success toast of a wallet action that
+  changes the person's own holdings carries (swap, stake and claim, covered
+  calls), as the bid-placed card does, so they go straight to what changed.
+  A toast shown on the portfolio itself leaves it out.
+  """
+  use Phoenix.Component
+  use RegentsWeb, :verified_routes
+
+  def portfolio_link(assigns) do
+    ~H"""
+    <.link navigate={~p"/autolaunch/portfolio"} class="rg-button rg-button--secondary toast-portfolio">
+      <span class="rg-button__label">View portfolio</span>
+    </.link>
+    """
+  end
+end

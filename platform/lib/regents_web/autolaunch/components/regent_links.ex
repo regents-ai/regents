@@ -1,9 +1,66 @@
 defmodule RegentsWeb.Autolaunch.Components.RegentLinks do
-  @moduledoc "The footer's X and GitHub links."
+  @moduledoc false
   use Phoenix.Component
 
   import RegentsWeb.Autolaunch.Components.LinkIcon
 
+  alias RegentsWeb.Autolaunch.Components.TokenLinks
+
+  slot :trail, doc: "what comes last in the row, after the GitHub icon"
+
+  def header_links(assigns) do
+    assigns = assign(assigns, :local_lab?, Regents.Autolaunch.Lab.test_chain?())
+
+    ~H"""
+    <div class="regent-header-links">
+      <details id="header-regent-menu" class="regent-token-menu" data-regent-token-menu>
+        <summary aria-label="$REGENT links"><.regent_icon /></summary>
+        <div class="regent-token-menu__panel" {RegentsWeb.Motion.panel("menu")}>
+          <nav class="regent-token-menu__content" aria-label="$REGENT">
+            <Regent.Primitives.copy_button
+              id="header-regent-copy"
+              text={TokenLinks.address()}
+              variant="quiet"
+              class="regent-token-menu__copy"
+              aria-label="Copy $REGENT contract address"
+            >
+              <span class="regent-token-menu__copy-label">$REGENT</span>
+              <span class="regent-token-menu__copy-icon" aria-hidden="true">
+                <Regent.Icons.icon name="copy" />
+              </span>
+            </Regent.Primitives.copy_button>
+            <a
+              id="regent-buy"
+              class="rg-button regent-token-menu__link"
+              href={TokenLinks.buy()}
+              target="_blank"
+              rel="noopener noreferrer"
+            >Buy on Uniswap</a>
+            <a
+              id="regent-chart"
+              class="rg-button regent-token-menu__link"
+              href={TokenLinks.chart()}
+              target="_blank"
+              rel="noopener noreferrer"
+            >View Chart</a>
+            <a id="regent-agents" class="rg-button regent-token-menu__link" href="/agents.md">
+              agents.md
+            </a>
+            <p :if={@local_lab?} class="regent-token-menu__note">
+              Public Base mainnet, not this fork’s test REGENT.
+            </p>
+          </nav>
+        </div>
+      </details>
+      <nav class="regent-social-links" aria-label="Regents on GitHub">
+        <.github_link />
+      </nav>
+      {render_slot(@trail)}
+    </div>
+    """
+  end
+
+  @doc "The footer's X and GitHub links, which stand with its buttons (`data-press`)."
   def social_links(assigns) do
     ~H"""
     <nav class="regent-social-links" aria-label="Regents social links">
@@ -12,18 +69,39 @@ defmodule RegentsWeb.Autolaunch.Components.RegentLinks do
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Regents on X"
+        data-press="motion"
       >
         <.link_icon kind={:x} />
       </a>
-      <a
-        href="https://github.com/regents-ai"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Regents on GitHub"
-      >
-        <.link_icon kind={:github} />
-      </a>
+      <.github_link data-press="motion" />
     </nav>
+    """
+  end
+
+  attr :rest, :global
+
+  defp github_link(assigns) do
+    ~H"""
+    <a
+      href="https://github.com/regents-ai"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Regents on GitHub"
+      {@rest}
+    >
+      <.link_icon kind={:github} />
+    </a>
+    """
+  end
+
+  # Same icon geometry as the Regents homepage.
+  defp regent_icon(assigns) do
+    ~H"""
+    <svg viewBox="31 46 178 106" fill="currentColor" aria-hidden="true">
+      <rect :for={x <- [31, 103, 175]} x={x} y="46" width="34" height="34" />
+      <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="82" width="34" height="34" />
+      <rect :for={x <- [31, 67, 103, 139, 175]} x={x} y="118" width="34" height="34" />
+    </svg>
     """
   end
 end

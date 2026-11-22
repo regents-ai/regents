@@ -1,11 +1,5 @@
 defmodule Regents.Autolaunch.Subject do
-  @moduledoc """
-  One launched subject: its token and the contracts its revenue moves through,
-  with the protocol's share and the totals read from them.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
-  """
+  alias Regents.Autolaunch.SubjectIdentity
 
   use Ash.Resource,
     otp_app: :regents,
@@ -13,14 +7,71 @@ defmodule Regents.Autolaunch.Subject do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  # A subject id occupies one public URL segment, the identifier format the
-  # public route catalog accepts.
-  @subject_id_shape ~r/\A[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}\z/
-
   postgres do
     table "subjects"
     schema("autolaunch_app")
     repo(Regents.Repo)
+  end
+
+  actions do
+    read :read do
+      primary? true
+    end
+
+    read :public_by_id do
+      get? true
+
+      argument :subject_id, :string,
+        allow_nil?: false,
+        constraints: SubjectIdentity.constraints()
+
+      filter expr(subject_id == ^arg(:subject_id))
+      prepare build(load: [:treasury_security_report])
+    end
+
+    create :project_lab do
+      accept [
+        :subject_id,
+        :subject_kind,
+        :chain_id,
+        :token_address,
+        :splitter_address,
+        :ingress_address,
+        :treasury_address,
+        :canonical_receiver_address,
+        :factory_address,
+        :creator_address,
+        :staker_pool_bps,
+        :protocol_skim_bps_snapshot,
+        :current_protocol_skim_bps,
+        :protocol_fee_usdc_total_raw,
+        :regent_emission_total_raw,
+        :pending_buyback_usdc_raw
+      ]
+
+      upsert? true
+      upsert_identity :unique_subject_id
+
+      upsert_fields [
+        :token_address,
+        :splitter_address,
+        :ingress_address,
+        :treasury_address,
+        :canonical_receiver_address,
+        :factory_address,
+        :creator_address
+      ]
+    end
+  end
+
+  policies do
+    policy action([:read, :public_by_id]) do
+      authorize_if always()
+    end
+
+    policy action(:project_lab) do
+      authorize_if Regents.Checks.SystemActor
+    end
   end
 
   attributes do
@@ -29,7 +80,7 @@ defmodule Regents.Autolaunch.Subject do
     attribute :subject_id, :string do
       allow_nil? false
       public? true
-      constraints min_length: 1, max_length: 128, trim?: false, match: @subject_id_shape
+      constraints SubjectIdentity.constraints()
     end
 
     attribute :subject_kind, :string do
@@ -131,13 +182,5 @@ defmodule Regents.Autolaunch.Subject do
 
   identities do
     identity :unique_subject_id, [:subject_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

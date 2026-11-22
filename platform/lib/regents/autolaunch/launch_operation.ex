@@ -5,17 +5,19 @@ defmodule Regents.Autolaunch.LaunchOperation do
 
   `review` is fixed once saved: the chain, the signer, the one `launch` step
   (target and calldata) and the facts the page showed. Nothing about a press is
-  stored. A launch the chain shows is matched to the review whose step it
-  sent, which is then marked `chain_verified`.
+  stored. `Regents.Autolaunch.LaunchReviews` matches a launch the chain shows to the
+  review whose step it sent, lists it, and marks the review `chain_verified`.
 
   A review stays `prepared` until the chain shows its launch, even once its
   page has let it go: its exact step can still be sent, and the launch is then
   this site's. An account may hold any number of the reviews its pages save;
-  one never cancels another. A paired agent's review of the person's draft is
-  `prepared_by: :agent`.
+  one never cancels another.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  A paired agent's review of the person's draft (`prepared_by: :agent`,
+  `Regents.Autolaunch.AgentLaunch`) is tried only after every review of the person's
+  when a launch is listed, so it never takes the place of one the person saw.
+  Each of the agent's preparations of a draft stays good for 24 hours, and at
+  most 20 unused ones are kept (`Regents.Autolaunch.AgentLaunch.Preparations`).
   """
 
   use Ash.Resource,
@@ -23,6 +25,8 @@ defmodule Regents.Autolaunch.LaunchOperation do
     domain: Regents.Autolaunch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
+
+  require Ash.Sort
 
   @steps [:launch]
   @states [:prepared, :chain_verified]
@@ -35,6 +39,108 @@ defmodule Regents.Autolaunch.LaunchOperation do
     references do
       reference(:human_account, on_delete: :restrict)
       reference(:launch_draft, on_delete: :restrict)
+    end
+  end
+
+  # `Regents.Autolaunch.LaunchActions` saves a review inside the mounted lease.
+  code_interface do
+    define :prepare
+  end
+
+  actions do
+    defaults [:read]
+
+    # `Regents.Autolaunch.LaunchReviews`: the review a page's own press names,
+    read :by_action_id do
+      get? true
+      argument :action_id, :string, allow_nil?: false
+      filter expr(action_id == ^arg(:action_id))
+    end
+
+    # the reviews a launch the chain shows may have come from, the person's
+    # own before any an agent prepared, newest first within each,
+    read :for_signer_on_chain do
+      argument :signer, :string, allow_nil?: false
+      argument :chain_id, :integer, allow_nil?: false
+
+      filter expr(
+               string_downcase(signer) == string_downcase(^arg(:signer)) and
+                 fragment("(?->'chain'->>'chain_id')::bigint = ?", review, ^arg(:chain_id))
+             )
+
+      prepare build(
+                sort: [
+                  {Ash.Sort.expr_sort(prepared_by == :agent, :boolean), :asc},
+                  inserted_at: :desc
+                ]
+              )
+    end
+
+    # and the one being listed, held until its listing commits.
+    read :by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
+    end
+
+    # The chain shows the launch this review's step carried out.
+    update :verify do
+      accept [:result]
+      require_atomic? false
+      validate attribute_equals(:state, :prepared)
+      change set_attribute(:state, :chain_verified)
+      change set_attribute(:terminal_at, &DateTime.utc_now/0)
+    end
+
+    create :prepare do
+      accept [:action_id, :review, :signer, :step]
+      argument :human_account_id, :integer, allow_nil?: false
+      argument :launch_draft_id, :uuid, allow_nil?: false
+      change set_attribute(:human_account_id, arg(:human_account_id))
+      change set_attribute(:launch_draft_id, arg(:launch_draft_id))
+    end
+
+    # A paired agent's review of its person's draft (`Regents.Autolaunch.AgentLaunch`),
+    # kept for the person the pairing names while the pairing is locked.
+    create :agent_prepare do
+      accept [:action_id, :review, :signer, :step]
+      argument :launch_draft_id, :uuid, allow_nil?: false
+      change set_attribute(:human_account_id, actor(:human_account_id))
+      change set_attribute(:launch_draft_id, arg(:launch_draft_id))
+
+      validate {Regents.Autolaunch.AgentLaunch.PersonsDraft,
+                draft: Regents.Autolaunch.LaunchDraft},
+               only_when_valid?: true
+
+      change set_attribute(:prepared_by, :agent)
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+
+      change {Regents.Autolaunch.AgentLaunch.Preparations,
+              of: [:launch_draft_id], same: [:review]}
+    end
+
+    # An agent's reviews the chain has not shown, newest first
+    # (`Regents.Autolaunch.AgentLaunch.Preparations`).
+    read :agent_preparations do
+      filter expr(prepared_by == :agent and state == :prepared)
+      prepare build(sort: [inserted_at: :desc, id: :desc])
+    end
+
+    # An agent's review past its 24 hours, removed to make room for a new one.
+    destroy :trim do
+      validate attribute_equals(:prepared_by, :agent)
+      validate attribute_equals(:state, :prepared)
+    end
+  end
+
+  policies do
+    bypass action(:agent_prepare) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
+    end
+
+    policy always() do
+      authorize_if Regents.Checks.SystemActor
     end
   end
 
@@ -55,7 +161,7 @@ defmodule Regents.Autolaunch.LaunchOperation do
     attribute :step, :atom, allow_nil?: false, constraints: [one_of: @steps]
     attribute :state, :atom, allow_nil?: false, default: :prepared, constraints: [one_of: @states]
 
-    # Set only by a paired agent's preparation.
+    # Set only by `:agent_prepare`.
     attribute :prepared_by, :atom,
       allow_nil?: false,
       default: :person,
@@ -85,13 +191,5 @@ defmodule Regents.Autolaunch.LaunchOperation do
 
   identities do
     identity :unique_launch_action_id, [:action_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

@@ -1,0 +1,16 @@
+defmodule Regents.Autolaunch.Listings do
+  @moduledoc """
+  Saved changes to what the public lists show. `Regents.Autolaunch.Auction` and
+  `Regents.Autolaunch.Token` publish `{:autolaunch_listings_changed, auction_id}` on
+  this topic for a new auction or token, an auction whose state or minimum
+  changed, and an auction's bid terms or treasury report. Price readings
+  travel on each auction's reading's own topics instead (`Regents.Autolaunch.AuctionReading`).
+  """
+
+  @topic "listings"
+
+  @doc "The topic the resources publish on; their `pub_sub` blocks name it too."
+  def topic, do: @topic
+
+  def subscribe, do: Phoenix.PubSub.subscribe(Regents.PubSub, @topic)
+end

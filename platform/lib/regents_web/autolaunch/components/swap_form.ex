@@ -1,0 +1,654 @@
+defmodule RegentsWeb.Autolaunch.Components.SwapForm do
+  @moduledoc """
+  Presentation shared by token-page and listing-dialog swaps: the one form, and
+  the panel that opens over it while the wallet finishes the swap. The caller
+  owns all state.
+  """
+
+  use Phoenix.Component
+
+  alias Phoenix.LiveView.JS
+  alias Regents.Autolaunch.StoredImage
+
+  @approvals ~w(approval permit2_approval stock_approval token_approval usdc_approval usdg_approval)
+
+  attr :id, :string, required: true
+  attr :sell_symbol, :string, required: true
+  attr :buy_symbol, :string, required: true
+  attr :sell_image, :string, default: nil
+  attr :buy_image, :string, default: nil
+  attr :amount, :string, required: true
+
+  attr :estimated_output, :any,
+    default: nil,
+    doc: "the quoted amount, `nil` before one arrives, or `:unread` when the pool gave none"
+
+  attr :sell_balance, :string, default: nil
+  attr :buy_balance, :string, default: nil
+  attr :balances_unread, :boolean, default: false
+  attr :rate, :string, default: nil
+  attr :error, :string, default: nil
+  attr :protection, :string, required: true
+  attr :protection_error, :string, default: nil
+  attr :options_open, :boolean, default: false
+  attr :inert, :boolean, default: false
+
+  attr :action, :atom,
+    required: true,
+    values: [:enter_amount, :review, :sign_in, :closed]
+
+  attr :change_event, :string, required: true
+  attr :submit_event, :string, required: true
+  attr :reverse_event, :string, required: true
+  attr :options_event, :string, required: true
+  attr :close_options_event, :string, required: true
+
+  attr :portions, :list,
+    default: [],
+    doc: "`{label, amount}` for each part of the balance sold that a button fills in"
+
+  attr :target, :any, default: nil
+
+  def swap_form(assigns) do
+    # A window binding avoids the slippage input's blur debounce. Return
+    # focus only if it is still in this form, not in another open panel.
+    assigns =
+      assign(assigns,
+        close_options:
+          if(assigns.options_open && !assigns.inert,
+            do:
+              JS.push(assigns.close_options_event, target: assigns.target)
+              |> JS.focus(to: "##{assigns.id}:focus-within ##{assigns.id}-settings")
+          )
+      )
+
+    ~H"""
+    <form
+      id={@id}
+      class="token-swap__form"
+      phx-hook="MotionPanels"
+      aria-label={"Swap #{@sell_symbol} for #{@buy_symbol}"}
+      phx-change={@change_event}
+      phx-submit={@submit_event}
+      phx-target={@target}
+      phx-window-keydown={@close_options}
+      phx-key="Escape"
+      inert={@inert}
+    >
+      <header class="token-swap__bar">
+        <span class="token-swap__mode">Swap</span>
+        <Regent.Primitives.button
+          id={@id <> "-settings"}
+          type="button"
+          variant="quiet"
+          class="token-swap__gear"
+          phx-click={@options_event}
+          phx-target={@target}
+          aria-expanded={to_string(@options_open)}
+          aria-controls={@id <> "-options"}
+          aria-label="Swap settings"
+          title="Swap settings"
+        >
+          <Regent.Icons.icon name="settings" />
+        </Regent.Primitives.button>
+        <div
+          id={@id <> "-options"}
+          class="token-swap__popover"
+          hidden={!@options_open}
+          {RegentsWeb.Motion.panel("menu")}
+        >
+          <div class="token-swap__slippage">
+            <label for={@id <> "-protection"}>Max slippage</label>
+            <span class="token-swap__slippage-field">
+              <input
+                id={@id <> "-protection"}
+                name="protection"
+                type="text"
+                value={@protection}
+                inputmode="decimal"
+                autocomplete="off"
+                spellcheck="false"
+                aria-invalid={to_string(!is_nil(@protection_error))}
+                aria-describedby={if @protection_error, do: @id <> "-protection-error"}
+                phx-debounce="blur"
+              />
+              <span aria-hidden="true">%</span>
+            </span>
+          </div>
+          <p
+            :if={@protection_error}
+            id={@id <> "-protection-error"}
+            class="token-swap__error"
+            role="alert"
+            phx-hook="MotionRefusal"
+            data-refused
+          >
+            {@protection_error}
+          </p>
+        </div>
+      </header>
+
+      <div class="token-swap__leg">
+        <div class="token-swap__leg-head">
+          <label for={@id <> "-amount"}>Sell</label>
+          <%!-- Each fills the box in the browser at the press, so a press straight
+               after it carries the amount however long the server takes. --%>
+          <div
+            :if={@portions != []}
+            class="token-swap__portions"
+            role="group"
+            aria-label="Sell part of your balance"
+          >
+            <button
+              :for={{label, amount} <- @portions}
+              type="button"
+              phx-click={
+                JS.dispatch("autolaunch:fill", to: "##{@id}-amount", detail: %{value: amount})
+              }
+            >
+              {label}
+            </button>
+          </div>
+        </div>
+        <div class="token-swap__amount-row">
+          <input
+            id={@id <> "-amount"}
+            name="amount"
+            type="text"
+            value={@amount}
+            inputmode="decimal"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="0"
+            aria-label={"Amount of #{@sell_symbol} to sell"}
+            aria-invalid={to_string(!is_nil(@error))}
+            phx-debounce="300"
+          />
+          <.currency symbol={@sell_symbol} image={@sell_image} />
+        </div>
+        <p class="token-swap__leg-foot">
+          <span :if={@sell_balance}><RegentsWeb.Autolaunch.TokenDisplay.written
+            value={@sell_balance}
+            unit={@sell_symbol}
+          /></span>
+          <span :if={@balances_unread}>Your balance can't be read right now</span>
+        </p>
+      </div>
+
+      <div class="token-swap__direction">
+        <Regent.Primitives.button
+          type="button"
+          variant="secondary"
+          phx-click={@reverse_event}
+          phx-target={@target}
+          aria-label={"Reverse direction: sell #{@buy_symbol}, buy #{@sell_symbol}"}
+          title="Reverse direction"
+        >
+          <Regent.Icons.icon name="arrow-down" />
+        </Regent.Primitives.button>
+      </div>
+
+      <div class="token-swap__leg token-swap__leg--buy">
+        <div class="token-swap__leg-head">
+          <label for={@id <> "-output"}>Buy</label>
+        </div>
+        <div class="token-swap__amount-row">
+          <output
+            id={@id <> "-output"}
+            for={@id <> "-amount"}
+            aria-live="polite"
+            data-empty={!is_binary(@estimated_output)}
+          >
+            {output(@estimated_output)}
+          </output>
+          <.currency symbol={@buy_symbol} image={@buy_image} />
+        </div>
+        <p class="token-swap__leg-foot">
+          <span :if={@buy_balance}><RegentsWeb.Autolaunch.TokenDisplay.written
+            value={@buy_balance}
+            unit={@buy_symbol}
+          /></span>
+        </p>
+      </div>
+
+      <Regent.Primitives.button
+        :if={@action == :enter_amount}
+        type="submit"
+        variant="secondary"
+        class="token-swap__submit token-swap__submit--idle"
+      >
+        Enter an amount
+      </Regent.Primitives.button>
+      <Regent.Primitives.button
+        :if={@action == :review}
+        type="submit"
+        class="token-swap__submit"
+        data-press="motion"
+        phx-mounted={JS.ignore_attributes("style")}
+      >
+        <span class="site-glint" aria-hidden="true"></span>Review
+      </Regent.Primitives.button>
+      <Regent.Primitives.button
+        :if={@action == :sign_in}
+        type="button"
+        class="token-swap__submit"
+        data-account-target="sign-in"
+      >
+        Sign in
+      </Regent.Primitives.button>
+      <Regent.Primitives.button
+        :if={@action == :closed}
+        type="button"
+        variant="secondary"
+        class="token-swap__submit token-swap__submit--idle"
+        disabled
+      >
+        Trading opens after launch
+      </Regent.Primitives.button>
+
+      <p
+        :if={@error}
+        id={@id <> "-error"}
+        class="token-swap__error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
+      >
+        {@error}
+      </p>
+      <p :if={@rate} class="token-swap__rate">{@rate}</p>
+    </form>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :review, :map, default: nil, doc: "the reviewed facts; nil while no swap is reviewed"
+  attr :sell_image, :string, default: nil
+  attr :buy_image, :string, default: nil
+
+  attr :steps, :list,
+    required: true,
+    doc:
+      "%{name, label, state, entry}, state one of :ready, :sent, :stalled, :done, :reverted, :other"
+
+  attr :next_step, :map, default: nil
+  attr :reverted, :string, default: nil
+  attr :notice, :string, default: nil
+  attr :close_event, :string, required: true
+  attr :check_event, :string, required: true
+  attr :target, :any, default: nil
+  attr :signer, :string, default: nil
+  attr :chain_name, :string, default: nil
+  attr :mismatch, :string, default: nil
+
+  @doc """
+  The review panel over the swap form. It stays in the page and is only
+  hidden while no swap is reviewed, so its wallet button is never replaced.
+  """
+  def swap_review(assigns) do
+    ~H"""
+    <section
+      id={@id}
+      class="token-swap__review"
+      aria-labelledby={@id <> "-title"}
+      hidden={!@review}
+    >
+      <header class="token-swap__review-head">
+        <h3 id={@id <> "-title"}>You’re swapping</h3>
+        <Regent.Primitives.button
+          type="button"
+          variant="quiet"
+          phx-click={@close_event}
+          phx-target={@target}
+          aria-label="Close"
+          title="Close"
+        >
+          <Regent.Icons.icon name="x" class="close-icon" />
+        </Regent.Primitives.button>
+      </header>
+
+      <%= if @review do %>
+        <div class="token-swap__review-side">
+          <p>
+            <span class="token-swap__review-label">You pay</span>
+            <RegentsWeb.Autolaunch.TokenDisplay.written
+              value={@review.pay}
+              unit={@review.sell_symbol}
+            />
+          </p>
+          <img
+            :if={@sell_image}
+            src={StoredImage.sized(@sell_image, 96)}
+            width="36"
+            height="36"
+            decoding="async"
+            alt=""
+          />
+        </div>
+        <Regent.Icons.icon name="arrow-down" class="token-swap__review-arrow" />
+        <div class="token-swap__review-side">
+          <p>
+            <span class="token-swap__review-label">You get about</span>
+            <RegentsWeb.Autolaunch.TokenDisplay.tokens
+              amount={@review.receive}
+              unit={@review.buy_symbol}
+            />
+          </p>
+          <img
+            :if={@buy_image}
+            src={StoredImage.sized(@buy_image, 96)}
+            width="36"
+            height="36"
+            decoding="async"
+            alt=""
+          />
+        </div>
+
+        <dl class="token-swap__review-facts">
+          <div>
+            <dt>Max slippage</dt>
+            <dd><span class="figure__value">{@review.protection}%</span></dd>
+          </div>
+          <div>
+            <dt>Receive at least</dt>
+            <dd>
+              <RegentsWeb.Autolaunch.TokenDisplay.tokens
+                amount={@review.minimum}
+                unit={@review.buy_symbol}
+              />
+            </dd>
+          </div>
+          <div>
+            <dt>Already in the quote</dt>
+            <dd class="token-swap__review-fees">
+              <span :for={fee <- @review.fees}>{fee}</span>
+            </dd>
+          </div>
+        </dl>
+      <% end %>
+
+      <p class="token-swap__review-rule"><span>Continue in your wallet</span></p>
+
+      <ol class="token-swap__steps" role="list">
+        <li
+          :for={{step, index} <- Enum.with_index(@steps, 1)}
+          id={"#{@id}-#{step.name}"}
+          phx-hook="MotionStep"
+          data-step={step.name}
+          data-state={step.state}
+          data-current={@next_step && @next_step.name == step.name}
+        >
+          <.step_mark id={"#{@id}-#{step.name}-tick"} done={step.state == :done} />
+          <span>
+            <RegentsWeb.Autolaunch.TokenDisplay.marked
+              text={step.label}
+              tickers={[@review.sell_symbol, @review.buy_symbol]}
+            />
+          </span>
+          <span class="token-swap__step-note">
+            {step_note(step, index, length(@steps), @next_step)}
+          </span>
+        </li>
+      </ol>
+
+      <.wallet_step
+        id={@id <> "-sender"}
+        next_step={@next_step}
+        steps={@steps}
+        reverted={@reverted}
+        signer={@signer}
+        chain_name={@chain_name}
+        mismatch={@mismatch}
+        check_event={@check_event}
+        target={@target}
+      />
+
+      <p
+        :if={@notice}
+        id={@id <> "-notice"}
+        class="token-swap__error"
+        role="alert"
+        phx-hook="MotionRefusal"
+        data-refused
+      >
+        {@notice}
+      </p>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :swapped, :map, required: true
+  attr :stake_href, :string, default: nil
+  attr :portfolio, :boolean, default: true, doc: "false on the portfolio itself"
+  attr :dismiss_event, :string, required: true
+  attr :target, :any, default: nil
+
+  def swap_done(assigns) do
+    ~H"""
+    <aside
+      id={@id}
+      class="token-swap__toast"
+      role="status"
+      phx-hook="Toast"
+      data-variant={RegentsWeb.Motion.standard("toast")}
+    >
+      <div>
+        <strong>Swapped</strong>
+        <p>
+          <RegentsWeb.Autolaunch.TokenDisplay.written
+            value={@swapped["paid_units"]}
+            unit={@swapped["sell_symbol"]}
+          /> for
+          <RegentsWeb.Autolaunch.TokenDisplay.tokens
+            amount={@swapped["received_units"]}
+            unit={@swapped["buy_symbol"]}
+          />
+        </p>
+        <div class="toast-actions">
+          <.link :if={@stake_href} navigate={@stake_href} class="rg-button rg-button--secondary">Stake your tokens</.link>
+          <RegentsWeb.Autolaunch.Components.PortfolioLink.portfolio_link :if={@portfolio} />
+        </div>
+      </div>
+      <Regent.Primitives.button
+        type="button"
+        variant="quiet"
+        phx-click={@dismiss_event}
+        phx-target={@target}
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <Regent.Icons.icon name="x" class="dismiss-icon" />
+      </Regent.Primitives.button>
+    </aside>
+    """
+  end
+
+  attr :next_step, :map, default: nil
+  attr :steps, :list, required: true
+  attr :id, :string, required: true, doc: "the sending wallet's address takes it"
+  attr :reverted, :string, default: nil
+  attr :signer, :string, default: nil, doc: "the review's signer; nil before there is a review"
+  attr :chain_name, :string, default: nil
+  attr :mismatch, :string, default: nil
+
+  attr :bundle, :boolean,
+    default: false,
+    doc: "the button sends every step at once (`RegentsWeb.Autolaunch.OnchainCalls`)"
+
+  attr :check_event, :string, required: true
+  attr :target, :any, default: nil
+
+  attr :blocked, :string,
+    default: nil,
+    doc:
+      "why the chain's own state at the latest block makes the step on the button certain to fail; an approval is never blocked"
+
+  @doc """
+  The wallet button of a review panel, with the lines above it and "Check
+  again" for a transaction the page stopped reading. The lines stay in the
+  page and are only hidden, so one appearing never moves the button a person
+  is pressing. The button has no `phx-click`: the `OnchainSteps` hook sends its
+  step, or with `bundle` every step in one request. It names the next step to
+  send; once every step is sent it stays on the last one, and a press sends
+  that step, or the whole batch, again.
+
+  An approval the button has moved on from stays on the page under it, the
+  same size, and a press on it sends that approval again. Once the approval is
+  confirmed it is grey with a green border, and still takes presses.
+
+  With `blocked`, those words stand above the button, and a step on it that is
+  not an approval stays in place, disabled, sending nothing, not even with
+  `bundle`, until the panel passes `blocked` no more.
+  """
+  def wallet_step(assigns) do
+    shown = pressable(assigns.next_step, assigns.steps)
+
+    assigns =
+      assign(assigns,
+        shown: shown,
+        held: !!(assigns.blocked && shown && !approval?(shown)),
+        approvals: moved_on(assigns.steps, shown, assigns.bundle)
+      )
+
+    ~H"""
+    <p class="token-swap__review-note" role="status" hidden={!@reverted}>{@reverted}</p>
+    <p class="token-swap__review-from" hidden={!(@shown && @signer)}>
+      Sending from
+      <Regent.Primitives.address :if={@signer} id={@id} address={@signer} variant="compact" />
+      on {@chain_name}
+    </p>
+    <p class="onchain-note" role="status" hidden={!@mismatch}>{@mismatch}</p>
+    <p id={@id <> "-blocked"} class="onchain-note" role="status" hidden={!@blocked}>
+      {@blocked}
+    </p>
+    <Regent.Primitives.button
+      type="button"
+      class="token-swap__submit token-swap__wallet-step"
+      data-onchain-step={!@bundle && !@held && @shown && @shown.name}
+      data-onchain-bundle={@bundle && !@held && !!@shown}
+      data-state={@shown && Map.get(@shown, :state)}
+      disabled={@held}
+      aria-describedby={@held && @id <> "-blocked"}
+      hidden={!@shown}
+      phx-mounted={Phoenix.LiveView.JS.ignore_attributes(["data-awaiting-wallet"])}
+    >
+      <span class="token-swap__wallet-step-text" data-press-label>
+        <span class="token-swap__wallet-step-label">{@shown && button_label(@shown, @next_step)}</span>
+        <span class="token-swap__wallet-step-wait">
+          <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
+        </span>
+      </span>
+    </Regent.Primitives.button>
+    <Regent.Primitives.button
+      :for={step <- @approvals}
+      id={"#{@id}-#{step.name}"}
+      type="button"
+      variant="secondary"
+      class="token-swap__submit token-swap__approval"
+      data-onchain-step={step.name}
+      data-state={step.state}
+      phx-mounted={JS.ignore_attributes(["data-awaiting-wallet"])}
+    >
+      <span class="token-swap__wallet-step-text" data-press-label>
+        <span class="token-swap__wallet-step-label">{step.label}</span>
+        <span class="token-swap__wallet-step-wait">
+          <span class="token-swap__spinner" aria-hidden="true"></span> Confirm in wallet
+        </span>
+      </span>
+    </Regent.Primitives.button>
+    <Regent.Primitives.button
+      :for={step <- Enum.uniq_by(Enum.filter(@steps, &(&1.state == :stalled)), & &1.entry.hash)}
+      type="button"
+      variant="secondary"
+      class="token-swap__submit"
+      phx-click={@check_event}
+      phx-value-hash={step.entry.hash}
+      phx-target={@target}
+    >
+      Check again
+    </Regent.Primitives.button>
+    """
+  end
+
+  # The step a review panel's wallet button sends: the next one, or, once
+  # every step is sent, the last one again until every step is confirmed.
+  defp pressable(nil, steps),
+    do: if(Enum.all?(steps, &(&1.state == :done)), do: nil, else: List.last(steps))
+
+  defp pressable(next_step, _steps), do: next_step
+
+  # The approvals the button has moved on from: sent from this review, or
+  # already on the chain when it was built. A batch sends every step from its
+  # one button, so it has none.
+  defp moved_on(_steps, _shown, true), do: []
+
+  defp moved_on(steps, shown, false),
+    do:
+      Enum.filter(
+        steps,
+        &(&1 != shown and approval?(&1) and &1.state in [:sent, :stalled, :done])
+      )
+
+  defp approval?(%{name: name}), do: name in @approvals
+
+  defp button_label(%{label: label}, nil), do: "#{label} again"
+  defp button_label(%{label: label}, _next_step), do: label
+
+  @doc "The note beside one step of a review panel."
+  def step_note(%{state: :done}, _index, _count, _next), do: "Done"
+  def step_note(%{state: :sent}, _index, _count, _next), do: "Waiting for the network"
+
+  def step_note(%{state: :stalled}, _index, _count, _next),
+    do: "Not confirmed yet. Check again, or look in your wallet activity"
+
+  def step_note(%{state: :reverted}, _index, _count, _next), do: "Did not go through"
+
+  def step_note(%{state: :other}, _index, _count, _next),
+    do: "Sent a different transaction. Check your wallet activity"
+
+  def step_note(%{name: name}, index, count, %{name: name}) when count > 1,
+    do: "Step #{index} of #{count}"
+
+  def step_note(_step, _index, _count, _next), do: nil
+
+  attr :id, :string, required: true, doc: "the tick's, one per step"
+  attr :done, :boolean, required: true
+
+  @doc """
+  The mark beside one step of a review panel: a tick once the step is done.
+  The step's row, with the `MotionStep` hook, draws it in when the step lands
+  while the reader watches. Its id keeps a tick in its own row when another
+  step joins the list in front of it.
+  """
+  def step_mark(assigns) do
+    ~H"""
+    <span class="token-swap__step-mark" aria-hidden="true">
+      <RegentsWeb.Motion.tick :if={@done} id={@id} />
+    </span>
+    """
+  end
+
+  defp output(:unread), do: "No quote right now"
+  defp output(amount) when is_binary(amount), do: RegentsWeb.Autolaunch.TokenDisplay.short(amount)
+  defp output(nil), do: "0"
+
+  attr :symbol, :string, required: true
+  attr :image, :string, default: nil
+
+  defp currency(assigns) do
+    ~H"""
+    <span class="token-swap__currency" title={@symbol}>
+      <img
+        :if={@image}
+        src={StoredImage.sized(@image, 96)}
+        width="28"
+        height="28"
+        decoding="async"
+        alt=""
+      />
+      <span>{@symbol}</span>
+    </span>
+    """
+  end
+end

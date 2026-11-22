@@ -1,0 +1,134 @@
+defmodule RegentsWeb.Autolaunch.LabMarket do
+  @moduledoc """
+  What a page takes from the chain readings every visitor sees alike: each
+  auction's reading (`Regents.Autolaunch.AuctionReading`), which its own public
+  publication carries to open pages, and each deployment's newest block
+  (`Regents.Autolaunch.ChainHead`) and each Base launchpad's launch count
+  (`Regents.Autolaunch.LaunchDiscovery.Count`), held in `Regents.SharedReading`.
+
+  A page subscribes to what it shows, then reads it once as a signed-out
+  visitor. An auction's reading arrives as `%{topic: topic, payload: payload}` on its
+  `public:` topic and the page keeps it only when it is newer (`newer/2`); a
+  block arrives as `{:shared_reading, {:chain_head, feed}}` and the page reads
+  `Regents.Autolaunch.ChainHead.fetch/1` again.
+  """
+
+  import Phoenix.Component, only: [assign: 3]
+  import RegentsWeb.Autolaunch.Components.AutolaunchHelpers, only: [linked_wallets: 1]
+
+  alias Regents.Autolaunch.{AuctionReading, ChainHead}
+  alias Regents.Autolaunch.LaunchDiscovery.Count
+  alias Regents.SharedReading
+
+  @feeds ["base", "stocks", "robinhood"]
+
+  @doc "The deployment a Base auction of `kind` keeps time by."
+  @spec feed(:agent | :stocks) :: String.t()
+  def feed(:agent), do: "base"
+  def feed(:stocks), do: "stocks"
+
+  @doc """
+  Assigns `robinhood_stale?`, whether the site could not read the Robinhood
+  chain, and has the connected page told when that may have changed
+  (`{:shared_reading, {:chain_head, "robinhood"}}`).
+  """
+  def assign_robinhood_stale(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do: SharedReading.subscribe(ChainHead.key("robinhood"))
+
+    robinhood_stale(socket)
+  end
+
+  @doc "Reads `robinhood_stale?` again."
+  def robinhood_stale(socket),
+    do: assign(socket, :robinhood_stale?, ChainHead.stale?("robinhood"))
+
+  @doc """
+  Assigns `launches_catching_up?`, whether the Base launch lists are behind the
+  chain (`Regents.Autolaunch.LaunchDiscovery.Count`), and has the connected page told
+  when that may have changed (`{:shared_reading, {:launch_count, launchpad}}`).
+  """
+  def assign_launches_catching_up(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do: Enum.each(Count.keys(), &SharedReading.subscribe/1)
+
+    launches_catching_up(socket)
+  end
+
+  @doc "Reads `launches_catching_up?` again."
+  def launches_catching_up(socket),
+    do: assign(socket, :launches_catching_up?, Count.catching_up?())
+
+  @doc """
+  Has the connected page told of each new block of every deployment
+  (`{:shared_reading, {:chain_head, feed}}`): for a page of one person's own
+  bids and holdings across auctions, which reads them again then.
+  """
+  def subscribe_heads(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do: Enum.each(@feeds, &SharedReading.subscribe(ChainHead.key(&1)))
+
+    socket
+  end
+
+  @doc """
+  Has the connected page of the bids of every wallet the signed-in account
+  links told when one of them is written (`{:autolaunch_bid_changed, bid_id}`,
+  `Regents.Autolaunch.Bid.subscribe_wallet/1`): an auction's reading job writes them
+  with its row, apart from the block.
+  """
+  def subscribe_wallet_bids(socket) do
+    if Phoenix.LiveView.connected?(socket),
+      do:
+        Enum.each(
+          linked_wallets(socket.assigns.access_context),
+          &Regents.Autolaunch.Bid.subscribe_wallet/1
+        )
+
+    socket
+  end
+
+  @doc """
+  Has the connected page told when the figures of auction `auction_id` are
+  read again (`%{topic: topic, payload: payload}` on `AuctionReading.market_topic/1`).
+  """
+  def subscribe_market(socket, auction_id) do
+    if Phoenix.LiveView.connected?(socket),
+      do: Phoenix.PubSub.subscribe(Regents.PubSub, AuctionReading.market_topic(auction_id))
+
+    socket
+  end
+
+  @doc """
+  Has the connected page of auction `auction_id` told when what it shows from
+  the chain changes: the auction's figures, its own page's reading (on
+  `AuctionReading.page_topic/1`) and each new block of `feed`.
+  """
+  def subscribe_auction(socket, auction_id, feed) do
+    if Phoenix.LiveView.connected?(socket) do
+      Phoenix.PubSub.subscribe(Regents.PubSub, AuctionReading.page_topic(auction_id))
+      SharedReading.subscribe(ChainHead.key(feed))
+    end
+
+    subscribe_market(socket, auction_id)
+  end
+
+  @doc """
+  Auction `auction_id`'s reading as a signed-out visitor reads it, in the
+  shapes its publications carry: `{market, page}`, each nil while it has none.
+  """
+  @spec reading(Ash.UUID.t()) :: {map() | nil, map() | nil}
+  def reading(auction_id) do
+    case Regents.Autolaunch.get_auction_reading(auction_id, actor: nil) do
+      {:ok, %AuctionReading{} = reading} ->
+        {AuctionReading.market(reading), if(reading.page, do: AuctionReading.page(reading))}
+
+      {:ok, nil} ->
+        {nil, nil}
+    end
+  end
+
+  @doc "The newer of a held payload and one just published: the one with the higher version."
+  def newer(%{version: held} = payload, %{version: version}) when version <= held, do: payload
+  def newer(_held, payload), do: payload
+end

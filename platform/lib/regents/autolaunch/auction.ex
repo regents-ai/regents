@@ -1,22 +1,46 @@
 defmodule Regents.Autolaunch.Auction do
-  @moduledoc """
-  One launch's auction on one chain: what the launch recorded when it opened,
-  the creator's links and picture, and the latest figures read from its
-  contract.
-
-  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists
-  (`Regents.Autolaunch.HomeMarket`) and a token's own page, by its address
-  (`Regents.Autolaunch.TokenPage`), read them; nothing here writes them yet.
-  """
-
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub],
     primary_read_warning?: false
 
+  alias Regents.Autolaunch.{BidActions, TreasurySecurity}
   require Ash.Query
+
+  @projection_accept [
+    :kind,
+    :origin,
+    :title,
+    :summary,
+    :token_symbol,
+    :website,
+    :telegram,
+    :discord,
+    :links,
+    :image,
+    :creator_human_account_id,
+    :creator_address,
+    :featured,
+    :state,
+    :opened_at,
+    :auction_address,
+    :quote_token_address,
+    :quote_token_symbol,
+    :quote_token_decimals,
+    :current_clearing_price,
+    :required_currency_raised,
+    :treasury_address,
+    :chain_id
+  ]
+
+  # What a bid-activity pass writes: the scanner's own place in the chain, and
+  # the figures the lists show. A field the pass comes to write goes in one of
+  # the two, so it is either announced or deliberately not.
+  @activity_place [:activity_next_block, :activity_last_hash]
+  @activity_figures [:bid_volume, :bid_volume_usd, :opened_at, :estimated_end_at]
 
   postgres do
     table "auctions"
@@ -33,362 +57,22 @@ defmodule Regents.Autolaunch.Auction do
     end
   end
 
-  attributes do
-    attribute :activity_next_block, :integer
-    attribute :activity_last_hash, :string
-    attribute :bid_volume, :decimal, public?: true
-    attribute :bid_volume_usd, :decimal, public?: true
-    attribute :estimated_end_at, :utc_datetime_usec, public?: true
-    uuid_primary_key :id
-
-    attribute :title, :string do
-      allow_nil? false
-      public? true
-      constraints min_length: 1, max_length: 160, trim?: true
-    end
-
-    attribute :summary, :string do
-      public? true
-      constraints max_length: 2_000, trim?: true
-    end
-
-    attribute :token_symbol, :string do
-      public? true
-      constraints max_length: 16, trim?: true
-    end
-
-    attribute :website, :string do
-      public? true
-      constraints max_length: 256, trim?: true
-    end
-
-    # The creator's Telegram group, Discord invite and up to three other links,
-    # kept by this site: they are not part of the token's onchain metadata.
-    attribute :telegram, :string do
-      public? true
-      constraints max_length: 256, trim?: true
-    end
-
-    attribute :discord, :string do
-      public? true
-      constraints max_length: 256, trim?: true
-    end
-
-    attribute :links, {:array, :string} do
-      public? true
-      allow_nil? false
-      default []
-      constraints max_length: 3, items: [max_length: 256, trim?: true]
-    end
-
-    attribute :image, :string do
-      public? true
-      constraints max_length: 256, trim?: true
-    end
-
-    # The colour of the image, when the image is one the site stores.
-    attribute :image_color, :string do
-      public? true
-      constraints match: ~r/\A#[0-9a-f]{6}\z/, max_length: 7
-    end
-
-    attribute :featured, :boolean do
-      allow_nil? false
-      public? true
-      default false
-    end
-
-    # Off every public list and page while true.
-    attribute :hidden, :boolean do
-      allow_nil? false
-      default false
-    end
-
-    # Which launch mode created this auction. Agent auctions raise REGENT;
-    # Stocks auctions raise the admitted Base stock token named by the quote
-    # token fields.
-    attribute :kind, :atom do
-      allow_nil? false
-      public? true
-      default :agent
-      constraints one_of: [:agent, :stocks]
-    end
-
-    # The contracts a launch runs on, which are the only ones it reads. The
-    # first four Memestock launches (BITE, JollyB and AGI on Base, RDOG on
-    # Robinhood) are `:v1`, on their original launchpad, hook and locker. A
-    # Base launch is recorded with the version of the contracts that made it:
-    # `:v2` until 12 November 2026, `:v3` since. Robinhood's later launches are
-    # `:v2`. Every writer names the version; there is no default.
-    attribute :contracts_version, :atom do
-      allow_nil? false
-      public? true
-      constraints one_of: [:v1, :v2, :v3]
-    end
-
-    # Where the launch came from: `:site` when this site prepared it (on Base,
-    # a review this site's account carried out; on Robinhood, a review stored
-    # when the site prepared it), `:chain` when it was only seen on chain.
-    # Site launches and every Base Memestock launch are listed.
-    attribute :origin, :atom do
-      allow_nil? false
-      public? true
-      constraints one_of: [:site, :chain]
-    end
-
-    attribute :state, :atom do
-      allow_nil? false
-      public? true
-      default :created
-      constraints one_of: [:created, :active, :ended, :graduated, :failed]
-    end
-
-    # The raise has met its minimum. A progress fact only: bidding stays open
-    # until the end block, and only the launch's own finish makes it final.
-    attribute :minimum_reached, :boolean do
-      allow_nil? false
-      public? true
-      default false
-    end
-
-    attribute :opened_at, :utc_datetime_usec do
-      public? true
-    end
-
-    # One auction contract on one chain is one row; the same address on
-    # another chain is another auction.
-    attribute :chain_id, :integer do
-      public? true
-      allow_nil? false
-      constraints min: 1
-    end
-
-    attribute :auction_address, :string do
-      public? true
-      allow_nil? false
-      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
-    end
-
-    attribute :quote_token_address, :string do
-      public? true
-      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
-    end
-
-    attribute :quote_token_symbol, :string do
-      public? true
-      constraints min_length: 1, max_length: 32, trim?: true
-    end
-
-    attribute :quote_token_decimals, :integer do
-      public? true
-      constraints min: 0, max: 36
-    end
-
-    attribute :current_clearing_price, :string do
-      public? true
-      constraints max_length: 100, trim?: true
-    end
-
-    # The latest reading of what the auction has raised, in whole quote-token
-    # units.
-    attribute :currency_raised, :decimal do
-      public? true
-    end
-
-    # The lowest price the auction sells at, in quote-token units per token,
-    # and the launch token's total supply in whole tokens. Both are fixed when
-    # the auction is created; its reading job reads them once.
-    attribute :floor_price, :string do
-      public? true
-      constraints max_length: 100, trim?: true
-    end
-
-    attribute :token_supply, :decimal do
-      public? true
-    end
-
-    attribute :treasury_address, :string do
-      public? true
-      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
-    end
-
-    # The wallet that launched the auction on chain, in lowercase.
-    attribute :creator_address, :string do
-      public? true
-      allow_nil? false
-      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-f]{40}\z/
-    end
-
-    # What the auction must raise to graduate, in the quote token's smallest
-    # units. The auction contract keeps it without a getter, so the launch
-    # that set it is the record of it.
-    attribute :required_currency_raised, :string do
-      public? true
-      allow_nil? false
-      constraints match: ~r/\A[1-9][0-9]{0,38}\z/
-    end
-
-    # What the launch recorded when its auction opened: the token it sells, on
-    # every launch; a Robinhood launch also its launch number on the launchpad
-    # and its bidding window.
-    attribute :token_address, :string do
-      public? true
-      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
-    end
-
-    attribute :launch_id, :integer do
-      public? true
-      constraints min: 1
-    end
-
-    attribute :start_block, :integer do
-      public? true
-      constraints min: 0
-    end
-
-    attribute :end_block, :integer do
-      public? true
-      constraints min: 0
-    end
-
-    timestamps()
-  end
-
-  relationships do
-    # The account whose signed-in wallet launched the auction. Every launch
-    # made through this site's review has one; a Base Memestock launch sent
-    # straight to the launchpad names only its wallet, and a Robinhood launch
-    # names one only when exactly one account's signed-in wallet is its
-    # launcher.
-    belongs_to :creator_human_account, Regents.Account.Accounts.HumanAccount do
-      allow_nil? true
-      attribute_public? true
-      attribute_type :integer
-    end
-
-    # The creator's verified links that name a username, regents.sh's. Read,
-    # with the two aggregates over it, only through
-    # `Regents.Autolaunch.Auction.Calculations.CreatorIdentities`, which leaves
-    # them unread on the read-only venue.
-    has_many :creator_identities, Regents.Account.Accounts.PublicLink do
-      source_attribute :creator_human_account_id
-      destination_attribute :human_account_id
-    end
-
-    has_many :creator_x_connections, Regents.Autolaunch.XConnection do
-      source_attribute :creator_human_account_id
-      destination_attribute :human_account_id
-    end
-
-    belongs_to :treasury_security_report,
-               Regents.Autolaunch.TreasurySecurityReport do
-      attribute_public? true
-    end
-
-    # The stock a Stocks auction raises, when the site lists it.
-    has_one :quote_stock, Regents.Autolaunch.Stocks.Stock do
-      no_attributes? true
-
-      filter expr(
-               chain_id == parent(chain_id) and
-                 string_downcase(address) == string_downcase(parent(quote_token_address))
-             )
-    end
-  end
-
-  calculations do
-    # What every token is worth at the current clearing price, in quote-token units.
-    calculate :fdv, :decimal, Regents.Autolaunch.Auction.Calculations.Fdv do
-      public? true
-    end
-
-    # The end of the contract address the auction's page addresses carry.
-    calculate :path_tail, :string, Regents.Autolaunch.Auction.Calculations.PathTail do
-      public? true
-    end
-
-    # How closely a search matches this auction, from 0 to 1; see `Regents.Autolaunch.Search`.
-    # The name, ticker and stock count fully, the creator's accounts a little
-    # less and the description less again. `address` is set when the search
-    # could be part of an address, and matches the auction, token and creator
-    # wallet outright.
-    calculate :search_rank,
-              :float,
-              expr(
-                if not is_nil(^arg(:address)) and
-                     (contains(string_downcase(auction_address), ^arg(:address)) or
-                        contains(string_downcase(token_address), ^arg(:address)) or
-                        contains(creator_address, ^arg(:address))) do
-                  1.0
-                else
-                  fragment(
-                    "greatest(word_similarity(?, concat_ws(' ', ?, ?, ?, ?)), 0.9 * word_similarity(?, array_to_string(? || ? || ?, ' ')), 0.7 * word_similarity(?, coalesce(?, '')))",
-                    ^arg(:term),
-                    title,
-                    token_symbol,
-                    quote_token_symbol,
-                    quote_stock_search_text,
-                    ^arg(:term),
-                    creator_identity_search_names,
-                    creator_x_names,
-                    creator_x_display_names,
-                    ^arg(:term),
-                    summary
-                  )
-                end
-              ) do
-      argument :term, :string, allow_nil?: false
-      argument :address, :string
-    end
-
-    # Whether the creator holds a linked account of `provider`, for the lists'
-    # filters, and their linked accounts' names, for search; see
-    # `Regents.Autolaunch.Auction.Calculations.CreatorIdentities`.
-    calculate :creator_linked,
-              :boolean,
-              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :linked} do
-      argument :provider, :atom, allow_nil?: false, constraints: [one_of: [:x, :ens, :github]]
-    end
-
-    calculate :creator_identity_search_names,
-              {:array, :string},
-              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :names}
-
-    # The creator's linked X, ENS and GitHub usernames, for their links beside
-    # a launch on the lists; see the same module.
-    calculate :creator_links,
-              :map,
-              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :links} do
-      constraints fields: [x: [type: :string], ens: [type: :string], github: [type: :string]]
-    end
-  end
-
-  aggregates do
-    # The creator's connected account names, for search.
-    list :creator_identity_names, :creator_identities, :username do
-      filter expr(provider in [:x, :github, :ens])
-    end
-
-    list :creator_identity_display_names, :creator_identities, :display_name do
-      filter expr(provider in [:x, :github, :ens])
-    end
-
-    list :creator_x_names, :creator_x_connections, :username do
-      filter expr(not is_nil(verified_at))
-    end
-
-    list :creator_x_display_names, :creator_x_connections, :display_name do
-      filter expr(not is_nil(verified_at))
-    end
-
-    first :quote_stock_search_text, :quote_stock, :search_text
-  end
-
-  identities do
-    identity :chain_auction, [:chain_id, :auction_address]
-  end
-
   actions do
+    # The listed auctions whose bids `Regents.Autolaunch.AuctionActivity` reads, each
+    # by its own job.
+    read :activity do
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+    end
+
+    update :refresh_activity do
+      require_atomic? false
+      accept @activity_place ++ @activity_figures
+
+      # Whether the pass saved a bid, a clearing price or a withdraw or claim
+      # the lists do not have yet, or removed the ones they had.
+      argument :events_changed, :boolean, allow_nil?: false
+    end
+
     read :read do
       primary? true
       prepare Regents.Autolaunch.Auction.Preparations.BaseOnly
@@ -398,6 +82,13 @@ defmodule Regents.Autolaunch.Auction do
     read :listed do
       prepare Regents.Autolaunch.Auction.Preparations.Listed
       prepare build(load: [:path_tail])
+    end
+
+    # The auction pages the sitemap lists, newest first, bounded.
+    read :sitemap do
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+      prepare build(sort: [inserted_at: :desc, id: :asc], limit: 5_000, load: [:path_tail])
     end
 
     read :home_market do
@@ -468,18 +159,18 @@ defmodule Regents.Autolaunch.Auction do
                 Ash.Query.filter(
                   query,
                   exists(creator_x_connections, not is_nil(verified_at)) or
-                    creator_linked(provider: :x)
+                    exists(creator_identities, provider == :x)
                 ),
               else: query
 
           query =
             if query.arguments.ens,
-              do: Ash.Query.filter(query, creator_linked(provider: :ens)),
+              do: Ash.Query.filter(query, exists(creator_identities, provider == :ens)),
               else: query
 
           query =
             if query.arguments.github,
-              do: Ash.Query.filter(query, creator_linked(provider: :github)),
+              do: Ash.Query.filter(query, exists(creator_identities, provider == :github)),
               else: query
 
           order =
@@ -499,6 +190,25 @@ defmodule Regents.Autolaunch.Auction do
           |> Ash.Query.load([:treasury_security_report, :path_tail])
           |> Regents.Autolaunch.Search.rank(query.arguments.query, order)
       end
+    end
+
+    read :public_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare Regents.Autolaunch.Auction.Preparations.BaseOnly
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+      prepare build(load: [:treasury_security_report, :path_tail])
+    end
+
+    # Any auction the public lists carry, by the id they give it.
+    read :listed_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+      prepare build(load: [:treasury_security_report, :path_tail])
     end
 
     # The listed auctions a page address names: its ticker, in any case, and
@@ -530,13 +240,598 @@ defmodule Regents.Autolaunch.Auction do
       prepare Regents.Autolaunch.Auction.Preparations.Listed
       prepare Regents.Autolaunch.Auction.Preparations.Shown
     end
+
+    # A listed Robinhood auction, which its address names on the site.
+    read :robinhood_by_address do
+      get? true
+      argument :auction_address, :string, allow_nil?: false
+      filter expr(auction_address == ^arg(:auction_address))
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+      prepare build(load: [:path_tail])
+
+      prepare fn query, _context ->
+        Ash.Query.filter(query, chain_id == ^Regents.Autolaunch.Robinhood.Lab.chain_id())
+      end
+    end
+
+    # A listed Robinhood auction a wallet holds a bid in, hidden or not: the
+    # portfolio reads it from the wallet's own chain positions so the bid can
+    # still be withdrawn or claimed after an operator hides the auction.
+    read :robinhood_held_by_address do
+      get? true
+      argument :auction_address, :string, allow_nil?: false
+      filter expr(auction_address == ^arg(:auction_address))
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:path_tail])
+
+      prepare fn query, _context ->
+        Ash.Query.filter(query, chain_id == ^Regents.Autolaunch.Robinhood.Lab.chain_id())
+      end
+    end
+
+    read :by_chain_address do
+      get? true
+      argument :chain_id, :integer, allow_nil?: false
+      argument :auction_address, :string, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and auction_address == ^arg(:auction_address))
+    end
+
+    # Every auction, each read by its own reading job (`Regents.Autolaunch.AuctionMarket`).
+    read :market
+
+    read :lab_by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+      prepare build(lock: :for_update)
+    end
+
+    # A launch's auction row, written once by whichever of its writers comes
+    # first (launch discovery, the creator's own confirmation, the Robinhood
+    # feed). A row that already exists is returned exactly as it is, so no
+    # later writer can blank its details or take its state back. The Robinhood
+    # feed also records the launch's facts from its launchpad record. A Base
+    # launch also binds the treasury report its creator reviewed, which every
+    # bid on it is checked against.
+    create :record_launch do
+      accept @projection_accept ++
+               [
+                 :token_address,
+                 :launch_id,
+                 :start_block,
+                 :end_block,
+                 :treasury_security_report_id,
+                 :contracts_version
+               ]
+
+      upsert? true
+      upsert_identity :chain_auction
+      upsert_condition expr(false)
+      return_skipped_upsert? true
+      change Regents.Autolaunch.Auction.Changes.ImageColor
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
+
+      emit Regents.Autolaunch.Signals, :launch_recorded,
+        dynamic?: true,
+        description: "Only when this write saved the launch."
+
+      # A launch already saved skips the upsert, and the row it returns carries
+      # no `upsert_action` of `:insert`.
+      change after_action(fn changeset, auction, _context ->
+               if Ash.Resource.get_metadata(auction, :upsert_action) == :insert do
+                 with :ok <-
+                        Ash.Signals.emit(
+                          changeset,
+                          Regents.Autolaunch.Signals,
+                          :launch_recorded,
+                          %{
+                            auction_id: auction.id
+                          }
+                        ),
+                      do: {:ok, auction}
+               else
+                 {:ok, auction}
+               end
+             end)
+    end
+
+    update :set_bid_terms do
+      require_atomic? false
+
+      accept [
+        :auction_address,
+        :quote_token_address,
+        :quote_token_symbol,
+        :quote_token_decimals,
+        :current_clearing_price
+      ]
+    end
+
+    # A reading of the auction's contract. The state only moves forward and
+    # never leaves graduated or failed (`Regents.Autolaunch.Auction.MarketState.join/2`),
+    # whatever the reading says.
+    update :refresh_lab_market do
+      require_atomic? false
+
+      accept [
+        :state,
+        :current_clearing_price,
+        :minimum_reached,
+        :currency_raised,
+        :floor_price,
+        :token_supply
+      ]
+
+      change fn changeset, _context ->
+        observed = Ash.Changeset.get_attribute(changeset, :state)
+
+        Ash.Changeset.force_change_attribute(
+          changeset,
+          :state,
+          Regents.Autolaunch.Auction.MarketState.join(changeset.data.state, observed)
+        )
+      end
+    end
+
+    # Takes an auction off every public list and page, or puts it back; an
+    # operator's switch for test launches and unlawful or abusive text. Its
+    # bidders' records, activity and portfolio rows go on as before. Either
+    # writes the row through `:market`, which reads auctions on both chains;
+    # the primary read keeps only Base ones.
+    update :hide do
+      accept []
+      atomic_upgrade_with :market
+      change set_attribute(:hidden, true)
+    end
+
+    update :show do
+      accept []
+      atomic_upgrade_with :market
+      change set_attribute(:hidden, false)
+    end
+
+    update :set_treasury_security_report do
+      require_atomic? false
+      accept [:treasury_security_report_id]
+      change fn changeset, _context -> TreasurySecurity.associate_report_address(changeset) end
+    end
+
+    # Live and graduated auctions for each launch type on each chain
+    # (`Regents.Autolaunch.AuctionStats.by_chain/0`): the public HTTP route and the hosted
+    # MCP tool both run this, so both answer the same counts.
+    action :counts, :map do
+      description "Live and graduated auctions for Revstake on Base and Memestock on Base and Robinhood."
+      run fn _input, _context -> Regents.Autolaunch.AuctionStats.by_chain() end
+    end
+
+    # What one of the signed-in account's wallets may spend on an auction.
+    # `BidActions` proves the wallet against the account the mounted lease
+    # locks before anything is read.
+    action :bid_position, :map do
+      argument :auction_id, :uuid, allow_nil?: false
+      argument :expected_signer, :string, allow_nil?: false
+      run fn input, context -> BidActions.position(input, context) end
+    end
   end
 
-  # Only the reads the lists and the token page use are carried; any other
-  # action is refused until it comes with its own policy.
   policies do
-    policy action([:read, :listed, :by_path, :path_peers, :home_market]) do
+    # Anyone reads the counts, the list, an auction and a bid's estimate, except
+    # an app connected to a person's account calling as itself: its token is for
+    # its identity tools alone (`Regents.Autolaunch.Agents.Connection`). Paired, it
+    # calls as its agent instead.
+    policy action([:counts]) do
+      forbid_if actor_attribute_equals(:role, :connected_app)
       authorize_if always()
     end
+
+    policy action([:activity, :refresh_activity]) do
+      authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action([
+             :read,
+             :listed,
+             :listed_by_id,
+             :sitemap,
+             :robinhood_by_address,
+             :by_path,
+             :path_peers,
+             :home_market,
+             :public_by_id,
+             :by_chain_address
+           ]) do
+      authorize_if always()
+    end
+
+    policy action([
+             :record_launch,
+             :robinhood_held_by_address,
+             :market,
+             :lab_by_id_for_update,
+             :refresh_lab_market
+           ]) do
+      authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action(:set_bid_terms) do
+      authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action([:hide, :show]) do
+      authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action(:set_treasury_security_report) do
+      authorize_if Regents.Checks.SystemActor
+    end
+
+    policy action(:bid_position) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+    end
+  end
+
+  # What the public lists show changed; see `Regents.Autolaunch.Listings`. The market
+  # feed's price moves are left to its own topic, so only a state or minimum
+  # change from a refresh reaches the lists.
+  pub_sub do
+    module Phoenix.PubSub
+    name Regents.PubSub
+    transform fn notification -> {:autolaunch_listings_changed, notification.data.id} end
+
+    publish_all :create, "listings"
+
+    # A bid-activity pass saves its place after every read. The lists hear of
+    # it only when it changed an event or a figure; a pass that moved nothing
+    # but its place is not their business.
+    publish :refresh_activity, "listings",
+      filter: fn %{changeset: %{data: before} = changeset, data: after_refresh} ->
+        Ash.Changeset.get_argument(changeset, :events_changed) or
+          Map.take(before, @activity_figures) != Map.take(after_refresh, @activity_figures)
+      end
+
+    publish :set_bid_terms, "listings"
+    publish :set_treasury_security_report, "listings"
+    publish :hide, "listings"
+    publish :show, "listings"
+
+    publish :refresh_lab_market, "listings",
+      filter: fn %{changeset: %{data: before}, data: after_refresh} ->
+        before.state != after_refresh.state or
+          before.minimum_reached != after_refresh.minimum_reached
+      end
+  end
+
+  attributes do
+    attribute :activity_next_block, :integer
+    attribute :activity_last_hash, :string
+    attribute :bid_volume, :decimal, public?: true
+    attribute :bid_volume_usd, :decimal, public?: true
+    attribute :estimated_end_at, :utc_datetime_usec, public?: true
+    uuid_primary_key :id
+
+    attribute :title, :string do
+      allow_nil? false
+      public? true
+      constraints min_length: 1, max_length: 160, trim?: true
+    end
+
+    attribute :summary, :string do
+      public? true
+      constraints max_length: 2_000, trim?: true
+    end
+
+    attribute :token_symbol, :string do
+      public? true
+      constraints max_length: 16, trim?: true
+    end
+
+    attribute :website, :string do
+      public? true
+      constraints max_length: 256, trim?: true
+    end
+
+    # The creator's Telegram group, Discord invite and up to three other links,
+    # kept by this site: they are not part of the token's onchain metadata.
+    attribute :telegram, :string do
+      public? true
+      constraints max_length: 256, trim?: true
+    end
+
+    attribute :discord, :string do
+      public? true
+      constraints max_length: 256, trim?: true
+    end
+
+    attribute :links, {:array, :string} do
+      public? true
+      allow_nil? false
+      default []
+      constraints max_length: 3, items: [max_length: 256, trim?: true]
+    end
+
+    attribute :image, :string do
+      public? true
+      constraints max_length: 256, trim?: true
+    end
+
+    # The colour of the image, when the image is one the site stores.
+    attribute :image_color, :string do
+      public? true
+      constraints match: ~r/\A#[0-9a-f]{6}\z/, max_length: 7
+    end
+
+    attribute :featured, :boolean do
+      allow_nil? false
+      public? true
+      default false
+    end
+
+    # Off every public list and page while true; see `:hide`.
+    attribute :hidden, :boolean do
+      allow_nil? false
+      default false
+    end
+
+    # Which launch mode created this auction. Agent auctions raise REGENT;
+    # Stocks auctions raise the admitted Base stock token named by the quote
+    # token fields.
+    attribute :kind, :atom do
+      allow_nil? false
+      public? true
+      default :agent
+      constraints one_of: [:agent, :stocks]
+    end
+
+    # The contracts a launch runs on, which are the only ones it reads. The
+    # first four Memestock launches (BITE, JollyB and AGI on Base, RDOG on
+    # Robinhood) are `:v1`, on their original launchpad, hook and locker. A
+    # Base launch is recorded with the version of the contracts that made it:
+    # `:v2` until 12 November 2026, `:v3` since. Robinhood's later launches are
+    # `:v2`. Every writer names the version; there is no default.
+    attribute :contracts_version, :atom do
+      allow_nil? false
+      public? true
+      constraints one_of: [:v1, :v2, :v3]
+    end
+
+    # Where the launch came from: `:site` when this site prepared it (on Base,
+    # a review this site's account carried out; on Robinhood, a review stored
+    # when the site prepared it), `:chain` when it was only seen on chain.
+    # Site launches and every Base Memestock launch are listed
+    # (`Regents.Autolaunch.Auction.Preparations.Listed`).
+    attribute :origin, :atom do
+      allow_nil? false
+      public? true
+      constraints one_of: [:site, :chain]
+    end
+
+    attribute :state, :atom do
+      allow_nil? false
+      public? true
+      default :created
+      constraints one_of: [:created, :active, :ended, :graduated, :failed]
+    end
+
+    # The raise has met its minimum. A progress fact only: bidding stays open
+    # until the end block, and only the launch's own finish makes it final.
+    attribute :minimum_reached, :boolean do
+      allow_nil? false
+      public? true
+      default false
+    end
+
+    attribute :opened_at, :utc_datetime_usec do
+      public? true
+    end
+
+    # One auction contract on one chain is one row; the same address on
+    # another chain is another auction.
+    attribute :chain_id, :integer do
+      public? true
+      allow_nil? false
+      constraints min: 1
+    end
+
+    attribute :auction_address, :string do
+      public? true
+      allow_nil? false
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :quote_token_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :quote_token_symbol, :string do
+      public? true
+      constraints min_length: 1, max_length: 32, trim?: true
+    end
+
+    attribute :quote_token_decimals, :integer do
+      public? true
+      constraints min: 0, max: 36
+    end
+
+    attribute :current_clearing_price, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    # The latest reading of what the auction has raised (`Regents.Autolaunch.AuctionMarket`), in
+    # whole quote-token units.
+    attribute :currency_raised, :decimal do
+      public? true
+    end
+
+    # The lowest price the auction sells at, in quote-token units per token,
+    # and the launch token's total supply in whole tokens. Both are fixed when
+    # the auction is created; its reading job reads them once.
+    attribute :floor_price, :string do
+      public? true
+      constraints max_length: 100, trim?: true
+    end
+
+    attribute :token_supply, :decimal do
+      public? true
+    end
+
+    attribute :treasury_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    # The wallet that launched the auction on chain, in lowercase.
+    attribute :creator_address, :string do
+      public? true
+      allow_nil? false
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-f]{40}\z/
+    end
+
+    # What the auction must raise to graduate, in the quote token's smallest
+    # units. The auction contract keeps it without a getter, so the launch
+    # that set it is the record of it.
+    attribute :required_currency_raised, :string do
+      public? true
+      allow_nil? false
+      constraints match: ~r/\A[1-9][0-9]{0,38}\z/
+    end
+
+    # What the launch recorded when its auction opened: the token it sells, on
+    # every launch; a Robinhood launch also its launch number on the launchpad
+    # and its bidding window.
+    attribute :token_address, :string do
+      public? true
+      constraints min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-fA-F]{40}\z/
+    end
+
+    attribute :launch_id, :integer do
+      public? true
+      constraints min: 1
+    end
+
+    attribute :start_block, :integer do
+      public? true
+      constraints min: 0
+    end
+
+    attribute :end_block, :integer do
+      public? true
+      constraints min: 0
+    end
+
+    timestamps()
+  end
+
+  relationships do
+    # The account whose signed-in wallet launched the auction. Every launch
+    # made through this site's review has one; a Base Memestock launch sent
+    # straight to the launchpad names only its wallet
+    # (`Regents.Autolaunch.Stocks.ChainLaunch`), and a Robinhood launch names one only
+    # when exactly one account's signed-in wallet is its launcher
+    # (`Regents.Autolaunch.Robinhood.Discovery`).
+    belongs_to :creator_human_account, Regents.Account.Accounts.HumanAccount do
+      allow_nil? true
+      attribute_public? true
+      attribute_type :integer
+    end
+
+    has_many :creator_identities, Regents.Account.Accounts.LinkedIdentity do
+      source_attribute :creator_human_account_id
+      destination_attribute :human_account_id
+    end
+
+    has_many :creator_x_connections, Regents.Autolaunch.XConnection do
+      source_attribute :creator_human_account_id
+      destination_attribute :human_account_id
+    end
+
+    belongs_to :treasury_security_report,
+               Regents.Autolaunch.TreasurySecurityReport do
+      attribute_public? true
+    end
+
+    # The stock a Stocks auction raises, when the site lists it.
+    has_one :quote_stock, Regents.Autolaunch.Stocks.Stock do
+      no_attributes? true
+
+      filter expr(
+               chain_id == parent(chain_id) and
+                 string_downcase(address) == string_downcase(parent(quote_token_address))
+             )
+    end
+  end
+
+  calculations do
+    # What every token is worth at the current clearing price, in quote-token units.
+    calculate :fdv, :decimal, Regents.Autolaunch.Auction.Calculations.Fdv do
+      public? true
+    end
+
+    # The end of the contract address the auction's page addresses carry.
+    calculate :path_tail, :string, Regents.Autolaunch.Auction.Calculations.PathTail do
+      public? true
+    end
+
+    # How closely a search matches this auction, from 0 to 1; see `Regents.Autolaunch.Search`.
+    # The name, ticker and stock count fully, the creator's accounts a little
+    # less and the description less again. `address` is set when the search
+    # could be part of an address, and matches the auction, token and creator
+    # wallet outright.
+    calculate :search_rank,
+              :float,
+              expr(
+                if not is_nil(^arg(:address)) and
+                     (contains(string_downcase(auction_address), ^arg(:address)) or
+                        contains(string_downcase(token_address), ^arg(:address)) or
+                        contains(creator_address, ^arg(:address))) do
+                  1.0
+                else
+                  fragment(
+                    "greatest(word_similarity(?, concat_ws(' ', ?, ?, ?, ?)), 0.9 * word_similarity(?, array_to_string(? || ? || ? || ?, ' ')), 0.7 * word_similarity(?, coalesce(?, '')))",
+                    ^arg(:term),
+                    title,
+                    token_symbol,
+                    quote_token_symbol,
+                    quote_stock_search_text,
+                    ^arg(:term),
+                    creator_identity_names,
+                    creator_identity_display_names,
+                    creator_x_names,
+                    creator_x_display_names,
+                    ^arg(:term),
+                    summary
+                  )
+                end
+              ) do
+      argument :term, :string, allow_nil?: false
+      argument :address, :string
+    end
+  end
+
+  aggregates do
+    # The creator's connected account names, for search.
+    list :creator_identity_names, :creator_identities, :username do
+      filter expr(provider in [:x, :github, :ens])
+    end
+
+    list :creator_identity_display_names, :creator_identities, :display_name do
+      filter expr(provider in [:x, :github, :ens])
+    end
+
+    list :creator_x_names, :creator_x_connections, :username do
+      filter expr(not is_nil(verified_at))
+    end
+
+    list :creator_x_display_names, :creator_x_connections, :display_name do
+      filter expr(not is_nil(verified_at))
+    end
+
+    first :quote_stock_search_text, :quote_stock, :search_text
+  end
+
+  identities do
+    identity :chain_auction, [:chain_id, :auction_address]
   end
 end

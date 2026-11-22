@@ -1,0 +1,289 @@
+defmodule Regents.Autolaunch.AuctionFinish.Launchpads do
+  @moduledoc """
+  The launchpads this site describes, and what finishing a launch needs from
+  each: how many launches it has, one launch's auction, migration block and
+  state, and the `migrate` call that finishes it. The finisher records the
+  launches of the launchpads new launches go to (`configured/0`) and finishes
+  each recorded launch on its own launchpad, an earlier one included
+  (`for_launch!/1`); an auction page's Finish button reaches the launchpad its
+  own auction runs on, of whichever version (`for_auction/1`).
+
+  - Base Revstake: the factory numbers the launches and the strategy holds
+    each auction's distribution and finishes it with `migrate(address auction)`.
+  - Base Memestock and Robinhood Memestock: the launchpad numbers the launches,
+    holds them and finishes one with `migrate(uint256 launchId)`.
+
+  A launch the launchpad holds no record of is `:launch_not_found`: a record
+  whose lifecycle is 0 (no launch, as the strategy's all-zero distribution of an
+  address that is no auction of its own reads) or a number the lifecycle does
+  not name; on a Memestock launchpad also launch id 0, which `launchIdOfAuction`
+  answers for an address that is no auction of its own (the launchpads number
+  their launches from 1), and a launch whose record names another auction.
+
+  Every record read here is a fixed tuple of words; the positions below are
+  the deployed contracts' field order.
+  """
+
+  alias RegentChain.Address
+  alias Regents.Autolaunch.Chain.{Client, Lifecycle, Rpc}
+  alias Regents.Autolaunch.Lab
+  alias Regents.Autolaunch.LabAbi
+  alias Regents.Autolaunch.LabRpc
+  alias Regents.Autolaunch.Robinhood.BlockClock
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Robinhood.LabAbi, as: RobinhoodLabAbi
+  alias Regents.Autolaunch.Stocks.Lab, as: StocksLab
+  alias Regents.Autolaunch.Stocks.LabAbi, as: StocksLabAbi
+
+  @scope "auction finisher"
+
+  @doc "Every launchpad for new launches the loaded deployment descriptions name."
+  def configured do
+    [
+      Lab.configured?() && {:ok, revstake(Lab.current!())},
+      StocksLab.configured?() &&
+        with({:ok, config} <- StocksLab.current(), do: memestock(config, config.version)),
+      RobinhoodLab.configured?() && robinhood(RobinhoodLab.current(), :v2)
+    ]
+    |> Enum.flat_map(fn
+      false -> []
+      {:ok, pad} -> [pad]
+    end)
+  end
+
+  @doc """
+  The launchpad a listed auction runs on: the Robinhood one on Robinhood's
+  chain, and on Base's, Revstake for an agent auction and Memestock for a
+  stocks one, each of the auction's own contracts version. An auction on any
+  other chain runs on no launchpad this site describes
+  (`:chain_not_described`).
+  """
+  def for_auction(%{chain_id: chain_id, kind: kind, contracts_version: version}) do
+    cond do
+      RobinhoodLab.chain?(chain_id) ->
+        robinhood(RobinhoodLab.current(), version)
+
+      chain_id != Lab.chain_id() ->
+        {:error, :chain_not_described}
+
+      kind == :agent ->
+        with {:ok, config} <- Lab.current(),
+             {:ok, launch} <- Lab.contracts(config, version),
+             do: {:ok, revstake(launch)}
+
+      kind == :stocks ->
+        with {:ok, config} <- StocksLab.current(), do: memestock(config, version)
+    end
+  end
+
+  @doc """
+  The launchpad a recorded launch belongs to: one new launches go to, or an
+  earlier Base one, whose launches still finish on their own contracts.
+  """
+  def for_launch!(%{chain_id: chain_id, contract: contract}) do
+    Enum.find(configured() ++ earlier(), &(&1.chain_id == chain_id and &1.contract == contract)) ||
+      raise "no described launchpad is #{contract} on chain #{chain_id}"
+  end
+
+  # The Base launchpads new launches went to before the current ones, as the
+  # descriptions name them: version 2's Revstake factory, and the first and
+  # second Memestock launchpads.
+  defp earlier do
+    revstake =
+      if Lab.configured?(),
+        do: for({:ok, v2} <- [Lab.contracts(Lab.current!(), :v2)], do: revstake(v2)),
+        else: []
+
+    memestock =
+      if StocksLab.configured?(),
+        do:
+          for(
+            version <- [:v1, :v2],
+            {:ok, pad} <- [memestock(StocksLab.current!(), version)],
+            do: pad
+          ),
+        else: []
+
+    revstake ++ memestock
+  end
+
+  @doc """
+  The block a launchpad keeps time by at a read block: the rollup block on
+  Robinhood (`Regents.Autolaunch.Robinhood.BlockClock`), the block itself on Base.
+  """
+  def clock(%{launchpad: :robinhood_memestock} = pad, block), do: BlockClock.read(block, pad.opts)
+  def clock(_pad, block), do: {:ok, block.number}
+
+  @doc "The highest launch id so far: `nextLaunchId` less one."
+  def last_launch_id(pad, block) do
+    with {:ok, next} <-
+           Rpc.call_uint(
+             pad.contract,
+             LabAbi.encode(pad.abi, "nextLaunchId()", []),
+             block,
+             pad.opts
+           ),
+         do: {:ok, next - 1}
+  end
+
+  @doc "One launch's auction, migration block and state."
+  def launch(%{launchpad: :base_revstake} = pad, launch_id, block) do
+    with {:ok, launch} <- words(pad, :contract, "launches(uint256)", [launch_id], 5, block),
+         do: distribution(pad, address(Enum.at(launch, 2)), block)
+  end
+
+  def launch(pad, launch_id, block) do
+    with {:ok, words} <-
+           words(pad, :contract, "launches(uint256)", [launch_id], pad.shape.record_words, block),
+         launch = pad.records.record(pad.shape, words),
+         {:ok, state} <- finish_state(launch.lifecycle) do
+      {:ok,
+       %{
+         auction: address(launch.auction),
+         migration_block: launch.migration_block,
+         state: state
+       }}
+    end
+  end
+
+  @doc """
+  The launch of the auction at `auction`, as `launch/3` reads it, with the
+  launch id `migrate_call/2` names on a Memestock launchpad, or
+  `:launch_not_found` when the launchpad holds none for that auction.
+  """
+  def launch_of_auction(%{launchpad: :base_revstake} = pad, auction, block),
+    do: distribution(pad, auction, block)
+
+  def launch_of_auction(pad, auction, block) do
+    with {:ok, launch_id} <- launch_id_of_auction(pad, auction, block),
+         {:ok, launch} <- launch(pad, launch_id, block),
+         :ok <- same_auction(launch, auction),
+         do: {:ok, Map.put(launch, :launch_id, launch_id)}
+  end
+
+  # The launchpad numbers its launches from 1 and answers 0 for an address
+  # that is no auction of its own.
+  defp launch_id_of_auction(pad, auction, block) do
+    case Rpc.call_uint(
+           pad.contract,
+           LabAbi.encode(pad.abi, "launchIdOfAuction(address)", [auction]),
+           block,
+           pad.opts
+         ) do
+      {:ok, 0} -> {:error, :launch_not_found}
+      answered -> answered
+    end
+  end
+
+  defp same_auction(%{auction: recorded}, auction) do
+    if Address.equal?(recorded, auction), do: :ok, else: {:error, :launch_not_found}
+  end
+
+  # The strategy holds each Revstake auction's lifecycle and migration block.
+  defp distribution(pad, auction, block) do
+    with {:ok, distribution} <-
+           words(
+             pad,
+             :strategy,
+             "distribution(address)",
+             [auction],
+             LabAbi.distribution_words(),
+             block
+           ),
+         distribution = LabAbi.distribution(distribution),
+         {:ok, state} <- finish_state(distribution.lifecycle) do
+      {:ok,
+       %{
+         auction: auction,
+         migration_block: distribution.migration_block,
+         state: state
+       }}
+    end
+  end
+
+  @doc "The contract and calldata that finish a recorded launch."
+  def migrate_call(%{launchpad: :base_revstake} = pad, launch),
+    do: %{
+      to: pad.strategy,
+      data: LabAbi.encode(pad.strategy_abi, "migrate(address)", [launch.auction])
+    }
+
+  def migrate_call(pad, launch),
+    do: %{to: pad.contract, data: LabAbi.encode(pad.abi, "migrate(uint256)", [launch.launch_id])}
+
+  defp revstake(config) do
+    %{
+      launchpad: :base_revstake,
+      chain_id: config.chain_id,
+      chain: Client.chain(config),
+      contract: Lab.address!(config, :factory),
+      abi: Lab.abi!(config, :factory),
+      strategy: Lab.address!(config, :strategy),
+      strategy_abi: Lab.abi!(config, :strategy),
+      opts: LabRpc.opts(config, @scope)
+    }
+  end
+
+  defp memestock(config, version) do
+    with {:ok, contracts} <- StocksLab.contracts(config, version) do
+      {:ok,
+       %{
+         launchpad: :base_memestock,
+         chain_id: config.chain_id,
+         run_id: config.run_id,
+         chain: Client.chain(config),
+         contract: contracts.launchpad,
+         abi: contracts.abis["launchpad"],
+         shape: contracts,
+         records: StocksLabAbi,
+         opts: StocksLab.rpc_opts(config, @scope)
+       }}
+    end
+  end
+
+  defp robinhood({:ok, config}, version) do
+    with {:ok, contracts} <- RobinhoodLab.contracts(config, version) do
+      {:ok,
+       %{
+         launchpad: :robinhood_memestock,
+         chain_id: config.chain_id,
+         run_id: config.run_id,
+         chain: Client.chain(config),
+         contract: contracts.launchpad,
+         abi: contracts.abis["launchpad"],
+         shape: contracts,
+         records: RobinhoodLabAbi,
+         opts: RobinhoodLab.rpc_opts(config)
+       }}
+    end
+  end
+
+  defp robinhood(error, _version), do: error
+
+  @doc """
+  `count` words a launchpad answers at `block`: from its own contract, or from
+  the strategy that holds a Revstake launchpad's auctions.
+  """
+  def words(pad, :contract, signature, arguments, count, block),
+    do: call_words(pad.contract, pad.abi, signature, arguments, count, block, pad.opts)
+
+  def words(pad, :strategy, signature, arguments, count, block),
+    do: call_words(pad.strategy, pad.strategy_abi, signature, arguments, count, block, pad.opts)
+
+  defp call_words(to, abi, signature, arguments, count, block, opts),
+    do: Rpc.call_words(to, LabAbi.encode(abi, signature, arguments), block, count, opts)
+
+  defp address(word),
+    do: "0x" <> String.pad_leading(String.downcase(Integer.to_string(word, 16)), 40, "0")
+
+  # A recorded launch as the finisher keeps it: still running, or finished. A
+  # lifecycle of no launch, or a number it does not name, is no launch here.
+  defp finish_state(lifecycle) do
+    case Lifecycle.fetch(lifecycle) do
+      {:ok, :active} -> {:ok, :running}
+      {:ok, finished} when finished in [:graduated, :failed] -> {:ok, finished}
+      {:ok, :none} -> {:error, :launch_not_found}
+      :error -> {:error, :launch_not_found}
+    end
+  end
+end

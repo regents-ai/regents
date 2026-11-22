@@ -1,0 +1,70 @@
+defmodule RegentsWeb.Autolaunch.DraftMarks do
+  @moduledoc """
+  What both create pages mark beside a field whose text is saved as typed but
+  that a launch cannot use yet: a website or link that is not a link of its
+  kind, or a ticker outside the ticker rule. A field the save itself refused keeps that
+  message instead. And what a draft still needs before its launch review, which
+  follows the form as it is typed (`typed/3`).
+  """
+
+  alias Regents.Autolaunch.{LaunchLinks, Ticker}
+
+  @doc "The field messages for the form's current values, by field name."
+  @spec marked(map(), map()) :: %{String.t() => String.t()}
+  def marked(errors, values) do
+    links = Map.new(LaunchLinks.fields(), &{&1, values[Atom.to_string(&1)]})
+    symbol = values["symbol"]
+    website = values["website"]
+
+    LaunchLinks.problems(links)
+    |> Map.new(fn {field, hint} -> {Atom.to_string(field), hint} end)
+    |> then(fn marks ->
+      if symbol in [nil, ""] or Ticker.complete?(symbol),
+        do: marks,
+        else: Map.put(marks, "symbol", Ticker.hint())
+    end)
+    |> then(fn marks ->
+      if website in [nil, ""] or LaunchLinks.web_link?(website),
+        do: marks,
+        else: Map.put(marks, "website", LaunchLinks.web_link_hint())
+    end)
+    |> Map.merge(errors)
+  end
+
+  @doc """
+  The saved draft with the `params` fields as the form holds them now, the
+  ticker in capitals as a save writes it, so whether it is ready and what it
+  still needs follow the typing rather than the last save.
+  """
+  @spec typed(struct(), map(), [String.t()]) :: struct()
+  def typed(draft, values, params) do
+    typed = Map.new(params, &{String.to_existing_atom(&1), values[&1]})
+    Map.merge(draft, %{typed | symbol: String.upcase(typed.symbol)})
+  end
+
+  @missing_labels %{
+    name: "name",
+    symbol: "ticker",
+    description: "description",
+    website: "a full https:// website",
+    telegram: "a t.me Telegram link",
+    discord: "a Discord invite link",
+    other_link_1: "a full https:// link",
+    other_link_2: "a full https:// link",
+    other_link_3: "a full https:// link",
+    image: "image",
+    stock_address: "paired stock",
+    treasury: "treasury"
+  }
+
+  @doc "What a draft still needs, as the Still needed line on both Create pages names it."
+  @spec still_needed([atom()]) :: String.t()
+  def still_needed(fields) do
+    labels = Enum.map(fields, &Map.fetch!(@missing_labels, &1))
+
+    case Enum.split(labels, -1) do
+      {[], [only]} -> only
+      {rest, [last]} -> Enum.join(rest, ", ") <> " and " <> last
+    end
+  end
+end

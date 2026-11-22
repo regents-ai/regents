@@ -1,0 +1,279 @@
+defmodule RegentsWeb.Autolaunch.FinishAuctionComponent do
+  @moduledoc """
+  The Finish button on an ended auction's page.
+
+  Once bidding has ended, an auction waits for someone to finish it: the
+  launch's `migrate`, open to anyone from its migration block on, which opens
+  the pool or, below the minimum, opens refunds (`Regents.Autolaunch.FinishActions`).
+  The card reads the launch at the latest block when it appears, and once
+  more when a finish sent from it is confirmed. While the migration block is
+  still ahead, or the chain could not be read, it reads again whenever the
+  site reads a new block on the auction's own chain: the page passes that
+  chain's newest block (`Regents.Autolaunch.ChainHead`) as `observed`.
+
+  The wallet that sends is Privy's active wallet when the signed-in account
+  links it (`RegentsWeb.Autolaunch.OnchainSteps`); any of the account's wallets may
+  finish. The review is built as soon as the card knows that wallet, so the
+  button sends at once; a press made before the card has read the launch, or
+  while it holds the launch as not open yet, reads it for that press and sends
+  the finish, as a settlement press does (`RegentsWeb.Autolaunch.BidSettlementComponent`).
+  The button is disabled only when, read at the latest block, the finish
+  would revert if sent at the launchpad clock's next step, by the rule a
+  paired agent's finish follows too (`Regents.Autolaunch.FinishActions.read/1`'s
+  `blocked`): while that step is before the migration block, or once the
+  launch is finished. It is disabled too when the launchpad holds no launch
+  for the auction, which no new block changes, so the card does not read it
+  again. Nothing is stored; the auction's reading job records the outcome from
+  the chain (`Regents.Autolaunch.AuctionMarket`) and the page follows it.
+  """
+
+  use RegentsWeb, :live_component
+
+  alias RegentChain.{Presses, Review}
+  alias Regents.Autolaunch.Chain.Client
+  alias Regents.Autolaunch.FinishActions
+  alias RegentsWeb.Autolaunch.Components.SwapForm
+  alias RegentsWeb.Autolaunch.OnchainSteps
+  alias RegentsWeb.Live.Session
+
+  @impl true
+  def mount(socket) do
+    {:ok,
+     socket
+     |> Session.check_component_lease(&take_account/2)
+     |> OnchainSteps.init()
+     |> assign(signer: nil, mismatch: nil, launch: nil, unread: false)}
+  end
+
+  @impl true
+  def update(assigns, socket) do
+    seen = Map.fetch(socket.assigns, :observed)
+    socket = socket |> assign(assigns) |> OnchainSteps.adopt() |> followed()
+    {:ok, if(read_again?(seen, socket.assigns), do: read(socket), else: socket)}
+  end
+
+  # The first update reads; after that, a new head is a reason to read again
+  # only while the answer could still change to "ready". A launch the
+  # launchpad holds none of (`:no_launch`) is not read again.
+  defp read_again?(:error, _assigns), do: true
+  defp read_again?({:ok, seen}, %{observed: seen}), do: false
+  defp read_again?(_seen, %{unread: true}), do: true
+  defp read_again?(_seen, %{launch: launch}), do: match?(%{blocked: :finish_not_open}, launch)
+
+  # The account as it reads now, before each event and background result
+  # (`Session.check_component_lease/2`): a change to its wallets moves the
+  # card onto them.
+  defp take_account(socket, account),
+    do: OnchainSteps.take_account(socket, account, &followed/1)
+
+  # The card follows the wallet that may act; a review is built for one signer.
+  defp followed(socket) do
+    %{linked: linked, active: active} = socket.assigns
+    signer = OnchainSteps.signer(linked, active)
+    socket = assign(socket, mismatch: OnchainSteps.mismatch_note(linked, active))
+
+    if signer == socket.assigns.signer,
+      do: socket,
+      else: socket |> assign(signer: signer) |> reviewed()
+  end
+
+  @impl true
+  def render(assigns) do
+    step = step(assigns)
+    blocked = blocked(assigns.launch)
+
+    assigns =
+      assign(assigns,
+        steps: if(step && !blocked, do: [step], else: []),
+        next_step: next_step(step, blocked),
+        blocked: blocked,
+        chain_name: chain_name(assigns),
+        progress: progress(step, chain_name(assigns))
+      )
+
+    ~H"""
+    <section
+      id={@id}
+      class="finish-auction"
+      phx-hook="OnchainSteps"
+      data-onchain-prepare
+      aria-label="Finish this auction"
+    >
+      <h3>Finish this auction</h3>
+      <p class="finish-auction__about">
+        Finishing opens the pool, or opens refunds if the minimum wasn't met. Anyone can do it for the network fee.
+      </p>
+      <p class="finish-auction__line" role="status" aria-live="polite">
+        {line(@blocked, @progress, @unread, @launch)}
+      </p>
+      <p class="bid-notice" role="status" hidden={!@press_note}>{@press_note}</p>
+      <SwapForm.wallet_step
+        id={@id <> "-sender"}
+        next_step={@next_step}
+        steps={@steps}
+        reverted={reverted(@steps)}
+        signer={@review && @review.signer}
+        chain_name={@chain_name}
+        mismatch={@mismatch}
+        check_event="check_again"
+        target={@myself}
+      />
+      <Regent.Primitives.button type="button" class="token-swap__submit" disabled hidden={!@blocked}>
+        Finish auction
+      </Regent.Primitives.button>
+    </section>
+    """
+  end
+
+  @impl true
+  def handle_event("onchain_active_wallet", params, socket),
+    do: {:noreply, socket |> OnchainSteps.take_active(params) |> followed()}
+
+  # A press made before the card has read the launch, after a read the chain
+  # did not answer, or while the card holds the launch as not open yet: the
+  # launch is read now for the wallet that pressed and the finish handed back
+  # to send. A launch the chain says cannot be finished now sends nothing.
+  def handle_event("prepare_and_send", %{"form" => _no_inputs}, socket) do
+    socket = read_now(socket)
+
+    case socket.assigns do
+      %{review: %{} = review, launch: %{blocked: nil}} ->
+        {:reply, %{review: review, send: "finish"}, socket}
+
+      _no_review_or_blocked ->
+        {:reply, %{}, socket}
+    end
+  end
+
+  def handle_event("step_sent", params, socket),
+    do: {:noreply, OnchainSteps.sent(socket, params)}
+
+  def handle_event("step_failed", params, socket) do
+    case Presses.failed(params) do
+      {:ok, _name, reason} ->
+        RegentsWeb.Autolaunch.Telemetry.wallet_failed(:finish_auction, reason)
+        %{linked: linked, active: active} = socket.assigns
+
+        {:noreply,
+         assign(socket,
+           press_note:
+             OnchainSteps.failure_note(reason, linked, active, chain_name(socket.assigns))
+         )}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
+    do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  @impl true
+  def handle_async(:launch, {:ok, read}, socket), do: {:noreply, took(socket, read)}
+
+  def handle_async(:launch, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, unread: true)}
+
+  # A finish that lands is read back at once: confirmed, the button turns to
+  # finished; reverted, the launch may have been finished by someone else.
+  def handle_async({:onchain_step, hash}, result, socket),
+    do: {:noreply, OnchainSteps.checked(socket, hash, result, &reread/2, &reread/2)}
+
+  # Reading the launch
+
+  defp read(socket) do
+    auction = socket.assigns.auction
+    start_async(socket, :launch, fn -> FinishActions.read(auction) end)
+  end
+
+  defp reread(socket, _entry), do: read(socket)
+
+  # The launch as the card holds it, or read for a press: one that came first,
+  # or one while the card holds the launch as not open yet, which the clock may
+  # have opened since. A launch known finished, or known to be none, stays.
+  defp read_now(%{assigns: %{launch: %{blocked: :finish_not_open}}} = socket),
+    do: took(socket, FinishActions.read(socket.assigns.auction))
+
+  defp read_now(%{assigns: %{launch: launch}} = socket)
+       when is_map(launch) or launch == :no_launch,
+       do: socket
+
+  defp read_now(socket), do: took(socket, FinishActions.read(socket.assigns.auction))
+
+  # Every answer the read gives (`FinishActions.read/1`).
+  defp took(socket, {:ok, launch}),
+    do: socket |> assign(launch: launch, unread: false) |> reviewed()
+
+  defp took(socket, {:error, :launch_not_found}),
+    do: socket |> assign(launch: :no_launch, unread: false) |> reviewed()
+
+  defp took(socket, {:error, :chain_unavailable}), do: assign(socket, unread: true)
+
+  # The review for the wallet that may act, once the launch is read. A review
+  # never changes, so the same signer and step keep the one on the page.
+  defp reviewed(%{assigns: %{signer: signer, launch: %{chain: chain, steps: steps}}} = socket)
+       when is_binary(signer),
+       do: OnchainSteps.put_review(socket, Review.new(socket.assigns.id, signer, chain, steps))
+
+  defp reviewed(socket), do: OnchainSteps.put_review(socket, nil)
+
+  # The step
+
+  defp step(%{review: %{} = review, presses: presses}),
+    do: OnchainSteps.step(presses, review, "finish", "Finish auction")
+
+  defp step(_assigns), do: nil
+
+  # The button sends the finish while nothing is on its way, and again while it
+  # is; before the review is on the page it still names the finish, and a
+  # press says why nothing was sent.
+  defp next_step(_step, blocked) when is_binary(blocked), do: nil
+  defp next_step(nil, nil), do: %{name: "finish", label: "Finish auction"}
+  defp next_step(%{state: state} = step, nil) when state in [:ready, :reverted, :other], do: step
+  defp next_step(_step, nil), do: nil
+
+  # Why the finish would revert if sent now, from the chain's own reading at
+  # the latest block, or why there is none to send.
+  defp blocked(%{blocked: :finish_not_open, migration_block: migration_block}),
+    do: "Finishing opens at block #{migration_block}."
+
+  defp blocked(%{blocked: :auction_finished}),
+    do: "This auction is finished. The page shows the result shortly."
+
+  defp blocked(:no_launch), do: "This auction has no launch to finish."
+
+  defp blocked(_open_or_unread), do: nil
+
+  defp progress(nil, _chain_name), do: nil
+
+  defp progress(%{state: :sent}, _chain_name), do: "Finishing the auction…"
+
+  defp progress(%{state: :stalled}, chain_name),
+    do: "#{chain_name} has not confirmed this yet. Check again, or look in your wallet activity."
+
+  defp progress(%{state: :other}, _chain_name),
+    do:
+      "That transaction is not the one this page prepared, so it can't be followed here. Check it in your wallet activity."
+
+  defp progress(%{state: :done}, _chain_name),
+    do: "Finished. The page shows the result shortly."
+
+  defp progress(_step, _chain_name), do: nil
+
+  # One line, always in place, so nothing below it moves.
+  defp line(blocked, _progress, _unread, _launch) when is_binary(blocked), do: blocked
+  defp line(nil, progress, _unread, _launch) when is_binary(progress), do: progress
+  defp line(nil, nil, true, _launch), do: "The auction could not be read just now."
+  defp line(nil, nil, false, nil), do: "Reading the auction…"
+  defp line(nil, nil, false, _launch), do: "Ready to finish."
+
+  defp reverted(steps) do
+    if Enum.any?(steps, &(&1.state == :reverted)),
+      do: "That did not go through. Only the network fee was spent. Press again."
+  end
+
+  defp chain_name(%{launch: %{chain: %{name: name}}}), do: name
+
+  defp chain_name(%{auction: %{chain_id: chain_id}}),
+    do: Client.network_name(chain_id)
+end

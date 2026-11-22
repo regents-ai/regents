@@ -1,13 +1,4 @@
 defmodule Regents.Autolaunch.TreasurySecurityReport do
-  @moduledoc """
-  One reading of a launch treasury's setup on chain, at one block: what kind of
-  account it is, its owners, threshold, modules and guard, and the evidence it
-  was judged on.
-
-  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
-  each launch's report; nothing here writes them yet.
-  """
-
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
@@ -27,6 +18,29 @@ defmodule Regents.Autolaunch.TreasurySecurityReport do
   @verification_states [:verified, :unverified]
   @downgrade_states [:none, :downgraded]
 
+  @derived_fields [
+    :address,
+    :chain_id,
+    :classification,
+    :safe_version,
+    :safe_singleton,
+    :owner_addresses,
+    :owner_count,
+    :threshold,
+    :modules,
+    :guard,
+    :fallback_handler,
+    :configuration_fingerprint,
+    :source_block_number,
+    :source_block_hash,
+    :observed_at,
+    :verification_state,
+    :verification_reason,
+    :usdc_evidence,
+    :regent_evidence,
+    :outbound_evidence
+  ]
+
   postgres do
     table "treasury_security_reports"
     schema("autolaunch_app")
@@ -34,6 +48,38 @@ defmodule Regents.Autolaunch.TreasurySecurityReport do
 
     custom_indexes do
       index([:address, :source_block_number])
+    end
+  end
+
+  actions do
+    read :read do
+      primary? true
+    end
+
+    read :for_address do
+      argument :address, :string, allow_nil?: false
+      filter expr(address == ^arg(:address))
+      prepare build(sort: [source_block_number: :desc, inserted_at: :desc, id: :desc])
+    end
+
+    read :by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(id == ^arg(:id))
+    end
+
+    create :record_observation do
+      accept @derived_fields
+    end
+  end
+
+  policies do
+    policy action([:read, :for_address, :by_id]) do
+      authorize_if always()
+    end
+
+    policy action(:record_observation) do
+      authorize_if Regents.Checks.SystemActor
     end
   end
 
@@ -143,19 +189,5 @@ defmodule Regents.Autolaunch.TreasurySecurityReport do
     end
 
     timestamps()
-  end
-
-  actions do
-    read :read do
-      primary? true
-    end
-  end
-
-  # Only the primary read is carried; any other action is refused until it
-  # comes with its own policy.
-  policies do
-    policy action([:read]) do
-      authorize_if always()
-    end
   end
 end

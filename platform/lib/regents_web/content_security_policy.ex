@@ -113,6 +113,10 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     |> render()
   end
 
+  @doc "The baseline plus the inline script closing the X OAuth popup."
+  def x_callback(nonce),
+    do: @baseline |> add(%{"script-src" => ["'nonce-#{nonce}'"]}) |> render()
+
   @doc "Sign-in plus framing its own pages, for the local showcase's preview."
   def showcase do
     @baseline

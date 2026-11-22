@@ -65,7 +65,8 @@ import {installSiteMenu} from "./techtree/site_menu"
 // bar while the next page loads, and the hooks their markup names.
 import {keyfleetHooks, installKeyfleet} from "./keyfleet"
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
-// Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
+// Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame and its hooks.
+import {autolaunchHooks} from "./autolaunch"
 import {installShellMenu} from "./autolaunch/shell_menu"
 // Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, the
 // home page's live list, a post's live thread and its counting times, and the
@@ -298,6 +299,7 @@ const hooks = {
   ...colocatedHooks,
   ...marketingHooks,
   ...keyfleetHooks,
+  ...autolaunchHooks,
   AgentVersions,
   CopyCommandPage,
   CopyCommandPageView,

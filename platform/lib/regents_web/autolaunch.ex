@@ -1,25 +1,53 @@
 defmodule RegentsWeb.Autolaunch do
   @moduledoc """
-  Autolaunch's pages at `/autolaunch` and under it, in one scope of the router,
-  starting with its home (`RegentsWeb.Autolaunch.HomeLive`). The scope marks the
-  page `data-product="autolaunch"`, which selects Autolaunch's stylesheets
-  (`assets/css/autolaunch`), and every page is read under the site's bar inside
-  Autolaunch's frame (`RegentsWeb.Autolaunch.Layouts`). Each written page also
-  answers as Markdown at its own address (`RegentsWeb.Autolaunch.PublicDocuments`).
-  The launch pictures are served outside the scope, as the site's other
-  pictures are (`RegentsWeb.Autolaunch.StoredImageController`).
+  Autolaunch's pages and APIs under `/autolaunch`, `/api/v1/autolaunch`,
+  `/api/agent/v1/autolaunch`, and `/auth/x`.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Autolaunch],
     exports: [
+      AgentAccountController,
+      AgentBidController,
+      AgentFinishController,
+      AgentLaunchController,
+      AgentRobinhoodBidController,
+      AgentStakeController,
+      AuctionController,
       AuctionsLive,
+      BidLive,
+      BlogController,
+      ConvertLive,
+      CoveredCallsAgentController,
+      CoveredCallsController,
+      CoveredCallsLive,
+      CreateLive,
+      EarnAgentController,
+      EarnController,
+      EarnLive,
+      ExposureAgentController,
+      ExposureController,
+      ExposureLive,
       HomeLive,
       HowItWorksLive,
       Layouts,
       MarketPageLive,
+      MyPositionsController,
+      OldLinkController,
+      PortfolioLive,
       PublicDocuments,
       PublicPagesController,
+      RegentLive,
+      ShareCardController,
+      ShareVideo.Render,
+      StockLive,
+      StocksCreateLive,
       StoredImageController,
-      TokensLive
+      Supervisor,
+      TokenController,
+      TokensLive,
+      TreasuryController,
+      UnavailableController,
+      UpcomingLive,
+      XOAuthController
     ]
 end

@@ -1,0 +1,1511 @@
+openapi: 3.1.0
+info:
+  title: Autolaunch API
+  version: 4.0.0
+  description: Public auction, token, bid-estimate and treasury reads need no account. Private account reads and metadata-only draft edits require signed paired-agent requests; the shared profile answers the person signed in on this site, or an agent they paired. Bidding, launching and staking happen on the website with the person's own wallet.
+  contact: {name: Regents Labs, email: build@regents.sh, url: https://autolaunch.sh/about}
+paths:
+  /api/v1/profile:
+    get:
+      operationId: profile_get
+      summary: Read your shared profile
+      description: The person's own shared profile, the same on every Regent site. The person sends it from this site's pages, signed in; an agent the person paired sends it signed with its own key, acting as them.
+      security:
+        - SiteSession: []
+        - SiwaProof: []
+      responses:
+        "200":
+          description: The person's shared profile
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Neither a signed-in session on this site nor a verified agent signature (authentication_required, or the signature's own refusal)
+          content:
+            application/json:
+              schema:
+                type: object
+        "403":
+          description: The signing agent is paired with nobody (agent_not_paired), or the profile belongs to another account (profile_forbidden)
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: The person has no profile yet (profile_not_created); it is made when they sign in on this site
+          content:
+            application/json:
+              schema:
+                type: object
+        "503":
+          description: Profile unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+    patch:
+      operationId: profile_update
+      summary: Change your display name or selected wallet
+      description: Changes the person's own shared profile. The person sends it from this site's pages, signed in, with the session's forms token in x-csrf-token; an agent the person paired sends it signed with its own key, acting as them.
+      security:
+        - SiteSession: []
+          CsrfToken: []
+        - SiwaProof: []
+      responses:
+        "200":
+          description: The changed shared profile
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Neither a signed-in session on this site with its forms token nor a verified agent signature (authentication_required, or the signature's own refusal)
+          content:
+            application/json:
+              schema:
+                type: object
+        "403":
+          description: The signing agent is paired with nobody (agent_not_paired), or the profile belongs to another account (profile_forbidden)
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: The person has no profile yet (profile_not_created); it is made when they sign in on this site
+          content:
+            application/json:
+              schema:
+                type: object
+        "422":
+          description: Invalid profile edit
+          content:
+            application/json:
+              schema:
+                type: object
+        "503":
+          description: Profile unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                display_name:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 80
+                wallet_address:
+                  type:
+                    - string
+                    - "null"
+                  pattern: ^0x[a-fA-F0-9]{40}$
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      summary: Read whether the site and its database answer
+      description: The same check as /healthz, answered in JSON. Responses use Cache-Control no-store.
+      security: []
+      responses:
+        "200":
+          description: The site and its database answer
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Health"}
+        "503":
+          description: The site is up but its database is not answering (unavailable)
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ApiError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/about:
+    get:
+      operationId: getAbout
+      summary: Read the About page
+      description: The About page's title and its Markdown, the text GET /about serves as Markdown. Anyone may read it; no sign-in.
+      security: []
+      responses:
+        "200":
+          description: The About page
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PublicDocument"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/docs:
+    get:
+      operationId: getDocs
+      summary: Read the developer guide
+      description: The developer guide's title and its Markdown, the text GET /docs serves as Markdown. Anyone may read it; no sign-in.
+      security: []
+      responses:
+        "200":
+          description: The developer guide
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PublicDocument"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/auctions:
+    get:
+      operationId: listAuctions
+      summary: List auctions
+      description: 'Public Autolaunch auctions on Base and Robinhood, found and ordered as the website''s auction list does. No account or API key is needed. Besides the default budget, each client address may read this list 6 times per 60 seconds, counted as "auction-list" in RateLimit-Policy and RateLimit; reading it more often than every five seconds returns the same list.'
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/Search"}
+        - name: state
+          in: query
+          description: "Filter auctions: created (opening soon), active (live), ended (bidding closed, waiting to be finished), failed, graduated (launched), or finished (graduated and failed together)."
+          schema:
+            type: string
+            enum: [all, created, active, ended, failed, graduated, finished]
+            default: all
+        - name: sort
+          in: query
+          description: "newest: most recently listed first (the website's Recent). ending: live auctions only, closing soonest first (Closing). volume: highest dollar bid volume first, unrecorded volume last (Highest)."
+          schema:
+            type: string
+            enum: [newest, ending, volume]
+            default: newest
+        - {$ref: "#/components/parameters/Chain"}
+        - {$ref: "#/components/parameters/Kind"}
+        - {$ref: "#/components/parameters/X"}
+        - {$ref: "#/components/parameters/Ens"}
+        - {$ref: "#/components/parameters/Github"}
+        - name: limit
+          in: query
+          description: Values outside the admitted range are clamped to the nearest boundary.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+        - name: after
+          in: query
+          description: Opaque next_cursor from the preceding page. Keep the same filters and sort. Expires after 24 hours; restart the listing on 400. New records ahead of the cursor appear when restarting; this is not a frozen snapshot.
+          schema: {type: string, maxLength: 4096}
+      x-pagination: keyset
+      responses:
+        "200":
+          description: Public Autolaunch auctions on Base and Robinhood, found and ordered as the website's auction list finds and orders them; every entry names its chain.
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionListEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/auction-counts:
+    get:
+      operationId: countAuctions
+      summary: Count auctions
+      description: Live and graduated auctions for each launch type on each chain, the same counts the auctions page shows. Live means open for bidding, as the list's `state=active` filter means. Takes no parameters.
+      security: []
+      responses:
+        "200":
+          description: Auction counts by launch type and chain
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionCountsEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/auctions/{id}:
+    get:
+      operationId: getAuction
+      summary: Get one auction
+      description: One public auction by its id, with its figures and its treasury report when there is one.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "An auction's UUID, or a Robinhood auction's contract address."
+          schema:
+            oneOf:
+              - {type: string, format: uuid}
+              - {type: string, pattern: "^0x[0-9a-fA-F]{40}$"}
+      responses:
+        "200":
+          description: Public Autolaunch auction on Base or Robinhood
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/auctions/{id}/bid-quote:
+    post:
+      operationId: quoteAuctionBid
+      summary: Estimate a bid
+      description: Estimates a bid of `amount` at up to `max_price` from the stored auction snapshot. It does not place a bid; read every warning it returns. An id that names no Base auction this site lists answers 404; a Robinhood auction answers 422 `estimate_not_offered`, since estimates cover Base auctions only.
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/AuctionId"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/AuctionBidRequest"}
+      responses:
+        "200":
+          description: Quote from the stored auction snapshot
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AuctionBidQuoteEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/InvalidBidInput"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/tokens:
+    get:
+      operationId: listTokens
+      summary: List launched tokens
+      description: Tokens whose auctions succeeded, on Base and Robinhood, newest graduation first.
+      security: []
+      parameters:
+        - {$ref: "#/components/parameters/Search"}
+        - {$ref: "#/components/parameters/Chain"}
+        - {$ref: "#/components/parameters/Kind"}
+        - {$ref: "#/components/parameters/X"}
+        - {$ref: "#/components/parameters/Ens"}
+        - {$ref: "#/components/parameters/Github"}
+        - name: limit
+          in: query
+          description: Values outside the admitted range are clamped to the nearest boundary.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+        - name: after
+          in: query
+          description: Opaque next_cursor from the preceding page. Keep the same filters and sort. Expires after 24 hours; restart the listing on 400. New records ahead of the cursor appear when restarting; this is not a frozen snapshot.
+          schema: {type: string, maxLength: 4096}
+      x-pagination: keyset
+      responses:
+        "200":
+          description: Public Autolaunch tokens on Base and Robinhood, found as the website's token list finds them, newest graduation first; every entry names its chain.
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TokenListEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/tokens/{id}:
+    get:
+      operationId: getToken
+      summary: Read a publicly listed token
+      description: A single token from the same public Base and Robinhood listing. Hidden and external-origin tokens are not returned. Prices are stored observations with nullable recording timestamps, not live or executable quotes. This read makes no chain call.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Exact token UUID from the token list, not an auction UUID or contract address. Extra query parameters are rejected.
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Public stored token details
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TokenDetailEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/treasury-security/{address}:
+    get:
+      operationId: getTreasurySecurity
+      summary: Get a treasury security report
+      description: The newest stored security report for a launch treasury address. This read never calls a provider.
+      security: []
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema: {type: string, pattern: '^0x[0-9a-fA-F]{40}$'}
+      responses:
+        "200":
+          description: Newest stored treasury observation; this read never calls a provider
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TreasurySecurityEnvelope"}
+        "400": {$ref: "#/components/responses/InvalidQuery"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "500": {$ref: "#/components/responses/InternalError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/v1/me/positions:
+    get:
+      operationId: listMyPositions
+      summary: List your bids and tokens
+      description: The bids the signed-in wallet placed on Base and Robinhood auctions and the launched tokens it holds, stakes or can claim from staking, read now from the site's records and the chain. Only the wallet the person signed in with is read, not the account's other wallets. Needs the site's sign-in in the same browser; the page tool autolaunch_my_positions calls it.
+      security:
+        - SiteSession: []
+      responses:
+        "200":
+          description: Every bid and token of the signed-in wallet
+          headers:
+            RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+            RateLimit: {$ref: "#/components/headers/RateLimit"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MyPositionsEnvelope"}
+        "401":
+          description: Nobody is signed in on this site in this browser
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ApiError"}
+        "503":
+          description: The chain could not be read; nothing is left out, the whole answer is refused
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ApiError"}
+        "429": {$ref: "#/components/responses/TooManyRequests"}
+        default: {$ref: "#/components/responses/OtherError"}
+  /api/agents/v1/whoami:
+    "get":
+      "operationId": "agent_whoami"
+      "summary": "Check my identity and pairing"
+      description: Run this first; it works before pairing. Answers your status on this site (not_paired or paired), what you may do in it and your next step. Changes nothing and awards no Points.
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Your status on this site, what you may do in it and your next step"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentStatusEnvelope"}
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent's pairing leads to no Regent account (agent_not_paired); the error's hint says what the person does next"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+  /api/agents/v1/me:
+    "get":
+      "operationId": "agent_status"
+      "summary": "Check in as a paired agent"
+      description: Updates the paired agent check-in time, then projects the paired person's Regent account. Wallet fields are stored verified facts, not wallet authority or a fresh provider check.
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Check-in recorded; existing owner account projection"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CheckedInAgentEnvelope"}
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentNotPairedError"}
+        "503":
+          "description": "Dependency unavailable"
+  /api/agents/v1/pair:
+    "post":
+      "operationId": "agent_pair"
+      "summary": "Redeem an owner pairing code with my chosen name"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "400":
+          "description": "The code could not be used, or the body is not exactly code, name and harness (pairing_failed); the harness is not one this site offers (harness_unknown); the name can't be used (invalid_name)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentPairingError"}
+        "401":
+          "description": "Fresh request proof required"
+        "409":
+          "description": "The account already has 100 paired agents"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AgentLimitError"}
+        "503":
+          "description": "Dependency unavailable"
+        "201":
+          "description": "Pairing created"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PairedAgentEnvelope"}
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "code":
+                  "type": "string"
+                "name":
+                  "type": "string"
+                "harness":
+                  "$ref": "#/components/schemas/AgentHarness"
+              "required":
+                - "code"
+                - "name"
+                - "harness"
+              "additionalProperties": false
+  /api/agent/v1/drafts/revstake:
+    "get":
+      "operationId": "autolaunch_revstake_draft"
+      "summary": "Read my Revstake token draft"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+    "patch":
+      "operationId": "autolaunch_revstake_draft_save"
+      "summary": "Fill in my Revstake launch draft: details, picture and treasury"
+      "description": "Fill in my Revstake launch draft: the token's details, its picture and its treasury. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. The acknowledgement for a treasury owned by a private key is my person's alone. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status."
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+        "422":
+          "description": "Invalid input: invalid_draft, invalid_image or image_too_large"
+        "503":
+          "description": "Prelaunch read-only gate or dependency unavailable"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "name":
+                  "type": "string"
+                "symbol":
+                  "type": "string"
+                "description":
+                  "type": "string"
+                "website":
+                  "type": "string"
+                "telegram":
+                  "type": "string"
+                "discord":
+                  "type": "string"
+                "other_link_1":
+                  "type": "string"
+                "other_link_2":
+                  "type": "string"
+                "other_link_3":
+                  "type": "string"
+                "treasury":
+                  "type": "string"
+                  "description": "The treasury address, 0x and 40 hex digits."
+                "treasury_path":
+                  "type": "string"
+                  "enum": ["safe", "contract", "eoa"]
+                  "description": "Who owns the treasury: a Safe, a smart contract account, or a private key. A private key also needs the person's own acknowledgement on the create page, and a Safe or smart contract account an agent chose needs the person's own confirmation there."
+                "image":
+                  "type": "object"
+                  "description": "The token's picture: a PNG, JPEG or WebP file up to 2 MB and 4096 by 4096 pixels."
+                  "additionalProperties": false
+                  "required": ["content_type", "data"]
+                  "properties":
+                    "content_type":
+                      "type": "string"
+                      "enum": ["image/png", "image/jpeg", "image/webp"]
+                    "data":
+                      "type": "string"
+                      "description": "The file's bytes, base64."
+              "required": []
+              "additionalProperties": false
+  /api/agent/v1/drafts/memestock:
+    "get":
+      "operationId": "autolaunch_memestock_draft"
+      "summary": "Read my Memestock token draft"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+    "patch":
+      "operationId": "autolaunch_memestock_draft_save"
+      "summary": "Fill in my Memestock launch draft: details, picture, chain and stock"
+      "description": "Fill in my Memestock launch draft: the token's details, its picture, its chain and its paired stock. My person opens the create page, sees every field I set named, and signs the launch; I never launch, sign or spend. Prepare the exact request, sign it with your existing SIWA signer, then provide input, request and proof. Browser sign-in is not agent authority. Prelaunch read-only mode refuses this save; check the returned status."
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+        "422":
+          "description": "Invalid input: invalid_draft, invalid_image or image_too_large"
+        "503":
+          "description": "Prelaunch read-only gate or dependency unavailable"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "type": "object"
+              "properties":
+                "name":
+                  "type": "string"
+                "symbol":
+                  "type": "string"
+                "description":
+                  "type": "string"
+                "website":
+                  "type": "string"
+                "telegram":
+                  "type": "string"
+                "discord":
+                  "type": "string"
+                "other_link_1":
+                  "type": "string"
+                "other_link_2":
+                  "type": "string"
+                "other_link_3":
+                  "type": "string"
+                "chain":
+                  "type": "string"
+                  "enum": ["base", "robinhood"]
+                "stock_address":
+                  "type": "string"
+                  "description": "The paired stock token's address, one the chain lists (GET /stocks names them)."
+                "image":
+                  "type": "object"
+                  "description": "The token's picture: a PNG, JPEG or WebP file up to 2 MB and 4096 by 4096 pixels."
+                  "additionalProperties": false
+                  "required": ["content_type", "data"]
+                  "properties":
+                    "content_type":
+                      "type": "string"
+                      "enum": ["image/png", "image/jpeg", "image/webp"]
+                    "data":
+                      "type": "string"
+                      "description": "The file's bytes, base64."
+              "required": []
+              "additionalProperties": false
+  /api/agent/v1/positions:
+    "get":
+      "operationId": "autolaunch_my_positions"
+      "summary": "Read my bids and holdings, when the chain can be read"
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "Success"
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+        "409":
+          "description": "Your person's Regent account has no verified wallet to read (wallet_required)"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "Dependency unavailable"
+  /api/v1/account/points:
+    "get":
+      "operationId": "account_points"
+      "summary": "Read Points"
+      "description": "The account's Points as decimal text, what it earned today and yesterday, its place, every action by the site it belongs to, done or still open here, daily limits, the leaderboard by name or wallet, recent entries with who earned each and whether it counted, and period bonuses. note says when earning is off. Signed; needs a pairing."
+      "security":
+        -
+          "SiwaProof": []
+      "responses":
+        "200":
+          "description": "The figures the person's Points page shows"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AccountPoints"}
+        "401":
+          "description": "Fresh request proof required"
+        "403":
+          "description": "The agent is paired with nobody (agent_not_paired); the error's hint says what the person does next"
+        "422":
+          "description": "Invalid input"
+        "503":
+          "description": "The leaderboard has not been read yet (account_unavailable); ask again shortly"
+components:
+  securitySchemes:
+    SiwaProof: {"type": "apiKey", "in": "header", "name": "x-siwa-signature", "description": "Complete per-request SIWA proof headers; exact URL, method and body. Audience autolaunch."}
+    SiteSession:
+      type: apiKey
+      in: cookie
+      name: _autolaunch_key
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: x-csrf-token
+      description: The signed-in session's forms token, as the site's pages carry it.
+  headers:
+    RateLimitPolicy:
+      description: 'The budgets this request counted against, as "policy";q=requests;w=window seconds, comma-separated. Each client address has 120 requests per 60 seconds, shared by /healthz and every /api address; GET /api/v1/auctions also counts against "auction-list", 6 per 60 seconds; a signed agent request also counts against "agent", 120 per 60 seconds for all the signed agents of one person together. Every answer under /api carries this header.'
+      schema: {type: string}
+      example: '"default";q=120;w=60'
+    RateLimit:
+      description: 'What is left of that budget, as "policy";r=remaining;t=seconds until the window resets. Every answer under /api carries this header.'
+      schema: {type: string}
+      example: '"default";r=119;t=42'
+    RetryAfter:
+      description: Seconds to wait before the window resets.
+      schema: {type: integer, minimum: 1}
+  parameters:
+    AuctionId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    Search:
+      name: q
+      in: query
+      description: "The website's search. Every word must appear in the name, ticker, stock, description, an address or one of the creator's verified accounts; a leading $ on a word is ignored. Spaces are collapsed and the search is cut to its first 80 characters."
+      schema: {type: string}
+    Chain:
+      name: chain
+      in: query
+      schema: {type: string, enum: [all, base, robinhood], default: all}
+    Kind:
+      name: kind
+      in: query
+      description: "Launch type: revstake or memestock."
+      schema: {type: string, enum: [all, revstake, memestock], default: all}
+    X:
+      name: x
+      in: query
+      description: "true: only launches whose creator has a verified X account."
+      schema: {type: boolean, default: false}
+    Ens:
+      name: ens
+      in: query
+      description: "true: only launches whose creator has a verified ENS name."
+      schema: {type: boolean, default: false}
+    Github:
+      name: github
+      in: query
+      description: "true: only launches whose creator has a verified GitHub account. Several true filters must all hold."
+      schema: {type: boolean, default: false}
+  responses:
+    InvalidQuery:
+      description: Request query parameters are invalid
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            invalidQuery:
+              value: {error: {code: invalid_request, message: The query parameters are invalid., hint: Check the request against https://autolaunch.sh/openapi.json. An unknown parameter or value is refused. Sending the same request again will not help.}}
+    NotFound:
+      description: The requested public record was not found
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/NotFoundApiError"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: Auction not found., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json. Sending the same request again will not help.}}
+    InvalidBidInput:
+      description: The auction is on Robinhood, for which no estimate is offered (`estimate_not_offered`), or the body has the right fields but amount or max_price is not a plain decimal string greater than zero. The code names which; the auction is checked first, then amount.
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/InvalidBidInputApiError"}
+          examples:
+            invalidAmount:
+              value: {error: {code: invalid_amount, message: "amount must be a plain decimal string greater than zero, such as \"12.5\".", hint: "Send amount as digits with at most one decimal point, no sign, exponent or thousands separator, in the auction's quote token. Sending the same value again will not help."}}
+            estimateNotOffered:
+              value: {error: {code: estimate_not_offered, message: "Bid estimates cover Base auctions only. This auction is on Robinhood.", hint: "Read the auction's figures with GET https://autolaunch.sh/api/v1/auctions/{id} or on its page (its url). Sending the same request again will not help."}}
+    TooManyRequests:
+      description: Too many requests from this client address in the current window. Wait the seconds in Retry-After, then send the request again.
+      headers:
+        RateLimit-Policy: {$ref: "#/components/headers/RateLimitPolicy"}
+        RateLimit: {$ref: "#/components/headers/RateLimit"}
+        Retry-After: {$ref: "#/components/headers/RetryAfter"}
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/TooManyRequestsApiError"}
+          examples:
+            tooManyRequests:
+              value: {error: {code: too_many_requests, message: Too Many Requests, hint: "Wait the number of seconds in Retry-After, then send the request again."}}
+    OtherError:
+      description: Any other error, such as an unknown address, a method the address does not answer, or a body that could not be read
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Error"}
+          examples:
+            notFound:
+              value: {error: {code: not_found, message: There is nothing at this address., hint: List what exists with GET https://autolaunch.sh/api/v1/auctions or GET https://autolaunch.sh/api/v1/tokens. Every endpoint is described at https://autolaunch.sh/openapi.json. Sending the same request again will not help.}}
+    InternalError:
+      description: The request could not be completed
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ApiError"}
+          examples:
+            internalError:
+              value: {error: {code: internal_error, message: The request could not be completed., hint: Try again in a moment. If it keeps failing, tell us at https://autolaunch.sh/about.}}
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, migrations_applied]
+      properties:
+        status: {type: string, const: ok}
+        migrations_applied:
+          type: boolean
+          description: False when this release carries a migration the site's database has not applied.
+    PublicDocument:
+      type: object
+      additionalProperties: false
+      required: [title, markdown]
+      properties:
+        title: {type: string}
+        markdown: {type: string, description: "The page, as its Markdown address serves it."}
+    AgentHarness:
+      type: string
+      enum: [hermes, grok_bot, muse, openclaw, nemoclaw, ironclaw, pi, claude_code, codex, cursor, gemini_cli, dots, other]
+    PairedAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 80}
+        harness: {$ref: "#/components/schemas/AgentHarness"}
+        wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+        paired_at: {type: string, format: date-time}
+        last_contact_at: {type: string, format: date-time}
+        registry_listing: {type: [string, "null"], format: uri}
+        human_backed: {type: boolean}
+        same_person_agent_count: {type: [integer, "null"], minimum: 1}
+    PairedAgentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/PairedAgent"}
+    CheckedInAgent:
+      type: object
+      additionalProperties: false
+      required: [id, name, harness, wallet, paired_at, last_contact_at, registry_listing, human_backed, same_person_agent_count, account]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 80}
+        harness: {$ref: "#/components/schemas/AgentHarness"}
+        wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+        paired_at: {type: string, format: date-time}
+        last_contact_at: {type: string, format: date-time}
+        registry_listing: {type: [string, "null"], format: uri}
+        human_backed: {type: boolean}
+        same_person_agent_count: {type: [integer, "null"], minimum: 1}
+        account: {$ref: "#/components/schemas/PairedAccount"}
+    AgentStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/AgentStatus"}
+    AgentStatus:
+      type: object
+      additionalProperties: false
+      required: [agent, audience, authenticated, pairing, status, allowed, next_step]
+      properties:
+        agent:
+          type: object
+          required: [wallet, registry_listing]
+          properties:
+            wallet: {type: string, pattern: "^0x[0-9a-f]{40}$"}
+            registry_listing: {type: [string, "null"], format: uri, description: "The agent's page in the agent registry, or null when it has none."}
+        audience: {type: string, const: autolaunch}
+        authenticated: {type: boolean, const: true}
+        pairing:
+          type: [object, "null"]
+          description: Null until a person pairs this agent.
+          required: [id, paired_at]
+          properties:
+            id: {type: string, format: uuid}
+            paired_at: {type: string, format: date-time}
+        status:
+          type: string
+          enum: [not_paired, paired]
+          description: "not_paired: no person has paired this agent. paired: it acts for its person."
+        allowed:
+          type: array
+          items: {type: string}
+          description: What the agent may do on this site in this status, in short plain sentences.
+        next_step:
+          type: [string, "null"]
+          description: What to do next, in one sentence; null when paired.
+    CheckedInAgentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/CheckedInAgent"}
+    PairedAccount:
+      description: The Regent account of the person the agent is paired with, the same on every Regent site, from the pairing itself. No caller-supplied owner ID, provider IDs or wallet authority.
+      type: object
+      additionalProperties: false
+      required: [display_name, ens_name, wallet_address, wallet_addresses]
+      properties:
+        display_name: {type: [string, "null"], description: "The name in the person's shared Regent profile."}
+        ens_name: {type: [string, "null"], description: "The ENS name of the stored primary wallet, when one was read for it."}
+        wallet_address: {type: [string, "null"], description: "Stored primary wallet from verified sign-in evidence; no signing authority."}
+        wallet_addresses:
+          type: array
+          default: []
+          items: {type: string}
+          description: Stored linked wallets from verified sign-in evidence; missing evidence is an empty list.
+    PointsAmount:
+      type: string
+      pattern: '^-?\d+(?:\.\d{1,2})?$'
+      description: Points in display units, truncated to at most two decimal places.
+    AccountPoints:
+      type: object
+      additionalProperties: false
+      required: [points, earned_today, earned_yesterday, rank, activity_being_verified, to_do, daily_limits, leaderboard, entries, period_bonuses, more]
+      properties:
+        points: {$ref: "#/components/schemas/PointsAmount"}
+        earned_today: {$ref: "#/components/schemas/PointsAmount"}
+        earned_yesterday: {$ref: "#/components/schemas/PointsAmount"}
+        rank: {type: [integer, "null"], minimum: 1, description: "The account's place on the leaderboard; null with no points."}
+        activity_being_verified: {type: integer, minimum: 0, description: "Number of actions still being checked, not a Points amount."}
+        more: {type: boolean, description: "Older entries exist beyond these."}
+        note: {type: string}
+        to_do:
+          type: array
+          description: Every action a Points page lists, one group per site in order, whichever site earns it.
+          items:
+            type: object
+            additionalProperties: false
+            required: [site, actions]
+            properties:
+              site: {type: string, enum: [Account, Autolaunch, Keyfleet, Patchbay, Cloak]}
+              actions:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [label, repeats, points, done, left, today]
+                  properties:
+                    label: {type: string}
+                    repeats: {type: string, enum: [once, daily]}
+                    points: {type: [string, boolean], description: "The whole points the action earns, as text; false until earning opens."}
+                    done: {type: boolean, description: "A one-time action earned on any site; a daily one whose count today is used, on any site."}
+                    left: {type: boolean, description: "The action can still earn on this site: today, for a daily one. An action only another site earns is never left here."}
+                    today:
+                      type: [object, "null"]
+                      description: For a daily action done more than once a day, how many times today out of how many; else null.
+                      additionalProperties: false
+                      required: [done, of]
+                      properties:
+                        done: {type: integer, minimum: 0}
+                        of: {type: integer, minimum: 1}
+        daily_limits:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, limit, remaining]
+            properties:
+              name: {type: string}
+              limit: {$ref: "#/components/schemas/PointsAmount"}
+              remaining: {$ref: "#/components/schemas/PointsAmount"}
+        leaderboard:
+          type: array
+          description: The highest totals. A row's name is null when the person shows by their wallet, under its ens_name when it has one.
+          items:
+            type: object
+            additionalProperties: false
+            required: [rank, name, wallet, ens_name, points, you]
+            properties:
+              rank: {type: integer, minimum: 1}
+              name: {type: [string, "null"]}
+              wallet: {type: [string, "null"], pattern: '^0x[0-9a-fA-F]{40}$'}
+              ens_name: {type: [string, "null"]}
+              points: {$ref: "#/components/schemas/PointsAmount"}
+              you: {type: boolean}
+        entries:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [label, points, status, allowance_reduction, by, agent, earned_at]
+            properties:
+              label: {type: string}
+              points: {$ref: "#/components/schemas/PointsAmount"}
+              status: {type: string, enum: [counted, allowance_reached, correction]}
+              allowance_reduction: {$ref: "#/components/schemas/PointsAmount"}
+              by: {type: string, enum: [person, agent]}
+              agent: {type: [string, "null"], description: "The name the person gave the agent that earned it; null when the person did."}
+              earned_at: {type: string, format: date-time}
+        period_bonuses:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [period, points, nft_count, bonus_percent]
+            properties:
+              period: {type: integer, minimum: 1}
+              points: {$ref: "#/components/schemas/PointsAmount"}
+              nft_count: {type: integer, minimum: 0}
+              bonus_percent: {type: integer, minimum: 0}
+    AuctionBidRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, max_price]
+      properties:
+        amount: {type: string, pattern: '^\d+(?:\.\d+)?$'}
+        max_price: {type: string, pattern: '^\d+(?:\.\d+)?$'}
+    AuctionBidQuoteEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - auction_id
+            - amount
+            - max_price
+            - quote_token
+            - current_clearing_price
+            - projected_clearing_price
+            - would_be_active_now
+            - status_band
+            - estimated_tokens_if_end_now
+            - warnings
+          properties:
+            auction_id: {type: string, format: uuid}
+            amount: {type: string}
+            max_price: {type: string}
+            quote_token: {$ref: "#/components/schemas/QuoteToken"}
+            current_clearing_price: {allOf: [{$ref: "#/components/schemas/Price"}]}
+            projected_clearing_price: {allOf: [{$ref: "#/components/schemas/Price"}]}
+            would_be_active_now:
+              type: boolean
+              description: True only when the auction is taking bids and the max price reaches the current clearing price.
+            status_band: {type: string, enum: [active, borderline, inactive]}
+            estimated_tokens_if_end_now: {type: string}
+            warnings:
+              type: array
+              items: {type: string}
+              description: "auction_not_biddable: the auction is not taking bids, so no bid can be placed. max_price_below_current_clearing_price: a bid at this max price would not be filled now."
+    QuoteToken:
+      description: The token bids are paid in. REGENT for revstake auctions; the auction's stock token (on Base or Robinhood) for memestock auctions.
+      type: object
+      additionalProperties: false
+      required: [address, symbol, decimals]
+      properties:
+        address: {type: [string, "null"]}
+        symbol: {type: [string, "null"]}
+        decimals: {type: [integer, "null"], minimum: 0, maximum: 36}
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [has_more, next_cursor]
+      properties:
+        has_more: {type: boolean}
+        next_cursor: {type: [string, "null"]}
+    AuctionListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, pagination, robinhood_unavailable]
+      properties:
+        pagination: {$ref: "#/components/schemas/Pagination"}
+        robinhood_unavailable: {type: boolean, description: "Robinhood could not be read just now, so its entries show what was last read from it."}
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Auction"}
+    AuctionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, robinhood_unavailable]
+      properties:
+        robinhood_unavailable: {type: boolean, description: "Robinhood could not be read just now, so a Robinhood auction shows what was last read from it."}
+        data: {$ref: "#/components/schemas/Auction"}
+    AuctionCountsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [revstake, memestock]
+          properties:
+            revstake:
+              type: object
+              additionalProperties: false
+              required: [base]
+              properties:
+                base: {$ref: "#/components/schemas/AuctionCounts"}
+            memestock:
+              type: object
+              additionalProperties: false
+              required: [base, robinhood]
+              properties:
+                base: {$ref: "#/components/schemas/AuctionCounts"}
+                robinhood: {$ref: "#/components/schemas/AuctionCounts"}
+    AuctionCounts:
+      type: object
+      additionalProperties: false
+      required: [live, graduated]
+      properties:
+        live: {type: integer, minimum: 0, description: "Auctions open for bidding."}
+        graduated: {type: integer, minimum: 0, description: "Auctions that reached their minimum and launched their token."}
+    Price:
+      type: string
+      pattern: '^\d+(?:\.\d+)?$'
+      description: A price, or a figure worked out from one, as a decimal string to 18 significant digits, rounded up, so a bid whose max_price is a stated clearing price still reaches it. The stored price runs to about 90 decimal places; 18 digits keep far more than any bid or trade can tell apart.
+    DecimalString:
+      type: string
+      pattern: '^\d+(?:\.\d+)?$'
+      description: An exact decimal number as a string; never rounded through a float.
+    Auction:
+      description: An auction on Base or Robinhood, as the site records it. Every figure the record does not hold yet is null, and `unavailable` names why.
+      type: object
+      additionalProperties: false
+      required: [id, chain, chain_id, address, url, title, token_symbol, summary, featured, kind, state, opened_at, estimated_end_at, quote_token, clearing_price, token_allocation, bid_volume, bid_volume_usd, minimum_raise, currency_raised, percent_met, minimum_reached, record_updated_at, unavailable, treasury_security]
+      properties:
+        id: {type: string, format: uuid}
+        chain: {type: string, enum: [base, robinhood]}
+        chain_id: {type: integer, minimum: 1}
+        address: {type: string, pattern: "^0x[0-9a-fA-F]{40}$", description: "The auction contract's address."}
+        url: {type: string, format: uri, description: "The auction's page on the website."}
+        title: {type: string}
+        token_symbol: {type: [string, "null"]}
+        summary: {type: [string, "null"]}
+        featured: {type: boolean}
+        kind: {type: string, enum: [revstake, memestock], description: "The launch type: a Revstake or a Memestock launch."}
+        state: {type: string, enum: [created, active, ended, graduated, failed], description: "ended: bidding has closed and the auction is waiting to be finished; graduated and failed are final."}
+        opened_at: {type: [string, "null"], format: date-time}
+        estimated_end_at: {type: [string, "null"], format: date-time, description: "When bidding closes, estimated from the auction's end block and the chain's block times."}
+        quote_token: {$ref: "#/components/schemas/QuoteToken"}
+        clearing_price:
+          description: The auction's current clearing price in the quote token.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        token_allocation: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "Whole tokens the auction sells, determined by its launch type and contract version. V2 sells 20 billion Revstake tokens or 497.5 million Memestock tokens; legacy V1 Memestock auctions sold up to 800 million."}
+        bid_volume:
+          description: Everything bid so far, in whole quote-token units.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        bid_volume_usd:
+          description: The bid volume in US dollars at the quote token's price when the bid history was recorded.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        minimum_raise: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "What the auction must raise to launch (its launch threshold), in whole quote-token units. If it ends short, every bid is returned."}
+        currency_raised:
+          description: What the auction has raised so far, in whole quote-token units, as the site last recorded it from the chain.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        percent_met: {type: [integer, "null"], minimum: 0, maximum: 100, description: "currency_raised as a whole percent of minimum_raise, rounded down and capped at 100, as the website shows it."}
+        minimum_reached: {type: boolean, description: "Whether the auction contract reports the minimum met so far. A progress fact only: bidding stays open until the end block."}
+        record_updated_at: {type: string, format: date-time, description: "When the site's stored record of this auction was last written. Writes include the site's own scheduling of its chain reads, so this is not the time of the latest successful chain reading; the site keeps no such time."}
+        unavailable:
+          type: object
+          additionalProperties: false
+          description: "One entry for each figure that is null, naming why. not_recorded_yet: the site's chain readers have not recorded it yet (they may still be reading or retrying). chain_unreadable: Robinhood's last read of its chain failed and the figure was never recorded. no_usd_price: the bid volume was recorded while the quote token had no known dollar price."
+          properties:
+            estimated_end_at: {type: string, enum: [not_recorded_yet]}
+            bid_volume: {type: string, enum: [not_recorded_yet]}
+            bid_volume_usd: {type: string, enum: [not_recorded_yet, no_usd_price]}
+            currency_raised: {type: string, enum: [not_recorded_yet, chain_unreadable]}
+            percent_met: {type: string, enum: [not_recorded_yet, chain_unreadable]}
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+    TokenListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, pagination, robinhood_unavailable]
+      properties:
+        pagination: {$ref: "#/components/schemas/Pagination"}
+        robinhood_unavailable: {type: boolean, description: "Robinhood could not be read just now, so its entries show what was last read from it."}
+        data:
+          type: array
+          items: {$ref: "#/components/schemas/Token"}
+    Token:
+      description: A graduated token on Base or Robinhood, as the site records it.
+      type: object
+      additionalProperties: false
+      required: [id, chain, chain_id, address, url, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, quote_token, price_quote, price_usd, price_updated_at, market_cap, market_cap_usd, bid_volume, bid_volume_usd, treasury_security]
+      properties:
+        id: {type: string, format: uuid}
+        chain: {type: string, enum: [base, robinhood]}
+        chain_id: {type: integer, minimum: 1}
+        address: {type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$", description: "The token contract's address on the indicated chain, when recorded."}
+        url: {type: string, format: uri, description: "The token's canonical page on this site."}
+        auction_id: {type: string, format: uuid}
+        subject_id: {type: [string, "null"]}
+        name: {type: string}
+        symbol: {type: string}
+        summary: {type: [string, "null"]}
+        graduated_at: {type: string, format: date-time}
+        top_rank: {type: [integer, "null"], minimum: 1}
+        quote_token: {$ref: "#/components/schemas/QuoteToken"}
+        price_quote:
+          description: Stored price in quote-token units per token, or null when absent. Not a live or executable quote.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        price_usd:
+          description: The stored price in US dollars at the quote token's current dollar price, as the token list shows it; null while either is unknown.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        price_updated_at: {type: [string, "null"], format: date-time, description: "When the stored price was recorded, or null when unknown. A null timestamp does not imply freshness."}
+        market_cap:
+          description: The stored price times the whole token supply, in quote-token units; null until both are known.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        market_cap_usd:
+          description: The market cap in US dollars at the quote token's current dollar price; null while either is unknown.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        bid_volume:
+          description: Everything bid in the token's auction, in whole quote-token units.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        bid_volume_usd:
+          description: That bid volume in US dollars at the quote token's price when the bid history was recorded.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+    TokenDetail:
+      description: Publicly listed token details from stored records on either chain; no live chain read.
+      type: object
+      additionalProperties: false
+      required: [id, chain, chain_id, address, url, auction_id, subject_id, name, symbol, summary, graduated_at, top_rank, quote_token, price_quote, price_usd, price_updated_at, market_cap, market_cap_usd, bid_volume, bid_volume_usd, treasury_security, auction_url, token_supply, revenue_history]
+      properties:
+        id: {type: string, format: uuid}
+        chain: {type: string, enum: [base, robinhood]}
+        chain_id: {type: integer, minimum: 1}
+        address: {type: [string, "null"], pattern: "^0x[0-9a-fA-F]{40}$", description: "The token contract's address on the indicated chain, when recorded."}
+        url: {type: string, format: uri, description: "The token's canonical page on this site."}
+        auction_id: {type: string, format: uuid}
+        subject_id: {type: [string, "null"]}
+        name: {type: string}
+        symbol: {type: string}
+        summary: {type: [string, "null"]}
+        graduated_at: {type: string, format: date-time}
+        top_rank: {type: [integer, "null"], minimum: 1}
+        quote_token: {$ref: "#/components/schemas/QuoteToken"}
+        price_quote:
+          description: Stored price in quote-token units per token, or null when absent. Not a live or executable quote.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        price_usd:
+          description: The stored price in US dollars at the quote token's current dollar price, as the token list shows it; null while either is unknown.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        price_updated_at: {type: [string, "null"], format: date-time, description: "When the stored price was recorded, or null when unknown. A null timestamp does not imply freshness."}
+        market_cap:
+          description: The stored price times the whole token supply, in quote-token units; null until both are known.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        market_cap_usd:
+          description: The market cap in US dollars at the quote token's current dollar price; null while either is unknown.
+          oneOf: [{$ref: "#/components/schemas/Price"}, {type: "null"}]
+        bid_volume:
+          description: Everything bid in the token's auction, in whole quote-token units.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        bid_volume_usd:
+          description: That bid volume in US dollars at the quote token's price when the bid history was recorded.
+          oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}]
+        treasury_security:
+          oneOf:
+            - {$ref: "#/components/schemas/TreasurySecurity"}
+            - {type: "null"}
+        auction_url: {type: string, format: uri}
+        revenue_history:
+          description: "A Revstake token's revenue, newest first, the latest fifty: each payment its revenue splitter recognized, as the site recorded it from the splitter's RevenueRecognized logs. Null for a Memestock token, which has no revenue splitter."
+          oneOf:
+            - type: array
+              items: {$ref: "#/components/schemas/RevenuePayment"}
+            - {type: "null"}
+        token_supply: {oneOf: [{$ref: "#/components/schemas/DecimalString"}, {type: "null"}], description: "Whole token supply, or null when not recorded."}
+    RevenuePayment:
+      type: object
+      additionalProperties: false
+      required: [amount, asset, staker_share, recorded_at, transaction_hash, transaction_url]
+      properties:
+        amount: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "What the splitter took in, in whole units of its asset."}
+        asset: {type: string, description: "USDC, REGENT or the launch token's own symbol."}
+        staker_share: {allOf: [{$ref: "#/components/schemas/DecimalString"}], description: "The part that went to the token's stakers."}
+        recorded_at: {type: string, format: date-time, description: "When the payment's block was made."}
+        transaction_hash: {type: string, pattern: "^0x[0-9a-f]{64}$"}
+        transaction_url: {type: string, format: uri, description: "The payment's transaction on Basescan."}
+    TokenDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/TokenDetail"}
+    TreasurySecurityEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: "#/components/schemas/TreasurySecurity"}
+    TreasurySecurity:
+      type: object
+      additionalProperties: false
+      required: [id, address, chain_id, classification, verification_state, verification_reason, configuration_fingerprint, source_block_number, source_block_hash, observed_at, safe, evidence]
+      properties:
+        id: {type: string, format: uuid}
+        address: {type: string, pattern: '^0x[0-9a-f]{40}$'}
+        chain_id: {type: integer, enum: [8453]}
+        classification: {type: string, enum: [supported_safe, safe_1_of_1, eoa, delegated_eoa, unknown_contract, split, unsupported]}
+        verification_state: {type: string, enum: [verified, unverified]}
+        verification_reason: {type: string, enum: [verified, single_key_eoa, delegated_eoa, safe_1_of_1, unknown_contract, unverified_split, unsupported, safe_owner_count, safe_duplicate_owners, safe_threshold, safe_modules_enabled, safe_guard_enabled, safe_fallback_unadmitted, usdc_evidence_missing, regent_evidence_missing, outbound_evidence_missing, configuration_changed]}
+        configuration_fingerprint: {type: string, pattern: '^0x[0-9a-f]{64}$'}
+        source_block_number: {type: integer, minimum: 0}
+        source_block_hash: {type: string, pattern: '^0x[0-9a-f]{64}$'}
+        observed_at: {type: string, format: date-time}
+        safe: {type: [object, "null"], additionalProperties: true}
+        evidence:
+          type: object
+          additionalProperties: false
+          required: [usdc, regent, outbound]
+          properties:
+            usdc: {type: [object, "null"], additionalProperties: true}
+            regent: {type: [object, "null"], additionalProperties: true}
+            outbound: {type: [object, "null"], additionalProperties: true}
+    MyPositionsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [bids, tokens]
+          properties:
+            bids: {type: array, items: {$ref: "#/components/schemas/MyBid"}}
+            tokens: {type: array, items: {$ref: "#/components/schemas/MyToken"}}
+    MyBid:
+      type: object
+      additionalProperties: false
+      required: [bid, chain, name, symbol, currency, amount, max_price, standing, can, page, bid_page]
+      properties:
+        bid: {type: string, description: "The bid's id: its number on a Base auction, or auction:number on a Robinhood one."}
+        chain: {type: string, enum: [base, robinhood]}
+        name: {type: string, description: "The auction's name, as its creator wrote it."}
+        symbol: {type: string}
+        currency: {type: string, description: "What the bid spends and prices in."}
+        amount: {$ref: "#/components/schemas/DecimalString"}
+        max_price: {$ref: "#/components/schemas/DecimalString"}
+        standing:
+          type: string
+          enum: [bidding_open, buying, sharing_price, outbid, bidding_ended, withdraw_ready, claim_ready, claim_later, done]
+        can:
+          type: [string, "null"]
+          enum: [withdraw, claim, early_return, null]
+          description: "What the bid's card on its auction page offers now. early_return means the unspent money may come back before the auction ends; the bid's card says when."
+        page: {type: [string, "null"], format: uri, description: "The auction page where the bid's card is; null for a Robinhood auction this site does not list."}
+        bid_page: {type: string, format: uri, description: "The bid's own page, for the person who placed it: what is theirs, what may happen next with its one button, and each transaction with its explorer link. Give this address to the person when the bid needs them."}
+    MyToken:
+      type: object
+      additionalProperties: false
+      required: [name, symbol, chain, held, staked, claimable, page]
+      properties:
+        name: {type: string}
+        symbol: {type: string}
+        chain: {type: string, enum: [base, robinhood]}
+        held: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Exact, to its last digit."}
+        staked: {type: string, pattern: '^\d+(?:\.\d+)?$', description: "Exact, to its last digit."}
+        claimable:
+          type: array
+          description: "What staking has earned, each amount exact."
+          items:
+            type: object
+            additionalProperties: false
+            required: [amount, symbol]
+            properties:
+              amount: {$ref: "#/components/schemas/DecimalString"}
+              symbol: {type: string}
+        page: {type: [string, "null"], format: uri, description: "The token's page; null for a Robinhood token this site does not list."}
+    Error:
+      description: "Every error keeps its HTTP status and answers this shape: the code, the message and the hint."
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code]
+          properties:
+            code: {type: string, description: "A stable code for programs. An error no endpoint names uses its status name in snake case, such as not_found or method_not_allowed."}
+            message: {type: string, description: What went wrong, in words.}
+            hint: {type: string, description: What to do next.}
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [invalid_request, internal_error, authentication_required, chain_unavailable]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentNotPairedError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [agent_not_paired]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentPairingError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [pairing_failed, harness_unknown, invalid_name]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    AgentLimitError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [agent_limit]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    NotFoundApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [not_found]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    TooManyRequestsApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [too_many_requests]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}
+    InvalidBidInputApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, hint]
+          properties:
+            code: {type: string, enum: [estimate_not_offered, invalid_amount, invalid_max_price]}
+            message: {type: string}
+            hint: {type: string, description: What to do next.}

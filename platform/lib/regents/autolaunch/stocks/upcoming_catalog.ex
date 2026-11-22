@@ -1,0 +1,111 @@
+defmodule Regents.Autolaunch.Stocks.UpcomingCatalog do
+  @moduledoc """
+  The stocks page's established Available to Pair list and dated research for
+  its two preview sections. Research never admits a stock or configures a route.
+  Section membership comes from the catalog: an empty local admission cache
+  cannot remove an established stock or move it into the preview.
+  """
+
+  @source Application.app_dir(:regents, "priv/autolaunch/stocks/upcoming-2026-10-14.json")
+  @external_resource @source
+  @stocks @source |> File.read!() |> Jason.decode!() |> Map.fetch!("stocks")
+  @chains [base: "Base", robinhood: "Robinhood"]
+
+  alias Regents.Autolaunch.Search
+
+  @doc "The canonical directory search parameters, without empty or unknown values."
+  def filters(params) do
+    %{
+      q: Search.normalize(params["q"]),
+      chain: choice(params["chain"], ~w(base robinhood)),
+      availability: choice(params["availability"], ~w(available soon feed_required))
+    }
+    |> Map.reject(fn {_key, value} -> value == "" end)
+  end
+
+  defp choice(value, allowed), do: if(value in allowed, do: value, else: "")
+
+  @doc "The catalog's identities and dated observations."
+  def stocks, do: @stocks
+
+  @doc "The established stock list and the two preview groups, without changing admission."
+  def chains do
+    Enum.map(@chains, fn {chain, name} ->
+      grouped =
+        @stocks
+        |> Enum.filter(&(&1["chain"] == Atom.to_string(chain)))
+        |> Enum.map(&status/1)
+        |> Enum.group_by(& &1["section"])
+
+      %{
+        chain: chain,
+        name: name,
+        available: sorted(grouped, "available"),
+        eligible: sorted(grouped, "soon"),
+        feed_required: sorted(grouped, "feed_required")
+      }
+    end)
+  end
+
+  @doc "Filters the published directory without changing its groups or their order."
+  def search(query, network, availability) do
+    terms = query |> String.downcase() |> String.split()
+
+    for %{chain: chain} = column <- chains(), network in ["", Atom.to_string(chain)] do
+      %{
+        column
+        | available: matching(column.available, terms, availability in ["", "available"]),
+          eligible: matching(column.eligible, terms, availability in ["", "soon"]),
+          feed_required:
+            matching(column.feed_required, terms, availability in ["", "feed_required"])
+      }
+    end
+  end
+
+  defp matching(stocks, terms, true), do: Enum.filter(stocks, &matches?(&1, terms))
+  defp matching(_stocks, _terms, false), do: []
+
+  defp matches?(_stock, []), do: true
+
+  defp matches?(stock, terms) do
+    fields =
+      stock
+      |> Map.take(~w(name symbol ticker chain token_address))
+      |> Map.values()
+      |> Enum.filter(&is_binary/1)
+      |> Enum.map(&String.downcase/1)
+
+    Enum.all?(terms, fn term -> Enum.any?(fields, &String.contains?(&1, term)) end)
+  end
+
+  @doc """
+  One stock by its symbol, in any case, with where it stands and its chain's
+  name and key, as `chains/0` gives them; nil for a symbol the catalog does
+  not hold. Each symbol names one stock: a Base stock token's ends in `c`.
+  """
+  def stock(symbol) do
+    wanted = String.downcase(symbol)
+
+    with %{} = stock <- Enum.find(@stocks, &(String.downcase(&1["symbol"]) == wanted)) do
+      chain = String.to_existing_atom(stock["chain"])
+      {status(stock), %{chain: chain, name: Keyword.fetch!(@chains, chain)}}
+    end
+  end
+
+  defp status(%{"section" => "available"} = stock), do: Map.put(stock, "status", nil)
+
+  defp status(%{"section" => "soon"} = stock),
+    do: Map.put(stock, "status", "Not open for launches yet")
+
+  defp status(%{"section" => "feed_required"} = stock),
+    do: Map.put(stock, "status", "Chainlink feed required; other checks may also be pending")
+
+  defp sorted(grouped, "available"),
+    do: grouped |> Map.get("available", []) |> Enum.sort_by(& &1["symbol"])
+
+  defp sorted(grouped, section) do
+    grouped
+    |> Map.get(section, [])
+    |> Enum.sort_by(&{&1["rank"] || 1_000, &1["ticker"], &1["id"]})
+  end
+end

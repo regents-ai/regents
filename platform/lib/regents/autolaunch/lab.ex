@@ -133,6 +133,12 @@ defmodule Regents.Autolaunch.Lab do
   answered from memory. A description that does not load is not kept: it
   raises `module.load!/1`'s error, the one autolaunch.sh's boot raised.
   """
+  def loaded(module, path) do
+    {:ok, loaded!(module, path)}
+  rescue
+    _error -> :error
+  end
+
   def loaded!(module, path) do
     key = {module, path}
 

@@ -1,11 +1,5 @@
 defmodule Regents.Autolaunch.LaunchDraft do
-  @moduledoc """
-  One person's private Revstake launch draft: the token's details, its links
-  and picture, and where its treasury goes, saved as they are typed.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
-  """
+  alias Regents.Autolaunch.{LaunchDraftImage, LaunchDraftImageStorage, LaunchLinks, Ticker}
 
   use Ash.Resource,
     otp_app: :regents,
@@ -13,21 +7,101 @@ defmodule Regents.Autolaunch.LaunchDraft do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  # What a paired agent may set: the token's details, its links and where its
-  # treasury goes.
-  @agent_fields [
-    :name,
-    :symbol,
-    :description,
-    :website,
-    :telegram,
-    :discord,
-    :other_link_1,
-    :other_link_2,
-    :other_link_3,
+  @account_token_fields [:name, :symbol, :description, :website | LaunchLinks.fields()]
+
+  @treasury_fields [
     :treasury,
-    :treasury_path
+    :treasury_path,
+    :eoa_acknowledgement
   ]
+
+  @draft_fields @account_token_fields ++ @treasury_fields
+
+  # What a paired agent may set: the token's details and where its treasury
+  # goes. Owning a treasury with a private key (the EOA path) also takes the
+  # creator's own acknowledgement, which only the creator can give.
+  @agent_fields @account_token_fields ++ [:treasury, :treasury_path]
+
+  @doc "The fields a paired agent may set on a Revstake draft, besides its picture."
+  def agent_fields, do: @agent_fields
+
+  @eoa_acknowledgement "This auction will be owned by my EOA private key, and significant harm and token value will happen if it is lost or compromised. I was warned to create a Gnosis Safe or 0xSplits smart account as the owner, and I realize auction bidders and token owners will see that it is EOA-owned and more risky. I accept these problems, and wish to continue with EOA ownership of the token."
+
+  @metadata_limits [name: 64, description: 512]
+  @address ~r/\A0x[0-9a-fA-F]{40}\z/
+  @zero_address "0x" <> String.duplicate("0", 40)
+
+  # The factory requires a website, so a launch without one names this site,
+  # which the site's pages never show as a creator's website.
+  @site_website "https://autolaunch.sh"
+
+  @doc "Whether the persisted token metadata stage is ready for launch review."
+  def token_details_complete?(draft), do: missing_token_details(draft) == []
+
+  @doc "The token details the launch review still needs, by field."
+  def missing_token_details(draft) do
+    for({field, limit} <- @metadata_limits, not within?(Map.get(draft, field), limit), do: field) ++
+      if(Ticker.complete?(Map.get(draft, :symbol)), do: [], else: [:symbol]) ++
+      if(website_complete?(Map.get(draft, :website)), do: [], else: [:website]) ++
+      Keyword.keys(LaunchLinks.problems(draft)) ++
+      if(image_complete?(draft), do: [], else: [:image])
+  end
+
+  # The website is optional; one that is given is a full https:// link, as the
+  # token carries it.
+  defp website_complete?(website) when website in [nil, ""], do: true
+  defp website_complete?(website), do: LaunchLinks.web_link?(website)
+
+  @doc "Whether the persisted treasury stage is ready for launch review."
+  def treasury_complete?(draft) do
+    path = Map.get(draft, :treasury_path)
+
+    treasury_address?(Map.get(draft, :treasury)) and path in [:safe, :contract, :eoa] and
+      (path != :eoa or Map.get(draft, :eoa_acknowledgement) == @eoa_acknowledgement)
+  end
+
+  @doc """
+  Whether the creator still has to confirm a Safe or smart contract account
+  their paired agent chose as the treasury (`:confirm_agent_treasury`) before
+  the launch review is prepared.
+  """
+  def treasury_confirmation_needed?(draft) do
+    Map.get(draft, :treasury_path) in [:safe, :contract] and
+      Enum.any?([:treasury, :treasury_path], &(&1 in Map.get(draft, :agent_set_fields, [])))
+  end
+
+  @doc "Whether `treasury` is a whole address a launch can send to."
+  def treasury_address?(treasury),
+    do:
+      is_binary(treasury) and Regex.match?(@address, treasury) and
+        String.downcase(treasury) != @zero_address
+
+  @doc "The website a launch writes into its token: the creator's, or this site's."
+  def onchain_website(%{website: website}) when website in [nil, ""], do: @site_website
+  def onchain_website(%{website: website}), do: website
+
+  defp within?(value, limit),
+    do: is_binary(value) and value != "" and String.valid?(value) and byte_size(value) <= limit
+
+  @doc "Whether this draft carries the only image shape its provenance permits."
+  def image_complete?(%{
+        id: draft_id,
+        human_account_id: human_account_id,
+        launch_draft_image_id: image_id,
+        launch_draft_image: %LaunchDraftImage{} = owned_image,
+        image: image
+      })
+      when is_binary(draft_id) and is_integer(human_account_id) and is_binary(image_id) and
+             is_binary(image) do
+    owned_image.id == image_id and
+      owned_image.human_account_id == human_account_id and
+      owned_image.launch_draft_id == draft_id and
+      owned_image.digest =~ ~r/\A[0-9a-f]{64}\z/ and
+      image == LaunchDraftImageStorage.public_url(owned_image) and
+      byte_size(image) <= 256
+  end
+
+  def image_complete?(_draft), do: false
 
   postgres do
     table "launch_drafts"
@@ -37,6 +111,200 @@ defmodule Regents.Autolaunch.LaunchDraft do
     custom_indexes do
       index([:human_account_id])
       index([:launch_draft_image_id])
+    end
+  end
+
+  actions do
+    read :agent_read do
+      get? true
+      filter expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    create :agent_create do
+      accept []
+      change set_attribute(:human_account_id, actor(:human_account_id))
+      change Regents.Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+      upsert? true
+      upsert_identity :one_account_owned_draft_per_human
+      upsert_fields []
+      return_skipped_upsert? true
+    end
+
+    update :agent_save do
+      accept @agent_fields
+      require_atomic? false
+      change Regents.Autolaunch.LaunchDraft.Changes.UpcaseTicker
+      validate Regents.Autolaunch.LaunchDraft.Validations.PartialFields
+
+      # A treasury the agent chose was never acknowledged by the creator.
+      change set_attribute(:eoa_acknowledgement, nil),
+        where: [any([changing(:treasury), changing(:treasury_path)])]
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: @agent_fields, mark: true}
+
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
+    # The picture an agent sent is stored as the creator's own upload is
+    # (`Regents.Autolaunch.LaunchDraftImageStorage`); this names it as the agent's.
+    update :agent_mark_image do
+      accept []
+      require_atomic? false
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields, set: [:image], mark: true}
+
+      change {RegentAgents.RequirePairing, repo: Regents.Repo}
+      change set_attribute(:last_agent_pairing_id, actor(:pairing_id))
+    end
+
+    create :create_for_owner do
+      accept @draft_fields
+      change Regents.Autolaunch.LaunchDraft.Changes.EnsurePartialDefaults
+      validate Regents.Autolaunch.LaunchDraft.Validations.PartialFields
+      change Regents.Autolaunch.LaunchDraft.Changes.AssignOwner
+      upsert? true
+      upsert_identity :one_account_owned_draft_per_human
+      upsert_fields []
+      return_skipped_upsert? true
+    end
+
+    read :mine do
+      filter expr(human_account_id == ^actor(:human_account_id))
+      prepare build(sort: [updated_at: :desc, id: :asc], load: [:launch_draft_image])
+    end
+
+    read :mine_by_id do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+      prepare build(load: [:launch_draft_image])
+    end
+
+    read :mine_account_owned do
+      get? true
+      filter expr(human_account_id == ^actor(:human_account_id))
+      prepare build(load: [:launch_draft_image])
+    end
+
+    read :mine_by_id_for_update do
+      get? true
+      argument :id, :uuid, allow_nil?: false
+      filter expr(human_account_id == ^actor(:human_account_id) and id == ^arg(:id))
+
+      prepare build(load: [:launch_draft_image])
+      prepare fn query, _context -> Ash.Query.lock(query, :for_update) end
+    end
+
+    update :autosave_token_details do
+      accept @account_token_fields
+      require_atomic? false
+      change Regents.Autolaunch.LaunchDraft.Changes.UpcaseTicker
+      validate Regents.Autolaunch.LaunchDraft.Validations.PartialFields
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: @account_token_fields, mark: false}
+    end
+
+    update :autosave_treasury do
+      accept @treasury_fields
+      require_atomic? false
+      validate Regents.Autolaunch.LaunchDraft.Validations.PartialFields
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:treasury, :treasury_path], mark: false}
+    end
+
+    update :confirm_agent_treasury do
+      accept []
+      argument :treasury, :string, allow_nil?: false
+      require_atomic? false
+      change Regents.Autolaunch.LaunchDraft.Changes.ConfirmAgentTreasury
+    end
+
+    update :attach_image do
+      argument :launch_draft_image_id, :uuid, allow_nil?: false
+      require_atomic? false
+      change Regents.Autolaunch.LaunchDraft.Changes.AttachOwnedImage
+
+      change {Regents.Autolaunch.LaunchDraft.Changes.AgentFields,
+              fields: [:launch_draft_image_id], mark: false}
+    end
+
+    # `Regents.Autolaunch.LaunchedDrafts`: the account's draft while it still names
+    # the launch just listed, which `:clear` blanks in the same statement.
+    read :naming_listed_launch do
+      argument :human_account_id, :integer, allow_nil?: false
+      argument :name, :string, allow_nil?: false, constraints: [trim?: false]
+      argument :symbol, :string, allow_nil?: false, constraints: [trim?: false]
+
+      filter expr(
+               human_account_id == ^arg(:human_account_id) and name == ^arg(:name) and
+                 symbol == ^arg(:symbol)
+             )
+    end
+
+    # A listed launch's draft starts over (`Regents.Autolaunch.LaunchedDrafts`), so the
+    # form is blank again.
+    update :clear do
+      change set_attribute(:name, "")
+      change set_attribute(:symbol, "")
+      change set_attribute(:description, nil)
+      change set_attribute(:website, nil)
+      change set_attribute(:telegram, nil)
+      change set_attribute(:discord, nil)
+      change set_attribute(:other_link_1, nil)
+      change set_attribute(:other_link_2, nil)
+      change set_attribute(:other_link_3, nil)
+      change set_attribute(:image, nil)
+      change set_attribute(:launch_draft_image_id, nil)
+      change set_attribute(:treasury, nil)
+      change set_attribute(:treasury_path, :safe)
+      change set_attribute(:eoa_acknowledgement, nil)
+      change set_attribute(:agent_set_fields, [])
+    end
+  end
+
+  policies do
+    policy action([:agent_read, :agent_create, :agent_save, :agent_mark_image]) do
+      authorize_if {RegentAgents.Checks.Paired, repo: Regents.Repo}
+    end
+
+    policy action([:agent_save, :agent_mark_image]) do
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action([
+             :create_for_owner,
+             :mine,
+             :mine_by_id,
+             :mine_account_owned,
+             :mine_by_id_for_update,
+             :autosave_token_details,
+             :autosave_treasury,
+             :confirm_agent_treasury,
+             :attach_image
+           ]) do
+      authorize_if Regents.Account.Accounts.Checks.HumanActor
+    end
+
+    policy action([
+             :mine,
+             :mine_by_id,
+             :mine_account_owned,
+             :mine_by_id_for_update,
+             :autosave_token_details,
+             :autosave_treasury,
+             :confirm_agent_treasury,
+             :attach_image
+           ]) do
+      authorize_if expr(human_account_id == ^actor(:human_account_id))
+    end
+
+    policy action([:naming_listed_launch, :clear]) do
+      authorize_if Regents.Checks.SystemActor
     end
   end
 
@@ -109,13 +377,5 @@ defmodule Regents.Autolaunch.LaunchDraft do
 
   identities do
     identity :one_account_owned_draft_per_human, [:human_account_id]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

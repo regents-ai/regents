@@ -1,0 +1,173 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* Auction pages and the bid form, wherever it appears. */
+
+.bid-settlement-row { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--space-2); min-width: 0; margin-top: var(--space-2); }
+.bid-settlement-row h4 { margin: 0; }
+.bid-positions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .875rem; overflow-wrap: anywhere; }
+.bid-positions > li + li { padding-top: 10px; border-top: 1px solid var(--hairline); }
+
+/* The auction page: the chart with the bid form beside it (straight under it
+   on narrow screens), then the bids, the activity and the token. */
+.auction-tabs__tab:focus-visible, .auction-details-window__close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.auction-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-rows: auto 1fr; align-items: start; gap: 32px; }
+.auction-layout__chart { grid-column: 1; grid-row: 1; display: grid; gap: 16px; min-width: 0; }
+.auction-layout__bid { grid-column: 2; grid-row: 1 / span 2; min-width: 0; }
+.auction-layout__rest { grid-column: 1; grid-row: 2; display: grid; gap: 32px; min-width: 0; }
+.auction-layout__bid .bid-panel { gap: 12px; padding: 16px; }
+.auction-layout__bid .bid-empty { margin: 0; }
+@media (max-width: 75rem) {
+  .auction-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .auction-layout > * { grid-column: auto; grid-row: auto; }
+}
+.auction-info { display: grid; gap: 16px; min-width: 0; }
+.auction-info__title { margin: 0; font-size: 1.375rem; }
+
+/* Tabs: the chosen one is outlined, the others muted. */
+.auction-tabs { display: grid; gap: 16px; min-width: 0; }
+.auction-tabs__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.auction-tabs__list { display: flex; flex-wrap: wrap; gap: 4px; }
+.auction-tabs__tab { padding: 4px 12px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--color-fg-muted); font: inherit; cursor: pointer; }
+.auction-tabs__tab[aria-selected="true"] { border-color: var(--hairline-strong); color: var(--color-fg); }
+.auction-tabs--large > .auction-tabs__bar .auction-tabs__tab { padding-inline: 0; margin-inline-end: 16px; border: 0; font-size: 1.5rem; }
+.auction-tabs__panels { display: grid; min-width: 0; }
+.auction-tabs__panel { grid-area: 1 / 1; min-width: 0; }
+.auction-tabs__panel[hidden] { display: block; visibility: hidden; }
+
+/* The full-details window, over a dimmed page. */
+.auction-details-window { width: min(40rem, calc(100vw - 32px)); max-height: min(85vh, 48rem); margin: auto; padding: 20px; overflow: auto; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-fg); }
+.auction-details-window::backdrop { background: rgb(0 0 0 / .55); }
+.auction-details-window__close { width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--color-fg); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.auction-details-window__close:hover { background: var(--hairline); }
+.auction-details-window__details { display: grid; gap: 16px; }
+.auction-details-window .autolaunch-live-market { grid-template-columns: minmax(0, 1fr); }
+.auction-details-window .autolaunch-live-market > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding-inline: 0; }
+.auction-details-window .autolaunch-live-market dt { color: var(--color-fg-muted); }
+.auction-details-window .autolaunch-live-market dd { text-align: right; }
+.auction-how { display: grid; gap: 16px; line-height: 1.5; }
+.auction-how p { margin: 0; }
+.auction-how__steps { display: grid; gap: 16px; margin: 0; padding-inline-start: 1.25rem; }
+.auction-how__steps h3 { margin: 0 0 4px; font-size: 1rem; }
+.auction-how__steps p, .auction-how__note { color: var(--color-fg-muted); font-size: .9375rem; }
+
+/* One of the bidder's own bids while bidding is open: where it stands and what to do next. */
+.bid-position { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.bid-position > * { max-width: 100%; }
+.bid-position__terms, .bid-position__status { margin: 0; }
+.bid-position__new { display: grid; gap: 8px; width: 100%; min-width: 0; }
+.auction-book__outbid { margin: 0; padding: 8px 10px; border-left: 3px solid var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, transparent); overflow-wrap: anywhere; }
+.bid-early-return { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.bid-early-return p, .bid-early-return__offer p { margin: 0; }
+.bid-early-return__offer { display: grid; gap: 8px; justify-items: start; justify-self: stretch; min-width: 0; }
+.bid-early-return__offer .bid-steps { justify-self: stretch; }
+
+/* The top of an auction page when one of the bidder's bids is outbid. */
+.auction-outbid-banner { display: grid; gap: 6px; margin-block-end: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-warning) 50%, var(--hairline)); border-radius: var(--radius); background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface)); overflow-wrap: anywhere; }
+.auction-outbid-banner p { margin: 0; }
+.auction-outbid-banner__links { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+
+.auction-history { display: grid; gap: var(--space-3); min-width: 0; }
+.auction-history__note { margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--color-fg-muted); }
+.auction-history__failed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; }
+.auction-history__track { position: relative; height: 28px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--color-fg) 4%, transparent); }
+.auction-history__elapsed { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--brand-accent) 22%, transparent); }
+.auction-history__mark { position: absolute; top: 5px; bottom: 5px; width: 2px; margin-left: -1px; background: var(--color-fg); opacity: .7; }
+.auction-history__now { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--brand-accent); }
+.auction-history__ends { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--space-2); margin-top: 6px; font-size: .8125rem; font-variant-numeric: tabular-nums; color: var(--color-fg-muted); }
+.auction-history__timeline .auction-history__note { margin-top: 6px; }
+/* Its own box for the hidden exact figures, so they scroll with the table instead of widening the page. */
+.auction-history__table { position: relative; max-height: 24rem; overflow: auto; border: 1px solid var(--hairline); }
+.auction-history__table table { width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.auction-history__table th { position: sticky; top: 0; padding: 8px; text-align: left; color: var(--color-fg-muted); background: var(--color-surface); border-bottom: 1px solid var(--hairline); }
+.auction-history__table td { padding: 8px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+.auction-history__bids { display: grid; gap: 6px; min-width: 0; }
+
+/* The one bid form: soft boxes for the max budget, the max FDV and what the
+   bid can expect, with big figures and quiet labels. */
+.bid-panel { gap: 12px; }
+.bid-title { display: flex; align-items: center; gap: 8px; position: relative; }
+.bid-title h2 { margin: 0; font-size: 1.125rem; }
+.bid-help summary { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; margin: -12px; border: 0; color: var(--color-fg-muted); font-size: .75rem; line-height: 1; list-style: none; cursor: pointer; }
+/* The 20px ring inside a full 44px press, taking no more room than the ring. */
+.bid-help summary::before { content: ""; position: absolute; inset: 50% auto auto 50%; width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; transform: translate(-50%, -50%); }
+.bid-help summary::-webkit-details-marker { display: none; }
+.bid-help summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.bid-help__panel { position: absolute; z-index: var(--rg-layer-tip); top: calc(100% + 8px); left: 0; right: 0; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); color: var(--color-fg); font-size: .875rem; line-height: 1.45; box-shadow: var(--rg-layer-tip-shadow); transform-origin: top left; }
+.bid-help__panel p { margin: 0; }
+.bid-ended { margin: 0; color: var(--color-fg-muted); }
+
+/* The Finish button on an ended auction. Its status line keeps two lines of
+   room, so a note appearing never moves what is below it. */
+.finish-auction { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.finish-auction h3 { margin: 0; font-size: 1rem; }
+.finish-auction__about { margin: 0; color: var(--color-fg-muted); }
+.finish-auction__line { margin: 0; line-height: 1.45; min-height: calc(2 * 1.45em); }
+
+.bid-form, .bid-entry, .bid-actions { display: grid; gap: 6px; min-width: 0; }
+.bid-box { display: grid; gap: 6px; min-width: 0; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: var(--radius); background: color-mix(in srgb, var(--color-fg) 4%, var(--color-surface)); transition: border-color 150ms ease; }
+.bid-box:focus-within { border-color: var(--hairline-strong); }
+.bid-box__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.bid-box__main { display: grid; gap: 4px; flex: 1 1 0; min-width: 0; }
+.bid-box__label { margin: 0; color: var(--color-fg-muted); font-size: .875rem; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.bid-box__figure { margin: 0; font-size: 1.75rem; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+input.bid-box__figure { width: 100%; min-width: 0; min-height: 2.75rem; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-fg); font-family: inherit; }
+input.bid-box__figure:focus-visible { outline: none; }
+input.bid-box__figure::placeholder { color: var(--color-fg-muted); opacity: .6; }
+.bid-box__sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 1.25rem; margin: 0; color: var(--color-fg-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.bid-box__side { display: grid; justify-items: end; gap: 6px; flex: none; }
+.bid-box__balance { margin-inline-start: auto; padding: 0; border: 0; background: none; color: var(--color-fg-muted); font: inherit; cursor: pointer; transition: color 150ms ease; }
+@media (hover: hover) and (pointer: fine) { .bid-box__balance:hover { color: var(--color-fg); } }
+.bid-box__balance:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+/* On a touch screen Balance is a full 44px press, by the design system's touch rule;
+   a mouse keeps the line's own height. */
+@media (hover: none), (pointer: coarse) {
+  .bid-box__balance { display: inline-flex; align-items: center; justify-content: flex-end; min-block-size: 44px; min-inline-size: 44px; }
+}
+.bid-box__fdv { display: flex; align-items: baseline; gap: 2px; min-width: 0; }
+.bid-box__prefix { flex: none; color: var(--color-fg); }
+.bid-box__unit { flex: none; margin-inline-start: 6px; color: var(--color-fg-muted); font-size: .9375rem; }
+.bid-box__note { margin: 0; color: var(--color-fg-muted); font-size: .8125rem; }
+.bid-box--receive .bid-box__figure { font-size: 1.25rem; }
+/* A row the chosen currency does not use keeps its room, so a switch never changes the form's height. */
+.bid-box--unused { visibility: hidden; }
+
+/* The currency paid in: a chip, with the switch between two above it. */
+.bid-chip { padding: 6px 12px; border: 1px solid var(--hairline-strong); border-radius: var(--radius); background: var(--color-surface-elevated); font-size: .9375rem; white-space: nowrap; }
+.bid-switch { display: flex; margin: 0; padding: 2px; border: 1px solid var(--hairline); border-radius: var(--radius); }
+.bid-switch label { position: relative; margin: 0; cursor: pointer; }
+.bid-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.bid-switch span { display: block; padding: 2px 10px; border-radius: var(--radius); color: var(--color-fg-muted); font-size: .75rem; letter-spacing: normal; text-transform: none; transition: background-color 150ms ease, color 150ms ease; }
+.bid-switch input:checked + span { background: var(--color-fg); color: var(--color-bg); }
+.bid-switch input:focus-visible + span { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+
+/* The max FDV slider: dotted stops over the price to beat, its price above the thumb. */
+.bid-slider { --thumb: 18px; position: relative; display: grid; margin-top: 30px; }
+.bid-slider > * { grid-area: 1 / 1; }
+.bid-slider__dots { display: flex; justify-content: space-between; align-self: center; padding-inline: calc(var(--thumb) / 2 - 2px); pointer-events: none; }
+.bid-slider__dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--hairline-strong); }
+.bid-slider input[type="range"] { width: 100%; height: var(--thumb); margin: 0; background: transparent; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.bid-slider input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--hairline); border-radius: var(--radius); }
+.bid-slider input[type="range"]::-moz-range-track { height: 2px; background: var(--hairline); border-radius: var(--radius); }
+.bid-slider input[type="range"]::-webkit-slider-thumb { width: var(--thumb); height: var(--thumb); margin-top: calc(1px - var(--thumb) / 2); border: 3px solid var(--color-surface); border-radius: 50%; background: var(--brand-accent); -webkit-appearance: none; transition: transform 120ms var(--ease-out); }
+.bid-slider input[type="range"]::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border: 3px solid var(--color-surface); border-radius: 50%; background: var(--brand-accent); }
+.bid-slider input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.1); }
+.bid-slider input[type="range"]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: var(--radius); }
+.bid-slider__tip { position: absolute; bottom: calc(100% + 6px); left: calc(var(--thumb) / 2 + var(--at) * (100% - var(--thumb))); padding: 3px 8px; border-radius: var(--radius); background: var(--color-fg); color: var(--color-bg); font-size: .75rem; white-space: nowrap; font-variant-numeric: tabular-nums; transform: translateX(clamp(-100%, calc(var(--at) * -100%), 0%)); pointer-events: none; }
+.bid-slider__tip:empty { display: none; }
+.bid-form__note { display: block; margin: 0; font-size: .8125rem; color: var(--color-fg-muted); overflow-wrap: anywhere; }
+/* The prepared bid in three lines, right above the button that opens the wallet. */
+.bid-form__summary { display: grid; margin: 0; font-size: .875rem; }
+.bid-form__summary div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); padding: 6px 0; }
+.bid-form__summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+/* After the wallet: the bid on its way, or placed with its share. */
+.bid-progress, .bid-placed { display: grid; gap: var(--space-2); min-width: 0; }
+.bid-progress__status { margin: 0; padding: var(--space-2); border-left: 3px solid var(--brand-accent); }
+.bid-placed p { margin: 0; }
+.bid-placed__news { padding: var(--space-2); border-left: 3px solid var(--brand-accent); overflow-wrap: anywhere; }
+.bid-placed__news .motion-tick { width: 1em; height: 1em; margin-inline-end: .375em; vertical-align: -.125em; color: var(--color-success); stroke-width: 3; }
+.bid-placed__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* Each button starts at its own label's width, so one that does not fit moves to the next
+   line whole rather than cutting its label short. */
+.bid-placed__actions > * { flex: 1 1 auto; }
+
+}

@@ -8413,3 +8413,12 @@ seasons), on the shared Points library regents.sh was already on.
 - Port Keyfleet's signed agent REST API under `/api/v1/keyfleet/agent/...` (profile, avatars, shards, links, rooms, walls, DMs, mutes, polls, seasons, projects, publications, code, notebooks, checkpoints, activity, search, receipts, doctor, proposals, chain steps, workspace graph, and Atlas) behind `:paired_agent` and `:keyfleet_agent`, plus `PUT /api/v1/keyfleet/avatar/upload/:ticket`.
 - Port Keyfleet's server-sent events live feed (`GET /api/v1/keyfleet/feed`, `POST /api/v1/keyfleet/feed/missed`) and register `AgentWaits` and `FeedController` registries under `RegentsWeb.Keyfleet.Supervisor`.
 - Add `RegentsWeb.Keyfleet.AgentTools` workspace read domain and response-size `Budget` module.
+
+
+
+## 2026-11-22 — Autolaunch complete domain, pages, wallet flows, APIs, Oban jobs and assets (not released)
+
+- Upgrade all Autolaunch Ash resources and domains (`Regents.Autolaunch`, `CoveredCalls`, `Exposure`, `Earn`) from `autolaunch` `origin/main` (`a0fddeda`) with full write actions, policies, changes, validations, AshOban triggers, and `autolaunch_*` Oban queues and scheduled jobs (disabled when `Regents.read_only?/0`).
+- Port all remaining Autolaunch LiveViews, components, and controllers under `/autolaunch`: auction and token pages (Base & Robinhood Chain), create flows (Revstake & Memestock), portfolio, bid, stock, upcoming, REGENT, convert, covered calls, exposure, earn, search, blog, share cards & share video rendering, X OAuth callback (`/auth/x/callback`), and public & signed agent APIs (`/api/v1/autolaunch/...`, `/api/agent/v1/autolaunch/...`).
+- Scope all Autolaunch CSS under `@scope (:root[data-product="autolaunch"]) to (.regents-frame)`, register all Autolaunch browser hooks and WebGPU optics in `assets/js/autolaunch/index.ts`, and ship Autolaunch's contract ABIs, share card assets, and stock artwork under `priv/autolaunch/` and `priv/static/images/autolaunch/`.
+- Add `RegentsWeb.Autolaunch.Supervisor` for web-side share card and market answer caches, `SessionAuthority.transact_exact/2` & `transact_lease/3`, `RegentsWeb.Live.Session` helpers, and `RegentsWeb.Motion`.

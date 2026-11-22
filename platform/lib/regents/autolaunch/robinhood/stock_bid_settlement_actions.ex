@@ -1,0 +1,255 @@
+defmodule Regents.Autolaunch.Robinhood.StockBidSettlementActions do
+  @moduledoc """
+  The one boundary between a bidder's wallet and the end of a Robinhood
+  memestock auction: returning what a bid did not spend, and claiming the
+  launch tokens it won.
+
+  Preparation reads Robinhood once, through
+  `Regents.Autolaunch.Robinhood.StockBidSettlementChainClient`, and returns the steps
+  for the page's review: the exit the auction accepts for this bid (a plain
+  exit, or a partial exit with the checkpoint hints the auction needs when the
+  bid was only partly filled), then the claim when there is one. Nothing is
+  written anywhere: the review lives on the page, and `result/3` reads what a
+  confirmed step did from its receipt.
+
+  While bidding is still open, an outbid bid's unspent stock can come back
+  early once the auction records a price above the bid's maximum. When the
+  price has passed it but is not recorded yet, the review is a single
+  `record` step, the auction's public `checkpoint()`; once that is confirmed,
+  the exit is reviewed on its own against the price it stored.
+
+  Every call binds to a wallet the account the session lease names links,
+  read inside the lease at call time, and the bid must belong to one of that
+  account's wallets on the auction's own record. The auction takes a return
+  or a claim from any sender and pays the wallet that placed the bid.
+  """
+
+  import Regents.Autolaunch.Stocks.LaunchOperations, only: [chain: 1, unavailable: 1]
+
+  alias RegentChain.{Address, Review}
+  alias Regents.Autolaunch.Chain.{CcaSettlement, Client, Rpc}
+  alias Regents.Autolaunch.LabAbi
+  alias Regents.Autolaunch.Robinhood.{Lab, StockBidSettlementChainClient}
+  alias Regents.Autolaunch.Stocks.{Amounts, Assets, LaunchOperations}
+
+  @new_decimals 18
+  @uint256_max Integer.pow(2, 256) - 1
+
+  @doc """
+  Reviews the settlement of one bid from `address`, which must be a wallet the
+  signed-in account links, of a bid one of the account's wallets placed: the
+  chain, the steps, what they return and the context `result/3` reads a
+  receipt against. Refused, with the auction's own reason, when nothing can be
+  done for the bid right now.
+  """
+  @spec prepare(map(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def prepare(request, address, opts) do
+    with {:ok, %{account: account, signer: signer}} <-
+           LaunchOperations.signed_in_wallet(address, opts),
+         do: review(request, signer, account.wallet_addresses)
+  end
+
+  @doc """
+  The review `prepare/3` makes once `signer` is proved to be one of the acting
+  account's own wallets, of a bid one of `wallets`, that account's wallets,
+  placed, with the latest block it read (`block`). A bid none of them placed is
+  refused as `:not_your_bid` before the auction is asked anything about it.
+  """
+  @spec review(map(), String.t(), [String.t()]) :: {:ok, map()} | {:error, term()}
+  def review(%{auction: auction, bid_id: bid_id}, signer, wallets) do
+    with {:ok, config} <- robinhood_lab(),
+         {:ok, auction} <- address(auction, :invalid_auction),
+         {:ok, bid_id} <- bid_id(bid_id),
+         {:ok, snapshot} <- snapshot(auction, bid_id, signer, wallets),
+         {:ok, asset} <- listed_stock(snapshot.stock),
+         {:ok, steps} <- eligible_steps(snapshot) do
+      {:ok,
+       %{
+         chain: Client.chain(config),
+         steps: Enum.map(steps, &Review.step(&1.name, snapshot.auction, &1.data)),
+         facts: facts(asset, snapshot, steps),
+         block: snapshot.block.number,
+         context: %{
+           auction: snapshot.auction,
+           onchain_bid_id: snapshot.bid.id,
+           owner: snapshot.bid.owner,
+           stock_decimals: snapshot.stock_decimals
+         }
+       }}
+    end
+  end
+
+  @doc """
+  What a confirmed exit or claim did, read from its receipt's logs: only the
+  auction's own `BidExited` or `TokensClaimed` for this bid and this owner
+  counts. `nil` for a recorded price, or for logs that record something else.
+  """
+  @spec result(map(), String.t(), [map()]) :: map() | nil
+  def result(context, "exit", logs) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, exit} <-
+           CcaSettlement.exited(
+             Lab.abi!(config, :auction),
+             logs,
+             context.auction,
+             context.onchain_bid_id,
+             context.owner
+           ) do
+      %{
+        "tokens_filled_units" => Rpc.format_units(exit.tokens_filled, @new_decimals),
+        "stock_refunded_units" => Rpc.format_units(exit.currency_refunded, context.stock_decimals)
+      }
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  def result(context, "claim", logs) do
+    with {:ok, config} <- Lab.current(),
+         {:ok, claim} <-
+           CcaSettlement.claimed(
+             Lab.abi!(config, :auction),
+             logs,
+             context.auction,
+             context.onchain_bid_id,
+             context.owner
+           ) do
+      %{"tokens_claimed_units" => Rpc.format_units(claim.tokens_claimed, @new_decimals)}
+    else
+      _not_this_bid -> nil
+    end
+  end
+
+  def result(_context, _record, _logs), do: nil
+
+  @doc """
+  When this bid's unspent stock can come back, read at one pinned block and
+  opening nothing: `CcaSettlement.return_status/1`, with the auction's own
+  refusal as the error.
+  """
+  @spec return_status(map()) :: {:ok, term()} | {:error, term()}
+  def return_status(%{auction: auction, bid_id: bid_id, owner: owner}) do
+    with {:ok, _config} <- robinhood_lab(),
+         {:ok, auction} <- address(auction, :invalid_auction),
+         {:ok, bid_id} <- bid_id(bid_id),
+         {:ok, snapshot} <- snapshot(auction, bid_id, owner, [owner]) do
+      case CcaSettlement.return_status(snapshot) do
+        {:refused, reason} -> unavailable(reason)
+        status -> {:ok, status}
+      end
+    end
+  end
+
+  # Inputs
+
+  # A bid number the auction can hold, a uint256; any other names no bid. Its
+  # text is at most the 78 digits of the largest.
+  defp bid_id(value) when is_integer(value) and value in 0..@uint256_max, do: {:ok, value}
+
+  defp bid_id(value) when is_binary(value) and byte_size(value) <= 78 do
+    case Integer.parse(value) do
+      {id, ""} -> bid_id(id)
+      _other -> unavailable(:bid_not_found)
+    end
+  end
+
+  defp bid_id(_value), do: unavailable(:bid_not_found)
+
+  defp listed_stock(stock) do
+    case Assets.fetch(Lab.chain_id(), stock) do
+      {:ok, asset} -> {:ok, asset}
+      _missing -> unavailable(:stock_not_listed)
+    end
+  end
+
+  # The steps the auction accepts right now: the exit first, then the claim
+  # when one is open; a bid already returned may only claim; an outbid bid
+  # whose passed price is not recorded yet may only record it.
+  defp eligible_steps(%{
+         graduated?: false,
+         exit: {:refused, :already_exited},
+         bid: %{exited_block: exited_block, tokens_filled: 0}
+       })
+       when exited_block > 0,
+       do: unavailable(:failed_bid_returned)
+
+  defp eligible_steps(%{exit: {:refused, :already_exited}, claim: %{} = claim}),
+    do: {:ok, [claim_step(claim)]}
+
+  defp eligible_steps(%{exit: {:refused, :price_not_recorded}}), do: {:ok, [record_step()]}
+
+  defp eligible_steps(%{exit: %{} = exit, claim: claim}),
+    do: {:ok, [exit_step(exit) | claim_steps(claim)]}
+
+  defp eligible_steps(snapshot), do: unavailable(refusal_reason(snapshot))
+
+  defp refusal_reason(%{exit: {:refused, :already_exited}, claim: {:refused, reason}}), do: reason
+  defp refusal_reason(%{exit: {:refused, reason}}), do: reason
+
+  defp claim_steps(%{} = claim), do: [claim_step(claim)]
+  defp claim_steps({:refused, _reason}), do: []
+
+  defp record_step, do: %{name: "record", data: LabAbi.selector("checkpoint()")}
+
+  defp exit_step(exit),
+    do: %{
+      name: "exit",
+      data: exit.data,
+      tokens_filled: exit.tokens_filled,
+      stock_refunded: exit.currency_refunded
+    }
+
+  defp claim_step(claim),
+    do: %{name: "claim", data: claim.data, tokens_claimed: claim.tokens_claimed}
+
+  # What the review states before anything is signed, in the auction's units:
+  # the bid, its most per token, the final price, the stock an exit sends back
+  # and the tokens it fills, and the tokens a claim delivers.
+  defp facts(asset, snapshot, steps) do
+    decimals = snapshot.stock_decimals
+    exit = Enum.find(steps, &(&1.name == "exit"))
+    claim = Enum.find(steps, &(&1.name == "claim"))
+
+    %{
+      stock_symbol: asset.symbol,
+      graduated: snapshot.graduated?,
+      bid_amount: Rpc.format_units(snapshot.bid.amount, decimals),
+      max_price: price(snapshot.bid.max_price_q96, decimals),
+      final_price: price(snapshot.final_clearing_price_q96, decimals),
+      stock_refunded: exit && Rpc.format_units(exit.stock_refunded, decimals),
+      tokens_filled: exit && Rpc.format_units(exit.tokens_filled, @new_decimals),
+      tokens_claimed: claim && Rpc.format_units(claim.tokens_claimed, @new_decimals)
+    }
+  end
+
+  defp price(q96, decimals), do: Amounts.format_cca_price(q96, decimals, @new_decimals)
+
+  # Chain snapshot
+
+  defp robinhood_lab do
+    case Lab.current() do
+      {:ok, config} -> {:ok, config}
+      {:error, _reason} -> unavailable(:robinhood_unavailable)
+    end
+  end
+
+  defp snapshot(auction, bid_id, signer, owners),
+    do:
+      chain(
+        StockBidSettlementChainClient.snapshot(%{
+          auction: auction,
+          bid_id: bid_id,
+          signer: signer,
+          owners: owners
+        })
+      )
+
+  # Shared helpers
+
+  defp address(value, reason) do
+    case Address.normalize(value) do
+      {:ok, address} -> {:ok, address}
+      :error -> unavailable(reason)
+    end
+  end
+end

@@ -1,11 +1,4 @@
 defmodule Regents.Autolaunch.PaymentLink do
-  @moduledoc """
-  One payment link of a launched subject: the wallet it pays and its label.
-
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
-  """
-
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
@@ -19,6 +12,53 @@ defmodule Regents.Autolaunch.PaymentLink do
 
     custom_indexes do
       index([:subject_id])
+    end
+  end
+
+  actions do
+    read :by_subject_and_receiver do
+      public? false
+      get? true
+
+      argument :subject_id, :uuid, allow_nil?: false
+
+      argument :receiver_address, :string,
+        allow_nil?: false,
+        constraints: [min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-f]{40}\z/]
+
+      filter expr(
+               subject_id == ^arg(:subject_id) and
+                 receiver_address == ^arg(:receiver_address)
+             )
+    end
+
+    create :record_confirmation do
+      public? false
+      accept []
+
+      argument :subject_id, :uuid, allow_nil?: false
+
+      argument :receiver_address, :string,
+        allow_nil?: false,
+        constraints: [min_length: 42, max_length: 42, match: ~r/\A0x[0-9a-f]{40}\z/]
+
+      argument :label, :string,
+        allow_nil?: false,
+        constraints: [min_length: 1, max_length: 96, trim?: true]
+
+      change set_attribute(:subject_id, arg(:subject_id))
+      change set_attribute(:receiver_address, arg(:receiver_address))
+      change set_attribute(:label, arg(:label))
+
+      upsert? true
+      upsert_identity :unique_receiver_address
+      upsert_fields []
+    end
+  end
+
+  policies do
+    policy always() do
+      authorize_if Regents.Checks.SystemActor
     end
   end
 
@@ -48,13 +88,5 @@ defmodule Regents.Autolaunch.PaymentLink do
 
   identities do
     identity :unique_receiver_address, [:receiver_address]
-  end
-
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
-  policies do
-    policy always() do
-      forbid_if always()
-    end
   end
 end

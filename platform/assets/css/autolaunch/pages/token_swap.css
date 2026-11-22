@@ -1,0 +1,310 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* Product composition only; Regent primitives own control skins and focus. */
+.token-swap {
+  width: 100%;
+  max-width: 30rem;
+  min-width: 0;
+  color: var(--color-fg);
+  font-family: var(--font-family-ui);
+}
+/* The form and the panel that opens over it share one cell, so the panel
+   covers the form from the bottom and the widget never jumps in height. */
+.token-swap__stack { display: grid; }
+.token-swap__stack > * { grid-area: 1 / 1; min-width: 0; }
+.token-swap__form { display: grid; gap: var(--space-1); }
+.token-swap__form[inert] { opacity: .45; }
+
+.token-swap__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.token-swap__mode {
+  padding: .4rem .9rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  font-size: .9375rem;
+}
+.token-swap__gear { min-width: 44px; min-height: 44px; padding: .5rem; color: var(--color-fg-muted); }
+.token-swap__gear[aria-expanded="true"] { color: var(--color-fg); }
+.token-swap__gear svg { display: block; width: 22px; height: 22px; }
+.token-swap__popover {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: var(--rg-layer-tip);
+  width: min(22rem, 100%);
+  transform-origin: top right;
+  padding: var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--rg-layer-tip-shadow);
+}
+.token-swap__popover[hidden] { display: none; }
+.token-swap__slippage { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.token-swap__slippage label { margin: 0; font-size: 1rem; text-transform: none; letter-spacing: normal; }
+.token-swap__slippage-field {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .35rem .75rem;
+  border: 1px solid var(--hairline-strong);
+  color: var(--color-fg-muted);
+}
+.token-swap__slippage-field:focus-within { border-color: var(--color-fg); }
+.token-swap__slippage-field input {
+  width: 4.5ch;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.token-swap__slippage-field input:focus-visible { outline: none; }
+
+.token-swap__leg {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: clamp(.875rem, 3.5vw, 1.25rem);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface);
+}
+.token-swap__leg--buy { background: var(--color-surface-elevated); }
+.token-swap__leg-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 1.75rem; }
+.token-swap__leg-head label {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-family: var(--font-family-ui);
+  font-size: 1rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* The shortcuts stay out of the way until the card is pointed at or typed in. */
+.token-swap__portions {
+  display: flex;
+  gap: .25rem;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity .12s ease, visibility .12s;
+}
+.token-swap__leg:hover .token-swap__portions,
+.token-swap__leg:focus-within .token-swap__portions {
+  visibility: visible;
+  opacity: 1;
+}
+.token-swap__portions button {
+  min-height: 1.75rem;
+  padding: 0 .5rem;
+  border: 1px solid var(--hairline-strong);
+  background: transparent;
+  color: var(--color-fg-muted);
+  font: inherit;
+  font-size: .75rem;
+  cursor: pointer;
+}
+.token-swap__portions button:hover, .token-swap__portions button:focus-visible { color: var(--color-fg); border-color: var(--color-fg); }
+/* On a touch screen each shortcut is a full 44px press, by the design system's
+   touch rule, reaching over the head's edges so the head keeps its height. */
+@media (hover: none), (pointer: coarse) {
+  .token-swap__portions button { min-block-size: 2.75rem; min-inline-size: 2.75rem; margin-block: -.5rem; }
+}
+.token-swap__amount-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.token-swap__amount-row input, .token-swap__amount-row output {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: .125rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-family-ui);
+  font-size: clamp(1.75rem, 6vw, 2.25rem);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.token-swap__amount-row input:focus-visible { outline-offset: 4px; }
+.token-swap__amount-row output { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.token-swap__amount-row output[data-empty] { color: var(--color-fg-muted); }
+.token-swap__currency {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(13ch, 38vw);
+  min-width: 0;
+  padding: .35rem .75rem .35rem .4rem;
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-bg);
+  font-size: 1rem;
+}
+.token-swap__currency:not(:has(img)) { padding-left: .75rem; }
+.token-swap__currency img { flex: 0 0 auto; width: 28px; height: 28px; object-fit: contain; }
+.token-swap__currency > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.token-swap__leg-foot {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+.token-convert__floor {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--color-fg-muted);
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.token-convert__floor input { flex: 0 0 auto; width: 1.125rem; height: 1.125rem; margin-top: .15rem; accent-color: var(--color-fg); }
+.token-swap__direction { display: flex; justify-content: center; margin-block: -1.25rem; z-index: 1; }
+.token-swap__direction .rg-button { padding: .5rem; }
+.token-swap__direction svg { display: block; width: 24px; height: 24px; }
+/* The arrow it draws is its whole label, so the button adds no arrow of its own. */
+.token-swap__direction .rg-button::after { content: none; }
+.token-swap__submit { width: 100%; margin-top: var(--space-1); }
+.token-swap__submit--idle { color: var(--color-fg-muted); }
+.token-swap__error, .token-swap__rate {
+  margin: var(--space-2) 0 0;
+  font-size: .875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.token-swap__error { color: var(--color-error); }
+.token-swap__rate { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+
+/* The review over its form arrives as the create pages' launch review does
+   (`review-in`, components/motion.css). */
+.token-swap__review {
+  align-self: end;
+  z-index: 2;
+  display: grid;
+  gap: var(--space-2);
+  padding: clamp(1rem, 4vw, 1.5rem);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  animation: review-in var(--duration-base) var(--ease-out);
+}
+.token-swap__review-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.token-swap__review-head h3 { margin: 0; color: var(--color-fg-muted); font-family: var(--font-family-ui); font-size: 1rem; font-weight: 400; text-transform: none; letter-spacing: normal; }
+.token-swap__review-head .rg-button { min-width: 44px; min-height: 44px; padding: .5rem; }
+.token-swap__review-side { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; }
+.token-swap__review-side p { min-width: 0; margin: 0; font-size: clamp(1.375rem, 5vw, 1.75rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-swap__review-side img { flex: 0 0 auto; width: 36px; height: 36px; object-fit: contain; }
+svg.token-swap__review-arrow { width: 20px; height: 20px; color: var(--color-fg-muted); }
+.token-swap__review-facts { display: grid; gap: var(--space-1); margin: var(--space-2) 0 0; font-size: .875rem; }
+.token-swap__review-facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
+.token-swap__review-facts dt { color: var(--color-fg-muted); }
+.token-swap__review-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+/* The fees inside the quote, one per line. */
+.token-swap__review-fees { display: grid; justify-items: end; text-align: end; }
+.token-swap__review-rule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0 0;
+  color: var(--color-fg-muted);
+  font-size: .875rem;
+}
+.token-swap__review-rule::before, .token-swap__review-rule::after { content: ""; flex: 1; border-top: 1px solid var(--hairline-strong); }
+.token-swap__steps { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.token-swap__steps li { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); color: var(--color-fg-muted); }
+.token-swap__steps li[data-current] { color: var(--color-fg); }
+.token-swap__step-note { font-size: .8125rem; font-weight: 400; color: var(--color-fg-muted); }
+.token-swap__steps li[data-state="done"] .token-swap__step-note { color: var(--color-success); }
+.token-swap__steps li[data-state="reverted"] .token-swap__step-note { color: var(--color-error); }
+.token-swap__step-mark { justify-self: center; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+.token-swap__steps li[data-current] .token-swap__step-mark { width: .875rem; height: .875rem; background: var(--color-accent); }
+.token-swap__steps li[data-state="done"] .token-swap__step-mark { width: .875rem; height: .875rem; background: none; color: var(--color-success); }
+.token-swap__step-mark svg { display: block; width: 100%; height: 100%; stroke-width: 3.5; }
+.token-swap__steps li[data-state="reverted"] .token-swap__step-mark { background: var(--color-error); }
+.token-swap__steps li[data-state="sent"] .token-swap__step-mark,
+.token-swap__spinner {
+  width: .875rem;
+  height: .875rem;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  background: transparent;
+  animation: token-swap-spin .9s linear infinite;
+}
+/* The press squishes only this text, so the button keeps its full size. */
+.token-swap__wallet-step-text { display: inline-flex; align-items: center; }
+.token-swap__wallet-step-wait { display: none; align-items: center; gap: var(--space-2); }
+:is(.token-swap__wallet-step, .token-swap__approval)[data-awaiting-wallet] .token-swap__wallet-step-label { display: none; }
+:is(.token-swap__wallet-step, .token-swap__approval)[data-awaiting-wallet] .token-swap__wallet-step-wait { display: inline-flex; }
+/* A confirmed approval: grey with a green border, and it still takes presses.
+   The border is the one the button's paint draws. */
+.token-swap__approval[data-state="done"] { color: var(--color-fg-muted); }
+.token-swap__approval[data-state="done"]::before { border-color: var(--color-success); }
+@keyframes token-swap-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .token-swap__steps li[data-state="sent"] .token-swap__step-mark, .token-swap__spinner { animation: none; }
+}
+
+.token-swap__toast {
+  position: fixed;
+  top: calc(var(--shell-top-end) + var(--space-3));
+  right: var(--space-3);
+  z-index: var(--rg-layer-tip);
+  transform-origin: top right;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: min(24rem, calc(100vw - 2 * var(--space-3)));
+  padding: var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--rg-layer-tip-shadow);
+}
+.token-swap__toast strong { font-size: 1rem; }
+.token-swap__toast > div > p { margin: .25rem 0 0; color: var(--color-fg-muted); font-size: .9375rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.token-swap__toast > .rg-button { min-width: 44px; min-height: 44px; margin: -.5rem; padding: .5rem; }
+.token-swap__toast .share-x { margin-top: .75rem; }
+/* A success toast's buttons, View Portfolio among them, in one row under its words. */
+.token-swap__toast .toast-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: .75rem; }
+.token-swap__toast .toast-actions .share-x { margin-top: 0; }
+.token-swap__toast > div > .toast-portfolio { margin-top: .75rem; }
+
+.token-swap-modal {
+  width: min(38rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--hairline-strong);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  overflow-y: auto;
+}
+.token-swap-modal::backdrop { background: color-mix(in srgb, var(--color-bg) 80%, transparent); }
+.token-swap-modal__header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.token-swap-modal__header h2 { margin: 0; font-size: 1.25rem; }
+.token-swap-modal__title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.token-swap-modal__title h2 { overflow-wrap: anywhere; }
+.token-swap-modal__art { position: relative; display: grid; flex-shrink: 0; place-items: center; width: 56px; height: 56px; overflow: hidden; border: 1px solid var(--hairline); border-radius: var(--radius); background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); color: var(--color-fg-muted); font-size: 1.25rem; }
+.token-swap-modal__art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.token-swap-modal .token-swap { max-width: none; }
+@media (max-width: 480px) {
+  .token-swap-modal { padding: var(--space-2); }
+  .token-swap-modal__art { width: 44px; height: 44px; }
+}
+
+}

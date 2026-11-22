@@ -112,6 +112,8 @@ config :regents,
     Regents.Patchbay.Offers,
     Regents.Autolaunch,
     Regents.Autolaunch.CoveredCalls,
+    Regents.Autolaunch.Exposure,
+    Regents.Autolaunch.Earn,
     # Keyfleet's, which Regents.Keyfleet.domains/0 names.
     Regents.Keyfleet.Fleets,
     Regents.Keyfleet.Rooms,
@@ -138,7 +140,38 @@ config :regents,
 config :regents,
   fleet_feed_wait_ms: 2_000,
   agent_waits_per_address: 4,
-  agent_waits_total: 600
+  agent_waits_total: 600,
+  base_read_rpc_url: "https://base-rpc.publicnode.com",
+  robinhood_read_rpc_url: "https://rpc.mainnet.chain.robinhood.com",
+  earn_products: [
+    %{
+      id: "aave-usdc",
+      chain_id: 8453,
+      protocol: "Aave",
+      market: "Aave V3 on Base",
+      asset: "USDC",
+      decimals: 6,
+      pool: "0xa238dd80c259a72e81d7e4664a9801593f98d1c5",
+      asset_address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+    }
+  ],
+  earn_terms_kept_ms: 10_000,
+  stock_list_kept_ms: 60_000,
+  convert_read_timeout: 30_000,
+  share_video_saved_bytes: 5_000_000_000,
+  autolaunch_share_video_renderer: RegentsWeb.Autolaunch.ShareVideo.Render
+
+config :regents, Regents.Autolaunch.ChainRefresh,
+  readers: [
+    Regents.Autolaunch.ChainHead,
+    Regents.Autolaunch.AuctionMarket,
+    Regents.Autolaunch.Robinhood.Discovery,
+    Regents.Autolaunch.AuctionActivity,
+    Regents.Autolaunch.TokenTrades,
+    Regents.Autolaunch.LaunchDiscovery.Discover,
+    Regents.Autolaunch.RegentFacts,
+    Regents.Autolaunch.CoveredCalls.Book
+  ]
 
 config :regents, ecto_repos: [Regents.Repo]
 
@@ -173,7 +206,15 @@ config :regents, Oban,
     keyfleet_avatars: 2,
     keyfleet_key_art: 1,
     keyfleet_chain: 10,
-    keyfleet_seasons: 1
+    keyfleet_seasons: 1,
+    autolaunch_default: 1,
+    autolaunch_chain: 4,
+    autolaunch_launch_listing: 1,
+    autolaunch_outside_calls: 3,
+    autolaunch_stock_volume: 1,
+    autolaunch_stock_admissions: 1,
+    autolaunch_share_videos: 1,
+    autolaunch_auction_finishing: [limit: 1, paused: true]
   ],
   cron: [
     crontab: [
@@ -185,6 +226,8 @@ config :regents, Oban,
       {"17 4 * * *", Regents.ErrorPruner},
       # From the Points start, the one-time points for what accounts already had.
       {"@hourly", RegentPoints.StartAwards},
+      # Autolaunch chain watch.
+      {"* * * * *", Regents.Autolaunch.ChainWatch},
       # Keyfleet's scheduled maintenance, chain watchers, notebooks, seasons and Atlas.
       {"*/10 * * * *", Regents.Keyfleet.Notebooks.Reconcile},
       {"31 3 * * *", Regents.Keyfleet.Notebooks.DailyBackup},
@@ -264,6 +307,9 @@ config :regents, :updates_rate_limit, limit: 5, window_seconds: 60
 # The site's named allowances (`Regents.Limits`), `<product>_<name>: [limit:,
 # window_seconds:]`.
 config :regents, :limits,
+  # Autolaunch wallet & page read budgets.
+  wallet_read: [limit: 30, window_seconds: 60],
+  page_read: [limit: 30, window_seconds: 60],
   # Listings one address's open Autolaunch pages read (a changed option, a
   # search, Load more): as many a minute as the address has reads of the site.
   autolaunch_list_reads: [limit: 120, window_seconds: 60],

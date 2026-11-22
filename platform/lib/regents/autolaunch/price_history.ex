@@ -1,39 +1,48 @@
 defmodule Regents.Autolaunch.PriceHistory do
   @moduledoc """
-  A graduated token's price since its pool opened, read from the chain's own
-  logs each time a page asks.
+  A graduated token's price since its pool opened, for its chart, read from
+  the chain's own logs each time a page asks.
 
   The PoolManager's `Initialize` log for the pool gives the opening price and
-  each `Swap` log the price the trade left behind. `points` has one
-  `[block, price]` pair per log, the last price carried to the block the page
-  read at, thinned to 400 evenly spaced points that always keep the first and
-  the last; `trades` is the number of `Swap` logs. A token's page shows how far
-  the price has moved from the first point to the last, and the number of
-  trades.
+  each `Swap` log the price the trade left behind. The history holds two lines
+  of the same prices. `points` has one `[block, price]` pair per log, the last
+  price carried to the block the page read at, thinned to 400 evenly spaced
+  points that always keep the first and the last. `times` has 100 `[unix
+  seconds, price]` pairs evenly spaced from the first log's time to the read
+  block's time, each the price the last trade at or before it left, or nil
+  while the read block's time is still the first log's. Beside the
+  lines come the lowest and highest price and the number of trades, taken from
+  every log.
 
-  The prices are floats: they say how far the price moved to a tenth of a
-  percent, while every exact price a page states keeps coming from its exact
-  reads.
+  The figures are floats: they draw the line and give the low and the high to
+  a few digits, while every exact price a page states keeps coming from its
+  exact reads.
   """
 
+  alias Regents.Autolaunch.Chain.Rpc
   alias Regents.Autolaunch.LabAbi
-  alias Regents.Chain.Rpc
 
   @max_points 400
+  @time_points 100
   @q96 Integer.pow(2, 96)
-  @sqrt_price_bound Integer.pow(2, 160)
   @token_decimals 18
   @initialize "Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)"
   @swap "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)"
 
   @type point :: [number()]
-  @type history :: %{points: [point()], trades: non_neg_integer()}
+  @type history :: %{
+          points: [point()],
+          times: [point()] | nil,
+          low: float(),
+          high: float(),
+          trades: non_neg_integer()
+        }
 
   @doc """
-  A pool's price after every trade from `from_block` to the pinned block, and
-  the number of trades. `pool` names the PoolManager, the pool id, which side
-  the token is on and the currency's decimals. A pool with no logs yet has no
-  history.
+  A pool's price after every trade from `from_block` to the pinned block: the
+  line by trade, the line by time, the low, the high and the number of trades.
+  `pool` names the PoolManager, the pool id, which side the token is on and
+  the currency's decimals. A pool with no logs yet has no history.
   """
   @spec pool(map(), non_neg_integer(), Rpc.block(), keyword()) ::
           {:ok, history() | nil} | {:error, atom()}
@@ -41,41 +50,57 @@ defmodule Regents.Autolaunch.PriceHistory do
     topics = [[LabAbi.topic(@initialize), LabAbi.topic(@swap)], pool.pool_id]
 
     with {:ok, logs} <- Rpc.logs(pool.pool_manager, topics, from_block, block.number, opts),
-         {:ok, moments} <- moments(logs, block, pool) do
-      {:ok, history(moments, block)}
+         {:ok, moments} <-
+           moments(logs, block, fn log, words ->
+             pool_price(sqrt_price(log, words), pool.token_is_currency0?, pool.currency_decimals)
+           end) do
+      {:ok, history(moments, block, Enum.count(logs, &(topic0(&1) == LabAbi.topic(@swap))))}
     end
   end
 
-  defp history([], _block), do: nil
+  defp history([], _block, _trades), do: nil
 
-  defp history(moments, block) do
-    {_number, _event, last} = List.last(moments)
-    points = Enum.map(moments, fn {number, _event, price} -> [number, price] end)
+  defp history(moments, block, trades) do
+    {low, high} = moments |> Enum.map(fn {_number, _at, price} -> price end) |> Enum.min_max()
+    {_number, _at, last} = List.last(moments)
+    points = Enum.map(moments, fn {number, _at, price} -> [number, price] end)
 
     %{
       points: thin(points ++ [[block.number, last]]),
-      trades: Enum.count(moments, &match?({_number, :swap, _price}, &1))
+      times: times(moments, block.timestamp),
+      low: low,
+      high: high,
+      trades: trades
     }
   end
 
-  # Each log's block, event and price, in chain order. A removed log, one past
-  # the pinned block, or one that is not this pool's `Initialize` or `Swap`
-  # means the history moved under the read or the answer is not the chain's.
-  defp moments(logs, block, pool) do
-    logs
-    |> Enum.reduce_while({:ok, []}, fn log, {:ok, found} ->
+  # `Initialize` carries the opening price in its fourth data word, `Swap` the
+  # price after the trade in its third.
+  defp sqrt_price(log, words) do
+    if topic0(log) == LabAbi.topic(@initialize), do: Enum.at(words, 3), else: Enum.at(words, 2)
+  end
+
+  # `sqrtPriceX96` squared is currency1 base units per currency0 base unit.
+  defp pool_price(sqrt_price, token_is_currency0?, currency_decimals) do
+    ratio = :math.pow(sqrt_price / @q96, 2)
+    per_base_unit = if token_is_currency0?, do: ratio, else: 1 / ratio
+    per_base_unit * :math.pow(10, @token_decimals - currency_decimals)
+  end
+
+  # Each log's block, time and price, in chain order. A removed log, one past
+  # the pinned block, or one without its block's time means the history moved
+  # under the read.
+  defp moments(logs, block, price) do
+    Enum.reduce_while(logs, {:ok, []}, fn log, {:ok, found} ->
       with %{
              "removed" => false,
              "blockNumber" => "0x" <> number,
-             "topics" => [topic | _indexed],
+             "blockTimestamp" => "0x" <> at,
              "data" => "0x" <> data
            } <- log,
            {number, ""} when number <= block.number <- Integer.parse(number, 16),
-           {:ok, event} <- event(topic),
-           {:ok, words} <- words(data),
-           {:ok, sqrt_price} <- sqrt_price(event, words) do
-        price = pool_price(sqrt_price, pool.token_is_currency0?, pool.currency_decimals)
-        {:cont, {:ok, [{number, event, price} | found]}}
+           {at, ""} <- Integer.parse(at, 16) do
+        {:cont, {:ok, [{number, at, price.(log, words(data))} | found]}}
       else
         _invalid -> {:halt, {:error, :invalid_chain_response}}
       end
@@ -86,38 +111,24 @@ defmodule Regents.Autolaunch.PriceHistory do
     end
   end
 
-  defp event(topic) when is_binary(topic) do
-    initialize = LabAbi.topic(@initialize)
-    swap = LabAbi.topic(@swap)
+  # The price at evenly spaced moments from the first log to `now`; none
+  # while no time has passed since it.
+  defp times([{_number, opened, _price} | _rest], now) when now <= opened, do: nil
 
-    case String.downcase(topic) do
-      ^initialize -> {:ok, :initialize}
-      ^swap -> {:ok, :swap}
-      _other -> :error
-    end
+  defp times([{_number, opened, _price} | _rest] = moments, now) do
+    0..(@time_points - 1)
+    |> Enum.map(&(opened + div((now - opened) * &1, @time_points - 1)))
+    |> sample(moments, nil, [])
   end
 
-  defp event(_topic), do: :error
+  defp sample([], _moments, _price, found), do: Enum.reverse(found)
 
-  # `Initialize` carries the opening price in its fourth data word, `Swap` the
-  # price after the trade in its third.
-  defp sqrt_price(:initialize, [_fee, _spacing, _hooks, sqrt_price | _rest]),
-    do: in_range(sqrt_price)
+  defp sample([at | _later] = moments_at, [{_number, time, price} | rest], _last, found)
+       when time <= at,
+       do: sample(moments_at, rest, price, found)
 
-  defp sqrt_price(:swap, [_amount0, _amount1, sqrt_price | _rest]), do: in_range(sqrt_price)
-  defp sqrt_price(_event, _words), do: :error
-
-  defp in_range(sqrt_price) when sqrt_price > 0 and sqrt_price < @sqrt_price_bound,
-    do: {:ok, sqrt_price}
-
-  defp in_range(_sqrt_price), do: :error
-
-  # `sqrtPriceX96` squared is currency1 base units per currency0 base unit.
-  defp pool_price(sqrt_price, token_is_currency0?, currency_decimals) do
-    ratio = :math.pow(sqrt_price / @q96, 2)
-    per_base_unit = if token_is_currency0?, do: ratio, else: 1 / ratio
-    per_base_unit * :math.pow(10, @token_decimals - currency_decimals)
-  end
+  defp sample([at | later], moments, price, found),
+    do: sample(later, moments, price, [[at, price] | found])
 
   defp thin(points) when length(points) <= @max_points, do: points
 
@@ -129,12 +140,7 @@ defmodule Regents.Autolaunch.PriceHistory do
         do: elem(indexed, div(step * (count - 1), @max_points - 1))
   end
 
-  defp words(hex) when rem(byte_size(hex), 64) == 0 do
-    case Base.decode16(hex, case: :mixed) do
-      {:ok, bytes} -> {:ok, for(<<word::256 <- bytes>>, do: word)}
-      :error -> :error
-    end
-  end
+  defp topic0(%{"topics" => [topic | _rest]}), do: String.downcase(topic)
 
-  defp words(_hex), do: :error
+  defp words(hex), do: for(<<word::binary-size(64) <- hex>>, do: String.to_integer(word, 16))
 end

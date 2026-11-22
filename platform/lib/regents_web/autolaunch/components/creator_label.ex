@@ -1,8 +1,9 @@
 defmodule RegentsWeb.Autolaunch.Components.CreatorLabel do
   @moduledoc """
   Who launched an auction or token, in a word or two, the same on every list
-  row and token page: the creator's first account shown as ownership checked
-  (X, Company X, ENS, then GitHub), else the launching wallet, shortened.
+  row, auction and token page and share picture: the creator's first account
+  the auction page shows as ownership checked (X, Company X, ENS, then
+  GitHub), else the launching wallet, shortened.
   """
   use Phoenix.Component
 

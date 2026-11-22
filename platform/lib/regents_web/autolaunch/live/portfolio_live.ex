@@ -1,0 +1,1118 @@
+defmodule RegentsWeb.Autolaunch.PortfolioLive do
+  @moduledoc """
+  The signed-in account's bids and tokens, in the auctions list's format: the
+  Base bids of every wallet the account links, and the tokens and Robinhood
+  bids of the wallet the session signed in with.
+
+  Each bid is a list row: its token, what it put in, its maximum price, where
+  it stands and its auction's time. Under it sit its buttons: the auction's
+  page (the token's once it has launched), withdrawing or claiming when the
+  auction allows it, bidding more while bidding is open, and the bid's own
+  page (`RegentsWeb.Autolaunch.BidLive`); several bids in one auction are one row each. Each token the
+  wallet holds or stakes is a row with its page, Buy, Sell and Stake. Every
+  wallet step happens in the same components the auction and token pages use,
+  opened here in a dialog, or for a Base bid's early return, under its row.
+
+  Where an open Base bid stands comes from its auction's price book, read
+  after the page; under a bid that is outbid or sharing at the price, the
+  early return says when its unspent money can come back, as on the auction
+  page.
+
+  The stored bids, the tokens, the Robinhood bids and the price books are
+  four reads, each with its own outcome: the page says while any is still
+  running, when the last complete set was read, and which part could not be
+  read, keeping that part's previous result marked with its time. One set of
+  reads runs at a time; a reason to read again while one runs reads once more
+  after it.
+  """
+
+  use RegentsWeb, :live_view
+
+  import RegentsWeb.Autolaunch.Components.AutolaunchHelpers,
+    only: [human_actor: 1, current_human_id: 1, linked_wallets: 1, signed_in_wallet: 1]
+
+  import RegentsWeb.Autolaunch.Components.MarketCard,
+    only: [
+      assign_figure_rates: 1,
+      auction_status: 1,
+      figure_rate: 2,
+      list_token: 1
+    ]
+
+  import RegentsWeb.Autolaunch.Components.SwapModal
+
+  alias Regents.Account.Accounts.SessionAuthority
+  alias Regents.Autolaunch.{AuctionBook, ChainHead}
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
+  alias Regents.Autolaunch.Robinhood.Positions, as: RobinhoodPositions
+  alias Regents.Autolaunch.{Token, TokenHoldings}
+  alias RegentsWeb.Autolaunch.Components.AuctionBook, as: AuctionBookComponent
+  alias RegentsWeb.Autolaunch.Components.ShareLaunch
+
+  alias RegentsWeb.Autolaunch.{
+    BidSettlementComponent,
+    LabMarket,
+    Paths,
+    RobinhoodStockBidComponent,
+    TokenDisplay,
+    UsdValue
+  }
+
+  alias Phoenix.LiveView.AsyncResult
+
+  @history [:claimed, :returned]
+  @robinhood_history [:returned, :claimed]
+  @chain_reads [:token_holdings, :robinhood_positions, :books]
+
+  def mount(_params, _session, socket) do
+    {:ok,
+     socket
+     |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/portfolio"))
+     |> assign(
+       robinhood_swap?: RobinhoodLab.swap_configured?(),
+       robinhood_clock: ChainHead.block("robinhood")
+     )
+     |> LabMarket.subscribe_heads()
+     |> LabMarket.subscribe_wallet_bids()
+     |> subscribe_covered_calls()
+     |> clear_wallet_state()
+     |> assign_figure_rates()
+     |> read_holdings()}
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
+  def handle_event("refresh", _params, socket) do
+    read_covered_calls(socket, [])
+    read_earn(socket)
+    {:noreply, request_reads(socket)}
+  end
+
+  # Each dialog is named by the record its form acts on; the dialog's own
+  # close names the same record.
+  def handle_event("open_bid", %{"id" => id}, socket),
+    do: {:noreply, assign(socket, :dialog, %{kind: :bid, id: id})}
+
+  def handle_event("open_settlement", %{"id" => id}, socket),
+    do: {:noreply, assign(socket, :dialog, %{kind: :settle, id: id})}
+
+  def handle_event("open_robinhood", %{"id" => id, "mode" => mode}, socket)
+      when mode in ~w(bid settle),
+      do: {:noreply, assign(socket, :dialog, %{kind: :robinhood, id: id, mode: mode})}
+
+  def handle_event("open_trade", %{"id" => id, "direction" => direction}, socket)
+      when direction in ~w(buy sell),
+      do:
+        {:noreply,
+         assign(socket, :dialog, %{
+           kind: :trade,
+           id: id,
+           direction: String.to_existing_atom(direction)
+         })}
+
+  def handle_event("close_trade", %{"id" => id}, socket) do
+    case socket.assigns.dialog do
+      %{id: ^id} -> {:noreply, assign(socket, :dialog, nil)}
+      _other -> {:noreply, socket}
+    end
+  end
+
+  # A block went by, or one of the wallet's bids was written: positions may
+  # have become returnable or claimable, and a trade may have changed what the
+  # wallets hold. A Robinhood bid dialog follows Robinhood's clock.
+  def handle_info({:shared_reading, {:chain_head, _feed}}, socket),
+    do:
+      {:noreply,
+       socket |> assign(:robinhood_clock, ChainHead.block("robinhood")) |> request_reads()}
+
+  def handle_info({:autolaunch_bid_changed, _bid_id}, socket),
+    do: {:noreply, request_reads(socket)}
+
+  # A settlement card verified a step, so the stored position changed.
+  def handle_info({:bid_settlement_changed, _position_id}, socket),
+    do: {:noreply, request_reads(socket)}
+
+  # A covered-call press landed here: every open page of that market hears
+  # which listing and wallet, this one included.
+  def handle_info({:covered_calls_changed, symbol, press}, socket) do
+    Phoenix.PubSub.broadcast(
+      Regents.PubSub,
+      "covered_calls:" <> symbol,
+      {:covered_call_pressed, press}
+    )
+
+    {:noreply, socket}
+  end
+
+  # A press from this wallet, or on a listing it sold or holds or a bid it
+  # placed, from any page: its covered calls read again. Other presses change
+  # nothing here.
+  def handle_info({:covered_call_pressed, press}, socket) do
+    read_covered_calls(socket, pressed: press)
+    {:noreply, socket}
+  end
+
+  # One of the wallet's listings or bids reached its expiry, or a window closed.
+  def handle_info(:covered_calls_due, socket) do
+    read_covered_calls(socket, [])
+    {:noreply, socket}
+  end
+
+  # A covered-call panel's last step landed; its section says what moved.
+  def handle_info({:covered_call_done, done}, socket) do
+    send_update(RegentsWeb.Autolaunch.CoveredCallsPortfolioComponent,
+      id: "portfolio-covered-calls",
+      done: done
+    )
+
+    {:noreply, socket}
+  end
+
+  # A swap confirmed, so the wallets hold something else now.
+  def handle_info(:reload_pool, socket), do: {:noreply, request_reads(socket)}
+
+  def handle_async(key, {:ok, {:ok, rows}}, socket)
+      when key in [:token_holdings, :robinhood_positions],
+      do: {:noreply, socket |> read_ok(key, rows) |> read_queued()}
+
+  def handle_async(key, failed, socket) when key in [:token_holdings, :robinhood_positions],
+    do: {:noreply, socket |> read_failed(key, failed) |> read_queued()}
+
+  def handle_async(:books, {:ok, reads}, socket),
+    do:
+      {:noreply,
+       socket |> read_ok(:books, merge_books(socket.assigns.books.result, reads)) |> read_queued()}
+
+  def handle_async(:books, failed, socket) do
+    books = socket.assigns.books
+
+    {:noreply,
+     socket
+     |> assign(:books, AsyncResult.failed(%{books | result: stale_books(books.result)}, failed))
+     |> read_queued()}
+  end
+
+  def render(assigns) do
+    positions = assigns.bids.result || []
+    {history, current} = Enum.split_with(positions, &(&1.status in @history))
+    robinhood = assigns.robinhood_positions.result || []
+    {robinhood_history, robinhood_current} = Enum.split_with(robinhood, &past_robinhood?/1)
+    robinhood? = RobinhoodLab.configured?()
+
+    reads =
+      [:bids, :token_holdings, :books] ++ if(robinhood?, do: [:robinhood_positions], else: [])
+
+    refreshing? = Enum.any?(reads, &assigns[&1].loading)
+    complete? = Enum.all?(reads, &read?(assigns[&1]))
+
+    assigns =
+      assign(assigns,
+        positions: positions,
+        history: history,
+        current: Enum.sort_by(current, &(&1.status == :active)),
+        robinhood_history: robinhood_history,
+        robinhood_current: Enum.sort_by(robinhood_current, &(robinhood_action(&1) == nil)),
+        robinhood?: robinhood?,
+        refreshing?: refreshing?,
+        incomplete?: Enum.any?(reads, &assigns[&1].failed),
+        updated_at:
+          if(complete?,
+            do: assigns.read_at |> Map.take(reads) |> Map.values() |> Enum.min(DateTime)
+          ),
+        holdings: assigns.token_holdings.result || [],
+        opens: opens(),
+        signed_in?: assigns.account_control.kind == :signed_in,
+        human_id: current_human_id(assigns.access_context)
+      )
+
+    ~H"""
+    <section id="autolaunch-holdings" class="portfolio">
+      <header class="portfolio__header">
+        <div class="portfolio__intro">
+          <h1>Portfolio</h1>
+          <p :if={@opens && @account_control.kind != :sign_in} class="portfolio__hint">
+            Bidding and trading open {@opens}.
+          </p>
+        </div>
+        <div :if={@account_control.kind != :sign_in} class="portfolio__refresh">
+          <Regent.Primitives.last_read
+            id="portfolio-read"
+            at={@updated_at}
+            phx-click="refresh"
+            disabled={@refreshing?}
+            label="Read your portfolio again"
+          />
+          <p class="portfolio__hint portfolio__updated" role="status">
+            <span :if={@refreshing?} class="visually-hidden">Reading again.</span>
+            <span :if={@incomplete? && !@refreshing?}>Some of it could not be read just now.</span>
+          </p>
+        </div>
+      </header>
+
+      <section
+        :if={@account_control.kind == :sign_in}
+        class="rg-panel rg-panel--surface portfolio__sign-in"
+      >
+        <h2>Sign in to see your portfolio</h2>
+        <p class="portfolio__hint">Your wallet's bids and tokens show here.</p>
+        <Regent.Primitives.button
+          type="button"
+          class="account-control__sign-in"
+          data-account-target="sign-in"
+        >Sign in</Regent.Primitives.button>
+        <.link navigate="/" class="standalone-link">Keep exploring</.link>
+      </section>
+
+      <section
+        :if={@account_control.kind != :sign_in}
+        id="autolaunch-bid-positions"
+        class="portfolio__section"
+        aria-labelledby="portfolio-bids-title"
+      >
+        <h2 id="portfolio-bids-title" class="portfolio__title">Your bids</h2>
+        <.read_note read={@bids} read_at={@read_at[:bids]} subject="Your bids" />
+        <div
+          :if={
+            @current != [] || @robinhood_current != [] || unread?(@robinhood?, @robinhood_positions)
+          }
+          class="market-list__scroll"
+        >
+          <table class="market-list__table portfolio__table">
+            <caption class="visually-hidden">Your bids</caption>
+            <.bid_head />
+            <.base_bid
+              :for={position <- @current}
+              position={position}
+              price={@books.result[position.auction.id]}
+              rates={@rates}
+              opens={@opens}
+              signed_in?={@signed_in?}
+              human_id={@human_id}
+              session_lease={@session_lease}
+              account_control={@account_control}
+            />
+            <.robinhood_bid
+              :for={position <- @robinhood_current}
+              position={position}
+              rates={@rates}
+              opens={@opens}
+              account_control={@account_control}
+            />
+            <tbody :if={unread?(@robinhood?, @robinhood_positions)}>
+              <tr class="market-list__skeleton" aria-hidden="true">
+                <td colspan="5"><span class="loading-block"></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <.read_note
+          :if={@robinhood?}
+          read={@robinhood_positions}
+          read_at={@read_at[:robinhood_positions]}
+          subject="Your Robinhood bids"
+        />
+        <div
+          :if={
+            read?(@bids) && @current == [] &&
+              (!@robinhood? || (read?(@robinhood_positions) && @robinhood_current == []))
+          }
+          class="market-list__scroll market-list__empty"
+        >
+          <h2>No open bids</h2>
+          <p>Your bids will appear here.</p>
+          <.link navigate="/auctions" class="rg-button rg-button--secondary">Explore auctions</.link>
+        </div>
+
+        <Regent.Primitives.disclosure
+          :if={@history != [] || @robinhood_history != []}
+          id="portfolio-history"
+          class="portfolio__history"
+          summary={"Past bids · #{length(@history) + length(@robinhood_history)}"}
+        >
+          <div class="market-list__scroll">
+            <table class="market-list__table portfolio__table">
+              <caption class="visually-hidden">Past bids</caption>
+              <.bid_head />
+              <.base_bid
+                :for={position <- @history}
+                position={position}
+                rates={@rates}
+                opens={@opens}
+                signed_in?={@signed_in?}
+                human_id={@human_id}
+                session_lease={@session_lease}
+                account_control={@account_control}
+              />
+              <.robinhood_bid
+                :for={position <- @robinhood_history}
+                position={position}
+                rates={@rates}
+                opens={@opens}
+                account_control={@account_control}
+              />
+            </table>
+          </div>
+        </Regent.Primitives.disclosure>
+      </section>
+
+      <.live_component
+        :if={
+          @account_control.kind != :sign_in and Regents.Autolaunch.CoveredCalls.Deployment.enabled?()
+        }
+        module={RegentsWeb.Autolaunch.CoveredCallsPortfolioComponent}
+        id="portfolio-covered-calls"
+        session_lease={@session_lease}
+        current_human_id={@human_id}
+      />
+
+      <.live_component
+        :if={@account_control.kind != :sign_in and Regents.Autolaunch.Exposure.Deployment.enabled?()}
+        module={RegentsWeb.Autolaunch.ExposurePortfolioComponent}
+        id="portfolio-exposure"
+        current_human_id={@human_id}
+      />
+
+      <.live_component
+        :if={@account_control.kind != :sign_in and Regents.Autolaunch.Earn.Catalog.enabled?()}
+        module={RegentsWeb.Autolaunch.EarnPortfolioComponent}
+        id="portfolio-earn"
+        current_human_id={@human_id}
+      />
+
+      <section
+        :if={@account_control.kind != :sign_in}
+        id="autolaunch-held-tokens"
+        class="portfolio__section"
+        aria-labelledby="portfolio-tokens-title"
+      >
+        <h2 id="portfolio-tokens-title" class="portfolio__title">Your tokens</h2>
+        <.read_note
+          read={@token_holdings}
+          read_at={@read_at[:token_holdings]}
+          subject="Your token balances"
+        />
+        <div
+          :if={@holdings != [] || unread?(true, @token_holdings)}
+          class="market-list__scroll"
+        >
+          <table class="market-list__table portfolio__table portfolio__table--tokens">
+            <caption class="visually-hidden">Your tokens</caption>
+            <thead>
+              <tr>
+                <th scope="col">Token</th>
+                <th scope="col">Held</th>
+                <th scope="col">Staked</th>
+                <th scope="col">Rewards</th>
+              </tr>
+            </thead>
+            <.holding
+              :for={holding <- @holdings}
+              id={"portfolio-token-#{holding.chain}-#{holding.address}"}
+              holding={holding}
+              robinhood_swap?={@robinhood_swap?}
+              opens={@opens}
+              account_control={@account_control}
+            />
+            <tbody :if={unread?(true, @token_holdings)}>
+              <tr class="market-list__skeleton" aria-hidden="true">
+                <td colspan="4"><span class="loading-block"></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div
+          :if={read?(@token_holdings) && @holdings == []}
+          class="market-list__scroll market-list__empty"
+        >
+          <h2>No tokens yet</h2>
+          <p>Tokens held or staked by the wallet you signed in with will appear here.</p>
+          <.link navigate="/tokens" class="rg-button rg-button--secondary">Explore tokens</.link>
+        </div>
+      </section>
+
+      <.dialog
+        dialog={@dialog}
+        positions={@positions}
+        robinhood={@robinhood_current ++ @robinhood_history}
+        holdings={@holdings}
+        observed={@robinhood_clock}
+        signed_in?={@signed_in?}
+        human_id={@human_id}
+        session_lease={@session_lease}
+      />
+    </section>
+    """
+  end
+
+  defp bid_head(assigns) do
+    ~H"""
+    <thead>
+      <tr>
+        <th scope="col">Token</th>
+        <th scope="col">Your bid</th>
+        <th scope="col">Max price</th>
+        <th scope="col">Action</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    """
+  end
+
+  attr :position, :map, required: true, doc: "a stored Base bid with its auction and token"
+  attr :account_control, :map, required: true
+
+  attr :price, :map,
+    default: nil,
+    doc: "its auction's price book read: `%{book: book | nil, fresh?: boolean}`, nil before one"
+
+  attr :rates, :any, required: true
+  attr :opens, :string, default: nil
+  attr :signed_in?, :boolean, required: true
+  attr :human_id, :integer, default: nil
+  attr :session_lease, :any, required: true
+
+  # One Base bid: its list row, whose name opens its page and whose action
+  # is its settlement once the auction allows one, else where it stands and
+  # Bid more while bidding is open; under a bid that is outbid or sharing at
+  # the price, its early return.
+  defp base_bid(assigns) do
+    %{position: position, price: price} = assigns
+    auction = position.auction
+    live? = auction.state == :active
+    book = price && price.book
+    standing = if(live? && book, do: AuctionBook.bid_standing(position, auction, book))
+    settle = BidSettlementComponent.settle_label(position)
+
+    assigns =
+      assign(assigns,
+        auction: auction,
+        path:
+          if(match?(%Token{}, position.token),
+            do: Paths.token(auction),
+            else: Paths.auction(auction)
+          ),
+        rate: figure_rate(assigns.rates, auction),
+        settle: settle,
+        live?: live?,
+        book: book,
+        standing: standing,
+        # A bid with a withdraw or claim shows that button in place of its standing.
+        is: if(!settle, do: base_standing(position, standing, price))
+      )
+
+    ~H"""
+    <tbody id={"autolaunch-bid-#{@position.id}"}>
+      <tr class="market-list__row">
+        <.list_token
+          name={@auction.title}
+          symbol={@auction.token_symbol}
+          unit={@auction.quote_token_symbol}
+          image={@auction.image}
+          chain="Base"
+          path={@path}
+        />
+        <td>
+          <TokenDisplay.price amount={@position.amount} unit={@auction.quote_token_symbol} />
+          <small :if={@rate}><UsdValue.usd amount={@position.amount} rate={@rate} /></small>
+        </td>
+        <td>
+          <TokenDisplay.price amount={@position.max_price} unit={@auction.quote_token_symbol} />
+        </td>
+        <td>
+          <div class="portfolio__action">
+            <Regent.Primitives.button
+              :if={@settle}
+              phx-click="open_settlement"
+              phx-value-id={@position.id}
+            >
+              {@settle}
+            </Regent.Primitives.button>
+            <.standing :if={!@settle} is={@is} />
+            <Regent.Primitives.button
+              :if={@live?}
+              variant="secondary"
+              phx-click="open_bid"
+              phx-value-id={@auction.id}
+              disabled={!!@opens}
+            >
+              Bid more
+            </Regent.Primitives.button>
+            <.link navigate={Paths.bid(@position.bid_id)} class="rg-button rg-button--quiet">
+              Details
+            </.link>
+            <ShareLaunch.share_launch
+              id={"portfolio-share-#{@position.id}"}
+              auction={@auction}
+              account_control={@account_control}
+            />
+          </div>
+        </td>
+        <td><.auction_status id={"portfolio-time-#{@position.id}"} auction={@auction} /></td>
+      </tr>
+      <tr
+        :if={@position.status == :active && @standing in [:outbid, :sharing]}
+        class="portfolio__actions"
+      >
+        <td colspan="5">
+          <.live_component
+            module={BidSettlementComponent}
+            id={"portfolio-early-#{@position.id}"}
+            early
+            position={@position}
+            recheck={@book.block}
+            authenticated={@signed_in?}
+            current_human_id={@human_id}
+            session_lease={@session_lease}
+          />
+        </td>
+      </tr>
+    </tbody>
+    """
+  end
+
+  attr :position, :map,
+    required: true,
+    doc: "a Robinhood bid from `Regents.Autolaunch.Robinhood.Positions`"
+
+  attr :account_control, :map, required: true
+
+  attr :rates, :any, required: true
+  attr :opens, :string, default: nil
+
+  # One Robinhood bid: its list row, whose name opens its page and whose
+  # action is what its auction admits. A bid on an auction this site does not
+  # list has no page and no action here; one on a hidden auction keeps its
+  # Withdraw or Claim but has no page and no further bids.
+  defp robinhood_bid(assigns) do
+    %{position: position} = assigns
+    listing = position.listing
+
+    assigns =
+      assign(assigns,
+        listing: listing,
+        path: Paths.robinhood_bid_page(position),
+        rate: listing && figure_rate(assigns.rates, listing),
+        action: listing && robinhood_action(position)
+      )
+
+    ~H"""
+    <tbody id={"autolaunch-robinhood-bid-#{@position.auction}-#{@position.bid_id}"}>
+      <tr class="market-list__row">
+        <.list_token
+          name={@position.name}
+          symbol={@position.symbol}
+          unit={@position.stock_symbol}
+          image={@position.image}
+          chain="Robinhood"
+          path={@path}
+        />
+        <td>
+          <TokenDisplay.price amount={@position.committed} unit={@position.stock_symbol} />
+          <small :if={@rate}><UsdValue.usd amount={@position.committed} rate={@rate} /></small>
+        </td>
+        <td><TokenDisplay.price amount={@position.max_price} unit={@position.stock_symbol} /></td>
+        <td>
+          <div class="portfolio__action">
+            <Regent.Primitives.button
+              :if={@action in [:withdraw, :claim]}
+              phx-click="open_robinhood"
+              phx-value-id={@listing.id}
+              phx-value-mode="settle"
+            >
+              {robinhood_settle_label(@action, @position)}
+            </Regent.Primitives.button>
+            <.standing :if={@action not in [:withdraw, :claim]} is={robinhood_standing(@position)} />
+            <Regent.Primitives.button
+              :if={@action == :early}
+              phx-click="open_robinhood"
+              phx-value-id={@listing.id}
+              phx-value-mode="bid"
+            >
+              Withdraw
+            </Regent.Primitives.button>
+            <Regent.Primitives.button
+              :if={@listing && @listing.state == :active && !@listing.hidden}
+              variant="secondary"
+              phx-click="open_robinhood"
+              phx-value-id={@listing.id}
+              phx-value-mode="bid"
+              disabled={!!@opens}
+            >
+              Bid more
+            </Regent.Primitives.button>
+            <.link
+              navigate={Paths.bid(String.downcase("#{@position.auction}:#{@position.bid_id}"))}
+              class="rg-button rg-button--quiet"
+            >
+              Details
+            </.link>
+            <ShareLaunch.share_launch
+              :if={@listing}
+              id={"portfolio-share-#{@position.auction}-#{@position.bid_id}"}
+              auction={@listing}
+              account_control={@account_control}
+            />
+          </div>
+        </td>
+        <td>
+          <.auction_status
+            :if={@listing}
+            id={"portfolio-time-#{@position.auction}-#{@position.bid_id}"}
+            auction={@listing}
+          />
+          <span :if={!@listing}>-</span>
+        </td>
+      </tr>
+    </tbody>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :holding, :map, required: true, doc: "a token from `Regents.Autolaunch.TokenHoldings`"
+  attr :account_control, :map, required: true
+  attr :robinhood_swap?, :boolean, required: true
+  attr :opens, :string, default: nil
+
+  # One token the wallets hold or stake: its list row, whose name opens its
+  # page, then Buy and Sell in the swap dialog, and Stake on its page.
+  defp holding(assigns) do
+    %{holding: holding} = assigns
+    token = holding.token
+
+    assigns =
+      assign(assigns,
+        token: token,
+        path: token && Paths.token(token.auction),
+        stake_path: token && Paths.token_stake(token.auction),
+        image: token && Token.presentation(token).image,
+        tradable?: token && tradable?(token, assigns.robinhood_swap?)
+      )
+
+    ~H"""
+    <tbody id={@id} phx-hook="MotionCount" data-variant="flash">
+      <tr class="market-list__row">
+        <.list_token
+          name={@holding.name}
+          symbol={@holding.symbol}
+          unit={@holding.unit}
+          image={@image}
+          chain={if @holding.chain == :robinhood, do: "Robinhood", else: "Base"}
+          path={@path}
+        />
+        <td><TokenDisplay.amount amount={@holding.held} unit={@holding.symbol} /></td>
+        <td><TokenDisplay.amount amount={@holding.staked} unit={@holding.symbol} /></td>
+        <td>
+          <span :if={@holding.claimable == []}>-</span>
+          <span :for={{reward, index} <- Enum.with_index(@holding.claimable)}>
+            {if index > 0, do: " + "}<TokenDisplay.tokens amount={reward.amount} unit={reward.symbol} />
+          </span>
+        </td>
+      </tr>
+      <tr :if={@token} class="portfolio__actions">
+        <td colspan="4">
+          <div class="portfolio__buttons">
+            <Regent.Primitives.button
+              :if={@tradable?}
+              phx-click="open_trade"
+              phx-value-id={@token.id}
+              phx-value-direction="buy"
+              disabled={!!@opens}
+            >
+              Buy
+            </Regent.Primitives.button>
+            <Regent.Primitives.button
+              :if={@tradable?}
+              variant="secondary"
+              phx-click="open_trade"
+              phx-value-id={@token.id}
+              phx-value-direction="sell"
+              disabled={!!@opens}
+            >
+              Sell
+            </Regent.Primitives.button>
+            <.link navigate={@stake_path} class="rg-button rg-button--secondary">
+              {if @holding.claimable != [], do: "Stake or claim rewards", else: "Stake"}
+            </.link>
+            <ShareLaunch.share_launch
+              id={"portfolio-share-#{@id}"}
+              auction={@token.auction}
+              account_control={@account_control}
+            />
+          </div>
+        </td>
+      </tr>
+    </tbody>
+    """
+  end
+
+  attr :dialog, :map, default: nil
+  attr :positions, :list, required: true
+  attr :robinhood, :list, required: true
+  attr :holdings, :list, required: true
+  attr :observed, :any, required: true, doc: "Robinhood's clock as the page last read it"
+  attr :signed_in?, :boolean, required: true
+  attr :human_id, :integer, default: nil
+  attr :session_lease, :any, required: true
+
+  # The open dialog, for the record it names while that record is still on
+  # the page.
+  defp dialog(%{dialog: %{kind: :bid, id: id}} = assigns) do
+    assigns =
+      assign(
+        assigns,
+        :auction,
+        Enum.find_value(assigns.positions, &(&1.auction.id == id && &1.auction))
+      )
+
+    ~H"""
+    <.bid_modal
+      :if={@auction}
+      id={"portfolio-bid-#{@auction.id}"}
+      auction={@auction}
+      page={:portfolio}
+      authenticated={@signed_in?}
+      current_human_id={@human_id}
+      session_lease={@session_lease}
+    />
+    """
+  end
+
+  defp dialog(%{dialog: %{kind: :settle, id: id}} = assigns) do
+    assigns = assign(assigns, :position, Enum.find(assigns.positions, &(&1.id == id)))
+
+    ~H"""
+    <.settlement_modal
+      :if={@position}
+      id={"portfolio-settle-#{@position.id}"}
+      position={@position}
+      authenticated={@signed_in?}
+      current_human_id={@human_id}
+      session_lease={@session_lease}
+    />
+    """
+  end
+
+  defp dialog(%{dialog: %{kind: :robinhood, id: id, mode: mode}} = assigns) do
+    position = Enum.find(assigns.robinhood, &(&1.listing && &1.listing.id == id))
+    listing = position && position.listing
+
+    assigns =
+      assign(assigns,
+        listing: listing,
+        mode: mode,
+        ended:
+          if(listing && mode == "settle", do: RobinhoodStockBidComponent.ended_copy(listing)),
+        stake_path: if(listing && position.token, do: Paths.token_stake(listing))
+      )
+
+    ~H"""
+    <.robinhood_bid_modal
+      :if={@listing}
+      id={"portfolio-robinhood-#{@mode}-#{@listing.id}"}
+      auction={@listing}
+      ended={@ended}
+      stake_path={@stake_path}
+      page={:portfolio}
+      observed={@observed}
+      authenticated={@signed_in?}
+      current_human_id={@human_id}
+      session_lease={@session_lease}
+    />
+    """
+  end
+
+  defp dialog(%{dialog: %{kind: :trade, id: id, direction: direction}} = assigns) do
+    assigns =
+      assign(assigns,
+        token: Enum.find_value(assigns.holdings, &(&1.token && &1.token.id == id && &1.token)),
+        direction: direction
+      )
+
+    ~H"""
+    <.swap_modal
+      :if={@token}
+      id={"portfolio-trade-#{@direction}-#{@token.id}"}
+      token={@token}
+      direction={@direction}
+      authenticated={@signed_in?}
+      current_human_id={@human_id}
+      session_lease={@session_lease}
+      portfolio={false}
+    />
+    """
+  end
+
+  defp dialog(assigns), do: ~H""
+
+  # Until the contracts are deployed no bid or trade opens.
+  defp opens do
+    if Regents.Autolaunch.Prelaunch.read_only?(), do: "soon"
+  end
+
+  # What a Robinhood bid's auction admits now: its unspent money back once
+  # the auction has settled, its tokens once they can be claimed, or, while
+  # bidding is open, the early return a bid that is not buying may have.
+  defp robinhood_settle_label(:claim, _position), do: "Claim"
+
+  defp robinhood_settle_label(:withdraw, %{standing: :refundable} = position),
+    do: BidSettlementComponent.refund_label(position.refundable, position.stock_symbol)
+
+  defp robinhood_settle_label(:withdraw, _position), do: "Withdraw"
+
+  defp robinhood_action(%{standing: standing}) when standing in [:refundable, :graduated],
+    do: :withdraw
+
+  defp robinhood_action(%{standing: :claimable}), do: :claim
+  defp robinhood_action(%{standing: standing}) when standing in [:sharing, :outbid], do: :early
+  defp robinhood_action(_position), do: nil
+
+  defp past_robinhood?(%{standing: standing}), do: standing in @robinhood_history
+
+  # Where a Base bid stands: against its auction's price while bidding is
+  # open and the book has been read (marked when that read is an earlier
+  # one), otherwise from its stored settlement.
+  defp base_standing(%{status: :active}, standing, %{fresh?: true}) when standing != nil,
+    do: book_standing(standing)
+
+  defp base_standing(%{status: :active}, standing, _price) when standing != nil do
+    {words, tone} = book_standing(standing)
+    {words <> " · may be out of date", tone}
+  end
+
+  defp base_standing(%{status: :active, auction: %{state: :active}}, nil, %{book: nil}),
+    do: {"Price unavailable", "neutral"}
+
+  defp base_standing(%{status: :active, auction: %{state: :active}}, nil, _price),
+    do: {"In the auction", "info"}
+
+  defp base_standing(%{status: :active}, nil, _price), do: {"Bidding ended", "neutral"}
+  defp base_standing(%{status: :claimed}, _standing, _price), do: {"Completed", "success"}
+
+  defp base_standing(%{status: :awaiting_claim}, _standing, _price),
+    do: {"Tokens claimable soon", "info"}
+
+  defp base_standing(%{status: :returned}, _standing, _price), do: {"Completed", "success"}
+
+  # Where a Robinhood bid stands, in the auction's own terms.
+  defp robinhood_standing(%{standing: standing}) when standing in [:in, :sharing, :outbid],
+    do: book_standing(standing)
+
+  defp robinhood_standing(%{standing: :ended}), do: {"Bidding ended", "neutral"}
+
+  defp robinhood_standing(%{standing: :refundable, refundable: amount, stock_symbol: symbol}),
+    do: {"#{amount} #{symbol} to withdraw", "info"}
+
+  defp robinhood_standing(%{standing: :graduated, stock_symbol: symbol}),
+    do: {"Unspent #{symbol} to withdraw", "info"}
+
+  defp robinhood_standing(%{standing: :filled}), do: {"Tokens claimable soon", "info"}
+  defp robinhood_standing(%{standing: :claimable}), do: {"Tokens ready to claim", "info"}
+
+  defp robinhood_standing(%{standing: standing}) when standing in [:returned, :claimed],
+    do: {"Completed", "success"}
+
+  # A live bid against the auction's price: buying reads well, sharing the
+  # price is a warning and outbid needs the bidder's attention.
+  defp book_standing(standing) do
+    {AuctionBookComponent.standing_label(standing),
+     %{in: "success", sharing: "warning", outbid: "error"}[standing]}
+  end
+
+  attr :is, :any, required: true, doc: "a `{words, tone}` standing"
+
+  defp standing(%{is: {words, tone}} = assigns) do
+    assigns = assign(assigns, words: words, tone: tone)
+
+    ~H"""
+    <Regent.Primitives.status tone={@tone}>{@words}</Regent.Primitives.status>
+    """
+  end
+
+  attr :read, AsyncResult, required: true
+  attr :read_at, DateTime, default: nil
+  attr :subject, :string, required: true, doc: "what the read is, as the note's subject"
+
+  # A part of the page that could not be read: unavailable when it never has
+  # been, otherwise kept from its last read with that read's time.
+  defp read_note(assigns) do
+    ~H"""
+    <p :if={@read.failed && is_nil(@read.result)} class="portfolio__hint" role="alert">
+      {@subject} are unavailable right now.
+    </p>
+    <p :if={@read.failed && @read.result} class="portfolio__hint" role="alert">
+      {@subject} could not be updated just now. These are from {Calendar.strftime(
+        @read_at,
+        "%H:%M UTC"
+      )}.
+    </p>
+    """
+  end
+
+  defp read?(read), do: read.ok? and is_nil(read.failed)
+
+  # A read shown for the first time: its rows are still on their way.
+  defp unread?(shown?, read), do: shown? and read.loading != nil and is_nil(read.result)
+
+  # Nothing from a previous account or session outlives it: running reads
+  # stop and every result starts empty.
+  defp clear_wallet_state(socket) do
+    @chain_reads
+    |> Enum.reduce(socket, &cancel_async(&2, &1))
+    |> assign(
+      bids: %AsyncResult{},
+      token_holdings: %AsyncResult{},
+      robinhood_positions: %AsyncResult{},
+      books: %AsyncResult{},
+      read_at: %{},
+      queued?: false,
+      dialog: nil
+    )
+  end
+
+  # The account's bids and tokens, while its session holds. A session that
+  # has lapsed since the page opened shows nothing of it and opens the page
+  # again as the session now stands.
+  defp read_holdings(socket) do
+    context = socket.assigns.access_context
+    actor = human_actor(context)
+
+    cond do
+      is_nil(actor) ->
+        clear_wallet_state(socket)
+
+      connected?(socket) and lapsed?(socket.assigns) ->
+        socket |> clear_wallet_state() |> push_navigate(to: "/portfolio")
+
+      true ->
+        socket
+        |> read_bids(actor, linked_wallets(context))
+        |> read_chain(actor, signed_in_wallet(context))
+    end
+  end
+
+  # A read of the lease that fails says nothing about it, so only a lease that
+  # reads as ended counts as lapsed.
+  defp lapsed?(%{session_lease: %{lineage: lineage, account_id: account_id}}),
+    do: SessionAuthority.leased_account(lineage, account_id) == {:ok, nil}
+
+  defp lapsed?(_assigns), do: true
+
+  defp read_bids(socket, actor, wallets) do
+    case Regents.Autolaunch.list_wallet_bid_positions(wallets, actor: actor) do
+      {:ok, positions} -> socket |> read_ok(:bids, positions) |> read_books(positions)
+      {:error, reason} -> read_failed(socket, :bids, reason)
+    end
+  end
+
+  # The price books of the auctions still taking bids that the open Base bids
+  # are in; each book's read is kept on its own.
+  defp read_books(socket, positions) do
+    auctions =
+      for %{status: :active, auction: %{state: :active} = auction} <- positions,
+          uniq: true,
+          do: auction
+
+    cond do
+      not connected?(socket) ->
+        socket
+
+      auctions == [] ->
+        read_ok(socket, :books, %{})
+
+      true ->
+        socket
+        |> assign(:books, AsyncResult.loading(socket.assigns.books))
+        |> start_async(:books, fn -> Map.new(auctions, &{&1.id, AuctionBook.base(&1)}) end)
+    end
+  end
+
+  # Wallet balances and Robinhood bids come from the chain, so they arrive
+  # after the page; the first paint shows them as on their way.
+  defp read_chain(socket, actor, wallet) do
+    socket =
+      socket
+      |> assign(:token_holdings, AsyncResult.loading(socket.assigns.token_holdings))
+      |> assign(:robinhood_positions, AsyncResult.loading(socket.assigns.robinhood_positions))
+
+    if connected?(socket),
+      do:
+        socket
+        |> start_async(:token_holdings, fn -> TokenHoldings.read_wallet(actor, wallet) end)
+        |> start_async(:robinhood_positions, fn -> RobinhoodPositions.read_wallet(wallet) end),
+      else: socket
+  end
+
+  # While a set of reads runs, another reason to read waits for it and
+  # reads once after it, however many arrive.
+  defp request_reads(socket) do
+    if Enum.any?(@chain_reads, &socket.assigns[&1].loading),
+      do: assign(socket, :queued?, true),
+      else: read_holdings(socket)
+  end
+
+  defp read_queued(%{assigns: %{queued?: true}} = socket) do
+    if Enum.any?(@chain_reads, &socket.assigns[&1].loading),
+      do: socket,
+      else: socket |> assign(:queued?, false) |> read_holdings()
+  end
+
+  defp read_queued(socket), do: socket
+
+  defp read_ok(socket, key, value) do
+    socket
+    |> assign(key, AsyncResult.ok(socket.assigns[key], value))
+    |> assign(:read_at, Map.put(socket.assigns.read_at, key, DateTime.utc_now()))
+  end
+
+  defp read_failed(socket, key, reason),
+    do: assign(socket, key, AsyncResult.failed(socket.assigns[key], reason))
+
+  # Each auction's book from this read, or its last one marked as earlier.
+  defp merge_books(previous, reads) do
+    Map.new(reads, fn
+      {id, {:ok, book}} -> {id, %{book: book, fresh?: true}}
+      {id, _failed} -> {id, %{book: previous && get_in(previous, [id, :book]), fresh?: false}}
+    end)
+  end
+
+  defp stale_books(nil), do: nil
+
+  defp stale_books(books),
+    do: Map.new(books, fn {id, entry} -> {id, %{entry | fresh?: false}} end)
+
+  # Every covered-call market's presses, from any page, while they are on.
+  defp subscribe_covered_calls(socket) do
+    with true <- connected?(socket),
+         {:ok, %{markets: markets}} <- Regents.Autolaunch.CoveredCalls.Deployment.current() do
+      Enum.each(
+        markets,
+        &Phoenix.PubSub.subscribe(Regents.PubSub, "covered_calls:" <> &1.symbol)
+      )
+    end
+
+    socket
+  end
+
+  # Only while the page shows its covered calls section; `pressed:` reads only
+  # when that listing is one of the wallet's own.
+  defp read_covered_calls(socket, only) do
+    if socket.assigns.account_control.kind != :sign_in and
+         Regents.Autolaunch.CoveredCalls.Deployment.enabled?(),
+       do:
+         send_update(
+           RegentsWeb.Autolaunch.CoveredCallsPortfolioComponent,
+           Keyword.merge([id: "portfolio-covered-calls", read: true], only)
+         )
+  end
+
+  # Only while the page shows its Earn section.
+  defp read_earn(socket) do
+    if socket.assigns.account_control.kind != :sign_in and
+         Regents.Autolaunch.Earn.Catalog.enabled?(),
+       do:
+         send_update(RegentsWeb.Autolaunch.EarnPortfolioComponent,
+           id: "portfolio-earn",
+           read: true
+         )
+  end
+end
