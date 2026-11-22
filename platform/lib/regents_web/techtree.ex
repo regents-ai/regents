@@ -10,11 +10,14 @@ defmodule RegentsWeb.Techtree do
   `/techtree/train.json` and each comparison's report, each published
   Result's share picture, `/techtree/results/:bundle_digest/share.png`, and the
   Wallet Bench's `/techtree/wallet-bench.md`, `/techtree/wallet-bench.json` and
-  each test's `results.json` are answered outside the page scope.
+  each test's `results.json` are answered outside the page scope. A signed-in
+  person's Projects are at `/techtree/account/projects`, and their paired
+  agent's reads of them under `/api/v1/techtree/account`.
   """
   use Boundary,
     deps: [RegentsWeb, Regents.Techtree],
     exports: [
+      AgentAccountController,
       AgentsController,
       BootstrapController,
       CatalogController,
@@ -27,6 +30,8 @@ defmodule RegentsWeb.Techtree do
       Layouts,
       ModelClimbReportController,
       ObjectController,
+      ProjectPackageController,
+      ProjectsLive,
       PublicationController,
       PublicDocuments,
       PublicPagesController,

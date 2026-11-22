@@ -74,9 +74,9 @@ defmodule RegentsWeb.Techtree.AgentsController do
   Signed account reads require a current pairing and the owner's existing
   canonical account. `account_points` reads GET /api/v1/account/points.
   `account_projects` and `account_project` read the projects Techtree's team
-  delivered to the owner (GET /api/v1/account/projects and
-  /api/v1/account/projects/{id}); a project's package, a gzip file, downloads
-  from GET /api/v1/account/projects/{id}/package with fresh proof. Account
+  delivered to the owner (GET /api/v1/techtree/account/projects and
+  /api/v1/techtree/account/projects/{id}); a project's package, a gzip file, downloads
+  from GET /api/v1/techtree/account/projects/{id}/package with fresh proof. Account
   IDs or wallets submitted as inputs never select an owner. Only the owner
   manages pairing controls and account security. Techtree does not activate
   Points or award Points for reads. Points answers carry a `note` when earning

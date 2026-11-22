@@ -237,6 +237,9 @@ defmodule RegentsWeb.Techtree.Layouts do
   # The Wallet Bench and each test's page carry the home page's, as on techtree.sh.
   def description("/techtree/wallet-bench" <> _test), do: description("/techtree")
 
+  # The account's Projects carry the home page's, as techtree.sh's account pages do.
+  def description("/techtree/account/projects" <> _project), do: description("/techtree")
+
   def description(path) when path in ["/techtree", "/techtree/examples/tdd"],
     do:
       "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure."

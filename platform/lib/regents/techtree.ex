@@ -8,8 +8,11 @@ defmodule Regents.Techtree do
   (`Regents.Techtree.ModelClimb`), the catalog's releases and entries
   (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`), the
   public run log of published Results (`Regents.Techtree.Network`, read only
-  here: nothing publishes to it yet) and the Wallet Bench's tests
-  (`Regents.Techtree.WalletBench`, read only here: techtree.sh runs them). The
+  here: nothing publishes to it yet), the Wallet Bench's tests
+  (`Regents.Techtree.WalletBench`, read only here: techtree.sh runs them) and
+  the projects Techtree's team delivered to customers
+  (`Regents.Techtree.Projects`, read only here: techtree.sh's team delivers
+  them). The
   published Skill comparisons are committed files
   (`Regents.Techtree.Train.Comparisons`), and so are the starter Skills
   (`Regents.Techtree.Release.StarterSkill`, `priv/techtree/release`). Its pages
@@ -33,6 +36,7 @@ defmodule Regents.Techtree do
       Network.Query,
       Network.ResultFilters,
       Network.Verdict,
+      Projects,
       Release,
       Release.StarterSkill,
       Train.Comparisons,

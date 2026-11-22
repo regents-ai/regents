@@ -4,6 +4,7 @@
    Techtree scope marks; a scoped rule keeps its own specificity and wins over
    an unscoped rule of the same specificity. Regent UI's tokens and primitives
    come from the site's own app.css. */
+@import "./projects.css";
 @import "./account_shell.css";
 @import "./site_chrome.css";
 @import "./agent_versions.css";
