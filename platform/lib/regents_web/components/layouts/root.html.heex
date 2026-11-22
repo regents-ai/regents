@@ -9,6 +9,9 @@
      every other page has its address and the site's graph. --%>
 <% canonical = assigns[:canonical] || metadata.canonical %>
 <% structured_data = assigns[:structured_data] || RegentsWeb.PublicDocuments.structured_data() %>
+<%!-- A product's page that also answers as Markdown says so (`markdown?`), as the
+     site's own documents do by their address. --%>
+<% markdown? = assigns[:markdown?] || metadata.markdown? %>
 <%!-- The app shell fills the window and scrolls inside itself, so its pages carry these links in that scroll. --%>
 <% shell? =
   assigns[:live_module] in [RegentsWeb.ShellLive, RegentsWeb.ShowcaseLive] %>
@@ -35,7 +38,7 @@
       image_height={elem(share_image.size, 1)}
       image_alt={share_image.alt}
       twitter_site="@regents_sh"
-      markdown={metadata.markdown?}
+      markdown={markdown?}
       agent_guide={~p"/llms.txt"}
       sitemap={~p"/sitemap.xml"}
       service_description={~p"/openapi.json"}
