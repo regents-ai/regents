@@ -78,6 +78,21 @@ defmodule Regents.Account.PublicIdentity do
     end
   end
 
+  @doc """
+  The name a holder's row prints for an account, as `{chosen, ens}`: the display
+  name it chose and nothing else, or no chosen name and the ENS name its wallet
+  publishes, each nil when the account has none. No account is `{nil, nil}`.
+  """
+  @spec holder(map() | nil) :: {String.t() | nil, String.t() | nil}
+  def holder(nil), do: {nil, nil}
+
+  def holder(account) do
+    case present(account.display_name) do
+      nil -> {nil, present(account.ens_name)}
+      chosen -> {chosen, nil}
+    end
+  end
+
   @doc "The account's wallet address, when it has one."
   def wallet(identity) when is_map(identity) do
     case Map.get(identity, :wallet_address) do

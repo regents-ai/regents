@@ -158,15 +158,7 @@
           {ExSlop.Check.Refactor.ReduceMapPut, []},
           {ExSlop.Check.Refactor.RedundantBooleanIf, []},
           {ExSlop.Check.Refactor.FlatMapFilter, []},
-          {ExSlop.Check.Refactor.LengthComparison,
-           [
-             files: %{
-               excluded: [
-                 # These validations require an exact ABI/domain shape, not an emptiness test.
-                 "lib/regents/autolaunch/indexer/chain.ex"
-               ]
-             }
-           ]},
+          {ExSlop.Check.Refactor.LengthComparison, []},
           {ExSlop.Check.Readability.NarratorDoc, []},
           {ExSlop.Check.Readability.BoilerplateDocParams, []},
           {ExSlop.Check.Readability.NarratorComment, []},

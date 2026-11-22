@@ -30,4 +30,13 @@ defmodule Regents.Limits do
       {:error, :rate_limited, budget} -> {:limited, budget.reset}
     end
   end
+
+  @doc "The seconds `name`'s allowance lasts before it starts again."
+  @spec window(atom()) :: pos_integer()
+  def window(name),
+    do:
+      :regents
+      |> Application.fetch_env!(:limits)
+      |> Keyword.fetch!(name)
+      |> Keyword.fetch!(:window_seconds)
 end
