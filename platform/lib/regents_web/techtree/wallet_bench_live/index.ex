@@ -52,6 +52,9 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Index do
   def handle_event("close_result", _params, socket),
     do: {:noreply, push_patch(socket, to: here(socket.assigns, result: nil))}
 
+  # Any other press, one sent by hand, changes nothing.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   defp test!(name) do
     case List.keyfind(Copy.grid_tests(), name, 0) do
       {^name, test} -> test

@@ -8304,4 +8304,5 @@ seasons), on the shared Points library regents.sh was already on.
 - Techtree's post "Every coding agent that set up a wallet left the key to it in a plain file" is ready for the site's Articles, at /articles/agent-wallet-bench-first-findings, with its picture as the cover. Its words are techtree.sh's; its links to Wallet Bench results open this site's Wallet Bench (/techtree/wallet-bench) on the same test and result.
 - The post shows in Articles only once the operator saves it with put-post, a write to the live database that waits for its own go.
 - Techtree's footer links Blog again, after Changelog, to the site's Articles (/articles).
+- A press sent by hand to a Techtree page that the page does not take now changes nothing, as on the Projects pages; before, it stopped the page and the server's log held what the page was showing.
 - Not released: on the `fold/techtree` branch only. No table, migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
