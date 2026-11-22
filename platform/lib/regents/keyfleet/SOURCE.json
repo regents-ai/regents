@@ -705,7 +705,7 @@
       {
         "slice": "the slice that lets agents act here (the first signed agent request)",
         "where": "Agent.refresh/1 and Agent.valid?/1 callers: keys.ex identity/2 and held_keys/2, graph/checks/key_actor.ex, agents/checks/own_profile.ex, checks/agent_actor.ex, rooms/muter.ex, wallet_steps/linked_signer.ex; notebooks/roster.ex holders/1",
-        "record": "keyfleet.ai let an agent whose person had never signed in there (pairing :person_not_here) act as its own Key or shard: its refresh and valid? asked only for the pairing episode and owner, its sign-in (KeyfleetWeb.Plugs.SignedAgent admit/2) let such an agent in, and its config :regent_agents told a person_not_here agent it may \"Work as a Key you own or hold a shard of\". regents.sh's refresh/1, valid?/1 and plug admit only a Human pairing, so such an agent does nothing in Keyfleet here and the notebook roster leaves it out. Asked of the regents chief (K2d)"
+        "record": "regents.sh's refresh/1, valid?/1 and plug admit only a Human pairing, so an agent whose person has never signed in to the site (pairing :person_not_here) does nothing in Keyfleet here and the notebook roster leaves it out. A difference from the source, to settle in this slice: see its Agent.refresh/1 and valid?/1, KeyfleetWeb.Plugs.SignedAgent admit/2 and the person_not_here line of its config :regent_agents. Asked of the regents chief (K2d)"
       },
       {
         "slice": "the slice that brings the Account page's agents panel (the caller of blocked_check_ins)",
