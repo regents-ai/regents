@@ -8140,3 +8140,14 @@ seasons), on the shared Points library regents.sh was already on.
 - The read-only login's list now names Keyfleet's and Autolaunch's lists of applied versions too (the founder's 378 a), so that site's health answer can report all five. Version numbers only. The login does not exist yet; this is the file it will be given.
 - One lint setting no longer names a file that is not in this site.
 - No page, table or migration. On the `one-site` branch only.
+
+## 2026-11-22 — Install page: no file offered for now
+
+- On the founder's letter (379 a) /cloak/install no longer offers Download for Mac and no longer starts a download, as a page or as Markdown. The four steps, the two pictures, Updates and Caution stay.
+- No table, setting or migration.
+
+## 2026-11-22 — Released the install page with no file offered
+
+- Commit 9e4edbdb, /cloak/install offers no file on the founder's letter 379 a. Full check exit 0 on 9e4edbdb; the practice run built the image and found no migration pending.
+- Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-125cd26424df.
