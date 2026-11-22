@@ -30,7 +30,8 @@ defmodule RegentsWeb.TokenDisplay do
   readable to assistive technology and on hover. Never an input.
 
   A figure the last reading could not get is `:unavailable` and is written out
-  in words, so nobody reads a missing figure as a zero.
+  in words, so nobody reads a missing figure as a zero. An approval with no
+  practical limit is `:unlimited` and is written as that word.
   """
   def amount(%{amount: nil} = assigns) do
     ~H"""
@@ -41,6 +42,12 @@ defmodule RegentsWeb.TokenDisplay do
   def amount(%{amount: :unavailable} = assigns) do
     ~H"""
     <span class="figure-unavailable">Unavailable right now</span>
+    """
+  end
+
+  def amount(%{amount: :unlimited} = assigns) do
+    ~H"""
+    Unlimited
     """
   end
 

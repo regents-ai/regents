@@ -7484,3 +7484,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 9e4edbdb, /cloak/install offers no file on the founder's letter 379 a. Full check exit 0 on 9e4edbdb; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-125cd26424df.
+
+## 2026-11-22 — Redeem: an unlimited USDC approval no longer breaks the account panel
+
+- A wallet that had given the redeemer an unlimited USDC approval (set in the wallet itself; the page's own step asks for the exact price) could not open its part of the Redeem page: the figure was too long to write and the page failed. Current allowance now reads "Unlimited" for such an approval. Every other figure is written as before.
+- Found by the Autolaunch chief while proving the shared chain reader. No table, setting or migration; nothing about what the page asks a wallet to sign.
