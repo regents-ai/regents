@@ -63,6 +63,10 @@ defmodule Regents.Account.Accounts do
         action: :for_account,
         args: [:human_account_id]
 
+      define :list_linked_identities_for_accounts,
+        action: :for_accounts,
+        args: [:human_account_ids]
+
       define :get_first_link,
         action: :first_link,
         args: [:provider, :subject],

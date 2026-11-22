@@ -106,6 +106,8 @@ config :regents,
     Regents.Patchbay.AnswerWatch,
     Regents.Patchbay.Messages,
     Regents.Patchbay.Offers,
+    Regents.Autolaunch,
+    Regents.Autolaunch.CoveredCalls,
     # Keyfleet's, which Regents.Keyfleet.domains/0 names.
     Regents.Keyfleet.Fleets,
     Regents.Keyfleet.Rooms,

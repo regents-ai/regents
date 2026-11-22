@@ -76,6 +76,22 @@ defmodule Regents.Account.Accounts.LinkedIdentity do
       prepare build(sort: [provider: :asc])
     end
 
+    # What a product shows beside several people at once: their links by account,
+    # with the public fields alone, never the subject or Privy's metadata. At most
+    # 100 accounts a read.
+    read :for_accounts do
+      argument :human_account_ids, {:array, :integer},
+        allow_nil?: false,
+        constraints: [max_length: 100]
+
+      filter expr(human_account_id in ^arg(:human_account_ids))
+
+      prepare build(
+                select: [:human_account_id, :provider, :username, :display_name, :verified_at],
+                sort: [human_account_id: :asc, provider: :asc]
+              )
+    end
+
     # Of the accounts that hold one social account, the link made first: the one
     # its Points answer for (`Regents.Account.Points.LinkedSocial`), so a later link by
     # another account moves nothing.
@@ -113,6 +129,7 @@ defmodule Regents.Account.Accounts.LinkedIdentity do
              :upsert_verified,
              :refresh_verified,
              :for_account,
+             :for_accounts,
              :first_link,
              :linked_before,
              :remove_verified

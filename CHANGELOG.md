@@ -8098,6 +8098,11 @@ seasons), on the shared Points library regents.sh was already on.
 - A shared reading's own producer can list the ids it holds (`Regents.SharedReading.ids/1`).
 - No page, table, migration or setting. On the `one-site` branch only.
 
+## 2026-11-22 — One site: a linked-accounts read for products (not released)
+
+- A product can ask, as the system, for the verified social links of up to 100 people at once and gets the account, provider, username, display name and time verified; the provider's own id for the person and Privy's details are never part of the answer (`Regents.Account.Accounts.list_linked_identities_for_accounts`).
+- No page, table, migration or setting. On the `one-site` branch only.
+
 ## 2026-11-21 — Keyfleet's tables and core in the one site (not released)
 
 - Keyfleet's 130 migrations now build its tables in their own part of the database, `keyfleet_app`, with their own record of what has run, after regents.sh's and Techtree's and before Patchbay's. A fresh database comes out with Keyfleet's 74 tables, its old job, saved-error and connected-app tables among them; regents.sh's, Techtree's, Patchbay's and the shared parts are left exactly as they were, and a second run changes nothing.
