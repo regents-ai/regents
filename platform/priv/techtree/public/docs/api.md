@@ -31,7 +31,7 @@ An unknown address under `/api` answers JSON 404 whatever the `Accept` header sa
 
 ## Rate limits
 
-Each client address has 120 requests per 60 seconds, shared by `/healthz`, the API and the Wallet Bench's scores (`/wallet-bench.json`, `/wallet-bench.md`) and downloads. Publishing or withdrawing a Result has a budget of its own, 10 per 60 seconds, and does not count against the first. Pages are not counted. Every answer says where you stand:
+Each client address has 120 requests per 60 seconds, shared by `/healthz`, the API and the Wallet Bench's scores (`/techtree/wallet-bench.json`, `/techtree/wallet-bench.md`) and downloads. Publishing or withdrawing a Result has a budget of its own, 10 per 60 seconds, and does not count against the first. Pages are not counted. Every answer says where you stand:
 
 ```http
 RateLimit-Policy: "default";q=120;w=60

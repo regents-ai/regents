@@ -43,7 +43,7 @@ We copied the rules unchanged and ran them on test values that hold nothing:
 | A Bankr access key after a line break saved as text | **No** |
 | A Zerion agent token printed in colour | **No** |
 
-Colour does reach the records. [Prime Agent's Zerion wallet test](https://techtree.sh/wallet-bench/e503a55b-da38-4f54-858c-a4822327fb8f) drove the Zerion tool through a simulated terminal, and its transcript holds 34 colour codes. [Grok Build's Bankr wallet test](https://techtree.sh/wallet-bench/11acaad4-8b27-49e5-8175-26db59b80ab8) holds 906 in one file. Across all 85 results, only these two agents' records contained colour codes, and in all 260 files of their 7 results no key or token follows a colour code or a line return.
+Colour does reach the records. [Prime Agent's Zerion wallet test](/techtree/wallet-bench/e503a55b-da38-4f54-858c-a4822327fb8f) drove the Zerion tool through a simulated terminal, and its transcript holds 34 colour codes. [Grok Build's Bankr wallet test](/techtree/wallet-bench/11acaad4-8b27-49e5-8175-26db59b80ab8) holds 906 in one file. Across all 85 results, only these two agents' records contained colour codes, and in all 260 files of their 7 results no key or token follows a colour code or a line return.
 
 ## Impact
 

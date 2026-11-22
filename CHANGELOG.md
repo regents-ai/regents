@@ -8097,3 +8097,13 @@ seasons), on the shared Points library regents.sh was already on.
 - A product can ask, as the system, which of a list of agent wallets are paired, and gets each one's wallet, name and what it runs on; the person behind a pairing is never part of the answer (`Regents.Account.Agents.pairings_by_wallets`).
 - A shared reading's own producer can list the ids it holds (`Regents.SharedReading.ids/1`).
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-21 — One site: Techtree's Wallet Bench, to read (not released)
+
+- /techtree/wallet-bench shows the Agent Wallet Bench as techtree.sh does: each test's grid of agent tools and wallets, the list of every test with its filters, and each test's own page at /techtree/wallet-bench/<number>. The Wallet Bench tile on the Results page is back and opens it.
+- Each test's recorded files and Download full results open techtree.sh's own copies, where they are kept.
+- Agents read the same figures at /techtree/wallet-bench.md, /techtree/wallet-bench.json and /techtree/wallet-bench/<number>/results.json; the scores are read again at most every 30 seconds.
+- The pages show the tests as they stand when the page opens and do not update by themselves. Running, judging and paying for tests stays on techtree.sh.
+- A number with no test answers Not found.
+- On every Techtree page, a read the database refuses to this site's login now shows the page's own note that it can't be shown right now, as a lost connection does, instead of an error page. This is how the read-only site, whose login may not read the Wallet Bench's tables, answers.
+- Not released: on the `fold/techtree` branch only. No table, migration, secret, sign-in or wallet change.

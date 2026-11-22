@@ -6,9 +6,10 @@ defmodule Regents.Techtree do
   stay in Techtree's own schema, `techtree_app`, with their own migrations and
   ledger (`priv/techtree`); so far Model Climb's reports
   (`Regents.Techtree.ModelClimb`), the catalog's releases and entries
-  (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`) and the
+  (`Regents.Techtree.Catalog`, whose bundle is `priv/techtree/catalog`), the
   public run log of published Results (`Regents.Techtree.Network`, read only
-  here: nothing publishes to it yet). The
+  here: nothing publishes to it yet) and the Wallet Bench's tests
+  (`Regents.Techtree.WalletBench`, read only here: techtree.sh runs them). The
   published Skill comparisons are committed files
   (`Regents.Techtree.Train.Comparisons`), and so are the starter Skills
   (`Regents.Techtree.Release.StarterSkill`, `priv/techtree/release`). Its pages
@@ -34,7 +35,11 @@ defmodule Regents.Techtree do
       Network.Verdict,
       Release,
       Release.StarterSkill,
-      Train.Comparisons
+      Train.Comparisons,
+      WalletBench,
+      WalletBench.BaseRpc,
+      WalletBench.Catalog,
+      WalletBench.Judge
     ]
 
   alias Regents.Techtree.Catalog.Query
