@@ -296,6 +296,16 @@ config :regents, :keyfleet_fleet_feed_wait_ms, 2_000
 config :regents, :keyfleet_avatar_bucket,
   public_url: "https://keyfleet-pictures.fly.storage.tigris.dev"
 
+# The chain a fleet's wallet buttons send on, by the chain id its deployment
+# records, with its name in the page's words (Regents.Keyfleet.WalletSteps); and
+# the node the server reads each chain through, for the steps a page's wallet
+# sent (Regents.Keyfleet.ChainClient). That node's address never reaches a page.
+config :regents, :keyfleet_wallet_chains, %{
+  8453 => %{name: "Base", rpc_url: "https://mainnet.base.org"}
+}
+
+config :regents, :keyfleet_chain_nodes, %{8453 => "https://mainnet.base.org"}
+
 # Saves of proposal words per signed-in person: twenty an hour. Each press of
 # Propose saves once, so this leaves room to redo a proposal many times while
 # keeping one account to about 80 KB of words an hour.
