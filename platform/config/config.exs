@@ -234,6 +234,11 @@ config :regents, :limits,
   # or the open wallet is reported: as many a minute as Autolaunch's lists. No
   # press is counted.
   keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
+  # Moves of the sea behind one address's open Keyfleet pages to another fleet,
+  # or to every fleet: twice what a quick visit spends (22 a minute, reading
+  # each page for 2 seconds), so two people behind one address are not held.
+  # Past them the sea stays as it is drawn.
+  keyfleet_sea_moves: [limit: 45, window_seconds: 60],
   # Searches one address's open Keyfleet pages run, Show more included: one a
   # second.
   keyfleet_searches: [limit: 60, window_seconds: 60],
