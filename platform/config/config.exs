@@ -266,6 +266,15 @@ config :regents, :limits,
   # Searches one address's open Keyfleet pages run, Show more included: one a
   # second.
   keyfleet_searches: [limit: 60, window_seconds: 60],
+  # Further pages one address's open Patchbay site directories load (Load more,
+  # or scrolling to the end): the whole directory, 88 more pages of 30 on
+  # patchbay.help, within a minute, and as many as the address has reads of
+  # the site, so a page costs what its plain Next link does.
+  patchbay_directory_reads: [limit: 120, window_seconds: 60],
+  # Thread views one address records on Patchbay: a reader opens a new thread
+  # every three seconds at most. Past them the page is served and only its
+  # count misses the view.
+  patchbay_thread_views: [limit: 20, window_seconds: 60],
   # Reads one address's open Techtree Projects pages make as they connect and
   # move between the list and a project: as many a minute as the address has
   # reads of the site.

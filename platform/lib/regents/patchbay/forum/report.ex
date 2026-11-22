@@ -397,7 +397,9 @@ defmodule Regents.Patchbay.Forum.Report do
       filter(expr(visibility == :published))
     end
 
-    count(:view_count, :views)
+    # How many readers opened it. A view is no reader's (`ThreadView`'s read
+    # refuses everyone), so they are counted without asking it.
+    count(:view_count, :views, authorize?: false)
 
     count(:thread_like_count, :likes)
     count(:post_like_count, :post_likes)
@@ -643,9 +645,17 @@ defmodule Regents.Patchbay.Forum.Report do
   # Only reads are carried; any other action is refused until it comes with its
   # own policy.
   policies do
-    # The board is public to read: no actor is required. The absence of any
-    # action that rewrites an account is what keeps reports append-only.
-    policy action_type(:read) do
+    # The board is public to read: no actor is required. A thread is public
+    # exactly while it is published: one held out of sight is absent from the
+    # plain read, from every load of a thread and from every count through
+    # one. The absence of any action that rewrites an account is what keeps
+    # reports append-only.
+    policy action(:read) do
+      authorize_if(expr(visibility == :published))
+    end
+
+    # The named reads keep to published threads themselves.
+    policy action([:feed, :ranked_for_site]) do
       authorize_if(always())
     end
   end

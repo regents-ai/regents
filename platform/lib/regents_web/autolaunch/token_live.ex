@@ -11,8 +11,8 @@ defmodule RegentsWeb.Autolaunch.TokenLive do
   (`Regents.Autolaunch.UsdRates`) and the token's revenue
   (`Regents.Autolaunch.TokenPage.revenue/2`). The token's answer lands in
   `handle_async/3`, which shows the token and names the tab for it, as the
-  page's first render does, so a token opened from a card or row inside the
-  site is named too; a page that shows no token is named "Token not found" or
+  page's first render does, so a token opened from a Tokens row or a Buy is
+  named too; a page that shows no token is named "Token not found" or
   "Token unavailable". When the allowance is spent none of them is read and
   each is failed, so the page says the token could not be loaded, with Retry.
   Retry reads again only what failed, and only while nothing is being read.

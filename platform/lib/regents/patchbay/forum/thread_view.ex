@@ -89,13 +89,16 @@ defmodule Regents.Patchbay.Forum.ThreadView do
   end
 
   policies do
+    # A view's viewer comes from a browser's forum session, so nobody reads
+    # a view: a thread's count (`Report`'s `view_count`) counts them without
+    # asking this read.
+    policy action_type(:read) do
+      forbid_if(always())
+    end
+
     # The viewer is built here from the browser's forum session, which the
     # server issued it; no caller names a viewer, so recording a view needs
     # no actor.
-    policy action_type(:read) do
-      authorize_if(always())
-    end
-
     policy action(:record) do
       authorize_if(always())
     end

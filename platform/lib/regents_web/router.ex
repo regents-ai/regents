@@ -497,11 +497,19 @@ defmodule RegentsWeb.Router do
     get "/about", PublicPagesController, :show
     get "/changelog", PublicPagesController, :show
 
-    live_session :autolaunch,
+    # The home page's tab title has no " · Autolaunch" ending, so a page
+    # reached from it is loaded fresh, as on autolaunch.sh: its own session.
+    live_session :autolaunch_home,
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Autolaunch.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
       live "/", HomeLive, :show
+    end
+
+    live_session :autolaunch,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      layout: {RegentsWeb.Autolaunch.Layouts, :app},
+      on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
       live "/how-it-works", HowItWorksLive, :show
       live "/auctions", AuctionsLive, :index
       live "/tokens", TokensLive, :index
