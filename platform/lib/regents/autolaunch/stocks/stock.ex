@@ -11,8 +11,8 @@ defmodule Regents.Autolaunch.Stocks.Stock do
   and bid. A revoked stock keeps its row, so auctions already trading in it
   stay findable by its name.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
+  the names a stock goes by, for search; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -68,15 +68,36 @@ defmodule Regents.Autolaunch.Stocks.Stock do
     timestamps()
   end
 
+  calculations do
+    # Every name the stock goes by, for search.
+    calculate :search_text,
+              :string,
+              expr(
+                fragment(
+                  "concat_ws(' ', ?, ?, array_to_string(?, ' '))",
+                  symbol,
+                  name,
+                  search_words
+                )
+              )
+  end
+
   identities do
     identity :chain_address, [:chain_id, :address]
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    read :read do
+      primary? true
+      pagination keyset?: true, required?: false
+    end
+  end
+
+  # Only the primary read is carried; any other action is refused until it
+  # comes with its own policy.
   policies do
-    policy always() do
-      forbid_if always()
+    policy action_type(:read) do
+      authorize_if always()
     end
   end
 end

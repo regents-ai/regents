@@ -4,15 +4,18 @@ defmodule Regents.Autolaunch.Auction do
   the creator's links and picture, and the latest figures read from its
   contract.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
+  them (`Regents.Autolaunch.HomeMarket`); nothing here writes them yet.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
+
+  require Ash.Query
 
   postgres do
     table "auctions"
@@ -283,15 +286,180 @@ defmodule Regents.Autolaunch.Auction do
     end
   end
 
+  calculations do
+    # What every token is worth at the current clearing price, in quote-token units.
+    calculate :fdv, :decimal, Regents.Autolaunch.Auction.Calculations.Fdv do
+      public? true
+    end
+
+    # The end of the contract address the auction's page addresses carry.
+    calculate :path_tail, :string, Regents.Autolaunch.Auction.Calculations.PathTail do
+      public? true
+    end
+
+    # How closely a search matches this auction, from 0 to 1; see `Regents.Autolaunch.Search`.
+    # The name, ticker and stock count fully, the creator's accounts a little
+    # less and the description less again. `address` is set when the search
+    # could be part of an address, and matches the auction, token and creator
+    # wallet outright.
+    calculate :search_rank,
+              :float,
+              expr(
+                if not is_nil(^arg(:address)) and
+                     (contains(string_downcase(auction_address), ^arg(:address)) or
+                        contains(string_downcase(token_address), ^arg(:address)) or
+                        contains(creator_address, ^arg(:address))) do
+                  1.0
+                else
+                  fragment(
+                    "greatest(word_similarity(?, concat_ws(' ', ?, ?, ?, ?)), 0.9 * word_similarity(?, array_to_string(? || ?, ' ')), 0.7 * word_similarity(?, coalesce(?, '')))",
+                    ^arg(:term),
+                    title,
+                    token_symbol,
+                    quote_token_symbol,
+                    quote_stock_search_text,
+                    ^arg(:term),
+                    creator_x_names,
+                    creator_x_display_names,
+                    ^arg(:term),
+                    summary
+                  )
+                end
+              ) do
+      argument :term, :string, allow_nil?: false
+      argument :address, :string
+    end
+  end
+
+  aggregates do
+    # The creator's connected account names, for search.
+    list :creator_x_names, :creator_x_connections, :username do
+      filter expr(not is_nil(verified_at))
+    end
+
+    list :creator_x_display_names, :creator_x_connections, :display_name do
+      filter expr(not is_nil(verified_at))
+    end
+
+    first :quote_stock_search_text, :quote_stock, :search_text
+  end
+
   identities do
     identity :chain_auction, [:chain_id, :auction_address]
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    read :read do
+      primary? true
+      prepare Regents.Autolaunch.Auction.Preparations.BaseOnly
+    end
+
+    # Every auction the public lists carry, on both chains.
+    read :listed do
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare build(load: [:path_tail])
+    end
+
+    read :home_market do
+      argument :x, :boolean, default: false
+      argument :query, :string, default: "", constraints: [allow_empty?: true, max_length: 80]
+      argument :view, :string, default: "active", constraints: [match: ~r/\A(active|new)\z/]
+
+      argument :state, :string,
+        default: "all",
+        constraints: [match: ~r/\A(all|created|active|ended|failed|graduated|finished)\z/]
+
+      argument :sort, :string,
+        default: "newest",
+        constraints: [match: ~r/\A(newest|ending|volume)\z/]
+
+      argument :chain, :string, default: "all", constraints: [match: ~r/\A(all|base|robinhood)\z/]
+
+      argument :kind, :string,
+        default: "all",
+        constraints: [match: ~r/\A(all|revstake|memestock)\z/]
+
+      pagination keyset?: true, required?: true, default_limit: 24, max_page_size: 50
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+
+      # A query with a value the list does not know is refused as it stands.
+      prepare fn
+        %{valid?: false} = query, _context ->
+          query
+
+        query, _context ->
+          states =
+            if query.arguments.view == "active",
+              do: [:created, :active, :ended],
+              else: [:created, :active, :ended, :failed, :graduated]
+
+          states =
+            Enum.filter(
+              states,
+              &(query.arguments.state == "all" or Atom.to_string(&1) == query.arguments.state or
+                  (query.arguments.state == "finished" and &1 in [:graduated, :failed]))
+            )
+
+          query =
+            case query.arguments.chain do
+              "base" ->
+                Ash.Query.filter(query, chain_id == ^Regents.Autolaunch.Lab.chain_id())
+
+              "robinhood" ->
+                Ash.Query.filter(query, chain_id == ^Regents.Autolaunch.Robinhood.Lab.chain_id())
+
+              "all" ->
+                query
+            end
+
+          query =
+            case query.arguments.kind do
+              "revstake" -> Ash.Query.filter(query, kind == :agent)
+              "memestock" -> Ash.Query.filter(query, kind == :stocks)
+              "all" -> query
+            end
+
+          query =
+            if query.arguments.x,
+              do: Ash.Query.filter(query, exists(creator_x_connections, not is_nil(verified_at))),
+              else: query
+
+          order =
+            case query.arguments.sort do
+              "ending" -> [estimated_end_at: :asc_nils_last, id: :asc]
+              "volume" -> [bid_volume_usd: :desc_nils_last, id: :asc]
+              "newest" -> [inserted_at: :desc, id: :asc]
+            end
+
+          query =
+            if query.arguments.sort == "ending",
+              do: Ash.Query.filter(query, state == :active),
+              else: query
+
+          query
+          |> Ash.Query.filter(state in ^states)
+          |> Ash.Query.load([:treasury_security_report, :path_tail])
+          |> Regents.Autolaunch.Search.rank(query.arguments.query, order)
+      end
+    end
+
+    # The listed auctions sharing any of these tickers, ignoring case, which
+    # decide how much of each address its page address needs; see
+    # `Regents.Autolaunch.Auction.Calculations.PathTail`.
+    read :path_peers do
+      argument :symbols, {:array, :string}, allow_nil?: false
+      filter expr(string_downcase(token_symbol) in ^arg(:symbols))
+      prepare Regents.Autolaunch.Auction.Preparations.Listed
+      prepare Regents.Autolaunch.Auction.Preparations.Shown
+    end
+  end
+
+  # Only the reads the lists use are carried; any other action is refused until
+  # it comes with its own policy.
   policies do
-    policy always() do
-      forbid_if always()
+    policy action([:read, :listed, :path_peers, :home_market]) do
+      authorize_if always()
     end
   end
 end

@@ -10,8 +10,10 @@ defmodule Regents.Autolaunch do
   revenue, stocks and their launches, share videos and the X connection.
   Covered calls' two tables are their own domain,
   `Regents.Autolaunch.CoveredCalls`. Every attribute, relationship and identity
-  is as autolaunch.sh has it, with no action yet and one policy refusing every
-  action, so nothing here reads or writes a row.
+  is as autolaunch.sh has it. The reads behind the Auctions and Tokens lists
+  (`Regents.Autolaunch.HomeMarket`) are here with their policies; every other
+  resource has no action yet and one policy refusing every action, so nothing
+  here writes a row.
 
   It also reads the deployment descriptions, the files that say which
   contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
@@ -35,7 +37,11 @@ defmodule Regents.Autolaunch do
     resource Regents.Autolaunch.AuctionPricePoint
     resource Regents.Autolaunch.LaunchDraft
     resource Regents.Autolaunch.LaunchDraftImage
-    resource Regents.Autolaunch.Auction
+
+    resource Regents.Autolaunch.Auction do
+      define :list_path_peers, action: :path_peers, args: [:symbols]
+    end
+
     resource Regents.Autolaunch.LaunchOperation
     resource Regents.Autolaunch.Stocks.LaunchDraft
     resource Regents.Autolaunch.Stocks.LaunchDraftImage

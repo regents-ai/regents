@@ -4,8 +4,8 @@ defmodule Regents.Autolaunch.TreasurySecurityReport do
   account it is, its owners, threshold, modules and guard, and the evidence it
   was judged on.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
+  each launch's report; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -145,11 +145,17 @@ defmodule Regents.Autolaunch.TreasurySecurityReport do
     timestamps()
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    read :read do
+      primary? true
+    end
+  end
+
+  # Only the primary read is carried; any other action is refused until it
+  # comes with its own policy.
   policies do
-    policy always() do
-      forbid_if always()
+    policy action([:read]) do
+      authorize_if always()
     end
   end
 end
