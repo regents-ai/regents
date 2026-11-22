@@ -7500,3 +7500,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit f36c34f2, Redeem writes an unlimited USDC approval as Unlimited instead of failing, and the Cloak pages no longer say 130 MB. Full check exit 0 on f36c34f2; the practice run built the image and found no migration pending.
 - Live read, signed out: /redeem and /stake answer and /cloak and /cloak/install no longer say 130 MB and are otherwise as before (the fixed figure shows only to a connected wallet with such an approval, so it was proven on a local run, not live), the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-9e4edbdb8b17.
+
+## 2026-11-22 — Paper Pro Daily: a link to an older paper no longer renders the whole feed again
+
+- A live fault fixed. At 19:22Z a visitor opened about 80 paper links at once; each took 49 to 60 seconds and one other page read was dropped (Sentinel's alert). Each link to a paper rendered every newer day's papers for itself, however many other requests had just done the same.
+- Each day's papers are now kept by themselves for the minute, so a link to an older paper reads and renders only the days not kept yet, and one request at a time does that work while the others wait and take what it kept.
+- No table, setting or migration.
