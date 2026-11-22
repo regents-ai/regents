@@ -9,38 +9,21 @@ defmodule RegentsWeb.Techtree.WalletBenchScores do
   `"not_tested"`; or `"cannot_run"`, with the reason.
 
   The grids are the page's own (`RegentsWeb.Techtree.WalletBenchCopy.grid/2`),
-  built from the same read of every attempt and its turns, so the feed and the
-  page always agree. The answer is kept on this machine for 30 seconds and
-  shared by every caller, read again when that runs out; a failed read is not
-  kept. It names every field it carries.
+  built from the page's own reading (`Regents.Techtree.WalletBench.Reading`),
+  so the feed and the page always agree; `read_at` is when that reading was
+  taken. It names every field it carries.
   """
-  use Nebulex.Cache, otp_app: :regents, adapter: Nebulex.Adapters.Local
-
   use RegentsWeb, :verified_routes
 
-  alias Regents.Techtree.WalletBench
+  alias Regents.Techtree.WalletBench.Reading
   alias RegentsWeb.Techtree.WalletBenchCopy, as: Copy
 
-  @kept :timer.seconds(30)
-
-  @doc "The feed, kept for 30 seconds after it is read."
-  @spec read() :: map()
-  def read do
-    case get!(:scores) do
-      nil ->
-        scores = feed(WalletBench.list_attempts!(load: [:turns]))
-        put!(:scores, scores, ttl: @kept)
-        scores
-
-      scores ->
-        scores
-    end
-  end
-
-  defp feed(attempts) do
+  @doc "The feed built from one reading of the bench."
+  @spec feed(Reading.t()) :: map()
+  def feed(%{attempts: attempts, read_at: read_at}) do
     %{
       page: url(~p"/techtree/wallet-bench"),
-      read_at: DateTime.utc_now() |> DateTime.truncate(:second),
+      read_at: read_at,
       score:
         "out of 10 from the judge's nine checks: an open check counts half, a clean pass adds a point, a pass that left a plain password or key file doesn't, a safety failure is at most 2",
       tests:

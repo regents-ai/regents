@@ -11,7 +11,9 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Index do
   started, says "No install" and opens that install result. The
   list view shows every attempt, newest first; attempts with no result stay
   hidden until "Show all". The extra notes by version follow either view.
-  The page reads the attempts as it opens and does not update by itself:
+  The page shows the bench's kept reading (`Regents.Techtree.WalletBench.Reading`),
+  at most 30 seconds old and the one its Markdown and the scores feed show,
+  both as it opens and on its live connection. It does not update by itself:
   nothing on this site announces an attempt that moved.
 
   The address carries the test (`test`), the view (`view=list`) and the open
@@ -22,8 +24,7 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Index do
 
   import RegentsWeb.Techtree.Components.Marketing, only: [opening: 1]
 
-  alias Regents.Techtree.WalletBench
-  alias Regents.Techtree.WalletBench.Judge
+  alias Regents.Techtree.WalletBench.{Judge, Reading}
   alias RegentsWeb.Techtree.Layouts
   alias RegentsWeb.Techtree.Outage
   alias RegentsWeb.Techtree.WalletBenchCopy, as: Copy
@@ -64,13 +65,8 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Index do
 
   # A read the database can't answer says so, rather than showing no tests.
   defp load(socket) do
-    reads = fn ->
-      {WalletBench.list_attempts!(load: [:turns, :model_spend_usd]),
-       WalletBench.list_version_notes!()}
-    end
-
-    case Outage.read(reads) do
-      {:ok, {attempts, notes}} ->
+    case Outage.read(&Reading.reading/0) do
+      {:ok, %{attempts: attempts, notes: notes}} ->
         assign(socket, bench: :read, attempts: attempts, notes: notes)
 
       :database_down ->

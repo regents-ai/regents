@@ -39,7 +39,8 @@ defmodule Regents.Techtree do
       WalletBench,
       WalletBench.BaseRpc,
       WalletBench.Catalog,
-      WalletBench.Judge
+      WalletBench.Judge,
+      WalletBench.Reading
     ]
 
   alias Regents.Techtree.Catalog.Query

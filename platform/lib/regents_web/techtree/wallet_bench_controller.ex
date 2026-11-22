@@ -4,25 +4,25 @@ defmodule RegentsWeb.Techtree.WalletBenchController do
   page's grids and list as Markdown (`RegentsWeb.Techtree.WalletBenchMD`), and
   `/techtree/wallet-bench.json`, the page's score grids as data, each score
   linked to its result on the page (`RegentsWeb.Techtree.WalletBenchScores`).
-  Both are public and may be kept for 30 seconds. When the database can't be
-  read each answers 503 asking to try again (`RegentsWeb.Techtree.Outage`).
+  Both build from the page's own reading (`Regents.Techtree.WalletBench.Reading`),
+  are stamped with the time it was read, and are public and may be kept for 30
+  seconds. When the database can't be read each answers 503 asking to try again
+  (`RegentsWeb.Techtree.Outage`).
   """
 
   use RegentsWeb, :controller
 
-  alias Regents.Techtree.WalletBench
+  alias Regents.Techtree.WalletBench.Reading
   alias RegentsWeb.Techtree.{ExactResponse, Outage, WalletBenchScores}
   alias RegentsWeb.Techtree.WalletBenchCopy, as: Copy
 
   def markdown(conn, _params) do
-    case Outage.read(fn -> WalletBench.list_attempts!(load: [:turns, :model_spend_usd]) end) do
-      {:ok, attempts} ->
-        generated_at = DateTime.utc_now() |> DateTime.truncate(:second)
-
+    case Outage.read(&Reading.reading/0) do
+      {:ok, %{attempts: attempts, read_at: read_at}} ->
         conn
         |> put_resp_header("cache-control", "public, max-age=30")
         |> put_resp_content_type("text/markdown", "utf-8")
-        |> send_resp(200, RegentsWeb.Techtree.WalletBenchMD.render(attempts, generated_at))
+        |> send_resp(200, RegentsWeb.Techtree.WalletBenchMD.render(attempts, read_at))
 
       :database_down ->
         conn
@@ -38,11 +38,11 @@ defmodule RegentsWeb.Techtree.WalletBenchController do
   failure is the site's plain JSON 500.
   """
   def scores(conn, _params) do
-    case Outage.read(&WalletBenchScores.read/0) do
-      {:ok, scores} ->
+    case Outage.read(&Reading.reading/0) do
+      {:ok, reading} ->
         conn
         |> put_resp_header("cache-control", "public, max-age=30")
-        |> json(scores)
+        |> json(WalletBenchScores.feed(reading))
 
       :database_down ->
         conn
