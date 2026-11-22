@@ -8383,3 +8383,12 @@ seasons), on the shared Points library regents.sh was already on.
 - A creator's website shows as a link, on the cards and on the token page, only when it is an https address; autolaunch.sh linked http addresses too. A Telegram or Discord link shows only when it is a whole https address with a site in it.
 - Left out for now: the pool's figures (the change, the trades, the pool and its locker), with the Uniswap Pool and View Chart buttons staying closed; the price chart; trading, staking and claiming; Share; and the page updating itself while open.
 - Not released: on the `fold/autolaunch` branch only. One route added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Keyfleet's wallet buttons open your wallet (not released)
+
+- On Keyfleet's pages, Buy Key, a new proposal, a vote, carrying out or cancelling a proposal, Treasury's buttons and Buy REGENT open your wallet on regents.sh, through the same wallet connection as the rest of the site. Each press opens the wallet once, and a second press opens it again, even while the wallet still shows the first.
+- Your wallet is asked to send only what was made for the wallet open when you press. With no wallet open, or one your account does not link, nothing is sent and the note under the buttons says which wallet to open.
+- Signed out, a wallet button opens sign-in, as Sign in does.
+- A wallet box whose figures were read before your wallet opened shows those figures without its buttons' steps until they are read for your wallet; a press in the meantime has them made on the spot.
+- Not yet tried with a real wallet: so far it has run only signed out, and with a stand-in wallet on a test page.
+- Not released: on the `fold/keyfleet` branch only. No route, table, migration, queue, scheduled job, setting, secret, sign-in, session or pairing change.
