@@ -44,6 +44,14 @@ defmodule Regents.Account.Accounts.PublicLink do
 
   actions do
     defaults [:read]
+
+    # The links of up to a hundred accounts, for a list that shows each
+    # member's: the provider and username only, in a steady order.
+    read :for_accounts do
+      argument :account_ids, {:array, :integer}, allow_nil?: false, constraints: [max_length: 100]
+      filter expr(human_account_id in ^arg(:account_ids))
+      prepare build(select: [:username], sort: [human_account_id: :asc, provider: :asc])
+    end
   end
 
   policies do

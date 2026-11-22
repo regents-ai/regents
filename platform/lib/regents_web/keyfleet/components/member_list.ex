@@ -22,11 +22,8 @@ defmodule RegentsWeb.Keyfleet.Components.MemberList do
   """
   use RegentsWeb, :live_component
 
-  require Ash.Query
-
   alias Regents.Account.Accounts
   alias Regents.Account.Accounts.LinkedIdentity.Providers
-  alias Regents.Account.Accounts.PublicLink
   alias Regents.Account.Actors.System
   alias Regents.Account.PublicIdentity
   alias Regents.Keyfleet.Fleets.Rules
@@ -175,11 +172,8 @@ defmodule RegentsWeb.Keyfleet.Components.MemberList do
   defp connections([]), do: %{}
 
   defp connections(account_ids) do
-    PublicLink
-    |> Ash.Query.filter(human_account_id in ^account_ids)
-    |> Ash.Query.select([:username])
-    |> Ash.Query.sort(human_account_id: :asc, provider: :asc)
-    |> Ash.read!()
+    account_ids
+    |> Accounts.public_links_for_accounts!()
     |> Enum.group_by(& &1.human_account_id, &connection/1)
     |> Map.new(fn {account_id, links} -> {account_id, Enum.reject(links, &is_nil/1)} end)
   end

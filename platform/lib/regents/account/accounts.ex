@@ -76,6 +76,8 @@ defmodule Regents.Account.Accounts do
       define :remove_linked_identity, action: :remove_verified
     end
 
-    resource Regents.Account.Accounts.PublicLink
+    resource Regents.Account.Accounts.PublicLink do
+      define :public_links_for_accounts, action: :for_accounts, args: [:account_ids]
+    end
   end
 end
