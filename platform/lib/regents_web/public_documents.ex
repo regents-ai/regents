@@ -170,7 +170,7 @@ defmodule RegentsWeb.PublicDocuments do
   def document("/changelog"), do: docs_document(RegentsWeb.Docs.Pages.page("/docs/changes"))
   def document("/agents" = path), do: AgentGuides.document(path)
   def document("/agents/" <> _slug = path), do: AgentGuides.document(path)
-  def document("/techtree/docs" <> _rest = path), do: TechtreeDocuments.document(path)
+  def document("/techtree/" <> _rest = path), do: TechtreeDocuments.document(path)
   def document("/keyfleet/" <> _rest = path), do: KeyfleetDocuments.document(path)
   def document("/autolaunch/" <> _rest = path), do: AutolaunchDocuments.document(path)
   def document("/patchbay/" <> _rest = path), do: PatchbayDocuments.document(path)
