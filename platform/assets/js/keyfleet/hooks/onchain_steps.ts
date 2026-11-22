@@ -54,6 +54,7 @@ type Push = (event: string, payload: unknown) => void
 
 type OnchainStepsHook = Hook & {
   el: HTMLElement
+  js(): {ignoreAttributes(el: HTMLElement, attrs: string[]): void}
   handleEvent(event: string, callback: (payload: unknown) => void): void
   pushEventTo(target: HTMLElement, event: string, payload?: unknown): Promise<PromiseSettledResult<{reply: unknown}>[]>
   review?: Review
@@ -102,6 +103,9 @@ export const OnchainSteps: Hook = {
       const name = button.dataset.onchainStep!
       const agent = ask === "prepare_for_agent"
       const tell: Push = agent ? (event, payload) => push(event, {...(payload as object), agent: true}) : push
+      // The mark is this island's own, so a page update while the wallet has the
+      // press leaves it on the button.
+      this.js().ignoreAttributes(button, ["data-awaiting-wallet"])
       const release = mark(button)
       const wallet = activeEthereumWallet()
       // The lost line speaks for the person's own presses alone.
