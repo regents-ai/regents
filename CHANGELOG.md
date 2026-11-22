@@ -8221,6 +8221,14 @@ seasons), on the shared Points library regents.sh was already on.
 - Pages may show the launch pictures autolaunch.sh stores. Pictures on any other host stay blocked and show the first letter of the launch's name.
 - Not released: on the `one-site` branch only. No migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
 
+## 2026-11-22 — One site: Autolaunch's home page, Coming next, Bid volume and Principles (not released)
+
+- Below the list, `/autolaunch` now shows what autolaunch.sh shows there, in the same order and words: Coming next (up to three auctions taking bids, the soonest to close first, then those opening soon, or "No auction is taking bids"), Bid volume (up to six launches with the most put in by bidders, in dollars, shown only once someone has bid) and Principles (Autolaunch's six cards).
+- Hidden auctions stay out of both rows, as they stay out of the list.
+- The Principles cards open their pages as a full page load. See stocks, See portfolio, See auctions and each auction's page keep their future addresses under `/autolaunch` and answer "not found" until those pages come; Pair agent opens this site's own pairing page.
+- Both rows are read once, as the page opens; they do not yet update while it stays open.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
 ## 2026-11-22 — One site: Keyfleet's fleet pages open under /keyfleet, signed out (not released)
 
 - Each of the five Keyfleet fleets opens under `/keyfleet` (`/keyfleet/classic/1`, `/keyfleet/app/fleets/regents_club` and the other three): its own page with the members, the map and the rooms, a Key's page, Seasons, Proposals and each proposal, Treasury, Polls and each poll, and Search, with the words keyfleet.ai shows.

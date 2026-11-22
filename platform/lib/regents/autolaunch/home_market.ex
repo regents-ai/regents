@@ -1,7 +1,8 @@
 defmodule Regents.Autolaunch.HomeMarket do
   @moduledoc """
   The reading behind the website's lists and the public JSON API: one page of
-  auctions or tokens, and the connected accounts of their creators. The
+  auctions or tokens, the connected accounts of their creators, and the few
+  auctions the home page shows beside its list. The
   options, the addresses and the signed cursors are the web side's
   (`RegentsWeb.Autolaunch.HomeMarket`).
   """
@@ -58,6 +59,20 @@ defmodule Regents.Autolaunch.HomeMarket do
       [] when results != [] -> {:error, :changed_while_read}
       kept -> {:ok, %{page | results: kept}}
     end
+  end
+
+  @doc """
+  The first `limit` auctions of the lists in the order `arguments` name (the
+  `state` and `sort` of Auction's `:home_market`), for the rows beside the
+  home page's list: Bid volume and Coming next. Unlike `read/3` it reads no
+  creator's links, no FDV and no cursor, since those rows show none of them.
+  """
+  @spec auctions(map(), pos_integer()) :: {:ok, [Ash.Resource.record()]} | {:error, term()}
+  def auctions(arguments, limit) do
+    query =
+      Ash.Query.for_read(Auction, :home_market, Map.put(arguments, :view, "new"), actor: nil)
+
+    with {:ok, page} <- Ash.read(query, page: [limit: limit]), do: {:ok, page.results}
   end
 
   @doc """
