@@ -37,11 +37,24 @@ defmodule Regents.Keyfleet.Chain.RewardsWaiting do
   asking the chain.
   """
   def read(fleet, token_id, holder, now \\ System.monotonic_time(:millisecond)) do
+    case kept(fleet, token_id, holder, now) do
+      {:ok, waiting} -> {:ok, waiting}
+      :none -> read_chain(fleet, token_id, holder, {fleet.fleet_id, token_id, holder}, now)
+    end
+  end
+
+  @doc """
+  The answer `read/4` would give for key `token_id` of `fleet` held by
+  `holder` without asking the chain: `{:ok, waiting}` when one was read less
+  than 30 seconds before `now`, or `:none`, so a caller can tell a read the
+  chain must answer before it starts.
+  """
+  def kept(fleet, token_id, holder, now \\ System.monotonic_time(:millisecond)) do
     key = {fleet.fleet_id, token_id, holder}
 
     case :ets.lookup(@table, key) do
       [{^key, waiting, read_at}] when now - read_at < @kept_ms -> {:ok, waiting}
-      _unread_or_old -> read_chain(fleet, token_id, holder, key, now)
+      _unread_or_old -> :none
     end
   end
 

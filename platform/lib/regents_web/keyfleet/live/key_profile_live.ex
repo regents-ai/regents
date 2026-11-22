@@ -33,6 +33,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   alias Regents.Keyfleet.Rooms.Message
   alias Regents.Keyfleet.Treasury
   alias Regents.Keyfleet.WalletSteps.Reads
+  alias Regents.Limits
   alias RegentsWeb.Keyfleet.AgentGuides
   alias RegentsWeb.Keyfleet.CheckIns
   alias RegentsWeb.Keyfleet.Components.KeyCard
@@ -985,11 +986,29 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
        ) do
     rewards = Map.take(fleet, [:fleet_id, :chain_fleet_id, :rewards_address])
 
-    start_async(socket, :rewards, fn ->
-      with {:ok, waiting} <- RewardsWaiting.read(rewards, token_id, holder) do
-        {:ok, shown_amounts(fleet.fleet_id, waiting)}
-      end
-    end)
+    case RewardsWaiting.kept(rewards, token_id, holder) do
+      {:ok, waiting} ->
+        start_async(socket, :rewards, fn -> {:ok, shown_amounts(fleet.fleet_id, waiting)} end)
+
+      :none ->
+        read_chain(socket, :rewards, fn -> waiting(rewards, token_id, holder) end)
+    end
+  end
+
+  defp waiting(rewards, token_id, holder) do
+    with {:ok, waiting} <- RewardsWaiting.read(rewards, token_id, holder),
+         do: {:ok, shown_amounts(rewards.fleet_id, waiting)}
+  end
+
+  # A read of the chain for the open key, its rewards or its slice, spends one
+  # of the page's address's `keyfleet_wallet_reads` (`Regents.Limits`) before
+  # it starts. Past them nothing is read and it shows it isn't showing right
+  # now, as when the chain does not answer, until it is asked for again.
+  defp read_chain(socket, figure, read) do
+    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
+      :ok -> start_async(socket, figure, read)
+      :limited -> update(socket, :key_profile, &Map.put(&1, figure, :failed))
+    end
   end
 
   # Each asset with something to claim, the key's own and its holder's
@@ -1024,7 +1043,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
        ) do
     socket
     |> update(:key_profile, &Map.put(&1, :slice, :reading))
-    |> start_async(:slice, fn ->
+    |> read_chain(:slice, fn ->
       fleet = Fleets.get_fleet!(fleet_id)
       onchain = Fleet.onchain_token_id(fleet, token_id)
 

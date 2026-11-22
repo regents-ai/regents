@@ -552,6 +552,13 @@
         ],
         "edit": "Signup loses its create action sign_up and that action's policy, its moduledoc's account of how an address is stored and the email attribute comment's last clause; Early loses the sign_up interface (K4)",
         "reason": "the early-access list's add is not brought until its page is (not_brought)"
+      },
+      {
+        "files": [
+          "chain/rewards_waiting.ex"
+        ],
+        "edit": "RewardsWaiting gains kept/4, the answer read/4 gives from its 30 second keep without asking the chain, else :none, and read/4 asks it first; the moduledoc is unchanged (K5)",
+        "reason": "need: the regents chief's ruling on K4: the Key window's rewards read spends one of the page's address's keyfleet_wallet_reads only when the chain must answer it, so the page asks the keep before it starts the read (K5)"
       }
     ],
     "not_carried": {
