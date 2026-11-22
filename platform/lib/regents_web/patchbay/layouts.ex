@@ -82,7 +82,8 @@ defmodule RegentsWeb.Patchbay.Layouts do
   @doc """
   What every Patchbay page's frame and head read beside its title: the account
   the session pipeline found, for the bar, as the site's other pages do
-  (`RegentsWeb.Live.Session`); Patchbay's share picture; and Patchbay's
+  (`RegentsWeb.Live.Session`); that the page also answers as Markdown, as
+  every Patchbay page does; Patchbay's share picture; and Patchbay's
   structured data with the page's own nodes (`page_nodes`, built with
   `Regent.StructuredData`).
   """
@@ -90,6 +91,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
   def frame(conn, page_nodes) do
     [
       account_control: conn |> Plug.Conn.get_session() |> Session.account_control(),
+      markdown?: true,
       share_image: %{
         url: share_picture(),
         size: {1200, 630},
