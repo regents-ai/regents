@@ -64,7 +64,8 @@ ALTER ROLE regents_preview_reader CONNECTION LIMIT 4;
 
 -- The areas it reads.
 GRANT USAGE ON SCHEMA
-  public, regents_app, regent_names, regent_agents, techtree_app, patchbay_app
+  public, regents_app, regent_names, regent_agents, techtree_app, patchbay_app,
+  keyfleet_app, autolaunch_app
   TO regents_preview_reader;
 
 -- regents.sh's own area.
@@ -96,8 +97,12 @@ GRANT SELECT ON TABLE
   techtree_app.schema_migrations
   TO regents_preview_reader;
 
--- Patchbay's applied versions, for the health answer.
-GRANT SELECT ON TABLE patchbay_app.schema_migrations TO regents_preview_reader;
+-- Patchbay's, Keyfleet's and Autolaunch's applied versions, for the health answer.
+GRANT SELECT ON TABLE
+  patchbay_app.schema_migrations,
+  keyfleet_app.schema_migrations,
+  autolaunch_app.schema_migrations
+  TO regents_preview_reader;
 
 -- The five helpers the site's queries call, in each form they are defined in.
 GRANT EXECUTE ON FUNCTION

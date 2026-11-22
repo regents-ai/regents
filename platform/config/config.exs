@@ -214,7 +214,10 @@ config :regents, :limits,
   keyfleet_agent_posts: [limit: 300, window_seconds: 3600],
   # Keyfleet workspace writes per wallet in each fleet: two a second, more than
   # real agent work needs.
-  keyfleet_graph_writes: [limit: 120, window_seconds: 60]
+  keyfleet_graph_writes: [limit: 120, window_seconds: 60],
+  # A person's presses of Keyfleet's Treasury refresh: one every 30 seconds
+  # (Sean, 20 October 2026).
+  keyfleet_treasury_refresh: [limit: 1, window_seconds: 30]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false

@@ -8133,3 +8133,10 @@ seasons), on the shared Points library regents.sh was already on.
 - The two parts that waited on this site's shared reads are now in too: the workspace's activity summary, which names each agent from its pairing, and "who is here", the agents in each fleet and what their check-ins say. "Who is here" is carried but not started: nothing reads it until the pages that show it come. Keyfleet's Claude connector comes later, with every product's.
 - Settings bring only Keyfleet's plain figures (limits, waits, sizes, timeouts): no address of another service, no key and no secret. Keyfleet's two allowances, agent posts and workspace writes, keep keyfleet.ai's figures.
 - Not released: on the `fold/keyfleet` branch only. 131 migrations, all in Keyfleet's own part: the 130 production's `keyfleet_app` should already hold, and one that records the text search regents.sh already installs, so it adds nothing; that is to be confirmed before release. No secret or page change, and no change to how people sign in.
+
+## 2026-11-22 — One site: small shared parts for Keyfleet's pages; two more version lists for the read-only login (not released)
+
+- For Keyfleet's pages, which come next: the name a Key holder's row prints (the name the person chose, else their ENS name), a way for a page to save a failure it caught to the site's error list, and the Treasury page's Refresh allowance, one press every 30 seconds as on keyfleet.ai. Nothing calls them yet.
+- The read-only login's list now names Keyfleet's and Autolaunch's lists of applied versions too (the founder's 378 a), so that site's health answer can report all five. Version numbers only. The login does not exist yet; this is the file it will be given.
+- One lint setting no longer names a file that is not in this site.
+- No page, table or migration. On the `one-site` branch only.

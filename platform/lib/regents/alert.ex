@@ -28,8 +28,14 @@ defmodule Regents.Alert do
     save(exception, Enum.drop_while(stacktrace, &(elem(&1, 0) in [Process, __MODULE__, module])))
   end
 
-  defp save(exception, stacktrace) do
-    ErrorTracker.report(exception, stacktrace)
+  @doc """
+  Saves an exception that was rescued, placed where it was raised, with the
+  `context` of the request or page it happened in when another process saves
+  it.
+  """
+  @spec save(Exception.t(), Exception.stacktrace(), map()) :: :ok
+  def save(exception, stacktrace, context \\ %{}) do
+    ErrorTracker.report(exception, stacktrace, context)
     :ok
   catch
     kind, reason -> unsaved(exception, Exception.format_banner(kind, reason))
