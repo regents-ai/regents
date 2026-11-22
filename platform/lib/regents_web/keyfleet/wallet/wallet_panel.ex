@@ -41,13 +41,17 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       results checks first, taking the account as it reads now:
       `RegentsWeb.Live.Session.check_component_lease/2`) and `client_tag`
       (the page's: the panel's first figures read once it is mounted, each
-      one a changed form or a change of open wallet starts, and each one the panel
+      one a changed form or a change of open wallet starts, each one the panel
       starts again by itself, after figures it could not read, while a
-      button is held back and Buy's every few minutes, spends one of its
-      address's `keyfleet_wallet_reads`, and past them the panel shows it
-      could not read its figures, as when the chain does not answer, and
-      tries again, counted; a rebuild the page itself causes and the account
-      changing are not counted, and no press is);
+      button is held back and Buy's every few minutes, and each press's,
+      spends one of its address's `keyfleet_wallet_reads`, and past them the
+      panel shows it could not read its figures, as when the chain does not
+      answer, and tries again, counted; a rebuild the page itself causes and
+      the account changing are not counted. No press is held back for them:
+      past them a signed-in press is answered with the steps the panel holds
+      when they were built for exactly what it asks for, the wallet, whether
+      that wallet sends, the fields of the form the steps read, the proposal,
+      Key and advance, and otherwise with steps built then);
     * `inputs`, each field the steps read with its first value; `proposal`,
       `token_id` or `advance_id` when the flow acts on one; `refresh`, anything whose
       change means the steps are built again; `names_sender`, false where
@@ -251,8 +255,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # with the form, or of a button the chain's state holds back: the form and
   # the open wallet are taken as the page's own, and the reply carries the
   # steps built from them, read now even where the chain is read, so the press
-  # never waits on steps still being read elsewhere. A page that has just
-  # joined again can ask before it reports the wallet.
+  # never waits on steps still being read elsewhere; past the address's
+  # wallet-read allowance, the steps held when they were built for exactly
+  # this press (`press_built/2`). A page that has just joined again can ask
+  # before it reports the wallet.
   def handle_event("prepare_and_send", %{"form" => form, "step" => step} = params, socket)
       when is_map(form) and is_binary(step) do
     socket = socket |> take_inputs(form) |> take_active(params) |> sync_now()
@@ -269,14 +275,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # they are. What is sent from them is followed as any other press, and a
   # proposal's words are saved as its steps are handed over. A refusal is
   # counted and goes only in the reply: the note below the buttons speaks for
-  # the person's own presses. Over the address's wallet-read allowance, a press
-  # for the wallet and form already built reuses those steps; a press is never
-  # refused for rate.
+  # the person's own presses. Past the address's wallet-read allowance, the
+  # steps held answer it when they were built for exactly what it asks for
+  # (`press_built/2`); no press is refused for it.
   def handle_event("prepare_for_agent", %{"form" => form, "step" => step} = params, socket)
       when is_map(form) and is_binary(step) do
     {socket, wallet} = socket |> take_active(params) |> follow_signer()
     inputs = over(socket.assigns.inputs, form)
-    built = build_for_press(socket, wallet, inputs)
+    built = if wallet, do: press_built(socket, request(socket, wallet, inputs))
     pressed = %{socket.assigns | inputs: inputs, built: built, review: sendable(built, socket)}
 
     case refusal(socket, pressed, step) do
@@ -462,43 +468,39 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   # As `sync/1`, but built before it returns. A build still being read lands
   # later with the same steps, and the page keeps every review a press was
-  # sent from. Signed-out reads share `keyfleet_wallet_reads`; for a signed-in
-  # press over the rate, the last built steps for this wallet are reused so no
-  # press is refused.
+  # sent from. A press's read is counted, and no press is held back for it
+  # (`press_built/2`).
   defp sync_now(socket) do
     case follow_signer(socket) do
-      {socket, nil} -> build(socket, nil, :counted)
-      {socket, wallet} -> sync_now_for_wallet(socket, wallet)
+      {socket, nil} ->
+        build(socket, nil, :counted)
+
+      {socket, wallet} ->
+        socket
+        |> assign(shown: wallet)
+        |> show(press_built(socket, request(socket, wallet, socket.assigns.inputs)))
     end
   end
 
-  defp sync_now_for_wallet(socket, wallet) do
-    if Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) == :limited and
-         reusable_built?(socket.assigns, wallet) do
-      socket
-    else
-      socket
-      |> assign(shown: wallet)
-      |> show(build_steps!(request(socket, wallet, socket.assigns.inputs)))
+  # The steps for a signed-in press, built now from what it asks for. Its
+  # read spends one of the page's address's `keyfleet_wallet_reads`; past
+  # them, the steps the panel holds answer it when they were built for exactly
+  # what it asks for (`built_for/1`), and otherwise they are built now all the
+  # same.
+  defp press_built(socket, request) do
+    wanted = built_for(request)
+
+    case {Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag), socket.assigns} do
+      {:limited, %{built: %{review: %{}, built_for: ^wanted} = built}} -> built
+      _read_now -> build_steps!(request)
     end
   end
 
-  defp build_for_press(_socket, nil, _inputs), do: nil
-
-  defp build_for_press(socket, wallet, inputs) do
-    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
-      :ok ->
-        build_steps!(request(socket, wallet, inputs))
-
-      :limited ->
-        if reusable_built?(socket.assigns, wallet) and inputs == socket.assigns.inputs,
-          do: socket.assigns.built,
-          else: build_steps!(request(socket, wallet, inputs))
-    end
-  end
-
-  defp reusable_built?(%{built: %{review: %{signer: wallet}}, shown: wallet}, wallet), do: true
-  defp reusable_built?(_assigns, _wallet), do: false
+  # What a build's steps were read for besides the chain: the wallet, whether
+  # that wallet sends them (only then is its network fee judged), the fields
+  # of the form the steps read (`read/2`), and the proposal, Key and advance.
+  defp built_for(%{flow: flow, signer: signer, params: params}),
+    do: Map.put(%{params | inputs: read(flow, params.inputs)}, :signer, signer)
 
   defp follow_signer(socket) do
     linked = linked(socket)
@@ -591,22 +593,27 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   end
 
   # A box the steps are built from holding more than the site takes from it
-  # is refused, and said, before any step is built from the form.
+  # is refused, and said, before any step is built from the form. Each build
+  # carries what it was built for (`built_for/1`), so it lands and leaves with
+  # it.
   defp build_steps!(request) do
-    case too_long(read(request.flow, request.params.inputs)) do
-      nil ->
-        WalletSteps.build_steps!(
-          request.fleet_id,
-          request.flow,
-          request.signer,
-          request.component_id,
-          request.params,
-          actor: request.actor
-        )
+    built =
+      case too_long(read(request.flow, request.params.inputs)) do
+        nil ->
+          WalletSteps.build_steps!(
+            request.fleet_id,
+            request.flow,
+            request.signer,
+            request.component_id,
+            request.params,
+            actor: request.actor
+          )
 
-      problem ->
-        %{review: nil, figures: %{}, problem: problem}
-    end
+        problem ->
+          %{review: nil, figures: %{}, problem: problem}
+      end
+
+    Map.put(built, :built_for, built_for(request))
   end
 
   defp show(socket, built) do
