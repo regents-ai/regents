@@ -1,7 +1,8 @@
 // Keyfleet's pages (`RegentsWeb.Keyfleet`): the hooks their markup names and
 // what they watch on the whole document. Where the site has a hook of the same
 // name that moves differently, Keyfleet's is named for Keyfleet (its list,
-// its tick and its tour); the rest of the site's motion is shared.
+// its tick, its tour and its wallet buttons); the rest of the site's motion is
+// shared.
 
 import {Countdown} from "./hooks/countdown"
 import {FleetPreview} from "./hooks/fleet_preview"
@@ -14,6 +15,7 @@ import {LocalTime} from "./hooks/local_time"
 import {ModalDialog, watchPresses} from "./hooks/modal_dialog"
 import {MotionList, MotionStamp, MotionTick} from "./hooks/motion/moments"
 import {watchInput} from "./hooks/motion/shared"
+import {OnchainSteps} from "./hooks/onchain_steps"
 import {RoomPosts} from "./hooks/room_posts"
 import {RoomThread} from "./hooks/room_thread"
 import {ScheduleCard} from "./hooks/schedule_card"
@@ -29,6 +31,7 @@ export const keyfleetHooks = {
   KeyCardTurn,
   KeyfleetMotionList: MotionList,
   KeyfleetMotionTick: MotionTick,
+  KeyfleetOnchainSteps: OnchainSteps,
   KeyfleetTour: Tour,
   KeyMap,
   LocalTime,
