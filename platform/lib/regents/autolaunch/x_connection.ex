@@ -6,15 +6,16 @@ defmodule Regents.Autolaunch.XConnection do
   attempt needed to finish one browser popup and the public identity returned
   by X after that attempt succeeds.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
+  a creator's verified names; nothing here writes them yet.
   """
 
   use Ash.Resource,
     otp_app: :regents,
     domain: Regents.Autolaunch,
     data_layer: AshPostgres.DataLayer,
-    authorizers: [Ash.Policy.Authorizer]
+    authorizers: [Ash.Policy.Authorizer],
+    primary_read_warning?: false
 
   postgres do
     table "x_connections"
@@ -99,11 +100,53 @@ defmodule Regents.Autolaunch.XConnection do
     identity :one_role_per_human, [:human_account_id, :role]
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    read :related_public do
+      primary? true
+
+      prepare build(
+                select: [
+                  :id,
+                  :role,
+                  :x_user_id,
+                  :username,
+                  :display_name,
+                  :avatar_url,
+                  :verified_at,
+                  :human_account_id
+                ]
+              )
+    end
+
+    read :public_for_humans do
+      argument :human_account_ids, {:array, :integer}, allow_nil?: false
+      filter expr(human_account_id in ^arg(:human_account_ids) and not is_nil(verified_at))
+
+      prepare build(
+                sort: [human_account_id: :asc, role: :asc],
+                select: [
+                  :id,
+                  :role,
+                  :x_user_id,
+                  :username,
+                  :display_name,
+                  :avatar_url,
+                  :verified_at,
+                  :human_account_id
+                ]
+              )
+    end
+  end
+
+  # Only the public reads are carried; any other action is refused until it
+  # comes with its own policy.
   policies do
-    policy always() do
-      forbid_if always()
+    policy action(:related_public) do
+      authorize_if expr(not is_nil(verified_at))
+    end
+
+    policy action(:public_for_humans) do
+      authorize_if always()
     end
   end
 end

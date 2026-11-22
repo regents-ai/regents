@@ -10,15 +10,21 @@ defmodule Regents.Autolaunch do
   revenue, stocks and their launches, share videos and the X connection.
   Covered calls' two tables are their own domain,
   `Regents.Autolaunch.CoveredCalls`. Every attribute, relationship and identity
-  is as autolaunch.sh has it, with no action yet and one policy refusing every
-  action, so nothing here reads or writes a row.
+  is as autolaunch.sh has it. The reads behind the Auctions and Tokens lists
+  (`Regents.Autolaunch.HomeMarket`) are here with their policies; every other
+  resource has no action yet and one policy refusing every action, so nothing
+  here writes a row.
 
   It also reads the deployment descriptions, the files that say which
   contracts on which chain the site describes: Base's (`Lab`), Base Stocks'
   (`Stocks.Lab`) and Robinhood's (`Robinhood.Lab`), each named by a path
-  setting and read once (`load_deployments!/0`).
+  setting and read once, as the site starts (`Regents.Autolaunch.Supervisor`
+  calls `load_deployments!/0`).
   """
-  use Boundary, top_level?: true, deps: [Regents, Regents.Chain], exports: []
+  use Boundary,
+    top_level?: true,
+    deps: [Regents, Regents.Chain],
+    exports: [HomeMarket, Search, Supervisor]
 
   use Ash.Domain, otp_app: :regents
 
@@ -35,7 +41,11 @@ defmodule Regents.Autolaunch do
     resource Regents.Autolaunch.AuctionPricePoint
     resource Regents.Autolaunch.LaunchDraft
     resource Regents.Autolaunch.LaunchDraftImage
-    resource Regents.Autolaunch.Auction
+
+    resource Regents.Autolaunch.Auction do
+      define :list_path_peers, action: :path_peers, args: [:symbols]
+    end
+
     resource Regents.Autolaunch.LaunchOperation
     resource Regents.Autolaunch.Stocks.LaunchDraft
     resource Regents.Autolaunch.Stocks.LaunchDraftImage
@@ -64,8 +74,9 @@ defmodule Regents.Autolaunch do
   (`Lab.loaded!/2`), as autolaunch.sh's `config/runtime.exs` loaded them at
   boot: Base's, Base Stocks' and Robinhood's. One that does not load raises its
   loader's error. A network whose setting is unset has no deployment, and
-  nothing is read for it. Run at start, it stops the boot on a malformed file
-  as autolaunch.sh did, and every later read is answered from memory.
+  nothing is read for it. `Regents.Autolaunch.Supervisor` calls it as it
+  starts, so a malformed file stops the site's start as it stopped
+  autolaunch.sh's, and every later read is answered from memory.
   """
   def load_deployments! do
     for {setting, loader} <- [

@@ -4,7 +4,7 @@ defmodule Regents.Application do
   @moduledoc false
   use Boundary,
     top_level?: true,
-    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Keyfleet]
+    deps: [Regents, RegentsWeb, Regents.Stake, Regents.Keyfleet, Regents.Autolaunch]
 
   use Application
 
@@ -60,6 +60,8 @@ defmodule Regents.Application do
         # After PubSub and SharedReading: Keyfleet's processes that keep what they
         # are given in memory and write nothing.
         Regents.Keyfleet.Supervisor,
+        # Autolaunch's part, which reads its deployment files as it starts.
+        Regents.Autolaunch.Supervisor,
         # Start a worker by calling: Regents.Worker.start_link(arg)
         # {Regents.Worker, arg},
         # Start to serve requests, typically the last entry

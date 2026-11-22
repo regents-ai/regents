@@ -1,0 +1,21 @@
+defmodule Regents.Autolaunch.Token.Preparations.ListedAuction do
+  @moduledoc false
+  use Ash.Resource.Preparation
+
+  # A token is listed when its auction is: see
+  # `Regents.Autolaunch.Auction.Preparations.Listed`.
+  @impl true
+  def prepare(query, _opts, _context), do: listed(query, Regents.Autolaunch.Stocks.Lab.chain_id())
+
+  defp listed(query, nil), do: Ash.Query.filter(query, exists(auction, origin == :site))
+
+  defp listed(query, base),
+    do:
+      Ash.Query.filter(
+        query,
+        exists(
+          auction,
+          origin == :site or (origin == :chain and kind == :stocks and chain_id == ^base)
+        )
+      )
+end
