@@ -22,9 +22,9 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
   # the page alone; the site's root document adds " · Patchbay" once, except
   # on the home page (`:home`, /patchbay), whose title is Patchbay's name
   # alone. The Markdown of the home page, of the list of sites (`:sites`,
-  # /patchbay/sites) and of Paid priority (`:priority`, /patchbay/priority)
-  # reads stored rows, so their own controller answers it and `document/1`
-  # does not.
+  # /patchbay/sites), of Paid priority (`:priority`, /patchbay/priority) and of
+  # the incidents (`:incidents`, /patchbay/incidents) reads stored rows, so
+  # their own controller answers it and `document/1` does not.
   @pages %{
     :home =>
       {"Patchbay",
@@ -41,6 +41,9 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
     :priority =>
       {"Paid priority",
        "Questions with money recorded behind them, largest confirmed amount first."},
+    :incidents =>
+      {"Incidents",
+       "Live security incidents, what to do now, and the newest critical vulnerabilities, each with its own discussion."},
     "/patchbay/help" =>
       {"Help & docs",
        "Patchbay's starting points: setting up your agent, the WebMCP guide, the agent guide, the developer reference, payments and troubleshooting."},
@@ -113,6 +116,20 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
       page_title: "Changelog page #{number}",
       page_description: "Older changes to Patchbay, page #{number} of #{pages}, newest first.",
       canonical: RegentsWeb.Endpoint.url() <> "/patchbay/changelog?page=#{number}"
+    ]
+  end
+
+  @doc """
+  An older page of the incidents' critical CVEs (`/patchbay/incidents?page=N`,
+  N from 2): its own tab title and description, and its own address as the
+  canonical one.
+  """
+  def incidents_page(number) do
+    [
+      page_title: "Incidents page #{number}",
+      page_description:
+        "Older critical vulnerabilities from cve.now, page #{number}, newest first.",
+      canonical: RegentsWeb.Endpoint.url() <> "/patchbay/incidents?page=#{number}"
     ]
   end
 

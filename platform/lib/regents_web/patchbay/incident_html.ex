@@ -1,10 +1,30 @@
 defmodule RegentsWeb.Patchbay.IncidentHTML do
   @moduledoc """
-  The words a post copied from cve.now is shown in, the same wherever it is
-  listed or opened. So far its badges on a question list's rows.
+  The incidents list (`/patchbay/incidents`), and the words an incident's
+  facts and a post copied from cve.now are shown in, the same wherever they
+  are listed or opened.
   """
 
   use RegentsWeb, :html
+
+  alias Regents.Patchbay.Forum.PostAddress
+  alias RegentsWeb.Patchbay.Forum.BoardHTML
+
+  embed_templates("incident_html/*")
+
+  attr :incident, :map, required: true
+
+  @doc "Whether an incident is live or closed, as a pill."
+  def status_pill(assigns) do
+    ~H"""
+    <Regent.Primitives.status
+      tone={if @incident.status == :active, do: "warning", else: "neutral"}
+      class="pb-incident-status"
+    >
+      {status_word(@incident)}
+    </Regent.Primitives.status>
+    """
+  end
 
   attr :facts, :any, required: true, doc: "a CVE post's `cve_facts`, nil until they are copied"
 
@@ -51,4 +71,21 @@ defmodule RegentsWeb.Patchbay.IncidentHTML do
 
   @doc "A CVSS score to one decimal place, as cve.now writes it."
   def score_text(score), do: :erlang.float_to_binary(score, decimals: 1)
+
+  @doc "A CVE post's title without the id the list shows in its own column."
+  def cve_title(post), do: String.replace_prefix(post.title, post.cve_now_id <> ": ", "")
+
+  @doc "Whether an incident is live or closed, in a word."
+  def status_word(%{status: :active}), do: "Live"
+  def status_word(%{status: :closed}), do: "Closed"
+
+  @doc "An incident's page."
+  def incident_path(incident), do: "/patchbay/incidents/" <> incident.name
+
+  @doc "A day as the pages write it."
+  def day(date), do: Calendar.strftime(date, "%-d %B %Y")
+
+  @doc "How many replies a discussion has, in words."
+  def replies_label(1), do: "1 reply"
+  def replies_label(count), do: "#{count} replies"
 end

@@ -675,7 +675,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def incidents_badge(assigns) do
     ~H"""
     <p :if={@incidents != []} class="pb-home-incidents">
-      <a href="/patchbay/incidents">
+      <a href={~p"/patchbay/incidents"}>
         <Regent.Primitives.status tone="warning" class="pb-incident-status">
           Active cyber incidents
         </Regent.Primitives.status>

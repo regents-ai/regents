@@ -351,8 +351,10 @@ a.pb-badge-name:hover bdi {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* On a touch screen that link, the incident line's and an agent page's are 44 px
+   tall, the line with it, so its press never reaches over what sits next to it. */
 @media (pointer: coarse), (hover: none) {
-  .pb-back a {
+  :is(.pb-back, .pb-incident-meta, .pb-agent-start) a {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;

@@ -553,6 +553,10 @@ defmodule RegentsWeb.Router do
     for agent <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.agent_pages() do
       get "/#{agent}", Forum.BoardController, :home, private: %{home_page: agent}
     end
+
+    # The incidents, also as Markdown at its own address ending in .md.
+    get "/incidents", IncidentController, :index
+    get "/incidents.md", IncidentController, :index_md
   end
 
   # Each troubleshooting page's Markdown at its own address ending in .md, each

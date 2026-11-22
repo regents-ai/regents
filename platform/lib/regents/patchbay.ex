@@ -44,6 +44,7 @@ defmodule Regents.Patchbay do
       Forum.ToolName,
       Forum.Types.ThreadKind,
       Incidents,
+      Incidents.Discussion,
       Members.Member,
       WrittenPages
     ]

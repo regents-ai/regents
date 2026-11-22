@@ -14,6 +14,7 @@ defmodule RegentsWeb.Patchbay do
       BlogController,
       Forum.BoardController,
       Forum.TroubleshootingPages,
+      IncidentController,
       Layouts,
       ListedSitePictureController,
       PagesController,

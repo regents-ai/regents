@@ -47,6 +47,8 @@ defmodule Regents.Patchbay.Forum do
       define(:list_ranked_posts_for_tool, action: :ranked_for_tool, args: [:site_id, :tool_name])
       define(:list_priority_reports_for_tools, action: :priority_for_tools, args: [:tool_ids])
       define(:list_priority_queue, action: :priority_queue)
+      define(:list_incident_discussions, action: :incident_discussions)
+      define(:list_cve_now_posts, action: :cve_now_posts)
       define(:get_report, action: :read, get_by: [:id])
     end
 

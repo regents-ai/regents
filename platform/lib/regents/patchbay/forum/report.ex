@@ -701,6 +701,18 @@ defmodule Regents.Patchbay.Forum.Report do
 
       prepare(build(sort: [verified_paid_usdc_atomic: :desc, inserted_at: :desc, id: :desc]))
     end
+
+    read :incident_discussions do
+      description("Every incident's discussion that has been opened and is shown.")
+      filter(expr(not is_nil(incident) and visibility == :published))
+    end
+
+    read :cve_now_posts do
+      description("The shown posts that mirror cve.now records, newest first.")
+      filter(expr(not is_nil(cve_now_id) and visibility == :published))
+      pagination(offset?: true, countable: true, default_limit: 25, max_page_size: 25)
+      prepare(build(sort: [inserted_at: :desc, id: :desc]))
+    end
   end
 
   # Only reads are carried; any other action is refused until it comes with its
@@ -721,7 +733,9 @@ defmodule Regents.Patchbay.Forum.Report do
              :ranked_for_site,
              :ranked_for_tool,
              :priority_for_tools,
-             :priority_queue
+             :priority_queue,
+             :incident_discussions,
+             :cve_now_posts
            ]) do
       authorize_if(always())
     end
