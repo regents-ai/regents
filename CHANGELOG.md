@@ -8102,3 +8102,9 @@ seasons), on the shared Points library regents.sh was already on.
 
 - A product can ask, as the system, for the verified social links of up to 100 people at once and gets the account, provider, username, display name and time verified; the provider's own id for the person and Privy's details are never part of the answer (`Regents.Account.Accounts.list_linked_identities_for_accounts`).
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-22 — One site: database time limits and a share of Patchbay page reads (not released)
+
+- Every serving connection to the shared database now gives up on a statement after 15 seconds, on a lock wait after 5 seconds and on an idle open transaction after 15 seconds, names itself `regents-web`, and keeps connection details out of its errors: the same figures the four product sites hold today. Release commands are unchanged.
+- Each address has 120 reads a minute of the pages under `/patchbay`, counted apart from the site's other budget, with the standard `RateLimit` headers for the `"reads"` share; past it the answer is 429 with `Retry-After`.
+- No page, table, migration or setting. On the `one-site` branch only.
