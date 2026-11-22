@@ -15,10 +15,15 @@ defmodule Regents.Chain.Rpc do
   @typedoc "The block a `call_*` read is pinned to: its hash, whatever else the map holds."
   @type pinned :: %{required(:hash) => String.t(), optional(atom()) => term()}
 
-  def verify_base_chain(opts \\ []) do
+  def verify_base_chain(opts \\ []), do: verify_chain(@chain_id, opts)
+
+  # The one proof of which chain a node serves, read from its own `eth_chainId`:
+  # `verify_base_chain/1` asks it for Base, and `latest_block/1` for the chain
+  # its `chain_id:` option names.
+  defp verify_chain(expected, opts) do
     with {:ok, result} <- request("eth_chainId", [], opts),
          {:ok, chain_id} <- quantity(result),
-         true <- chain_id == @chain_id do
+         true <- chain_id == expected do
       :ok
     else
       {:error, reason} -> {:error, reason}
@@ -28,7 +33,11 @@ defmodule Regents.Chain.Rpc do
   end
 
   @doc """
-  One `latest` Base block, accepted only after the chain identity is proved.
+  One `latest` block, accepted only after the chain identity is proved: Base,
+  or the chain `chain_id:` names for the endpoint `url:` names. `chain_id:` is
+  an integer from a loaded deployment description, the same one every failed
+  request is counted under; a node serving any other chain answers
+  `{:error, :wrong_chain}`.
 
   Base's sequencer confirms `latest` first, so this is the head a person waiting
   on their own transaction is actually watching. Every read pinned
@@ -37,7 +46,7 @@ defmodule Regents.Chain.Rpc do
   """
   @spec latest_block(keyword()) :: {:ok, block()} | {:error, atom()}
   def latest_block(opts \\ []) do
-    with :ok <- verify_base_chain(opts),
+    with :ok <- verify_chain(Keyword.get(opts, :chain_id, @chain_id), opts),
          {:ok, header} <- request("eth_getBlockByNumber", ["latest", false], opts),
          do: block_identity(header)
   end
