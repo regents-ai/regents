@@ -205,14 +205,26 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   # The page shows the post as read above, so a reader's first view is counted
   # from their next one. The reader is the browser's own forum session, given
-  # it here when it has none. Where the site only reads, nothing is written.
+  # it here when it has none. Where the site only reads, nothing is written. A
+  # view that is refused or cannot be written is logged by its kind only, never
+  # with the session, and the page is served.
   defp viewed(conn, report) do
     if Regents.read_only?() do
       conn
     else
       conn = forum_session(conn)
-      :ok = Board.record_view(report, get_session(conn, @forum_session))
+      record_view(report, get_session(conn, @forum_session))
       conn
+    end
+  end
+
+  defp record_view(report, session_id) do
+    case Board.record_view(report, session_id) do
+      {:ok, _view} ->
+        :ok
+
+      {:error, failure} ->
+        Logger.warning("A thread view could not be recorded: " <> inspect(error_type(failure)))
     end
   end
 

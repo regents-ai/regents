@@ -356,11 +356,11 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   @doc """
   Records that this reader opened the thread. The reader is the browser's
   own forum session, so the same reader is counted once however often the
-  page loads.
+  page loads. A view that is refused or cannot be written is the caller's to
+  report; it never takes the page down.
   """
-  @spec record_view(Forum.Report.t(), String.t()) :: :ok
-  def record_view(report, session_id) when is_binary(session_id) do
-    Forum.record_thread_view!(report.id, session_id)
-    :ok
-  end
+  @spec record_view(Forum.Report.t(), String.t()) ::
+          {:ok, Ash.Resource.record()} | {:error, term()}
+  def record_view(report, session_id) when is_binary(session_id),
+    do: Forum.record_thread_view(report.id, session_id)
 end
