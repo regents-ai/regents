@@ -92,12 +92,19 @@ defmodule RegentsWeb.Router do
   pipeline :patchbay_forum_tools do
     plug :accepts, ["json"]
     plug RegentsWeb.Plugs.ReadOnly
+    plug :put_site_edition, :main
     plug :fetch_session
     plug :enforce_session_authority
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug RegentsWeb.Patchbay.Plugs.ForumSession
     plug RegentsWeb.Patchbay.Plugs.CurrentProfile
+  end
+
+  pipeline :patchbay_api do
+    plug :accepts, ["json"]
+    plug RegentsWeb.Plugs.LaunchGate
+    plug :put_site_edition, :main
   end
 
   pipeline :patchbay_require_profile do
@@ -307,6 +314,8 @@ defmodule RegentsWeb.Router do
   # layout puts it on the page as `data-product`, with its brand (`data-brand`) and
   # the home colour (`data-home`). A shell page names its own (`RouteCatalog`).
   def put_product(conn, product), do: assign(conn, :site_product, product)
+
+  def put_site_edition(conn, edition), do: assign(conn, :site_edition, edition)
 
   def put_harbour_sea(conn, _opts), do: assign(conn, :harbour_sea, true)
 
@@ -711,6 +720,10 @@ defmodule RegentsWeb.Router do
     pipe_through [:techtree_browser, :techtree]
 
     get "/about", PublicPagesController, :show
+    get "/privacy", PublicPagesController, :show
+    get "/terms", PublicPagesController, :show
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
     get "/agents", PublicPagesController, :show
     get "/agents/:agent", PublicPagesController, :show
     get "/services/security/sample-report", PublicPagesController, :show
@@ -1292,7 +1305,7 @@ defmodule RegentsWeb.Router do
 
   # Patchbay public JSON APIs.
   scope "/api/v1/patchbay", RegentsWeb.Patchbay do
-    pipe_through :api
+    pipe_through :patchbay_api
 
     get "/wallet-bench", WalletBenchController, :index
     get "/wallet-bench/:harness_id/:wallet_id", WalletBenchController, :show

@@ -218,6 +218,15 @@ defmodule RegentsWeb.Techtree.Layouts do
   def description("/techtree/about"),
     do: "Who runs Techtree, the experience behind it, and how to work with us."
 
+  def description("/techtree/privacy"),
+    do: "What Techtree keeps about visitors and signed-in accounts, and why."
+
+  def description("/techtree/terms"),
+    do: "Terms of use governing Techtree services, published results, and benchmarks."
+
+  def description("/techtree/blog" <> _rest),
+    do: "Findings and notes from Techtree's evaluations and Agent Wallet Bench runs."
+
   def description("/techtree/agents" <> _rest = path), do: AgentGuides.description(path)
 
   def description("/techtree/train/" <> _slug),

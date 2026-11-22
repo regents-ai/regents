@@ -9,7 +9,8 @@ defmodule Regents.Autolaunch.AuctionStats do
   Auction's `:listed` read without an actor; nothing reads a chain.
   """
 
-  alias Regents.Autolaunch.Auction
+  alias Regents.Autolaunch.{Auction, Lab}
+  alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
 
   @type counts :: %{live: non_neg_integer(), graduated: non_neg_integer()}
 
@@ -18,6 +19,15 @@ defmodule Regents.Autolaunch.AuctionStats do
 
   @spec memestock() :: {:ok, counts()} | {:error, term()}
   def memestock, do: counts(kind: :stocks)
+
+  @spec by_chain() :: {:ok, map()} | {:error, term()}
+  def by_chain do
+    with {:ok, revstake} <- counts(kind: :agent, chain_id: Lab.chain_id()),
+         {:ok, base} <- counts(kind: :stocks, chain_id: Lab.chain_id()),
+         {:ok, robinhood} <- counts(kind: :stocks, chain_id: RobinhoodLab.chain_id()) do
+      {:ok, %{revstake: %{base: revstake}, memestock: %{base: base, robinhood: robinhood}}}
+    end
+  end
 
   defp counts(filter) do
     with {:ok, live} <- count([{:state, :active} | filter]),

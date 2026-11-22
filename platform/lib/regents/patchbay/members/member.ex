@@ -166,6 +166,7 @@ defmodule Regents.Patchbay.Members.Member do
     has_one :human_account, Regents.Account.Accounts.HumanAccount do
       source_attribute(:privy_user_id)
       destination_attribute(:privy_user_id)
+      read_action(:ens_identity_owner)
     end
   end
 

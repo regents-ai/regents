@@ -37,9 +37,21 @@ site_url =
     URI.to_string(%URI{scheme: url[:scheme] || "http", host: url[:host], port: url[:port]})
   end
 
+siwa_url =
+  case System.get_env("SIWA_SERVER_URL") do
+    value when is_binary(value) and value != "" -> value
+    _unset -> if config_env() == :dev, do: "https://siwa.regents.sh", else: nil
+  end
+
+siwa_audience =
+  case System.get_env("SIWA_AUDIENCE") do
+    value when is_binary(value) and value != "" -> value
+    _unset -> if config_env() == :dev, do: "regents.sh", else: nil
+  end
+
 config :regent_agents, :siwa,
-  url: System.get_env("SIWA_SERVER_URL"),
-  audience: System.get_env("SIWA_AUDIENCE"),
+  url: siwa_url,
+  audience: siwa_audience,
   origin: site_url
 
 if site_url, do: config(:regents, :site_origin, site_url)

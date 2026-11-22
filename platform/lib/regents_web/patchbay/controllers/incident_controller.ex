@@ -25,7 +25,11 @@ defmodule RegentsWeb.Patchbay.IncidentController do
   alias Regents.Patchbay.Incidents
   alias Regents.Patchbay.Incidents.Discussion
   alias Regents.Patchbay.Offers.Serving
+  alias RegentsWeb.Patchbay.IncidentHTML
+  alias RegentsWeb.Patchbay.IncidentMD
   alias RegentsWeb.Patchbay.PaidOffers
+
+  plug :put_view, html: IncidentHTML, md: IncidentMD
 
   @per_page 25
 

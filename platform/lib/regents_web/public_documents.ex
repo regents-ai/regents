@@ -186,6 +186,21 @@ defmodule RegentsWeb.PublicDocuments do
       markdown: RegentsWeb.Techtree.HomeLive.markdown() <> TechtreeDocuments.trailer()
     }
 
+  def document("/keyfleet") do
+    %{markdown: about} = KeyfleetDocuments.document("/keyfleet/about")
+    %{title: "Keyfleet", markdown: about}
+  end
+
+  def document("/autolaunch") do
+    %{markdown: about} = AutolaunchDocuments.document("/autolaunch/about")
+    %{title: "Autolaunch", markdown: about}
+  end
+
+  def document("/patchbay") do
+    %{markdown: about} = PatchbayDocuments.document("/patchbay/about")
+    %{title: "Patchbay", markdown: about}
+  end
+
   def document("/techtree/" <> _rest = path), do: TechtreeDocuments.document(path)
   def document("/keyfleet/" <> _rest = path), do: KeyfleetDocuments.document(path)
   def document("/autolaunch/" <> _rest = path), do: AutolaunchDocuments.document(path)

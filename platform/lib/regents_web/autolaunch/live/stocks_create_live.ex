@@ -486,7 +486,7 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
                   </button>
                 </p>
                 <p class="create-page__hint">
-                  <.link navigate="/stocks" class="standalone-link">Onchain Stocks</.link>
+                  <.link navigate="/autolaunch/stocks" class="standalone-link">Onchain Stocks</.link>
                 </p>
                 <p
                   :if={@stock && !@market_loading? && is_nil(@opening.rate)}

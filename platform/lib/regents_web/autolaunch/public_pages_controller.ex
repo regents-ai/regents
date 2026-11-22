@@ -14,17 +14,23 @@ defmodule RegentsWeb.Autolaunch.PublicPagesController do
 
   def show(conn, _params) do
     path = conn.request_path
-    page = PublicDocuments.page(path)
-    %{markdown: markdown} = PublicDocuments.document(path)
 
-    render(
-      conn,
-      :show,
-      [
-        document: PublicDocuments.html(markdown),
-        current_path: path,
-        account_control: conn |> get_session() |> Session.account_control()
-      ] ++ page
-    )
+    case PublicDocuments.document(path) do
+      %{markdown: markdown} ->
+        page = PublicDocuments.page(path)
+
+        render(
+          conn,
+          :show,
+          [
+            document: PublicDocuments.html(markdown),
+            current_path: path,
+            account_control: conn |> get_session() |> Session.account_control()
+          ] ++ page
+        )
+
+      nil ->
+        raise RegentsWeb.NotFoundError
+    end
   end
 end

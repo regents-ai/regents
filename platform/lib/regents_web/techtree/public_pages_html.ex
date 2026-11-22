@@ -16,6 +16,8 @@ defmodule RegentsWeb.Techtree.PublicPagesHTML do
 
   @pages %{
     "/techtree/about" => "about",
+    "/techtree/privacy" => "privacy",
+    "/techtree/terms" => "terms",
     "/techtree/services/security/sample-report" => "services/security-sample-report"
   }
 

@@ -585,16 +585,20 @@ defmodule Regents.Autolaunch.AuctionActivity do
       current = locked(auction)
 
       Repo.delete_all(
-        from b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first
+        from(b in BidActivity, where: b.auction_id == ^auction.id and b.block_number >= ^first),
+        prefix: "autolaunch_app"
       )
 
       Repo.delete_all(
-        from p in AuctionPricePoint,
+        from(p in AuctionPricePoint,
           where: p.auction_id == ^auction.id and p.block_number >= ^first
+        ),
+        prefix: "autolaunch_app"
       )
 
       Repo.delete_all(
-        from s in BidSettlement, where: s.auction_id == ^auction.id and s.block_number >= ^first
+        from(s in BidSettlement, where: s.auction_id == ^auction.id and s.block_number >= ^first),
+        prefix: "autolaunch_app"
       )
 
       Ash.bulk_create!(bids, BidActivity, :record, actor: @actor, return_errors?: true)
@@ -608,7 +612,10 @@ defmodule Regents.Autolaunch.AuctionActivity do
       record_positions(auction)
 
       total =
-        Repo.one(from b in BidActivity, where: b.auction_id == ^auction.id, select: sum(b.amount)) ||
+        Repo.one(
+          from(b in BidActivity, where: b.auction_id == ^auction.id, select: sum(b.amount)),
+          prefix: "autolaunch_app"
+        ) ||
           Decimal.new(0)
 
       Ash.update!(
@@ -663,7 +670,7 @@ defmodule Regents.Autolaunch.AuctionActivity do
       from(a in BidActivity,
         where: a.auction_id == ^auction.id and a.bid_id not in subquery(saved)
       )
-      |> Repo.all()
+      |> Repo.all(prefix: "autolaunch_app")
       |> Enum.map(fn activity ->
         %{
           bid_id:
@@ -690,9 +697,17 @@ defmodule Regents.Autolaunch.AuctionActivity do
     Repo.transaction(fn ->
       current = locked(auction)
 
-      Repo.delete_all(from b in BidActivity, where: b.auction_id == ^auction.id)
-      Repo.delete_all(from p in AuctionPricePoint, where: p.auction_id == ^auction.id)
-      Repo.delete_all(from s in BidSettlement, where: s.auction_id == ^auction.id)
+      Repo.delete_all(from(b in BidActivity, where: b.auction_id == ^auction.id),
+        prefix: "autolaunch_app"
+      )
+
+      Repo.delete_all(from(p in AuctionPricePoint, where: p.auction_id == ^auction.id),
+        prefix: "autolaunch_app"
+      )
+
+      Repo.delete_all(from(s in BidSettlement, where: s.auction_id == ^auction.id),
+        prefix: "autolaunch_app"
+      )
 
       Ash.update!(
         current,

@@ -7,7 +7,16 @@ defmodule RegentsWeb.Autolaunch.UnavailableController do
   use RegentsWeb, :controller
 
   alias RegentsWeb.Autolaunch.PublicDocuments
+  alias RegentsWeb.Live.Session
 
-  def show(conn, _params),
-    do: render(conn, :show, PublicDocuments.page("/autolaunch/unavailable"))
+  def show(conn, _params) do
+    render(
+      conn,
+      :show,
+      [
+        current_path: conn.request_path,
+        account_control: conn |> get_session() |> Session.account_control()
+      ] ++ PublicDocuments.page("/autolaunch/unavailable")
+    )
+  end
 end

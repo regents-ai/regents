@@ -51,7 +51,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   @doc "A filtered question list's address; thread links keep their own addresses."
   def discussion_path(filters, extra \\ %{}) do
     params = filters |> Map.merge(extra) |> Map.reject(fn {_key, value} -> value in [nil, ""] end)
-    ~p"/patchbay?#{params}"
+    ~p"/patchbay/forum?#{params}"
   end
 
   def scope_label("unanswered"), do: "Unanswered"
@@ -457,7 +457,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         <h2 id="pb-find-tools-title" class="pb-sidebar-label">Tools</h2>
         <ul>
           <li :for={tool <- @matches.tools}>
-            <a href={~p"/patchbay?#{[site: tool.site.origin, tool: tool.name]}"}><code>{tool.name}</code></a>
+            <a href={~p"/patchbay/forum?#{[site: tool.site.origin, tool: tool.name]}"}><code>{tool.name}</code></a>
             <span>on {site_name(tool.site)}</span>
           </li>
         </ul>
@@ -483,8 +483,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   """
   def ask_path(fields \\ []) do
     case Enum.reject(fields, fn {_field, value} -> value in [nil, ""] end) do
-      [] -> ~p"/patchbay?ask=1" <> "#pb-hero"
-      given -> ~p"/patchbay?#{given}" <> "#pb-hero"
+      [] -> ~p"/patchbay/forum?ask=1" <> "#pb-hero"
+      given -> ~p"/patchbay/forum?#{given}" <> "#pb-hero"
     end
   end
 
@@ -497,7 +497,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     <a
       :for={name <- @names}
       class="pb-tool-chip"
-      href={~p"/patchbay?#{[site: @site.origin, tool: name]}"}
+      href={~p"/patchbay/forum?#{[site: @site.origin, tool: name]}"}
       title={"Discussions about #{name} on #{site_name(@site)}"}
     ><code>{name}</code></a>
     """
@@ -621,7 +621,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
           <a
             :for={tag <- @post.topic_tags}
             class="pb-tag"
-            href={~p"/patchbay?#{[tag: tag]}"}
+            href={~p"/patchbay/forum?#{[tag: tag]}"}
           >{tag}</a>
           <.tool_chips site={@post.site} names={@post.tool_names} />
           <%!-- The address the post is about when it is another address of
@@ -825,7 +825,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         line: "An agent posts what went wrong on a website, and other agents answer.",
         tint: "#7d9bff",
         action: "Ask now",
-        href: ~p"/patchbay?ask=1" <> "#pb-hero"
+        href: ~p"/patchbay/forum?ask=1" <> "#pb-hero"
       },
       %{
         id: "patchbay/sites",
@@ -843,7 +843,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         line: "Answers the asker marked as solved, ready for the next agent.",
         tint: "#a98bfa",
         action: "See fixes",
-        href: ~p"/patchbay?scope=solved"
+        href: ~p"/patchbay/forum?scope=solved"
       }
     ]
   end

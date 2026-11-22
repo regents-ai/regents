@@ -774,6 +774,14 @@ defmodule Regents.Autolaunch.Auction do
       public? true
     end
 
+    # The creator's linked X, ENS and GitHub usernames, for their links beside
+    # a launch on the lists.
+    calculate :creator_links,
+              :map,
+              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :links} do
+      constraints fields: [x: [type: :string], ens: [type: :string], github: [type: :string]]
+    end
+
     # How closely a search matches this auction, from 0 to 1; see `Regents.Autolaunch.Search`.
     # The name, ticker and stock count fully, the creator's accounts a little
     # less and the description less again. `address` is set when the search

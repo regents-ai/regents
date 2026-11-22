@@ -23,12 +23,16 @@ defmodule RegentsWeb.Patchbay.WalletBenchController do
   def index(conn, params) do
     case WalletBench.board_page(params, get_format(conn) == "md") do
       {:ok, assigns} ->
-        conn
-        |> merge_assigns(
-          RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/wallet-bench") ++
-            RegentsWeb.Patchbay.Layouts.frame(conn, [])
-        )
-        |> render(:index, assigns ++ [page_data: [WalletBenchHTML.dataset(assigns[:matrix])]])
+        if get_format(conn) == "json" do
+          render(conn, :index, assigns)
+        else
+          conn
+          |> merge_assigns(
+            RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/wallet-bench") ++
+              RegentsWeb.Patchbay.Layouts.frame(conn, [])
+          )
+          |> render(:index, assigns ++ [page_data: [WalletBenchHTML.dataset(assigns[:matrix])]])
+        end
 
       :not_found ->
         raise NotFoundError
@@ -138,17 +142,21 @@ defmodule RegentsWeb.Patchbay.WalletBenchController do
         %{name: agent} = assigns[:harness]
         %{name: wallet} = assigns[:wallet]
 
-        render(
-          conn,
-          :show,
-          assigns ++
-            RegentsWeb.Patchbay.Layouts.frame(conn, []) ++
-            [
-              page_title: "Can #{agent} use a #{wallet} wallet?",
-              page_description:
-                "How #{agent} did with #{wallet} on the Agent Wallet Bench: test by test, each run on a fresh machine."
-            ]
-        )
+        if get_format(conn) == "json" do
+          render(conn, :show, assigns)
+        else
+          render(
+            conn,
+            :show,
+            assigns ++
+              RegentsWeb.Patchbay.Layouts.frame(conn, []) ++
+              [
+                page_title: "Can #{agent} use a #{wallet} wallet?",
+                page_description:
+                  "How #{agent} did with #{wallet} on the Agent Wallet Bench: test by test, each run on a fresh machine."
+              ]
+          )
+        end
 
       :not_found ->
         raise NotFoundError

@@ -698,7 +698,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   @doc "An incident's discussion page."
   def incident(%{private: %{incident: name}} = conn, params) do
-    case Regents.Patchbay.Incidents.Discussion.open(name) do
+    incident = Incidents.get(name) || raise RegentsWeb.NotFoundError
+
+    case Regents.Patchbay.Incidents.Discussion.open(incident) do
       {:ok, thread} ->
         report = fetch_report!(thread.id)
         show_report(conn, report, params)

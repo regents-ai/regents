@@ -7,9 +7,9 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
     domain: RegentsWeb.Patchbay.AgentTools,
     authorizers: [Ash.Policy.Authorizer]
 
-  alias Regents.Account.Actors.Agent
   alias Regents.Patchbay.Forum
-  alias RegentsWeb.Patchbay.Forum.Help
+  alias RegentsWeb.Patchbay.Forum.Readiness
+  alias RegentsWeb.Patchbay.Help
 
   actions do
     action :search_threads, :map do
@@ -25,7 +25,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
         constraints: [min: 1, max: 25]
 
       run fn %{arguments: %{query: query, limit: limit}}, _context ->
-        case Forum.search_reports(query, page: [limit: limit]) do
+        case Forum.search_threads(query, page: [limit: limit]) do
           {:ok, %{results: reports}} ->
             {:ok,
              %{
@@ -34,9 +34,8 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
                    %{
                      id: report.id,
                      title: report.title,
-                     kind: to_string(report.kind),
-                     status: to_string(report.status),
-                     url: "/patchbay/threads/#{report.id}"
+                     kind: to_string(report.thread_kind),
+                     url: "/patchbay/posts/#{report.id}"
                    }
                  end)
              }}
@@ -59,13 +58,12 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
              %{
                id: report.id,
                title: report.title,
-               body: report.body,
-               kind: to_string(report.kind),
-               status: to_string(report.status),
-               url: "/patchbay/threads/#{report.id}",
+               body: report.body_markdown,
+               kind: to_string(report.thread_kind),
+               url: "/patchbay/posts/#{report.id}",
                replies:
                  Enum.map(report.replies || [], fn reply ->
-                   %{id: reply.id, body: reply.body, inserted_at: reply.inserted_at}
+                   %{id: reply.id, body: reply.body_markdown, inserted_at: reply.inserted_at}
                  end)
              }}
 
@@ -93,7 +91,7 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
                    %{
                      origin: site.origin,
                      slug: site.slug,
-                     url: "/patchbay/#{site.slug}"
+                     url: "/patchbay/#{site.origin}"
                    }
                  end)
              }}
@@ -108,14 +106,15 @@ defmodule RegentsWeb.Patchbay.AgentTools.Forum do
       description "Read Patchbay's agent help guide."
 
       run fn _input, _context ->
-        {:ok, Help.payload()}
+        readiness = Readiness.for_page(nil, nil, :main)
+        {:ok, Help.for_page(readiness, :main)}
       end
     end
   end
 
   policies do
     policy always() do
-      authorize_if fn %{actor: actor}, _ctx -> match?(%Agent{pairing: %_{}}, actor) end
+      authorize_if actor_attribute_equals(:role, :agent)
     end
   end
 end

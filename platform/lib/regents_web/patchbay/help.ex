@@ -84,7 +84,7 @@ defmodule RegentsWeb.Patchbay.Help do
   # Every tool by its purpose, in manifest order, then the account identity
   # tools the ChatGPT plugin adds, by their own titles.
   defp tasks do
-    Enum.map(Capabilities.tools(), &%{goal: &1.purpose, tool: &1.name}) ++
+    Enum.map(Capabilities.tools(), &%{goal: &1.description, tool: &1.name}) ++
       Enum.map(RegentMCPAgents.Tools.list(), &%{goal: &1.title, tool: &1.name})
   end
 

@@ -26,6 +26,12 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
   @about_file Application.app_dir(:regents, "priv/techtree/public/about.md")
   @external_resource @about_file
 
+  @privacy_file Application.app_dir(:regents, "priv/techtree/public/privacy.md")
+  @external_resource @privacy_file
+
+  @terms_file Application.app_dir(:regents, "priv/techtree/public/terms.md")
+  @external_resource @terms_file
+
   @formal_file Application.app_dir(:regents, "priv/techtree/public/formal.md")
   @external_resource @formal_file
   @formal File.read!(@formal_file)
@@ -37,6 +43,8 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
          |> Map.new(fn {slug, source} -> {"/techtree/docs/" <> slug, source} end)
          |> Map.put("/techtree/docs", DocsGuides.index_markdown())
          |> Map.put("/techtree/about", File.read!(@about_file))
+         |> Map.put("/techtree/privacy", File.read!(@privacy_file))
+         |> Map.put("/techtree/terms", File.read!(@terms_file))
 
   @trailer "\n---\n\nEvery Techtree page answers as Markdown when asked with " <>
              "`Accept: text/markdown`. Public API: [/openapi.json](/openapi.json). " <>

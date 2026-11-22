@@ -51,6 +51,7 @@ import {installAgentTools} from "./agent_tools"
 import {installCopyButtons} from "./copy_buttons"
 import {Docs} from "./docs"
 import {installLiteratureChart} from "./literature_chart"
+import {installProductWebMcpTools} from "./product_webmcp"
 import {installPublicTools} from "./public_tools"
 import {arriveAt, installShellPanels} from "./shell_panels"
 import {VerifiedConnections} from "./hooks/verified_connections"
@@ -361,6 +362,7 @@ liveSocket.connect()
 if (signInOpensLater()) installSignInLater()
 else installAccountAuthLazyLoader()
 installPublicTools()
+installProductWebMcpTools()
 installCrossTabCsrf()
 installCopyButtons()
 installAgentMessage()

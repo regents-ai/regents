@@ -99,6 +99,9 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   def token_data(_token, _meta), do: structured_data()
 
   @doc "The written page at `path` as `%{markdown: text}`, or nil for every other address."
+  def document("/autolaunch/agents/" <> slug),
+    do: RegentsWeb.Autolaunch.AgentGuides.document("/agents/" <> slug)
+
   def document(path) do
     case @documents do
       %{^path => name} -> %{markdown: markdown(name)}
@@ -114,6 +117,17 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   Any other address, such as one the router reads as a page's but spelled
   differently, is a missing page.
   """
+  def page("/autolaunch/agents/" <> slug) do
+    case RegentsWeb.Autolaunch.AgentGuides.document("/agents/" <> slug) do
+      nil ->
+        raise RegentsWeb.NotFoundError
+
+      _doc ->
+        {title, description} = RegentsWeb.Autolaunch.AgentGuides.page("/agents/" <> slug)
+        [page_title: title, page_description: description]
+    end
+  end
+
   def page(path) do
     case @pages do
       %{^path => {title, description}} ->

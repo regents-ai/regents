@@ -566,7 +566,7 @@ defmodule Regents.Autolaunch.TokenTrades do
       where: t.token_id == ^token.id and t.transaction_hash in ^hashes,
       select: {t.transaction_hash, t.log_index}
     )
-    |> Repo.all()
+    |> Repo.all(prefix: "autolaunch_app")
     |> MapSet.new()
   end
 
@@ -657,14 +657,15 @@ defmodule Regents.Autolaunch.TokenTrades do
           where: t.token_id == ^token.id and t.block_number >= ^first,
           select: {t.id, t.transaction_hash, t.log_index}
         )
-        |> Repo.all()
+        |> Repo.all(prefix: "autolaunch_app")
         |> Enum.reject(fn {_id, transaction, index} -> {transaction, index} in read end)
         |> Enum.map(&elem(&1, 0))
 
-      Repo.delete_all(from t in TokenTrade, where: t.id in ^gone)
+      Repo.delete_all(from(t in TokenTrade, where: t.id in ^gone), prefix: "autolaunch_app")
 
       Repo.delete_all(
-        from r in TokenRevenue, where: r.token_id == ^token.id and r.block_number >= ^first
+        from(r in TokenRevenue, where: r.token_id == ^token.id and r.block_number >= ^first),
+        prefix: "autolaunch_app"
       )
 
       Ash.bulk_create!(revenue, TokenRevenue, :record, actor: @actor, return_errors?: true)
@@ -705,8 +706,14 @@ defmodule Regents.Autolaunch.TokenTrades do
   defp invalidate(token) do
     Repo.transaction(fn ->
       current = locked(token)
-      Repo.delete_all(from t in TokenTrade, where: t.token_id == ^token.id)
-      Repo.delete_all(from r in TokenRevenue, where: r.token_id == ^token.id)
+
+      Repo.delete_all(from(t in TokenTrade, where: t.token_id == ^token.id),
+        prefix: "autolaunch_app"
+      )
+
+      Repo.delete_all(from(r in TokenRevenue, where: r.token_id == ^token.id),
+        prefix: "autolaunch_app"
+      )
 
       Ash.update!(
         current,

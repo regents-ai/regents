@@ -337,7 +337,7 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
           | {:error, term()}
   def site_threads(site, cursor, address) do
     site.id
-    |> Forum.list_ranked_threads_for_site(address,
+    |> Forum.list_ranked_threads_for_site(true, address,
       load: @site_post_loads,
       page: post_page(cursor)
     )

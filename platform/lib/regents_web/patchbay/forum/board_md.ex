@@ -148,7 +148,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   whose words are its own address.
   """
   def ask_link(site, name) do
-    path = "/patchbay?" <> URI.encode_query(site: site.origin, site_url: site.origin, tool: name)
+    path =
+      "/patchbay/forum?" <> URI.encode_query(site: site.origin, site_url: site.origin, tool: name)
+
     "[#{path}](#{path})"
   end
 
