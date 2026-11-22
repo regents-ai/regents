@@ -12,7 +12,6 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   require Logger
 
   alias Regents.Patchbay.DatabaseBusy
-  alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.BoardActivity
   alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostAddress
