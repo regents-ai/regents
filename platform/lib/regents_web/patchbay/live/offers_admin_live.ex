@@ -34,7 +34,7 @@ defmodule RegentsWeb.Patchbay.OffersAdminLive do
 
     {:ok,
      socket
-     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/admin/offers"))
+     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/admin/offers"))
      |> assign(problem: nil, admin: %Read{})
      |> reread()}
   end

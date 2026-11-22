@@ -14,14 +14,21 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   alias Regents.Autolaunch.Stocks.LaunchActions
 
   @directory Application.app_dir(:regents, "priv/autolaunch/public")
-  @files Enum.map(~w(about changelog), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(
+           ~w(about changelog docs agents privacy terms),
+           &Path.join(@directory, &1 <> ".md")
+         )
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
 
   # Each written page's Markdown by its address.
   @documents %{
     "/autolaunch/about" => "about",
-    "/autolaunch/changelog" => "changelog"
+    "/autolaunch/changelog" => "changelog",
+    "/autolaunch/docs" => "docs",
+    "/autolaunch/agents" => "agents",
+    "/autolaunch/privacy" => "privacy",
+    "/autolaunch/terms" => "terms"
   }
 
   # Each page's browser-tab title and search description. A title names the
@@ -65,7 +72,12 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
       {"Covered Calls", "Onchain covered calls on Base stock tokens."},
     "/autolaunch/stock/isolated-afters" =>
       {"Isolated Afters", "After-hours stock price exposure on Base."},
-    "/autolaunch/earn" => {"Earn", "Lend USDC on Base through Autolaunch."}
+    "/autolaunch/earn" => {"Earn", "Lend USDC on Base through Autolaunch."},
+    "/autolaunch/blog" => {"Blog", "Articles and announcements from Autolaunch."},
+    "/autolaunch/unavailable" =>
+      {"Unavailable", "Autolaunch is not available in this jurisdiction."},
+    :bid => {"Bid", "Your Autolaunch auction bid status and settlement."},
+    :missing_post => {"Post not found", "There is no Autolaunch article at this address."}
   }
 
   @doc "Full absolute URL for `path` on this site."

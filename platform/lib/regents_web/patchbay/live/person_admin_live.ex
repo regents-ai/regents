@@ -29,7 +29,7 @@ defmodule RegentsWeb.Patchbay.PersonAdminLive do
   def mount(%{"public_id" => public_id}, _session, socket) do
     {:ok,
      socket
-     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/admin/people/:public_id"))
+     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/admin/people/:public_id"))
      |> assign(public_id: public_id, problem: nil, person: %Read{})
      |> reread()}
   end

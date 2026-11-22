@@ -40,7 +40,7 @@ defmodule Regents.Autolaunch.Stocks.Faucet do
          {:ok, wallet} <- address(wallet),
          {:ok, config} <- agent_lab() do
       grant(%{
-        rpc: rpc(config.rpc_url),
+        rpc: rpc(Application.fetch_env!(:regents, :base_read_rpc_url)),
         holder: Lab.address!(config, :governance_safe),
         token: Lab.address!(config, :regent),
         data: transfer_calldata(wallet, @regent_amount),
@@ -62,7 +62,7 @@ defmodule Regents.Autolaunch.Stocks.Faucet do
          {:ok, stock} <- lab_stock(stock_address),
          {:ok, amount} <- stock_amount(config, stock) do
       grant(%{
-        rpc: rpc(config.rpc_url),
+        rpc: rpc(Application.fetch_env!(:regents, :base_read_rpc_url)),
         holder: Lab.address!(agent, :governance_safe),
         token: stock.address,
         data: mint_calldata(wallet, amount),
@@ -83,7 +83,7 @@ defmodule Regents.Autolaunch.Stocks.Faucet do
       amount = String.to_integer(config.faucet["usdc_amount"])
 
       grant(%{
-        rpc: rpc(config.rpc_url),
+        rpc: rpc(Application.fetch_env!(:regents, :base_read_rpc_url)),
         holder: config.faucet["usdc_holder"],
         token: StocksLab.address!(config, :usdc),
         data: transfer_calldata(wallet, amount),

@@ -18,7 +18,7 @@ defmodule RegentsWeb.Autolaunch.UpcomingLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, RegentsWeb.Autolaunch.PublicDocuments.page("/stocks"))}
+    {:ok, assign(socket, RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/stocks"))}
   end
 
   @impl true

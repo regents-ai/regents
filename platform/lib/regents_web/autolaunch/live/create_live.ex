@@ -174,7 +174,7 @@ defmodule RegentsWeb.Autolaunch.CreateLive do
 
     socket =
       socket
-      |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/agent-business"))
+      |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/agent-business"))
       |> assign_defaults(actor)
       |> UsdValue.assign_rate(:regent_rate, :base, fn ->
         {:ok, %{regent_rate: UsdValue.rate(%{kind: :agent})}}

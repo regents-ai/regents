@@ -33,7 +33,10 @@ defmodule RegentsWeb.Patchbay.TechtreeDiscussionController do
 
         conn
         |> put_status(:service_unavailable)
-        |> merge_assigns(RegentsWeb.Patchbay.PublicDocuments.page(:techtree_unavailable))
+        |> merge_assigns(
+          RegentsWeb.Patchbay.PublicDocuments.page(:techtree_unavailable) ++
+            RegentsWeb.Patchbay.Layouts.frame(conn, [])
+        )
         |> render(:unavailable,
           entry_url: "https://techtree.sh/results/" <> digest
         )

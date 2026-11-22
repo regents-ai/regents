@@ -33,7 +33,7 @@ defmodule RegentsWeb.Patchbay.IncidentController do
     number = page_number!(params)
 
     conn
-    |> merge_assigns(head(number))
+    |> merge_assigns(head(number) ++ RegentsWeb.Patchbay.Layouts.frame(conn, []))
     |> render(:index,
       incidents: Incidents.all(),
       replies: replies(),
@@ -91,7 +91,7 @@ defmodule RegentsWeb.Patchbay.IncidentController do
     end
   end
 
-  defp head(1), do: RegentsWeb.Patchbay.PublicDocuments.page("/incidents")
+  defp head(1), do: RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/incidents")
   defp head(number), do: RegentsWeb.Patchbay.PublicDocuments.incidents_page(number)
 
   defp page_number!(%{"page" => page}) when is_binary(page) do

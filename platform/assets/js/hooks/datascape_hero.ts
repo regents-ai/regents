@@ -538,6 +538,7 @@ export const DatascapeHero: Hook = {
       }
     }
     const onBegin = () => openHero({moving: true})
+    const onBarEnter = () => openHero({moving: false})
 
     // Crown mode choreography.
     let gatherer = 0
@@ -606,6 +607,7 @@ export const DatascapeHero: Hook = {
 
     if (closed()) {
       for (const type of BEGIN) window.addEventListener(type, onBegin, {capture: true, passive: true})
+      bar.addEventListener("pointerenter", onBarEnter, {passive: true})
       onReady()
     } else {
       setQuiet(1, 0)
@@ -629,6 +631,7 @@ export const DatascapeHero: Hook = {
         window.removeEventListener(type, onBegin, true)
         window.removeEventListener(type, onGatherBegin, true)
       }
+      bar.removeEventListener("pointerenter", onBarEnter)
       readyObserver.disconnect()
       actions.removeEventListener("transitionend", onActionsTransitionEnd)
       pick.removeEventListener("keydown", onPickKeydown)

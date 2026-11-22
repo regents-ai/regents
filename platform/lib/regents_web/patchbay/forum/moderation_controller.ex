@@ -18,7 +18,10 @@ defmodule RegentsWeb.Patchbay.Forum.ModerationController do
 
   def index(conn, _params) do
     conn
-    |> merge_assigns(RegentsWeb.Patchbay.PublicDocuments.page("/moderation"))
+    |> merge_assigns(
+      RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/moderation") ++
+        RegentsWeb.Patchbay.Layouts.frame(conn, [])
+    )
     |> render(:index, ModerationQueue.read())
   end
 end

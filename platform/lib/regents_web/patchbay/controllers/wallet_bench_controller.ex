@@ -24,7 +24,10 @@ defmodule RegentsWeb.Patchbay.WalletBenchController do
     case WalletBench.board_page(params, get_format(conn) == "md") do
       {:ok, assigns} ->
         conn
-        |> merge_assigns(RegentsWeb.Patchbay.PublicDocuments.page("/wallet-bench"))
+        |> merge_assigns(
+          RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/wallet-bench") ++
+            RegentsWeb.Patchbay.Layouts.frame(conn, [])
+        )
         |> render(:index, assigns ++ [page_data: [WalletBenchHTML.dataset(assigns[:matrix])]])
 
       :not_found ->
@@ -52,7 +55,10 @@ defmodule RegentsWeb.Patchbay.WalletBenchController do
 
       _page ->
         conn
-        |> merge_assigns(RegentsWeb.Patchbay.PublicDocuments.page("/wallet-bench"))
+        |> merge_assigns(
+          RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/wallet-bench") ++
+            RegentsWeb.Patchbay.Layouts.frame(conn, [])
+        )
         |> render(:unavailable, heading: heading(why), words: message <> " " <> hint)
     end
   end
@@ -116,7 +122,9 @@ defmodule RegentsWeb.Patchbay.WalletBenchController do
         render(
           conn,
           :method,
-          [key: key] ++ RegentsWeb.Patchbay.PublicDocuments.page("/wallet-bench/how-it-works")
+          [key: key] ++
+            RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/wallet-bench/how-it-works") ++
+            RegentsWeb.Patchbay.Layouts.frame(conn, [])
         )
 
       :unread ->
@@ -134,6 +142,7 @@ defmodule RegentsWeb.Patchbay.WalletBenchController do
           conn,
           :show,
           assigns ++
+            RegentsWeb.Patchbay.Layouts.frame(conn, []) ++
             [
               page_title: "Can #{agent} use a #{wallet} wallet?",
               page_description:

@@ -70,7 +70,7 @@ defmodule RegentsWeb.Autolaunch.CoveredCallsLive do
 
       {:ok,
        socket
-       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/stock/covered-call"))
+       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/stock/covered-call"))
        |> assign(
          share:
            if(connected?(socket),

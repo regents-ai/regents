@@ -36,7 +36,7 @@ defmodule RegentsWeb.Autolaunch.ExposureLive do
 
       {:ok,
        socket
-       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/stock/isolated-afters"))
+       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/stock/isolated-afters"))
        |> assign(share: share, catalog: %{}, next_read: nil, done: nil)
        |> assign(all: config.series, address: nil, reading: AsyncResult.loading())
        |> assign(tab: nil, leg: nil)}

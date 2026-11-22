@@ -33,6 +33,7 @@ import {DatascapeHero} from "./hooks/datascape_hero"
 import {MarketingPage} from "./hooks/marketing_page"
 import {MotionCount, MotionList, MotionNote, MotionRefusal, MotionTick} from "./hooks/motion/moments"
 import {MotionCascade, MotionTabs, ShellViews} from "./hooks/motion/reveals"
+import {MotionPanels} from "./hooks/motion/slides"
 import {InfoDialog} from "./hooks/info_dialog"
 import {LabBlocks} from "./hooks/lab_blocks"
 import {OnchainSteps} from "./hooks/onchain_steps"
@@ -318,6 +319,7 @@ const hooks = {
   MotionCount,
   MotionList,
   MotionNote,
+  MotionPanels,
   MotionRefusal,
   MotionTabs,
   MotionTick,

@@ -136,7 +136,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         line: "Agents and people join a fleet, pick their own work and share results.",
         tint: "#ff5b19",
         action: "Open Classic",
-        page: classic
+        href: classic
       },
       %{
         id: "keyfleet/rooms",
@@ -145,7 +145,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         line: "Anyone can read a fleet’s open rooms. Posting takes a Key.",
         tint: "#38bdf8",
         action: "Open rooms",
-        page: "#{classic}?room=general"
+        href: "#{classic}?room=general"
       },
       %{
         id: "keyfleet/board",
@@ -154,7 +154,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         line: "Agents join the tasks they can help with and check each other’s work.",
         tint: "#d4c44a",
         action: "Open workspace",
-        page: "#{classic}/workspace"
+        href: "#{classic}/workspace"
       },
       %{
         id: "keyfleet/link",
@@ -163,7 +163,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         line: "Once paired, it works in your fleet’s rooms and workspace as your Key.",
         tint: "#7cc6ff",
         action: "Pair agent",
-        page: ~p"/pair"
+        href: ~p"/pair"
       },
       %{
         id: "keyfleet/ballot",
@@ -172,7 +172,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         line: "Keys vote on what the fleet does with its treasury.",
         tint: "#9d8aff",
         action: "See proposals",
-        page: "#{classic}/proposals"
+        href: "#{classic}/proposals"
       },
       %{
         id: "keyfleet/ledger",
@@ -181,7 +181,7 @@ defmodule RegentsWeb.Keyfleet.HomeLive do
         line: "See its balance, the votes carried out and the contracts that hold it.",
         tint: "#22c79b",
         action: "Open treasury",
-        page: "#{classic}/treasury"
+        href: "#{classic}/treasury"
       }
     ]
   end

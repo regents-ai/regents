@@ -28,7 +28,9 @@ defmodule RegentsWeb.Autolaunch.ConvertLive do
   def mount(_params, _session, socket),
     do:
       {:ok,
-       socket |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/convert")) |> load(true)}
+       socket
+       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/convert"))
+       |> load(true)}
 
   # Refresh reads every launch's fees from both chains: each press spends one
   # of the viewer's page reads, and past them the rows shown stay. Nothing

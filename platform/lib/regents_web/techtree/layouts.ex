@@ -240,9 +240,13 @@ defmodule RegentsWeb.Techtree.Layouts do
   # The account's Projects carry the home page's, as techtree.sh's account pages do.
   def description("/techtree/account/projects" <> _project), do: description("/techtree")
 
-  def description(path) when path in ["/techtree", "/techtree/examples/tdd"],
-    do:
-      "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure."
+  def description(path)
+      when path in ["/techtree", "/techtree/app", "/techtree/examples/tdd"],
+      do:
+        "Custom Skills, evaluations, training environments, and open-weight models, built around your workflows, with results you can measure."
+
+  def description("/techtree/watchdog"),
+    do: "Techtree Watchdog: track agent repositories and runs on a schedule."
 
   @doc """
   The footer under every page: the services, the site's pages, $REGENT and the

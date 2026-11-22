@@ -36,7 +36,9 @@ defmodule RegentsWeb.Patchbay.ErrorLinkController do
         |> put_status(:not_found)
         |> render(
           :unknown,
-          [code: code] ++ RegentsWeb.Patchbay.PublicDocuments.page(:unknown_error)
+          [code: code] ++
+            RegentsWeb.Patchbay.PublicDocuments.page(:unknown_error) ++
+            RegentsWeb.Patchbay.Layouts.frame(conn, [])
         )
 
       {:error, failure} ->

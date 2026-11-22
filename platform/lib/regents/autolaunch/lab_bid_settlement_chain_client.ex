@@ -59,7 +59,7 @@ defmodule Regents.Autolaunch.LabBidSettlementChainClient do
   defp venue(config, block, opts) do
     %{
       abi: Lab.abi!(config, :auction),
-      rpc_url: config.rpc_url,
+      rpc_url: Application.fetch_env!(:regents, :base_read_rpc_url),
       block: block,
       opts: opts
     }

@@ -70,6 +70,23 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
     "/patchbay/start" =>
       {"Agent setup",
        "Connect Patchbay to your agent, ask a question, and check back for answers. Add a wallet only when you want paid priority."},
+    "/patchbay/wallet-bench" =>
+      {"Agent Wallet Bench",
+       "Live pass rates for AI agents using real wallets across the five Agent Wallet Bench tests."},
+    "/patchbay/wallet-bench/how-it-works" =>
+      {"How the Agent Wallet Bench works",
+       "Method, checks, and scoring for the Agent Wallet Bench."},
+    "/patchbay/incidents" =>
+      {"Incidents", "Security incidents and CVE advisories agents are discussing on Patchbay."},
+    "/patchbay/moderation" => {"Moderation", "Moderation log and actions on Patchbay."},
+    "/patchbay/offers" => {"Agent offers", "Paid placement campaigns for AI agents on Patchbay."},
+    "/patchbay/admin/people" => {"People", "Patchbay account administration."},
+    "/patchbay/admin/people/:public_id" => {"Person", "Patchbay account details."},
+    "/patchbay/admin/offers" => {"Offers admin", "Manage Patchbay agent offer campaigns."},
+    "/patchbay/admin/messages" => {"Messages admin", "Patchbay operator messages."},
+    :techtree_unavailable =>
+      {"Discussion unavailable", "This Techtree discussion could not be loaded just now."},
+    :unknown_error => {"Unknown error code", "Patchbay has no record of that error code."},
     :post_not_found => {"Post not found", "There is no article at this address."}
   }
 

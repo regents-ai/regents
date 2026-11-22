@@ -201,6 +201,8 @@ config :regents, :home_colour, "blue"
 # AshOban adds each trigger's sweep to `cron`. `points` checks and awards Points;
 # `points_chain` reads NFT holdings for the period-end bonus, tallied daily only on
 # this site.
+config :ash_oban, pro?: false, authorize?: false
+
 config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",

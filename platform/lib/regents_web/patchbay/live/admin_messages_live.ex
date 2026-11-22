@@ -21,7 +21,7 @@ defmodule RegentsWeb.Patchbay.AdminMessagesLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/admin/messages"))
+     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/admin/messages"))
      |> assign(messages: %Read{})}
   end
 

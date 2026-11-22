@@ -27,7 +27,7 @@ defmodule RegentsWeb.Patchbay.PeopleAdminLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/admin/people"))
+     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/admin/people"))
      |> assign(people: %Read{})}
   end
 

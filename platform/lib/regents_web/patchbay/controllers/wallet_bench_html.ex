@@ -29,7 +29,7 @@ defmodule RegentsWeb.Patchbay.WalletBenchHTML do
   """
   def dataset(matrix) do
     [page_title: name, page_description: description] =
-      RegentsWeb.Patchbay.PublicDocuments.page("/wallet-bench")
+      RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/wallet-bench")
 
     newest =
       for grid <- matrix.grids,

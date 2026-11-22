@@ -148,9 +148,16 @@ end
     {Application.app_dir(:regents, "priv/autolaunch/deployment/base.json"), "base-mainnet",
      Application.app_dir(:regents, "priv/autolaunch/deployment/base-stocks.json")}
   else
-    {String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT", "")),
-     String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT_ID", "")),
-     String.trim(System.get_env("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT", ""))}
+    env_base = String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT", ""))
+    env_base_id = String.trim(System.get_env("AUTOLAUNCH_BASE_DEPLOYMENT_ID", ""))
+    env_stocks = String.trim(System.get_env("AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT", ""))
+
+    if config_env() == :dev and env_base == "" and env_stocks == "" do
+      {Application.app_dir(:regents, "priv/autolaunch/deployment/base.json"), "base-mainnet",
+       Application.app_dir(:regents, "priv/autolaunch/deployment/base-stocks.json")}
+    else
+      {env_base, env_base_id, env_stocks}
+    end
   end
 
 robinhood_deployment = String.trim(System.get_env("AUTOLAUNCH_ROBINHOOD_DEPLOYMENT", ""))
@@ -244,6 +251,31 @@ if System.get_env("AUTOLAUNCH_FINISHER_ON") == "true" and not migrating_check? d
 
   config :regents, :auction_finisher_key, finisher_key
   config :regents, Oban, queues: [autolaunch_auction_finishing: [limit: 1, paused: false]]
+end
+
+# Patchbay payments (shared RegentPayments library): facilitator defaults to CDP
+# and auth is optional so a local machine boots without payment credentials.
+facilitator_url =
+  case System.get_env("X402_FACILITATOR_URL") do
+    url when is_binary(url) and url != "" -> url
+    _unset -> X402.Facilitator.Auth.CDP.facilitator_url()
+  end
+
+facilitator_auth =
+  case {System.get_env("CDP_API_KEY_ID"), System.get_env("CDP_API_KEY_SECRET")} do
+    {id, secret} when is_binary(id) and id != "" and is_binary(secret) and secret != "" ->
+      {X402.Facilitator.Auth.CDP, api_key_id: id, api_key_secret: secret}
+
+    _absent ->
+      nil
+  end
+
+config :regent_payments, RegentPayments.Facilitator,
+  url: facilitator_url,
+  auth: facilitator_auth
+
+if config_env() != :test do
+  config :regent_payments, base_rpc_url: System.get_env("BASE_RPC_URL")
 end
 
 # Patchbay optional runtime configuration (OpenRouter, OpenAI, Offers, IndexNow, Moderators, Escrow).

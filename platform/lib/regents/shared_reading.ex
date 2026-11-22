@@ -187,6 +187,49 @@ defmodule Regents.SharedReading do
       # Up to 4,000 bytes of words, fifty votes and the calls; a larger one is
       # refused, counted, and read for each visit instead.
       bytes: 131_072
+    },
+    # `Regents.Patchbay.WalletBench.Board`'s keys: the board as most visits see it,
+    # How the bench works, for a visit with filters the bench's rows and each
+    # of the five tests' checks, what every pair's page and the sitemap share,
+    # and one for each agent and wallet pair on the roster.
+    wallet_bench: %{
+      audience:
+        "every visitor: Techtree publishes the bench for anyone to read " <>
+          "(Regents.Patchbay.WalletBench's resources, read policy authorize_if always()); " <>
+          "every visitor sees the same board",
+      keys: 400,
+      bytes: 48_000_000
+    },
+    # `Regents.Patchbay.Forum.HiddenSites`'s one key: the listed hosts and domains a
+    # check found no tools on.
+    hidden_sites: %{
+      audience:
+        "every visitor: site checks are public (Regents.Patchbay.Forum.SiteCheck's read policy " <>
+          "authorize_if always()); every visitor sees the same listing",
+      keys: 1,
+      bytes: 2_000_000
+    },
+    # One for each Autolaunch auction deployment (`Regents.Autolaunch.ChainHead`):
+    # "base", "stocks" and "robinhood".
+    chain_head: %{
+      audience: "every visitor: a chain's newest block number is public on the chain itself",
+      keys: 3,
+      bytes: 64
+    },
+    # How many launches each Base launchpad has made (`Regents.Autolaunch.LaunchDiscovery.Count`).
+    launch_count: %{
+      audience:
+        "every visitor: a launchpad's launch count is public on Base, and the site's count " <>
+          "says only how far its lists have got",
+      keys: 2,
+      bytes: 128
+    },
+    # The last 30 days of each covered-call market's reference price
+    # (`Regents.Autolaunch.CoveredCalls.PriceLine`), by the market's symbol.
+    price_history: %{
+      audience: "every visitor: a Chainlink feed's past prices are public on the chain itself",
+      keys: 4,
+      bytes: 8_192
     }
   }
 

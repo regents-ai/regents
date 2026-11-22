@@ -3,7 +3,7 @@ defmodule RegentsWeb.Autolaunch.BlogController do
   alias RegentsWeb.Autolaunch.{Blog, PublicDocuments}
 
   def index(conn, _params),
-    do: render(conn, :index, [posts: Blog.all()] ++ PublicDocuments.page("/blog"))
+    do: render(conn, :index, [posts: Blog.all()] ++ PublicDocuments.page("/autolaunch/blog"))
 
   def show(conn, %{"slug" => slug}) do
     case Blog.get(slug) do

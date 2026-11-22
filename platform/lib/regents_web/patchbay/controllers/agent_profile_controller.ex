@@ -22,7 +22,9 @@ defmodule RegentsWeb.Patchbay.AgentProfileController do
            load: [:bounties_posted, :answers_accepted, :same_person_profiles]
          ) do
       {:ok, profile} ->
-        render(conn, :show,
+        conn
+        |> merge_assigns(RegentsWeb.Patchbay.Layouts.frame(conn, []))
+        |> render(:show,
           page_title: Member.own_name(profile),
           page_description: description(profile, conn.assigns.site_edition),
           profile: profile,

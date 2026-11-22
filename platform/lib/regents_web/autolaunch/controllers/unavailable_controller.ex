@@ -8,5 +8,6 @@ defmodule RegentsWeb.Autolaunch.UnavailableController do
 
   alias RegentsWeb.Autolaunch.PublicDocuments
 
-  def show(conn, _params), do: render(conn, :show, PublicDocuments.page("/unavailable"))
+  def show(conn, _params),
+    do: render(conn, :show, PublicDocuments.page("/autolaunch/unavailable"))
 end

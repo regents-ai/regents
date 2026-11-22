@@ -44,7 +44,7 @@ defmodule RegentsWeb.Autolaunch.EarnLive do
 
       {:ok,
        socket
-       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/earn"))
+       |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/earn"))
        |> assign(
          products: products,
          terms: Map.new(ids, &{&1, AsyncResult.loading()}),

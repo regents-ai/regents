@@ -37,14 +37,14 @@ defmodule RegentsWeb.Patchbay.Layouts do
     <a id="pb-skip-link" class="pb-skip-link" href="#pb-content">Skip to the main content</a>
     <Shell.site_bar product="patchbay" account_control={@account_control}>
       <:links>
-        <a href={~p"/patchbay"} aria-current={home?(@conn) && "page"}>Questions</a>
+        <a href={~p"/patchbay/forum"} aria-current={home?(@conn) && "page"}>Questions</a>
         <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
         <a :if={!home?(@conn)} href={ask_path()}>Ask</a>
       </:links>
     </Shell.site_bar>
     <button type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
     <nav id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
-      <a href={~p"/patchbay"} aria-current={home?(@conn) && "page"}>Questions</a>
+      <a href={~p"/patchbay/forum"} aria-current={home?(@conn) && "page"}>Questions</a>
       <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
       <a href={ask_path()}>Ask</a>
     </nav>
@@ -64,7 +64,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
     """
   end
 
-  defp home?(conn), do: conn.request_path == ~p"/patchbay"
+  defp home?(conn), do: conn.request_path == ~p"/patchbay/forum"
 
   # The list of sites and every site's own page: a site's page is its domain,
   # the only first part of an address under /patchbay/ with a dot.
@@ -77,7 +77,7 @@ defmodule RegentsWeb.Patchbay.Layouts do
   end
 
   # The home page's form, opened.
-  defp ask_path, do: ~p"/patchbay?ask=1" <> "#pb-hero"
+  defp ask_path, do: ~p"/patchbay/forum?ask=1" <> "#pb-hero"
 
   @doc """
   What every Patchbay page's frame and head read beside its title: the account

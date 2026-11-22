@@ -42,7 +42,7 @@ defmodule RegentsWeb.Patchbay.OffersLive do
 
     {:ok,
      socket
-     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/offers"))
+     |> assign(RegentsWeb.Patchbay.PublicDocuments.page("/patchbay/offers"))
      |> assign(open?: Publisher.open?(), chosen: nil, now: DateTime.utc_now())
      |> read_board()
      |> read_campaigns()

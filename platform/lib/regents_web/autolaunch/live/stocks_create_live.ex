@@ -73,7 +73,7 @@ defmodule RegentsWeb.Autolaunch.StocksCreateLive do
   def mount(params, _session, socket) do
     socket =
       socket
-      |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/create"))
+      |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/create"))
       |> assign(
         launch_chain: :base,
         linked_token: params["token"],

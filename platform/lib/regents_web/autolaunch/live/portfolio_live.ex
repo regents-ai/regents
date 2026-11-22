@@ -67,7 +67,7 @@ defmodule RegentsWeb.Autolaunch.PortfolioLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/portfolio"))
+     |> assign(RegentsWeb.Autolaunch.PublicDocuments.page("/autolaunch/portfolio"))
      |> assign(
        robinhood_swap?: RobinhoodLab.swap_configured?(),
        robinhood_clock: ChainHead.block("robinhood")
