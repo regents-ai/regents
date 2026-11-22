@@ -1,20 +1,44 @@
 defmodule RegentsWeb.Patchbay.Forum.Board do
   @moduledoc """
   Every read the board pages make beside their question lists, in one place:
-  the home page's search matches, and a thread with a page of its replies.
-  The one write is a reader opening a thread (`record_view/2`).
+  the home page's search matches, a thread with a page of its replies, and a
+  site with its posts, its status and the tools its check found. The one
+  write is a reader opening a thread (`record_view/2`).
   """
 
   alias Regents.Patchbay.Forum
+  alias Regents.Patchbay.Forum.Feed
   alias Regents.Patchbay.Forum.PostPicture
+  alias Regents.Patchbay.Forum.SiteCheck
+  alias Regents.Patchbay.Forum.SiteDirectory
+  alias Regents.Patchbay.Forum.ToolName
+  alias RegentsWeb.Patchbay.Forum.Discussions
   alias RegentsWeb.Patchbay.Forum.ReplyCursor
+  alias RegentsWeb.Patchbay.Forum.SiteChecks
 
   @replies_per_page 100
+  @tools_per_page 20
+  @ranked_posts 20
 
   # A site card's tool count is what Patchbay's own check found
   # (`Regents.Patchbay.Forum.SiteCheck.tools/1`), so every card is read with
-  # its check.
+  # its check. A site's own page reads its check itself, board or not.
   @card_loads [:site_check, :report_count]
+
+  # A site's own page puts the site on its posts itself (`on_site/2`).
+  @site_post_loads [
+    :author,
+    :person,
+    :reply_count,
+    :solved,
+    :view_count,
+    :thread_like_count,
+    :bounty_open,
+    :verified_paid_usdc_atomic,
+    :post_kind,
+    :address,
+    :tool
+  ]
 
   @report_loads [
     :author,
@@ -51,6 +75,175 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
       {:ok, %{sites: [], tools: []}}
     end
   end
+
+  @doc """
+  The most popular sites, at the top of `/patchbay/sites`: the catalog's
+  featured surfaces, each read as the same site record as everywhere else.
+  """
+  @spec most_popular() :: {:ok, [Forum.Site.t()]} | {:error, term()}
+  def most_popular do
+    surfaces = SiteDirectory.featured_surfaces()
+    origins = Enum.map(surfaces, & &1["origin"])
+
+    with {:ok, %{results: sites}} <-
+           Forum.list_directory(query: [filter: [origin: [in: origins]]], load: @card_loads) do
+      by_origin = Map.new(sites, &{&1.origin, &1})
+
+      {:ok,
+       for surface <- surfaces,
+           site = by_origin[surface["origin"]],
+           site do
+         site
+         |> Map.put(:display_name, surface["display_name"])
+         |> Map.put(:screenshot_path, surface["screenshot_path"])
+       end}
+    end
+  end
+
+  @doc """
+  The site filed under a domain, if the board has one, with anything more a
+  page shows loaded in the same read. A read that fails is raised, never
+  taken for a site the board does not have.
+  """
+  @spec fetch_site(String.t(), list()) :: {:ok, Forum.Site.t()} | :error
+  def fetch_site(origin, load \\ []) do
+    case Forum.get_site_by_origin(origin, load: load) do
+      {:ok, site} -> {:ok, site}
+      {:error, %Ash.Error.Invalid{}} -> :error
+      {:error, failure} -> raise failure
+    end
+  end
+
+  @doc """
+  The site a catalog slug names, such as `chrome` for the Chrome row. A read
+  that fails is raised, never taken for a slug the board does not have.
+  """
+  @spec fetch_slug(String.t()) :: {:ok, Forum.Site.t()} | :error
+  def fetch_slug(ref) do
+    case Forum.get_site_by_slug(ref) do
+      {:ok, site} -> {:ok, site}
+      {:error, %Ash.Error.Invalid{}} -> :error
+      {:error, failure} -> raise failure
+    end
+  end
+
+  @doc """
+  One page of the tools a site's check found (`Regents.Patchbay.Forum.SiteCheck.tools/1`),
+  in name order from after `after_name`, and the name the next page
+  continues from.
+  """
+  @spec tool_page([map()], String.t() | nil) :: {[map()], String.t() | nil}
+  def tool_page(tools, after_name) do
+    {page, rest} =
+      tools
+      |> Enum.sort_by(& &1["name"])
+      |> Enum.filter(&(is_nil(after_name) or &1["name"] > after_name))
+      |> Enum.split(@tools_per_page)
+
+    {page, if(rest != [], do: List.last(page)["name"])}
+  end
+
+  @doc """
+  The board's own page for each of these tool names that has one, by name,
+  with how many posts it holds. The names are a page of the ones a check
+  found, so the read is as small as that page.
+  """
+  @spec tool_pages(Forum.Site.t() | nil, [String.t()]) :: %{optional(String.t()) => map()}
+  def tool_pages(nil, _names), do: %{}
+  def tool_pages(_site, []), do: %{}
+
+  def tool_pages(site, names),
+    do:
+      site.id
+      |> Forum.list_site_tools_named!(names, load: [:report_count])
+      |> Map.new(&{&1.name, &1})
+
+  @doc "Whether an address segment could name a tool at all; anything else is not on the board."
+  @spec tool_name?(term()) :: boolean()
+  def tool_name?(name), do: ToolName.valid?(name)
+
+  @doc """
+  Solved and open on a site: how many tools Patchbay's check found there, nil
+  before a check has finished (`Regents.Patchbay.Forum.SiteCheck.tools/1` of
+  `check`), and when Patchbay last checked the site
+  (`RegentsWeb.Patchbay.Forum.SiteChecks.last_checked/1`), then its solved
+  and still-open questions, the newest three of each with how many there are
+  in all.
+  """
+  @spec site_standing(Forum.Site.t(), Ash.Resource.record() | nil) :: map()
+  def site_standing(site, check) do
+    tools = SiteCheck.tools(check)
+
+    %{
+      tool_count: tools && length(tools),
+      checked: SiteChecks.last_checked(check),
+      solved: site_questions(site, "solved"),
+      open: site_questions(site, "open")
+    }
+  end
+
+  defp site_questions(site, scope) do
+    {:ok, filters} = Discussions.filters(%{"site" => site.origin, "scope" => scope})
+
+    page =
+      Forum.list_feed_reports!(query: Feed.query(filters), page: [limit: 3, count: true])
+
+    %{count: page.count, threads: on_site(page.results, site)}
+  end
+
+  @doc """
+  One page of every published thread on a site — the questions that name no
+  tool and the posts about any of its tools — open bounties first, then where
+  an answer worked for the most people, and the cursor of the page after it
+  when there is one. With `address`, only the threads about that address,
+  such as `web.autocad.com` (`Regents.Patchbay.Forum.Report`'s `:address`).
+  """
+  @spec site_threads(Forum.Site.t(), String.t() | nil, String.t() | nil) ::
+          {:ok, [Forum.Report.t()], String.t() | nil} | {:error, :invalid_posts_cursor}
+  def site_threads(site, cursor, address) do
+    site.id
+    |> Forum.list_ranked_threads_for_site(address,
+      load: @site_post_loads,
+      page: post_page(cursor)
+    )
+    |> post_page_result()
+    |> case do
+      {:ok, posts, next} -> {:ok, on_site(posts, site), next}
+      invalid -> invalid
+    end
+  end
+
+  # Every post on a site's page is filed under that site, and so is any tool
+  # it names, so the site the page already holds is put on each rather than
+  # read again for every page.
+  defp on_site(posts, site), do: Enum.map(posts, &put_site(&1, site))
+
+  defp put_site(%Forum.Report{tool: %Forum.Tool{} = tool} = post, site),
+    do: %{post | site: site, tool: %{tool | site: site}}
+
+  defp put_site(%Forum.Report{} = post, site), do: %{post | site: site}
+
+  @doc "How many threads one page of a site's posts holds."
+  @spec ranked_page_size() :: pos_integer()
+  def ranked_page_size, do: @ranked_posts
+
+  defp post_page(nil), do: [limit: @ranked_posts]
+  defp post_page(cursor), do: [limit: @ranked_posts, after: cursor]
+
+  # A page of posts and the cursor that continues it, which never expires. A
+  # cursor that cannot be read — edited or made up — is said so, never shown
+  # as an empty list.
+  defp post_page_result({:ok, %{results: results, more?: more?}}) do
+    {:ok, results, if(more?, do: List.last(results).__metadata__.keyset)}
+  end
+
+  defp post_page_result({:error, %Ash.Error.Invalid{errors: errors}}) do
+    if Enum.any?(errors, &match?(%Ash.Error.Page.InvalidKeyset{}, &1)),
+      do: {:error, :invalid_posts_cursor},
+      else: raise(Ash.Error.Invalid, errors: errors)
+  end
+
+  defp post_page_result({:error, failure}), do: raise(failure)
 
   @doc """
   One report, with its author and the tool and site it belongs to. An address

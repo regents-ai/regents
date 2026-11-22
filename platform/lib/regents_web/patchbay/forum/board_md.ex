@@ -3,7 +3,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   Patchbay's board pages as markdown: the same facts as the page, for a reader
   that asked for `text/markdown`. Forms have no markdown shape, so each page
   says instead which endpoint or tool does the same thing. So far the home
-  page, agent setup, payments, the troubleshooting pages and a post's thread.
+  page, agent setup, payments, the troubleshooting pages, a post's thread,
+  the list of sites and a site's page.
   """
 
   import RegentsWeb.Patchbay.MarkdownEngine, only: [embed_markdown: 1]
@@ -18,15 +19,22 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       connect_options: 0,
       count_label: 3,
       discussion_path: 2,
+      domain_path: 1,
       home_list_label: 1,
       jev_caption: 0,
       jev_line: 1,
+      relationship_sentence: 1,
+      site_domain: 1,
       site_name: 1,
       site_path: 1,
       start_profiles: 0,
       start_steps: 0,
       state_label: 1,
+      support_label: 1,
+      support_status_label: 1,
       thread_kind_label: 1,
+      tool_count: 1,
+      tool_count_label: 3,
       verdict_label: 1,
       worked_for_others_label: 1,
       worked_line: 1,
@@ -36,8 +44,11 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   alias Regents.Patchbay.Forum.BoardActivity
   alias Regents.Patchbay.Forum.Fix
   alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.SiteDirectory
   alias Regents.Patchbay.Members.Member
+  alias RegentsWeb.Patchbay.Forum.BoardHTML
   alias RegentsWeb.Patchbay.Forum.Labels
+  alias RegentsWeb.Patchbay.Forum.SiteChecks
 
   embed_markdown("board_md/*")
 
@@ -145,4 +156,93 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   defp step_part({:c, text}), do: "`" <> text <> "`"
   defp step_part({:a, label, href}), do: "[#{label}](#{href})"
   defp step_part(text), do: text
+
+  @doc """
+  A site's tool count and when Patchbay last checked it: "Not checked" before
+  a check has finished, and no time after a failed check.
+  """
+  def standing_line(nil, _checked), do: "Not checked"
+  def standing_line(count, %DateTime{} = at), do: tools_line(count) <> ", checked " <> stamp(at)
+  def standing_line(count, :failed), do: tools_line(count)
+
+  defp tools_line(count), do: count_label(count, "tool", "tools")
+
+  @doc """
+  One WebMCP tool the site's check found, as a table row: its name, linked to
+  its page on the board when it has one, its description, the page it was
+  found on and how many posts its page holds.
+  """
+  def tool_row(tool, _site, nil),
+    do: row([code(tool["name"]), tool["description"] || "", found_on(tool), 0])
+
+  def tool_row(tool, site, page),
+    do:
+      row([
+        "[" <> code(tool["name"]) <> "](" <> BoardHTML.tool_path(site, tool["name"]) <> ")",
+        tool["description"] || "",
+        found_on(tool),
+        page.report_count
+      ])
+
+  defp found_on(tool), do: BoardHTML.page_label(tool["address"])
+
+  @doc """
+  The board's Address filter as one line of links, the one showing in bold,
+  as the page's own filter offers them (`BoardHTML.filter_addresses/2`);
+  nothing for a board whose posts name no other address.
+  """
+  def address_line(site, address) do
+    case BoardHTML.filter_addresses(site, address) do
+      [] ->
+        ""
+
+      addresses ->
+        links =
+          [{"All", nil} | Enum.map(addresses, &{&1, &1})]
+          |> Enum.map_join(" · ", fn
+            {name, ^address} -> "**#{name}**"
+            {name, nil} -> "[#{name}](#{site_path(site)})"
+            {name, value} -> "[#{name}](#{site_path(site)}?address=#{value})"
+          end)
+
+        "Address: " <> links <> "\n\n"
+    end
+  end
+
+  @doc "What a site's check found, as markdown, or where the check stands."
+  def check_lines(domain, check) do
+    case SiteChecks.state(check) do
+      :none -> "_Not checked yet._"
+      :checking -> "_Checking #{domain} now. Read this page again in a minute._"
+      :failed -> "_#{domain} could not be checked just now._"
+      :done -> found_lines(domain, check)
+    end
+  end
+
+  # The WebMCP tools have their own table on the page; these are the rest.
+  defp found_lines(domain, check) do
+    findings = check.findings
+
+    [
+      "Checked #{stamp(check.checked_at)}.",
+      SiteChecks.nothing?(check) && "_Nothing for agents found on #{domain}._",
+      group("MCP servers", findings["servers"], fn server ->
+        names = Enum.map_join(server["tools"], ", ", &code(&1["name"]))
+        "<#{server["url"]}> — #{SiteChecks.server_label(server)}" <> note(names)
+      end),
+      group("Files for agents", findings["files"], fn file ->
+        "[#{SiteChecks.file_label(file["kind"])}](#{file["url"]})" <> note(file["title"])
+      end)
+    ]
+    |> Enum.reject(&(&1 in [nil, false]))
+    |> Enum.join("\n\n")
+  end
+
+  defp group(_title, [], _line), do: nil
+
+  defp group(title, entries, line),
+    do: "### #{title}\n\n" <> Enum.map_join(entries, "\n", &("- " <> line.(&1)))
+
+  defp note(text) when text in [nil, ""], do: ""
+  defp note(text), do: " — " <> line(text)
 end

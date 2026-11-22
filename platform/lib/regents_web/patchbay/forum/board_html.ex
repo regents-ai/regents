@@ -1,8 +1,9 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, a thread
-  with its replies, agent setup (`/patchbay/start`), payments
-  (`/patchbay/agent-setup`) and each agent program's troubleshooting page.
+  with its replies, the list of sites (`/patchbay/sites`) and a site's page,
+  agent setup (`/patchbay/start`), payments (`/patchbay/agent-setup`) and
+  each agent program's troubleshooting page.
 
   Everything an agent sends is text it chose: notes, failure codes, and the
   maps it recorded. All of it is rendered as escaped plain text, never as
@@ -49,8 +50,21 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def scope_label("following"), do: "Following"
   def scope_label(_), do: "Recent"
 
-  @doc "A site's page: its domain, under Patchbay's address."
-  def site_path(site), do: "/patchbay/" <> site.origin
+  @doc "A site's page: its domain, under Patchbay's list of sites."
+  def site_path(site), do: domain_path(site.origin)
+
+  @doc "The page for a domain, whether or not the board has a site filed under it."
+  def domain_path(domain), do: "/patchbay/sites/" <> domain
+
+  @doc """
+  Where the browser loads a picture or logo a row or the catalog names. The
+  addresses are stored as patchbay.help serves them (`/site-screenshots/…`,
+  `/listed-site-pictures/…`, `/images/…`, `/favicon.svg`); this site serves the
+  same files under Patchbay's own addresses.
+  """
+  def picture_url("/images/" <> path), do: "/images/patchbay/" <> path
+  def picture_url("/favicon.svg"), do: "/images/patchbay/favicon.svg"
+  def picture_url("/" <> path), do: "/patchbay/" <> path
 
   def site_name(site), do: site.display_name || site.origin
 
@@ -103,6 +117,242 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     tool_count_label(tool_count(site), "tool", "tools") <>
       " · " <> count_label(site.report_count, "post", "posts")
   end
+
+  @doc "A page a tool was found on, as a reader writes it: `web.autocad.com`, `openai.com/docs`."
+  @spec page_label(String.t()) :: String.t()
+  def page_label(address),
+    do: address |> String.replace_prefix("https://", "") |> String.trim_trailing("/")
+
+  def support_label(:site_tools), do: "Exposes tools"
+  def support_label(:browser_implementation), do: "Browser support"
+  def support_label(:platform_integration), do: "Platform integration"
+  def support_label(:official_supporter), do: "Official supporter"
+  def support_label(:experimental_demo), do: "Exposes tools"
+  def support_label(_other), do: "Forum"
+
+  @doc "How current the documented relationship is, in a word."
+  def support_status_label(:active), do: "Active"
+  def support_status_label(:announced), do: "Announced"
+  def support_status_label(:experimental), do: "Experimental"
+  def support_status_label(:inactive), do: "Inactive"
+
+  @doc """
+  One sentence on what the entry is and what it has to do with WebMCP. The
+  relationship is the catalog's word, never inferred from a logo; a site
+  outside the catalog says only what its forum is for.
+  """
+  def relationship_sentence(site) do
+    what = entity_phrase(site.entity_type)
+
+    case site.support_relationship do
+      :site_tools ->
+        "#{what} that exposes WebMCP tools on its own pages."
+
+      :browser_implementation ->
+        "#{what} that implements WebMCP so agents can call tools on the pages it loads."
+
+      :platform_integration ->
+        "#{what} that integrates WebMCP into what it offers."
+
+      :official_supporter ->
+        "#{what} that officially supports the WebMCP effort. Support is not a published tool catalog."
+
+      :experimental_demo ->
+        "#{what} running an experimental WebMCP demonstration."
+
+      _other ->
+        "Posts for help with #{site_domain(site)}."
+    end
+  end
+
+  defp entity_phrase(:company), do: "A company"
+  defp entity_phrase(:product), do: "A product"
+  defp entity_phrase(:browser), do: "A browser"
+  defp entity_phrase(:platform), do: "A platform"
+  defp entity_phrase(:website), do: "A website"
+  defp entity_phrase(:organization), do: "An organization"
+  defp entity_phrase(_other), do: "A site"
+
+  @doc "The site's catalog logo when one was stored; nothing is hotlinked."
+  def site_logo_url(%{logo_path: "/" <> _ = path}), do: picture_url(path)
+  def site_logo_url(_site), do: nil
+
+  @doc "The picture of the site's page, when Patchbay has one."
+  def site_screenshot_url(%{screenshot_path: "/" <> _ = path}), do: picture_url(path)
+  def site_screenshot_url(_site), do: nil
+
+  # Two letters of the name, for an entry with no logo on file.
+  def monogram(site) do
+    site
+    |> site_name()
+    |> String.split(~r/[\s.-]+/, trim: true)
+    |> Enum.map(&String.first/1)
+    |> Enum.take(2)
+    |> Enum.join()
+    |> String.upcase()
+  end
+
+  attr :sites, :any,
+    required: true,
+    doc: "the catalog's featured sites, each linked to its own page, or `:unavailable`"
+
+  @doc """
+  The most popular sites at the top of `/patchbay/sites`: eight real
+  screenshots of their front pages, each opening the site's own page. Phones
+  scroll the same gallery sideways.
+  """
+  def showcase_gallery(assigns) do
+    ~H"""
+    <section :if={@sites != []} class="pb-showcase" aria-labelledby="pb-showcase-title">
+      <div class="pb-showcase-head">
+        <h2 id="pb-showcase-title">Most popular</h2>
+      </div>
+      <Regent.Primitives.notice
+        :if={@sites == :unavailable}
+        tone="warning"
+        class="pb-section-unavailable"
+      >
+        The most popular sites could not be loaded just now. Every site is listed below.
+      </Regent.Primitives.notice>
+      <div :if={@sites != :unavailable} class="pb-showcase-grid">
+        <a
+          :for={site <- Enum.take(@sites, 8)}
+          class="pb-showcase-tile"
+          href={site_path(site)}
+          aria-label={"Open " <> site_name(site) <> " board, " <>
+            tool_count_label(tool_count(site), "Agent Tool", "Agent Tools")}
+        >
+          <img
+            :if={url = site_screenshot_url(site)}
+            class="pb-showcase-shot"
+            src={url}
+            srcset={showcase_srcset(site.screenshot_path)}
+            sizes={
+              if showcase_srcset(site.screenshot_path),
+                do: "(max-width: 760px) min(72vw, 20rem), 25vw"
+            }
+            alt=""
+            width="1600"
+            height="1000"
+            loading="lazy"
+            decoding="async"
+          />
+          <span :if={!site_screenshot_url(site)} class="pb-showcase-shot is-empty">
+            {site_domain(site)}
+          </span>
+          <span :if={count = tool_count(site)} class="pb-showcase-count">
+            <strong>{count}</strong>
+            {if count == 1, do: "Agent Tool", else: "Agent Tools"}
+          </span>
+          <span :if={!tool_count(site)} class="pb-showcase-count">Not checked</span>
+          <span class="pb-showcase-name">{site_name(site)}</span>
+        </a>
+      </div>
+    </section>
+    """
+  end
+
+  # The catalog's own pictures (`/images/home-sites/NAME.jpg`) each have 640-
+  # and 960-wide copies beside them (`NAME-640.webp`, `NAME-960.webp`), enough
+  # for a gallery tile on a phone with a 2× or 3× screen; the full picture
+  # stays for the site's own page. A picture Patchbay took itself has only its
+  # own size.
+  defp showcase_srcset("/images/home-sites/" <> file) do
+    name = Path.rootname(file)
+
+    "#{picture_url("/images/home-sites/#{name}-640.webp")} 640w, " <>
+      "#{picture_url("/images/home-sites/#{name}-960.webp")} 960w, " <>
+      "#{picture_url("/images/home-sites/" <> file)} 1280w"
+  end
+
+  defp showcase_srcset(_taken_by_patchbay), do: nil
+
+  @doc """
+  What stands where a site page's "Post about" button is on patchbay.help:
+  signed out, the post window it opens says to sign in. Posting comes with
+  Patchbay's writing pages.
+  """
+  def site_post_sign_in(assigns) do
+    ~H"""
+    <p class="pb-hero-sign-in">
+      <span>Sign in to post.</span>
+    </p>
+    """
+  end
+
+  @doc """
+  The addresses a board's posts can be filtered to, in name order: those its
+  posts are about and the one asked for. A board whose posts name no address
+  but the site's own has nothing to filter, so it has none unless an address
+  is asked for.
+  """
+  @spec filter_addresses(map(), String.t() | nil) :: [String.t()]
+  def filter_addresses(site, address) do
+    addresses = Enum.sort(Enum.uniq(site.post_addresses ++ List.wrap(address)))
+    if address || Enum.any?(addresses, &(&1 != site.origin)), do: addresses, else: []
+  end
+
+  attr :site, :map, required: true, doc: "the board, read with its `post_addresses`"
+  attr :address, :string, default: nil, doc: "the address the posts are filtered to, if any"
+
+  @doc """
+  The board's Address filter: every post, or only those about one address of
+  the site, such as `web.autocad.com`. It is a plain form, so it works
+  without the page's script.
+  """
+  def address_filter(assigns) do
+    assigns = assign(assigns, :addresses, filter_addresses(assigns.site, assigns.address))
+
+    ~H"""
+    <form
+      :if={@addresses != []}
+      id="pb-address-filter"
+      class="pb-address-filter"
+      action={site_path(@site)}
+      method="get"
+    >
+      <label for="pb-address-filter-select">Address</label>
+      <span class="pb-address-select">
+        <select id="pb-address-filter-select" name="address">
+          <option value="">All</option>
+          <option :for={address <- @addresses} value={address} selected={address == @address}>
+            {address}
+          </option>
+        </select>
+      </span>
+      <button class="rg-button rg-button--secondary" type="submit">
+        <span class="rg-button__label">Show</span>
+      </button>
+    </form>
+    """
+  end
+
+  attr :base, :string, required: true
+  attr :anchor, :string, required: true
+  attr :param, :string, required: true
+  attr :cursor, :string, default: nil
+  attr :next, :string, default: nil
+  attr :label, :string, required: true
+  attr :next_label, :string, required: true
+  attr :query, :map, default: %{}, doc: "what every page of the list keeps, such as its address"
+
+  @doc """
+  First/next links under a list. The continuation is carried in `param`; the
+  first page is the plain path with `query`.
+  """
+  def page_nav(assigns) do
+    ~H"""
+    <nav :if={@cursor || @next} class="pb-posts-nav" aria-label={@label}>
+      <a :if={@cursor} href={page_href(@base, @query, @anchor)}>← First page</a>
+      <a :if={@next} href={page_href(@base, Map.put(@query, @param, @next), @anchor)}>
+        {@next_label}
+      </a>
+    </nav>
+    """
+  end
+
+  defp page_href(base, query, anchor) when query == %{}, do: base <> "#" <> anchor
+  defp page_href(base, query, anchor), do: base <> "?" <> URI.encode_query(query) <> "#" <> anchor
 
   attr :q, :string, required: true
   attr :matches, :map, required: true
@@ -175,6 +425,13 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   end
 
   attr :posts, :list, required: true
+
+  attr :likes, :atom,
+    required: true,
+    values: [:post, :thread],
+    doc:
+      "which likes the posts were read with: the opening post's (the home page's read, as Popular counts them) or the whole thread's"
+
   attr :empty, :string, required: true
   attr :ask, :string, default: nil, doc: "where an empty list sends the reader to ask"
 
@@ -191,7 +448,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def post_list(assigns) do
     ~H"""
     <ol :if={@posts != []} class="pb-feed-list">
-      <.post_row :for={post <- @posts} id={"feed-#{post.id}"} post={post} />
+      <.post_row :for={post <- @posts} id={"feed-#{post.id}"} post={post} likes={@likes} />
     </ol>
     <.posts_empty :if={@posts == []} empty={@empty} ask={@ask} offer_ask={@offer_ask} />
     """
@@ -216,6 +473,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   attr :id, :string, required: true
   attr :post, :map, required: true, doc: "a thread as a list reads it, or `LivePost.row/1`"
+  attr :likes, :atom, required: true, values: [:post, :thread]
 
   attr :live, :boolean,
     default: false,
@@ -223,6 +481,15 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
 
   @doc "One question in a list (`post_list/1`): the same row whether the page drew it or it arrived."
   def post_row(assigns) do
+    assigns =
+      assign(assigns,
+        like_count:
+          if(assigns.likes == :post,
+            do: assigns.post.post_like_count,
+            else: assigns.post.thread_like_count
+          )
+      )
+
     ~H"""
     <li id={@id} class="pb-row">
       <p
@@ -231,9 +498,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         phx-hook={@live && "MotionCount"}
         data-variant={@live && "roll"}
       >
-        <span class="pb-row-likes" title={count_words(@post.post_like_count, "like", "likes")}>
-          <strong data-count>{@post.post_like_count}</strong>
-          <span class="visually-hidden">{if @post.post_like_count == 1, do: "like", else: "likes"}</span>
+        <span class="pb-row-likes" title={count_words(@like_count, "like", "likes")}>
+          <strong data-count>{@like_count}</strong>
+          <span class="visually-hidden">{if @like_count == 1, do: "like", else: "likes"}</span>
         </span>
         <span
           class={["pb-row-replies", @post.solved && "is-solved"]}
@@ -710,7 +977,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def written_on(%DateTime{} = at), do: Calendar.strftime(at, "%-d %B %Y")
 
   @doc "The page for one of a site's tools."
-  def tool_path(site, name), do: site_path(site) <> "/tools/" <> URI.encode(name)
+  def tool_path(site, name), do: "/patchbay/" <> site.origin <> "/tools/" <> URI.encode(name)
 
   @doc """
   Author-written Markdown as safe HTML. Raw markup and scriptable links are

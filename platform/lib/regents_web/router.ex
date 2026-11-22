@@ -471,6 +471,8 @@ defmodule RegentsWeb.Router do
     get "/blog/:slug", BlogController, :show
     get "/start", Forum.BoardController, :start
     get "/agent-setup", Forum.BoardController, :agent_setup
+    get "/sites", Forum.BoardController, :sites
+    get "/sites/:origin", Forum.BoardController, :site
     get "/posts/:id/:slug", Forum.BoardController, :post
     get "/posts/:id", Forum.BoardController, :post
     get "/reports/:id", Forum.BoardController, :post
@@ -483,10 +485,13 @@ defmodule RegentsWeb.Router do
     end
   end
 
-  # Each troubleshooting page's Markdown at its own address ending in .md, and
-  # each picture on a public post, to any caller, as on patchbay.help.
+  # Each troubleshooting page's Markdown at its own address ending in .md, each
+  # picture on a public post, and the pictures Patchbay took of sites, to any
+  # caller, as on patchbay.help.
   scope "/patchbay", RegentsWeb.Patchbay do
     get "/post-pictures/:id", PostPictureController, :show
+    get "/site-screenshots/:site_id", SiteScreenshotController, :show
+    get "/listed-site-pictures/:domain", ListedSitePictureController, :show
 
     for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
       get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting.md",
