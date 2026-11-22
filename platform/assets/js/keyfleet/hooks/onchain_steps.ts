@@ -206,13 +206,12 @@ export const OnchainSteps: Hook = {
 /**
  * Sends or signs the named step from the review's signer, through the wallet
  * open when the wallet is asked: Privy's active wallet, read then, while it is
- * the review's signer. With no wallet open at the press (`wallet` is null), or
- * none it may send through just before the send starts, it opens the site's
- * connect window, as the site's own hook does, sends nothing and reports why.
- * When another wallet, or none, is open once the send has started, the site's
- * own checks send nothing and say why. Reports only what the wallet answered,
- * against the review it sent from: the hash or signature, or why nothing was
- * sent, and returns the same answer. The server decides what the hash did.
+ * the review's signer. When another wallet, or none, is open by then, the
+ * site's own checks send nothing and say why. With no wallet open at the press
+ * (`wallet` is null), it sends nothing and reports why. Reports only what the
+ * wallet answered, against the review it sent from: the hash or signature, or
+ * why nothing was sent, and returns the same answer. The server decides what
+ * the hash did.
  */
 export async function press(
   review: Review | undefined,
@@ -227,7 +226,7 @@ export async function press(
   }
 
   try {
-    if (!wallet) throw noWallet()
+    if (!wallet) throw new NothingSent("wallet_unavailable")
     if (!review || !step) throw new NothingSent("step_unknown")
     // The site's send reads its wallet each time it asks, as the site's own
     // hook gives it: the open wallet while it is the review's signer, and none
@@ -237,7 +236,6 @@ export async function press(
       const active = activeEthereumWallet()
       return active?.address.toLowerCase() === signer ? active : null
     }
-    if (!open()) throw noWallet()
 
     if (step.kind === "signature") {
       const signature = await signStep(review.chain, review.signer, step, open, started)
@@ -252,13 +250,6 @@ export async function press(
     push("step_failed", {step: name, reason})
     return {reason}
   }
-}
-
-// No wallet the press may send through: the site's connect window opens, as
-// the site's own hook opens it, and nothing is sent.
-function noWallet(): NothingSent {
-  window.dispatchEvent(new CustomEvent("ash:wallet-connect"))
-  return new NothingSent("wallet_unavailable")
 }
 
 /**
