@@ -43,11 +43,12 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       (the page's: the panel's first figures read once it is mounted, each
       one a changed form or a change of open wallet starts, each one the panel
       starts again by itself, after figures it could not read, while a
-      button is held back and Buy's every few minutes, and each press's,
-      spends one of its address's `keyfleet_wallet_reads`, and past them the
-      panel shows it could not read its figures, as when the chain does not
-      answer, and tries again, counted; a rebuild the page itself causes and
-      the account changing are not counted. No press is held back for them:
+      button is held back and Buy's every few minutes, the one Buy REGENT's
+      press starts as it clears its amount, and each press's, spends one of
+      its address's `keyfleet_wallet_reads`, and past them the panel shows
+      it could not read its figures, as when the chain does not answer, and
+      tries again, counted; a rebuild the page itself causes and the account
+      changing are not counted. No press is held back for them:
       past them a signed-in press is answered with the steps the panel holds
       when they were built for exactly what it asks for, the wallet, whether
       that wallet sends, the fields of the form the steps read, the proposal,
@@ -310,14 +311,16 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   def handle_event("step_pressed", %{"agent" => true}, socket), do: {:noreply, socket}
 
   # The person's Buy REGENT clears its amount once the wallet has the press,
-  # so the form starts over for the next one.
+  # so the form starts over for the next one, and its figures are read again,
+  # counted.
   def handle_event(
         "step_pressed",
         %{"step" => "convert"},
         %{assigns: %{flow: :convert}} = socket
       ),
       do:
-        {:noreply, socket |> assign(inputs: %{socket.assigns.inputs | "amount" => ""}) |> sync()}
+        {:noreply,
+         socket |> assign(inputs: %{socket.assigns.inputs | "amount" => ""}) |> sync(:counted)}
 
   def handle_event("step_pressed", _params, socket), do: {:noreply, socket}
 
