@@ -8206,3 +8206,12 @@ seasons), on the shared Points library regents.sh was already on.
 - An auction's page, a token's page and Launch yours keep their future addresses under `/autolaunch` and answer "not found" until those pages come.
 - Left out for now: the product cards, Coming next, Bid volume and Principles; the Calls list and the stock rows; the notices about reading the chains; the lists updating themselves while open; dollar prices; and every wallet press (Bid, the trade window, Claim and Refund).
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's home page, review fixes (not released)
+
+- Try again reads the list only after a read has failed; a press at any other time does nothing.
+- A launched token whose auction leaves the lists while the page is being read is left out, where the whole list used to fail.
+- A launch's picture is shown only from an `https` address; any other shows the first letter of its name, as a launch with no picture does.
+- One address's open pages can read 120 listings a minute (a changed option, a search, Load more). Past that the page says the launches can't be shown, with Try again.
+- A search is cut at 320 bytes as well as at eighty characters.
+- Not released: on the `fold/autolaunch` branch only. One new named allowance in the site's settings (`autolaunch_list_reads`); no migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
