@@ -114,7 +114,8 @@
       "from": "platform/lib/keyfleet_web/components/member_list.ex",
       "to": "platform/lib/regents_web/keyfleet/components/member_list.ex",
       "changes": [
-        "need: the site has no list_shown_linked_identities!/1; Accounts.list_linked_identities_for_accounts!/2 with the system actor reads the same rows (accounts in the list, at most 100), with two more public fields the list does not read (display_name, verified_at), sorted by account then provider, so each account's links come in the same order"
+        "need: the site has no list_shown_linked_identities!/1; Accounts.list_linked_identities_for_accounts!/2 with the system actor reads the same rows (accounts in the list, at most 100), with two more public fields the list does not read (display_name, verified_at), sorted by account then provider, so each account's links come in the same order",
+        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer, where the source's page number reading crashed on it (K3 b fixes)"
       ]
     },
     {
@@ -260,7 +261,8 @@
       "changes": [
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)",
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
-        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
+        "the regents chief's review of K3 (b): the Search box shows the address's words only when they are text, and is otherwise empty as for an empty search, where the source's page crashed drawing them (K3 b fixes)"
       ]
     },
     {
