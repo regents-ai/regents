@@ -21,7 +21,7 @@ defmodule RegentsWeb.Cloak do
   @watch_label "Watch the intro"
   @watch_time "0:20"
   @film "/images/cloak/intro.mp4"
-  @facts "130 MB · Apple silicon · macOS 26"
+  @facts "Apple silicon · macOS 26"
 
   @modes_title "4 modes of operation"
 

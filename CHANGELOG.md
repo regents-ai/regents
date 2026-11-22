@@ -7489,3 +7489,8 @@ seasons), on the shared Points library regents.sh was already on.
 
 - A wallet that had given the redeemer an unlimited USDC approval (set in the wallet itself; the page's own step asks for the exact price) could not open its part of the Redeem page: the figure was too long to write and the page failed. Current allowance now reads "Unlimited" for such an approval. Every other figure is written as before.
 - Found by the Autolaunch chief while proving the shared chain reader. No table, setting or migration; nothing about what the page asks a wallet to sign.
+
+## 2026-11-22 — Cloak pages: the size line no longer names 130 MB
+
+- /cloak and /cloak/install said "130 MB", the size of a file neither page offers now. The line reads "Apple silicon · macOS 26" until the next build's size is known. Ordinary page copy, on the Orchestrator's ruling of 22 Nov, told to the founder.
+- No table, setting or migration.
