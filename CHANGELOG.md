@@ -8215,3 +8215,11 @@ seasons), on the shared Points library regents.sh was already on.
 - One address's open pages can read 120 listings a minute (a changed option, a search, Load more). Past that the page says the launches can't be shown, with Try again.
 - A search is cut at 320 bytes as well as at eighty characters.
 - Not released: on the `fold/autolaunch` branch only. One new named allowance in the site's settings (`autolaunch_list_reads`); no migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's home page, Coming next, Bid volume and Principles (not released)
+
+- Below the list, `/autolaunch` now shows what autolaunch.sh shows there, in the same order and words: Coming next (up to three auctions taking bids, the soonest to close first, then those opening soon, or "No auction is taking bids"), Bid volume (up to six launches with the most put in by bidders, in dollars, shown only once someone has bid) and Principles (Autolaunch's six cards).
+- Hidden auctions stay out of both rows, as they stay out of the list.
+- The Principles cards open their pages as a full page load. See stocks, See portfolio, See auctions and each auction's page keep their future addresses under `/autolaunch` and answer "not found" until those pages come; Pair agent opens this site's own pairing page.
+- Both rows are read once, as the page opens; they do not yet update while it stays open.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

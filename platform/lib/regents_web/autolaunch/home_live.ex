@@ -11,17 +11,33 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   search, Load more) spends one of that address's `:autolaunch_list_reads`
   (`Regents.Limits`); past the allowance the page says the launches can't be
   shown, with Try again. Load more keeps every row it has read in the page's
-  memory, which suits lists of a few thousand rows at most: see SOURCE.json.
+  memory, to be changed before either list holds 1,000 rows: see SOURCE.json.
+
+  Below the list, whatever it shows: Coming next (up to three auctions taking
+  bids, the soonest to close first, then those opening soon), Bid volume (up
+  to six launches with the most put in by bidders) and Principles (what
+  Autolaunch holds to, as value cards). The two rows are read once, with the
+  page's first listing and under its one spend of the allowance; past the
+  allowance they are empty.
 
   Still to come, each with its own part: the product cards above the lists,
-  Coming next, Bid volume and Principles below them, the Calls list, the
-  notices about reading the chains, the lists rereading themselves while the
-  page is open, and every wallet press (Bid, Buy, Claim and Refund).
+  the Calls list, the notices about reading the chains, the lists and rows
+  rereading themselves while the page is open, and every wallet press (Bid,
+  Buy, Claim and Refund).
   """
   use RegentsWeb, :live_view
 
   import RegentsWeb.Autolaunch.Components.MarketCard,
-    only: [auction_list: 1, token_list: 1, explore_card: 1, connections_for: 2]
+    only: [
+      auction_list: 1,
+      token_list: 1,
+      explore_card: 1,
+      backed_card: 1,
+      auction_status: 1,
+      connections_for: 2
+    ]
+
+  import RegentsWeb.Components.ValueCards
 
   import RegentsWeb.Autolaunch.Components.ChainIcon
   import RegentsWeb.Autolaunch.Components.LinkIcon
@@ -62,6 +78,9 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
        has_more: false,
        local_lab: Lab.test_chain?(),
        listed: nil,
+       backed: [],
+       coming: [],
+       values: values(),
        lists: @lists,
        token_kinds: @token_kinds,
        statuses: @statuses,
@@ -91,6 +110,96 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   # The list the address names.
   defp list(%{"view" => "tokens"}), do: :tokens
   defp list(_params), do: :auctions
+
+  # The "Principles" row at the foot of the page: what Autolaunch holds to, one
+  # card each, drawn by the panels in assets/js/value_cards/panels/autolaunch/.
+  defp values do
+    [
+      %{
+        id: "autolaunch/clearing",
+        name: "Fair price",
+        headline: "One price for every bidder.",
+        line: "Bids above the clearing price all pay that price, not their own limit.",
+        tint: "#ff5b19",
+        action: "Read rules",
+        href: ~p"/autolaunch/how-it-works#how-it-works-auction"
+      },
+      %{
+        id: "autolaunch/vault",
+        name: "Locked liquidity",
+        headline: "Liquidity no one can pull.",
+        line: "It sits in a contract that can only collect trading fees.",
+        tint: "#4fd3ec",
+        action: "See fees",
+        href: ~p"/autolaunch/how-it-works#how-it-works-fees"
+      },
+      # The stocks, portfolio and auctions pages keep their addresses under
+      # /autolaunch, written out until they come (they answer 404 until then).
+      %{
+        id: "autolaunch/address",
+        name: "Stock tokens",
+        headline: "Every stock named exactly.",
+        line: "Each stock shows its issuer and chain, and its exact address before you sign.",
+        tint: "#00c805",
+        action: "See stocks",
+        href: "/autolaunch/stocks"
+      },
+      %{
+        id: "autolaunch/signature",
+        name: "Your wallet",
+        headline: "Your wallet signs everything.",
+        line: "Autolaunch never holds your keys or your money.",
+        tint: "#e5e3d2",
+        action: "See portfolio",
+        href: "/autolaunch/portfolio"
+      },
+      %{
+        id: "autolaunch/handoff",
+        name: "Agents",
+        headline: "Agents prepare, you sign.",
+        line: "A paired agent can fill in your launch for you to check and sign.",
+        tint: "#f5c16c",
+        action: "Pair agent",
+        href: ~p"/account/agents"
+      },
+      %{
+        id: "autolaunch/blocks",
+        name: "Onchain",
+        headline: "Figures from the chain.",
+        line: "Auction prices, bids and amounts raised come from the auction contracts.",
+        tint: "#aecacd",
+        action: "See auctions",
+        href: "/autolaunch/auctions"
+      }
+    ]
+  end
+
+  # The "Bid volume" row: up to six launches with the most put in by bidders,
+  # whatever the list below shows. Launches nobody has bid on stay out of it.
+  defp read_backed do
+    case Regents.Autolaunch.HomeMarket.auctions(%{sort: "volume"}, 6) do
+      {:ok, auctions} -> Enum.filter(auctions, &raised?/1)
+      _failure -> []
+    end
+  end
+
+  # "Coming next": up to three auctions taking bids, the soonest to close
+  # first, then those opening soon.
+  defp read_coming do
+    live = read_auctions(%{state: "active", sort: "ending"})
+    opening = read_auctions(%{state: "created"})
+    Enum.take(live ++ opening, 3)
+  end
+
+  defp read_auctions(arguments) do
+    case Regents.Autolaunch.HomeMarket.auctions(arguments, 3) do
+      {:ok, auctions} -> auctions
+      _failure -> []
+    end
+  end
+
+  defp raised?(%{bid_volume_usd: %Decimal{} = volume}), do: Decimal.gt?(volume, 0)
+  defp raised?(_auction), do: false
 
   # The auctions or tokens the options name, read unless they are the ones
   # already shown.
@@ -156,14 +265,20 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
 
   # The page's first listing is read before it is shown, so the coins are in
   # the page as it arrives, for readers that run no scripts too. Later
-  # listings load beside the ones already shown.
+  # listings load beside the ones already shown. The rows beside the list are
+  # read with it, once, under the same spend of the allowance.
   defp first_market(socket) do
     socket = assign(socket, market_append: false, listed: socket.assigns.market_options)
 
-    with :ok <- admit(socket),
-         {:ok, page} <- read_market(socket.assigns.market_options, nil) do
-      put_market(socket, page)
-    else
+    case admit(socket) do
+      :ok -> socket |> assign(backed: read_backed(), coming: read_coming()) |> read_first()
+      :limited -> market_failed(socket)
+    end
+  end
+
+  defp read_first(socket) do
+    case read_market(socket.assigns.market_options, nil) do
+      {:ok, page} -> put_market(socket, page)
       _failure -> market_failed(socket)
     end
   end
@@ -276,6 +391,32 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
       <Regent.Primitives.button variant="secondary" disabled class="create-button">Launch yours</Regent.Primitives.button>
       <small>Opens soon</small>
     </span>
+    """
+  end
+
+  attr :coming, :list, required: true
+
+  # What a visitor can join next: the auctions taking bids or opening soon.
+  # While there are none, one quiet line says so; the list below keeps the
+  # past ones.
+  defp coming_next(assigns) do
+    ~H"""
+    <section class="home-next" aria-labelledby="home-next-title">
+      <h2 id="home-next-title">Coming next</h2>
+      <ol :if={@coming != []} id="home-next-auctions" class="home-next__row">
+        <li :for={auction <- @coming} id={"home-next-card-#{auction.id}"}>
+          <.link navigate={RegentsWeb.Autolaunch.Paths.auction(auction)} class="home-next__card">
+            <strong>{auction.title}</strong>
+            <small>{auction.token_symbol}</small>
+            <.auction_status id={"home-next-#{auction.id}"} auction={auction} />
+          </.link>
+        </li>
+      </ol>
+      <div :if={@coming == []} class="home-next__empty">
+        <Regent.Icons.icon name="clock" class="home-next__mark" />
+        <p><strong>No auction is taking bids</strong></p>
+      </div>
+    </section>
     """
   end
 
@@ -505,7 +646,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
             :for={{record, index} <- Enum.with_index(@records)}
             kind={@records_kind}
             record={record}
-            lead={index == 0}
+            lead={index == 0 && @backed == []}
             creator_connections={connections_for(record, @creators)}
           />
         </div>
@@ -580,6 +721,22 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
           Showing {count_label(length(@records), @records_kind)}{if !@has_more,
             do: " · All results loaded"}
         </p>
+      </section>
+
+      <.coming_next coming={@coming} />
+
+      <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
+        <h2 id="home-backed-title">Bid volume</h2>
+        <ol class="home-backed__row">
+          <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
+            <.backed_card auction={auction} rank={rank} />
+          </li>
+        </ol>
+      </section>
+
+      <section class="home-values" aria-labelledby="home-values-title">
+        <h2 id="home-values-title">Principles</h2>
+        <.value_cards id="cards-row" label="Principles" cards={@values} />
       </section>
     </div>
     """

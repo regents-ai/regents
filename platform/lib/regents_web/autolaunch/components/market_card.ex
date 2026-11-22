@@ -181,6 +181,55 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     """
   end
 
+  attr :auction, :map, required: true
+  attr :rank, :integer, required: true
+
+  @doc """
+  One square in the home page's "Bid volume" row: the token's picture with its
+  rank, its name and ticker, what bidders have put in and its state in words.
+  It opens the auction's page.
+  """
+  def backed_card(assigns) do
+    view = view(:auction, assigns.auction, %{})
+
+    assigns =
+      assign(assigns,
+        view: view,
+        picture: StoredImage.sized(view.image, 640),
+        volume: volume(assigns.auction),
+        status: state_label(assigns.auction.state)
+      )
+
+    ~H"""
+    <.link navigate={@view.path} class="home-backed__card">
+      <span class="home-backed__art">
+        <img
+          :if={@picture}
+          src={@picture}
+          srcset={StoredImage.choices(@view.image)}
+          sizes="(max-width: 42rem) calc(40vw - 32px), 320px"
+          alt=""
+          loading={@rank > 1 && "lazy"}
+          fetchpriority={@rank == 1 && "high"}
+          decoding="async"
+          width="320"
+          height="320"
+        />
+        <span :if={!@picture} aria-hidden="true">{String.first(@view.name || "?")}</span>
+        <span class="home-backed__rank"><span class="visually-hidden">Rank </span>{@rank}</span>
+      </span>
+      <span class="home-backed__name">
+        <strong>{@view.name}</strong>
+        <small>{@view.symbol}</small>
+      </span>
+      <span class="home-backed__figures">
+        <span>{@volume} raised</span>
+        <span>{@status}</span>
+      </span>
+    </.link>
+    """
+  end
+
   attr :view, :map, required: true
   attr :lead, :boolean, required: true
 
@@ -612,6 +661,32 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
 
   defp outcome(_auction), do: nil
 
+  attr :id, :string, required: true
+  attr :auction, :map, required: true
+
+  @doc "The auctions list's status figure for one stored auction, outside the list."
+  def auction_status(assigns) do
+    auction = assigns.auction
+
+    assigns =
+      assign(assigns,
+        figures: %{
+          id: assigns.id,
+          progress: time_progress(auction),
+          opens_at: live_open(auction),
+          ends_at: live_end(auction),
+          status: figure_status(auction),
+          outcome: outcome(auction),
+          state: auction.state
+        },
+        chain: if(RobinhoodLab.chain?(auction.chain_id), do: "Robinhood", else: "Base")
+      )
+
+    ~H"""
+    <.status_figure figures={@figures} chain={@chain} />
+    """
+  end
+
   attr :figures, :map, required: true
   attr :chain, :string, required: true, values: ["Base", "Robinhood"]
 
@@ -854,10 +929,13 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   def connections_for(_record, _creators), do: %{}
 
   # An auction state in the words the site uses: live means open for bidding.
-  # A finished auction's words say when it ended (`figure_status/1`).
+  # The lists' figures also say when a finished auction ended
+  # (`figure_status/1`).
   defp state_label(:created), do: "Opening soon"
   defp state_label(:active), do: "Live"
   defp state_label(:ended), do: "Waiting to finish"
+  defp state_label(:graduated), do: "Graduated"
+  defp state_label(:failed), do: "Minimum not met"
 
   # A card whose image has a known colour carries it for its border and
   # background.
