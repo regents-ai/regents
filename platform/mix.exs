@@ -195,7 +195,8 @@ defmodule Regents.MixProject do
         # pairing view its policy check.
         # Keyfleet's page layer adds one: its route catalog builds its list from the fleet
         # catalog as it compiles.
-        "xref graph --label compile-connected --fail-above 235",
+        # Keyfleet's fleet pages add one: the router reads that route catalog as it compiles.
+        "xref graph --label compile-connected --fail-above 236",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"
