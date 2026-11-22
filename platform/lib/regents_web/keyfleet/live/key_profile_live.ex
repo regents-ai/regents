@@ -292,7 +292,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   # agent has signed in with it.
   defp shard_agent(%{shard: %{agent: nil}} = assigns),
     do:
-      ~H|<Regent.Primitives.address id={"key-profile-shard-#{@shard.wallet}"} address={@shard.wallet} />|
+      ~H|<Regent.Primitives.address id={"key-profile-shard-address-#{@shard.wallet}"} address={@shard.wallet} />|
 
   defp shard_agent(assigns) do
     ~H"""
