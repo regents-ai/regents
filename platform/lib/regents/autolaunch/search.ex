@@ -15,11 +15,15 @@ defmodule Regents.Autolaunch.Search do
   # Close enough to count: one wrong letter in a five-letter word still passes.
   @match 0.45
   @limit 80
+  # Four bytes a character: every plain search of eighty characters fits. One
+  # character can be built from any number of marks, so the bytes are bounded
+  # too.
+  @bytes 320
 
   @doc """
   The one form a search takes: readable text without control or hidden
   characters, single spaces, no spaces at either end, at most eighty
-  characters. Bytes that are not text, hidden characters (a null byte, a
+  characters and 320 bytes, whole characters only. Bytes that are not text, hidden characters (a null byte, a
   zero-width space, a mark that sets reading direction) and every kind of
   space (a non-breaking one, say) become plain spaces, so a pasted search
   still finds what its words name. The two joiners that hold some scripts and
@@ -34,7 +38,11 @@ defmodule Regents.Autolaunch.Search do
     |> Enum.join(" ")
     |> String.graphemes()
     |> Enum.take(@limit)
-    |> Enum.join()
+    |> Enum.reduce_while("", fn character, text ->
+      if byte_size(text) + byte_size(character) <= @bytes,
+        do: {:cont, text <> character},
+        else: {:halt, text}
+    end)
     # The cut can land just after a space.
     |> String.trim_trailing()
   end
