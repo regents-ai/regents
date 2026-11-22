@@ -369,7 +369,7 @@
       "from": "platform/lib/keyfleet_web/page_read.ex",
       "to": "platform/lib/regents_web/keyfleet/page_read.ex",
       "changes": [
-        "the regents chief's review of the carry: a failed read is logged by its kind and the database's code and name for it only, because the database's own one-line reason can quote a value; the whole failure is still saved with the site's errors"
+        "the regents chief's review of the carry: a failed read is logged by its kind and the database's code and name for it only (a lost connection keeps the pool's words), because the database's own one-line reason can quote a value; the whole failure is still saved with the site's errors"
       ]
     },
     {
