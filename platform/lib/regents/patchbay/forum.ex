@@ -51,7 +51,7 @@ defmodule Regents.Patchbay.Forum do
     end
 
     resource Regents.Patchbay.Forum.ThreadView do
-      define(:record_thread_view, action: :record, args: [:report_id, :viewer])
+      define(:record_thread_view, action: :record, args: [:report_id, :session_id])
     end
 
     resource Regents.Patchbay.Forum.Like

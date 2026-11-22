@@ -355,13 +355,12 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
 
   @doc """
   Records that this reader opened the thread. The reader is the browser's
-  own forum session (`session:` and its id, in the form a thread view names
-  its viewer), so the same reader is counted once however often the page
-  loads.
+  own forum session, so the same reader is counted once however often the
+  page loads.
   """
   @spec record_view(Forum.Report.t(), String.t()) :: :ok
   def record_view(report, session_id) when is_binary(session_id) do
-    Forum.record_thread_view!(report.id, "session:" <> session_id)
+    Forum.record_thread_view!(report.id, session_id)
     :ok
   end
 end
