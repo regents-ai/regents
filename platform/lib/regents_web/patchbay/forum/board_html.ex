@@ -66,6 +66,42 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def picture_url("/favicon.svg"), do: "/images/patchbay/favicon.svg"
   def picture_url("/" <> path), do: "/patchbay/" <> path
 
+  @doc """
+  Whether an address a person wrote or a site gave may be opened as a link:
+  it parses, it is `https` or `http`, it names a host, it carries no user
+  name or password, and it holds no space and none of `<`, `>`, `"` or `'`,
+  which would end it early in a page or in Markdown. The rule patchbay.help
+  holds a fix's sources to when they are written.
+  """
+  @spec web_address?(term()) :: boolean()
+  def web_address?(address) when is_binary(address) do
+    not String.match?(address, ~r/[\s<>"']/u) and
+      match?(
+        {:ok, %URI{scheme: scheme, host: host, userinfo: nil}}
+        when scheme in ["https", "http"] and is_binary(host) and host != "",
+        URI.new(address)
+      )
+  end
+
+  def web_address?(_address), do: false
+
+  @doc """
+  An address a person wrote or a site gave: a link, with the words given or
+  the address itself, only when it is a web address (`web_address?/1`);
+  anything else is drawn as its text and opens nothing.
+  """
+  attr :href, :string, required: true
+  attr :rest, :global, include: ~w(rel target)
+  slot :inner_block
+
+  def web_link(assigns) do
+    assigns = assign(assigns, :link?, web_address?(assigns.href))
+
+    ~H"""
+    <a :if={@link?} href={@href} {@rest}>{render_slot(@inner_block) || @href}</a><span :if={!@link?}>{@href}</span>
+    """
+  end
+
   def site_name(site), do: site.display_name || site.origin
 
   # A post about the site's own domain, or one naming no page, reads as the site.
@@ -1248,7 +1284,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
         <dt :if={@fix.sources != []}>Sources</dt><dd :if={@fix.sources != []} class="pb-fix-list">
           <ul class="pb-fix-sources">
             <li :for={link <- @fix.sources}>
-              <a href={link} rel="nofollow ugc noopener noreferrer" target="_blank">{URI.parse(link).host}</a>
+              <.web_link href={link} rel="nofollow ugc noopener noreferrer" target="_blank">
+                {URI.parse(link).host}
+              </.web_link>
             </li>
           </ul>
         </dd>

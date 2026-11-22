@@ -10,6 +10,7 @@ defmodule RegentsWeb.Patchbay.MD do
   """
 
   alias Regents.Patchbay.Members.Member
+  alias RegentsWeb.Patchbay.Forum.BoardHTML
   alias RegentsWeb.Patchbay.Forum.Nameplate
 
   @doc "Visitor text kept to one line, so it stays inside the line it was put on."
@@ -110,6 +111,21 @@ defmodule RegentsWeb.Patchbay.MD do
     |> line()
     |> String.replace(~r/[\\\[\]<>`]/, "\\\\\\0")
     |> String.replace(~r/\A#/, "\\\\#")
+  end
+
+  @doc """
+  An address a person wrote or a site gave, as a link only when it is a web
+  address (`RegentsWeb.Patchbay.Forum.BoardHTML.web_address?/1`): `<address>`,
+  or `[words](<address>)` with words. Anything else is its text, as plain
+  words (`plain/1`), and opens nothing.
+  """
+  @spec web_link(term(), term()) :: String.t()
+  def web_link(address, words \\ nil) do
+    cond do
+      not BoardHTML.web_address?(address) -> plain(address)
+      is_nil(words) -> "<" <> address <> ">"
+      true -> "[" <> plain(words) <> "](<" <> address <> ">)"
+    end
   end
 
   @doc "A table row, with pipes in the cells escaped."

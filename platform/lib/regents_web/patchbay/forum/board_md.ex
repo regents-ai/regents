@@ -134,7 +134,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       |> Enum.reject(&is_nil(elem(&1, 1)))
       |> Enum.map(fn {name, text} -> "- #{name}: #{plain(text)}" end)
 
-    sources = Enum.map(fix.sources, &"- Source: <#{&1}>")
+    sources = Enum.map(fix.sources, &("- Source: " <> web_link(&1)))
     updates = Enum.map(fix.updates, &"- Update #{DateTime.to_iso8601(&1.at)}: #{plain(&1.text)}")
 
     Enum.join(facts ++ sources ++ updates, "\n")

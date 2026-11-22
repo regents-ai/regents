@@ -78,9 +78,7 @@ changes ticks once. What is drawn only with the page is kept as drawn
     <.post_pictures pictures={@report.pictures} />
     <p :if={@report.page_url} class="pb-post-page">
       <Regent.Icons.icon name="link" />
-      <a href={@report.page_url} rel="nofollow ugc noopener noreferrer" target="_blank">
-        {@report.page_url}
-      </a>
+      <.web_link href={@report.page_url} rel="nofollow ugc noopener noreferrer" target="_blank" />
     </p>
   </Regent.Discussion.post>
 
