@@ -88,13 +88,25 @@ GRANT SELECT (id, wallet_address) ON TABLE regent_names.platform_human_users
 GRANT SELECT ON TABLE regent_agents.agent_pictures TO regents_preview_reader;
 GRANT SELECT (id, wallet) ON TABLE regent_agents.paired_agents TO regents_preview_reader;
 
--- Techtree's public run log and catalog, and its applied versions.
+-- Techtree's public run log, catalog, Wallet Bench, and its applied versions.
 GRANT SELECT ON TABLE
   techtree_app.catalog_releases,
   techtree_app.catalog_entries,
   techtree_app.bootstrap_releases,
   techtree_app.network_publication_entries,
+  techtree_app.wallet_bench_machines,
+  techtree_app.wallet_bench_payments,
+  techtree_app.wallet_bench_attempts,
+  techtree_app.wallet_bench_turns,
+  techtree_app.wallet_bench_attempt_events,
+  techtree_app.wallet_bench_version_notes,
   techtree_app.schema_migrations
+  TO regents_preview_reader;
+
+-- Autolaunch's public launch pictures (served only by UUID + SHA-256 digest).
+GRANT SELECT (id, digest, content_type, byte_size, bytes) ON TABLE
+  autolaunch_app.launch_draft_images,
+  autolaunch_app.stock_launch_draft_images
   TO regents_preview_reader;
 
 -- Patchbay's, Keyfleet's and Autolaunch's applied versions, for the health answer.

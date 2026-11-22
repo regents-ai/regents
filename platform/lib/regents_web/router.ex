@@ -494,6 +494,7 @@ defmodule RegentsWeb.Router do
       live "/how-it-works", HowItWorksLive, :show
       live "/auctions", AuctionsLive, :index
       live "/tokens", TokensLive, :index
+      live "/tokens/:symbol/:tail", MarketPageLive, :token
     end
   end
 

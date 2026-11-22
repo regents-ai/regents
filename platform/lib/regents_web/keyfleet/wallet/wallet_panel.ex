@@ -269,12 +269,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # they are. What is sent from them is followed as any other press, and a
   # proposal's words are saved as its steps are handed over. A refusal is
   # counted and goes only in the reply: the note below the buttons speaks for
-  # the person's own presses.
+  # the person's own presses. Over the address's wallet-read allowance, a press
+  # for the wallet and form already built reuses those steps; a press is never
+  # refused for rate.
   def handle_event("prepare_for_agent", %{"form" => form, "step" => step} = params, socket)
       when is_map(form) and is_binary(step) do
     {socket, wallet} = socket |> take_active(params) |> follow_signer()
     inputs = over(socket.assigns.inputs, form)
-    built = if wallet, do: build_steps!(request(socket, wallet, inputs))
+    built = build_for_press(socket, wallet, inputs)
     pressed = %{socket.assigns | inputs: inputs, built: built, review: sendable(built, socket)}
 
     case refusal(socket, pressed, step) do
@@ -460,18 +462,43 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   # As `sync/1`, but built before it returns. A build still being read lands
   # later with the same steps, and the page keeps every review a press was
-  # sent from.
+  # sent from. Signed-out reads share `keyfleet_wallet_reads`; for a signed-in
+  # press over the rate, the last built steps for this wallet are reused so no
+  # press is refused.
   defp sync_now(socket) do
-    {socket, figures_wallet} = follow_signer(socket)
-
-    if figures_wallet do
-      socket
-      |> assign(shown: figures_wallet)
-      |> show(build_steps!(request(socket, figures_wallet, socket.assigns.inputs)))
-    else
-      build(socket, nil, :uncounted)
+    case follow_signer(socket) do
+      {socket, nil} -> build(socket, nil, :counted)
+      {socket, wallet} -> sync_now_for_wallet(socket, wallet)
     end
   end
+
+  defp sync_now_for_wallet(socket, wallet) do
+    if Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) == :limited and
+         reusable_built?(socket.assigns, wallet) do
+      socket
+    else
+      socket
+      |> assign(shown: wallet)
+      |> show(build_steps!(request(socket, wallet, socket.assigns.inputs)))
+    end
+  end
+
+  defp build_for_press(_socket, nil, _inputs), do: nil
+
+  defp build_for_press(socket, wallet, inputs) do
+    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
+      :ok ->
+        build_steps!(request(socket, wallet, inputs))
+
+      :limited ->
+        if reusable_built?(socket.assigns, wallet) and inputs == socket.assigns.inputs,
+          do: socket.assigns.built,
+          else: build_steps!(request(socket, wallet, inputs))
+    end
+  end
+
+  defp reusable_built?(%{built: %{review: %{signer: wallet}}, shown: wallet}, wallet), do: true
+  defp reusable_built?(_assigns, _wallet), do: false
 
   defp follow_signer(socket) do
     linked = linked(socket)

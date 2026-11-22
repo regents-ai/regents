@@ -1,0 +1,24 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* A token page's heading: its picture, its name over a line of tags, and its
+   actions at the end of the row. On a phone the actions wrap under the name. */
+.token-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3) var(--space-4); min-width: 0; }
+.token-heading__picture { display: grid; place-items: center; width: 64px; height: 64px; overflow: hidden; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--color-fg) 5%, var(--color-surface)); }
+.token-heading__picture img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.token-heading__picture > span { color: var(--color-fg-muted); font-size: 1.75rem; }
+.token-heading__title { display: grid; gap: 6px; min-width: 0; }
+.token-heading__title h1 { margin: 0; font-size: clamp(1.75rem, 1.3rem + 1.5vw, 2.25rem); font-weight: 400; line-height: 1.05; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.token-heading__pair { color: var(--color-fg-muted); font-size: .55em; letter-spacing: 0; white-space: nowrap; }
+.token-heading__tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--color-fg-muted); font-size: .8125rem; }
+.token-heading__tags .creator-label { margin: 0; }
+.token-heading__tags .creator-label a { color: var(--color-fg); }
+.token-heading__links { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.token-heading__links .rg-button { min-height: 36px; padding-inline: 12px; font-size: .875rem; }
+.token-heading__link { display: inline-flex; align-items: center; gap: .45rem; }
+.token-heading__chart { display: inline-flex; }
+.token-heading__icon { width: 1.1em; height: 1.1em; flex: none; }
+@media (pointer: coarse) { .token-heading__links .rg-button { min-height: 44px; } }
+@media (max-width: 40rem) {
+  .token-heading { grid-template-columns: auto minmax(0, 1fr); }
+  .token-heading__links { grid-column: 1 / -1; justify-content: flex-start; }
+}
+}

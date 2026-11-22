@@ -3,8 +3,9 @@ defmodule Regents.Autolaunch.Token do
   One launched token whose auction graduated: its name and symbol as its
   auction has them, its latest price and where its trades are read from next.
 
-  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
-  them (`Regents.Autolaunch.HomeMarket`) and show each as `presentation/1`
+  The table and its rows as autolaunch.sh keeps them. Autolaunch's lists
+  (`Regents.Autolaunch.HomeMarket`) and a token's own page
+  (`Regents.Autolaunch.TokenPage`) read them and show each as `presentation/1`
   gives it; nothing here writes them yet.
   """
 
@@ -213,12 +214,21 @@ defmodule Regents.Autolaunch.Token do
           |> Regents.Autolaunch.Search.rank(query.arguments.query, graduated_at: :desc, id: :asc)
       end
     end
+
+    # A Base auction's token, which its page is found by
+    # (`Regents.Autolaunch.TokenPage`).
+    read :public_by_auction do
+      get? true
+      argument :auction_id, :uuid, allow_nil?: false
+      filter expr(auction_id == ^arg(:auction_id))
+      prepare Regents.Autolaunch.Token.Preparations.BaseAuctionOnly
+    end
   end
 
-  # Only the reads the lists use are carried; any other action is refused until
-  # it comes with its own policy.
+  # Only the reads the lists and the token page use are carried; any other
+  # action is refused until it comes with its own policy.
   policies do
-    policy action([:read, :home_market]) do
+    policy action([:read, :home_market, :public_by_auction]) do
       authorize_if always()
     end
   end

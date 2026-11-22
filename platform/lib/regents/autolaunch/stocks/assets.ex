@@ -25,6 +25,10 @@ defmodule Regents.Autolaunch.Stocks.Assets do
   @spec known(:base) :: {:ok, [Stock.t()]} | {:error, term()}
   def known(:base), do: if(Lab.configured?(), do: saved(@base_chain_id), else: {:ok, []})
 
+  @doc "The issuer of a chain's stock tokens: Coinbase on Base."
+  @spec issuer(:base) :: String.t()
+  def issuer(:base), do: "Coinbase"
+
   @doc """
   The exchange ticker behind a stock token symbol: the symbol without the Base
   issuer's trailing `c`, so `AAPLc` and Robinhood's `AAPL` are the same company.

@@ -8347,3 +8347,13 @@ seasons), on the shared Points library regents.sh was already on.
 - Every read of a wallet box's figures counts against its address's 120 a minute: its first, each changed amount, choice or wallet, and each time it reads again by itself; a Key's window reads its rewards and its Treasury slice under the same share, and shows rewards read in the last 30 seconds again without a read. Past its share of the minute a wallet window shows its figures could not be read and tries again, and a Key's window says its rewards or its slice aren't showing right now. Pressing a wallet button is never counted or held back.
 - When the city behind Keyfleet's pages comes, one address's open pages read a member's own ships at most 180 times a minute; past that the city keeps the ships it has until the fleet's next news. No page shows the city yet.
 - Not released: on the `fold/keyfleet` branch only. One new named allowance in the site's settings (`keyfleet_sea_crew_reads`). No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+
+## 2026-11-22 — One site: Autolaunch token pages, Patchbay threads and sites, Keyfleet share pictures, and founder decisions (not released)
+
+- Merged Keyfleet's share pictures (`/keyfleet/share/:file`), sea member-ships read allowance (`keyfleet_sea_crew_reads`), and wallet panel read limits into `one-site`; over-rate signed-in wallet presses reuse the last built steps rather than refusing, and signed-out wallet reads share `keyfleet_wallet_reads` (decision 387 c).
+- Merged Patchbay's thread page (`/patchbay/posts/:id/:slug`), sites directory and site pages (`/patchbay/sites`, `/patchbay/:host`), and picture serving into `one-site`.
+- Added Autolaunch's database-backed token page (`/autolaunch/tokens/:symbol/:tail`) and 160-wide launch picture sizing.
+- Shortened the NEAR Private AI sentence on `/cloak` (decision 390 a).
+- Added Techtree's six Wallet Bench tables and Autolaunch's two launch-picture tables (five public columns each) to `platform/priv/reader/grants.sql` (decisions 392 a and 395 a).
+- Not released: on the `one-site` branch only. No live database, deployment, or frozen product repository touched.
