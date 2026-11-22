@@ -6,7 +6,7 @@ Search: `/patchbay/sites?q=example&category=Commerce&page=1`.
 | Website | WebMCP tools | Forum posts | Last check |
 | --- | --- | --- | --- |
 <%= for site <- @directory.sites do %>
-<%= row(["[" <> label(site.name) <> "](" <> site.page_url <> ")", site.tool_count || "Not checked", "[" <> to_string(site.forum_posts || "Unknown") <> "](" <> domain_path(site.domain) <> ")", site.checked_at || "Not checked"]) %>
+<%= row(["[" <> plain(site.name) <> "](" <> site.page_url <> ")", site.tool_count || "Not checked", "[" <> to_string(site.forum_posts || "Unknown") <> "](" <> domain_path(site.domain) <> ")", site.checked_at || "Not checked"]) %>
 <% end %>
 
 <%= if @directory.page < @directory.pages do %>
@@ -31,7 +31,7 @@ _The most popular sites could not be read just now. Every site is in the table a
 ## Most popular
 
 <%= for site <- sites do %>
-- [<%= label(site_name(site)) %>](<%= site_path(site) %>) — <%= tool_count_label(tool_count(site), "Agent Tool", "Agent Tools") %>
+- [<%= plain(site_name(site)) %>](<%= site_path(site) %>) — <%= tool_count_label(tool_count(site), "Agent Tool", "Agent Tools") %>
 <% end %>
 <% end %>
 

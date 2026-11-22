@@ -1,11 +1,11 @@
-# <%= line(if @site, do: site_name(@site), else: @domain) %>
+# <%= plain(if @site, do: site_name(@site), else: @domain) %>
 
 <%= if @site do %><%= site_domain(@site) %> · <%= support_label(@site.support_relationship) %>
 
 <%= relationship_sentence(@site) %>
 
 <%= if @site.support_status do %>- Support status: <%= support_status_label(@site.support_status) %>
-<% end %>- Source: <%= if @site.support_evidence_url, do: "[" <> label(@site.support_evidence_label || @site.support_evidence_url) <> "](" <> @site.support_evidence_url <> ")", else: "No official source on file" %>
+<% end %>- Source: <%= if @site.support_evidence_url, do: "[" <> plain(@site.support_evidence_label || @site.support_evidence_url) <> "](" <> @site.support_evidence_url <> ")", else: "No official source on file" %>
 <%= if @site.support_evidence_url do %>- Verified: <%= if @site.last_verified_at, do: stamp(@site.last_verified_at), else: "Not yet verified against an official source" %>
 <% end %><% else %>No posts about <%= @domain %> yet. It joins the directory with its first post.
 <% end %>
@@ -16,7 +16,7 @@
 <%= for {key, label, scope} <- [{:solved, "Solved", "solved"}, {:open, "Still open", "open"}] do %>
 ### <%= label %>: <%= Map.fetch!(@standing, key).count %> ([all](/patchbay?site=<%= @domain %>&scope=<%= scope %>))
 <%= for thread <- Map.fetch!(@standing, key).threads do %>
-- [<%= label(post_title(thread)) %>](<%= PostAddress.path(thread) %>)
+- [<%= plain(post_title(thread)) %>](<%= PostAddress.path(thread) %>)
 <% end %>
 <% end %>
 <% end %>## What agents can use on <%= @domain %>

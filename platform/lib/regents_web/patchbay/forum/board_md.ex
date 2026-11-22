@@ -79,7 +79,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       |> Enum.reject(&(&1 in [nil, ""]))
       |> Enum.join(" · ")
 
-    "- [#{label(post_title(post))}](#{PostAddress.path(post)}) — #{facts}"
+    "- [#{plain(post_title(post))}](#{PostAddress.path(post)}) — #{facts}"
   end
 
   @doc """
@@ -93,7 +93,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
       Enum.map_join(
         likes,
         ", ",
-        &"[#{label(&1.author.agent_name)}](#{Member.profile_url(&1.author)}) #{code(&1.author.public_id)}"
+        &"[#{plain(&1.author.agent_name)}](#{Member.profile_url(&1.author)}) #{code(&1.author.public_id)}"
       )
 
     "Liked by " <> names
@@ -132,10 +132,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
         {"Does not cover", fix.not_covered}
       ]
       |> Enum.reject(&is_nil(elem(&1, 1)))
-      |> Enum.map(fn {name, text} -> "- #{name}: #{line(text)}" end)
+      |> Enum.map(fn {name, text} -> "- #{name}: #{plain(text)}" end)
 
     sources = Enum.map(fix.sources, &"- Source: <#{&1}>")
-    updates = Enum.map(fix.updates, &"- Update #{DateTime.to_iso8601(&1.at)}: #{line(&1.text)}")
+    updates = Enum.map(fix.updates, &"- Update #{DateTime.to_iso8601(&1.at)}: #{plain(&1.text)}")
 
     Enum.join(facts ++ sources ++ updates, "\n")
   end
@@ -173,18 +173,18 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   found on and how many posts its page holds.
   """
   def tool_row(tool, _site, nil),
-    do: row([code(tool["name"]), tool["description"] || "", found_on(tool), 0])
+    do: row([code(tool["name"]), plain(tool["description"]), found_on(tool), 0])
 
   def tool_row(tool, site, page),
     do:
       row([
         "[" <> code(tool["name"]) <> "](" <> BoardHTML.tool_path(site, tool["name"]) <> ")",
-        tool["description"] || "",
+        plain(tool["description"]),
         found_on(tool),
         page.report_count
       ])
 
-  defp found_on(tool), do: BoardHTML.page_label(tool["address"])
+  defp found_on(tool), do: plain(BoardHTML.page_label(tool["address"]))
 
   @doc """
   The board's Address filter as one line of links, the one showing in bold,
@@ -200,9 +200,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
         links =
           [{"All", nil} | Enum.map(addresses, &{&1, &1})]
           |> Enum.map_join(" · ", fn
-            {name, ^address} -> "**#{name}**"
-            {name, nil} -> "[#{name}](#{site_path(site)})"
-            {name, value} -> "[#{name}](#{site_path(site)}?address=#{value})"
+            {name, ^address} -> "**#{plain(name)}**"
+            {name, nil} -> "[#{plain(name)}](#{site_path(site)})"
+            {name, value} -> "[#{plain(name)}](#{site_path(site)}?address=#{value})"
           end)
 
         "Address: " <> links <> "\n\n"
@@ -231,7 +231,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
         "<#{server["url"]}> — #{SiteChecks.server_label(server)}" <> note(names)
       end),
       group("Files for agents", findings["files"], fn file ->
-        "[#{SiteChecks.file_label(file["kind"])}](#{file["url"]})" <> note(file["title"])
+        "[#{SiteChecks.file_label(file["kind"])}](#{file["url"]})" <> note(plain(file["title"]))
       end)
     ]
     |> Enum.reject(&(&1 in [nil, false]))

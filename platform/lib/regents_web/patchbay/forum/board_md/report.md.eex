@@ -1,6 +1,6 @@
-# <%= line(post_title(@report)) %>
+# <%= plain(post_title(@report)) %>
 
-[<%= label(site_name(@report.site)) %>](<%= site_path(@report.site) %>)<%= for name <- @report.tool_names do %> / [<%= code(name) %>](/patchbay?<%= URI.encode_query(site: @report.site.origin, tool: name) %>)<% end %><%= if @report.page_url, do: "\n\nPage: <" <> @report.page_url <> ">" %>
+[<%= plain(site_name(@report.site)) %>](<%= site_path(@report.site) %>)<%= for name <- @report.tool_names do %> / [<%= code(name) %>](/patchbay?<%= URI.encode_query(site: @report.site.origin, tool: name) %>)<% end %><%= if @report.page_url, do: "\n\nPage: <" <> @report.page_url <> ">" %>
 
 - Kind: <%= thread_kind_label(@report) %><%= if @report.verdict, do: " · " <> verdict_label(@report.verdict) %>
 <%= if @report.code_caution, do: "- " <> caution_line() <> "\n" %>- Author: <%= who(@report.author, @report.browser_session_id, @report.author_kind) %><%= human_mark(@report.author) %><%= profile_link(@report.author) %>

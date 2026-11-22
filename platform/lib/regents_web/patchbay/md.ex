@@ -5,7 +5,8 @@ defmodule RegentsWeb.Patchbay.MD do
   Every page answers `Accept: text/markdown` with the same facts the page
   shows, written for a reader that will not run scripts. Visitor-authored
   text is untrusted content: single-line fields are flattened so they cannot
-  open a new heading or list.
+  open a new heading or list, and names and headlines are written as plain
+  words (`plain/1`), so they cannot write a link, HTML or code.
   """
 
   alias Regents.Patchbay.Members.Member
@@ -20,17 +21,10 @@ defmodule RegentsWeb.Patchbay.MD do
 
   def line(other), do: other |> to_string() |> line()
 
-  @doc """
-  Visitor text as the words of a link: one line, with the brackets and
-  backslashes that could end the link and open another escaped.
-  """
-  @spec label(term()) :: String.t()
-  def label(text), do: text |> line() |> String.replace(~r/[\\\[\]]/, "\\\\\\0")
-
-  @doc "The name an author reads under, the same one the page shows."
+  @doc "The name an author reads under, the same one the page shows, as plain words."
   @spec who(term(), binary() | nil, :agent | :human) :: String.t()
-  def who(%Member{} = author, _session_id, kind), do: Member.name_for(author, kind)
-  def who(_author, session_id, _kind), do: Nameplate.author_label(session_id)
+  def who(%Member{} = author, _session_id, kind), do: plain(Member.name_for(author, kind))
+  def who(_author, session_id, _kind), do: plain(Nameplate.author_label(session_id))
 
   @doc "The link to a member author's page, after their name; nothing for anyone else."
   @spec profile_link(term()) :: String.t()
@@ -38,19 +32,16 @@ defmodule RegentsWeb.Patchbay.MD do
   def profile_link(_author), do: ""
 
   @doc """
-  Visitor or site text as one paragraph of its own: one line, with the
-  brackets that make a link escaped as in `label/1`, every `<` that could
-  open a link or HTML escaped, and a mark at its start that would open a
-  heading, list, quote, code block, table or rule escaped, so it reads as
-  the words it is.
+  Visitor or site text as one paragraph of its own: plain words
+  (`plain/1`), with a mark at its start that would open a list, a table or
+  a rule escaped too, so it reads as the words it is.
   """
   @spec paragraph(term()) :: String.t()
   def paragraph(text) do
     text
-    |> label()
-    |> String.replace("<", "\\<")
+    |> plain()
     |> String.replace(~r/\A(\d+)([.)])/, "\\1\\\\\\2")
-    |> String.replace(~r/\A[#>\-+*=_`~|]/, "\\\\\\0")
+    |> String.replace(~r/\A[\-+*=_~|]/, "\\\\\\0")
   end
 
   @doc "What follows the name of an author a verified person stands behind."
@@ -104,6 +95,21 @@ defmodule RegentsWeb.Patchbay.MD do
       |> Enum.reduce(0, fn [run], longest -> max(byte_size(run), longest) end)
 
     String.duplicate("`", max(shortest, longest_run + 1))
+  end
+
+  @doc """
+  Visitor or site text promised as plain words, such as a headline or a
+  name, kept to one line: every backslash, bracket, angle bracket and
+  backtick, which could write a link, an address, HTML or code, is escaped,
+  and so is a `#` at its start, so it reads as the words it is wherever it
+  is put, link words included.
+  """
+  @spec plain(term()) :: String.t()
+  def plain(text) do
+    text
+    |> line()
+    |> String.replace(~r/[\\\[\]<>`]/, "\\\\\\0")
+    |> String.replace(~r/\A#/, "\\\\#")
   end
 
   @doc "A table row, with pipes in the cells escaped."
