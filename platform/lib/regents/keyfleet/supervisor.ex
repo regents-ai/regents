@@ -8,9 +8,9 @@ defmodule Regents.Keyfleet.Supervisor do
   (`RegentsWeb.Keyfleet.PageRead`; past twenty at once, a failure is only
   logged); the task supervisor `Regents.Keyfleet.PressBuilds`, under which
   the steps a press on a wallet button asks for are built
-  (`RegentsWeb.Keyfleet.WalletPanel`), with no cap: the page's own process
-  waits on each build, so there is at most one build per open page at a
-  time, and the number of open pages is bounded elsewhere; the access cache
+  (`RegentsWeb.Keyfleet.WalletPanel`), with no cap: a page's own process
+  runs one build at a time and each build is bounded, so there are never
+  more of these tasks than open pages; the access cache
   (`Regents.Keyfleet.AccessCache`): who was let into a fleet's notebooks or
   code lately, cleared at once through PubSub when a Key changes hands; the
   keep of what waits for each Key's holder
