@@ -324,6 +324,7 @@
       "to": "platform/lib/regents_web/keyfleet/live/shell_live.ex",
       "changes": [
         "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go",
+        "the regents chief's review of the carry: the fleet and the Keys a page is of are named by the address's own path and never by its query, so every page reads only what its address names",
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; Keyfleet's render_context/1 is the site's plus the Schedule card's cookie (the router names it for Keyfleet's live session); the source's client_key goes with the Agent Message",
         "slice 1's difference that holds: the Agent Message on /keyfleet/agents stays out (it needs stored messages K2 did not carry)",
         "slice 1's difference that holds: the frame sits under the site's bar (RegentsWeb.Components.Shell.site_bar/1), which holds the crown, product menu, theme switch and account control; Keyfleet's header with its Get Key, account menu (agents slot) and pairing window goes",
@@ -367,7 +368,9 @@
     {
       "from": "platform/lib/keyfleet_web/page_read.ex",
       "to": "platform/lib/regents_web/keyfleet/page_read.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of the carry: a failed read is logged by its kind and the database's code and name for it only, because the database's own one-line reason can quote a value; the whole failure is still saved with the site's errors"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/poll_refusal.ex",

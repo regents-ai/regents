@@ -70,6 +70,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   @workspace_routes [:workspace, :workspace_item, :code_commit, :code_history, :code_files]
   @proposals_routes [:proposals, :proposal, :treasury, :worldline]
 
+  # What an address names in its path: the fleet (by the route) and the Keys.
+  @address_parts ~w(fleet_id token_id other_token_id)
+
   @press_failed "Something went wrong on our side. Refresh the page to see the latest, then try again."
 
   # Written by the Schedule card's hook (`assets/js/hooks/schedule_card.ts`).
@@ -178,8 +181,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   # A read the page can't do leaves the frame standing, with the page's place
   # saying it couldn't be loaded.
   def handle_params(params, uri, socket) do
-    route_spec = route_spec(uri, params)
-    params = name_fleet(params, route_spec)
+    {route_spec, params} = at_address(uri, params)
     if beyond_supply?(params), do: raise(NotFoundError)
 
     case PageRead.run("app", fn -> load(socket, route_spec, params) end) do
@@ -234,13 +236,20 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   # A fleet's page is asked for at the fleet's address, and read by its id.
   # The page at the address, as the router matched it: each part of the path
-  # unescaped, as the router reads it. Of `params`, the page list reads only the
-  # parts of the address its route names.
-  defp route_spec(uri, params) do
+  # unescaped, as the router reads it. The fleet and the Keys a page is of are
+  # named by the address's own path and never by its query, so the page's
+  # `params` carry them from the path alone.
+  defp at_address(uri, params) do
     %URI{host: host, path: path} = URI.parse(uri)
     segments = for segment <- String.split(path, "/"), segment != "", do: URI.decode(segment)
-    %{route: route} = Phoenix.Router.route_info(RegentsWeb.Router, "GET", segments, host)
-    RouteCatalog.fetch!(route, params)
+
+    %{route: route, path_params: path_params} =
+      Phoenix.Router.route_info(RegentsWeb.Router, "GET", segments, host)
+
+    route_spec = RouteCatalog.fetch!(route, path_params)
+
+    {route_spec,
+     params |> Map.drop(@address_parts) |> Map.merge(path_params) |> name_fleet(route_spec)}
   end
 
   # A Key past its fleet's supply can never exist, so no page of it is found:
