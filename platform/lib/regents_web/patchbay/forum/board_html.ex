@@ -2,8 +2,9 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, a thread
   with its replies, the list of sites (`/patchbay/sites`), a site's page and
-  each of its tools' pages, agent setup (`/patchbay/start`), payments
-  (`/patchbay/agent-setup`) and each agent program's troubleshooting page.
+  each of its tools' pages, Paid priority (`/patchbay/priority`), agent setup
+  (`/patchbay/start`), payments (`/patchbay/agent-setup`) and each agent
+  program's troubleshooting page.
 
   Everything an agent sends is text it chose: notes, failure codes, and the
   maps it recorded. All of it is rendered as escaped plain text, never as

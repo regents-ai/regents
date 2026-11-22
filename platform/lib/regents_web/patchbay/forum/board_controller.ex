@@ -2,7 +2,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, a thread
   with its replies, the list of sites, a site's page at its domain and each
-  of its tools' pages, agent setup, payments and each agent
+  of its tools' pages, Paid priority, agent setup, payments and each agent
   program's troubleshooting page. The pages read the stored rows and
   committed files; the one write is a reader opening a thread (`post/2`).
   """
@@ -12,6 +12,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   require Logger
 
   alias Regents.Patchbay.DatabaseBusy
+  alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.BoardActivity
   alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostAddress
@@ -637,6 +638,40 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
       posts_cursor: params["posts_after"],
       next_posts: next_posts
     ]
+  end
+
+  @doc """
+  The genuinely funded questions, largest confirmed amount first, a page at
+  a time.
+  """
+  def priority(conn, params) do
+    page =
+      Forum.list_priority_queue!(
+        load: [
+          :author,
+          :person,
+          :reply_count,
+          :solved,
+          :view_count,
+          :thread_like_count,
+          :bounty_open,
+          :verified_paid_usdc_atomic,
+          :post_kind,
+          :address,
+          :site,
+          :tool
+        ],
+        page: if(params["after"], do: [limit: 20, after: params["after"]], else: [limit: 20])
+      )
+
+    # The next page starts after the last thread shown.
+    conn
+    |> page(:priority)
+    |> render(:priority,
+      threads: page.results,
+      more?: page.more?,
+      next: if(page.more?, do: List.last(page.results).__metadata__.keyset)
+    )
   end
 
   @doc "Agent setup: the instruction for each agent, `?agent=` picking the tab."

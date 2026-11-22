@@ -4,7 +4,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   that asked for `text/markdown`. Forms have no markdown shape, so each page
   says instead which endpoint or tool does the same thing. So far the home
   page, agent setup, payments, the troubleshooting pages, a post's thread,
-  the list of sites, a site's page and a tool's page.
+  the list of sites, a site's page, a tool's page and Paid priority.
   """
 
   import RegentsWeb.Patchbay.MarkdownEngine, only: [embed_markdown: 1]

@@ -526,6 +526,7 @@ defmodule RegentsWeb.Router do
     get "/blog/:slug", BlogController, :show
     get "/start", Forum.BoardController, :start
     get "/agent-setup", Forum.BoardController, :agent_setup
+    get "/priority", Forum.BoardController, :priority
     get "/sites", Forum.BoardController, :sites
     get "/sites/:origin", Forum.BoardController, :old_site
     get "/sites/:origin/tools/:name", Forum.BoardController, :old_tool
