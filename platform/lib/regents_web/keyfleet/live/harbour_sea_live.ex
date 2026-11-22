@@ -30,7 +30,9 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   member's ships are read as the visitor, since a member sees more (rooms
   other than the Public room, every item's title). Which ships are the visitor's own
   is read as the visitor, when the fleet comes on show and when its Keys
-  change hands.
+  change hands. Each read of a member's ships spends one of the page's
+  address's `keyfleet_sea_crew_reads`; past them the sea keeps the ships it
+  has until a notice about those fleets comes once the allowance starts again.
   """
 
   use RegentsWeb, :live_view
@@ -412,7 +414,10 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   # the visitor is no longer a member of is read as anyone sees it. A read
   # that fails is logged by its kind only (`PageRead`), and the sea keeps the
   # ships it has. One read runs at a time: asked again while one loads, they
-  # are read once more when it lands (`handle_async/3`).
+  # are read once more when it lands (`handle_async/3`). Each read spends one
+  # of the page's address's `keyfleet_sea_crew_reads` before it starts; past
+  # them nothing is read and the sea keeps the ships it has, until the next
+  # notice about those fleets asks again.
   defp read_crew(%{assigns: %{crew: %Read{state: :loading}}} = socket),
     do: assign(socket, :crew_again?, true)
 
@@ -422,12 +427,18 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
         socket
 
       fleet_ids ->
-        Read.start(
-          socket,
-          :crew,
-          reader(socket.assigns.access_context),
-          crew(ShellLive.human_actor(socket), fleet_ids)
-        )
+        case Limits.spend(:keyfleet_sea_crew_reads, socket.assigns.client_tag) do
+          :ok ->
+            Read.start(
+              socket,
+              :crew,
+              reader(socket.assigns.access_context),
+              crew(ShellLive.human_actor(socket), fleet_ids)
+            )
+
+          :limited ->
+            socket
+        end
     end
   end
 

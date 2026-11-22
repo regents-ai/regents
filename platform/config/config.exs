@@ -207,6 +207,14 @@ config :regents, Regents.Patchbay.Forum.FeedCount,
   gc_interval: :timer.minutes(10),
   max_size: 10_000
 
+# Keyfleet's share pictures drawn for link previews
+# (`RegentsWeb.Keyfleet.SharePictures`), swept of expired ones every ten
+# minutes. Each is a PNG of up to a few hundred kilobytes, so at most 64 are
+# kept.
+config :regents, RegentsWeb.Keyfleet.SharePictures,
+  gc_interval: :timer.minutes(10),
+  max_size: 64
+
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60
 # Messages left for the team (`Regents.Messages`): each person, with their paired
@@ -230,8 +238,10 @@ config :regents, :limits,
   # A person's presses of Keyfleet's Treasury refresh: one every 30 seconds
   # (Sean, 20 October 2026).
   keyfleet_treasury_refresh: [limit: 1, window_seconds: 30],
-  # Figures one address's open Keyfleet wallet panels read when a form changes
-  # or the open wallet is reported: as many a minute as Autolaunch's lists. No
+  # Chain figures one address's open Keyfleet pages read: a wallet panel's
+  # first read, one a changed form or the open wallet starts, and the panel's
+  # own rereads on its timer; the Key window's rewards, when not read in the
+  # last 30 seconds, and its slice. As many a minute as Autolaunch's lists. No
   # press is counted.
   keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
   # Moves of the sea behind one address's open Keyfleet pages to another fleet,
@@ -239,6 +249,13 @@ config :regents, :limits,
   # each page for 2 seconds), so two people behind one address are not held.
   # Past them the sea stays as it is drawn.
   keyfleet_sea_moves: [limit: 45, window_seconds: 60],
+  # Reads of a member's own ships by the sea behind one address's open
+  # Keyfleet pages, one on coming to a fleet they are a member of and one a
+  # burst of that fleet's news: twice what three open pages read in a busy
+  # fleet's minute (81, news every half second), so two members behind one
+  # address are not held. Past them the sea keeps the ships it has until the
+  # next news.
+  keyfleet_sea_crew_reads: [limit: 180, window_seconds: 60],
   # Searches one address's open Keyfleet pages run, Show more included: one a
   # second.
   keyfleet_searches: [limit: 60, window_seconds: 60],

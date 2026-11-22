@@ -8341,3 +8341,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Nothing on this site asks for an address for Keyfleet's early-access list yet, so the way to add one is gone until that page comes. The list and the site's read of it stay.
 - The city behind Keyfleet's pages, where each fleet's latest holders fly as discs, comes with its script. No page shows it yet.
 - Not released: on the `fold/keyfleet` branch only. Eight new once-a-minute lines in the site's job schedule, one new named allowance in the site's settings (`keyfleet_sea_moves`), and the site's start now names Keyfleet's page readings. No table, migration, queue, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Keyfleet's chain figures and the city's ships are read within each address's share (not released)
+
+- Every read of a wallet box's figures counts against its address's 120 a minute: its first, each changed amount, choice or wallet, and each time it reads again by itself; a Key's window reads its rewards and its Treasury slice under the same share, and shows rewards read in the last 30 seconds again without a read. Past its share of the minute a wallet window shows its figures could not be read and tries again, and a Key's window says its rewards or its slice aren't showing right now. Pressing a wallet button is never counted or held back.
+- When the city behind Keyfleet's pages comes, one address's open pages read a member's own ships at most 180 times a minute; past that the city keeps the ships it has until the fleet's next news. No page shows the city yet.
+- Not released: on the `fold/keyfleet` branch only. One new named allowance in the site's settings (`keyfleet_sea_crew_reads`). No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.

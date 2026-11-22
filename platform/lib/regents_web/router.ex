@@ -223,6 +223,8 @@ defmodule RegentsWeb.Router do
     get "/autolaunch/images/:id/:digest/:size", Autolaunch.StoredImageController, :launch
     get "/autolaunch/stock-images/:id/:digest", Autolaunch.StoredImageController, :stock
     get "/autolaunch/stock-images/:id/:digest/:size", Autolaunch.StoredImageController, :stock
+    get "/keyfleet/share/:file", Keyfleet.ShareCardController, :show
+    get "/keyfleet/share/projects/:fleet_id/:file", Keyfleet.ShareCardController, :project
   end
 
   scope "/", RegentsWeb do

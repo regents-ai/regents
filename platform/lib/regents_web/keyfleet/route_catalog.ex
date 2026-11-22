@@ -211,13 +211,6 @@ defmodule RegentsWeb.Keyfleet.RouteCatalog do
   def notebooks_path(fleet_id),
     do: "/keyfleet/fleets/#{fleet_id}/notebooks/open?" <> URI.encode_query(to: "/")
 
-  @doc "The address of the fleet `fleet_id`'s share picture."
-  def fleet_picture_path(fleet_id), do: "/keyfleet/share/#{fleet_id}.png"
-
-  @doc "The address of the share picture of the fleet `fleet_id`'s project `name`."
-  def project_picture_path(fleet_id, name),
-    do: "/keyfleet/share/projects/#{fleet_id}/#{name}.png"
-
   def design_handoff do
     json =
       %{"schema_version" => 1, "routes" => Enum.map(@entries, &handoff_route/1)}

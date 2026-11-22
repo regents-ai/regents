@@ -134,10 +134,16 @@ defmodule RegentsWeb.Endpoint do
        when method in ["GET", "HEAD"] and lane in ["images", "stock-images"],
        do: RegentAgentAccess.RateLimit.call(conn, rate_limit("pictures", 600))
 
+  # Keyfleet's share pictures, named only in a page's head for link previews:
+  # each address has a share of 60 a minute of its own, and spends no other.
+  defp limit_rate(%Plug.Conn{method: method, path_info: ["keyfleet", "share" | _]} = conn, _opts)
+       when method in ["GET", "HEAD"],
+       do: RegentAgentAccess.RateLimit.call(conn, rate_limit("keyfleet_share_pictures", 60))
+
   # The products' pages read the database on every visit, so each address has
   # one share of them a minute, apart from the API's budget; Autolaunch's
-  # pictures have their own two shares, just above, and spend neither this one
-  # nor each other's.
+  # pictures and Keyfleet's share pictures have their own shares, just above,
+  # and spend neither this one nor each other's.
   defp limit_rate(%Plug.Conn{method: method, path_info: [product | _]} = conn, _opts)
        when method in ["GET", "HEAD"] and
               product in ["patchbay", "techtree", "keyfleet", "autolaunch"],
