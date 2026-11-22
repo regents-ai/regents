@@ -8238,3 +8238,15 @@ seasons), on the shared Points library regents.sh was already on.
 - A Key's card no longer draws a shard's row and its address under one id.
 - Settings now set: how long a fleet's feed waits, the agents' picture address, the Base wallet chain and node, and the decks' and trait table's folders.
 - Not released: on the `fold/keyfleet` branch only. 45 routes added. No table, migration, queue, scheduled job, secret, sign-in or wallet change.
+
+## 2026-11-22 — One site: Keyfleet's fleet pages, review fixes (not released)
+
+- One address's open fleet pages can run 60 searches a minute, each Show more included. Past that the search says "This page couldn't be loaded" until the minute is up.
+- One address's open wallet boxes can read their figures 120 times a minute, each changed amount or choice and each wallet they pick up included. Past that a box says "Can't reach the network right now. Trying again." Pressing a wallet button is never counted or held back.
+- Treasury's Refresh counts a signed-out visitor's presses by their address, so reloading the page doesn't let them press again sooner than every 30 seconds.
+- An agent's registry listing on a Key's card is a link only at an `https` address; any other is left out.
+- An address with an unexpected Member List page or Search words opens the page where it showed an error: the list's not-found answer, or an empty Search box.
+- The Schedule card remembers only Keyfleet's own fleets put away, each once, the latest 16.
+- A countdown whose closing time isn't a number keeps its words and stops.
+- Every read of Base uses the site's own Base read setting, so the Buy Key figures no longer wait on a chain node setting of their own, and the node setting the entry above names is gone.
+- Not released: on the `fold/keyfleet` branch only. Two new named allowances in the site's settings (`keyfleet_wallet_reads`, `keyfleet_searches`) and one Keyfleet setting removed (its Base node address). No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
