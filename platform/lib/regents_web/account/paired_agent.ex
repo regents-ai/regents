@@ -129,8 +129,11 @@ defmodule RegentsWeb.Account.PairedAgent do
     end
   end
 
+  # The refusal carries nothing of the answer it replaces: a download's file
+  # name, built from the former owner's title, goes with its body.
   defp replace(conn, status, code, message, hint) do
     %{conn | status: status, resp_body: error_body(code, message, hint)}
+    |> delete_resp_header("content-disposition")
     |> put_resp_content_type("application/json")
   end
 
