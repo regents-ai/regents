@@ -13,7 +13,8 @@ defmodule RegentsWeb.ContentSecurityPolicy do
   app offers, whose script comes from both Privy and Telegram. Privy's sign-in
   window writes its own style elements, so only this profile allows them. Its
   pictures are Privy's own and WalletConnect's wallet logos, plus the Regents
-  Club Pass artwork on this site's picture store.
+  Club Pass artwork on this site's picture store and Keyfleet agents' pictures
+  from their bucket.
 
   Every page may show ENS pictures, which the ENS service draws for each name.
 
@@ -60,7 +61,8 @@ defmodule RegentsWeb.ContentSecurityPolicy do
     "img-src" => [
       "blob:",
       "https://explorer-api.walletconnect.com",
-      "https://media.regents.sh"
+      "https://media.regents.sh",
+      "https://keyfleet-pictures.fly.storage.tigris.dev"
     ],
     "frame-src" => [
       "https://auth.privy.io",
