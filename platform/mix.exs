@@ -188,8 +188,9 @@ defmodule Regents.MixProject do
         # assessment its embedded Skill change. Patchbay's tables add forty: its six domains
         # read their thirty-nine resources, and a report its embedded cve.now facts. The
         # pairing read adds two: its domain reads its resource, and the resource its check.
+        # Autolaunch's tables add thirty-one: its two domains read their thirty-one resources.
         # Techtree's Wallet Bench adds six: its domain reads its six resources.
-        "xref graph --label compile-connected --fail-above 100",
+        "xref graph --label compile-connected --fail-above 131",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

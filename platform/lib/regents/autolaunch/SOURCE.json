@@ -4,7 +4,7 @@
   "taken": "2026-11-20",
   "stylesheets": "Only what the frame and the Changelog use: 6 of autolaunch.sh's 48 stylesheets, cut to the rules those use. Each file is wrapped in @scope (:root[data-product=\"autolaunch\"]:has(.shell)) to (.regents-frame): it stops at regents.sh's frame, and :has(.shell) keeps it off the /autolaunch overview, which is regents.sh's own page; html reads :scope. autolaunch.sh sets no product on its page, so its main button, link, focus and chosen colours are restated per theme from Regent UI 69dbfface, so they win over Regent UI's Autolaunch product colours. Its plain links and focus ring are restated at the weight of regents.sh's own rules, which they meet unscoped.",
   "files": [
-    {"from": "platform/lib/autolaunch/autolaunch.ex", "to": "platform/lib/regents/autolaunch.ex", "changes": "Boundary root for Regents.Autolaunch only, exporting nothing; health/0 answers :ok; none of the Ash domain (its resources, tools and code interfaces come with their pages)"},
+    {"from": "platform/lib/autolaunch/autolaunch.ex", "to": "platform/lib/regents/autolaunch.ex", "changes": "Boundary root for Regents.Autolaunch, exporting nothing, depending on Regents for the person (Regents.Account.Accounts.HumanAccount); health/0 answers :ok; also the Ash domain (otp_app :regents), its resource list only: 28 of its resources and Autolaunch.Accounts' XConnection, each listed by name (PaymentLink, LaunchDraftImage and LaunchOperation too, which the source lists through Module.concat); no AshAi extension, hosted MCP tools or code interfaces (each comes with what calls it)"},
     {"from": "platform/lib/autolaunch_web.ex", "to": "platform/lib/regents_web/autolaunch.ex", "changes": "Boundary root for RegentsWeb.Autolaunch; depends on RegentsWeb and Regents.Autolaunch; exports Layouts, PublicDocuments and PublicPagesController; the macros are this site's (use RegentsWeb, :html)"},
     {"from": "platform/lib/autolaunch_web/components/layouts.ex and layouts/app.html.heex", "to": "platform/lib/regents_web/autolaunch/layouts.ex", "changes": "renamed; app/1 and product_links/1 only; the header is this site's bar (RegentsWeb.Components.Shell.site_bar, product autolaunch) with Autolaunch's links in its links slot from 48rem up and, on a phone, in the drawer behind a Menu strip under the bar; the rail is not drawn (its links are the bar's); links listed only once their page is here (Explore, to /autolaunch); the account control is this site's (Live.Session), so signed in shows the picture, the name and Sign out; no market ticker, $REGENT menu, search, account menu, Pair New Agent, launch button, rail, sign-in notice or theme switch in the page (the bar has one); footer without About, Developer docs, Agent Tools, its theme switch or its light; the agent guides are this site's /agents.md and /llms.txt; the root and early layouts are not brought (this site's root document serves every page)"},
     {"from": "platform/lib/autolaunch_web/components/learn_navigation.ex", "to": "platform/lib/regents_web/autolaunch/components/learn_navigation.ex", "changes": "renamed; Changelog, Privacy and Terms only (How it works, REGENT, Fees, Docs, About and Blog come with their pages); Privacy and Terms are this site's /privacy and /terms"},
@@ -21,8 +21,54 @@
     {"from": "platform/assets/css/shell/layout.css", "to": "platform/assets/css/autolaunch/shell/layout.css", "changes": "wrapped in the Autolaunch scope; the page column under this site's bar (4rem; 3.5rem and Menu on a phone); the page shell, footer, social links and Learn links only; no rail, header links, $REGENT menu, sign-in plate, account or error page, or Agent Tools button"},
     {"from": "platform/assets/css/shell/phone.css", "to": "platform/assets/css/autolaunch/shell/phone.css", "changes": "wrapped in the Autolaunch scope; the drawer opens at 48rem and below under the bar and a Menu strip styled as regents.sh's, which stays under the bar as the page scrolls; no home top, rail, phone footer slot, light, launch button, sub rows or open-window rule"},
     {"from": "platform/assets/css/pages/autolaunch.css", "to": "platform/assets/css/autolaunch/pages/autolaunch.css", "changes": "wrapped in the Autolaunch scope; the link icon rule only"},
-    {"from": "platform/assets/css/pages/facts.css", "to": "platform/assets/css/autolaunch/pages/facts.css", "changes": "wrapped in the Autolaunch scope; the page column, its headings and the written-page and table rules only"}
+    {"from": "platform/assets/css/pages/facts.css", "to": "platform/assets/css/autolaunch/pages/facts.css", "changes": "wrapped in the Autolaunch scope; the page column, its headings and the written-page and table rules only"},
+    {"from": "platform/lib/autolaunch/image_color.ex", "to": "platform/lib/regents/autolaunch/image_color.ex", "changes": "renamed; dominant/1 and its private helpers only, which carried migration 20260923152041_image_colors calls; for_urls/1, for_url/1 and the stored-image reads behind them (StoredImage and the domain) come with the stored images, and the module doc's paragraph naming them with them"},
+    {"from": "platform/lib/autolaunch/covered_calls.ex", "to": "platform/lib/regents/autolaunch/covered_calls.ex", "changes": "Regents.Autolaunch.CoveredCalls, otp_app :regents; the resource list only (Sale and Cursor): no AshAi extension, hosted MCP tools, code interfaces or reason/1; CoveredCalls.Market (no table) not brought; the module doc without the contract's and design note's paths or the reader's name"},
+    {"from": "platform/lib/autolaunch/{auction,auction_finish,auction_finish/transaction,auction_price_point,auction_reading,bid,bid_activity,bid_settlement,launch_discovery,launch_draft,launch_draft_image,launch_job,launch_operation,payment_link,share_video_request,subject,token,token_revenue,token_stake,token_trade,treasury_security_report}.ex, robinhood/launch_review.ex, stocks/{admission_scan,stock_candidate,launch_draft,launch_draft_image,launch_operation,stock}.ex, covered_calls/{sale,cursor}.ex", "to": "platform/lib/regents/autolaunch/ (the same paths)", "changes": "renamed Regents.Autolaunch.*; data shape only: the postgres block (schema(\"autolaunch_app\") added, repo Regents.Repo; references, custom indexes, check constraints and identity index names and wheres as carried), attributes, relationships and identities as carried; actions, policies, calculations, aggregates, AshOban triggers, PubSub notifiers, the changes and validations their actions name, helper functions and the module attributes only they used not brought; the policy authorizer stays, with one policy refusing every action until actions come with their own policies; read_action left off ten belongs_to relationships, the read actions they name not being brought; a person is Regents.Account.Accounts.HumanAccount, the same regent_names.platform_human_users table; Auction drops has_many :creator_identities (LinkedIdentity is not brought); SubjectIdentity's, BidIdentity's and LaunchIdentity's id constraints, LaunchLinks.fields/0 in both drafts' agent fields and LaunchChain.chains/0 in Stocks.LaunchDraft's chain are written in place, those modules not being brought; module docs without the modules, jobs and topics not brought, each saying nothing reads or writes the table yet"},
+    {"from": "platform/lib/autolaunch/accounts/x_connection.ex", "to": "platform/lib/regents/autolaunch/x_connection.ex", "changes": "renamed Regents.Autolaunch.XConnection, in Regents.Autolaunch's domain (Autolaunch.Accounts is not brought); data shape only, as the resources above; its owner is Regents.Account.Accounts.HumanAccount; the AssignOwner change and the module doc's Signals and Points paragraph not brought"},
+    {"from": "platform/lib/autolaunch/auction_reading/market.ex, page.ex", "to": "platform/lib/regents/autolaunch/auction_reading/market.ex, page.ex", "changes": "renamed; the embedded resources (Market, and Page with Block, Blocks, Step, Facts, Stage, Rung, LadderState and Ladder) as carried; their docs without AuctionStage, AuctionSnapshot and AuctionBook, which are not brought"},
+    {"from": "platform/priv/resource_snapshots/repo/<the 31 tables>/", "to": "platform/priv/autolaunch/resource_snapshots/repo/autolaunch_app.<table>/", "changes": "generated here (mix ash.codegen --snapshots-only), one per table; each matches the source's newest apart from schema, repo, the hash, has_create_action (no create action here) and the \"temporal\": null newer AshPostgres writes"}
   ],
+  "migrations": {
+    "from": "platform/priv/repo/migrations/*.exs (108 files, 20260902163024 to 20261118210000), platform/priv/repo/migrations/.formatter.exs, platform/priv/resource_snapshots/repo/extensions.json",
+    "to": "platform/priv/autolaunch/migrations/, platform/priv/autolaunch/resource_snapshots/repo/extensions.json",
+    "applied": "into autolaunch_app with its own ledger autolaunch_app.schema_migrations, after regents_app and techtree_app and before patchbay_app (Regents.Products, schema \"autolaunch_app\")",
+    "module_names": "Autolaunch.Repo.Migrations.<Name> became Regents.Repo.Migrations.Autolaunch<Name> in every file",
+    "edits": [
+      {
+        "files": ["20260923152041_image_colors.exs"],
+        "edit": "Autolaunch.ImageColor.dominant(bytes) became Regents.Autolaunch.ImageColor.dominant(bytes)",
+        "reason": "the module's name here; its SQL is unchanged. On a fresh database the two image tables are empty, so it is never called; production's ledger already holds the version"
+      },
+      {
+        "files": ["20261012190000_add_error_tracker.exs"],
+        "edit": "Autolaunch.Repo.default_prefix() became prefix() in up and down",
+        "reason": "the area being migrated is the migrator's prefix here; Regents.Repo.default_prefix() is regents_app"
+      },
+      {
+        "files": ["20260926150410_stock_search_extensions_1.exs"],
+        "edit": "up and down do nothing (its CREATE EXTENSION IF NOT EXISTS \"pg_trgm\" left out; its down already did nothing); the moduledoc says why",
+        "reason": "settled with the regents chief, 20 Nov: pg_trgm lives in public, installed there by regents.sh's own 20261120172008_pg_trgm_extensions_1, which runs before any product's; the line named no schema. The version stays so the ledger holds what production's does"
+      },
+      {
+        "files": ["20260902163024_initialize_extensions_1.exs", "20261026194823_ash_functions_v7_extensions_1.exs"],
+        "edit": "up and down do nothing; the moduledoc says why",
+        "reason": "the Ash functions, ash_required at version 7 included, are already in public, put there by regents.sh's own migrations, which run before any product's; the first file's CREATE OR REPLACE named no schema and would rewrite them (ash_required back to version 6 until the second file), and its down would drop them. The second file's public.ash_required is the same statement as regents.sh's own 20261027045129. Both versions stay so the ledger holds what production's does"
+      },
+      {
+        "files": ["20261109231500_add_oauth_provider.exs", "20261114120000_oauth_client_documents.exs"],
+        "edit": "RegentOAuth.Migration's up, V2 and V3 written out as regent_oauth holds them at elixir-utils fd7de502 (Autolaunch 4799025d's pin), V2 naming the area with prefix()",
+        "reason": "this site does not carry regent_oauth (as Techtree's and Patchbay's carried OAuth migrations)"
+      }
+    ],
+    "unchanged_on_purpose": [
+      "20261017022823_shared_accounts.exs (its 11 prefix: \"regent_names\" references), 20261017022820, 20261017022822 and 20261017022825 (their SQL naming regent_names.platform_human_users): the shared people table, in regent_names here too, made locally and on staging by priv/repo/shared_tables.sql in the same shape Autolaunch's own stand-in had",
+      "9 references with prefix: \"autolaunch_app\": they name the area itself",
+      "20260924081420_add_oban.exs and 20261012190000_add_error_tracker.exs: Autolaunch's old job and saved-error tables in autolaunch_app, read by nobody here",
+      "The oban_jobs updates naming Autolaunch.* workers (20261011184500, 20261031230958, 20261106024414, 20261108144500, 20261109151400): rows of Autolaunch's old job table, kept as written",
+      "Every other statement already named the area with prefix(), so no other file changed"
+    ]
+  },
   "not_brought": [
     "Autolaunch's home (/autolaunch stays regents.sh's own overview page in this slice): it reads launches and markets and comes with slice 2.",
     "About, How it works and Docs: each reads the deployment file through Autolaunch.Lab.current!/0; Docs also reads the tool manifest's features, CoveredCalls.Deployment.current/0 and Autolaunch.OAuth.enabled?/0.",
@@ -32,6 +78,10 @@
     "Autolaunch's Live.Session, page shell plug, theme script and theme plug: this site's session, root document and theme switch (the same regent_theme cookie) serve every page.",
     "shell_panels.ts: the pairing window and the account menu's links, which come with the agents menu.",
     "The agent documents (llms.txt, agents.md, skill.md, openapi.json, sitemap, capabilities.json): one per site, regents.sh's.",
-    "The six old-link forwards (OldLinkController)."
+    "The six old-link forwards (OldLinkController).",
+    "Every action, policy, calculation, aggregate, AshOban trigger, PubSub notifier and code interface of the 31 resources, and the domains' hosted MCP tools: they come with the pages and jobs that use them.",
+    "The tables with no resource here: session_authorities, linked_identities, account_ens_identities, the five oauth_* tables, faucet_grants, near_fundings, shared_accounts_cutover, subject_actions, Oban's tables and the saved-error tables. Their rows stay in autolaunch_app as the migrations made them.",
+    "Autolaunch.Accounts and its HumanAccount, SharedProfile, EnsIdentity, SessionAuthority and LinkedIdentity: a person is regents.sh's Regents.Account.Accounts.HumanAccount.",
+    "The resources with no table (AgentAccount, AgentBid, AgentRobinhoodBid, AgentLaunch, AgentFinish, AgentStake and CoveredCalls.Market), and every other module of lib/autolaunch beside the resources and the two embedded types."
   ]
 }

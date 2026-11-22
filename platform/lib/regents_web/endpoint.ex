@@ -117,6 +117,12 @@ defmodule RegentsWeb.Endpoint do
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 
+  # Patchbay's pages read the database on every visit, so each address has its
+  # own share of them a minute, apart from the budget above.
+  defp limit_rate(%Plug.Conn{method: method, path_info: ["patchbay" | _]} = conn, _opts)
+       when method in ["GET", "HEAD"],
+       do: RegentAgentAccess.RateLimit.call(conn, rate_limit("reads", 120))
+
   defp limit_rate(conn, _opts), do: conn
 
   # Built per request, so the endpoint does not compile against the limiter and
