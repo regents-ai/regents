@@ -474,6 +474,8 @@ defmodule RegentsWeb.Router do
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
       live "/", HomeLive, :show
       live "/how-it-works", HowItWorksLive, :show
+      live "/auctions", AuctionsLive, :index
+      live "/tokens", TokensLive, :index
     end
   end
 
