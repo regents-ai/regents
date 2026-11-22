@@ -227,7 +227,11 @@ config :regents, :limits,
   keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
   # Searches one address's open Keyfleet pages run, Show more included: one a
   # second.
-  keyfleet_searches: [limit: 60, window_seconds: 60]
+  keyfleet_searches: [limit: 60, window_seconds: 60],
+  # Reads one address's open Techtree Projects pages make as they connect and
+  # move between the list and a project: as many a minute as the address has
+  # reads of the site.
+  techtree_project_reads: [limit: 120, window_seconds: 60]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
