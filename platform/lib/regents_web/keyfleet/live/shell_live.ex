@@ -389,8 +389,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   # The browser's Schedule cards put away, as its cookie says now: a fleet's
   # Schedule just put away, or one put away since the page was requested
-  # (`assets/js/hooks/schedule_card.ts`).
-  defp press("schedule_put_away", %{"put_away" => cookie}, socket),
+  # (`assets/js/hooks/schedule_card.ts`). The cookie is text; anything else
+  # changes nothing.
+  defp press("schedule_put_away", %{"put_away" => cookie}, socket) when is_binary(cookie),
     do: {:noreply, assign(socket, :schedule_put_away, ScheduleCard.put_away(cookie))}
 
   defp press(event, params, %{assigns: %{workspace: %{}}} = socket)
