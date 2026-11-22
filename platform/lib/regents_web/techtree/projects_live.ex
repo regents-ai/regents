@@ -588,7 +588,9 @@ defmodule RegentsWeb.Techtree.ProjectsLive do
   # `unsafe: false`, which also drops javascript:, vbscript:, file: and data:
   # addresses), then every link and picture keeps its address only when it is
   # https with a host: any other link is drawn as its words alone, and any other
-  # picture without its source.
+  # picture without its source. A project with no report has an empty Report.
+  defp report_html(nil), do: ""
+
   defp report_html(markdown) do
     {html, _contents} = RegentBlog.markdown(markdown)
 
