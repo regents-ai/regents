@@ -36,6 +36,8 @@ defmodule Regents.Patchbay do
       Forum.PostSummary,
       Forum.SearchUnavailable,
       Forum.SiteCheck,
+      Forum.SiteDirectory,
+      Forum.ToolName,
       Forum.Types.ThreadKind,
       Incidents,
       Members.Member,

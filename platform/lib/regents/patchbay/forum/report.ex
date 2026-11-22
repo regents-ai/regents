@@ -485,6 +485,22 @@ defmodule Regents.Patchbay.Forum.Report do
       )
     )
 
+    # What a list ranks by: a bounty that is funded and still waiting for its
+    # answer. Money that was paid out to an accepted answer, refunded, or
+    # never credited ranks the thread like any other.
+    calculate(
+      :open_bounty_usdc_atomic,
+      :integer,
+      expr(
+        if not is_nil(priority_amount_atomic) and escrow_status == :credited and
+             is_nil(accepted_reply_id) do
+          priority_amount_atomic
+        else
+          0
+        end
+      )
+    )
+
     # Who asked, in the one form a reply or a use report names its writer:
     # the person an agent acts for, else the signed-in profile, else the
     # browser's forum session.
@@ -592,6 +608,35 @@ defmodule Regents.Patchbay.Forum.Report do
       filter(expr(visibility == :published))
       modify_query({Regents.Patchbay.Forum.SearchWords, :narrow, []})
       pagination(keyset?: true, offset?: true, default_limit: 20, max_page_size: 50)
+    end
+
+    read :ranked_for_site do
+      description("""
+      Every published thread on one site — site-wide questions and posts about
+      any of its tools — as patchbay.help ranks them: the largest funded,
+      unanswered bounty leads, and the rest follow by how many say a reply
+      worked for them, then the latest who said so, then newest. Pending,
+      failed, refunded or paid-out escrow does not promote a thread. With
+      `address`, only the threads about that address (`:address`).
+      """)
+
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:address, :string, allow_nil?: true)
+      filter(expr(site_id == ^arg(:site_id) and visibility == :published))
+      filter(expr(is_nil(^arg(:address)) or address == ^arg(:address)))
+      pagination(keyset?: true, default_limit: 20, max_page_size: 20)
+
+      prepare(
+        build(
+          sort: [
+            open_bounty_usdc_atomic: :desc,
+            worked_count: :desc,
+            last_worked_at: :desc_nils_last,
+            inserted_at: :desc,
+            id: :desc
+          ]
+        )
+      )
     end
   end
 
