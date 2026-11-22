@@ -130,6 +130,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
   attr :sale, :map, required: true, doc: "the fleet's sale, as `sale/1` reads it"
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   @doc """
   The window itself, open while it is in the page. Closing it sends
@@ -185,6 +186,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
         }
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
       />
       <div class="buy-key__actions">
         <Regent.Primitives.button
@@ -219,6 +221,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
 
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # Approve and Buy for the Key on sale, with the steps built on the server.
   #
@@ -241,6 +244,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
       fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
       actor={@actor}
       lease={@lease}
+      client_tag={@client_tag}
       refresh={@fleet.progress.total_minted}
       inputs={%{"unlimited" => "false"}}
     >
@@ -284,7 +288,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
           <span
             id={"#{@id}-approve-mark"}
             class="fleet-step-mark"
-            phx-hook="MotionTick"
+            phx-hook="KeyfleetMotionTick"
             data-done={approve_done?(panel)}
             aria-hidden="true"
           >
@@ -419,7 +423,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
       <div class="key-cards__rows">
         <img
           class="key-cards__sheet"
-          src={~p"/images/home/key-cards.webp"}
+          src={~p"/images/keyfleet/home/key-cards.webp"}
           width="1920"
           height="2000"
           alt=""

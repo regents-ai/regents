@@ -21,7 +21,9 @@ defmodule Regents.Account.Agents.PairedPersonWallet do
   policy out of a filter or calculation written in code. Its read, and with it a
   load or an aggregate through it, admits the system actor alone, since whom an
   agent acts for is for trusted code; an aggregate read for anyone else finds no
-  rows.
+  rows. The one exception is `Regents.Keyfleet.Agents.AgentProfile`'s `paired_key`:
+  two aggregates that skip this policy over its private `person_wallets`, since its
+  `:here` filter needs the Key as an expression, and only a Key's number leaves.
   """
 
   use Ash.Resource,

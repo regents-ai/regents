@@ -75,7 +75,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   @press_failed "Something went wrong on our side. Refresh the page to see the latest, then try again."
 
-  # Written by the Schedule card's hook (`assets/js/hooks/schedule_card.ts`).
+  # Written by the Schedule card's hook (`assets/js/keyfleet/hooks/schedule_card.ts`).
   @schedule_cookie "keyfleet_schedule"
 
   @doc """
@@ -91,7 +91,11 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
       |> Map.put("schedule_put_away", Map.get(conn.req_cookies, @schedule_cookie, ""))
 
   @impl true
-  def mount(_params, %{"schedule_put_away" => schedule_put_away}, socket) do
+  def mount(
+        _params,
+        %{"schedule_put_away" => schedule_put_away, "client_tag" => client_tag},
+        socket
+      ) do
     {:ok,
      socket
      |> follow_mutes()
@@ -115,6 +119,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
      |> stream(:season_picks, [])
      |> assign(
        route_spec: nil,
+       # The client address the page was rendered for, which the page's
+       # allowances count against (`Regents.Limits`).
+       client_tag: client_tag,
        schedule_put_away: ScheduleCard.put_away(schedule_put_away),
        shell_instance: System.unique_integer([:positive, :monotonic]),
        load_failed?: false,
@@ -323,8 +330,9 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   # The fleet's notebooks open on their own address, signed in by a code that
   # works once, which Keyfleet's notebook page sends there
   # (`RegentsWeb.Keyfleet.NotebookOpenController`); only a holder of one of the
-  # fleet's keys gets one.
-  defp press("open_notebooks", _params, socket) do
+  # fleet's keys gets one. This, the git password and every workspace press
+  # are for the workspace on show; from any other page they change nothing.
+  defp press("open_notebooks", _params, %{assigns: %{workspace: %{}}} = socket) do
     case human_actor(socket) do
       %Human{} ->
         {:noreply,
@@ -337,7 +345,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   # A git password for the fleet's code, for a holder of one of its keys; it
   # ends when this sign-in does.
-  defp press("get_code_password", _params, socket) do
+  defp press("get_code_password", _params, %{assigns: %{workspace: %{}}} = socket) do
     with %Human{} = actor <- human_actor(socket),
          {:ok, %{password: password, expires_at: expires_at}} <-
            CodePassword.for_person(
@@ -388,12 +396,14 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
 
   # The browser's Schedule cards put away, as its cookie says now: a fleet's
   # Schedule just put away, or one put away since the page was requested
-  # (`assets/js/hooks/schedule_card.ts`).
-  defp press("schedule_put_away", %{"put_away" => cookie}, socket),
+  # (`assets/js/keyfleet/hooks/schedule_card.ts`). The cookie is text; anything
+  # else changes nothing.
+  defp press("schedule_put_away", %{"put_away" => cookie}, socket) when is_binary(cookie),
     do: {:noreply, assign(socket, :schedule_put_away, ScheduleCard.put_away(cookie))}
 
-  defp press(event, params, socket) when event in @workspace_events,
-    do: WorkspaceLive.handle_event(event, params, socket)
+  defp press(event, params, %{assigns: %{workspace: %{}}} = socket)
+       when event in @workspace_events,
+       do: WorkspaceLive.handle_event(event, params, socket)
 
   defp press(event, params, socket) when event in @room_events,
     do: RoomsLive.handle_event(event, params, socket)
@@ -426,11 +436,12 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
     do: SeasonsLive.handle_event(event, params, socket)
 
   # The Treasury's refresh, once every 30 seconds for each person: by
-  # account when signed in, by visit when not.
+  # account when signed in, by the page's client address when not, so a
+  # reload does not start it again.
   defp press("refresh_treasury", _params, socket) do
     who =
       case current_account(socket.assigns.access_context) do
-        nil -> {:visit, socket.id}
+        nil -> {:address, socket.assigns.client_tag}
         account -> {:account, account.id}
       end
 
@@ -697,7 +708,12 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
       shell_instance={@shell_instance}
     >
       <:buy_key :if={@buy_key}>
-        <BuyKey.window sale={@buy_key} actor={actor(@access_context)} lease={@session_lease} />
+        <BuyKey.window
+          sale={@buy_key}
+          actor={actor(@access_context)}
+          lease={@session_lease}
+          client_tag={@client_tag}
+        />
       </:buy_key>
       <:content :if={@load_failed?}>
         <article id="page-load-failed" class="fleet-page">
@@ -726,6 +742,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
           actor={actor(@access_context)}
           account={current_account(@access_context)}
           lease={@session_lease}
+          client_tag={@client_tag}
           params={@fleet_params}
           profile={@key_profile}
           thread={@streams.key_thread}
@@ -778,6 +795,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
             page={@proposals}
             actor={actor(@access_context)}
             lease={@session_lease}
+            client_tag={@client_tag}
             reread={@treasury_reread}
             resting?={@treasury_resting != nil}
           />
@@ -803,12 +821,14 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
             page={@proposals}
             actor={actor(@access_context)}
             lease={@session_lease}
+            client_tag={@client_tag}
           />
           <ProposalsLive.detail
             :if={@route_spec.route_id == :proposal}
             page={@proposals}
             actor={actor(@access_context)}
             lease={@session_lease}
+            client_tag={@client_tag}
           />
         </FleetLive.page>
 
@@ -817,6 +837,7 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
           key={@key}
           actor={actor(@access_context)}
           lease={@session_lease}
+          client_tag={@client_tag}
         />
 
         <DmsLive.inbox :if={@route_spec.route_id == :dms} dms={@dms} />

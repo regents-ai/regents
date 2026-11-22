@@ -83,6 +83,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   attr :page, :any, required: true, doc: "the proposals as read, or `:unreadable`"
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   def list(%{page: :unreadable} = assigns), do: ~H|<.unreadable id="proposals-page" />|
 
@@ -101,6 +102,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
         fleet={fleet(@page)}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         tool="keys_mark_present"
       />
 
@@ -198,7 +200,13 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
         </nav>
       </section>
 
-      <.propose :if={@page.deployed?} page={@page} actor={@actor} lease={@lease} />
+      <.propose
+        :if={@page.deployed?}
+        page={@page}
+        actor={@actor}
+        lease={@lease}
+        client_tag={@client_tag}
+      />
     </article>
     """
   end
@@ -206,6 +214,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   attr :page, :any, required: true, doc: "the proposal as read, or `:unreadable`"
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   def detail(%{page: :unreadable} = assigns), do: ~H|<.unreadable id="proposal-page" />|
 
@@ -323,6 +332,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             fleet={fleet(@page)}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             proposal={@page.proposal.number}
           >
             <:buttons :let={panel}>
@@ -378,6 +388,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             fleet={fleet(@page)}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             proposal={@page.proposal.number}
           >
             <:buttons :let={panel}>
@@ -400,6 +411,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             fleet={fleet(@page)}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             proposal={@page.proposal.number}
           >
             <:buttons :let={panel}>
@@ -597,6 +609,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   attr :page, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # One form for every kind of proposal: its kind, the Key it is made with,
   # its text, and the fields its kind needs. Every
@@ -622,6 +635,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
         fleet={fleet(@page)}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         inputs={
           %{
             "kind" => "decision",
@@ -781,6 +795,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   attr :page, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
   attr :reread, :integer, required: true, doc: "counts the times its figures were asked for again"
   attr :resting?, :boolean, required: true, doc: "whether its refresh waits to be pressed again"
 
@@ -859,6 +874,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
         treasury={@treasury}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         reread={@reread}
       />
 
@@ -880,6 +896,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             fleet={fleet(@page)}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             advance_id={advance.id}
             refresh={advance.outstanding}
             inputs={%{"amount" => advance.typed}}
@@ -938,6 +955,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
         fleet={fleet(@page)}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         refresh={@reread}
       >
         <:buttons :let={panel}>
@@ -963,6 +981,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
         fleet={fleet(@page)}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         refresh={@reread}
         inputs={%{"amount" => @treasury.convert_typed}}
       >
@@ -1017,6 +1036,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   attr :page, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   attr :treasury, :map, required: true
   attr :reread, :integer, required: true
@@ -1034,6 +1054,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       fleet={fleet(@page)}
       actor={@actor}
       lease={@lease}
+      client_tag={@client_tag}
       refresh={@reread}
     >
       <:notes :let={panel}>
@@ -1121,6 +1142,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   attr :fleet, :map, required: true, doc: "the fleet on show, with its `open_proposals`"
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   @doc """
   The proposals a vote can still change, beside a fleet's workspace:
@@ -1178,6 +1200,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
             fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
             proposal={proposal.number}
           >
             <:notes :let={panel}>
@@ -1518,9 +1541,11 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   @doc """
   A press of the Treasury's refresh: the open fleet's balances are read at
   once, and the figures its wallet buttons show are read again. Each person,
-  `who` (their account, or a visitor's visit), may press it once every 30
+  `who` (their account, or a visitor's client address), may press it once every 30
   seconds (`:keyfleet_treasury_refresh` in `Regents.Limits`); the button rests
-  until then, and a press it refuses rests it for what is left.
+  until then, and a press it refuses rests it for what is left. Where the site
+  only reads (`Regents.read_only?/0`) no reading is asked for: the figures
+  already kept are read again.
   """
   def refresh_treasury(
         %{assigns: %{proposals: %{fleet_id: fleet_id, treasury: %{}}}} = socket,
@@ -1528,7 +1553,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       ) do
     case Limits.admit(:keyfleet_treasury_refresh, who) do
       :ok ->
-        ReadBalances.now(fleet_id)
+        if not Regents.read_only?(), do: ReadBalances.now(fleet_id)
         socket |> reread_treasury() |> rest(Limits.window(:keyfleet_treasury_refresh))
 
       {:limited, seconds} ->

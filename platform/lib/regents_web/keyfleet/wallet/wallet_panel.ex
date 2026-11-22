@@ -36,10 +36,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   The page renders it with `live_component`, giving:
 
     * `id`, `flow` (a `Regents.Keyfleet.WalletSteps` flow), `fleet` (its `fleet_id`
-      and `chain_id`), `actor` (the signed-in person, or nil) and `lease`
+      and `chain_id`), `actor` (the signed-in person, or nil), `lease`
       (the page's `session_lease`, which each of the panel's events and
       results checks first, taking the account as it reads now:
-      `RegentsWeb.Live.Session.check_component_lease/2`);
+      `RegentsWeb.Live.Session.check_component_lease/2`) and `client_tag`
+      (the page's: each figures read a changed form or the open wallet
+      starts spends one of its address's `keyfleet_wallet_reads`, and past
+      them the panel shows it could not read its figures, as when the chain
+      does not answer; no press is counted);
     * `inputs`, each field the steps read with its first value; `proposal`,
       `token_id` or `advance_id` when the flow acts on one; `refresh`, anything whose
       change means the steps are built again; `names_sender`, false where
@@ -70,6 +74,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   alias Regents.Keyfleet.Proposals
   alias Regents.Keyfleet.WalletSteps
   alias Regents.Keyfleet.WalletSteps.VoteSteps
+  alias Regents.Limits
   alias RegentsWeb.Keyfleet.BoxLimit
   alias RegentsWeb.Keyfleet.OnchainSteps
   alias RegentsWeb.Keyfleet.WalletWords
@@ -87,6 +92,8 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # The groups a visitor sees without their buttons: Buy stays, and a press
   # asks for sign-in.
   @read_only_for_visitors [:run_split, :present, :launch_upkeep]
+  # A group whose figures couldn't be read.
+  @unread %{review: nil, figures: %{}, problem: :unread}
 
   @doc "Whether the steps built for the group name `step`."
   def has_step?(%{built: %{review: %{} = review}}, step), do: Review.find(review, step) != nil
@@ -216,10 +223,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   @impl true
   def handle_event("onchain_active_wallet", params, socket),
-    do: {:noreply, socket |> take_active(params) |> sync()}
+    do: {:noreply, socket |> take_active(params) |> sync(:counted)}
 
   def handle_event("change", params, socket),
-    do: {:noreply, socket |> take_inputs(params) |> sync()}
+    do: {:noreply, socket |> take_inputs(params) |> sync(:counted)}
 
   # A press made before its step reached the page, before the steps caught up
   # with the form, or of a button the chain's state holds back: the form and
@@ -302,8 +309,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     end
   end
 
-  def handle_event("check_again", %{"hash" => hash}, socket),
+  def handle_event("check_again", %{"hash" => hash}, socket) when is_binary(hash),
     do: {:noreply, OnchainSteps.check_again(socket, hash)}
+
+  def handle_event("check_again", _params, socket), do: {:noreply, socket}
 
   @impl true
   # A step that has landed changes what the next one needs (an approval, a
@@ -335,8 +344,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   def handle_async(:build, {:ok, _other_wallet}, socket), do: {:noreply, socket}
 
-  def handle_async(:build, {:exit, _reason}, socket),
-    do: {:noreply, show(socket, %{review: nil, figures: %{}, problem: :unread})}
+  def handle_async(:build, {:exit, _reason}, socket), do: {:noreply, show(socket, @unread)}
 
   # The signed-in person as the sign-in reads now. A wallet unlinked since
   # leaves the panel at once: its steps go and the figures follow the wallets
@@ -424,9 +432,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # The steps follow the wallet that may send them and the form. The figures
   # are built for that wallet, or for the account's own while another is
   # active; the page is given steps only for the wallet that may send them.
-  defp sync(socket) do
+  # A read the page's changed form or open wallet starts is `:counted`.
+  defp sync(socket, spend \\ :uncounted) do
     {socket, figures_wallet} = follow_signer(socket)
-    build(socket, figures_wallet)
+    build(socket, figures_wallet, spend)
   end
 
   # As `sync/1`, but built before it returns. A build still being read lands
@@ -440,7 +449,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       |> assign(shown: figures_wallet)
       |> show(build_steps!(request(socket, figures_wallet, socket.assigns.inputs)))
     else
-      build(socket, nil)
+      build(socket, nil, :uncounted)
     end
   end
 
@@ -473,14 +482,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
 
   defp drop_other_signer(socket, _signer), do: socket
 
-  defp build(%{assigns: %{actor: nil, flow: flow}} = socket, nil)
+  defp build(%{assigns: %{actor: nil, flow: flow}} = socket, nil, spend)
        when flow in @shown_to_visitors do
     %{fleet: %{fleet_id: fleet_id}, token_id: token_id} = socket.assigns
 
     socket
     |> OnchainSteps.put_review(nil)
     |> assign(shown: nil)
-    |> start_async(:build, fn ->
+    |> read_figures(spend, fn ->
       built =
         fleet_id
         |> WalletSteps.read_figures!(flow, %{token_id: token_id})
@@ -490,18 +499,30 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
     end)
   end
 
-  defp build(socket, nil),
+  defp build(socket, nil, _spend),
     do: socket |> assign(built: nil, shown: nil) |> OnchainSteps.put_review(nil)
 
   # Every group reads the chain, so its steps are built away from the page's
   # own process.
-  defp build(socket, wallet) do
+  defp build(socket, wallet, spend) do
     request = request(socket, wallet, socket.assigns.inputs)
 
     socket
     |> assign(shown: wallet)
-    |> start_async(:build, fn -> {wallet, build_steps!(request)} end)
+    |> read_figures(spend, fn -> {wallet, build_steps!(request)} end)
   end
+
+  # A counted read spends one of the page's address's `keyfleet_wallet_reads`
+  # (`Regents.Limits`); past them nothing is read and the group shows its
+  # figures could not be read, trying again as it does then.
+  defp read_figures(socket, :counted, read) do
+    case Limits.spend(:keyfleet_wallet_reads, socket.assigns.client_tag) do
+      :ok -> start_async(socket, :build, read)
+      :limited -> show(socket, @unread)
+    end
+  end
+
+  defp read_figures(socket, :uncounted, read), do: start_async(socket, :build, read)
 
   defp request(socket, wallet, inputs) do
     %{assigns: assigns} = socket

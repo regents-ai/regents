@@ -55,13 +55,14 @@ defmodule RegentsWeb.Keyfleet.Components.MemberList do
   end
 
   # The page the address names: the first when it names none.
-  defp page!(%{"page" => page}) do
+  defp page!(%{"page" => page}) when is_binary(page) do
     case Integer.parse(page) do
       {page, ""} when page >= 1 and page <= 100_000 -> page
       _not_a_page -> raise NotFoundError
     end
   end
 
+  defp page!(%{"page" => _not_text}), do: raise(NotFoundError)
   defp page!(_params), do: 1
 
   # A list that can't be read says so in its place; the rest of the fleet's

@@ -17,6 +17,7 @@ defmodule RegentsWeb.Keyfleet do
       Layouts,
       PublicDocuments,
       PublicPagesController,
+      RouteCatalog,
       ShellLive
     ]
 end

@@ -220,7 +220,14 @@ config :regents, :limits,
   keyfleet_graph_writes: [limit: 120, window_seconds: 60],
   # A person's presses of Keyfleet's Treasury refresh: one every 30 seconds
   # (Sean, 20 October 2026).
-  keyfleet_treasury_refresh: [limit: 1, window_seconds: 30]
+  keyfleet_treasury_refresh: [limit: 1, window_seconds: 30],
+  # Figures one address's open Keyfleet wallet panels read when a form changes
+  # or the open wallet is reported: as many a minute as Autolaunch's lists. No
+  # press is counted.
+  keyfleet_wallet_reads: [limit: 120, window_seconds: 60],
+  # Searches one address's open Keyfleet pages run, Show more included: one a
+  # second.
+  keyfleet_searches: [limit: 60, window_seconds: 60]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
@@ -288,6 +295,24 @@ config :regents,
 # answers and the agent asks again: well inside the 60 seconds the proxy keeps an
 # idle request open.
 config :regents, :keyfleet_agent_wait_ms, 20_000
+
+# How long a member's open fleet page waits after a notice that something
+# happened in the fleet before it reads the hall's feed again, so a burst of
+# changes is read once.
+config :regents, :keyfleet_fleet_feed_wait_ms, 2_000
+
+# The public address agents' pictures are read from: keyfleet.ai's picture
+# bucket (Regents.Keyfleet.Agents.AvatarBucket). Nothing here writes to it.
+config :regents, :keyfleet_avatar_bucket,
+  public_url: "https://keyfleet-pictures.fly.storage.tigris.dev"
+
+# The chain a fleet's wallet buttons send on, by the chain id its deployment
+# records, with its name in the page's words (Regents.Keyfleet.WalletSteps). Its
+# public rpc_url goes to the wallet; the server reads Base only through
+# :base_read_rpc_url.
+config :regents, :keyfleet_wallet_chains, %{
+  8453 => %{name: "Base", rpc_url: "https://mainnet.base.org"}
+}
 
 # Saves of proposal words per signed-in person: twenty an hour. Each press of
 # Propose saves once, so this leaves room to redo a proposal many times while

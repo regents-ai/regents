@@ -737,7 +737,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
           id="workspace-ticker"
           class="workspace-ticker"
           aria-label="Newest change"
-          phx-hook="MotionList"
+          phx-hook="KeyfleetMotionList"
           data-variant={RegentsWeb.Motion.standard("list")}
           data-layout-id="workspace-ticker"
           data-children="[data-tick]"
@@ -2155,7 +2155,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
           :if={is_list(@history.commits) and @history.commits != []}
           id="code-history"
           class="code-history"
-          phx-hook="MotionList"
+          phx-hook="KeyfleetMotionList"
           data-variant={RegentsWeb.Motion.standard("list")}
           data-layout-id="code-history"
           data-children="[data-row]"
@@ -2814,7 +2814,7 @@ defmodule RegentsWeb.Keyfleet.WorkspaceLive do
     <ol
       id={@id}
       class="workspace-lines workspace-stream"
-      phx-hook="MotionList"
+      phx-hook="KeyfleetMotionList"
       data-variant={RegentsWeb.Motion.standard("list")}
       data-layout-id={@id}
       data-children="[data-row]"

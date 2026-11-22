@@ -61,7 +61,8 @@ import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {installSiteMenu} from "./techtree/site_menu"
 // Keyfleet's pages (`RegentsWeb.Keyfleet`): their frame, with its phone menu and the
-// bar while the next page loads.
+// bar while the next page loads, and the hooks their markup names.
+import {keyfleetHooks, installKeyfleet} from "./keyfleet"
 import {KeyfleetShell} from "./keyfleet/shell_behavior"
 // Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
 import {installShellMenu} from "./autolaunch/shell_menu"
@@ -293,6 +294,7 @@ const hooks = {
   ...labHooks,
   ...colocatedHooks,
   ...marketingHooks,
+  ...keyfleetHooks,
   AgentVersions,
   CopyCommandPage,
   CopyCommandPageView,
@@ -354,6 +356,7 @@ installShellPanels()
 installShellMenu()
 installSiteMenu()
 installEscape()
+installKeyfleet()
 mountWebMCPStatus()
 mountMotion(document)
 mountEntrance(document)

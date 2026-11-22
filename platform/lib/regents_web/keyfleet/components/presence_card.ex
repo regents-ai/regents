@@ -22,6 +22,7 @@ defmodule RegentsWeb.Keyfleet.Components.PresenceCard do
   attr :fleet, :map, required: true, doc: "the fleet's `fleet_id` and `chain_id`"
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
   attr :token_id, :integer, default: nil, doc: "the one key, or nil for the wallet's own"
   attr :tool, :string, default: nil, doc: "the browser tool that presses Mark present, if any"
   attr :class, :any, default: nil
@@ -47,6 +48,7 @@ defmodule RegentsWeb.Keyfleet.Components.PresenceCard do
         fleet={@fleet}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@token_id}
         tool={@tool}
       >

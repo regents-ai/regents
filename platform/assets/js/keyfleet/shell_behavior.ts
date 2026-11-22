@@ -3,7 +3,7 @@
 // stays Keyfleet's (`data-product="keyfleet"`), which its stylesheets are scoped to.
 
 import {composeHooks, type Hook} from "../hook_composition"
-import {ShellViews} from "../hooks/motion/reveals"
+import {ShellViews} from "./hooks/motion/reveals"
 import {arriveAt} from "../shell_panels"
 import {reconcileShellState, shellDestinationChanged, type ShellState} from "../shell_state"
 import {mountPageProgress} from "./page_progress"

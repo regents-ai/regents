@@ -178,6 +178,14 @@ if database_config do
   config :regents, Regents.Repo, database_config
 end
 
+# Each Keyfleet fleet's trait table, and card deck if it has one, ships with
+# the release, named by its hash.
+config :regents, Regents.Keyfleet.Traits,
+  directory: Application.app_dir(:regents, "priv/keyfleet/trait_tables")
+
+config :regents, Regents.Keyfleet.Decks,
+  directory: Application.app_dir(:regents, "priv/keyfleet/decks")
+
 # Local Stake and Redeem read the same Base endpoint as production when
 # `BASE_READ_RPC_URL` names one; without it the public default in `config.exs`
 # stands. Only the host is logged, because provider URLs carry the API key.

@@ -122,6 +122,16 @@ defmodule RegentsWeb.Keyfleet.Components.Shell do
   attr(:route_spec, :map, required: true)
   attr(:account_control, Regents.Account.AccessContext.AccountControl, required: true)
 
+  # The account page is the site's own, in another live session, so a plain
+  # link reaches it where a patch cannot.
+  defp sidebar_target(%{target: %RouteTarget{route_id: :account} = target} = assigns) do
+    assigns = assign(assigns, :label, sidebar_label(target, assigns.account_control))
+
+    ~H"""
+    <.link href={@target.path}>{@label}</.link>
+    """
+  end
+
   defp sidebar_target(%{target: %RouteTarget{} = target} = assigns) do
     assigns = assign(assigns, :label, sidebar_label(target, assigns.account_control))
 

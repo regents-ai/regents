@@ -11,8 +11,8 @@ defmodule RegentsWeb.Keyfleet.Components.Tour do
   fleet's bar plays the reader's own again. The tour only points: the dimming
   takes no presses, so Buy Key and every wallet button work while it shows.
 
-  Both lists are drawn here for the browser's `Tour` hook
-  (`assets/js/hooks/tour.ts`), which keeps them as they were first drawn: a
+  Both lists are drawn here for the browser's `KeyfleetTour` hook
+  (`assets/js/keyfleet/hooks/tour.ts`), which keeps them as they were first drawn: a
   visitor who buys a Key while on the page goes on to the holder's tour
   without the page being drawn again. Nothing about the tour is kept on the
   server. A step names its part as a CSS selector; a step whose part is not on
@@ -74,7 +74,7 @@ defmodule RegentsWeb.Keyfleet.Components.Tour do
     <div
       id="fleet-tour"
       class="fleet-tour"
-      phx-hook="Tour"
+      phx-hook="KeyfleetTour"
       phx-update="ignore"
       data-tour={if @holder, do: "holder", else: "visitor"}
       data-main={to_string(@main)}

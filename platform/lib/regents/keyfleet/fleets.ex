@@ -10,14 +10,15 @@ defmodule Regents.Keyfleet.Fleets do
   # deployment. `card` is the fleet's type as its Keys' names print it; each
   # is the first fleet of its type.
   #
-  # `path` is where the fleet's pages are on the site: its type and its number
-  # within that type, so the next Classic is `/classic/2`. The Regents Club's
-  # are where they have been since it opened. `sidebar` is how the fleet shows
+  # `path` is where the fleet's pages are on the site, under Keyfleet's
+  # `/keyfleet`: its type and its number within that type, so the next Classic
+  # is `/keyfleet/classic/2`. The Regents Club's are where they have been since
+  # it opened, under `/keyfleet`. `sidebar` is how the fleet shows
   # in the site's sidebar: `:link` to its page, or `nil`, left out.
   @catalog [
     %{
       id: "fleet_tech_classic",
-      path: "/classic/1",
+      path: "/keyfleet/classic/1",
       sidebar: :link,
       name: "Classic #1",
       card: "CLASSIC",
@@ -26,7 +27,7 @@ defmodule Regents.Keyfleet.Fleets do
     },
     %{
       id: "fibonacci_syndicate",
-      path: "/syndicate/1",
+      path: "/keyfleet/syndicate/1",
       sidebar: nil,
       name: "Syndicate #1",
       card: "SYNDICATE",
@@ -35,7 +36,7 @@ defmodule Regents.Keyfleet.Fleets do
     },
     %{
       id: "fibonacci_cascade",
-      path: "/cascade/1",
+      path: "/keyfleet/cascade/1",
       sidebar: nil,
       name: "Cascade #1",
       card: "CASCADE",
@@ -44,7 +45,7 @@ defmodule Regents.Keyfleet.Fleets do
     },
     %{
       id: "fleet_tech_accelerant",
-      path: "/accelerant/1",
+      path: "/keyfleet/accelerant/1",
       sidebar: nil,
       name: "Accelerant #1",
       card: "ACCELERANT",
@@ -53,7 +54,7 @@ defmodule Regents.Keyfleet.Fleets do
     },
     %{
       id: "regents_club",
-      path: "/app/fleets/regents_club",
+      path: "/keyfleet/app/fleets/regents_club",
       sidebar: nil,
       name: "Regents Club",
       card: "REGENTS CLUB",
@@ -79,7 +80,7 @@ defmodule Regents.Keyfleet.Fleets do
   """
   def catalog, do: @catalog
 
-  @doc "Where the fleet's pages are on the site, such as `/classic/1`."
+  @doc "Where the fleet's pages are on the site, such as `/keyfleet/classic/1`."
   def path(fleet_id), do: Enum.find(@catalog, &(&1.id == fleet_id)).path
 
   @doc "The fleet's name, such as `Classic #1`."

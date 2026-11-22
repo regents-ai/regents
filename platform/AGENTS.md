@@ -101,7 +101,10 @@ again from it and moving that commit.
   as `Agent.with_pairing/1` decides it, one row for each of the person's wallets, every
   address lowercase; only the system actor reads it directly, a filter or calculation
   in a product's code still reaches it, and an aggregate through it counts nothing for
-  any other actor.
+  any other actor. One exception, and no second without asking the site's owner:
+  Keyfleet's `AgentProfile.paired_key` reads it through two `authorize?: false`
+  aggregates over a private relationship, because a filter needs it as an expression;
+  only a Key's number leaves.
   `regents_app.public_links` (`Accounts.PublicLink`: `human_account_id`, `provider`,
   `username`, `display_name`), the verified links that name a username; anyone may
   read it.

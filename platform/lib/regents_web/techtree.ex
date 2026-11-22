@@ -5,7 +5,8 @@ defmodule RegentsWeb.Techtree do
   selects Techtree's palette and its stylesheets (`assets/css/techtree`), and
   each page is read under the site's bar, above Techtree's own footer
   (`RegentsWeb.Techtree.Layouts`). Its API is under `/api/v1/techtree`; its
-  agent guide, `/techtree/agents.md`, the Skill comparisons,
+  agent guide, `/techtree/agents.md`, the Techtree skill, `/techtree/skill.md`,
+  and each agent's own, `/techtree/agents/:agent/skill.md`, the Skill comparisons,
   `/techtree/train.json` and each comparison's report, each published
   Result's share picture, `/techtree/results/:bundle_digest/share.png`, and the
   Wallet Bench's `/techtree/wallet-bench.md`, `/techtree/wallet-bench.json` and

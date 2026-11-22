@@ -226,6 +226,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :account, :map, default: nil, doc: "the signed-in account, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
   attr :params, :map, required: true, doc: "the page's address"
 
   attr :place, :atom,
@@ -328,7 +329,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
               id="fleet-search-q"
               name="q"
               type="search"
-              value={if @view == :search, do: @params["q"]}
+              value={if @view == :search and is_binary(@params["q"]), do: @params["q"]}
               placeholder="Search"
               maxlength={Search.max_query()}
               autocomplete="off"
@@ -443,6 +444,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           actor={@actor}
           account={@account}
           lease={@lease}
+          client_tag={@client_tag}
           schedule_put_away?={@fleet.fleet_id in @schedule_put_away}
         />
 
@@ -452,6 +454,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           {render_slot(@inner_block)}
           <.hall
@@ -493,6 +496,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
         fleet={@fleet}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         params={@params}
         thread={@thread}
       />
@@ -753,7 +757,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           id="fleet-feed-list"
           class="activity-lines"
           phx-update="stream"
-          phx-hook="MotionList"
+          phx-hook="KeyfleetMotionList"
           data-variant={Motion.standard("list")}
           data-layout-id="fleet-feed-list"
           data-children="[data-line]"
@@ -861,7 +865,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
         :if={@quotes.requests != []}
         id="fleet-quote-sent"
         class="fleet-quote__sent"
-        phx-hook="MotionList"
+        phx-hook="KeyfleetMotionList"
         data-variant={Motion.standard("list")}
         data-layout-id="fleet-quote-sent"
         data-children="[data-quote]"

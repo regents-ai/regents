@@ -18,6 +18,7 @@ defmodule RegentsWeb.Techtree.Layouts do
 
   alias Regents.Account.AccessContext.AccountControl
   alias RegentsWeb.Components.Shell
+  alias RegentsWeb.Techtree.AgentGuides
   alias RegentsWeb.Techtree.Components.BookCall
   alias RegentsWeb.Techtree.DocsGuides
   alias RegentsWeb.Techtree.Services
@@ -213,6 +214,11 @@ defmodule RegentsWeb.Techtree.Layouts do
 
   def description("/techtree/changelog"),
     do: "Techtree release notes: new features, fixes, and the limits of each release."
+
+  def description("/techtree/about"),
+    do: "Who runs Techtree, the experience behind it, and how to work with us."
+
+  def description("/techtree/agents" <> _rest = path), do: AgentGuides.description(path)
 
   def description("/techtree/train/" <> _slug),
     do:

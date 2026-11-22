@@ -176,13 +176,13 @@ defmodule RegentsWeb.Keyfleet.DmsLive do
           />
 
           <%!-- As in a room, the other Key's message fades in where it lands
-          (`MotionList`); one the person sends is simply there, and so is the
+          (`KeyfleetMotionList`); one the person sends is simply there, and so is the
           thread drawn again as the connection comes back. --%>
           <ol
             id="dms-thread-list"
             class="rooms-thread-list"
             phx-update="stream"
-            phx-hook="MotionList"
+            phx-hook="KeyfleetMotionList"
             data-variant={Motion.standard("list")}
             data-layout-id="dms-thread-list"
             data-children="[data-message]"

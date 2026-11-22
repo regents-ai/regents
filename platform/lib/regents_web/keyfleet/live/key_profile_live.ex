@@ -58,6 +58,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :thread, :any, required: true, doc: "the messages written to the key, oldest first"
   attr :actor, :any, required: true, doc: "the signed-in person, or nil"
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   def dialog(assigns) do
     ~H"""
@@ -108,6 +109,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           <.club_claim
             :if={@profile.held_for_pass?}
@@ -115,6 +117,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           <.claim
             :if={@profile.yours? or shard_yours?(@profile, @actor)}
@@ -122,6 +125,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
             fleet={@fleet}
             actor={@actor}
             lease={@lease}
+            client_tag={@client_tag}
           />
           <.thread profile={@profile} fleet={@fleet} params={@params} thread={@thread} />
           <.facts profile={@profile} />
@@ -290,9 +294,14 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
 
   # The agent holding a shard, as its check-ins say, or its wallet while no
   # agent has signed in with it.
-  defp shard_agent(%{shard: %{agent: nil}} = assigns),
-    do:
-      ~H|<Regent.Primitives.address id={"key-profile-shard-#{@shard.wallet}"} address={@shard.wallet} />|
+  defp shard_agent(%{shard: %{agent: nil}} = assigns) do
+    ~H"""
+    <Regent.Primitives.address
+      id={"key-profile-shard-address-#{@shard.wallet}"}
+      address={@shard.wallet}
+    />
+    """
+  end
 
   defp shard_agent(assigns) do
     ~H"""
@@ -302,7 +311,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
       <span class="key-profile-muted">{AgentGuides.runtime(@shard.agent.harness)}</span>
     </span>
     <a
-      :if={@shard.agent.registry_url}
+      :if={https?(@shard.agent.registry_url)}
       id={"key-profile-registry-#{@shard.wallet}"}
       href={@shard.agent.registry_url}
       target="_blank"
@@ -321,6 +330,13 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
     </span>
     """
   end
+
+  # An agent's registry listing is a link only at an https address with a
+  # host; any other is left out, as a listing not given is.
+  defp https?(url) when is_binary(url),
+    do: match?(%URI{scheme: "https", host: host} when host not in [nil, ""], URI.parse(url))
+
+  defp https?(_url), do: false
 
   attr :wallet, :string, required: true
   attr :agent, :map, required: true
@@ -370,6 +386,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :fleet, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # What the key has earned and not yet been paid, each token claimed with its
   # own button and always paid to the wallet that holds the key, whether its
@@ -396,6 +413,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@profile.token_id}
         refresh={@profile.rewards}
       >
@@ -418,6 +436,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :fleet, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # A key whose request for its random draw was turned down has no traits
   # until someone asks again, which anyone may do. A draw that hasn't come 24
@@ -446,6 +465,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@profile.token_id}
       >
         <:buttons :let={panel}>
@@ -470,6 +490,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
   attr :fleet, :map, required: true
   attr :actor, :any, required: true
   attr :lease, :map, required: true, doc: "the page's `session_lease`, or nil"
+  attr :client_tag, :string, required: true, doc: "the page's `client_tag`"
 
   # A Regents Club Key waiting for whoever holds the Pass of its number, who
   # takes it with everything it has earned. The chain says whether the signer
@@ -495,6 +516,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         fleet={%{fleet_id: @fleet.fleet_id, chain_id: @fleet.chain_id}}
         actor={@actor}
         lease={@lease}
+        client_tag={@client_tag}
         token_id={@profile.token_id}
       >
         <:buttons :let={panel}>
@@ -620,7 +642,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         id="key-profile-thread"
         class="rooms-thread-list"
         phx-update="stream"
-        phx-hook="MotionList"
+        phx-hook="KeyfleetMotionList"
         data-variant={Motion.standard("list")}
         data-layout-id="key-profile-thread"
         data-children="[data-post]"

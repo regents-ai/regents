@@ -7,15 +7,25 @@ defmodule RegentsWeb.Keyfleet.SearchLive do
   linking to the page it is on, a notebook's on the fleet's notebook host
   by way of its sign-in step here;
   "Show more" adds the next page under them.
+
+  The visit's own request is counted with its address's reads of the site.
+  Every search the open page runs after it, each "Show more" too, spends one
+  of the address's `keyfleet_searches` (`Regents.Limits`, keyed by the page's
+  `client_tag`); past them nothing is searched and the search shows it
+  couldn't be loaded. A known bound: "Show more" keeps every match read in
+  the page's memory, accepted while a fleet's searches find few, and to be
+  changed to a stream before one search's list can hold 1,000 matches.
   """
 
   use RegentsWeb, :html
 
   import Regents.Keyfleet.Fleets.Rules, only: [grouped: 1]
-  import Phoenix.LiveView, only: [push_patch: 2]
+  import RegentsWeb.Keyfleet.Components.LoadFailed
+  import Phoenix.LiveView, only: [connected?: 1, push_patch: 2]
 
   alias Regents.Account.Actors.Human
   alias Regents.Keyfleet.{Fleets, Search}
+  alias Regents.Limits
   alias RegentsWeb.Keyfleet.{SearchJSON, WorkspacePage}
 
   @doc "The fleet's search page, for `query` when it has words."
@@ -28,22 +38,30 @@ defmodule RegentsWeb.Keyfleet.SearchLive do
 
   @doc "Reads the first page of matches for the address's `q`, as `actor`."
   def read(socket, %{"fleet_id" => fleet_id} = params, actor) do
-    assign(socket, :search, first(fleet_id, words(params["q"]), actor))
+    assign(socket, :search, first(socket, fleet_id, words(params["q"]), actor))
   end
 
   defp words(query) when is_binary(query), do: String.trim(query)
   defp words(_none), do: ""
 
-  defp first(fleet_id, "", _actor), do: %{fleet_id: fleet_id, query: "", state: :idle}
+  defp first(_socket, fleet_id, "", _actor), do: %{fleet_id: fleet_id, query: "", state: :idle}
 
-  defp first(fleet_id, query, actor) do
-    case Search.page(fleet_id, query, nil, actor) do
-      {:ok, %{matches: matches, cursor: cursor}} ->
-        %{fleet_id: fleet_id, query: query, state: :found, matches: matches, cursor: cursor}
-
-      {:error, :query} ->
-        %{fleet_id: fleet_id, query: query, state: :refused}
+  defp first(socket, fleet_id, query, actor) do
+    with :ok <- spend(socket),
+         {:ok, %{matches: matches, cursor: cursor}} <- Search.page(fleet_id, query, nil, actor) do
+      %{fleet_id: fleet_id, query: query, state: :found, matches: matches, cursor: cursor}
+    else
+      :limited -> %{fleet_id: fleet_id, query: query, state: :failed}
+      {:error, :query} -> %{fleet_id: fleet_id, query: query, state: :refused}
     end
+  end
+
+  # A search the open page runs spends one of its address's searches; the
+  # visit's own request is counted with the address's reads of the site.
+  defp spend(socket) do
+    if connected?(socket),
+      do: Limits.spend(:keyfleet_searches, socket.assigns.client_tag),
+      else: :ok
   end
 
   @doc """
@@ -66,10 +84,18 @@ defmodule RegentsWeb.Keyfleet.SearchLive do
         %{assigns: %{search: %{state: :found, cursor: cursor} = search}} = socket
       )
       when cursor != nil do
-    {:ok, %{matches: more, cursor: next}} =
-      Search.page(search.fleet_id, search.query, cursor, actor(socket))
+    case spend(socket) do
+      :ok ->
+        {:ok, %{matches: more, cursor: next}} =
+          Search.page(search.fleet_id, search.query, cursor, actor(socket))
 
-    {:noreply, assign(socket, :search, %{search | matches: search.matches ++ more, cursor: next})}
+        {:noreply,
+         assign(socket, :search, %{search | matches: search.matches ++ more, cursor: next})}
+
+      :limited ->
+        {:noreply,
+         assign(socket, :search, %{fleet_id: search.fleet_id, query: search.query, state: :failed})}
+    end
   end
 
   def handle_event("search_more", _params, socket), do: {:noreply, socket}
@@ -86,6 +112,8 @@ defmodule RegentsWeb.Keyfleet.SearchLive do
     <article id="search-page" class="search-page">
       <section class="search-panel" aria-labelledby="search-title">
         <h2 id="search-title">Search</h2>
+
+        <.load_failed :if={@search.state == :failed} />
 
         <Regent.Primitives.empty_state
           :if={@search.state == :idle}
