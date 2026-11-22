@@ -2,7 +2,11 @@ defmodule Regents.Autolaunch do
   @moduledoc """
   Autolaunch's core, folded in from autolaunch.sh one slice at a time
   (`SOURCE.json` beside this module names what came from where). The pages
-  brought so far (`RegentsWeb.Autolaunch`) read only committed files.
+  brought so far (`RegentsWeb.Autolaunch`) read committed files and the fixed
+  launch terms: the schedules (`LaunchActions`, `Stocks.LaunchActions`), on the
+  launchpad version the deployment descriptions name for new launches, the
+  time their blocks take (`LaunchChain`) and the Memestock fees
+  (`Stocks.FeeSchedule`).
 
   It is also the Ash domain of Autolaunch's tables in the `autolaunch_app`
   schema, as autolaunch.sh's `Autolaunch` is: launches and their drafts,
@@ -24,7 +28,15 @@ defmodule Regents.Autolaunch do
   use Boundary,
     top_level?: true,
     deps: [Regents, Regents.Chain],
-    exports: [HomeMarket, Search, Supervisor]
+    exports: [
+      HomeMarket,
+      LaunchActions,
+      LaunchChain,
+      Search,
+      Stocks.FeeSchedule,
+      Stocks.LaunchActions,
+      Supervisor
+    ]
 
   use Ash.Domain, otp_app: :regents
 

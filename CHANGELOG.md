@@ -8151,3 +8151,11 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 9e4edbdb, /cloak/install offers no file on the founder's letter 379 a. Full check exit 0 on 9e4edbdb; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-125cd26424df.
+
+## 2026-11-22 — One site: Autolaunch's How it works and About (not released)
+
+- `/autolaunch/how-it-works` and `/autolaunch/about` show How it works and About word for word as autolaunch.sh shows them at `4799025d`, with the same auction lengths, release times and fee shares, read from the launch terms the deployment descriptions name. About also answers as Markdown when asked with `Accept: text/markdown`.
+- Learn now lists How it works, About, Changelog, Privacy and Terms, and the footer gains About after Buy $REGENT, in autolaunch.sh's order. The bar and the phone menu are unchanged: on autolaunch.sh these pages are reached from Docs, which is not here yet.
+- Copy to Agent on How it works copies this site's agent guide. How it works' link to About REGENT points at `/autolaunch/regent`, which is not here yet.
+- Left out for now: Docs and the REGENT page (they read the agent tools and live chain figures), and the JSON answers for About and Docs.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

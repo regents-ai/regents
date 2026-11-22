@@ -1,36 +1,51 @@
 defmodule RegentsWeb.Autolaunch.PublicDocuments do
   @moduledoc """
   Autolaunch's written pages, from the committed Markdown in
-  `priv/autolaunch/public`: so far the Changelog. An agent that asks for
-  `text/markdown` receives it as written, at the page's own address, through
-  the site's `RegentsWeb.PublicDocuments.document/1`; the page shows the same
-  words as HTML. Never a signed-in page or an account.
+  `priv/autolaunch/public`: so far About and the Changelog. An agent that asks
+  for `text/markdown` receives it at the page's own address, through the site's
+  `RegentsWeb.PublicDocuments.document/1`; the page shows the same words as
+  HTML. Never a signed-in page or an account. Also the title and description of
+  every Autolaunch page the site's root document shows.
   """
 
+  alias Regents.Autolaunch.LaunchActions, as: RevstakeLaunchActions
+  alias Regents.Autolaunch.LaunchChain
+  alias Regents.Autolaunch.Stocks.LaunchActions
+
   @directory Application.app_dir(:regents, "priv/autolaunch/public")
-  @files Enum.map(~w(changelog), &Path.join(@directory, &1 <> ".md"))
+  @files Enum.map(~w(about changelog), &Path.join(@directory, &1 <> ".md"))
   for file <- @files, do: @external_resource(file)
   @sources Map.new(@files, &{Path.basename(&1, ".md"), File.read!(&1)})
 
-  # Each written page by its address: its Markdown, and the browser-tab title and
-  # search description it is shown with. A title names the page alone; the site's
-  # root document adds " · Autolaunch" once.
-  @pages %{
-    "/autolaunch/changelog" =>
-      {"changelog", "Changelog",
-       "What changed on autolaunch.sh for people and agents, newest first."}
+  # Each written page's Markdown by its address.
+  @documents %{
+    "/autolaunch/about" => "about",
+    "/autolaunch/changelog" => "changelog"
   }
 
-  @doc "The page at `path` as `%{markdown: text}`, or nil for every other address."
+  # Each page's browser-tab title and search description. A title names the
+  # page alone; the site's root document adds " · Autolaunch" once.
+  @pages %{
+    "/autolaunch/how-it-works" =>
+      {"How it works",
+       "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},
+    "/autolaunch/about" =>
+      {"About",
+       "What Autolaunch does, how it differs, who uses it, the team behind it, key facts, common questions and how to reach us."},
+    "/autolaunch/changelog" =>
+      {"Changelog", "What changed on autolaunch.sh for people and agents, newest first."}
+  }
+
+  @doc "The written page at `path` as `%{markdown: text}`, or nil for every other address."
   def document(path) do
-    case @pages do
-      %{^path => {name, _title, _description}} -> %{markdown: @sources[name]}
+    case @documents do
+      %{^path => name} -> %{markdown: markdown(name)}
       _other -> nil
     end
   end
 
   @doc "Every address `document/1` answers."
-  def paths, do: Map.keys(@pages)
+  def paths, do: Map.keys(@documents)
 
   @doc """
   The `page_title` and `page_description` assigns the site's root document reads.
@@ -39,13 +54,36 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   """
   def page(path) do
     case @pages do
-      %{^path => {_name, title, description}} ->
+      %{^path => {title, description}} ->
         [page_title: title, page_description: description]
 
       _other ->
         raise RegentsWeb.NotFoundError
     end
   end
+
+  # About names this site's addresses (`{{origin}}`) and how long a new launch's
+  # auction runs and how a new Memestock creator's tokens are released, in
+  # words, from the launches' fixed schedules, as the pages say it.
+  defp markdown("about") do
+    Enum.reduce(
+      [
+        {"{{origin}}", RegentsWeb.PublicDocuments.url("")},
+        {"{{revstake_auction}}",
+         LaunchChain.time_estimate(:base, RevstakeLaunchActions.schedule().length)},
+        {"{{memestock_auction_base}}",
+         LaunchChain.time_estimate(:base, LaunchActions.schedule(:base).length)},
+        {"{{memestock_auction_robinhood}}",
+         LaunchChain.time_estimate(:robinhood, LaunchActions.schedule(:robinhood).length)},
+        {"{{memestock_release_base}}", LaunchActions.release(:base)},
+        {"{{memestock_release_robinhood}}", LaunchActions.release(:robinhood)}
+      ],
+      @sources["about"],
+      fn {mark, words}, text -> String.replace(text, mark, words) end
+    )
+  end
+
+  defp markdown(name), do: @sources[name]
 
   # A table keeps its roles when a phone shows its rows as cards, and the only
   # spans are the cells' column names (`label_cells/1`), which a screen reader

@@ -28,6 +28,8 @@ defmodule RegentsWeb.Autolaunch.Components.LearnNavigation do
 
   defp pages do
     [
+      {"How it works", ~p"/autolaunch/how-it-works"},
+      {"About", ~p"/autolaunch/about"},
       {"Changelog", ~p"/autolaunch/changelog"},
       {"Privacy", ~p"/privacy"},
       {"Terms", ~p"/terms"}
