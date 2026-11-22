@@ -84,8 +84,8 @@ defmodule Regents.Keyfleet.Agents.AgentProfile do
     end
 
     # The agents here in the fleet (see `:here`), with the key each acts as
-    # and their check-ins with the fleet: the most recently seen first, then
-    # those never seen, by name.
+    # and their check-ins with the fleet, without the person each checked in
+    # for: the most recently seen first, then those never seen, by name.
     read :here_in_fleet do
       argument :fleet_id, :string, allow_nil?: false
 
@@ -101,6 +101,7 @@ defmodule Regents.Keyfleet.Agents.AgentProfile do
           check_ins:
             Regents.Keyfleet.Agents.CheckIn
             |> Ash.Query.filter(fleet_id == ^fleet_id)
+            |> Ash.Query.deselect([:beneficiary_privy_user_id])
             |> Ash.Query.load(:last_seen_at)
         )
         |> Ash.Query.sort(

@@ -165,12 +165,13 @@ defmodule Regents.Keyfleet.Seasons.SeasonPick do
                  (is_nil(^arg(:after)) or lock_order > ^arg(:after))
              )
 
-      prepare build(sort: [lock_order: :asc])
+      prepare build(sort: [lock_order: :asc], deselect: [:beneficiary_privy_user_id])
     end
 
     # The picks of settled seasons, the public record's.
     read :settled do
       filter expr(not is_nil(season.settled_at))
+      prepare build(deselect: [:beneficiary_privy_user_id])
     end
 
     update :open do
@@ -205,6 +206,8 @@ defmodule Regents.Keyfleet.Seasons.SeasonPick do
 
   attributes do
     attribute :acting_agent_wallet, :string, writable?: false
+    # The person an agent picked for. No page shows it, so the public
+    # record's reads leave it out.
     attribute :beneficiary_privy_user_id, :string, writable?: false, sensitive?: true
     attribute :agent_pairing_id, :uuid, writable?: false
 

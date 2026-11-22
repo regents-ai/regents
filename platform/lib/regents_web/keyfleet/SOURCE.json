@@ -114,8 +114,9 @@
       "from": "platform/lib/keyfleet_web/components/member_list.ex",
       "to": "platform/lib/regents_web/keyfleet/components/member_list.ex",
       "changes": [
-        "need: the site has no list_shown_linked_identities!/1; Accounts.list_linked_identities_for_accounts!/2 with the system actor reads the same rows (accounts in the list, at most 100), with two more public fields the list does not read (display_name, verified_at), sorted by account then provider, so each account's links come in the same order",
-        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer, where the source's page number reading crashed on it (K3 b fixes)"
+        "need: the read-only venue's login is granted only what pages show; the site has no list_shown_linked_identities!/1, so connections/1 reads Regents.Account.Accounts.PublicLink, the view regents_app.public_links, for the accounts in the list: each link's username, with its account and provider as its key, the three fields the source's read selected, of the links that name a username (the only ones the list shows), sorted by account then provider, so each account's links come in the same order; the linked accounts' table itself is never read (K3 c)",
+        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer, where the source's page number reading crashed on it (K3 b fixes)",
+        "need: the read-only venue's login is granted only what pages show; the accounts are read with query: [select: [:wallet_address]] beside their display_name and ens_name, so a person's sign-in id is read only as the shared profile name's key, and no other wallet, World ID, picture or time (K3 c)"
       ]
     },
     {
@@ -300,7 +301,8 @@
       "from": "platform/lib/keyfleet_web/live/keys_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/keys_live.ex",
       "changes": [
-        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)"
+        "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
+        "need: the read-only venue's login is granted only what pages show; the Key's holder account is read with query: [select: [:wallet_address]] beside its display_name and ens_name, so a person's sign-in id is read only as the shared profile name's key, and no other wallet, World ID, picture or time (K3 c)"
       ]
     },
     {

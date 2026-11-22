@@ -480,6 +480,7 @@ defmodule RegentsWeb.Keyfleet.KeysLive do
         [account] =
           Accounts.accounts_by_ids!([account_id],
             actor: %System{},
+            query: [select: [:wallet_address]],
             load: [:display_name, :ens_name]
           )
 

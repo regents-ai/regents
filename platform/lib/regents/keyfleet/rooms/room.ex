@@ -33,7 +33,8 @@ defmodule Regents.Keyfleet.Rooms.Room do
     domain: Regents.Keyfleet.Rooms,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    notifiers: [Ash.Notifier.PubSub]
+    notifiers: [Ash.Notifier.PubSub],
+    primary_read_warning?: false
 
   require Ash.Query
 
@@ -148,17 +149,25 @@ defmodule Regents.Keyfleet.Rooms.Room do
   end
 
   actions do
-    # The room a post was written in, when posts are read with their rooms.
+    # The room a post was written in, when posts are read with their rooms. It
+    # leaves out the person, as every read pages show rooms from does, so the
+    # primary read has a preparation (`primary_read_warning?: false`).
     read :read do
       primary? true
       public? false
+      prepare build(deselect: [:beneficiary_privy_user_id])
     end
 
     read :for_fleet do
       argument :fleet_id, :string, allow_nil?: false
       validate Regents.Keyfleet.Graph.Validations.KnownFleet
       filter expr(fleet_id == ^arg(:fleet_id) and kind != :key)
-      prepare build(sort: [position: :asc, slug: :asc], load: [:public])
+
+      prepare build(
+                sort: [position: :asc, slug: :asc],
+                load: [:public],
+                deselect: [:beneficiary_privy_user_id]
+              )
     end
 
     read :in_fleet do
@@ -166,7 +175,7 @@ defmodule Regents.Keyfleet.Rooms.Room do
       argument :slug, :string, allow_nil?: false
       validate Regents.Keyfleet.Graph.Validations.KnownFleet
       filter expr(fleet_id == ^arg(:fleet_id) and slug == ^arg(:slug) and kind != :key)
-      prepare build(load: [:public])
+      prepare build(load: [:public], deselect: [:beneficiary_privy_user_id])
       get? true
     end
 
@@ -182,6 +191,7 @@ defmodule Regents.Keyfleet.Rooms.Room do
         Ash.Query.filter(query, kind == :key and fleet_id == ^fleet_id and slug == ^slug)
       end
 
+      prepare build(deselect: [:beneficiary_privy_user_id])
       get? true
     end
 
@@ -326,6 +336,8 @@ defmodule Regents.Keyfleet.Rooms.Room do
 
   attributes do
     attribute :acting_agent_wallet, :string, writable?: false
+    # The person an agent opened or named the room for. No page shows it, so
+    # the reads pages show rooms from leave it out.
     attribute :beneficiary_privy_user_id, :string, writable?: false, sensitive?: true
     attribute :agent_pairing_id, :uuid, writable?: false
 
