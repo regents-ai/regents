@@ -8097,3 +8097,19 @@ seasons), on the shared Points library regents.sh was already on.
 - A product can ask, as the system, which of a list of agent wallets are paired, and gets each one's wallet, name and what it runs on; the person behind a pairing is never part of the answer (`Regents.Account.Agents.pairings_by_wallets`).
 - A shared reading's own producer can list the ids it holds (`Regents.SharedReading.ids/1`).
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-22 — One site: a linked-accounts read for products (not released)
+
+- A product can ask, as the system, for the verified social links of up to 100 people at once and gets the account, provider, username, display name and time verified; the provider's own id for the person and Privy's details are never part of the answer (`Regents.Account.Accounts.list_linked_identities_for_accounts`).
+- No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-22 — One site: database time limits and a share of Patchbay page reads (not released)
+
+- Every serving connection to the shared database now gives up on a statement after 15 seconds, on a lock wait after 5 seconds and on an idle open transaction after 15 seconds, names itself `regents-web`, and keeps connection details out of its errors: the same figures the four product sites hold today. Release commands are unchanged.
+- Each address has 120 reads a minute of the pages under `/patchbay`, counted apart from the site's other budget, with the standard `RateLimit` headers for the `"reads"` share; past it the answer is 429 with `Retry-After`.
+- No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-22 — One site: the share of page reads covers every product (not released)
+
+- The 120 reads a minute each address has now count the pages under `/patchbay`, `/techtree`, `/keyfleet` and `/autolaunch` together, as one `"reads"` share; past it the answer is 429 with `Retry-After`. The site's own pages are not counted.
+- No page, table, migration or setting. On the `one-site` branch only.
