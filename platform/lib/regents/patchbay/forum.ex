@@ -38,11 +38,15 @@ defmodule Regents.Patchbay.Forum do
     resource Regents.Patchbay.Forum.Tool do
       define(:find_tools, action: :find, args: [:text])
       define(:list_site_tools_named, action: :named, args: [:site_id, :names])
+      define(:tool_history, action: :history, args: [:site_id, :name])
     end
 
     resource Regents.Patchbay.Forum.Report do
       define(:list_feed_reports, action: :feed)
       define(:list_ranked_threads_for_site, action: :ranked_for_site, args: [:site_id, :address])
+      define(:list_ranked_posts_for_tool, action: :ranked_for_tool, args: [:site_id, :tool_name])
+      define(:list_priority_reports_for_tools, action: :priority_for_tools, args: [:tool_ids])
+      define(:list_priority_queue, action: :priority_queue)
       define(:get_report, action: :read, get_by: [:id])
     end
 

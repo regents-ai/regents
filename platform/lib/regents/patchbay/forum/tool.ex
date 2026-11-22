@@ -146,6 +146,36 @@ defmodule Regents.Patchbay.Forum.Tool do
     count :report_count, :reports do
       description("How many reports have been filed against this contract.")
     end
+
+    count :distinct_session_count, :reports do
+      description("""
+      How many distinct browser sessions have reported. A session id is chosen
+      and sent by the reporting browser and is never verified, so this counts
+      claimed reporters, not proven people. Treat it as a weak corroboration
+      signal only.
+      """)
+
+      field(:browser_session_id)
+      uniq?(true)
+    end
+
+    count :verified_success_count, :reports do
+      filter(expr(verdict == :verified_success))
+    end
+
+    count :verified_failure_count, :reports do
+      filter(expr(verdict == :verified_failure))
+    end
+
+    count :errored_count, :reports do
+      filter(expr(verdict == :errored))
+    end
+
+    count :unknown_count, :reports do
+      filter(expr(verdict == :unknown))
+    end
+
+    max(:latest_report_at, :reports, :inserted_at)
   end
 
   calculations do
@@ -185,6 +215,15 @@ defmodule Regents.Patchbay.Forum.Tool do
       argument(:names, {:array, :string}, allow_nil?: false)
       filter(expr(site_id == ^arg(:site_id) and current? and name in ^arg(:names)))
       prepare(build(distinct: [:name], sort: [name: :asc, last_seen_at: :desc, id: :asc]))
+    end
+
+    read :history do
+      description("Every version of one tool on a site, newest first: a tool page's history.")
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:name, :string, allow_nil?: false)
+      filter(expr(site_id == ^arg(:site_id) and name == ^arg(:name)))
+      pagination(keyset?: true, required?: true, default_limit: 26, max_page_size: 26)
+      prepare(build(sort: [first_seen_at: :desc, id: :asc]))
     end
 
     read :find do
