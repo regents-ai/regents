@@ -8272,6 +8272,22 @@ seasons), on the shared Points library regents.sh was already on.
 - When a Techtree page can't reach its data, the site's own record of it now holds only the kind of failure, never the text of what was being read.
 - Not released: on the `fold/techtree` branch only. No page, table, migration or setting.
 
+## 2026-11-22 — One site: Autolaunch's home page in dollars (not released)
+
+- `/autolaunch` shows prices, FDVs and market caps in dollars, as autolaunch.sh shows them when it knows the dollar price of an auction's currency: REGENT's from the staking page's own price reading while that reading is at most fifteen minutes old, and each Base stock's from its Chainlink price feed, kept ten minutes. Without a price a figure stays in its own currency, with the line saying why, as before. On a test network every figure stays in its own currency, as on autolaunch.sh.
+- Robinhood auctions stay in their own currency until Robinhood's prices come.
+- The prices are read once as the page opens, under the same allowance as its listings. When the stock list or a price feed cannot be read, only those figures stay in their own currency and the page shows as usual; autolaunch.sh lost every dollar figure when its stock list could not be read.
+- Coming next and Bid volume are left out when they cannot be read or the page's allowance is spent. "No auction is taking bids" shows only when none is taking bids or opening soon; autolaunch.sh showed that line when the read failed too.
+- The Base and Base Stocks deployment descriptions no longer give the site an address to read the chain through: it reads Base through its own Base read setting. Each must name the address wallets use (`public_rpc_url`): an `https` address, or a local lab's own `http://127.0.0.1` one.
+- Base's and Base Stocks' descriptions are now part of the site's own files (`platform/priv/autolaunch/deployment/base.json` and `base-stocks.json`): the contract addresses, the contract interfaces and Base's public address for wallets, as autolaunch.sh runs with today, and nothing private.
+- A list change refused because the page's allowance is spent now keeps its "can't be shown" notice. Before, a listing still being read when the change was refused could arrive afterwards, take the notice away and show the earlier list.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: production reads Autolaunch's Base descriptions from its own files (not released)
+
+- In production the site reads Autolaunch's Base and Base Stocks descriptions from the two files it ships, under the label `base-mainnet`; a missing or malformed file stops the start. The `AUTOLAUNCH_BASE_DEPLOYMENT`, `AUTOLAUNCH_BASE_DEPLOYMENT_ID` and `AUTOLAUNCH_BASE_STOCKS_DEPLOYMENT` variables now count only outside production, where a local lab names its own files.
+- Not released: on the `one-site` branch only. No new deploy setting or secret. Not yet proven on a built release: the start reading the two files from inside the image.
+
 ## 2026-11-22 — One site: Techtree's Projects, to read (not released)
 
 - A signed-in person sees the work Techtree's team delivered to them at /techtree/account/projects, newest first, and each project's own page at /techtree/account/projects/<id>: the verdict, the agreed goal, the before and after on the final test, each case, the candidates tried, how the work was set up, the report, and the package to download with its checksum. The words are techtree.sh's.

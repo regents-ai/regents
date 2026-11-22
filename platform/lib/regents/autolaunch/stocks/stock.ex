@@ -12,7 +12,8 @@ defmodule Regents.Autolaunch.Stocks.Stock do
   stay findable by its name.
 
   The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
-  the names a stock goes by, for search; nothing here writes them yet.
+  the names a stock goes by, for search, and the home page's dollar figures
+  each Base stock's feed (`:launch_currencies`); nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -91,9 +92,17 @@ defmodule Regents.Autolaunch.Stocks.Stock do
       primary? true
       pagination keyset?: true, required?: false
     end
+
+    # The stocks one chain's launchpad admits or once admitted, with every
+    # name each goes by: what `Regents.Autolaunch.Stocks.Assets` answers from.
+    read :launch_currencies do
+      argument :chain_id, :integer, allow_nil?: false
+      filter expr(chain_id == ^arg(:chain_id) and not is_nil(route))
+      prepare build(load: [:search_text], sort: [symbol: :asc])
+    end
   end
 
-  # Only the primary read is carried; any other action is refused until it
+  # Only the two reads are carried; any other action is refused until it
   # comes with its own policy.
   policies do
     policy action_type(:read) do
