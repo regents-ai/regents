@@ -7,7 +7,7 @@ defmodule Regents.Autolaunch.Stocks.Lab do
 
   It extends the Base deployment (`Regents.Autolaunch.Lab`) and is refused unless it
   names the very Base description this site runs with, answers on the same
-  chain through the same RPC doors (`Regents.Autolaunch.LabRpcUrl`), and declares
+  chain with the same wallet door (`Regents.Autolaunch.LabRpcUrl.public/1`), and declares
   every function and event the site prepares against. The stocks the launchpad
   admits are not listed here: the site reads them from the chain
   (`Regents.Autolaunch.Stocks.Stock`).
@@ -40,7 +40,6 @@ defmodule Regents.Autolaunch.Stocks.Lab do
 
   @type t :: %{
           path: String.t(),
-          rpc_url: String.t(),
           public_rpc_url: String.t(),
           chain_id: pos_integer(),
           version: :v3,
@@ -60,7 +59,6 @@ defmodule Regents.Autolaunch.Stocks.Lab do
          {:ok, agent} <- Lab.current(),
          config = Lab.loaded!(__MODULE__, path),
          true <- config.chain_id == agent.chain_id || {:error, :agent_lab_mismatch},
-         true <- config.rpc_url == agent.rpc_url || {:error, :agent_lab_mismatch},
          true <- config.public_rpc_url == agent.public_rpc_url || {:error, :agent_lab_mismatch},
          true <- same_agent_addresses?(config, agent) || {:error, :agent_lab_mismatch} do
       {:ok, Map.put(config, :run_id, agent.run_id)}
@@ -100,8 +98,7 @@ defmodule Regents.Autolaunch.Stocks.Lab do
     with true <- Path.type(path) == :absolute,
          {:ok, body} <- File.read(path),
          {:ok, decoded} <- Jason.decode(body),
-         {:ok, rpc_url} <- LabRpcUrl.admitted(decoded["rpc_url"]),
-         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"], rpc_url),
+         {:ok, public_rpc_url} <- LabRpcUrl.public(decoded["public_rpc_url"]),
          {:ok, chain_id} <- Lab.chain_id(decoded["chain_id"]),
          {:ok, addresses} <- exact_addresses(decoded["addresses"]),
          {:ok, faucet} <- faucet_section(decoded["faucet"], chain_id),
@@ -112,7 +109,6 @@ defmodule Regents.Autolaunch.Stocks.Lab do
       {:ok,
        %{
          path: path,
-         rpc_url: rpc_url,
          public_rpc_url: public_rpc_url,
          chain_id: chain_id,
          version: :v3,
@@ -172,13 +168,12 @@ defmodule Regents.Autolaunch.Stocks.Lab do
   @doc "The Base deployment's chain id, which this description shares."
   def chain_id, do: Lab.chain_id()
 
-  def rpc_opts(config, scope \\ "autolaunch stocks lab") do
-    [
-      rpc_url: config.rpc_url,
-      expected_chain_id: config.chain_id,
-      log_scope: scope
-    ]
-  end
+  @doc """
+  The `Regents.Chain.Rpc` options for reads and calls against this
+  deployment's chain, as `Regents.Autolaunch.Lab.rpc_opts/2` gives them.
+  """
+  def rpc_opts(config, scope \\ "autolaunch stocks lab"),
+    do: [chain_id: config.chain_id, scope: scope]
 
   # The Agent addresses the Stocks lab repeats have to be the Agent lab's own,
   # so one site never prepares against two forks.

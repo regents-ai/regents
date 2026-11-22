@@ -17,8 +17,15 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   bids, the soonest to close first, then those opening soon), Bid volume (up
   to six launches with the most put in by bidders) and Principles (what
   Autolaunch holds to, as value cards). The two rows are read once, with the
-  page's first listing and under its one spend of the allowance; past the
-  allowance they are empty.
+  page's first listing and under its one spend of the allowance. Each row is
+  what its read answered, rows or none; when its read fails, or the allowance
+  is spent, the row is not known and is left out.
+
+  Prices, FDVs and market caps are in dollars where the price of their
+  currency is known (`Regents.Autolaunch.UsdRates`), otherwise in that
+  currency. The prices are read once, in the background, with the open
+  page's first listing and under the same spend; until they arrive, and when
+  the allowance is spent, every figure is in its own currency.
 
   Still to come, each with its own part: the product cards above the lists,
   the Calls list, the notices about reading the chains, the lists and rows
@@ -34,14 +41,16 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
       explore_card: 1,
       backed_card: 1,
       auction_status: 1,
-      connections_for: 2
+      connections_for: 2,
+      figure_rate: 2
     ]
 
   import RegentsWeb.Components.ValueCards
 
   import RegentsWeb.Autolaunch.Components.ChainIcon
   import RegentsWeb.Autolaunch.Components.LinkIcon
-  alias Regents.Autolaunch.Lab
+  alias Phoenix.LiveView.AsyncResult
+  alias Regents.Autolaunch.{Lab, UsdRates}
   alias Regents.Limits
   alias RegentsWeb.Autolaunch.{HomeMarket, PublicDocuments}
 
@@ -78,8 +87,9 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
        has_more: false,
        local_lab: Lab.test_chain?(),
        listed: nil,
-       backed: [],
-       coming: [],
+       backed: :unknown,
+       coming: :unknown,
+       rates: AsyncResult.loading(),
        values: values(),
        lists: @lists,
        token_kinds: @token_kinds,
@@ -177,29 +187,30 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
   # The "Bid volume" row: up to six launches with the most put in by bidders,
   # whatever the list below shows. Launches nobody has bid on stay out of it.
   defp read_backed do
-    case Regents.Autolaunch.HomeMarket.auctions(%{sort: "volume"}, 6) do
-      {:ok, auctions} -> Enum.filter(auctions, &raised?/1)
-      _failure -> []
-    end
+    with {:ok, auctions} <- Regents.Autolaunch.HomeMarket.auctions(%{sort: "volume"}, 6),
+         do: {:ok, Enum.filter(auctions, &raised?/1)}
   end
 
   # "Coming next": up to three auctions taking bids, the soonest to close
-  # first, then those opening soon.
+  # first, then those opening soon. Not known unless both reads answer.
   defp read_coming do
-    live = read_auctions(%{state: "active", sort: "ending"})
-    opening = read_auctions(%{state: "created"})
-    Enum.take(live ++ opening, 3)
+    with {:ok, live} <- read_auctions(%{state: "active", sort: "ending"}),
+         {:ok, opening} <- read_auctions(%{state: "created"}),
+         do: {:ok, Enum.take(live ++ opening, 3)}
   end
 
-  defp read_auctions(arguments) do
-    case Regents.Autolaunch.HomeMarket.auctions(arguments, 3) do
-      {:ok, auctions} -> auctions
-      _failure -> []
-    end
-  end
+  defp read_auctions(arguments), do: Regents.Autolaunch.HomeMarket.auctions(arguments, 3)
 
   defp raised?(%{bid_volume_usd: %Decimal{} = volume}), do: Decimal.gt?(volume, 0)
   defp raised?(_auction), do: false
+
+  # A row as its read answered it: its auctions, none at all, or not known.
+  defp row({:ok, auctions}), do: auctions
+  defp row({:error, _reason}), do: :unknown
+
+  # The dollar prices, read in the background (`Regents.Autolaunch.UsdRates`).
+  defp read_rates(socket),
+    do: assign_async(socket, :rates, fn -> {:ok, %{rates: UsdRates.rates()}} end)
 
   # The auctions or tokens the options name, read unless they are the ones
   # already shown.
@@ -231,6 +242,12 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
       do: {:noreply, load_market(socket, socket.assigns.market_append)}
 
   def handle_event("retry", _params, socket), do: {:noreply, socket}
+
+  # A listing counts only while the page is waiting for one. A change the
+  # allowance refused since the read began has already answered for the list
+  # the page now names, so that read's late answer is dropped.
+  def handle_async(:home_market, _answer, %{assigns: %{market_loading: false}} = socket),
+    do: {:noreply, socket}
 
   def handle_async(:home_market, {:ok, {:ok, page}}, socket),
     do: {:noreply, put_market(socket, page)}
@@ -265,14 +282,21 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
 
   # The page's first listing is read before it is shown, so the coins are in
   # the page as it arrives, for readers that run no scripts too. Later
-  # listings load beside the ones already shown. The rows beside the list are
-  # read with it, once, under the same spend of the allowance.
+  # listings load beside the ones already shown. The rows beside the list and
+  # the dollar prices are read with it, once, under the same spend of the
+  # allowance; the prices only on the live connection.
   defp first_market(socket) do
     socket = assign(socket, market_append: false, listed: socket.assigns.market_options)
 
     case admit(socket) do
-      :ok -> socket |> assign(backed: read_backed(), coming: read_coming()) |> read_first()
-      :limited -> market_failed(socket)
+      :ok ->
+        socket
+        |> assign(backed: row(read_backed()), coming: row(read_coming()))
+        |> read_rates()
+        |> read_first()
+
+      :limited ->
+        market_failed(socket)
     end
   end
 
@@ -394,11 +418,13 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
     """
   end
 
-  attr :coming, :list, required: true
+  attr :coming, :any, required: true, doc: "the auctions, or `:unknown` when the read failed"
 
   # What a visitor can join next: the auctions taking bids or opening soon.
   # While there are none, one quiet line says so; the list below keeps the
-  # past ones.
+  # past ones. When the read did not answer, the row is left out.
+  defp coming_next(%{coming: :unknown} = assigns), do: ~H""
+
   defp coming_next(assigns) do
     ~H"""
     <section class="home-next" aria-labelledby="home-next-title">
@@ -419,6 +445,30 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
     </section>
     """
   end
+
+  attr :backed, :any, required: true, doc: "the auctions, or `:unknown` when the read failed"
+
+  # The "Bid volume" row, shown only once someone has bid on a launch.
+  defp bid_volume(%{backed: [_ | _]} = assigns) do
+    ~H"""
+    <section class="home-backed" aria-labelledby="home-backed-title">
+      <h2 id="home-backed-title">Bid volume</h2>
+      <ol class="home-backed__row">
+        <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
+          <.backed_card auction={auction} rank={rank} />
+        </li>
+      </ol>
+    </section>
+    """
+  end
+
+  defp bid_volume(assigns), do: ~H""
+
+  # The gallery's first picture loads first unless Bid volume draws its own
+  # first picture.
+  defp lead?(0, [_ | _]), do: false
+  defp lead?(0, _backed), do: true
+  defp lead?(_index, _backed), do: false
 
   def render(assigns) do
     ~H"""
@@ -646,8 +696,11 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
             :for={{record, index} <- Enum.with_index(@records)}
             kind={@records_kind}
             record={record}
-            lead={index == 0 && @backed == []}
+            lead={lead?(index, @backed)}
             creator_connections={connections_for(record, @creators)}
+            rate={
+              figure_rate(@rates, if(@records_kind == :auction, do: record, else: record.auction))
+            }
           />
         </div>
         <.auction_list
@@ -657,6 +710,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
           }
           creators={@creators}
           records={if @records_kind == :auction, do: @records, else: []}
+          rates={@rates}
           loading={@market_loading}
         />
         <.token_list
@@ -666,6 +720,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
           }
           creators={@creators}
           records={if @records_kind == :token, do: @records, else: []}
+          rates={@rates}
           loading={@market_loading}
         />
 
@@ -725,14 +780,7 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
 
       <.coming_next coming={@coming} />
 
-      <section :if={@backed != []} class="home-backed" aria-labelledby="home-backed-title">
-        <h2 id="home-backed-title">Bid volume</h2>
-        <ol class="home-backed__row">
-          <li :for={{auction, rank} <- Enum.with_index(@backed, 1)}>
-            <.backed_card auction={auction} rank={rank} />
-          </li>
-        </ol>
-      </section>
+      <.bid_volume backed={@backed} />
 
       <section class="home-values" aria-labelledby="home-values-title">
         <h2 id="home-values-title">Principles</h2>

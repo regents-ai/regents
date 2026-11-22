@@ -8228,3 +8228,14 @@ seasons), on the shared Points library regents.sh was already on.
 - The Principles cards open their pages as a full page load. See stocks, See portfolio, See auctions and each auction's page keep their future addresses under `/autolaunch` and answer "not found" until those pages come; Pair agent opens this site's own pairing page.
 - Both rows are read once, as the page opens; they do not yet update while it stays open.
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's home page in dollars (not released)
+
+- `/autolaunch` shows prices, FDVs and market caps in dollars, as autolaunch.sh shows them when it knows the dollar price of an auction's currency: REGENT's from the staking page's own price reading while that reading is at most fifteen minutes old, and each Base stock's from its Chainlink price feed, kept ten minutes. Without a price a figure stays in its own currency, with the line saying why, as before. On a test network every figure stays in its own currency, as on autolaunch.sh.
+- Robinhood auctions stay in their own currency until Robinhood's prices come.
+- The prices are read once as the page opens, under the same allowance as its listings. When the stock list or a price feed cannot be read, only those figures stay in their own currency and the page shows as usual; autolaunch.sh lost every dollar figure when its stock list could not be read.
+- Coming next and Bid volume are left out when they cannot be read or the page's allowance is spent. "No auction is taking bids" shows only when none is taking bids or opening soon; autolaunch.sh showed that line when the read failed too.
+- The Base and Base Stocks deployment descriptions no longer give the site an address to read the chain through: it reads Base through its own Base read setting. Each must name the address wallets use (`public_rpc_url`): an `https` address, or a local lab's own `http://127.0.0.1` one.
+- Base's and Base Stocks' descriptions are now part of the site's own files (`platform/priv/autolaunch/deployment/base.json` and `base-stocks.json`): the contract addresses, the contract interfaces and Base's public address for wallets, as autolaunch.sh runs with today, and nothing private.
+- A list change refused because the page's allowance is spent now keeps its "can't be shown" notice. Before, a listing still being read when the change was refused could arrive afterwards, take the notice away and show the earlier list.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

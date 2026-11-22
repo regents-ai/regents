@@ -1,23 +1,24 @@
 defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   @moduledoc """
   The home page's auctions and tokens, as autolaunch.sh's market cards and
-  list rows draw them, from stored records alone.
+  list rows draw them, from stored records and the dollar prices of their
+  currencies (`Regents.Autolaunch.UsdRates`).
 
-  Every figure is shown in its auction's own currency: the dollar prices
-  autolaunch.sh reads from the market are not here yet, which is how its cards
-  read while it has none, and always on a test network. What bidders have put
-  in shows in dollars where the record holds that figure. The Bid, Buy, Claim
-  and Refund presses are the wallet's and come with it.
+  A price, an FDV and a market cap are shown in dollars where the dollar price
+  of the auction's currency is known, otherwise in that currency itself, as
+  always on a test network. What bidders have put in shows in dollars where
+  the record holds that figure. The Bid, Buy, Claim and Refund presses are the
+  wallet's and come with it.
   """
   use Phoenix.Component
 
   import RegentsWeb.Autolaunch.Components.LinkIcon
   import RegentsWeb.Autolaunch.Components.MinimumWarning
 
-  alias Regents.Autolaunch.{AuctionFigures, Lab, StoredImage, Token}
+  alias Regents.Autolaunch.{AuctionFigures, Lab, StoredImage, Token, UsdRates}
   alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
   alias RegentsWeb.Autolaunch.Components.{BidPlaced, ChainIcon, CreatorLabel}
-  alias RegentsWeb.Autolaunch.{Paths, TokenDisplay}
+  alias RegentsWeb.Autolaunch.{Paths, TokenDisplay, UsdValue}
 
   @own_sites ["autolaunch.sh", "regents.sh"]
 
@@ -31,6 +32,11 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   attr :kind, :atom, required: true, values: [:auction, :token]
   attr :record, :map, required: true
   attr :creator_connections, :map, default: %{}
+
+  attr :rate, :any,
+    default: nil,
+    doc: "the USD price of one unit of the record's currency, for its figures"
+
   attr :lead, :boolean, default: false, doc: "the page's first picture, which loads first"
 
   @doc """
@@ -46,7 +52,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   cap, then Details.
   """
   def explore_card(%{kind: :auction} = assigns) do
-    figures = figures(assigns.record)
+    figures = figures(assigns.record, assigns.rate)
 
     assigns =
       assign(assigns,
@@ -72,7 +78,8 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     assigns =
       assign(assigns,
         view: view,
-        market_cap: money(assigns.record.market_cap, view.metric.unit) || "No price yet"
+        market_cap:
+          money(assigns.record.market_cap, assigns.rate, view.metric.unit) || "No price yet"
       )
 
     ~H"""
@@ -82,7 +89,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     >
       <.card_head view={@view} lead={@lead} />
       <div class="home-coin__metric">
-        <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} /><span>Price</span>
+        <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} /><span>Price</span>
       </div>
       <p class="home-coin__figure">Market cap: <span>{@market_cap}</span></p>
       <.card_links view={@view} />
@@ -130,7 +137,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
         <p class="home-coin__floor">
           <span class="visually-hidden">FDV </span><Regent.Primitives.tip id={"fdv-#{@figures.id}"}>
             <:figure>{@figures.fdv}</:figure>
-            {tip(:fdv, @figures.unit)}
+            {tip(:fdv, @figures.unpriced)}
           </Regent.Primitives.tip>
         </p>
       </div>
@@ -313,6 +320,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   end
 
   attr :records, :list, required: true, doc: "auctions with `fdv` loaded"
+  attr :rates, :any, required: true, doc: "the dollar prices, read in the background"
   attr :creators, :map, required: true, doc: "the creators' connected accounts, by account id"
   attr :loading, :boolean, default: false
 
@@ -356,7 +364,8 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
           <.auction_list_row
             :for={record <- @records}
             view={view(:auction, record, connections_for(record, @creators))}
-            figures={figures(record)}
+            figures={figures(record, figure_rate(@rates, record))}
+            rate={figure_rate(@rates, record)}
           />
           <tr
             :for={index <- 1..6}
@@ -387,6 +396,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   # page nothing for that row.
   attr :view, :map, required: true
   attr :figures, :map, required: true
+  attr :rate, :any, default: nil
 
   defp auction_list_row(assigns) do
     ~H"""
@@ -409,7 +419,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
         ><span class="rg-button__label">Buy</span></.link>
       </td>
       <td>
-        <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} />
+        <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} />
       </td>
       <td>
         {@figures.volume}
@@ -428,7 +438,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
       <td class="market-list__key">
         <span :if={@figures.state in [:graduated, :failed]}>
           <small>Price</small>
-          <TokenDisplay.price amount={@view.metric.amount} unit={@view.metric.unit} />
+          <.price_figure amount={@view.metric.amount} unit={@view.metric.unit} rate={@rate} />
         </span>
         <span :if={@figures.state not in [:graduated, :failed]}>
           <small>Raised</small> {@figures.volume}
@@ -446,6 +456,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
       |> Enum.join(" · ")
 
   attr :records, :list, required: true, doc: "launched tokens with `market_cap` loaded"
+  attr :rates, :any, required: true, doc: "the dollar prices, read in the background"
   attr :creators, :map, required: true, doc: "the creators' connected accounts, by account id"
   attr :loading, :boolean, default: false
 
@@ -470,6 +481,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
             :for={token <- @records}
             token={token}
             connections={connections_for(token, @creators)}
+            rate={figure_rate(@rates, token.auction)}
           />
           <tr
             :for={index <- 1..6}
@@ -488,6 +500,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
 
   attr :token, :map, required: true
   attr :connections, :map, required: true
+  attr :rate, :any, default: nil
 
   defp token_list_row(assigns) do
     view = view(:token, assigns.token, assigns.connections)
@@ -495,7 +508,8 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     assigns =
       assign(assigns,
         view: view,
-        market_cap: money(assigns.token.market_cap, view.metric.unit) || "No price yet"
+        market_cap:
+          money(assigns.token.market_cap, assigns.rate, view.metric.unit) || "No price yet"
       )
 
     ~H"""
@@ -510,7 +524,7 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
         detail={byline(@view)}
       />
       <td>
-        <TokenDisplay.price amount={@token.price_quote} unit={@view.metric.unit} />
+        <.price_figure amount={@token.price_quote} unit={@view.metric.unit} rate={@rate} />
       </td>
       <td>{@market_cap}</td>
     </tr>
@@ -567,13 +581,43 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
     """
   end
 
-  defp figures(auction) do
+  attr :amount, :string, default: nil, doc: "a price per token in its currency"
+  attr :unit, :string, default: nil, doc: "the currency the price is in"
+
+  attr :rate, :any,
+    default: nil,
+    doc: "the USD price of one unit of that currency, nil while none is known"
+
+  # A price per token in dollars where the currency's dollar price is known,
+  # otherwise in the currency itself.
+  defp price_figure(assigns) do
+    price = decimal(assigns.amount)
+
+    assigns =
+      assign(
+        assigns,
+        :usd,
+        price && assigns.rate && UsdValue.dollars(Decimal.mult(price, assigns.rate))
+      )
+
+    ~H"""
+    <span :if={@usd}>{@usd}</span>
+    <TokenDisplay.price :if={!@usd} amount={@amount} unit={@unit} />
+    """
+  end
+
+  @doc "The USD price of one unit of the auction's currency; nil while none is known."
+  def figure_rate(%{ok?: true, result: rates}, auction), do: UsdRates.auction_rate(rates, auction)
+
+  def figure_rate(_rates, _auction), do: nil
+
+  defp figures(auction, rate) do
     unit = auction.quote_token_symbol
 
     %{
-      fdv: money(auction.fdv, unit) || "No price yet",
+      fdv: money(auction.fdv, rate, unit) || "No price yet",
       volume: volume(auction),
-      unit: unit,
+      unpriced: if(is_nil(rate), do: unit),
       short_from: AuctionFigures.minimum_warning_from(auction),
       progress: time_progress(auction),
       opens_at: live_open(auction),
@@ -588,21 +632,29 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
   # Everything bidders put in: in dollars when the site has priced it, else in
   # the auction's currency.
   defp volume(auction) do
-    dollars(auction.bid_volume_usd) || money(auction.bid_volume, auction.quote_token_symbol) ||
-      "Not counted yet"
+    money(auction.bid_volume_usd, Decimal.new(1)) ||
+      money(auction.bid_volume, nil, auction.quote_token_symbol) || "Not counted yet"
   end
 
-  # An amount in its own currency; nil while the amount is not known.
-  defp money(nil, _unit), do: nil
-  defp money(%Decimal{} = amount, unit), do: String.trim("#{TokenDisplay.short(amount)} #{unit}")
+  # An amount in dollars where its currency's dollar price is known, otherwise
+  # in the currency itself; nil while the amount is not known.
+  defp money(amount, rate, unit \\ nil)
+  defp money(nil, _rate, _unit), do: nil
 
-  # A dollar figure, such as `$1,234.50` or `$0.0123`, as every Regent page writes one.
-  defp dollars(nil), do: nil
+  defp money(%Decimal{} = amount, nil, unit),
+    do: String.trim("#{TokenDisplay.short(amount)} #{unit}")
 
-  defp dollars(%Decimal{sign: -1, coef: coef} = value) when coef != 0,
-    do: "-" <> dollars(%{value | sign: 1})
+  defp money(%Decimal{} = amount, rate, _unit), do: UsdValue.dollars(Decimal.mult(amount, rate))
 
-  defp dollars(value), do: "$" <> RegentFormat.amount(value)
+  # Stored prices can run past a hundred decimal places.
+  defp decimal(value) when is_binary(value) do
+    case Decimal.parse(String.trim(value), max_digits: :infinity) do
+      {%Decimal{} = decimal, ""} -> decimal
+      _unparsed -> nil
+    end
+  end
+
+  defp decimal(_value), do: nil
 
   # How much of a live auction's time has passed, from its opening to its
   # estimated end, as a whole percent.

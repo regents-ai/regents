@@ -1,21 +1,36 @@
 defmodule Regents.Autolaunch.LabRpcUrl do
   @moduledoc """
-  The two RPC doors of a deployment description.
+  The RPC doors of a deployment description.
 
-  `admitted/1` is the site's own endpoint (`rpc_url`): the one its reads, its
-  receipt checks and the faucet's impersonation calls reach. It is privileged
-  and never reaches a browser or a log line. Admitted: loopback
-  `http://127.0.0.1:PORT` (a local lab) or an `https://` URL.
+  `public/1` is the endpoint browsers are given for a Base chain
+  (`public_rpc_url` in the Base and Base Stocks descriptions), in every review
+  and in the page's list of networks, with which Privy adds a chain that
+  neither its own list nor viem's names (a lab chain) to a wallet. Every such
+  description names it: an `https://` URL, or loopback `http://127.0.0.1:PORT`
+  for a local lab. The site reads Base through its own setting
+  (`:base_read_rpc_url`), so these descriptions name no door of its own.
 
-  `public/2` is the endpoint browsers are given for the chain (`public_rpc_url`),
-  in every review and in the page's list of networks, with which Privy adds a
-  chain that neither its own list nor viem's names (a lab chain) to a wallet:
-  `https://` only. A description whose own door is loopback may omit it, and
-  then wallets are given that loopback door, as the local labs are; any other
-  own door requires it, so a keyed endpoint never leaves the server.
+  The Robinhood description still names the site's own endpoint (`rpc_url`,
+  `admitted/1`): the one its reads, its receipt checks and the faucet's
+  impersonation calls reach. It is privileged and never reaches a browser or a
+  log line. Admitted: loopback `http://127.0.0.1:PORT` (a local lab) or an
+  `https://` URL. Its wallet door (`public/2`) is `https://` only; a
+  description whose own door is loopback may omit it, and then wallets are
+  given that loopback door, as the local labs are; any other own door requires
+  it, so a keyed endpoint never leaves the server.
 
-  Neither door admits credentials, a query or a fragment.
+  No door admits credentials, a query or a fragment.
   """
+
+  @spec public(term()) :: {:ok, String.t()} | {:error, :missing_public_rpc | :invalid_public_rpc}
+  def public(nil), do: {:error, :missing_public_rpc}
+
+  def public(value) do
+    case admitted(value) do
+      {:ok, url} -> {:ok, url}
+      {:error, :rpc_not_admitted} -> {:error, :invalid_public_rpc}
+    end
+  end
 
   @spec admitted(term()) :: {:ok, String.t()} | {:error, :rpc_not_admitted}
   def admitted(value) when is_binary(value) do
