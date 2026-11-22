@@ -1,0 +1,9 @@
+# Tool history unavailable
+
+<%= if @invalid_cursor? do %>
+That continuation is not valid for this tool. Start again at [<%= plain(@name) %> on <%= plain(site_name(@site)) %>](<%= tool_path(@site, @name) %>).
+<% else %>
+The history of <%= code(@name) %> on <%= plain(site_name(@site)) %> could not be read just now. Try again in a moment.
+<% end %>
+
+<%= trailer() %>

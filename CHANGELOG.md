@@ -8388,13 +8388,14 @@ seasons), on the shared Points library regents.sh was already on.
 - An address that names no token, an auction whose token has not launched, or a Robinhood market answers "not found". When the token can't be read as the page opens, the site's own error page shows; autolaunch.sh showed a "Try again" page when it could not reach its database.
 - The browser tab names the token whether the page is opened from a Tokens row or a Buy, or loaded directly. A token opened from the home page is loaded fresh, as on autolaunch.sh, so its tab reads the same. When the page shows no token it reads "Token not found" or "Token unavailable"; autolaunch.sh kept the token's name there.
 - The price and the market cap are in dollars where the token's currency has a dollar price, as on the lists, and otherwise in the token's own currency.
-- Once open, the page reads the token, the prices and the revenue under the same allowance as the lists, 120 a minute from one address. Past it the page says the token couldn't be loaded, with Retry. Retry reads again only what failed, and only after a read has failed.
+- Once open, the page reads the token, the prices, the revenue and the token's pool on Base under the same allowance as the lists, 120 a minute from one address. Past it the page says the token couldn't be loaded, with Retry. Retry reads again only what failed, and only after a read has failed.
+- The pool is read once each time the page opens: it fills the move beside the price, Change, Trades, the pool and its locker under Contracts, and opens the Uniswap Pool button. While it is being read, or when it can't be read, Change and Trades show "…", the move and the two rows stay out and Uniswap Pool stays closed; the rest of the page shows as usual. View Chart stays closed until the price chart comes; on autolaunch.sh it opened the chart once the pool was read.
 - The page is one column, no wider than autolaunch.sh's main column at its widest, until the trading panel comes.
 - The heading's picture is the 160-wide copy, served like the other widths.
 - A launch picture not stored on this site is not shown on the token page either: it shows the launch's first letter, as the home page and the lists do, where autolaunch.sh tried to show whatever picture address a launch held.
 - A press the page does not take changes nothing; on autolaunch.sh it stopped the page and loaded it again.
 - A creator's website shows as a link, on the cards and on the token page, only when it is an https address; autolaunch.sh linked http addresses too. A Telegram or Discord link shows only when it is a whole https address with a site in it.
-- Left out for now: the pool's figures (the change, the trades, the pool and its locker), with the Uniswap Pool and View Chart buttons staying closed; the price chart; trading, staking and claiming; Share; and the page updating itself while open.
+- Left out for now: the price chart; the pool's fees and the rest of the trading panel's figures; trading, staking and claiming; Share; and the page updating itself while open.
 - Not released: on the `fold/autolaunch` branch only. One route added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
 
 ## 2026-11-22 — One site: Keyfleet's wallet buttons open your wallet (not released)

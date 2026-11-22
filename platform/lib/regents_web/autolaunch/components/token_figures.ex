@@ -1,31 +1,35 @@
 defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
   @moduledoc """
   A token page's figures. `token_figures/1` opens the page: the price, large,
-  with the price in the token's currency under it. `market_stats/1` follows:
-  the market cap, the price in the currency, the change, the total supply, the
-  number of trades and the launch type. Dollar figures are shown where the
-  token's currency has a dollar price; otherwise every figure is in the
-  currency. The figures settle in one after another as they arrive
-  (`MotionCascade`).
+  with how far it has moved since its pool opened beside it and the price in
+  the token's currency under it. `market_stats/1` follows: the market cap, the
+  price in the currency, the change, the total supply, the number of trades
+  and the launch type. Dollar figures are shown where the token's currency has
+  a dollar price; otherwise every figure is in the currency. The figures
+  settle in one after another as they arrive (`MotionCascade`).
 
-  The change and the number of trades come from the token's pool, which this
-  page does not read yet, so they show as autolaunch.sh showed them before its
-  pool was read; so does the move since the pool opened, beside the price,
-  which is left out until then.
+  The move, the change and the number of trades come from the token's pool
+  (`Regents.Autolaunch.Pool`): while it is being read, and when it could not
+  be read, the change and the trades show "…" and the move is left out.
   """
   use Phoenix.Component
 
-  alias RegentsWeb.Autolaunch.Components.{LaunchTrust, MarketCard}
+  alias Phoenix.LiveView.AsyncResult
+  alias RegentsWeb.Autolaunch.Components.{LaunchTrust, MarketCard, PriceChart}
   alias RegentsWeb.Autolaunch.TokenDisplay
 
   attr :id, :string, required: true
   attr :price, :string, default: nil, doc: "the stored price per token, in the currency"
   attr :unit, :string, default: nil, doc: "the currency the token trades against"
   attr :rate, :any, default: nil, doc: "the currency's dollar price, nil while none is known"
+  attr :pool, AsyncResult, required: true, doc: "the token's pool as the page reads it"
 
   def token_figures(assigns) do
     assigns =
-      assign(assigns, :length, MarketCard.price_length(assigns.price, assigns.unit, assigns.rate))
+      assign(assigns,
+        move: direction(assigns.pool),
+        length: MarketCard.price_length(assigns.price, assigns.unit, assigns.rate)
+      )
 
     ~H"""
     <div
@@ -39,6 +43,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
           <MarketCard.price_figure amount={@price} unit={@unit} rate={@rate} />
           <span :if={!@price}>No price yet</span>
         </strong>
+        <.move move={@move} />
       </p>
       <p :if={@price && @rate} class="token-figures__unit">
         <TokenDisplay.price amount={@price} unit={@unit} />
@@ -53,11 +58,14 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
   attr :market_cap, :any, default: nil, doc: "the price times the whole supply, in the currency"
   attr :unit, :string, default: nil
   attr :rate, :any, default: nil
+  attr :pool, AsyncResult, required: true
 
   def market_stats(assigns) do
     assigns =
       assign(assigns,
         market_cap: MarketCard.money(assigns.market_cap, assigns.rate, assigns.unit),
+        change: change(assigns.pool),
+        trades: trades(assigns.pool),
         supply: assigns.auction.token_supply && RegentFormat.amount(assigns.auction.token_supply),
         launch_type: LaunchTrust.launch_type(assigns.auction)
       )
@@ -76,7 +84,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
         </div>
         <div>
           <dt>Change</dt>
-          <dd class="rg-figure">…</dd>
+          <dd class="rg-figure">{@change}</dd>
         </div>
         <div>
           <dt>Total supply</dt>
@@ -84,7 +92,7 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
         </div>
         <div>
           <dt>Trades</dt>
-          <dd class="rg-figure">…</dd>
+          <dd class="rg-figure">{@trades}</dd>
         </div>
         <div>
           <dt>Launch type</dt>
@@ -94,4 +102,38 @@ defmodule RegentsWeb.Autolaunch.Components.TokenFigures do
     </section>
     """
   end
+
+  attr :move, :any, required: true
+
+  # The change since the pool opened as a small tinted chip: the arrow and the
+  # percent, with the direction in words for a screen reader.
+  defp move(%{move: {direction, percent}} = assigns) when direction in [:up, :down] do
+    assigns = assign(assigns, direction: direction, percent: percent)
+
+    ~H"""
+    <span class={["token-figures__move", "token-figures__move--#{@direction}"]}>
+      <Regent.Icons.icon name={if @direction == :up, do: "trending-up", else: "trending-down"} />
+      <span class="visually-hidden">{if @direction == :up, do: "Up", else: "Down"}</span>
+      {@percent}%
+    </span>
+    """
+  end
+
+  defp move(assigns), do: ~H""
+
+  defp direction(%AsyncResult{ok?: true, result: %{prices: %{points: points}}}),
+    do: PriceChart.move(points)
+
+  defp direction(_pool), do: nil
+
+  # How far the price has moved since the pool opened, once the pool is read.
+  defp change(%AsyncResult{ok?: true, result: %{prices: %{points: points}}}),
+    do: PriceChart.change(points)
+
+  defp change(%AsyncResult{ok?: true}), do: "No trades yet"
+  defp change(_reading), do: "…"
+
+  defp trades(%AsyncResult{ok?: true, result: %{prices: %{trades: trades}}}), do: trades
+  defp trades(%AsyncResult{ok?: true}), do: 0
+  defp trades(_reading), do: "…"
 end

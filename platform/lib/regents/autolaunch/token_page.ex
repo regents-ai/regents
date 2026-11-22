@@ -11,7 +11,7 @@ defmodule Regents.Autolaunch.TokenPage do
   arguments; neither makes a statement.
   """
 
-  alias Regents.Autolaunch.{HomeMarket, Token}
+  alias Regents.Autolaunch.{HomeMarket, Pool, Token}
   alias Regents.Autolaunch.Robinhood.Lab, as: RobinhoodLab
 
   @doc """
@@ -66,6 +66,20 @@ defmodule Regents.Autolaunch.TokenPage do
     case find(symbol, tail) do
       {:ok, _auction, token} -> Regents.Autolaunch.token_revenue(token.id, actor: nil)
       :error -> {:error, :not_found}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  @doc """
+  The pool of the token the address names, read from the chain
+  (`Regents.Autolaunch.Pool.read/1`); `{:error, :not_graduated}` when the
+  address names no launched token any more.
+  """
+  @spec pool(String.t(), String.t()) :: {:ok, Pool.t()} | {:error, term()}
+  def pool(symbol, tail) do
+    case find(symbol, tail) do
+      {:ok, auction, _token} -> Pool.read(auction)
+      :error -> {:error, :not_graduated}
       {:error, error} -> {:error, error}
     end
   end
