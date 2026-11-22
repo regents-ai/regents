@@ -8191,3 +8191,9 @@ seasons), on the shared Points library regents.sh was already on.
 - Six shared readings are ready for these pages: a fleet's activity, its proposals, its treasury, its share picture, each project's picture and each proposal, so that visitors will share one recent read instead of each reading the database. Nothing reads them yet.
 - A failure a Keyfleet page catches is saved to the site's error list, at most twenty at a time; past that it is only logged.
 - Not released: on the `fold/keyfleet` branch only. No route, table, migration, secret, sign-in or wallet change.
+
+## 2026-11-22 — One site: Keyfleet wallet failures counted, and a quieter log line (not released)
+
+- A Keyfleet wallet press that was not sent, not confirmed or refused is counted with the site's other health figures, by flow and reason, as keyfleet.ai counts it.
+- When an error cannot be saved with the site's errors, the log line now names only what kind of error it was and what kind of failure stopped the save, never their words, which can carry a query and its values.
+- On the `one-site` branch only. No table, setting or migration.
