@@ -8097,3 +8097,8 @@ seasons), on the shared Points library regents.sh was already on.
 - A product can ask, as the system, which of a list of agent wallets are paired, and gets each one's wallet, name and what it runs on; the person behind a pairing is never part of the answer (`Regents.Account.Agents.pairings_by_wallets`).
 - A shared reading's own producer can list the ids it holds (`Regents.SharedReading.ids/1`).
 - No page, table, migration or setting. On the `one-site` branch only.
+
+## 2026-11-22 — One site: a linked-accounts read for products (not released)
+
+- A product can ask, as the system, for the verified social links of up to 100 people at once and gets the account, provider, username, display name and time verified; the provider's own id for the person and Privy's details are never part of the answer (`Regents.Account.Accounts.list_linked_identities_for_accounts`).
+- No page, table, migration or setting. On the `one-site` branch only.
