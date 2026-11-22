@@ -41,7 +41,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       results checks first, taking the account as it reads now:
       `RegentsWeb.Live.Session.check_component_lease/2`) and `client_tag`
       (the page's: the panel's first figures read once it is mounted, each
-      one a changed form or the open wallet starts, and each one the panel
+      one a changed form or a change of open wallet starts, and each one the panel
       starts again by itself, after figures it could not read, while a
       button is held back and Buy's every few minutes, spends one of its
       address's `keyfleet_wallet_reads`, and past them the panel shows it
@@ -234,8 +234,15 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   end
 
   @impl true
-  def handle_event("onchain_active_wallet", params, socket),
-    do: {:noreply, socket |> take_active(params) |> sync(:counted)}
+  # The page reports the open wallet whenever Privy's state moves. The wallet
+  # the group already holds, none included, starts no read and spends
+  # nothing; another one is taken and its figures read, counted.
+  def handle_event("onchain_active_wallet", params, %{assigns: %{active: held}} = socket) do
+    case OnchainSteps.active_wallet(params) do
+      ^held -> {:noreply, socket}
+      _other -> {:noreply, socket |> take_active(params) |> sync(:counted)}
+    end
+  end
 
   def handle_event("change", params, socket),
     do: {:noreply, socket |> take_inputs(params) |> sync(:counted)}
