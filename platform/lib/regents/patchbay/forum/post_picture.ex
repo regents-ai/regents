@@ -15,8 +15,6 @@ defmodule Regents.Patchbay.Forum.PostPicture do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer]
 
-  import Ash.Expr
-
   @max_per_post 4
 
   postgres do
