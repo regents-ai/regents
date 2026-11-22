@@ -78,7 +78,9 @@ const presses = new WeakMap<HTMLElement, number>()
  */
 export const OnchainSteps: Hook = {
   mounted(this: OnchainStepsHook) {
-    const push: Push = (event, payload) => void this.pushEventTo(this.el, event, payload)
+    // A press that outlives its panel ends quietly.
+    const push: Push = (event, payload) =>
+      this.pushEventTo(this.el, event, payload).then(() => undefined, () => undefined)
 
     // Every hook on the page hears this event; keep only this component's review.
     // No review means none is built yet, or no wallet may send.
