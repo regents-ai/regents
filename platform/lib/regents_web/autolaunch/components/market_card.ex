@@ -1172,12 +1172,12 @@ defmodule RegentsWeb.Autolaunch.Components.MarketCard do
 
   @doc """
   A creator's website as a link and a short label, or nil when it is not an
-  ordinary web address or names this site or Regents.
+  https address with a host (an http one included, which autolaunch.sh drew)
+  or names this site or Regents.
   """
   def web_link(url) when is_binary(url) do
     case URI.parse(String.trim(url)) do
-      %URI{scheme: scheme, host: host} = uri
-      when scheme in ["http", "https"] and host not in [nil, ""] ->
+      %URI{scheme: "https", host: host} = uri when host not in [nil, ""] ->
         if own_site?(host), do: nil, else: %{url: URI.to_string(uri), label: website_label(uri)}
 
       _other ->

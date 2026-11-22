@@ -11,8 +11,8 @@ defmodule RegentsWeb.Autolaunch.MarketPageLive do
   auction whose token has not launched is the site's not-found page, and a
   read that fails is the site's error page. The open page reads the token
   again itself, under the address's allowance, and names the tab where that
-  answer lands (`handle_async/3`), which a page opened from inside the site,
-  having no first render, needs.
+  answer lands (`handle_async/3`), which a page opened from a Tokens row or a
+  Buy, having no first render, needs.
 
   Still to come: an auction's page, and Robinhood's own pages.
   """

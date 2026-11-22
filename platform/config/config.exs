@@ -210,12 +210,17 @@ config :regents, Regents.Patchbay.Forum.FeedCount,
   max_size: 10_000
 
 # Keyfleet's share pictures drawn for link previews
-# (`RegentsWeb.Keyfleet.SharePictures`), swept of expired ones every ten
-# minutes. Each is a PNG of up to a few hundred kilobytes, so at most 64 are
-# kept.
+# (`RegentsWeb.Keyfleet.SharePictures`), swept every ten minutes, so one no
+# one reads leaves within twenty. There is one for each of the two fleets with
+# a picture and one for each of their projects (a Key holds at most six), and
+# a new version of one each time what it shows changes and it is asked for;
+# each is a PNG of 50 to 70 kilobytes. 256 holds both fleets' and up to 120
+# projects' pictures with a version moving on for each, under 20 megabytes;
+# past it the ones not read since the last sweep go first, and are drawn again
+# when next asked for.
 config :regents, RegentsWeb.Keyfleet.SharePictures,
   gc_interval: :timer.minutes(10),
-  max_size: 64
+  max_size: 256
 
 config :regents, :session_bootstrap_rate_limit, limit: 30, window_seconds: 300
 config :regents, :chain_read_rate_limit, limit: 30, window_seconds: 60

@@ -6,8 +6,9 @@ defmodule Regents.Autolaunch.TokenPage do
   `AutolaunchWeb.Paths.find_token/2` found it. Only a Base token has a page
   here, so a Robinhood market's address names none.
 
-  A ticker over 16 characters, or a tail that is not 5 to 40 hex digits, is
-  refused by the read's own arguments before any statement is made.
+  A ticker that is not valid UTF-8 names nothing, and one over 16 characters,
+  or a tail that is not 5 to 40 hex digits, is refused by the read's own
+  arguments; neither makes a statement.
   """
 
   alias Regents.Autolaunch.{HomeMarket, Token}
@@ -23,11 +24,15 @@ defmodule Regents.Autolaunch.TokenPage do
   @spec find(String.t(), String.t(), list()) ::
           {:ok, struct(), Token.t()} | :error | {:error, term()}
   def find(symbol, tail, load \\ []) do
-    case Regents.Autolaunch.list_auctions_by_path(symbol, tail, actor: nil) do
-      {:ok, [auction]} -> launched(auction, load)
-      {:ok, _none_or_several} -> :error
-      {:error, %Ash.Error.Invalid{}} -> :error
-      {:error, error} -> {:error, error}
+    if String.valid?(symbol) do
+      case Regents.Autolaunch.list_auctions_by_path(symbol, tail, actor: nil) do
+        {:ok, [auction]} -> launched(auction, load)
+        {:ok, _none_or_several} -> :error
+        {:error, %Ash.Error.Invalid{}} -> :error
+        {:error, error} -> {:error, error}
+      end
+    else
+      :error
     end
   end
 

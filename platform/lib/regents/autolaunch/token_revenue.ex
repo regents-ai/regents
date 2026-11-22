@@ -50,11 +50,29 @@ defmodule Regents.Autolaunch.TokenRevenue do
   end
 
   actions do
-    # A token's revenue, newest first, at most the latest fifty.
+    # A token's revenue, newest first, at most the latest fifty, and only while
+    # its auction is a listed Base auction and shown, as the token's page finds
+    # it; only the columns the page shows or sorts by.
     read :for_token do
       argument :token_id, :uuid, allow_nil?: false
       filter expr(token_id == ^arg(:token_id))
-      prepare build(sort: [block_number: :desc, log_index: :desc], limit: 50)
+      prepare {Regents.Autolaunch.Token.Preparations.BaseAuctionOnly, path: [:token, :auction]}
+      prepare {Regents.Autolaunch.Token.Preparations.ShownAuction, path: [:token, :auction]}
+
+      prepare build(
+                select: [
+                  :id,
+                  :token_id,
+                  :transaction_hash,
+                  :block_number,
+                  :log_index,
+                  :occurred_at,
+                  :asset_symbol,
+                  :amount
+                ],
+                sort: [block_number: :desc, log_index: :desc],
+                limit: 50
+              )
     end
   end
 

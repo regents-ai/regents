@@ -150,8 +150,14 @@ defmodule RegentsWeb.Autolaunch.Components.LaunchTrust do
   defp address_chain(auction), do: if(Lab.test_chain?(auction.chain_id), do: "test", else: "base")
 
   # A creator's Telegram group or Discord invite as a link, labelled by its
-  # address without https://.
-  defp named_link("https://" <> label = url), do: %{url: url, label: label}
+  # address without https://: only an https address with a host.
+  defp named_link("https://" <> label = url) do
+    case URI.new(url) do
+      {:ok, %URI{host: host}} when host not in [nil, ""] -> %{url: url, label: label}
+      _invalid -> nil
+    end
+  end
+
   defp named_link(_url), do: nil
 
   # Each account kind the creator could connect, with the matching accounts
