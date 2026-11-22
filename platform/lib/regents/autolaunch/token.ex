@@ -15,7 +15,6 @@ defmodule Regents.Autolaunch.Token do
     primary_read_warning?: false
 
   require Ash.Query
-  alias Regents.Autolaunch.LinkedCreators
 
   # A subject id occupies one public URL segment, the identifier format the
   # public route catalog accepts.
@@ -188,28 +187,24 @@ defmodule Regents.Autolaunch.Token do
               "all" -> query
             end
 
-          # The creators holding each linked account the filters ask about, read once.
-          holders =
-            LinkedCreators.holding!(Enum.filter([:x, :ens, :github], &query.arguments[&1]))
-
           query =
             if query.arguments.x,
               do:
                 Ash.Query.filter(
                   query,
                   exists(auction.creator_x_connections, not is_nil(verified_at)) or
-                    auction.creator_human_account_id in ^holders.x
+                    auction.creator_linked(provider: :x)
                 ),
               else: query
 
           query =
             if query.arguments.ens,
-              do: Ash.Query.filter(query, auction.creator_human_account_id in ^holders.ens),
+              do: Ash.Query.filter(query, auction.creator_linked(provider: :ens)),
               else: query
 
           query =
             if query.arguments.github,
-              do: Ash.Query.filter(query, auction.creator_human_account_id in ^holders.github),
+              do: Ash.Query.filter(query, auction.creator_linked(provider: :github)),
               else: query
 
           query
