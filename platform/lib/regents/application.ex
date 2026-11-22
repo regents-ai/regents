@@ -58,8 +58,12 @@ defmodule Regents.Application do
         Regents.SharedReading,
         points_board_child(),
         # After PubSub and SharedReading: Keyfleet's processes that keep what they
-        # are given in memory and write nothing.
-        Regents.Keyfleet.Supervisor,
+        # are given in memory and write nothing; where pages are served, also the
+        # agents here in each fleet, read once for every open page.
+        {Regents.Keyfleet.Supervisor, serving?: serving?()},
+        # After Keyfleet's own: what each fleet is doing now and its proposal pages,
+        # read once for every open page, only where pages are served.
+        keyfleet_readings_child(),
         # Autolaunch's part, which reads its deployment files as it starts.
         Regents.Autolaunch.Supervisor,
         # Start a worker by calling: Regents.Worker.start_link(arg)
@@ -117,6 +121,14 @@ defmodule Regents.Application do
     if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint) and not Regents.read_only?(),
       do: Regents.Account.Points.Board
   end
+
+  # Keyfleet's shared readings are read only where pages are served, so a task
+  # never reads the database before it asks to.
+  defp keyfleet_readings_child do
+    if serving?(), do: RegentsWeb.Keyfleet.Supervisor
+  end
+
+  defp serving?, do: Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint)
 
   # Metrics are served beside the site, never by a process that only runs a task.
   defp metrics_child do
