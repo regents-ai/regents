@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
 /* autolaunch.sh's own main button, links, focus ring and chosen tab: the autolaunch
    palette's, as Regent UI 69dbfface (which autolaunch.sh at 4799025d wears, with no
    product named) states them. Regent UI's product colours (`data-product`) are for a
@@ -30,5 +30,11 @@
     --color-link: #161616;
     --color-focus: #A33208;
   }
+}
+
+/* Each launch chain's own brand colour. */
+:scope {
+  --chain-base: #0052ff;
+  --chain-robinhood: #00c805;
 }
 }

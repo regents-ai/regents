@@ -1,0 +1,11 @@
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
+/* Browsing and trading: home, auction gallery, tokens, convert and REGENT. */
+.launchpad-card__socials { display: flex; flex-wrap: wrap; gap: var(--space-1); font-size: .8125rem; }
+.launchpad-card__socials { padding: var(--space-2); border-bottom: 1px solid var(--hairline); }
+.launchpad-card__socials a { color: inherit; }
+.token-pair__unit { color: var(--color-fg-muted); font-size: .6em; font-weight: var(--font-weight-regular); white-space: nowrap; }
+/* The chain pill (`ChainIcon.chain_chip/1`) is the shared status pill edged in its chain's colour. */
+.rg-status.chain-chip { --rg-p-tone: var(--chain-color); color: var(--color-fg); }
+.chain-chip--base { --chain-color: var(--chain-base); }
+.chain-chip--robinhood { --chain-color: var(--chain-robinhood); }
+}

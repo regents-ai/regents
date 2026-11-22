@@ -1,14 +1,12 @@
 defmodule RegentsWeb.AutolaunchLive do
   @moduledoc false
-  use Phoenix.Component
 
-  alias RegentsWeb.{HomeLive, ProductLive}
+  alias RegentsWeb.HomeLive
 
-  # The Autolaunch page carries its own copy: the two launch kinds and their
-  # figures for new launches, taken from autolaunch.sh's How it works and its
-  # README (autolaunch a45f7c95), onchain stocks first.
-  # Nothing here reads a chain. The product directory serves the same copy
-  # through `content/0`.
+  # Autolaunch's copy for the product directory (`content/0`): the two launch
+  # kinds and their figures for new launches, taken from autolaunch.sh's How it
+  # works and its README (autolaunch a45f7c95), onchain stocks first.
+  # Nothing here reads a chain.
   @launches [
     %{
       kicker: "Memestock · on Base and Robinhood Chain",
@@ -126,9 +124,9 @@ defmodule RegentsWeb.AutolaunchLive do
   ]
 
   @doc """
-  What the Autolaunch page shows, as the product directory also serves it. The
-  home page's chapter supplies the heading and summary, and its directory entry
-  the site and source links, so that copy still lives once.
+  Autolaunch's entry as the product directory serves it. The home page's
+  chapter supplies the heading and summary, and its directory entry the site
+  and source links, so that copy still lives once.
   """
   def content do
     chapter = Enum.find(HomeLive.products(), &(&1.anchor == "autolaunch"))
@@ -155,102 +153,5 @@ defmodule RegentsWeb.AutolaunchLive do
       agent_line: "Read autolaunch.sh/llms.txt and explain how Autolaunch works.",
       start: %{label: "How it works", href: "https://autolaunch.sh/how-it-works"}
     }
-  end
-
-  def page(assigns) do
-    assigns = assign(assigns, content: content())
-
-    ~H"""
-    <section id="product-autolaunch" class="product-page" aria-labelledby="product-heading">
-      <header class="product-heading rg-panel rg-panel--surface rg-panel__body">
-        <p class="product-kicker">{@content.kicker}</p>
-        <h1 id="product-heading" tabindex="-1">{@content.headline}</h1>
-        <p class="product-lede">{@content.summary}</p>
-        <nav class="product-actions" aria-label="Autolaunch site">
-          <a href={@content.site} target="_blank" rel="noopener noreferrer" class="rg-button">
-            <span class="rg-button__label">Open {@content.name}<span class="visually-hidden">, opens in a new tab</span></span>
-          </a>
-          <a
-            href={@content.start.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rg-button rg-button--secondary"
-          >
-            <span class="rg-button__label">{@content.start.label}<span class="visually-hidden">, opens in a new tab</span></span>
-          </a>
-        </nav>
-      </header>
-
-      <ProductLive.cards cards={@content.cards} />
-
-      <figure class="product-shot rg-panel rg-panel--surface">
-        <img
-          src="/images/products/autolaunch.webp"
-          width="1200"
-          height="630"
-          alt="Agents: autolaunch your token. Revstake: stake for a slice of stablecoin earnings. Memestock: stake for onchain stocks from fees."
-        />
-      </figure>
-
-      <Regent.Structure.section_bar class="rg-support-band">
-        <h2 class="rg-section-bar__label">Launches</h2>
-      </Regent.Structure.section_bar>
-      <div class="product-columns">
-        <Regent.Structure.panel
-          :for={launch <- @content.launches}
-          class="product-column rg-panel__body"
-        >
-          <p class="product-kicker">{launch.kicker}</p>
-          <h3 class="product-launch-title">{launch.title}</h3>
-          <p :for={paragraph <- launch.copy}>{paragraph}</p>
-          <dl class="product-facts">
-            <div :for={fact <- launch.facts}>
-              <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          </dl>
-        </Regent.Structure.panel>
-      </div>
-
-      <Regent.Structure.section_bar class="rg-support-band">
-        <h2 class="rg-section-bar__label">Fair auction</h2>
-      </Regent.Structure.section_bar>
-      <ul class="product-proofs" aria-label="Fair auction">
-        <li :for={proof <- @content.why_fair}>
-          <Regent.Structure.panel class="product-proof rg-panel__body">
-            <h3>{proof.title}</h3>
-            <p>{proof.copy}</p>
-          </Regent.Structure.panel>
-        </li>
-      </ul>
-
-      <div class="product-columns">
-        <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Audience</h2>
-          <ul class="product-audience">
-            <li :for={line <- @content.audience}>{line}</li>
-          </ul>
-        </Regent.Structure.panel>
-        <Regent.Structure.panel class="product-column rg-panel__body">
-          <h2 class="product-kicker">Risks</h2>
-          <p :for={paragraph <- @content.before_you_bid}>{paragraph}</p>
-        </Regent.Structure.panel>
-      </div>
-
-      <Regent.Structure.panel class="product-family rg-panel__body">
-        <h2 class="product-kicker">Regents family</h2>
-        <p>{@content.family}</p>
-        <p class="product-agent-line">
-          <span class="product-kicker">Agent prompt</span>
-          <code>{@content.agent_line}</code>
-        </p>
-        <nav class="product-family__links" aria-label="Autolaunch links">
-          <ProductLive.external href={@content.site}>Open {@content.name}</ProductLive.external>
-          <.link navigate="/stake">Stake REGENT</.link>
-          <ProductLive.external href={@content.github}>Source on GitHub</ProductLive.external>
-        </nav>
-      </Regent.Structure.panel>
-    </section>
-    """
   end
 end

@@ -16,7 +16,6 @@ defmodule Regents.Autolaunch.Auction do
     primary_read_warning?: false
 
   require Ash.Query
-  alias Regents.Autolaunch.LinkedCreators
 
   postgres do
     table "auctions"
@@ -266,6 +265,15 @@ defmodule Regents.Autolaunch.Auction do
       attribute_type :integer
     end
 
+    # The creator's verified links that name a username, regents.sh's. Read,
+    # with the two aggregates over it, only through
+    # `Regents.Autolaunch.Auction.Calculations.CreatorIdentities`, which leaves
+    # them unread on the read-only venue.
+    has_many :creator_identities, Regents.Account.Accounts.PublicLink do
+      source_attribute :creator_human_account_id
+      destination_attribute :human_account_id
+    end
+
     has_many :creator_x_connections, Regents.Autolaunch.XConnection do
       source_attribute :creator_human_account_id
       destination_attribute :human_account_id
@@ -313,13 +321,14 @@ defmodule Regents.Autolaunch.Auction do
                   1.0
                 else
                   fragment(
-                    "greatest(word_similarity(?, concat_ws(' ', ?, ?, ?, ?)), 0.9 * word_similarity(?, array_to_string(? || ?, ' ')), 0.7 * word_similarity(?, coalesce(?, '')))",
+                    "greatest(word_similarity(?, concat_ws(' ', ?, ?, ?, ?)), 0.9 * word_similarity(?, array_to_string(? || ? || ?, ' ')), 0.7 * word_similarity(?, coalesce(?, '')))",
                     ^arg(:term),
                     title,
                     token_symbol,
                     quote_token_symbol,
                     quote_stock_search_text,
                     ^arg(:term),
+                    creator_identity_search_names,
                     creator_x_names,
                     creator_x_display_names,
                     ^arg(:term),
@@ -330,10 +339,39 @@ defmodule Regents.Autolaunch.Auction do
       argument :term, :string, allow_nil?: false
       argument :address, :string
     end
+
+    # Whether the creator holds a linked account of `provider`, for the lists'
+    # filters, and their linked accounts' names, for search; see
+    # `Regents.Autolaunch.Auction.Calculations.CreatorIdentities`.
+    calculate :creator_linked,
+              :boolean,
+              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :linked} do
+      argument :provider, :atom, allow_nil?: false, constraints: [one_of: [:x, :ens, :github]]
+    end
+
+    calculate :creator_identity_search_names,
+              {:array, :string},
+              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :names}
+
+    # The creator's linked X, ENS and GitHub usernames, for their links beside
+    # a launch on the lists; see the same module.
+    calculate :creator_links,
+              :map,
+              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :links} do
+      constraints fields: [x: [type: :string], ens: [type: :string], github: [type: :string]]
+    end
   end
 
   aggregates do
     # The creator's connected account names, for search.
+    list :creator_identity_names, :creator_identities, :username do
+      filter expr(provider in [:x, :github, :ens])
+    end
+
+    list :creator_identity_display_names, :creator_identities, :display_name do
+      filter expr(provider in [:x, :github, :ens])
+    end
+
     list :creator_x_names, :creator_x_connections, :username do
       filter expr(not is_nil(verified_at))
     end
@@ -423,28 +461,24 @@ defmodule Regents.Autolaunch.Auction do
               "all" -> query
             end
 
-          # The creators holding each linked account the filters ask about, read once.
-          holders =
-            LinkedCreators.holding!(Enum.filter([:x, :ens, :github], &query.arguments[&1]))
-
           query =
             if query.arguments.x,
               do:
                 Ash.Query.filter(
                   query,
                   exists(creator_x_connections, not is_nil(verified_at)) or
-                    creator_human_account_id in ^holders.x
+                    creator_linked(provider: :x)
                 ),
               else: query
 
           query =
             if query.arguments.ens,
-              do: Ash.Query.filter(query, creator_human_account_id in ^holders.ens),
+              do: Ash.Query.filter(query, creator_linked(provider: :ens)),
               else: query
 
           query =
             if query.arguments.github,
-              do: Ash.Query.filter(query, creator_human_account_id in ^holders.github),
+              do: Ash.Query.filter(query, creator_linked(provider: :github)),
               else: query
 
           order =
@@ -475,20 +509,12 @@ defmodule Regents.Autolaunch.Auction do
       prepare Regents.Autolaunch.Auction.Preparations.Listed
       prepare Regents.Autolaunch.Auction.Preparations.Shown
     end
-
-    # Every auction the public lists may show, on both chains, whose creators
-    # the lists' linked-account filters ask about
-    # (`Regents.Autolaunch.LinkedCreators`).
-    read :listed_shown do
-      prepare Regents.Autolaunch.Auction.Preparations.Listed
-      prepare Regents.Autolaunch.Auction.Preparations.Shown
-    end
   end
 
   # Only the reads the lists use are carried; any other action is refused until
   # it comes with its own policy.
   policies do
-    policy action([:read, :listed, :path_peers, :home_market, :listed_shown]) do
+    policy action([:read, :listed, :path_peers, :home_market]) do
       authorize_if always()
     end
   end

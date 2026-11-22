@@ -119,7 +119,11 @@ defmodule Regents.Autolaunch.XConnection do
     end
 
     read :public_for_humans do
-      argument :human_account_ids, {:array, :integer}, allow_nil?: false
+      # One page of a list at most (the lists' largest page is 100).
+      argument :human_account_ids, {:array, :integer},
+        allow_nil?: false,
+        constraints: [max_length: 100]
+
       filter expr(human_account_id in ^arg(:human_account_ids) and not is_nil(verified_at))
 
       prepare build(

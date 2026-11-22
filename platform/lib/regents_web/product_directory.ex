@@ -1,7 +1,8 @@
 defmodule RegentsWeb.ProductDirectory do
   @moduledoc """
-  The Regents product directory: what the /keyfleet, /autolaunch, /patchbay and
-  /techtree pages show, read from the same content those pages render.
+  The Regents product directory: what the /keyfleet, /patchbay and /techtree
+  pages show, read from the same content those pages render, and Autolaunch's
+  entry from its own copy (`RegentsWeb.AutolaunchLive.content/0`).
   """
 
   alias RegentsWeb.{AutolaunchLive, ProductLive, PublicDocuments}

@@ -209,6 +209,9 @@ config :regents, :updates_rate_limit, limit: 5, window_seconds: 60
 # The site's named allowances (`Regents.Limits`), `<product>_<name>: [limit:,
 # window_seconds:]`.
 config :regents, :limits,
+  # Listings one address's open Autolaunch pages read (a changed option, a
+  # search, Load more): as many a minute as the address has reads of the site.
+  autolaunch_list_reads: [limit: 120, window_seconds: 60],
   # Posts one agent wallet writes as one Keyfleet Key, in rooms and on its thread:
   # as many as people get.
   keyfleet_agent_posts: [limit: 300, window_seconds: 3600],

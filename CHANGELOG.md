@@ -8198,6 +8198,29 @@ seasons), on the shared Points library regents.sh was already on.
 - When an error cannot be saved with the site's errors, the log line now names only what kind of error it was and what kind of failure stopped the save, never their words, which can carry a query and its values.
 - On the `one-site` branch only. No table, setting or migration.
 
+## 2026-11-22 — One site: Autolaunch's home page at /autolaunch (not released)
+
+- `/autolaunch` is now Autolaunch's own home page, as autolaunch.sh shows its home at `4799025d`: the auctions or the launched tokens, as a list or a gallery, with the same Filter (network, status, type and verified creator), token types, search line, Load more and count, in the same words and order. A choice changes the list without reloading the page, and back and forward bring it back.
+- It replaces this site's Autolaunch overview page and its picture. The site's product directory still describes Autolaunch as before.
+- Every figure is in the auction's own currency, as autolaunch.sh shows one it has no dollar price for. The creator's verified X, ENS and GitHub accounts show beside each launch.
+- An auction's page, a token's page and Launch yours keep their future addresses under `/autolaunch` and answer "not found" until those pages come.
+- Left out for now: the product cards, Coming next, Bid volume and Principles; the Calls list and the stock rows; the notices about reading the chains; the lists updating themselves while open; dollar prices; and every wallet press (Bid, the trade window, Claim and Refund).
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Autolaunch's home page, review fixes (not released)
+
+- Try again reads the list only after a read has failed; a press at any other time does nothing.
+- A launched token whose auction leaves the lists while the page is being read is left out, where the whole list used to fail.
+- A launch's picture is shown only from an `https` address; any other shows the first letter of its name, as a launch with no picture does.
+- One address's open pages can read 120 listings a minute (a changed option, a search, Load more). Past that the page says the launches can't be shown, with Try again.
+- A search is cut at 320 bytes as well as at eighty characters.
+- Not released: on the `fold/autolaunch` branch only. One new named allowance in the site's settings (`autolaunch_list_reads`); no migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: launch pictures from autolaunch.sh may be shown (not released)
+
+- Pages may show the launch pictures autolaunch.sh stores. Pictures on any other host stay blocked and show the first letter of the launch's name.
+- Not released: on the `one-site` branch only. No migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
 ## 2026-11-22 — One site: Keyfleet's fleet pages open under /keyfleet, signed out (not released)
 
 - Each of the five Keyfleet fleets opens under `/keyfleet` (`/keyfleet/classic/1`, `/keyfleet/app/fleets/regents_club` and the other three): its own page with the members, the map and the rooms, a Key's page, Seasons, Proposals and each proposal, Treasury, Polls and each poll, and Search, with the words keyfleet.ai shows.

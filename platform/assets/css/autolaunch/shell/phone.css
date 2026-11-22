@@ -1,4 +1,4 @@
-@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
 /* The phone menu, the template's (ash-template platform/assets/css/components/shell.css,
    "Phones: the rail and sidebar fold into the menu drawer"): Autolaunch's links fold
    into a drawer that comes in from the left under the site's bar and Menu

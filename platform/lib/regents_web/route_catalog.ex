@@ -171,13 +171,6 @@ defmodule RegentsWeb.RouteCatalog do
       route_spec_id: :redeem_gallery
     },
     %Entry{
-      path_pattern: "/autolaunch",
-      live_action: :autolaunch,
-      parameter_schema: %{},
-      reserved_values: %{},
-      route_spec_id: :autolaunch
-    },
-    %Entry{
       path_pattern: "/keyfleet",
       live_action: :keyfleet,
       parameter_schema: %{},
@@ -272,9 +265,6 @@ defmodule RegentsWeb.RouteCatalog do
     redeem_gallery:
       {:redeem_gallery, :regent_ops, "Regents Labs", "Regents Club passes", "/app",
        [:profile_actions], :regents_labs, %{}},
-    autolaunch:
-      {:autolaunch, :regent_ops, "Regents Labs", "Autolaunch", "/app", [:profile_actions],
-       :regents_labs, %{}},
     keyfleet:
       {:keyfleet, :regent_ops, "Regents Labs", "Keyfleet", "/app", [:profile_actions],
        :regents_labs, %{}},
@@ -293,7 +283,6 @@ defmodule RegentsWeb.RouteCatalog do
   @products %{
     stake: "protocol",
     keyfleet: "keyfleet",
-    autolaunch: "autolaunch",
     cloak: "cloak",
     siwa: "siwa"
   }

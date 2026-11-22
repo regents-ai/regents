@@ -27,15 +27,16 @@ defmodule RegentsWeb.Autolaunch.HomeMarket do
     }
   end
 
-  def path(options, changes \\ %{}, base \\ "/") do
+  def path(options, changes \\ %{}, base \\ "/autolaunch") do
     params =
       options
       |> Map.merge(changes)
       |> Map.new(fn {key, value} -> {to_string(key), value} end)
       |> options()
 
-    # /auctions and /tokens name their view in the route itself.
-    defaults = if base == "/", do: options(%{}), else: options(%{"view" => params.view})
+    # /autolaunch/auctions and /autolaunch/tokens name their view in the route itself.
+    defaults =
+      if base == "/autolaunch", do: options(%{}), else: options(%{"view" => params.view})
 
     query =
       params

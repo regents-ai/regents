@@ -351,7 +351,6 @@ defmodule RegentsWeb.Router do
       live "/stake", ShellLive, :stake
       live "/redeem", ShellLive, :redeem
       live "/redeem/gallery", ShellLive, :redeem_gallery
-      live "/autolaunch", ShellLive, :autolaunch
       live "/keyfleet", ShellLive, :keyfleet
       live "/cloak", ShellLive, :cloak
       live "/siwa", ShellLive, :siwa
@@ -468,6 +467,7 @@ defmodule RegentsWeb.Router do
       session: {RegentsWeb.Live.Session, :render_context, []},
       layout: {RegentsWeb.Autolaunch.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
+      live "/", HomeLive, :show
       live "/how-it-works", HowItWorksLive, :show
     end
   end
