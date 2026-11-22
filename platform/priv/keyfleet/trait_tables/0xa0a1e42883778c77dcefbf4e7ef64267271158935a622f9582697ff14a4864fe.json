@@ -1,0 +1,172 @@
+{
+  "traits": [
+    {
+      "name": "Exterior Design",
+      "values": [
+        {"name": "Harbor", "weight": 100},
+        {"name": "Ledger", "weight": 100},
+        {"name": "Signal", "weight": 100},
+        {"name": "Relay", "weight": 100},
+        {"name": "Circuit", "weight": 100},
+        {"name": "Quarry", "weight": 100},
+        {"name": "Lantern", "weight": 74},
+        {"name": "Orchard", "weight": 80},
+        {"name": "Tidewater", "weight": 70},
+        {"name": "Observatory", "weight": 60},
+        {"name": "Cathedral", "weight": 40},
+        {"name": "Foundry", "weight": 25},
+        {"name": "Labyrinth", "weight": 25},
+        {"name": "Crown Vault", "weight": 15},
+        {"name": "Wyvern", "weight": 7},
+        {"name": "The First Door", "weight": 4}
+      ]
+    },
+    {
+      "name": "Key Material",
+      "values": [
+        {"name": "Brushed Steel", "weight": 100},
+        {"name": "Brass", "weight": 100},
+        {"name": "Nickel", "weight": 100},
+        {"name": "Graphite", "weight": 100},
+        {"name": "Copper", "weight": 100},
+        {"name": "Bone Ceramic", "weight": 100},
+        {"name": "Pewter", "weight": 74},
+        {"name": "Rose Gold", "weight": 80},
+        {"name": "Jade", "weight": 70},
+        {"name": "Blued Steel", "weight": 60},
+        {"name": "Gold", "weight": 40},
+        {"name": "Damascus", "weight": 25},
+        {"name": "Opal", "weight": 25},
+        {"name": "Glass", "weight": 15},
+        {"name": "Meteorite", "weight": 7},
+        {"name": "Starlight", "weight": 4}
+      ]
+    },
+    {
+      "name": "Card Shell",
+      "values": [
+        {"name": "Matte Graphite", "weight": 100},
+        {"name": "Pearl", "weight": 100},
+        {"name": "Powder Blue Ceramic", "weight": 100},
+        {"name": "Sage Enamel", "weight": 100},
+        {"name": "Sand Linen", "weight": 100},
+        {"name": "Carbon Weave", "weight": 100},
+        {"name": "Ivory Porcelain", "weight": 74},
+        {"name": "Frosted Glass", "weight": 80},
+        {"name": "Walnut", "weight": 70},
+        {"name": "Brushed Aluminum", "weight": 60},
+        {"name": "Red Lacquer", "weight": 40},
+        {"name": "Mother of Pearl", "weight": 25},
+        {"name": "Obsidian", "weight": 25},
+        {"name": "Clear Crystal", "weight": 15},
+        {"name": "Liquid Mercury", "weight": 7},
+        {"name": "Night Sky", "weight": 4}
+      ]
+    },
+    {
+      "name": "Foil",
+      "values": [
+        {"name": "Satin", "weight": 100},
+        {"name": "Pearl Sheen", "weight": 100},
+        {"name": "Rainbow", "weight": 100},
+        {"name": "Soft Prism", "weight": 100},
+        {"name": "Silver Fleck", "weight": 100},
+        {"name": "Gold Fleck", "weight": 100},
+        {"name": "Frost", "weight": 74},
+        {"name": "Cracked Ice", "weight": 80},
+        {"name": "Starburst", "weight": 70},
+        {"name": "Galaxy", "weight": 60},
+        {"name": "Etched Rays", "weight": 40},
+        {"name": "Checker Prism", "weight": 25},
+        {"name": "Wavefront", "weight": 25},
+        {"name": "Aurora", "weight": 15},
+        {"name": "Black Prism", "weight": 7},
+        {"name": "Full Spectrum", "weight": 4}
+      ]
+    },
+    {
+      "name": "Emblem",
+      "values": [
+        {"name": "Crescent", "weight": 100},
+        {"name": "Keyhole Ring", "weight": 100},
+        {"name": "Sun", "weight": 100},
+        {"name": "Star", "weight": 100},
+        {"name": "Leaf", "weight": 100},
+        {"name": "Wave", "weight": 100},
+        {"name": "Anchor", "weight": 74},
+        {"name": "Eye", "weight": 80},
+        {"name": "Bolt", "weight": 70},
+        {"name": "Heart", "weight": 60},
+        {"name": "Gear", "weight": 40},
+        {"name": "Compass", "weight": 25},
+        {"name": "Flame", "weight": 25},
+        {"name": "Crown", "weight": 15},
+        {"name": "Spiral", "weight": 7},
+        {"name": "Infinity", "weight": 4}
+      ]
+    },
+    {
+      "name": "Rim",
+      "values": [
+        {"name": "Plain Bevel", "weight": 100},
+        {"name": "Double Rule", "weight": 100},
+        {"name": "Rope", "weight": 100},
+        {"name": "Beaded", "weight": 100},
+        {"name": "Knurled", "weight": 100},
+        {"name": "Stitched", "weight": 100},
+        {"name": "Rivets", "weight": 74},
+        {"name": "Fluted", "weight": 80},
+        {"name": "Greek Key", "weight": 70},
+        {"name": "Scalloped", "weight": 60},
+        {"name": "Twisted Wire", "weight": 40},
+        {"name": "Chain", "weight": 25},
+        {"name": "Filigree", "weight": 25},
+        {"name": "Engine-Turned", "weight": 15},
+        {"name": "Jewelled", "weight": 7},
+        {"name": "Light Seam", "weight": 4}
+      ]
+    },
+    {
+      "name": "Patina",
+      "values": [
+        {"name": "Mint", "weight": 100},
+        {"name": "Polished", "weight": 100},
+        {"name": "Satin", "weight": 100},
+        {"name": "Hand-Rubbed", "weight": 100},
+        {"name": "Light Tarnish", "weight": 100},
+        {"name": "Fingerprints", "weight": 100},
+        {"name": "Scratched", "weight": 74},
+        {"name": "Verdigris", "weight": 80},
+        {"name": "Smoke", "weight": 70},
+        {"name": "Heat Tint", "weight": 60},
+        {"name": "Gilded Edges", "weight": 40},
+        {"name": "Etched", "weight": 25},
+        {"name": "Frosted", "weight": 25},
+        {"name": "Mirror", "weight": 15},
+        {"name": "Ancient", "weight": 7},
+        {"name": "Untouched", "weight": 4}
+      ]
+    },
+    {
+      "name": "Regents Crown",
+      "values": [
+        {"name": "Pewter", "weight": 100},
+        {"name": "Steel", "weight": 100},
+        {"name": "Brass", "weight": 100},
+        {"name": "Copper", "weight": 100},
+        {"name": "Bronze", "weight": 100},
+        {"name": "Silver", "weight": 100},
+        {"name": "White Enamel", "weight": 74},
+        {"name": "Black Enamel", "weight": 80},
+        {"name": "Rose Gold", "weight": 70},
+        {"name": "Jade", "weight": 60},
+        {"name": "Gold", "weight": 40},
+        {"name": "Platinum", "weight": 25},
+        {"name": "Blued Steel", "weight": 25},
+        {"name": "Opal", "weight": 15},
+        {"name": "Ruby Glass", "weight": 7},
+        {"name": "Starlight", "weight": 4}
+      ]
+    }
+  ]
+}
