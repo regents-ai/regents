@@ -67,6 +67,10 @@ defmodule RegentsWeb.Patchbay.SiteCheckLive do
       {:noreply,
        socket |> assign(check: check, site: read_site(socket.assigns.domain)) |> assign_tools()}
 
+  # The panel takes no presses; one sent by hand changes nothing.
+  @impl true
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   defp read_site(domain) do
     case Board.fetch_site(domain) do
       {:ok, site} -> site

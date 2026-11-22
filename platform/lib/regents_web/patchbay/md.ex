@@ -114,10 +114,11 @@ defmodule RegentsWeb.Patchbay.MD do
   end
 
   @doc """
-  An address a person wrote or a site gave, as a link only when it is a web
-  address (`RegentsWeb.Patchbay.Forum.BoardHTML.web_address?/1`): `<address>`,
-  or `[words](<address>)` with words. Anything else is its text, as plain
-  words (`plain/1`), and opens nothing.
+  An address a person wrote or a site gave, as a link only when it is an
+  `https` address with a host
+  (`RegentsWeb.Patchbay.Forum.BoardHTML.web_address?/1`): `<address>`, or
+  `[words](<address>)` with words. Anything else, an `http` address
+  included, is its text, as plain words (`plain/1`), and opens nothing.
   """
   @spec web_link(term(), term()) :: String.t()
   def web_link(address, words \\ nil) do

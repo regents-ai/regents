@@ -332,8 +332,16 @@ defmodule Regents.Patchbay.Forum.Reply do
   # Only reads are carried; any other action is refused until it comes with its
   # own policy.
   policies do
-    # The board is public to read: no actor is required.
-    policy action_type(:read) do
+    # The board is public to read: no actor is required. A reply is public
+    # exactly while it is published: one held out of sight, which still names
+    # who wrote it, is absent from the plain read, from every load of a reply
+    # and from every count through one.
+    policy action(:read) do
+      authorize_if(expr(visibility == :published))
+    end
+
+    # The named read keeps to published replies on published threads itself.
+    policy action(:for_report) do
       authorize_if(always())
     end
   end

@@ -204,8 +204,11 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   # given one and writes nothing, so a reader is counted from their second
   # request, and a crawler or a fetch that keeps no cookie never writes. The
   # Markdown answer, and the site where it only reads, neither count nor give
-  # one. A view that is refused or cannot be written is logged by its kind
-  # only, never with the session, and the page is served.
+  # one. Each view spends one of its address's thread views
+  # (`patchbay_thread_views`, `Regents.Limits`), so a client that drops the
+  # cookie cannot raise counts past them; past them the page is served and
+  # nothing is recorded or logged. A view that is refused or cannot be written
+  # is logged by its kind only, never with the session, and the page is served.
   defp viewed(conn, report) do
     if Regents.read_only?() or get_format(conn) != "html",
       do: conn,
@@ -215,16 +218,23 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   defp viewed(conn, _report, nil), do: put_session(conn, @forum_session, Ash.UUID.generate())
 
   defp viewed(conn, report, session_id) do
+    case Regents.Limits.spend(:patchbay_thread_views, RegentsWeb.ClientAddress.tag(conn)) do
+      :ok -> record_view(report, session_id)
+      :limited -> :ok
+    end
+
+    conn
+  end
+
+  defp record_view(report, session_id) do
     case Board.record_view(report, session_id) do
       {:ok, _view} ->
-        conn
+        :ok
 
       {:error, failure} ->
         Logger.warning(
           "A thread view could not be recorded: " <> inspect(Board.failure_kind(failure))
         )
-
-        conn
     end
   end
 
