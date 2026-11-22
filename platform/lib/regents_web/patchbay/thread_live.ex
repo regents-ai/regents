@@ -15,11 +15,15 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
   Drawn with the page, the thread takes what the page has just read
   (`assign_new/3` finds it in the page's assigns); a live connection reads it
   again, once. The evidence and the payment are drawn with the page only and
-  kept as drawn.
+  kept as drawn. When that read fails, the thread says so in the words of the
+  page that answers 503, with its Retry link, and stays as it is: notices are
+  ignored and nothing is read again until the reader asks.
   """
   use RegentsWeb, :live_view
 
-  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [thread_body: 1]
+  require Logger
+
+  import RegentsWeb.Patchbay.Forum.BoardHTML, only: [replies_unavailable: 1, thread_body: 1]
 
   alias Regents.Patchbay.Forum.LivePost
   alias RegentsWeb.Patchbay.Forum.Board
@@ -50,11 +54,14 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
 
     case socket.assigns.report do
       nil -> {:ok, redirect(socket, to: path)}
+      :unavailable -> {:ok, unavailable(socket, session), layout: false}
       report -> {:ok, open(socket, report, session), layout: false}
     end
   end
 
   @impl true
+  def handle_info(_notice, %{assigns: %{retry: _retry}} = socket), do: {:noreply, socket}
+
   def handle_info(%{event: "changed", payload: %{thread: thread, reply: reply}}, socket) do
     if LivePost.published?(thread),
       do: {:noreply, socket |> put_thread(thread) |> put_reply(reply)},
@@ -62,27 +69,58 @@ defmodule RegentsWeb.Patchbay.ThreadLive do
   end
 
   @impl true
+  def render(%{retry: _retry} = assigns) do
+    ~H"""
+    <.replies_unavailable retry={@retry} path={@path} />
+    """
+  end
+
   def render(assigns), do: thread_body(assigns)
 
   defp read_report(id) do
     case Board.fetch_report(id) do
       {:ok, report} -> report
       :error -> nil
+      {:error, failure} -> failed(failure)
     end
   end
 
   defp open(socket, report, session) do
     socket = assign_new(socket, :thread, fn -> read_thread(report, session) end)
 
-    socket
-    |> assign(socket.assigns.thread)
-    |> assign(thread: nil, reply_report: report)
+    case socket.assigns.thread do
+      :unavailable ->
+        unavailable(socket, session)
+
+      thread ->
+        socket
+        |> assign(thread)
+        |> assign(thread: nil, reply_report: report)
+    end
   end
 
   defp read_thread(report, session) do
-    {:ok, thread} = Board.thread_page(report, session["after"], session["replies"])
-    thread
+    case Board.thread_page(report, session["after"], session["replies"]) do
+      {:ok, thread} -> thread
+      {:error, failure} -> failed(failure)
+    end
   end
+
+  # A read that fails as the thread connects is logged by its kind only, as
+  # the page's own is.
+  defp failed(failure) do
+    Logger.warning("Report replies unavailable: " <> inspect(kind(failure)))
+    :unavailable
+  end
+
+  defp kind(failure) when is_struct(failure), do: failure.__struct__
+  defp kind(failure), do: failure
+
+  # Retry opens the same page of replies again, as the 503 page's does.
+  defp unavailable(socket, %{"after" => cursor}) when is_binary(cursor),
+    do: assign(socket, retry: socket.assigns.path <> "?" <> URI.encode_query(after: cursor))
+
+  defp unavailable(socket, _session), do: assign(socket, retry: socket.assigns.path)
 
   defp put_thread(socket, thread) do
     %{report: report, reply_report: reply_report} = socket.assigns

@@ -102,6 +102,23 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
     """
   end
 
+  @doc """
+  What a thread says when its replies could not be read: on the page that
+  answers 503, and in the live thread when its read fails as it connects.
+  """
+  attr :retry, :string, required: true, doc: "The address that reads the same replies again."
+  attr :path, :string, required: true, doc: "The thread's own address."
+
+  def replies_unavailable(assigns) do
+    ~H"""
+    <Regent.Primitives.notice role="alert">
+      <p>The replies to this report could not be loaded right now.</p>
+      <a href={@retry}>Retry</a>
+      <a href={@path <> "#patchbay-replies"}>Back to first replies</a>
+    </Regent.Primitives.notice>
+    """
+  end
+
   def site_name(site), do: site.display_name || site.origin
 
   # A post about the site's own domain, or one naming no page, reads as the site.
