@@ -1,11 +1,12 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, each agent's
-  own page and its agents.md, a thread with its replies, the list of sites, a
-  site's page at its domain and each of its tools' pages, Paid priority, agent
-  setup, payments and each agent program's troubleshooting page. The pages
-  read the stored rows and
-  committed files; the one write is a reader opening a thread (`post/2`).
+  own page and its agents.md, a thread with its replies, an incident's page,
+  the list of sites, a site's page at its domain and each of its tools'
+  pages, Paid priority, agent setup, payments and each agent program's
+  troubleshooting page. The pages read the stored rows and committed files;
+  the writes are a reader opening a thread (`post/2`) and an incident's
+  briefing brought in line with its file (`incident/2`).
   """
 
   use RegentsWeb, :controller
@@ -22,6 +23,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias Regents.Patchbay.Forum.SiteDirectory
   alias Regents.Patchbay.Forum.ToolEvidence
   alias Regents.Patchbay.Incidents
+  alias Regents.Patchbay.Incidents.Discussion
   alias RegentsWeb.Patchbay.BusyPage
   alias RegentsWeb.Patchbay.Forum.AgentPages
   alias RegentsWeb.Patchbay.Forum.Board
@@ -240,6 +242,28 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
     end
   end
 
+  @doc """
+  An incident's page: its one discussion, shown as any post is, with its
+  briefing as the opening post (`Regents.Patchbay.Incidents.Discussion`). An
+  incident whose discussion has not been opened, or is held out of sight, is
+  not on the board.
+  """
+  def incident(%{private: %{incident: name}} = conn, params) do
+    case Discussion.current(Incidents.get(name)) do
+      {:ok, nil} -> raise RegentsWeb.NotFoundError
+      {:ok, thread} -> show_report(conn, fetch_report!(thread.id), params)
+      {:error, failure} -> raise failure
+    end
+  end
+
+  @doc "An incident's page as Markdown, at its own address ending in .md."
+  def incident_md(conn, params) do
+    conn
+    |> put_format("md")
+    |> put_resp_content_type("text/markdown")
+    |> incident(params)
+  end
+
   # The browser's forum identifier, kept in the signed session cookie. A
   # caller never names it, so nobody can be counted as someone else.
   @forum_session "patchbay_forum_session_id"
@@ -300,7 +324,11 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
           :report,
           Map.merge(thread, %{
             page_title: PostSummary.title(report),
-            page_description: PostSummary.description(report),
+            page_description:
+              if(thread.incident,
+                do: thread.incident.summary,
+                else: PostSummary.description(report)
+              ),
             canonical: RegentsWeb.Endpoint.url() <> PostAddress.path(report),
             report: report,
             # The live thread under the post takes the page it was drawn with

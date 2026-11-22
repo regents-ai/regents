@@ -14,6 +14,7 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
   alias Regents.Patchbay.Forum.ToolName
+  alias Regents.Patchbay.Incidents
   alias RegentsWeb.Patchbay.Forum.Discussions
   alias RegentsWeb.Patchbay.Forum.ReplyCursor
   alias RegentsWeb.Patchbay.Forum.SiteChecks
@@ -426,9 +427,9 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
 
   @doc """
   What a post's page shows under the post: the page of replies `cursor` and
-  `filter` name, with the continuation after it, and the asker's pick. The
-  page and its live thread (`RegentsWeb.Patchbay.ThreadLive`) both draw from
-  it.
+  `filter` name, with the continuation after it, the asker's pick, and the
+  incident when the post is one's discussion. The page and its live thread
+  (`RegentsWeb.Patchbay.ThreadLive`) both draw from it.
   """
   @spec thread_page(Forum.Report.t(), String.t() | nil, String.t()) ::
           {:ok, map()} | {:error, term()}
@@ -437,6 +438,7 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
          {:ok, replies, next_cursor} <- replies(report, keyset, filter) do
       {:ok,
        %{
+         incident: report.incident && Incidents.get(report.incident),
          answer: report.solution_reply,
          reply_filter: filter,
          replies: replies,

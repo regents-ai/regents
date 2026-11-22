@@ -1617,10 +1617,16 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def worked_line(%{worked_for_others: count, last_worked_at: at}),
     do: "Worked for #{count_label(count, "person", "people")}, last on #{written_on(at)}"
 
-  @doc "Whose word made a reply the thread's answer: always the asker's."
+  @doc """
+  Whose word made a reply the thread's answer: the asker's, or on an
+  incident's discussion, the people who say it worked.
+  """
   @spec answer_caption(map(), map()) :: String.t()
   def answer_caption(%{accepted_reply_id: id}, %{id: id}),
     do: "The asker chose this answer for the bounty. Their word, not a check."
+
+  def answer_caption(%{incident: incident}, _reply) when is_binary(incident),
+    do: "Marked because people say this worked. Their word, not a check."
 
   def answer_caption(_report, _reply),
     do: "The asker says this worked. Their word, not a check."

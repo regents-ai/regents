@@ -12,8 +12,9 @@ defmodule Regents.Patchbay do
   every attribute, relationship and identity as patchbay.help has them. The
   resources the signed-out pages read carry those reads, open to everyone as
   on patchbay.help; every other resource has no action and one policy
-  refusing every action. The one row written is a reader opening a thread
-  (`Forum.ThreadView`).
+  refusing every action. The rows written are a reader opening a thread
+  (`Forum.ThreadView`) and an incident's opening post brought in line with
+  its file (`Incidents.Discussion`).
   """
   use Boundary,
     top_level?: true,

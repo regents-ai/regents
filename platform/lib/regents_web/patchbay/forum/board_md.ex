@@ -47,11 +47,13 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
   alias Regents.Patchbay.Forum.BoardActivity
   alias Regents.Patchbay.Forum.Fix
   alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.Report
   alias Regents.Patchbay.Forum.SiteDirectory
   alias Regents.Patchbay.Members.Member
   alias RegentsWeb.Patchbay.Forum.BoardHTML
   alias RegentsWeb.Patchbay.Forum.Labels
   alias RegentsWeb.Patchbay.Forum.SiteChecks
+  alias RegentsWeb.Patchbay.IncidentHTML
 
   embed_markdown("board_md/*")
 

@@ -554,9 +554,19 @@ defmodule RegentsWeb.Router do
       get "/#{agent}", Forum.BoardController, :home, private: %{home_page: agent}
     end
 
-    # The incidents, also as Markdown at its own address ending in .md.
+    # The incidents and each one's page, which is its discussion, each also as
+    # Markdown at its own address ending in .md. A name with no incident file
+    # is a missing page.
     get "/incidents", IncidentController, :index
     get "/incidents.md", IncidentController, :index_md
+
+    for incident <- Regents.Patchbay.Incidents.all() do
+      get "/incidents/#{incident.name}", Forum.BoardController, :incident,
+        private: %{incident: incident.name}
+
+      get "/incidents/#{incident.name}.md", Forum.BoardController, :incident_md,
+        private: %{incident: incident.name}
+    end
   end
 
   # Each troubleshooting page's Markdown at its own address ending in .md, each

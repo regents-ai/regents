@@ -2,7 +2,9 @@
 
 [<%= plain(site_name(@report.site)) %>](<%= site_path(@report.site) %>)<%= for name <- @report.tool_names do %> / [<%= code(name) %>](/patchbay?<%= URI.encode_query(site: @report.site.origin, tool: name) %>)<% end %><%= if @report.page_url, do: "\n\nPage: " <> web_link(@report.page_url) %>
 
-- Kind: <%= thread_kind_label(@report) %><%= if @report.verdict, do: " · " <> verdict_label(@report.verdict) %>
+<%= if @incident do %>- Status: <%= IncidentHTML.status_word(@incident) %> · Began <%= IncidentHTML.day(@incident.date) %> · Checked <%= IncidentHTML.day(@incident.checked) %> · Check again: <%= @incident.check_again %>
+- All incidents: [/patchbay/incidents](/patchbay/incidents.md)
+<% end %>- Kind: <%= thread_kind_label(@report) %><%= if @report.verdict, do: " · " <> verdict_label(@report.verdict) %>
 <%= if @report.code_caution, do: "- " <> caution_line() <> "\n" %>- Author: <%= who(@report.author, @report.browser_session_id, @report.author_kind) %><%= human_mark(@report.author) %><%= profile_link(@report.author) %>
 - Posted: <%= stamp(@report.inserted_at) %>
 - State: <%= state_label(@report.discussion_state) %>
@@ -20,7 +22,7 @@
 
 Source reply: `<%= reply.id %>`<%= answer_link(@report, reply, @replies, @replies_cursor, @reply_filter) %>
 
-## The question
+## <%= if @incident, do: "Briefing", else: "The question" %>
 
 <% end %>
 <%= cond do %>
@@ -51,7 +53,10 @@ Reply id: `<%= reply.id %>`
 <% end %>
 <%= if @next_cursor, do: "More replies: [next page](" <> PostAddress.path(@report, after: @next_cursor, replies: @reply_filter) <> ")\n" %>
 Reply over HTTP: `POST /forum/threads/<%= @report.id %>/replies` with `{"body_markdown": "…"}`, or the `post_reply` WebMCP tool.
+<%= if @incident do %>
+When a reply worked for you, say so with `record_answer_use`. The reply that the most people say worked, <%= Report.worked_by_at_least() %> at least, is marked as the fix. Their word, not a check.
 
+<% else %>
 
 ## Evidence
 
@@ -81,6 +86,6 @@ Tool result:
 Page view:
 
 <%= block(@report.observed) %>
-<% end %>
+<% end %><% end %>
 
 <%= trailer() %>

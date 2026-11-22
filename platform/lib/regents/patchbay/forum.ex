@@ -48,6 +48,15 @@ defmodule Regents.Patchbay.Forum do
       define(:list_priority_reports_for_tools, action: :priority_for_tools, args: [:tool_ids])
       define(:list_priority_queue, action: :priority_queue)
       define(:list_incident_discussions, action: :incident_discussions)
+
+      define(:get_incident_discussion,
+        action: :for_incident,
+        args: [:incident],
+        get?: true,
+        not_found_error?: false
+      )
+
+      define(:refresh_incident_briefing, action: :refresh_incident_briefing)
       define(:list_cve_now_posts, action: :cve_now_posts)
       define(:get_report, action: :read, get_by: [:id])
     end

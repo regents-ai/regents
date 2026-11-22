@@ -12,7 +12,8 @@ defmodule Regents.Patchbay.Forum.Report do
   kept goes to REGENT staking.
 
   The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; nothing here writes them yet.
+  them; the one write here brings an incident's opening post in line with its
+  file (`:refresh_incident_briefing`).
   """
 
   use Ash.Resource,
@@ -702,6 +703,12 @@ defmodule Regents.Patchbay.Forum.Report do
       prepare(build(sort: [verified_paid_usdc_atomic: :desc, inserted_at: :desc, id: :desc]))
     end
 
+    read :for_incident do
+      description("An incident's discussion, if it has been opened and is shown.")
+      argument(:incident, :string, allow_nil?: false)
+      filter(expr(incident == ^arg(:incident) and visibility == :published))
+    end
+
     read :incident_discussions do
       description("Every incident's discussion that has been opened and is shown.")
       filter(expr(not is_nil(incident) and visibility == :published))
@@ -713,10 +720,18 @@ defmodule Regents.Patchbay.Forum.Report do
       pagination(offset?: true, countable: true, default_limit: 25, max_page_size: 25)
       prepare(build(sort: [inserted_at: :desc, id: :desc]))
     end
+
+    update :refresh_incident_briefing do
+      description("Brings an incident's opening post in line with its file after a release.")
+      accept([:title, :body_markdown])
+      require_atomic?(false)
+      validate(present(:incident))
+    end
   end
 
-  # Only reads are carried; any other action is refused until it comes with its
-  # own policy.
+  # The reads are carried, and the one write: an incident's briefing brought in
+  # line with its file. Any other action is refused until it comes with its own
+  # policy.
   policies do
     # The board is public to read: no actor is required. A thread is public
     # exactly while it is published: one held out of sight is absent from the
@@ -734,10 +749,20 @@ defmodule Regents.Patchbay.Forum.Report do
              :ranked_for_tool,
              :priority_for_tools,
              :priority_queue,
+             :for_incident,
              :incident_discussions,
              :cve_now_posts
            ]) do
       authorize_if(always())
     end
+
+    # Patchbay brings an incident's opening post in line with its file, in its
+    # own name, when the incident's page is read.
+    policy action(:refresh_incident_briefing) do
+      authorize_if(always())
+    end
   end
+
+  @doc "How many different people must say a reply worked before it counts."
+  def worked_by_at_least, do: @worked_by_at_least
 end
