@@ -8197,3 +8197,12 @@ seasons), on the shared Points library regents.sh was already on.
 - A Keyfleet wallet press that was not sent, not confirmed or refused is counted with the site's other health figures, by flow and reason, as keyfleet.ai counts it.
 - When an error cannot be saved with the site's errors, the log line now names only what kind of error it was and what kind of failure stopped the save, never their words, which can carry a query and its values.
 - On the `one-site` branch only. No table, setting or migration.
+
+## 2026-11-22 — One site: Autolaunch's home page at /autolaunch (not released)
+
+- `/autolaunch` is now Autolaunch's own home page, as autolaunch.sh shows its home at `4799025d`: the auctions or the launched tokens, as a list or a gallery, with the same Filter (network, status, type and verified creator), token types, search line, Load more and count, in the same words and order. A choice changes the list without reloading the page, and back and forward bring it back.
+- It replaces this site's Autolaunch overview page and its picture. The site's product directory still describes Autolaunch as before.
+- Every figure is in the auction's own currency, as autolaunch.sh shows one it has no dollar price for. The creator's verified X, ENS and GitHub accounts show beside each launch.
+- An auction's page, a token's page and Launch yours keep their future addresses under `/autolaunch` and answer "not found" until those pages come.
+- Left out for now: the product cards, Coming next, Bid volume and Principles; the Calls list and the stock rows; the notices about reading the chains; the lists updating themselves while open; dollar prices; and every wallet press (Bid, the trade window, Claim and Refund).
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.

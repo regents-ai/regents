@@ -352,6 +352,14 @@ defmodule Regents.Autolaunch.Auction do
     calculate :creator_identity_search_names,
               {:array, :string},
               {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :names}
+
+    # The creator's linked X, ENS and GitHub usernames, for their links beside
+    # a launch on the lists; see the same module.
+    calculate :creator_links,
+              :map,
+              {Regents.Autolaunch.Auction.Calculations.CreatorIdentities, answer: :links} do
+      constraints fields: [x: [type: :string], ens: [type: :string], github: [type: :string]]
+    end
   end
 
   aggregates do

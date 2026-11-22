@@ -24,8 +24,12 @@ defmodule RegentsWeb.Autolaunch.PublicDocuments do
   }
 
   # Each page's browser-tab title and search description. A title names the
-  # page alone; the site's root document adds " · Autolaunch" once.
+  # page alone; the site's root document adds " · Autolaunch" once, except on
+  # the home page, whose title starts with Autolaunch's name.
   @pages %{
+    "/autolaunch" =>
+      {"Autolaunch · Back AI agents at a fair price",
+       "Bid in token auctions where everyone pays the same price, then stake to earn stablecoins or onchain stocks."},
     "/autolaunch/how-it-works" =>
       {"How it works",
        "How the auction works, and the supply, trading fees and staking rewards for every Autolaunch token."},

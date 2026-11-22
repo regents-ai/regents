@@ -1,6 +1,24 @@
-@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
 .autolaunch-heading { display: grid; gap: var(--space-2); padding-bottom: var(--space-2); }
 .autolaunch-heading > * { margin: 0; }
 .autolaunch-heading h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.035em; }
+.chain-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
 .link-icon { display: inline-block; inline-size: 1em; block-size: 1em; vertical-align: -0.125em; flex: none; }
+/* ENS's own mark: dark blue on a light page, white on a dark one. */
+.link-icon--ens { display: inline-grid; }
+.link-icon--ens img { grid-area: 1 / 1; inline-size: 100%; block-size: 100%; object-fit: contain; }
+.link-icon__ens--light { visibility: hidden; }
+:scope[data-theme="light"] .link-icon__ens--light { visibility: visible; }
+:scope[data-theme="light"] .link-icon__ens--dark { visibility: hidden; }
+@media (prefers-color-scheme: light) {
+  :scope:not([data-theme]) .link-icon__ens--light { visibility: visible; }
+  :scope:not([data-theme]) .link-icon__ens--dark { visibility: hidden; }
+}
+/* Launch a token stays closed until opening, on a gray plate, but keeps the
+   corner marks of the header buttons. Closed, it shows no hover change. */
+.rg-button.create-button:disabled { cursor: not-allowed; }
+:scope .rg-button.create-button:disabled::before { --rg-button-edge-ink: var(--rg-button-active-border); }
+/* Dark shows when chosen, or with no choice on a device that does not ask for light. */
+:scope[data-theme="dark"] .rg-button.create-button:disabled::before { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); }
+@media not all and (prefers-color-scheme: light) { :scope:not([data-theme]) .rg-button.create-button:disabled::before { --rg-button-edge-ink: var(--palette-powder-blue); --rg-button-cut-ink: var(--palette-tangerine-tango); } }
 }

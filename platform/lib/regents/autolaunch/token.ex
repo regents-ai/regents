@@ -4,7 +4,8 @@ defmodule Regents.Autolaunch.Token do
   auction has them, its latest price and where its trades are read from next.
 
   The table and its rows as autolaunch.sh keeps them. Autolaunch's lists read
-  them (`Regents.Autolaunch.HomeMarket`); nothing here writes them yet.
+  them (`Regents.Autolaunch.HomeMarket`) and show each as `presentation/1`
+  gives it; nothing here writes them yet.
   """
 
   use Ash.Resource,
@@ -221,4 +222,32 @@ defmodule Regents.Autolaunch.Token do
       authorize_if always()
     end
   end
+
+  @doc "Returns the one public presentation shared by a graduated token and its auction."
+  def presentation(token) do
+    auction = loaded_auction(token)
+
+    %{
+      name: first_present(field(auction, :title), Map.get(token, :name)),
+      symbol: first_present(field(auction, :token_symbol), Map.get(token, :symbol)),
+      summary: first_present(field(auction, :summary), Map.get(token, :summary)),
+      image: field(auction, :image),
+      image_color: field(auction, :image_color),
+      website: field(auction, :website),
+      auction_address: field(auction, :auction_address)
+    }
+  end
+
+  defp loaded_auction(%{auction: %Ash.NotLoaded{}}), do: nil
+  defp loaded_auction(%{auction: auction}) when is_map(auction), do: auction
+  defp loaded_auction(_token), do: nil
+
+  defp field(nil, _key), do: nil
+  defp field(record, key), do: Map.get(record, key)
+
+  defp first_present(primary, fallback) when is_binary(primary) do
+    if String.trim(primary) == "", do: fallback, else: primary
+  end
+
+  defp first_present(_primary, fallback), do: fallback
 end

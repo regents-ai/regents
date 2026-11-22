@@ -1,6 +1,9 @@
-@scope (:root[data-product="autolaunch"]:has(.shell)) to (.regents-frame) {
+@scope (:root[data-product="autolaunch"]) to (.regents-frame) {
 /* Orange text across the site: the brand's orange, deepened on light pages so it reads at 4.5:1 on every light surface. */
 :scope { --orange-ink: var(--brand-accent); }
 :scope[data-theme="light"] { --orange-ink: #a8380a; }
 @media (prefers-color-scheme: light) { :scope:not([data-theme]) { --orange-ink: #a8380a; } }
+
+/* Every status pill on every page, a state word (Ready, Completed, Outbid), a tag or a chain, is the same micro-label chip; its tone gives the colour. */
+.rg-status { align-items: center; font-size: .6875rem; letter-spacing: var(--tracking-microlabel); line-height: 1.6; text-transform: uppercase; white-space: nowrap; }
 }

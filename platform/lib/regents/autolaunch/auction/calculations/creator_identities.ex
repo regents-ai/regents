@@ -7,14 +7,16 @@ defmodule Regents.Autolaunch.Auction.Calculations.CreatorIdentities do
   `provider` (the X, ENS and GitHub filters); with `answer: :names`, the
   usernames and then the display names of their X, GitHub and ENS links
   (`creator_identity_names` and `creator_identity_display_names`, for the
-  search's `search_rank`).
+  search's `search_rank`); with `answer: :links`, the username of each of
+  their X, ENS and GitHub links, nil where they hold none (the creator's
+  links beside a launch).
 
   The read-only venue's database login is not granted those links, so there
-  the expression names none of them: no creator holds one and there are no
-  names. The venue is set as the site starts (`Regents.read_only?/0`), so a
-  running site builds the same expression for every query. This is the one
-  place the lists ask which venue this is, and the only one that reads
-  `creator_identities` or its two aggregates.
+  the expression names none of them: no creator holds one, there are no
+  names and every link is nil. The venue is set as the site starts
+  (`Regents.read_only?/0`), so a running site builds the same expression for
+  every query. This is the one place the lists ask which venue this is, and
+  the only one that reads `creator_identities` or its two aggregates.
   """
   use Ash.Resource.Calculation
 
@@ -27,4 +29,14 @@ defmodule Regents.Autolaunch.Auction.Calculations.CreatorIdentities do
 
   defp answer(:names, false),
     do: expr(fragment("? || ?", creator_identity_names, creator_identity_display_names))
+
+  defp answer(:links, true), do: expr(%{x: nil, ens: nil, github: nil})
+
+  defp answer(:links, false),
+    do:
+      expr(%{
+        x: first(creator_identities, field: :username, query: [filter: provider == :x]),
+        ens: first(creator_identities, field: :username, query: [filter: provider == :ens]),
+        github: first(creator_identities, field: :username, query: [filter: provider == :github])
+      })
 end
