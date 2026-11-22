@@ -40,12 +40,14 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
       (the page's `session_lease`, which each of the panel's events and
       results checks first, taking the account as it reads now:
       `RegentsWeb.Live.Session.check_component_lease/2`) and `client_tag`
-      (the page's: the panel's first figures read once it is mounted, and
-      each one a changed form or the open wallet starts, spends one of its
+      (the page's: the panel's first figures read once it is mounted, each
+      one a changed form or the open wallet starts, and each one the panel
+      starts again by itself, after figures it could not read, while a
+      button is held back and Buy's every few minutes, spends one of its
       address's `keyfleet_wallet_reads`, and past them the panel shows it
-      could not read its figures, as when the chain does not answer; a
-      rebuild the page itself causes and the panel's own retry are not
-      counted, and no press is);
+      could not read its figures, as when the chain does not answer, and
+      tries again, counted; a rebuild the page itself causes and the account
+      changing are not counted, and no press is);
     * `inputs`, each field the steps read with its first value; `proposal`,
       `token_id` or `advance_id` when the flow acts on one; `refresh`, anything whose
       change means the steps are built again; `names_sender`, false where
@@ -85,7 +87,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # A purchase is good for ten minutes from the block it was built at, so
   # the steps are built again well before that.
   @rebuild_buy_ms 300_000
-  # How soon a group whose figures couldn't be read from the chain tries again.
+  # How soon a group whose figures couldn't be read tries again.
   @reread_ms 10_000
   # How soon a group with a button the chain's state holds back reads it again.
   @blocked_ms 15_000
@@ -204,9 +206,10 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   end
 
   @impl true
-  # The group's own timer: only the latest one builds the steps again.
+  # The group's own timer: only the latest one builds the steps again, and
+  # its read is counted, whatever it follows.
   def update(%{rebuild: timer}, socket) do
-    {:ok, if(timer == socket.assigns.rebuild, do: sync(socket), else: socket)}
+    {:ok, if(timer == socket.assigns.rebuild, do: sync(socket, :counted), else: socket)}
   end
 
   def update(assigns, socket) do
@@ -441,8 +444,8 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # The steps follow the wallet that may send them and the form. The figures
   # are built for that wallet, or for the account's own while another is
   # active; the page is given steps only for the wallet that may send them.
-  # A group's first read, and one the page's changed form or open wallet
-  # starts, is `:counted`.
+  # A group's first read, one the page's changed form or open wallet starts,
+  # and one its own timer starts, is `:counted`.
   defp sync(socket, spend \\ :uncounted) do
     {socket, figures_wallet} = follow_signer(socket)
     build(socket, figures_wallet, spend)
