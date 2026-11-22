@@ -435,6 +435,10 @@ defmodule RegentsWeb.Keyfleet.ShellLive do
   defp notice({:treasury_refresh_ready, rest}, socket),
     do: {:noreply, ProposalsLive.refresh_ready(socket, rest)}
 
+  # The site's hook has already read the account again, so every place showing
+  # the wallet's name shows the answer.
+  defp notice({:ens_lookup_finished, _account_id}, socket), do: {:noreply, socket}
+
   # A page that couldn't be loaded shows nothing else that a notice could
   # change; the header's balance still follows.
   defp notice(_message, %{assigns: %{load_failed?: true}} = socket), do: {:noreply, socket}

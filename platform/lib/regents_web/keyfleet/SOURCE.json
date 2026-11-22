@@ -330,6 +330,7 @@
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the source's second mount drew again a page whose token predated client_key and schedule_put_away (an old shape); the site's tokens carry this page's context from the first",
         "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands",
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the lineage it assigned is the site's session_lease.lineage",
+        "need: the site's hook (RegentsWeb.Live.Session) passes {:ens_lookup_finished, account_id} on to the page after reading the account again, where the source's hook kept it, so the page answers it with nothing to change, as the site's own ShellLive does; without it a signed-in page crashes when the person's ENS lookup finishes",
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
         "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change"
       ]
@@ -590,13 +591,6 @@
     "Settings the carried pages read that config does not set: :regents, :keyfleet_fleet_feed_wait_ms and :keyfleet_first_read_ms",
     "The design handoff (RouteCatalog.design_handoff/0) is kept; its caller, the mix task keyfleet.route_handoff, is not carried",
     "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below"
-  ],
-  "held": [
-    {
-      "file": "live/shell_live.ex",
-      "is_now": "no answer to the site's ENS notice",
-      "must_be": "notice({:ens_lookup_finished, _account_id}, socket) answering {:noreply, socket}, as the site's own ShellLive does: the site's hook passes that message on to the page after re-reading the account, where the source's hook kept it, so without it a signed-in page crashes when the person's ENS lookup finishes. Its own commit after the carry (site-calls.md row W7)"
-    }
   ],
   "not_reached": {
     "why": "no carried page reaches them (the walk of the Keyfleet chief's measure, reach.py, which never enters a file not carried): the agents' API and tools, the JSON and agent controllers, plugs and gateways, OAuth, the early page, health, metrics and vitals, the showcase and admin pages; each comes with its own slice or is the site's",
