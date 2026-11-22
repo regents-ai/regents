@@ -8151,3 +8151,10 @@ seasons), on the shared Points library regents.sh was already on.
 - Commit 9e4edbdb, /cloak/install offers no file on the founder's letter 379 a. Full check exit 0 on 9e4edbdb; the practice run built the image and found no migration pending.
 - Live read, signed out: /cloak/install shows no Download button and no download link as a page or as Markdown, with or without ?download=1, and still shows its four steps and two pictures; /cloak is as before, the film answers, the pages and agent documents answer; health reports migrations applied.
 - Rollback: the image main-125cd26424df.
+
+## 2026-11-22 — One site: two views products can join (not released)
+
+- A product's list can now filter, sort and search, inside its own database query, by which person an agent is paired with and that person's wallets (`regents_app.paired_person_wallets`: agent wallet, account, wallet), and by people's verified social links that name a username (`regents_app.public_links`: account, provider, username, display name). Neither names the sign-in id, a provider's own id for the person, Privy's details or a time.
+- The pairing view holds the same pairings an agent's own requests are judged by: a pairing still in place whose person has an account here. Only the system may read it directly. The links view holds the links the linked-accounts read gives, less those without a username; anyone may read it.
+- Nothing reads either yet: Keyfleet and Autolaunch move to them in their own slices.
+- One migration, which adds the two views and nothing else; no table, row, page or setting changes. On the `one-site` branch only.

@@ -94,6 +94,17 @@ again from it and moving that commit.
   `Regents.Account.Agents.pairings_by_wallets/2`: which of a list of agent wallets are
   paired, with each one's wallet, name and harness; the person is not part of it.
   All of these are for the system actor.
+  Two views a product's query joins in SQL, never naming Account's tables or the
+  sign-in id: it relates to them with explicit keys and filters, sorts or searches
+  through them. `regents_app.paired_person_wallets` (`Agents.PairedPersonWallet`:
+  `agent_wallet`, `human_account_id`, `wallet`), the person each agent is paired with
+  as `Agent.with_pairing/1` decides it, one row for each of the person's wallets, every
+  address lowercase; only the system actor reads it directly, a filter or calculation
+  in a product's code still reaches it, and an aggregate through it counts nothing for
+  any other actor.
+  `regents_app.public_links` (`Accounts.PublicLink`: `human_account_id`, `provider`,
+  `username`, `display_name`), the verified links that name a username; anyone may
+  read it.
 - `Regents.Alert.report/1` saves what a person must act on with the site's errors, and
   `Regents.Limits.admit/2` and `spend/2` spend a named allowance from the one list,
   `config :regents, :limits`, named `<product>_<name>`: the prefix is required, as the
