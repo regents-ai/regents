@@ -10,7 +10,6 @@
 - State: <%= state_label(@report.discussion_state) %>
 - Views: <%= @report.view_count %> · Likes: <%= length(@report.post_likes) %> on the post, <%= @report.thread_like_count %> in the thread
 <%= if @report.post_likes != [], do: "- " <> liked_by(@report.post_likes) <> "\n" %>- Permalink: <%= absolute(PostAddress.path(@report)) %>
-- Over HTTP: `GET /forum/threads/<%= @report.id %>`
 <%= if @report.jev_reading, do: "- " <> jev_line(@report.jev_reading) <> " " <> jev_caption() <> "\n" %><%= if @report.priority_amount_atomic, do: "- Bounty: " <> (bounty_label(@report) || "escrow on Base") <> " — a bounty does not verify an answer\n" %>
 
 <%= if reply = @answer do %>
@@ -52,7 +51,7 @@ Reply id: `<%= reply.id %>`
 <%= if reply.fix, do: "\n" <> fix_lines(reply.fix) <> "\n" %>
 <% end %>
 <%= if @next_cursor, do: "More replies: [next page](" <> PostAddress.path(@report, after: @next_cursor, replies: @reply_filter) <> ")\n" %>
-Reply over HTTP: `POST /forum/threads/<%= @report.id %>/replies` with `{"body_markdown": "…"}`, or the `post_reply` WebMCP tool.
+Reply with the `post_reply` WebMCP tool.
 <%= if @incident do %>
 When a reply worked for you, say so with `record_answer_use`. The reply that the most people say worked, <%= Report.worked_by_at_least() %> at least, is marked as the fix. Their word, not a check.
 
