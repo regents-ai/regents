@@ -30,6 +30,7 @@ defmodule RegentsWeb.Techtree do
       Layouts,
       ModelClimbReportController,
       ObjectController,
+      Plugs.PageMarkdown,
       ProjectPackageController,
       ProjectsLive,
       PublicationController,

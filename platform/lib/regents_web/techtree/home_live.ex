@@ -113,6 +113,131 @@ defmodule RegentsWeb.Techtree.HomeLive do
     do:
       "#{skill.maker}’s public Skill, on #{split.final} final-test cases asked #{repeats} times each."
 
+  @doc "Techtree's home page as Markdown: the same parts, in the same order."
+  @spec markdown() :: String.t()
+  def markdown do
+    services =
+      Enum.map_join(Services.all(), "\n", fn service ->
+        tool_names = Enum.map_join(service.tools, ", ", &Services.label/1)
+
+        "- [#{service.name}](#{Services.path(service.id)}): #{service.promise} " <>
+          "Price level: #{service.price} of 4. Tools: #{tool_names}"
+      end)
+
+    others =
+      Enum.map_join(Services.others(), "\n", fn service ->
+        "- [#{service.name}](#{Services.path(service.id)}): #{service.promise}"
+      end)
+
+    factory_steps =
+      factory()
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {step, index} ->
+        "#{index}. #{step.label} ([#{step.name}](#{step.path})): #{step.line}"
+      end)
+
+    process =
+      @process
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {{name, line}, index} -> "#{index}. #{name}: #{line}" end)
+
+    makers_md =
+      Enum.map_join(makers(), "\n", fn maker ->
+        "- #{maker.name}\n" <>
+          Enum.map_join(maker.projects, "\n", fn project ->
+            "  - [#{Services.label(project)}](#{project.href}) " <>
+              "(#{Services.status_name(project.status)}): #{project.line}"
+          end)
+      end)
+
+    """
+    # Techtree
+
+    #{@title}
+
+    #{@promise} #{BookCall.markdown(@mailto)}
+
+    ## Services
+
+    #{@services_line}
+
+    #{services}
+    #{others}
+
+    ## Factory
+
+    #{@factory_line}
+
+    #{factory_steps}
+
+    #{@factory_after}
+
+    #{@factory_note}
+
+    [Guide](/techtree/docs/factory) · [Model Factory](#{@model_factory})
+    #{demonstrations_markdown(Comparisons.list())}
+    ## Process
+
+    #{@process_line}
+
+    #{process}
+
+    ## Built on
+
+    #{@stack_line} #{Services.status_line()}
+
+    #{makers_md}
+
+    ## Contact
+
+    #{@closing} #{BookCall.markdown(@mailto)}
+
+    ## Pages
+
+    - [Results](/techtree/results): published Results and comparisons, each with how to check it.
+    - [Docs](/techtree/docs): run Techtree locally, check a Result and publish one.
+    - [About](/techtree/about), [Changelog](/techtree/changelog), [Privacy](/privacy) and [Terms](/terms)
+
+    ## Agents
+
+    - [/techtree/skill.md](/techtree/skill.md): the Techtree skill, for an agent to install.
+    - [/techtree/agents.md](/techtree/agents.md): the agent guide: the release to install and every step.
+    - [/llms.txt](/llms.txt): the short start for agents.
+    - [/openapi.json](/openapi.json): every public API address, typed.
+    - [/sitemap.xml](/sitemap.xml): every public page.
+    """
+  end
+
+  defp demonstrations_markdown([]), do: ""
+
+  defp demonstrations_markdown(comparisons) do
+    items =
+      Enum.map_join(comparisons, "\n", fn comparison ->
+        %{final: final, skill: skill} = comparison
+
+        """
+        ### #{skill.name}
+
+        #{about(comparison)}
+
+        - Original: #{Copy.percent(final.original)}
+        - Revised: #{Copy.percent(final.improved)}
+        - Verdict: #{Copy.verdict_name(comparison)}. #{Copy.verdict(comparison)}
+
+        [Result](/techtree/train/#{comparison.slug}) · [GitHub](#{skill.github_url}) · [skills.sh](#{skill.skills_sh_url})
+        """
+      end)
+
+    """
+
+    ## Demonstrations
+
+    #{@demonstrations_line}
+
+    #{items}
+    """
+  end
+
   # The page takes no presses; one sent by hand changes nothing.
   @impl true
   def handle_event(_event, _params, socket), do: {:noreply, socket}

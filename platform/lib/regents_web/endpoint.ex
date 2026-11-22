@@ -129,6 +129,9 @@ defmodule RegentsWeb.Endpoint do
        ),
        do: RegentsWeb.Techtree.PublicationRate.call(conn, [])
 
+  defp limit_rate(%Plug.Conn{path_info: ["mcp" | _]} = conn, _opts),
+    do: RegentsWeb.Plugs.McpAgent.limit_address(conn)
+
   defp limit_rate(%Plug.Conn{path_info: ["api" | _]} = conn, _opts),
     do: RegentAgentAccess.RateLimit.call(conn, rate_limit("default", 120))
 

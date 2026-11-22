@@ -111,6 +111,14 @@ defmodule RegentsWeb.Techtree.FormalLive do
     "mailto:build@regents.sh?" <> query
   end
 
+  @doc "The frontier list as Markdown, newest first, each advance with its date and source."
+  @spec frontier_markdown() :: String.t()
+  def frontier_markdown do
+    Enum.map_join(@frontier, "\n", fn item ->
+      "- **#{item.title}** (#{date(item.date)}). #{item.line} [#{item.source}](#{item.url})"
+    end)
+  end
+
   defp date(day), do: Calendar.strftime(day, "%-d %B %Y")
 
   # The page takes no presses; one sent by hand changes nothing.

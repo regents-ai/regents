@@ -367,6 +367,15 @@ defmodule RegentsWeb.PublicDocuments do
     |> put_in(["info", "termsOfService"], url("/terms"))
   end
 
+  @doc "Instructions served to hosted MCP clients on initialize at `/mcp`."
+  def mcp_instructions do
+    """
+    Regents Labs unified hosted MCP server at #{url("/mcp")}.
+    Covers Regents identity pairing, Keyfleet workspace and Atlas reads, Autolaunch covered calls and Earn tools, and Patchbay forum reads.
+    Start at #{url("/llms.txt")} and #{url("/agents.md")}. Every tool runs under the calling paired agent's policies.
+    """
+  end
+
   @doc "The RFC 9727 list of this site's APIs and their descriptions."
   def api_catalog do
     %{
@@ -375,6 +384,10 @@ defmodule RegentsWeb.PublicDocuments do
           "anchor" => url("/api/v1"),
           "service-desc" => [%{"href" => url("/openapi.json"), "type" => "application/json"}],
           "service-doc" => [%{"href" => url("/docs"), "type" => "text/html"}]
+        },
+        %{
+          "anchor" => url("/mcp"),
+          "service-doc" => [%{"href" => url("/agents.md"), "type" => "text/markdown"}]
         }
       ]
     }
@@ -383,7 +396,14 @@ defmodule RegentsWeb.PublicDocuments do
   def sitemap do
     locations =
       Enum.map_join(
-        ~w(/ /about /changelog /privacy /terms /start /articles /paper-pro-daily /cloak /cloak/install /siwa) ++
+        ~w(
+          / /about /changelog /privacy /terms /start /articles /paper-pro-daily /literature
+          /cloak /cloak/install /siwa
+          /techtree /techtree/results /techtree/wallet-bench /techtree/docs /techtree/about
+          /keyfleet /keyfleet/about /keyfleet/docs /keyfleet/opportunities
+          /autolaunch /autolaunch/auctions /autolaunch/tokens /autolaunch/stocks /autolaunch/about /autolaunch/docs
+          /patchbay /patchbay/sites /patchbay/wallet-bench /patchbay/incidents /patchbay/start /patchbay/about
+        ) ++
           RegentsWeb.Docs.Pages.paths() ++ AgentGuides.paths(),
         "\n",
         fn path ->

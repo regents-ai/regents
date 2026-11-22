@@ -183,10 +183,40 @@ defmodule RegentsWeb.Router do
   end
 
   # Techtree's pages: the page is Techtree's (its palette and stylesheets), read
-  # inside Techtree's own frame (RegentsWeb.Techtree).
+  # inside Techtree's own frame (RegentsWeb.Techtree), also answering Markdown
+  # via PageMarkdown when asked with `Accept: text/markdown`.
+  # ContentSecurityPolicy builds this policy; Sobelow cannot evaluate its value.
+  # sobelow_skip ["Config.CSP"]
+  pipeline :techtree_browser do
+    plug :accepts, ["html", "md"]
+    plug :fetch_session
+    plug :enforce_session_authority
+    plug :fetch_live_flash
+    plug RegentsWeb.Plugs.RequireArticleAdmin
+    plug RegentsWeb.Plugs.Theme
+    plug :put_root_layout, html: {RegentsWeb.Layouts, :root}
+    plug :put_product, "techtree"
+    plug RegentsWeb.Plugs.LaunchGate
+    plug :protect_from_forgery
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" => ContentSecurityPolicy.sign_in()
+    }
+
+    plug RegentsWeb.Techtree.Plugs.PageMarkdown
+  end
+
   pipeline :techtree do
     plug :put_product, "techtree"
     plug :put_layout, html: {RegentsWeb.Techtree.Layouts, :app}
+  end
+
+  # The unified hosted MCP server: refused on the read-only venue, then admitted
+  # by McpAgent (SIWA paired agent or Regents.OAuth Bearer token). No cookies or
+  # sessions are read.
+  pipeline :mcp do
+    plug RegentsWeb.Plugs.ReadOnly
+    plug RegentsWeb.Plugs.McpAgent
   end
 
   # Keyfleet's pages: the page is Keyfleet's (its stylesheets), read inside
@@ -491,6 +521,57 @@ defmodule RegentsWeb.Router do
     forward "/", RegentAgents.HTTP
   end
 
+  # Connected-app OAuth sign-in (`Regents.OAuth`) and consent. Strictly refused
+  # on the read-only venue; while the connector is off, protocol routes answer
+  # 404 and consent is refused.
+  scope "/", RegentsWeb do
+    pipe_through [:api, :read_only]
+
+    get "/.well-known/oauth-protected-resource", OAuthController, :resource_metadata
+    get "/.well-known/oauth-protected-resource/mcp", OAuthController, :resource_metadata
+    get "/.well-known/oauth-authorization-server", OAuthController, :server_metadata
+    post "/oauth/register", OAuthController, :register, log: false
+    post "/oauth/token", OAuthController, :token, log: false
+    post "/oauth/revoke", OAuthController, :revoke, log: false
+  end
+
+  scope "/oauth", RegentsWeb do
+    pipe_through [:read_only, :browser]
+
+    get "/authorize", OAuthController, :authorize, log: false
+    post "/authorize", OAuthController, :approve, log: false
+    get "/connections", OAuthController, :connections, log: false
+    post "/connections/revoke", OAuthController, :revoke_connection, log: false
+  end
+
+  # Unified hosted MCP server at `/mcp`, spanning Regents identity tools,
+  # Keyfleet workspace tools, Autolaunch covered calls & Earn tools, and
+  # Patchbay forum tools.
+  scope "/" do
+    pipe_through :mcp
+
+    forward "/mcp",
+            AshAi.Mcp.Router,
+            [
+              otp_app: :regents,
+              mcp_name: "regents",
+              instructions: &__MODULE__.mcp_instructions/1,
+              list_ttl_ms: 0,
+              read_ttl_ms: 0,
+              cache_scope: "private",
+              allowed_origins: &is_binary/1,
+              tool_argument_transformer: &__MODULE__.mcp_check_input/3
+            ],
+            log: false
+  end
+
+  @doc "Instructions returned on MCP initialize."
+  def mcp_instructions(_opts), do: RegentsWeb.PublicDocuments.mcp_instructions()
+
+  @doc false
+  def mcp_check_input(tool, args, ctx),
+    do: RegentsWeb.Autolaunch.ToolErrors.check_input(tool, args, ctx)
+
   scope "/", RegentsWeb do
     pipe_through :browser
 
@@ -560,7 +641,7 @@ defmodule RegentsWeb.Router do
   end
 
   scope "/techtree", RegentsWeb.Techtree do
-    pipe_through [:browser, :techtree]
+    pipe_through [:techtree_browser, :techtree]
 
     get "/about", PublicPagesController, :show
     get "/agents", PublicPagesController, :show

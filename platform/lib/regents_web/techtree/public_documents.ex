@@ -26,6 +26,10 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
   @about_file Application.app_dir(:regents, "priv/techtree/public/about.md")
   @external_resource @about_file
 
+  @formal_file Application.app_dir(:regents, "priv/techtree/public/formal.md")
+  @external_resource @formal_file
+  @formal File.read!(@formal_file)
+
   @sources DocsGuides.slugs()
            |> Map.new(&{&1, File.read!(Path.join(@directory, &1 <> ".md"))})
 
@@ -69,6 +73,14 @@ defmodule RegentsWeb.Techtree.PublicDocuments do
   @doc "The words on what Techtree charges, as the agent documents say them."
   @spec payment() :: String.t()
   def payment, do: @payment
+
+  @doc "The closing line every Techtree Markdown page carries."
+  @spec trailer() :: String.t()
+  def trailer, do: @trailer
+
+  @doc "Techtree Formal's Markdown template."
+  @spec formal() :: String.t()
+  def formal, do: @formal
 
   @doc "A Docs guide's heading, first line and the rest as HTML."
   @spec guide(String.t()) :: %{title: String.t(), lede: String.t(), body_html: String.t()}

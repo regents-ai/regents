@@ -9,6 +9,7 @@ defmodule RegentsWeb.Patchbay do
       AdminMessagesLive,
       AgentAPI.ProfileController,
       AgentProfileController,
+      AgentTools,
       AnswerWatchController,
       AssistAPI.RunController,
       BlogController,

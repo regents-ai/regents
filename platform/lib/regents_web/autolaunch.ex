@@ -45,6 +45,7 @@ defmodule RegentsWeb.Autolaunch do
       Supervisor,
       TokenController,
       TokensLive,
+      ToolErrors,
       TreasuryController,
       UnavailableController,
       UpcomingLive,

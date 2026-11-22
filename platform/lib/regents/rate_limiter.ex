@@ -47,6 +47,19 @@ defmodule Regents.RateLimiter do
     if count <= limit, do: {:ok, budget}, else: {:error, :rate_limited, budget}
   end
 
+  @doc "Whether `key` has already reached `limit` in the current `window_seconds` bucket."
+  @spec spent?(term(), pos_integer(), pos_integer()) :: boolean()
+  def spent?(key, limit, window_seconds) do
+    now = System.monotonic_time(:second)
+    bucket = Integer.floor_div(now, window_seconds)
+    row = {window_seconds, key, bucket}
+
+    case :ets.lookup(@table, row) do
+      [{^row, count}] -> count >= limit
+      [] -> false
+    end
+  end
+
   # The first request of a window drops that window's older counters, and the
   # older sweep markers with them.
   defp sweep(window_seconds, bucket) do

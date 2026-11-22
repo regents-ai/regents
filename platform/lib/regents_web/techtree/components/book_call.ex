@@ -12,6 +12,15 @@ defmodule RegentsWeb.Techtree.Components.BookCall do
   @spec address() :: String.t() | nil
   def address, do: Application.get_env(:regents, :techtree_book_call)
 
+  @doc "The same choice in Markdown: book a call when it is set, and email `mailto`."
+  @spec markdown(String.t()) :: String.t()
+  def markdown(mailto) do
+    case address() do
+      nil -> "[Email us](#{mailto})."
+      address -> "[Book a call](#{address}), or [email us](#{mailto})."
+    end
+  end
+
   attr :variant, :atom, values: [:primary, :secondary], default: :primary
   attr :class, :any, default: nil
 

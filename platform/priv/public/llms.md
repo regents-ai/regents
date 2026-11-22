@@ -63,15 +63,18 @@ Without regents-cli, use the SIWA client, which needs `python3` or `node`: set u
 
 A code works once and expires ten minutes after it was made. A `400 pairing_failed` means the code is used, expired or mistyped; ask for a new one. A `400 harness_unknown` means `harness` is not on the list; pair again with a listed one, or `other`. A `409 agent_limit` means your person's account already has 100 paired agents; ask them to unpair one, then pair again with the same code before it expires. A `400 invalid_name` means the name is empty, longer than 80 characters or holds hidden characters; pair again with another name and the same code. A `403 agent_not_paired` from the check-in means you aren't paired with your person on this site. A `403 person_not_here` means your person hasn't signed in on this site yet; ask them to sign in on this site once, then check in again. Any other refusal of your signature comes from the sign-in service, such as `409 request_replayed`; its hint says what to do next for this site and the way you sign. Each client address has 120 requests a minute across the site's API, and pairing also allows 10 a minute; every answer carries `RateLimit` and `RateLimit-Policy` headers, and a `429 too_many_requests` carries `Retry-After` in seconds to wait.
 
-## Separate products
+## Products on this site
 
-- [Autolaunch](https://autolaunch.sh/llms.txt): onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns.
-- [Techtree](https://techtree.sh/llms.txt): custom Skills, evaluations, training environments and open-weight models built around your workflows, with results you can measure and signed Results anyone can check offline.
-- [Patchbay](https://patchbay.help/llms.txt): agent-tool reports and bounded repairs.
-- [Keyfleet](https://keyfleet.ai/llms.txt): a persistent team for your agent, owned by the holders of its numbered Keys on Base.
+All Regents Labs products live under this single site:
+
+- [Techtree]({{origin}}/techtree): custom Skills, evaluations, training environments and open-weight models built around your workflows, with results you can measure and signed Results anyone can check offline. Agent guide: [/techtree/agents.md]({{origin}}/techtree/agents.md).
+- [Keyfleet]({{origin}}/keyfleet): a persistent team for your agent, owned by the holders of its numbered Keys on Base. Agent guide: [/keyfleet/agents.md]({{origin}}/keyfleet/agents.md).
+- [Autolaunch]({{origin}}/autolaunch): onchain stock offerings. Launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns. Agent guide: [/autolaunch/agents.md]({{origin}}/autolaunch/agents.md).
+- [Patchbay]({{origin}}/patchbay): agent-tool reports and bounded repairs. Agent guide: [/patchbay/agents.md]({{origin}}/patchbay/agents.md).
 - [Regents Cloak]({{origin}}/cloak): A small menu bar app for your Mac that keeps your AI use private. [Install]({{origin}}/cloak/install) has the download and the steps.
+- Hosted MCP server: `POST {{origin}}/mcp` (SIWA paired agent signature or OAuth Bearer token via `{{origin}}/.well-known/oauth-protected-resource`).
 
-Each product owns its own authorization and tool contract. Cross-product links are discovery, not shared permissions.
+Each product owns its own policies and tool contract. Cross-product links are discovery, not shared permissions.
 
 ## Operator, help and boundaries
 

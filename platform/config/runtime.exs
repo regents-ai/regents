@@ -288,6 +288,39 @@ read_only? = Regents.DatabaseConfig.reader?()
 config :regents, :read_only, read_only?
 config :error_tracker, :enabled, not read_only?
 
+# Connected-app OAuth & hosted MCP identity tools: off by default and always off
+# on the read-only venue or during migrations.
+claude_connector? =
+  case System.get_env("REGENTS_CLAUDE_CONNECTOR_ENABLED") do
+    nil -> false
+    "true" -> not migrating? and not read_only?
+    _other -> raise "REGENTS_CLAUDE_CONNECTOR_ENABLED must be true or unset"
+  end
+
+hosted_signing_key = System.get_env("SIWA_HOSTED_SIGNING_KEY")
+
+if claude_connector? and
+     not (is_binary(hosted_signing_key) and
+            Regex.match?(~r/\A[A-Za-z0-9_-]{32,}\z/, hosted_signing_key)) do
+  raise "REGENTS_CLAUDE_CONNECTOR_ENABLED is true, so SIWA_HOSTED_SIGNING_KEY must be " <>
+          "this site's hosted signing key from the sign-in service: 32 or more letters, " <>
+          "digits, - or _"
+end
+
+config :regents, Regents.OAuth,
+  enabled?: claude_connector?,
+  issuer: site_url,
+  resource: site_url && site_url <> "/mcp"
+
+config :regent_mcp_agents, :config,
+  enabled?: claude_connector?,
+  hosted_signer: [
+    base_url: System.get_env("SIWA_SERVER_URL"),
+    key: hosted_signing_key
+  ]
+
+config :regent_agents, hosted_pairing: if(claude_connector?, do: [:claude], else: [])
+
 database_config =
   if config_env() == :prod and migrating? do
     Regents.DatabaseConfig.release_config!()

@@ -64,6 +64,171 @@ defmodule RegentsWeb.Techtree.ServiceLive do
     end)
   end
 
+  @doc "A service's page as Markdown: the same words, with the call and the email."
+  @spec markdown(atom()) :: String.t()
+  def markdown(:security) do
+    service = Services.security()
+
+    options =
+      Enum.map_join(service.options, "\n\n", fn option ->
+        {label, href} = option.link
+        "## #{option.name}\n\n#{option.line}\n\n#{list(option.items)}\n\n[#{label}](#{href})"
+      end)
+
+    """
+    # #{service.name}
+
+    #{service.promise}
+
+    #{options}
+
+    ## Rules
+
+    #{list(service.rules)}
+
+    ## Contact
+
+    #{service.call} #{BookCall.markdown(mailto(service))}
+    """
+  end
+
+  def markdown(:swarm_verify) do
+    service = Services.swarm_verify()
+    {label, href} = service.demonstration.link
+
+    stages =
+      service.workflow.stages
+      |> Enum.with_index(1)
+      |> Enum.map_join("\n", fn {stage, index} -> "#{index}. **#{stage.name}**: #{stage.line}" end)
+
+    """
+    # #{service.name}
+
+    #{service.promise}
+
+    #{service.more}
+
+    ## Workflow
+
+    #{service.workflow.line}
+
+    #{stages}
+
+    ## Failures
+
+    #{list(service.failures)}
+
+    ## Methods
+
+    #{Services.status_line()}
+
+    #{steps_markdown(service.steps)}
+
+    ## Demonstration
+
+    #{words_markdown(service.demonstration.words)}
+
+    [#{label}](#{href})
+
+    ## You receive
+
+    #{service.loop}
+
+    #{list(service.receive)}
+
+    ## Limits
+
+    #{list(service.limits)}
+
+    ## Tools
+
+    #{@tools_line}
+
+    #{tools_markdown(service.tools)}
+
+    ## Contact
+
+    #{service.call} #{BookCall.markdown(mailto(service))}
+    """
+  end
+
+  def markdown(id) do
+    service = Services.fetch!(id)
+
+    [
+      "# #{service.name}\n\n#{service.promise}",
+      service[:more],
+      "Price level: #{service.price} of 4. #{@quoted}",
+      "## Process\n\n#{Services.status_line()}\n\n#{steps_markdown(service.steps)}",
+      "## You receive\n\n#{list(service.receive)}",
+      comparisons_markdown(service[:comparisons]),
+      "## Tools\n\n#{@tools_line}\n\n#{tools_markdown(service.tools)}",
+      "## Terms\n\n#{list(Services.terms())}",
+      notes_markdown(service.notes),
+      "## Contact\n\n#{service.call} #{BookCall.markdown(mailto(service))}"
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n\n")
+    |> Kernel.<>("\n")
+  end
+
+  defp steps_markdown(steps) do
+    steps
+    |> Enum.with_index(1)
+    |> Enum.map_join("\n", fn {step, index} ->
+      "#{index}. **#{step.name}**#{status_markdown(step.status)}: #{words_markdown(step.words)}"
+    end)
+  end
+
+  defp status_markdown(nil), do: ""
+  defp status_markdown(status), do: " (#{Services.status_name(status)})"
+
+  defp comparisons_markdown(nil), do: nil
+
+  defp comparisons_markdown(comparisons) do
+    items =
+      Enum.map_join(comparisons.items, "\n", fn item ->
+        "- **#{item.name}**: #{item.question} #{item.answer}"
+      end)
+
+    "## Comparisons\n\n#{comparisons.line}\n\n#{items}"
+  end
+
+  defp tools_markdown(tools) do
+    comparisons = Comparisons.list()
+
+    tools
+    |> Services.by_status()
+    |> Enum.map_join("\n\n", fn {status, group} ->
+      "### #{Services.status_name(status)}\n\n" <>
+        Enum.map_join(group, "\n", fn tool ->
+          "- [#{Services.label(tool)}](#{tool.href}): #{tool.job}" <>
+            results_markdown(results(tool, comparisons))
+        end)
+    end)
+  end
+
+  defp results_markdown([]), do: ""
+
+  defp results_markdown(results),
+    do:
+      " Results: " <>
+        Enum.map_join(results, " · ", &"[#{&1.skill.name}](/techtree/train/#{&1.slug})")
+
+  defp notes_markdown([]), do: nil
+
+  defp notes_markdown(notes),
+    do: "## Notes\n\n#{notes |> Enum.map(&words_markdown/1) |> list()}"
+
+  defp list(items), do: Enum.map_join(items, "\n", &("- " <> &1))
+
+  defp words_markdown(words) do
+    Enum.map_join(words, fn
+      {text, href} -> "[#{text}](#{href})"
+      text -> text
+    end)
+  end
+
   defp mailto(service),
     do: "mailto:build@regents.sh?" <> URI.encode_query([subject: service.name], :rfc3986)
 

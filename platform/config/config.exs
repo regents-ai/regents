@@ -144,7 +144,8 @@ config :regents,
     Regents.Keyfleet.Projects,
     Regents.Keyfleet.Usage,
     Regents.Keyfleet.Atlas,
-    RegentsWeb.Keyfleet.AgentTools
+    RegentsWeb.Keyfleet.AgentTools,
+    RegentsWeb.Patchbay.AgentTools
   ],
   generators: [timestamp_type: :utc_datetime]
 
@@ -686,6 +687,30 @@ config :error_tracker,
   prefix: "regents_app",
   ignorer: Regents.ErrorIgnorer,
   filter: Regents.ErrorFilter
+
+# Connected-app OAuth sign-in (`Regents.OAuth`) and hosted identity tools
+# (`RegentMCPAgents`) for the unified `/mcp` server. `config/runtime.exs` sets
+# `enabled?`, `issuer`, `resource` and the hosted signing key at boot (always
+# disabled on the read-only venue).
+config :regents, Regents.OAuth,
+  enabled?: false,
+  brand: "regents",
+  scope: "regent.identity.manage",
+  permission:
+    {"Keep an identity",
+     "pair with your account using a code you give it, and check in so you see it is active"},
+  additional_scopes: %{
+    "regents.agent" =>
+      {"Work as your paired agent",
+       "work here as the agent you paired, with the same rights as any agent you pair"}
+  },
+  never: "It cannot sign transactions, move funds, change your wallets or pair other agents."
+
+config :regent_mcp_agents, :config,
+  enabled?: false,
+  audience: "regents",
+  refusal:
+    "Call get_identity to see where this connection stands. Not paired: ask your person for a new code from Pair New Agent on their Agents page. Asked to connect: your person connects this app to Regents again."
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

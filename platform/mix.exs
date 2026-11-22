@@ -218,7 +218,9 @@ defmodule Regents.MixProject do
         # (Ash domains reading resources and resources reading their policy checks/changes/validations).
         # Patchbay's full write/assist/offers/wallet-bench domains add 15 (7 WalletBench view resources
         # plus 8 resource->check/notifier/action compile edges).
-        "xref graph --label compile-connected --fail-above 312",
+        # Unified /mcp and OAuth add 4 (Agents->Connection, Connection->Caller,
+        # Patchbay.AgentTools->Forum, and McpAgent->ClientAddress).
+        "xref graph --label compile-connected --fail-above 316",
         "ash.codegen --check",
         "usage_rules.sync --check",
         "regents.route_handoff --check"

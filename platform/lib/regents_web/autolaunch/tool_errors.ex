@@ -149,6 +149,18 @@ defmodule RegentsWeb.Autolaunch.ToolErrors do
     do: Jason.encode!(ApiError.body(code, message, hint))
 end
 
+defimpl AshAi.ToToolError, for: Regents.Account.Agents.Connection.Refused do
+  def to_tool_error(%{error: %{} = error, retry_after: retry_after}) do
+    body = if retry_after, do: %{error: error, retry_after: retry_after}, else: %{error: error}
+    Jason.encode!(body)
+  end
+
+  def to_tool_error(%{wait: seconds}) when is_integer(seconds),
+    do: Jason.encode!(RegentMCPAgents.Tools.wait(seconds))
+
+  def to_tool_error(_refused), do: Jason.encode!(RegentMCPAgents.Tools.refusal())
+end
+
 defimpl AshAi.ToToolError, for: RegentsWeb.Autolaunch.Refusal do
   def to_tool_error(%{code: code, message: message, hint: hint}),
     do: Jason.encode!(RegentsWeb.Autolaunch.ApiError.body(code, message, hint))

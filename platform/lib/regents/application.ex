@@ -22,6 +22,8 @@ defmodule Regents.Application do
     # Debian image can lag by weeks. Req, Finch and Mint read this list through
     # `:public_key.cacerts_get/0`, so it is loaded before anything connects.
     :ok = :public_key.cacerts_load(CAStore.file_path())
+    :ok = RegentOAuth.configure(Regents.OAuth)
+    :ok = RegentMCPAgents.configure!()
     :ok = Regents.Stake.SnapshotRefresh.attach_failure_notice()
     :ok = RegentHttp.ErrorSaving.attach()
     :ok = RegentsWeb.VisitLog.Events.attach()
@@ -30,6 +32,7 @@ defmodule Regents.Application do
       [
         RegentsWeb.Telemetry,
         {Regents.RateLimiter, []},
+        {Cachex, name: Regents.Account.Agents.HostedAddress.cache()},
         {Regents.OpenSea.HoldingsCache, []},
         {Task.Supervisor, name: Regents.SiteTools.Reads},
         Regents.SiteTools,
