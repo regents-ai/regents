@@ -74,7 +74,7 @@ defmodule RegentsWeb.Keyfleet.Components.Tour do
     <div
       id="fleet-tour"
       class="fleet-tour"
-      phx-hook="Tour"
+      phx-hook="KeyfleetTour"
       phx-update="ignore"
       data-tour={if @holder, do: "holder", else: "visitor"}
       data-main={to_string(@main)}

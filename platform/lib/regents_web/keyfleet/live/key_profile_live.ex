@@ -620,7 +620,7 @@ defmodule RegentsWeb.Keyfleet.KeyProfileLive do
         id="key-profile-thread"
         class="rooms-thread-list"
         phx-update="stream"
-        phx-hook="MotionList"
+        phx-hook="KeyfleetMotionList"
         data-variant={Motion.standard("list")}
         data-layout-id="key-profile-thread"
         data-children="[data-post]"

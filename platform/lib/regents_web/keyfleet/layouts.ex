@@ -22,7 +22,7 @@ defmodule RegentsWeb.Keyfleet.Layouts do
       id="flash-region"
       class="toast-dock"
       aria-live="polite"
-      phx-hook="MotionList"
+      phx-hook="KeyfleetMotionList"
       data-variant={RegentsWeb.Motion.standard("toast")}
       data-layout-id="flash-region"
       data-children="[data-toast]"

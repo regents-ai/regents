@@ -753,7 +753,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
           id="fleet-feed-list"
           class="activity-lines"
           phx-update="stream"
-          phx-hook="MotionList"
+          phx-hook="KeyfleetMotionList"
           data-variant={Motion.standard("list")}
           data-layout-id="fleet-feed-list"
           data-children="[data-line]"
@@ -861,7 +861,7 @@ defmodule RegentsWeb.Keyfleet.FleetLive do
         :if={@quotes.requests != []}
         id="fleet-quote-sent"
         class="fleet-quote__sent"
-        phx-hook="MotionList"
+        phx-hook="KeyfleetMotionList"
         data-variant={Motion.standard("list")}
         data-layout-id="fleet-quote-sent"
         data-children="[data-quote]"

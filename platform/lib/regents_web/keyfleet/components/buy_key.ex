@@ -284,7 +284,7 @@ defmodule RegentsWeb.Keyfleet.Components.BuyKey do
           <span
             id={"#{@id}-approve-mark"}
             class="fleet-step-mark"
-            phx-hook="MotionTick"
+            phx-hook="KeyfleetMotionTick"
             data-done={approve_done?(panel)}
             aria-hidden="true"
           >

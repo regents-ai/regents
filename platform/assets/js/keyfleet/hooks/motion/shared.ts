@@ -1,0 +1,87 @@
+/**
+ * What all of the product's motion shares: the design system's timings and
+ * curves, and the questions asked before anything moves.
+ */
+import {animate, cubicBezier, utils, type AnimationParams, type JSAnimation} from "animejs"
+
+export const FAST = 140
+export const BASE = 200
+export const SLOW = 280
+
+export const EASE_OUT = cubicBezier(0.23, 1, 0.32, 1)
+export const EASE_IN_OUT = cubicBezier(0.77, 0, 0.175, 1)
+
+// Words and digits that rise into view each sit inside a box that clips them,
+// `.split-clip` in components/motion.css. The box is named by a class because a
+// page's security policy may refuse styles written into markup, which is what
+// splitText's own `wrap` writes.
+export const CLIPPED_WORD = "<span class='split-clip'><span data-word='{i}'>{value}</span></span>"
+export const CLIPPED_CHAR = "<span class='split-clip'><span data-char='{i}'>{value}</span></span>"
+
+// The reader asked for less motion, in their system settings or with a
+// switch on the page around the element.
+export const still = (el: Element) =>
+  matchMedia("(prefers-reduced-motion: reduce)").matches || el.closest("[data-motion='reduced']") !== null
+
+// The reader saw it change: the page was already live when it did. LiveView
+// marks its view `phx-connected` only once it has drawn what it joined with,
+// so a page that has just opened, or that is drawn again as its connection
+// comes back, shows its state as it is.
+export const watched = (el: Element) =>
+  el.closest("[data-phx-session]")?.classList.contains("phx-connected") ?? false
+
+// A click from Enter or Space reports no pointer presses. Keyboard-driven UI
+// answers at once rather than animating.
+export const byPointer = (event: MouseEvent) => event.detail > 0
+
+// Menus and dialogs can open without a click of their own, from a hover or
+// from the server. They move only when the reader was last using a mouse or a
+// finger. Going back or forward starts afresh, with no input yet, so what that
+// reopens is simply there; so does a page the browser kept and shows again on
+// Back. Focus put somewhere by script shows its ring only after a key press:
+// a page that has had no input yet shows none.
+let last: "pointer" | "key" | undefined
+
+export const lastInputByPointer = () => last === "pointer"
+export const lastInputByKey = () => last === "key"
+
+export function watchInput(doc: Document) {
+  const byHand = () => { last = "pointer" }
+  const byKey = () => { last = "key" }
+  const afresh = () => { last = undefined }
+  doc.addEventListener("pointerdown", byHand, true)
+  doc.addEventListener("pointermove", byHand, true)
+  doc.addEventListener("keydown", byKey, true)
+  doc.defaultView?.addEventListener("popstate", afresh)
+  doc.defaultView?.addEventListener("pageshow", event => { if (event.persisted) afresh() })
+}
+
+// Anime.js hands an element back to its stylesheet by restoring the inline
+// style it found when the animation began. One begun over another's
+// half-way frame would end on that frame, so each run first puts its
+// elements back as they were before the last run on them began. Every run
+// then starts from rest, and ends there with no inline style left behind.
+// A finished run is forgotten, so nothing later puts back its old snapshot.
+const playing = new WeakMap<Element, JSAnimation>()
+
+export function play(targets: Element | Element[], params: AnimationParams) {
+  const els = [targets].flat()
+  rest(els)
+  const animation = animate(els, {
+    ...params,
+    onComplete: done => {
+      utils.cleanInlineStyles(done)
+      for (const el of els) if (playing.get(el) === done) playing.delete(el)
+    },
+  })
+  for (const el of els) playing.set(el, animation)
+  return animation
+}
+
+// Puts elements back as they were before their last run began, and forgets it.
+export function rest(targets: Element | Element[]) {
+  for (const el of [targets].flat()) {
+    playing.get(el)?.revert()
+    playing.delete(el)
+  }
+}
