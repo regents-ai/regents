@@ -69,8 +69,4 @@ defmodule Regents.Patchbay.Forum.PostPicture do
       authorize_if(expr(report.visibility == :published))
     end
   end
-
-  @doc "The media type a picture is served as."
-  @spec content_type(%{format: atom()}) :: String.t()
-  def content_type(%{format: format}), do: "image/#{format}"
 end

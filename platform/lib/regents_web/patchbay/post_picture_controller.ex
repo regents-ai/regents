@@ -4,20 +4,14 @@ defmodule RegentsWeb.Patchbay.PostPictureController do
   use RegentsWeb, :controller
 
   alias Regents.Patchbay.Forum
-  alias Regents.Patchbay.Forum.PostPicture
+  alias RegentsWeb.Patchbay.Picture
 
-  def show(conn, %{"id" => id}), do: send_picture(conn, Forum.get_post_picture(id))
-
-  # The type is one of PNG, JPEG or WebP, read from the picture's own bytes
-  # when it was added, and the browser is told not to guess another.
-  # sobelow_skip ["XSS.ContentType", "XSS.SendResp"]
-  defp send_picture(conn, {:ok, picture}) do
-    conn
-    |> put_resp_content_type(PostPicture.content_type(picture), nil)
-    |> put_resp_header("x-content-type-options", "nosniff")
-    |> put_resp_header("cache-control", "public, max-age=86400")
-    |> send_resp(200, picture.image)
+  # The format is the one read from the picture's own bytes when it was
+  # added; a row holding any other is not served (`Picture.send_picture/3`).
+  def show(conn, %{"id" => id}) do
+    case Forum.get_post_picture(id) do
+      {:ok, picture} -> Picture.send_picture(conn, picture.format, picture.image)
+      {:error, _not_found_or_hidden} -> Picture.missing(conn)
+    end
   end
-
-  defp send_picture(conn, {:error, _not_found_or_hidden}), do: send_resp(conn, 404, "")
 end
