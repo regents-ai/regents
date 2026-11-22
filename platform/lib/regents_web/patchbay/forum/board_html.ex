@@ -50,11 +50,11 @@ defmodule RegentsWeb.Patchbay.Forum.BoardHTML do
   def scope_label("following"), do: "Following"
   def scope_label(_), do: "Recent"
 
-  @doc "A site's page: its domain, under Patchbay's list of sites."
+  @doc "A site's page: its domain."
   def site_path(site), do: domain_path(site.origin)
 
   @doc "The page for a domain, whether or not the board has a site filed under it."
-  def domain_path(domain), do: "/patchbay/sites/" <> domain
+  def domain_path(domain), do: "/patchbay/" <> domain
 
   @doc """
   Where the browser loads a picture or logo a row or the catalog names. The

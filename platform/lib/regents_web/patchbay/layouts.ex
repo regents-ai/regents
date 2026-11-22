@@ -66,11 +66,15 @@ defmodule RegentsWeb.Patchbay.Layouts do
 
   defp home?(conn), do: conn.request_path == ~p"/patchbay"
 
-  # The list of sites and every site's own page.
-  defp sites?(conn),
-    do:
-      conn.request_path == ~p"/patchbay/sites" or
-        String.starts_with?(conn.request_path, "/patchbay/sites/")
+  # The list of sites and every site's own page: a site's page is its domain,
+  # the only first part of an address under /patchbay/ with a dot.
+  defp sites?(conn) do
+    case conn.path_info do
+      ["patchbay", "sites"] -> true
+      ["patchbay", name | _rest] -> String.contains?(name, ".")
+      _elsewhere -> false
+    end
+  end
 
   # The home page's form, opened.
   defp ask_path, do: ~p"/patchbay?ask=1" <> "#pb-hero"

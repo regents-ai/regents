@@ -8,6 +8,7 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
 
   alias Regents.Patchbay.Forum
   alias Regents.Patchbay.Forum.Feed
+  alias Regents.Patchbay.Forum.Origin
   alias Regents.Patchbay.Forum.PostPicture
   alias Regents.Patchbay.Forum.SiteCheck
   alias Regents.Patchbay.Forum.SiteDirectory
@@ -120,11 +121,31 @@ defmodule RegentsWeb.Patchbay.Forum.Board do
   end
 
   @doc """
-  The site a catalog slug names, such as `chrome` for the Chrome row. A read
-  that fails is raised, never taken for a slug the board does not have.
+  The directory entry a name points to: a catalog slug first, then a domain,
+  so `chrome` and `google.com` name the same Chrome row, and
+  `developers.openai.com` names `openai.com`. A read that fails is raised,
+  never taken for a site the board does not have.
   """
-  @spec fetch_slug(String.t()) :: {:ok, Forum.Site.t()} | :error
-  def fetch_slug(ref) do
+  @spec fetch_site_ref(String.t()) :: {:ok, Forum.Site.t()} | :error
+  def fetch_site_ref(ref) do
+    if Regex.match?(~r/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/, ref) do
+      with :error <- fetch_slug(ref), do: fetch_normalized_origin(ref)
+    else
+      with :error <- fetch_normalized_origin(ref), do: fetch_slug(ref)
+    end
+  end
+
+  defp fetch_normalized_origin(ref) do
+    case Origin.normalize(ref) do
+      {:ok, domain} -> domain |> fetch_site() |> found()
+      {:error, _not_a_site} -> :error
+    end
+  end
+
+  defp found({:error, failure}), do: raise(failure)
+  defp found(site_or_none), do: site_or_none
+
+  defp fetch_slug(ref) do
     case Forum.get_site_by_slug(ref) do
       {:ok, site} -> {:ok, site}
       {:error, %Ash.Error.Invalid{}} -> :error

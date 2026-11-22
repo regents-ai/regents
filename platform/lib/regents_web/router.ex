@@ -527,7 +527,7 @@ defmodule RegentsWeb.Router do
     get "/start", Forum.BoardController, :start
     get "/agent-setup", Forum.BoardController, :agent_setup
     get "/sites", Forum.BoardController, :sites
-    get "/sites/:origin", Forum.BoardController, :site
+    get "/sites/:origin", Forum.BoardController, :old_site
     get "/posts/:id/:slug", Forum.BoardController, :post
     get "/posts/:id", Forum.BoardController, :post
     get "/reports/:id", Forum.BoardController, :post
@@ -554,6 +554,14 @@ defmodule RegentsWeb.Router do
           :troubleshooting_md,
           private: %{harness: harness}
     end
+  end
+
+  # A site's own page is its domain, as on patchbay.help. These stay the last
+  # /patchbay routes, so no page of Patchbay's is ever read as a site.
+  scope "/patchbay", RegentsWeb.Patchbay do
+    pipe_through [:patchbay_browser, :patchbay]
+
+    get "/:host", Forum.BoardController, :site
   end
 
   # Keyfleet's agent guides, to any caller, as the site's own are.

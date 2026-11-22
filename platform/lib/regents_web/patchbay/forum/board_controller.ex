@@ -1,10 +1,10 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
   Patchbay's board pages: the home page with its question lists, a thread
-  with its replies, the list of sites and a site's page, agent setup,
-  payments and each agent program's troubleshooting page. The pages read the
-  stored rows and committed files; the one write is a reader opening a thread
-  (`post/2`).
+  with its replies, the list of sites and a site's page at its domain, agent
+  setup, payments and each agent program's troubleshooting page. The pages
+  read the stored rows and committed files; the one write is a reader opening
+  a thread (`post/2`).
   """
 
   use RegentsWeb, :controller
@@ -32,6 +32,10 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   alias RegentsWeb.Patchbay.PublicDocuments
 
   plug :put_view, html: BoardHTML, md: BoardMD
+
+  # A site's own address is its domain: any other single name after
+  # /patchbay/ is a missing page, answered as every missing address is.
+  plug :real_domain when action in [:site]
 
   # A read the database is too busy to answer asks to be opened again shortly.
   # Any other error goes on exactly as raised, so Phoenix still answers a
@@ -319,33 +323,70 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   defp popular(_params, _later_page), do: []
 
   @doc """
-  The one page for a site, `/patchbay/sites/<domain>`, whether or not the
-  board knows it yet. Any other way of writing the site (a host under it,
-  capitals) moves for good to its domain, and so does a catalog slug such as
-  `chrome`; anything else is a missing page. `goal` and `error` in the
+  The one page for a site, `/patchbay/<domain>`, whether or not the board
+  knows it yet. Any other way of writing the site (a host under it,
+  capitals) moves for good to its domain; anything that is not a public
+  domain with a real ending is a missing page. `goal` and `error` in the
   address fill in the ask_question call the Markdown page gives, `page` names
   the exact page the visitor was on, and `address` lists only the posts about
   one address of the site, such as `web.autocad.com` (a host off the site is
   a missing page).
 
+  A name ending in `.md` is a missing page when the part before `.md` is
+  exactly one of Patchbay's own page names (`/patchbay/docs.md`): these name
+  a page, not a site, as on patchbay.help. Any other `.md` domain
+  (`999.md`, `point.md`) has its site page like every other site.
+
   The page shows the site's stored check; asking for a new one comes with
   Patchbay's background work. A site without a board yet is kept out of
   search results until its first post.
   """
-  def site(conn, %{"origin" => ref} = params) do
-    case Origin.normalize(ref) do
-      {:ok, domain} ->
-        path = BoardHTML.domain_path(domain)
+  def site(conn, %{"host" => host} = params) do
+    # `real_domain/2` lets only a real domain through to here.
+    {:ok, domain} = Origin.normalize(host)
+    if page_name_md?(conn, domain), do: raise(RegentsWeb.NotFoundError)
+    path = BoardHTML.domain_path(domain)
 
-        if conn.request_path == path,
-          do: site_page(conn, domain, params),
-          else: moved(conn, path, params)
+    if conn.request_path == path,
+      do: site_page(conn, domain, params),
+      else: moved(conn, path, params)
+  end
 
-      {:error, _not_a_domain} ->
-        case Board.fetch_slug(ref) do
-          {:ok, site} -> moved(conn, BoardHTML.site_path(site), params)
-          :error -> raise RegentsWeb.NotFoundError
-        end
+  defp page_name_md?(conn, domain) do
+    stem = Path.rootname(domain, ".md")
+    stem != domain and stem in page_names(conn.private.phoenix_router)
+  end
+
+  # The first word of every fixed address under /patchbay/, read from the
+  # router that answered this request.
+  defp page_names(router) do
+    router
+    |> Phoenix.Router.routes()
+    |> Enum.flat_map(fn
+      %{path: "/patchbay/" <> rest} -> [rest |> String.split("/") |> hd()]
+      _elsewhere -> []
+    end)
+    |> Enum.reject(&String.starts_with?(&1, [":", "*"]))
+  end
+
+  @doc """
+  A site's page at its earlier address, `/patchbay/sites/<domain or slug>`,
+  moved for good: a catalog slug such as `chrome` or a domain the board knows
+  to its site's page, any other domain to its own page; anything else is a
+  missing page.
+  """
+  def old_site(conn, %{"origin" => ref} = params) do
+    case {Board.fetch_site_ref(ref), Origin.normalize(ref)} do
+      {{:ok, site}, _domain} -> moved(conn, BoardHTML.site_path(site), params)
+      {:error, {:ok, domain}} -> moved(conn, BoardHTML.domain_path(domain), params)
+      {:error, {:error, _not_a_site}} -> raise RegentsWeb.NotFoundError
+    end
+  end
+
+  defp real_domain(%{path_params: %{"host" => host}} = conn, _opts) do
+    case Origin.normalize(host) do
+      {:ok, _domain} -> conn
+      {:error, _not_a_site} -> raise RegentsWeb.NotFoundError
     end
   end
 
