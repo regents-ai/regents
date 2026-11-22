@@ -648,8 +648,7 @@
     "The header's Buy Key offer goes with Keyfleet's header (the site's bar has no place for it); the Buy Key window and the fleet pages' Buy Key stay. A request for the next slice",
     "The Schedule card's page: :agents variant has no caller here (the Agents page it sat on is the site's)",
     "The design handoff (RouteCatalog.design_handoff/0) is kept; its caller, the mix task keyfleet.route_handoff, is not carried",
-    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below",
-    "The shared readings the routed pages wait on are not started until Regents.Application names RegentsWeb.Keyfleet.Supervisor (FleetNow and FleetProposals) and Agents.Here is started (the core's not_started). Until they are, a fleet's hall, Proposals, a proposal and Treasury show \"This page couldn't be loaded\""
+    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below"
   ],
   "not_reached": {
     "why": "no carried page reaches them (the walk of the Keyfleet chief's measure, reach.py, which never enters a file not carried): the agents' API and tools, the JSON and agent controllers, plugs and gateways, OAuth, the early page, health, metrics and vitals, the showcase and admin pages; each comes with its own slice or is the site's",

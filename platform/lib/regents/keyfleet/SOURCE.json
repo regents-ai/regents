@@ -394,7 +394,7 @@
     ],
     "files_note": "each to the same path under platform/lib/regents/keyfleet/; three more are in files above: goal_ideas.ex, whole since slice 2, and authority.ex and capabilities.ex, as slice 1 brought them; classic_key_prices.txt byte for byte (fleets/presets.ex reads it at compile time)",
     "written_here": [
-      "platform/lib/regents/keyfleet/supervisor.ex: Regents.Keyfleet.Supervisor: since K3 the task supervisor Regents.Keyfleet.ErrorSaves (keyfleet.ai's {Task.Supervisor, name: Keyfleet.ErrorSaves, max_children: 20}, under which RegentsWeb.Keyfleet.PageRead saves a page read's rescued failure), then the access cache",
+      "platform/lib/regents/keyfleet/supervisor.ex: Regents.Keyfleet.Supervisor: since K3 the task supervisor Regents.Keyfleet.ErrorSaves (keyfleet.ai's {Task.Supervisor, name: Keyfleet.ErrorSaves, max_children: 20}, under which RegentsWeb.Keyfleet.PageRead saves a page read's rescued failure), then the access cache; since K4 Chain.RewardsWaiting wherever the site runs (keyfleet.ai's application started it there; it owns the table, the page reads the chain), and Agents.Here only where pages are served, which Regents.Application says as it starts it (serving?: keyfleet.ai's here_child/0 asked the endpoint itself, and this boundary does not name the web side); the schedule lines each minute for keyfleet_fleet_agents and keyfleet_key_agents are in config.exs",
       "platform/lib/regents/keyfleet/agents/calculations/paired_key.ex: Regents.Keyfleet.Agents.Calculations.PairedKey: keyfleet.ai's AgentProfile paired_key expression and comment, moved whole into a calculation module so the read-only venue can build it without the person's wallets (line_changes, K4)"
     ],
     "naming": [
@@ -677,8 +677,6 @@
     ],
     "not_started": {
       "Graph.Client, the graph writers, projectors, registry and listener": "slice 3, the graph machine",
-      "Chain.RewardsWaiting": "the slice that reads the chain in the background; until then a Key page's rewards box shows its failed state (a stop of K3 b, the regents chief's)",
-      "Agents.Here": "the pages slice that shows who is here, with its child under Regents.Keyfleet.Supervisor and a schedule line each minute for keyfleet_fleet_agents and keyfleet_key_agents (Regents.SharedReading.Heal), as keyfleet.ai runs it where pages are served; K3 (b) routed the pages that wait on it, with RegentsWeb.Keyfleet.FleetNow and FleetProposals, and started none of them (a stop, the regents chief's)",
       "Seasons.CoinList": "the seasons slice"
     },
     "for_later_slices": [
