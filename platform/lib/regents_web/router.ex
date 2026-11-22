@@ -374,6 +374,9 @@ defmodule RegentsWeb.Router do
   scope "/techtree", RegentsWeb.Techtree do
     pipe_through [:browser, :techtree]
 
+    get "/about", PublicPagesController, :show
+    get "/agents", PublicPagesController, :show
+    get "/agents/:agent", PublicPagesController, :show
     get "/services/security/sample-report", PublicPagesController, :show
 
     live_session :techtree,
@@ -401,12 +404,14 @@ defmodule RegentsWeb.Router do
     end
   end
 
-  # Techtree's agent guide, Markdown to any caller, as the site's own /agents.md is,
-  # each Skill comparison's report, the exact committed bytes, a published
-  # Result's share picture, for whoever asks, a site making a link preview included,
-  # and the Wallet Bench as Markdown.
+  # Techtree's agent guide, the Techtree skill and each agent's own skill, Markdown
+  # to any caller, as the site's own /agents.md is, each Skill comparison's report,
+  # the exact committed bytes, a published Result's share picture, for whoever asks,
+  # a site making a link preview included, and the Wallet Bench as Markdown.
   scope "/techtree", RegentsWeb.Techtree do
     get "/agents.md", AgentsController, :show
+    get "/skill.md", PublicPagesController, :skill_guide
+    get "/agents/:agent/skill.md", PublicPagesController, :agent_skill_guide
     get "/train/:slug/report.json", TrainController, :report
     get "/results/:bundle_digest/share.png", ResultShareCardController, :show
     get "/wallet-bench.md", WalletBenchController, :markdown

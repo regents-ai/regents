@@ -8229,6 +8229,22 @@ seasons), on the shared Points library regents.sh was already on.
 - Both rows are read once, as the page opens; they do not yet update while it stays open.
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
 
+## 2026-11-22 — One site: Techtree's About and agent guides (not released)
+
+- /techtree/about shows Techtree's About page as techtree.sh does, in the same words. Its links open Techtree's pages here; Terms of Use and Privacy open techtree.sh's.
+- /techtree/agents lists the agents that pair with Techtree, and /techtree/agents/<agent> is each one's guide, as on techtree.sh: how to set it up, answers to common questions and where to get help, for Any agent, Codex, Grok Bot, Muse, Hermes, Dots, IronClaw, OpenClaw, Claude Code and Pi. Pair opens this site's own Agents page.
+- An agent with no guide answers Not found. Claude has none, as on techtree.sh while the Claude connector is off.
+- Agents can read the Techtree skill at /techtree/skill.md, each agent's own skill at /techtree/agents/<agent>/skill.md, and each of these pages as Markdown.
+- The pairing and account commands in the Grok Bot, Muse and Dots guides still name techtree.sh, where those agents sign in and pair.
+- Techtree's footer links About, Agents and agents.md to these pages.
+- Not released: on the `fold/techtree` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Techtree's agent guide points at this site's skills (not released)
+
+- /techtree/agents.md now links the Techtree skill and each agent's own skill on this site, where those pages now are. The commands an agent runs still name techtree.sh.
+- When the site can't reach its data, /techtree/agents.md asks the caller to try again in a minute instead of showing an error page.
+- Not released: on the `fold/techtree` branch only. No table, migration, secret, sign-in or wallet change.
+
 ## 2026-11-22 — One site: Keyfleet's fleet pages open under /keyfleet, signed out (not released)
 
 - Each of the five Keyfleet fleets opens under `/keyfleet` (`/keyfleet/classic/1`, `/keyfleet/app/fleets/regents_club` and the other three): its own page with the members, the map and the rooms, a Key's page, Seasons, Proposals and each proposal, Treasury, Polls and each poll, and Search, with the words keyfleet.ai shows.

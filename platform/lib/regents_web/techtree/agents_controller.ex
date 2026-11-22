@@ -11,6 +11,11 @@ defmodule RegentsWeb.Techtree.AgentsController do
   this document cannot describe a version the site is not publishing — and when
   the served coordinates are stand-ins there is nothing to describe, which this
   says plainly rather than handing over a command that installs nothing.
+
+  The Techtree skill and each agent's own skill are this site's pages, so their
+  addresses (`{{origin}}` in the text) are filled with this site's address when
+  served. When the database can't be read it answers 503 asking to try again
+  (`RegentsWeb.Techtree.Outage`).
   """
 
   use RegentsWeb, :controller
@@ -18,6 +23,7 @@ defmodule RegentsWeb.Techtree.AgentsController do
   alias Regents.Techtree.Catalog.Query
   alias RegentsWeb.Techtree.CampaignFacts
   alias RegentsWeb.Techtree.ModelAccess
+  alias RegentsWeb.Techtree.Outage
   alias RegentsWeb.Techtree.PublicDocuments
   alias RegentsWeb.Techtree.ReleaseInfo
 
@@ -61,9 +67,9 @@ defmodule RegentsWeb.Techtree.AgentsController do
   [agent sign-in guide](https://siwa.regents.sh/skill.md) covers the client,
   your key and each step. Each agent's own skill, the Techtree skill with what
   that agent needs beyond these steps, is at
-  https://techtree.sh/agents/AGENT/skill.md, such as
-  https://techtree.sh/agents/hermes/skill.md or
-  https://techtree.sh/agents/claude-code/skill.md.
+  {{origin}}/techtree/agents/AGENT/skill.md, such as
+  {{origin}}/techtree/agents/hermes/skill.md or
+  {{origin}}/techtree/agents/claude-code/skill.md.
 
   Signed account reads require a current pairing and the owner's existing
   canonical account. `account_points` reads GET /api/v1/account/points.
@@ -99,18 +105,30 @@ defmodule RegentsWeb.Techtree.AgentsController do
   """
 
   def show(conn, _params) do
-    case ReleaseInfo.current() do
-      %{installable?: true} = release ->
-        conn
-        |> put_resp_content_type("text/markdown", "utf-8")
-        |> send_resp(200, document(release))
-
-      _release ->
+    case Outage.read(fn -> guide(ReleaseInfo.current()) end) do
+      {:ok, nil} ->
         conn
         |> put_resp_content_type("text/plain", "utf-8")
         |> send_resp(404, "No concrete Techtree release is active on this channel.\n")
+
+      {:ok, guide} ->
+        conn
+        |> put_resp_content_type("text/markdown", "utf-8")
+        |> send_resp(200, guide)
+
+      :database_down ->
+        conn
+        |> put_resp_header("retry-after", "30")
+        |> put_resp_content_type("text/plain", "utf-8")
+        |> send_resp(503, "The install steps can't be shown right now. Try again in a minute.\n")
     end
   end
+
+  # The guide for an installable release, with this site's address filled in.
+  defp guide(%{installable?: true} = release),
+    do: release |> document() |> String.replace("{{origin}}", RegentsWeb.Endpoint.url())
+
+  defp guide(_release), do: nil
 
   defp document(release) do
     """
@@ -304,7 +322,7 @@ defmodule RegentsWeb.Techtree.AgentsController do
 
     ## Read next
 
-    - [Techtree skill](https://techtree.sh/skill.md): what to watch on Techtree and how to check back on a schedule. Install it with `npx skills add regents-ai/techtree --skill techtree`.
+    - [Techtree skill]({{origin}}/techtree/skill.md): what to watch on Techtree and how to check back on a schedule. Install it with `npx skills add regents-ai/techtree --skill techtree`.
     - [Docs](https://techtree.sh/docs): the public API, errors, rate limits, versioning, and every browser tool.
     - [Tool manifest](https://techtree.sh/capabilities.json): the browser tools as JSON.
     """

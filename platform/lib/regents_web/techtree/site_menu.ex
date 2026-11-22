@@ -5,9 +5,9 @@ defmodule RegentsWeb.Techtree.SiteMenu do
   The row has one menu, Services: the four services (`RegentsWeb.Techtree.Services`)
   with Security and Swarm Verify set apart beside them, each with a Lucide icon and
   one short line. Results and Docs are plain links beside it. The footer lists the services
-  (`RegentsWeb.Techtree.Services`), Techtree's Results, Docs, changelog and code on
-  GitHub with the site's own pages, and the files to hand an agent, in columns, by
-  name.
+  (`RegentsWeb.Techtree.Services`), Techtree's Results, Docs, changelog, code on
+  GitHub and About with the site's own pages, and the files to hand an agent, Techtree's
+  agents' pages and agent guide first, in columns, by name.
   """
 
   use RegentsWeb, :verified_routes
@@ -52,12 +52,12 @@ defmodule RegentsWeb.Techtree.SiteMenu do
         link("Run locally", ~p"/techtree/docs/run-locally"),
         link("Changelog", ~p"/techtree/changelog"),
         link("GitHub", @repository),
-        link("About", ~p"/about"),
+        link("About", ~p"/techtree/about"),
         link("Buy $REGENT", @buy_regent)
       ]),
       column("agents", "Agents", [
-        link("Agents", ~p"/agents"),
-        link("agents.md", ~p"/agents.md"),
+        link("Agents", ~p"/techtree/agents"),
+        link("agents.md", ~p"/techtree/agents.md"),
         link("llms.txt", ~p"/llms.txt"),
         link("capabilities.json", ~p"/capabilities.json"),
         link("openapi.json", ~p"/openapi.json"),
