@@ -1,7 +1,8 @@
 defmodule RegentsWeb.Keyfleet.RouteCatalog.Entry do
   @moduledoc false
-  @enforce_keys [:route_id, :path_pattern, :parameter_schema]
-  defstruct @enforce_keys
+  @enforce_keys [:path_pattern, :live_action, :parameter_schema, :reserved_values, :route_spec_id]
+  # `fleet_id` is the fleet whose page it is, on a fleet's own pages.
+  defstruct @enforce_keys ++ [fleet_id: nil]
 end
 
 defmodule RegentsWeb.Keyfleet.RouteCatalog.SidebarModel do
@@ -18,6 +19,19 @@ end
 
 defmodule RegentsWeb.Keyfleet.RouteCatalog.Spec do
   @moduledoc false
-  @enforce_keys [:route_id, :destination, :app_id, :background_slot, :sidebar_model]
+  @enforce_keys [
+    :route_id,
+    :destination,
+    :fleet_id,
+    :app_id,
+    :app_display_label,
+    :page_display_label,
+    :canonical_root,
+    :sidebar_model,
+    :header_controls,
+    :background_slot,
+    :scroll_policy,
+    :local_state
+  ]
   defstruct @enforce_keys
 end

@@ -38,15 +38,21 @@ defmodule Regents.Alert do
     ErrorTracker.report(exception, stacktrace, context)
     :ok
   catch
-    kind, reason -> unsaved(exception, Exception.format_banner(kind, reason))
+    kind, reason -> unsaved(exception, kind, reason)
   end
 
-  defp unsaved(exception, why) do
+  # Only what kind of thing each was is logged: a database error's message
+  # carries the query and its values, and the failed save's carries the error
+  # it was saving.
+  defp unsaved(%module{}, kind, reason) do
     Logger.error(
-      "An error couldn't be saved with the site's errors (#{why}): " <>
-        Exception.message(exception)
+      "An error couldn't be saved with the site's errors (#{kind} #{what(reason)}): " <>
+        inspect(module)
     )
 
     :ok
   end
+
+  defp what(%module{}), do: inspect(module)
+  defp what(_reason), do: "not an exception"
 end

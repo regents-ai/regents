@@ -8182,3 +8182,18 @@ seasons), on the shared Points library regents.sh was already on.
 - Copy to Agent on How it works copies this site's agent guide. How it works' link to About REGENT points at `/autolaunch/regent`, which is not here yet.
 - Left out for now: Docs and the REGENT page (they read the agent tools and live chain figures), and the JSON answers for About and Docs.
 - Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — Keyfleet's fleet pages in the one site, not yet open (not released)
+
+- Keyfleet's fleet pages are now part of this site: each fleet's page with its Key map and harbour, its Keys and their profiles, rooms and direct messages, the workspace and its projects, polls, proposals, the treasury, seasons, search, the worldline and the atlas, with the wallet steps they offer. They read the same records and show the same words as keyfleet.ai.
+- None of them opens yet: no new address answers. The reading pages and guides already under `/keyfleet` look and read as before.
+- When they open, three things differ from keyfleet.ai: Pair New Agent opens this site's own pairing page; the account pages are this site's; and a Key holder's wallet that is not a real address would print as written where keyfleet.ai printed "Account" (no stored holder is like that).
+- Six shared readings are ready for these pages: a fleet's activity, its proposals, its treasury, its share picture, each project's picture and each proposal, so that visitors will share one recent read instead of each reading the database. Nothing reads them yet.
+- A failure a Keyfleet page catches is saved to the site's error list, at most twenty at a time; past that it is only logged.
+- Not released: on the `fold/keyfleet` branch only. No route, table, migration, secret, sign-in or wallet change.
+
+## 2026-11-22 — One site: Keyfleet wallet failures counted, and a quieter log line (not released)
+
+- A Keyfleet wallet press that was not sent, not confirmed or refused is counted with the site's other health figures, by flow and reason, as keyfleet.ai counts it.
+- When an error cannot be saved with the site's errors, the log line now names only what kind of error it was and what kind of failure stopped the save, never their words, which can carry a query and its values.
+- On the `one-site` branch only. No table, setting or migration.

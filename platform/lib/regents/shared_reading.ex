@@ -93,6 +93,100 @@ defmodule Regents.SharedReading do
           "if either policy tightens, this kind changes with it",
       keys: 10_000,
       bytes: 20_480
+    },
+    keyfleet_fleet_now: %{
+      audience:
+        "every visitor: a fleet's activity, what it is working on and how far it has sold, as a signed-out " <>
+          "visitor reads them, are open to a signed-out read: Regents.Keyfleet.Activity.page/3 and " <>
+          "headline/2 with no actor (the Public room and the Keys' threads, under the " <>
+          "Regents.Keyfleet.Rooms.Message read policy, and no workspace changes), " <>
+          "Regents.Keyfleet.Graph.shown/1 (the :titles read of projects and :open_goals), the fleet's " <>
+          "record, and the Keys sold " <>
+          "(Regents.Keyfleet.Chain.minted/2), which the chain shows anyone, and the holders of the Keys " <>
+          "in its activity with the Key each writes as (Regents.Keyfleet.Keys.faces/2), as open as the " <>
+          "Member List and what they write, and the first page of its Public place as a " <>
+          "signed-out visitor reads it (RegentsWeb.Keyfleet.WorkspacePage.board/3 with no actor: " <>
+          "Regents.Keyfleet.Projects.Publication :in_fleet, which anyone reads, and what each Key chose " <>
+          "to show); if any of these tightens, this kind changes with it",
+      # One for each fleet in Regents.Keyfleet.Fleets' catalog, like keyfleet_fleet_agents.
+      keys: 5,
+      # Not yet measured at its fullest: a page of 30 activity items, the
+      # projects and their open goals, eight things made public, each title
+      # at most 64 characters, and a few numbers. A reading over it is refused
+      # and counted, and pages keep the one before.
+      bytes: 65_536
+    },
+    keyfleet_fleet_proposals: %{
+      audience:
+        "every visitor: the first page of a fleet's proposals, their tallies and words, is open to a signed-out " <>
+          "read (Regents.Keyfleet.Proposals.Proposal, Vote, Cancellation, Execution and Words read " <>
+          "policies), with the fleet's record, its chain cursor (Regents.Keyfleet.Chain.Cursor) and the " <>
+          "tokens its treasury pays in (Regents.Keyfleet.Treasury.AssetDetails and Reading read " <>
+          "policies); if any of these tightens, this kind changes with it",
+      # One for each fleet in Regents.Keyfleet.Fleets' catalog, like keyfleet_fleet_agents.
+      keys: 5,
+      # Not yet measured: twenty proposals, each with up to 4,000 bytes of words.
+      bytes: 131_072
+    },
+    keyfleet_fleet_treasury: %{
+      audience:
+        "every visitor: a fleet's Treasury page is open to a signed-out read: its latest reading, money " <>
+          "history and advances (Regents.Keyfleet.Treasury.Reading, Event and AssetDetails read " <>
+          "policies), the votes carried out (Regents.Keyfleet.Proposals.Proposal and Execution), the " <>
+          "fleet's record, its chain cursor and the Keys sold (Regents.Keyfleet.Keys.KeyAttachment), " <>
+          "which the chain shows anyone, and its usage this month (Regents.Keyfleet.Usage.Month read " <>
+          "policy); if any of these tightens, this kind changes with it",
+      keys: 5,
+      # Not yet measured: the latest history, the open advances and five votes carried out.
+      bytes: 65_536
+    },
+    keyfleet_share_card: %{
+      audience:
+        "every visitor: the figures on a fleet's share picture are open to a signed-out read: its Keys sold " <>
+          "(Regents.Keyfleet.Chain.minted/2) and the Key to change hands last " <>
+          "(Regents.Keyfleet.Keys.KeyAttachment), which the chain shows anyone, its treasury's latest " <>
+          "reading (Regents.Keyfleet.Treasury.Reading read policy), and that Key's name and card " <>
+          "picture (Regents.Keyfleet.Keys.KeyReveal and KeyPicture read policies), which its Key's " <>
+          "page shows anyone; if any of these tightens, this kind changes with it",
+      # One for each fleet with a picture of its own (RegentsWeb.Keyfleet.ShareCard.fleets/0).
+      keys: 2,
+      # A few short lines: the Keys, up to three treasury amounts, a Key's name
+      # and an IPFS address.
+      bytes: 1_024
+    },
+    keyfleet_project_cards: %{
+      audience:
+        "every visitor: what a project's share picture shows is open to a signed-out read: the " <>
+          "project's name and title and the Key holding it (Regents.Keyfleet.Projects.Project :titles " <>
+          "policy), which its page shows anyone, and that Key's name and card picture " <>
+          "(Regents.Keyfleet.Keys.KeyReveal and KeyPicture read policies), which its Key's page shows " <>
+          "anyone; if any of these tightens, this kind changes with it",
+      # One for each project, deleted ones aside, of the fleets with a picture
+      # of their own (RegentsWeb.Keyfleet.ShareCard.fleets/0), and one more for each of
+      # those fleets holding how many it has. A Key holds at most one active
+      # project and five archived ones, and three projects no Key holds
+      # (Regents.Keyfleet.Projects), so 6 x (1,024 + 1,998) + 3 + 2 = 18,137 at the
+      # most. A project past the count shows its fleet's picture.
+      keys: 18_200,
+      # About 200 bytes: a title of up to 60 characters, a Key's name and an
+      # IPFS address. A larger one is refused; the one held before stays, and
+      # with none its project's page shows the fleet's picture.
+      bytes: 1_024
+    },
+    keyfleet_proposal: %{
+      audience:
+        "every visitor: a proposal's first page is open to a signed-out read: the proposal, its calls, its " <>
+          "first fifty votes and its words (Regents.Keyfleet.Proposals.Proposal, Vote, Cancellation, " <>
+          "Execution and Words read policies), what its calls come to at the treasury's latest " <>
+          "balance (Regents.Keyfleet.Treasury.Reading and AssetDetails) and where it stands on the vote " <>
+          "contract, which the chain shows anyone; if any of these tightens, this kind changes " <>
+          "with it",
+      # Twenty for each catalog fleet, with room for a pass to put new proposals
+      # before it deletes the ones they pushed off the list.
+      keys: 200,
+      # Up to 4,000 bytes of words, fifty votes and the calls; a larger one is
+      # refused, counted, and read for each visit instead.
+      bytes: 131_072
     }
   }
 
