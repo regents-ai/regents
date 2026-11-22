@@ -8327,3 +8327,8 @@ seasons), on the shared Points library regents.sh was already on.
 - Any other address under these paths answers "Not found": a wrong digest, another width, another kind of file, or a picture stored as anything but PNG, JPEG or WebP.
 - Pictures have allowances of their own from one address: 600 sized copies a minute, and 60 pictures as stored, which no page shows and which can be 2 MiB each. A page's pictures no longer count against the 120 page reads a minute.
 - Not released: on the `fold/autolaunch` branch only. Four routes added. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: pages no longer allow pictures from autolaunch.sh (not released)
+
+- With launch pictures served by this site, the pages' picture rule no longer names autolaunch.sh. Pictures may come from this site, from the page itself and from the ENS picture service.
+- Not released: on the `one-site` branch only. No table, migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
