@@ -330,6 +330,15 @@ defmodule Regents.Keyfleet.Agents.AgentProfile do
     has_many :check_ins, Regents.Keyfleet.Agents.CheckIn do
       public? false
     end
+
+    # The wallets of the person this agent is paired with, each with the
+    # person's account (`Regents.Account.Agents.PairedPersonWallet`). Read only
+    # inside `paired_key`, which lets nothing of them out but a key's number.
+    has_many :person_wallets, Regents.Account.Agents.PairedPersonWallet do
+      source_attribute :wallet_address
+      destination_attribute :agent_wallet
+      public? false
+    end
   end
 
   calculations do
@@ -419,41 +428,58 @@ defmodule Regents.Keyfleet.Agents.AgentProfile do
     # The key the person this agent is paired with writes as
     # (`RegentAgents.PairedAgent`): the one they chose on the Account page while
     # any of their wallets holds it (`Regents.Keyfleet.Keys.PostingKey`), else the
-    # lowest-numbered of the fleets' keys their wallets hold now. Read in SQL because the pairing and the
-    # person's wallets are for trusted code only (their policies admit the
-    # system actor alone); only the key's number leaves here. Each of the
-    # person's wallets is looked up on its own: matched as a set, every key in
-    # the fleet was read for every agent, 7 seconds for a full Regents Club.
+    # lowest-numbered of the fleets' keys their wallets hold now. The person's
+    # wallets are for trusted code only (their read admits the system actor
+    # alone), so they are reached here through `person_wallets` without that
+    # read, by the agent's own wallet alone, and only the key's number leaves.
+    # Each wallet's keys are read in SQL, as `held_key`'s are, and each wallet
+    # is looked up on its own: matched as a set, every key in the fleet was
+    # read for every agent, 7 seconds for a full Regents Club.
     calculate :paired_key,
               :integer,
               expr(
-                fragment(
-                  """
-                  (SELECT coalesce(
-                     min(held.token_id) FILTER (WHERE chosen.token_id IS NOT NULL),
-                     min(held.token_id))
-                   FROM regent_agents.paired_agents AS pairing
-                   JOIN regent_names.platform_human_users AS account
-                     ON account.privy_user_id = pairing.privy_user_id
-                   CROSS JOIN LATERAL
-                     unnest(account.wallet_address || account.wallet_addresses)
-                       AS linked(wallet)
-                   JOIN keyfleet_app.key_attachments AS held
-                     ON held.owner_wallet = lower(linked.wallet)
-                     AND held.ownership_epoch = (
-                       SELECT max(epoch.ownership_epoch)
-                       FROM keyfleet_app.key_attachments AS epoch
-                       WHERE epoch.fleet_id = held.fleet_id AND epoch.token_id = held.token_id
-                     )
-                   LEFT JOIN keyfleet_app.posting_keys AS chosen
-                     ON chosen.human_account_id = account.id
-                     AND chosen.fleet_id = held.fleet_id
-                     AND chosen.token_id = held.token_id
-                   WHERE pairing.wallet = ? AND held.fleet_id = ANY(?))
-                  """,
-                  wallet_address,
-                  ^arg(:fleet_ids)
-                )
+                min(person_wallets,
+                  expr:
+                    fragment(
+                      """
+                      (SELECT min(held.token_id)
+                       FROM keyfleet_app.key_attachments AS held
+                       JOIN keyfleet_app.posting_keys AS chosen
+                         ON chosen.fleet_id = held.fleet_id AND chosen.token_id = held.token_id
+                       WHERE held.owner_wallet = ? AND chosen.human_account_id = ?
+                         AND held.fleet_id = ANY(?)
+                         AND held.ownership_epoch = (
+                           SELECT max(epoch.ownership_epoch)
+                           FROM keyfleet_app.key_attachments AS epoch
+                           WHERE epoch.fleet_id = held.fleet_id AND epoch.token_id = held.token_id
+                         ))
+                      """,
+                      wallet,
+                      human_account_id,
+                      ^arg(:fleet_ids)
+                    ),
+                  expr_type: :integer,
+                  authorize?: false
+                ) ||
+                  min(person_wallets,
+                    expr:
+                      fragment(
+                        """
+                        (SELECT min(held.token_id)
+                         FROM keyfleet_app.key_attachments AS held
+                         WHERE held.owner_wallet = ? AND held.fleet_id = ANY(?)
+                           AND held.ownership_epoch = (
+                             SELECT max(epoch.ownership_epoch)
+                             FROM keyfleet_app.key_attachments AS epoch
+                             WHERE epoch.fleet_id = held.fleet_id AND epoch.token_id = held.token_id
+                           ))
+                        """,
+                        wallet,
+                        ^arg(:fleet_ids)
+                      ),
+                    expr_type: :integer,
+                    authorize?: false
+                  )
               ) do
       argument :fleet_ids, {:array, :string}, allow_nil?: false
     end

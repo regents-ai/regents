@@ -442,8 +442,8 @@
         "files": [
           "agents/agent_profile.ex"
         ],
-        "edit": "a comment names RegentAgents.PairedAgent for the not-carried Agents.Pairing",
-        "reason": "the calculation reads regent_agents.paired_agents, the shared library's"
+        "edit": "paired_key reads the person's wallets and account through a has_many, person_wallets, to Regents.Account.Agents.PairedPersonWallet (wallet_address against agent_wallet): the chosen Key, else the lowest held, is min over those rows of a scalar subquery on keyfleet_app.key_attachments (joined to keyfleet_app.posting_keys for the chosen one), each inline aggregate authorize?: false; the comment says so (K3 b)",
+        "reason": "keyfleet.ai's SQL joined regent_agents.paired_agents and regent_names.platform_human_users itself; here those are the Account area's, reached only through its view. The view's read admits the system actor alone and an aggregate through it is authorized, so a visitor's read found no paired Key (checked on rolled-back rows: nil where keyfleet.ai's SQL gave 3 and 5); without that read it gives keyfleet.ai's answer for every actor. The view is matched by the agent's own wallet alone, no caller's value filters it, and only a Key's number leaves"
       },
       {
         "files": [
