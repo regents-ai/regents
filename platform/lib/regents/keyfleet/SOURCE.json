@@ -542,7 +542,7 @@
           "agents/agent_profile.ex",
           "agents/calculations/paired_key.ex"
         ],
-        "edit": "AgentProfile's paired_key calculation became the module Regents.Keyfleet.Agents.Calculations.PairedKey, keyfleet.ai's expression and comment whole in it, with one branch: where Regents.read_only?(), its expression is nil and names none of the person's wallets, so there an agent is here and acts as a Key only by its own wallet, a Key its person put it on or its shard (K4)",
+        "edit": "AgentProfile's paired_key calculation became the module Regents.Keyfleet.Agents.Calculations.PairedKey, keyfleet.ai's expression and comment whole in it, with one branch: where Regents.read_only?(), its expression is nil and names none of the person's wallets, so there an agent is here and acts as a Key only by its own wallet, a Key its person put it on or its shard (K4); a comment directly above that expression says why both reads of the person's wallets skip their check, as this site's code check (CredoAsh's UnjustifiedAuthorizeFalse) asks of every skipped check within the function (K4)",
         "reason": "need: the read-only venue's login is not granted regents_app.paired_person_wallets (the regents chief's ruling: keep a read-only branch), and the agents here (Agents.Here, the agents count and the holders online) are read there through here and key, which reach that view only through paired_key; the venue is set as the site starts, as Autolaunch's CreatorIdentities asks it (K4)"
       },
       {

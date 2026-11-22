@@ -26,6 +26,9 @@ defmodule Regents.Keyfleet.Agents.Calculations.PairedKey do
 
   defp paired_key(true), do: expr(nil)
 
+  # The person's wallets admit the system actor alone, so both reads of them
+  # here skip that check: they are matched by the agent's own wallet, and only
+  # the key's number leaves.
   defp paired_key(false),
     do:
       expr(
