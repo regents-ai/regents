@@ -11,6 +11,8 @@ defmodule RegentsWeb.Keyfleet.KeyMap do
   A search marks the keys it finds: one key by its number, or every key a
   wallet address holds in the fleet now. Who holds each key is on its page and
   in the Member List for anyone to read, so a search tells nobody anything new.
+  Its words are bounded as the fleet's search bounds them
+  (`Regents.Keyfleet.Search.max_query/0`).
 
   A sold key is drawn as its card's close-up. The map asks for the close-ups
   of the keys in view, a hundred at a time, and draws a key by its number
@@ -23,6 +25,7 @@ defmodule RegentsWeb.Keyfleet.KeyMap do
   alias Regents.Keyfleet.Fleets.Presets
   alias Regents.Keyfleet.Keys
   alias Regents.Keyfleet.Keys.Metadata
+  alias Regents.Keyfleet.Search
 
   # A change naming more keys than this is sent as a signal to load again,
   # which costs less than the change itself.
@@ -136,8 +139,10 @@ defmodule RegentsWeb.Keyfleet.KeyMap do
 
   defp sought(""), do: :nothing
 
+  # Words longer than the fleet's search takes are read as nothing it finds.
   defp sought(query) do
     cond do
+      String.length(query) > Search.max_query() -> :unreadable
       query =~ ~r/\A[0-9]{1,12}\z/ -> {:key, String.to_integer(query)}
       query =~ ~r/\A0x[0-9a-fA-F]{40}\z/ -> {:wallet, String.downcase(query)}
       true -> :unreadable

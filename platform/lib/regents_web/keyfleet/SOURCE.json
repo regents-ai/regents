@@ -281,7 +281,9 @@
     {
       "from": "platform/lib/keyfleet_web/live/key_map.ex",
       "to": "platform/lib/regents_web/keyfleet/live/key_map.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of K3 (b): the map's search words longer than the fleet's search takes (Regents.Keyfleet.Search.max_query/0, 200 characters) are answered as words it can't read, where the source's read them at any length; an ask for close-ups naming more than 100 Keys is answered with none, as in the source (K3 b fixes)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/key_profile_live.ex",
@@ -337,7 +339,9 @@
     {
       "from": "platform/lib/keyfleet_web/live/search_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/search_live.ex",
-      "changes": "the source's file after the naming rules, line for line"
+      "changes": [
+        "the regents chief's review of K3 (b): every search the open page runs after the visit's own request, each Show more too, spends one of its address's keyfleet_searches (Regents.Limits, 60 a minute, keyed by the page's client_tag; the visit's own request is counted with the address's reads of the site), and past them nothing is searched and the search shows the page's own couldn't-be-loaded state (LoadFailed), where the source had no bound of its own; a known bound, as in the source: Show more keeps every match read in the page's memory (measured in the lab on made-up matches of each kind, as the throwaway database holds none: about 1 KiB a match), accepted while a fleet's searches find few, and to be changed to a stream before one search's list can hold 1,000 matches; the moduledoc says so (K3 b fixes)"
+      ]
     },
     {
       "from": "platform/lib/keyfleet_web/live/season_panel.ex",
