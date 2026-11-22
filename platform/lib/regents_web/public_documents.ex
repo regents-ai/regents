@@ -70,9 +70,6 @@ defmodule RegentsWeb.PublicDocuments do
     "/redeem/gallery" =>
       {"Regents Club passes",
        "All 1,998 Regents Club Digital Passes. Open one to see it animated on OpenSea."},
-    "/autolaunch" =>
-      {"Autolaunch",
-       "Onchain stock offerings on Autolaunch: launch a memecoin paired with a tokenized stock on Base or Robinhood Chain, sell calls on your stock, or raise early backing for an agent that earns."},
     "/keyfleet" =>
       {"Keyfleet",
        "Keyfleet is a fleet of people and their personal agents that runs itself and shares what it earns."},
@@ -289,9 +286,12 @@ defmodule RegentsWeb.PublicDocuments do
 
   # A Techtree page's title ends in Techtree's name, as on techtree.sh, a
   # Keyfleet page's in Keyfleet's, as on keyfleet.ai, an Autolaunch page's in
-  # Autolaunch's, as on autolaunch.sh, and a Patchbay page's in Patchbay's, as on
+  # Autolaunch's, as on autolaunch.sh, where the home page's title starts with
+  # Autolaunch's name instead, and a Patchbay page's in Patchbay's, as on
   # patchbay.help, where the home page's title is Patchbay's name alone.
-  defp title_suffix(path) when path in ["/", "/paper-pro-daily", "/patchbay"], do: ""
+  defp title_suffix(path) when path in ["/", "/paper-pro-daily", "/patchbay", "/autolaunch"],
+    do: ""
+
   defp title_suffix("/techtree"), do: " · Techtree"
   defp title_suffix("/techtree/" <> _page), do: " · Techtree"
   defp title_suffix("/keyfleet/" <> _page), do: " · Keyfleet"

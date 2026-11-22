@@ -27,7 +27,6 @@ defmodule RegentsWeb.ShellLive do
   alias RegentsWeb.Account.PairLive
   alias RegentsWeb.Account.PointsLive
   alias RegentsWeb.Account.RegentProfileLive
-  alias RegentsWeb.AutolaunchLive
   alias RegentsWeb.Cloak.CloakLive
   alias RegentsWeb.DocsLive
   alias RegentsWeb.EventInput
@@ -329,7 +328,6 @@ defmodule RegentsWeb.ShellLive do
           owned={@gallery_owned}
         />
 
-        <AutolaunchLive.page :if={@route_spec.route_id == :autolaunch} />
         <PaperProDailyLive.page
           :if={@route_spec.route_id == :paper_pro_daily}
           research_list={@research_list}
