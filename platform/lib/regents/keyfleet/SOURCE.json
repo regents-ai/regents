@@ -46,7 +46,8 @@
     "/.well-known/ addresses, /robots.txt and /sitemap.xml: root addresses, regents.sh's. The agent-skills index and zip need the root index.",
     "/metadata/ and hub-jwks.json: the keyfleet.ai host, at the move.",
     "Keyfleet's root and early layouts, the launch gate and the early-access page, sign-in, sessions, accounts, actors, agents and pairing, Points, messages, endpoint, router, release and database setup, telemetry, vitals, visit log, steps, error tracking and rate limiting: this site's own serve every page.",
-    "priv/static/images/home/hex.svg: only Keyfleet's home stylesheet names it; it comes with the home page."
+    "priv/static/images/home/hex.svg: only Keyfleet's home stylesheet names it; it comes with the home page.",
+    "platform/assets/js/hooks/onchain_steps.ts: the wallet buttons of the pages K3 (b) opens (Buy Key, Proposals, Treasury) run on this site's own OnchainSteps, which differs from keyfleet.ai's. keyfleet.ai's also tells the server of a press before the wallet (step_pressed, which saves a proposal's words), asks with the open wallet's address, lets the browser's agent press (prepare_for_agent, through page_tools), reads funds again where a component asks (refresh_funds) and leaves a signed-out button to sign-in. Carrying it reaches the site's wallet registry, which the site's sign-in fills (a stop of K3 b, the regents chief's)."
   ],
   "migrations": {
     "from": "platform/priv/repo/migrations/*.exs (130 files, 20260921234643 to 20261119232542), platform/priv/resource_snapshots/repo/extensions.json",
