@@ -105,7 +105,9 @@ config :regents,
     Regents.Patchbay.Assist,
     Regents.Patchbay.AnswerWatch,
     Regents.Patchbay.Messages,
-    Regents.Patchbay.Offers
+    Regents.Patchbay.Offers,
+    Regents.Autolaunch,
+    Regents.Autolaunch.CoveredCalls
   ],
   generators: [timestamp_type: :utc_datetime]
 

@@ -38,7 +38,7 @@ defmodule Regents.Products do
       %{name: "cloak", health: [&Regents.Cloak.health/0], schema: nil},
       %{name: "techtree", health: [&Regents.Techtree.health/0], schema: "techtree_app"},
       %{name: "keyfleet", health: [&Regents.Keyfleet.health/0], schema: nil},
-      %{name: "autolaunch", health: [&Regents.Autolaunch.health/0], schema: nil},
+      %{name: "autolaunch", health: [&Regents.Autolaunch.health/0], schema: "autolaunch_app"},
       %{name: "patchbay", health: [&Regents.Patchbay.health/0], schema: "patchbay_app"}
     ]
   end
