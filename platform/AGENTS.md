@@ -88,6 +88,12 @@ again from it and moving that commit.
   do not check the generation number).
   `PublicIdentity.people_by_privy_ids/1`: `people/1` for up to 100 Privy ids, by Privy id.
   `Human.privy_id/1`: a signed-in person's Privy id; a product calls it, never a field.
+  `Accounts.list_linked_identities_for_accounts/2`: the verified social links of up to
+  100 accounts, with the account id, provider, username, display name and time
+  verified alone; a product never names `LinkedIdentity` or relates to it.
+  `Regents.Account.Agents.pairings_by_wallets/2`: which of a list of agent wallets are
+  paired, with each one's wallet, name and harness; the person is not part of it.
+  All of these are for the system actor.
 - `Regents.Alert.report/1` saves what a person must act on with the site's errors, and
   `Regents.Limits.admit/2` and `spend/2` spend a named allowance from the one list,
   `config :regents, :limits`, named `<product>_<name>`: the prefix is required, as the
