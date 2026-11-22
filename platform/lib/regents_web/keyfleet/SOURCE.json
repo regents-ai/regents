@@ -527,7 +527,8 @@
       "from": "platform/lib/keyfleet_web/telemetry.ex (wallet_failed/2 and its reasons only)",
       "to": "platform/lib/regents_web/keyfleet/telemetry.ex",
       "changes": [
-        "need: the brief keeps Keyfleet's events in a Keyfleet module under [:regents, :keyfleet...]; only wallet_failed/2 and its reasons are carried (the one event the pages report), its event renamed to [:regents, :keyfleet_wallet, :failure] as K2 names Keyfleet's events; the metrics, reporter, poller and buckets are the site's to list (RegentsWeb.Telemetry), not carried"
+        "need: the brief keeps Keyfleet's events in a Keyfleet module under [:regents, :keyfleet...]; only wallet_failed/2 and its reasons are carried (the one event the pages report), its event renamed to [:regents, :keyfleet_wallet, :failure] as K2 names Keyfleet's events; the metrics, reporter, poller and buckets are the site's to list (RegentsWeb.Telemetry), not carried",
+        "need (K6): the reasons counted are the ones a page may report, the shared library's list (RegentChain.Presses), and blocked, so wallet_refused is counted with the rest"
       ]
     },
     {
