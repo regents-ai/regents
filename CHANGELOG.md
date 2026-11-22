@@ -8298,3 +8298,9 @@ seasons), on the shared Points library regents.sh was already on.
 - One address's open Projects pages can read 120 times a minute; past that, and when the site can't reach its data, the page says the projects couldn't be read.
 - The team still delivers and withdraws projects on techtree.sh; this site shows what it delivered, as both read the same table.
 - Not released: on the `fold/techtree` branch only. One new named allowance in the site's settings (`techtree_project_reads`) and Techtree's Projects in the site's list of domains. No table, migration, queue, scheduled job, secret, sign-in, session, wallet or pairing change.
+
+## 2026-11-22 — One site: Techtree's Wallet Bench findings for Articles (not released)
+
+- Techtree's post "Every coding agent that set up a wallet left the key to it in a plain file" is ready for the site's Articles, at /articles/agent-wallet-bench-first-findings, with its picture as the cover. Its words are techtree.sh's; its links to Wallet Bench results open this site's Wallet Bench (/techtree/wallet-bench) on the same test and result.
+- The post shows in Articles only once the operator saves it with put-post, a write to the live database that waits for its own go.
+- Not released: on the `fold/techtree` branch only. No table, migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
