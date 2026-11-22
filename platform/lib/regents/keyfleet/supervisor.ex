@@ -4,8 +4,9 @@ defmodule Regents.Keyfleet.Supervisor do
   given in memory, read nothing outside the one database, PubSub and the
   chain a press's steps are read from, and write nothing but the site's
   errors. They are the task supervisor `Regents.Keyfleet.ErrorSaves`, under
-  which a failure a page read rescued is saved beside the page
-  (`RegentsWeb.Keyfleet.PageRead`; past twenty at once, a failure is only
+  which a failure a page read rescued (`RegentsWeb.Keyfleet.PageRead`), or a
+  press's build raised (`RegentsWeb.Keyfleet.WalletPanel`), is saved beside
+  the page (past twenty at once, a failure is only
   logged); the task supervisor `Regents.Keyfleet.PressBuilds`, under which
   the steps a press on a wallet button asks for are built
   (`RegentsWeb.Keyfleet.WalletPanel`), with no cap: a page's own process

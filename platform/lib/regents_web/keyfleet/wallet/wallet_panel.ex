@@ -510,18 +510,43 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   end
 
   # A press's steps are built under `Regents.Keyfleet.PressBuilds` while the
-  # page waits up to `@press_build_ms`. A build that raises, or is not done by
-  # then, answers the press as one the chain could not be read for, built for
-  # what it asks for.
+  # page waits up to `@press_build_ms`. A build not done by then answers the
+  # press as one the chain could not be read for, built for what it asks for.
+  # A build that ends by raising, or by a throw or an exit, answers it the
+  # same, marked `raised`: the panel shows what it shows for any build the
+  # chain could not be read for, and only the press's note differs
+  # (`unknown/2`).
   defp bounded_build(request, wanted) do
     task =
       Task.Supervisor.async_nolink(Regents.Keyfleet.PressBuilds, fn -> build_steps!(request) end)
 
     case Task.yield(task, @press_build_ms) || Task.shutdown(task) do
-      {:ok, built} -> built
-      _unanswered -> Map.put(@unread, :built_for, wanted)
+      {:ok, built} ->
+        built
+
+      {:exit, reason} ->
+        save_raised(reason)
+        Map.merge(@unread, %{built_for: wanted, raised: true})
+
+      nil ->
+        Map.put(@unread, :built_for, wanted)
     end
   end
+
+  # A build that raised is saved with the site's errors beside the page, with
+  # the page's context, as `RegentsWeb.Keyfleet.PageRead` saves a failed read
+  # (`Regents.Keyfleet.ErrorSaves`); its line in the log is the task's own
+  # crash report. A throw, an exit or a kill is in that report alone.
+  defp save_raised({exception, stacktrace})
+       when is_exception(exception) and is_list(stacktrace) do
+    context = ErrorTracker.get_context()
+
+    Task.Supervisor.start_child(Regents.Keyfleet.ErrorSaves, fn ->
+      Regents.Alert.save(exception, stacktrace, context)
+    end)
+  end
+
+  defp save_raised(_reason), do: :ok
 
   # What a build's steps were read for besides the chain: the wallet, whether
   # that wallet sends them (only then is its network fee judged), the fields
@@ -705,8 +730,9 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # the form, or else the note for the wallet the press named. The chain's
   # state makes it certain to fail: the words beside its button. The steps
   # have none of that name, as when the form can't be built from: what is
-  # wrong with the form, that the network can't be reached when the chain
-  # could not be read for them, or else that it can't be sent as it stands.
+  # wrong with the form, that it didn't work when their build raised, that
+  # the network can't be reached when the chain could not be read for them,
+  # or else that it can't be sent as it stands.
   defp refusal(socket, pressed, step) do
     reason = blocked(pressed, step)
 
@@ -728,6 +754,15 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
         nil
     end
   end
+
+  # Steps whose build raised (`bounded_build/2`), for a wallet that may send
+  # them: it didn't work, and the same press may go through later.
+  defp unknown(%{assigns: %{signer: signer}}, %{built: %{raised: true}}) when is_binary(signer),
+    do: %{
+      reason: "step_unknown",
+      cause: "state",
+      note: "That didn’t work. Nothing was sent. Press again."
+    }
 
   # Steps the chain could not be read for, for a wallet that may send them:
   # the network can't be reached, and the same press may go through later.
