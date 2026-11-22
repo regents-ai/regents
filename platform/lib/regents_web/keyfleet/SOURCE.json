@@ -115,7 +115,7 @@
       "to": "platform/lib/regents_web/keyfleet/components/member_list.ex",
       "changes": [
         "need: the read-only venue's login is granted only what pages show; the site has no list_shown_linked_identities!/1, so connections/1 calls Regents.Account.Accounts.public_links_for_accounts!/1 (PublicLink's for_accounts read, the regents chief's, over the view regents_app.public_links, up to 100 accounts; a page of the list holds 20) for the accounts in the list: each link's username, with its account and provider as its key, the three fields the source's read selected, of the links that name a username (the only ones the list shows), sorted by account then provider, so each account's links come in the same order; the linked accounts' table itself is never read (K3 c; the call since one-site b3131034)",
-        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer, where the source's page number reading crashed on it (K3 b fixes)",
+        "the regents chief's review of K3 (b): the list's page is read from the address only as text; any other value is the list's not-found answer (K3 b fixes)",
         "need: the read-only venue's login is granted only what pages show; the accounts are read with query: [select: [:wallet_address]] beside their display_name and ens_name, so a person's sign-in id is read only as the shared profile name's key, and no other wallet, World ID, picture or time (K3 c)"
       ]
     },
@@ -154,7 +154,7 @@
         "need: the Agents page it named (agents_panel.ex) is the site's now; the moduledoc names the variant by its attribute",
         "need: the check-in words came from pairing_box.ex (not carried); they are kept here, word for word, as @check_in",
         "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
-        "the regents chief's review of K3 (b): put_away/1 keeps only the catalog's fleets from the cookie, each once, for the page as it is requested and for the press alike, where the source's kept every id the cookie held (K3 b fixes)"
+        "the regents chief's review of K3 (b): put_away/1 keeps only the catalog's fleets from the cookie, each once, for the page as it is requested and for the press alike (K3 b fixes)"
       ]
     },
     {
@@ -264,7 +264,7 @@
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)",
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
         "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
-        "the regents chief's review of K3 (b): the Search box shows the address's words only when they are text, and is otherwise empty as for an empty search, where the source's page crashed drawing them (K3 b fixes)"
+        "the regents chief's review of K3 (b): the Search box shows the address's words only when they are text, and is otherwise empty as for an empty search (K3 b fixes)"
       ]
     },
     {
@@ -277,7 +277,7 @@
       "to": "platform/lib/regents_web/keyfleet/live/harbour_sea_live.ex",
       "changes": [
         "need: Keyfleet's launch gate (plugs/launch_gate.ex) is not carried; the site's own (RegentsWeb.Plugs.LaunchGate) closes every /keyfleet page while closed, so here the open state stands, as slice 1 has every row open",
-        "need: the site has no PublicIdentity.short_wallet/1; PublicIdentity.label(%{wallet_address: owner}) stands in, as the Keyfleet chief ruled (decision a). The one case that differs: a text that is not an address prints as itself where the source printed \"Account\" (label/1 hands it to RegentFormat.short_address/1, which passes a non-address through); an address and nil print the same (0x6f89..2b07; Account). The owner drawn here is a stored lowercase address, and the line is not drawn when it is nil. Proof: /tmp/kf-chief/k3/label_proof.txt",
+        "need: the site has no PublicIdentity.short_wallet/1; PublicIdentity.label(%{wallet_address: owner}) stands in, as the Keyfleet chief ruled (decision a). An address prints shortened (0x6f89..2b07), nil prints \"Account\", and a text that is not an address prints as itself (label/1 hands it to RegentFormat.short_address/1, which passes a non-address through). The owner drawn here is a stored lowercase address, and the line is not drawn when it is nil. Proof: /tmp/kf-chief/k3/label_proof.txt",
         "the regents chief's read of the sea (K4): show_page reads an address of at most 2,048 bytes, and a longer one moves nothing; each move to another fleet, or to every fleet, spends one of the page's address's keyfleet_sea_moves (Regents.Limits, 45 a minute, keyed by the page's client_tag, which the sea now keeps from its session), and past them the sea stays as it is drawn; one read of the visitor's ships runs at a time, and one asked for while another loads runs once when it lands",
         "the regents chief's read of the sea (K4): the read of the visitor's ships reads each fleet's class again first and reads a fleet the visitor is no longer a member of as anyone sees it",
         "the regents chief's read of the sea (K4): the read of the visitor's ships runs inside RegentsWeb.Keyfleet.PageRead.run(\"harbour\", …), so a failed database read is logged by its kind and the database's code only and saved with the site's errors, and the sea keeps the ships it has",
@@ -290,7 +290,7 @@
       "from": "platform/lib/keyfleet_web/live/key_map.ex",
       "to": "platform/lib/regents_web/keyfleet/live/key_map.ex",
       "changes": [
-        "the regents chief's review of K3 (b): the map's search words longer than the fleet's search takes (Regents.Keyfleet.Search.max_query/0, 200 characters) are answered as words it can't read, where the source's read them at any length; an ask for close-ups naming more than 100 Keys is answered with none, as in the source (K3 b fixes)"
+        "the regents chief's review of K3 (b): the map's search words longer than the fleet's search takes (Regents.Keyfleet.Search.max_query/0, 200 characters) are answered as words it can't read; an ask for close-ups naming more than 100 Keys is answered with none, as in the source (K3 b fixes)"
       ]
     },
     {
@@ -300,7 +300,7 @@
         "need: the site registers hooks of its own named MotionList, MotionTick and Tour; Keyfleet's, brought whole into assets/js/keyfleet/hooks/, are registered as KeyfleetMotionList, KeyfleetMotionTick and KeyfleetTour (assets/js/keyfleet/index.ts), and the markup names them so (K3 b)",
         "a shard lent to a wallet no agent has signed in with drew its row and the row's address under one id; the address's is its own here, so the page's ids stay unique (K3 b)",
         "the regents chief's review of K3 (b): the page's client_tag goes beside its session_lease to each wallet panel, which counts its figures reads against it (K3 b fixes)",
-        "the regents chief's review of K3 (b): an agent's registry listing is drawn as a link only at an https address with a host, and is otherwise left out, as a listing not given is, where the source's linked any value (K3 b fixes)",
+        "the regents chief's review of K3 (b): an agent's registry listing is drawn as a link only at an https address with a host, and is otherwise left out, as a listing not given is (K3 b fixes)",
         "the regents chief's ruling on K4: each read of the chain the Key window starts, its rewards when the 30 second keep does not answer them and its slice, spends one of the page's address's keyfleet_wallet_reads before it starts, once the page is connected (its first, unconnected render reads nothing and spends nothing); past them that box reads nothing and shows it isn't showing right now, as when the chain does not answer, and rewards the keep answers spend nothing (K5)"
       ]
     },
@@ -351,7 +351,7 @@
       "from": "platform/lib/keyfleet_web/live/search_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/search_live.ex",
       "changes": [
-        "the regents chief's review of K3 (b): every search the open page runs after the visit's own request, each Show more too, spends one of its address's keyfleet_searches (Regents.Limits, 60 a minute, keyed by the page's client_tag; the visit's own request is counted with the address's reads of the site), and past them nothing is searched and the search shows the page's own couldn't-be-loaded state (LoadFailed), where the source had no bound of its own; a known bound, as in the source: Show more keeps every match read in the page's memory (measured in the lab on made-up matches of each kind, as the throwaway database holds none: about 1 KiB a match), accepted while a fleet's searches find few, and to be changed to a stream before one search's list can hold 1,000 matches; the moduledoc says so (K3 b fixes)"
+        "the regents chief's review of K3 (b): every search the open page runs after the visit's own request, each Show more too, spends one of its address's keyfleet_searches (Regents.Limits, 60 a minute, keyed by the page's client_tag; the visit's own request is counted with the address's reads of the site), and past them nothing is searched and the search shows the page's own couldn't-be-loaded state (LoadFailed); a known bound, as in the source: Show more keeps every match read in the page's memory (measured in the lab on made-up matches of each kind, as the throwaway database holds none: about 1 KiB a match), accepted while a fleet's searches find few, and to be changed to a stream before one search's list can hold 1,000 matches; the moduledoc says so (K3 b fixes)"
       ]
     },
     {
@@ -376,14 +376,14 @@
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the source's second mount drew again a page whose token predated client_key and schedule_put_away (an old shape); the site's tokens carry this page's context from the first",
         "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands",
         "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the lineage it assigned is the site's session_lease.lineage",
-        "need: the site's hook (RegentsWeb.Live.Session) passes {:ens_lookup_finished, account_id} on to the page after reading the account again, where the source's hook kept it, so the page answers it with nothing to change, as the site's own ShellLive does; without it a signed-in page crashes when the person's ENS lookup finishes",
+        "need: the site's hook (RegentsWeb.Live.Session) passes {:ens_lookup_finished, account_id} on to the page after reading the account again, and the page answers it with nothing to change, as the site's own ShellLive does",
         "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
         "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change",
         "the regents chief's review of the carry (K3 a findings, hand-made events): open_notebooks, get_code_password and every workspace press reach their handlers only with a workspace on show; from any other page they fall to the press no page sends, which changes nothing (K3 b)",
-        "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing, where the source's split it and the page crashed (K3 b)",
+        "the regents chief's review of the carry (K3 a findings, hand-made events): a Schedule put away whose value is not text changes nothing (K3 b)",
         "the comments name where the brought hooks are here, assets/js/keyfleet/hooks/ (K3 b)",
         "the regents chief's review of K3 (b): the page keeps the client_tag its render was signed with (RegentsWeb.Live.Session.render_context/1), and gives it beside its session_lease to each page that holds a wallet panel (K3 b fixes)",
-        "the regents chief's review of K3 (b): a visitor's presses of the Treasury's refresh are counted by the page's client address ({:address, client_tag}) where the source's counted them by visit, so a reload does not start the 30 seconds again; a signed-in person's stay counted by account (K3 b fixes)"
+        "the regents chief's review of K3 (b): a visitor's presses of the Treasury's refresh are counted by the page's client address ({:address, client_tag}), so a reload does not start the 30 seconds again; a signed-in person's stay counted by account (K3 b fixes)"
       ]
     },
     {
@@ -513,8 +513,8 @@
       "from": "platform/lib/keyfleet_web/wallet/wallet_panel.ex",
       "to": "platform/lib/regents_web/keyfleet/wallet/wallet_panel.ex",
       "changes": [
-        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer, where the source read without a bound of its own; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)",
-        "the regents chief's review of K3 (b): Check again reads the step named only when it is named as text, and any other value changes nothing, where the source's read it as given (K3 b fixes)",
+        "the regents chief's review of K3 (b): each figures read a changed form or the open wallet starts spends one of the page's address's keyfleet_wallet_reads (Regents.Limits, 120 a minute, keyed by the page's client_tag), and past them nothing is read and the panel shows its figures could not be read, as when the chain does not answer; no press is counted or held back; the panel is given the page's client_tag (K3 b fixes)",
+        "the regents chief's review of K3 (b): Check again reads the step named only when it is named as text, and any other value changes nothing (K3 b fixes)",
         "the regents chief's ruling on K4: a panel's first figures read once its page is connected spends one of the page's address's keyfleet_wallet_reads, as a changed form's or the open wallet's does; the unconnected first render reads nothing and spends nothing (K5)",
         "the regents chief's ruling on K4: every read the panel starts again by itself on its own timer spends one of keyfleet_wallet_reads too: 10 seconds after figures it could not read, whatever the cause, 15 seconds while a button is held back, and Buy's every 5 minutes; turned away, it waits and counts again. A rebuild the page causes (a landed step, a changed refresh), the account changing under the lease and every press stay uncounted (K5)",
         "the Keyfleet chief's answer on K5 (4b): the page's report of the open wallet, when it names the wallet the panel already holds (none included), starts no read and spends nothing; a report of another wallet is taken and its figures read once, counted (K5)"
