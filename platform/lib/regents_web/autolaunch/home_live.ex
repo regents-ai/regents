@@ -103,8 +103,16 @@ defmodule RegentsWeb.Autolaunch.HomeLive do
 
   def handle_event("load-more", _params, socket), do: {:noreply, socket}
 
-  def handle_event("retry", _params, socket),
-    do: {:noreply, load_market(socket, socket.assigns.market_append)}
+  # "Try again" reads only what failed: a press with nothing failed, or while
+  # the read is under way, starts none.
+  def handle_event(
+        "retry",
+        _params,
+        %{assigns: %{market_failed: true, market_loading: false}} = socket
+      ),
+      do: {:noreply, load_market(socket, socket.assigns.market_append)}
+
+  def handle_event("retry", _params, socket), do: {:noreply, socket}
 
   def handle_async(:home_market, {:ok, {:ok, page}}, socket),
     do: {:noreply, put_market(socket, page)}
