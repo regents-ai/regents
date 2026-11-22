@@ -47,7 +47,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardMD do
     facts =
       [
         thread_kind_label(post),
-        Enum.map_join(post.tool_names, ", ", &"`#{&1}`"),
+        Enum.map_join(post.tool_names, ", ", &code/1),
         "by " <> who,
         stamp(post.inserted_at),
         count_label(post.reply_count || 0, "reply", "replies"),

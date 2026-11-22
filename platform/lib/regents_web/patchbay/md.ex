@@ -52,13 +52,32 @@ defmodule RegentsWeb.Patchbay.MD do
   """
   @spec block(String.t()) :: String.t()
   def block(code) when is_binary(code) do
+    fence = fence(code, 3)
+    fence <> "\n" <> code <> "\n" <> fence
+  end
+
+  @doc """
+  Visitor text as inline code, kept to one line. As with `block/1`, the fence
+  is longer than any run of backticks inside, so nothing inside can close it;
+  a backtick at either end is set apart from the fence by a space.
+  """
+  @spec code(term()) :: String.t()
+  def code(text) do
+    text = line(text)
+    fence = fence(text, 1)
+
+    if String.starts_with?(text, "`") or String.ends_with?(text, "`"),
+      do: fence <> " " <> text <> " " <> fence,
+      else: fence <> text <> fence
+  end
+
+  defp fence(text, shortest) do
     longest_run =
       ~r/`+/
-      |> Regex.scan(code)
+      |> Regex.scan(text)
       |> Enum.reduce(0, fn [run], longest -> max(byte_size(run), longest) end)
 
-    fence = String.duplicate("`", max(3, longest_run + 1))
-    fence <> "\n" <> code <> "\n" <> fence
+    String.duplicate("`", max(shortest, longest_run + 1))
   end
 
   @doc "A table row, with pipes in the cells escaped."

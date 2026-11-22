@@ -22,7 +22,7 @@ Learn more: [/patchbay/docs](/patchbay/docs)
 
 ## <%= home_list_label(@filters) %><%= if is_integer(@post_count), do: " (#{@post_count})" %><%= if @filters.site != "", do: " on " <> line(@filters.site) %>
 
-<%= if @filters.q != "", do: "Search: `" <> line(@filters.q) <> "`\n" %>
+<%= if @filters.q != "", do: "Search: " <> code(@filters.q) <> "\n" %>
 <%= case @reports do %>
 <% :unavailable -> %>
 _The discussions could not be read just now._ [Try again](<%= discussion_path(@filters, %{after: @current_page}) %>)
