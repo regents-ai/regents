@@ -6,11 +6,11 @@ defmodule RegentsWeb.Techtree.ProjectPackageController do
 
   It goes to the project's owner, signed in; a signed-out visitor is sent to the
   project's page, which offers the site's sign-in. A project that is someone
-  else's, was withdrawn or never was is not found. When the database can't be
-  read (`RegentsWeb.Techtree.Outage`) it answers 503 with the project page's
-  words, never an error page. A paired agent downloads its person's through
-  `RegentsWeb.Techtree.AgentAccountController`, sent the same way
-  (`send_package/2`).
+  else's, was withdrawn, never was or has no package is not found. When the
+  database can't be read (`RegentsWeb.Techtree.Outage`) it answers 503 with the
+  project page's words, never an error page. A paired agent downloads its
+  person's through `RegentsWeb.Techtree.AgentAccountController`, read and sent
+  the same way (`read_package/2`, `send_package/2`).
   """
 
   use RegentsWeb, :controller
@@ -26,8 +26,7 @@ defmodule RegentsWeb.Techtree.ProjectPackageController do
     actor = Human.for_account(conn.assigns.current_human_account)
 
     with {:ok, id} <- Ecto.UUID.cast(id),
-         {:ok, %{} = project} <-
-           Outage.read(fn -> Projects.get_my_package!(id, actor: actor) end) do
+         {:ok, %{} = project} <- Outage.read(fn -> read_package(id, actor: actor) end) do
       send_package(conn, project)
     else
       :database_down ->
@@ -38,6 +37,18 @@ defmodule RegentsWeb.Techtree.ProjectPackageController do
 
       _missing ->
         raise RegentsWeb.NotFoundError, "no project of yours has that id"
+    end
+  end
+
+  @doc """
+  The reader's project with its package's bytes, or nil when it is someone
+  else's, was withdrawn, never was or has no package to send.
+  """
+  @spec read_package(Ecto.UUID.t(), keyword()) :: Ash.Resource.record() | nil
+  def read_package(id, opts) do
+    case Projects.get_my_package!(id, opts) do
+      %{package: package} = project when is_binary(package) -> project
+      _none -> nil
     end
   end
 

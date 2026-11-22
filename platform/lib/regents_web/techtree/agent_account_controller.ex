@@ -28,7 +28,13 @@ defmodule RegentsWeb.Techtree.AgentAccountController do
 
   # One of the person's projects' package, as the page's Download sends it.
   def package(conn, %{"id" => id}),
-    do: own(conn, id, &Projects.get_my_package!/2, &ProjectPackageController.send_package/2)
+    do:
+      own(
+        conn,
+        id,
+        &ProjectPackageController.read_package/2,
+        &ProjectPackageController.send_package/2
+      )
 
   # The address's id is read only as a UUID; anything else is no project.
   defp own(conn, id, read, answer) do
