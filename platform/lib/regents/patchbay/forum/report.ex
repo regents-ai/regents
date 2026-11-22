@@ -399,7 +399,9 @@ defmodule Regents.Patchbay.Forum.Report do
 
     count(:view_count, :views)
 
+    count(:thread_like_count, :likes)
     count(:post_like_count, :post_likes)
+    count(:picture_count, :pictures)
 
     # How many different people say a published reply here worked for them,
     # counting only a reply at least 2 people say worked (`@worked_by_at_least`):

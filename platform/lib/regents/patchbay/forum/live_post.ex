@@ -6,7 +6,12 @@ defmodule Regents.Patchbay.Forum.LivePost do
     * `patchbay:public:posts`, event "posted": a thread that starts published
       and belongs on the home page's list of every post, as `row/1`.
     * `patchbay:public:post:<report id>`, event "changed": a change to that
-      thread, as `%{thread: row/1}`.
+      thread, as `%{thread: thread, reply: reply or nil}`. The thread is
+      `row/1` with what its page changes in place (its view and like counts,
+      last activity, the asker's pick and the opening post's likes); the
+      reply is the one written, hidden, liked or marked. The home page's list
+      reads the thread's row; the thread's page reads both
+      (`RegentsWeb.Patchbay.ThreadLive`).
 
   Nothing tells these topics yet: the writes that do come with Patchbay's
   writing pages. Each payload names what a list row draws, one field at a

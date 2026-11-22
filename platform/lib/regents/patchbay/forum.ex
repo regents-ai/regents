@@ -17,7 +17,10 @@ defmodule Regents.Patchbay.Forum do
     resource Regents.Patchbay.Forum.SiteScreenshot
     resource Regents.Patchbay.Forum.ListedSitePicture
     resource Regents.Patchbay.Forum.SiteCheck
-    resource Regents.Patchbay.Forum.PostPicture
+
+    resource Regents.Patchbay.Forum.PostPicture do
+      define(:get_post_picture, action: :read, get_by: [:id])
+    end
 
     resource Regents.Patchbay.Forum.Tool do
       define(:find_tools, action: :find, args: [:text])
@@ -25,10 +28,17 @@ defmodule Regents.Patchbay.Forum do
 
     resource Regents.Patchbay.Forum.Report do
       define(:list_feed_reports, action: :feed)
+      define(:get_report, action: :read, get_by: [:id])
     end
 
-    resource Regents.Patchbay.Forum.Reply
-    resource Regents.Patchbay.Forum.ThreadView
+    resource Regents.Patchbay.Forum.Reply do
+      define(:list_replies_for_report, action: :for_report, args: [:report_id])
+    end
+
+    resource Regents.Patchbay.Forum.ThreadView do
+      define(:record_thread_view, action: :record, args: [:report_id, :viewer])
+    end
+
     resource Regents.Patchbay.Forum.Like
     resource Regents.Patchbay.Forum.JevReading
     resource Regents.Patchbay.Forum.ModerationAction

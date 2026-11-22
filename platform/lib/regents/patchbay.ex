@@ -12,7 +12,8 @@ defmodule Regents.Patchbay do
   every attribute, relationship and identity as patchbay.help has them. The
   resources the signed-out pages read carry those reads, open to everyone as
   on patchbay.help; every other resource has no action and one policy
-  refusing every action. Nothing here writes a row.
+  refusing every action. The one row written is a reader opening a thread
+  (`Forum.ThreadView`).
   """
   use Boundary,
     top_level?: true,
@@ -27,9 +28,11 @@ defmodule Regents.Patchbay do
       Forum.Capabilities,
       Forum.Feed,
       Forum.FeedCount,
+      Forum.Fix,
       Forum.LivePost,
       Forum.Origin,
       Forum.PostAddress,
+      Forum.PostPicture,
       Forum.PostSummary,
       Forum.SearchUnavailable,
       Forum.SiteCheck,
