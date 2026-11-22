@@ -542,7 +542,7 @@ defmodule RegentsWeb.Keyfleet.HarbourSeaLive do
   The button beside a fleet's name that lifts the page away to show the city,
   handing focus to the bar's first button, which brings it back (`land/0`). A
   press on the margin around the fleet's panel does the same
-  (`assets/js/hooks/harbour_sea.ts`).
+  (`assets/js/keyfleet/hooks/harbour_sea.ts`).
 
   The page is lifted while the body has `data-sea-lifted`. An attribute is set
   at once, where a class waits for the next frame, so the button that takes
