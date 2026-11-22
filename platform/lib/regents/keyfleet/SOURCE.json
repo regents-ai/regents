@@ -599,8 +599,8 @@
       {
         "setting": "keyfleet_notebooks issuer, host_suffix, public_port, fleets, signing_keys",
         "read_by": "notebooks.ex, notebooks/",
-        "why": "addresses of the hubs and the signing keys",
-        "set_by": "the notebooks slice; the keys with fold rules slice 4"
+        "why": "addresses of the hubs and the signing keys; with issuer unset, notebooks/pass.ex's sign/2 writes \"iss\" nil into every pass (the code store's and the graph's too) and verify/2 accepts \"iss\" nil, so a pass is signed and checked with no issuer; jwks/0 publishes JOSE.JWK.to_public/1 of every key in signing_keys, which for a symmetric (oct) key is the key itself, so a set holding one would publish its secret whole (K2d)",
+        "set_by": "the notebooks slice, with the issuer; the keys with fold rules slice 4, EC P-256 keys only"
       },
       {
         "setting": "keyfleet_code host, public_port, node",
@@ -663,6 +663,53 @@
       "Agents.Here": "the pages slice that shows who is here, with its child under Regents.Keyfleet.Supervisor and a schedule line each minute for keyfleet_fleet_agents and keyfleet_key_agents (Regents.SharedReading.Heal), as keyfleet.ai runs it where pages are served",
       "Seasons.CoinList": "the seasons slice"
     },
+    "for_later_slices": [
+      {
+        "slice": "the slice that lets agents act here (the first signed agent request)",
+        "where": "graph/actor_ref.ex from_actor/1; every Agent.refresh/1 and Agent.valid?/1 caller",
+        "record": "regents.sh's plug (RegentsWeb.Account.PairedAgent) builds every agent with chain_id and verification_method nil, since the SIWA answer it reads keeps neither, and Regents.Account.Actors.Agent.authenticated?/1 refuses that agent, so refresh/1 and valid?/1 refuse every agent the site builds today, and from_actor/1 would send \"verification\" \"nil\", which valid?/1 refuses. keyfleet.ai's plug set both"
+      },
+      {
+        "slice": "the slice that lets agents act here (the first signed agent request)",
+        "where": "Agent.refresh/1 and Agent.valid?/1 callers: keys.ex identity/2 and held_keys/2, graph/checks/key_actor.ex, agents/checks/own_profile.ex, checks/agent_actor.ex, rooms/muter.ex, wallet_steps/linked_signer.ex; notebooks/roster.ex holders/1",
+        "record": "keyfleet.ai let an agent whose person had never signed in there (pairing :person_not_here) act as its own Key or shard: its refresh and valid? asked only for the pairing episode and owner, its sign-in (KeyfleetWeb.Plugs.SignedAgent admit/2) let such an agent in, and its config :regent_agents told a person_not_here agent it may \"Work as a Key you own or hold a shard of\". regents.sh's refresh/1, valid?/1 and plug admit only a Human pairing, so such an agent does nothing in Keyfleet here and the notebook roster leaves it out. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "the slice that brings the Account page's agents panel (the caller of blocked_check_ins)",
+        "where": "agents/check_in.ex:101, :268, :285-286",
+        "record": "the :blocked read's policy (actor_attribute_equals(:role, :person)), its filter and the blocker field policy read an actor with role :person and privy_user_id. No Regents.Account.Actors struct has either: Human is role :human with no privy_user_id. keyfleet.ai's caller, KeyfleetWeb.Components.AgentsPanel.blocked/3 (agents_panel.ex:419), passed %RegentAgents.Person{privy_user_id: account.privy_user_id}, the shared agents library's person (role :person), which regents.sh has as well; nothing carried calls blocked_check_ins today"
+      },
+      {
+        "slice": "the slice that brings the agents' scheduled check-ins",
+        "where": "agents/check_in.ex:252-259",
+        "record": "carried: after a scheduled check-in that was saved, the notifier publishes :agents_changed on regent_agents:<beneficiary_privy_user_id> (Regents.PubSub, prefix regent_agents), the shared agents library's topic (RegentAgents.topic/1); regents.sh's shell page (RegentsWeb.Account.Pages subscribes, RegentsWeb.ShellLive handles :agents_changed) then reads the menu's agents, the pairing box and the Account page's agents panel again"
+      },
+      {
+        "slice": "the pages slice that serves the feed's missed events",
+        "where": "feed.ex:85-97 (@settling_seconds)",
+        "record": "the settling time counts on the database cutting a statement at 15 seconds and a lock wait at 5: keyfleet.ai's serving connection set statement_timeout 15000, lock_timeout 5000 and idle_in_transaction_session_timeout 15000 (database_config.ex serving/2); regents.sh's Regents.DatabaseConfig sets none, so nothing holds a post's statement or lock wait under the 30 seconds, and a post committed later than that behind its id is passed by a reader that reads on from the settled moment, until a sync. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "the notebooks slice",
+        "where": "notebooks.ex:115-122 (hub_run/2)",
+        "record": "the doc says a job that fails with HubSilentError is not saved again (Regents.ErrorIgnorer): keyfleet.ai's ignorer left out an Oban.PerformError whose whole reason was the hub client's wait; regents.sh's leaves out each attempt Oban will retry and nothing else, so a hub job whose last attempt fails on the wait is saved twice, by HubSilentError.report/1 and by ErrorTracker. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "slice 3, the graph machine",
+        "where": "graph/notices.ex",
+        "record": "Graph.Notices listens on Regents.Notifications once, in init/1, so it starts after that connection under Regents.SharedChanges (rest_for_one), as RegentAgents.Listener does; Regents.SharedChanges is regents.sh's file. Asked of the regents chief (K2d)"
+      },
+      {
+        "slice": "now: the access cache runs under Regents.Keyfleet.Supervisor",
+        "where": "access_cache.ex moduledoc",
+        "record": "\"on this machine only\" holds on regents.sh: nothing joins its machines (no dns_cluster or libcluster, no Node.connect, no rel/env.sh), so a broadcast on Regents.PubSub, Phoenix.PubSub's default adapter (lib/regents/application.ex:45), reaches only the machine that sends it; fly.toml keeps one machine, and its blue-green release runs a second, not joined, for the overlap the comment describes. Its :public table is that machine's alone. Joining the machines would change both (K2d)"
+      },
+      {
+        "slice": "before one-site is released",
+        "where": "platform/priv/keyfleet/migrations/20261121225741_pg_trgm_extensions_1.exs",
+        "record": "the one migration here that would run on production's keyfleet_app: before one-site is ever released, production's migration ledger is compared with these versions, a production read that needs the founder (K2d)"
+      }
+    ],
     "queues": {
       "sizes_keyfleet_ai_runs": {
         "keyfleet_default": 5,
