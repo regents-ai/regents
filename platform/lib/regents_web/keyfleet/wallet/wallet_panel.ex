@@ -104,7 +104,7 @@ defmodule RegentsWeb.Keyfleet.WalletPanel do
   # How soon a group with a button the chain's state holds back reads it again.
   @blocked_ms 15_000
   # How long a press waits on its own steps before it is answered without them.
-  @press_build_ms 12_000
+  @press_build_ms 8_000
   # The groups whose figures a visitor sees.
   @shown_to_visitors [:buy, :run_split, :present, :launch_upkeep]
   # The groups a visitor sees without their buttons: Buy stays, and a press
