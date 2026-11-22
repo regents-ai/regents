@@ -241,6 +241,13 @@ config :regents, :limits,
   # each page for 2 seconds), so two people behind one address are not held.
   # Past them the sea stays as it is drawn.
   keyfleet_sea_moves: [limit: 45, window_seconds: 60],
+  # Reads of a member's own ships by the sea behind one address's open
+  # Keyfleet pages, one on coming to a fleet they are a member of and one a
+  # burst of that fleet's news: twice what three open pages read in a busy
+  # fleet's minute (81, news every half second), so two members behind one
+  # address are not held. Past them the sea keeps the ships it has until the
+  # next news.
+  keyfleet_sea_crew_reads: [limit: 180, window_seconds: 60],
   # Searches one address's open Keyfleet pages run, Show more included: one a
   # second.
   keyfleet_searches: [limit: 60, window_seconds: 60],
