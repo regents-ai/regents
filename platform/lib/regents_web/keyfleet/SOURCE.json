@@ -308,7 +308,8 @@
       "from": "platform/lib/keyfleet_web/live/proposals_live.ex",
       "to": "platform/lib/regents_web/keyfleet/live/proposals_live.ex",
       "changes": [
-        "need: Regents.Limits names every allowance <product>_<name>; the site's budget is :keyfleet_treasury_refresh, one press every 30 seconds, as keyfleet.ai's :treasury_refresh"
+        "need: Regents.Limits names every allowance <product>_<name>; the site's budget is :keyfleet_treasury_refresh, one press every 30 seconds, as keyfleet.ai's :treasury_refresh",
+        "need: the site has a venue that only reads (Regents.read_only?/0), where no job runs; there a press of the Treasury's refresh asks for no reading and reads the kept figures again (K3 b)"
       ]
     },
     {

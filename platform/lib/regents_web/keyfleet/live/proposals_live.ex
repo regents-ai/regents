@@ -1520,7 +1520,9 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
   once, and the figures its wallet buttons show are read again. Each person,
   `who` (their account, or a visitor's visit), may press it once every 30
   seconds (`:keyfleet_treasury_refresh` in `Regents.Limits`); the button rests
-  until then, and a press it refuses rests it for what is left.
+  until then, and a press it refuses rests it for what is left. Where the site
+  only reads (`Regents.read_only?/0`) no reading is asked for: the figures
+  already kept are read again.
   """
   def refresh_treasury(
         %{assigns: %{proposals: %{fleet_id: fleet_id, treasury: %{}}}} = socket,
@@ -1528,7 +1530,7 @@ defmodule RegentsWeb.Keyfleet.ProposalsLive do
       ) do
     case Limits.admit(:keyfleet_treasury_refresh, who) do
       :ok ->
-        ReadBalances.now(fleet_id)
+        if not Regents.read_only?(), do: ReadBalances.now(fleet_id)
         socket |> reread_treasury() |> rest(Limits.window(:keyfleet_treasury_refresh))
 
       {:limited, seconds} ->
