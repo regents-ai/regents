@@ -44,7 +44,7 @@ defmodule RegentsWeb.Cloak do
        after: "."
      }, "Reworded on your Mac and sent through Tor. Pay per request with USDC.e on Tempo."},
     {"NEAR Private AI", nil,
-     "Verifiably private AI models. See where your tokens go, and opt-in to earn NEAR AI Cloud inference credits for the traces you choose to share."},
+     "Verifiably private AI models. Opt in to earn NEAR AI Cloud credits for shared traces."},
     {"Local Llama", nil,
      "Answered fully on your Mac with recommended best-in-class local models. Zero traffic is sent over the web."}
   ]

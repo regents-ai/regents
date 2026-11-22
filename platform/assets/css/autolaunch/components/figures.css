@@ -4,6 +4,11 @@
 :scope[data-theme="light"] { --orange-ink: #a8380a; }
 @media (prefers-color-scheme: light) { :scope:not([data-theme]) { --orange-ink: #a8380a; } }
 
+/* Figures on a token's page: the number reads in the page's ink, its ticker in orange. */
+:where(.token-page) .figure { font-variant-numeric: tabular-nums; }
+:where(.token-page) .figure__value { color: var(--color-fg); }
+:where(.token-page) .figure__unit { color: var(--orange-ink); }
+
 /* Every status pill on every page, a state word (Ready, Completed, Outbid), a tag or a chain, is the same micro-label chip; its tone gives the colour. */
 .rg-status { align-items: center; font-size: .6875rem; letter-spacing: var(--tracking-microlabel); line-height: 1.6; text-transform: uppercase; white-space: nowrap; }
 }

@@ -27,7 +27,7 @@ defmodule RegentsWeb.Techtree.HomeLive do
   import RegentsWeb.Techtree.Components.Marketing, only: [field: 1, price: 1]
 
   alias Regents.Techtree.Train.Comparisons
-  alias RegentsWeb.Techtree.Components.BookCall
+  alias RegentsWeb.Techtree.Components.{BookCall, Enquiry}
   alias RegentsWeb.Techtree.Services
   alias RegentsWeb.Techtree.TrainCopy, as: Copy
 
@@ -82,10 +82,11 @@ defmodule RegentsWeb.Techtree.HomeLive do
   @mailto "mailto:build@regents.sh"
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     {:ok,
      assign(socket,
        page_title: "Better agents for your business",
+       client_key: session["client_tag"],
        title: @title,
        promise: @promise,
        services_line: @services_line,
@@ -284,6 +285,13 @@ defmodule RegentsWeb.Techtree.HomeLive do
             <BookCall.book_call />
             <a class="rg-button rg-button--secondary" href={@mailto}>Email us</a>
           </div>
+          <.live_component
+            :if={!Regents.read_only?()}
+            module={Enquiry}
+            id="home-enquiry"
+            service={nil}
+            client_key={@client_key}
+          />
         </div>
       </section>
     </Layouts.page>

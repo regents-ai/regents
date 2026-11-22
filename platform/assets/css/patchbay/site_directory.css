@@ -1,0 +1,198 @@
+@scope (:root[data-product="patchbay"]) to (.regents-frame) {
+/* /sites: one heading, the most popular sites, then every site. */
+.pb-sites-page { padding-top: var(--space-3); }
+.pb-sites-head { margin-bottom: var(--space-3); }
+.pb-sites-head h1 { margin: 0; font-family: var(--font-family-title); font-size: clamp(1.65rem, 3vw, 2.4rem); font-weight: 400; letter-spacing: -.02em; line-height: 1.2; text-wrap: balance; }
+
+/* Eight real homepage screenshots; phones scroll the same cards sideways. */
+.pb-showcase { margin: 0 0 var(--space-4); }
+.pb-showcase-head { margin-bottom: .5rem; }
+.pb-showcase-head h2 { margin: 0; font-family: var(--font-family-title); font-size: var(--pb-fs-xl); font-weight: 400; font-synthesis: none; letter-spacing: -.02em; text-wrap: balance; }
+.pb-showcase-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); height: clamp(10rem, calc(50svh - 15rem), 18rem); gap: var(--space-2); }
+.pb-showcase-tile { position: relative; display: block; min-height: 0; overflow: hidden; border: 1px solid var(--pb-line); border-radius: var(--radius); background: var(--support-figure-surface); color: var(--pb-text); text-decoration: none; }
+.pb-showcase-tile:focus-visible { outline: 2px solid var(--pb-accent-deep); outline-offset: -2px; }
+.pb-showcase-shot { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+.pb-showcase-shot.is-empty { display: grid; place-items: center; font-family: var(--font-family-ui); font-size: .75rem; color: var(--pb-text-muted); }
+.pb-showcase-name { position: absolute; left: 0; right: 0; bottom: 0; padding: .4rem .65rem; background: color-mix(in srgb, var(--pb-canvas) 88%, transparent); color: var(--pb-text); font-size: .8125rem; }
+.pb-showcase-count { position: absolute; top: .5rem; left: .5rem; display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .5rem; border: 1px solid currentColor; background: var(--support-panel-surface); color: var(--support-panel-ink); font-size: .75rem; line-height: 1.2; pointer-events: none; }
+.pb-showcase-count strong { font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) {
+  .pb-showcase-tile:hover { border-color: var(--pb-text); }
+  .pb-showcase-count { opacity: 0; transform: translateY(5px); transition: opacity 150ms ease-out, transform 150ms cubic-bezier(.23, 1, .32, 1); }
+  .pb-showcase-tile:hover .pb-showcase-count { opacity: 1; transform: translateY(0); }
+  .pb-showcase-shot { transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
+  .pb-showcase-tile:hover .pb-showcase-shot { transform: scale(1.025); }
+  .pb-showcase-tile:focus-visible .pb-showcase-count { opacity: 1; transform: none; transition: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-showcase-count, .pb-showcase-shot { transition: none; }
+  .pb-showcase-tile:hover .pb-showcase-shot { transform: none; }
+}
+@media (forced-colors: active) {
+  .pb-showcase-count { background: Canvas; color: CanvasText; }
+}
+@container pb-page (max-width: 760px) {
+  .pb-showcase { margin-bottom: 1rem; }
+  .pb-showcase-grid { height: clamp(6rem, 13svh, 8rem); grid-template-columns: none; grid-template-rows: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: min(72vw, 20rem); overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: .35rem; }
+  .pb-showcase-tile { scroll-snap-align: start; }
+  .pb-showcase-count { opacity: 1; transform: none; transition: none; }
+}
+
+.pb-site-directory { padding-block: 0 var(--space-5); }
+.pb-directory-intro { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.pb-directory-intro h2 { margin: 0; font-family: var(--font-family-title); font-size: var(--pb-fs-xl); font-weight: 400; font-synthesis: none; letter-spacing: -.02em; line-height: 1.2; overflow-wrap: anywhere; }
+.pb-directory-total, .pb-directory-results-heading { font-size: .75rem; color: var(--pb-text-muted); }
+.pb-directory-total { white-space: nowrap; padding-bottom: .25rem; }
+.pb-directory-search { display: flex; align-items: center; gap: .6rem; padding-block: .5rem; }
+.pb-directory-search label { min-width: 0; }
+.pb-directory-search-field { flex: 1; max-width: 30rem; }
+.pb-directory-search input, .pb-directory-search select { min-height: 44px; width: 100%; font-size: max(1rem, 16px); }
+.pb-directory-search input, .pb-directory-search select { border: 1px solid var(--pb-line); background-color: var(--pb-surface); padding-left: .75rem; }
+/* Search is as tall as the box and the list beside it. */
+.pb-directory-search .rg-button { min-height: 44px; padding-block: 0; }
+/* The list draws its own arrow, inset from the edge, which dips on hover and
+   turns over while the list is open: the directory's category and a board's
+   Address filter alike. */
+.pb-directory-select { position: relative; display: block; }
+.pb-directory-search select { appearance: none; -webkit-appearance: none; padding-right: 3rem; color: var(--pb-text); cursor: pointer; }
+.pb-directory-select::after, .pb-address-select::after {
+  content: ""; position: absolute; top: 50%; right: 1.125rem; width: 12px; height: 8px; margin-top: -4px;
+  background: var(--pb-text); pointer-events: none;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' fill='none' stroke='%23000' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform 180ms ease;
+}
+@media (hover: hover) { .pb-directory-select:hover::after, .pb-address-select:hover::after { transform: translateY(2px); } }
+.pb-directory-select:has(select:open)::after, .pb-address-select:has(select:open)::after { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .pb-directory-select::after, .pb-address-select::after { transition: none; } }
+@media (forced-colors: active) {
+  .pb-directory-search select { appearance: auto; padding-right: .75rem; }
+  .pb-directory-select::after, .pb-address-select::after { display: none; }
+}
+.pb-directory-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1rem 0 .6rem; }
+.pb-directory-results-heading p { margin: 0; }
+.pb-directory-scroll { position: relative; max-width: 100%; overflow-x: auto; overflow-y: hidden; container-type: inline-size; border-block: 1px solid var(--pb-line); scrollbar-width: thin; }
+.pb-directory-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .8125rem; }
+.pb-directory-table th, .pb-directory-table td { padding: .2rem .75rem; vertical-align: middle; }
+.pb-directory-table thead { background: var(--pb-surface); }
+.pb-directory-table thead th { position: sticky; top: 0; z-index: var(--rg-layer-card); background: var(--pb-surface); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 400; color: var(--pb-text-muted); height: 3.5rem; text-align: left; }
+.pb-directory-table thead th:first-child { width: 66%; }
+.pb-directory-table thead th span { display: block; font-size: .65rem; text-transform: none; letter-spacing: normal; margin-top: .2rem; }
+.pb-directory-table .pb-directory-numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.pb-directory-row { border-top: 1px solid var(--pb-line); }
+.pb-directory-row > th { text-align: left; font-weight: 400; }
+.pb-directory-identity { display: flex; align-items: center; gap: .8rem; min-width: 0; }
+.pb-directory-mark { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; border: 1px solid var(--pb-line); background: var(--pb-surface); color: var(--pb-text-muted); font-family: var(--font-family-title); font-size: 1.1rem; }
+.pb-directory-mark img { width: 28px; height: 28px; padding: 2px; object-fit: contain; background: var(--pb-porcelain); }
+/* A long name wraps rather than losing its end. */
+.pb-directory-name { min-width: 0; overflow-wrap: anywhere; }
+.pb-directory-expand, .pb-directory-count { border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.pb-directory-expand { display: flex; align-items: center; gap: .65rem; text-align: left; padding: 0; min-height: 32px; max-width: 55%; min-width: 0; flex-shrink: 0; }
+.pb-directory-url { display: flex; align-items: center; gap: .25rem; min-width: 0; min-height: 32px; color: var(--pb-text-muted); font-size: .72rem; }
+.pb-directory-url > a { color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pb-directory-count { display: inline-flex; flex-direction: column; align-items: end; justify-content: center; min-width: 44px; min-height: 34px; padding: 0; }
+.pb-directory-count strong { font-weight: 400; font-size: 1rem; }
+/* A site Patchbay has not checked has words, not a number, kept on one line. */
+.pb-directory-unchecked { font-size: .75rem; color: var(--pb-text-muted); white-space: nowrap; }
+.pb-directory-posts { display: inline-flex; min-width: 44px; min-height: 34px; align-items: center; justify-content: end; }
+/* View Forum follows the address. It is always laid out, so the row never
+   moves: with a mouse it fades in while the pointer is on the row or a control
+   in the row has keyboard focus; on a touch screen it always shows. */
+.pb-directory-forum { flex: 0 0 auto; display: inline-flex; align-items: center; color: var(--pb-text); font-size: .72rem; line-height: 1; white-space: nowrap; text-decoration: none; }
+.pb-directory-forum > span:first-child { display: inline-flex; align-items: center; min-height: 26px; padding: 0 .6rem; border: 1px solid var(--pb-line); background: var(--pb-canvas); }
+.pb-directory-row > td { vertical-align: top; }
+/* An opened row holds the picture of the site's home page and, beside it, the
+   names of its tools. The picture's box is laid out before it loads, so
+   nothing moves when it arrives; a site without one shows the tools alone. */
+.pb-directory-detail-inner { display: flex; align-items: start; gap: 1.25rem; margin-block: .5rem; padding: 1rem; background: var(--pb-surface); }
+.pb-directory-detail-inner[hidden] { display: none; }
+.pb-directory-picture { display: block; flex: 0 0 18rem; width: 18rem; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border: 1px solid var(--pb-line); background: var(--pb-canvas); }
+/* Names only, as small chips that wrap. A long list scrolls inside a box as
+   tall as the picture (11.25rem), never sideways. */
+.pb-directory-tool-list { flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-content: start; gap: .375rem; max-height: 11.25rem; margin: 0; padding: 0; list-style: none; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.pb-directory-tool-list li { max-width: 100%; }
+.pb-directory-tool-list code { display: block; padding: .125rem .5rem; border: 1px solid var(--pb-line); border-radius: var(--radius); background: var(--pb-canvas); color: var(--pb-text); font-size: .72rem; line-height: 1.5; overflow-wrap: anywhere; }
+.pb-directory-empty { flex: 1 1 0; min-width: 0; margin: 0; font-size: .8125rem; line-height: 1.5; color: var(--pb-text-muted); }
+.pb-directory-pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 1.5rem 0; font-size: .8125rem; }
+.pb-directory-method { margin: 0; text-align: center; font-size: .8125rem; }
+.pb-directory-method a { display: inline-block; min-height: 44px; line-height: 44px; }
+.pb-site-directory :is(button, a, input, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--pb-text); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  .pb-directory-row:hover { background: var(--pb-surface); }
+  .pb-directory-forum { opacity: 0; transform: translateX(-4px); transition: opacity 150ms ease-out, transform 150ms cubic-bezier(.23, 1, .32, 1); }
+  .pb-directory-row:hover .pb-directory-forum { opacity: 1; transform: none; }
+  .pb-directory-forum:hover > span:first-child { border-color: var(--pb-text); }
+  .pb-directory-row:has(:focus-visible) .pb-directory-forum { opacity: 1; transform: none; transition: none; }
+}
+@media (prefers-reduced-motion: reduce) { .pb-directory-forum { transform: none; transition: none; } }
+@container pb-page (max-width: 640px) {
+  .pb-directory-intro { align-items: start; }
+  .pb-directory-intro h2 { max-width: 13rem; }
+  .pb-directory-total { padding-top: 2rem; }
+  /* The box takes a line of its own. The list keeps room for its longest
+     category beside Search, and when the two no longer fit, Search moves under
+     it and takes the whole line. */
+  .pb-directory-search { flex-wrap: wrap; }
+  .pb-directory-search-field { flex: 1 1 100%; max-width: none; }
+  .pb-directory-select { flex: 100 1 auto; }
+  .pb-directory-search .rg-button { flex: 1 0 auto; }
+  .pb-directory-table th, .pb-directory-table td { padding-inline: .75rem; }
+  .pb-directory-table thead th:first-child { width: auto; }
+  .pb-directory-table thead th:not(:first-child) { width: 3.75rem; }
+  .pb-directory-table .pb-directory-numeric { padding-inline: .25rem .75rem; }
+  /* The name keeps the whole line, and View Forum takes the line under it,
+     lined up with the name and always shown. */
+  .pb-directory-identity { flex-wrap: wrap; row-gap: 0; }
+  .pb-directory-expand { flex: 1 1 100%; max-width: none; }
+  .pb-directory-forum { margin-left: calc(28px + .65rem); opacity: 1; transform: none; }
+  .pb-directory-url { display: none; }
+  /* The picture takes the panel's width, the tools go under it. */
+  .pb-directory-detail-inner { flex-direction: column; align-items: stretch; gap: .75rem; width: calc(100cqw - 1.5rem); padding: .75rem; }
+  .pb-directory-picture { flex: none; width: 100%; }
+  .pb-directory-tool-list, .pb-directory-empty { flex: none; }
+}
+/* On a touch screen every control in a row is at least 44 px tall. */
+@media (pointer: coarse), (hover: none) {
+  .pb-directory-expand, .pb-directory-count, .pb-directory-posts, .pb-directory-url, .pb-directory-forum { min-height: 44px; }
+  .pb-directory-url > a { display: block; line-height: 44px; }
+}
+
+/* A site page opens on what works and what breaks there: its tools, then its
+   solved and still-open questions side by side, one column on a phone. */
+.pb-standing { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--pb-line); border-radius: var(--radius); background: var(--pb-surface); }
+.pb-standing h2 { margin: 0; font-size: var(--pb-fs-sm); }
+.pb-standing-tools { margin: .25rem 0 var(--space-3); color: var(--pb-text-muted); font-size: var(--pb-fs-xs); }
+.pb-standing-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.pb-standing h3 { margin: 0 0 .35rem; font-size: var(--pb-fs-xs); }
+.pb-standing h3 a { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; color: var(--pb-text); text-decoration: none; }
+@media (hover: hover) and (pointer: fine) {
+  .pb-standing h3 a:hover { text-decoration: underline; }
+}
+.pb-standing-count { font-variant-numeric: tabular-nums; color: var(--pb-text-muted); }
+.pb-standing ol { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.pb-standing li a { font-size: var(--pb-fs-sm); overflow-wrap: anywhere; }
+/* On a touch screen each question is a full finger tall: the link takes its
+   line's width and the padding that makes up the rest, so the list closes up. */
+@media (pointer: coarse), (hover: none) {
+  .pb-standing ol { gap: 0; }
+  .pb-standing li a { display: block; padding-block: .8125rem; }
+}
+.pb-standing p { margin: 0; font-size: var(--pb-fs-xs); }
+@media (max-width: 640px) {
+  .pb-standing-lists { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A board's Address filter: a label, the list of addresses its posts name and
+   Show, on one line that wraps on a narrow screen. The list grows to the
+   longest address it can and never past the card. */
+.pb-address-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0 0 var(--space-2); }
+.pb-address-filter label { color: var(--pb-text-muted); font-size: var(--pb-fs-xs); }
+.pb-address-select { position: relative; display: block; flex: 0 1 20rem; min-width: 0; }
+.pb-address-filter select {
+  width: 100%; min-height: 44px; padding: 0 3rem 0 .75rem;
+  border: 1px solid var(--pb-line); border-radius: var(--radius); background-color: var(--pb-surface);
+  color: var(--pb-text); font-size: max(1rem, 16px); text-overflow: ellipsis;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+.pb-address-filter .rg-button { min-height: 44px; padding-block: 0; }
+@media (forced-colors: active) { .pb-address-filter select { appearance: auto; padding-right: .75rem; } }
+}

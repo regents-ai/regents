@@ -8,9 +8,10 @@ defmodule RegentsWeb.Autolaunch.Paths do
   shares them). A token carries its auction's tail, so the two pages pair up.
 
   Every page function takes the auction, loaded with `path_tail`; a token's
-  page is named by the auction it launched from. Those pages are not here yet,
-  so the addresses are written out rather than checked against the router, and
-  answer 404 until their pages come.
+  page is named by the auction it launched from. A token's page is checked
+  against the router (`RegentsWeb.Autolaunch.MarketPageLive`); an auction's
+  page is not here yet, so its address is written out and answers 404 until
+  its page comes.
 
   Also where a page shows a launch's picture: a stored one
   (`Regents.Autolaunch.StoredImage`) from this site, at
@@ -28,13 +29,13 @@ defmodule RegentsWeb.Autolaunch.Paths do
   def auction(auction), do: "/autolaunch/auctions/#{symbol(auction)}/#{auction.path_tail}"
 
   @doc "The page of the token the auction launched."
-  def token(auction), do: "/autolaunch/tokens/#{symbol(auction)}/#{auction.path_tail}"
+  def token(auction), do: ~p"/autolaunch/tokens/#{auction.token_symbol}/#{auction.path_tail}"
 
   @doc """
-  Where a page shows the image at `url` at `width` (96, 320 or 640): a stored
-  image's sized copy on this site, and any other `https` address with a host,
-  such as one on another site, as it is. Nil for a launch with no image and
-  for any other address, where the page shows the name's first letter.
+  Where a page shows the image at `url` at `width` (96, 160, 320 or 640): a
+  stored image's sized copy on this site. Nil for a launch with no image and
+  for any address that is not a stored image, where the page shows the name's
+  first letter.
   """
   @spec sized(String.t() | nil, StoredImage.width()) :: String.t() | nil
   def sized(nil, _width), do: nil
@@ -42,7 +43,7 @@ defmodule RegentsWeb.Autolaunch.Paths do
   def sized(url, width) do
     case StoredImage.key(url) do
       {:ok, key} -> copy(key, width)
-      :error -> drawn(url)
+      :error -> nil
     end
   end
 
@@ -66,15 +67,6 @@ defmodule RegentsWeb.Autolaunch.Paths do
 
   defp copy({"stock-images", id, digest}, width),
     do: ~p"/autolaunch/stock-images/#{id}/#{digest}/#{"#{width}.webp"}"
-
-  # An address that is not a stored image is drawn only when it is `https`,
-  # with a host.
-  defp drawn(url) do
-    case URI.new(url) do
-      {:ok, %URI{scheme: "https", host: host}} when is_binary(host) and host != "" -> url
-      _other -> nil
-    end
-  end
 
   # A ticker is one path segment, encoded as the router's own addresses are.
   defp symbol(%{token_symbol: symbol}) when is_binary(symbol),

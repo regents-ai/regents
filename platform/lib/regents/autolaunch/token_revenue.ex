@@ -6,8 +6,9 @@ defmodule Regents.Autolaunch.TokenRevenue do
   asset (USDC, REGENT or the launch token); the stakers' share is the part that
   went to stakers.
 
-  The table and its rows as autolaunch.sh keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as autolaunch.sh keeps them. A Revstake token's page
+  reads its latest fifty (`Regents.Autolaunch.TokenPage.revenue/2`); nothing
+  here writes them yet.
   """
   use Ash.Resource,
     otp_app: :regents,
@@ -48,11 +49,20 @@ defmodule Regents.Autolaunch.TokenRevenue do
     identity :splitter_log, [:token_id, :transaction_hash, :log_index]
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    # A token's revenue, newest first, at most the latest fifty.
+    read :for_token do
+      argument :token_id, :uuid, allow_nil?: false
+      filter expr(token_id == ^arg(:token_id))
+      prepare build(sort: [block_number: :desc, log_index: :desc], limit: 50)
+    end
+  end
+
+  # Only the token page's read is carried; any other action is refused until it
+  # comes with its own policy.
   policies do
-    policy always() do
-      forbid_if always()
+    policy action(:for_token) do
+      authorize_if always()
     end
   end
 end

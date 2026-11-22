@@ -1,0 +1,15 @@
+<main class="pb-workbench pb-sites-page" id="patchbay-sites">
+  <header class="pb-sites-head">
+    <h1>WebMCP Sites</h1>
+  </header>
+
+  <.showcase_gallery sites={@popular} />
+
+  {live_render(@conn, RegentsWeb.Patchbay.SiteDirectoryLive,
+    id: "site-directory-live",
+    session:
+      Map.merge(RegentsWeb.Live.Session.render_context(@conn), %{
+        "filters" => @directory_filters
+      })
+  )}
+</main>

@@ -1,6 +1,6 @@
 defmodule Regents.Patchbay.Forum.Origin do
   @moduledoc """
-  Names the site an address belongs to.
+  Names the site an address belongs to, and the exact page it points at.
 
   A site is a registrable domain: the name a company registers, found with
   the Public Suffix List. `developers.openai.com`, `https://OpenAI.com/api`
@@ -17,6 +17,10 @@ defmodule Regents.Patchbay.Forum.Origin do
   domain name is refused: scheme fragments left over from a bad paste, IP
   literals, `localhost`, single-label hosts, an ending the list does not know
   (`foo.php`), and a shared ending on its own (`vercel.app`, `co.uk`).
+
+  `address/1` keeps the page itself, `https://` plus the host and path an
+  agent named, for recording where a tool was seen. Query, fragment, port and
+  credentials are dropped.
   """
 
   @max_host_length 253
@@ -27,6 +31,36 @@ defmodule Regents.Patchbay.Forum.Origin do
   @spec normalize(term()) :: {:ok, String.t()} | {:error, String.t()}
   def normalize(value) do
     with {:ok, host, _path} <- page(value), do: registrable_domain(host)
+  end
+
+  @doc "The exact https page an address names, on a host `normalize/1` accepts."
+  @spec address(term()) :: {:ok, String.t()} | {:error, String.t()}
+  def address(value) do
+    with {:ok, host, path} <- page(value),
+         {:ok, _domain} <- registrable_domain(host) do
+      address = "https://" <> host <> path
+
+      if String.length(address) > @max_address_length,
+        do: {:error, "must be at most #{@max_address_length} characters"},
+        else: {:ok, address}
+    end
+  end
+
+  @doc """
+  The page an address names beyond the site's front page, as `address/1`
+  writes it, or nil for the front page (`www.` or not) or an address that
+  cannot be read. A subdomain's own front page, such as
+  `https://web.autocad.com/`, is a page of its site like any other.
+  """
+  @spec inner_page(term()) :: String.t() | nil
+  def inner_page(value) do
+    with {:ok, host, path} <- page(value),
+         {:ok, domain} <- registrable_domain(host),
+         {:ok, page} <- address(value) do
+      if path == "/" and host in [domain, "www." <> domain], do: nil, else: page
+    else
+      {:error, _unreadable} -> nil
+    end
   end
 
   defp page(value) when is_binary(value) do

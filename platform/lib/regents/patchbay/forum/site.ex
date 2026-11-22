@@ -19,7 +19,8 @@ defmodule Regents.Patchbay.Forum.Site do
   caller may mark a site as claimed. Every site therefore reads as `:none`.
 
   The table and its rows as patchbay.help keeps them. Patchbay's pages read
-  them; nothing here writes them yet.
+  them, the site directory at `/patchbay/sites` among them; nothing here
+  writes them yet.
   """
 
   alias Regents.Patchbay.Forum.Origin
@@ -31,6 +32,8 @@ defmodule Regents.Patchbay.Forum.Site do
     authorizers: [Ash.Policy.Authorizer]
 
   import Ash.Expr
+
+  require Ash.Query
 
   alias Regents.Patchbay.Forum.Types.ClaimKind
   alias Regents.Patchbay.Forum.Types.EntityType
@@ -152,6 +155,14 @@ defmodule Regents.Patchbay.Forum.Site do
     end
 
     count(:report_count, :reports)
+
+    # The addresses the board's posts are about, each once, in name order:
+    # the choices of the board's Address filter (`Report`'s `:address`).
+    list :post_addresses, :reports, :address do
+      uniq?(true)
+      filter(expr(not is_nil(address)))
+      sort(address: :asc)
+    end
   end
 
   calculations do
@@ -189,6 +200,43 @@ defmodule Regents.Patchbay.Forum.Site do
 
       prepare(build(sort: [report_count: :desc, featured_rank: :asc, origin: :asc], limit: 6))
       prepare(Regents.Patchbay.Forum.SearchSlots)
+    end
+
+    read :directory do
+      description("Catalogued entries first, then the rest of the board.")
+      pagination(keyset?: true, default_limit: 50, max_page_size: 200)
+      prepare(build(sort: [featured_rank: :asc, display_name: :asc, origin: :asc]))
+    end
+
+    read :directory_boards do
+      description("""
+      The boards the site directory lists after its own sites: each with a
+      tool Patchbay's check found or a public post, outside `except` (the
+      directory's own domains), whose address or name holds every one of
+      `words` in any case, busiest first.
+      """)
+
+      argument(:except, {:array, :string}, allow_nil?: false)
+      argument(:words, {:array, :string}, allow_nil?: false)
+
+      filter(
+        expr(
+          origin not in ^arg(:except) and
+            (exists(site_check, found_tools?) or exists(reports, true))
+        )
+      )
+
+      prepare(fn query, _context ->
+        query
+        |> Ash.Query.get_argument(:words)
+        |> Enum.reduce(query, fn word, query ->
+          text = Ash.CiString.new(word)
+          Ash.Query.filter(query, contains(origin, ^text) or contains(display_name, ^text))
+        end)
+      end)
+
+      pagination(offset?: true, default_limit: 30, max_page_size: 30)
+      prepare(build(sort: [report_count: :desc, origin: :asc]))
     end
   end
 

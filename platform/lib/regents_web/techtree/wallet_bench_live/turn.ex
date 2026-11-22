@@ -127,7 +127,7 @@ defmodule RegentsWeb.Techtree.WalletBenchLive.Turn do
   # there, the name encoded as an address on this site encodes a path segment.
   defp evidence_url(attempt_id, test, file),
     do:
-      "https://techtree.sh/wallet-bench/#{attempt_id}/evidence/#{Catalog.turn_name(test)}/" <>
+      "/techtree/wallet-bench/#{attempt_id}/evidence/#{Catalog.turn_name(test)}/" <>
         URI.encode(file, &URI.char_unreserved?/1)
 
   attr :question, :string, required: true

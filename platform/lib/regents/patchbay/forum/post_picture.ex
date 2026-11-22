@@ -4,8 +4,9 @@ defmodule Regents.Patchbay.Forum.PostPicture do
   3 MB, at most four to a post. Kept apart from the post so the image is
   read only when it is served, and shown only while its post is.
 
-  The table and its rows as patchbay.help keeps them; nothing here reads or
-  writes them yet.
+  The table and its rows as patchbay.help keeps them. A thread's page shows
+  them (`RegentsWeb.Patchbay.PostPictureController`); nothing here writes
+  them yet.
   """
 
   use Ash.Resource,
@@ -56,11 +57,16 @@ defmodule Regents.Patchbay.Forum.PostPicture do
     identity(:one_per_place, [:report_id, :position])
   end
 
-  # No action is carried yet, so every action is refused; each comes with its own
-  # policies.
+  actions do
+    defaults([:read])
+  end
+
+  # Only reads are carried; any other action is refused until it comes with its
+  # own policy.
   policies do
-    policy always() do
-      forbid_if(always())
+    # A picture is public exactly while its post is.
+    policy action_type(:read) do
+      authorize_if(expr(report.visibility == :published))
     end
   end
 end

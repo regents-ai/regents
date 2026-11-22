@@ -1,21 +1,154 @@
 defmodule RegentsWeb.Techtree.WalletBenchEvidenceController do
   @moduledoc """
-  A wallet test's record on its own as JSON. One recorded file and the whole
-  test as a zip are served by techtree.sh, which holds the stored files; the
-  pages link there.
+  One recorded file of a wallet test, as plain text; the whole test as a zip;
+  and the test's record on its own as JSON.
 
-  When the database can't be read (`RegentsWeb.Techtree.Outage`) it answers 503
+  Only a file the turn recorded is served: the turn and file names are looked
+  up in the turn's own list, never used as a path, and the bytes read back
+  must match the fingerprint recorded with them (`Regents.Techtree.WalletBench.Evidence.recorded/2`).
+
+  When the database can't be read (`RegentsWeb.Techtree.Outage`) each answers 503
   asking to try again, never a 500 or a 404.
   """
 
   use RegentsWeb, :controller
 
   alias Regents.Techtree.WalletBench
-  alias Regents.Techtree.WalletBench.Catalog
-  alias RegentsWeb.Techtree.{ExactResponse, Outage}
+  alias Regents.Techtree.WalletBench.{Catalog, Evidence}
+  alias RegentsWeb.Techtree.{ExactResponse, Outage, ResultsUnreadableError}
   alias RegentsWeb.Techtree.WalletBenchCopy, as: Copy
 
   @load [:machine, :turns, :payments, :model_spend_usd, :judge_cost_usd]
+  @downloads 4
+
+  # sobelow_skip ["XSS.SendResp"]
+  def show(conn, %{"id" => id, "turn" => turn_name, "file" => file}) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         {:ok, %{} = attempt} <-
+           Outage.read(fn ->
+             WalletBench.get_attempt!(id, load: [:turns], not_found_error?: false)
+           end),
+         %{evidence: %{^file => _recorded}} = turn <-
+           Enum.find(attempt.turns, &(Catalog.turn_name(&1.test) == turn_name)) do
+      with_download_place(conn, fn -> send_recorded(conn, turn, file) end)
+    else
+      :database_down -> busy(conn)
+      _missing -> raise RegentsWeb.NotFoundError, "no recorded file has that name"
+    end
+  end
+
+  defp send_recorded(conn, turn, file) do
+    case Evidence.recorded(turn, file) do
+      {:ok, body} ->
+        conn
+        |> put_resp_content_type("text/plain")
+        |> send_resp(200, body)
+
+      {:error, reason} ->
+        unread(conn, reason)
+    end
+  end
+
+  @doc """
+  The whole test as one zip, written as it is sent: `results.json` then every
+  file each test recorded, under its test's name.
+  """
+  def results(conn, %{"id" => id}) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         {:ok, {attempt, events}} <- Outage.read(fn -> read(id) end) do
+      with_download_place(conn, fn -> send_results(conn, attempt, events) end)
+    else
+      :database_down -> busy(conn)
+      _missing -> raise RegentsWeb.NotFoundError, "no wallet test has that number"
+    end
+  end
+
+  defp with_download_place(conn, send) do
+    {:ok, _owner} = Registry.register(RegentsWeb.Techtree.ResultsDownloads, :download, nil)
+
+    if Registry.count_match(RegentsWeb.Techtree.ResultsDownloads, :download, :_) > @downloads do
+      Registry.unregister(RegentsWeb.Techtree.ResultsDownloads, :download)
+      busy(conn)
+    else
+      try do
+        send.()
+      after
+        Registry.unregister(RegentsWeb.Techtree.ResultsDownloads, :download)
+      end
+    end
+  end
+
+  defp unread(conn, %Req.TransportError{}), do: busy(conn)
+  defp unread(conn, {:evidence, status}) when status == 429 or status >= 500, do: busy(conn)
+  defp unread(_conn, reason), do: raise(ResultsUnreadableError, inspect(reason))
+
+  defp busy(conn) do
+    conn
+    |> put_resp_header("retry-after", "30")
+    |> put_status(503)
+    |> put_root_layout(false)
+    |> put_view(html: RegentsWeb.ErrorHTML)
+    |> render(:"503")
+  end
+
+  defp send_results(conn, attempt, events) do
+    files =
+      for turn <- attempt.turns,
+          file <- Enum.sort(Map.keys(turn.evidence || %{})),
+          do: {turn, file}
+
+    case Enum.find_value(files, &unchecked/1) do
+      nil -> send_zip(conn, attempt, events, files)
+      {:error, reason} -> unread(conn, reason)
+    end
+  end
+
+  defp unchecked({turn, file}) do
+    with :ok <- Evidence.check(turn, file), do: nil
+  end
+
+  defp send_zip(conn, attempt, events, files) do
+    folder = "wallet-test-#{String.slice(attempt.id, 0, 8)}"
+    mtime = attempt.inserted_at
+
+    entries =
+      for {turn, file} <- files do
+        Zstream.entry(
+          "#{folder}/#{Catalog.turn_name(turn.test)}/#{file}",
+          Stream.map([file], &recorded!(turn, &1)),
+          mtime: mtime
+        )
+      end
+
+    results =
+      Zstream.entry(
+        "#{folder}/results.json",
+        [Jason.encode!(record(attempt, events), pretty: true)],
+        mtime: mtime
+      )
+
+    conn
+    |> put_resp_header("content-disposition", ~s(attachment; filename="#{folder}.zip"))
+    |> put_resp_content_type("application/zip", nil)
+    |> send_chunked(200)
+    |> send_stream(Zstream.zip([results | entries]))
+  end
+
+  defp send_stream(conn, stream) do
+    Enum.reduce_while(stream, conn, fn data, conn ->
+      case chunk(conn, data) do
+        {:ok, conn} -> {:cont, conn}
+        {:error, _gone} -> {:halt, conn}
+      end
+    end)
+  end
+
+  defp recorded!(turn, file) do
+    case Evidence.recorded(turn, file) do
+      {:ok, body} -> body
+      {:error, reason} -> raise "A recorded file can't be read: #{inspect(reason)}"
+    end
+  end
 
   @doc """
   The test's `results.json` on its own, the same record techtree.sh's zip

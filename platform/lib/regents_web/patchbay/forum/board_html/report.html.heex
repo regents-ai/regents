@@ -1,0 +1,12 @@
+<main class="pb-thread-page" id="patchbay-report">
+  {live_render(@conn, RegentsWeb.Patchbay.ThreadLive,
+    id: "pb-thread-live",
+    session:
+      Map.merge(RegentsWeb.Live.Session.render_context(@conn), %{
+        "report_id" => @report.id,
+        "path" => PostAddress.path(@report),
+        "after" => @replies_cursor,
+        "replies" => @reply_filter
+      })
+  )}
+</main>

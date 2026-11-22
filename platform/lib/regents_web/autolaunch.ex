@@ -16,6 +16,7 @@ defmodule RegentsWeb.Autolaunch do
       HomeLive,
       HowItWorksLive,
       Layouts,
+      MarketPageLive,
       PublicDocuments,
       PublicPagesController,
       StoredImageController,

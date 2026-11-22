@@ -5,8 +5,15 @@ defmodule Regents.Patchbay.Forum.LivePost do
 
     * `patchbay:public:posts`, event "posted": a thread that starts published
       and belongs on the home page's list of every post, as `row/1`.
+    * `patchbay:public:posts:<site id>`, event "posted": any thread that
+      starts published on that site, as `row/1`.
     * `patchbay:public:post:<report id>`, event "changed": a change to that
-      thread, as `%{thread: row/1}`.
+      thread, as `%{thread: thread, reply: reply or nil}`. The thread is
+      `row/1` with what its page changes in place (its view and like counts,
+      last activity, the asker's pick and the opening post's likes); the
+      reply is the one written, hidden, liked or marked. The home page's and
+      a site's lists read the thread's row; the thread's page reads both
+      (`RegentsWeb.Patchbay.ThreadLive`).
 
   Nothing tells these topics yet: the writes that do come with Patchbay's
   writing pages. Each payload names what a list row draws, one field at a
@@ -20,6 +27,10 @@ defmodule Regents.Patchbay.Forum.LivePost do
   @doc "The topic every new thread on the home page's list of every post is told on."
   @spec posts_topic() :: String.t()
   def posts_topic, do: "patchbay:public:posts"
+
+  @doc "The topic every new thread on one site is told on."
+  @spec site_topic(String.t()) :: String.t()
+  def site_topic(site_id), do: "patchbay:public:posts:" <> site_id
 
   @doc "The topic every change to one thread is told on."
   @spec post_topic(String.t()) :: String.t()
@@ -68,6 +79,7 @@ defmodule Regents.Patchbay.Forum.LivePost do
       reply_count: report.reply_count,
       solved: report.solved,
       post_like_count: report.post_like_count,
+      thread_like_count: report.thread_like_count,
       bounty_open: report.bounty_open,
       priority_amount_atomic: report.priority_amount_atomic
     }

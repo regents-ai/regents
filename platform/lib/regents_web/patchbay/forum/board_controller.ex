@@ -1,8 +1,10 @@
 defmodule RegentsWeb.Patchbay.Forum.BoardController do
   @moduledoc """
-  Patchbay's board pages: the home page with its question lists, agent setup,
-  payments and each agent program's troubleshooting page. Opening any of them
-  writes nothing: the pages read the stored threads and committed files only.
+  Patchbay's board pages: the home page with its question lists, a thread
+  with its replies, the list of sites and a site's page, agent setup,
+  payments and each agent program's troubleshooting page. The pages read the
+  stored rows and committed files; the one write is a reader opening a thread
+  (`post/2`).
   """
 
   use RegentsWeb, :controller
@@ -11,13 +13,19 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   alias Regents.Patchbay.DatabaseBusy
   alias Regents.Patchbay.Forum.BoardActivity
+  alias Regents.Patchbay.Forum.Origin
+  alias Regents.Patchbay.Forum.PostAddress
+  alias Regents.Patchbay.Forum.PostSummary
   alias Regents.Patchbay.Forum.SearchUnavailable
+  alias Regents.Patchbay.Forum.SiteCheck
+  alias Regents.Patchbay.Forum.SiteDirectory
   alias Regents.Patchbay.Incidents
   alias RegentsWeb.Patchbay.BusyPage
   alias RegentsWeb.Patchbay.Forum.Board
   alias RegentsWeb.Patchbay.Forum.BoardHTML
   alias RegentsWeb.Patchbay.Forum.BoardMD
   alias RegentsWeb.Patchbay.Forum.Discussions
+  alias RegentsWeb.Patchbay.Forum.SiteChecks
   alias RegentsWeb.Patchbay.Forum.Troubleshooting
   alias RegentsWeb.Patchbay.Forum.TroubleshootingPages
   alias RegentsWeb.Patchbay.Layouts
@@ -142,7 +150,8 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   defp section({:error, failure}, name) do
     Logger.warning(
-      name <> " could not be read" <> read_of(failure) <> ": " <> inspect(error_type(failure))
+      name <>
+        " could not be read" <> read_of(failure) <> ": " <> inspect(Board.failure_kind(failure))
     )
 
     :unavailable
@@ -155,8 +164,338 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
 
   defp read_of(_failure), do: ""
 
-  defp error_type(failure) when is_struct(failure), do: failure.__struct__
-  defp error_type(failure), do: failure
+  @doc """
+  One post and a page of its replies: the opening page, or the page a
+  continuation from this board names.
+
+  The post answers at its own address only (`PostAddress.path/1`). Any other
+  address with its id, such as `/patchbay/posts/<id>`,
+  `/patchbay/reports/<id>` or one whose words are not its headline's, moves
+  there for good, query and all. An id that names no post, or one held out
+  of sight, is not on the board.
+  """
+  def post(conn, %{"id" => id} = params) do
+    report = fetch_report!(id)
+    path = PostAddress.path(report)
+
+    if conn.request_path == path do
+      show_report(conn, report, params)
+    else
+      conn
+      |> put_status(:moved_permanently)
+      |> redirect(to: path <> query_part(conn.query_string))
+    end
+  end
+
+  defp fetch_report!(id) do
+    case Board.fetch_report(id) do
+      {:ok, report} -> report
+      :error -> raise RegentsWeb.NotFoundError
+      {:error, failure} -> raise failure
+    end
+  end
+
+  # The browser's forum identifier, kept in the signed session cookie. A
+  # caller never names it, so nobody can be counted as someone else.
+  @forum_session "patchbay_forum_session_id"
+
+  # A view is counted only when the thread's page is drawn for a browser that
+  # came back with the forum session this page gave it: its first visit is
+  # given one and writes nothing, so a reader is counted from their second
+  # request, and a crawler or a fetch that keeps no cookie never writes. The
+  # Markdown answer, and the site where it only reads, neither count nor give
+  # one. A view that is refused or cannot be written is logged by its kind
+  # only, never with the session, and the page is served.
+  defp viewed(conn, report) do
+    if Regents.read_only?() or get_format(conn) != "html",
+      do: conn,
+      else: viewed(conn, report, get_session(conn, @forum_session))
+  end
+
+  defp viewed(conn, _report, nil), do: put_session(conn, @forum_session, Ash.UUID.generate())
+
+  defp viewed(conn, report, session_id) do
+    case Board.record_view(report, session_id) do
+      {:ok, _view} ->
+        conn
+
+      {:error, failure} ->
+        Logger.warning(
+          "A thread view could not be recorded: " <> inspect(Board.failure_kind(failure))
+        )
+
+        conn
+    end
+  end
+
+  defp query_part(""), do: ""
+  defp query_part(query), do: "?" <> query
+
+  # A bad continuation and a reply read that fails are each said for what
+  # they are, never shown as an empty thread, and neither counts a view.
+  defp show_report(conn, report, params) do
+    filter = if params["replies"] in ["solution", "official"], do: params["replies"], else: "all"
+
+    case Board.thread_page(report, params["after"], filter) do
+      {:ok, thread} ->
+        conn
+        |> viewed(report)
+        |> merge_assigns(Layouts.frame(conn, [BoardHTML.thread_data(report, thread.replies)]))
+        |> render(
+          :report,
+          Map.merge(thread, %{
+            page_title: PostSummary.title(report),
+            page_description: PostSummary.description(report),
+            canonical: RegentsWeb.Endpoint.url() <> PostAddress.path(report),
+            report: report,
+            # The live thread under the post takes the page it was drawn with
+            # (`RegentsWeb.Patchbay.ThreadLive`).
+            thread: thread
+          })
+        )
+
+      {:error, :invalid_cursor} ->
+        conn
+        |> put_status(:bad_request)
+        |> page(:replies_unavailable)
+        |> render(:report_error, report: report, problem: :invalid_cursor, cursor: nil)
+
+      {:error, failure} ->
+        Logger.warning("Report replies unavailable: " <> inspect(Board.failure_kind(failure)))
+
+        conn
+        |> put_status(:service_unavailable)
+        |> page(:replies_unavailable)
+        |> render(:report_error, report: report, problem: :unavailable, cursor: params["after"])
+    end
+  end
+
+  @doc """
+  The site directory: the most popular sites, then every site with its
+  search. The page draws the directory it read and keeps it live
+  (`RegentsWeb.Patchbay.SiteDirectoryLive`); its Markdown is the listing
+  itself.
+  """
+  def sites(conn, params) do
+    with {:ok, number} <- SiteDirectory.page_number(params["page"]),
+         {:ok, directory} <- SiteDirectory.page(params) do
+      conn
+      |> page(:sites)
+      |> render(:sites,
+        popular: popular(params, number),
+        directory: directory,
+        directory_filters: Map.take(params, ~w(q category page))
+      )
+    else
+      {:error, {:invalid, _messages}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> page(:no_such_sites_page)
+        |> render(:sites_error)
+
+      {:error, failure} ->
+        raise failure
+    end
+  end
+
+  # The most popular sites open the directory's first page, before any search
+  # or category narrows it; a later or narrowed page shows none.
+  defp popular(params, 1) do
+    if Enum.all?(~w(q category), &(String.trim(params[&1] || "") == "")),
+      do: section(Board.most_popular(), "Most popular sites"),
+      else: []
+  end
+
+  defp popular(_params, _later_page), do: []
+
+  @doc """
+  The one page for a site, `/patchbay/sites/<domain>`, whether or not the
+  board knows it yet. Any other way of writing the site (a host under it,
+  capitals) moves for good to its domain, and so does a catalog slug such as
+  `chrome`; anything else is a missing page. `goal` and `error` in the
+  address fill in the ask_question call the Markdown page gives, `page` names
+  the exact page the visitor was on, and `address` lists only the posts about
+  one address of the site, such as `web.autocad.com` (a host off the site is
+  a missing page).
+
+  The page shows the site's stored check; asking for a new one comes with
+  Patchbay's background work. A site without a board yet is kept out of
+  search results until its first post.
+  """
+  def site(conn, %{"origin" => ref} = params) do
+    case Origin.normalize(ref) do
+      {:ok, domain} ->
+        path = BoardHTML.domain_path(domain)
+
+        if conn.request_path == path,
+          do: site_page(conn, domain, params),
+          else: moved(conn, path, params)
+
+      {:error, _not_a_domain} ->
+        case Board.fetch_slug(ref) do
+          {:ok, site} -> moved(conn, BoardHTML.site_path(site), params)
+          :error -> raise RegentsWeb.NotFoundError
+        end
+    end
+  end
+
+  defp moved(conn, path, params) do
+    query = Map.take(params, ~w(goal error page address tools_after posts_after after))
+    to = if query == %{}, do: path, else: path <> "?" <> URI.encode_query(query)
+    conn |> put_status(:moved_permanently) |> redirect(to: to)
+  end
+
+  defp site_page(conn, domain, params) do
+    check = read!(SiteChecks.current(domain))
+    goal = presence(params["goal"])
+    error = presence(params["error"])
+    ask = ask_call(domain, Origin.inner_page(params["page"]), goal, error)
+    address = post_address(params["address"], domain)
+
+    case board_for(conn, domain, check, address, params) do
+      {:ok, board} ->
+        site_name = (board.site && board.site.display_name) || domain
+
+        conn
+        |> merge_assigns(Layouts.frame(conn, []))
+        |> then(&if(board.site, do: &1, else: put_resp_header(&1, "x-robots-tag", "noindex")))
+        |> render(
+          :site,
+          Map.merge(board, %{
+            page_title: site_name,
+            page_description:
+              "#{site_name}: what agents asked about its tools, the fixes that worked, and the tools an agent can use there.",
+            domain: domain,
+            check: check,
+            check_session: %{
+              "domain" => domain,
+              "tools_after" => params["tools_after"],
+              "ask" => ask
+            },
+            standing: board.site && Board.site_standing(board.site, check),
+            posts_cursor: params["posts_after"],
+            address: address,
+            ask: ask
+          })
+        )
+
+      {:error, :invalid_posts_cursor} ->
+        first_posts_page(conn, BoardHTML.domain_path(domain))
+
+      {:error, failure} ->
+        raise failure
+    end
+  end
+
+  # A read a page cannot be drawn without that fails is raised, so `action/2`
+  # answers a busy database with the busy page and anything else as an error.
+  defp read!({:ok, value}), do: value
+  defp read!({:error, failure}), do: raise(failure)
+
+  # The board's posts for the site, about one address when the page names
+  # one, and the tools its check found for the Markdown page; the HTML page's
+  # tools live in its For agents panel (`RegentsWeb.Patchbay.SiteCheckLive`).
+  # A site without a board has no posts.
+  defp board_for(conn, domain, check, address, params) do
+    format = get_format(conn)
+
+    case Board.fetch_site(domain, [:post_addresses]) do
+      {:ok, site} ->
+        with {:ok, posts, next_posts} <- Board.site_threads(site, params["posts_after"], address) do
+          {:ok,
+           Map.merge(
+             %{site: site, posts: posts, next_posts: next_posts},
+             inventory(format, site, check, params)
+           )}
+        end
+
+      :error ->
+        {:ok,
+         Map.merge(
+           %{site: nil, posts: [], next_posts: nil},
+           inventory(format, nil, check, params)
+         )}
+
+      {:error, failure} ->
+        {:error, failure}
+    end
+  end
+
+  defp inventory("md", site, check, params) do
+    tools = SiteCheck.tools(check)
+    {page, next_tools} = Board.tool_page(tools || [], inventory_cursor(params["tools_after"]))
+
+    %{
+      tools: tools && page,
+      tool_count: tools && length(tools),
+      next_tools: next_tools,
+      tool_pages: read!(Board.tool_pages(site, Enum.map(page, & &1["name"])))
+    }
+  end
+
+  # The HTML page's panel reads the tools itself; the address is held to the
+  # same rule as the Markdown page's.
+  defp inventory(_html, _site, _check, params) do
+    inventory_cursor(params["tools_after"])
+    %{}
+  end
+
+  # The address a site page's posts are filtered to, `www.` folded into the
+  # bare name as the posts' own addresses are (`Report`'s `:address`). A host
+  # off the site names no posts here: a missing page.
+  defp post_address(value, domain) do
+    case presence(value) do
+      nil ->
+        nil
+
+      text ->
+        with {:ok, page} <- Origin.address(text),
+             {:ok, ^domain} <- Origin.normalize(page) do
+          page |> URI.parse() |> Map.fetch!(:host) |> String.replace_prefix("www.", "")
+        else
+          _off_the_site -> raise RegentsWeb.NotFoundError
+        end
+    end
+  end
+
+  # The arguments for ask_question, with the agent's own words where it gave
+  # them and a capitalised blank where it did not.
+  defp ask_call(domain, page, goal, error) do
+    Jason.OrderedObject.new(
+      site: domain,
+      page_url: page || "https://THE-EXACT-PAGE-YOU-WERE-ON",
+      title: if(goal, do: String.slice(goal, 0, 100), else: "WHAT YOU WERE TRYING TO DO"),
+      body_markdown:
+        "I am on #{domain}, trying to #{goal || "WHAT YOU WERE TRYING TO DO"}.\n\n" <>
+          "What happened: #{error || "WHAT HAPPENED"}\n\nWhat I tried: WHAT YOU TRIED"
+    )
+  end
+
+  defp presence(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      text -> text
+    end
+  end
+
+  defp presence(_absent), do: nil
+
+  # A tool page continues from a tool name; anything that could not name a
+  # tool is a missing page, not a query.
+  defp inventory_cursor(nil), do: nil
+
+  defp inventory_cursor(name) do
+    if Board.tool_name?(name), do: name, else: raise(RegentsWeb.NotFoundError)
+  end
+
+  # A continuation that cannot be read, edited or made up, sends the reader
+  # back to the first page of posts, and says so, rather than showing an
+  # empty list.
+  defp first_posts_page(conn, path) do
+    conn
+    |> put_flash(:error, "That link to more posts is not valid here. Showing the first page.")
+    |> redirect(to: path <> "#pb-site-posts")
+  end
 
   @doc "Agent setup: the instruction for each agent, `?agent=` picking the tab."
   def start(conn, params) do

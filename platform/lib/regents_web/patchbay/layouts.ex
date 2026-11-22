@@ -6,11 +6,11 @@ defmodule RegentsWeb.Patchbay.Layouts do
   The bar (`RegentsWeb.Components.Shell.site_bar/1`) takes the place of
   patchbay.help's masthead: its crown, product menu, theme switch and account
   control are the bar's. patchbay.help's places are the bar's links from 48rem
-  up: Questions, and Ask on every page but the home page, whose own Ask a
-  question opens the form. Below 48rem, where the bar hides its links, Menu on
-  a strip of its own under the bar opens them, with Ask, in a popover the
-  browser opens and closes. Sites joins them with its page. The header's search
-  box and account menu are not here: they wait for a product row under the bar.
+  up: Questions, Sites, and Ask on every page but the home page, whose own Ask
+  a question opens the form. Below 48rem, where the bar hides its links, Menu
+  on a strip of its own under the bar opens them, with Ask, in a popover the
+  browser opens and closes. The header's search box and account menu are not
+  here: they wait for a product row under the bar.
   """
 
   use RegentsWeb, :html
@@ -38,12 +38,14 @@ defmodule RegentsWeb.Patchbay.Layouts do
     <Shell.site_bar product="patchbay" account_control={@account_control}>
       <:links>
         <a href={~p"/patchbay"} aria-current={home?(@conn) && "page"}>Questions</a>
+        <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
         <a :if={!home?(@conn)} href={ask_path()}>Ask</a>
       </:links>
     </Shell.site_bar>
     <button type="button" class="pb-menu-strip" popovertarget="pb-menu">Menu</button>
     <nav id="pb-menu" class="pb-menu" popover aria-label="Patchbay">
       <a href={~p"/patchbay"} aria-current={home?(@conn) && "page"}>Questions</a>
+      <a href={~p"/patchbay/sites"} aria-current={sites?(@conn) && "page"}>Sites</a>
       <a href={ask_path()}>Ask</a>
     </nav>
     <Regent.Structure.frame class="pb-frame">
@@ -63,6 +65,12 @@ defmodule RegentsWeb.Patchbay.Layouts do
   end
 
   defp home?(conn), do: conn.request_path == ~p"/patchbay"
+
+  # The list of sites and every site's own page.
+  defp sites?(conn),
+    do:
+      conn.request_path == ~p"/patchbay/sites" or
+        String.starts_with?(conn.request_path, "/patchbay/sites/")
 
   # The home page's form, opened.
   defp ask_path, do: ~p"/patchbay?ask=1" <> "#pb-hero"

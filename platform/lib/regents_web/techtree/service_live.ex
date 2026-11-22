@@ -27,7 +27,7 @@ defmodule RegentsWeb.Techtree.ServiceLive do
   import RegentsWeb.Techtree.Components.Marketing, only: [field: 1, opening: 1, price: 1]
 
   alias Regents.Techtree.Train.Comparisons
-  alias RegentsWeb.Techtree.Components.BookCall
+  alias RegentsWeb.Techtree.Components.{BookCall, Enquiry}
   alias RegentsWeb.Techtree.Services
 
   # What the page says about money beyond the price level and the terms:
@@ -36,12 +36,13 @@ defmodule RegentsWeb.Techtree.ServiceLive do
   @tools_line "Open-source libraries and hosted services for your project, each named with its maker."
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
     service = Services.fetch!(socket.assigns.live_action)
 
     {:ok,
      assign(socket,
        page_title: service.name,
+       client_key: session["client_tag"],
        service: service,
        mailto: mailto(service),
        quoted: @quoted,
@@ -126,7 +127,7 @@ defmodule RegentsWeb.Techtree.ServiceLive do
         </ul>
       </section>
 
-      <.contact service={@service} mailto={@mailto} />
+      <.contact service={@service} mailto={@mailto} client_key={@client_key} />
     </Layouts.page>
     """
   end
@@ -226,7 +227,7 @@ defmodule RegentsWeb.Techtree.ServiceLive do
 
       <.tools tools={@service.tools} line={@tools_line} comparisons={@comparisons} />
 
-      <.contact service={@service} mailto={@mailto} />
+      <.contact service={@service} mailto={@mailto} client_key={@client_key} />
     </Layouts.page>
     """
   end
@@ -318,7 +319,7 @@ defmodule RegentsWeb.Techtree.ServiceLive do
         </ul>
       </section>
 
-      <.contact service={@service} mailto={@mailto} />
+      <.contact service={@service} mailto={@mailto} client_key={@client_key} />
     </Layouts.page>
     """
   end
@@ -431,6 +432,7 @@ defmodule RegentsWeb.Techtree.ServiceLive do
 
   attr :service, :map, required: true
   attr :mailto, :string, required: true
+  attr :client_key, :any, default: nil
 
   # The call and the email.
   defp contact(assigns) do
@@ -445,6 +447,13 @@ defmodule RegentsWeb.Techtree.ServiceLive do
           <BookCall.book_call />
           <a class="rg-button rg-button--secondary" href={@mailto}>Email build@regents.sh</a>
         </div>
+        <.live_component
+          :if={!Regents.read_only?()}
+          module={Enquiry}
+          id={"service-enquiry-#{@service.id}"}
+          service={@service.id}
+          client_key={@client_key}
+        />
       </div>
     </section>
     """

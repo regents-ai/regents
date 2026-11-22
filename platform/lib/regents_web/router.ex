@@ -318,7 +318,15 @@ defmodule RegentsWeb.Router do
     get "/publications", PublicationController, :index
     get "/publications/:bundle_digest", PublicationController, :show
     get "/publications/:bundle_digest/bundle", PublicationController, :bundle
+    get "/publication-keys/:key_id", PublicationKeyController, :show
     get "/skills/:root_digest", PublishedSkillController, :show
+  end
+
+  # Techtree's signed publication and withdrawal endpoint: paired agent only,
+  # refused automatically on the read-only venue by :paired_agent.
+  scope "/api/v1/techtree", RegentsWeb.Techtree do
+    pipe_through [:api, :paired_agent]
+    post "/publications", PublicationController, :create
   end
 
   scope "/api/agents/v1" do
@@ -394,6 +402,8 @@ defmodule RegentsWeb.Router do
     get "/agents/:agent", PublicPagesController, :show
     get "/services/security/sample-report", PublicPagesController, :show
     get "/account/projects/:id/package", ProjectPackageController, :show
+    get "/wallet-bench/:id/evidence/:turn/:file", WalletBenchEvidenceController, :show
+    get "/wallet-bench/:id/results.zip", WalletBenchEvidenceController, :results
 
     live_session :techtree,
       session: {RegentsWeb.Live.Session, :render_context, []},
@@ -419,6 +429,7 @@ defmodule RegentsWeb.Router do
       live "/wallet-bench/:id", WalletBenchLive.Show
       live "/account/projects", ProjectsLive, :index
       live "/account/projects/:id", ProjectsLive, :show
+      live "/watchdog", WatchdogLive, :index
     end
   end
 
@@ -494,6 +505,7 @@ defmodule RegentsWeb.Router do
       live "/how-it-works", HowItWorksLive, :show
       live "/auctions", AuctionsLive, :index
       live "/tokens", TokensLive, :index
+      live "/tokens/:symbol/:tail", MarketPageLive, :token
     end
   end
 
@@ -514,6 +526,11 @@ defmodule RegentsWeb.Router do
     get "/blog/:slug", BlogController, :show
     get "/start", Forum.BoardController, :start
     get "/agent-setup", Forum.BoardController, :agent_setup
+    get "/sites", Forum.BoardController, :sites
+    get "/sites/:origin", Forum.BoardController, :site
+    get "/posts/:id/:slug", Forum.BoardController, :post
+    get "/posts/:id", Forum.BoardController, :post
+    get "/reports/:id", Forum.BoardController, :post
 
     for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
       get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting",
@@ -523,9 +540,14 @@ defmodule RegentsWeb.Router do
     end
   end
 
-  # Each troubleshooting page's Markdown at its own address ending in .md, to
-  # any caller, as on patchbay.help.
+  # Each troubleshooting page's Markdown at its own address ending in .md, each
+  # picture on a public post, and the pictures Patchbay took of sites, to any
+  # caller, as on patchbay.help.
   scope "/patchbay", RegentsWeb.Patchbay do
+    get "/post-pictures/:id", PostPictureController, :show
+    get "/site-screenshots/:site_id", SiteScreenshotController, :show
+    get "/listed-site-pictures/:domain", ListedSitePictureController, :show
+
     for harness <- RegentsWeb.Patchbay.Forum.TroubleshootingPages.harnesses() do
       get "/#{RegentsWeb.Patchbay.Forum.TroubleshootingPages.slug(harness)}/troubleshooting.md",
           Forum.BoardController,

@@ -57,6 +57,7 @@ import {syncTheme} from "./theme"
 // in and figures that count up, the Docs' Copy page control, the Results page's
 // agent-version strip, and the Services panel in Techtree's row under the bar.
 import {AgentVersions} from "./techtree/agent_versions"
+import {EnquiryForm} from "./techtree/enquiry_form"
 import {marketingHooks, mountEntrance} from "./techtree/marketing"
 import {CopyCommandPage, CopyCommandPageView} from "./techtree/page_copy"
 import {installSiteMenu} from "./techtree/site_menu"
@@ -67,10 +68,12 @@ import {KeyfleetShell} from "./keyfleet/shell_behavior"
 // Autolaunch's pages (`RegentsWeb.Autolaunch`): the phone menu of its frame.
 import {installShellMenu} from "./autolaunch/shell_menu"
 // Patchbay's pages (`RegentsWeb.Patchbay`): Escape closing an open section, the
-// home page's live list and its counting times, and the WebMCP guide's status line.
+// home page's live list, a post's live thread and its counting times, and the
+// WebMCP guide's status line.
 // Their copy buttons and other motion are the site's own above.
 import {installEscape} from "./patchbay/escape"
 import {MotionArrivals} from "./patchbay/motion_arrivals"
+import {MotionThread} from "./patchbay/motion_thread"
 import {PatchbayRelativeTime} from "./patchbay/relative_time"
 import {mountWebMCPStatus} from "./patchbay/webmcp_status"
 
@@ -299,6 +302,7 @@ const hooks = {
   CopyCommandPage,
   CopyCommandPageView,
   Docs,
+  EnquiryForm,
   InfiniteScroll,
   InfoDialog,
   KeyfleetShell,
@@ -311,6 +315,7 @@ const hooks = {
   MotionRefusal,
   MotionTabs,
   MotionTick,
+  MotionThread,
   MenuAgents,
   OnchainSteps,
   PaperPicks,
@@ -323,6 +328,7 @@ const hooks = {
   Tour,
   ValueCard,
   VerifiedConnections,
+  WatchdogSites: MotionList,
 }
 if (!browserCsrfToken()) throw new Error("Missing CSRF token")
 

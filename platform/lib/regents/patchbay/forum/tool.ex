@@ -12,6 +12,7 @@ defmodule Regents.Patchbay.Forum.Tool do
   """
 
   alias Regents.Patchbay.Forum.Origin
+  alias Regents.Patchbay.Forum.ToolName
 
   use Ash.Resource,
     otp_app: :regents,
@@ -22,10 +23,6 @@ defmodule Regents.Patchbay.Forum.Tool do
   import Ash.Expr
 
   alias Regents.Patchbay.Forum.Types.ToolSourceKind
-
-  # What a WebMCP tool name may look like on the board: letters of either case,
-  # digits, `_`, `-` and `.`, up to 64 characters, starting with a letter or a digit.
-  @name_shape ~r/\A[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\z/
 
   postgres do
     table("forum_tools")
@@ -57,13 +54,13 @@ defmodule Regents.Patchbay.Forum.Tool do
     attribute :name, :string do
       allow_nil?(false)
       public?(true)
-      constraints(max_length: 64, match: @name_shape)
+      constraints(max_length: 64, match: ToolName.shape())
     end
 
     attribute :stable_key, :string do
       allow_nil?(true)
       public?(true)
-      constraints(max_length: 64, match: @name_shape)
+      constraints(max_length: 64, match: ToolName.shape())
     end
 
     attribute :published_name, :string do
@@ -145,6 +142,12 @@ defmodule Regents.Patchbay.Forum.Tool do
     end
   end
 
+  aggregates do
+    count :report_count, :reports do
+      description("How many reports have been filed against this contract.")
+    end
+  end
+
   calculations do
     calculate(
       :current?,
@@ -170,6 +173,19 @@ defmodule Regents.Patchbay.Forum.Tool do
 
   actions do
     defaults([:read])
+
+    read :named do
+      description("""
+      Which of the given names a site offers as tools now, one entry per name
+      with its newest version: the names a check found that have a tool page
+      on the site's board.
+      """)
+
+      argument(:site_id, :uuid, allow_nil?: false)
+      argument(:names, {:array, :string}, allow_nil?: false)
+      filter(expr(site_id == ^arg(:site_id) and current? and name in ^arg(:names)))
+      prepare(build(distinct: [:name], sort: [name: :asc, last_seen_at: :desc, id: :asc]))
+    end
 
     read :find do
       description("""

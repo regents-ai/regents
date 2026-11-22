@@ -39,6 +39,8 @@ defmodule Regents.Application do
         Regents.Patchbay.Forum.SearchSlots,
         # Techtree's Wallet Bench reading, kept 30 seconds.
         Regents.Techtree.WalletBench.Reading,
+        # Concurrent Wallet Bench evidence/zip downloads on this machine.
+        {Registry, keys: :duplicate, name: RegentsWeb.Techtree.ResultsDownloads},
         # Each agent's reading for an open account menu, unlinked from the page.
         {Task.Supervisor, name: Regents.Account.Agents.Reads},
         # Each product's health read for /api/v1/health, unlinked from the request.
@@ -118,8 +120,7 @@ defmodule Regents.Application do
   # the database before it asks to. The read-only venue has no one signed in to
   # show it to, and no grant on the Points tables.
   defp points_board_child do
-    if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint) and not Regents.read_only?(),
-      do: Regents.Account.Points.Board
+    if serving?() and not Regents.read_only?(), do: Regents.Account.Points.Board
   end
 
   # Keyfleet's shared readings are read only where pages are served, so a task
@@ -132,8 +133,7 @@ defmodule Regents.Application do
 
   # Metrics are served beside the site, never by a process that only runs a task.
   defp metrics_child do
-    if Phoenix.Endpoint.server?(:regents, RegentsWeb.Endpoint),
-      do: RegentsWeb.Metrics
+    if serving?(), do: RegentsWeb.Metrics
   end
 
   # Tell Phoenix to update the endpoint configuration

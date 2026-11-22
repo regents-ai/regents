@@ -102,6 +102,8 @@ config :regents,
     Regents.Techtree.Network,
     Regents.Techtree.WalletBench,
     Regents.Techtree.Projects,
+    Regents.Techtree.Enquiries,
+    Regents.Techtree.Watchdog,
     Regents.Patchbay.Forum,
     Regents.Patchbay.Members,
     Regents.Patchbay.Assist,
@@ -152,7 +154,7 @@ config :regents, Oban,
   repo: Regents.Repo,
   prefix: "regents_app",
   notifier: Oban.Notifiers.PG,
-  queues: [default: 1, points: 5, points_chain: 2, stake_reads: 1],
+  queues: [default: 1, points: 5, points_chain: 2, stake_reads: 1, techtree_watchdog: 2],
   cron: [
     crontab: [
       {"15 0 * * *", RegentPoints.TallyPeriods},
@@ -262,7 +264,10 @@ config :regents, :limits,
   # Reads one address's open Techtree Projects pages make as they connect and
   # move between the list and a project: as many a minute as the address has
   # reads of the site.
-  techtree_project_reads: [limit: 120, window_seconds: 60]
+  techtree_project_reads: [limit: 120, window_seconds: 60],
+  # Contact form enquiries on Techtree's home and service pages: five an hour
+  # per client address.
+  techtree_enquiries: [limit: 5, window_seconds: 3600]
 
 # Rate limits key on the direct peer. Production turns on Fly's client header.
 config :regents, :behind_fly_proxy, false
@@ -305,6 +310,10 @@ config :regents, Regents.Techtree.Network,
   maximum_body_bytes: 2_097_152,
   rate_limit: [limit: 10, window_seconds: 60],
   agent_rate_limit: [limit: 10, window_seconds: 60]
+
+config :regents, Regents.Techtree.Watchdog,
+  max_hosts_per_account: 20,
+  max_routes_per_account: 100
 
 # The example comparison at /techtree/examples/tdd: the files one local `techtree
 # forge` comparison wrote, committed as they are (RegentsWeb.Techtree.TddShowcase).

@@ -1,8 +1,8 @@
 @scope (:root[data-product="patchbay"]) to (.regents-frame) {
 /* The board's workbench: the home page's column, its chips, search lines, page
-   links and the notes a list shows when it could not be read; Agent setup's
-   heading, its handoff box and tabs, and its steps; the troubleshooting page's
-   column. */
+   links and the notes a list shows when it could not be read; a post's thread,
+   its fix card, its replies and its evidence; Agent setup's heading, its
+   handoff box and tabs, and its steps; the troubleshooting page's column. */
 .pb-workbench {
   width: calc(100% - 3rem); max-width: 100rem; margin: 0 auto 3rem; color: var(--pb-text);
 }
@@ -19,11 +19,35 @@
 .pb-tool-chip:hover {
   background: color-mix(in srgb, var(--pb-accent) 24%, var(--pb-surface));
 }
+.pb-post-pictures {
+  display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0;
+}
+.pb-post-pictures img {
+  display: block; width: 9rem; height: 9rem; object-fit: cover; border: 1px solid var(--pb-line); background: var(--pb-canvas);
+}
+.pb-post-pictures:empty {
+  display: none;
+}
+.pb-post-page {
+  margin: .5rem 0; font-size: .8125rem; overflow-wrap: anywhere;
+}
 .pb-search-summary {
   font-size: .75rem; margin: 0; padding: .75rem 1rem; background: var(--pb-canvas); overflow-wrap: anywhere;
 }
-.pb-list-pagination {
+.pb-list-pagination, .pb-thread-pagination {
   display: flex; flex-wrap: wrap; gap: .75rem; padding: 1rem; font-size: .8125rem;
+}
+.pb-thread h2 {
+  font-family: var(--font-family-title); font-weight: 400; font-size: 1.0625rem; line-height: 1.4;
+}
+.pb-thread h3 {
+  font-family: var(--font-family-title); font-weight: 400; font-size: .875rem; margin-top: 1.5rem;
+}
+.pb-thread-jev {
+  margin: .75rem 0 0; padding: .625rem .875rem; border-left: 2px solid var(--pb-accent); background: var(--pb-surface); font-size: .8125rem; line-height: 1.6;
+}
+.pb-thread-jev strong {
+  display: block;
 }
 /* The line a page shows over itself when it was sent back here with an error,
    such as a question page that did not match its list. */
@@ -43,11 +67,176 @@
 .pb-refusal a:hover {
   text-decoration-thickness: 2px;
 }
-/* On a touch screen the list's page links are 44 px tall. */
+.pb-thread-jev span {
+  color: var(--pb-text-muted);
+}
+.pb-thread-caption {
+  font-size: .8125rem; color: var(--pb-text-muted); line-height: 1.6;
+}
+.pb-kind-pill {
+  display: inline-flex; align-items: center; padding: .15rem .55rem; border: 1px solid var(--pb-text); color: var(--pb-text); font: .6875rem/1.4 var(--font-family-ui);
+}
+.pb-kind-pill.is-good {
+  background: var(--pb-text); color: var(--color-bg);
+}
+.pb-kind-pill.is-bad {
+  border-color: var(--pb-bad); color: var(--pb-bad);
+}
+/* A post whose code may be unsafe to run: the mark beside its name, and the
+   sentence above its words, in the theme's warning colour. */
+.pb-kind-pill.is-caution {
+  border-color: var(--color-warning); color: var(--color-warning);
+}
+.pb-caution-line {
+  display: flex; align-items: flex-start; gap: .45rem; margin: .5rem 0 .75rem; padding: .5rem .75rem; border-left: 2px solid var(--color-warning); background: color-mix(in srgb, var(--color-warning) 8%, var(--pb-surface)); color: var(--pb-text); font-size: .8125rem; line-height: 1.5;
+}
+/* The icon sits on the first line of the note, which wraps on a phone. */
+.pb-caution-icon {
+  flex: none; margin-top: .25em; color: var(--color-warning);
+}
+.pb-thread-prose {
+  white-space: pre-wrap; margin: 1.25rem 0; font: inherit;
+}
+.pb-card-facts {
+  display: grid; grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr); gap: .5rem 1.5rem; margin: 1rem 0; font-size: .9375rem;
+}
+.pb-card-facts dt {
+  color: var(--pb-text-muted); font-size: .8125rem; line-height: 1.85;
+}
+.pb-card-facts dd {
+  margin: 0;
+}
+/* On a phone each label sits above its value, so the value has the card's width. */
+@container pb-page (max-width: 37.5rem) {
+  .pb-card-facts {
+    grid-template-columns: minmax(0, 1fr); gap: 0;
+  }
+  .pb-card-facts dt {
+    line-height: 1.4;
+  }
+  .pb-card-facts dt:not(:first-child) {
+    margin-top: .75rem;
+  }
+  .pb-card-facts dd {
+    overflow-wrap: anywhere;
+  }
+}
+.pb-fix-card {
+  margin: 1.25rem 0 1.75rem; padding: 1.15rem 1.25rem; border: 1px solid var(--pb-line); background: var(--pb-surface);
+}
+.pb-fix-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem;
+}
+.pb-fix-head h2 {
+  display: inline-flex; align-items: center; gap: .4rem; margin: 0;
+}
+.pb-fix-worked {
+  margin: 0; color: var(--pb-text); font-size: .875rem;
+}
+.pb-fix-card .pb-thread-caption {
+  margin: 0;
+}
+.pb-fix-card .pb-thread-caption a {
+  font-size: .8125rem;
+}
+/* An answer with no fix shows its opening lines as plain words, ending in an
+   ellipsis only when it is cut. */
+.pb-fix-excerpt {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; margin: .75rem 0; line-height: 1.6; overflow-wrap: anywhere;
+}
+.pb-fix-facts dd {
+  white-space: pre-wrap;
+}
+.pb-fix-facts dd.pb-fix-list {
+  white-space: normal;
+}
+.pb-fix-standing {
+  display: inline-block; margin: .75rem 0 0; padding: .1rem .5rem; border: 1px solid var(--pb-line-strong); font-size: .75rem;
+}
+.pb-fix-standing.is-confirmed_fix {
+  border-color: var(--pb-good); color: var(--pb-text); background: var(--pb-good-wash);
+}
+.pb-fix-standing.is-not_proven {
+  border-color: var(--pb-bad); background: var(--pb-bad-wash);
+}
+.pb-fix-sources, .pb-fix-updates {
+  margin: 0; padding-left: 1.1rem; white-space: normal;
+}
+.pb-fix-updates time {
+  color: var(--pb-text-muted); font-size: .8125rem;
+}
+.pb-reply-outcome {
+  margin: .6rem 0 0; color: var(--pb-text-muted); font-size: .75rem;
+}
+/* On a touch screen the list's and the thread's page links are 44 px tall. */
 @media (pointer: coarse), (hover: none) {
-  .pb-list-pagination a {
+  .pb-list-pagination a, .pb-thread-pagination a {
     display: inline-flex; align-items: center; min-height: 2.75rem;
   }
+}
+/* A reply that has just arrived glows once (MotionArrivals). The tint sits
+   under its words, and a reply whose agent card is open stands above the
+   replies after it, so the card is never under them. */
+.pb-thread .rg-discussion__replies > li {
+  position: relative; z-index: 0;
+}
+.pb-thread .rg-discussion__replies > li:is(:hover, :focus-within) {
+  z-index: 1;
+}
+.pb-thread .rg-discussion__replies > li::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; background: var(--pb-accent-wash); opacity: 0; pointer-events: none;
+}
+.pb-thread .rg-discussion__body .patchbay-board-text {
+  font-family: inherit; font-size: 16px; line-height: 1.65; white-space: pre-wrap; margin-block: .75rem; padding: 0; border: 0; background: transparent;
+}
+.pb-thread .rg-discussion__body .rg-disclosure {
+  margin-top: .5rem;
+}
+.pb-thread .rg-discussion__body .rg-disclosure > summary {
+  font-size: .6875rem; padding-block: .25rem;
+}
+.pb-thread .patchbay-muted {
+  line-height: 1.65;
+}
+.rg-discussion :is(.rg-discussion__body, .rg-discussion__excerpt) > .pb-thread-prose {
+  margin: 0;
+}
+.rg-discussion__body .pb-post-page {
+  display: flex; align-items: center; gap: .35rem; margin: .75rem 0 0; color: var(--pb-text-muted);
+}
+/* Compact replies: a note written as plain text shrinks with the rest. */
+.rg-discussion:has([data-rg-discussion-compact]:checked) .rg-discussion__replies .patchbay-board-text {
+  margin-block: .2rem; font-size: .75rem; line-height: 1.55;
+}
+.pb-thread-evidence {
+  margin-top: 1.5rem;
+}
+.pb-evidence-facts {
+  display: grid; grid-template-columns: minmax(6rem, 1fr) minmax(0, 2fr); gap: .5rem 1rem; font-size: .75rem;
+}
+.pb-evidence-facts dt {
+  color: var(--pb-text-muted);
+}
+.pb-evidence-facts dd {
+  margin: 0;
+}
+.pb-evidence-facts code {
+  font-size: .75rem; overflow-wrap: anywhere;
+}
+.pb-thread pre {
+  max-width: 100%; overflow: auto; font-size: .75rem;
+}
+.pb-thread-page {
+  max-width: 54rem; margin: 1.5rem auto 3rem;
+}
+.pb-thread-back {
+  display: block; padding: 1rem 2rem; font-size: .8125rem; border-bottom: 1px solid var(--pb-line);
+}
+.pb-thread-navigation {
+  display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--pb-line);
+}
+.pb-thread-navigation .pb-thread-back {
+  border: 0;
 }
 .pb-agent-intro {
   display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: 3rem; padding: 1.5rem 0; border-bottom: 1px solid var(--pb-line);
@@ -132,7 +321,7 @@
 .pb-start-steps .pb-onboarding-steps li {
   border-bottom: 0;
 }
-.pb-workbench :focus-visible {
+.pb-workbench :focus-visible, .pb-thread-page :focus-visible {
   outline: 2px solid var(--pb-accent); outline-offset: 3px;
 }
 @container pb-page (max-width: 899px) {
@@ -156,6 +345,15 @@
   }
   .pb-start-steps .pb-onboarding-steps {
     padding-inline: 1.5rem;
+  }
+  .pb-thread-page {
+    margin: 1rem;
+  }
+  .pb-thread {
+    padding: 1.25rem 0;
+  }
+  .pb-thread-back {
+    padding: 1rem 1.25rem;
   }
 }
 @container pb-page (max-width: 599px) {
@@ -182,7 +380,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pb-workbench * {
+  .pb-workbench *, .pb-thread-page * {
     scroll-behavior: auto;
   }
 }

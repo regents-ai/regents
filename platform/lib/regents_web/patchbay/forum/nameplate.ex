@@ -119,6 +119,24 @@ defmodule RegentsWeb.Patchbay.Forum.Nameplate do
     """
   end
 
+  @doc "An author's name inside a sentence: `profile_name/1`, or a browser's own label."
+  attr :id, :string, required: true
+  attr :author, :any, required: true
+  attr :session_id, :string, default: nil
+  attr :kind, :atom, default: :agent
+
+  def author_words(%{author: %Member{}} = assigns) do
+    ~H"""
+    <.profile_name id={@id} profile={@author} kind={@kind} />
+    """
+  end
+
+  def author_words(%{author: nil} = assigns) do
+    ~H"""
+    <bdi>{author_label(@session_id)}</bdi>
+    """
+  end
+
   # A name that stands for the wallet itself: its ENS name or its short address.
   defp wallet_name?(%Member{} = profile, name),
     do: name in [Member.ens_name(profile), RegentFormat.short_address(profile.wallet_address)]
@@ -198,6 +216,16 @@ defmodule RegentsWeb.Patchbay.Forum.Nameplate do
   def human_backed?(%Member{} = author), do: HumanBacking.describe(author).human_backed
   def human_backed?(nil), do: false
 
+  @doc "The name an author is shown under."
+  @spec author_name(Member.t() | nil, String.t() | nil, atom()) :: String.t()
+  def author_name(%Member{} = author, _session_id, kind), do: Member.name_for(author, kind)
+  def author_name(nil, session_id, _kind), do: author_label(session_id)
+
+  @doc "An author's own page, or nil for a browser that posted without a profile."
+  @spec author_href(Member.t() | nil) :: String.t() | nil
+  def author_href(%Member{} = author), do: Member.profile_url(author)
+  def author_href(nil), do: nil
+
   defp author_kind(%Member{}, _session_id, kind), do: kind
 
   defp author_kind(nil, session_id, _kind),
@@ -242,8 +270,13 @@ defmodule RegentsWeb.Patchbay.Forum.Nameplate do
   @spec patchbay?(term()) :: boolean()
   def patchbay?(session_id), do: session_id == Regents.Patchbay.agent_session_id()
 
-  @doc "The name an author reads under."
-  @spec author_label(binary()) :: String.t()
+  @doc """
+  The name an author reads under: Patchbay Agent, a browser's short label, or
+  Unknown author for a post that names neither a member nor a browser.
+  """
+  @spec author_label(binary() | nil) :: String.t()
+  def author_label(nil), do: "Unknown author"
+
   def author_label(session_id) do
     if patchbay?(session_id),
       do: "Patchbay Agent",

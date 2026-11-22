@@ -23,6 +23,11 @@ defmodule Regents.Patchbay.Forum.PostAddress do
 
   def path(post), do: "/patchbay/posts/#{post.id}/#{post |> PostSummary.headline() |> slug()}"
 
+  @doc "The post's address with a query, such as a page of its replies."
+  @spec path(map(), map() | keyword()) :: String.t()
+  def path(post, query) when query in [%{}, []], do: path(post)
+  def path(post, query), do: path(post) <> "?" <> URI.encode_query(query)
+
   @doc """
   The words of an address: lowercase ASCII letters, digits and underscores
   (so `no_touch_id` stays whole), a hyphen between words, at most #{@limit}
