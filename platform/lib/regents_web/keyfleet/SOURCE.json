@@ -1,0 +1,726 @@
+{
+  "repository": "regents-ai/keyfleet",
+  "commit": "03eb26813",
+  "taken": "2026-11-21",
+  "rules": "K2's naming rules plus the web side's: KeyfleetWeb.X is RegentsWeb.Keyfleet.X at the same path under platform/lib/regents_web/keyfleet/, the endpoint and router are the site's, use RegentsWeb.Keyfleet as slice 1 has it, addresses under /keyfleet. The difference report (the reviewer's script) compares each file with the source after the rules",
+  "reachable": "Only slice 1's reading pages and guides are routed. Every other carried page compiles but has no route yet",
+  "files": [
+    {
+      "from": "platform/lib/keyfleet_web.ex",
+      "to": "platform/lib/regents_web/keyfleet.ex",
+      "changes": "slice 1's boundary root for RegentsWeb.Keyfleet, unchanged by K3: depends on RegentsWeb and Regents.Keyfleet; exports AgentFilesController, Layouts, PublicDocuments, PublicPagesController and ShellLive"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/activity_lines.ex",
+      "to": "platform/lib/regents_web/keyfleet/activity_lines.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/agent_compatibility.ex",
+      "to": "platform/lib/regents_web/keyfleet/agent_compatibility.ex",
+      "changes": [
+        "slice 1's file, kept as it is: it reads priv/keyfleet and links under /keyfleet"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/agent_guides.ex",
+      "to": "platform/lib/regents_web/keyfleet/agent_guides.ex",
+      "changes": [
+        "slice 1's difference that holds: the guides' true folder, priv/keyfleet/public/agents, in the moduledoc",
+        "slice 1's difference that holds: every runtime's page is listed, Claude's and ChatGPT's included, as keyfleet.ai shows them with its connector on (Regents.Keyfleet.OAuth is not carried)",
+        "a full module name aliased at the top, as slice 1 has it (Credo's nested-alias rule)",
+        "the rules' longer addresses rewrapped, as slice 1 has it",
+        "need: its only caller is not carried, so it would be dead code here (pairing_box.ex)"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/box_limit.ex",
+      "to": "platform/lib/regents_web/keyfleet/box_limit.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/code_password.ex",
+      "to": "platform/lib/regents_web/keyfleet/code_password.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/agent_picture.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/agent_picture.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/agent_setup.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/agent_setup.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/buy_key.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/buy_key.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/count.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/count.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/countdown.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/countdown.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/fleet_figures.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/fleet_figures.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/fleet_prompts.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/fleet_prompts.ex",
+      "changes": [
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/footnote.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/footnote.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/key_card.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/key_card.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/layouts.ex",
+      "to": "platform/lib/regents_web/keyfleet/layouts.ex",
+      "changes": [
+        "slice 1's file, kept as it is: app/1 and product_links/1 only, links under /keyfleet; no root or early layout (the site's root document serves every page); no footer theme switch, as under keyfleet.ai's header"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/load_failed.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/load_failed.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/member_list.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/member_list.ex",
+      "changes": [
+        "need: the site has no list_shown_linked_identities!/1; Accounts.list_linked_identities_for_accounts!/2 with the system actor reads the same rows (accounts in the list, at most 100), with two more public fields the list does not read (display_name, verified_at), sorted by account then provider, so each account's links come in the same order"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/placeholder.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/placeholder.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/presence_card.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/presence_card.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/reading.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/reading.ex",
+      "changes": [
+        "slice 1's difference that holds: the Agent Message on /keyfleet/agents stays out (it needs stored messages K2 did not carry)",
+        "slice 1's difference that holds: the moduledoc says the pages sit in Keyfleet's frame (the app shell here is regents.sh's), with no Agent Message, rewrapped for the longer addresses as slice 1 has it"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/regent_links.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/regent_links.ex",
+      "changes": [
+        "slice 1's difference that holds: X and GitHub only, as social_links/1, which slice 1's footer (layouts.ex) calls; the Regents Products menu and its hairline were Keyfleet's header's, which goes under the site's bar (its product menu replaces them)",
+        "slice 1's difference that holds: token_menu/1, apps_menu/1 and crown/1 drew Keyfleet's header, which goes (the site's bar holds the crown and the product menu); no caller here"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/schedule_card.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/schedule_card.ex",
+      "changes": [
+        "need: the Agents page it named (agents_panel.ex) is the site's now; the moduledoc names the variant by its attribute",
+        "need: the check-in words came from pairing_box.ex (not carried); they are kept here, word for word, as @check_in"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/season_picks.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/season_picks.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/sent_from.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/sent_from.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/shell.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/shell.ex",
+      "changes": [
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
+        "slice 1's difference that holds: the frame sits under the site's bar (RegentsWeb.Components.Shell.site_bar/1), which holds the crown, product menu, theme switch and account control; Keyfleet's header with its Get Key, account menu (agents slot) and pairing window goes",
+        "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go; the account tabs were their only use"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/tour.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/tour.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/components/vote_tally.ex",
+      "to": "platform/lib/regents_web/keyfleet/components/vote_tally.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/controllers/directory_json.ex",
+      "to": "platform/lib/regents_web/keyfleet/controllers/directory_json.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/controllers/directory_md.ex",
+      "to": "platform/lib/regents_web/keyfleet/controllers/directory_md.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/diff.ex",
+      "to": "platform/lib/regents_web/keyfleet/diff.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/feed_lines.ex",
+      "to": "platform/lib/regents_web/keyfleet/feed_lines.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/fleet_now.ex",
+      "to": "platform/lib/regents_web/keyfleet/fleet_now.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/fleet_proposals.ex",
+      "to": "platform/lib/regents_web/keyfleet/fleet_proposals.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/harbour_crew.ex",
+      "to": "platform/lib/regents_web/keyfleet/harbour_crew.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/key_links.ex",
+      "to": "platform/lib/regents_web/keyfleet/key_links.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/atlas_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/atlas_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/atlas_live/blocks.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/atlas_live/blocks.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/atlas_page.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/atlas_page.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/check_ins.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/check_ins.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/dms_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/dms_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/fleet_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/fleet_live.ex",
+      "changes": [
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/fleet_page.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/fleet_page.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/harbour_sea_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/harbour_sea_live.ex",
+      "changes": [
+        "need: Keyfleet's launch gate (plugs/launch_gate.ex) is not carried; the site's own (RegentsWeb.Plugs.LaunchGate) closes every /keyfleet page while closed, so here the open state stands, as slice 1 has every row open",
+        "need: the site has no PublicIdentity.short_wallet/1; PublicIdentity.label(%{wallet_address: owner}) stands in, as the Keyfleet chief ruled (decision a). The one case that differs: a text that is not an address prints as itself where the source printed \"Account\" (label/1 hands it to RegentFormat.short_address/1, which passes a non-address through); an address and nil print the same (0x6f89..2b07; Account). The owner drawn here is a stored lowercase address, and the line is not drawn when it is nil. Proof: /tmp/kf-chief/k3/label_proof.txt"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/key_map.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/key_map.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/key_profile_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/key_profile_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/keys_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/keys_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/polls_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/polls_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/project_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/project_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/project_page.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/project_page.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/proposals_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/proposals_live.ex",
+      "changes": [
+        "need: Regents.Limits names every allowance <product>_<name>; the site's budget is :keyfleet_treasury_refresh, one press every 30 seconds, as keyfleet.ai's :treasury_refresh"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/proposals_page.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/proposals_page.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/rooms_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/rooms_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/search_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/search_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/season_panel.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/season_panel.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/seasons_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/seasons_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/shell_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/shell_live.ex",
+      "changes": [
+        "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go",
+        "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; Keyfleet's render_context/1 is the site's plus the Schedule card's cookie (the router names it for Keyfleet's live session); the source's client_key goes with the Agent Message",
+        "slice 1's difference that holds: the Agent Message on /keyfleet/agents stays out (it needs stored messages K2 did not carry)",
+        "slice 1's difference that holds: the frame sits under the site's bar (RegentsWeb.Components.Shell.site_bar/1), which holds the crown, product menu, theme switch and account control; Keyfleet's header with its Get Key, account menu (agents slot) and pairing window goes",
+        "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the source's second mount drew again a page whose token predated client_key and schedule_put_away (an old shape); the site's tokens carry this page's context from the first",
+        "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands",
+        "need: live/session.ex is not carried; the site's hook (RegentsWeb.Live.Session) replaces it; the lineage it assigned is the site's session_lease.lineage",
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had",
+        "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/treasury_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/treasury_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/workspace_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/workspace_live.ex",
+      "changes": [
+        "need: Pair New Agent opened Keyfleet's own pairing window (pairing_box.ex, not carried); it is a plain link to the site's Pair New Agent page, /pair, as the brief rules, drawn with the same classes and label the button had (a comment only)"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/workspace_page.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/workspace_page.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/worldline_live.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/worldline_live.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/live/worldline_page.ex",
+      "to": "platform/lib/regents_web/keyfleet/live/worldline_page.ex",
+      "changes": [
+        "the site's mix format: the rules' longer names put the line past 98 characters, so the formatter breaks it; no other change"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/page_read.ex",
+      "to": "platform/lib/regents_web/keyfleet/page_read.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/poll_refusal.ex",
+      "to": "platform/lib/regents_web/keyfleet/poll_refusal.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/public_documents.ex",
+      "to": "platform/lib/regents_web/keyfleet/public_documents.ex",
+      "changes": [
+        "a full module name aliased at the top, as slice 1 has it (Credo's nested-alias rule)",
+        "slice 1's moduledoc, which says what the module holds here, with page/2 added",
+        "slice 1's difference that holds: the site's root document reads the title and description (Keyfleet's root layout and metadata/3 are not brought)",
+        "the page titles of pages not here go: home, pair, early, the account family, the showcase and the motion lab",
+        "a map of atom keys only, written as keywords (`docs:` for `:docs =>`), as slice 1 writes it; the titles and descriptions are the source's, word for word",
+        "slice 1's difference that holds: no home document, metadata/3, openapi, sitemap, robots, security.txt, api catalog, structured data or recovery links (the site's root document and its own documents serve those)",
+        "slice 1's difference that holds: document/1 and paths/0 under /keyfleet, with url/1",
+        "slice 1's difference that holds: addresses and paths as they are here (/keyfleet/docs, assets/css/keyfleet)",
+        "need: Keyfleet's launch gate (plugs/launch_gate.ex) is not carried; the site's own (RegentsWeb.Plugs.LaunchGate) closes every /keyfleet page while closed, so here the open state stands, as slice 1 has every row open",
+        "slice 1's difference that holds: {{hosted_mcp}} is the connector's wording with it on, its addresses under /keyfleet (Regents.Keyfleet.OAuth is not carried)"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/route_catalog.ex",
+      "to": "platform/lib/regents_web/keyfleet/route_catalog.ex",
+      "changes": [
+        "need: Keyfleet's home (\"/\") is not here (/keyfleet is the site's product page, as slice 1 rules); its entry and spec go",
+        "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go",
+        "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/route_catalog_types.ex",
+      "to": "platform/lib/regents_web/keyfleet/route_catalog_types.ex",
+      "changes": [
+        "need: Keyfleet's account pages (/account, /account/agents, /account/points, /account/wallets, /account/connections) and /pair are the site's now (the brief's NOT carried: account_live, menu_agents, pairing_box, pair_live, and points_live, agents_panel, key_gallery, agent_keys, points_entries, used only there); their aliases, assigns, loaders, presses, results, notices and page branches go; the account tabs were their only use"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/search_json.ex",
+      "to": "platform/lib/regents_web/keyfleet/search_json.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/share_card.ex",
+      "to": "platform/lib/regents_web/keyfleet/share_card.ex",
+      "changes": [
+        "need: Keyfleet's other files are under priv/keyfleet/ here (the port rules' place for a product's files); layout.json is brought byte for byte to priv/keyfleet/share/layout.json, as K2 brought classic_key_prices.txt, because ShareCard reads it at compile time; the pictures beside it come with the share pictures' route",
+        "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands (the share pictures' controller is not carried; /keyfleet/share/... is where Keyfleet's scope puts it)"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/share_pictures.ex",
+      "to": "platform/lib/regents_web/keyfleet/share_pictures.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/shared_figures.ex",
+      "to": "platform/lib/regents_web/keyfleet/shared_figures.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/telemetry.ex (wallet_failed/2 and its reasons only)",
+      "to": "platform/lib/regents_web/keyfleet/telemetry.ex",
+      "changes": [
+        "need: the brief keeps Keyfleet's events in a Keyfleet module under [:regents, :keyfleet...]; only wallet_failed/2 and its reasons are carried (the one event the pages report), its event renamed to [:regents, :keyfleet_wallet, :failure] as K2 names Keyfleet's events; the metrics, reporter, poller and buckets are the site's to list (RegentsWeb.Telemetry), not carried"
+      ]
+    },
+    {
+      "from": "platform/lib/keyfleet_web/time.ex",
+      "to": "platform/lib/regents_web/keyfleet/time.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/wallet/onchain_steps.ex",
+      "to": "platform/lib/regents_web/keyfleet/wallet/onchain_steps.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/wallet/wallet_panel.ex",
+      "to": "platform/lib/regents_web/keyfleet/wallet/wallet_panel.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/wallet/wallet_words.ex",
+      "to": "platform/lib/regents_web/keyfleet/wallet/wallet_words.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/workspace_graph.ex",
+      "to": "platform/lib/regents_web/keyfleet/workspace_graph.ex",
+      "changes": "the source's file after the naming rules, line for line"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/controllers/agent_files_controller.ex",
+      "to": "platform/lib/regents_web/keyfleet/agent_files_controller.ex",
+      "changes": "slice 1's: the joining guide, its parts, each runtime's skill and the git helper, under /keyfleet; the placeholders read config :regents keyfleet_siwa_origin, keyfleet_code_origin and keyfleet_notebooks_host_suffix; the agent-skills index and zip and commands.json left out"
+    },
+    {
+      "from": "platform/lib/keyfleet_web/controllers/public_pages_controller.ex",
+      "to": "platform/lib/regents_web/keyfleet/public_pages_controller.ex",
+      "changes": "slice 1's: llms, agents and help only"
+    }
+  ],
+  "not_carried": [
+    {
+      "source": "live/session.ex",
+      "replaced_by": "the site's hook, {RegentsWeb.Live.Session, :load_human}; Keyfleet's ShellLive.render_context/1 is the site's render_context/1 plus the Schedule card's cookie (schedule_put_away), named by the router for Keyfleet's live session"
+    },
+    {
+      "source": "live/account_live.ex, live/points_live.ex, live/pair_live.ex, components/menu_agents.ex, components/pairing_box.ex, components/agents_panel.ex, components/key_gallery.ex, components/account_wallets.ex, components/posting_key_choice.ex, components/verified_connections.ex, refusal.ex, agent_keys.ex, points_entries.ex",
+      "replaced_by": "the site's /account, /account/agents, /account/points, /account/wallets, /account/connections and /pair; links to them are plain links to the site's addresses; ShellLive's account, points, connections and pair branches go"
+    },
+    {
+      "source": "live/home_live.ex",
+      "replaced_by": "/keyfleet stays the site's product page (slice 1's ruling); nothing carried reaches the home page"
+    },
+    {
+      "source": "components/agent_message.ex, components/agent_message/form.ex",
+      "replaced_by": "nothing: the Agent Message stays out of /keyfleet/agents, as in slice 1 (it needs stored messages K2 did not carry)"
+    },
+    {
+      "source": "client_address.ex",
+      "replaced_by": "RegentsWeb.ClientAddress (no carried page calls it; the source's client_key went with the Agent Message)"
+    },
+    {
+      "source": "content_security_policy.ex",
+      "replaced_by": "the site's RegentsWeb.ContentSecurityPolicy (the regents chief's); the sources Keyfleet's pages need that it lacks are listed in policy_sources"
+    },
+    {
+      "source": "telemetry.ex, telemetry/buckets.ex",
+      "replaced_by": "RegentsWeb.Keyfleet.Telemetry keeps the one event the pages report (wallet_failed/2); the metrics are the site's to list (RegentsWeb.Telemetry)"
+    },
+    {
+      "source": "visit_log.ex, visit_log/events.ex, controllers/visit_log_controller.ex",
+      "replaced_by": "the site's own visit lines: the source's wrote one log line per thing a person or agent did (visit, actor, surface, request id, event), to the log and not to the database; no carried page calls it"
+    },
+    {
+      "source": "plugs/launch_gate.ex, live/launch_gate_hook.ex",
+      "replaced_by": "the site's RegentsWeb.Plugs.LaunchGate, which closes every /keyfleet page while closed; here the open state stands, as slice 1 has every row open"
+    },
+    {
+      "source": "motion.ex, read.ex, not_found_error.ex, components/page_head.ex",
+      "replaced_by": "the site's RegentsWeb.Motion, RegentsWeb.Read, RegentsWeb.NotFoundError and RegentsWeb.Components.PageHead, the same code"
+    },
+    {
+      "source": "endpoint.ex, router.ex, plugs for agents' signed requests, the notebook and code gateways, the connector plug, the Privy session controller, the showcase and admin pages",
+      "replaced_by": "the site's own; no carried page calls one"
+    },
+    {
+      "source": "controllers/notebook_open_controller.ex, controllers/notebook_open_html.ex, controllers/share_card_controller.ex",
+      "replaced_by": "not carried: their routes are not here; the pages build their addresses as plain paths through RouteCatalog (plain_paths)"
+    },
+    {
+      "source": "controllers/agent_message_controller.ex",
+      "replaced_by": "nothing: it goes with the Agent Message"
+    }
+  ],
+  "plain_paths": [
+    {
+      "function": "RouteCatalog.notebooks_path/1",
+      "address": "/keyfleet/fleets/:fleet_id/notebooks/open?to=/",
+      "put_back_as": "the source's ~p\"/fleets/#{fleet_id}/notebooks/open?#{[to: \"/\"]}\" (ShellLive's open_notebooks press)"
+    },
+    {
+      "function": "RouteCatalog.fleet_picture_path/1",
+      "address": "/keyfleet/share/:fleet_id.png",
+      "put_back_as": "the source's ~p\"/share/#{file}\" (ShareCard)"
+    },
+    {
+      "function": "RouteCatalog.project_picture_path/2",
+      "address": "/keyfleet/share/projects/:fleet_id/:name.png",
+      "put_back_as": "the source's ~p\"/share/projects/#{fleet_id}/#{file}\" (ShareCard)"
+    }
+  ],
+  "policy_sources": [
+    {
+      "directive": "img-src",
+      "source": "the public origin of the agents' picture bucket (Regents.Keyfleet.Agents.AvatarBucket.public_origin/0, from :regents, :keyfleet_avatar_bucket, public_url, which this site's config does not set yet); the source added it to sign_in/0, built per response. Key cards (KeyArt.origin/0, https://media.regents.sh) are already in the site's sign_in/0"
+    },
+    {
+      "directive": "script-src and form-action",
+      "source": "the notebook entry page's policy (the source's notebook_entry/2: one nonce script, forms only to the fleet's notebook host); it comes with the notebook opening controller, which is not carried"
+    }
+  ],
+  "events": {
+    "carried": [
+      "[:regents, :keyfleet_wallet, :failure] (RegentsWeb.Keyfleet.Telemetry.wallet_failed/2, metadata flow and reason): the source exposed it as the metric health.wallet_send_failures.total, tagged flow and reason"
+    ],
+    "named_as": "K2's :keyfleet_<name> form; the brief says [:regents, :keyfleet, ...]: the Keyfleet chief to rule",
+    "source_metrics_not_carried": [
+      "privy browser_failure, session_refused, session_bootstrap rate_limited, session_authority absent_row",
+      "repo query queue_time and total_time",
+      "router_dispatch duration",
+      "chain failure",
+      "indexer lag and passes",
+      "wallet unconfirmed_oldest",
+      "shared_reading kind, size, degraded, keys, table bytes, refused, woken",
+      "agents activity_unread",
+      "vitals lcp, fcp, ttfb, inp, cls, reports, refused",
+      "launch step and refused",
+      "oban jobs",
+      "vm"
+    ]
+  },
+  "keys_on_account": [
+    "Your Keys on Profile: every Key the person's wallets hold, fleet by fleet in catalog order, each fleet's name linking to it; none held shows No Keys yet. with Get a Key on Classic #1",
+    "Each fleet's Keys as a gallery of cards (the small card picture, 100 Keys a read, and Key N linking to the Key's page), those with any of the person's agents on them first, then by number",
+    "Under each Key, the agents on it (picture, the logo of the harness it paired on, name) with Remove (Keys.release_agent), and Add agent to put one of the person's paired agents on it (Keys.assign_agent), moving it off the Key it was on, with a line saying what changed",
+    "Beside a Key in its first two days, the countdown Eligible in until it first shares the Daily Treasury Slice to Keys (the vote contract's maturesAt, read at the latest block)",
+    "For each fleet on chain, Claim: one wallet step per token waiting for all the fleet's Keys at once (WalletPanel flow claim_all, tool keys_claim_all)",
+    "Where the person holds more than one Key in a fleet, the Key they post as there (PostingKeyChoice, Keys.PostingKey)",
+    "On Agents, beside each agent, the Keys it is on and those its wallet holds an active shard of, each linking to the Key's page, or Assign a Key leading to Your Keys when it is on none and the person holds a Key (AgentKeys)"
+  ],
+  "left_for_later": [
+    "Routes for the fleet pages, under Keyfleet's scope: until they land nothing carried beyond slice 1's reading pages is reachable. Fleets.path/1 and Fleets.catalog/0 still name the source's addresses (/classic/1, /app/fleets/...), and the product sidebar's Account entry patches to /account, which is another live session's page: both change when those routes land",
+    "The sea (HarbourSeaLive.sea/1) is not placed by the site's root layout",
+    "ShareCard.image/2 is not wired: the site's root document reads share_image",
+    "The header's Buy Key offer goes with Keyfleet's header (the site's bar has no place for it); the Buy Key window and the fleet pages' Buy Key stay. A request for the next slice",
+    "The Schedule card's page: :agents variant has no caller here (the Agents page it sat on is the site's)",
+    "Settings the carried pages read that config does not set: :regents, :keyfleet_fleet_feed_wait_ms and :keyfleet_first_read_ms",
+    "The design handoff (RouteCatalog.design_handoff/0) is kept; its caller, the mix task keyfleet.route_handoff, is not carried",
+    "What Keyfleet's account page showed about Keys becomes a panel on the site's account page (the regents chief's): keys_on_account below"
+  ],
+  "held": [
+    {
+      "file": "live/shell_live.ex",
+      "is_now": "no answer to the site's ENS notice",
+      "must_be": "notice({:ens_lookup_finished, _account_id}, socket) answering {:noreply, socket}, as the site's own ShellLive does: the site's hook passes that message on to the page after re-reading the account, where the source's hook kept it, so without it a signed-in page crashes when the person's ENS lookup finishes. Its own commit after the carry (site-calls.md row W7)"
+    }
+  ],
+  "not_reached": {
+    "why": "no carried page reaches them (the walk of the Keyfleet chief's measure, reach.py, which never enters a file not carried): the agents' API and tools, the JSON and agent controllers, plugs and gateways, OAuth, the early page, health, metrics and vitals, the showcase and admin pages; each comes with its own slice or is the site's",
+    "files": [
+      "agent_tools.ex",
+      "agent_tools/account.ex",
+      "agent_tools/account/answer.ex",
+      "agent_tools/code.ex",
+      "agent_tools/code/answer.ex",
+      "agent_tools/dms.ex",
+      "agent_tools/dms/answer.ex",
+      "agent_tools/fleets.ex",
+      "agent_tools/fleets/answer.ex",
+      "agent_tools/keys.ex",
+      "agent_tools/keys/answer.ex",
+      "agent_tools/notebooks.ex",
+      "agent_tools/notebooks/answer.ex",
+      "agent_tools/polls.ex",
+      "agent_tools/polls/answer.ex",
+      "agent_tools/projects.ex",
+      "agent_tools/projects/answer.ex",
+      "agent_tools/public.ex",
+      "agent_tools/public/answer.ex",
+      "agent_tools/publications.ex",
+      "agent_tools/publications/answer.ex",
+      "agent_tools/refused.ex",
+      "agent_tools/rooms.ex",
+      "agent_tools/rooms/answer.ex",
+      "agent_tools/run.ex",
+      "agent_tools/seasons.ex",
+      "agent_tools/seasons/answer.ex",
+      "agent_tools/signed_request.ex",
+      "agent_tools/workspace.ex",
+      "agent_tools/workspace/answer.ex",
+      "agent_tools/workspace/atlas.ex",
+      "agent_tools/workspace/read.ex",
+      "agent_waits.ex",
+      "body_reader.ex",
+      "budget.ex",
+      "components/tech_stack.ex",
+      "components/value_cards.ex",
+      "controllers/agent_account_controller.ex",
+      "controllers/agent_activity_controller.ex",
+      "controllers/agent_avatar_controller.ex",
+      "controllers/agent_chain_controller.ex",
+      "controllers/agent_chain_json.ex",
+      "controllers/agent_checkpoint_controller.ex",
+      "controllers/agent_code_controller.ex",
+      "controllers/agent_dm_controller.ex",
+      "controllers/agent_doctor_controller.ex",
+      "controllers/agent_graph_controller.ex",
+      "controllers/agent_key_controller.ex",
+      "controllers/agent_link_controller.ex",
+      "controllers/agent_mute_controller.ex",
+      "controllers/agent_notebook_controller.ex",
+      "controllers/agent_poll_controller.ex",
+      "controllers/agent_preview_controller.ex",
+      "controllers/agent_profile_controller.ex",
+      "controllers/agent_project_controller.ex",
+      "controllers/agent_proposal_controller.ex",
+      "controllers/agent_publication_controller.ex",
+      "controllers/agent_receipt_controller.ex",
+      "controllers/agent_reply.ex",
+      "controllers/agent_room_controller.ex",
+      "controllers/agent_season_controller.ex",
+      "controllers/agent_shard_controller.ex",
+      "controllers/directory_controller.ex",
+      "controllers/early_controller.ex",
+      "controllers/error_html.ex",
+      "controllers/error_json.ex",
+      "controllers/error_md.ex",
+      "controllers/feed_controller.ex",
+      "controllers/health_controller.ex",
+      "controllers/hub_jwks_controller.ex",
+      "controllers/launch_steps_controller.ex",
+      "controllers/metadata_controller.ex",
+      "controllers/oauth_controller.ex",
+      "controllers/privy_session_controller.ex",
+      "controllers/proposal_json.ex",
+      "controllers/public_proposals_controller.ex",
+      "controllers/public_seasons_controller.ex",
+      "controllers/room_json.ex",
+      "controllers/treasury_controller.ex",
+      "controllers/vitals_controller.ex",
+      "controllers/workspace_pulse_controller.ex",
+      "errors_admin.ex",
+      "launch_steps.ex",
+      "links.ex",
+      "live/admin_messages_live.ex",
+      "live/animations_live.ex",
+      "live/deck_showcase_live.ex",
+      "live/key_map_showcase_live.ex",
+      "live/privy_showcase_live.ex",
+      "live/showcase_live.ex",
+      "live_crashes.ex",
+      "mention_json.ex",
+      "metrics.ex",
+      "notebook_socket.ex",
+      "plugs/canonical_host.ex",
+      "plugs/code_gateway.ex",
+      "plugs/contract_headers.ex",
+      "plugs/fleet_coming_soon.ex",
+      "plugs/mcp_agent.ex",
+      "plugs/no_trailing_slash.ex",
+      "plugs/notebook_gateway.ex",
+      "plugs/parsers.ex",
+      "plugs/parsers/last_read.ex",
+      "plugs/profile_owner.ex",
+      "plugs/signed_agent.ex",
+      "plugs/theme.ex",
+      "plugs/unread_body.ex",
+      "poll_json.ex",
+      "preview.ex",
+      "script_preloads.ex",
+      "season_json.ex",
+      "showcase/catalog.ex",
+      "showcase/local_only.ex",
+      "showcase/sample.ex",
+      "showcase/utilities.ex",
+      "standing.ex",
+      "tool_errors.ex",
+      "tool_schemas.ex",
+      "vitals.ex",
+      "workspace_refusal.ex"
+    ]
+  }
+}

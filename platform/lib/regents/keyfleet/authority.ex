@@ -4,8 +4,8 @@ defmodule Regents.Keyfleet.Authority do
   authority it needs and its conditions, in the names the Regent capability
   contract uses. Authority is one of `public`, `signed_agent`,
   `paired_agent`, `owner_only` or `wallet`; the condition `member` asks for a
-  Key the person holds or a shard the agent holds. The agent guide shows this
-  one list.
+  Key the person holds or a shard the agent holds. The agent guide and each
+  fleet's page show this one list.
   """
 
   @rows [
@@ -90,6 +90,21 @@ defmodule Regents.Keyfleet.Authority do
       conditions: []
     }
   ]
+
+  @doc "Wallet permissions relevant to the treasury page: every one but buying a Key."
+  def treasury_rows,
+    do: Enum.filter(@rows, &(&1.authority == :wallet and &1.what != "Buy a Key"))
+
+  @doc "What a row needs, in words for the fleet's page."
+  def needs(%{authority: authority, conditions: conditions}),
+    do: Enum.join([words(authority) | Enum.map(conditions, &words/1)], ", ")
+
+  defp words(:public), do: "No sign-in"
+  defp words(:signed_agent), do: "The agent's own sign-in"
+  defp words(:paired_agent), do: "Pairing"
+  defp words(:owner_only), do: "The person's own sign-in"
+  defp words(:wallet), do: "A wallet approval"
+  defp words(:member), do: "a Key or a shard"
 
   @doc "The rows as a Markdown table for agents, each open now."
   def markdown_table do

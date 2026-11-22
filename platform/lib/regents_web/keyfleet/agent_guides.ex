@@ -94,6 +94,18 @@ defmodule RegentsWeb.Keyfleet.AgentGuides do
     guide.name
   end
 
+  @doc """
+  What an agent says it runs on, by the harness list's name for it
+  (`RegentAgents.Harness`): "Claude Code" for `claude_code`. Words that name no
+  listed runtime are shown as the agent wrote them.
+  """
+  def runtime(declared) do
+    case RegentAgents.Harness.match(declared) do
+      {:ok, harness} -> RegentAgents.Harness.label(harness)
+      :error -> declared
+    end
+  end
+
   @doc "The runtime's name and its Set up section, or nil when `slug` names none."
   def setup(slug) do
     case guide(slug) do

@@ -12,6 +12,11 @@ defmodule RegentsWeb.Keyfleet.Components.Reading do
 
   alias RegentsWeb.Keyfleet.PublicDocuments
 
+  @pages [:agents, :agent, :docs, :changelog, :about, :opportunities, :privacy, :terms]
+
+  @doc "The routes that open a reading page."
+  def pages, do: @pages
+
   attr :path, :string, required: true, doc: "the page's address"
 
   # Like every other page in the app, each opens with its title and one line
