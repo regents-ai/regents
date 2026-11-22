@@ -1,0 +1,271 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"gen_random_uuid()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "token_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "block_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "transaction_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "block_number",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "log_index",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "record_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "observed_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "key_reveal_expiries_fleet_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "fleets"
+      },
+      "scale": null,
+      "size": null,
+      "source": "fleet_id",
+      "type": "text"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "token_id"
+      ],
+      "base_filter": null,
+      "check": "token_id > 0",
+      "name": "key_reveal_expiries_positive_token"
+    },
+    {
+      "attribute": [
+        "block_hash"
+      ],
+      "base_filter": null,
+      "check": "block_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "key_reveal_expiries_block_hash_shape"
+    },
+    {
+      "attribute": [
+        "transaction_hash"
+      ],
+      "base_filter": null,
+      "check": "transaction_hash ~ '^0x[0-9a-f]{64}$'",
+      "name": "key_reveal_expiries_transaction_hash_shape"
+    },
+    {
+      "attribute": [
+        "block_number"
+      ],
+      "base_filter": null,
+      "check": "block_number >= 0",
+      "name": "key_reveal_expiries_nonnegative_block_number"
+    },
+    {
+      "attribute": [
+        "log_index"
+      ],
+      "base_filter": null,
+      "check": "log_index >= 0",
+      "name": "key_reveal_expiries_nonnegative_log_index"
+    },
+    {
+      "attribute": [
+        "record_seq"
+      ],
+      "base_filter": null,
+      "check": "record_seq > 0",
+      "name": "key_reveal_expiries_positive_record_seq"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [],
+  "custom_statements": [
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER immutable_key_reveal_expiries ON keyfleet_app.key_reveal_expiries;",
+      "global?": false,
+      "name": "immutable_key_reveal_expiries_trigger",
+      "up": "CREATE TRIGGER immutable_key_reveal_expiries BEFORE UPDATE OR DELETE ON keyfleet_app.key_reveal_expiries\nFOR EACH ROW EXECUTE FUNCTION keyfleet_app.refuse_proposal_record_change();\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER untruncatable_key_reveal_expiries ON keyfleet_app.key_reveal_expiries;",
+      "global?": false,
+      "name": "untruncatable_key_reveal_expiries_trigger",
+      "up": "CREATE TRIGGER untruncatable_key_reveal_expiries BEFORE TRUNCATE ON keyfleet_app.key_reveal_expiries\nFOR EACH STATEMENT EXECUTE FUNCTION keyfleet_app.refuse_proposal_record_change();\n"
+    }
+  ],
+  "has_create_action": true,
+  "hash": "15B6BFB1D495633DE073A5506CF98E7038DF48410A40AC8B7B4DF236AB68BCEE",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "key_reveal_expiries_unique_chain_event_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "transaction_hash"
+        },
+        {
+          "type": "atom",
+          "value": "log_index"
+        }
+      ],
+      "name": "unique_chain_event",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "key_reveal_expiries_unique_key_reveal_expiry_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "token_id"
+        }
+      ],
+      "name": "unique_key_reveal_expiry",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "key_reveal_expiries_unique_record_seq_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "record_seq"
+        }
+      ],
+      "name": "unique_record_seq",
+      "nils_distinct?": true,
+      "where": null
+    }
+  ],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "key_reveal_expiries",
+  "temporal": null
+}

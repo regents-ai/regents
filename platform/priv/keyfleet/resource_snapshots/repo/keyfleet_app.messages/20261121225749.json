@@ -1,0 +1,752 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "acting_agent_wallet",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "beneficiary_privy_user_id",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "agent_pairing_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"gen_random_uuid()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "kind",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "in_key_thread",
+      "type": "boolean"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "author_kind",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "author_wallet",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "as_key",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "body",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "[]",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "mentions",
+      "type": [
+        "array",
+        "bigint"
+      ]
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "body_digest",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "idempotency_key",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(clock_timestamp() AT TIME ZONE 'utc')\")",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "inserted_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "messages_fleet_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "fleets"
+      },
+      "scale": null,
+      "size": null,
+      "source": "fleet_id",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "messages_room_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "rooms"
+      },
+      "scale": null,
+      "size": null,
+      "source": "room_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "messages_agent_profile_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "agent_profiles"
+      },
+      "scale": null,
+      "size": null,
+      "source": "agent_profile_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "messages_via_agent_profile_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "agent_profiles"
+      },
+      "scale": null,
+      "size": null,
+      "source": "via_agent_profile_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "messages_reply_to_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "messages"
+      },
+      "scale": null,
+      "size": null,
+      "source": "reply_to_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "messages_quote_request_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "quote_requests"
+      },
+      "scale": null,
+      "size": null,
+      "source": "quote_request_id",
+      "type": "uuid"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "seq"
+      ],
+      "base_filter": null,
+      "check": "seq > 0",
+      "name": "messages_positive_seq"
+    },
+    {
+      "attribute": [
+        "kind"
+      ],
+      "base_filter": null,
+      "check": "kind IN ('post', 'room_named')",
+      "name": "messages_kind"
+    },
+    {
+      "attribute": [
+        "author_wallet"
+      ],
+      "base_filter": null,
+      "check": "author_wallet ~ '^0x[0-9a-f]{40}$'",
+      "name": "messages_author_wallet_shape"
+    },
+    {
+      "attribute": [
+        "body"
+      ],
+      "base_filter": null,
+      "check": "length(body) BETWEEN 1 AND 4000",
+      "name": "messages_body_length"
+    },
+    {
+      "attribute": [
+        "as_key"
+      ],
+      "base_filter": null,
+      "check": "as_key IS NULL OR as_key > 0",
+      "name": "messages_as_key"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "as_key"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "as_key"
+        },
+        {
+          "type": "string",
+          "value": "inserted_at DESC"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_posts_as_key_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "kind = 'post' AND NOT in_key_thread"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "id"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "inserted_at DESC"
+        },
+        {
+          "type": "string",
+          "value": "id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_fleet_lines_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "NOT in_key_thread"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "room_id",
+        "id"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "room_id"
+        },
+        {
+          "type": "string",
+          "value": "inserted_at DESC"
+        },
+        {
+          "type": "string",
+          "value": "id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_fleet_room_lines_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "NOT in_key_thread"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": true,
+      "error_fields": [],
+      "fields": [
+        {
+          "type": "string",
+          "value": "to_tsvector('english', body)"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_search_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": "gin",
+      "where": "kind = 'post'"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": true,
+      "error_fields": [
+        "mentions"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "mentions"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_mentions_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": "gin",
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": true,
+      "error_fields": [
+        "fleet_id",
+        "inserted_at"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "inserted_at"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_posts_written_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "kind = 'post'"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "room_id"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "room_id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_room_namings_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "kind = 'room_named'"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "as_key"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "as_key"
+        },
+        {
+          "type": "string",
+          "value": "inserted_at DESC"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "messages_page_posts_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "kind = 'post' AND author_kind = 'human' AND via_agent_profile_id IS NULL"
+    }
+  ],
+  "custom_statements": [
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP FUNCTION keyfleet_app.protect_message();",
+      "global?": false,
+      "name": "immutable_messages_function",
+      "up": "CREATE FUNCTION keyfleet_app.protect_message() RETURNS trigger LANGUAGE plpgsql AS $$\nBEGIN\n  IF TG_OP IN ('DELETE', 'TRUNCATE') THEN\n    RAISE EXCEPTION 'messages cannot be deleted' USING ERRCODE = '23514';\n  END IF;\n  RAISE EXCEPTION 'messages cannot be edited' USING ERRCODE = '23514';\nEND;\n$$;\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER immutable_messages ON keyfleet_app.messages;\n",
+      "global?": false,
+      "name": "immutable_messages_trigger",
+      "up": "CREATE TRIGGER immutable_messages BEFORE UPDATE OR DELETE ON keyfleet_app.messages\nFOR EACH ROW EXECUTE FUNCTION keyfleet_app.protect_message();\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER untruncatable_messages ON keyfleet_app.messages;\n",
+      "global?": false,
+      "name": "untruncatable_messages_trigger",
+      "up": "CREATE TRIGGER untruncatable_messages BEFORE TRUNCATE ON keyfleet_app.messages\nFOR EACH STATEMENT EXECUTE FUNCTION keyfleet_app.protect_message();\n"
+    }
+  ],
+  "has_create_action": true,
+  "hash": "E8245E2B434FF1BE024764023D4E03C896967D636DB5C13B6C2B57DABC2F4AE9",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "messages_one_quote_per_request_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "quote_request_id"
+        }
+      ],
+      "name": "one_quote_per_request",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "messages_unique_place_in_room_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "room_id"
+        },
+        {
+          "type": "atom",
+          "value": "seq"
+        }
+      ],
+      "name": "unique_place_in_room",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "messages_unique_send_key_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "author_wallet"
+        },
+        {
+          "type": "atom",
+          "value": "idempotency_key"
+        }
+      ],
+      "name": "unique_send_key",
+      "nils_distinct?": true,
+      "where": null
+    }
+  ],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "messages",
+  "temporal": null
+}

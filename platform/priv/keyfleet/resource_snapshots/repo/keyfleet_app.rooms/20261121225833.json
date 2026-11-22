@@ -1,0 +1,306 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "acting_agent_wallet",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "beneficiary_privy_user_id",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "agent_pairing_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"gen_random_uuid()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "slug",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "name",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "kind",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "token_id",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "topic",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "topic_set_by",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "topic_set_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "0",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "head_seq",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_tenant?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": null,
+          "global": null,
+          "strategy": null
+        },
+        "name": "rooms_fleet_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "keyfleet_app",
+        "table": "fleets"
+      },
+      "scale": null,
+      "size": null,
+      "source": "fleet_id",
+      "type": "text"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [
+    {
+      "attribute": [
+        "head_seq"
+      ],
+      "base_filter": null,
+      "check": "head_seq >= 0",
+      "name": "rooms_nonnegative_head"
+    },
+    {
+      "attribute": [
+        "kind"
+      ],
+      "base_filter": null,
+      "check": "(kind = 'fixed' AND slug IN ('welcome', 'general', 'people', 'business', 'voting', 'coding'))\nOR (kind = 'open' AND slug IN ('open-1', 'open-2', 'open-3', 'open-4', 'open-5'))\nOR (kind = 'created' AND slug NOT IN ('welcome', 'general', 'people', 'business', 'voting', 'coding', 'open-1', 'open-2', 'open-3', 'open-4', 'open-5')\n    AND slug !~ '^key-[0-9]+$')\nOR (kind = 'key' AND token_id IS NOT NULL AND slug = 'key-' || token_id)\n",
+      "name": "rooms_kind_address"
+    },
+    {
+      "attribute": [
+        "token_id"
+      ],
+      "base_filter": null,
+      "check": "(kind = 'key') = (token_id IS NOT NULL)",
+      "name": "rooms_key_thread_token"
+    },
+    {
+      "attribute": [
+        "topic"
+      ],
+      "base_filter": null,
+      "check": "(topic IS NULL AND topic_set_by IS NULL AND topic_set_at IS NULL)\nOR (kind = 'open' AND topic IS NOT NULL AND topic_set_by IS NOT NULL\n    AND topic_set_by ~ '^0x[0-9a-f]{40}$' AND topic_set_at IS NOT NULL)\n",
+      "name": "rooms_topic_named"
+    }
+  ],
+  "create_table_options": null,
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "name"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "lower(coalesce(topic, name))"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": "is already another room's name in this fleet",
+      "name": "rooms_unique_name_per_fleet",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": true,
+      "using": null,
+      "where": "kind <> 'key'"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "fleet_id",
+        "slug"
+      ],
+      "fields": [
+        {
+          "type": "string",
+          "value": "fleet_id"
+        },
+        {
+          "type": "string",
+          "value": "slug"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "rooms_fleet_rooms_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": "kind <> 'key'"
+    }
+  ],
+  "custom_statements": [],
+  "has_create_action": true,
+  "hash": "54F622BBCD6F64AC1558DE5E1A2A59C3BCECC400838A04F14794399E2AA81E9E",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "rooms_unique_slug_per_fleet_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "fleet_id"
+        },
+        {
+          "type": "atom",
+          "value": "slug"
+        }
+      ],
+      "name": "unique_slug_per_fleet",
+      "nils_distinct?": true,
+      "where": null
+    }
+  ],
+  "multitenancy": {
+    "attribute": null,
+    "global": null,
+    "strategy": null
+  },
+  "repo": "Elixir.Regents.Repo",
+  "schema": "keyfleet_app",
+  "table": "rooms",
+  "temporal": null
+}
