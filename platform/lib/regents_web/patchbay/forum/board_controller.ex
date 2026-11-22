@@ -181,9 +181,7 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
     path = PostAddress.path(report)
 
     if conn.request_path == path do
-      conn
-      |> viewed(report)
-      |> show_report(report, params)
+      show_report(conn, report, params)
     else
       conn
       |> put_status(:moved_permanently)
@@ -203,35 +201,29 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   # caller never names it, so nobody can be counted as someone else.
   @forum_session "patchbay_forum_session_id"
 
-  # The page shows the post as read above, so a reader's first view is counted
-  # from their next one. The reader is the browser's own forum session, given
-  # it here when it has none. Where the site only reads, nothing is written. A
-  # view that is refused or cannot be written is logged by its kind only, never
-  # with the session, and the page is served.
+  # A view is counted only when the thread's page is drawn for a browser that
+  # came back with the forum session this page gave it: its first visit is
+  # given one and writes nothing, so a reader is counted from their second
+  # request, and a crawler or a fetch that keeps no cookie never writes. The
+  # Markdown answer, and the site where it only reads, neither count nor give
+  # one. A view that is refused or cannot be written is logged by its kind
+  # only, never with the session, and the page is served.
   defp viewed(conn, report) do
-    if Regents.read_only?() do
-      conn
-    else
-      conn = forum_session(conn)
-      record_view(report, get_session(conn, @forum_session))
-      conn
-    end
+    if Regents.read_only?() or get_format(conn) != "html",
+      do: conn,
+      else: viewed(conn, report, get_session(conn, @forum_session))
   end
 
-  defp record_view(report, session_id) do
+  defp viewed(conn, _report, nil), do: put_session(conn, @forum_session, Ash.UUID.generate())
+
+  defp viewed(conn, report, session_id) do
     case Board.record_view(report, session_id) do
       {:ok, _view} ->
-        :ok
+        conn
 
       {:error, failure} ->
         Logger.warning("A thread view could not be recorded: " <> inspect(error_type(failure)))
-    end
-  end
-
-  defp forum_session(conn) do
-    case get_session(conn, @forum_session) do
-      id when is_binary(id) -> conn
-      _none -> put_session(conn, @forum_session, Ash.UUID.generate())
+        conn
     end
   end
 
@@ -239,13 +231,14 @@ defmodule RegentsWeb.Patchbay.Forum.BoardController do
   defp query_part(query), do: "?" <> query
 
   # A bad continuation and a reply read that fails are each said for what
-  # they are, never shown as an empty thread.
+  # they are, never shown as an empty thread, and neither counts a view.
   defp show_report(conn, report, params) do
     filter = if params["replies"] in ["solution", "official"], do: params["replies"], else: "all"
 
     case Board.thread_page(report, params["after"], filter) do
       {:ok, thread} ->
         conn
+        |> viewed(report)
         |> merge_assigns(Layouts.frame(conn, [BoardHTML.thread_data(report, thread.replies)]))
         |> render(
           :report,
