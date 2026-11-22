@@ -5,9 +5,9 @@ defmodule Regents.Keyfleet.ChainClient do
   `RegentChain.Outcome` reads sent steps through `transaction/2` and `receipt/2`;
   Regent Points reads the NFTs an account's wallets hold through `rpc/3`.
   Every read is at `latest`: never count confirmations and never wait for `safe`
-  or `finalized`. The node is the site's own for the chain (`:chain_nodes`), never
-  the public address a wallet adds the chain with, and never from the browser, so a
-  private node or a lab fork reads what the site's steps sent.
+  or `finalized`. Base is read through the site's one Base read endpoint
+  (`:base_read_rpc_url`), never the public address a wallet adds the chain with,
+  and never from the browser.
   """
 
   @behaviour RegentPoints.ChainClient
@@ -25,10 +25,8 @@ defmodule Regents.Keyfleet.ChainClient do
   (`Regents.Keyfleet.Chain.RpcClient`).
   """
   @impl RegentPoints.ChainClient
-  def rpc(%{chain_id: chain_id} = chain, method, params) do
-    url = :regents |> Application.fetch_env!(:keyfleet_chain_nodes) |> Map.fetch!(chain_id)
-
-    case Req.post(url,
+  def rpc(%{chain_id: 8453} = chain, method, params) do
+    case Req.post(Application.fetch_env!(:regents, :base_read_rpc_url),
            json: %{jsonrpc: "2.0", id: 1, method: method, params: params},
            retry: false,
            receive_timeout: 5_000

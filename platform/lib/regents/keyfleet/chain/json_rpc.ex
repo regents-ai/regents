@@ -1,9 +1,9 @@
 defmodule Regents.Keyfleet.Chain.JsonRpc do
   @moduledoc """
-  One JSON-RPC request to the node at `KEYFLEET_RPC_URL`, for the fleet
-  reader.
+  One JSON-RPC request to Base through the site's one Base read endpoint
+  (`:base_read_rpc_url`), for the fleet reader.
 
-  It logs nothing, so the node's address never reaches a log; each caller
+  It logs nothing, so the endpoint's address never reaches a log; each caller
   says what failed in its own words.
   """
 
@@ -17,7 +17,7 @@ defmodule Regents.Keyfleet.Chain.JsonRpc do
   transport's `:reason`.
   """
   def request(method, params) do
-    case Req.post(Application.fetch_env!(:regents, :keyfleet_chain)[:rpc_url],
+    case Req.post(Application.fetch_env!(:regents, :base_read_rpc_url),
            json: %{jsonrpc: "2.0", id: 1, method: method, params: params},
            receive_timeout: @timeout,
            retry: false

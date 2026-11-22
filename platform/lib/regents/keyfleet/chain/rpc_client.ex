@@ -1,7 +1,7 @@
 defmodule Regents.Keyfleet.Chain.RpcClient do
   @moduledoc """
   The chain reads the fleet reader and the wallet steps need, over JSON-RPC to
-  the node at `KEYFLEET_RPC_URL`.
+  the site's one Base read endpoint (`:base_read_rpc_url`, `Regents.Keyfleet.Chain.JsonRpc`).
 
   Logs come back exactly as `eth_getLogs` returns them; decoding them is
   `Regents.Keyfleet.Chain.Logs`'s job. Contract reads come back as the bytes the

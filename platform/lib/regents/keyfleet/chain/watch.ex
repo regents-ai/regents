@@ -1,14 +1,11 @@
 defmodule Regents.Keyfleet.Chain.Watch do
   @moduledoc """
-  Every five minutes (`config :regents, Oban, cron:`), where a node is
-  configured (`KEYFLEET_RPC_URL`): makes sure each deployed fleet has a
-  `Regents.Keyfleet.Chain.ReadFleet` job reading its history, and queues a
+  Every five minutes (`config :regents, Oban, cron:`): makes sure each deployed
+  fleet has a `Regents.Keyfleet.Chain.ReadFleet` job reading its history,
+  through the site's one Base read endpoint, and queues a
   `Regents.Keyfleet.Chain.ReadBalances` reading of its balances. A fleet recorded
   while the site runs is read from the next turn on, or sooner when a
   person's on-chain press lands (`refresh/1`).
-
-  With fleets deployed and no node named, nothing reads them; each turn says
-  so with the site's errors (`Regents.Keyfleet.Chain.ReadingStoppedError`).
   """
   use Oban.Worker, queue: :keyfleet_default, max_attempts: 1
 
@@ -16,13 +13,14 @@ defmodule Regents.Keyfleet.Chain.Watch do
 
   alias Regents.Keyfleet.Chain.ReadBalances
   alias Regents.Keyfleet.Chain.ReadFleet
-  alias Regents.Keyfleet.Chain.ReadingStoppedError
   alias Regents.Keyfleet.ChainRefresh
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    fleets = Regents.Keyfleet.Fleets.list_deployed_fleets!()
-    read(fleets, Application.fetch_env!(:regents, :keyfleet_chain)[:rpc_url])
+    Regents.Keyfleet.Fleets.list_deployed_fleets!()
+    |> Enum.flat_map(&[ReadFleet.new(%{fleet_id: &1.id}), ReadBalances.new(%{fleet_id: &1.id})])
+    |> Enum.each(&Oban.insert!/1)
+
     :ok
   end
 
@@ -52,21 +50,4 @@ defmodule Regents.Keyfleet.Chain.Watch do
   end
 
   defp bring_forward(%Oban.Job{}, _soon), do: :ok
-
-  defp read([], _rpc_url), do: :ok
-
-  defp read(fleets, nil) do
-    ReadingStoppedError.report(
-      "No fleet is being read: KEYFLEET_RPC_URL names no node. Deployed fleets waiting: " <>
-        "#{length(fleets)}. Set it to a Base node; the watch starts reading within five minutes."
-    )
-
-    :ok
-  end
-
-  defp read(fleets, _rpc_url) do
-    fleets
-    |> Enum.flat_map(&[ReadFleet.new(%{fleet_id: &1.id}), ReadBalances.new(%{fleet_id: &1.id})])
-    |> Enum.each(&Oban.insert!/1)
-  end
 end

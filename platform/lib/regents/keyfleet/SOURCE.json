@@ -502,6 +502,17 @@
         ],
         "edit": "each catalog fleet's path gains /keyfleet (/keyfleet/classic/1, /keyfleet/app/fleets/regents_club), as do the comment and path/1's doc that name one (K3 b)",
         "reason": "Keyfleet's pages are under /keyfleet on this site, and every link to a fleet the pages draw is built from Fleets.path/1"
+      },
+      {
+        "files": [
+          "chain/json_rpc.ex",
+          "chain/rpc_client.ex",
+          "chain_client.ex",
+          "chain/watch.ex",
+          "chain/reading_stopped_error.ex"
+        ],
+        "edit": "every read of Base posts to the site's one Base read endpoint, Application.fetch_env!(:regents, :base_read_rpc_url): JsonRpc.request/2 and ChainClient.rpc/3 (for chain 8453) in place of keyfleet.ai's own two node settings, one for the fleet reader and one map by chain for the wallet steps' receipts; the watch queues each deployed fleet's readings every turn, with no branch for a node not named, and ReadingStoppedError's moduledoc names the one stop left (a node serving another chain than the fleet's); the moduledocs say so (K3 b fixes)",
+        "reason": "need: the regents chief's review of K3 (b): the server reads Base through the site's one read endpoint, a provider's address that never reaches a page, a log line or a reply, and there is no second node setting"
       }
     ],
     "not_carried": {
@@ -570,16 +581,9 @@
       "keyfleet_fleet_feed_wait_ms": 2000,
       "keyfleet_avatar_bucket": "public_url https://keyfleet-pictures.fly.storage.tigris.dev only (K3 b); nothing here writes to the bucket",
       "keyfleet_wallet_chains": "8453: Base, https://mainnet.base.org, the source's (K3 b)",
-      "keyfleet_chain_nodes": "8453: https://mainnet.base.org, the source's (K3 b)",
       "Regents.Keyfleet.Decks directory, Regents.Keyfleet.Traits directory": "priv/keyfleet/decks and priv/keyfleet/trait_tables in the release (runtime.exs, K3 b)"
     },
     "settings_unset": [
-      {
-        "setting": "keyfleet_chain rpc_url",
-        "read_by": "chain/json_rpc.ex (through chain/rpc_client.ex: the Buy Key window's figures, a deployed fleet's FleetProposals reading and a proposal page's head block), chain/watch.ex",
-        "why": "the address of a JSON-RPC node (keyfleet.ai: KEYFLEET_RPC_URL at runtime)",
-        "set_by": "asked of the regents chief in K3 (b): keyfleet.ai's KEYFLEET_RPC_URL, or the site's BASE_READ_RPC_URL (a stop of K3 b)"
-      },
       {
         "setting": "keyfleet_graph data_dir, python, url; keyfleet_graph_listener",
         "read_by": "graph/",
