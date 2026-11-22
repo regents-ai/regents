@@ -426,7 +426,7 @@ defmodule RegentsWeb.Router do
     pipe_through [:browser, :keyfleet]
 
     live_session :keyfleet,
-      session: {RegentsWeb.Live.Session, :render_context, []},
+      session: {RegentsWeb.Keyfleet.ShellLive, :render_context, []},
       layout: {RegentsWeb.Keyfleet.Layouts, :app},
       on_mount: [{RegentsWeb.Live.Session, :load_human}] do
       live "/about", ShellLive, :about
