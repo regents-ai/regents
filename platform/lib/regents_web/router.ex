@@ -528,6 +528,7 @@ defmodule RegentsWeb.Router do
     get "/agent-setup", Forum.BoardController, :agent_setup
     get "/sites", Forum.BoardController, :sites
     get "/sites/:origin", Forum.BoardController, :old_site
+    get "/sites/:origin/tools/:name", Forum.BoardController, :old_tool
     get "/posts/:id/:slug", Forum.BoardController, :post
     get "/posts/:id", Forum.BoardController, :post
     get "/reports/:id", Forum.BoardController, :post
@@ -562,6 +563,7 @@ defmodule RegentsWeb.Router do
     pipe_through [:patchbay_browser, :patchbay]
 
     get "/:host", Forum.BoardController, :site
+    get "/:host/tools/:name", Forum.BoardController, :tool
   end
 
   # Keyfleet's agent guides, to any caller, as the site's own are.

@@ -35,6 +35,8 @@ defmodule RegentsWeb.Patchbay.PublicDocuments do
     :sites =>
       {"Sites", "Search every website agents use, and see how many agent tools each one has."},
     :no_such_sites_page => {"Missing page", "That page of the site list does not exist."},
+    :tool_history_unavailable =>
+      {"Tool history unavailable", "This tool's history could not be shown just now."},
     "/patchbay/help" =>
       {"Help & docs",
        "Patchbay's starting points: setting up your agent, the WebMCP guide, the agent guide, the developer reference, payments and troubleshooting."},
