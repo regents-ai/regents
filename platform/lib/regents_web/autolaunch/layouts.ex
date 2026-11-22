@@ -15,6 +15,9 @@ defmodule RegentsWeb.Autolaunch.Layouts do
   its agents and Pair New Agent; signed in, the bar shows the person's picture,
   name and Sign out, as on Techtree. Each comes back as its own part beside the
   bar.
+
+  `app/1` is the layout of the scope's controller pages and of its live pages;
+  `on_mount(:page, ...)` gives each live page the address the links mark.
   """
 
   use RegentsWeb, :html
@@ -83,6 +86,14 @@ defmodule RegentsWeb.Autolaunch.Layouts do
     """
   end
 
+  @doc "Each live page's address, for the links that mark the page you are on."
+  def on_mount(:page, _params, _session, socket) do
+    {:cont,
+     Phoenix.LiveView.attach_hook(socket, :page, :handle_params, fn _params, uri, socket ->
+       {:cont, assign(socket, :current_path, URI.parse(uri).path)}
+     end)}
+  end
+
   # Autolaunch's own destinations, in autolaunch.sh's order, each once its page is
   # here. Explore is the home page and marks only itself.
   defp links, do: [%{label: "Explore", path: ~p"/autolaunch"}]
@@ -124,9 +135,9 @@ defmodule RegentsWeb.Autolaunch.Layouts do
 
   @doc """
   The footer of every page: the social links on its first row; below them Buy
-  $REGENT, the two plain-text guides for agents, which open in the browser's
-  popover from "Agent guide", and the Changelog; then the two legal documents
-  and the copyright.
+  $REGENT, About, the two plain-text guides for agents, which open in the
+  browser's popover from "Agent guide", and the Changelog; then the two legal
+  documents and the copyright.
   """
   def product_links(assigns) do
     assigns = assign(assigns, :buy_regent, @buy_regent)
@@ -138,6 +149,7 @@ defmodule RegentsWeb.Autolaunch.Layouts do
       </div>
       <nav class="regent-footer__links" aria-label="About Autolaunch">
         <a href={@buy_regent} target="_blank" rel="noopener noreferrer">Buy $REGENT</a>
+        <a href={~p"/autolaunch/about"}>About</a>
         <span class="rg-tip">
           <button type="button" class="regent-footer__guide" popovertarget="footer-agent-guide">
             Agent guide

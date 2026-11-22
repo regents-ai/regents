@@ -443,7 +443,15 @@ defmodule RegentsWeb.Router do
   scope "/autolaunch", RegentsWeb.Autolaunch do
     pipe_through [:browser, :autolaunch]
 
+    get "/about", PublicPagesController, :show
     get "/changelog", PublicPagesController, :show
+
+    live_session :autolaunch,
+      session: {RegentsWeb.Live.Session, :render_context, []},
+      layout: {RegentsWeb.Autolaunch.Layouts, :app},
+      on_mount: [{RegentsWeb.Live.Session, :load_human}, {RegentsWeb.Autolaunch.Layouts, :page}] do
+      live "/how-it-works", HowItWorksLive, :show
+    end
   end
 
   scope "/patchbay", RegentsWeb.Patchbay do

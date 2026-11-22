@@ -1,0 +1,90 @@
+defmodule Regents.Autolaunch.Stocks.FeeSchedule do
+  @moduledoc """
+  The trading fees every Memestock pool charges, on Base and on Robinhood
+  Chain: the pool fee on the token the trader pays with, and the creator's,
+  REGENT stakers' and token stakers' fees on the stock side of every trade.
+  The first four Memestock tokens (`:v1`) charge no creator's fee and 1% to
+  their stakers; Base's third launchpad (`:v3`) charges what the second does.
+  Every page that states these fees reads them here.
+  """
+
+  # Mirrors the contracts: StocksPreset.sol (POOL_FEE, CREATOR_LANE_BPS,
+  # REGENT_LANE_BPS, STAKER_LANE_BPS) on Base, and RobinhoodPreset.sol
+  # (CREATOR_LANE_BPS, PROTOCOL_LANE_BPS, STAKER_LANE_BPS, with StocksPreset's
+  # POOL_FEE) on Robinhood Chain; the first launchpads' presets for `:v1`. The
+  # pool fee is in Uniswap v4's hundredths of a bip, each lane in basis points.
+  @v2 %{pool_fee: 3_000, lanes: [creator: 30, regent: 100, stakers: 300]}
+  @v1 %{pool_fee: 3_000, lanes: [regent: 100, stakers: 100]}
+  @schedules %{
+    {:base, :v3} => @v2,
+    {:base, :v2} => @v2,
+    {:robinhood, :v2} => @v2,
+    {:base, :v1} => @v1,
+    {:robinhood, :v1} => @v1
+  }
+
+  @receivers %{
+    creator: {"Creator's fee", "the wallet that created the launch"},
+    regent: {"REGENT stakers' fee", "REGENT staking"},
+    stakers: {"Token stakers' fee", "the token’s staking, which sends 2% of it to Regent"}
+  }
+
+  @type chain :: :base | :robinhood
+  @type version :: :v1 | :v2 | :v3
+  @type lane :: %{
+          key: :pool | :creator | :regent | :stakers,
+          label: String.t(),
+          rate: String.t(),
+          charged_on: :paid | :stock,
+          receiver: String.t()
+        }
+
+  @doc """
+  Each fee a Memestock trade on `chain` pays on a launch of `version`: its
+  rate, what it is charged on and who receives it.
+  """
+  @spec lanes(chain(), version()) :: [lane()]
+  def lanes(chain, version) do
+    schedule = Map.fetch!(@schedules, {chain, version})
+
+    pool = %{
+      key: :pool,
+      label: "Pool fee",
+      rate: percent(div(schedule.pool_fee, 100)),
+      charged_on: :paid,
+      receiver:
+        "the pool’s liquidity; the fees the locked liquidity collects go to the token’s staking"
+    }
+
+    [
+      pool
+      | Enum.map(schedule.lanes, fn {key, bps} ->
+          {label, receiver} = Map.fetch!(@receivers, key)
+
+          %{
+            key: key,
+            label: label,
+            rate: percent(bps),
+            charged_on: :stock,
+            receiver: receiver(key, chain, receiver)
+          }
+        end)
+    ]
+  end
+
+  @doc "One of the fees a Memestock trade on `chain` pays on a launch of `version`."
+  @spec lane(chain(), version(), :pool | :creator | :regent | :stakers) :: lane() | nil
+  def lane(chain, version, key), do: Enum.find(lanes(chain, version), &(&1.key == key))
+
+  defp receiver(:regent, :base, _default), do: "REGENT staking after conversion to USDC"
+
+  defp receiver(:regent, :robinhood, _default),
+    do: "a Regent contract on Robinhood Chain as USDG, held until the transfer to Base is set up"
+
+  defp receiver(_lane, _chain, default), do: default
+
+  # Hundredths of a percent as a percent with two decimals: 30 is "0.30%".
+  defp percent(hundredths),
+    do:
+      "#{div(hundredths, 100)}.#{hundredths |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}%"
+end

@@ -8159,6 +8159,30 @@ seasons), on the shared Points library regents.sh was already on.
 - Nothing reads either yet: Keyfleet and Autolaunch move to them in their own slices.
 - One migration, which adds the two views and nothing else; no table, row, page or setting changes. On the `one-site` branch only.
 
+## 2026-11-22 — Redeem: an unlimited USDC approval no longer breaks the account panel
+
+- A wallet that had given the redeemer an unlimited USDC approval (set in the wallet itself; the page's own step asks for the exact price) could not open its part of the Redeem page: the figure was too long to write and the page failed. Current allowance now reads "Unlimited" for such an approval. Every other figure is written as before.
+- Found by the Autolaunch chief while proving the shared chain reader. No table, setting or migration; nothing about what the page asks a wallet to sign.
+
+## 2026-11-22 — Cloak pages: the size line no longer names 130 MB
+
+- /cloak and /cloak/install said "130 MB", the size of a file neither page offers now. The line reads "Apple silicon · macOS 26" until the next build's size is known. Ordinary page copy, on the Orchestrator's ruling of 22 Nov, told to the founder.
+- No table, setting or migration.
+
+## 2026-11-22 — Released the Redeem unlimited-approval fix
+
+- Commit f36c34f2, Redeem writes an unlimited USDC approval as Unlimited instead of failing, and the Cloak pages no longer say 130 MB. Full check exit 0 on f36c34f2; the practice run built the image and found no migration pending.
+- Live read, signed out: /redeem and /stake answer and /cloak and /cloak/install no longer say 130 MB and are otherwise as before (the fixed figure shows only to a connected wallet with such an approval, so it was proven on a local run, not live), the film answers, the pages and agent documents answer; health reports migrations applied.
+- Rollback: the image main-9e4edbdb8b17.
+
+## 2026-11-22 — One site: Autolaunch's How it works and About (not released)
+
+- `/autolaunch/how-it-works` and `/autolaunch/about` show How it works and About word for word as autolaunch.sh shows them at `4799025d`, with the same auction lengths, release times and fee shares, read from the launch terms the deployment descriptions name. About also answers as Markdown when asked with `Accept: text/markdown`.
+- Learn now lists How it works, About, Changelog, Privacy and Terms, and the footer gains About after Buy $REGENT, in autolaunch.sh's order. The bar and the phone menu are unchanged: on autolaunch.sh these pages are reached from Docs, which is not here yet.
+- Copy to Agent on How it works copies this site's agent guide. How it works' link to About REGENT points at `/autolaunch/regent`, which is not here yet.
+- Left out for now: Docs and the REGENT page (they read the agent tools and live chain figures), and the JSON answers for About and Docs.
+- Not released: on the `fold/autolaunch` branch only. No migration, queue, scheduled job, setting, secret, sign-in, session, wallet or pairing change.
+
 ## 2026-11-22 — Keyfleet's fleet pages in the one site, not yet open (not released)
 
 - Keyfleet's fleet pages are now part of this site: each fleet's page with its Key map and harbour, its Keys and their profiles, rooms and direct messages, the workspace and its projects, polls, proposals, the treasury, seasons, search, the worldline and the atlas, with the wallet steps they offer. They read the same records and show the same words as keyfleet.ai.
