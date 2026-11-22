@@ -27,8 +27,9 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
   alone and the picture is not ready yet.
 
   Each fleet's picture without its figures, the characters its figures are
-  set in and where they go are drawn by `scripts/share-cards/render.mjs` into
-  `priv/keyfleet/share`. A page names its fleet's picture with a version of its
+  set in and where they go are the files in `priv/keyfleet/share`, brought
+  as keyfleet.ai drew them; the script that draws them stays in keyfleet.ai.
+  A page names its fleet's picture with a version of its
   figures, so a site that keeps pictures by their address, as X does, asks
   again once they change. Each picture drawn is kept by the version of what
   it shows (`RegentsWeb.Keyfleet.SharePictures`), so it is drawn again only when that
@@ -498,7 +499,7 @@ defmodule RegentsWeb.Keyfleet.ShareCard do
     Operation.bandjoin_const!(image, [255.0])
   end
 
-  # One of the pictures `render.mjs` drew, opened.
+  # One of the files in `priv/keyfleet/share`, opened.
   defp share_file(name) do
     {:ok, image} =
       Image.new_from_file(Application.app_dir(:regents, Path.join("priv/keyfleet/share", name)))

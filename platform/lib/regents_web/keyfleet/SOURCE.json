@@ -472,8 +472,25 @@
       "from": "platform/lib/keyfleet_web/share_card.ex",
       "to": "platform/lib/regents_web/keyfleet/share_card.ex",
       "changes": [
-        "need: Keyfleet's other files are under priv/keyfleet/ here (the port rules' place for a product's files); layout.json is brought byte for byte to priv/keyfleet/share/layout.json, as K2 brought classic_key_prices.txt, because ShareCard reads it at compile time; the pictures beside it come with the share pictures' route",
+        "need: Keyfleet's other files are under priv/keyfleet/ here (the port rules' place for a product's files); layout.json is brought byte for byte to priv/keyfleet/share/layout.json, as K2 brought classic_key_prices.txt, because ShareCard reads it at compile time; the eight pictures beside it are brought byte for byte too, with the share pictures' route (platform/priv/share/, below; K5)",
+        "the Keyfleet chief's answer on K5 (2b): the script that draws the files in priv/keyfleet/share stays in keyfleet.ai; the moduledoc and share_file/1's comment say so and name no script here (K5)",
         "need: the route is not here yet, so the address is a plain path through Keyfleet's route catalog, to be put back as ~p when its route lands (the share pictures' controller is not carried; /keyfleet/share/... is where Keyfleet's scope puts it)"
+      ]
+    },
+    {
+      "from": "platform/priv/share/ (all but layout.json, which is above)",
+      "to": "platform/priv/keyfleet/share/",
+      "changes": [
+        "the Keyfleet chief's answer on K5 (1a): the pictures ShareCard draws on, brought byte for byte, each written from 03eb26813's git object (git show 03eb26813:platform/priv/share/<file>); eight files, 316,012 bytes (K5)",
+        "fleet_tech_classic.png: 56,136 bytes, SHA-256 12662f28511e85261b0929e3330155727c9ddfdb8ebc72eef278c12defe293ab",
+        "regents_club.png: 60,286 bytes, SHA-256 2b5cb7847b0dea45be4b4cbc92ab9cf1d67e819577b2588c68ccd3aca85c5c45",
+        "project_fleet_tech_classic.png: 59,815 bytes, SHA-256 5284dccb5a0bb007b47b9795abf9c74fb91ff9ecc0a1724d68a312836f0989ac",
+        "project_regents_club.png: 62,937 bytes, SHA-256 f9ced327fb229cadcdfd8c5064aec5c0e027399d30381996571e349616dc939c",
+        "glyphs-amount.png: 13,610 bytes, SHA-256 7a68da3e6d06d6f955cbbb1ea1e14bc7fdc3ef4071b3f1296e39db868dcb746e",
+        "glyphs-name.png: 10,884 bytes, SHA-256 a475df702481b5e66d264c95043b332fd540c700f406a2c4c19a2b79bddace9c",
+        "glyphs-title.png: 41,044 bytes, SHA-256 04b4d501509c72c5a74bb023f583259086251c591107e07519f0b7db4a979715",
+        "glyphs-value.png: 11,300 bytes, SHA-256 a492acccc88b65223804d66cdbf8e3e78bd9200be885d10828757956bb59f773",
+        "layout.json is not brought again: the fold's is the same git object (ae09eade) and byte for byte the same, 12,658 bytes, SHA-256 3b1b5fd5c268367fc8fbc5259879dff0759407ace93977208d301eb1dc2d7747"
       ]
     },
     {
