@@ -22,7 +22,7 @@ defmodule Regents.Account.Agents.PairedPersonWallet do
   load or an aggregate through it, admits the system actor alone, since whom an
   agent acts for is for trusted code; an aggregate read for anyone else finds no
   rows. The one exception is `Regents.Keyfleet.Agents.AgentProfile`'s `paired_key`:
-  two `authorize?: false` aggregates over its private `person_wallets`, since its
+  two aggregates that skip this policy over its private `person_wallets`, since its
   `:here` filter needs the Key as an expression, and only a Key's number leaves.
   """
 
