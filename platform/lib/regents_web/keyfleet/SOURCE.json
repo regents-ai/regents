@@ -282,6 +282,7 @@
         "the regents chief's read of the sea (K4): the read of the visitor's ships reads each fleet's class again first and reads a fleet the visitor is no longer a member of as anyone sees it",
         "the regents chief's read of the sea (K4): the read of the visitor's ships runs inside RegentsWeb.Keyfleet.PageRead.run(\"harbour\", …), so a failed database read is logged by its kind and the database's code only and saved with the site's errors, and the sea keeps the ships it has",
         "the regents chief's read of the sea (K4): an after-render hook (unheard/1) stops hearing every fleet topic the visitor heard as themselves once the shell's sign-in check finds the sign-in ended (signed_out_reason :expired)",
+        "the regents chief's ruling on K4: each read of a member's ships spends one of the page's address's keyfleet_sea_crew_reads (Regents.Limits, 180 a minute, keyed by the page's client_tag) before it starts; past them nothing is read, the sea keeps the ships it has and does not ask again by itself, and the next notice about those fleets asks again (K5)",
         "lift/1's doc names where the sea's hook is here, assets/js/keyfleet/hooks/harbour_sea.ts (K4)"
       ]
     },
